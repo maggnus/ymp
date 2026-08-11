@@ -1,0 +1,84 @@
+# POC work rules
+
+This tree is the execution record for the POC described in
+[`ROADMAP.md`](../ROADMAP.md). Product semantics remain in the design documents; current work and
+closure evidence live only in this tree.
+
+## Product clock
+
+**Nearest shippable outcome.** A controlled, matched-budget experiment can decide whether local
+self-organization improves independently accepted results and whether any observed communication
+is causally useful.
+
+**Scientific critical path.** `W1-EXP-01` → `W1-APP-02` → `W1-COR-03` →
+`W1-EVL-04`.
+
+**Interface-design path.** `W0-UX-01` → `W1-APP-02e` → `W1-COR-03e`. `W0` may proceed in
+parallel with the falsification package but must be accepted before either POC screen task starts.
+
+Only the current critical-path head is eligible for execution. Parallel work is admitted only when
+it has disjoint write zones, independent acceptance, and available non-author review capacity.
+
+## Sources of truth
+
+- One work unit is one permanent file under `waves/`; acceptance changes its state and closure
+  fields without moving it.
+- [`STATUS.md`](STATUS.md) and [`WAVES.md`](WAVES.md) are generated indexes and are never edited by
+  hand.
+- [`INVARIANTS.md`](../INVARIANTS.md) names the contracts whose violation can invalidate the POC.
+- [`CLAUDE_REQUESTS.md`](../CLAUDE_REQUESTS.md) is the design handoff contract; accepted screen
+  artifacts and their implementation traceability are owned by `W0-UX-01`.
+- The canonical source repository is `https://github.com/maggnus/ympus`, and the integration branch
+  is `main`. Commit convention, initial implementation validation, and project-owned work-tree
+  tooling remain unresolved under owner gate `G1`.
+- Repository commits and files become durable evidence only after `G1` is resolved; evidence links
+  must then be pinned to full immutable commits.
+
+## Authority and review
+
+- The CTO owns identifiers, dependencies, state changes, and closure records. A worker reads its
+  assigned file and does not edit the work tree.
+- Repository writers commit locally and never push. Push, publication, deployment, paid budget
+  expansion, use of real credentials, and irreversible actions require an explicit owner decision.
+- Every delegated outcome receives a non-author review before integration. The decompositions of
+  `W0` and `W1` must each receive an independent `ACCEPT` before any card in the corresponding wave
+  becomes active.
+- The current `pending` plan-review state is a real stop condition, not an administrative label.
+
+## Validation
+
+No implementation command is authoritative yet because the Rust workspace and project-owned
+validation tooling do not exist. Owner gate `G1` must establish the initial validation commands and
+work-tree tooling before the first dispatch.
+
+The intended minimum validation ladder, subject to that binding, is:
+
+1. the narrow test named in the active task;
+2. affected crate tests and protocol conformance tests;
+3. workspace formatting, linting, and test commands at a card boundary; and
+4. the complete controlled POC procedure only at the `W1-EVL-04` and wave acceptance boundaries.
+
+Every acceptance check includes a negative control. A check whose deliberately invalid case has
+not been observed to fail is not acceptance evidence.
+
+## POC boundary
+
+- The product interface is the foreground ratatui application in one installed Rust executable.
+- Codex and Claude Code are the two required real runtime profiles; the fake deterministic runtime
+  precedes both.
+- SQLite, OpenCode, NVIDIA Nemotron, strict host containment, a daemon, server/client mode, web
+  access, PostgreSQL, and Kubernetes are outside this wave.
+- The POC runs only in an externally disposable environment and does not claim safe execution on
+  an ordinary developer machine or an untrusted repository.
+- No implementation may add a global semantic scheduler, permanent role assignment, grade-based
+  task eligibility, prescribed escalation, or candidate ranking.
+
+## Findings and closure
+
+A finding remains in its task only when it shares the same outcome, scope, risk, and acceptance
+evidence. Independently assignable work receives a new stable identifier before execution.
+`Current state` is rewritten and bounded; history belongs to Git and the evidence package.
+
+A task is accepted only after its checklist, negative control, non-author review, closure commit,
+and durable evidence are recorded. After the second return, the work is split, accepted with an
+explicitly bounded limitation, or stopped at a named gate.
