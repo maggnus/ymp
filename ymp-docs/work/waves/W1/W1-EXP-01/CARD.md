@@ -55,4 +55,4 @@ visible.
 - [W1-EXP-01a](tasks/W1-EXP-01a.md) — required
 - [W1-EXP-01b](tasks/W1-EXP-01b.md) — required
 - [W1-EXP-01c](tasks/W1-EXP-01c.md) — required
-- [W1-EXP-01d](tasks/W1-EXP-01d.md) — required
+- [W1-EXP-01d](tasks/W1-EXP-01d/TASK.md) — required

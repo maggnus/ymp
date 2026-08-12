@@ -7,17 +7,17 @@ state: blocked
 risk: significant
 maturity: BUILD
 relation: required
-depends_on: [W1-APP-02a, W1-APP-02b, W1-EXP-01d]
+depends_on: [W1-APP-02a, W1-APP-02b, W1-EXP-01d.1]
 blocks: [W1-APP-02e]
 created_at: 2026-08-10T19:34:25+08:00
-updated_at: 2026-08-12T06:38:24+08:00
+updated_at: 2026-08-12T20:31:00+08:00
 started_at:
 accepted_at:
 candidate_commit:
 closure_commit:
 evidence:
 duration_minutes: 0
-blocker: Listed dependencies, synthetic-home isolation, agent-originated submission, and resume/yield continuity
+blocker: W1-EXP-01d.1 Codex runtime admission
 pause_reason:
 return_trigger:
 deliberate_partial: false

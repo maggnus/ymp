@@ -8,16 +8,16 @@ risk: significant
 maturity: RESEARCH
 relation: required
 depends_on: [W1-EXP-01b]
-blocks: [W1-APP-02c, W1-APP-02d]
+blocks: []
 created_at: 2026-08-10T19:34:25+08:00
-updated_at: 2026-08-12T17:44:58+08:00
+updated_at: 2026-08-12T20:31:00+08:00
 started_at:
 accepted_at:
 candidate_commit:
 closure_commit:
 evidence:
 duration_minutes: 0
-blocker: Claude authentication and complete managed submission
+blocker: Required child W1-EXP-01d.2 awaits Claude Code OAuth authentication
 pause_reason:
 return_trigger:
 deliberate_partial: false
@@ -61,16 +61,14 @@ isolation, usage evidence, and stopping behavior required by the experiment.
 
 ## Current state
 
-Exact-version and authentication probes distinguish ready, unauthenticated, incompatible,
-unavailable, and missing profiles. Both drivers isolate configuration, parse bounded events,
-terminate process groups, record usage, and pass fixtures. All L1-L3 levels have three accepted
-managed Codex repetitions; later L2/L3 runs exercised TUI verification and evidence export.
-Another L3 run submitted its bound workspace through MCP and passed the oracle; Claude OAuth is absent.
+The runtime contract is split into independently acceptable Codex and Claude Code profiles.
+W1-EXP-01d.1 can complete without Claude credentials and unblocks W1-APP-02c. W1-EXP-01d.2 remains
+blocked until Claude Code OAuth authentication is available. The parent closes only after both
+profiles have accepted evidence.
 
 ## Next action
 
-Authenticate Claude Code and repeat the L1-L3 ladder through `ymp`; then add its timeout and
-descendant-cleanup fixtures before primary admission.
+Complete and review W1-EXP-01d.1 while W1-EXP-01d.2 remains blocked on OAuth authentication.
 
 ## Guardrails
 
