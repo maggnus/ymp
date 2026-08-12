@@ -4,17 +4,17 @@ kind: subtask
 wave: W1
 card: W1-APP-02
 parent: W1-APP-02e
-state: active
+state: rework
 risk: significant
 maturity: BUILD
 relation: required
 depends_on: [W0-UX-01c]
 blocks: []
 created_at: 2026-08-12T16:19:52+08:00
-updated_at: 2026-08-12T16:19:52+08:00
+updated_at: 2026-08-12T16:46:02+08:00
 started_at: 2026-08-12T16:19:52+08:00
 accepted_at:
-candidate_commit:
+candidate_commit: https://github.com/maggnus/ymp/commit/7a54cc7fc35a86cde267edf629fab5e03c323602
 closure_commit:
 evidence:
 duration_minutes: 0
@@ -60,13 +60,14 @@ real model provider.
 
 ## Current state
 
-Work is active. The accepted W0 contract and existing projection-backed TUI provide the baseline.
-Existing tests cover part of the state system and 80 × 24 behavior; full mechanical coverage at
-both required sizes remains to be established.
+The first independent review returned the candidate for bounded rework. The package-local tests
+pass, but an external consumer cannot construct the required buffers through the current private
+interfaces. High-volume data, terminal actions, and executable keyboard coverage are incomplete.
 
 ## Next action
 
-Extend the `ymp-tui` TestBackend suite and prove it detects one deliberately incorrect mapping.
+Expose a minimal package test interface, complete the 16-buffer and keyboard matrices, and rerun
+the preserved external falsifier before re-review by the same reviewer.
 
 ## Guardrails
 
@@ -77,7 +78,15 @@ Extend the `ymp-tui` TestBackend suite and prove it detects one deliberately inc
 
 ## Findings
 
-None.
+Review of
+[`ymp-tui/src/lib.rs`](https://github.com/maggnus/ymp/blob/7a54cc7fc35a86cde267edf629fab5e03c323602/ymp-rust/crates/ymp-tui/src/lib.rs)
+found:
+
+- The externally compiled test cannot access rendering, projections, or interface state.
+- The high-volume fixture uses 257 runtimes instead of 4096 candidates and does not assert the
+  terminal reason.
+- Terminal action hints and key handling diverge for cancellation, search, detail, escape, help,
+  and quit paths.
 
 ## Closure
 
