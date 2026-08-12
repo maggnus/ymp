@@ -3,20 +3,20 @@ id: W1-APP-02f
 kind: task
 wave: W1
 card: W1-APP-02
-state: active
+state: accepted
 risk: critical
 maturity: BUILD
 relation: required
 depends_on: []
 blocks: []
 created_at: 2026-08-12T09:42:00+08:00
-updated_at: 2026-08-12T09:54:00+08:00
+updated_at: 2026-08-12T10:03:00+08:00
 started_at: 2026-08-12T09:40:09+08:00
-accepted_at:
+accepted_at: 2026-08-12T10:03:00+08:00
 candidate_commit: https://github.com/maggnus/ymp/commit/a08bf5b2f9af7c6868dac8d4bd99a1d1c76b9583
-closure_commit:
-evidence:
-duration_minutes: 0
+closure_commit: https://github.com/maggnus/ymp/commit/4145a442b476afedca8d091de3a30b1eb1ad9b84
+evidence: ["[a08bf5b](https://github.com/maggnus/ymp/commit/a08bf5b2f9af7c6868dac8d4bd99a1d1c76b9583)", "[4145a44](https://github.com/maggnus/ymp/commit/4145a442b476afedca8d091de3a30b1eb1ad9b84)"]
+duration_minutes: 23
 blocker:
 pause_reason:
 return_trigger:
@@ -43,20 +43,19 @@ recording or candidate construction, and terminates the run with a typed infrast
 
 ## Acceptance
 
-- [ ] Ordered unique runtime events still reach candidate construction through the real supervisor path.
-- [ ] A duplicate, gap, or reordered event produces a typed `infrastructure_error`, creates no
+- [x] Ordered unique runtime events still reach candidate construction through the real supervisor path.
+- [x] A duplicate, gap, or reordered event produces a typed `infrastructure_error`, creates no
   candidate, and leaves the run in a terminal state.
-- [ ] A regression test fails on the inherited implementation and passes on the corrected revision.
+- [x] A regression test fails on the inherited implementation and passes on the corrected revision.
 
 ## Current state
 
-The candidate rejects duplicate, skipped, and reordered runtime progress before durable recording.
-Builder-owned checks pass on the candidate. The preserved independent reviewer is rerunning its
-external product-path falsifier against the exact corrected revision.
+Accepted. Duplicate, skipped, and reordered runtime progress is rejected before durable recording;
+the run terminates with `InfrastructureError` and no candidate. Correct progress remains accepted.
 
 ## Next action
 
-Decide acceptance from the reviewer-selected external falsifier on the candidate commit.
+Proceed with the remaining required W1-APP-02 tasks.
 
 ## Guardrails
 
@@ -65,20 +64,22 @@ Decide acceptance from the reviewer-selected external falsifier on the candidate
 
 ## Findings
 
-- Duplicate runtime progress currently reaches candidate construction.
+None.
 
 ## Closure
 
-Filled when the task is accepted. Until then this section stays as written.
-
 ### Accepted outcome
 
-What was actually accepted.
+The production supervisor enforces a contiguous event sequence and unique bounded event identifiers
+before writing runtime progress. The same external product-path test that reproduced the inherited
+defect now rejects duplicate, skipped, and reordered events without a candidate or active attempt,
+including after application reopen.
 
 ### Residuals
 
-Honestly retained limitations, each with an exact return trigger. Empty when there are none.
+None.
 
 ### Evidence
 
-- Commit, evidence package, or durable document of record, each as a Markdown link.
+- [Reviewed correction](https://github.com/maggnus/ymp/commit/a08bf5b2f9af7c6868dac8d4bd99a1d1c76b9583).
+- [Integration commit](https://github.com/maggnus/ymp/commit/4145a442b476afedca8d091de3a30b1eb1ad9b84).
