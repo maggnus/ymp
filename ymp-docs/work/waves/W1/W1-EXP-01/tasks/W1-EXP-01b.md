@@ -3,17 +3,17 @@ id: W1-EXP-01b
 kind: task
 wave: W1
 card: W1-EXP-01
-state: active
+state: rework
 risk: critical
 maturity: RESEARCH
 relation: required
 depends_on: [W1-EXP-01a]
 blocks: [W1-EXP-01d, W1-EVL-04a]
 created_at: 2026-08-10T19:34:25+08:00
-updated_at: 2026-08-12T15:44:08+08:00
+updated_at: 2026-08-12T16:58:01+08:00
 started_at: 2026-08-12T15:44:08+08:00
 accepted_at:
-candidate_commit:
+candidate_commit: https://github.com/maggnus/ymp/commit/a410dc5d32a39880e3bd9c8110637d4a8c70af0a
 closure_commit:
 evidence:
 duration_minutes: 0
@@ -62,16 +62,15 @@ minimum practically useful effect before any ymp outcome is observed.
 
 ## Current state
 
-Work is active. The required comparisons are described in `ROADMAP.md`, and the first four-package
-corpus edition is approved at an immutable root. The owner has delegated corpus breadth, resource
-scale, and effect threshold to the preregistered statistical design without a package ceiling. A
-project-wide monetary budget may be configured but is currently absent. The study manifest is not
-yet frozen.
+The first independent review returned the candidate for bounded rework. The statistical design,
+power calculation, resource accounting, and negative-result handling are present, but the
+compliance command still admits four inconsistent or incompletely recorded study variants.
 
 ## Next action
 
-Record the exact randomization, equal resource opportunity, stopping rule, accounting fields,
-statistical treatment, corpus-expansion threshold, and decision rule against the approved root.
+Bind each condition to its frozen model route, record and verify protected-result timing, validate
+the exact initial seed and order, and require an explicit corpus path with its digest. Rerun the
+preserved external falsifier before re-review by the same reviewer.
 
 ## Guardrails
 
@@ -82,7 +81,16 @@ statistical treatment, corpus-expansion threshold, and decision rule against the
 
 ## Findings
 
-None.
+Review of
+[`study.rs`](https://github.com/maggnus/ymp/blob/a410dc5d32a39880e3bd9c8110637d4a8c70af0a/ymp-rust/tools/ymp-corpus/src/study.rs)
+and
+[`main.rs`](https://github.com/maggnus/ymp/blob/a410dc5d32a39880e3bd9c8110637d4a8c70af0a/ymp-rust/tools/ymp-corpus/src/main.rs)
+found:
+
+- Different model routes can be recorded in one matched block without rejection.
+- Early disclosure of a protected result is accepted because the event sequence is absent.
+- Arbitrary initial seeds and reversed assignment order pass permutation-only validation.
+- `study-dry-run` accepts an implicit corpus path that is not bound by digest.
 
 ## Closure
 
