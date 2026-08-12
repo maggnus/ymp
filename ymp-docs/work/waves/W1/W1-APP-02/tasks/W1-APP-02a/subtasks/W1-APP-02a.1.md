@@ -4,20 +4,20 @@ kind: subtask
 wave: W1
 card: W1-APP-02
 parent: W1-APP-02a
-state: rework
+state: review
 risk: critical
 maturity: BUILD
 relation: required
 depends_on: []
 blocks: []
 created_at: 2026-08-12T16:35:41+08:00
-updated_at: 2026-08-12T19:27:19+08:00
+updated_at: 2026-08-12T19:31:53+08:00
 started_at: 2026-08-12T19:03:00+08:00
 accepted_at:
-candidate_commit: https://github.com/maggnus/ymp/commit/acc55860f53501c4b5d35b3a5f934f28e12ec998
+candidate_commit: https://github.com/maggnus/ymp/commit/df9ac0c621e937ea643829a2d406a889cf1be528
 closure_commit:
 evidence:
-duration_minutes: 20
+duration_minutes: 24
 blocker:
 pause_reason:
 return_trigger:
@@ -58,15 +58,15 @@ resource charging.
 
 ## Current state
 
-Critical review returned candidate
-[acc5586](https://github.com/maggnus/ymp/commit/acc55860f53501c4b5d35b3a5f934f28e12ec998):
-a conflicting digest records `InfrastructureError` but leaves an active attempt, so the recovered
-state violates the kernel terminal-authority invariant. Rework is limited to terminalization.
+Corrected candidate
+[df9ac0c](https://github.com/maggnus/ymp/commit/df9ac0c621e937ea643829a2d406a889cf1be528)
+clears active attempt authority during conflict terminalization while preserving the journal cursor,
+digest, and budget. Package checks pass; repeat Critical review is required.
 
 ## Next action
 
-Clear active attempt authority when recording the conflict as `InfrastructureError`, preserve the
-pre-conflict cursor, journal digest, and budget, and add a package-level kernel-invariant check.
+Repeat the Critical review after correcting the reviewer-owned external assertion to require empty
+active attempts and a valid terminal kernel state.
 
 ## Guardrails
 
