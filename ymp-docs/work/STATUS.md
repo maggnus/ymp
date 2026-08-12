@@ -27,5 +27,5 @@
 | `[?]` | [`W1-EXP-01`](waves/W1/W1-EXP-01/CARD.md) | POC assumptions are falsifiable before product code | — | — | — |
 | `[?]` | [`W1-EXP-01a`](waves/W1/W1-EXP-01/tasks/W1-EXP-01a.md) | POC corpus rejects known invalid candidates | — | — | — |
 | `[?]` | [`W1-EXP-01b`](waves/W1/W1-EXP-01/tasks/W1-EXP-01b.md) | Matched-budget study has a frozen decision rule | — | — | — |
-| `[?]` | [`W1-EXP-01c`](waves/W1/W1-EXP-01/tasks/W1-EXP-01c.md) | Protocol model terminates under declared fault schedules | — | — | — |
+| `[ ]` | [`W1-EXP-01c`](waves/W1/W1-EXP-01/tasks/W1-EXP-01c.md) | Protocol model terminates under declared fault schedules | — | — | — |
 | `[?]` | [`W1-EXP-01d`](waves/W1/W1-EXP-01/tasks/W1-EXP-01d.md) | Runtime probes expose incompatible POC profiles | — | — | — |

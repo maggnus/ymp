@@ -10,14 +10,14 @@ relation: required
 depends_on: []
 blocks: [W1-EXP-01b]
 created_at: 2026-08-10T19:34:25+08:00
-updated_at: 2026-08-10T19:34:25+08:00
+updated_at: 2026-08-12T09:25:52+08:00
 started_at:
 accepted_at:
 candidate_commit:
 closure_commit:
 evidence:
 duration_minutes: 0
-blocker: Owner gates G1 and G2
+blocker: Owner gate G2
 pause_reason:
 return_trigger:
 deliberate_partial: false
@@ -61,12 +61,11 @@ that each major requirement can reject a known invalid candidate.
 ## Current state
 
 The design requirements and production repository exist; no approved corpus, immutable source
-binding, protected bundle, or approval record exists. Work is blocked by the remaining `G1` commit
-convention and by `G2`.
+binding, protected bundle, or approval record exists. Work is blocked by `G2`.
 
 ## Next action
 
-Resolve owner gates `G1` and `G2`, then freeze the first corpus manifest before creating cases.
+Resolve owner gate `G2`, then freeze the first corpus manifest before creating cases.
 
 ## Guardrails
 

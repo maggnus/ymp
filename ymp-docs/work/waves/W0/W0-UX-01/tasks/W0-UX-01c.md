@@ -10,7 +10,7 @@ relation: required
 depends_on: [W0-UX-01b]
 blocks: [W1-APP-02e, W1-COR-03e]
 created_at: 2026-08-10T21:23:34+08:00
-updated_at: 2026-08-12T02:47:53+08:00
+updated_at: 2026-08-12T09:27:57+08:00
 started_at:
 accepted_at:
 candidate_commit:
@@ -50,7 +50,8 @@ Rust, Ratatui, and Crossterm at the declared terminal sizes.
 ## Acceptance
 
 - [ ] A non-author reviewer returns `ACCEPT` only after every POC-1 and POC-2 requirement is traced
-  to a design artifact and every accepted open assumption has an owner and implementation effect.
+  to a design artifact. No open assumption affecting trust, authorization, verification, or a
+  terminal outcome may remain; lower-risk assumptions require an owner and implementation effect.
 - [ ] The reviewer confirms that the screens do not assign work, rank agents or candidates, infer
   leadership, conflate trust planes, overstate causation, hide assurance weakness, or confuse any
   root terminal outcome.
@@ -59,6 +60,8 @@ Rust, Ratatui, and Crossterm at the declared terminal sizes.
   animation, pixel geometry, a browser, or a network service.
 - [ ] A negative-control design that labels message delivery as causal reasoning or process
   completion as acceptance is returned rather than accepted.
+- [ ] Negative controls for a lost MCP reply and quiescence with unread inert messages keep
+  authorization disabled until the corresponding state is resolved.
 
 ## Current state
 

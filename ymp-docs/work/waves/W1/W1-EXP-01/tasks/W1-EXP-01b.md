@@ -10,14 +10,14 @@ relation: required
 depends_on: [W1-EXP-01a]
 blocks: [W1-EXP-01d, W1-EVL-04a]
 created_at: 2026-08-10T19:34:25+08:00
-updated_at: 2026-08-10T19:34:25+08:00
+updated_at: 2026-08-12T09:25:52+08:00
 started_at:
 accepted_at:
 candidate_commit:
 closure_commit:
 evidence:
 duration_minutes: 0
-blocker: Owner gates G1 and G2, followed by acceptance of W1-EXP-01a
+blocker: Owner gate G2, followed by acceptance of W1-EXP-01a
 pause_reason:
 return_trigger:
 deliberate_partial: false
@@ -61,7 +61,7 @@ minimum practically useful effect before any ymp outcome is observed.
 ## Current state
 
 The required comparisons are described in `ROADMAP.md`, but no approved corpus, machine-readable
-study manifest, effect threshold, or budget is frozen. Work is blocked by `G1` and `G2`.
+study manifest, effect threshold, or budget is frozen. Work is blocked by `G2`.
 
 ## Next action
 

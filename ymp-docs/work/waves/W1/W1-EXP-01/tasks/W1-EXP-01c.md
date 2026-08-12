@@ -3,21 +3,21 @@ id: W1-EXP-01c
 kind: task
 wave: W1
 card: W1-EXP-01
-state: blocked
+state: ready
 risk: significant
 maturity: DESIGN
 relation: required
 depends_on: []
 blocks: [W1-APP-02a, W1-COR-03a, W1-COR-03b]
 created_at: 2026-08-10T19:34:25+08:00
-updated_at: 2026-08-12T02:47:53+08:00
+updated_at: 2026-08-12T09:25:52+08:00
 started_at:
 accepted_at:
 candidate_commit:
 closure_commit:
 evidence:
 duration_minutes: 0
-blocker: Owner gate G1
+blocker:
 pause_reason:
 return_trigger:
 deliberate_partial: false

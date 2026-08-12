@@ -7,8 +7,8 @@ plan_review_state: pending
 plan_review_evidence:
 plan_review_at:
 created_at: 2026-08-10T19:34:25+08:00
-updated_at: 2026-08-10T21:23:34+08:00
-blocker: Owner gates G1 and G2, followed by independent plan review
+updated_at: 2026-08-12T09:25:52+08:00
+blocker: Owner gate G2 and independent plan review
 ---
 
 # W1 — POC decision readiness
@@ -41,7 +41,7 @@ with `W1-EXP-01`; only the screen implementation tasks depend on its accepted re
 
 ## Plan review
 
-Pending. Before the first dispatch, a non-author reviewer must test this tree for missing work,
+In progress. A non-author reviewer is testing this tree for missing work,
 false closure paths, dependency cycles, hidden owner decisions, uncheckable acceptance criteria,
 and tasks that cannot be executed from a cold context. The review must return `ACCEPT` or
 `RETURN`; no implementation work starts while this field is pending.

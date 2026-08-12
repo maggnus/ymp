@@ -10,7 +10,7 @@ relation: required
 depends_on: [W0-UX-01a]
 blocks: [W0-UX-01c]
 created_at: 2026-08-10T21:23:34+08:00
-updated_at: 2026-08-12T02:47:53+08:00
+updated_at: 2026-08-12T09:27:57+08:00
 started_at:
 accepted_at:
 candidate_commit:
@@ -50,7 +50,9 @@ and MVP extension points without becoming production code.
 ## Acceptance
 
 - [ ] Every project requirement maps to a reviewable mockup, state variant, interaction annotation,
-  explicit non-applicability statement, or documented open decision.
+  explicit non-applicability statement, or documented open decision. An open decision that affects
+  trust, authorization, verification, or a terminal outcome blocks acceptance rather than becoming
+  a warning.
 - [ ] POC-1 and POC-2 designs cover 80 × 24, 120 × 40, and a wide high-volume case with
   keyboard-first and color-independent operation.
 - [ ] The design visibly distinguishes authoritative control, untrusted collaboration, independent
@@ -78,6 +80,8 @@ finding against the artifact.
   protocol changes.
 - A design omission becomes an explicit open decision or returned requirement; it is not hidden by
   a generic placeholder screen.
+- Lost MCP replies and wake/quiescence with unread inert messages each have an explicit state; an
+  unresolved version of either state blocks authorization and task acceptance.
 
 ## Findings
 

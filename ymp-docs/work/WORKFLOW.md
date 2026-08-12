@@ -29,10 +29,10 @@ it has disjoint write zones, independent acceptance, and available non-author re
 - [`ymp_k9s_tui.dc.html`](../design/ymp_k9s_tui.dc.html) is the sole design artifact; its semantic,
   coverage, accessibility, and implementation-feasibility review is owned by `W0-UX-01`.
 - The canonical source repository is `https://github.com/maggnus/ymp`, and the integration branch
-  is `main`. Production Rust source lives under `ymp-rust/`. Commit convention remains unresolved
-  under owner gate `G1`.
-- Repository commits and files become durable evidence only after `G1` is resolved; evidence links
-  must then be pinned to full immutable commits.
+  is `main`. Production Rust source lives under `ymp-rust/`. Commits use English
+  `Conventional Commits` messages with scopes where useful.
+- Repository commits and files are durable evidence only when links are pinned to full immutable
+  commits. Accepted changes may be pushed directly to `origin/main`.
 
 ## Authority and review
 

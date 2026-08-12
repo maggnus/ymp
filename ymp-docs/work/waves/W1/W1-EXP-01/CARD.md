@@ -16,7 +16,7 @@ candidate_commit:
 closure_commit:
 evidence:
 duration_minutes: 0
-blocker: Owner gates G1 and G2; task W1-EXP-01d also requires G3
+blocker: Owner gate G2; task W1-EXP-01d also requires G3
 pause_reason:
 return_trigger:
 ---

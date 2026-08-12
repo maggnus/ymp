@@ -7,8 +7,8 @@ plan_review_state: pending
 plan_review_evidence:
 plan_review_at:
 created_at: 2026-08-10T21:23:34+08:00
-updated_at: 2026-08-12T02:47:53+08:00
-blocker: Owner gate G1 and independent plan review
+updated_at: 2026-08-12T09:25:52+08:00
+blocker: Independent plan review
 ---
 
 # W0 — Terminal interface design readiness
@@ -36,7 +36,6 @@ single-participant and multi-participant screens are implemented.
 
 ## Plan review
 
-Pending. Before the card starts, a non-author reviewer must test whether the decomposition covers
-product-to-screen traceability, the sole HTML artifact, and implementation-feasibility review
-without letting design work redefine protocol semantics. Owner gate `G1` must first establish the
-remaining durable-evidence convention needed to record that verdict.
+In progress. A non-author reviewer is testing whether the decomposition covers product-to-screen
+traceability, the sole HTML artifact, and implementation-feasibility review without letting design
+work redefine protocol semantics. Owner gate `G1` is resolved.
