@@ -10,7 +10,7 @@ relation: required
 depends_on: []
 blocks: []
 created_at: 2026-08-12T09:42:00+08:00
-updated_at: 2026-08-12T10:05:00+08:00
+updated_at: 2026-08-12T10:14:00+08:00
 started_at: 2026-08-12T09:44:30+08:00
 accepted_at:
 candidate_commit: https://github.com/maggnus/ymp/commit/10e2c92065ea4561a8d484ba7c62818f2784ae0f
@@ -51,13 +51,13 @@ after a recoverable driver interruption without creating a second attempt or los
 
 ## Current state
 
-The candidate resumes Codex and Claude processes with the same session and attempt identifiers and
-rejects unknown or mismatched sessions without launching a replacement. Builder-owned targeted
-checks pass; independent review is pending on the exact candidate revision.
+Independent review confirmed successful same-session resume and mismatch rejection, but an unknown
+session after the second process remains recoverable and permits a third launch in both drivers.
+The candidate is returned for bounded correction.
 
 ## Next action
 
-Decide acceptance through an external product-path falsifier in an independent workspace.
+Make an unknown resumed session terminal and rerun the preserved external falsifier.
 
 ## Guardrails
 
@@ -66,7 +66,8 @@ Decide acceptance through an external product-path falsifier in an independent w
 
 ## Findings
 
-- Codex and Claude drivers currently reject resume as unsupported.
+- An unknown resumed session is classified as recoverable after its non-zero exit, allowing an
+  implicit third launch in both drivers.
 
 ## Closure
 
