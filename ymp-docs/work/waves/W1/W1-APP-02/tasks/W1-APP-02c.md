@@ -10,10 +10,10 @@ relation: required
 depends_on: [W1-APP-02a, W1-APP-02b, W1-EXP-01d.1]
 blocks: [W1-APP-02e]
 created_at: 2026-08-10T19:34:25+08:00
-updated_at: 2026-08-12T23:29:56+08:00
+updated_at: 2026-08-13T00:22:02+08:00
 started_at: 2026-08-12T22:06:42+08:00
 accepted_at:
-candidate_commit: https://github.com/maggnus/ymp/commit/53890a0d2679bbf0dcc7b21e276c76dd9b5ce2b4
+candidate_commit: https://github.com/maggnus/ymp/commit/99cd5d2ade9d8d5d2de04f20799c9c4d5c0e6358
 closure_commit:
 evidence:
 duration_minutes: 0
@@ -59,21 +59,19 @@ lifecycle and usage evidence to include the profile in the POC comparison.
 
 ## Current state
 
-Independent review returned [candidate `53890a0`](https://github.com/maggnus/ymp/commit/53890a0d2679bbf0dcc7b21e276c76dd9b5ce2b4).
-The frozen falsifier and source inspection established one secret-disclosure blocker plus four
-major lifecycle and evidence defects. The author accepted all findings as one shared launch,
-lifecycle, accounting, and evidence-model correction. Bounded rework continues with the same
-author and reviewer; no candidate code is integrated, and the W1-APP-02d writer remains paused.
+Corrected [candidate `99cd5d2`](https://github.com/maggnus/ymp/commit/99cd5d2ade9d8d5d2de04f20799c9c4d5c0e6358)
+binds launch evidence to the executed process, sanitizes durable failures, terminates descendants,
+records terminal accounting, and carries managed yield/wake/resume through the product path. The
+author reports all targeted, workspace, Clippy, formatting, and executable-model checks successful.
+The candidate is awaiting repeat review; W1-APP-02d implementation remains paused.
 
 ## Next action
 
-Produce one coherent correction that removes unfiltered child diagnostics from durable state,
-terminates the full process group after parent exit, records cost and non-zero in-flight excess for
-every terminal outcome, implements managed yield/wake/resume through the production handle, and
-derives runtime evidence from the exact executable, arguments, environment, and invocation that
-were launched. Repeat only the checks invalidated by this correction plus the preserved falsifier;
-then return the exact correction range to the same reviewer. Start the W1-APP-02d writer only from
-the accepted integrated runtime base.
+Review exact candidate `99cd5d2` with the same frozen falsifier and recheck every returned finding
+against the corrected range. Accept only if no child diagnostic or secret reaches durable state,
+descendants terminate after parent failure, all terminal outcomes retain reproducible accounting,
+yield/wake/resume preserve command identity, and launch evidence is derived from the exact process.
+Start the W1-APP-02d writer only from the accepted integrated runtime base.
 
 ## Guardrails
 
