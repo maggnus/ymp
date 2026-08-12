@@ -2,20 +2,20 @@
 id: W0-UX-01
 kind: card
 wave: W0
-state: ready
+state: accepted
 risk: significant
 maturity: DESIGN
 relation: required
 depends_on: []
 blocks: [W1-APP-02e, W1-COR-03e]
 created_at: 2026-08-10T21:23:34+08:00
-updated_at: 2026-08-12T02:47:53+08:00
-started_at:
-accepted_at:
-candidate_commit:
-closure_commit:
-evidence:
-duration_minutes: 0
+updated_at: 2026-08-12T13:54:50+08:00
+started_at: 2026-08-12T11:04:55+08:00
+accepted_at: 2026-08-12T13:54:50+08:00
+candidate_commit: https://github.com/maggnus/ymp/commit/35cc659981f73700296c9ed37b378e59eabff4a1
+closure_commit: https://github.com/maggnus/ymp/commit/4670fa0ad914e73d5dc3a5994d694f82a5ebe449
+evidence: ["[35cc659](https://github.com/maggnus/ymp/commit/35cc659981f73700296c9ed37b378e59eabff4a1)", "[4670fa0](https://github.com/maggnus/ymp/commit/4670fa0ad914e73d5dc3a5994d694f82a5ebe449)"]
+duration_minutes: 170
 blocker:
 pause_reason:
 return_trigger:
@@ -54,6 +54,10 @@ All three required tasks are accepted. The reviewed design package covers every 
 use case and material failure variant, is traceable to the project requirements, is feasible at the
 declared terminal sizes with Ratatui and Crossterm, and contains no visual semantics that turn ymp
 into a dispatcher or overstate acceptance, security, causation, or collective reasoning.
+Accepted: the projection-backed HTML contract is frozen at
+[35cc659](https://github.com/maggnus/ymp/commit/35cc659981f73700296c9ed37b378e59eabff4a1).
+All required design tasks passed independent review, and the Rust implementation may proceed
+without inventing screen semantics.
 
 ## Tasks
 

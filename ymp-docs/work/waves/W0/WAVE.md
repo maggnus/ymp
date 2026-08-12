@@ -1,13 +1,14 @@
 ---
 id: W0
 kind: wave
-state: ready
+state: accepted
 areas: [UX]
 plan_review_state: accepted
 plan_review_evidence: https://github.com/maggnus/ymp/commit/7468b37a25f3d5f0f2dec0a8a0482dddbdff1ca9
 plan_review_at: 2026-08-12T09:30:05+08:00
 created_at: 2026-08-10T21:23:34+08:00
-updated_at: 2026-08-12T09:30:05+08:00
+updated_at: 2026-08-12T13:54:50+08:00
+accepted_at: 2026-08-12T13:54:50+08:00
 blocker:
 ---
 

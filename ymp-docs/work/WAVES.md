@@ -4,6 +4,6 @@
 
 | Status | ID | Wave | Outcome | Cards | Done |
 |---|---|---|---|---|---|
-| `[ ]` | [`W0`](waves/W0/WAVE.md) | Terminal interface design readiness | An independently reviewed screen and state contract makes the POC terminal interface implementable | 0/1 | 0% |
+| `[x]` | [`W0`](waves/W0/WAVE.md) | Terminal interface design readiness | An independently reviewed screen and state contract makes the POC terminal interface implementable | 1/1 | 100% |
 | `[~]` | [`W1`](waves/W1/WAVE.md) | POC decision readiness | A controlled, matched-budget study can decide whether locally negotiated self-organization | 0/4 | 0% |
-| — | — | **Total** | — | 0/5 | 0% |
+| — | — | **Total** | — | 1/5 | 20% |
