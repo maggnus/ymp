@@ -10,10 +10,10 @@ relation: required
 depends_on: [W1-APP-02a, W1-APP-02b, W1-EXP-01d.1]
 blocks: [W1-APP-02e]
 created_at: 2026-08-10T19:34:25+08:00
-updated_at: 2026-08-13T00:52:00+08:00
+updated_at: 2026-08-13T01:33:45+08:00
 started_at: 2026-08-12T22:06:42+08:00
 accepted_at:
-candidate_commit: https://github.com/maggnus/ymp/commit/99cd5d2ade9d8d5d2de04f20799c9c4d5c0e6358
+candidate_commit: https://github.com/maggnus/ymp/commit/0e6c94fdb00ec4b3e062563704fbf0ed760f749f
 closure_commit:
 evidence:
 duration_minutes: 0
@@ -59,18 +59,17 @@ lifecycle and usage evidence to include the profile in the POC comparison.
 
 ## Current state
 
-Corrected [candidate `99cd5d2`](https://github.com/maggnus/ymp/commit/99cd5d2ade9d8d5d2de04f20799c9c4d5c0e6358)
-received a second independent `RETURN`. The frozen falsifier completed with code 1: authoritative
-yield is absent, stdout can imitate submit, measured executables can be replaced before use, and
-successful accounting discards in-flight excess. The candidate is not integrated. The author
-confirmed all three findings; one final bounded correction is authorized. W1-APP-02d remains paused.
+Final bounded [candidate `0e6c94f`](https://github.com/maggnus/ymp/commit/0e6c94fdb00ec4b3e062563704fbf0ed760f749f)
+is ready for the preserved third review. The one-commit correction uses controller-authoritative
+yield and journal-authoritative submit, launches admitted Codex and MCP copies, and preserves
+terminal in-flight excess. The author reports all targeted and workspace tests passing; the
+unchanged reviewer-owned falsifier has not yet been run. W1-APP-02d remains paused.
 
 ## Next action
 
-Complete one final bounded correction with the same author, then rerun the unchanged reviewer-owned
-falsifier. A third review is permitted only because the false-submit blocker can silently accept an
-uncommanded candidate and therefore fails the detection test for residue. Start the W1-APP-02d
-writer only from an accepted integrated runtime base.
+Fast-forward the preserved reviewer to exact candidate `0e6c94f`, verify the frozen package again,
+and complete the authorized third review. Start the W1-APP-02d writer only from an accepted
+integrated runtime base.
 
 ## Guardrails
 
@@ -107,6 +106,9 @@ writer only from an accepted integrated runtime base.
   contracted managed-attempt outcome. Candidate `99cd5d2` is not authorized for integration.
 - The author response agreed with all three findings and bounded the correction to authoritative
   lifecycle commands, launch from verified executable objects, and lossless terminal accounting.
+- Final correction `0e6c94f` contains one commit and 11 authorized files (`+1126/-160`). Its
+  negative halves fail on `99cd5d2` for fabricated submit, successful-accounting loss, and Codex
+  and MCP replacement; its claimed positive evidence awaits independent repeat review.
 
 ## Closure
 
