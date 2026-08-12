@@ -4,20 +4,20 @@ kind: subtask
 wave: W1
 card: W1-APP-02
 parent: W1-APP-02a
-state: review
+state: accepted
 risk: critical
 maturity: BUILD
 relation: required
 depends_on: []
 blocks: []
 created_at: 2026-08-12T16:35:41+08:00
-updated_at: 2026-08-12T19:31:53+08:00
+updated_at: 2026-08-12T19:38:22+08:00
 started_at: 2026-08-12T19:03:00+08:00
-accepted_at:
+accepted_at: 2026-08-12T19:38:22+08:00
 candidate_commit: https://github.com/maggnus/ymp/commit/df9ac0c621e937ea643829a2d406a889cf1be528
-closure_commit:
-evidence:
-duration_minutes: 24
+closure_commit: https://github.com/maggnus/ymp/commit/d5c89fd63bb75274232353f72757a572e46121df
+evidence: ["[df9ac0c](https://github.com/maggnus/ymp/commit/df9ac0c621e937ea643829a2d406a889cf1be528)", "[d5c89fd](https://github.com/maggnus/ymp/commit/d5c89fd63bb75274232353f72757a572e46121df)"]
+duration_minutes: 35
 blocker:
 pause_reason:
 return_trigger:
@@ -49,24 +49,21 @@ resource charging.
 
 ## Acceptance
 
-- [ ] A command repeated after reopening returns the exact result recorded for its first execution,
+- [x] A command repeated after reopening returns the exact result recorded for its first execution,
   even when later events changed the current run state.
-- [ ] A journal containing one `command_id` with two different command digests is rejected as a
+- [x] A journal containing one `command_id` with two different command digests is rejected as a
   typed infrastructure error before the second command changes state or charges a budget.
-- [ ] The unchanged live-controller replay, cursor recovery, corruption, and single-writer tests
+- [x] The unchanged live-controller replay, cursor recovery, corruption, and single-writer tests
   continue to pass.
 
 ## Current state
 
-Corrected candidate
-[df9ac0c](https://github.com/maggnus/ymp/commit/df9ac0c621e937ea643829a2d406a889cf1be528)
-clears active attempt authority during conflict terminalization while preserving the journal cursor,
-digest, and budget. Package checks pass; repeat Critical review is required.
+Accepted. Recovery preserves the exact initial command result, rejects a conflicting digest before
+the second effect, and terminalizes the run without retaining active attempt authority.
 
 ## Next action
 
-Repeat the Critical review after correcting the reviewer-owned external assertion to require empty
-active attempts and a valid terminal kernel state.
+Continue the parent closure process with independent review of W1-APP-02a.2.
 
 ## Guardrails
 
@@ -84,16 +81,17 @@ active attempts and a valid terminal kernel state.
 
 ## Closure
 
-Filled when the subtask is accepted.
-
 ### Accepted outcome
 
-What was actually accepted.
+The reviewed candidate was integrated byte-equivalently. Two external scenarios with negative
+controls confirmed exact-result recovery and valid conflict terminalization; all package recovery
+tests passed on the reviewed revision.
 
 ### Residuals
 
-Honestly retained limitations, each with an exact return trigger.
+None.
 
 ### Evidence
 
-- Commit, evidence package, or durable document of record, each as a Markdown link.
+- [Reviewed candidate df9ac0c](https://github.com/maggnus/ymp/commit/df9ac0c621e937ea643829a2d406a889cf1be528)
+- [Integrated revision d5c89fd](https://github.com/maggnus/ymp/commit/d5c89fd63bb75274232353f72757a572e46121df)
