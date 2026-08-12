@@ -3,20 +3,20 @@ id: W1-APP-02b
 kind: task
 wave: W1
 card: W1-APP-02
-state: review
+state: accepted
 risk: critical
 maturity: BUILD
 relation: required
 depends_on: [W1-APP-02a, W1-EXP-01a]
 blocks: [W1-APP-02e]
 created_at: 2026-08-10T19:34:25+08:00
-updated_at: 2026-08-12T18:52:47+08:00
+updated_at: 2026-08-12T19:02:23+08:00
 started_at: 2026-08-12T16:14:11+08:00
-accepted_at:
+accepted_at: 2026-08-12T19:02:23+08:00
 candidate_commit: https://github.com/maggnus/ymp/commit/1a88a1017bdf28347a2ce5c72c4c6be8afd04520
-closure_commit:
-evidence:
-duration_minutes: 0
+closure_commit: https://github.com/maggnus/ymp/commit/5571a07f5ca8f1ffcf515a73fc24401dce361ecd
+evidence: ["[1a88a10](https://github.com/maggnus/ymp/commit/1a88a1017bdf28347a2ce5c72c4c6be8afd04520)", "[5571a07](https://github.com/maggnus/ymp/commit/5571a07f5ca8f1ffcf515a73fc24401dce361ecd)"]
+duration_minutes: 168
 blocker:
 pause_reason:
 return_trigger:
@@ -48,28 +48,28 @@ verifier evidence for that exact candidate and contract package.
 
 ## Acceptance
 
-- [ ] A fake attempt modifies only its private workspace, submits an exact-base bundle, and produces
+- [x] A fake attempt modifies only its private workspace, submits an exact-base bundle, and produces
   a candidate whose digest and ancestry reproduce from clean inputs.
-- [ ] Re-running the approved verifier against the exact candidate, environment, contract, and
+- [x] Re-running the approved verifier against the exact candidate, environment, contract, and
   oracle digests reproduces the recorded evidence within declared nondeterminism bounds.
-- [ ] A stale base, out-of-scope path, altered object, partial object write, integration conflict,
+- [x] A stale base, out-of-scope path, altered object, partial object write, integration conflict,
   or mismatched digest is rejected without changing an existing candidate.
-- [ ] If a protected negative control passes, verifier execution yields `infrastructure_error`
+- [x] If a protected negative control passes, verifier execution yields `infrastructure_error`
   rather than candidate acceptance.
-- [ ] The producing attempt and collaboration board cannot write verifier state or read protected
+- [x] The producing attempt and collaboration board cannot write verifier state or read protected
   oracle bytes.
 
 ## Current state
 
-The third bounded correction is under repeat Critical review at exact commit `1a88a101`. The same
-independent reviewer is testing the private-root and launcher-failure corrections with the preserved
-external Linux falsifier. The prior silent false-acceptance findings remain open until that review
-returns.
+Accepted. Verification phases use separate root filesystems, immutable oracle copies, private
+candidate data, and typed launcher failures. Repeated verification returns the stored result, while
+stale ancestry, excluded-path changes, corrupted objects, and positive negative controls fail
+without replacing the candidate.
 
 ## Next action
 
-Decide the returned independent verdict; integrate only after `ACCEPT`, otherwise name the
-convergence gate and stop the card.
+Proceed with exact-result recovery in W1-APP-02a.1 and the public foreground CLI boundary in
+W1-APP-02a.2.
 
 ## Guardrails
 
@@ -79,22 +79,25 @@ convergence gate and stop the card.
 
 ## Findings
 
-- Separate namespaces still expose a shared mutable root filesystem outside the private scratch
-  mounts, which permits state transfer and a silent false acceptance.
-- A namespace-launch failure with exit code 1 is indistinguishable from a genuine oracle rejection.
-- Communication is limited to exact revisions, reproducible evidence, findings, and an
-  evidence-based response without negotiating the verdict.
+None. The prior shared-root and launcher-classification findings were corrected and independently
+rechecked through the preserved external Linux scenarios. The handoff audit found no attempt to
+negotiate the verdict, conceal findings, or weaken the independent check.
 
 ## Closure
 
 ### Accepted outcome
 
-Not accepted.
+The production candidate path now binds the exact source base and content digest, rejects excluded
+or conflicting changes without replacing an existing candidate, and records verification only from
+separate immutable observations. An external product-path review confirmed that state cannot pass
+between phases through the outer root, namespace-launch failure becomes `infrastructure_error`, a
+genuine oracle rejection remains distinct, and exact replay does not change the journal or budget.
 
 ### Residuals
 
-None recorded.
+None.
 
 ### Evidence
 
-- None until acceptance.
+- [Reviewed candidate](https://github.com/maggnus/ymp/commit/1a88a1017bdf28347a2ce5c72c4c6be8afd04520).
+- [Byte-equivalent integration](https://github.com/maggnus/ymp/commit/5571a07f5ca8f1ffcf515a73fc24401dce361ecd).
