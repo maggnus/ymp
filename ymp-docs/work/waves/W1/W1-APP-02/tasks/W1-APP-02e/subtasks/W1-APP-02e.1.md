@@ -14,9 +14,9 @@ created_at: 2026-08-12T16:19:52+08:00
 updated_at: 2026-08-12T17:38:49+08:00
 started_at: 2026-08-12T16:19:52+08:00
 accepted_at: 2026-08-12T17:38:49+08:00
-candidate_commit: https://github.com/maggnus/ymp/commit/94a8e127b94ead4be3dcdee1339a6b29bd95ac0d
+candidate_commit: https://github.com/maggnus/ymp/commit/bdccf00825b6a93ff25ab10f34719e645bc8f8f9
 closure_commit: https://github.com/maggnus/ymp/commit/bdccf00825b6a93ff25ab10f34719e645bc8f8f9
-evidence: ["[94a8e12](https://github.com/maggnus/ymp/commit/94a8e127b94ead4be3dcdee1339a6b29bd95ac0d)", "[bdccf00](https://github.com/maggnus/ymp/commit/bdccf00825b6a93ff25ab10f34719e645bc8f8f9)"]
+evidence: ["[bdccf00](https://github.com/maggnus/ymp/commit/bdccf00825b6a93ff25ab10f34719e645bc8f8f9)"]
 duration_minutes: 59
 blocker:
 pause_reason:
@@ -95,5 +95,4 @@ None recorded.
 
 ### Evidence
 
-- [Reviewed correction](https://github.com/maggnus/ymp/commit/94a8e127b94ead4be3dcdee1339a6b29bd95ac0d).
-- [Integration commit](https://github.com/maggnus/ymp/commit/bdccf00825b6a93ff25ab10f34719e645bc8f8f9).
+- [Reviewed-equivalent integration](https://github.com/maggnus/ymp/commit/bdccf00825b6a93ff25ab10f34719e645bc8f8f9).
