@@ -17,7 +17,7 @@
 | `[~]` | [`W1-APP-02d`](waves/W1/W1-APP-02/tasks/W1-APP-02d.md) | Claude Code profile completes one managed candidate attempt | — | 12/08 22:44 | 12/08 22:44 (0m) |
 | `[?]` | [`W1-APP-02e`](waves/W1/W1-APP-02/tasks/W1-APP-02e/TASK.md) | TUI completes and exports a single-participant run | — | 12/08 16:19 | 13/08 01:26 (59m) |
 | `[x]` | [`W1-APP-02e.1`](waves/W1/W1-APP-02/tasks/W1-APP-02e/subtasks/W1-APP-02e.1.md) | Deterministic TUI buffers enforce the accepted screen contract | [`bdccf008`](https://github.com/maggnus/ymp/commit/bdccf00825b6a93ff25ab10f34719e645bc8f8f9) | 12/08 16:19 | 12/08 17:38 (59m) |
-| `[ ]` | [`W1-APP-02e.2`](waves/W1/W1-APP-02/tasks/W1-APP-02e/subtasks/W1-APP-02e.2.md) | Chat-first visual contract is independently accepted | — | — | — |
+| `[~]` | [`W1-APP-02e.2`](waves/W1/W1-APP-02/tasks/W1-APP-02e/subtasks/W1-APP-02e.2.md) | Chat-first visual contract is independently accepted | [`b3005e29`](https://github.com/maggnus/ymp/commit/b3005e29efc695cf29de4d006b5d8a489c4794ac) | 13/08 01:32 | 13/08 01:32 (0m) |
 | `[?]` | [`W1-APP-02e.3`](waves/W1/W1-APP-02/tasks/W1-APP-02e/subtasks/W1-APP-02e.3.md) | Ratatui implements the accepted chat-first contract | — | — | — |
 | `[x]` | [`W1-APP-02f`](waves/W1/W1-APP-02/tasks/W1-APP-02f.md) | Duplicate or out-of-order runtime events terminate without a candidate | [`4145a442`](https://github.com/maggnus/ymp/commit/4145a442b476afedca8d091de3a30b1eb1ad9b84) | 12/08 09:40 | 12/08 10:03 (23m) |
 | `[x]` | [`W1-APP-02g`](waves/W1/W1-APP-02/tasks/W1-APP-02g.md) | Verification evidence binds the exact runtime environment | [`973a6e33`](https://github.com/maggnus/ymp/commit/973a6e331f4577a894ab95ee325efa4a03005510) | 12/08 10:28 | 12/08 11:18 (50m) |

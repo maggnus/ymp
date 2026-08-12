@@ -4,17 +4,17 @@ kind: subtask
 wave: W1
 card: W1-APP-02
 parent: W1-APP-02e
-state: ready
+state: active
 risk: significant
 maturity: DESIGN
 relation: required
 depends_on: []
 blocks: []
 created_at: 2026-08-13T01:26:13+08:00
-updated_at: 2026-08-13T01:29:56+08:00
-started_at:
+updated_at: 2026-08-13T01:32:17+08:00
+started_at: 2026-08-13T01:32:17+08:00
 accepted_at:
-candidate_commit:
+candidate_commit: https://github.com/maggnus/ymp/commit/b3005e29efc695cf29de4d006b5d8a489c4794ac
 closure_commit:
 evidence:
 duration_minutes: 0
@@ -67,9 +67,10 @@ dashboard revision without weakening protocol or trust constraints.
 
 ## Current state
 
-Ready. The owner designated the chat-first HTML/PDF pair as the primary visual documents and
-`VISUAL_CONCEPT.md` as their rationale. Initial CTO inspection confirmed that the PDF has 23
-legible pages and exposed local-resource and historical-link questions for independent review.
+Active in independent review. The owner designated the chat-first HTML/PDF pair as the primary
+visual documents and `VISUAL_CONCEPT.md` as their rationale. Initial CTO inspection confirmed that
+the PDF has 23 legible pages and exposed local-resource and historical-link questions for the
+reviewer to test independently.
 
 ## Next action
 
