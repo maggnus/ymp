@@ -35,5 +35,5 @@
 | `[x]` | [`W1-EXP-01b`](waves/W1/W1-EXP-01/tasks/W1-EXP-01b.md) | Matched-budget study has a frozen decision rule | [`d12eff31`](https://github.com/maggnus/ymp/commit/d12eff31940f8ad124f5f8f566a0dd21de3d2ae6) | 12/08 15:44 | 12/08 17:44 (1h42m) |
 | `[x]` | [`W1-EXP-01c`](waves/W1/W1-EXP-01/tasks/W1-EXP-01c.md) | Protocol model terminates under declared fault schedules | [`35ce2b17`](https://github.com/maggnus/ymp/commit/35ce2b171faa0609cfeb95081c7965049f5edddc) | 12/08 11:02 | 12/08 12:38 (1h36m) |
 | `[~]` | [`W1-EXP-01d`](waves/W1/W1-EXP-01/tasks/W1-EXP-01d/TASK.md) | Runtime probes expose incompatible POC profiles | — | 12/08 20:31 | 12/08 21:18 (0m) |
-| `[~]` | [`W1-EXP-01d.1`](waves/W1/W1-EXP-01/tasks/W1-EXP-01d/subtasks/W1-EXP-01d.1.md) | Codex profile satisfies the primary-comparison runtime contract | — | 12/08 20:42 | 12/08 20:42 (0m) |
+| `[~]` | [`W1-EXP-01d.1`](waves/W1/W1-EXP-01/tasks/W1-EXP-01d/subtasks/W1-EXP-01d.1.md) | Codex profile satisfies the primary-comparison runtime contract | [`4d7b1f59`](https://github.com/maggnus/ymp/commit/4d7b1f59d9f8b5eca6e64e103a2cb532923cda33) | 12/08 20:42 | 12/08 21:31 (0m) |
 | `[~]` | [`W1-EXP-01d.2`](waves/W1/W1-EXP-01/tasks/W1-EXP-01d/subtasks/W1-EXP-01d.2.md) | Claude Code profile satisfies the primary-comparison runtime contract | — | 12/08 21:18 | 12/08 21:18 (0m) |
