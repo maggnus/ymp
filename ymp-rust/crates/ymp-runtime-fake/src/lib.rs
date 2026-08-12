@@ -71,12 +71,14 @@ impl RuntimeDriver for FakeRuntime {
     fn start(&self, request: InvocationRequest) -> Result<Box<dyn RuntimeSession>, RuntimeError> {
         Ok(Box::new(FakeSession {
             invocation_id: request.invocation_id,
+            opaque_session_id: format!("{}.session", request.attempt_id),
             steps: self.script.clone().into(),
             sequence: 0,
             last_event: None,
             started: false,
             yielded: false,
             cancellation: request.cancellation,
+            terminal: false,
             interrupted: false,
             interruption_emitted: false,
         }))
@@ -85,12 +87,14 @@ impl RuntimeDriver for FakeRuntime {
 
 struct FakeSession {
     invocation_id: String,
+    opaque_session_id: String,
     steps: VecDeque<ScriptStep>,
     sequence: u64,
     last_event: Option<RuntimeEvent>,
     started: bool,
     yielded: bool,
     cancellation: CancellationToken,
+    terminal: bool,
     interrupted: bool,
     interruption_emitted: bool,
 }
@@ -122,10 +126,13 @@ impl RuntimeSession for FakeSession {
             self.interruption_emitted = true;
             return Ok(Some(self.emit(RuntimeEventKind::Interrupted)));
         }
+        if self.terminal {
+            return Ok(None);
+        }
         if !self.started {
             self.started = true;
             return Ok(Some(self.emit(RuntimeEventKind::Started {
-                opaque_session_id: format!("{}.opaque", self.invocation_id),
+                opaque_session_id: self.opaque_session_id.clone(),
             })));
         }
         if self.yielded {
@@ -143,13 +150,14 @@ impl RuntimeSession for FakeSession {
             ScriptStep::DuplicateLast => Ok(self.last_event.clone()),
             ScriptStep::Malformed(detail) => Err(RuntimeError::MalformedEvent(detail)),
             ScriptStep::Complete(usage) => {
+                self.terminal = true;
                 Ok(Some(self.emit(RuntimeEventKind::Completed { usage })))
             }
         }
     }
 
     fn resume(&mut self, _input: String) -> Result<(), RuntimeError> {
-        if !self.yielded {
+        if self.terminal || self.interrupted || !self.yielded {
             return Err(RuntimeError::NotYielded);
         }
         self.yielded = false;
@@ -184,15 +192,20 @@ mod tests {
 
     #[test]
     fn session_yields_resumes_and_completes() {
-        let runtime = FakeRuntime::default();
+        let runtime: Box<dyn RuntimeDriver> = Box::new(FakeRuntime::default());
         let mut session = runtime.start(request()).expect("start session");
+        let started = session.next_event().expect("started").expect("event");
+        assert_eq!(started.invocation_id, "invocation-1");
         assert!(matches!(
-            session.next_event().expect("started").expect("event").event,
-            RuntimeEventKind::Started { .. }
+            started.event,
+            RuntimeEventKind::Started { opaque_session_id }
+                if opaque_session_id == "attempt-1.session"
         ));
+        let committed = session.next_event().expect("output").expect("event");
+        assert_eq!(committed.sequence, 2);
         assert!(matches!(
-            session.next_event().expect("output").expect("event").event,
-            RuntimeEventKind::Output { .. }
+            committed.event,
+            RuntimeEventKind::Output { text } if text == "fake runtime started"
         ));
         assert!(matches!(
             session.next_event().expect("yield").expect("event").event,
@@ -200,9 +213,12 @@ mod tests {
         ));
         assert!(session.next_event().expect("wait").is_none());
         session.resume("wake".to_owned()).expect("resume");
+        let resumed = session.next_event().expect("output").expect("event");
+        assert_eq!(resumed.invocation_id, "invocation-1");
+        assert_eq!(resumed.sequence, 4);
         assert!(matches!(
-            session.next_event().expect("output").expect("event").event,
-            RuntimeEventKind::Output { .. }
+            resumed.event,
+            RuntimeEventKind::Output { text } if text == "fake runtime resumed"
         ));
         assert!(matches!(
             session
@@ -212,6 +228,11 @@ mod tests {
                 .event,
             RuntimeEventKind::Completed { .. }
         ));
+        assert!(matches!(
+            session.resume("replacement".to_owned()),
+            Err(RuntimeError::NotYielded)
+        ));
+        assert!(session.next_event().expect("terminal").is_none());
     }
 
     #[test]
