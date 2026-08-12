@@ -4,15 +4,15 @@ kind: subtask
 wave: W1
 card: W1-APP-02
 parent: W1-APP-02a
-state: ready
+state: active
 risk: significant
 maturity: BUILD
 relation: required
 depends_on: []
 blocks: []
 created_at: 2026-08-12T16:35:41+08:00
-updated_at: 2026-08-12T16:35:41+08:00
-started_at:
+updated_at: 2026-08-12T19:03:00+08:00
+started_at: 2026-08-12T19:03:00+08:00
 accepted_at:
 candidate_commit:
 closure_commit:
@@ -53,12 +53,13 @@ process-internal child operations remain explicitly nested under `ymp internal`.
 
 ## Current state
 
-The defect is confirmed in public help output. Dispatch is deferred only until the active
-W1-APP-02b writer releases the overlapping `ymp-cli` file.
+W1-APP-02b is accepted and integrated. The independent public-help check remains fixed outside the
+repository, and the implementation now has an exclusive `ymp-cli` write zone.
 
 ## Next action
 
-Re-baseline after W1-APP-02b integration, then narrow the public parser and add help-output checks.
+Narrow the public parser from the accepted integration baseline and pass the unchanged external
+foreground CLI check before package regressions.
 
 ## Guardrails
 

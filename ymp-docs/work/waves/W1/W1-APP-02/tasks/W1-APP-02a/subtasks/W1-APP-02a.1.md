@@ -4,15 +4,15 @@ kind: subtask
 wave: W1
 card: W1-APP-02
 parent: W1-APP-02a
-state: ready
+state: active
 risk: critical
 maturity: BUILD
 relation: required
 depends_on: []
 blocks: []
 created_at: 2026-08-12T16:35:41+08:00
-updated_at: 2026-08-12T16:35:41+08:00
-started_at:
+updated_at: 2026-08-12T19:03:00+08:00
+started_at: 2026-08-12T19:03:00+08:00
 accepted_at:
 candidate_commit:
 closure_commit:
@@ -58,12 +58,13 @@ resource charging.
 
 ## Current state
 
-The defect is independently reproduced by the parent reviewer. Dispatch is deferred only until the
-active W1-APP-02b writer releases the overlapping `ymp-application` files.
+W1-APP-02b is accepted and integrated. The independent recovery check remains fixed outside the
+repository, and the implementation now has an exclusive `ymp-application` write zone.
 
 ## Next action
 
-Re-baseline after W1-APP-02b integration, then implement the recovery invariant and regression tests.
+Implement the recovery invariant from the accepted integration baseline and pass the unchanged
+external recovery check before package regressions.
 
 ## Guardrails
 
