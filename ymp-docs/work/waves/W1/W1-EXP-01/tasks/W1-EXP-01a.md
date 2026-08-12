@@ -3,15 +3,15 @@ id: W1-EXP-01a
 kind: task
 wave: W1
 card: W1-EXP-01
-state: ready
+state: active
 risk: critical
 maturity: DESIGN
 relation: required
 depends_on: []
 blocks: [W1-EXP-01b]
 created_at: 2026-08-10T19:34:25+08:00
-updated_at: 2026-08-12T11:56:07+08:00
-started_at:
+updated_at: 2026-08-12T11:59:58+08:00
+started_at: 2026-08-12T11:59:58+08:00
 accepted_at:
 candidate_commit:
 closure_commit:
@@ -61,8 +61,8 @@ that each major requirement can reject a known invalid candidate.
 ## Current state
 
 The owner permits an unrestricted number of openly distributable, nonsensitive external packages
-and tasks. No approved primary corpus, immutable source binding, protected bundle, or approval
-record exists yet; L1-L3 remain development calibration and cannot be reused as primary cases.
+and tasks. Work is active on the primary corpus, immutable source bindings, protected bundles, and
+approval evidence; L1-L3 remain development calibration and cannot be reused as primary cases.
 
 ## Next action
 
