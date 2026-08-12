@@ -1,0 +1,84 @@
+{
+  "schema_version": 1,
+  "id": "toml-datetime-validation",
+  "admission_status": "verified",
+  "verified_at": "2026-08-12T04:47:52Z",
+  "upstream": {
+    "repository_url": "https://github.com/toml-rs/toml.git",
+    "source_commit": "99d50bb686adcdb569c0a1d37db1ac175c57e5ea",
+    "fixed_commit": "045e8966ad21b7d5578fabf503e210b7522d7a47",
+    "source_commit_url": "https://github.com/toml-rs/toml/commit/99d50bb686adcdb569c0a1d37db1ac175c57e5ea",
+    "fixed_commit_url": "https://github.com/toml-rs/toml/commit/045e8966ad21b7d5578fabf503e210b7522d7a47",
+    "fix_sources": [
+      "https://github.com/toml-rs/toml/commit/3e446926d5cffc3fac78aa44874b0a86fc4f5771",
+      "https://github.com/toml-rs/toml/commit/045e8966ad21b7d5578fabf503e210b7522d7a47"
+    ],
+    "license_expression": "MIT OR Apache-2.0",
+    "license_files": [
+      "crates/toml_datetime/LICENSE-APACHE",
+      "crates/toml_datetime/LICENSE-MIT"
+    ]
+  },
+  "classification": "decomposable",
+  "requirements": [
+    {
+      "id": "TOML-LEAP-SECOND",
+      "public_summary": "TOML datetime validation accepts second 60 and rejects values greater than 60.",
+      "protected_test": "protected_leap_second_boundary_is_supported"
+    },
+    {
+      "id": "TOML-CALENDAR-DAY",
+      "public_summary": "TOML date validation applies Gregorian month lengths and leap-year rules.",
+      "protected_test": "protected_gregorian_calendar_days_are_validated"
+    }
+  ],
+  "environment": {
+    "rustc_version": "rustc 1.89.0 (29483883e 2025-08-04)",
+    "cargo_version": "cargo 1.89.0 (c24e10642 2025-06-23)",
+    "host": "aarch64-apple-darwin",
+    "git_version": "git version 2.50.1 (Apple Git-155)",
+    "archive_tool": "git archive --format=tar; bsdtar 3.5.3",
+    "timeout_seconds": 300,
+    "oracle_path": "crates/toml_datetime/tests/ymp_protected.rs",
+    "visible_command": {
+      "program": "cargo",
+      "args": ["test", "--locked", "--offline", "-p", "toml_datetime", "--lib"]
+    },
+    "protected_command": {
+      "program": "cargo",
+      "args": ["test", "--locked", "--offline", "-p", "toml_datetime", "--test", "ymp_protected"]
+    },
+    "vendor_tree_sha256": "0c55f7ec82e580bd0d728792586eeceef38c8e4cc3c17f83c9b3b8743fca0ad5",
+    "vendor_git_sources": ["https://github.com/rust-fuzz/libfuzzer-sys.git"]
+  },
+  "snapshots": {
+    "source": {
+      "commit": "99d50bb686adcdb569c0a1d37db1ac175c57e5ea",
+      "archive_sha256": "6068b1af5c4eaa76dc2d6653a1a8f681b371fb2a2151777637d6531c99a960c7"
+    },
+    "fixed": {
+      "commit": "045e8966ad21b7d5578fabf503e210b7522d7a47",
+      "archive_sha256": "9dfed63f98283dd73326ff103bee20d18a651612fbc647d206cd83553cfed0ae"
+    }
+  },
+  "artifacts": {
+    "public_contract": {"path": "tasks/toml-datetime-validation/PROJECT.md", "sha256": "3d0d567a6501b61e2c8539a6067adc2146e6d93ea193fc01f0b3fbe40abacfc9"},
+    "approval_record": {"path": "tasks/toml-datetime-validation/approval.json", "sha256": "cc22c2d0060c6bc0d56e1922d4a9c7f26b0eae9bf2ea50a19fd2865cbabfb8ca"},
+    "requirement_matrix": {"path": "tasks/toml-datetime-validation/requirement-matrix.json", "sha256": "86db19aa588a52619682953dee77dca8141597cba917efcca1632279fb757dcb"},
+    "oracle": {"path": "tasks/toml-datetime-validation/protected/oracle.rs", "sha256": "eb782986c9d9b341ebfa5ec8e8381963d38ee6e044c3f43072f178eb716dd0f8"},
+    "source_lock": {"path": "tasks/toml-datetime-validation/environment/source.Cargo.lock", "sha256": "4fe086693ba6a075fb6b9a5d5196ebb28092f03da9935b47fab94962d419afe7"},
+    "fixed_lock": {"path": "tasks/toml-datetime-validation/environment/fixed.Cargo.lock", "sha256": "4fe086693ba6a075fb6b9a5d5196ebb28092f03da9935b47fab94962d419afe7"}
+  },
+  "control_variants": [
+    {
+      "id": "leap-second",
+      "requirement_ids": ["TOML-LEAP-SECOND"],
+      "reverse_patch": {"path": "tasks/toml-datetime-validation/protected/mutations/leap-second.patch", "sha256": "6e0e84429a9b9f369cde677cadde7c36ee121a7b2a38138af1d39de094eb024d"}
+    },
+    {
+      "id": "calendar-days",
+      "requirement_ids": ["TOML-CALENDAR-DAY"],
+      "reverse_patch": {"path": "tasks/toml-datetime-validation/protected/mutations/calendar-days.patch", "sha256": "6bff35d4f98867e8da68cd3b0cd50794ef90163ad47c6c7940294839b16014b7"}
+    }
+  ]
+}

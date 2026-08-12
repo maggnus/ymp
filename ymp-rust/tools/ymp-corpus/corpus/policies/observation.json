@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "corpus_role": "primary_corpus_candidate",
+  "edition_status": "reproducible_first_edition",
+  "statistically_sufficient": false,
+  "study_frozen": false,
+  "producer_visibility": [
+    "PROJECT.md",
+    "source snapshot",
+    "source Cargo.lock",
+    "visible upstream tests"
+  ],
+  "producer_forbidden_visibility": [
+    "protected oracle bytes",
+    "negative mutation bytes",
+    "known-fixed snapshot"
+  ],
+  "communication_interventions": "not configured by W1-EXP-01a",
+  "chain_of_thought_collection": false,
+  "external_writes": false
+}

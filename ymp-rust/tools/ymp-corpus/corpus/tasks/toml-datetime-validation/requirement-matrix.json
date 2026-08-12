@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "task_id": "toml-datetime-validation",
+  "hidden_requirement_review": "none",
+  "requirements": [
+    {
+      "id": "TOML-LEAP-SECOND",
+      "protected_test": "protected_leap_second_boundary_is_supported",
+      "source_expectation": "fail",
+      "fixed_expectation": "pass",
+      "invalid_variant": "leap-second"
+    },
+    {
+      "id": "TOML-CALENDAR-DAY",
+      "protected_test": "protected_gregorian_calendar_days_are_validated",
+      "source_expectation": "fail",
+      "fixed_expectation": "pass",
+      "invalid_variant": "calendar-days"
+    }
+  ]
+}

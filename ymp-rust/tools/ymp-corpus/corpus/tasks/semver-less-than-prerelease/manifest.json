@@ -1,0 +1,75 @@
+{
+  "schema_version": 1,
+  "id": "semver-less-than-prerelease",
+  "admission_status": "verified",
+  "verified_at": "2026-08-12T04:47:52Z",
+  "upstream": {
+    "repository_url": "https://github.com/dtolnay/semver.git",
+    "source_commit": "35d918d334cdecc9725e217f460b90f478b5dabd",
+    "fixed_commit": "5742fc2f584dc14b46199d797de65305fe9b5144",
+    "source_commit_url": "https://github.com/dtolnay/semver/commit/35d918d334cdecc9725e217f460b90f478b5dabd",
+    "fixed_commit_url": "https://github.com/dtolnay/semver/commit/5742fc2f584dc14b46199d797de65305fe9b5144",
+    "fix_sources": [
+      "https://github.com/dtolnay/semver/commit/5742fc2f584dc14b46199d797de65305fe9b5144"
+    ],
+    "license_expression": "MIT OR Apache-2.0",
+    "license_files": ["LICENSE-APACHE", "LICENSE-MIT"]
+  },
+  "classification": "strongly_sequential",
+  "requirements": [
+    {
+      "id": "SEMVER-LT",
+      "public_summary": "Inside a compound requirement that otherwise admits a prerelease, a partial less-than comparator excludes prereleases at its minor-version boundary.",
+      "protected_test": "protected_partial_less_than_excludes_boundary_prereleases"
+    },
+    {
+      "id": "SEMVER-LTE",
+      "public_summary": "A partial less-than-or-equal comparator includes stable releases in its named minor but excludes boundary prereleases admitted by another comparator.",
+      "protected_test": "protected_partial_less_equal_has_the_same_boundary"
+    }
+  ],
+  "environment": {
+    "rustc_version": "rustc 1.89.0 (29483883e 2025-08-04)",
+    "cargo_version": "cargo 1.89.0 (c24e10642 2025-06-23)",
+    "host": "aarch64-apple-darwin",
+    "git_version": "git version 2.50.1 (Apple Git-155)",
+    "archive_tool": "git archive --format=tar; bsdtar 3.5.3",
+    "timeout_seconds": 300,
+    "oracle_path": "tests/ymp_protected.rs",
+    "visible_command": {
+      "program": "cargo",
+      "args": ["test", "--locked", "--offline", "-p", "semver", "--lib", "--all-features"]
+    },
+    "protected_command": {
+      "program": "cargo",
+      "args": ["test", "--locked", "--offline", "-p", "semver", "--test", "ymp_protected", "--all-features"]
+    },
+    "vendor_tree_sha256": "73d134855ddeea37d4626987c97a84200e0350ffd848909d13e1af413bed8a25",
+    "vendor_git_sources": []
+  },
+  "snapshots": {
+    "source": {
+      "commit": "35d918d334cdecc9725e217f460b90f478b5dabd",
+      "archive_sha256": "8e909f8bedaf41b2f65849327f11c740f92a0dd42ccd7cf2b99090d65888f1d0"
+    },
+    "fixed": {
+      "commit": "5742fc2f584dc14b46199d797de65305fe9b5144",
+      "archive_sha256": "8c64149ff923d33a79514d7b0884c01c36956dc49aa9c91a43b5561f07cd18f1"
+    }
+  },
+  "artifacts": {
+    "public_contract": {"path": "tasks/semver-less-than-prerelease/PROJECT.md", "sha256": "41235837480cec7e9037629f64442c42b06456fe022f61c02e1a1364d604a55a"},
+    "approval_record": {"path": "tasks/semver-less-than-prerelease/approval.json", "sha256": "2e43baa2ae8c46c12da48e82f1c923c3ad4095a5ea5283c11e7943339ca49149"},
+    "requirement_matrix": {"path": "tasks/semver-less-than-prerelease/requirement-matrix.json", "sha256": "f88aa85c245c9340783c994b8b9df33706b47ec56e803649163c7a0a24e11977"},
+    "oracle": {"path": "tasks/semver-less-than-prerelease/protected/oracle.rs", "sha256": "8f458c1a8c95a0db8701a2b1ff5de67a11fbc8cf3e7f88bce332c2066888cd1f"},
+    "source_lock": {"path": "tasks/semver-less-than-prerelease/environment/source.Cargo.lock", "sha256": "f09abe7b1d9830320701b2a2a06a0d106bbc47379c952a5453e05c0b3f835a47"},
+    "fixed_lock": {"path": "tasks/semver-less-than-prerelease/environment/fixed.Cargo.lock", "sha256": "f09abe7b1d9830320701b2a2a06a0d106bbc47379c952a5453e05c0b3f835a47"}
+  },
+  "control_variants": [
+    {
+      "id": "partial-less-than",
+      "requirement_ids": ["SEMVER-LT", "SEMVER-LTE"],
+      "reverse_patch": {"path": "tasks/semver-less-than-prerelease/protected/mutations/partial-less-than.patch", "sha256": "bb538f455291e891ce887039c0d836474fb33a43ab30485d5d2e05a15b4b2fc5"}
+    }
+  ]
+}

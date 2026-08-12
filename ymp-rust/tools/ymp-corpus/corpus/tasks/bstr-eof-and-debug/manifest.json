@@ -1,0 +1,81 @@
+{
+  "schema_version": 1,
+  "id": "bstr-eof-and-debug",
+  "admission_status": "verified",
+  "verified_at": "2026-08-12T04:47:52Z",
+  "upstream": {
+    "repository_url": "https://github.com/BurntSushi/bstr.git",
+    "source_commit": "cc13102d64de7b43efaf804046065b68f6c9a0c0",
+    "fixed_commit": "af99a6ecb4723d0ea03982797a1becd8437d3f7d",
+    "source_commit_url": "https://github.com/BurntSushi/bstr/commit/cc13102d64de7b43efaf804046065b68f6c9a0c0",
+    "fixed_commit_url": "https://github.com/BurntSushi/bstr/commit/af99a6ecb4723d0ea03982797a1becd8437d3f7d",
+    "fix_sources": [
+      "https://github.com/BurntSushi/bstr/commit/7b6e0259850dfbcfa4707e88e3a6a4f2a1ad4b34",
+      "https://github.com/BurntSushi/bstr/commit/af99a6ecb4723d0ea03982797a1becd8437d3f7d"
+    ],
+    "license_expression": "MIT OR Apache-2.0",
+    "license_files": ["COPYING", "LICENSE-APACHE", "LICENSE-MIT"]
+  },
+  "classification": "decomposable",
+  "requirements": [
+    {
+      "id": "BSTR-EOF",
+      "public_summary": "An empty BufRead buffer ends record iteration without another read or an emitted record.",
+      "protected_test": "protected_empty_fill_buffer_is_terminal_eof"
+    },
+    {
+      "id": "BSTR-DEBUG",
+      "public_summary": "Invalid UTF-8 bytes in BStr Debug output use two lowercase hexadecimal digits.",
+      "protected_test": "protected_invalid_utf8_debug_uses_lowercase_hex"
+    }
+  ],
+  "environment": {
+    "rustc_version": "rustc 1.89.0 (29483883e 2025-08-04)",
+    "cargo_version": "cargo 1.89.0 (c24e10642 2025-06-23)",
+    "host": "aarch64-apple-darwin",
+    "git_version": "git version 2.50.1 (Apple Git-155)",
+    "archive_tool": "git archive --format=tar; bsdtar 3.5.3",
+    "timeout_seconds": 300,
+    "oracle_path": "tests/ymp_protected.rs",
+    "visible_command": {
+      "program": "cargo",
+      "args": ["test", "--locked", "--offline", "-p", "bstr", "--lib"]
+    },
+    "protected_command": {
+      "program": "cargo",
+      "args": ["test", "--locked", "--offline", "-p", "bstr", "--test", "ymp_protected"]
+    },
+    "vendor_tree_sha256": "fd535557cf00093f948db6ccfe17d23a0be03e1f268530a156f35d0424b147d5",
+    "vendor_git_sources": []
+  },
+  "snapshots": {
+    "source": {
+      "commit": "cc13102d64de7b43efaf804046065b68f6c9a0c0",
+      "archive_sha256": "bdb29953c4cc14b5d9b51d0350ef2b290a2ddee5354b599a11725c6c0cad606b"
+    },
+    "fixed": {
+      "commit": "af99a6ecb4723d0ea03982797a1becd8437d3f7d",
+      "archive_sha256": "ebbc17f687e279fbe305c6735ad7f3b69d26577dc52130ba1d5bac5d9411a069"
+    }
+  },
+  "artifacts": {
+    "public_contract": {"path": "tasks/bstr-eof-and-debug/PROJECT.md", "sha256": "4f17e54aa882d88164bf0d8561608877d8798b9a3c5f3479e9ade97616fe62c8"},
+    "approval_record": {"path": "tasks/bstr-eof-and-debug/approval.json", "sha256": "3375e1c62fab897da2a02d733dfeeb625ca33bc1d6797f64954cec41d65e417e"},
+    "requirement_matrix": {"path": "tasks/bstr-eof-and-debug/requirement-matrix.json", "sha256": "dc20cac4ad040d14bf56ae52a368770f170db76210f846828996364e128f579d"},
+    "oracle": {"path": "tasks/bstr-eof-and-debug/protected/oracle.rs", "sha256": "9d4925ce08644fc3ac9fee03e86bd92ac051f8286973f24bd31337ea1c554232"},
+    "source_lock": {"path": "tasks/bstr-eof-and-debug/environment/source.Cargo.lock", "sha256": "fad92cf2402fd544e78c0bbadeec211ce5a45d53c1b79fa56b457c7dad559bbf"},
+    "fixed_lock": {"path": "tasks/bstr-eof-and-debug/environment/fixed.Cargo.lock", "sha256": "ccad548f61de67f04c959247e6503f920a1bbfb3c3512ad7945ab0e5dad0c3bf"}
+  },
+  "control_variants": [
+    {
+      "id": "eof-stop",
+      "requirement_ids": ["BSTR-EOF"],
+      "reverse_patch": {"path": "tasks/bstr-eof-and-debug/protected/mutations/eof-stop.patch", "sha256": "8bd8532960f95eb4598ca4f02a8503cb65067700d78caf82e9d3f04d00501fb6"}
+    },
+    {
+      "id": "lowercase-debug",
+      "requirement_ids": ["BSTR-DEBUG"],
+      "reverse_patch": {"path": "tasks/bstr-eof-and-debug/protected/mutations/lowercase-debug.patch", "sha256": "c672cfa1661de4b2bed4caf216069ba84eddbfada2d3a997843e29f7b4fcc871"}
+    }
+  ]
+}

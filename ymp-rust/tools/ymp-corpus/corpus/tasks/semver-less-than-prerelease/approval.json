@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "task_id": "semver-less-than-prerelease",
+  "approved_at": "2026-08-12",
+  "approved_by": "project owner through W1-EXP-01a and OWNER_GATES.md G2",
+  "source_commit": "35d918d334cdecc9725e217f460b90f478b5dabd",
+  "fixed_commit": "5742fc2f584dc14b46199d797de65305fe9b5144",
+  "source_archive_sha256": "8e909f8bedaf41b2f65849327f11c740f92a0dd42ccd7cf2b99090d65888f1d0",
+  "fixed_archive_sha256": "8c64149ff923d33a79514d7b0884c01c36956dc49aa9c91a43b5561f07cd18f1",
+  "public_contract_sha256": "41235837480cec7e9037629f64442c42b06456fe022f61c02e1a1364d604a55a",
+  "requirement_matrix_sha256": "f88aa85c245c9340783c994b8b9df33706b47ec56e803649163c7a0a24e11977",
+  "oracle_sha256": "8f458c1a8c95a0db8701a2b1ff5de67a11fbc8cf3e7f88bce332c2066888cd1f",
+  "environment": "rustc/cargo 1.89.0, aarch64-apple-darwin, offline vendored dependencies",
+  "review": "Protected versions are boundary instances of SEMVER-LT and SEMVER-LTE only; no hidden requirement was identified."
+}

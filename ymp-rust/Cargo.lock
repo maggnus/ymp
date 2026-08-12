@@ -1144,6 +1144,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "ymp-corpus"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "clap",
+ "hex",
+ "serde",
+ "serde_json",
+ "sha2",
+ "tempfile",
+]
+
+[[package]]
 name = "ymp-domain"
 version = "0.1.0"
 dependencies = [

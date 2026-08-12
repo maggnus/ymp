@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "task_id": "serde-json-surrogate-escapes",
+  "hidden_requirement_review": "none",
+  "requirements": [
+    {
+      "id": "JSON-SURROGATE-STATE",
+      "protected_test": "protected_escape_after_lone_surrogate_is_not_skipped",
+      "positive_control_test": "protected_lone_surrogates_remain_available_to_byte_buffers",
+      "source_expectation": "fail",
+      "fixed_expectation": "pass",
+      "invalid_variant": "surrogate-state"
+    }
+  ]
+}

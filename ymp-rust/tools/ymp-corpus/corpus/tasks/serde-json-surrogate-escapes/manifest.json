@@ -1,0 +1,70 @@
+{
+  "schema_version": 1,
+  "id": "serde-json-surrogate-escapes",
+  "admission_status": "verified",
+  "verified_at": "2026-08-12T04:47:52Z",
+  "upstream": {
+    "repository_url": "https://github.com/serde-rs/json.git",
+    "source_commit": "4c28c5737b26f15bc7457d53eff8517b33cb4a43",
+    "fixed_commit": "07c740c2ffa2e81c9c3dc7982b67572e990e2cdd",
+    "source_commit_url": "https://github.com/serde-rs/json/commit/4c28c5737b26f15bc7457d53eff8517b33cb4a43",
+    "fixed_commit_url": "https://github.com/serde-rs/json/commit/07c740c2ffa2e81c9c3dc7982b67572e990e2cdd",
+    "fix_sources": [
+      "https://github.com/serde-rs/json/commit/07c740c2ffa2e81c9c3dc7982b67572e990e2cdd"
+    ],
+    "license_expression": "MIT OR Apache-2.0",
+    "license_files": ["LICENSE-APACHE", "LICENSE-MIT"]
+  },
+  "classification": "strongly_sequential",
+  "requirements": [
+    {
+      "id": "JSON-SURROGATE-STATE",
+      "public_summary": "After a lone surrogate in byte-buffer mode, JSON escape parsing resumes at the immediately following escape without weakening invalid-input rejection.",
+      "protected_test": "protected_escape_after_lone_surrogate_is_not_skipped"
+    }
+  ],
+  "environment": {
+    "rustc_version": "rustc 1.89.0 (29483883e 2025-08-04)",
+    "cargo_version": "cargo 1.89.0 (c24e10642 2025-06-23)",
+    "host": "aarch64-apple-darwin",
+    "git_version": "git version 2.50.1 (Apple Git-155)",
+    "archive_tool": "git archive --format=tar; bsdtar 3.5.3",
+    "timeout_seconds": 300,
+    "oracle_path": "tests/ymp_protected.rs",
+    "visible_command": {
+      "program": "cargo",
+      "args": ["test", "--locked", "--offline", "-p", "serde_json@1.0.71", "--lib", "--tests", "--all-features"]
+    },
+    "protected_command": {
+      "program": "cargo",
+      "args": ["test", "--locked", "--offline", "-p", "serde_json@1.0.71", "--test", "ymp_protected", "--all-features"]
+    },
+    "vendor_tree_sha256": "72575df23df458ce96319f8940d4aca9af5f015d8f9f5f90000abd7e85ea9005",
+    "vendor_git_sources": []
+  },
+  "snapshots": {
+    "source": {
+      "commit": "4c28c5737b26f15bc7457d53eff8517b33cb4a43",
+      "archive_sha256": "de4feabf1e003eabac1d9ff9e2ed458d155a8014859ef5a8465d0fa1c696812e"
+    },
+    "fixed": {
+      "commit": "07c740c2ffa2e81c9c3dc7982b67572e990e2cdd",
+      "archive_sha256": "6aac4ff7bf42bca4f13a2a12aec0a9109a64f2ba30bb1504be67b7e58a8651f7"
+    }
+  },
+  "artifacts": {
+    "public_contract": {"path": "tasks/serde-json-surrogate-escapes/PROJECT.md", "sha256": "e6a6dd483645253da9bdda14f18afe810a9efafcb7942d24d18f5538af79b58f"},
+    "approval_record": {"path": "tasks/serde-json-surrogate-escapes/approval.json", "sha256": "0ade15cecbf3fcdb4a65a9e1f27383d1cabd35fd7c5842342bdc1485dd0e64dd"},
+    "requirement_matrix": {"path": "tasks/serde-json-surrogate-escapes/requirement-matrix.json", "sha256": "e3c09550e85bccb3649dba6702c1d91c95a768f35e699df4b29a5c48fbcdc0dc"},
+    "oracle": {"path": "tasks/serde-json-surrogate-escapes/protected/oracle.rs", "sha256": "d593c1e3c36c95c6416df51dee4822ed1da873b8c36e84c0dcd66242c5f893e9"},
+    "source_lock": {"path": "tasks/serde-json-surrogate-escapes/environment/source.Cargo.lock", "sha256": "483b18972121f69207cf94c881ebdfd0184e31ec2ad087cb2570e0a53e719cb9"},
+    "fixed_lock": {"path": "tasks/serde-json-surrogate-escapes/environment/fixed.Cargo.lock", "sha256": "483b18972121f69207cf94c881ebdfd0184e31ec2ad087cb2570e0a53e719cb9"}
+  },
+  "control_variants": [
+    {
+      "id": "surrogate-state",
+      "requirement_ids": ["JSON-SURROGATE-STATE"],
+      "reverse_patch": {"path": "tasks/serde-json-surrogate-escapes/protected/mutations/surrogate-state.patch", "sha256": "ceea2a29f2f443f04ab4922b9a64bcc4628f86acf119b965301b211e66ee63de"}
+    }
+  ]
+}

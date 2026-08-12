@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "task_id": "bstr-eof-and-debug",
+  "hidden_requirement_review": "none",
+  "requirements": [
+    {
+      "id": "BSTR-EOF",
+      "protected_test": "protected_empty_fill_buffer_is_terminal_eof",
+      "source_expectation": "fail",
+      "fixed_expectation": "pass",
+      "invalid_variant": "eof-stop"
+    },
+    {
+      "id": "BSTR-DEBUG",
+      "protected_test": "protected_invalid_utf8_debug_uses_lowercase_hex",
+      "source_expectation": "fail",
+      "fixed_expectation": "pass",
+      "invalid_variant": "lowercase-debug"
+    }
+  ]
+}

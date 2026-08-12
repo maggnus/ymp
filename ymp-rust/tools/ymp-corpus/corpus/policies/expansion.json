@@ -1,0 +1,48 @@
+{
+  "schema_version": 1,
+  "policy_id": "w1-exp-01a-corpus-expansion-v1",
+  "current_edition": {
+    "status": "reproducible_first_edition",
+    "corpus_role": "primary_corpus_candidate",
+    "statistically_sufficient": false,
+    "study_frozen": false,
+    "verified_distinct_tasks_by_stratum": {
+      "decomposable": 2,
+      "strongly_sequential": 2
+    }
+  },
+  "required_preregistration_before_expansion_or_freeze": [
+    "analysis_model",
+    "primary_estimand",
+    "randomization_unit",
+    "alpha",
+    "target_power",
+    "minimum_practically_useful_effect",
+    "repetitions_per_task",
+    "required_distinct_tasks_by_stratum",
+    "power_analysis_code_sha256",
+    "power_analysis_inputs_sha256"
+  ],
+  "distinct_task_definition": "one admitted task id bound to one public contract and one source commit; repetitions of that task are not additional distinct tasks",
+  "admission_filter": [
+    "public_nonsensitive_rust_upstream",
+    "full_source_and_fixed_git_sha",
+    "license_evidence",
+    "content_addressed_source_and_vendor_digests",
+    "offline_clean_reproduction_passes",
+    "known_fixed_candidate_passes",
+    "source_baseline_fails_each_mapped_protected_requirement",
+    "every_major_requirement_has_a_rejected_invalid_control",
+    "structural_stratum_assigned_before_any_ymp_outcome"
+  ],
+  "mechanical_expansion_rule": {
+    "expression": "for any stratum s, expand while verified_distinct_tasks(s) < preregistered_required_distinct_tasks(s)",
+    "selection_order": "admit eligible tasks in ascending (repository_url, source_commit, task_id) order from the preregistered candidate list",
+    "replacement_rule": "before primary outcomes, replace an unusable task with the next eligible task in the same stratum; after primary outcomes, do not add, substitute, or relabel tasks"
+  },
+  "freeze_condition": {
+    "expression": "freeze iff every preregistration field is immutable and, for every stratum s, verified_distinct_tasks(s) >= preregistered_required_distinct_tasks(s), and every admitted task satisfies every admission filter",
+    "required_output": "a study manifest that records the power rationale, the frozen registry SHA-256, and the exact admitted task ids",
+    "repetitions_count_as_distinct_tasks": false
+  }
+}

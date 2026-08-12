@@ -1,0 +1,39 @@
+{
+  "schema_version": 1,
+  "corpus_id": "w1-exp-01a-first-edition-2026-08-12",
+  "corpus_role": "primary_corpus_candidate",
+  "edition_status": "reproducible_first_edition",
+  "statistically_sufficient": false,
+  "study_frozen": false,
+  "calibration_cases_excluded": ["L1-L3"],
+  "preparation_model_calls": 0,
+  "reproduction_model_calls": 0,
+  "expansion_policy": {
+    "path": "policies/expansion.json",
+    "sha256": "3718bd97288ab8304dec0acc5e9825aad45434629786327594579382ff1ce5c9"
+  },
+  "policies": [
+    {"path": "policies/budget.json", "sha256": "78b410fc8e2dc55c85ffb3a1e1404d954309b26ff0709b47338fb3edf3bdae3d"},
+    {"path": "policies/evidence.json", "sha256": "ad0755e0d57d5f4caada72e031d2de098939ce37d78c79219002486a5b1beaea"},
+    {"path": "policies/observation.json", "sha256": "a33e23b316b06de8cc6d13e967436f8cb89b58234929e42cc3a5cfa3b79241a2"},
+    {"path": "policies/review.json", "sha256": "3a6cd3275dce61f7aa80111124a4d6643d9320be41346dd2804ca1df1266a694"}
+  ],
+  "tasks": [
+    {
+      "id": "bstr-eof-and-debug",
+      "manifest": {"path": "tasks/bstr-eof-and-debug/manifest.json", "sha256": "f5aae503bc2536b9adfb2a9854c8482ec21ed987abce44eac651b43966718d6e"}
+    },
+    {
+      "id": "semver-less-than-prerelease",
+      "manifest": {"path": "tasks/semver-less-than-prerelease/manifest.json", "sha256": "e8b2a29fe9f61ea6bf11323757f493c660961568e8b0599b0eac442b20699ce8"}
+    },
+    {
+      "id": "serde-json-surrogate-escapes",
+      "manifest": {"path": "tasks/serde-json-surrogate-escapes/manifest.json", "sha256": "0fdd03f13cb81b1b58e6d9ff676dde5dea3b8b7c0f272065472d9ecae73f2342"}
+    },
+    {
+      "id": "toml-datetime-validation",
+      "manifest": {"path": "tasks/toml-datetime-validation/manifest.json", "sha256": "250e25b1dd479278d39ece7ec3fd43f53d6a8d745cd2c160ae1c2a17d93e74cd"}
+    }
+  ]
+}

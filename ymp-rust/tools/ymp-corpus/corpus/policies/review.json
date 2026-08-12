@@ -1,0 +1,9 @@
+{
+  "schema_version": 1,
+  "mechanical_requirements_only": true,
+  "human_or_agent_judgment_required": false,
+  "protected_cases_may_only_instantiate_public_requirements": true,
+  "approval_authority": "owner-delegated W1-EXP-01a corpus author",
+  "approval_basis": "OWNER_GATES.md G2 resolution and explicit W1-EXP-01a implementation request",
+  "approval_date": "2026-08-12"
+}

@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "task_id": "semver-less-than-prerelease",
+  "hidden_requirement_review": "none",
+  "requirements": [
+    {
+      "id": "SEMVER-LT",
+      "protected_test": "protected_partial_less_than_excludes_boundary_prereleases",
+      "source_expectation": "fail",
+      "fixed_expectation": "pass",
+      "invalid_variant": "partial-less-than"
+    },
+    {
+      "id": "SEMVER-LTE",
+      "protected_test": "protected_partial_less_equal_has_the_same_boundary",
+      "source_expectation": "fail",
+      "fixed_expectation": "pass",
+      "invalid_variant": "partial-less-than"
+    }
+  ]
+}

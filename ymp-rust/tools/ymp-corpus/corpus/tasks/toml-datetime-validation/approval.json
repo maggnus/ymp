@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "task_id": "toml-datetime-validation",
+  "approved_at": "2026-08-12",
+  "approved_by": "project owner through W1-EXP-01a and OWNER_GATES.md G2",
+  "source_commit": "99d50bb686adcdb569c0a1d37db1ac175c57e5ea",
+  "fixed_commit": "045e8966ad21b7d5578fabf503e210b7522d7a47",
+  "source_archive_sha256": "6068b1af5c4eaa76dc2d6653a1a8f681b371fb2a2151777637d6531c99a960c7",
+  "fixed_archive_sha256": "9dfed63f98283dd73326ff103bee20d18a651612fbc647d206cd83553cfed0ae",
+  "public_contract_sha256": "3d0d567a6501b61e2c8539a6067adc2146e6d93ea193fc01f0b3fbe40abacfc9",
+  "requirement_matrix_sha256": "86db19aa588a52619682953dee77dca8141597cba917efcca1632279fb757dcb",
+  "oracle_sha256": "eb782986c9d9b341ebfa5ec8e8381963d38ee6e044c3f43072f178eb716dd0f8",
+  "environment": "rustc/cargo 1.89.0, aarch64-apple-darwin, offline vendored dependencies",
+  "review": "Protected dates and times instantiate TOML-LEAP-SECOND and TOML-CALENDAR-DAY only; no hidden requirement was identified."
+}
