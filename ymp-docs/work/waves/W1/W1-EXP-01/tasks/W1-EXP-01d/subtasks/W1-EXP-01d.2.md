@@ -11,16 +11,16 @@ relation: required
 depends_on: []
 blocks: [W1-APP-02d]
 created_at: 2026-08-12T20:31:00+08:00
-updated_at: 2026-08-12T21:59:42+08:00
+updated_at: 2026-08-12T22:29:02+08:00
 started_at: 2026-08-12T21:18:00+08:00
 accepted_at:
-candidate_commit: https://github.com/maggnus/ymp/commit/12cfc568774b94f6e51d75535a68e67c9ce1b66e
+candidate_commit: https://github.com/maggnus/ymp/commit/4f27fe0c57001cd83b36d87924b73da5ac09535b
 closure_commit:
 evidence:
 duration_minutes: 0
 blocker:
 pause_reason:
-return_trigger: Re-review after primary observations independently bind the exact executables, arguments, safe environment, structured events, and process outcomes
+return_trigger:
 deliberate_partial: false
 ---
 
@@ -60,18 +60,16 @@ incompatible fixtures, so it can be admitted to the primary comparison independe
 
 ## Current state
 
-Candidate `12cfc568` reproducibly exposes ambient configuration, incomplete usage and excess
-accounting, incomplete descendant cleanup, and duplicate-event acceptance. Review returned the
-package because its validator trusts fields after checking only a self-digest: altered executable
-identity, usage, and four negative controls pass after hashes are recomputed. The incompatibility
-remains technically supported, but attribution to the claimed Claude Code 2.1.227 runs is not.
+Candidate `4f27fe0` replaces the self-certified report with five pinned primary observations. Its
+validator now derives the bounded non-admission result from recomputed executable digests, exact
+arguments, a reduced safe environment, process outcomes, and structured event order. The preserved
+reviewer is repeating the independent Critical BUILD review with the unchanged external falsifier.
 
 ## Next action
 
-Replace the self-certified report with pinned primary observations from the same candidate lineage.
-The validator must independently derive the result from the exact `claude` and `ymp` digests,
-arguments, reduced safe environment, structured events, and process outcomes. Mutate those primary
-inputs, recompute every derived digest, and return the bounded correction to the preserved reviewer.
+Complete the repeated independent review of exact candidate `4f27fe0` with the frozen external
+falsifier. Accept only if coherent primary-data mutations remain rejected and the executable,
+arguments, environment, events, and process outcomes are independently bound to the conclusion.
 
 ## Guardrails
 
