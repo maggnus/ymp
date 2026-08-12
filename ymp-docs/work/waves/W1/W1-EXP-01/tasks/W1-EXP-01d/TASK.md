@@ -3,24 +3,24 @@ id: W1-EXP-01d
 kind: task
 wave: W1
 card: W1-EXP-01
-state: active
+state: accepted
 risk: significant
 maturity: RESEARCH
 relation: required
 depends_on: [W1-EXP-01b]
 blocks: []
 created_at: 2026-08-10T19:34:25+08:00
-updated_at: 2026-08-12T22:04:20+08:00
+updated_at: 2026-08-12T22:44:30+08:00
 started_at: 2026-08-12T20:31:00+08:00
-accepted_at:
+accepted_at: 2026-08-12T22:44:30+08:00
 candidate_commit:
-closure_commit:
-evidence:
-duration_minutes: 0
+closure_commit: https://github.com/maggnus/ymp/commit/ca221c9a4b81775bf158cf915d0d7613e9daae92
+evidence: ["[Codex bounded result](subtasks/W1-EXP-01d.1.md)", "[Claude bounded result](subtasks/W1-EXP-01d.2.md)", "[Convergence decision ca221c9](https://github.com/maggnus/ymp/commit/ca221c9a4b81775bf158cf915d0d7613e9daae92)"]
+duration_minutes: 133
 blocker:
 pause_reason:
 return_trigger:
-deliberate_partial: false
+deliberate_partial: true
 ---
 
 # W1-EXP-01d — Runtime probes expose incompatible POC profiles
@@ -61,16 +61,15 @@ isolation, usage evidence, and stopping behavior required by the experiment.
 
 ## Current state
 
-The Codex subtask is accepted with a bounded non-admission result: ambient organisation and project
-scope reaches the managed process, so the declared route cannot be attributed to the actual request.
-The production correction now belongs to ready task W1-APP-02c. Claude evidence remains under
-bounded rework after review proved that its self-certified report permits false attribution. The
-parent closes only after the Claude subtask has accepted evidence.
+Both exact profiles are reproducibly ineligible for the primary comparison. Codex receives ambient
+route scope; Claude receives ambient configuration, loses error-path accounting, and leaves a
+descendant after its parent exits. Both research evidence packages reached the two-return
+convergence limit; only independently confirmed non-admission findings are accepted.
 
 ## Next action
 
-Complete the bounded primary-observation correction and repeated independent review for
-W1-EXP-01d.2. W1-APP-02c may proceed independently with the accepted Codex non-admission evidence.
+Apply the independently confirmed production corrections in W1-APP-02c and W1-APP-02d, then run
+new exact managed probes through the product. Do not reopen either research evidence package.
 
 ## Guardrails
 
@@ -82,17 +81,25 @@ W1-EXP-01d.2. W1-APP-02c may proceed independently with the accepted Codex non-a
 
 - `ymp-docs/CALIBRATION.md`
 - `ymp-rust/tools/ymp-calibration/results/2026-08-12-smoke.json`
+- Both provider-specific subtasks ended with independent non-admission evidence and no observed
+  pressure, concealment, verdict negotiation, or author-reviewer coordination.
 
 ## Closure
 
 ### Accepted outcome
 
-Not accepted.
+The deterministic fixtures and independent falsifiers identify why neither exact profile is
+eligible. This deliberately partial result is sufficient to define production corrections, but
+neither profile is admitted and no provider-quality comparison may start from these packages.
 
 ### Residuals
 
-None recorded.
+- Codex production isolation and a post-fix exact probe remain in W1-APP-02c.
+- Claude production isolation, complete accounting and process cleanup, and a post-fix exact probe
+  remain in W1-APP-02d.
 
 ### Evidence
 
-- None until acceptance.
+- [Codex bounded result](subtasks/W1-EXP-01d.1.md)
+- [Claude bounded result](subtasks/W1-EXP-01d.2.md)
+- [Convergence decision ca221c9](https://github.com/maggnus/ymp/commit/ca221c9a4b81775bf158cf915d0d7613e9daae92)

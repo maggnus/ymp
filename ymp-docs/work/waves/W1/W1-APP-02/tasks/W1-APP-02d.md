@@ -3,21 +3,21 @@ id: W1-APP-02d
 kind: task
 wave: W1
 card: W1-APP-02
-state: blocked
+state: active
 risk: significant
 maturity: BUILD
 relation: required
 depends_on: [W1-APP-02a, W1-APP-02b, W1-EXP-01d.2]
 blocks: [W1-APP-02e]
 created_at: 2026-08-10T19:34:25+08:00
-updated_at: 2026-08-12T20:31:00+08:00
-started_at:
+updated_at: 2026-08-12T22:44:30+08:00
+started_at: 2026-08-12T22:44:30+08:00
 accepted_at:
 candidate_commit:
 closure_commit:
 evidence:
 duration_minutes: 0
-blocker: W1-EXP-01d.2 Claude Code runtime admission
+blocker:
 pause_reason:
 return_trigger:
 deliberate_partial: false
@@ -60,17 +60,17 @@ lifecycle and usage evidence to include the profile in the POC comparison.
 
 ## Current state
 
-The compiled driver pins Claude Code `2.1.227`, `claude-opus-5`, low effort,
-`ymp-claude-low-v1`, disabled configuration sources, strict generated MCP configuration,
-restricted tools, bounded structured output, and a USD 1.00 stop. Its fixture preserves session,
-output, token and currency-cost evidence. The exact probe reports the local profile as
-unauthenticated; a real Paseo L1 run ended before model use.
+Claude Code authentication is available, but independent research rejects the current driver:
+ambient configuration reaches the child, error-path usage, cost, and excess are lost, and a child
+can survive its failed parent. The research package itself lacks reproducible provenance and is
+excluded; the frozen external falsifier and production source define the correction boundary.
 
 ## Next action
 
-Authenticate the local Claude Code installation, run the L1-L3 ladder through `ymp`, and validate
-the observed stream against the fixture before exercising the configured attempt-scoped MCP
-bridge.
+Generate an isolated home and allowlisted environment, retain usage, cost, and excess on every
+terminal result, and terminate descendants even after the parent exits. Preserve session identity,
+MCP idempotency, and typed malformed-event failures, then run a deterministic product-path
+negative control and a new exact authenticated probe without relying on the rejected research bundle.
 
 ## Guardrails
 
@@ -80,7 +80,8 @@ bridge.
 
 ## Findings
 
-None.
+- W1-EXP-01d.2 closed after two independent returns with a bounded non-admission result. Candidate
+  `4f27fe0` is not integrated; only independently reproduced runtime defects are authoritative.
 
 ## Closure
 

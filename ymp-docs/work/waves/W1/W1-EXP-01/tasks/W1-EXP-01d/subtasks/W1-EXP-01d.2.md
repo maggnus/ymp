@@ -4,24 +4,24 @@ kind: subtask
 wave: W1
 card: W1-EXP-01
 parent: W1-EXP-01d
-state: active
+state: accepted
 risk: significant
 maturity: RESEARCH
 relation: required
 depends_on: []
 blocks: [W1-APP-02d]
 created_at: 2026-08-12T20:31:00+08:00
-updated_at: 2026-08-12T22:43:46+08:00
+updated_at: 2026-08-12T22:44:30+08:00
 started_at: 2026-08-12T21:18:00+08:00
-accepted_at:
+accepted_at: 2026-08-12T22:44:30+08:00
 candidate_commit: https://github.com/maggnus/ymp/commit/4f27fe0c57001cd83b36d87924b73da5ac09535b
-closure_commit:
-evidence:
-duration_minutes: 0
+closure_commit: https://github.com/maggnus/ymp/commit/ca221c9a4b81775bf158cf915d0d7613e9daae92
+evidence: ["[Reviewed candidate 4f27fe0](https://github.com/maggnus/ymp/commit/4f27fe0c57001cd83b36d87924b73da5ac09535b)", "[Convergence decision ca221c9](https://github.com/maggnus/ymp/commit/ca221c9a4b81775bf158cf915d0d7613e9daae92)"]
+duration_minutes: 86
 blocker:
 pause_reason:
 return_trigger: Second independent RETURN reached the convergence rule; no third research rework
-deliberate_partial: false
+deliberate_partial: true
 ---
 
 # W1-EXP-01d.2 — Claude Code profile satisfies the primary-comparison runtime contract
@@ -94,16 +94,22 @@ cleanup, and a new exact probe to W1-APP-02d. Do not start a third research corr
 
 ## Closure
 
-Not accepted.
+Accepted with the explicitly bounded non-admission result below.
 
 ### Accepted outcome
 
-Not accepted.
+Claude Code 2.1.227 is not admitted: independent execution confirms ambient configuration,
+missing error-path usage and excess accounting, and incomplete descendant cleanup. Candidate
+`4f27fe0` is not integrated and its observation-provenance claims are excluded.
 
 ### Residuals
 
-None recorded.
+- Clean-build provenance, exact argument and MCP projection, and primary process attribution remain
+  unproven in the research package.
+- Production corrections and a new exact managed probe belong to W1-APP-02d.
 
 ### Evidence
 
-- None until acceptance.
+- [Reviewed candidate 4f27fe0](https://github.com/maggnus/ymp/commit/4f27fe0c57001cd83b36d87924b73da5ac09535b)
+- [Convergence decision ca221c9](https://github.com/maggnus/ymp/commit/ca221c9a4b81775bf158cf915d0d7613e9daae92)
+- Preserved external falsifier `/tmp/ymp-w1-exp-01d2-external-falsifier-4a127969-20260812`.
