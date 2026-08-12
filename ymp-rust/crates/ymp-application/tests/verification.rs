@@ -146,6 +146,51 @@ fn only_bound_verifier_evidence_can_accept_a_candidate() {
 }
 
 #[test]
+fn exact_verification_retry_returns_the_stored_result_without_spending_budget() {
+    let temporary = tempdir().expect("temporary data root");
+    let (mut app, candidate_digest) = submitted_application(temporary.path());
+    let verifier = ExactDigestVerifier::new("1".repeat(64), "2".repeat(64), &candidate_digest)
+        .expect("configure verifier");
+    let evidence = verifier
+        .verify_candidate(
+            app.object_store()
+                .path_for(&candidate_digest)
+                .expect("candidate path"),
+            candidate_digest,
+        )
+        .expect("verify candidate");
+    let first = app
+        .record_verification("verify-first", &evidence)
+        .expect("record verification");
+    let event_count = app.events_after(0).expect("events").len();
+    let budget = app.state().budget.clone();
+
+    let retry = app
+        .record_verification("verify-retry", &evidence)
+        .expect("return stored verification");
+
+    assert!(retry.replayed);
+    assert_eq!(retry.event, first.event);
+    assert_eq!(app.events_after(0).expect("events").len(), event_count);
+    assert_eq!(app.state().budget, budget);
+
+    drop(app);
+    let mut reopened = Application::open(temporary.path()).expect("reopen application");
+    let reopened_count = reopened.events_after(0).expect("events").len();
+    let reopened_budget = reopened.state().budget.clone();
+    let retry = reopened
+        .record_verification("verify-after-recovery", &evidence)
+        .expect("return recovered verification");
+    assert!(retry.replayed);
+    assert_eq!(retry.event, first.event);
+    assert_eq!(
+        reopened.events_after(0).expect("events").len(),
+        reopened_count
+    );
+    assert_eq!(reopened.state().budget, reopened_budget);
+}
+
+#[test]
 fn altered_missing_or_digest_substituted_environment_is_infrastructure_error() {
     for (index, mutation) in [
         EnvironmentMutation::ReplaceByte,

@@ -94,9 +94,9 @@ fn conflicting_integration_cannot_replace_an_existing_candidate() {
     std::fs::create_dir_all(&source).expect("create source");
     std::fs::write(source.join("result.txt"), b"base\n").expect("write source");
 
+    let data_root = temporary.path().join("data");
     let mut application =
-        Application::create(temporary.path().join("data"), "run-1", Budget::new(2, 1))
-            .expect("create application");
+        Application::create(&data_root, "run-1", Budget::new(2, 1)).expect("create application");
     let artifacts = application.artifact_store();
     let base = artifacts.capture_source(&source).expect("capture base");
     artifacts
@@ -199,6 +199,78 @@ fn conflicting_integration_cannot_replace_an_existing_candidate() {
     );
     assert_eq!(
         application.events_after(0).expect("read events").len(),
+        event_count
+    );
+}
+
+#[test]
+fn identical_candidate_tree_from_a_different_base_is_rejected() {
+    let temporary = tempdir().expect("temporary directory");
+    let first_source = temporary.path().join("source-first");
+    let second_source = temporary.path().join("source-second");
+    let first_workspace = temporary.path().join("workspace-first");
+    let second_workspace = temporary.path().join("workspace-second");
+    std::fs::create_dir(&first_source).expect("create first source");
+    std::fs::create_dir(&second_source).expect("create second source");
+    std::fs::write(first_source.join("result.txt"), b"first base\n").expect("first source");
+    std::fs::write(second_source.join("result.txt"), b"second base\n").expect("second source");
+
+    let data_root = temporary.path().join("data");
+    let mut application =
+        Application::create(&data_root, "run-1", Budget::new(2, 1)).expect("create application");
+    let artifacts = application.artifact_store();
+    let first_base = artifacts.capture_source(&first_source).expect("first base");
+    let second_base = artifacts
+        .capture_source(&second_source)
+        .expect("second base");
+    artifacts
+        .materialize(&first_base.manifest_digest, &first_workspace)
+        .expect("first workspace");
+    artifacts
+        .materialize(&second_base.manifest_digest, &second_workspace)
+        .expect("second workspace");
+    for (command_id, attempt_id) in [("start-1", "attempt-1"), ("start-2", "attempt-2")] {
+        application
+            .execute(
+                command_id,
+                Command::StartAttempt {
+                    attempt_id: attempt_id.to_owned(),
+                },
+            )
+            .expect("start attempt");
+    }
+    std::fs::write(first_workspace.join("result.txt"), b"same candidate\n")
+        .expect("first candidate");
+    std::fs::write(second_workspace.join("result.txt"), b"same candidate\n")
+        .expect("second candidate");
+    let first = application
+        .submit_workspace_candidate(
+            "submit-1",
+            "attempt-1",
+            &first_base.manifest_digest,
+            &first_workspace,
+        )
+        .expect("submit first candidate");
+    let event_count = application.events_after(0).expect("events").len();
+    drop(application);
+    let mut application = Application::open(&data_root).expect("recover candidate identity");
+
+    let error = application
+        .submit_workspace_candidate(
+            "submit-2",
+            "attempt-2",
+            &second_base.manifest_digest,
+            &second_workspace,
+        )
+        .expect_err("reject alternate ancestry");
+
+    assert!(matches!(error, ApplicationError::CandidateConflict { .. }));
+    assert_eq!(
+        application.state().candidate_digest.as_deref(),
+        Some(first.candidate.snapshot_digest.as_str())
+    );
+    assert_eq!(
+        application.events_after(0).expect("events").len(),
         event_count
     );
 }

@@ -94,6 +94,8 @@ pub enum ArtifactError {
     UnsupportedSchema { kind: &'static str, actual: u32 },
     #[error("submission deletes a path that is absent from its base: {0}")]
     MissingDeleteTarget(String),
+    #[error("submission changed an excluded path that belongs to its exact base: {0}")]
+    ExcludedPathChanged(String),
 }
 
 #[derive(Clone, Debug)]
@@ -194,11 +196,13 @@ impl ArtifactStore {
         let base_snapshot_digest = base_snapshot_digest.into();
         let base = self.load_snapshot(&base_snapshot_digest)?;
         let exclusions = normalized_exclusions(exclusions)?;
+        let base_entries = entry_map(base.files)?;
+        verify_excluded_paths(workspace.as_ref(), &base_entries, &exclusions)?;
         let current_ref = self.capture_source_filtered(workspace.as_ref(), &exclusions)?;
         let current = self.load_snapshot(&current_ref.manifest_digest)?;
         let base_map = entry_map(
-            base.files
-                .into_iter()
+            base_entries
+                .into_values()
                 .filter(|entry| !is_excluded(&entry.path, &exclusions))
                 .collect(),
         )?;
@@ -351,6 +355,98 @@ fn is_excluded(path: &str, exclusions: &BTreeSet<String>) -> bool {
     exclusions
         .iter()
         .any(|excluded| path == excluded || path.starts_with(&format!("{excluded}/")))
+}
+
+fn workspace_entry_matches(root: &Path, expected: &FileEntry) -> Result<bool, ArtifactError> {
+    let relative = checked_relative_path(&expected.path)?;
+    let mut target = root.to_path_buf();
+    let components: Vec<_> = relative.components().collect();
+    for (index, component) in components.iter().enumerate() {
+        let Component::Normal(component) = component else {
+            return Ok(false);
+        };
+        target.push(component);
+        let metadata = match fs::symlink_metadata(&target) {
+            Ok(metadata) => metadata,
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(false),
+            Err(error) => return Err(error.into()),
+        };
+        if metadata.file_type().is_symlink() {
+            return Ok(false);
+        }
+        if index + 1 == components.len() {
+            if !metadata.is_file() {
+                return Ok(false);
+            }
+            return Ok(
+                ymp_domain::digest_bytes(&fs::read(&target)?) == expected.object_digest
+                    && is_executable(&metadata) == expected.executable,
+            );
+        }
+        if !metadata.is_dir() {
+            return Ok(false);
+        }
+    }
+    Ok(false)
+}
+
+fn verify_excluded_paths(
+    root: &Path,
+    base_entries: &BTreeMap<String, FileEntry>,
+    exclusions: &BTreeSet<String>,
+) -> Result<(), ArtifactError> {
+    for (path, expected) in base_entries
+        .iter()
+        .filter(|(path, _)| is_excluded(path, exclusions))
+    {
+        if !workspace_entry_matches(root, expected)? {
+            return Err(ArtifactError::ExcludedPathChanged(path.clone()));
+        }
+    }
+    for exclusion in exclusions {
+        let target = root.join(checked_relative_path(exclusion)?);
+        match fs::symlink_metadata(&target) {
+            Ok(_) => verify_excluded_node(root, &target, base_entries)?,
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+            Err(error) => return Err(error.into()),
+        }
+    }
+    Ok(())
+}
+
+fn verify_excluded_node(
+    root: &Path,
+    target: &Path,
+    base_entries: &BTreeMap<String, FileEntry>,
+) -> Result<(), ArtifactError> {
+    let relative = target
+        .strip_prefix(root)
+        .expect("excluded path is below root");
+    let normalized = normalized_string(relative)?;
+    let metadata = fs::symlink_metadata(target)?;
+    if metadata.file_type().is_symlink() {
+        return Err(ArtifactError::ExcludedPathChanged(normalized));
+    }
+    if metadata.is_file() {
+        let Some(expected) = base_entries.get(&normalized) else {
+            return Err(ArtifactError::ExcludedPathChanged(normalized));
+        };
+        if ymp_domain::digest_bytes(&fs::read(target)?) != expected.object_digest
+            || is_executable(&metadata) != expected.executable
+        {
+            return Err(ArtifactError::ExcludedPathChanged(normalized));
+        }
+        return Ok(());
+    }
+    if !metadata.is_dir() {
+        return Err(ArtifactError::ExcludedPathChanged(normalized));
+    }
+    let mut entries = fs::read_dir(target)?.collect::<Result<Vec<_>, _>>()?;
+    entries.sort_by_key(std::fs::DirEntry::file_name);
+    for entry in entries {
+        verify_excluded_node(root, &entry.path(), base_entries)?;
+    }
+    Ok(())
 }
 
 fn entry_map(files: Vec<FileEntry>) -> Result<BTreeMap<String, FileEntry>, ArtifactError> {

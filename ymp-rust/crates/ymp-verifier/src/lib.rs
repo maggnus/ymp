@@ -5,14 +5,16 @@ use sha2::{Digest, Sha256};
 use std::fs::File;
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
-use std::process::{Command, Stdio};
+use std::process::{Child, Command, Stdio};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::thread;
 use std::time::{Duration, Instant};
 use thiserror::Error;
 use ymp_domain::VerificationDecision;
-use ymp_runtime_api::{configure_process_group, terminate_process_tree};
+use ymp_runtime_api::configure_process_group;
+#[cfg(not(target_os = "linux"))]
+use ymp_runtime_api::terminate_process_tree;
 
 const EVIDENCE_SCHEMA_VERSION: u32 = 2;
 
@@ -327,21 +329,7 @@ impl CommandVerifier {
         negative_control_directory: impl AsRef<Path>,
         candidate_digest: impl Into<String>,
     ) -> Result<VerifiedEvidence, VerifierError> {
-        let program_digest = check_exact_digest(
-            &self.program,
-            ymp_domain::digest_bytes(&std::fs::read(&self.program)?),
-        )?
-        .actual_digest;
-        let environment_object = serde_json::to_vec(&serde_json::json!({
-            "schema_version": 1,
-            "verifier_profile": "bounded_command_v2",
-            "program": self.program,
-            "program_digest": program_digest,
-            "arguments_before_subject": self.arguments_before_subject,
-            "wall_time_limit_millis": self.wall_time_limit.as_millis(),
-            "output_limit_bytes": self.output_limit_bytes,
-            "subject_isolation": "ephemeral_copy_per_observation_v1"
-        }))?;
+        let (environment_object, program_digest) = self.environment_binding()?;
         let environment_digest = ymp_domain::digest_bytes(&environment_object);
         self.verify_candidate_with_environment_bytes(
             candidate_directory.as_ref(),
@@ -349,7 +337,39 @@ impl CommandVerifier {
             candidate_digest.into(),
             environment_object,
             environment_digest,
+            &program_digest,
         )
+    }
+
+    pub fn contract_digest(&self) -> &str {
+        &self.contract_digest
+    }
+
+    pub fn oracle_digest(&self) -> &str {
+        &self.oracle_digest
+    }
+
+    pub fn environment_object(&self) -> Result<Vec<u8>, VerifierError> {
+        self.environment_binding().map(|(object, _)| object)
+    }
+
+    pub fn environment_digest(&self) -> Result<String, VerifierError> {
+        Ok(ymp_domain::digest_bytes(&self.environment_object()?))
+    }
+
+    fn environment_binding(&self) -> Result<(Vec<u8>, String), VerifierError> {
+        let program_digest = ymp_domain::digest_bytes(&std::fs::read(&self.program)?);
+        let environment_object = serde_json::to_vec(&serde_json::json!({
+            "schema_version": 1,
+            "verifier_profile": "bounded_command_v3",
+            "program": self.program,
+            "program_digest": program_digest,
+            "arguments_before_subject": self.arguments_before_subject,
+            "wall_time_limit_millis": self.wall_time_limit.as_millis(),
+            "output_limit_bytes": self.output_limit_bytes,
+            "subject_isolation": command_isolation_profile()
+        }))?;
+        Ok((environment_object, program_digest))
     }
 
     fn verify_candidate_with_environment_bytes(
@@ -359,16 +379,17 @@ impl CommandVerifier {
         candidate_digest: String,
         environment_object: Vec<u8>,
         environment_digest: String,
+        program_digest: &str,
     ) -> Result<VerifiedEvidence, VerifierError> {
         validate_digest("candidate", &candidate_digest)?;
-        let negative = self.observe(negative_control_directory)?;
+        let negative = self.observe(negative_control_directory, program_digest)?;
         match negative.status_code {
             Some(1) => {}
             Some(0) => return Err(VerifierError::NegativeControlPassed),
             status => return Err(VerifierError::UnexpectedExit(status)),
         }
 
-        let observation = self.observe(candidate_directory)?;
+        let observation = self.observe(candidate_directory, program_digest)?;
         let decision = match observation.status_code {
             Some(0) => VerificationDecision::Accept,
             Some(1) => VerificationDecision::Reject,
@@ -380,7 +401,7 @@ impl CommandVerifier {
             contract_digest: self.contract_digest.clone(),
             oracle_digest: self.oracle_digest.clone(),
             environment_digest: Some(environment_digest),
-            verifier_profile: "bounded_command_v2".to_owned(),
+            verifier_profile: "bounded_command_v3".to_owned(),
             observation_digest: digest_serializable(&observation)?,
             decision,
             evidence_digest: String::new(),
@@ -392,7 +413,11 @@ impl CommandVerifier {
         })
     }
 
-    fn observe(&self, subject: &Path) -> Result<CommandObservation, VerifierError> {
+    fn observe(
+        &self,
+        subject: &Path,
+        expected_program_digest: &str,
+    ) -> Result<CommandObservation, VerifierError> {
         let metadata = std::fs::symlink_metadata(subject)
             .map_err(|_| VerifierError::InvalidSubject(subject.to_path_buf()))?;
         if metadata.file_type().is_symlink() || !metadata.is_dir() {
@@ -401,19 +426,48 @@ impl CommandVerifier {
         let isolated = tempfile::tempdir()?;
         let isolated_subject = isolated.path().join("subject");
         copy_subject_tree(subject, &isolated_subject)?;
-        let isolated_temporary = isolated.path().join("tmp");
+        let isolated_temporary = isolated.path().join("scratch");
         std::fs::create_dir(&isolated_temporary)?;
-        let mut command = Command::new(&self.program);
+        let isolated_home = isolated.path().join("home");
+        std::fs::create_dir(&isolated_home)?;
+        let isolated_program =
+            prepare_oracle(&self.program, isolated.path(), expected_program_digest)?;
+        #[cfg(target_os = "linux")]
+        let _ = &isolated_program;
+        #[cfg(target_os = "linux")]
+        let mut command = linux_namespace_command(
+            isolated.path(),
+            &self.arguments_before_subject,
+            &isolated_temporary,
+            &isolated_home,
+        );
+        #[cfg(not(target_os = "linux"))]
+        let mut command = {
+            let mut command = Command::new(&isolated_program);
+            command
+                .args(&self.arguments_before_subject)
+                .arg(&isolated_subject)
+                .current_dir(&isolated_subject);
+            command
+        };
         command
-            .args(&self.arguments_before_subject)
-            .arg(&isolated_subject)
-            .current_dir(&isolated_subject)
+            .env_clear()
+            .env("LANG", "C")
+            .env("LC_ALL", "C")
+            .env("PATH", "/usr/bin:/bin");
+        #[cfg(target_os = "linux")]
+        command
+            .env("HOME", "/tmp/home")
+            .env("TMPDIR", "/tmp/scratch")
+            .env("TMP", "/tmp/scratch")
+            .env("TEMP", "/tmp/scratch");
+        #[cfg(not(target_os = "linux"))]
+        command
+            .env("HOME", &isolated_home)
             .env("TMPDIR", &isolated_temporary)
             .env("TMP", &isolated_temporary)
-            .env("TEMP", &isolated_temporary)
-            .env_remove("YMP_AGENT_SOCKET")
-            .env_remove("YMP_AGENT_TOKEN")
-            .env_remove("YMP_ATTEMPT_ID")
+            .env("TEMP", &isolated_temporary);
+        command
             .stdin(Stdio::null())
             .stdout(Stdio::piped())
             .stderr(Stdio::piped());
@@ -433,13 +487,13 @@ impl CommandVerifier {
         let started = Instant::now();
         let status = loop {
             if exceeded.load(Ordering::Acquire) {
-                terminate_process_tree(&mut child)?;
+                terminate_observation(&mut child)?;
                 let _ = stdout_reader.join();
                 let _ = stderr_reader.join();
                 return Err(VerifierError::OutputLimitExceeded(self.output_limit_bytes));
             }
             if started.elapsed() >= self.wall_time_limit {
-                terminate_process_tree(&mut child)?;
+                terminate_observation(&mut child)?;
                 let _ = stdout_reader.join();
                 let _ = stderr_reader.join();
                 return Err(VerifierError::TimedOut(
@@ -469,6 +523,128 @@ impl CommandVerifier {
             stderr_bytes: stderr.bytes,
         })
     }
+}
+
+#[cfg(target_os = "linux")]
+fn command_isolation_profile() -> &'static str {
+    "linux_user_mount_pid_net_ipc_uts_namespaces_v1"
+}
+
+#[cfg(not(target_os = "linux"))]
+fn command_isolation_profile() -> &'static str {
+    "ephemeral_copy_per_observation_v2"
+}
+
+fn terminate_observation(child: &mut Child) -> std::io::Result<()> {
+    #[cfg(target_os = "linux")]
+    {
+        if child.try_wait()?.is_none() {
+            child.kill()?;
+        }
+        let _ = child.wait()?;
+        Ok(())
+    }
+    #[cfg(not(target_os = "linux"))]
+    {
+        terminate_process_tree(child)
+    }
+}
+
+fn prepare_oracle(
+    source: &Path,
+    isolation_root: &Path,
+    expected_digest: &str,
+) -> Result<PathBuf, VerifierError> {
+    let metadata = std::fs::symlink_metadata(source)?;
+    if metadata.file_type().is_symlink() || !metadata.is_file() {
+        return Err(VerifierError::InvalidProgram(source.to_path_buf()));
+    }
+    let source_check = check_exact_digest(source, expected_digest)?;
+    if !source_check.matched {
+        return Err(VerifierError::ProgramDigestMismatch {
+            expected: source_check.expected_digest,
+            actual: source_check.actual_digest,
+        });
+    }
+    let oracle_directory = isolation_root.join("oracle");
+    std::fs::create_dir(&oracle_directory)?;
+    let destination = oracle_directory.join("oracle");
+    std::fs::copy(source, &destination)?;
+    let copied_check = check_exact_digest(&destination, expected_digest)?;
+    if !copied_check.matched {
+        return Err(VerifierError::ProgramDigestMismatch {
+            expected: copied_check.expected_digest,
+            actual: copied_check.actual_digest,
+        });
+    }
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+
+        std::fs::set_permissions(&destination, std::fs::Permissions::from_mode(0o555))?;
+        std::fs::set_permissions(&oracle_directory, std::fs::Permissions::from_mode(0o555))?;
+    }
+    #[cfg(not(unix))]
+    {
+        let mut permissions = std::fs::metadata(&destination)?.permissions();
+        permissions.set_readonly(true);
+        std::fs::set_permissions(&destination, permissions)?;
+    }
+    Ok(destination)
+}
+
+#[cfg(target_os = "linux")]
+fn linux_namespace_command(
+    isolation_root: &Path,
+    arguments_before_subject: &[String],
+    _temporary: &Path,
+    _home: &Path,
+) -> Command {
+    // This boundary prevents observations from sharing writable scratch mounts, processes,
+    // networking, or verifier capabilities. It deliberately does not claim to contain hostile
+    // code from the rest of the outer disposable host.
+    const ISOLATION_SCRIPT: &str = r#"
+root=$1
+shift
+/usr/bin/mount --make-rprivate /
+/usr/bin/mount --bind "$root" /tmp
+/usr/bin/mount --bind /tmp/oracle /tmp/oracle
+/usr/bin/mount -o remount,bind,ro /tmp/oracle
+/usr/bin/mount -t tmpfs -o nosuid,nodev,mode=1777 tmpfs /var/tmp
+/usr/bin/mount -t tmpfs -o nosuid,nodev,mode=1777 tmpfs /dev/shm
+/usr/bin/mount -t tmpfs -o nosuid,nodev,mode=755 tmpfs /run
+cd /tmp/subject
+exec /usr/bin/setpriv \
+  --no-new-privs \
+  --bounding-set=-all \
+  --inh-caps=-all \
+  --ambient-caps=-all \
+  --securebits=+noroot,+noroot_locked,+no_setuid_fixup,+no_setuid_fixup_locked \
+  /tmp/oracle/oracle "$@" /tmp/subject
+"#;
+    let mut command = Command::new("/usr/bin/unshare");
+    command
+        .args([
+            "--user",
+            "--map-root-user",
+            "--mount",
+            "--pid",
+            "--net",
+            "--ipc",
+            "--uts",
+            "--fork",
+            "--kill-child",
+            "--mount-proc",
+            "/bin/sh",
+            "-eu",
+            "-c",
+            ISOLATION_SCRIPT,
+            "ymp-verifier-isolation",
+        ])
+        .arg(isolation_root)
+        .args(arguments_before_subject)
+        .current_dir("/");
+    command
 }
 
 fn copy_subject_tree(source: &Path, destination: &Path) -> Result<(), VerifierError> {
@@ -533,6 +709,10 @@ pub enum VerifierError {
     Json(#[from] serde_json::Error),
     #[error("verifier program path must be absolute: {0}")]
     InvalidProgram(PathBuf),
+    #[error(
+        "verifier program changed after its environment was bound: expected {expected}, found {actual}"
+    )]
+    ProgramDigestMismatch { expected: String, actual: String },
     #[error("verifier {0} limit must be greater than zero")]
     InvalidLimit(&'static str),
     #[error("verifier subject is not a directory: {0}")]
@@ -768,7 +948,7 @@ mod tests {
             "2".repeat(64),
             &program,
             Vec::new(),
-            Duration::from_secs(5),
+            Duration::from_secs(15),
             1024,
         )
         .expect("command verifier");
@@ -822,6 +1002,95 @@ mod tests {
         assert_eq!(evidence.decision(), VerificationDecision::Reject);
         assert!(!negative.join(&marker).exists());
         assert!(!candidate.join(&marker).exists());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn negative_control_cannot_modify_the_oracle_used_for_the_candidate() {
+        use std::os::unix::fs::PermissionsExt;
+
+        let temporary = tempfile::tempdir().expect("temporary directory");
+        let program = temporary.path().join("oracle");
+        let original = b"#!/bin/sh\nprintf '# mutation' >> \"$0\" 2>/dev/null || :\nif [ -f \"$1/pass\" ]; then exit 0; else exit 1; fi\n";
+        std::fs::write(&program, original).expect("write oracle");
+        let mut permissions = std::fs::metadata(&program).expect("metadata").permissions();
+        permissions.set_mode(0o700);
+        std::fs::set_permissions(&program, permissions).expect("make executable");
+        let candidate = temporary.path().join("candidate");
+        let negative = temporary.path().join("negative");
+        std::fs::create_dir(&candidate).expect("candidate directory");
+        std::fs::create_dir(&negative).expect("negative directory");
+        std::fs::write(candidate.join("pass"), b"accepted\n").expect("candidate marker");
+        let verifier = CommandVerifier::new(
+            "1".repeat(64),
+            "2".repeat(64),
+            &program,
+            Vec::new(),
+            Duration::from_secs(5),
+            1024,
+        )
+        .expect("command verifier");
+
+        let evidence = verifier
+            .verify_candidate(&candidate, &negative, "3".repeat(64))
+            .expect("verification result");
+
+        assert_eq!(evidence.decision(), VerificationDecision::Accept);
+        assert_eq!(std::fs::read(program).expect("read oracle"), original);
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn observations_use_disposable_mount_pid_and_network_namespaces() {
+        use std::os::unix::fs::PermissionsExt;
+
+        let temporary = tempfile::tempdir().expect("temporary directory");
+        let program = temporary.path().join("oracle");
+        let marker = format!("/tmp/ymp-verifier-namespace-marker-{}", std::process::id());
+        let parent_mount = std::fs::read_link("/proc/self/ns/mnt").expect("parent mount namespace");
+        let parent_pid = std::fs::read_link("/proc/self/ns/pid").expect("parent pid namespace");
+        let parent_network =
+            std::fs::read_link("/proc/self/ns/net").expect("parent network namespace");
+        std::fs::write(
+            &program,
+            "#!/bin/sh\n\
+             [ -z \"$(env | grep -Ev '^(HOME|LANG|LC_ALL|OLDPWD|PATH|PWD|SHLVL|TEMP|TMP|TMPDIR|_)=')\" ] || exit 2\n\
+             [ \"$(readlink /proc/self/ns/mnt)\" != \"$1\" ] || exit 2\n\
+             [ \"$(readlink /proc/self/ns/pid)\" != \"$2\" ] || exit 2\n\
+             [ \"$(readlink /proc/self/ns/net)\" != \"$3\" ] || exit 2\n\
+             if [ -e \"$4\" ]; then exit 0; fi\n\
+             touch \"$4\"\n\
+             exit 1\n",
+        )
+        .expect("write oracle");
+        let mut permissions = std::fs::metadata(&program).expect("metadata").permissions();
+        permissions.set_mode(0o700);
+        std::fs::set_permissions(&program, permissions).expect("make executable");
+        let candidate = temporary.path().join("candidate");
+        let negative = temporary.path().join("negative");
+        std::fs::create_dir(&candidate).expect("candidate directory");
+        std::fs::create_dir(&negative).expect("negative directory");
+        let verifier = CommandVerifier::new(
+            "1".repeat(64),
+            "2".repeat(64),
+            &program,
+            vec![
+                parent_mount.to_string_lossy().into_owned(),
+                parent_pid.to_string_lossy().into_owned(),
+                parent_network.to_string_lossy().into_owned(),
+                marker.clone(),
+            ],
+            Duration::from_secs(5),
+            1024,
+        )
+        .expect("command verifier");
+
+        let result = verifier.verify_candidate(&candidate, &negative, "3".repeat(64));
+        let _ = std::fs::remove_file(&marker);
+        let evidence = result.expect("isolated verification result");
+
+        assert_eq!(evidence.decision(), VerificationDecision::Reject);
+        assert!(!std::path::Path::new(&marker).exists());
     }
 
     #[cfg(unix)]

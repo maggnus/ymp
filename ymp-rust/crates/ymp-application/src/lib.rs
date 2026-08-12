@@ -119,7 +119,23 @@ pub struct Application {
     object_store: ObjectStore,
     state: RunState,
     command_events: HashMap<String, EventEnvelope>,
+    candidate_identity: Option<CandidateIdentity>,
+    recorded_verifications: HashMap<VerificationIdentity, EventEnvelope>,
     notification_senders: Vec<SyncSender<u64>>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct CandidateIdentity {
+    base_digest: String,
+    object_digest: String,
+}
+
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
+struct VerificationIdentity {
+    candidate_digest: String,
+    contract_digest: String,
+    oracle_digest: String,
+    environment_digest: String,
 }
 
 pub struct AgentSession<'a> {
@@ -199,6 +215,8 @@ impl Application {
             object_store,
             state,
             command_events,
+            candidate_identity: None,
+            recorded_verifications: HashMap::new(),
             notification_senders: Vec::new(),
         };
         app.write_metadata()?;
@@ -239,11 +257,23 @@ impl Application {
         let object_store = ObjectStore::open(data_root.join("objects/sha256"))?;
         let mut command_events = HashMap::new();
         command_events.insert(first.command_id.clone(), first.clone());
+        let mut candidate_identity = None;
+        let mut recorded_verifications = HashMap::new();
 
         for event in events.iter().skip(1) {
             match &event.event {
-                EventKind::CandidateSubmitted { object_digest, .. } => {
+                EventKind::CandidateSubmitted {
+                    base_digest,
+                    object_digest,
+                    ..
+                } => {
                     object_store.verify(object_digest)?;
+                    let proposed = CandidateIdentity {
+                        base_digest: base_digest.clone(),
+                        object_digest: object_digest.clone(),
+                    };
+                    ensure_candidate_identity(candidate_identity.as_ref(), &proposed)?;
+                    candidate_identity = Some(proposed);
                 }
                 EventKind::VerificationRecorded {
                     candidate_digest,
@@ -268,6 +298,14 @@ impl Application {
                     {
                         return Err(VerificationInfrastructureError::EvidenceRecordMismatch.into());
                     }
+                    recorded_verifications
+                        .entry(VerificationIdentity {
+                            candidate_digest: candidate_digest.clone(),
+                            contract_digest: contract_digest.clone(),
+                            oracle_digest: oracle_digest.clone(),
+                            environment_digest: environment_digest.to_owned(),
+                        })
+                        .or_insert_with(|| event.clone());
                 }
                 _ => {}
             }
@@ -284,6 +322,8 @@ impl Application {
             object_store,
             state,
             command_events,
+            candidate_identity,
+            recorded_verifications,
             notification_senders: Vec::new(),
         })
     }
@@ -301,20 +341,23 @@ impl Application {
             return Ok(outcome);
         }
 
-        if let Command::SubmitCandidate { object_digest, .. } = &command {
+        if let Command::SubmitCandidate {
+            base_digest,
+            object_digest,
+            ..
+        } = &command
+        {
             self.object_store.verify(object_digest)?;
+            ensure_candidate_identity(
+                self.candidate_identity.as_ref(),
+                &CandidateIdentity {
+                    base_digest: base_digest.clone(),
+                    object_digest: object_digest.clone(),
+                },
+            )?;
         }
 
         let event = self.state.decide(&command)?;
-        if let EventKind::CandidateSubmitted { object_digest, .. } = &event
-            && let Some(current) = &self.state.candidate_digest
-            && current != object_digest
-        {
-            return Err(ApplicationError::CandidateConflict {
-                current: current.clone(),
-                proposed: object_digest.clone(),
-            });
-        }
         self.commit(command_id, command_digest, event)
     }
 
@@ -407,6 +450,19 @@ impl Application {
             self.write_metadata()?;
             return Ok(outcome);
         }
+        let identity = VerificationIdentity {
+            candidate_digest: evidence.candidate_digest().to_owned(),
+            contract_digest: evidence.contract_digest().to_owned(),
+            oracle_digest: evidence.oracle_digest().to_owned(),
+            environment_digest: environment_digest.to_owned(),
+        };
+        if let Some(event) = self.recorded_verifications.get(&identity) {
+            return Ok(CommandOutcome {
+                event: event.clone(),
+                replayed: true,
+                status: self.state.status,
+            });
+        }
 
         self.object_store.verify(evidence.candidate_digest())?;
         if let Err(error) = verify_environment_object(&self.object_store, environment_digest) {
@@ -429,7 +485,32 @@ impl Application {
             decision: evidence.decision(),
         };
         let event = self.state.decide_verification(&record)?;
-        self.commit(command_id, command_digest, event)
+        let outcome = self.commit(command_id, command_digest, event)?;
+        self.recorded_verifications
+            .insert(identity, outcome.event.clone());
+        Ok(outcome)
+    }
+
+    pub fn stored_verification(
+        &self,
+        candidate_digest: &str,
+        contract_digest: &str,
+        oracle_digest: &str,
+        environment_digest: &str,
+    ) -> Option<CommandOutcome> {
+        self.recorded_verifications
+            .get(&VerificationIdentity {
+                candidate_digest: candidate_digest.to_owned(),
+                contract_digest: contract_digest.to_owned(),
+                oracle_digest: oracle_digest.to_owned(),
+                environment_digest: environment_digest.to_owned(),
+            })
+            .cloned()
+            .map(|event| CommandOutcome {
+                event,
+                replayed: true,
+                status: self.state.status,
+            })
     }
 
     fn commit_verification_infrastructure(
@@ -653,6 +734,17 @@ impl Application {
         if let Err(error) = self.journal.append(&envelope) {
             return self.fail_commit(error);
         }
+        if let EventKind::CandidateSubmitted {
+            base_digest,
+            object_digest,
+            ..
+        } = &envelope.event
+        {
+            self.candidate_identity = Some(CandidateIdentity {
+                base_digest: base_digest.clone(),
+                object_digest: object_digest.clone(),
+            });
+        }
         self.state.apply(&envelope);
         self.command_events.insert(command_id, envelope.clone());
         self.write_metadata()?;
@@ -868,6 +960,21 @@ fn validate_identifier(kind: &'static str, value: &str) -> Result<(), Applicatio
     } else {
         Err(ApplicationError::InvalidIdentifier { kind })
     }
+}
+
+fn ensure_candidate_identity(
+    current: Option<&CandidateIdentity>,
+    proposed: &CandidateIdentity,
+) -> Result<(), ApplicationError> {
+    if let Some(current) = current
+        && current != proposed
+    {
+        return Err(ApplicationError::CandidateConflict {
+            current: format!("{}:{}", current.base_digest, current.object_digest),
+            proposed: format!("{}:{}", proposed.base_digest, proposed.object_digest),
+        });
+    }
+    Ok(())
 }
 
 fn agent_application_error(error: ApplicationError) -> AgentToolError {

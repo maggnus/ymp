@@ -56,7 +56,7 @@ fn private_workspace_produces_reproducible_immutable_candidate() {
 }
 
 #[test]
-fn submission_scope_excludes_derived_subtrees_without_deleting_base_files() {
+fn submission_rejects_new_derived_files_without_storing_them() {
     let temporary = tempdir().expect("temporary directory");
     let source = temporary.path().join("source");
     let workspace = temporary.path().join("workspace");
@@ -67,22 +67,27 @@ fn submission_scope_excludes_derived_subtrees_without_deleting_base_files() {
     std::fs::write(source.join("target/declared.txt"), b"keep\n").expect("declared target file");
 
     let objects = ObjectStore::open(temporary.path().join("objects")).expect("object store");
-    let artifacts = ArtifactStore::new(objects);
+    let artifacts = ArtifactStore::new(objects.clone());
     let base = artifacts.capture_source(&source).expect("capture source");
     artifacts
         .materialize(&base.manifest_digest, &workspace)
         .expect("materialize workspace");
     std::fs::write(workspace.join("src/lib.rs"), b"candidate\n").expect("modify source");
-    std::fs::write(
-        workspace.join("target/declared.txt"),
-        b"derived overwrite\n",
-    )
-    .expect("modify excluded base file");
     std::fs::write(workspace.join("target/build.bin"), b"derived\n").expect("write derived file");
 
+    assert!(matches!(
+        artifacts.create_submission_excluding(&base.manifest_digest, &workspace, &["target"]),
+        Err(ArtifactError::ExcludedPathChanged(path)) if path == "target/build.bin"
+    ));
+    assert!(matches!(
+        objects.verify(&ymp_domain::digest_bytes(b"derived\n")),
+        Err(ymp_storage::ObjectStoreError::Missing(_))
+    ));
+
+    std::fs::remove_file(workspace.join("target/build.bin")).expect("remove derived file");
     let submission = artifacts
         .create_submission_excluding(&base.manifest_digest, &workspace, &["target"])
-        .expect("create scoped submission");
+        .expect("create submission with unchanged exclusion");
     assert_eq!(submission.change_count, 1);
     let candidate = artifacts
         .build_candidate(&base.manifest_digest, &submission.manifest_digest)
@@ -95,6 +100,30 @@ fn submission_scope_excludes_derived_subtrees_without_deleting_base_files() {
         b"keep\n"
     );
     assert!(!candidate_copy.join("target/build.bin").exists());
+}
+
+#[test]
+fn submission_rejects_changes_to_base_files_inside_excluded_subtrees() {
+    let temporary = tempdir().expect("temporary directory");
+    let source = temporary.path().join("source");
+    let workspace = temporary.path().join("workspace");
+    std::fs::create_dir_all(source.join("target")).expect("base target tree");
+    std::fs::write(source.join("source.txt"), b"base\n").expect("source file");
+    std::fs::write(source.join("target/declared.txt"), b"keep\n").expect("declared target file");
+
+    let objects = ObjectStore::open(temporary.path().join("objects")).expect("object store");
+    let artifacts = ArtifactStore::new(objects);
+    let base = artifacts.capture_source(&source).expect("capture source");
+    artifacts
+        .materialize(&base.manifest_digest, &workspace)
+        .expect("materialize workspace");
+    std::fs::write(workspace.join("target/declared.txt"), b"altered\n")
+        .expect("modify excluded base file");
+
+    assert!(matches!(
+        artifacts.create_submission_excluding(&base.manifest_digest, &workspace, &["target"]),
+        Err(ArtifactError::ExcludedPathChanged(path)) if path == "target/declared.txt"
+    ));
 }
 
 #[test]

@@ -438,7 +438,11 @@ fn run_managed_verification(request: ManagedVerificationRequest) -> anyhow::Resu
         )
     })?;
     let mut application = Application::open(&data_root)?;
-    let (candidate_digest, candidate) = materialize_controller_candidate(&application, &data_root)?;
+    let candidate_digest = application
+        .state()
+        .candidate_digest
+        .clone()
+        .context("run has no submitted candidate")?;
     let verifier = ymp_verifier::CommandVerifier::new(
         contract_digest,
         oracle_digest,
@@ -447,6 +451,24 @@ fn run_managed_verification(request: ManagedVerificationRequest) -> anyhow::Resu
         Duration::from_millis(wall_time_ms),
         output_limit_bytes,
     )?;
+    let environment_digest = verifier.environment_digest()?;
+    if let Some(outcome) = application.stored_verification(
+        &candidate_digest,
+        verifier.contract_digest(),
+        verifier.oracle_digest(),
+        &environment_digest,
+    ) {
+        println!(
+            "{}",
+            serde_json::to_string(&serde_json::json!({
+                "type": "managed_verification_result",
+                "outcome": outcome,
+                "state": application.state()
+            }))?
+        );
+        return Ok(());
+    }
+    let (_, candidate) = materialize_controller_candidate(&application, &data_root)?;
     let command_id = format!("managed.verify.{}", Uuid::new_v4());
     let evidence = match verifier.verify_candidate(&candidate, &negative_control, &candidate_digest)
     {
@@ -642,5 +664,76 @@ mod tests {
         let recovered = Application::open(&data_root).expect("reopen application");
         assert_eq!(recovered.state().status, RunStatus::InfrastructureError);
         assert!(recovered.state().candidate_digest.is_some());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn repeated_managed_verification_returns_the_stored_result() {
+        use std::os::unix::fs::PermissionsExt;
+
+        let root = tempdir().expect("temporary root");
+        let data_root = root.path().join("data");
+        let source = root.path().join("source");
+        let workspace = root.path().join("workspace");
+        let negative = root.path().join("negative");
+        let program = root.path().join("oracle");
+        fs::create_dir_all(&source).expect("source directory");
+        fs::create_dir(&negative).expect("negative directory");
+        fs::write(source.join("pass"), b"candidate\n").expect("candidate marker");
+        fs::write(
+            &program,
+            b"#!/bin/sh\nif [ -f \"$1/pass\" ]; then exit 0; else exit 1; fi\n",
+        )
+        .expect("oracle program");
+        let mut permissions = fs::metadata(&program).expect("metadata").permissions();
+        permissions.set_mode(0o700);
+        fs::set_permissions(&program, permissions).expect("make executable");
+
+        let mut application =
+            Application::create(&data_root, "run-1", Budget::new(1, 1)).expect("application");
+        let base = application
+            .artifact_store()
+            .capture_source(&source)
+            .expect("base capture");
+        application
+            .artifact_store()
+            .materialize(&base.manifest_digest, &workspace)
+            .expect("workspace");
+        application
+            .execute(
+                "attempt.start",
+                Command::StartAttempt {
+                    attempt_id: "attempt-1".to_owned(),
+                },
+            )
+            .expect("attempt start");
+        application
+            .submit_workspace_candidate(
+                "attempt.submit",
+                "attempt-1",
+                &base.manifest_digest,
+                &workspace,
+            )
+            .expect("candidate submission");
+        drop(application);
+
+        for _ in 0..2 {
+            run_managed_verification(ManagedVerificationRequest {
+                data_root: data_root.clone(),
+                program: program.clone(),
+                arguments: Vec::new(),
+                negative_control: negative.clone(),
+                contract_digest: "1".repeat(64),
+                oracle_digest: "2".repeat(64),
+                wall_time_ms: Duration::from_secs(5).as_millis() as u64,
+                output_limit_bytes: 1024,
+            })
+            .expect("managed verification");
+        }
+
+        let recovered = Application::open(&data_root).expect("reopen application");
+        assert_eq!(recovered.state().status, RunStatus::Accepted);
+        assert_eq!(recovered.state().budget.verification_queries_remaining, 0);
+        assert_eq!(recovered.events_after(0).expect("events").len(), 4);
     }
 }

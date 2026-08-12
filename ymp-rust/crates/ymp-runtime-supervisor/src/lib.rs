@@ -394,15 +394,9 @@ pub fn start_managed_candidate(
             bail!("the POC profile admits only one active attempt");
         }
         let data_root = application.data_root().to_path_buf();
-        let exclusions: Vec<_> = request
-            .contract
-            .capture_exclusions
-            .iter()
-            .map(String::as_str)
-            .collect();
         let base = application
             .artifact_store()
-            .capture_source_excluding(&request.contract.source, &exclusions)?;
+            .capture_source(&request.contract.source)?;
         let workspace = data_root.join("workspaces").join(&attempt_id);
         application
             .artifact_store()
