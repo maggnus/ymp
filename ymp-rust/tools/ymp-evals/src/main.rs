@@ -3,18 +3,18 @@
 use ymp_evals::{Mutation, check};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let baseline = check(Mutation::None, 6);
+    let baseline = check(Mutation::None);
     let negative_controls = [
-        check(Mutation::MintCreationBudget, 6),
-        check(Mutation::IgnoreLeaseFence, 6),
-        check(Mutation::AcceptQuiescence, 6),
+        check(Mutation::SkipAwardReservation),
+        check(Mutation::IgnoreLeaseFence),
+        check(Mutation::AllowSecondObligationReturn),
     ];
-    let passed = baseline.violation.is_none()
+    let passed = baseline.passed
         && negative_controls
             .iter()
-            .all(|report| report.violation.is_some());
+            .all(|report| !report.passed && !report.shortest_counterexample.is_empty());
     let output = serde_json::json!({
-        "schema_version": 1,
+        "schema_version": 2,
         "passed": passed,
         "baseline": baseline,
         "negative_controls": negative_controls,
