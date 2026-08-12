@@ -4,15 +4,15 @@ kind: subtask
 wave: W1
 card: W1-EXP-01
 parent: W1-EXP-01d
-state: ready
+state: active
 risk: significant
 maturity: RESEARCH
 relation: required
 depends_on: []
 blocks: [W1-APP-02c]
 created_at: 2026-08-12T20:31:00+08:00
-updated_at: 2026-08-12T20:31:00+08:00
-started_at:
+updated_at: 2026-08-12T20:42:23+08:00
+started_at: 2026-08-12T20:42:23+08:00
 accepted_at:
 candidate_commit:
 closure_commit:
@@ -63,10 +63,10 @@ incompatible fixtures, so it can be admitted to the primary comparison independe
 
 ## Current state
 
-Existing calibration evidence contains accepted managed Codex L1-L3 repetitions, TUI verification,
-evidence export, and one bound-workspace MCP submission. The remaining acceptance gap is a single
-reproducible package proving synthetic-home isolation, lifecycle continuity, accounting, and the
-negative fixture matrix on the exact pinned profile.
+Implementation and evidence completion are active from the exact integrated baseline. Existing
+calibration evidence contains accepted managed Codex L1-L3 repetitions, TUI verification, evidence
+export, and one bound-workspace MCP submission. The remaining acceptance gap is a reproducible
+package proving synthetic-home isolation, lifecycle continuity, accounting, and negative fixtures.
 
 ## Next action
 
