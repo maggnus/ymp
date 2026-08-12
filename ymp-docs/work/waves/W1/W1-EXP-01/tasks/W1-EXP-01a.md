@@ -3,20 +3,20 @@ id: W1-EXP-01a
 kind: task
 wave: W1
 card: W1-EXP-01
-state: active
+state: accepted
 risk: critical
 maturity: DESIGN
 relation: required
 depends_on: []
 blocks: [W1-EXP-01b]
 created_at: 2026-08-10T19:34:25+08:00
-updated_at: 2026-08-12T15:00:00+08:00
+updated_at: 2026-08-12T15:34:00+08:00
 started_at: 2026-08-12T11:59:58+08:00
-accepted_at:
-candidate_commit:
-closure_commit:
-evidence:
-duration_minutes: 148
+accepted_at: 2026-08-12T15:34:00+08:00
+candidate_commit: https://github.com/maggnus/ymp/commit/ff4a9383653a0f09b947ff24b569e760396a0502
+closure_commit: https://github.com/maggnus/ymp/commit/ff4a9383653a0f09b947ff24b569e760396a0502
+evidence: ["[ff4a938](https://github.com/maggnus/ymp/commit/ff4a9383653a0f09b947ff24b569e760396a0502)", "[417f2d9](https://github.com/maggnus/ymp/commit/417f2d9cba9fd6b5d72aab4f7f2768b3c70c3d30)"]
+duration_minutes: 179
 blocker:
 pause_reason:
 return_trigger:
@@ -49,25 +49,26 @@ that each major requirement can reject a known invalid candidate.
 
 ## Acceptance
 
-- [ ] Every admitted task has an approved contract package and a repeatable clean-room command
+- [x] Every admitted task has an approved contract package and a repeatable clean-room command
   whose result matches the package's declared baseline or known-good expectation.
-- [ ] Every major public requirement has at least one deliberately invalid mutation that the
+- [x] Every major public requirement has at least one deliberately invalid mutation that the
   protected oracle rejects for the intended reason.
-- [ ] If a negative control unexpectedly passes, the same harness exits unsuccessfully and labels
+- [x] If a negative control unexpectedly passes, the same harness exits unsuccessfully and labels
   the package unusable rather than accepting a candidate.
-- [ ] Protected cases instantiate public requirements only; review finds no hidden requirement
+- [x] Protected cases instantiate public requirements only; review finds no hidden requirement
   that could change the declared task.
 
 ## Current state
 
-The owner approved all four packages and the exact immutable corpus root through the project CTO
-channel. The reproducible candidate and both clean workspaces remain preserved. The implementation
-must now remove the misleading path that treats corpus-authored JSON as proof of owner authority.
+Accepted. Four external Rust repair packages have immutable sources, public requirements, protected
+oracles, negative controls, and clean-room reproduction. The owner approved their exact corpus root
+through the project CTO channel, while `ymp-corpus` exposes technical verification only and cannot
+assert owner authority from corpus-authored input.
 
 ## Next action
 
-Remove local JSON authorization from the corpus tool, retain technical verification and immutable
-binding, then repeat only the external authorization falsifier before integration.
+Use the accepted corpus root and package records to freeze the matched-budget study specification
+in W1-EXP-01b.
 
 ## Guardrails
 
@@ -90,12 +91,19 @@ reversibility and detection tests; no additional scope may enter this iteration.
 
 ### Accepted outcome
 
-Not accepted.
+The first corpus edition contains four reproducible packages from independent public Rust
+repositories. All seven deliberately invalid variants are rejected for their declared public
+requirements, and unexpected negative-control success makes a package unusable. Public artifact
+bindings cover 58 linked entities. Technical verification and owner authorization are separate:
+the corpus tool cannot represent or infer owner approval, and the approved root remains recorded
+in the project-controlled owner-decision registry.
 
 ### Residuals
 
-None recorded.
+The four-package edition is an initial reproducible corpus, not the statistically sufficient final
+sample. W1-EXP-01b owns preregistered expansion thresholds and the final study size.
 
 ### Evidence
 
-- None until acceptance.
+- [Reviewed and integrated corpus](https://github.com/maggnus/ymp/commit/ff4a9383653a0f09b947ff24b569e760396a0502).
+- [Owner approval of the immutable root](https://github.com/maggnus/ymp/commit/417f2d9cba9fd6b5d72aab4f7f2768b3c70c3d30).
