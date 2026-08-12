@@ -32,6 +32,6 @@
 | `[ ]` | [`W1-EVL-04c`](waves/W1/W1-EVL-04/tasks/W1-EVL-04c.md) | POC decision is reproducible from frozen evidence | — | — | — |
 | `[~]` | [`W1-EXP-01`](waves/W1/W1-EXP-01/CARD.md) | POC assumptions are falsifiable before product code | — | 12/08 11:02 | 12/08 11:56 (0m) |
 | `[x]` | [`W1-EXP-01a`](waves/W1/W1-EXP-01/tasks/W1-EXP-01a.md) | POC corpus rejects known invalid candidates | [`ff4a9383`](https://github.com/maggnus/ymp/commit/ff4a9383653a0f09b947ff24b569e760396a0502) | 12/08 11:59 | 12/08 15:34 (2h59m) |
-| `[~]` | [`W1-EXP-01b`](waves/W1/W1-EXP-01/tasks/W1-EXP-01b.md) | Matched-budget study has a frozen decision rule | [`141cbf37`](https://github.com/maggnus/ymp/commit/141cbf370a575736a8f7f7d21539ac5f121e7fcd) | 12/08 15:44 | 12/08 17:35 (0m) |
+| `[x]` | [`W1-EXP-01b`](waves/W1/W1-EXP-01/tasks/W1-EXP-01b.md) | Matched-budget study has a frozen decision rule | [`d12eff31`](https://github.com/maggnus/ymp/commit/d12eff31940f8ad124f5f8f566a0dd21de3d2ae6) | 12/08 15:44 | 12/08 17:44 (1h42m) |
 | `[x]` | [`W1-EXP-01c`](waves/W1/W1-EXP-01/tasks/W1-EXP-01c.md) | Protocol model terminates under declared fault schedules | [`35ce2b17`](https://github.com/maggnus/ymp/commit/35ce2b171faa0609cfeb95081c7965049f5edddc) | 12/08 11:02 | 12/08 12:38 (1h36m) |
 | `[?]` | [`W1-EXP-01d`](waves/W1/W1-EXP-01/tasks/W1-EXP-01d.md) | Runtime probes expose incompatible POC profiles | — | — | — |

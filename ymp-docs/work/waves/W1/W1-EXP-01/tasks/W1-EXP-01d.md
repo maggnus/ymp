@@ -10,14 +10,14 @@ relation: required
 depends_on: [W1-EXP-01b]
 blocks: [W1-APP-02c, W1-APP-02d]
 created_at: 2026-08-10T19:34:25+08:00
-updated_at: 2026-08-12T11:56:07+08:00
+updated_at: 2026-08-12T17:44:58+08:00
 started_at:
 accepted_at:
 candidate_commit:
 closure_commit:
 evidence:
 duration_minutes: 0
-blocker: W1-EXP-01b, Claude authentication, and complete managed submission
+blocker: Claude authentication and complete managed submission
 pause_reason:
 return_trigger:
 deliberate_partial: false

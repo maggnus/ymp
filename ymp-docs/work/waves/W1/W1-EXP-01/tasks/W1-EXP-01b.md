@@ -3,20 +3,20 @@ id: W1-EXP-01b
 kind: task
 wave: W1
 card: W1-EXP-01
-state: review
+state: accepted
 risk: critical
 maturity: RESEARCH
 relation: required
 depends_on: [W1-EXP-01a]
 blocks: [W1-EXP-01d, W1-EVL-04a]
 created_at: 2026-08-10T19:34:25+08:00
-updated_at: 2026-08-12T17:35:00+08:00
+updated_at: 2026-08-12T17:44:58+08:00
 started_at: 2026-08-12T15:44:08+08:00
-accepted_at:
-candidate_commit: https://github.com/maggnus/ymp/commit/141cbf370a575736a8f7f7d21539ac5f121e7fcd
-closure_commit:
-evidence:
-duration_minutes: 0
+accepted_at: 2026-08-12T17:44:58+08:00
+candidate_commit: https://github.com/maggnus/ymp/commit/d12eff31940f8ad124f5f8f566a0dd21de3d2ae6
+closure_commit: https://github.com/maggnus/ymp/commit/d12eff31940f8ad124f5f8f566a0dd21de3d2ae6
+evidence: ["[d12eff3](https://github.com/maggnus/ymp/commit/d12eff31940f8ad124f5f8f566a0dd21de3d2ae6)"]
+duration_minutes: 102
 blocker:
 pause_reason:
 return_trigger:
@@ -49,27 +49,27 @@ minimum practically useful effect before any ymp outcome is observed.
 
 ## Acceptance
 
-- [ ] A versioned study manifest and human-readable protocol completely determine arm assignment,
+- [x] A versioned study manifest and human-readable protocol completely determine arm assignment,
   equal resource opportunity, primary outcomes, exclusions, stopping, and the final decision rule.
   An optional currency ceiling may be configured only for the project as a whole; accounting and
   statistical treatment are fixed before primary outcomes are observed.
-- [ ] A dry run over synthetic records produces the declared analysis without consulting mutable
+- [x] A dry run over synthetic records produces the declared analysis without consulting mutable
   defaults or post-outcome configuration.
-- [ ] Deliberately changing one arm's budget, exclusion rule, or primary outcome after the manifest
+- [x] Deliberately changing one arm's budget, exclusion rule, or primary outcome after the manifest
   is frozen causes the compliance check to fail rather than producing a comparable result.
-- [ ] The protocol permits a negative or inconclusive result to reject the mechanism claim without
+- [x] The protocol permits a negative or inconclusive result to reject the mechanism claim without
   redefining success.
 
 ## Current state
 
-The corrected candidate is under repeat review. It binds every condition to the frozen corpus,
-profile, model route, protected-result sequence, deterministic seed, assignment order, and
-assignment position. The statistical thresholds and resource budget are unchanged.
+Accepted. The frozen manifest binds every condition to the approved corpus, profile, model route,
+protected-result sequence, deterministic seed, assignment order, and assignment position. The
+statistical thresholds and resource budget are immutable inputs to the compliance check.
 
 ## Next action
 
-Complete the preserved external black-box review of the correction and integrate it only after an
-independent `ACCEPT`.
+Use the accepted manifest as the immutable accounting and comparison contract for W1-EXP-01d and
+W1-EVL-04a.
 
 ## Guardrails
 
@@ -80,22 +80,17 @@ independent `ACCEPT`.
 
 ## Findings
 
-Review of
-[`study.rs`](https://github.com/maggnus/ymp/blob/a410dc5d32a39880e3bd9c8110637d4a8c70af0a/ymp-rust/tools/ymp-corpus/src/study.rs)
-and
-[`main.rs`](https://github.com/maggnus/ymp/blob/a410dc5d32a39880e3bd9c8110637d4a8c70af0a/ymp-rust/tools/ymp-corpus/src/main.rs)
-found:
-
-- Different model routes can be recorded in one matched block without rejection.
-- Early disclosure of a protected result is accepted because the event sequence is absent.
-- Arbitrary initial seeds and reversed assignment order pass permutation-only validation.
-- `study-dry-run` accepts an implicit corpus path that is not bound by digest.
+None. The four findings from the first review were corrected and independently rechecked through
+the preserved external black-box test.
 
 ## Closure
 
 ### Accepted outcome
 
-Not accepted.
+The preregistered study fixes three comparable conditions, separate task strata, five repetitions,
+best-of-11 selection, the complete token/time/query/cost accounting vector, exclusions, stopping,
+primary outcomes, and a minimum useful effect of 0.125. Synthetic analysis succeeds only when the
+corpus, route, profile, assignment, disclosure order, and frozen decision data all agree.
 
 ### Residuals
 
@@ -103,4 +98,4 @@ None recorded.
 
 ### Evidence
 
-- None until acceptance.
+- [Reviewed-equivalent integration](https://github.com/maggnus/ymp/commit/d12eff31940f8ad124f5f8f566a0dd21de3d2ae6).
