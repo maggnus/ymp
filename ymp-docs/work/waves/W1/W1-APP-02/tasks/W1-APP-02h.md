@@ -3,20 +3,20 @@ id: W1-APP-02h
 kind: task
 wave: W1
 card: W1-APP-02
-state: active
+state: accepted
 risk: significant
 maturity: BUILD
 relation: required
 depends_on: []
 blocks: []
 created_at: 2026-08-12T09:42:00+08:00
-updated_at: 2026-08-12T10:19:00+08:00
+updated_at: 2026-08-12T10:26:09+08:00
 started_at: 2026-08-12T09:44:30+08:00
-accepted_at:
+accepted_at: 2026-08-12T10:26:09+08:00
 candidate_commit: https://github.com/maggnus/ymp/commit/8cc3e90b143c717f063d61ababbc1e0527d8bd4a
-closure_commit:
-evidence:
-duration_minutes: 0
+closure_commit: https://github.com/maggnus/ymp/commit/0d351f6015c25869bd4e45bb126482fd60945795
+evidence: ["[8cc3e90](https://github.com/maggnus/ymp/commit/8cc3e90b143c717f063d61ababbc1e0527d8bd4a)", "[0d351f6](https://github.com/maggnus/ymp/commit/0d351f6015c25869bd4e45bb126482fd60945795)"]
+duration_minutes: 41
 blocker:
 pause_reason:
 return_trigger:
@@ -43,21 +43,20 @@ after a recoverable driver interruption without creating a second attempt or los
 
 ## Acceptance
 
-- [ ] Both installed runtime profiles implement the common resume contract for a known session.
-- [ ] A fake managed session proves that resume continues the same attempt and preserves committed
+- [x] Both installed runtime profiles implement the common resume contract for a known session.
+- [x] A fake managed session proves that resume continues the same attempt and preserves committed
   progress through the production driver abstraction.
-- [ ] An unknown, mismatched, or already terminal session fails with a typed error and never starts
+- [x] An unknown, mismatched, or already terminal session fails with a typed error and never starts
   a replacement participant implicitly.
 
 ## Current state
 
-The corrected candidate makes every failed native-resume process terminal and preserves successful
-same-session resume. Builder-owned regressions measure exactly two process launches. The preserved
-reviewer is repeating its original external seven-case test on the exact corrected revision.
+Accepted. Codex and Claude use their native resume commands for the same managed session and attempt;
+unknown, mismatched, or already terminal sessions fail without an implicit replacement process.
 
 ## Next action
 
-Decide acceptance from the preserved external falsifier on the corrected candidate.
+Proceed with the remaining required W1-APP-02 tasks.
 
 ## Guardrails
 
@@ -66,20 +65,22 @@ Decide acceptance from the preserved external falsifier on the corrected candida
 
 ## Findings
 
-None pending from the author; independent re-review is in progress.
+None.
 
 ## Closure
 
-Filled when the task is accepted. Until then this section stays as written.
-
 ### Accepted outcome
 
-What was actually accepted.
+Both installed runtime profiles preserve session state and resume the same attempt after a
+recoverable child-process failure. An external seven-case matrix confirmed native resume commands,
+stable session and attempt identifiers, and terminal failure after exactly two launches for unknown
+or mismatched resumed sessions.
 
 ### Residuals
 
-Honestly retained limitations, each with an exact return trigger. Empty when there are none.
+None.
 
 ### Evidence
 
-- Commit, evidence package, or durable document of record, each as a Markdown link.
+- [Reviewed correction](https://github.com/maggnus/ymp/commit/8cc3e90b143c717f063d61ababbc1e0527d8bd4a).
+- [Integration commit](https://github.com/maggnus/ymp/commit/0d351f6015c25869bd4e45bb126482fd60945795).
