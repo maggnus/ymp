@@ -3,21 +3,21 @@ id: W1-EXP-01d
 kind: task
 wave: W1
 card: W1-EXP-01
-state: blocked
+state: active
 risk: significant
 maturity: RESEARCH
 relation: required
 depends_on: [W1-EXP-01b]
 blocks: []
 created_at: 2026-08-10T19:34:25+08:00
-updated_at: 2026-08-12T20:31:00+08:00
-started_at:
+updated_at: 2026-08-12T21:18:00+08:00
+started_at: 2026-08-12T20:31:00+08:00
 accepted_at:
 candidate_commit:
 closure_commit:
 evidence:
 duration_minutes: 0
-blocker: Required child W1-EXP-01d.2 awaits Claude Code OAuth authentication
+blocker:
 pause_reason:
 return_trigger:
 deliberate_partial: false
@@ -62,13 +62,14 @@ isolation, usage evidence, and stopping behavior required by the experiment.
 ## Current state
 
 The runtime contract is split into independently acceptable Codex and Claude Code profiles.
-W1-EXP-01d.1 can complete without Claude credentials and unblocks W1-APP-02c. W1-EXP-01d.2 remains
-blocked until Claude Code OAuth authentication is available. The parent closes only after both
-profiles have accepted evidence.
+W1-EXP-01d.1 is under independent review after recording a reproducible route incompatibility.
+Claude Code OAuth authentication is now available, so W1-EXP-01d.2 can execute independently. The
+parent closes only after both profiles have accepted evidence.
 
 ## Next action
 
-Complete and review W1-EXP-01d.1 while W1-EXP-01d.2 remains blocked on OAuth authentication.
+Complete the independent review of W1-EXP-01d.1 while W1-EXP-01d.2 runs the exact authenticated
+Claude Code admission probe and L1-L3 ladder.
 
 ## Guardrails
 

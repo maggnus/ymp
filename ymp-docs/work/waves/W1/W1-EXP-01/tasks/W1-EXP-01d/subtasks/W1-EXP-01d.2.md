@@ -4,21 +4,21 @@ kind: subtask
 wave: W1
 card: W1-EXP-01
 parent: W1-EXP-01d
-state: blocked
+state: active
 risk: significant
 maturity: RESEARCH
 relation: required
 depends_on: []
 blocks: [W1-APP-02d]
 created_at: 2026-08-12T20:31:00+08:00
-updated_at: 2026-08-12T20:31:00+08:00
-started_at:
+updated_at: 2026-08-12T21:18:00+08:00
+started_at: 2026-08-12T21:18:00+08:00
 accepted_at:
 candidate_commit:
 closure_commit:
 evidence:
 duration_minutes: 0
-blocker: Claude Code 2.1.227 OAuth authentication is absent
+blocker:
 pause_reason:
 return_trigger:
 deliberate_partial: false
@@ -60,13 +60,14 @@ incompatible fixtures, so it can be admitted to the primary comparison independe
 
 ## Current state
 
-The exact local executable is installed, but `claude auth status --json` reports `loggedIn=false` and
-`authMethod=none`. No real provider call or repository change can satisfy this profile's acceptance
-until OAuth authentication is completed.
+The exact local executable is installed and `claude auth status --json` reports `loggedIn=true`,
+`authMethod=claude.ai`, and `apiProvider=firstParty`. The runtime-admission probe may now execute;
+authentication material remains outside the repository and outside recorded evidence.
 
 ## Next action
 
-Authenticate Claude Code, then run the exact managed probe and L1-L3 ladder through `ymp`.
+Run the exact managed probe and L1-L3 ladder through `ymp`, then obtain an independent review of
+the resulting admission or reproducible incompatibility package.
 
 ## Guardrails
 
