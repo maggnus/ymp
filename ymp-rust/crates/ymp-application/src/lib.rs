@@ -48,6 +48,8 @@ pub enum ApplicationError {
     InvalidFirstEvent,
     #[error("command identifier {command_id} was reused with different content")]
     IdempotencyConflict { command_id: String },
+    #[error("candidate integration conflicts with immutable candidate {current}: {proposed}")]
+    CandidateConflict { current: String, proposed: String },
     #[error("{kind} must contain between 1 and {MAX_IDENTIFIER_CHARS} characters")]
     InvalidIdentifier { kind: &'static str },
     #[error("notification capacity must be between 1 and 1024")]
@@ -304,6 +306,15 @@ impl Application {
         }
 
         let event = self.state.decide(&command)?;
+        if let EventKind::CandidateSubmitted { object_digest, .. } = &event
+            && let Some(current) = &self.state.candidate_digest
+            && current != object_digest
+        {
+            return Err(ApplicationError::CandidateConflict {
+                current: current.clone(),
+                proposed: object_digest.clone(),
+            });
+        }
         self.commit(command_id, command_digest, event)
     }
 
@@ -863,6 +874,7 @@ fn agent_application_error(error: ApplicationError) -> AgentToolError {
     match error {
         ApplicationError::Transition(_)
         | ApplicationError::IdempotencyConflict { .. }
+        | ApplicationError::CandidateConflict { .. }
         | ApplicationError::ObjectStore(ObjectStoreError::Missing(_))
         | ApplicationError::ObjectStore(ObjectStoreError::DigestMismatch { .. }) => {
             AgentToolError::rejected(error.to_string())

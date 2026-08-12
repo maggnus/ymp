@@ -201,3 +201,29 @@ fn forged_delete_and_unknown_schema_are_rejected() {
         })
     ));
 }
+
+#[test]
+fn forged_path_outside_workspace_is_rejected() {
+    let temporary = tempdir().expect("temporary directory");
+    let source = temporary.path().join("source");
+    std::fs::create_dir_all(&source).expect("source tree");
+    std::fs::write(source.join("present.txt"), b"present\n").expect("source file");
+    let objects = ObjectStore::open(temporary.path().join("objects")).expect("object store");
+    let artifacts = ArtifactStore::new(objects.clone());
+    let base = artifacts.capture_source(&source).expect("capture source");
+    let forged = SubmissionManifest {
+        schema_version: 1,
+        base_snapshot_digest: base.manifest_digest.clone(),
+        changes: vec![Change::Delete {
+            path: "../outside.txt".to_owned(),
+        }],
+    };
+    let forged_digest = objects
+        .put(&serde_json::to_vec(&forged).expect("serialize submission"))
+        .expect("store submission");
+
+    assert!(matches!(
+        artifacts.build_candidate(&base.manifest_digest, &forged_digest),
+        Err(ArtifactError::InvalidPath(path)) if path == "../outside.txt"
+    ));
+}

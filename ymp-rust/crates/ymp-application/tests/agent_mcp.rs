@@ -160,4 +160,18 @@ fn attempt_scope_is_controller_bound_and_invalid_pages_are_tool_errors() {
         invalid_page["result"]["structuredContent"]["code"],
         "invalid_arguments"
     );
+
+    let tools = request(
+        &mut server,
+        json!({ "jsonrpc": "2.0", "id": 4, "method": "tools/list" }),
+    );
+    let names: Vec<_> = tools["result"]["tools"]
+        .as_array()
+        .expect("tool catalog")
+        .iter()
+        .map(|tool| tool["name"].as_str().expect("tool name"))
+        .collect();
+    assert_eq!(names, ["read_control", "read_events", "submit"]);
+    assert!(!tools.to_string().contains("oracle"));
+    assert!(!tools.to_string().contains("verif"));
 }

@@ -447,9 +447,33 @@ fn run_managed_verification(request: ManagedVerificationRequest) -> anyhow::Resu
         Duration::from_millis(wall_time_ms),
         output_limit_bytes,
     )?;
-    let evidence = verifier.verify_candidate(&candidate, &negative_control, &candidate_digest)?;
-    let outcome =
-        application.record_verification(format!("managed.verify.{}", Uuid::new_v4()), &evidence)?;
+    let command_id = format!("managed.verify.{}", Uuid::new_v4());
+    let evidence = match verifier.verify_candidate(&candidate, &negative_control, &candidate_digest)
+    {
+        Ok(evidence) => evidence,
+        Err(error) => {
+            let outcome = application.execute(
+                command_id,
+                DomainCommand::FailInfrastructure {
+                    reason: format!("verifier failed: {error}")
+                        .chars()
+                        .take(ymp_domain::MAX_REASON_BYTES)
+                        .collect(),
+                },
+            )?;
+            println!(
+                "{}",
+                serde_json::to_string(&serde_json::json!({
+                    "type": "managed_verification_result",
+                    "error": error.to_string(),
+                    "outcome": outcome,
+                    "state": application.state()
+                }))?
+            );
+            return Ok(());
+        }
+    };
+    let outcome = application.record_verification(command_id, &evidence)?;
     println!(
         "{}",
         serde_json::to_string(&serde_json::json!({
@@ -501,11 +525,14 @@ fn run_agent_mcp() -> anyhow::Result<()> {
 
 #[cfg(test)]
 mod tests {
-    use super::materialize_controller_candidate;
+    use super::{
+        ManagedVerificationRequest, materialize_controller_candidate, run_managed_verification,
+    };
     use std::fs;
+    use std::time::Duration;
     use tempfile::tempdir;
     use ymp_application::Application;
-    use ymp_domain::{Budget, Command};
+    use ymp_domain::{Budget, Command, RunStatus};
 
     #[test]
     fn managed_verification_materializes_the_controller_bound_candidate() {
@@ -551,5 +578,69 @@ mod tests {
             fs::read(materialized.join("result.txt")).expect("materialized file"),
             b"after\n"
         );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn passing_managed_negative_control_records_infrastructure_error() {
+        use std::os::unix::fs::PermissionsExt;
+
+        let root = tempdir().expect("temporary root");
+        let data_root = root.path().join("data");
+        let source = root.path().join("source");
+        let workspace = root.path().join("workspace");
+        let negative = root.path().join("negative");
+        let program = root.path().join("oracle");
+        fs::create_dir_all(&source).expect("source directory");
+        fs::create_dir(&negative).expect("negative directory");
+        fs::write(source.join("result.txt"), b"candidate\n").expect("source file");
+        fs::write(&program, b"#!/bin/sh\nexit 0\n").expect("oracle program");
+        let mut permissions = fs::metadata(&program).expect("metadata").permissions();
+        permissions.set_mode(0o700);
+        fs::set_permissions(&program, permissions).expect("make executable");
+
+        let mut application =
+            Application::create(&data_root, "run-1", Budget::new(1, 1)).expect("application");
+        let base = application
+            .artifact_store()
+            .capture_source(&source)
+            .expect("base capture");
+        application
+            .artifact_store()
+            .materialize(&base.manifest_digest, &workspace)
+            .expect("workspace");
+        application
+            .execute(
+                "attempt.start",
+                Command::StartAttempt {
+                    attempt_id: "attempt-1".to_owned(),
+                },
+            )
+            .expect("attempt start");
+        application
+            .submit_workspace_candidate(
+                "attempt.submit",
+                "attempt-1",
+                &base.manifest_digest,
+                &workspace,
+            )
+            .expect("candidate submission");
+        drop(application);
+
+        let result = run_managed_verification(ManagedVerificationRequest {
+            data_root: data_root.clone(),
+            program,
+            arguments: Vec::new(),
+            negative_control: negative,
+            contract_digest: "1".repeat(64),
+            oracle_digest: "2".repeat(64),
+            wall_time_ms: Duration::from_secs(5).as_millis() as u64,
+            output_limit_bytes: 1024,
+        });
+        assert!(result.is_ok(), "infrastructure result must be committed");
+
+        let recovered = Application::open(&data_root).expect("reopen application");
+        assert_eq!(recovered.state().status, RunStatus::InfrastructureError);
+        assert!(recovered.state().candidate_digest.is_some());
     }
 }

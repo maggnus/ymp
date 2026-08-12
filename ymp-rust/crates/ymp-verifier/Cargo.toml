@@ -10,9 +10,7 @@ hex.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 sha2.workspace = true
+tempfile.workspace = true
 thiserror.workspace = true
 ymp-domain.workspace = true
 ymp-runtime-api.workspace = true
-
-[dev-dependencies]
-tempfile.workspace = true

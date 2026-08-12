@@ -30,6 +30,26 @@ fn altered_object_bytes_are_rejected_on_read() {
 }
 
 #[test]
+fn partial_target_is_not_completed_or_accepted() {
+    let temporary = tempdir().expect("temporary object root");
+    let store = ObjectStore::open(temporary.path()).expect("open object store");
+    let complete = b"complete object";
+    let digest = ymp_domain::digest_bytes(complete);
+    let target = store.path_for(&digest).expect("object path");
+    std::fs::create_dir_all(target.parent().expect("object parent")).expect("object parent");
+    std::fs::write(&target, b"partial").expect("partial target");
+
+    assert!(matches!(
+        store.put(complete),
+        Err(ObjectStoreError::DigestMismatch(actual)) if actual == digest
+    ));
+    assert_eq!(
+        std::fs::read(target).expect("partial bytes preserved"),
+        b"partial"
+    );
+}
+
+#[test]
 fn bounded_journal_preserves_space_for_one_terminal_event() {
     let temporary = tempdir().expect("temporary journal root");
     let path = temporary.path().join("events.jsonl");

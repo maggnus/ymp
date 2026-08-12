@@ -334,12 +334,13 @@ impl CommandVerifier {
         .actual_digest;
         let environment_object = serde_json::to_vec(&serde_json::json!({
             "schema_version": 1,
-            "verifier_profile": "bounded_command_v1",
+            "verifier_profile": "bounded_command_v2",
             "program": self.program,
             "program_digest": program_digest,
             "arguments_before_subject": self.arguments_before_subject,
             "wall_time_limit_millis": self.wall_time_limit.as_millis(),
-            "output_limit_bytes": self.output_limit_bytes
+            "output_limit_bytes": self.output_limit_bytes,
+            "subject_isolation": "ephemeral_copy_per_observation_v1"
         }))?;
         let environment_digest = ymp_domain::digest_bytes(&environment_object);
         self.verify_candidate_with_environment_bytes(
@@ -379,7 +380,7 @@ impl CommandVerifier {
             contract_digest: self.contract_digest.clone(),
             oracle_digest: self.oracle_digest.clone(),
             environment_digest: Some(environment_digest),
-            verifier_profile: "bounded_command_v1".to_owned(),
+            verifier_profile: "bounded_command_v2".to_owned(),
             observation_digest: digest_serializable(&observation)?,
             decision,
             evidence_digest: String::new(),
@@ -392,13 +393,27 @@ impl CommandVerifier {
     }
 
     fn observe(&self, subject: &Path) -> Result<CommandObservation, VerifierError> {
-        if !subject.is_dir() {
+        let metadata = std::fs::symlink_metadata(subject)
+            .map_err(|_| VerifierError::InvalidSubject(subject.to_path_buf()))?;
+        if metadata.file_type().is_symlink() || !metadata.is_dir() {
             return Err(VerifierError::InvalidSubject(subject.to_path_buf()));
         }
+        let isolated = tempfile::tempdir()?;
+        let isolated_subject = isolated.path().join("subject");
+        copy_subject_tree(subject, &isolated_subject)?;
+        let isolated_temporary = isolated.path().join("tmp");
+        std::fs::create_dir(&isolated_temporary)?;
         let mut command = Command::new(&self.program);
         command
             .args(&self.arguments_before_subject)
-            .arg(subject)
+            .arg(&isolated_subject)
+            .current_dir(&isolated_subject)
+            .env("TMPDIR", &isolated_temporary)
+            .env("TMP", &isolated_temporary)
+            .env("TEMP", &isolated_temporary)
+            .env_remove("YMP_AGENT_SOCKET")
+            .env_remove("YMP_AGENT_TOKEN")
+            .env_remove("YMP_ATTEMPT_ID")
             .stdin(Stdio::null())
             .stdout(Stdio::piped())
             .stderr(Stdio::piped());
@@ -454,6 +469,28 @@ impl CommandVerifier {
             stderr_bytes: stderr.bytes,
         })
     }
+}
+
+fn copy_subject_tree(source: &Path, destination: &Path) -> Result<(), VerifierError> {
+    std::fs::create_dir(destination)?;
+    let mut entries = std::fs::read_dir(source)?.collect::<Result<Vec<_>, _>>()?;
+    entries.sort_by_key(std::fs::DirEntry::file_name);
+    for entry in entries {
+        let source_path = entry.path();
+        let destination_path = destination.join(entry.file_name());
+        let metadata = std::fs::symlink_metadata(&source_path)?;
+        if metadata.file_type().is_symlink() {
+            return Err(VerifierError::InvalidSubject(source_path));
+        }
+        if metadata.is_dir() {
+            copy_subject_tree(&source_path, &destination_path)?;
+        } else if metadata.is_file() {
+            std::fs::copy(&source_path, &destination_path)?;
+        } else {
+            return Err(VerifierError::InvalidSubject(source_path));
+        }
+    }
+    Ok(())
 }
 
 struct StreamDigest {
@@ -746,6 +783,45 @@ mod tests {
             verifier.verify_candidate(&candidate, &negative, "3".repeat(64)),
             Err(VerifierError::NegativeControlPassed)
         ));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn negative_control_cannot_seed_candidate_observation_through_working_directory() {
+        use std::os::unix::fs::PermissionsExt;
+
+        let temporary = tempfile::tempdir().expect("temporary directory");
+        let program = temporary.path().join("oracle");
+        let marker = format!(".ymp-verifier-negative-marker-{}", std::process::id());
+        std::fs::write(
+            &program,
+            format!("#!/bin/sh\nif [ -f {marker} ]; then exit 0; fi\ntouch {marker}\nexit 1\n"),
+        )
+        .expect("write oracle");
+        let mut permissions = std::fs::metadata(&program).expect("metadata").permissions();
+        permissions.set_mode(0o700);
+        std::fs::set_permissions(&program, permissions).expect("make executable");
+        let candidate = temporary.path().join("candidate");
+        let negative = temporary.path().join("negative");
+        std::fs::create_dir(&candidate).expect("candidate directory");
+        std::fs::create_dir(&negative).expect("negative directory");
+        let verifier = CommandVerifier::new(
+            "1".repeat(64),
+            "2".repeat(64),
+            &program,
+            Vec::new(),
+            Duration::from_secs(5),
+            1024,
+        )
+        .expect("command verifier");
+
+        let evidence = verifier
+            .verify_candidate(&candidate, &negative, "3".repeat(64))
+            .expect("verification result");
+
+        assert_eq!(evidence.decision(), VerificationDecision::Reject);
+        assert!(!negative.join(&marker).exists());
+        assert!(!candidate.join(&marker).exists());
     }
 
     #[cfg(unix)]
