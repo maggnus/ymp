@@ -3,20 +3,20 @@ id: W1-EXP-01c
 kind: task
 wave: W1
 card: W1-EXP-01
-state: active
+state: accepted
 risk: significant
 maturity: DESIGN
 relation: required
 depends_on: []
 blocks: [W1-APP-02a, W1-COR-03a, W1-COR-03b]
 created_at: 2026-08-10T19:34:25+08:00
-updated_at: 2026-08-12T12:09:30+08:00
+updated_at: 2026-08-12T12:38:52+08:00
 started_at: 2026-08-12T11:02:25+08:00
-accepted_at:
+accepted_at: 2026-08-12T12:38:52+08:00
 candidate_commit: https://github.com/maggnus/ymp/commit/6145b5daef4f6c5d01981a335c43a8a78fd9dbad
-closure_commit:
-evidence:
-duration_minutes: 0
+closure_commit: https://github.com/maggnus/ymp/commit/35ce2b171faa0609cfeb95081c7965049f5edddc
+evidence: ["[6145b5d](https://github.com/maggnus/ymp/commit/6145b5daef4f6c5d01981a335c43a8a78fd9dbad)", "[35ce2b1](https://github.com/maggnus/ymp/commit/35ce2b171faa0609cfeb95081c7965049f5edddc)"]
+duration_minutes: 96
 blocker:
 pause_reason:
 return_trigger:
@@ -49,26 +49,27 @@ duplicate, delay, expiry, and crash schedules.
 
 ## Acceptance
 
-- [ ] Generated schedules preserve every declared safety invariant and reach a permitted terminal
+- [x] Generated schedules preserve every declared safety invariant and reach a permitted terminal
   state when creation, lease, wake, and query budgets are finite.
-- [ ] Duplicate commands have one effect, and commands carrying a stale fencing generation cannot
+- [x] Duplicate commands have one effect, and commands carrying a stale fencing generation cannot
   create a current candidate or close an obligation.
-- [ ] Mutating at least one reservation, fencing, or obligation-return rule produces a failing
+- [x] Mutating at least one reservation, fencing, or obligation-return rule produces a failing
   counterexample through the same model check.
-- [ ] A controller-crash schedule ends a POC run as `infrastructure_error`; it never resumes an
+- [x] A controller-crash schedule ends a POC run as `infrastructure_error`; it never resumes an
   ambiguous authority interval.
 
 ## Current state
 
-The corrected candidate exhaustively enumerates 2,045,152 reachable states and 5,581,282
+Accepted. The executable model exhaustively enumerates 2,045,152 reachable states and 5,581,282
 transitions with no non-terminal deadlock or cycle and a maximum terminal path of 41 transitions.
 It fences stale result return and stores abstract results for 14 command identifiers spanning all
-consequential command classes. Focused independent re-review is active.
+consequential command classes. Independent re-review reproduced the full graph and challenged both
+corrected invariants with external checks of a different form.
 
 ## Next action
 
-Decide acceptance through external stale-return and duplicate-effect controls plus the same full
-graph and mutation checks on the exact corrected candidate.
+Use the accepted traces as the implementation contract for the production kernel tasks after their
+remaining declared dependencies close.
 
 ## Guardrails
 
@@ -77,22 +78,24 @@ graph and mutation checks on the exact corrected candidate.
 
 ## Findings
 
-- `HIGH`: `ReturnResult` does not require the candidate generation to remain current after lease
-  expiry, so an expired attempt can close an obligation.
-- `HIGH`: the state model lacks command identifiers and stored results for award, submit, return,
-  yield, wake, and protected verification-query replays, so general command idempotency is not
-  established.
+None. Both returned findings were corrected and independently rechecked: expired attempts cannot
+close obligations, and all consequential command classes participate in stored-result replay.
 
 ## Closure
 
 ### Accepted outcome
 
-Not accepted.
+The bounded model proves conservation, fencing, exactly-once command effects, finite yield/wake,
+obligation closure, honest crash termination, and eventual permitted terminal outcomes under its
+declared finite schedules. Five rule mutations are detected by the same exhaustive check.
 
 ### Residuals
 
-None recorded.
+The model intentionally abstracts durable recovery, real transports, unbounded identifiers, and
+production implementation behavior; these limits are documented in the accepted model and remain
+owned by production tasks.
 
 ### Evidence
 
-- None until acceptance.
+- [Reviewed candidate](https://github.com/maggnus/ymp/commit/6145b5daef4f6c5d01981a335c43a8a78fd9dbad).
+- [Integration commit](https://github.com/maggnus/ymp/commit/35ce2b171faa0609cfeb95081c7965049f5edddc).
