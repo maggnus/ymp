@@ -10,14 +10,14 @@ relation: required
 depends_on: [W1-EXP-01a, W1-EXP-01b, W1-COR-03b, W1-COR-03d]
 blocks: [W1-EVL-04b, W1-EVL-04c]
 created_at: 2026-08-10T19:34:25+08:00
-updated_at: 2026-08-12T09:29:40+08:00
+updated_at: 2026-08-12T11:56:07+08:00
 started_at:
 accepted_at:
 candidate_commit:
 closure_commit:
 evidence:
 duration_minutes: 0
-blocker: Owner gate G3 and listed dependencies
+blocker: Listed dependencies
 pause_reason:
 return_trigger:
 deliberate_partial: false
@@ -56,16 +56,17 @@ comparable acceptance, false-acceptance, cost, latency, failure, and abstention 
 - [ ] A run with budget mismatch, unapproved profile, unverifiable usage, oracle-integrity loss,
   missing seed assignment, or undeclared exclusion is rejected from the primary comparison by the
   compliance check.
-- [ ] Any approved in-flight overshoot is charged to the arm that incurred it and remains within
-  the tolerance fixed by `G3` and the preregistration.
+- [ ] Any in-flight excess is charged to the arm that incurred it and included in the declared
+  accounting and statistical analysis; there is no owner-imposed total currency ceiling.
 - [ ] The selector commits its primary assessment before receiving arm identity, producer
   rationale, messages, reputation, or other assessments. A deliberately early disclosure makes
   the compliance check reject the observation from the primary comparison.
 
 ## Current state
 
-No corpus, executable system, study harness, provider budget, or experimental record exists. Work
-is blocked by `G3` and every preceding required checkpoint.
+No corpus, complete executable system, study harness, or experimental record exists. The owner has
+removed numeric package and total-spend ceilings; work remains blocked by every listed dependency
+and by operational provider readiness.
 
 ## Next action
 
@@ -76,7 +77,8 @@ comparison budget.
 
 - A passing candidate proves only the approved oracle observations for its exact digest.
 - Infrastructure failures are reported separately from candidate failures.
-- No paid expansion or new data disclosure occurs without a new owner decision and run record.
+- Only openly distributable, nonsensitive external inputs may be disclosed to model providers;
+  every paid expansion is recorded in the run and aggregate statistics.
 
 ## Findings
 

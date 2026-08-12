@@ -10,14 +10,14 @@ relation: required
 depends_on: [W1-EXP-01b]
 blocks: [W1-APP-02c, W1-APP-02d]
 created_at: 2026-08-10T19:34:25+08:00
-updated_at: 2026-08-12T06:38:24+08:00
+updated_at: 2026-08-12T11:56:07+08:00
 started_at:
 accepted_at:
 candidate_commit:
 closure_commit:
 evidence:
 duration_minutes: 0
-blocker: W1-EXP-01b, Claude authentication, complete managed submission, and remaining G3 budget decisions
+blocker: W1-EXP-01b, Claude authentication, and complete managed submission
 pause_reason:
 return_trigger:
 deliberate_partial: false
@@ -55,8 +55,9 @@ isolation, usage evidence, and stopping behavior required by the experiment.
   lifecycle, tool binding, usage evidence, cancellation, and subagent behavior.
 - [ ] A fixture that omits a required event, leaks ambient configuration, cannot terminate its
   descendants, or lacks reproducible usage is rejected from the primary comparison.
-- [ ] Each unavoidable cost overshoot is measured and either falls within the approved tolerance
-  or makes the profile ineligible.
+- [ ] Each call records tokens, wall time, protected queries, provider cost when available, and
+  in-flight excess under the preregistered accounting rule; missing reproducible accounting makes
+  the profile ineligible.
 
 ## Current state
 

@@ -10,14 +10,14 @@ relation: required
 depends_on: [W1-EXP-01a]
 blocks: [W1-EXP-01d, W1-EVL-04a]
 created_at: 2026-08-10T19:34:25+08:00
-updated_at: 2026-08-12T09:29:40+08:00
+updated_at: 2026-08-12T11:56:07+08:00
 started_at:
 accepted_at:
 candidate_commit:
 closure_commit:
 evidence:
 duration_minutes: 0
-blocker: Owner gates G2 and G3, followed by acceptance of W1-EXP-01a
+blocker: Acceptance of W1-EXP-01a
 pause_reason:
 return_trigger:
 deliberate_partial: false
@@ -50,8 +50,9 @@ minimum practically useful effect before any ymp outcome is observed.
 ## Acceptance
 
 - [ ] A versioned study manifest and human-readable protocol completely determine arm assignment,
-  owner-approved total budget matching, primary outcomes, exclusions, stopping, and the final
-  decision rule. Budget and overshoot values are taken from the recorded `G3` resolution.
+  equal resource opportunity, primary outcomes, exclusions, stopping, and the final decision rule.
+  No owner-imposed currency ceiling applies; accounting and statistical treatment are fixed before
+  primary outcomes are observed.
 - [ ] A dry run over synthetic records produces the declared analysis without consulting mutable
   defaults or post-outcome configuration.
 - [ ] Deliberately changing one arm's budget, exclusion rule, or primary outcome after the manifest
@@ -61,13 +62,14 @@ minimum practically useful effect before any ymp outcome is observed.
 
 ## Current state
 
-The required comparisons are described in `ROADMAP.md`, but no approved corpus, machine-readable
-study manifest, effect threshold, or budget is frozen. Work is blocked by `G2` and `G3`.
+The required comparisons are described in `ROADMAP.md`, and the owner has delegated corpus breadth,
+resource scale, and effect threshold to the preregistered statistical design without numeric cost
+or package ceilings. No approved corpus or machine-readable study manifest is frozen yet.
 
 ## Next action
 
-After `W1-EXP-01a` defines the admitted corpus and `G3` approves the total comparison budget and
-overshoot tolerance, record the exact randomization and decision rule.
+After `W1-EXP-01a` defines the admitted corpus, record the exact randomization, equal resource
+opportunity, stopping rule, accounting fields, statistical treatment, and decision rule.
 
 ## Guardrails
 

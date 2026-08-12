@@ -3,21 +3,21 @@ id: W1-EXP-01a
 kind: task
 wave: W1
 card: W1-EXP-01
-state: blocked
+state: ready
 risk: critical
 maturity: DESIGN
 relation: required
 depends_on: []
 blocks: [W1-EXP-01b]
 created_at: 2026-08-10T19:34:25+08:00
-updated_at: 2026-08-12T09:25:52+08:00
+updated_at: 2026-08-12T11:56:07+08:00
 started_at:
 accepted_at:
 candidate_commit:
 closure_commit:
 evidence:
 duration_minutes: 0
-blocker: Owner gate G2
+blocker:
 pause_reason:
 return_trigger:
 deliberate_partial: false
@@ -60,12 +60,14 @@ that each major requirement can reject a known invalid candidate.
 
 ## Current state
 
-The design requirements and production repository exist; no approved corpus, immutable source
-binding, protected bundle, or approval record exists. Work is blocked by `G2`.
+The owner permits an unrestricted number of openly distributable, nonsensitive external packages
+and tasks. No approved primary corpus, immutable source binding, protected bundle, or approval
+record exists yet; L1-L3 remain development calibration and cannot be reused as primary cases.
 
 ## Next action
 
-Resolve owner gate `G2`, then freeze the first corpus manifest before creating cases.
+Select the first statistically justified external task set, then freeze its source revisions,
+public contracts, structural labels, protected oracles, and negative controls.
 
 ## Guardrails
 

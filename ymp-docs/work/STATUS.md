@@ -5,7 +5,7 @@
 | Status | ID | Task | Commit | Start | Time |
 |---|---|---|---|---|---|
 | `[ ]` | [`W0-UX-01`](waves/W0/W0-UX-01/CARD.md) | Reviewed terminal screen contract precedes implementation | — | — | — |
-| `[~]` | [`W0-UX-01a`](waves/W0/W0-UX-01/tasks/W0-UX-01a.md) | Project requirements define the terminal product contract | [`e8ff248f`](https://github.com/maggnus/ymp/commit/e8ff248fad346071e9adec2b94f07e6c027f17ed) | 12/08 11:04 | 12/08 11:47 (0m) |
+| `[~]` | [`W0-UX-01a`](waves/W0/W0-UX-01/tasks/W0-UX-01a.md) | Project requirements define the terminal product contract | [`579eb08b`](https://github.com/maggnus/ymp/commit/579eb08b6ceaba93cd44d3853d2e841fc966e2be) | 12/08 11:04 | 12/08 11:56 (0m) |
 | `[ ]` | [`W0-UX-01b`](waves/W0/W0-UX-01/tasks/W0-UX-01b.md) | HTML artifact supplies the POC screen and state system | — | — | — |
 | `[ ]` | [`W0-UX-01c`](waves/W0/W0-UX-01/tasks/W0-UX-01c.md) | Independent review freezes an implementable screen contract | — | — | — |
 | `[ ]` | [`W1-APP-02`](waves/W1/W1-APP-02/CARD.md) | Foreground TUI verifies one exact participant result | — | — | — |
@@ -27,8 +27,8 @@
 | `[?]` | [`W1-EVL-04a`](waves/W1/W1-EVL-04/tasks/W1-EVL-04a.md) | Matched-budget arms produce comparable acceptance evidence | — | — | — |
 | `[ ]` | [`W1-EVL-04b`](waves/W1/W1-EVL-04/tasks/W1-EVL-04b.md) | Message interventions separate appearance from causal use | — | — | — |
 | `[ ]` | [`W1-EVL-04c`](waves/W1/W1-EVL-04/tasks/W1-EVL-04c.md) | POC decision is reproducible from frozen evidence | — | — | — |
-| `[?]` | [`W1-EXP-01`](waves/W1/W1-EXP-01/CARD.md) | POC assumptions are falsifiable before product code | — | — | — |
-| `[?]` | [`W1-EXP-01a`](waves/W1/W1-EXP-01/tasks/W1-EXP-01a.md) | POC corpus rejects known invalid candidates | — | — | — |
+| `[~]` | [`W1-EXP-01`](waves/W1/W1-EXP-01/CARD.md) | POC assumptions are falsifiable before product code | — | 12/08 11:02 | 12/08 11:56 (0m) |
+| `[ ]` | [`W1-EXP-01a`](waves/W1/W1-EXP-01/tasks/W1-EXP-01a.md) | POC corpus rejects known invalid candidates | — | — | — |
 | `[?]` | [`W1-EXP-01b`](waves/W1/W1-EXP-01/tasks/W1-EXP-01b.md) | Matched-budget study has a frozen decision rule | — | — | — |
 | `[~]` | [`W1-EXP-01c`](waves/W1/W1-EXP-01/tasks/W1-EXP-01c.md) | Protocol model terminates under declared fault schedules | [`2135c5c7`](https://github.com/maggnus/ymp/commit/2135c5c7532a23749d95363fcdf48e69fe6019dd) | 12/08 11:02 | 12/08 11:34 (0m) |
 | `[?]` | [`W1-EXP-01d`](waves/W1/W1-EXP-01/tasks/W1-EXP-01d.md) | Runtime probes expose incompatible POC profiles | — | — | — |
