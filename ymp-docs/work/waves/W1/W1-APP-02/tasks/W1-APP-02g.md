@@ -10,10 +10,10 @@ relation: required
 depends_on: []
 blocks: []
 created_at: 2026-08-12T09:42:00+08:00
-updated_at: 2026-08-12T10:58:20+08:00
+updated_at: 2026-08-12T11:10:39+08:00
 started_at: 2026-08-12T10:28:00+08:00
 accepted_at:
-candidate_commit: https://github.com/maggnus/ymp/commit/da8632f56800930e8842231fe25a6e9a5168c8e9
+candidate_commit: https://github.com/maggnus/ymp/commit/7791162f2f561392bce689a518717b0af2eecb4d
 closure_commit:
 evidence:
 duration_minutes: 0
@@ -51,15 +51,14 @@ and replay refuses evidence whose environment digest is absent or mismatched.
 
 ## Current state
 
-The first candidate introduces verification evidence schema version 2 and passes the environment
-binding, recovery, export, and compatibility falsifiers. Independent review returned it because
-the public evidence-recovery API can manufacture the same type that Application accepts for a new
-verification record, allowing a forged `Accept` decision to survive recovery.
+The corrected candidate introduces verification evidence schema version 2 and separates
+verifier-issued evidence from `StoredVerificationEvidence`. Package tests, formatting, full Clippy,
+and a compile-time type-separation regression pass. Independent re-review with the original
+external falsifier is in progress.
 
 ## Next action
 
-Separate verifier-issued evidence from the recovered durable representation, prove that recovered
-or arbitrary JSON cannot enter the accepting API, and rerun the same independent falsifier.
+Decide acceptance by rerunning the same independent falsifier against the corrected exact commit.
 
 ## Guardrails
 
