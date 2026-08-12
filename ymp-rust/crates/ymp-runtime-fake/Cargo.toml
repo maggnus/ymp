@@ -7,4 +7,3 @@ license.workspace = true
 
 [dependencies]
 ymp-runtime-api.workspace = true
-

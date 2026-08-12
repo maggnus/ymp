@@ -3,12 +3,12 @@ id: W1
 kind: wave
 state: blocked
 areas: [EXP, APP, COR, EVL]
-plan_review_state: pending
-plan_review_evidence:
-plan_review_at:
+plan_review_state: accepted
+plan_review_evidence: https://github.com/maggnus/ymp/commit/dd2cadb7d34a3698bfbe6011b4f502506173aa0a
+plan_review_at: 2026-08-12T09:35:13+08:00
 created_at: 2026-08-10T19:34:25+08:00
-updated_at: 2026-08-12T09:29:40+08:00
-blocker: Owner gates G2 and G3 and independent plan review
+updated_at: 2026-08-12T09:35:13+08:00
+blocker: Owner gates G2 and G3
 ---
 
 # W1 — POC decision readiness
@@ -41,7 +41,7 @@ with `W1-EXP-01`; only the screen implementation tasks depend on its accepted re
 
 ## Plan review
 
-In progress. A non-author reviewer is testing this tree for missing work,
-false closure paths, dependency cycles, hidden owner decisions, uncheckable acceptance criteria,
-and tasks that cannot be executed from a cold context. The review must return `ACCEPT` or
-`RETURN`; no implementation work starts while this field is pending.
+Accepted. Independent review returned the plan once because `W1-EXP-01b` could freeze an
+unapproved budget and blinded selection lacked an early-disclosure falsifier. `G3` now blocks the
+budget freeze, and `W1-COR-03c` plus `W1-EVL-04a` reject early disclosure from the primary
+comparison. Repeated falsifiers and the structural check passed.
