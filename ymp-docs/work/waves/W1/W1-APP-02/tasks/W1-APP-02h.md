@@ -10,10 +10,10 @@ relation: required
 depends_on: []
 blocks: []
 created_at: 2026-08-12T09:42:00+08:00
-updated_at: 2026-08-12T09:44:30+08:00
+updated_at: 2026-08-12T10:05:00+08:00
 started_at: 2026-08-12T09:44:30+08:00
 accepted_at:
-candidate_commit:
+candidate_commit: https://github.com/maggnus/ymp/commit/10e2c92065ea4561a8d484ba7c62818f2784ae0f
 closure_commit:
 evidence:
 duration_minutes: 0
@@ -51,12 +51,13 @@ after a recoverable driver interruption without creating a second attempt or los
 
 ## Current state
 
-Independent review found that the Codex and Claude resume operations return `Unsupported`.
-Interruption recovery is therefore absent from the contracted managed-runtime behavior.
+The candidate resumes Codex and Claude processes with the same session and attempt identifiers and
+rejects unknown or mismatched sessions without launching a replacement. Builder-owned targeted
+checks pass; independent review is pending on the exact candidate revision.
 
 ## Next action
 
-Implement and test the common resume lifecycle without adding controller crash recovery.
+Decide acceptance through an external product-path falsifier in an independent workspace.
 
 ## Guardrails
 

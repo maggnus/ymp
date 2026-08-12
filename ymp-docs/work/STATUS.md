@@ -16,7 +16,7 @@
 | `[ ]` | [`W1-APP-02e`](waves/W1/W1-APP-02/tasks/W1-APP-02e.md) | TUI completes and exports a single-participant run | — | — | — |
 | `[x]` | [`W1-APP-02f`](waves/W1/W1-APP-02/tasks/W1-APP-02f.md) | Duplicate or out-of-order runtime events terminate without a candidate | [`4145a442`](https://github.com/maggnus/ymp/commit/4145a442b476afedca8d091de3a30b1eb1ad9b84) | 12/08 09:40 | 12/08 10:03 (23m) |
 | `[ ]` | [`W1-APP-02g`](waves/W1/W1-APP-02/tasks/W1-APP-02g.md) | Verification evidence binds the exact runtime environment | — | — | — |
-| `[~]` | [`W1-APP-02h`](waves/W1/W1-APP-02/tasks/W1-APP-02h.md) | Managed Codex and Claude sessions resume after interruption | — | 12/08 09:44 | 12/08 09:44 (0m) |
+| `[~]` | [`W1-APP-02h`](waves/W1/W1-APP-02/tasks/W1-APP-02h.md) | Managed Codex and Claude sessions resume after interruption | [`10e2c920`](https://github.com/maggnus/ymp/commit/10e2c92065ea4561a8d484ba7c62818f2784ae0f) | 12/08 09:44 | 12/08 10:05 (0m) |
 | `[ ]` | [`W1-COR-03`](waves/W1/W1-COR-03/CARD.md) | Bounded local commitments self-organize and terminate | — | — | — |
 | `[ ]` | [`W1-COR-03a`](waves/W1/W1-COR-03/tasks/W1-COR-03a.md) | Local commitments conserve budgets and close obligations | — | — | — |
 | `[ ]` | [`W1-COR-03b`](waves/W1/W1-COR-03/tasks/W1-COR-03b.md) | Yielded participants resume finitely and runs terminate honestly | — | — | — |
