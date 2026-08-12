@@ -7,14 +7,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let negative_controls = [
         check(Mutation::SkipAwardReservation),
         check(Mutation::IgnoreLeaseFence),
+        check(Mutation::AllowStaleObligationReturn),
         check(Mutation::AllowSecondObligationReturn),
+        check(Mutation::ReapplyDuplicateCommand),
     ];
     let passed = baseline.passed
         && negative_controls
             .iter()
             .all(|report| !report.passed && !report.shortest_counterexample.is_empty());
     let output = serde_json::json!({
-        "schema_version": 2,
+        "schema_version": 3,
         "passed": passed,
         "baseline": baseline,
         "negative_controls": negative_controls,

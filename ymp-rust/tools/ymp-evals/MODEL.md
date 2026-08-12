@@ -21,9 +21,22 @@ candidate. Every present obligation has exactly one terminal return, including r
 cancellation and controller failure.
 
 Logical time ranges from 0 through 4. The offer deadline is 2, leases last at most two time units,
-and a wake remains eligible for at most one time unit. The model includes one duplicated
-`advertise` delivery. The duplicate is consumed as a fault event but does not repeat the command's
-budget or reservation effects.
+and a wake remains eligible for at most one time unit.
+
+The finite command-result table has 14 identifiers: one `advertise`; one bid, award, submit, and
+child return for each of the two children; two yield registrations; two wake deliveries; and one
+protected verification request. The two yield and two wake identifiers are slots assigned in
+acceptance order, not participant identities. Each accepted identifier stores its exact abstract
+result and effect count. The command table, processed-identifier set, duplicate-delivery state, and
+saved results are all part of state equality and hashing, so graph deduplication cannot merge states
+with different command histories.
+
+For every stored identifier, the model exposes one duplicate delivery. In the baseline, that
+delivery returns the saved result, changes only duplicate-delivery bookkeeping, and leaves the
+effect count at one. As a partial-order reduction, the duplicate is delivered before another
+nonterminal protocol command; cancellation or controller failure may still terminate the interval
+first. Thus the model checks the retry rule for every represented command class without adding an
+unbounded delivery queue or permutations that have the same domain effect.
 
 ## Exhaustive safety and termination check
 
@@ -44,8 +57,10 @@ task priority, method, skill matching, candidate quality, or a preferred partici
 
 ## Fault assumptions
 
-- Delivery can be duplicated once for the represented `advertise` command. Command identity remains
-  stable across the duplicate.
+- Every one of the 14 represented command identifiers can be delivered twice in total: the accepted
+  delivery and one duplicate. The duplicate carries the same identifier and returns the stored
+  abstract result without repeating a budget, reservation, object, candidate, query, wait, wake, or
+  obligation-return effect.
 - Delays are arbitrary interleavings within bounded logical time. There is no fairness assumption
   hidden in a depth cutoff.
 - Expiry increments the lease generation before a stale submission is recorded. The stale record is
@@ -58,12 +73,17 @@ task priority, method, skill matching, candidate quality, or a preferred partici
 
 ## Negative controls
 
-The executable runs three rule mutations through the same exhaustive checker:
+The executable runs five rule mutations through the same exhaustive checker:
 
 1. `skip_award_reservation` creates an award without debiting its separate reservation and violates
    sponsor-fund conservation.
 2. `ignore_lease_fence` promotes a stale-generation submission to the current candidate set.
-3. `allow_second_obligation_return` records a second terminal return for one child obligation.
+3. `allow_stale_obligation_return` lets a candidate from an expired lease generation close its
+   child obligation.
+4. `allow_second_obligation_return` records a second terminal return when a child-return command is
+   delivered again.
+5. `reapply_duplicate_command` increments the effect count instead of returning only the stored
+   result for a duplicate identifier.
 
 Each mutation must produce a serialized violation and shortest counterexample. A mutation that
 survives makes the executable return a failure status.
@@ -76,11 +96,13 @@ and an explicit state variable rather than an unbounded queue or semantic policy
 | Protocol behavior | Model treatment |
 |---|---|
 | Participant identities, runtime profiles, model routes, harnesses, MCP and ymp RPC transports | Omitted. The model starts after authentication and transport decoding and examines accepted mechanical commands only. |
-| Control journal envelopes, object digests, durable append ordering, event cursors, replay after process restart and evidence export | Omitted. State transitions are atomic in memory; controller restart is prohibited after a POC crash. |
+| Control journal envelopes, object digests, durable append ordering, event cursors, replay after process restart and evidence export | Omitted. State transitions are atomic in memory; the bounded in-memory command-result table is not a durable schema, and controller restart is prohibited after a POC crash. |
+| The unbounded protocol idempotency key space, rejected-command records, request-digest conflicts and arbitrary retry counts | Bounded to 14 accepted, effectful command identifiers and one duplicate per identifier. Saved abstract results and effect counts are explicit. Rejected commands, reuse of one identifier with a different request digest, and a third or later delivery are omitted. |
+| Idempotency for controller-internal transitions and terminal root commands | Offer-window closure, time advance, lease expiry, stale-record capture, lease reissue, verification completion, root return, cancellation and controller failure are modeled as controller transitions rather than entries in the participant-command table. Root return, cancellation and failure close the authority interval and therefore have no successor in which a duplicate could produce another effect. |
 | Collaboration audiences, messages, salience, delivery receipts and communication byte budgets | Omitted. No collaboration payload exists, so it cannot carry authority or affect liveness. |
 | `open_accept` and targeted offers, counter-proposals, withdrawal, sponsorship transfer, participant recruitment and proposal-stage execution | Collapsed to one funded negotiated offer with two fixed possible bidders. Mechanical consent remains explicit through separate bid and award actions. |
 | Multiple offers, arbitrary obligation depth and dependency DAGs | Bounded to one root and two sibling children. Parentage is still checked separately from candidate state. |
-| Lease renewal and multiple concurrent attempts for one contract | Replaced by expiry and bounded reissue of one attempt. Reissue consumes the same finite start budget and advances the fencing generation. |
+| Lease renewal and multiple concurrent attempts for one contract | Replaced by expiry and bounded reissue of one attempt. Reissue consumes the same finite start budget and uses the generation advanced by expiry. A result return separately records and checks the candidate generation, return time, current attempt generation, running phase, and unexpired lease. |
 | The full set of typed wake conditions, audience changes, event cursors and event coalescing | Collapsed to one matching wake class. Yield, deadline, wake eligibility and the separate wait/start charges remain explicit. |
 | Model cost, tokens, wall time, CPU, memory, process count, disk, output, network, credentials, messages and external-action dimensions | Collapsed to four independent counters needed by this proof: creation, invocation starts, waits and protected queries. All omitted authority classes are unavailable, not unlimited. |
 | Private workspaces, artifact bytes, base digests, integration conflicts and candidate ancestry DAGs | Collapsed to a per-child candidate record that states whether its fencing generation was current when committed. |
