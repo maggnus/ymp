@@ -10,10 +10,10 @@ relation: required
 depends_on: []
 blocks: [W1-APP-02a, W1-COR-03a, W1-COR-03b]
 created_at: 2026-08-10T19:34:25+08:00
-updated_at: 2026-08-12T11:34:48+08:00
+updated_at: 2026-08-12T12:09:30+08:00
 started_at: 2026-08-12T11:02:25+08:00
 accepted_at:
-candidate_commit: https://github.com/maggnus/ymp/commit/2135c5c7532a23749d95363fcdf48e69fe6019dd
+candidate_commit: https://github.com/maggnus/ymp/commit/6145b5daef4f6c5d01981a335c43a8a78fd9dbad
 closure_commit:
 evidence:
 duration_minutes: 0
@@ -60,15 +60,15 @@ duplicate, delay, expiry, and crash schedules.
 
 ## Current state
 
-The first candidate exhaustively enumerates 385,605 reachable states and 1,927,370 transitions,
-but independent review found that an expired attempt can still return a candidate and that command
-deduplication covers only one advertise replay rather than every consequential command class.
-Bounded corrective work is active in the original author workspace.
+The corrected candidate exhaustively enumerates 2,045,152 reachable states and 5,581,282
+transitions with no non-terminal deadlock or cycle and a maximum terminal path of 41 transitions.
+It fences stale result return and stores abstract results for 14 command identifiers spanning all
+consequential command classes. Focused independent re-review is active.
 
 ## Next action
 
-Require the same graph check to reject stale result return, model stored command results for every
-consequential command class, and repeat independent review on the corrected candidate.
+Decide acceptance through external stale-return and duplicate-effect controls plus the same full
+graph and mutation checks on the exact corrected candidate.
 
 ## Guardrails
 
