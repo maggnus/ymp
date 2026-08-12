@@ -130,6 +130,85 @@ impl ClaudeRuntime {
     }
 }
 
+#[derive(Clone, Debug)]
+struct ClaudeLaunch {
+    executable: PathBuf,
+    profile: ClaudeProfile,
+    workspace: PathBuf,
+    attempt_id: String,
+    mcp: Option<McpBinding>,
+}
+
+struct ClaudeProcess {
+    child: Child,
+    lines: Receiver<BoundedOutputLine>,
+    stderr_reader: JoinHandle<Vec<u8>>,
+    started_at: Instant,
+}
+
+impl ClaudeLaunch {
+    fn spawn(&self, session_id: Option<&str>, prompt: &str) -> Result<ClaudeProcess, RuntimeError> {
+        let mcp_config = mcp_config(self.mcp.as_ref(), &self.attempt_id)?;
+        let budget = format!(
+            "{:.6}",
+            self.profile.max_budget_microusd as f64 / 1_000_000.0
+        );
+        let mut command = Command::new(&self.executable);
+        command
+            .arg("--print")
+            .args(["--input-format", "text"])
+            .args(["--output-format", "stream-json"])
+            .arg("--verbose")
+            .args(["--setting-sources", ""])
+            .arg("--disable-slash-commands")
+            .arg("--strict-mcp-config")
+            .args(["--mcp-config", &mcp_config])
+            .args(["--model", &self.profile.model])
+            .args(["--effort", &self.profile.effort])
+            .args(["--permission-mode", &self.profile.permission_mode])
+            .args(["--max-budget-usd", &budget])
+            .args(["--tools", "Bash,Edit,Read,Write,Glob,Grep"])
+            .current_dir(&self.workspace)
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped());
+        if let Some(session_id) = session_id {
+            command.args(["--resume", session_id]);
+        }
+        configure_process_group(&mut command);
+        let mut child = command.spawn()?;
+        let mut stdin = child
+            .stdin
+            .take()
+            .ok_or_else(|| RuntimeError::MalformedEvent("Claude stdin was not piped".to_owned()))?;
+        stdin.write_all(prompt.as_bytes())?;
+        stdin.write_all(b"\n\n")?;
+        stdin.write_all(HARNESS_INSTRUCTIONS.as_bytes())?;
+        stdin.flush()?;
+        drop(stdin);
+        let stdout = child.stdout.take().ok_or_else(|| {
+            RuntimeError::MalformedEvent("Claude stdout was not piped".to_owned())
+        })?;
+        let stderr = child.stderr.take().ok_or_else(|| {
+            RuntimeError::MalformedEvent("Claude stderr was not piped".to_owned())
+        })?;
+        let stderr_limit = self.profile.output_limit_bytes;
+        let stderr_reader = thread::spawn(move || {
+            let mut bytes = Vec::new();
+            let _ = stderr
+                .take((stderr_limit.saturating_add(1)) as u64)
+                .read_to_end(&mut bytes);
+            bytes
+        });
+        Ok(ClaudeProcess {
+            child,
+            lines: read_bounded_lines(stdout, self.profile.output_limit_bytes),
+            stderr_reader,
+            started_at: Instant::now(),
+        })
+    }
+}
+
 impl RuntimeDriver for ClaudeRuntime {
     fn kind(&self) -> RuntimeKind {
         RuntimeKind::ClaudeCode
@@ -233,67 +312,30 @@ impl RuntimeDriver for ClaudeRuntime {
                 "attempt identifier must contain between 1 and 128 bytes".to_owned(),
             ));
         }
-        let mcp_config = mcp_config(request.mcp.as_ref(), &request.attempt_id)?;
-        let budget = format!(
-            "{:.6}",
-            self.profile.max_budget_microusd as f64 / 1_000_000.0
-        );
-        let mut command = Command::new(&self.executable);
-        command
-            .arg("--print")
-            .args(["--input-format", "text"])
-            .args(["--output-format", "stream-json"])
-            .arg("--verbose")
-            .args(["--setting-sources", ""])
-            .arg("--disable-slash-commands")
-            .arg("--no-session-persistence")
-            .arg("--strict-mcp-config")
-            .args(["--mcp-config", &mcp_config])
-            .args(["--model", &self.profile.model])
-            .args(["--effort", &self.profile.effort])
-            .args(["--permission-mode", &self.profile.permission_mode])
-            .args(["--max-budget-usd", &budget])
-            .args(["--tools", "Bash,Edit,Read,Write,Glob,Grep"])
-            .current_dir(&request.workspace)
-            .stdin(Stdio::piped())
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped());
-        configure_process_group(&mut command);
-        let mut child = command.spawn()?;
-        let mut stdin = child
-            .stdin
-            .take()
-            .ok_or_else(|| RuntimeError::MalformedEvent("Claude stdin was not piped".to_owned()))?;
-        stdin.write_all(request.prompt.as_bytes())?;
-        stdin.write_all(b"\n\n")?;
-        stdin.write_all(HARNESS_INSTRUCTIONS.as_bytes())?;
-        stdin.flush()?;
-        drop(stdin);
-        let stdout = child.stdout.take().ok_or_else(|| {
-            RuntimeError::MalformedEvent("Claude stdout was not piped".to_owned())
-        })?;
-        let stderr = child.stderr.take().ok_or_else(|| {
-            RuntimeError::MalformedEvent("Claude stderr was not piped".to_owned())
-        })?;
-        let stderr_limit = self.profile.output_limit_bytes;
-        let stderr_reader = thread::spawn(move || {
-            let mut bytes = Vec::new();
-            let _ = stderr
-                .take((stderr_limit.saturating_add(1)) as u64)
-                .read_to_end(&mut bytes);
-            bytes
-        });
+        let launch = ClaudeLaunch {
+            executable: self.executable.clone(),
+            profile: self.profile.clone(),
+            workspace: request.workspace,
+            attempt_id: request.attempt_id,
+            mcp: request.mcp,
+        };
+        let process = launch.spawn(None, &request.prompt)?;
         Ok(Box::new(ClaudeSession {
-            child,
-            lines: read_bounded_lines(stdout, self.profile.output_limit_bytes),
-            stderr_reader: Some(stderr_reader),
+            child: process.child,
+            lines: process.lines,
+            stderr_reader: Some(process.stderr_reader),
+            launch,
+            session_id: None,
             invocation_id: request.invocation_id,
             sequence: 0,
             output_limit_bytes: self.profile.output_limit_bytes,
             wall_time_limit_ms: self.profile.wall_time_limit_ms,
-            started_at: Instant::now(),
+            started_at: process.started_at,
             cancellation: request.cancellation,
             completed: false,
+            terminal: false,
+            recoverable: false,
+            native_resume_started: false,
             interrupted: false,
             interruption_emitted: false,
         }))
@@ -304,6 +346,8 @@ struct ClaudeSession {
     child: Child,
     lines: Receiver<BoundedOutputLine>,
     stderr_reader: Option<JoinHandle<Vec<u8>>>,
+    launch: ClaudeLaunch,
+    session_id: Option<String>,
     invocation_id: String,
     sequence: u64,
     output_limit_bytes: usize,
@@ -311,6 +355,9 @@ struct ClaudeSession {
     started_at: Instant,
     cancellation: CancellationToken,
     completed: bool,
+    terminal: bool,
+    recoverable: bool,
+    native_resume_started: bool,
     interrupted: bool,
     interruption_emitted: bool,
 }
@@ -347,6 +394,36 @@ impl ClaudeSession {
             status: status.to_string(),
             stderr: self.stderr(),
         }
+    }
+
+    fn install_process(&mut self, process: ClaudeProcess) {
+        self.child = process.child;
+        self.lines = process.lines;
+        self.stderr_reader = Some(process.stderr_reader);
+        self.started_at = process.started_at;
+        self.completed = false;
+        self.recoverable = false;
+        self.native_resume_started = true;
+    }
+
+    fn finish_after_error(&mut self, error: &RuntimeError) {
+        if self.terminal || self.interrupted || self.cancellation.is_cancelled() {
+            return;
+        }
+        if !self.completed {
+            let _ = terminate_process_tree(&mut self.child);
+            self.completed = true;
+        }
+        if let Some(reader) = self.stderr_reader.take() {
+            let _ = reader.join();
+        }
+        self.recoverable = self.session_id.is_some()
+            && !self.native_resume_started
+            && matches!(
+                error,
+                RuntimeError::Process(_) | RuntimeError::UnsuccessfulExit { .. }
+            );
+        self.terminal = self.session_id.is_some() && !self.recoverable;
     }
 
     fn next_line(&mut self) -> Result<Option<String>, RuntimeError> {
@@ -395,6 +472,18 @@ impl ClaudeSession {
         match event_type {
             "system" if event.get("subtype").and_then(Value::as_str) == Some("init") => {
                 let session_id = string_field(&event, "session_id")?;
+                if let Some(expected) = &self.session_id {
+                    if expected != &session_id {
+                        let _ = terminate_process_tree(&mut self.child);
+                        self.completed = true;
+                        self.terminal = true;
+                        return Err(RuntimeError::InvalidProfile(format!(
+                            "resumed Claude session identifier changed from {expected} to {session_id}"
+                        )));
+                    }
+                } else {
+                    self.session_id = Some(session_id.clone());
+                }
                 Ok(Some(self.emit(RuntimeEventKind::Started {
                     opaque_session_id: session_id,
                 })))
@@ -428,6 +517,7 @@ impl ClaudeSession {
                         .and_then(Value::as_str)
                         .unwrap_or("Claude reported an unsuccessful result");
                     let _ = self.finish();
+                    self.terminal = true;
                     return Err(RuntimeError::RuntimeReportedFailure(detail.to_owned()));
                 }
                 let raw_usage = event.get("usage").ok_or_else(|| {
@@ -448,6 +538,7 @@ impl ClaudeSession {
                 if !status.success() {
                     return Err(self.unsuccessful(status));
                 }
+                self.terminal = true;
                 Ok(Some(self.emit(RuntimeEventKind::Completed { usage })))
             }
             "user" | "stream_event" | "rate_limit_event" => Ok(None),
@@ -457,13 +548,12 @@ impl ClaudeSession {
             ))),
         }
     }
-}
 
-impl RuntimeSession for ClaudeSession {
-    fn next_event(&mut self) -> Result<Option<RuntimeEvent>, RuntimeError> {
+    fn next_event_inner(&mut self) -> Result<Option<RuntimeEvent>, RuntimeError> {
         if self.cancellation.is_cancelled() && !self.completed {
             let _ = terminate_process_tree(&mut self.child);
             self.completed = true;
+            self.terminal = true;
             self.interrupted = true;
         }
         if self.interrupted {
@@ -479,6 +569,7 @@ impl RuntimeSession for ClaudeSession {
         loop {
             let Some(line) = self.next_line()? else {
                 if self.interrupted {
+                    self.terminal = true;
                     self.interruption_emitted = true;
                     return Ok(Some(self.emit(RuntimeEventKind::Interrupted)));
                 }
@@ -497,11 +588,33 @@ impl RuntimeSession for ClaudeSession {
             }
         }
     }
+}
 
-    fn resume(&mut self, _input: String) -> Result<(), RuntimeError> {
-        Err(RuntimeError::Unsupported(
-            "the pinned Claude process-per-turn profile does not support resume",
-        ))
+impl RuntimeSession for ClaudeSession {
+    fn next_event(&mut self) -> Result<Option<RuntimeEvent>, RuntimeError> {
+        let result = self.next_event_inner();
+        if let Err(error) = &result {
+            self.finish_after_error(error);
+        }
+        result
+    }
+
+    fn resume(&mut self, input: String) -> Result<(), RuntimeError> {
+        if self.terminal || self.interrupted || self.cancellation.is_cancelled() {
+            return Err(RuntimeError::NotYielded);
+        }
+        let session_id = self.session_id.clone().ok_or_else(|| {
+            RuntimeError::InvalidProfile(
+                "managed Claude session identifier is unknown; refusing replacement start"
+                    .to_owned(),
+            )
+        })?;
+        if !self.recoverable {
+            return Err(RuntimeError::NotYielded);
+        }
+        let process = self.launch.spawn(Some(&session_id), &input)?;
+        self.install_process(process);
+        Ok(())
     }
 
     fn interrupt(&mut self) -> Result<(), RuntimeError> {
@@ -509,6 +622,7 @@ impl RuntimeSession for ClaudeSession {
         if !self.completed && !self.interrupted {
             terminate_process_tree(&mut self.child)?;
             self.completed = true;
+            self.terminal = true;
             self.interrupted = true;
         }
         Ok(())
@@ -649,5 +763,255 @@ fi
                     && usage.cost_microusd == Some(125_000)
         ));
         assert!(session.next_event().expect("terminal").is_none());
+    }
+
+    #[test]
+    fn recoverable_process_failure_resumes_the_same_managed_session() {
+        let directory = tempfile::tempdir().expect("temporary directory");
+        let executable = directory.path().join("claude-resume-fixture");
+        fs::write(
+            &executable,
+            r##"#!/bin/sh
+if [ "$1" = "--version" ]; then
+  printf '%s\n' '2.1.227 (Claude Code)'
+elif [ "$1" = "auth" ]; then
+  printf '%s\n' '{"loggedIn":true,"authMethod":"oauth"}'
+  exit 0
+else
+  cd "$(dirname "$0")"
+  count=$(($(cat invocation.count 2>/dev/null || printf '0') + 1))
+  printf '%s\n' "$count" > invocation.count
+  printf '%s\n' "$@" > "invocation-$count.args"
+  cat > "invocation-$count.stdin"
+  printf '%s\n' '{"type":"system","subtype":"init","session_id":"session-resume-1"}'
+  if [ "$count" -eq 1 ]; then
+    printf '%s\n' 'committed progress' > committed.progress
+    printf '%s\n' '{"type":"assistant","message":{"content":[{"type":"text","text":"committed progress"}]}}'
+    exit 17
+  fi
+  test "$(cat committed.progress)" = 'committed progress' || exit 29
+  printf '%s\n' '{"type":"assistant","message":{"content":[{"type":"text","text":"resumed progress"}]}}'
+  printf '%s\n' '{"type":"result","subtype":"success","is_error":false,"total_cost_usd":0.125,"usage":{"input_tokens":11,"cache_read_input_tokens":7,"output_tokens":3}}'
+fi
+"##,
+        )
+        .expect("write fixture");
+        let mut permissions = fs::metadata(&executable).expect("metadata").permissions();
+        permissions.set_mode(0o700);
+        fs::set_permissions(&executable, permissions).expect("make executable");
+
+        let runtime = ClaudeRuntime::new(&executable);
+        let mut session = runtime
+            .start(InvocationRequest {
+                invocation_id: "invocation-resume".to_owned(),
+                attempt_id: "attempt-resume".to_owned(),
+                workspace: directory.path().to_owned(),
+                mcp: Some(ymp_runtime_api::McpBinding {
+                    executable: executable.clone(),
+                    socket_path: directory.path().join("agent.sock"),
+                    token: "fixture-token".to_owned(),
+                }),
+                prompt: "initial prompt".to_owned(),
+                cancellation: Default::default(),
+            })
+            .expect("start fixture");
+
+        let started = session.next_event().expect("started").expect("event");
+        assert_eq!(started.sequence, 1);
+        assert!(matches!(
+            started.event,
+            RuntimeEventKind::Started { opaque_session_id }
+                if opaque_session_id == "session-resume-1"
+        ));
+        assert!(matches!(
+            session.next_event().expect("output").expect("event").event,
+            RuntimeEventKind::Output { text } if text == "committed progress"
+        ));
+        assert!(matches!(
+            session.next_event(),
+            Err(RuntimeError::UnsuccessfulExit { .. })
+        ));
+
+        session
+            .resume("continue after interruption".to_owned())
+            .expect("resume fixture");
+        let resumed = session.next_event().expect("resumed start").expect("event");
+        assert_eq!(resumed.sequence, 3);
+        assert!(matches!(
+            resumed.event,
+            RuntimeEventKind::Started { opaque_session_id }
+                if opaque_session_id == "session-resume-1"
+        ));
+        assert!(matches!(
+            session
+                .next_event()
+                .expect("resumed output")
+                .expect("event")
+                .event,
+            RuntimeEventKind::Output { text } if text == "resumed progress"
+        ));
+        assert!(matches!(
+            session
+                .next_event()
+                .expect("completion")
+                .expect("event")
+                .event,
+            RuntimeEventKind::Completed { .. }
+        ));
+
+        let resumed_arguments = fs::read_to_string(directory.path().join("invocation-2.args"))
+            .expect("resumed arguments");
+        let initial_arguments = fs::read_to_string(directory.path().join("invocation-1.args"))
+            .expect("initial arguments");
+        assert!(!initial_arguments.contains("--no-session-persistence"));
+        assert!(resumed_arguments.contains("--resume\nsession-resume-1\n"));
+        assert!(!resumed_arguments.contains("--no-session-persistence"));
+        assert!(resumed_arguments.contains("YMP_ATTEMPT_ID"));
+        assert!(resumed_arguments.contains("attempt-resume"));
+        assert_eq!(
+            fs::read_to_string(directory.path().join("invocation.count"))
+                .expect("invocation count")
+                .trim(),
+            "2"
+        );
+    }
+
+    #[test]
+    fn mismatched_resumed_session_is_terminal_and_never_replaced() {
+        let directory = tempfile::tempdir().expect("temporary directory");
+        let executable = directory.path().join("claude-mismatch-fixture");
+        fs::write(
+            &executable,
+            r##"#!/bin/sh
+if [ "$1" = "--version" ]; then
+  printf '%s\n' '2.1.227 (Claude Code)'
+elif [ "$1" = "auth" ]; then
+  printf '%s\n' '{"loggedIn":true,"authMethod":"oauth"}'
+  exit 0
+else
+  cd "$(dirname "$0")"
+  count=$(($(cat invocation.count 2>/dev/null || printf '0') + 1))
+  printf '%s\n' "$count" > invocation.count
+  cat >/dev/null
+  if [ "$count" -eq 1 ]; then
+    printf '%s\n' '{"type":"system","subtype":"init","session_id":"session-known"}'
+    exit 17
+  fi
+  printf '%s\n' '{"type":"system","subtype":"init","session_id":"session-replacement"}'
+  sleep 30
+fi
+"##,
+        )
+        .expect("write fixture");
+        let mut permissions = fs::metadata(&executable).expect("metadata").permissions();
+        permissions.set_mode(0o700);
+        fs::set_permissions(&executable, permissions).expect("make executable");
+
+        let runtime = ClaudeRuntime::new(&executable);
+        let mut session = runtime
+            .start(InvocationRequest {
+                invocation_id: "invocation-mismatch".to_owned(),
+                attempt_id: "attempt-mismatch".to_owned(),
+                workspace: directory.path().to_owned(),
+                mcp: None,
+                prompt: "fixture".to_owned(),
+                cancellation: Default::default(),
+            })
+            .expect("start fixture");
+        assert!(matches!(
+            session.next_event().expect("started").expect("event").event,
+            RuntimeEventKind::Started { opaque_session_id }
+                if opaque_session_id == "session-known"
+        ));
+        assert!(matches!(
+            session.next_event(),
+            Err(RuntimeError::UnsuccessfulExit { .. })
+        ));
+        session.resume("resume".to_owned()).expect("resume fixture");
+        assert!(matches!(
+            session.next_event(),
+            Err(RuntimeError::InvalidProfile(_))
+        ));
+        assert!(matches!(
+            session.resume("replacement".to_owned()),
+            Err(RuntimeError::NotYielded)
+        ));
+        assert_eq!(
+            fs::read_to_string(directory.path().join("invocation.count"))
+                .expect("invocation count")
+                .trim(),
+            "2"
+        );
+    }
+
+    #[test]
+    fn unknown_session_reported_by_native_resume_is_terminal() {
+        let directory = tempfile::tempdir().expect("temporary directory");
+        let executable = directory
+            .path()
+            .join("claude-native-resume-unknown-fixture");
+        fs::write(
+            &executable,
+            r##"#!/bin/sh
+if [ "$1" = "--version" ]; then
+  printf '%s\n' '2.1.227 (Claude Code)'
+elif [ "$1" = "auth" ]; then
+  printf '%s\n' '{"loggedIn":true,"authMethod":"oauth"}'
+  exit 0
+else
+  cd "$(dirname "$0")"
+  count=$(($(cat invocation.count 2>/dev/null || printf '0') + 1))
+  printf '%s\n' "$count" > invocation.count
+  cat >/dev/null
+  if [ "$count" -eq 1 ]; then
+    printf '%s\n' '{"type":"system","subtype":"init","session_id":"session-missing"}'
+    exit 17
+  fi
+  printf '%s\n' 'unknown session session-missing' >&2
+  exit 23
+fi
+"##,
+        )
+        .expect("write fixture");
+        let mut permissions = fs::metadata(&executable).expect("metadata").permissions();
+        permissions.set_mode(0o700);
+        fs::set_permissions(&executable, permissions).expect("make executable");
+
+        let runtime = ClaudeRuntime::new(&executable);
+        let mut session = runtime
+            .start(InvocationRequest {
+                invocation_id: "invocation-native-resume-unknown".to_owned(),
+                attempt_id: "attempt-native-resume-unknown".to_owned(),
+                workspace: directory.path().to_owned(),
+                mcp: None,
+                prompt: "fixture".to_owned(),
+                cancellation: Default::default(),
+            })
+            .expect("start fixture");
+        assert!(matches!(
+            session.next_event().expect("started").expect("event").event,
+            RuntimeEventKind::Started { opaque_session_id }
+                if opaque_session_id == "session-missing"
+        ));
+        assert!(matches!(
+            session.next_event(),
+            Err(RuntimeError::UnsuccessfulExit { .. })
+        ));
+        session.resume("resume".to_owned()).expect("native resume");
+        assert!(matches!(
+            session.next_event(),
+            Err(RuntimeError::UnsuccessfulExit { stderr, .. })
+                if stderr.contains("unknown session session-missing")
+        ));
+        assert!(matches!(
+            session.resume("replacement".to_owned()),
+            Err(RuntimeError::NotYielded)
+        ));
+        assert_eq!(
+            fs::read_to_string(directory.path().join("invocation.count"))
+                .expect("invocation count")
+                .trim(),
+            "2"
+        );
     }
 }

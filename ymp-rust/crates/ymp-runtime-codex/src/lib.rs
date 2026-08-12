@@ -162,6 +162,93 @@ impl CodexRuntime {
     }
 }
 
+#[derive(Clone, Debug)]
+struct CodexLaunch {
+    executable: PathBuf,
+    profile: CodexProfile,
+    workspace: PathBuf,
+    attempt_id: String,
+    mcp: Option<McpBinding>,
+}
+
+struct CodexProcess {
+    child: Child,
+    lines: Receiver<BoundedOutputLine>,
+    stderr_reader: JoinHandle<Vec<u8>>,
+    started_at: Instant,
+}
+
+impl CodexLaunch {
+    fn spawn(&self, session_id: Option<&str>, prompt: &str) -> Result<CodexProcess, RuntimeError> {
+        let mut command = Command::new(&self.executable);
+        command
+            .arg("exec")
+            .arg("--json")
+            .arg("--ignore-user-config")
+            .arg("--ignore-rules")
+            .args(["--sandbox", self.profile.sandbox.as_arg()])
+            .args(["--model", &self.profile.model])
+            .arg("-c")
+            .arg(format!(
+                "model_reasoning_effort=\"{}\"",
+                self.profile.reasoning_effort
+            ))
+            .arg("-c")
+            .arg(format!(
+                "approval_policy=\"{}\"",
+                self.profile.approval_policy
+            ))
+            .arg("-C")
+            .arg(&self.workspace)
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped());
+        for feature in DISABLED_AMBIENT_FEATURES {
+            command.arg("--disable").arg(feature);
+        }
+        if let Some(mcp) = &self.mcp {
+            add_mcp_config(&mut command, mcp, &self.attempt_id)?;
+        }
+        if let Some(session_id) = session_id {
+            command.arg("resume").arg(session_id);
+        }
+        command.arg("-");
+        configure_process_group(&mut command);
+        let mut child = command.spawn()?;
+        let mut stdin = child
+            .stdin
+            .take()
+            .ok_or_else(|| RuntimeError::MalformedEvent("Codex stdin was not piped".to_owned()))?;
+        stdin.write_all(prompt.as_bytes())?;
+        stdin.write_all(b"\n\n")?;
+        stdin.write_all(HARNESS_INSTRUCTIONS.as_bytes())?;
+        stdin.flush()?;
+        drop(stdin);
+        let stdout = child
+            .stdout
+            .take()
+            .ok_or_else(|| RuntimeError::MalformedEvent("Codex stdout was not piped".to_owned()))?;
+        let stderr = child
+            .stderr
+            .take()
+            .ok_or_else(|| RuntimeError::MalformedEvent("Codex stderr was not piped".to_owned()))?;
+        let stderr_limit = self.profile.output_limit_bytes;
+        let stderr_reader = thread::spawn(move || {
+            let mut bytes = Vec::new();
+            let _ = stderr
+                .take((stderr_limit.saturating_add(1)) as u64)
+                .read_to_end(&mut bytes);
+            bytes
+        });
+        Ok(CodexProcess {
+            child,
+            lines: read_bounded_lines(stdout, self.profile.output_limit_bytes),
+            stderr_reader,
+            started_at: Instant::now(),
+        })
+    }
+}
+
 impl RuntimeDriver for CodexRuntime {
     fn kind(&self) -> RuntimeKind {
         RuntimeKind::Codex
@@ -261,75 +348,30 @@ impl RuntimeDriver for CodexRuntime {
                 "attempt identifier must contain between 1 and 128 bytes".to_owned(),
             ));
         }
-        let mut command = Command::new(&self.executable);
-        command
-            .arg("exec")
-            .arg("--json")
-            .arg("--ephemeral")
-            .arg("--ignore-user-config")
-            .arg("--ignore-rules")
-            .args(["--sandbox", self.profile.sandbox.as_arg()])
-            .args(["--model", &self.profile.model])
-            .arg("-c")
-            .arg(format!(
-                "model_reasoning_effort=\"{}\"",
-                self.profile.reasoning_effort
-            ))
-            .arg("-c")
-            .arg(format!(
-                "approval_policy=\"{}\"",
-                self.profile.approval_policy
-            ))
-            .arg("-C")
-            .arg(&request.workspace)
-            .stdin(Stdio::piped())
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped());
-        for feature in DISABLED_AMBIENT_FEATURES {
-            command.arg("--disable").arg(feature);
-        }
-        if let Some(mcp) = &request.mcp {
-            add_mcp_config(&mut command, mcp, &request.attempt_id)?;
-        }
-        command.arg("-");
-        configure_process_group(&mut command);
-        let mut child = command.spawn()?;
-        let mut stdin = child
-            .stdin
-            .take()
-            .ok_or_else(|| RuntimeError::MalformedEvent("Codex stdin was not piped".to_owned()))?;
-        stdin.write_all(request.prompt.as_bytes())?;
-        stdin.write_all(b"\n\n")?;
-        stdin.write_all(HARNESS_INSTRUCTIONS.as_bytes())?;
-        stdin.flush()?;
-        drop(stdin);
-        let stdout = child
-            .stdout
-            .take()
-            .ok_or_else(|| RuntimeError::MalformedEvent("Codex stdout was not piped".to_owned()))?;
-        let stderr = child
-            .stderr
-            .take()
-            .ok_or_else(|| RuntimeError::MalformedEvent("Codex stderr was not piped".to_owned()))?;
-        let stderr_limit = self.profile.output_limit_bytes;
-        let stderr_reader = thread::spawn(move || {
-            let mut bytes = Vec::new();
-            let _ = stderr
-                .take((stderr_limit.saturating_add(1)) as u64)
-                .read_to_end(&mut bytes);
-            bytes
-        });
+        let launch = CodexLaunch {
+            executable: self.executable.clone(),
+            profile: self.profile.clone(),
+            workspace: request.workspace,
+            attempt_id: request.attempt_id,
+            mcp: request.mcp,
+        };
+        let process = launch.spawn(None, &request.prompt)?;
         Ok(Box::new(CodexSession {
-            child,
-            lines: read_bounded_lines(stdout, self.profile.output_limit_bytes),
-            stderr_reader: Some(stderr_reader),
+            child: process.child,
+            lines: process.lines,
+            stderr_reader: Some(process.stderr_reader),
+            launch,
+            session_id: None,
             invocation_id: request.invocation_id,
             sequence: 0,
             output_limit_bytes: self.profile.output_limit_bytes,
             wall_time_limit_ms: self.profile.wall_time_limit_ms,
-            started_at: Instant::now(),
+            started_at: process.started_at,
             cancellation: request.cancellation,
             completed: false,
+            terminal: false,
+            recoverable: false,
+            native_resume_started: false,
             interrupted: false,
             interruption_emitted: false,
         }))
@@ -340,6 +382,8 @@ struct CodexSession {
     child: Child,
     lines: Receiver<BoundedOutputLine>,
     stderr_reader: Option<JoinHandle<Vec<u8>>>,
+    launch: CodexLaunch,
+    session_id: Option<String>,
     invocation_id: String,
     sequence: u64,
     output_limit_bytes: usize,
@@ -347,6 +391,9 @@ struct CodexSession {
     started_at: Instant,
     cancellation: CancellationToken,
     completed: bool,
+    terminal: bool,
+    recoverable: bool,
+    native_resume_started: bool,
     interrupted: bool,
     interruption_emitted: bool,
 }
@@ -383,6 +430,36 @@ impl CodexSession {
             status: status.to_string(),
             stderr: self.stderr(),
         }
+    }
+
+    fn install_process(&mut self, process: CodexProcess) {
+        self.child = process.child;
+        self.lines = process.lines;
+        self.stderr_reader = Some(process.stderr_reader);
+        self.started_at = process.started_at;
+        self.completed = false;
+        self.recoverable = false;
+        self.native_resume_started = true;
+    }
+
+    fn finish_after_error(&mut self, error: &RuntimeError) {
+        if self.terminal || self.interrupted || self.cancellation.is_cancelled() {
+            return;
+        }
+        if !self.completed {
+            let _ = terminate_process_tree(&mut self.child);
+            self.completed = true;
+        }
+        if let Some(reader) = self.stderr_reader.take() {
+            let _ = reader.join();
+        }
+        self.recoverable = self.session_id.is_some()
+            && !self.native_resume_started
+            && matches!(
+                error,
+                RuntimeError::Process(_) | RuntimeError::UnsuccessfulExit { .. }
+            );
+        self.terminal = self.session_id.is_some() && !self.recoverable;
     }
 
     fn next_line(&mut self) -> Result<Option<String>, RuntimeError> {
@@ -431,6 +508,18 @@ impl CodexSession {
         match event_type {
             "thread.started" => {
                 let session_id = string_field(&event, "thread_id")?;
+                if let Some(expected) = &self.session_id {
+                    if expected != &session_id {
+                        let _ = terminate_process_tree(&mut self.child);
+                        self.completed = true;
+                        self.terminal = true;
+                        return Err(RuntimeError::InvalidProfile(format!(
+                            "resumed Codex session identifier changed from {expected} to {session_id}"
+                        )));
+                    }
+                } else {
+                    self.session_id = Some(session_id.clone());
+                }
                 Ok(Some(self.emit(RuntimeEventKind::Started {
                     opaque_session_id: session_id,
                 })))
@@ -480,6 +569,7 @@ impl CodexSession {
                 if !status.success() {
                     return Err(self.unsuccessful(status));
                 }
+                self.terminal = true;
                 Ok(Some(self.emit(RuntimeEventKind::Completed { usage })))
             }
             "turn.started" | "item.started" | "item.updated" => Ok(None),
@@ -489,13 +579,12 @@ impl CodexSession {
             ))),
         }
     }
-}
 
-impl RuntimeSession for CodexSession {
-    fn next_event(&mut self) -> Result<Option<RuntimeEvent>, RuntimeError> {
+    fn next_event_inner(&mut self) -> Result<Option<RuntimeEvent>, RuntimeError> {
         if self.cancellation.is_cancelled() && !self.completed {
             let _ = terminate_process_tree(&mut self.child);
             self.completed = true;
+            self.terminal = true;
             self.interrupted = true;
         }
         if self.interrupted {
@@ -511,6 +600,7 @@ impl RuntimeSession for CodexSession {
         loop {
             let Some(line) = self.next_line()? else {
                 if self.interrupted {
+                    self.terminal = true;
                     self.interruption_emitted = true;
                     return Ok(Some(self.emit(RuntimeEventKind::Interrupted)));
                 }
@@ -529,11 +619,33 @@ impl RuntimeSession for CodexSession {
             }
         }
     }
+}
 
-    fn resume(&mut self, _input: String) -> Result<(), RuntimeError> {
-        Err(RuntimeError::Unsupported(
-            "the pinned Codex process-per-turn profile does not support resume",
-        ))
+impl RuntimeSession for CodexSession {
+    fn next_event(&mut self) -> Result<Option<RuntimeEvent>, RuntimeError> {
+        let result = self.next_event_inner();
+        if let Err(error) = &result {
+            self.finish_after_error(error);
+        }
+        result
+    }
+
+    fn resume(&mut self, input: String) -> Result<(), RuntimeError> {
+        if self.terminal || self.interrupted || self.cancellation.is_cancelled() {
+            return Err(RuntimeError::NotYielded);
+        }
+        let session_id = self.session_id.clone().ok_or_else(|| {
+            RuntimeError::InvalidProfile(
+                "managed Codex session identifier is unknown; refusing replacement start"
+                    .to_owned(),
+            )
+        })?;
+        if !self.recoverable {
+            return Err(RuntimeError::NotYielded);
+        }
+        let process = self.launch.spawn(Some(&session_id), &input)?;
+        self.install_process(process);
+        Ok(())
     }
 
     fn interrupt(&mut self) -> Result<(), RuntimeError> {
@@ -541,6 +653,7 @@ impl RuntimeSession for CodexSession {
         if !self.completed && !self.interrupted {
             terminate_process_tree(&mut self.child)?;
             self.completed = true;
+            self.terminal = true;
             self.interrupted = true;
         }
         Ok(())
@@ -736,6 +849,236 @@ fi
             "mcp_servers.ymp.enabled_tools=[\"read_control\",\"read_events\",\"submit\"]"
         ));
         assert!(arguments.contains("mcp_servers.ymp.default_tools_approval_mode=\"approve\""));
+    }
+
+    #[test]
+    fn recoverable_process_failure_resumes_the_same_managed_session() {
+        let directory = tempfile::tempdir().expect("temporary directory");
+        let executable = directory.path().join("codex-resume-fixture");
+        fs::write(
+            &executable,
+            r##"#!/bin/sh
+if [ "$1" = "--version" ]; then
+  printf '%s\n' 'codex-cli 0.147.0'
+elif [ "$1" = "login" ]; then
+  exit 0
+else
+  cd "$(dirname "$0")"
+  count=$(($(cat invocation.count 2>/dev/null || printf '0') + 1))
+  printf '%s\n' "$count" > invocation.count
+  printf '%s\n' "$@" > "invocation-$count.args"
+  cat > "invocation-$count.stdin"
+  printf '%s\n' '{"type":"thread.started","thread_id":"thread-resume-1"}'
+  if [ "$count" -eq 1 ]; then
+    printf '%s\n' 'committed progress' > committed.progress
+    printf '%s\n' '{"type":"item.completed","item":{"type":"agent_message","text":"committed progress"}}'
+    exit 17
+  fi
+  test "$(cat committed.progress)" = 'committed progress' || exit 29
+  printf '%s\n' '{"type":"item.completed","item":{"type":"agent_message","text":"resumed progress"}}'
+  printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":13,"cached_input_tokens":5,"output_tokens":3,"reasoning_output_tokens":1}}'
+fi
+"##,
+        )
+        .expect("write fixture");
+        let mut permissions = fs::metadata(&executable).expect("metadata").permissions();
+        permissions.set_mode(0o700);
+        fs::set_permissions(&executable, permissions).expect("make executable");
+
+        let runtime = CodexRuntime::new(&executable);
+        let mut session = runtime
+            .start(InvocationRequest {
+                invocation_id: "invocation-resume".to_owned(),
+                attempt_id: "attempt-resume".to_owned(),
+                workspace: directory.path().to_owned(),
+                mcp: Some(ymp_runtime_api::McpBinding {
+                    executable: executable.clone(),
+                    socket_path: directory.path().join("agent.sock"),
+                    token: "fixture-token".to_owned(),
+                }),
+                prompt: "initial prompt".to_owned(),
+                cancellation: Default::default(),
+            })
+            .expect("start fixture");
+
+        let started = session.next_event().expect("started").expect("event");
+        assert_eq!(started.sequence, 1);
+        assert!(matches!(
+            started.event,
+            RuntimeEventKind::Started { opaque_session_id }
+                if opaque_session_id == "thread-resume-1"
+        ));
+        let committed = session.next_event().expect("output").expect("event");
+        assert!(matches!(
+            committed.event,
+            RuntimeEventKind::Output { text } if text == "committed progress"
+        ));
+        assert!(matches!(
+            session.next_event(),
+            Err(RuntimeError::UnsuccessfulExit { .. })
+        ));
+
+        session
+            .resume("continue after interruption".to_owned())
+            .expect("resume fixture");
+        let resumed = session.next_event().expect("resumed start").expect("event");
+        assert_eq!(resumed.sequence, 3);
+        assert!(matches!(
+            resumed.event,
+            RuntimeEventKind::Started { opaque_session_id }
+                if opaque_session_id == "thread-resume-1"
+        ));
+        assert!(matches!(
+            session
+                .next_event()
+                .expect("resumed output")
+                .expect("event")
+                .event,
+            RuntimeEventKind::Output { text } if text == "resumed progress"
+        ));
+        assert!(matches!(
+            session
+                .next_event()
+                .expect("completion")
+                .expect("event")
+                .event,
+            RuntimeEventKind::Completed { .. }
+        ));
+
+        let resumed_arguments = fs::read_to_string(directory.path().join("invocation-2.args"))
+            .expect("resumed arguments");
+        let initial_arguments = fs::read_to_string(directory.path().join("invocation-1.args"))
+            .expect("initial arguments");
+        assert!(!initial_arguments.contains("--ephemeral"));
+        assert!(resumed_arguments.contains("resume\nthread-resume-1\n"));
+        assert!(!resumed_arguments.contains("--ephemeral"));
+        assert!(resumed_arguments.contains("YMP_ATTEMPT_ID=\"attempt-resume\""));
+        assert_eq!(
+            fs::read_to_string(directory.path().join("invocation.count"))
+                .expect("invocation count")
+                .trim(),
+            "2"
+        );
+    }
+
+    #[test]
+    fn unknown_managed_session_does_not_start_a_replacement() {
+        let directory = tempfile::tempdir().expect("temporary directory");
+        let executable = directory.path().join("codex-unknown-session-fixture");
+        fs::write(
+            &executable,
+            r##"#!/bin/sh
+if [ "$1" = "--version" ]; then
+  printf '%s\n' 'codex-cli 0.147.0'
+elif [ "$1" = "login" ]; then
+  exit 0
+else
+  cd "$(dirname "$0")"
+  count=$(($(cat invocation.count 2>/dev/null || printf '0') + 1))
+  printf '%s\n' "$count" > invocation.count
+  cat >/dev/null
+  exit 23
+fi
+"##,
+        )
+        .expect("write fixture");
+        let mut permissions = fs::metadata(&executable).expect("metadata").permissions();
+        permissions.set_mode(0o700);
+        fs::set_permissions(&executable, permissions).expect("make executable");
+
+        let runtime = CodexRuntime::new(&executable);
+        let mut session = runtime
+            .start(InvocationRequest {
+                invocation_id: "invocation-unknown".to_owned(),
+                attempt_id: "attempt-unknown".to_owned(),
+                workspace: directory.path().to_owned(),
+                mcp: None,
+                prompt: "fixture".to_owned(),
+                cancellation: Default::default(),
+            })
+            .expect("start fixture");
+        assert!(matches!(
+            session.next_event(),
+            Err(RuntimeError::UnsuccessfulExit { .. })
+        ));
+        assert!(matches!(
+            session.resume("do not replace".to_owned()),
+            Err(RuntimeError::InvalidProfile(_))
+        ));
+        assert_eq!(
+            fs::read_to_string(directory.path().join("invocation.count"))
+                .expect("invocation count")
+                .trim(),
+            "1"
+        );
+    }
+
+    #[test]
+    fn unknown_session_reported_by_native_resume_is_terminal() {
+        let directory = tempfile::tempdir().expect("temporary directory");
+        let executable = directory.path().join("codex-native-resume-unknown-fixture");
+        fs::write(
+            &executable,
+            r##"#!/bin/sh
+if [ "$1" = "--version" ]; then
+  printf '%s\n' 'codex-cli 0.147.0'
+elif [ "$1" = "login" ]; then
+  exit 0
+else
+  cd "$(dirname "$0")"
+  count=$(($(cat invocation.count 2>/dev/null || printf '0') + 1))
+  printf '%s\n' "$count" > invocation.count
+  cat >/dev/null
+  if [ "$count" -eq 1 ]; then
+    printf '%s\n' '{"type":"thread.started","thread_id":"thread-missing"}'
+    exit 17
+  fi
+  printf '%s\n' 'unknown session thread-missing' >&2
+  exit 23
+fi
+"##,
+        )
+        .expect("write fixture");
+        let mut permissions = fs::metadata(&executable).expect("metadata").permissions();
+        permissions.set_mode(0o700);
+        fs::set_permissions(&executable, permissions).expect("make executable");
+
+        let runtime = CodexRuntime::new(&executable);
+        let mut session = runtime
+            .start(InvocationRequest {
+                invocation_id: "invocation-native-resume-unknown".to_owned(),
+                attempt_id: "attempt-native-resume-unknown".to_owned(),
+                workspace: directory.path().to_owned(),
+                mcp: None,
+                prompt: "fixture".to_owned(),
+                cancellation: Default::default(),
+            })
+            .expect("start fixture");
+        assert!(matches!(
+            session.next_event().expect("started").expect("event").event,
+            RuntimeEventKind::Started { opaque_session_id }
+                if opaque_session_id == "thread-missing"
+        ));
+        assert!(matches!(
+            session.next_event(),
+            Err(RuntimeError::UnsuccessfulExit { .. })
+        ));
+        session.resume("resume".to_owned()).expect("native resume");
+        assert!(matches!(
+            session.next_event(),
+            Err(RuntimeError::UnsuccessfulExit { stderr, .. })
+                if stderr.contains("unknown session thread-missing")
+        ));
+        assert!(matches!(
+            session.resume("replacement".to_owned()),
+            Err(RuntimeError::NotYielded)
+        ));
+        assert_eq!(
+            fs::read_to_string(directory.path().join("invocation.count"))
+                .expect("invocation count")
+                .trim(),
+            "2"
+        );
     }
 
     #[test]
