@@ -10,7 +10,7 @@ relation: required
 depends_on: [W1-APP-02a, W1-APP-02b, W1-EXP-01d.1]
 blocks: [W1-APP-02e]
 created_at: 2026-08-10T19:34:25+08:00
-updated_at: 2026-08-12T22:54:39+08:00
+updated_at: 2026-08-12T23:29:56+08:00
 started_at: 2026-08-12T22:06:42+08:00
 accepted_at:
 candidate_commit: https://github.com/maggnus/ymp/commit/53890a0d2679bbf0dcc7b21e276c76dd9b5ce2b4
@@ -59,18 +59,21 @@ lifecycle and usage evidence to include the profile in the POC comparison.
 
 ## Current state
 
-Candidate `53890a0` generates a synthetic home and allowlisted environment, binds executable,
-route, bridge, and MCP provenance, removes the MCP secret from argv, extends usage evidence, and
-adds the public managed product path. It changes shared runtime interfaces and the Claude driver,
-so the preserved reviewer is running the frozen 21-file falsifier and broad regression review
-before any integration or overlapping W1-APP-02d implementation begins.
+Independent review returned [candidate `53890a0`](https://github.com/maggnus/ymp/commit/53890a0d2679bbf0dcc7b21e276c76dd9b5ce2b4).
+The frozen falsifier and source inspection established one secret-disclosure blocker plus four
+major lifecycle and evidence defects. The author accepted all findings as one shared launch,
+lifecycle, accounting, and evidence-model correction. Bounded rework continues with the same
+author and reviewer; no candidate code is integrated, and the W1-APP-02d writer remains paused.
 
 ## Next action
 
-Complete independent review of exact candidate `53890a0` with the frozen falsifier. Accept only if
-ambient route and home inputs are unobservable, secrets remain absent from argv and evidence,
-usage and excess survive error paths, process cleanup holds, and shared runtime changes introduce
-no regression. Start the W1-APP-02d writer only from the accepted integrated runtime base.
+Produce one coherent correction that removes unfiltered child diagnostics from durable state,
+terminates the full process group after parent exit, records cost and non-zero in-flight excess for
+every terminal outcome, implements managed yield/wake/resume through the production handle, and
+derives runtime evidence from the exact executable, arguments, environment, and invocation that
+were launched. Repeat only the checks invalidated by this correction plus the preserved falsifier;
+then return the exact correction range to the same reviewer. Start the W1-APP-02d writer only from
+the accepted integrated runtime base.
 
 ## Guardrails
 
@@ -85,6 +88,18 @@ no regression. Start the W1-APP-02d writer only from the accepted integrated run
   the managed Codex process.
 - Reviewer package SHA-256 manifest `423a05212ab005047583c5d489905e3c604100c0c0ec8a804b10bc3ac03ea12d`
   is frozen, read-only, and has a reproducing negative control on the exact baseline.
+- The first review found that an MCP token supplied through the child environment can be echoed to
+  `stderr` and persisted as an infrastructure-error reason. This is a blocker because it can
+  disclose a secret without a reliable detection point.
+- The same review reproduced a descendant surviving parent exit and found that cost, non-zero
+  in-flight excess, managed yield/wake/resume, and launch-bound evidence are absent or incomplete.
+  These are defects in this task's contracted BUILD outcome, not adjacent refinements.
+- The reviewer's `OPENAI_BASE_URL` subcheck distinguishes only presence and therefore incorrectly
+  described the candidate's pinned value as inherited. The reviewer excluded that subcheck from
+  the verdict; the code clears the ambient value before setting the pinned route.
+- No pressure, concealment, verdict negotiation, author-reviewer contact, or weakening of reviewer
+  independence was observed. Provider-family diversity could not be confirmed, so the preselected
+  external falsifier remains the compensating independent check.
 
 ## Closure
 
