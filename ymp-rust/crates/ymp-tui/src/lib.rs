@@ -18,7 +18,7 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 use uuid::Uuid;
 use ymp_application::Application;
-use ymp_domain::{Budget, Command, RunState, RunStatus};
+use ymp_domain::{Budget, Command, EventEnvelope, EventKind, RunState, RunStatus};
 use ymp_runtime_api::{ProbeReport, Readiness, RuntimeDriver, RuntimeKind};
 use ymp_runtime_claude::ClaudeRuntime;
 use ymp_runtime_codex::CodexRuntime;
@@ -60,6 +60,75 @@ enum View {
     Run,
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum ViewStateKind {
+    Empty,
+    Ready,
+    Degraded,
+    Terminal,
+}
+
+impl ViewStateKind {
+    const fn label(self) -> &'static str {
+        match self {
+            Self::Empty => "[ ] empty",
+            Self::Ready => "[*] ready",
+            Self::Degraded => "[~] degraded",
+            Self::Terminal => "[!] terminal",
+        }
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct RunProjection {
+    view_state: ViewStateKind,
+    reason: String,
+}
+
+impl RunProjection {
+    fn from_state(state: &RunState, last_event: Option<&EventEnvelope>) -> Self {
+        let view_state = if state.status.is_terminal() {
+            ViewStateKind::Terminal
+        } else if matches!(
+            last_event.map(|event| &event.event),
+            Some(EventKind::VerificationRecorded {
+                accepted: false,
+                ..
+            })
+        ) {
+            ViewStateKind::Degraded
+        } else if state.active_attempts.is_empty() && state.candidate_digest.is_none() {
+            ViewStateKind::Empty
+        } else {
+            ViewStateKind::Ready
+        };
+
+        let reason = match last_event.map(|event| &event.event) {
+            Some(EventKind::RunStarted { .. }) | None => {
+                "first launch · no attempt started".to_owned()
+            }
+            Some(EventKind::AttemptStarted { .. }) => "run in progress".to_owned(),
+            Some(EventKind::CandidateSubmitted { .. }) => {
+                "candidate captured · verification pending".to_owned()
+            }
+            Some(EventKind::VerificationRecorded { accepted: true, .. }) => {
+                "exact candidate accepted by verifier evidence".to_owned()
+            }
+            Some(EventKind::VerificationRecorded {
+                accepted: false, ..
+            }) => "candidate failure · run remains active".to_owned(),
+            Some(EventKind::RunExhausted { reason })
+            | Some(EventKind::RunAbstained { reason })
+            | Some(EventKind::RunCancelled { reason }) => reason.clone(),
+            Some(EventKind::RunFailed { reason }) => {
+                format!("{reason} · no candidate judged")
+            }
+        };
+
+        Self { view_state, reason }
+    }
+}
+
 struct UiModel {
     view: View,
     data_root: PathBuf,
@@ -98,6 +167,16 @@ impl UiModel {
     fn select_next_runtime(&mut self) {
         if !self.probes.is_empty() {
             self.selected_runtime = (self.selected_runtime + 1) % self.probes.len();
+        }
+    }
+
+    fn select_previous_runtime_page(&mut self) {
+        self.selected_runtime = self.selected_runtime.saturating_sub(10);
+    }
+
+    fn select_next_runtime_page(&mut self) {
+        if !self.probes.is_empty() {
+            self.selected_runtime = (self.selected_runtime + 10).min(self.probes.len() - 1);
         }
     }
 
@@ -149,14 +228,20 @@ pub fn run_with_contracts(
 
     loop {
         poll_managed_run(&mut managed_run, &mut model)?;
-        let state = app
-            .lock()
-            .map_err(|_| anyhow::anyhow!("application lock was poisoned"))?
-            .state()
-            .clone();
+        let (state, last_event) = {
+            let app = app
+                .lock()
+                .map_err(|_| anyhow::anyhow!("application lock was poisoned"))?;
+            let state = app.state().clone();
+            let last_event = app
+                .events_after(state.last_sequence.saturating_sub(1))?
+                .pop();
+            (state, last_event)
+        };
+        let projection = RunProjection::from_state(&state, last_event.as_ref());
         terminal
             .terminal
-            .draw(|frame| render(frame, &state, &model))?;
+            .draw(|frame| render(frame, &state, &projection, &model))?;
 
         if event::poll(Duration::from_millis(150))?
             && let Event::Key(key) = event::read()?
@@ -202,6 +287,12 @@ pub fn run_with_contracts(
                 }
                 KeyCode::Down | KeyCode::Char('j') if model.view == View::Runtimes => {
                     model.select_next_runtime();
+                }
+                KeyCode::PageUp if model.view == View::Runtimes => {
+                    model.select_previous_runtime_page();
+                }
+                KeyCode::PageDown if model.view == View::Runtimes => {
+                    model.select_next_runtime_page();
                 }
                 KeyCode::Char('[') if model.view == View::Runtimes => {
                     model.select_previous_contract();
@@ -555,7 +646,12 @@ fn probe_runtimes() -> Vec<ProbeReport> {
         .collect()
 }
 
-fn render(frame: &mut ratatui::Frame<'_>, state: &RunState, model: &UiModel) {
+fn render(
+    frame: &mut ratatui::Frame<'_>,
+    state: &RunState,
+    projection: &RunProjection,
+    model: &UiModel,
+) {
     let area = frame.area();
     if area.width < 80 || area.height < 24 {
         render_too_small(frame, area);
@@ -573,7 +669,7 @@ fn render(frame: &mut ratatui::Frame<'_>, state: &RunState, model: &UiModel) {
     render_header(frame, areas[0], state, model);
     match model.view {
         View::Runtimes => render_runtimes(frame, areas[1], model),
-        View::Run => render_run(frame, areas[1], state),
+        View::Run => render_run(frame, areas[1], state, projection),
     }
     render_footer(frame, areas[2], model);
 }
@@ -608,18 +704,39 @@ fn render_header(frame: &mut ratatui::Frame<'_>, area: Rect, state: &RunState, m
         ),
         key_value(
             "Run",
-            format!("{} · {}", state.run_id, status_text(state.status)),
+            format!("{} · {}", state.run_id, status_label(state.status)),
         ),
+        key_value("Focus", "body · keyboard"),
     ]);
     frame.render_widget(summary, columns[0]);
 
-    let shortcuts = Paragraph::new(vec![
-        shortcut_line("<1>", "runtimes", "<3>", "run", "<Tab>", "switch"),
-        shortcut_line("<↑↓>", "runtime", "<[ ]>", "contract", "<Enter>", "use"),
-        shortcut_line("<c>", "probe", "<a>", "fake", "<s>", "submit"),
-        shortcut_line("<v>", "verify", "<e>", "export", "<x>", "cancel"),
-        shortcut_line("<q>", "quit", "", "", "", ""),
-    ]);
+    let shortcut_lines = match (model.view, area.width < 100) {
+        (View::Runtimes, true) => vec![
+            Line::from("<1> runtimes · <3> run · <Tab> focus"),
+            Line::from("<↑↓/jk> move · <PgUp/Dn> page"),
+            Line::from("<Enter> use · <[ ]> contract"),
+            Line::from("<c> probe · <a> fake"),
+            Line::from("<q> quit"),
+        ],
+        (View::Runtimes, false) => vec![
+            shortcut_line("<1>", "runtimes", "<3>", "run", "<Tab>", "focus"),
+            shortcut_line("<↑↓/jk>", "runtime", "<[ ]>", "contract", "<Enter>", "use"),
+            shortcut_line("<PgUp/Dn>", "page", "<c>", "probe", "<a>", "fake"),
+            shortcut_line("<q>", "quit", "", "", "", ""),
+        ],
+        (View::Run, true) => vec![
+            Line::from("<1> runtimes · <3> run · <Tab> focus"),
+            Line::from("<s> submit · <v> verify"),
+            Line::from("<e> export · <x> cancel"),
+            Line::from("<q> quit"),
+        ],
+        (View::Run, false) => vec![
+            shortcut_line("<1>", "runtimes", "<3>", "run", "<Tab>", "focus"),
+            shortcut_line("<s>", "submit", "<v>", "verify", "<e>", "export"),
+            shortcut_line("<x>", "cancel", "<q>", "quit", "", ""),
+        ],
+    };
+    let shortcuts = Paragraph::new(shortcut_lines);
     frame.render_widget(shortcuts, columns[1]);
 }
 
@@ -649,25 +766,42 @@ fn shortcut_line(
 }
 
 fn render_runtimes(frame: &mut ratatui::Frame<'_>, area: Rect, model: &UiModel) {
-    let rows = model.probes.iter().enumerate().map(|(index, probe)| {
-        let marker = if index == model.selected_runtime {
-            ">"
-        } else {
-            " "
-        };
-        let row = Row::new(vec![
-            Cell::from(format!("{marker} {}", runtime_name(probe.kind))),
-            Cell::from(probe.executable.clone()),
-            Cell::from(probe.version.as_deref().unwrap_or("—").to_owned()),
-            Cell::from(readiness_text(probe.readiness)),
-            Cell::from(probe.detail.clone()),
-        ]);
-        if index == model.selected_runtime {
-            row.style(Style::default().fg(AMBER))
-        } else {
-            row
-        }
-    });
+    let sections = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([Constraint::Min(5), Constraint::Length(2)])
+        .split(area);
+    let capacity = usize::from(sections[0].height.saturating_sub(3)).max(1);
+    let (start, end) = visible_range(model.probes.len(), model.selected_runtime, capacity);
+    let rows = model
+        .probes
+        .iter()
+        .enumerate()
+        .skip(start)
+        .take(end.saturating_sub(start))
+        .map(|(index, probe)| {
+            let marker = if index == model.selected_runtime {
+                ">"
+            } else {
+                " "
+            };
+            let row = Row::new(vec![
+                Cell::from(format!("{marker} {}", runtime_name(probe.kind))),
+                Cell::from(probe.executable.clone()),
+                Cell::from(probe.version.as_deref().unwrap_or("—").to_owned()),
+                Cell::from(readiness_text(probe.readiness)),
+                Cell::from(probe.detail.clone()),
+            ]);
+            if index == model.selected_runtime {
+                row.style(Style::default().fg(AMBER))
+            } else {
+                row
+            }
+        });
+    let shown = if start == end {
+        "rows 0/0".to_owned()
+    } else {
+        format!("rows {}–{}/{}", start + 1, end, model.probes.len())
+    };
     let table = Table::new(
         rows,
         [
@@ -688,7 +822,7 @@ fn render_runtimes(frame: &mut ratatui::Frame<'_>, area: Rect, model: &UiModel) 
     .block(
         Block::default()
             .title(format!(
-                " runtimes(all)[{}] · contracts[{}] ",
+                " runtimes(all)[{}] · {shown} · contracts[{}] · PgUp/PgDn ",
                 model.probes.len(),
                 model.contracts.len()
             ))
@@ -696,22 +830,58 @@ fn render_runtimes(frame: &mut ratatui::Frame<'_>, area: Rect, model: &UiModel) 
             .borders(Borders::ALL),
     )
     .column_spacing(1);
-    frame.render_widget(table, area);
+    frame.render_widget(table, sections[0]);
+
+    let selection = model.probes.get(model.selected_runtime).map_or_else(
+        || "selection: none".to_owned(),
+        |probe| {
+            format!(
+                "selection: {} · {} · stable executable={} · <Enter> use",
+                runtime_name(probe.kind),
+                readiness_text(probe.readiness),
+                probe.executable
+            )
+        },
+    );
+    frame.render_widget(
+        Paragraph::new(vec![
+            Line::from(selection),
+            Line::from("focus=body · ↑↓/jk/PgUp/PgDn"),
+        ]),
+        sections[1],
+    );
 }
 
-fn render_run(frame: &mut ratatui::Frame<'_>, area: Rect, state: &RunState) {
+fn visible_range(total: usize, selected: usize, capacity: usize) -> (usize, usize) {
+    if total == 0 {
+        return (0, 0);
+    }
+    let capacity = capacity.min(total);
+    let selected = selected.min(total - 1);
+    let start = selected.saturating_sub(capacity / 2).min(total - capacity);
+    (start, start + capacity)
+}
+
+fn render_run(
+    frame: &mut ratatui::Frame<'_>,
+    area: Rect,
+    state: &RunState,
+    projection: &RunProjection,
+) {
     let sections = Layout::default()
         .direction(Direction::Vertical)
-        .constraints([Constraint::Length(7), Constraint::Min(5)])
+        .constraints([Constraint::Length(8), Constraint::Min(5)])
         .split(area);
     let overview = Paragraph::new(vec![
-        key_value("Status", status_text(state.status)),
-        key_value("Events", state.last_sequence.to_string()),
+        key_value("State", projection.view_state.label()),
+        key_value("Status", status_label(state.status)),
         key_value(
-            "Budget",
+            "Progress",
             format!(
-                "attempts={} · verification={}",
-                state.budget.attempts_remaining, state.budget.verification_queries_remaining
+                "event #{} · attempts {} · verification {}",
+                state.last_sequence,
+                state.budget.attempts_remaining,
+                state.budget.verification_queries_remaining
             ),
         ),
         key_value(
@@ -719,6 +889,7 @@ fn render_run(frame: &mut ratatui::Frame<'_>, area: Rect, state: &RunState) {
             state.candidate_digest.as_deref().unwrap_or("—"),
         ),
         key_value("Authority", authority_text(state)),
+        key_value("Reason", projection.reason.clone()),
     ])
     .block(
         Block::default()
@@ -729,12 +900,15 @@ fn render_run(frame: &mut ratatui::Frame<'_>, area: Rect, state: &RunState) {
     .wrap(Wrap { trim: false });
     frame.render_widget(overview, sections[0]);
 
+    let capacity = usize::from(sections[1].height.saturating_sub(3)).max(1);
+    let shown_attempts = state.active_attempts.len().min(capacity);
     let attempt_rows: Vec<Row<'_>> = if state.active_attempts.is_empty() {
         vec![Row::new(["—", "no active authority", "—"])]
     } else {
         state
             .active_attempts
             .iter()
+            .take(shown_attempts)
             .map(|attempt| {
                 Row::new([
                     attempt.clone(),
@@ -761,7 +935,12 @@ fn render_run(frame: &mut ratatui::Frame<'_>, area: Rect, state: &RunState) {
     )
     .block(
         Block::default()
-            .title(format!(" attempts[{}] ", state.active_attempts.len()))
+            .title(format!(
+                " attempts[{}] · rows {}/{} ",
+                state.active_attempts.len(),
+                shown_attempts,
+                state.active_attempts.len()
+            ))
             .title_style(Style::default().fg(AMBER))
             .borders(Borders::ALL),
     );
@@ -813,7 +992,7 @@ const fn readiness_text(readiness: Readiness) -> &'static str {
     match readiness {
         Readiness::Ready => "ready",
         Readiness::NotInstalled => "not installed",
-        Readiness::Unauthenticated => "not authenticated",
+        Readiness::Unauthenticated => "unauthenticated",
         Readiness::Incompatible => "incompatible",
         Readiness::Unavailable => "unavailable",
     }
@@ -830,6 +1009,17 @@ const fn status_text(status: RunStatus) -> &'static str {
     }
 }
 
+const fn status_label(status: RunStatus) -> &'static str {
+    match status {
+        RunStatus::Running => "[*] running",
+        RunStatus::Accepted => "[+] accepted",
+        RunStatus::Exhausted => "[-] exhausted",
+        RunStatus::Abstained => "[?] abstained",
+        RunStatus::Cancelled => "[x] cancelled",
+        RunStatus::InfrastructureError => "[!] infrastructure_error",
+    }
+}
+
 fn authority_text(state: &RunState) -> &'static str {
     if state.status.is_terminal() {
         "cleared"
@@ -842,29 +1032,42 @@ fn authority_text(state: &RunState) -> &'static str {
 
 #[cfg(test)]
 mod tests {
-    use super::{UiModel, View, render, verify_selected_candidate};
+    use super::{RunProjection, UiModel, View, ViewStateKind, render, verify_selected_candidate};
     use ratatui::Terminal;
     use ratatui::backend::TestBackend;
     use std::path::PathBuf;
     use ymp_application::Application;
-    use ymp_domain::{Budget, Command, RunState, RunStatus};
+    use ymp_domain::{Budget, Command, EventEnvelope, EventKind, RunState, RunStatus};
     use ymp_runtime_api::{ProbeReport, Readiness, RuntimeKind};
     use ymp_runtime_supervisor::{ManagedContract, ManagedVerifier};
 
-    fn state(status: RunStatus) -> RunState {
+    fn state(
+        status: RunStatus,
+        active_attempts: Vec<String>,
+        candidate_digest: Option<String>,
+        budget: Budget,
+    ) -> RunState {
         RunState {
             run_id: "run-test".to_owned(),
             status,
-            budget: Budget::new(3, 2),
-            active_attempts: if status == RunStatus::Running {
-                vec!["attempt-1".to_owned()]
-            } else {
-                Vec::new()
-            },
-            candidate_digest: Some("b".repeat(64)),
+            budget,
+            active_attempts,
+            candidate_digest,
             last_sequence: 7,
             last_event_digest: "a".repeat(64),
         }
+    }
+
+    fn event(kind: EventKind) -> EventEnvelope {
+        EventEnvelope::new(
+            "run-test",
+            7,
+            "command-7",
+            "c".repeat(64),
+            Some("a".repeat(64)),
+            kind,
+        )
+        .expect("fixture event")
     }
 
     fn model(view: View, notice: &str) -> UiModel {
@@ -890,7 +1093,7 @@ mod tests {
                     kind: RuntimeKind::ClaudeCode,
                     executable: "claude".to_owned(),
                     version: None,
-                    readiness: Readiness::Unavailable,
+                    readiness: Readiness::Unauthenticated,
                     detail: "authentication unavailable".to_owned(),
                 },
             ],
@@ -902,11 +1105,28 @@ mod tests {
         }
     }
 
-    fn screen(width: u16, height: u16, state: &RunState, model: &UiModel) -> String {
+    fn screen(
+        width: u16,
+        height: u16,
+        state: &RunState,
+        last_event: Option<&EventEnvelope>,
+        model: &UiModel,
+    ) -> String {
+        let projection = RunProjection::from_state(state, last_event);
+        screen_with_projection(width, height, state, &projection, model)
+    }
+
+    fn screen_with_projection(
+        width: u16,
+        height: u16,
+        state: &RunState,
+        projection: &RunProjection,
+        model: &UiModel,
+    ) -> String {
         let backend = TestBackend::new(width, height);
         let mut terminal = Terminal::new(backend).expect("test terminal");
         terminal
-            .draw(|frame| render(frame, state, model))
+            .draw(|frame| render(frame, state, projection, model))
             .expect("render screen");
         let buffer = terminal.backend().buffer();
         let mut output = String::new();
@@ -919,46 +1139,204 @@ mod tests {
         output
     }
 
+    fn require(output: &str, needle: &str, region: &str) -> Result<(), String> {
+        if output.contains(needle) {
+            Ok(())
+        } else {
+            Err(format!("missing {region}: {needle:?}"))
+        }
+    }
+
+    fn validate_common_regions(output: &str) -> Result<(), String> {
+        for (needle, region) in [
+            ("Store", "REG-CONTEXT"),
+            ("Assurance", "REG-CONTEXT"),
+            ("Focus", "REG-CONTEXT"),
+            ("<1>", "REG-NAV"),
+            ("<3>", "REG-NAV"),
+            ("<q>", "REG-ACTIONS"),
+            (" ymp ", "REG-BREADCRUMB"),
+        ] {
+            require(output, needle, region)?;
+        }
+        Ok(())
+    }
+
+    fn validate_run_contract(
+        output: &str,
+        view_state: ViewStateKind,
+        status: RunStatus,
+        reason: &str,
+    ) -> Result<(), String> {
+        validate_common_regions(output)?;
+        for action in ["<s>", "<v>", "<e>", "<x>", "<q>"] {
+            require(output, action, "REG-ACTIONS")?;
+        }
+        require(output, "run(run-test)", "REG-BODY")?;
+        require(output, "attempts[", "REG-BODY")?;
+        require(output, "State", "REG-STATE")?;
+        require(output, view_state.label(), "REG-STATE")?;
+        require(output, super::status_label(status), "REG-ACCESS")?;
+        require(output, "Reason", "REG-TERMINAL-REASON")?;
+        require(output, reason, "REG-TERMINAL-REASON")?;
+        Ok(())
+    }
+
     #[test]
-    fn runtime_view_covers_mixed_readiness_at_standard_sizes() {
+    fn first_launch_and_mixed_runtime_readiness_keep_regions_focus_and_actions() {
+        let initial = state(RunStatus::Running, Vec::new(), None, Budget::new(3, 2));
+        let started = event(EventKind::RunStarted {
+            budget: Budget::new(3, 2),
+        });
         for (width, height) in [(80, 24), (120, 40)] {
             let output = screen(
                 width,
                 height,
-                &state(RunStatus::Running),
-                &model(View::Runtimes, "fixture notice"),
+                &initial,
+                Some(&started),
+                &model(View::Runtimes, "Ready. No model request has been made."),
             );
+            validate_common_regions(&output)
+                .unwrap_or_else(|error| panic!("{width}x{height}: {error}"));
+            for action in ["<Enter>", "<↑↓/jk>", "<PgUp/Dn>", "<c>", "<q>"] {
+                require(&output, action, "REG-ACTIONS")
+                    .unwrap_or_else(|error| panic!("{width}x{height}: {error}"));
+            }
             assert!(output.contains("runtimes(all)[3]"));
             assert!(output.contains("fake"));
             assert!(output.contains("codex"));
             assert!(output.contains("ready"));
             assert!(output.contains("not installed"));
-            assert!(output.contains("fixture notice"));
+            assert!(output.contains("unauthenticated"));
+            assert!(output.contains("selection: fake"));
+            assert!(output.contains("focus=body"));
+            assert!(output.contains("Contract   none"));
+            assert!(output.contains("No model request has been made."));
         }
     }
 
     #[test]
-    fn run_view_covers_running_and_every_terminal_outcome_without_color() {
+    fn run_projection_matrix_covers_required_states_at_standard_sizes() {
+        let candidate = Some("b".repeat(64));
+        let scenarios = [
+            (
+                "first launch",
+                state(RunStatus::Running, Vec::new(), None, Budget::new(3, 2)),
+                event(EventKind::RunStarted {
+                    budget: Budget::new(3, 2),
+                }),
+                ViewStateKind::Empty,
+                "first launch · no attempt started",
+            ),
+            (
+                "running",
+                state(
+                    RunStatus::Running,
+                    vec!["attempt-1".to_owned()],
+                    None,
+                    Budget::new(2, 2),
+                ),
+                event(EventKind::AttemptStarted {
+                    attempt_id: "attempt-1".to_owned(),
+                }),
+                ViewStateKind::Ready,
+                "run in progress",
+            ),
+            (
+                "cancellation",
+                state(
+                    RunStatus::Cancelled,
+                    Vec::new(),
+                    candidate.clone(),
+                    Budget::new(2, 2),
+                ),
+                event(EventKind::RunCancelled {
+                    reason: "operator cancellation".to_owned(),
+                }),
+                ViewStateKind::Terminal,
+                "operator cancellation",
+            ),
+            (
+                "acceptance",
+                state(
+                    RunStatus::Accepted,
+                    Vec::new(),
+                    candidate.clone(),
+                    Budget::new(2, 1),
+                ),
+                event(EventKind::VerificationRecorded {
+                    candidate_digest: "b".repeat(64),
+                    contract_digest: "c".repeat(64),
+                    oracle_digest: "d".repeat(64),
+                    evidence_digest: "e".repeat(64),
+                    accepted: true,
+                }),
+                ViewStateKind::Terminal,
+                "exact candidate accepted by verifier evidence",
+            ),
+            (
+                "candidate failure",
+                state(
+                    RunStatus::Running,
+                    vec!["attempt-1".to_owned()],
+                    candidate.clone(),
+                    Budget::new(2, 1),
+                ),
+                event(EventKind::VerificationRecorded {
+                    candidate_digest: "b".repeat(64),
+                    contract_digest: "c".repeat(64),
+                    oracle_digest: "d".repeat(64),
+                    evidence_digest: "e".repeat(64),
+                    accepted: false,
+                }),
+                ViewStateKind::Degraded,
+                "candidate failure · run remains active",
+            ),
+            (
+                "budget exhaustion",
+                state(
+                    RunStatus::Exhausted,
+                    Vec::new(),
+                    candidate.clone(),
+                    Budget::new(0, 2),
+                ),
+                event(EventKind::RunExhausted {
+                    reason: "attempt budget exhausted".to_owned(),
+                }),
+                ViewStateKind::Terminal,
+                "attempt budget exhausted",
+            ),
+            (
+                "infrastructure failure",
+                state(
+                    RunStatus::InfrastructureError,
+                    Vec::new(),
+                    candidate,
+                    Budget::new(2, 2),
+                ),
+                event(EventKind::RunFailed {
+                    reason: "journal gap after #8840".to_owned(),
+                }),
+                ViewStateKind::Terminal,
+                "journal gap after #8840 · no candidate judged",
+            ),
+        ];
+
         for (width, height) in [(80, 24), (120, 40)] {
-            for status in [
-                RunStatus::Running,
-                RunStatus::Accepted,
-                RunStatus::Exhausted,
-                RunStatus::Abstained,
-                RunStatus::Cancelled,
-                RunStatus::InfrastructureError,
-            ] {
+            for (name, state, event, view_state, reason) in &scenarios {
                 let output = screen(
                     width,
                     height,
-                    &state(status),
-                    &model(View::Run, "Candidate verification failed."),
+                    state,
+                    Some(event),
+                    &model(View::Run, "Projection fixture."),
                 );
-                assert!(output.contains(super::status_text(status)));
-                assert!(output.contains("run(run-test)"));
-                assert!(output.contains("Candidate verification failed."));
-                if status.is_terminal() {
+                validate_run_contract(&output, *view_state, state.status, reason)
+                    .unwrap_or_else(|error| panic!("{name} at {width}x{height}: {error}"));
+                if state.status.is_terminal() {
                     assert!(output.contains("cleared"));
+                } else if *view_state == ViewStateKind::Empty {
+                    assert!(output.contains("no active authority"));
                 } else {
                     assert!(output.contains("attempt-1"));
                 }
@@ -967,13 +1345,105 @@ mod tests {
     }
 
     #[test]
-    fn undersized_terminal_has_stable_safe_exit() {
-        let output = screen(
-            60,
-            20,
-            &state(RunStatus::Running),
-            &model(View::Run, "fixture notice"),
+    fn high_volume_runtime_catalog_clips_around_selection_without_hiding_actions() {
+        let run = state(RunStatus::Running, Vec::new(), None, Budget::new(3, 2));
+        let mut high_volume = model(View::Runtimes, "High-volume fixture.");
+        high_volume.probes = (0..257)
+            .map(|index| ProbeReport {
+                kind: RuntimeKind::Fake,
+                executable: format!("runtime-{index:04}"),
+                version: Some("0.1.0".to_owned()),
+                readiness: Readiness::Ready,
+                detail: "deterministic fixture".to_owned(),
+            })
+            .collect();
+        high_volume.selected_runtime = 173;
+
+        for (width, height) in [(80, 24), (120, 40)] {
+            let output = screen(width, height, &run, None, &high_volume);
+            validate_common_regions(&output)
+                .unwrap_or_else(|error| panic!("{width}x{height}: {error}"));
+            assert!(output.contains("runtimes(all)[257]"));
+            assert!(output.contains("runtime-0173"));
+            assert!(output.contains("selection: fake · ready"));
+            assert!(output.contains("<Enter> use"));
+            assert!(output.contains("PgUp/PgDn"));
+            assert!(!output.contains("runtime-0000"));
+        }
+    }
+
+    #[test]
+    fn monochrome_markers_distinguish_all_root_states() {
+        let cases = [
+            (RunStatus::Running, "[*] running"),
+            (RunStatus::Accepted, "[+] accepted"),
+            (RunStatus::Exhausted, "[-] exhausted"),
+            (RunStatus::Abstained, "[?] abstained"),
+            (RunStatus::Cancelled, "[x] cancelled"),
+            (RunStatus::InfrastructureError, "[!] infrastructure_error"),
+        ];
+
+        for (status, marker) in cases {
+            let run = state(status, Vec::new(), None, Budget::new(0, 0));
+            let output = screen(80, 24, &run, None, &model(View::Run, "Monochrome."));
+            assert!(output.contains(marker), "missing {marker}");
+        }
+    }
+
+    #[test]
+    fn negative_control_rejects_wrong_mapping_and_missing_required_region() {
+        let exhausted = state(RunStatus::Exhausted, Vec::new(), None, Budget::new(0, 2));
+        let exhausted_event = event(EventKind::RunExhausted {
+            reason: "attempt budget exhausted".to_owned(),
+        });
+        let correct = RunProjection::from_state(&exhausted, Some(&exhausted_event));
+        let mut wrong = correct.clone();
+        wrong.view_state = ViewStateKind::Ready;
+        let wrong_output = screen_with_projection(
+            80,
+            24,
+            &exhausted,
+            &wrong,
+            &model(View::Run, "Unrelated local notice."),
         );
+        assert!(
+            validate_run_contract(
+                &wrong_output,
+                ViewStateKind::Terminal,
+                RunStatus::Exhausted,
+                "attempt budget exhausted",
+            )
+            .is_err()
+        );
+
+        let correct_output = screen_with_projection(
+            80,
+            24,
+            &exhausted,
+            &correct,
+            &model(View::Run, "Unrelated local notice."),
+        );
+        let missing_assurance = correct_output.replacen("Assurance", "", 1);
+        assert!(
+            validate_run_contract(
+                &missing_assurance,
+                ViewStateKind::Terminal,
+                RunStatus::Exhausted,
+                "attempt budget exhausted",
+            )
+            .is_err()
+        );
+    }
+
+    #[test]
+    fn undersized_terminal_has_stable_safe_exit() {
+        let run = state(
+            RunStatus::Running,
+            vec!["attempt-1".to_owned()],
+            None,
+            Budget::new(3, 2),
+        );
+        let output = screen(60, 20, &run, None, &model(View::Run, "fixture notice"));
         assert!(output.contains("terminal too small: need ≥80×24"));
         assert!(output.contains("q quit safely"));
         assert!(!output.contains("attempt-1"));
