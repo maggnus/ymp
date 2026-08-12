@@ -3,21 +3,21 @@ id: W1-EXP-01a
 kind: task
 wave: W1
 card: W1-EXP-01
-state: active
+state: blocked
 risk: critical
 maturity: DESIGN
 relation: required
 depends_on: []
 blocks: [W1-EXP-01b]
 created_at: 2026-08-10T19:34:25+08:00
-updated_at: 2026-08-12T11:59:58+08:00
+updated_at: 2026-08-12T14:50:00+08:00
 started_at: 2026-08-12T11:59:58+08:00
 accepted_at:
 candidate_commit:
 closure_commit:
 evidence:
-duration_minutes: 0
-blocker:
+duration_minutes: 148
+blocker: Owner must approve the exact immutable corpus root through a trusted external provenance channel that the corpus author cannot self-declare.
 pause_reason:
 return_trigger:
 deliberate_partial: false
@@ -60,14 +60,16 @@ that each major requirement can reject a known invalid candidate.
 
 ## Current state
 
-The owner permits an unrestricted number of openly distributable, nonsensitive external packages
-and tasks. Work is active on the primary corpus, immutable source bindings, protected bundles, and
-approval evidence; L1-L3 remain development calibration and cannot be reused as primary cases.
+The first four external packages are reproducible, their public artifact bindings are complete,
+and all declared invalid candidates are rejected. The exact candidate and both clean workspaces
+are preserved. Progress is blocked only because a corpus author can fabricate the current JSON
+approval record and make the tool report owner approval without trusted provenance.
 
 ## Next action
 
-Select the first statistically justified external task set, then freeze its source revisions,
-public contracts, structural labels, protected oracles, and negative controls.
+The owner selects and uses a trusted approval channel for the immutable corpus root. The next
+implementation must remove acceptance based on self-declared JSON before this task is reviewed
+again or integrated.
 
 ## Guardrails
 
@@ -77,7 +79,12 @@ public contracts, structural labels, protected oracles, and negative controls.
 
 ## Findings
 
-None. Owner decisions are recorded in the gate registry rather than as inferred findings.
+Two review rounds are complete. The second review independently confirmed the source archives,
+58 public artifact bindings, protected checks, negative controls, exact root, toolchain checks,
+and fail-closed behavior for malformed approval data. It also demonstrated that a corpus author
+can fabricate the asserted owner role and authority in JSON, so the remaining authorization
+defect cannot be accepted as residue. The convergence decision is to name the owner gate and stop;
+an ordinary third correction round is not authorized.
 
 ## Closure
 
