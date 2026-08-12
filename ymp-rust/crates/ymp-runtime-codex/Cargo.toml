@@ -7,7 +7,5 @@ license.workspace = true
 
 [dependencies]
 serde_json.workspace = true
-ymp-runtime-api.workspace = true
-
-[dev-dependencies]
 tempfile.workspace = true
+ymp-runtime-api.workspace = true

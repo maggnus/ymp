@@ -127,12 +127,27 @@ impl McpBinding {
 }
 
 #[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(default)]
+pub struct InFlightExcess {
+    pub model_requests: u64,
+    pub input_tokens: u64,
+    pub cached_input_tokens: u64,
+    pub output_tokens: u64,
+    pub reasoning_output_tokens: u64,
+    pub cost_microusd: u64,
+}
+
+#[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(default)]
 pub struct Usage {
     pub input_tokens: u64,
     pub cached_input_tokens: u64,
     pub output_tokens: u64,
     pub reasoning_output_tokens: u64,
     pub cost_microusd: Option<u64>,
+    pub wall_time_ms: u64,
+    pub protected_queries: u64,
+    pub in_flight_excess: InFlightExcess,
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]

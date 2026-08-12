@@ -1,6 +1,8 @@
 #![forbid(unsafe_code)]
 
 use serde_json::Value;
+use std::ffi::OsString;
+use std::fs;
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, ExitStatus, Stdio};
@@ -16,24 +18,46 @@ use ymp_runtime_api::{
 pub const PINNED_CODEX_VERSION: &str = "codex-cli 0.147.0";
 pub const PINNED_CODEX_MODEL: &str = "gpt-5.6-sol";
 pub const PINNED_CODEX_PROMPT_POLICY: &str = "ymp-codex-low-v1";
+pub const PINNED_CODEX_API_ORIGIN: &str = "https://api.openai.com/v1";
 const DEFAULT_OUTPUT_LIMIT_BYTES: usize = 16 * 1024 * 1024;
 const DEFAULT_WALL_TIME_LIMIT_MS: u64 = 10 * 60 * 1000;
 const HARNESS_INSTRUCTIONS: &str = "Execution policy: work without delegation or subagents. Do not send progress reports. Batch independent file reads and batch the final formatting, tests, lint, and diff checks. Use only the files and tools needed for the requested outcome. Do not commit. Stop immediately after a concise final report.";
-const DISABLED_AMBIENT_FEATURES: [&str; 14] = [
+const DISABLED_AMBIENT_FEATURES: [&str; 35] = [
     "apps",
+    "auth_elicitation",
     "browser_use",
     "browser_use_external",
     "browser_use_full_cdp_access",
+    "code_mode_host",
     "computer_use",
+    "deferred_executor",
+    "enable_fanout",
+    "fast_mode",
     "goals",
+    "guardian_approval",
+    "hooks",
     "image_generation",
+    "in_app_browser",
+    "in_app_updates",
     "multi_agent",
+    "multi_agent_v2",
+    "network_proxy",
     "personality",
+    "plugin_sharing",
     "plugins",
+    "recommended_plugins",
+    "remote_compaction_v2",
+    "remote_control",
+    "remote_models",
+    "remote_plugin",
+    "skill_mcp_dependency_install",
     "skill_search",
+    "shell_snapshot",
+    "standalone_web_search",
     "tool_call_mcp_elicitation",
     "tool_suggest",
     "view_image",
+    "web_search_request",
 ];
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -127,6 +151,8 @@ impl CodexProfile {
 pub struct CodexRuntime {
     executable: PathBuf,
     profile: CodexProfile,
+    auth_source: Option<PathBuf>,
+    runtime_path: OsString,
 }
 
 impl Default for CodexRuntime {
@@ -137,38 +163,105 @@ impl Default for CodexRuntime {
 
 impl CodexRuntime {
     pub fn new(executable: impl Into<PathBuf>) -> Self {
+        let executable = resolve_executable(executable.into());
         Self {
-            executable: executable.into(),
+            executable,
             profile: CodexProfile::default(),
+            auth_source: discover_auth_source(),
+            runtime_path: std::env::var_os("PATH")
+                .unwrap_or_else(|| OsString::from("/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin")),
         }
     }
 
     pub fn with_profile(executable: impl Into<PathBuf>, profile: CodexProfile) -> Self {
-        Self {
-            executable: executable.into(),
-            profile,
-        }
+        let mut runtime = Self::new(executable);
+        runtime.profile = profile;
+        runtime
     }
 
     pub fn profile(&self) -> &CodexProfile {
         &self.profile
     }
 
-    fn version_output(&self) -> Result<std::process::Output, RuntimeError> {
-        Command::new(&self.executable)
-            .arg("--version")
-            .output()
-            .map_err(RuntimeError::Process)
+    fn isolated_environment(&self) -> Result<CodexEnvironment, RuntimeError> {
+        CodexEnvironment::create(
+            self.auth_source.as_deref(),
+            self.runtime_path.clone(),
+            &self.profile,
+        )
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 struct CodexLaunch {
     executable: PathBuf,
     profile: CodexProfile,
     workspace: PathBuf,
     attempt_id: String,
     mcp: Option<McpBinding>,
+    environment: CodexEnvironment,
+}
+
+#[derive(Debug)]
+struct CodexEnvironment {
+    root: tempfile::TempDir,
+    codex_home: PathBuf,
+    temporary: PathBuf,
+    runtime_path: OsString,
+}
+
+impl CodexEnvironment {
+    fn create(
+        auth_source: Option<&Path>,
+        runtime_path: OsString,
+        profile: &CodexProfile,
+    ) -> Result<Self, RuntimeError> {
+        profile.validate()?;
+        let root = tempfile::Builder::new()
+            .prefix("ymp-codex-home-")
+            .tempdir()?;
+        let codex_home = root.path().join(".codex");
+        let temporary = root.path().join("tmp");
+        fs::create_dir(&codex_home)?;
+        fs::create_dir(&temporary)?;
+        set_private_directory_permissions(root.path())?;
+        set_private_directory_permissions(&codex_home)?;
+        set_private_directory_permissions(&temporary)?;
+        if let Some(auth_source) = auth_source {
+            let auth = fs::read(auth_source)?;
+            if auth.len() > 1024 * 1024 {
+                return Err(RuntimeError::InvalidProfile(
+                    "Codex authentication material exceeds its 1 MiB limit".to_owned(),
+                ));
+            }
+            let destination = codex_home.join("auth.json");
+            fs::write(&destination, auth)?;
+            set_private_file_permissions(&destination)?;
+        }
+        Ok(Self {
+            root,
+            codex_home,
+            temporary,
+            runtime_path,
+        })
+    }
+
+    fn apply(&self, command: &mut Command, mcp: Option<&McpBinding>, attempt_id: Option<&str>) {
+        command
+            .env_clear()
+            .env("HOME", self.root.path())
+            .env("CODEX_HOME", &self.codex_home)
+            .env("TMPDIR", &self.temporary)
+            .env("PATH", &self.runtime_path)
+            .env("NO_COLOR", "1")
+            .env("OPENAI_BASE_URL", PINNED_CODEX_API_ORIGIN);
+        if let (Some(mcp), Some(attempt_id)) = (mcp, attempt_id) {
+            command
+                .env("YMP_AGENT_SOCKET", &mcp.socket_path)
+                .env("YMP_AGENT_TOKEN", &mcp.token)
+                .env("YMP_ATTEMPT_ID", attempt_id);
+        }
+    }
 }
 
 struct CodexProcess {
@@ -181,6 +274,8 @@ struct CodexProcess {
 impl CodexLaunch {
     fn spawn(&self, session_id: Option<&str>, prompt: &str) -> Result<CodexProcess, RuntimeError> {
         let mut command = Command::new(&self.executable);
+        self.environment
+            .apply(&mut command, self.mcp.as_ref(), Some(&self.attempt_id));
         command
             .arg("exec")
             .arg("--json")
@@ -198,6 +293,8 @@ impl CodexLaunch {
                 "approval_policy=\"{}\"",
                 self.profile.approval_policy
             ))
+            .arg("-c")
+            .arg("shell_environment_policy.inherit=\"none\"")
             .arg("-C")
             .arg(&self.workspace)
             .stdin(Stdio::piped())
@@ -207,7 +304,7 @@ impl CodexLaunch {
             command.arg("--disable").arg(feature);
         }
         if let Some(mcp) = &self.mcp {
-            add_mcp_config(&mut command, mcp, &self.attempt_id)?;
+            add_mcp_config(&mut command, mcp)?;
         }
         if let Some(session_id) = session_id {
             command.arg("resume").arg(session_id);
@@ -260,9 +357,12 @@ impl RuntimeDriver for CodexRuntime {
 
     fn probe(&self) -> Result<ProbeReport, RuntimeError> {
         self.profile.validate()?;
-        let output = match self.version_output() {
+        let environment = self.isolated_environment()?;
+        let mut version_command = Command::new(&self.executable);
+        environment.apply(&mut version_command, None, None);
+        let output = match version_command.arg("--version").output() {
             Ok(output) => output,
-            Err(RuntimeError::Process(error)) if error.kind() == std::io::ErrorKind::NotFound => {
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
                 return Ok(ProbeReport {
                     kind: RuntimeKind::Codex,
                     executable: self.executable.display().to_string(),
@@ -271,7 +371,7 @@ impl RuntimeDriver for CodexRuntime {
                     detail: "executable not found".to_owned(),
                 });
             }
-            Err(error) => return Err(error),
+            Err(error) => return Err(RuntimeError::Process(error)),
         };
         if !output.status.success() {
             return Ok(ProbeReport {
@@ -298,9 +398,9 @@ impl RuntimeDriver for CodexRuntime {
                 ),
             });
         }
-        let auth = Command::new(&self.executable)
-            .args(["login", "status"])
-            .output()?;
+        let mut auth_command = Command::new(&self.executable);
+        environment.apply(&mut auth_command, None, None);
+        let auth = auth_command.args(["login", "status"]).output()?;
         if !auth.status.success() {
             return Ok(ProbeReport {
                 kind: RuntimeKind::Codex,
@@ -316,8 +416,9 @@ impl RuntimeDriver for CodexRuntime {
             version: Some(version),
             readiness: Readiness::Ready,
             detail: format!(
-                "pinned local profile ready: model={}, reasoning_effort={}, approval_policy={}, prompt_policy={}, sandbox={}, wall_time_limit_ms={}, output_limit_bytes={}",
+                "pinned local profile ready: model={}, api_origin={}, reasoning_effort={}, approval_policy={}, prompt_policy={}, sandbox={}, environment=synthetic_allowlist_v1, wall_time_limit_ms={}, output_limit_bytes={}",
                 self.profile.model,
+                PINNED_CODEX_API_ORIGIN,
                 self.profile.reasoning_effort,
                 self.profile.approval_policy,
                 self.profile.prompt_policy,
@@ -354,6 +455,7 @@ impl RuntimeDriver for CodexRuntime {
             workspace: request.workspace,
             attempt_id: request.attempt_id,
             mcp: request.mcp,
+            environment: self.isolated_environment()?,
         };
         let process = launch.spawn(None, &request.prompt)?;
         Ok(Box::new(CodexSession {
@@ -367,6 +469,7 @@ impl RuntimeDriver for CodexRuntime {
             output_limit_bytes: self.profile.output_limit_bytes,
             wall_time_limit_ms: self.profile.wall_time_limit_ms,
             started_at: process.started_at,
+            session_started_at: process.started_at,
             cancellation: request.cancellation,
             completed: false,
             terminal: false,
@@ -389,6 +492,7 @@ struct CodexSession {
     output_limit_bytes: usize,
     wall_time_limit_ms: u64,
     started_at: Instant,
+    session_started_at: Instant,
     cancellation: CancellationToken,
     completed: bool,
     terminal: bool,
@@ -564,6 +668,9 @@ impl CodexSession {
                     output_tokens: u64_field(usage, "output_tokens")?,
                     reasoning_output_tokens: optional_u64_field(usage, "reasoning_output_tokens"),
                     cost_microusd: None,
+                    wall_time_ms: elapsed_millis(self.session_started_at),
+                    protected_queries: 0,
+                    in_flight_excess: Default::default(),
                 };
                 let status = self.finish()?;
                 if !status.success() {
@@ -668,6 +775,54 @@ impl Drop for CodexSession {
     }
 }
 
+fn resolve_executable(executable: PathBuf) -> PathBuf {
+    if executable.is_absolute() || executable.components().count() > 1 {
+        return executable.canonicalize().unwrap_or(executable);
+    }
+    let Some(path) = std::env::var_os("PATH") else {
+        return executable;
+    };
+    std::env::split_paths(&path)
+        .map(|directory| directory.join(&executable))
+        .find(|candidate| candidate.is_file())
+        .and_then(|candidate| candidate.canonicalize().ok())
+        .unwrap_or(executable)
+}
+
+fn discover_auth_source() -> Option<PathBuf> {
+    let codex_home = std::env::var_os("CODEX_HOME")
+        .map(PathBuf::from)
+        .or_else(|| std::env::var_os("HOME").map(|home| PathBuf::from(home).join(".codex")))?;
+    let auth = codex_home.join("auth.json");
+    auth.is_file().then_some(auth)
+}
+
+#[cfg(unix)]
+fn set_private_directory_permissions(path: &Path) -> Result<(), RuntimeError> {
+    use std::os::unix::fs::PermissionsExt;
+
+    fs::set_permissions(path, fs::Permissions::from_mode(0o700))?;
+    Ok(())
+}
+
+#[cfg(not(unix))]
+fn set_private_directory_permissions(_path: &Path) -> Result<(), RuntimeError> {
+    Ok(())
+}
+
+#[cfg(unix)]
+fn set_private_file_permissions(path: &Path) -> Result<(), RuntimeError> {
+    use std::os::unix::fs::PermissionsExt;
+
+    fs::set_permissions(path, fs::Permissions::from_mode(0o600))?;
+    Ok(())
+}
+
+#[cfg(not(unix))]
+fn set_private_file_permissions(_path: &Path) -> Result<(), RuntimeError> {
+    Ok(())
+}
+
 fn string_field(value: &Value, field: &str) -> Result<String, RuntimeError> {
     value
         .get(field)
@@ -687,19 +842,15 @@ fn optional_u64_field(value: &Value, field: &str) -> u64 {
     value.get(field).and_then(Value::as_u64).unwrap_or(0)
 }
 
-fn add_mcp_config(
-    command: &mut Command,
-    binding: &McpBinding,
-    attempt_id: &str,
-) -> Result<(), RuntimeError> {
+fn elapsed_millis(started_at: Instant) -> u64 {
+    u64::try_from(started_at.elapsed().as_millis()).unwrap_or(u64::MAX)
+}
+
+fn add_mcp_config(command: &mut Command, binding: &McpBinding) -> Result<(), RuntimeError> {
     binding.validate()?;
     let executable = binding.executable.to_str().ok_or_else(|| {
         RuntimeError::InvalidProfile("MCP executable path must be UTF-8".to_owned())
     })?;
-    let socket = binding
-        .socket_path
-        .to_str()
-        .ok_or_else(|| RuntimeError::InvalidProfile("MCP socket path must be UTF-8".to_owned()))?;
     for setting in [
         "mcp_servers.ymp.required=true".to_owned(),
         "mcp_servers.ymp.enabled_tools=[\"read_control\",\"read_events\",\"submit\"]".to_owned(),
@@ -709,18 +860,6 @@ fn add_mcp_config(
             serde_json::to_string(executable).expect("string serialization cannot fail")
         ),
         "mcp_servers.ymp.args=[\"internal\",\"agent-mcp\"]".to_owned(),
-        format!(
-            "mcp_servers.ymp.env.YMP_AGENT_SOCKET={}",
-            serde_json::to_string(socket).expect("string serialization cannot fail")
-        ),
-        format!(
-            "mcp_servers.ymp.env.YMP_AGENT_TOKEN={}",
-            serde_json::to_string(&binding.token).expect("string serialization cannot fail")
-        ),
-        format!(
-            "mcp_servers.ymp.env.YMP_ATTEMPT_ID={}",
-            serde_json::to_string(attempt_id).expect("string serialization cannot fail")
-        ),
     ] {
         command.arg("-c").arg(setting);
     }
@@ -748,6 +887,24 @@ mod tests {
         ));
 
         let profile = CodexProfile {
+            output_limit_bytes: 0,
+            ..CodexProfile::default()
+        };
+        assert!(matches!(
+            profile.validate(),
+            Err(RuntimeError::InvalidProfile(_))
+        ));
+
+        let profile = CodexProfile {
+            wall_time_limit_ms: 0,
+            ..CodexProfile::default()
+        };
+        assert!(matches!(
+            profile.validate(),
+            Err(RuntimeError::InvalidProfile(_))
+        ));
+
+        let profile = CodexProfile {
             model: PINNED_CODEX_MODEL.to_owned(),
             reasoning_effort: "high".to_owned(),
             ..CodexProfile::default()
@@ -763,6 +920,216 @@ mod tests {
         let runtime = CodexRuntime::default();
         assert_eq!(runtime.profile().model, PINNED_CODEX_MODEL);
         assert_eq!(runtime.profile().reasoning_effort, "low");
+    }
+
+    #[test]
+    fn managed_launch_uses_a_synthetic_home_and_allowlisted_environment() {
+        let directory = tempfile::tempdir().expect("temporary directory");
+        let negative_control_home =
+            std::env::var_os("YMP_NEGATIVE_CONTROL_CONFIG_ROOT").map(std::path::PathBuf::from);
+        if let Some(ambient_codex_home) = &negative_control_home {
+            assert_eq!(
+                std::env::var_os("CODEX_HOME").map(std::path::PathBuf::from),
+                Some(ambient_codex_home.clone())
+            );
+            fs::create_dir_all(ambient_codex_home.join("hooks")).expect("ambient hooks directory");
+            fs::create_dir_all(ambient_codex_home.join("plugins"))
+                .expect("ambient plugins directory");
+            fs::write(
+                ambient_codex_home.join("config.toml"),
+                b"model = 'ambient-model'\n",
+            )
+            .expect("ambient configuration");
+            fs::write(
+                ambient_codex_home.join("auth.json"),
+                b"{\"OPENAI_API_KEY\":\"fixture-auth-only\"}\n",
+            )
+            .expect("ambient authentication fixture");
+        }
+        let executable = directory.path().join("codex-environment-fixture");
+        fs::write(
+            &executable,
+            r##"#!/bin/sh
+if [ "$1" = "--version" ]; then
+  printf '%s\n' 'codex-cli 0.147.0'
+elif [ "$1" = "login" ]; then
+  exit 0
+else
+  cd "$(dirname "$0")"
+  printf '%s\n' "$@" > invocation.args
+  {
+    env | sed 's/=.*//' | sort
+  } > invocation.env-keys
+  {
+    printf 'HOME=%s\n' "$HOME"
+    printf 'CODEX_HOME=%s\n' "$CODEX_HOME"
+    printf 'OPENAI_BASE_URL=%s\n' "${OPENAI_BASE_URL-unset}"
+    printf 'OPENAI_ORGANIZATION=%s\n' "${OPENAI_ORGANIZATION-unset}"
+    printf 'OPENAI_PROJECT=%s\n' "${OPENAI_PROJECT-unset}"
+    printf 'YMP_ATTEMPT_ID=%s\n' "${YMP_ATTEMPT_ID-unset}"
+    if [ -f "$CODEX_HOME/auth.json" ]; then
+      printf '%s\n' 'AUTH_FILE=present'
+    else
+      printf '%s\n' 'AUTH_FILE=absent'
+    fi
+    if [ -e "$CODEX_HOME/config.toml" ] || [ -e "$CODEX_HOME/hooks" ] || [ -e "$CODEX_HOME/plugins" ]; then
+      printf '%s\n' 'AMBIENT_CONFIG=present'
+    else
+      printf '%s\n' 'AMBIENT_CONFIG=absent'
+    fi
+    if [ -n "${YMP_AGENT_TOKEN-}" ]; then
+      printf '%s\n' 'YMP_AGENT_TOKEN=present'
+    else
+      printf '%s\n' 'YMP_AGENT_TOKEN=absent'
+    fi
+  } > invocation.environment
+  cat >/dev/null
+  printf '%s\n' '{"type":"thread.started","thread_id":"thread-environment-1"}'
+  printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":1,"cached_input_tokens":0,"output_tokens":1,"reasoning_output_tokens":0}}'
+fi
+"##,
+        )
+        .expect("write fixture");
+        let mut permissions = fs::metadata(&executable).expect("metadata").permissions();
+        permissions.set_mode(0o700);
+        fs::set_permissions(&executable, permissions).expect("make executable");
+
+        let runtime = CodexRuntime::new(&executable);
+        let mut session = runtime
+            .start(InvocationRequest {
+                invocation_id: "invocation-environment".to_owned(),
+                attempt_id: "attempt-environment".to_owned(),
+                workspace: directory.path().to_owned(),
+                mcp: Some(ymp_runtime_api::McpBinding {
+                    executable: executable.clone(),
+                    socket_path: directory.path().join("agent.sock"),
+                    token: "fixture-secret-token".to_owned(),
+                }),
+                prompt: "fixture".to_owned(),
+                cancellation: Default::default(),
+            })
+            .expect("start fixture");
+        while session.next_event().expect("runtime event").is_some() {}
+
+        let arguments = fs::read_to_string(directory.path().join("invocation.args"))
+            .expect("captured arguments");
+        let environment = fs::read_to_string(directory.path().join("invocation.environment"))
+            .expect("captured environment facts");
+        let ambient_home = std::env::var("HOME").expect("ambient HOME for negative control");
+        let keys = fs::read_to_string(directory.path().join("invocation.env-keys"))
+            .expect("captured environment keys");
+        let mut violations = Vec::new();
+        for (required, detail) in [
+            (
+                !arguments.contains("fixture-secret-token"),
+                "MCP token reached argv",
+            ),
+            (
+                arguments.contains("--ignore-user-config"),
+                "user configuration was not rejected",
+            ),
+            (
+                arguments.contains("--ignore-rules"),
+                "ambient rules were not rejected",
+            ),
+            (
+                arguments.contains("--disable\nhooks\n"),
+                "hooks were not disabled",
+            ),
+            (
+                arguments.contains("--disable\nmulti_agent\n"),
+                "native subagents were not disabled",
+            ),
+            (
+                arguments.contains("--disable\nmulti_agent_v2\n"),
+                "native subagents v2 were not disabled",
+            ),
+            (
+                arguments.contains("--disable\nplugins\n"),
+                "plugins were not disabled",
+            ),
+            (
+                arguments.contains("--disable\nremote_control\n"),
+                "remote control was not disabled",
+            ),
+            (
+                arguments.contains("--disable\nremote_models\n"),
+                "remote models were not disabled",
+            ),
+            (
+                arguments.contains("--disable\nremote_plugin\n"),
+                "remote plugins were not disabled",
+            ),
+            (
+                arguments.contains("--disable\nshell_snapshot\n"),
+                "ambient shell snapshot was not disabled",
+            ),
+            (
+                arguments.contains("shell_environment_policy.inherit=\"none\""),
+                "shell environment inheritance was not disabled",
+            ),
+            (
+                environment.contains("OPENAI_BASE_URL=https://api.openai.com/v1"),
+                "ambient provider base URL reached the child",
+            ),
+            (
+                environment.contains("OPENAI_ORGANIZATION=unset"),
+                "ambient OpenAI organization reached the child",
+            ),
+            (
+                environment.contains("OPENAI_PROJECT=unset"),
+                "ambient OpenAI project reached the child",
+            ),
+            (
+                environment.contains("YMP_ATTEMPT_ID=attempt-environment"),
+                "attempt identity was not bound",
+            ),
+            (
+                environment.contains("YMP_AGENT_TOKEN=present"),
+                "MCP token was not delivered through the child environment",
+            ),
+            (
+                environment.contains("AMBIENT_CONFIG=absent"),
+                "ambient Codex configuration reached the synthetic home",
+            ),
+            (
+                !environment.contains(&format!("HOME={ambient_home}\n")),
+                "ambient HOME reached the child",
+            ),
+        ] {
+            if !required {
+                violations.push(detail.to_owned());
+            }
+        }
+        if negative_control_home.is_some() && !environment.contains("AUTH_FILE=present") {
+            violations.push("allowlisted authentication was not copied".to_owned());
+        }
+        if let Ok(ambient_codex_home) = std::env::var("CODEX_HOME")
+            && environment.contains(&format!("CODEX_HOME={ambient_codex_home}\n"))
+        {
+            violations.push("ambient CODEX_HOME reached the child".to_owned());
+        }
+        for forbidden in [
+            "OPENAI_ORGANIZATION",
+            "OPENAI_PROJECT",
+            "YMP_AMBIENT_HOOK",
+            "YMP_AMBIENT_MCP",
+            "YMP_AMBIENT_PLUGIN",
+            "YMP_NEGATIVE_CONTROL_CONFIG_ROOT",
+            "YMP_NATIVE_SUBAGENT",
+            "YMP_REMOTE_EXECUTION",
+        ] {
+            if keys.lines().any(|key| key == forbidden) {
+                violations.push(format!(
+                    "managed child inherited environment key {forbidden}"
+                ));
+            }
+        }
+        assert!(
+            violations.is_empty(),
+            "managed child was not isolated:\n{}",
+            violations.join("\n")
+        );
     }
 
     #[test]
@@ -852,6 +1219,58 @@ fi
     }
 
     #[test]
+    fn missing_usage_and_incompatible_structured_events_reject_the_run() {
+        let directory = tempfile::tempdir().expect("temporary directory");
+        let executable = directory.path().join("codex-invalid-event-fixture");
+        fs::write(
+            &executable,
+            r##"#!/bin/sh
+if [ "$1" = "--version" ]; then
+  printf '%s\n' 'codex-cli 0.147.0'
+elif [ "$1" = "login" ]; then
+  exit 0
+else
+  input=$(cat)
+  printf '%s\n' '{"type":"thread.started","thread_id":"thread-invalid-event"}'
+  case "$input" in
+    *missing-usage*) printf '%s\n' '{"type":"turn.completed"}' ;;
+    *) printf '%s\n' '{"type":"future.incompatible_event"}' ;;
+  esac
+fi
+"##,
+        )
+        .expect("write fixture");
+        let mut permissions = fs::metadata(&executable).expect("metadata").permissions();
+        permissions.set_mode(0o700);
+        fs::set_permissions(&executable, permissions).expect("make executable");
+
+        for (prompt, expected_detail) in [
+            ("missing-usage", "turn.completed has no usage"),
+            ("incompatible-event", "unsupported Codex event type"),
+        ] {
+            let runtime = CodexRuntime::new(&executable);
+            let mut session = runtime
+                .start(InvocationRequest {
+                    invocation_id: format!("invocation-{prompt}"),
+                    attempt_id: format!("attempt-{prompt}"),
+                    workspace: directory.path().to_owned(),
+                    mcp: None,
+                    prompt: prompt.to_owned(),
+                    cancellation: Default::default(),
+                })
+                .expect("start fixture");
+            assert!(matches!(
+                session.next_event().expect("started").expect("event").event,
+                RuntimeEventKind::Started { .. }
+            ));
+            assert!(matches!(
+                session.next_event(),
+                Err(RuntimeError::MalformedEvent(detail)) if detail.contains(expected_detail)
+            ));
+        }
+    }
+
+    #[test]
     fn recoverable_process_failure_resumes_the_same_managed_session() {
         let directory = tempfile::tempdir().expect("temporary directory");
         let executable = directory.path().join("codex-resume-fixture");
@@ -867,6 +1286,19 @@ else
   count=$(($(cat invocation.count 2>/dev/null || printf '0') + 1))
   printf '%s\n' "$count" > invocation.count
   printf '%s\n' "$@" > "invocation-$count.args"
+  {
+    printf 'HOME=%s\n' "$HOME"
+    printf 'CODEX_HOME=%s\n' "$CODEX_HOME"
+    printf 'OPENAI_BASE_URL=%s\n' "${OPENAI_BASE_URL-unset}"
+    printf 'OPENAI_ORGANIZATION=%s\n' "${OPENAI_ORGANIZATION-unset}"
+    printf 'OPENAI_PROJECT=%s\n' "${OPENAI_PROJECT-unset}"
+    printf 'YMP_ATTEMPT_ID=%s\n' "${YMP_ATTEMPT_ID-unset}"
+    if [ -n "${YMP_AGENT_TOKEN-}" ]; then
+      printf '%s\n' 'YMP_AGENT_TOKEN=present'
+    else
+      printf '%s\n' 'YMP_AGENT_TOKEN=absent'
+    fi
+  } > "invocation-$count.environment"
   cat > "invocation-$count.stdin"
   printf '%s\n' '{"type":"thread.started","thread_id":"thread-resume-1"}'
   if [ "$count" -eq 1 ]; then
@@ -952,7 +1384,20 @@ fi
         assert!(!initial_arguments.contains("--ephemeral"));
         assert!(resumed_arguments.contains("resume\nthread-resume-1\n"));
         assert!(!resumed_arguments.contains("--ephemeral"));
-        assert!(resumed_arguments.contains("YMP_ATTEMPT_ID=\"attempt-resume\""));
+        assert!(!initial_arguments.contains("fixture-token"));
+        assert!(!resumed_arguments.contains("fixture-token"));
+        let initial_environment =
+            fs::read_to_string(directory.path().join("invocation-1.environment"))
+                .expect("initial environment");
+        let resumed_environment =
+            fs::read_to_string(directory.path().join("invocation-2.environment"))
+                .expect("resumed environment");
+        assert_eq!(initial_environment, resumed_environment);
+        assert!(initial_environment.contains("OPENAI_BASE_URL=https://api.openai.com/v1"));
+        assert!(initial_environment.contains("OPENAI_ORGANIZATION=unset"));
+        assert!(initial_environment.contains("OPENAI_PROJECT=unset"));
+        assert!(initial_environment.contains("YMP_ATTEMPT_ID=attempt-resume"));
+        assert!(initial_environment.contains("YMP_AGENT_TOKEN=present"));
         assert_eq!(
             fs::read_to_string(directory.path().join("invocation.count"))
                 .expect("invocation count")

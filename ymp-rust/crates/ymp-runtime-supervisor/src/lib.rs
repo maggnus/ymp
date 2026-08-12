@@ -17,14 +17,15 @@ use ymp_application::Application;
 use ymp_application::WorkspaceSubmission;
 use ymp_domain::{Command, MAX_IDENTIFIER_CHARS, RunStatus, digest_bytes};
 use ymp_runtime_api::{
-    CancellationToken, InvocationRequest, McpBinding, Readiness, RuntimeDriver, RuntimeEvent,
-    RuntimeEventKind, RuntimeKind, Usage,
+    CancellationToken, InvocationRequest, McpBinding, ProbeReport, Readiness, RuntimeDriver,
+    RuntimeEvent, RuntimeEventKind, RuntimeKind, Usage,
 };
 
 const CONTRACT_SCHEMA_VERSION: u32 = 1;
 const MAX_CONTRACT_BYTES: usize = 1024 * 1024;
 const MAX_PROMPT_BYTES: usize = 64 * 1024;
 const MAX_RUNTIME_EVIDENCE_BYTES: u64 = 4 * 1024 * 1024;
+const RUNTIME_EVIDENCE_SCHEMA_VERSION: u32 = 2;
 
 #[derive(Clone, Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -272,13 +273,36 @@ enum RuntimeEvidenceKind {
 }
 
 #[derive(Serialize)]
+struct RuntimeProfileEvidence<'a> {
+    schema_version: u32,
+    runtime_kind: RuntimeKind,
+    invocation_id: &'a str,
+    probe: &'a ProbeReport,
+    runtime_executable_digest: Option<String>,
+    coordination: CoordinationEvidence,
+    environment_policy: &'static str,
+}
+
+#[derive(Serialize)]
+struct CoordinationEvidence {
+    transport: &'static str,
+    bridge_executable_digest: String,
+    endpoint_path_digest: String,
+    allowed_tools: [&'static str; 3],
+    invocation_scoped: bool,
+    credential_values_recorded: bool,
+}
+
+#[derive(Serialize)]
 struct RuntimeEvidenceDigestInput<'a> {
     schema_version: u32,
     run_id: &'a str,
     attempt_id: &'a str,
+    invocation_id: &'a str,
     runtime_kind: RuntimeKind,
     contract_id: &'a str,
     contract_digest: &'a str,
+    profile_digest: &'a str,
     sequence: u64,
     event_id: &'a str,
     predecessor_digest: &'a Option<String>,
@@ -290,9 +314,11 @@ struct RuntimeEvidenceEnvelope<'a> {
     schema_version: u32,
     run_id: &'a str,
     attempt_id: &'a str,
+    invocation_id: &'a str,
     runtime_kind: RuntimeKind,
     contract_id: &'a str,
     contract_digest: &'a str,
+    profile_digest: &'a str,
     sequence: u64,
     event_id: &'a str,
     predecessor_digest: &'a Option<String>,
@@ -379,10 +405,19 @@ pub fn start_managed_candidate(
             request.bridge_executable.display()
         )
     })?;
+    let runtime_kind = driver.kind();
+    let runtime_executable_digest = digest_regular_file(driver.executable())?;
+    let bridge_executable_digest = digest_regular_file(&bridge_executable)?.ok_or_else(|| {
+        anyhow::anyhow!(
+            "current ymp executable is not a regular file: {}",
+            bridge_executable.display()
+        )
+    })?;
     let contract_id = request.contract.contract_id.clone();
     let contract_digest = request.contract.contract_digest.clone();
     let attempt_id = format!("attempt-{}", Uuid::new_v4());
     let invocation_id = format!("invocation-{}", Uuid::new_v4());
+    let evidence_invocation_id = invocation_id.clone();
     let (data_root, run_id, base_digest, workspace) = {
         let mut application = application
             .lock()
@@ -420,6 +455,7 @@ pub fn start_managed_candidate(
     let socket_path = std::env::temp_dir()
         .join("ymp-runtime")
         .join(format!("{}.sock", Uuid::new_v4().simple()));
+    let endpoint_path_digest = digest_bytes(socket_path.to_string_lossy().as_bytes());
     let exclusions = request.contract.capture_exclusions.clone();
     let rpc_server = match ymp_agent_rpc::AgentRpcServer::start_with_submission(
         &socket_path,
@@ -453,7 +489,6 @@ pub fn start_managed_candidate(
             return Err(error.into());
         }
     };
-    let runtime_kind = driver.kind();
     let evidence_directory = data_root.join("runtime-evidence").join(&attempt_id);
     if let Err(error) = fs::create_dir_all(&evidence_directory) {
         record_infrastructure_failure(&application, &attempt_id, &error.to_string());
@@ -468,6 +503,35 @@ pub fn start_managed_candidate(
         Err(error) => {
             record_infrastructure_failure(&application, &attempt_id, &error.to_string());
             return Err(error.into());
+        }
+    };
+    let profile_digest = match write_runtime_profile_evidence(
+        &evidence_directory,
+        RuntimeProfileEvidence {
+            schema_version: RUNTIME_EVIDENCE_SCHEMA_VERSION,
+            runtime_kind,
+            invocation_id: &evidence_invocation_id,
+            probe: &probe,
+            runtime_executable_digest,
+            coordination: CoordinationEvidence {
+                transport: "stdio_mcp_via_private_rpc",
+                bridge_executable_digest,
+                endpoint_path_digest,
+                allowed_tools: ["read_control", "read_events", "submit"],
+                invocation_scoped: true,
+                credential_values_recorded: false,
+            },
+            environment_policy: match runtime_kind {
+                RuntimeKind::Codex => "synthetic_allowlist_v1",
+                RuntimeKind::ClaudeCode => "driver_generated_configuration_v1",
+                RuntimeKind::Fake => "deterministic_fixture",
+            },
+        },
+    ) {
+        Ok(digest) => digest,
+        Err(error) => {
+            record_infrastructure_failure(&application, &attempt_id, &error.to_string());
+            return Err(error);
         }
     };
     let (sender, receiver) = channel();
@@ -493,6 +557,7 @@ pub fn start_managed_candidate(
                         runtime_kind,
                         &contract_id,
                         &contract_digest,
+                        &profile_digest,
                         &predecessor_digest,
                         &event,
                     )?);
@@ -570,17 +635,20 @@ fn append_runtime_evidence(
     runtime_kind: RuntimeKind,
     contract_id: &str,
     contract_digest: &str,
+    profile_digest: &str,
     predecessor_digest: &Option<String>,
     runtime_event: &RuntimeEvent,
 ) -> anyhow::Result<String> {
     let event = runtime_evidence_kind(&runtime_event.event)?;
     let input = RuntimeEvidenceDigestInput {
-        schema_version: 1,
+        schema_version: RUNTIME_EVIDENCE_SCHEMA_VERSION,
         run_id,
         attempt_id,
+        invocation_id: &runtime_event.invocation_id,
         runtime_kind,
         contract_id,
         contract_digest,
+        profile_digest,
         sequence: runtime_event.sequence,
         event_id: &runtime_event.event_id,
         predecessor_digest,
@@ -588,12 +656,14 @@ fn append_runtime_evidence(
     };
     let digest = digest_bytes(&serde_json::to_vec(&input)?);
     let envelope = RuntimeEvidenceEnvelope {
-        schema_version: 1,
+        schema_version: RUNTIME_EVIDENCE_SCHEMA_VERSION,
         run_id,
         attempt_id,
+        invocation_id: &runtime_event.invocation_id,
         runtime_kind,
         contract_id,
         contract_digest,
+        profile_digest,
         sequence: runtime_event.sequence,
         event_id: &runtime_event.event_id,
         predecessor_digest,
@@ -610,6 +680,35 @@ fn append_runtime_evidence(
     file.flush()?;
     file.sync_data()?;
     Ok(digest)
+}
+
+fn write_runtime_profile_evidence(
+    directory: &Path,
+    profile: RuntimeProfileEvidence<'_>,
+) -> anyhow::Result<String> {
+    let profile = serde_json::to_value(profile)?;
+    let digest = digest_bytes(&serde_json::to_vec(&profile)?);
+    let envelope = serde_json::json!({
+        "profile": profile,
+        "digest": digest,
+    });
+    let bytes = serde_json::to_vec(&envelope)?;
+    let mut file = OpenOptions::new()
+        .create_new(true)
+        .write(true)
+        .open(directory.join("profile.json"))?;
+    file.write_all(&bytes)?;
+    file.write_all(b"\n")?;
+    file.flush()?;
+    file.sync_data()?;
+    Ok(digest)
+}
+
+fn digest_regular_file(path: &Path) -> anyhow::Result<Option<String>> {
+    if !path.is_file() {
+        return Ok(None);
+    }
+    Ok(Some(digest_bytes(&fs::read(path)?)))
 }
 
 fn runtime_evidence_kind(event: &RuntimeEventKind) -> anyhow::Result<RuntimeEvidenceKind> {

@@ -76,20 +76,33 @@ all files are written. Version 1 contains `manifest.json`, `state.json`, `events
 candidate manifest and materialized tree, one content-addressed JSON object per recorded verifier
 result, and every referenced immutable environment object under `environments/<digest>`. The
 manifest lists both evidence and environment digests. When a managed runtime was used, the export
-also contains its `runtime-evidence/<attempt_id>/events.jsonl` transcript. Existing destinations
-are never overwritten.
+also contains its `runtime-evidence/<attempt_id>/profile.json` record and `events.jsonl` transcript.
+Existing destinations are never overwritten.
 
-## Managed contract and runtime evidence version 1
+## Managed contract and runtime evidence
 
 A managed contract is a bounded JSON file containing one identifier, source directory, prompt,
 capture exclusions, and an optional command-verifier configuration. Relative paths resolve against
 the contract file; the SHA-256 digest of the exact input bytes identifies the contract. Runtime and
 verifier selection never changes that file or falls back to another configured profile.
 
-Each managed invocation writes a separate bounded runtime transcript. Records contain the run,
-attempt, runtime kind, contract identifier and digest, runtime event sequence, predecessor digest,
-privacy-reduced event, and record digest. Session identifiers, response text, MCP arguments, and
-MCP results are represented only by SHA-256 digests; usage counters and MCP tool status remain
-explicit. The writer synchronizes every record before the TUI displays it. The control journal does
-not derive authority from this auxiliary transcript, and application recovery does not currently
-require it; export preserves it for accounting and independent chain validation.
+Runtime-evidence version 1 wrote only a separate bounded event transcript. Its records contain the
+run, attempt, runtime kind, contract identifier and digest, runtime event sequence, predecessor
+digest, privacy-reduced event, and record digest.
+
+Runtime-evidence version 2 adds `profile.json`. The profile record contains the successful probe,
+runtime executable digest when the runtime is an external file, generated-environment policy,
+invocation identifier, coordination transport, bridge executable digest, invocation-scoped
+endpoint-path digest, and exact coordination-tool allowlist. It records that credential values are
+omitted. Each version-2 event contains the same invocation identifier and `profile_digest`; both
+fields participate in the event digest, so a transcript cannot be rebound to another executable,
+route observation, invocation, or coordination endpoint without detection.
+Completion usage additionally records total wall time, protected-query count, optional provider
+cost, and bounded in-flight excess counters. Older serialized usage values remain readable with
+zero defaults, but new evidence is written only as version 2.
+
+In both versions, session identifiers, response text, MCP arguments, and MCP results are represented
+only by SHA-256 digests; usage counters and MCP tool status remain explicit. The writer synchronizes
+every record before the TUI displays it. The control journal does not derive authority from this
+auxiliary transcript, and application recovery does not currently require it; export preserves it
+for accounting and independent chain validation.
