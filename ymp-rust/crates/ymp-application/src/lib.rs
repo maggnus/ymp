@@ -251,11 +251,7 @@ impl Application {
         match Self::open_locked(data_root.clone(), lock, config) {
             Ok(app) => Ok(app),
             Err(error) => {
-                let _ = if matches!(error, ApplicationError::IdempotencyConflict { .. }) {
-                    mark_idempotency_conflict(&data_root)
-                } else {
-                    mark_infrastructure_error(&data_root)
-                };
+                let _ = mark_infrastructure_error(&data_root);
                 Err(error)
             }
         }
@@ -1073,13 +1069,6 @@ fn mark_infrastructure_error(data_root: &Path) -> Result<(), ApplicationError> {
     let mut state: RunState = serde_json::from_slice(&fs::read(metadata_path)?)?;
     state.status = RunStatus::InfrastructureError;
     state.active_attempts.clear();
-    write_state_metadata(data_root, &state)
-}
-
-fn mark_idempotency_conflict(data_root: &Path) -> Result<(), ApplicationError> {
-    let metadata_path = data_root.join("run.json");
-    let mut state: RunState = serde_json::from_slice(&fs::read(metadata_path)?)?;
-    state.status = RunStatus::InfrastructureError;
     write_state_metadata(data_root, &state)
 }
 

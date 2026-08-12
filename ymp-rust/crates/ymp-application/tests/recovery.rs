@@ -4,6 +4,7 @@ use std::sync::mpsc::TryRecvError;
 use tempfile::tempdir;
 use ymp_application::{Application, ApplicationConfig, ApplicationError};
 use ymp_domain::{Budget, Command, EventEnvelope, EventKind, RunState, RunStatus};
+use ymp_kernel::validate_state;
 use ymp_storage::{JournalError, JournalLimits, ObjectStoreError};
 
 #[test]
@@ -181,10 +182,8 @@ fn recovery_rejects_conflicting_command_digest_before_applying_the_event() {
         state_before_open.last_event_digest
     );
     assert_eq!(state_after_open.budget, state_before_open.budget);
-    assert_eq!(
-        state_after_open.active_attempts,
-        state_before_open.active_attempts
-    );
+    assert!(state_after_open.active_attempts.is_empty());
+    assert_eq!(validate_state(&state_after_open), Ok(()));
 }
 
 #[test]
