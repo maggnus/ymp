@@ -3,15 +3,15 @@ id: W1-APP-02h
 kind: task
 wave: W1
 card: W1-APP-02
-state: ready
+state: active
 risk: significant
 maturity: BUILD
 relation: required
 depends_on: []
 blocks: []
 created_at: 2026-08-12T09:42:00+08:00
-updated_at: 2026-08-12T09:42:00+08:00
-started_at:
+updated_at: 2026-08-12T09:44:30+08:00
+started_at: 2026-08-12T09:44:30+08:00
 accepted_at:
 candidate_commit:
 closure_commit:
