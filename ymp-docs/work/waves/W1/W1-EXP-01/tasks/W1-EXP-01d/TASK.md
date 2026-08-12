@@ -10,7 +10,7 @@ relation: required
 depends_on: [W1-EXP-01b]
 blocks: []
 created_at: 2026-08-10T19:34:25+08:00
-updated_at: 2026-08-12T21:18:00+08:00
+updated_at: 2026-08-12T22:04:20+08:00
 started_at: 2026-08-12T20:31:00+08:00
 accepted_at:
 candidate_commit:
@@ -61,15 +61,16 @@ isolation, usage evidence, and stopping behavior required by the experiment.
 
 ## Current state
 
-The runtime contract is split into independently acceptable Codex and Claude Code profiles.
-W1-EXP-01d.1 is under independent review after recording a reproducible route incompatibility.
-Claude Code OAuth authentication is now available, so W1-EXP-01d.2 can execute independently. The
-parent closes only after both profiles have accepted evidence.
+The Codex subtask is accepted with a bounded non-admission result: ambient organisation and project
+scope reaches the managed process, so the declared route cannot be attributed to the actual request.
+The production correction now belongs to ready task W1-APP-02c. Claude evidence remains under
+bounded rework after review proved that its self-certified report permits false attribution. The
+parent closes only after the Claude subtask has accepted evidence.
 
 ## Next action
 
-Complete the independent review of W1-EXP-01d.1 while W1-EXP-01d.2 runs the exact authenticated
-Claude Code admission probe and L1-L3 ladder.
+Complete the bounded primary-observation correction and repeated independent review for
+W1-EXP-01d.2. W1-APP-02c may proceed independently with the accepted Codex non-admission evidence.
 
 ## Guardrails
 

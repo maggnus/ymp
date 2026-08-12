@@ -4,24 +4,24 @@ kind: subtask
 wave: W1
 card: W1-EXP-01
 parent: W1-EXP-01d
-state: active
+state: accepted
 risk: significant
 maturity: RESEARCH
 relation: required
 depends_on: []
 blocks: [W1-APP-02c]
 created_at: 2026-08-12T20:31:00+08:00
-updated_at: 2026-08-12T22:03:31+08:00
+updated_at: 2026-08-12T22:04:20+08:00
 started_at: 2026-08-12T20:42:23+08:00
-accepted_at:
+accepted_at: 2026-08-12T22:04:20+08:00
 candidate_commit: https://github.com/maggnus/ymp/commit/d2cf46e445648710b9ee9a0b7b601b66bec3df33
-closure_commit:
-evidence:
-duration_minutes: 0
+closure_commit: https://github.com/maggnus/ymp/commit/66f075a0e778bcd36a2e1974ba10b96d75837389
+evidence: ["[d2cf46e](https://github.com/maggnus/ymp/commit/d2cf46e445648710b9ee9a0b7b601b66bec3df33)", "[66f075a](https://github.com/maggnus/ymp/commit/66f075a0e778bcd36a2e1974ba10b96d75837389)"]
+duration_minutes: 82
 blocker:
 pause_reason:
 return_trigger: Second independent RETURN reached the convergence rule; no third research rework
-deliberate_partial: false
+deliberate_partial: true
 ---
 
 # W1-EXP-01d.1 — Codex profile satisfies the primary-comparison runtime contract
@@ -93,7 +93,7 @@ of the research package.
 
 ## Closure
 
-Pending the bounded convergence closure.
+Accepted with the explicitly bounded non-admission result below.
 
 ### Accepted outcome
 

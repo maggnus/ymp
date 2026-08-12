@@ -3,21 +3,21 @@ id: W1-APP-02c
 kind: task
 wave: W1
 card: W1-APP-02
-state: blocked
+state: ready
 risk: significant
 maturity: BUILD
 relation: required
 depends_on: [W1-APP-02a, W1-APP-02b, W1-EXP-01d.1]
 blocks: [W1-APP-02e]
 created_at: 2026-08-10T19:34:25+08:00
-updated_at: 2026-08-12T20:31:00+08:00
+updated_at: 2026-08-12T22:04:20+08:00
 started_at:
 accepted_at:
 candidate_commit:
 closure_commit:
 evidence:
 duration_minutes: 0
-blocker: W1-EXP-01d.1 Codex runtime admission
+blocker:
 pause_reason:
 return_trigger:
 deliberate_partial: false
@@ -59,16 +59,17 @@ lifecycle and usage evidence to include the profile in the POC comparison.
 
 ## Current state
 
-The compiled driver pins `codex-cli 0.147.0`, `gpt-5.6-sol`, low reasoning,
-`ymp-codex-low-v1`, isolated configuration, a workspace-write sandbox, process-tree termination,
-and a three-tool attempt-scoped MCP server. Managed L1-L3 runs produced immutable candidates; a
-real TUI L1 run also persisted privacy-reduced runtime evidence, passed protected verification,
-exported evidence, and moved the controller to `accepted`.
+The compiled driver pins the intended executable, route, sandbox, process supervision, and
+attempt-scoped MCP server, but the admission probe is rejected. Independent review observed
+`OPENAI_ORGANIZATION` and `OPENAI_PROJECT` inside the managed process, so the actual provider scope
+can differ from the preliminary route check. Existing L1-L3 and TUI evidence remains development
+calibration and does not admit the profile to the primary comparison.
 
 ## Next action
 
-Prove a synthetic-home profile and an agent-originated idempotent submission, then implement resume
-or explicitly declare and test one-turn continuity for the POC profile.
+Generate the complete isolated home and allowlisted process environment before launch, reject any
+ambient route or MCP configuration, then repeat the exact-route probe. Preserve existing lifecycle,
+idempotent submission, usage, cancellation, and descendant-cleanup behavior.
 
 ## Guardrails
 
@@ -78,7 +79,9 @@ or explicitly declare and test one-turn continuity for the POC profile.
 
 ## Findings
 
-None.
+- W1-EXP-01d.1 closed after two independent returns with a bounded non-admission result: route
+  policy is declared and validator-bound, but ambient organisation and project scope still reach
+  the managed Codex process.
 
 ## Closure
 
