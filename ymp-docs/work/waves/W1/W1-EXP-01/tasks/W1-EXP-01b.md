@@ -3,15 +3,15 @@ id: W1-EXP-01b
 kind: task
 wave: W1
 card: W1-EXP-01
-state: ready
+state: active
 risk: critical
 maturity: RESEARCH
 relation: required
 depends_on: [W1-EXP-01a]
 blocks: [W1-EXP-01d, W1-EVL-04a]
 created_at: 2026-08-10T19:34:25+08:00
-updated_at: 2026-08-12T15:34:00+08:00
-started_at:
+updated_at: 2026-08-12T15:44:08+08:00
+started_at: 2026-08-12T15:44:08+08:00
 accepted_at:
 candidate_commit:
 closure_commit:
@@ -62,10 +62,11 @@ minimum practically useful effect before any ymp outcome is observed.
 
 ## Current state
 
-The required comparisons are described in `ROADMAP.md`, and the first four-package corpus edition
-is approved at an immutable root. The owner has delegated corpus breadth, resource scale, and effect
-threshold to the preregistered statistical design without a package ceiling. A project-wide
-monetary budget may be configured but is currently absent. The study manifest is not yet frozen.
+Work is active. The required comparisons are described in `ROADMAP.md`, and the first four-package
+corpus edition is approved at an immutable root. The owner has delegated corpus breadth, resource
+scale, and effect threshold to the preregistered statistical design without a package ceiling. A
+project-wide monetary budget may be configured but is currently absent. The study manifest is not
+yet frozen.
 
 ## Next action
 
