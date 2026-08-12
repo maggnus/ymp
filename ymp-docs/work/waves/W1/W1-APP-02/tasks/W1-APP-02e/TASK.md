@@ -10,14 +10,14 @@ relation: required
 depends_on: [W0-UX-01c, W1-APP-02b, W1-APP-02c, W1-APP-02d]
 blocks: [W1-COR-03a]
 created_at: 2026-08-10T19:34:25+08:00
-updated_at: 2026-08-12T19:47:00+08:00
+updated_at: 2026-08-13T01:26:13+08:00
 started_at: 2026-08-12T16:19:52+08:00
 accepted_at:
 candidate_commit:
 closure_commit:
 evidence:
 duration_minutes: 59
-blocker: W1-APP-02c and W1-APP-02d, both gated by W1-EXP-01d and Claude authentication
+blocker: W1-APP-02c and W1-APP-02d are incomplete, and the new chat-first contract requires W1-APP-02e.2 review before implementation
 pause_reason:
 return_trigger:
 deliberate_partial: false
@@ -38,8 +38,8 @@ complete participant attempt.
 - Foreground startup, profile readiness, contract selection, run initiation, event-driven views,
   cancellation, terminal states, bounded logs, and evidence export.
 - Views consume application projections and issue typed commands through the in-process adapter.
-- The accepted `W0-UX-01c` screen and state contract for the POC-1 journey, including constrained,
-  normal, failure, and high-volume terminal variants.
+- The current chat-first visual contract after independent acceptance in `W1-APP-02e.2`, limited
+  to the POC-1 semantics the domain actually supports.
 - Automated TUI-state tests against the fake runtime plus one controlled run for each real profile.
 
 ### Out
@@ -63,14 +63,15 @@ complete participant attempt.
 
 ## Current state
 
-Deterministic buffer coverage is accepted in W1-APP-02e.1. The remaining controlled TUI runs depend
-on W1-APP-02c and W1-APP-02d; both require the runtime-profile evidence gated by Claude
-authentication in W1-EXP-01d.
+Deterministic coverage for the superseded dashboard contract remains accepted historical evidence
+in W1-APP-02e.1. The owner replaced that contract with the chat-first HTML/PDF pair and
+`VISUAL_CONCEPT.md`; W1-APP-02e.2 is ready for independent review, and W1-APP-02e.3 is blocked on
+that review. Controlled real-profile runs still depend on W1-APP-02c and W1-APP-02d.
 
 ## Next action
 
-Resume after Claude authentication, complete W1-EXP-01d and both managed-profile tasks, then run
-the remaining PTY cancellation and typed-failure scenarios.
+Independently review the chat-first visual contract in W1-APP-02e.2 while the managed-profile
+corrections continue.
 
 ## Guardrails
 

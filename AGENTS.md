@@ -16,6 +16,7 @@ This file is the short operational guide for new Codex and Claude Code sessions.
    - `ymp-docs/README.md` — product boundary and document index;
    - `ymp-docs/PROJECT-CONTRACT.md` — public requirements and acceptance rules;
    - `ymp-docs/ROADMAP.md` — POC, MVP, and Alpha outcomes;
+   - `ymp-docs/VISUAL_CONCEPT.md` — chat-first composition, operator path, and known gaps;
    - `ymp-docs/ARCHITECTURE.md` and `ymp-docs/PROTOCOL.md` — system and protocol design;
    - `ymp-docs/INVARIANTS.md` and `ymp-docs/SECURITY.md` — non-negotiable constraints;
    - `ymp-docs/DECISIONS.md` and `ymp-docs/REPUTATION.md` — decisions and rationale;
@@ -32,7 +33,7 @@ This file is the short operational guide for new Codex and Claude Code sessions.
 The POC is the first production version with a bounded feature set, not a disposable
 implementation. The repository currently has two root subprojects:
 
-- `ymp-docs/` — documents, work records, and the design artifact;
+- `ymp-docs/` — documents, work records, and the visual-design sources;
 - `ymp-rust/` — the complete Rust workspace, including production packages, protocol models,
   fixtures, and evaluation tools. It produces one release executable named `ymp`.
 
@@ -41,11 +42,19 @@ tools live under `ymp-rust/tools/`. Do not create root-level `ymp-tui`, `ymp-run
 `ymp-verifier`, or similar Rust projects. Do not create nested Git repositories. Every future root
 repository or subproject must use the `ymp-<name>` prefix.
 
-## Only design source
+## Current visual-design sources
 
-The only existing and authoritative design artifact is:
+The current chat-first visual concept has three authoritative sources with distinct roles:
 
-`ymp-docs/design/ymp_k9s_tui.dc.html`
+- `ymp-docs/design/ymp_chat_tui.dc.html` — exact screen, state, fixture, and reusable-structure
+  handoff;
+- `ymp-docs/design/ymp_chat_tui.pdf` — the primary fixed-layout review and reading version;
+- `ymp-docs/VISUAL_CONCEPT.md` — composition rationale, operator path, semantic constraints, and
+  known gaps between the target interface and the current domain.
+
+The removed `ymp-docs/design/ymp_k9s_tui.dc.html` is a superseded historical artifact. Accepted
+work records may retain immutable references to the revision they actually reviewed; those
+references are evidence of history, not current design authority.
 
 Do not search for, recreate, or request `CLAUDE_REQUESTS.md`, `CLAUDE_DESIGN_REQUEST_V2.md`, or
 other Claude Design material. References to those files are stale and must be removed when the
@@ -111,7 +120,8 @@ GitHub source above.
 
 - Build the POC as the production foundation. Documentation records verified behavior and must
   not replace implementation evidence.
-- Check claims against Git, current documents, executable tests, and the sole design artifact.
+- Check claims against Git, current documents, executable tests, and all three current
+  visual-design sources.
 - Do not make Claude requests for design work.
 - Change primary work files first, then regenerate indexes with the plugin-provided `work.py`.
 - Before handing off, run the narrow tests, affected project tests, format and lint checks,

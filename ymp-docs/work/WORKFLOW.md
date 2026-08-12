@@ -26,8 +26,12 @@ it has disjoint write zones, independent acceptance, and available non-author re
 - [`STATUS.md`](STATUS.md) and [`WAVES.md`](WAVES.md) are generated indexes and are never edited by
   hand.
 - [`INVARIANTS.md`](../INVARIANTS.md) names the contracts whose violation can invalidate the POC.
-- [`ymp_k9s_tui.dc.html`](../design/ymp_k9s_tui.dc.html) is the sole design artifact; its semantic,
-  coverage, accessibility, and implementation-feasibility review is owned by `W0-UX-01`.
+- [`VISUAL_CONCEPT.md`](../VISUAL_CONCEPT.md),
+  [`ymp_chat_tui.dc.html`](../design/ymp_chat_tui.dc.html), and
+  [`ymp_chat_tui.pdf`](../design/ymp_chat_tui.pdf) are the current visual-design sources. Their
+  semantic, coverage, accessibility, cross-format, and implementation-feasibility review is owned
+  by `W1-APP-02e.2`. The accepted `W0-UX-01` record remains historical evidence for the superseded
+  dashboard revision and is not rewritten as if it had reviewed the chat-first concept.
 - The canonical source repository is `https://github.com/maggnus/ymp`, and the integration branch
   is `main`. Production Rust source lives under `ymp-rust/`. Commits use English
   `Conventional Commits` messages with scopes where useful.
