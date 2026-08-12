@@ -10,7 +10,7 @@ relation: required
 depends_on: []
 blocks: []
 created_at: 2026-08-12T09:42:00+08:00
-updated_at: 2026-08-12T10:48:00+08:00
+updated_at: 2026-08-12T10:58:20+08:00
 started_at: 2026-08-12T10:28:00+08:00
 accepted_at:
 candidate_commit: https://github.com/maggnus/ymp/commit/da8632f56800930e8842231fe25a6e9a5168c8e9
@@ -51,13 +51,15 @@ and replay refuses evidence whose environment digest is absent or mismatched.
 
 ## Current state
 
-The candidate introduces verification evidence schema version 2, binds the exact environment
-object through Application and Verifier, and fails closed on altered, absent, mismatched, or
-ambiguous version-1 environment data. Independent review is pending.
+The first candidate introduces verification evidence schema version 2 and passes the environment
+binding, recovery, export, and compatibility falsifiers. Independent review returned it because
+the public evidence-recovery API can manufacture the same type that Application accepts for a new
+verification record, allowing a forged `Accept` decision to survive recovery.
 
 ## Next action
 
-Decide acceptance through an independent product-path falsifier on the exact candidate.
+Separate verifier-issued evidence from the recovered durable representation, prove that recovered
+or arbitrary JSON cannot enter the accepting API, and rerun the same independent falsifier.
 
 ## Guardrails
 
@@ -66,7 +68,9 @@ Decide acceptance through an independent product-path falsifier on the exact can
 
 ## Findings
 
-None pending from the author; independent review is in progress.
+- Blocker: public deserialization and recovery of `VerifiedEvidence` permit a caller to manufacture
+  an accepting record outside Verifier. The external falsifier bound it to the empty environment
+  object, and Application preserved `Accepted` after reopening the run.
 
 ## Closure
 
