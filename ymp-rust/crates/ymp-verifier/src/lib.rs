@@ -25,8 +25,20 @@ pub struct DigestCheck {
 
 /// Controller-owned verification evidence. Its fields are intentionally private, so callers
 /// cannot manufacture an acceptance decision and commit it through `ymp-application`.
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
 pub struct VerifiedEvidence {
+    #[serde(flatten)]
+    stored: StoredVerificationEvidence,
+    #[serde(skip)]
+    environment_object: Vec<u8>,
+}
+
+/// A validated read-only representation of evidence already stored by the application.
+///
+/// Unlike [`VerifiedEvidence`], this type carries no verifier-issued environment bytes and cannot
+/// be passed to the application's verification-recording boundary.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+pub struct StoredVerificationEvidence {
     schema_version: u32,
     candidate_digest: String,
     contract_digest: String,
@@ -37,11 +49,51 @@ pub struct VerifiedEvidence {
     observation_digest: String,
     decision: VerificationDecision,
     evidence_digest: String,
-    #[serde(skip)]
-    environment_object: Vec<u8>,
 }
 
 impl VerifiedEvidence {
+    pub fn candidate_digest(&self) -> &str {
+        self.stored.candidate_digest()
+    }
+
+    pub fn contract_digest(&self) -> &str {
+        self.stored.contract_digest()
+    }
+
+    pub fn oracle_digest(&self) -> &str {
+        self.stored.oracle_digest()
+    }
+
+    pub fn environment_digest(&self) -> Option<&str> {
+        self.stored.environment_digest()
+    }
+
+    pub fn decision(&self) -> VerificationDecision {
+        self.stored.decision()
+    }
+
+    pub fn evidence_digest(&self) -> &str {
+        self.stored.evidence_digest()
+    }
+
+    pub fn object_bytes(&self) -> Result<Vec<u8>, serde_json::Error> {
+        self.stored.object_bytes()
+    }
+
+    pub fn environment_object(&self) -> &[u8] {
+        &self.environment_object
+    }
+
+    /// Reads and validates a stored evidence object without recreating verifier-issued evidence.
+    pub fn from_object_bytes(
+        bytes: &[u8],
+        evidence_digest: impl Into<String>,
+    ) -> Result<StoredVerificationEvidence, VerifierError> {
+        StoredVerificationEvidence::from_object_bytes(bytes, evidence_digest)
+    }
+}
+
+impl StoredVerificationEvidence {
     pub fn candidate_digest(&self) -> &str {
         &self.candidate_digest
     }
@@ -70,10 +122,6 @@ impl VerifiedEvidence {
         let mut body = self.clone();
         body.evidence_digest.clear();
         serde_json::to_vec(&body)
-    }
-
-    pub fn environment_object(&self) -> &[u8] {
-        &self.environment_object
     }
 
     pub fn from_object_bytes(
@@ -111,6 +159,11 @@ impl VerifiedEvidence {
         validate_digest("environment", environment_digest)?;
         evidence.evidence_digest = actual_digest;
         Ok(evidence)
+    }
+
+    fn bind_object_digest(&mut self) -> Result<(), serde_json::Error> {
+        self.evidence_digest = ymp_domain::digest_bytes(&self.object_bytes()?);
+        Ok(())
     }
 }
 
@@ -180,7 +233,7 @@ impl ExactDigestVerifier {
         } else {
             VerificationDecision::Reject
         };
-        let mut evidence = VerifiedEvidence {
+        let mut stored = StoredVerificationEvidence {
             schema_version: EVIDENCE_SCHEMA_VERSION,
             candidate_digest,
             contract_digest: self.contract_digest.clone(),
@@ -190,10 +243,12 @@ impl ExactDigestVerifier {
             observation_digest: digest_serializable(&check)?,
             decision,
             evidence_digest: String::new(),
-            environment_object,
         };
-        evidence.evidence_digest = ymp_domain::digest_bytes(&serde_json::to_vec(&evidence)?);
-        Ok(evidence)
+        stored.bind_object_digest()?;
+        Ok(VerifiedEvidence {
+            stored,
+            environment_object,
+        })
     }
 }
 
@@ -318,7 +373,7 @@ impl CommandVerifier {
             Some(1) => VerificationDecision::Reject,
             status => return Err(VerifierError::UnexpectedExit(status)),
         };
-        let mut evidence = VerifiedEvidence {
+        let mut stored = StoredVerificationEvidence {
             schema_version: EVIDENCE_SCHEMA_VERSION,
             candidate_digest,
             contract_digest: self.contract_digest.clone(),
@@ -328,10 +383,12 @@ impl CommandVerifier {
             observation_digest: digest_serializable(&observation)?,
             decision,
             evidence_digest: String::new(),
-            environment_object,
         };
-        evidence.evidence_digest = digest_serializable(&evidence)?;
-        Ok(evidence)
+        stored.bind_object_digest()?;
+        Ok(VerifiedEvidence {
+            stored,
+            environment_object,
+        })
     }
 
     fn observe(&self, subject: &Path) -> Result<CommandObservation, VerifierError> {
@@ -530,8 +587,8 @@ fn validate_digest(kind: &'static str, value: &str) -> Result<(), VerifierError>
 #[cfg(test)]
 mod tests {
     use super::{
-        CommandVerifier, EnvironmentBoundVerifier, ExactDigestVerifier, VerifiedEvidence,
-        VerifierError, check_exact_digest,
+        CommandVerifier, EVIDENCE_SCHEMA_VERSION, EnvironmentBoundVerifier, ExactDigestVerifier,
+        StoredVerificationEvidence, VerifiedEvidence, VerifierError, check_exact_digest,
     };
     use sha2::{Digest, Sha256};
     use std::time::Duration;
@@ -556,6 +613,9 @@ mod tests {
         assert_eq!(evidence.oracle_digest(), "2".repeat(64));
         assert!(evidence.environment_digest().is_some());
         assert_eq!(evidence.evidence_digest().len(), 64);
+        let serialized = serde_json::to_value(&evidence).expect("serialize issued evidence");
+        assert_eq!(serialized["schema_version"], EVIDENCE_SCHEMA_VERSION);
+        assert!(serialized.get("stored").is_none());
     }
 
     #[test]
@@ -578,8 +638,9 @@ mod tests {
             )
             .expect("verify in environment");
         let bytes = evidence.object_bytes().expect("serialize evidence");
-        let restored = VerifiedEvidence::from_object_bytes(&bytes, evidence.evidence_digest())
-            .expect("restore evidence");
+        let restored: StoredVerificationEvidence =
+            VerifiedEvidence::from_object_bytes(&bytes, evidence.evidence_digest())
+                .expect("restore evidence");
         assert_eq!(
             restored.environment_digest(),
             Some(environment_digest.as_str())
@@ -594,6 +655,31 @@ mod tests {
                 &environment_digest,
             ),
             Err(VerifierError::EnvironmentDigestMismatch { .. })
+        ));
+    }
+
+    #[test]
+    fn stored_evidence_reader_preserves_typed_legacy_and_invalid_data_errors() {
+        let legacy = serde_json::to_vec(&serde_json::json!({
+            "schema_version": 1,
+            "candidate_digest": "1".repeat(64),
+            "contract_digest": "2".repeat(64),
+            "oracle_digest": "3".repeat(64),
+            "verifier_profile": "exact_digest_v1",
+            "observation_digest": "4".repeat(64),
+            "decision": "accept",
+            "evidence_digest": ""
+        }))
+        .expect("serialize legacy evidence");
+        assert!(matches!(
+            VerifiedEvidence::from_object_bytes(&legacy, ymp_domain::digest_bytes(&legacy),),
+            Err(VerifierError::AmbiguousLegacyEvidence)
+        ));
+
+        let malformed = b"{";
+        assert!(matches!(
+            VerifiedEvidence::from_object_bytes(malformed, ymp_domain::digest_bytes(malformed),),
+            Err(VerifierError::Json(_))
         ));
     }
 

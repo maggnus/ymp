@@ -5,7 +5,8 @@ use ymp_application::{Application, ApplicationError, VerificationInfrastructureE
 use ymp_domain::{Budget, Command, EventEnvelope, EventKind, RunStatus};
 use ymp_storage::Journal;
 use ymp_verifier::{
-    EnvironmentBoundVerifier, ExactDigestVerifier, VerifiedEvidence, VerifierError,
+    EnvironmentBoundVerifier, ExactDigestVerifier, StoredVerificationEvidence, VerifiedEvidence,
+    VerifierError,
 };
 
 enum EnvironmentMutation {
@@ -112,8 +113,9 @@ fn only_bound_verifier_evidence_can_accept_a_candidate() {
         .object_store()
         .read(&evidence_digest)
         .expect("read evidence object");
-    let restored = VerifiedEvidence::from_object_bytes(&evidence_bytes, &evidence_digest)
-        .expect("restore evidence");
+    let restored: StoredVerificationEvidence =
+        VerifiedEvidence::from_object_bytes(&evidence_bytes, &evidence_digest)
+            .expect("restore evidence");
     let environment_digest = restored
         .environment_digest()
         .expect("bound environment digest");
@@ -207,8 +209,9 @@ fn recovery_refuses_missing_or_altered_environment_objects() {
             .object_store()
             .read(&evidence_digest)
             .expect("read evidence");
-        let evidence = VerifiedEvidence::from_object_bytes(&evidence_bytes, evidence_digest)
-            .expect("restore evidence");
+        let evidence: StoredVerificationEvidence =
+            VerifiedEvidence::from_object_bytes(&evidence_bytes, evidence_digest)
+                .expect("restore evidence");
         let environment_digest = evidence
             .environment_digest()
             .expect("environment digest")

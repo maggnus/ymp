@@ -20,7 +20,9 @@ use ymp_domain::{
 use ymp_storage::{
     DataRootLock, Journal, JournalError, JournalLimits, ObjectStore, ObjectStoreError,
 };
-use ymp_verifier::{EnvironmentBoundVerifier, VerifiedEvidence, VerifierError};
+use ymp_verifier::{
+    EnvironmentBoundVerifier, StoredVerificationEvidence, VerifiedEvidence, VerifierError,
+};
 
 const BOOTSTRAP_COMMAND_ID: &str = "ymp.bootstrap";
 
@@ -249,8 +251,9 @@ impl Application {
                     accepted,
                 } => {
                     let bytes = object_store.read(evidence_digest)?;
-                    let evidence = VerifiedEvidence::from_object_bytes(&bytes, evidence_digest)
-                        .map_err(verification_evidence_error)?;
+                    let evidence =
+                        StoredVerificationEvidence::from_object_bytes(&bytes, evidence_digest)
+                            .map_err(verification_evidence_error)?;
                     let environment_digest = evidence
                         .environment_digest()
                         .ok_or(VerificationInfrastructureError::MissingEnvironmentBinding)?;
@@ -304,6 +307,19 @@ impl Application {
         self.commit(command_id, command_digest, event)
     }
 
+    /// Records evidence issued directly by a verifier.
+    ///
+    /// Evidence read back from storage has a distinct read-only type and cannot cross this
+    /// boundary:
+    ///
+    /// ```compile_fail
+    /// use ymp_application::Application;
+    /// use ymp_verifier::StoredVerificationEvidence;
+    ///
+    /// fn record_stored(app: &mut Application, evidence: &StoredVerificationEvidence) {
+    ///     app.record_verification("verify", evidence);
+    /// }
+    /// ```
     pub fn record_verification(
         &mut self,
         command_id: impl Into<String>,
@@ -501,7 +517,7 @@ impl Application {
         let mut environment_digests = Vec::new();
         for evidence_digest in &evidence_digests {
             let bytes = self.object_store.read(evidence_digest)?;
-            let evidence = VerifiedEvidence::from_object_bytes(&bytes, evidence_digest)
+            let evidence = StoredVerificationEvidence::from_object_bytes(&bytes, evidence_digest)
                 .map_err(verification_evidence_error)?;
             let environment_digest = evidence
                 .environment_digest()
