@@ -3,15 +3,15 @@ id: W1-APP-02g
 kind: task
 wave: W1
 card: W1-APP-02
-state: ready
+state: active
 risk: significant
 maturity: BUILD
 relation: required
 depends_on: []
 blocks: []
 created_at: 2026-08-12T09:42:00+08:00
-updated_at: 2026-08-12T09:49:00+08:00
-started_at:
+updated_at: 2026-08-12T10:28:00+08:00
+started_at: 2026-08-12T10:28:00+08:00
 accepted_at:
 candidate_commit:
 closure_commit:
@@ -56,7 +56,7 @@ produce its result. Existing verification evidence therefore cannot establish ex
 
 ## Next action
 
-Start after the active runtime corrections are accepted because this task changes the durable schema.
+Add and enforce the environment binding as the sole active schema writer.
 
 ## Guardrails
 
