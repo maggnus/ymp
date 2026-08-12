@@ -90,18 +90,33 @@ Runtime-evidence version 1 wrote only a separate bounded event transcript. Its r
 run, attempt, runtime kind, contract identifier and digest, runtime event sequence, predecessor
 digest, privacy-reduced event, and record digest.
 
-Runtime-evidence version 2 adds `profile.json`. The profile record contains the successful probe,
+Runtime-evidence version 2 added `profile.json`. The profile record contains the successful probe,
 runtime executable digest when the runtime is an external file, generated-environment policy,
 invocation identifier, coordination transport, bridge executable digest, invocation-scoped
 endpoint-path digest, and exact coordination-tool allowlist. It records that credential values are
 omitted. Each version-2 event contains the same invocation identifier and `profile_digest`; both
 fields participate in the event digest, so a transcript cannot be rebound to another executable,
 route observation, invocation, or coordination endpoint without detection.
-Completion usage additionally records total wall time, protected-query count, optional provider
-cost, and bounded in-flight excess counters. Older serialized usage values remain readable with
-zero defaults, but new evidence is written only as version 2.
 
-In both versions, session identifiers, response text, MCP arguments, and MCP results are represented
+Runtime-evidence version 3 binds `profile.json` to the immutable launch descriptor used to create
+the managed process. The descriptor contains the executable path and digest, ordered arguments,
+working directory, attempt and invocation identifiers, and the complete cleared child environment.
+Non-confidential environment entries contain their value and digest. Confidential entries contain
+only their name, confidentiality marker, and value digest. The managed launcher derives both the
+process command and saved profile from that descriptor, rechecks the executable at launch, and
+rejects any executable, argument, environment, attempt, or invocation substitution. Every initial
+or resumed process emits a launch event derived from its actual descriptor; the supervisor rejects
+events that cannot be bound to the profile's invocation and immutable launch fields.
+
+Version 3 records terminal usage for successful completion, failure, cancellation, and timeout.
+Every terminal record includes total wall time, protected-query count, optional provider cost,
+token counters, and bounded in-flight excess counters. Failures contain a typed safe failure kind
+and, when available, only a bounded diagnostic digest, byte count, and truncation marker. Raw child
+standard error and diagnostic text are never written to runtime evidence or the control journal.
+Older serialized usage values remain readable with zero defaults; new evidence is written only as
+version 3. Existing version-1 and version-2 evidence remains immutable and is not rewritten.
+
+In all versions, session identifiers, response text, MCP arguments, and MCP results are represented
 only by SHA-256 digests; usage counters and MCP tool status remain explicit. The writer synchronizes
 every record before the TUI displays it. The control journal does not derive authority from this
 auxiliary transcript, and application recovery does not currently require it; export preserves it
