@@ -10,10 +10,10 @@ relation: required
 depends_on: []
 blocks: []
 created_at: 2026-08-12T09:42:00+08:00
-updated_at: 2026-08-12T10:14:00+08:00
+updated_at: 2026-08-12T10:19:00+08:00
 started_at: 2026-08-12T09:44:30+08:00
 accepted_at:
-candidate_commit: https://github.com/maggnus/ymp/commit/10e2c92065ea4561a8d484ba7c62818f2784ae0f
+candidate_commit: https://github.com/maggnus/ymp/commit/8cc3e90b143c717f063d61ababbc1e0527d8bd4a
 closure_commit:
 evidence:
 duration_minutes: 0
@@ -51,13 +51,13 @@ after a recoverable driver interruption without creating a second attempt or los
 
 ## Current state
 
-Independent review confirmed successful same-session resume and mismatch rejection, but an unknown
-session after the second process remains recoverable and permits a third launch in both drivers.
-The candidate is returned for bounded correction.
+The corrected candidate makes every failed native-resume process terminal and preserves successful
+same-session resume. Builder-owned regressions measure exactly two process launches. The preserved
+reviewer is repeating its original external seven-case test on the exact corrected revision.
 
 ## Next action
 
-Make an unknown resumed session terminal and rerun the preserved external falsifier.
+Decide acceptance from the preserved external falsifier on the corrected candidate.
 
 ## Guardrails
 
@@ -66,8 +66,7 @@ Make an unknown resumed session terminal and rerun the preserved external falsif
 
 ## Findings
 
-- An unknown resumed session is classified as recoverable after its non-zero exit, allowing an
-  implicit third launch in both drivers.
+None pending from the author; independent re-review is in progress.
 
 ## Closure
 
