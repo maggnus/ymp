@@ -12,7 +12,7 @@
 | `[~]` | [`W1-APP-02a`](waves/W1/W1-APP-02/tasks/W1-APP-02a/TASK.md) | Foreground core commits one recoverable event history | — | 12/08 16:17 | 12/08 16:36 (0m) |
 | `[ ]` | [`W1-APP-02a.1`](waves/W1/W1-APP-02/tasks/W1-APP-02a/subtasks/W1-APP-02a.1.md) | Recovered command identifiers preserve one exact result | — | — | — |
 | `[ ]` | [`W1-APP-02a.2`](waves/W1/W1-APP-02/tasks/W1-APP-02a/subtasks/W1-APP-02a.2.md) | Foreground executable exposes no public headless mode | — | — | — |
-| `[~]` | [`W1-APP-02b`](waves/W1/W1-APP-02/tasks/W1-APP-02b.md) | Private attempt produces independently verified immutable candidate | [`38a1f4a6`](https://github.com/maggnus/ymp/commit/38a1f4a6b327132667faba2de23ef337f95a8a9b) | 12/08 16:14 | 12/08 18:27 (0m) |
+| `[~]` | [`W1-APP-02b`](waves/W1/W1-APP-02/tasks/W1-APP-02b.md) | Private attempt produces independently verified immutable candidate | [`1a88a101`](https://github.com/maggnus/ymp/commit/1a88a1017bdf28347a2ce5c72c4c6be8afd04520) | 12/08 16:14 | 12/08 18:52 (0m) |
 | `[?]` | [`W1-APP-02c`](waves/W1/W1-APP-02/tasks/W1-APP-02c.md) | Codex profile completes one managed candidate attempt | — | — | — |
 | `[?]` | [`W1-APP-02d`](waves/W1/W1-APP-02/tasks/W1-APP-02d.md) | Claude Code profile completes one managed candidate attempt | — | — | — |
 | `[~]` | [`W1-APP-02e`](waves/W1/W1-APP-02/tasks/W1-APP-02e/TASK.md) | TUI completes and exports a single-participant run | — | 12/08 16:19 | 12/08 16:19 (0m) |

@@ -3,17 +3,17 @@ id: W1-APP-02b
 kind: task
 wave: W1
 card: W1-APP-02
-state: rework
+state: review
 risk: critical
 maturity: BUILD
 relation: required
 depends_on: [W1-APP-02a, W1-EXP-01a]
 blocks: [W1-APP-02e]
 created_at: 2026-08-10T19:34:25+08:00
-updated_at: 2026-08-12T18:27:00+08:00
+updated_at: 2026-08-12T18:52:47+08:00
 started_at: 2026-08-12T16:14:11+08:00
 accepted_at:
-candidate_commit: https://github.com/maggnus/ymp/commit/38a1f4a6b327132667faba2de23ef337f95a8a9b
+candidate_commit: https://github.com/maggnus/ymp/commit/1a88a1017bdf28347a2ce5c72c4c6be8afd04520
 closure_commit:
 evidence:
 duration_minutes: 0
@@ -61,16 +61,15 @@ verifier evidence for that exact candidate and contract package.
 
 ## Current state
 
-The second Linux review returned the candidate: separate namespaces retained a shared mutable root,
-allowing negative-control state to produce false acceptance; launcher failure was also misclassified
-as oracle rejection. A third bounded correction round is authorized because this silent failure
-cannot be accepted as residue. The same author, reviewer, and external test are retained.
+The third bounded correction is under repeat Critical review at exact commit `1a88a101`. The same
+independent reviewer is testing the private-root and launcher-failure corrections with the preserved
+external Linux falsifier. The prior silent false-acceptance findings remain open until that review
+returns.
 
 ## Next action
 
-Give each verifier phase a private root filesystem containing only a read-only oracle, the private
-subject copy, and private scratch storage. Distinguish launcher and `exec` failures from an oracle
-exit code, then repeat the same external review with the preserved reviewer.
+Decide the returned independent verdict; integrate only after `ACCEPT`, otherwise name the
+convergence gate and stop the card.
 
 ## Guardrails
 
