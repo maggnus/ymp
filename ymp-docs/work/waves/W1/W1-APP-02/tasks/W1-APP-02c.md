@@ -10,7 +10,7 @@ relation: required
 depends_on: [W1-APP-02a, W1-APP-02b, W1-EXP-01d.1]
 blocks: [W1-APP-02e]
 created_at: 2026-08-10T19:34:25+08:00
-updated_at: 2026-08-13T00:48:05+08:00
+updated_at: 2026-08-13T00:52:00+08:00
 started_at: 2026-08-12T22:06:42+08:00
 accepted_at:
 candidate_commit: https://github.com/maggnus/ymp/commit/99cd5d2ade9d8d5d2de04f20799c9c4d5c0e6358
@@ -62,16 +62,15 @@ lifecycle and usage evidence to include the profile in the POC comparison.
 Corrected [candidate `99cd5d2`](https://github.com/maggnus/ymp/commit/99cd5d2ade9d8d5d2de04f20799c9c4d5c0e6358)
 received a second independent `RETURN`. The frozen falsifier completed with code 1: authoritative
 yield is absent, stdout can imitate submit, measured executables can be replaced before use, and
-successful accounting discards in-flight excess. The candidate is not integrated. A bounded author
-response is in progress; W1-APP-02d implementation remains paused.
+successful accounting discards in-flight excess. The candidate is not integrated. The author
+confirmed all three findings; one final bounded correction is authorized. W1-APP-02d remains paused.
 
 ## Next action
 
-Resolve the no-write author response against the three returned findings. If they stand, authorize
-one final bounded correction with the same author and reviewer. A third review is permitted only
-because the new false-submit blocker can silently accept an uncommanded candidate and therefore
-fails the detection test for residue. Start the W1-APP-02d writer only from an accepted integrated
-runtime base.
+Complete one final bounded correction with the same author, then rerun the unchanged reviewer-owned
+falsifier. A third review is permitted only because the false-submit blocker can silently accept an
+uncommanded candidate and therefore fails the detection test for residue. Start the W1-APP-02d
+writer only from an accepted integrated runtime base.
 
 ## Guardrails
 
@@ -106,6 +105,8 @@ runtime base.
 - Convergence: one third review is permitted under the blocker exception. Residue is forbidden
   because false candidate acceptance is silent; splitting would not isolate the defect from the
   contracted managed-attempt outcome. Candidate `99cd5d2` is not authorized for integration.
+- The author response agreed with all three findings and bounded the correction to authoritative
+  lifecycle commands, launch from verified executable objects, and lossless terminal accounting.
 
 ## Closure
 
