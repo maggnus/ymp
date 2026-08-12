@@ -10,10 +10,10 @@ relation: required
 depends_on: [W0-UX-01a]
 blocks: [W0-UX-01c]
 created_at: 2026-08-10T21:23:34+08:00
-updated_at: 2026-08-12T12:05:36+08:00
+updated_at: 2026-08-12T13:01:00+08:00
 started_at: 2026-08-12T12:05:36+08:00
 accepted_at:
-candidate_commit:
+candidate_commit: https://github.com/maggnus/ymp/commit/55452e94c62e02d3aa18c63de9a36ee69c2ae346
 closure_commit:
 evidence:
 duration_minutes: 0
@@ -64,15 +64,17 @@ and MVP extension points without becoming production code.
 
 ## Current state
 
-The accepted W0-UX-01a matrix defines nine projection-backed templates and seven explicit `BLK-*`
-gaps. Work is active in the sole HTML artifact on complete state fixtures, three terminal-size
-classes, typed consequence previews, lost-reply and unread-message controls, assurance failures,
-and deterministic handoff evidence.
+The first candidate preserves the nine projection-backed templates and supplies the intended state,
+size, command, lost-reply, unread-message, assurance, and handoff data in the sole HTML artifact.
+Independent review confirmed the template structure, responsive layout, negative semantics, and
+three of the blocking gaps, but returned three bounded fixture-contract defects; author rework is
+active in the original workspace.
 
 ## Next action
 
-Resolve every `BLK-*` row in the same reusable template system, validate representative fixtures
-locally at 80 × 24, 120 × 40, and 180 × 50, and submit the exact artifact to non-author review.
+Add explicit one-item volume cases, make every fixture's projection and view-state mapping
+mechanical, split compound command previews into independent command lifecycles, correct the
+archive subject, and repeat the preserved independent review on the corrected candidate.
 
 ## Guardrails
 
@@ -85,7 +87,12 @@ locally at 80 × 24, 120 × 40, and 180 × 50, and submit the exact artifact to 
 
 ## Findings
 
-None.
+- `BLOCKER`: `TEST-007` requires zero, one, exactly-full, +1, and large volumes, but the candidate
+  has no unambiguous one-item fixture.
+- `MAJOR`: 21 fixture rows use view-state variants outside the declared `ScreenProjection` enum,
+  and 17 rows cannot yield `FixtureEnvelope.projection_id` without interpreting prose or identifiers.
+- `MAJOR`: pause/resume and amendment previews combine distinct commands under one `command_id`;
+  the archive rejection also names a different run from the command subject.
 
 ## Closure
 
