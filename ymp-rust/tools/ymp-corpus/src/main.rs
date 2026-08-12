@@ -6,14 +6,14 @@ use anyhow::{Result, ensure};
 use clap::{Parser, Subcommand};
 use ymp_corpus::study::{
     analyze_study_records, load_frozen_manifest, load_study_records, negative_controls,
-    power_analysis,
+    power_analysis, run_negative_control,
 };
 use ymp_corpus::{check_cache, load_corpus, prepare, report_json, reproduce, write_report};
 
 #[derive(Debug, Parser)]
 #[command(about = "Prepare and reproduce an ymp repair-corpus edition")]
 struct Cli {
-    #[arg(long, default_value = concat!(env!("CARGO_MANIFEST_DIR"), "/corpus"))]
+    #[arg(long)]
     corpus: PathBuf,
 
     #[arg(long)]
@@ -70,6 +70,19 @@ enum CorpusCommand {
 
         #[arg(long)]
         records: PathBuf,
+    },
+    StudyNegativeControl {
+        #[arg(long)]
+        manifest: PathBuf,
+
+        #[arg(long)]
+        digest: PathBuf,
+
+        #[arg(long)]
+        records: PathBuf,
+
+        #[arg(long)]
+        case: String,
     },
 }
 
@@ -135,6 +148,16 @@ fn main() -> Result<()> {
                 report_json(&negative_controls(&corpus, &manifest, &records, &digest,)?)?
             );
         }
+        CorpusCommand::StudyNegativeControl {
+            manifest,
+            digest,
+            records,
+            case,
+        } => {
+            let manifest = load_frozen_manifest(&corpus, &manifest, &digest)?;
+            let records = load_study_records(&records)?;
+            run_negative_control(&corpus, &manifest, &records, &case)?;
+        }
     }
     Ok(())
 }
@@ -158,6 +181,8 @@ mod tests {
         for command in ["check", "verify"] {
             let error = Cli::try_parse_from([
                 "ymp-corpus",
+                "--corpus",
+                "/tmp/corpus",
                 "--cache",
                 "/tmp/cache",
                 command,
@@ -173,5 +198,21 @@ mod tests {
     fn technical_commands_require_explicit_non_authoritative_mode() {
         assert!(require_technical_evidence_mode(false).is_err());
         assert!(require_technical_evidence_mode(true).is_ok());
+    }
+
+    #[test]
+    fn corpus_argument_is_required() {
+        let error = Cli::try_parse_from([
+            "ymp-corpus",
+            "--cache",
+            "/tmp/cache",
+            "study-check",
+            "--manifest",
+            "/tmp/manifest.json",
+            "--digest",
+            "/tmp/manifest.sha256",
+        ])
+        .unwrap_err();
+        assert_eq!(error.kind(), ErrorKind::MissingRequiredArgument);
     }
 }

@@ -36,11 +36,17 @@ source, contract, environment, and oracle are matched within a block.
 ## Randomization and repetition
 
 The randomization unit is one `(task_id, repetition)` matched block. Each block receives each
-condition once. Launch order is the permutation obtained from
-`SHA-256("ymp-study-order-v1" || manifest_sha256 || task_id || repetition)`. Runtime-profile
-assignment is balanced by the same predeclared digest order; all conditions in a block use the
-same profile digest and its one exact bound model route. Different admitted profile cells remain
-separate routes in the report and are never pooled by currency without their route identity.
+condition once. The block seed is the unsigned big-endian integer represented by the first eight
+bytes of SHA-256 over UTF-8
+`"ymp-study-seed-v1\0" || manifest_sha256 || "\0" || task_id || "\0" || repetition`.
+Launch order sorts condition identifiers by lowercase SHA-256 over the same framed fields with
+domain `ymp-study-order-v1` and one final `"\0" || condition_id`. Each arm records its zero-based
+launch position, which must map back to its condition in that exact order. Runtime-profile
+assignment is balanced by the same predeclared digest order; all conditions
+in a block use the same profile digest and its one exact bound model route. Each arm repeats the
+block profile digest, and its sole accounted route equals the block route digest. Different
+admitted profile cells remain separate routes in the report and are never pooled by currency
+without their route identity.
 
 Every task has five stochastic repetitions with preassigned seeds. Five follows
 `ceil(log(1 - 0.95) / log(1 - 0.50)) = 5`: at least 95% probability of observing an event that
@@ -121,6 +127,12 @@ Permitted terminals are exactly `accepted`, `exhausted`, `abstained`, `cancelled
 and a protected-verifier `passed` record bound to the frozen contract, environment, and oracle.
 Every other terminal is zero. Verifier failure is not abstention; quiescence is not acceptance;
 infrastructure failure is not silently discarded.
+
+Every arm records a positive candidate-selection commit sequence. If it spends its protected
+query, the protected-result reveal sequence must exist and be strictly later; without a protected
+query, a reveal sequence is forbidden. The independent selector assessment commit is the same
+selection event and precedes every identity reveal. A sequence equality or reversal makes the
+comparison noncompliant.
 
 Allowed exclusions occur before randomization only when:
 
@@ -217,6 +229,16 @@ defaults.
 
 `study-negative-controls` changes an arm budget, reveals identity before selector commitment,
 applies a post-randomization exclusion, substitutes acceptance for failed verification, and
-rewrites the frozen budget, exclusion, primary outcome, stopping, and manifest identity while also
-rewriting the sidecar. The same compliance route must reject every variant. This proves that the
-check can fail; it does not prove truthful future telemetry or correct human judgment.
+changes arm/profile and arm/route bindings, reveals a protected result before selection, changes
+the deterministic block seed, reverses launch order, breaks arm/order correspondence, substitutes
+the corpus root, and rewrites the frozen budget, exclusion, primary outcome, stopping, and manifest
+identity while also rewriting the sidecar. `study-negative-control --case ID` exposes every case
+through the same public validation route and must end with a nonzero code; the aggregate command
+requires every invalid case to be rejected.
+
+W1-EVL reaches these checks by exporting the block assignment and condition records with the same
+fields consumed by `study-dry-run`: corpus root, task, repetition, seed, order, block profile and
+route, arm profile, route accounting, selection commit, and protected-result reveal. A conforming
+synthetic record passes. The controls distinguish mismatched bindings, event order, deterministic
+assignment, and corpus identity, but they cannot establish that future W1-EVL telemetry is truthful,
+that a profile was externally admitted, or that human and owner authority is valid.

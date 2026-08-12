@@ -135,10 +135,7 @@ pub fn load_frozen_manifest(
     manifest_path: &Path,
     digest_path: &Path,
 ) -> Result<FrozenStudyManifest> {
-    ensure!(
-        corpus.registry_sha256 == APPROVED_INITIAL_CORPUS_ROOT,
-        "loaded corpus root is not the owner-approved initial root"
-    );
+    validate_corpus_root_sha256(&corpus.registry_sha256)?;
     let bytes = fs::read(manifest_path)
         .with_context(|| format!("read study manifest {}", manifest_path.display()))?;
     let supplied_digest = fs::read_to_string(digest_path)
@@ -170,6 +167,14 @@ pub fn load_frozen_manifest(
     validate_power_outputs(&frozen, &calculated)?;
     validate_bound_artifacts(&frozen, &calculated)?;
     Ok(frozen)
+}
+
+fn validate_corpus_root_sha256(registry_sha256: &str) -> Result<()> {
+    ensure!(
+        registry_sha256 == APPROVED_INITIAL_CORPUS_ROOT,
+        "loaded corpus root is not the owner-approved initial root"
+    );
+    Ok(())
 }
 
 fn verify_frozen_manifest_bytes(bytes: &[u8], supplied_digest: &str) -> Result<()> {
@@ -597,6 +602,7 @@ struct PrimaryBlock {
     seed: u64,
     assignment_order: Vec<String>,
     runtime_profile_sha256: String,
+    model_route_sha256: String,
     arms: Vec<ArmRecord>,
 }
 
@@ -604,8 +610,12 @@ struct PrimaryBlock {
 #[serde(deny_unknown_fields)]
 struct ArmRecord {
     condition: String,
+    assignment_position: u64,
+    runtime_profile_sha256: String,
     budget_opportunity: BudgetVector,
     participant_starts: u64,
+    selection_commit_sequence: u64,
+    protected_result_reveal_sequence: Option<u64>,
     terminal_outcome: String,
     candidate_sha256: Option<String>,
     verifier_decision: String,
@@ -765,18 +775,15 @@ fn validate_records(
             "repetition is outside the frozen range"
         );
         ensure_lower_sha256(&block.runtime_profile_sha256, "runtime profile")?;
+        ensure_lower_sha256(&block.model_route_sha256, "model route")?;
         ensure!(
-            block
-                .assignment_order
-                .iter()
-                .cloned()
-                .collect::<BTreeSet<_>>()
-                == required_conditions,
-            "assignment order does not contain each condition exactly once"
+            block.seed == expected_block_seed(manifest, &block.task_id, block.repetition)?,
+            "block seed differs from the frozen deterministic assignment"
         );
         ensure!(
-            block.assignment_order.len() == required_conditions.len(),
-            "assignment order contains duplicate conditions"
+            block.assignment_order
+                == expected_assignment_order(manifest, &block.task_id, block.repetition),
+            "assignment order differs from the frozen deterministic assignment"
         );
         validate_task_stratum(corpus, &block.task_id, &block.stratum)?;
         let conditions = block
@@ -789,6 +796,21 @@ fn validate_records(
             "primary block must contain each condition exactly once"
         );
         for arm in &block.arms {
+            let assignment_position = usize::try_from(arm.assignment_position).ok();
+            ensure!(
+                assignment_position.and_then(|position| block.assignment_order.get(position))
+                    == Some(&arm.condition),
+                "arm record does not correspond to its assigned launch position"
+            );
+            ensure!(
+                arm.runtime_profile_sha256 == block.runtime_profile_sha256,
+                "arm runtime profile differs from its frozen block profile"
+            );
+            ensure!(
+                arm.accounting.routes.len() == 1
+                    && arm.accounting.routes[0].route_sha256 == block.model_route_sha256,
+                "arm model route differs from its frozen block route"
+            );
             ensure!(
                 arm.budget_opportunity == expected_budget,
                 "unequal arm budget opportunity"
@@ -797,6 +819,7 @@ fn validate_records(
                 !arm.excluded && arm.exclusion_reason.is_none(),
                 "post-randomization exclusion is forbidden"
             );
+            validate_protected_result_order(arm)?;
             validate_terminal_and_verifier(arm)?;
             validate_selector(arm, manifest)?;
             validate_accounting(&arm.accounting, &expected_budget)?;
@@ -818,6 +841,63 @@ fn validate_records(
     );
     validate_communication(corpus, manifest, records, &expected_budget)?;
     Ok(())
+}
+
+fn expected_block_seed(
+    manifest: &FrozenStudyManifest,
+    task_id: &str,
+    repetition: u64,
+) -> Result<u64> {
+    let digest = schedule_digest(
+        "ymp-study-seed-v1",
+        &manifest.digest,
+        task_id,
+        repetition,
+        None,
+    );
+    u64::from_str_radix(&digest[..16], 16).context("derive frozen block seed")
+}
+
+fn expected_assignment_order(
+    manifest: &FrozenStudyManifest,
+    task_id: &str,
+    repetition: u64,
+) -> Vec<String> {
+    let mut conditions = ["single_strong", "independent_best_of_n", "coordinated_ymp"]
+        .into_iter()
+        .map(|condition| {
+            (
+                schedule_digest(
+                    "ymp-study-order-v1",
+                    &manifest.digest,
+                    task_id,
+                    repetition,
+                    Some(condition),
+                ),
+                condition.to_owned(),
+            )
+        })
+        .collect::<Vec<_>>();
+    conditions.sort();
+    conditions
+        .into_iter()
+        .map(|(_, condition)| condition)
+        .collect()
+}
+
+fn schedule_digest(
+    domain: &str,
+    manifest_sha256: &str,
+    task_id: &str,
+    repetition: u64,
+    condition: Option<&str>,
+) -> String {
+    let mut input = format!("{domain}\0{manifest_sha256}\0{task_id}\0{repetition}");
+    if let Some(condition) = condition {
+        input.push('\0');
+        input.push_str(condition);
+    }
+    sha256_bytes(input.as_bytes())
 }
 
 fn validate_task_stratum(corpus: &LoadedCorpus, task_id: &str, stratum: &str) -> Result<()> {
@@ -872,12 +952,38 @@ fn validate_terminal_and_verifier(arm: &ArmRecord) -> Result<()> {
     Ok(())
 }
 
+fn validate_protected_result_order(arm: &ArmRecord) -> Result<()> {
+    ensure!(
+        arm.selection_commit_sequence > 0,
+        "candidate selection lacks a committed event sequence"
+    );
+    if arm.accounting.protected_queries == 0 {
+        ensure!(
+            arm.protected_result_reveal_sequence.is_none(),
+            "protected result was revealed without a protected query"
+        );
+    } else {
+        let reveal = arm
+            .protected_result_reveal_sequence
+            .context("protected query lacks a result-reveal event sequence")?;
+        ensure!(
+            arm.selection_commit_sequence < reveal,
+            "protected result was revealed before candidate selection was committed"
+        );
+    }
+    Ok(())
+}
+
 fn validate_selector(arm: &ArmRecord, manifest: &FrozenStudyManifest) -> Result<()> {
     if arm.condition == "independent_best_of_n" {
         let blind = arm
             .blinded_selector
             .as_ref()
             .context("independent selection lacks a blinded commitment")?;
+        ensure!(
+            blind.assessment_commit_sequence == arm.selection_commit_sequence,
+            "blinded selector assessment does not bind the selected candidate"
+        );
         ensure!(
             blind.assessment_commit_sequence < blind.producer_identity_reveal_sequence
                 && blind.assessment_commit_sequence < blind.arm_identity_reveal_sequence,
@@ -1480,86 +1586,28 @@ pub fn negative_controls(
     records: &StudyRecords,
     _digest_path: &Path,
 ) -> Result<NegativeControlReport> {
-    let mut controls = Vec::new();
-
-    let mut unequal = records.clone();
-    unequal.primary_blocks[0].arms[0]
-        .budget_opportunity
-        .model_calls += 1;
-    controls.push(record_control(
+    const IDS: [&str; 16] = [
         "unequal_arm_budget",
-        validate_records(corpus, manifest, &unequal),
-    ));
-
-    let mut early = records.clone();
-    let selector = early.primary_blocks[0]
-        .arms
-        .iter_mut()
-        .find(|arm| arm.condition == "independent_best_of_n")
-        .and_then(|arm| arm.blinded_selector.as_mut())
-        .context("synthetic fixture has no blinded selector")?;
-    selector.producer_identity_reveal_sequence = selector.assessment_commit_sequence;
-    controls.push(record_control(
         "early_selector_disclosure",
-        validate_records(corpus, manifest, &early),
-    ));
-
-    let mut excluded = records.clone();
-    excluded.primary_blocks[0].arms[0].excluded = true;
-    excluded.primary_blocks[0].arms[0].exclusion_reason = Some("post_outcome".to_owned());
-    controls.push(record_control(
         "inconsistent_post_randomization_exclusion",
-        validate_records(corpus, manifest, &excluded),
-    ));
-
-    let mut substituted = records.clone();
-    substituted.primary_blocks[0].arms[0].terminal_outcome = "accepted".to_owned();
-    substituted.primary_blocks[0].arms[0].verifier_decision = "failed".to_owned();
-    substituted.primary_blocks[0].arms[0].candidate_sha256 = Some("a".repeat(64));
-    substituted.primary_blocks[0].arms[0].audit_false_acceptance = Some(false);
-    controls.push(record_control(
         "outcome_substitution",
-        validate_records(corpus, manifest, &substituted),
-    ));
-
-    for (id, pointer, replacement) in [
-        (
-            "frozen_budget_mutation",
-            "/resources/equal_arm_budget/model_calls",
-            json!(61),
-        ),
-        (
-            "frozen_exclusion_rule_mutation",
-            "/exclusions/post_randomization",
-            json!("arm_specific_if_infrastructure"),
-        ),
-        (
-            "frozen_primary_outcome_mutation",
-            "/outcomes/primary",
-            json!("selector_score"),
-        ),
-        (
-            "frozen_stopping_rule_mutation",
-            "/stopping/study_rule",
-            json!("stop_when_positive"),
-        ),
-        (
-            "frozen_manifest_identity_mutation",
-            "/study_id",
-            json!("post-outcome-v2"),
-        ),
-    ] {
-        let mut value = manifest.value.clone();
-        *value
-            .pointer_mut(pointer)
-            .with_context(|| format!("missing negative-control pointer {pointer}"))? = replacement;
-        let bytes = serde_json::to_vec_pretty(&value)?;
-        let rewritten_sidecar = sha256_bytes(&bytes);
-        controls.push(record_control(
-            id,
-            verify_frozen_manifest_bytes(&bytes, &rewritten_sidecar),
-        ));
-    }
+        "arm_runtime_profile_mismatch",
+        "arm_model_route_mismatch",
+        "early_protected_result_disclosure",
+        "arbitrary_block_seed",
+        "reversed_assignment_order",
+        "arm_assignment_mismatch",
+        "substituted_corpus_root",
+        "frozen_budget_mutation",
+        "frozen_exclusion_rule_mutation",
+        "frozen_primary_outcome_mutation",
+        "frozen_stopping_rule_mutation",
+        "frozen_manifest_identity_mutation",
+    ];
+    let controls = IDS
+        .into_iter()
+        .map(|id| record_control(id, run_negative_control(corpus, manifest, records, id)))
+        .collect::<Vec<_>>();
     let all_invalid_variants_rejected = controls.iter().all(|control| control.rejected);
     ensure!(
         all_invalid_variants_rejected,
@@ -1570,6 +1618,117 @@ pub fn negative_controls(
         controls,
         all_invalid_variants_rejected,
     })
+}
+
+pub fn run_negative_control(
+    corpus: &LoadedCorpus,
+    manifest: &FrozenStudyManifest,
+    records: &StudyRecords,
+    id: &str,
+) -> Result<()> {
+    match id {
+        "unequal_arm_budget" => {
+            let mut changed = records.clone();
+            changed.primary_blocks[0].arms[0]
+                .budget_opportunity
+                .model_calls += 1;
+            validate_records(corpus, manifest, &changed)
+        }
+        "early_selector_disclosure" => {
+            let mut changed = records.clone();
+            let selector = changed.primary_blocks[0]
+                .arms
+                .iter_mut()
+                .find(|arm| arm.condition == "independent_best_of_n")
+                .and_then(|arm| arm.blinded_selector.as_mut())
+                .context("synthetic fixture has no blinded selector")?;
+            selector.producer_identity_reveal_sequence = selector.assessment_commit_sequence;
+            validate_records(corpus, manifest, &changed)
+        }
+        "inconsistent_post_randomization_exclusion" => {
+            let mut changed = records.clone();
+            changed.primary_blocks[0].arms[0].excluded = true;
+            changed.primary_blocks[0].arms[0].exclusion_reason = Some("post_outcome".to_owned());
+            validate_records(corpus, manifest, &changed)
+        }
+        "outcome_substitution" => {
+            let mut changed = records.clone();
+            changed.primary_blocks[0].arms[0].terminal_outcome = "accepted".to_owned();
+            changed.primary_blocks[0].arms[0].verifier_decision = "failed".to_owned();
+            changed.primary_blocks[0].arms[0].candidate_sha256 = Some("a".repeat(64));
+            changed.primary_blocks[0].arms[0].audit_false_acceptance = Some(false);
+            validate_records(corpus, manifest, &changed)
+        }
+        "arm_runtime_profile_mismatch" => {
+            let mut changed = records.clone();
+            changed.primary_blocks[0].arms[0].runtime_profile_sha256 = "f".repeat(64);
+            validate_records(corpus, manifest, &changed)
+        }
+        "arm_model_route_mismatch" => {
+            let mut changed = records.clone();
+            changed.primary_blocks[0].arms[0].accounting.routes[0].route_sha256 = "f".repeat(64);
+            validate_records(corpus, manifest, &changed)
+        }
+        "early_protected_result_disclosure" => {
+            let mut changed = records.clone();
+            let arm = &mut changed.primary_blocks[0].arms[0];
+            arm.protected_result_reveal_sequence = Some(arm.selection_commit_sequence);
+            validate_records(corpus, manifest, &changed)
+        }
+        "arbitrary_block_seed" => {
+            let mut changed = records.clone();
+            changed.primary_blocks[0].seed = changed.primary_blocks[0].seed.wrapping_add(1);
+            validate_records(corpus, manifest, &changed)
+        }
+        "reversed_assignment_order" => {
+            let mut changed = records.clone();
+            changed.primary_blocks[0].assignment_order.reverse();
+            validate_records(corpus, manifest, &changed)
+        }
+        "arm_assignment_mismatch" => {
+            let mut changed = records.clone();
+            changed.primary_blocks[0].arms[0].assignment_position =
+                (changed.primary_blocks[0].arms[0].assignment_position + 1) % 3;
+            validate_records(corpus, manifest, &changed)
+        }
+        "substituted_corpus_root" => validate_corpus_root_sha256(&"f".repeat(64)),
+        "frozen_budget_mutation" => frozen_manifest_mutation(
+            manifest,
+            "/resources/equal_arm_budget/model_calls",
+            json!(61),
+        ),
+        "frozen_exclusion_rule_mutation" => frozen_manifest_mutation(
+            manifest,
+            "/exclusions/post_randomization",
+            json!("arm_specific_if_infrastructure"),
+        ),
+        "frozen_primary_outcome_mutation" => {
+            frozen_manifest_mutation(manifest, "/outcomes/primary", json!("selector_score"))
+        }
+        "frozen_stopping_rule_mutation" => frozen_manifest_mutation(
+            manifest,
+            "/stopping/study_rule",
+            json!("stop_when_positive"),
+        ),
+        "frozen_manifest_identity_mutation" => {
+            frozen_manifest_mutation(manifest, "/study_id", json!("post-outcome-v2"))
+        }
+        _ => bail!("unknown study negative control: {id}"),
+    }
+}
+
+fn frozen_manifest_mutation(
+    manifest: &FrozenStudyManifest,
+    pointer: &str,
+    replacement: Value,
+) -> Result<()> {
+    let mut value = manifest.value.clone();
+    *value
+        .pointer_mut(pointer)
+        .with_context(|| format!("missing negative-control pointer {pointer}"))? = replacement;
+    let bytes = serde_json::to_vec_pretty(&value)?;
+    let rewritten_sidecar = sha256_bytes(&bytes);
+    verify_frozen_manifest_bytes(&bytes, &rewritten_sidecar)
 }
 
 fn record_control(id: &'static str, result: Result<()>) -> NegativeControl {
@@ -1644,6 +1803,6 @@ mod tests {
         super::analyze_study_records(&corpus, &manifest, &records).unwrap();
         let controls = negative_controls(&corpus, &manifest, &records, &digest).unwrap();
         assert!(controls.all_invalid_variants_rejected);
-        assert_eq!(controls.controls.len(), 9);
+        assert_eq!(controls.controls.len(), 16);
     }
 }

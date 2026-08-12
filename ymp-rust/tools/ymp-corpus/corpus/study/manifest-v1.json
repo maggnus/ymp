@@ -70,9 +70,11 @@
     ],
     "repetitions_per_task": 5,
     "condition_assignment": "all three conditions exactly once per block",
-    "launch_order": "SHA-256 domain ymp-study-order-v1 over manifest digest, task id, and repetition",
-    "seed_assignment": "SHA-256 domain ymp-study-seed-v1 over manifest digest, task id, repetition, and condition",
+    "launch_order": "sort condition ids by lowercase SHA-256 of UTF-8 ymp-study-order-v1\\0manifest_sha256\\0task_id\\0repetition\\0condition",
+    "seed_assignment": "unsigned big-endian integer from the first eight SHA-256 bytes of UTF-8 ymp-study-seed-v1\\0manifest_sha256\\0task_id\\0repetition",
+    "arm_order_binding": "each arm condition matches the condition at its exact assigned launch position",
     "runtime_profile_balance": "predeclared digest order, identical exact profile and its one bound model route in all three arms of a block",
+    "record_binding": "each arm repeats the block runtime-profile digest and its sole accounted route equals the block model-route digest",
     "runtime_profile_admission": "separate W1-EXP-01d capability matrix must prove exact version, configuration isolation, usage, cost, retry identity, and cancellation before primary collection"
   },
   "power": {
@@ -173,7 +175,8 @@
       "other assessments",
       "primary aggregate"
     ],
-    "early_disclosure": "comparison_noncompliant"
+    "early_disclosure": "comparison_noncompliant",
+    "protected_result_sequence": "every arm records a positive selection-commit sequence; a protected-query result has a later reveal sequence, and no-query arms have no reveal sequence"
   },
   "exclusions": {
     "prerandomization_allowed": [
@@ -271,7 +274,7 @@
   "artifacts": {
     "protocol": {
       "path": "PROTOCOL.md",
-      "sha256": "5c9242feba92cd0f01e256e17b2ed1d6746981dbd65fd57d44a4dbef33d2b38a"
+      "sha256": "3b6d9b1897cef35c24aa3767e98e14d9eb3276471854b62b699132c9b391b0a7"
     },
     "power_inputs": {
       "path": "power-inputs-v1.json",
@@ -281,6 +284,6 @@
       "path": "power-report-v1.json",
       "sha256": "4931b0e1ad3a6bd6bd6d91ebd4af85d49a49ce3b3dba78b80588d49257c59477"
     },
-    "power_and_analysis_code_sha256": "00224a6ce94065809a60f3e86d296816bf6b5821d90b064926f287e514da8915"
+    "power_and_analysis_code_sha256": "c4bb98fbce6b95ecdd9c022095fbbf8d64614e0815a87f1d65aab42837ba013b"
   }
 }

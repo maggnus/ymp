@@ -15,10 +15,13 @@ them outside Git under content-derived paths.
 
     cd ymp-rust
     CORPUS_CACHE=/absolute/cache/path
-    cargo run -p ymp-corpus -- --cache "$CORPUS_CACHE" prepare
-    cargo run -p ymp-corpus -- --cache "$CORPUS_CACHE" check \
+    cargo run -p ymp-corpus -- --corpus tools/ymp-corpus/corpus \
+      --cache "$CORPUS_CACHE" prepare
+    cargo run -p ymp-corpus -- --corpus tools/ymp-corpus/corpus \
+      --cache "$CORPUS_CACHE" check \
       --technical-evidence-only
-    cargo run -p ymp-corpus -- --cache "$CORPUS_CACHE" verify \
+    cargo run -p ymp-corpus -- --corpus tools/ymp-corpus/corpus \
+      --cache "$CORPUS_CACHE" verify \
       --technical-evidence-only \
       --report tools/ymp-corpus/corpus/results/2026-08-12-reproduction.json
 
@@ -79,6 +82,7 @@ variable, user configuration, or result-dependent default:
       --manifest tools/ymp-corpus/corpus/study/manifest-v1.json \
       --digest tools/ymp-corpus/corpus/study/manifest-v1.sha256 \
       --records tools/ymp-corpus/corpus/study/synthetic-records-v1.json
+
     cargo run -q -p ymp-corpus -- \
       --corpus tools/ymp-corpus/corpus \
       --cache /tmp/unused-by-study-command \
@@ -86,6 +90,21 @@ variable, user configuration, or result-dependent default:
       --manifest tools/ymp-corpus/corpus/study/manifest-v1.json \
       --digest tools/ymp-corpus/corpus/study/manifest-v1.sha256 \
       --records tools/ymp-corpus/corpus/study/synthetic-records-v1.json
+
+Each aggregate case is also reachable as a real failing public command by replacing
+`study-negative-controls` with `study-negative-control --case CASE`. The process must return a
+nonzero code for an invalid case. The RETURN-specific controls and their boundaries are:
+
+| Cases | Distinguishes | A conforming record passes when | Does not establish |
+|---|---|---|---|
+| `arm_runtime_profile_mismatch`, `arm_model_route_mismatch` | an arm differs from its block profile or exact route | every arm repeats the profile and its sole accounted route equals the block route | external profile admission or truthful provider telemetry |
+| `early_protected_result_disclosure` | protected output is revealed at or before selection commit | query reveal is later, or both query and reveal are absent | authenticity of future event sequences |
+| `arbitrary_block_seed`, `reversed_assignment_order`, `arm_assignment_mismatch` | seed, order, or arm correspondence differs from the digest-derived schedule | all three values match the frozen derivation | that a future launcher truthfully reports what it started |
+| missing or substituted `--corpus` | the argument is absent or the loaded registry digest differs from the manifest root | an explicit path loads the exact approved digest | owner authorization; a byte-identical copy is intentionally accepted |
+
+These fields are the W1-EVL record boundary rather than a test-only branch. Future W1-EVL export
+records supply the same block, arm, route-accounting, selection, and protected-result sequences
+that the synthetic dry run supplies here.
 
 The cache argument remains a global compatibility option for the corpus preparation commands and
 is not read by a study command. A study command reports `technical_verification_only`; it cannot
