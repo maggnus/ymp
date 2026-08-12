@@ -10,10 +10,10 @@ relation: required
 depends_on: [W1-APP-02a, W1-APP-02b, W1-EXP-01d.1]
 blocks: [W1-APP-02e]
 created_at: 2026-08-10T19:34:25+08:00
-updated_at: 2026-08-12T22:32:10+08:00
+updated_at: 2026-08-12T22:54:39+08:00
 started_at: 2026-08-12T22:06:42+08:00
 accepted_at:
-candidate_commit:
+candidate_commit: https://github.com/maggnus/ymp/commit/53890a0d2679bbf0dcc7b21e276c76dd9b5ce2b4
 closure_commit:
 evidence:
 duration_minutes: 0
@@ -59,19 +59,18 @@ lifecycle and usage evidence to include the profile in the POC comparison.
 
 ## Current state
 
-The compiled driver pins the intended executable and coordination server, but the admission probe
-is rejected because route and home configuration reaches the managed process. A 21-file reviewer
-falsifier frozen before the candidate rejects baseline `f4bb3e7` for that exposure, lost cost and
-excess accounting, and a surviving descendant; existing resume, idempotency, missing-usage,
-timeout, and active-tree checks pass. This evidence does not yet admit the profile.
+Candidate `53890a0` generates a synthetic home and allowlisted environment, binds executable,
+route, bridge, and MCP provenance, removes the MCP secret from argv, extends usage evidence, and
+adds the public managed product path. It changes shared runtime interfaces and the Claude driver,
+so the preserved reviewer is running the frozen 21-file falsifier and broad regression review
+before any integration or overlapping W1-APP-02d implementation begins.
 
 ## Next action
 
-Generate the complete isolated home and allowlisted process environment before launch, reject any
-ambient route or MCP configuration, then repeat the exact-route probe. Preserve existing lifecycle,
-idempotent submission, usage, cancellation, and descendant-cleanup behavior. When the author
-returns a clean exact candidate, fast-forward the preserved reviewer and run the frozen falsifier
-without modification.
+Complete independent review of exact candidate `53890a0` with the frozen falsifier. Accept only if
+ambient route and home inputs are unobservable, secrets remain absent from argv and evidence,
+usage and excess survive error paths, process cleanup holds, and shared runtime changes introduce
+no regression. Start the W1-APP-02d writer only from the accepted integrated runtime base.
 
 ## Guardrails
 
