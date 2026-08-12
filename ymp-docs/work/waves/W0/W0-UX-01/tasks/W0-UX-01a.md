@@ -10,7 +10,7 @@ relation: required
 depends_on: []
 blocks: [W0-UX-01b]
 created_at: 2026-08-10T21:23:34+08:00
-updated_at: 2026-08-12T11:32:44+08:00
+updated_at: 2026-08-12T11:47:00+08:00
 started_at: 2026-08-12T11:04:55+08:00
 accepted_at:
 candidate_commit: https://github.com/maggnus/ymp/commit/e8ff248fad346071e9adec2b94f07e6c027f17ed
@@ -67,15 +67,15 @@ design artifact.
 
 ## Current state
 
-The candidate adds 172 traceable requirements, nine reusable structural templates, named data
-regions, application projections, typed commands, deterministic fixture rules, negative controls,
-and explicit blockers to the sole HTML artifact. Independent review is checking the exact revision
-for completeness, template reuse, local-only behavior, and terminal layout viability.
+The first candidate adds 172 traceable requirements, nine reusable structural templates, named
+data regions, application projections, typed commands, deterministic fixture rules, negative
+controls, and explicit blockers. Independent review confirmed that structure but returned one
+table-readability defect and three bounded source/layout corrections; author rework is active.
 
 ## Next action
 
-Decide acceptance through an independent structural, negative, and visual review of the exact
-candidate.
+Correct the four bounded review findings, then repeat structural and visual review at 760, 1440,
+and 1920 pixel widths on the exact corrected candidate.
 
 ## Guardrails
 
@@ -85,7 +85,12 @@ candidate.
 
 ## Findings
 
-None.
+- `MAJOR`: long projection names in the `REG-*` source column cross the fixed table cell boundary
+  and obscure the adjacent column at normal and wide review widths.
+- `MINOR`: `NEG-CENTRAL` cites a nonexistent `INV-13` and must cite the exact central-assignment
+  prohibition headed by `INV-1`.
+- `MINOR`: `NEG-WEB` cites a nonexistent `PROJECT-CONTRACT.md` section.
+- `MINOR`: the `1a` header mark is almost fully clipped in the normal fixture.
 
 ## Closure
 

@@ -5,7 +5,7 @@
 | Status | ID | Task | Commit | Start | Time |
 |---|---|---|---|---|---|
 | `[ ]` | [`W0-UX-01`](waves/W0/W0-UX-01/CARD.md) | Reviewed terminal screen contract precedes implementation | — | — | — |
-| `[~]` | [`W0-UX-01a`](waves/W0/W0-UX-01/tasks/W0-UX-01a.md) | Project requirements define the terminal product contract | [`e8ff248f`](https://github.com/maggnus/ymp/commit/e8ff248fad346071e9adec2b94f07e6c027f17ed) | 12/08 11:04 | 12/08 11:32 (0m) |
+| `[~]` | [`W0-UX-01a`](waves/W0/W0-UX-01/tasks/W0-UX-01a.md) | Project requirements define the terminal product contract | [`e8ff248f`](https://github.com/maggnus/ymp/commit/e8ff248fad346071e9adec2b94f07e6c027f17ed) | 12/08 11:04 | 12/08 11:47 (0m) |
 | `[ ]` | [`W0-UX-01b`](waves/W0/W0-UX-01/tasks/W0-UX-01b.md) | HTML artifact supplies the POC screen and state system | — | — | — |
 | `[ ]` | [`W0-UX-01c`](waves/W0/W0-UX-01/tasks/W0-UX-01c.md) | Independent review freezes an implementable screen contract | — | — | — |
 | `[ ]` | [`W1-APP-02`](waves/W1/W1-APP-02/CARD.md) | Foreground TUI verifies one exact participant result | — | — | — |
