@@ -60,8 +60,9 @@ that each major requirement can reject a known invalid candidate.
 
 ## Current state
 
-The design requirements exist in `PROJECT-CONTRACT.md` and `ROADMAP.md`; no corpus, repository
-binding, protected bundle, or approval record exists. Work is blocked by `G1` and `G2`.
+The design requirements and production repository exist; no approved corpus, immutable source
+binding, protected bundle, or approval record exists. Work is blocked by the remaining `G1` commit
+convention and by `G2`.
 
 ## Next action
 

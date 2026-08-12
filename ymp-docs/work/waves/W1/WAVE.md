@@ -21,7 +21,7 @@ useful.
 
 ## Scope
 
-This wave owns `POC-0` through `POC-3` from `ympus-docs/ROADMAP.md`: the falsification
+This wave owns `POC-0` through `POC-3` from `ymp-docs/ROADMAP.md`: the falsification
 package, foreground single-participant runtime, smallest self-organizing system, and controlled
 evaluation. It runs only in an externally disposable environment.
 

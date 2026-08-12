@@ -10,7 +10,7 @@ relation: required
 depends_on: [W0-UX-01a]
 blocks: [W0-UX-01c]
 created_at: 2026-08-10T21:23:34+08:00
-updated_at: 2026-08-10T21:23:34+08:00
+updated_at: 2026-08-12T02:47:53+08:00
 started_at:
 accepted_at:
 candidate_commit:
@@ -23,13 +23,13 @@ return_trigger:
 deliberate_partial: false
 ---
 
-# W0-UX-01b — Claude Design produces the POC screen and state system
+# W0-UX-01b — HTML artifact supplies the POC screen and state system
 
 ## Outcome
 
-Claude Design supplies a traceable terminal-native design package covering the complete POC-1 and
-POC-2 operator journey, normal and material failure states, responsive terminal variants, and MVP
-extension points without production code.
+The sole HTML artifact supplies a traceable terminal-native design package covering the complete
+POC-1 and POC-2 operator journey, normal and material failure states, responsive terminal variants,
+and MVP extension points without becoming production code.
 
 ## Scope
 
@@ -49,7 +49,7 @@ extension points without production code.
 
 ## Acceptance
 
-- [ ] Every brief requirement maps to a reviewable mockup, state variant, interaction annotation,
+- [ ] Every project requirement maps to a reviewable mockup, state variant, interaction annotation,
   explicit non-applicability statement, or documented open decision.
 - [ ] POC-1 and POC-2 designs cover 80 × 24, 120 × 40, and a wide high-volume case with
   keyboard-first and color-independent operation.
@@ -62,17 +62,20 @@ extension points without production code.
 
 ## Current state
 
-No Claude Design output, static screen image, responsive variant, or handoff index exists. The task
-depends on acceptance of the requirements brief.
+`ymp-docs/design/ymp_k9s_tui.dc.html` now exists and contains the screen system. Its local
+dependencies, complete state coverage, responsive behavior, and requirement-to-screen index have
+not yet passed review.
 
 ## Next action
 
-Submit the accepted `ympus-docs/CLAUDE_REQUESTS.md` to Claude Design and collect the complete design
-package without narrowing the requested state matrix during handoff.
+Open the artifact locally without external services, inventory every screen and conditional state,
+and return any missing, contradictory, inaccessible, or non-terminal-native behavior as an exact
+finding against the artifact.
 
 ## Guardrails
 
-- Claude Design owns composition and visual language but does not own domain or protocol changes.
+- The artifact owns its existing composition and visual language but does not own domain or
+  protocol changes.
 - A design omission becomes an explicit open decision or returned requirement; it is not hidden by
   a generic placeholder screen.
 

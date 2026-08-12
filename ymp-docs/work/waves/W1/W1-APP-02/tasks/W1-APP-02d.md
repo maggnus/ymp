@@ -10,14 +10,14 @@ relation: required
 depends_on: [W1-APP-02a, W1-APP-02b, W1-EXP-01d]
 blocks: [W1-APP-02e]
 created_at: 2026-08-10T19:34:25+08:00
-updated_at: 2026-08-10T19:34:25+08:00
+updated_at: 2026-08-12T06:38:24+08:00
 started_at:
 accepted_at:
 candidate_commit:
 closure_commit:
 evidence:
 duration_minutes: 0
-blocker: Owner gate G3 and listed dependencies
+blocker: Claude authentication, listed dependencies, live MCP conformance, and full descendant termination
 pause_reason:
 return_trigger:
 deliberate_partial: false
@@ -60,13 +60,17 @@ lifecycle and usage evidence to include the profile in the POC comparison.
 
 ## Current state
 
-No executable driver exists. The route and paid experimental authority are blocked by `G3`; the
-task also depends on the common core, candidate path, and accepted runtime probes.
+The compiled driver pins Claude Code `2.1.227`, `claude-opus-5`, low effort,
+`ymp-claude-low-v1`, disabled configuration sources, strict generated MCP configuration,
+restricted tools, bounded structured output, and a USD 1.00 stop. Its fixture preserves session,
+output, token and currency-cost evidence. The exact probe reports the local profile as
+unauthenticated; a real Paseo L1 run ended before model use.
 
 ## Next action
 
-After `G3`, freeze the exact Claude Code profile and implement its capability probe against the
-fake coordination endpoint.
+Authenticate the local Claude Code installation, run the L1-L3 ladder through `ymp`, and validate
+the observed stream against the fixture before exercising the configured attempt-scoped MCP
+bridge.
 
 ## Guardrails
 

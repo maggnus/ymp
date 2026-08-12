@@ -10,7 +10,7 @@ relation: required
 depends_on: [W1-APP-02a, W1-EXP-01a]
 blocks: [W1-APP-02e]
 created_at: 2026-08-10T19:34:25+08:00
-updated_at: 2026-08-10T19:34:25+08:00
+updated_at: 2026-08-12T02:47:53+08:00
 started_at:
 accepted_at:
 candidate_commit:
@@ -61,13 +61,16 @@ verifier evidence for that exact candidate and contract package.
 
 ## Current state
 
-The object and verifier boundaries exist only in design documents. This task depends on the event
-core and accepted corpus package.
+Production packages capture source manifests, private workspaces, immutable submissions, and
+reproducible candidates while rejecting stale bases and symlinks. Only digest-bound opaque
+verifier evidence can record a result. Tests cover capture, rejection, replay, quiescence, and
+derived-path exclusions; bounded verification moved real managed Codex L1-L3 runs to `accepted`,
+including one complete TUI path. Strict isolation and conflict coverage remain.
 
 ## Next action
 
-Define immutable object, submission, candidate, and verification interfaces with digest-first
-tests.
+Add strict verifier isolation, then test integration conflicts and deliberately invalid candidates
+against an approved corpus package.
 
 ## Guardrails
 

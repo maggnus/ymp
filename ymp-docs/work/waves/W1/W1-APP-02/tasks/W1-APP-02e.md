@@ -10,7 +10,7 @@ relation: required
 depends_on: [W0-UX-01c, W1-APP-02b, W1-APP-02c, W1-APP-02d]
 blocks: [W1-COR-03a]
 created_at: 2026-08-10T19:34:25+08:00
-updated_at: 2026-08-10T21:23:34+08:00
+updated_at: 2026-08-12T02:47:53+08:00
 started_at:
 accepted_at:
 candidate_commit:
@@ -63,14 +63,16 @@ complete participant attempt.
 
 ## Current state
 
-The Claude Design requirements and `W0` review path now exist, but no accepted screen package,
-crate, view model, fake-runtime test, or real run exists. This task follows the candidate path,
-both runtime drivers, and the frozen `W0-UX-01c` contract.
+The Ratatui application implements k9s-style views derived from the sole HTML artifact. It loads
+versioned contracts, supervises a ready profile, captures a candidate, runs the bounded verifier,
+and exports control, verifier, and privacy-reduced runtime evidence. A 120 × 40 PTY run completed
+the entire path with real Codex L1; later TUI runs brought L2 and L3 to three accepted repetitions
+each. Deterministic tests cover terminal states and 80 × 24 behavior.
 
 ## Next action
 
-After `W0-UX-01c` is accepted, implement its POC-1 screen state model against fake application
-events before connecting widgets to either real runtime.
+Persist approved contract lineage and add PTY coverage for cancellation and every typed failure;
+then repeat the controlled path with Claude after external authentication is restored.
 
 ## Guardrails
 

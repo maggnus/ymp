@@ -1,0 +1,45 @@
+[workspace]
+resolver = "3"
+members = ["crates/*", "tools/*"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.89"
+license = "Apache-2.0"
+repository = "https://github.com/maggnus/ymp"
+
+[workspace.dependencies]
+anyhow = "1.0"
+clap = { version = "4.5", features = ["derive"] }
+crossterm = "0.28"
+fs2 = "0.4"
+hex = "0.4"
+ratatui = "0.29"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+sha2 = "0.10"
+tempfile = "3.14"
+thiserror = "2.0"
+uuid = { version = "1.11", features = ["v4"] }
+
+ymp-agent-api = { path = "crates/ymp-agent-api" }
+ymp-agent-mcp = { path = "crates/ymp-agent-mcp" }
+ymp-agent-rpc = { path = "crates/ymp-agent-rpc" }
+ymp-application = { path = "crates/ymp-application" }
+ymp-artifacts = { path = "crates/ymp-artifacts" }
+ymp-domain = { path = "crates/ymp-domain" }
+ymp-kernel = { path = "crates/ymp-kernel" }
+ymp-runtime-api = { path = "crates/ymp-runtime-api" }
+ymp-runtime-claude = { path = "crates/ymp-runtime-claude" }
+ymp-runtime-codex = { path = "crates/ymp-runtime-codex" }
+ymp-runtime-fake = { path = "crates/ymp-runtime-fake" }
+ymp-runtime-supervisor = { path = "crates/ymp-runtime-supervisor" }
+ymp-storage = { path = "crates/ymp-storage" }
+ymp-testkit = { path = "crates/ymp-testkit" }
+ymp-tui = { path = "crates/ymp-tui" }
+ymp-verifier = { path = "crates/ymp-verifier" }
+
+[profile.release]
+lto = "thin"
+strip = true

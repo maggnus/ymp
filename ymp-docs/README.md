@@ -114,17 +114,22 @@ part of POC, MVP, or Alpha, and MCP is not their internal protocol.
 | [DECISIONS.md](DECISIONS.md) | Settled decisions, rejected mechanisms, research applicability, and open experiments |
 | [ROADMAP.md](ROADMAP.md) | POC, MVP, Alpha, causal communication audit, and shipping criteria |
 | [INVARIANTS.md](INVARIANTS.md) | POC contracts that no implementation change may weaken silently |
-| [CLAUDE_REQUESTS.md](CLAUDE_REQUESTS.md) | Terminal interface requirements and Claude Design handoff contract |
-| [CLAUDE_DESIGN_REQUEST_V2.md](CLAUDE_DESIGN_REQUEST_V2.md) | Layered terminal design direction, run-map brief, and progressive-disclosure acceptance |
+| [CALIBRATION.md](CALIBRATION.md) | Development agent ladder, pinned low-effort profiles, measured runs, and remaining blockers |
+| [design/ymp_k9s_tui.dc.html](design/ymp_k9s_tui.dc.html) | Sole terminal-interface design artifact and screen-state reference |
 | [work/WAVES.md](work/WAVES.md) | Generated POC execution overview; detailed current state is in [work/STATUS.md](work/STATUS.md) |
 
 ## Status
 
-Design stage; no implementation exists. The trusted kernel is planned in Rust and shipped in the
-single `ymp` executable described above. The ratatui interface is present from the first executable
-POC because observing and controlling agent interaction is part of the product hypothesis;
-reproducible automated tests call the same application core without becoming a second public
-interface. Strict execution initially targets supported Linux hosts; native macOS execution is
+Early POC implementation exists in the production Rust workspace at
+[`../ymp-rust`](../ymp-rust/README.md). It already builds one `ymp` executable with a typed event
+core, append-only digest-linked journal, content-addressed objects, pinned Codex and Claude Code
+process drivers, protected development-calibration oracles, opaque digest-bound verifier evidence,
+a deterministic protocol model, and k9s-style Ratatui runtime and run views. The POC is an early
+feature stage of the production codebase rather than a disposable
+implementation. The Ratatui interface is present from the first executable because observing and
+controlling agent interaction is part of the product hypothesis. Reproducible automated tests call
+the same application core without becoming a second public interface. Strict execution initially
+targets supported Linux hosts; native macOS execution is
 explicitly best-effort in the initial one-executable release. Documents of record are in English.
-The POC runs in an externally disposable study environment and makes no product-security claim;
-strict containment is an MVP requirement only if the POC passes.
+POC experiments still run in an externally disposable study environment and make no
+product-security claim; strict containment is an MVP requirement only if the POC passes.

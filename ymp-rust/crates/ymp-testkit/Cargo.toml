@@ -1,0 +1,17 @@
+[package]
+name = "ymp-testkit"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+serde.workspace = true
+thiserror.workspace = true
+uuid.workspace = true
+ymp-application.workspace = true
+ymp-artifacts.workspace = true
+ymp-domain.workspace = true
+ymp-runtime-api.workspace = true
+ymp-runtime-fake.workspace = true
+ymp-verifier.workspace = true

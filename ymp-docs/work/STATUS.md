@@ -5,8 +5,8 @@
 | Status | ID | Task | Commit | Start | Time |
 |---|---|---|---|---|---|
 | `[ ]` | [`W0-UX-01`](waves/W0/W0-UX-01/CARD.md) | Reviewed terminal screen contract precedes implementation | — | — | — |
-| `[ ]` | [`W0-UX-01a`](waves/W0/W0-UX-01/tasks/W0-UX-01a.md) | Claude Design brief defines the terminal product contract | — | — | — |
-| `[ ]` | [`W0-UX-01b`](waves/W0/W0-UX-01/tasks/W0-UX-01b.md) | Claude Design produces the POC screen and state system | — | — | — |
+| `[ ]` | [`W0-UX-01a`](waves/W0/W0-UX-01/tasks/W0-UX-01a.md) | Project requirements define the terminal product contract | — | — | — |
+| `[ ]` | [`W0-UX-01b`](waves/W0/W0-UX-01/tasks/W0-UX-01b.md) | HTML artifact supplies the POC screen and state system | — | — | — |
 | `[ ]` | [`W0-UX-01c`](waves/W0/W0-UX-01/tasks/W0-UX-01c.md) | Independent review freezes an implementable screen contract | — | — | — |
 | `[ ]` | [`W1-APP-02`](waves/W1/W1-APP-02/CARD.md) | Foreground TUI verifies one exact participant result | — | — | — |
 | `[ ]` | [`W1-APP-02a`](waves/W1/W1-APP-02/tasks/W1-APP-02a.md) | Foreground core commits one recoverable event history | — | — | — |

@@ -10,14 +10,14 @@ relation: required
 depends_on: [W1-APP-02a, W1-APP-02b, W1-EXP-01d]
 blocks: [W1-APP-02e]
 created_at: 2026-08-10T19:34:25+08:00
-updated_at: 2026-08-10T19:34:25+08:00
+updated_at: 2026-08-12T06:38:24+08:00
 started_at:
 accepted_at:
 candidate_commit:
 closure_commit:
 evidence:
 duration_minutes: 0
-blocker: Owner gate G3 and listed dependencies
+blocker: Listed dependencies, synthetic-home isolation, agent-originated submission, and resume/yield continuity
 pause_reason:
 return_trigger:
 deliberate_partial: false
@@ -59,13 +59,16 @@ lifecycle and usage evidence to include the profile in the POC comparison.
 
 ## Current state
 
-No executable driver exists. The route and paid experimental authority are blocked by `G3`; the
-task also depends on the common core, candidate path, and accepted runtime probes.
+The compiled driver pins `codex-cli 0.147.0`, `gpt-5.6-sol`, low reasoning,
+`ymp-codex-low-v1`, isolated configuration, a workspace-write sandbox, process-tree termination,
+and a three-tool attempt-scoped MCP server. Managed L1-L3 runs produced immutable candidates; a
+real TUI L1 run also persisted privacy-reduced runtime evidence, passed protected verification,
+exported evidence, and moved the controller to `accepted`.
 
 ## Next action
 
-After `G3`, freeze the exact Codex profile and implement its capability probe against the fake
-coordination endpoint.
+Prove a synthetic-home profile and an agent-originated idempotent submission, then implement resume
+or explicitly declare and test one-turn continuity for the POC profile.
 
 ## Guardrails
 
@@ -89,4 +92,5 @@ None recorded.
 
 ### Evidence
 
-- None until acceptance.
+- `ymp-docs/CALIBRATION.md`
+- `ymp-rust/tools/ymp-calibration/results/2026-08-12-smoke.json`

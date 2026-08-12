@@ -10,14 +10,14 @@ relation: required
 depends_on: [W1-EXP-01b]
 blocks: [W1-APP-02c, W1-APP-02d]
 created_at: 2026-08-10T19:34:25+08:00
-updated_at: 2026-08-10T19:34:25+08:00
+updated_at: 2026-08-12T06:38:24+08:00
 started_at:
 accepted_at:
 candidate_commit:
 closure_commit:
 evidence:
 duration_minutes: 0
-blocker: Owner gates G1 and G3, followed by acceptance of W1-EXP-01b
+blocker: W1-EXP-01b, Claude authentication, complete managed submission, and remaining G3 budget decisions
 pause_reason:
 return_trigger:
 deliberate_partial: false
@@ -60,12 +60,16 @@ isolation, usage evidence, and stopping behavior required by the experiment.
 
 ## Current state
 
-Documentation records earlier local observations, but no project-owned fixtures, pinned probe
-outputs, or approved provider budget exist. Work is blocked by `G1`, `G3`, and `W1-EXP-01b`.
+Exact-version and authentication probes distinguish ready, unauthenticated, incompatible,
+unavailable, and missing profiles. Both drivers isolate configuration, parse bounded events,
+terminate process groups, record usage, and pass fixtures. All L1-L3 levels have three accepted
+managed Codex repetitions; later L2/L3 runs exercised TUI verification and evidence export.
+Another L3 run submitted its bound workspace through MCP and passed the oracle; Claude OAuth is absent.
 
 ## Next action
 
-Resolve `G3`, then implement the fake runtime contract before probing a paid model route.
+Authenticate Claude Code and repeat the L1-L3 ladder through `ymp`; then add its timeout and
+descendant-cleanup fixtures before primary admission.
 
 ## Guardrails
 
@@ -75,7 +79,8 @@ Resolve `G3`, then implement the fake runtime contract before probing a paid mod
 
 ## Findings
 
-None.
+- `ymp-docs/CALIBRATION.md`
+- `ymp-rust/tools/ymp-calibration/results/2026-08-12-smoke.json`
 
 ## Closure
 

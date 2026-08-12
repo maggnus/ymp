@@ -26,11 +26,11 @@ it has disjoint write zones, independent acceptance, and available non-author re
 - [`STATUS.md`](STATUS.md) and [`WAVES.md`](WAVES.md) are generated indexes and are never edited by
   hand.
 - [`INVARIANTS.md`](../INVARIANTS.md) names the contracts whose violation can invalidate the POC.
-- [`CLAUDE_REQUESTS.md`](../CLAUDE_REQUESTS.md) is the design handoff contract; accepted screen
-  artifacts and their implementation traceability are owned by `W0-UX-01`.
-- The canonical source repository is `https://github.com/maggnus/ympus`, and the integration branch
-  is `main`. Commit convention, initial implementation validation, and project-owned work-tree
-  tooling remain unresolved under owner gate `G1`.
+- [`ymp_k9s_tui.dc.html`](../design/ymp_k9s_tui.dc.html) is the sole design artifact; its semantic,
+  coverage, accessibility, and implementation-feasibility review is owned by `W0-UX-01`.
+- The canonical source repository is `https://github.com/maggnus/ymp`, and the integration branch
+  is `main`. Production Rust source lives under `ymp-rust/`. Commit convention remains unresolved
+  under owner gate `G1`.
 - Repository commits and files become durable evidence only after `G1` is resolved; evidence links
   must then be pinned to full immutable commits.
 
@@ -47,16 +47,19 @@ it has disjoint write zones, independent acceptance, and available non-author re
 
 ## Validation
 
-No implementation command is authoritative yet because the Rust workspace and project-owned
-validation tooling do not exist. Owner gate `G1` must establish the initial validation commands and
-work-tree tooling before the first dispatch.
-
-The intended minimum validation ladder, subject to that binding, is:
+The initial implementation validation ladder is:
 
 1. the narrow test named in the active task;
-2. affected crate tests and protocol conformance tests;
-3. workspace formatting, linting, and test commands at a card boundary; and
-4. the complete controlled POC procedure only at the `W1-EVL-04` and wave acceptance boundaries.
+2. `cargo test --workspace --all-targets` from `ymp-rust/`;
+3. `cargo fmt --all -- --check` and
+   `cargo clippy --workspace --all-targets --all-features -- -D warnings`;
+4. `cargo run -q -p ymp-evals` for the executable protocol model and its negative controls;
+5. `cargo build --release -p ymp-cli` at a card boundary; and
+6. the complete controlled POC procedure only at the `W1-EVL-04` and wave acceptance boundaries.
+
+The work-tree generator and validator are supplied by the pinned `paseo-cto` plugin rather than a
+repository-local `work.py` copy. Use version `9.13.0` installed from
+`https://github.com/maggnus/claude-plugins`.
 
 Every acceptance check includes a negative control. A check whose deliberately invalid case has
 not been observed to fail is not acceptance evidence.

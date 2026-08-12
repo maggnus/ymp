@@ -10,7 +10,7 @@ relation: required
 depends_on: []
 blocks: [W1-APP-02a, W1-COR-03a, W1-COR-03b]
 created_at: 2026-08-10T19:34:25+08:00
-updated_at: 2026-08-10T19:34:25+08:00
+updated_at: 2026-08-12T02:47:53+08:00
 started_at:
 accepted_at:
 candidate_commit:
@@ -60,12 +60,16 @@ duplicate, delay, expiry, and crash schedules.
 
 ## Current state
 
-The protocol is specified in prose only. No executable model, generated schedule, or counterexample
-exists. Work is blocked by `G1`.
+`ymp-rust/tools/ymp-evals` now contains an executable bounded model. Its baseline preserves the
+declared invariants across 597,871 generated schedules at depth six, while mutations that mint
+creation budget, ignore lease fencing, or accept quiescence each produce a counterexample. The
+model still omits the full offer, award, wake, query, and multi-obligation state spaces and has not
+received non-author review.
 
 ## Next action
 
-After `G1`, choose the smallest executable model format and encode the budget and obligation core.
+Extend the existing model to the complete budget vector, offers, awards, wakes, queries, and
+multiple obligations; then obtain non-author review of the abstraction and mutation controls.
 
 ## Guardrails
 

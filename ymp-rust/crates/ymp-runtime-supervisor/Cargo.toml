@@ -1,0 +1,21 @@
+[package]
+name = "ymp-runtime-supervisor"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+uuid.workspace = true
+ymp-agent-rpc.workspace = true
+ymp-application.workspace = true
+ymp-domain.workspace = true
+ymp-runtime-api.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true
+ymp-agent-api.workspace = true
+ymp-runtime-fake.workspace = true

@@ -10,7 +10,7 @@ relation: required
 depends_on: [W0-UX-01b]
 blocks: [W1-APP-02e, W1-COR-03e]
 created_at: 2026-08-10T21:23:34+08:00
-updated_at: 2026-08-10T21:23:34+08:00
+updated_at: 2026-08-12T02:47:53+08:00
 started_at:
 accepted_at:
 candidate_commit:
@@ -35,7 +35,7 @@ Rust, Ratatui, and Crossterm at the declared terminal sizes.
 
 ### In
 
-- Semantic review against the project documents and accepted Claude Design brief.
+- Semantic review against the project documents and the sole HTML artifact.
 - Coverage review of the POC-1 and POC-2 journeys, material negative states, terminal and
   accessibility constraints, and requirement-to-mockup handoff index.
 - Feasibility review against terminal cells, Ratatui rendering and deterministic tests, Crossterm
@@ -62,13 +62,15 @@ Rust, Ratatui, and Crossterm at the declared terminal sizes.
 
 ## Current state
 
-No Claude Design package or independent review exists, so no screen contract is frozen and both
-`W1` screen implementation tasks remain blocked on this outcome.
+The HTML design package exists, but no independent review or frozen artifact revision exists. The
+initial TUI scaffold therefore remains provisional and both `W1` screen tasks remain blocked on
+this outcome.
 
 ## Next action
 
-After Claude Design returns its package, commission an independent semantic and terminal-feasibility
-review and record the accepted artifact revision or exact return findings.
+Commission an independent semantic, accessibility, and terminal-feasibility review of
+`ymp-docs/design/ymp_k9s_tui.dc.html`; record the accepted artifact revision or exact return
+findings.
 
 ## Guardrails
 

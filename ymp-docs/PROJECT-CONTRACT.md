@@ -40,8 +40,9 @@ An approved package contains:
     balance them explicitly; a runtime name is not a proxy for a model route.
 11. **Execution assurance profile.** One of the versioned supported profiles, its required
     preflight evidence, which limits are enforced versus observational, and any outer experiment
-    boundary. POC uses `poc_disposable`; product runs may request `strict_linux` or an explicitly
-    weaker profile such as `best_effort_macos`. A profile never weakens silently.
+    boundary. The first release uses `poc_process_isolation`; stricter deployments may request
+    `strict_linux` or an explicitly weaker profile such as `best_effort_macos`. A profile never
+    weakens silently.
 
 The public file includes the digests of the other approved artifacts but not protected content.
 

@@ -10,7 +10,7 @@ relation: required
 depends_on: [W1-EXP-01c, W1-EXP-01d]
 blocks: [W1-APP-02b, W1-APP-02c, W1-APP-02d]
 created_at: 2026-08-10T19:34:25+08:00
-updated_at: 2026-08-10T19:34:25+08:00
+updated_at: 2026-08-12T02:47:53+08:00
 started_at:
 accepted_at:
 candidate_commit:
@@ -49,25 +49,28 @@ views recover from an event cursor independently of in-memory notifications.
 
 ## Acceptance
 
-- [ ] A deterministic integration test sends typed commands, observes monotonic committed events,
+- [x] A deterministic integration test sends typed commands, observes monotonic committed events,
   restarts a lagging projection from its cursor, and obtains the same authoritative state.
-- [ ] Repeating one command identifier returns its recorded result without a second state change or
+- [x] Repeating one command identifier returns its recorded result without a second state change or
   resource charge during the live controller interval.
-- [ ] A gap, duplicate sequence, predecessor-digest mismatch, incomplete journal tail, or object
+- [x] A gap, duplicate sequence, predecessor-digest mismatch, incomplete journal tail, or object
   reference to unavailable bytes ends the run as `infrastructure_error`.
-- [ ] A notification receiver that deliberately falls behind rereads committed events; dropped or
+- [x] A notification receiver that deliberately falls behind rereads committed events; dropped or
   coalesced notifications do not become lost authoritative state.
-- [ ] A second foreground process using the same data root is rejected without replacing or
+- [x] A second foreground process using the same data root is rejected without replacing or
   terminating the current writer.
 
 ## Current state
 
-No Rust workspace or executable exists. The task becomes dispatchable only after `W1-EXP-01c`,
-`W1-EXP-01d`, plan review, and repository gate `G1` are complete.
+The production workspace builds one executable with typed events, recovered idempotency, atomic
+metadata, canonical objects, cursor replay, and one writer. Journal records and total bytes have
+hard ceilings with terminal capacity, and exhaustion persists `infrastructure_error`. Notifications
+are lossy by design; lagging readers recover from a durable cursor. Version-1 schema and fail-closed
+migration rules are frozen in `ymp-rust/SCHEMA.md`; non-author review remains outstanding.
 
 ## Next action
 
-Create the minimal Rust workspace and freeze the domain command and event interfaces first.
+Submit the implementation and executable recovery evidence for non-author review.
 
 ## Guardrails
 

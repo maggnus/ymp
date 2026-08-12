@@ -1,0 +1,759 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="design_doc_mode" content="canvas">
+<title>ymp TUI design reference</title>
+<style>
+body{margin:0;background:#0f0f0f;color:#d0d0d0;font-family:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,'Liberation Mono',monospace}
+a{color:#d3a24a;text-decoration:none} a:hover{color:#f2f2f2;text-decoration:underline}
+</style>
+</head>
+<body>
+<main>
+<section style="padding:38px 44px 56px;display:flex;flex-direction:column;gap:22px;align-items:flex-start">
+<div style="max-width:1100px;display:flex;flex-direction:column;gap:8px">
+  <div style="font:700 19px 'JetBrains Mono',monospace;color:#f2f2f2">ymp TUI — k9s anatomy</div>
+  <div style="font:12px/1.7 'JetBrains Mono',monospace;color:#8f8f8f">The k9s-style header places <b style="color:#d3a24a">key: value</b> context on the left, shortcut columns <b style="color:#d3a24a">&lt;1&gt;…&lt;9&gt;</b> in the middle, and the ASCII logo on the right. The body is one dense bordered table whose name and count sit in the border; breadcrumb pills appear below it. Tables remain complete like k9s pod tables: many columns on a regular monospace grid. Descriptive depth (digests, capabilities, and the four hashes) belongs behind <b style="color:#d0d0d0">d</b> describe. The 256-color palette uses a gray base and amber accent; green, red, and orange appear only with ✓ ✗ ▲. Blue, cyan, and purple are excluded.</div>
+</div>
+
+<div style="display:flex;gap:18px;align-items:flex-start;flex-wrap:wrap;max-width:1816px">
+
+<!-- 1a runtimes -->
+<div id="1a" style="display:flex;flex-direction:column;gap:6px">
+  <div style="display:flex;gap:8px;align-items:baseline"><span style="background:#d3a24a;color:#141414;font:700 11px/1 'JetBrains Mono',monospace;padding:3px 6px;border-radius:3px">1a</span><span style="color:#f2f2f2;font:600 13.5px 'JetBrains Mono',monospace">runtimes — discover and connect</span><span style="color:#5f5f5f;font:11px 'JetBrains Mono',monospace">120×40</span></div>
+  <div style="width:890px;height:790px;box-sizing:border-box;background:#141414;border:1px solid #262626;border-radius:6px;padding:10px 14px;font:12px/1.55 'JetBrains Mono',monospace;color:#d0d0d0;display:flex;flex-direction:column;overflow:hidden;white-space:nowrap">
+    <div style="display:flex;gap:24px;overflow:hidden">
+      <div style="display:flex;flex-direction:column;flex:none">
+        <div style="display:flex"><span style="flex:none;width:11ch;color:#d3a24a">Store:</span><span>~/.ymp <span style="color:#8fbf5f">owned ✓</span> · v7 · #8841</span></div>
+        <div style="display:flex"><span style="flex:none;width:11ch;color:#d3a24a">Version:</span><span>0.4.1 · darwin/arm64</span></div>
+        <div style="display:flex"><span style="flex:none;width:11ch;color:#d3a24a">Assurance:</span><span style="color:#d3872f">poc_process_isolation ▲</span><span style="color:#5f5f5f">&nbsp;no hostile-code containment</span></div>
+        <div style="display:flex"><span style="flex:none;width:11ch;color:#d3a24a">Runtimes:</span><span>2 ready · 2 blocked · 3 absent</span></div>
+        <div style="display:flex"><span style="flex:none;width:11ch;color:#d3a24a">Run:</span><span style="color:#5f5f5f">none</span></div>
+      </div>
+      <div style="display:flex;flex-direction:column;color:#8f8f8f;flex:none">
+        <div><span style="color:#d3a24a">&lt;1&gt;</span> runtimes</div>
+        <div><span style="color:#d3a24a">&lt;2&gt;</span> projects</div>
+        <div><span style="color:#d3a24a">&lt;3&gt;</span> runs</div>
+        <div><span style="color:#d3a24a">&lt;4&gt;</span> settings</div>
+        <div><span style="color:#d3a24a">&lt;?&gt;</span> help</div>
+      </div>
+      <div style="display:flex;flex-direction:column;color:#8f8f8f;flex:none">
+        <div><span style="color:#d3a24a">&lt;c&gt;</span> probe</div>
+        <div><span style="color:#d3a24a">&lt;a&gt;</span> auth</div>
+        <div><span style="color:#d3a24a">&lt;e&gt;</span> set path</div>
+        <div><span style="color:#d3a24a">&lt;d&gt;</span> describe</div>
+        <div><span style="color:#d3a24a">&lt;q&gt;</span> quit</div>
+      </div>
+      <div style="display:flex;flex-direction:column;color:#8f8f8f;flex:none">
+        <div><span style="color:#d3a24a">&lt;:&gt;</span> resource</div>
+        <div><span style="color:#d3a24a">&lt;/&gt;</span> filter</div>
+        <div><span style="color:#d3a24a">&lt;Enter&gt;</span> use</div>
+        <div><span style="color:#d3a24a">&lt;Esc&gt;</span> back</div>
+      </div>
+      <span style="flex:1"></span>
+      <pre style="flex:none;margin:0;font:700 10px/1.25 'JetBrains Mono',monospace;color:#d3a24a"> _   _ _ __ ___  _ __
+| | | | '_ ` _ \| '_ \
+| |_| | | | | | | |_) |
+ \__, |_| |_| |_| .__/
+ |___/          |_|</pre>
+    </div>
+    <div style="flex:1;border:1px solid #4a4a4a;border-radius:4px;margin-top:10px;position:relative;padding:8px 10px;display:flex;flex-direction:column;overflow:visible">
+      <span style="position:absolute;top:-9px;left:10px;background:#141414;padding:0 6px;color:#d3a24a">runtimes(all)[7]</span>
+      <div style="display:flex;color:#f2f2f2;overflow:hidden"><span style="flex:none;width:17ch">PROFILE</span><span style="flex:none;width:12ch">RUNTIME</span><span style="flex:none;width:9ch">VERSION</span><span style="flex:none;width:22ch">ROUTE</span><span style="flex:none;width:4ch">DIS</span><span style="flex:none;width:17ch">STATE</span><span style="flex:none;width:7ch">PROBE</span><span style="flex:1;min-width:0">NEXT</span></div>
+      <div style="display:flex;background:#d3a24a;color:#141414;margin:0 -6px;padding:0 6px;font-weight:700;overflow:hidden"><span style="flex:none;width:17ch">rp-codex-o4</span><span style="flex:none;width:12ch">codex</span><span style="flex:none;width:9ch">0.8.3</span><span style="flex:none;width:22ch">openai/o4-mini</span><span style="flex:none;width:4ch">D2</span><span style="flex:none;width:17ch">● ready</span><span style="flex:none;width:7ch">3m</span><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis"></span></div>
+      <div style="display:flex;overflow:hidden"><span style="flex:none;width:17ch">rp-codex-o3</span><span style="flex:none;width:12ch;color:#8f8f8f">codex</span><span style="flex:none;width:9ch;color:#8f8f8f">0.8.3</span><span style="flex:none;width:22ch">openai/o3</span><span style="flex:none;width:4ch;color:#8f8f8f">D2</span><span style="flex:none;width:17ch;color:#8fbf5f">● ready</span><span style="flex:none;width:7ch;color:#5f5f5f">3m</span><span style="flex:1;min-width:0;color:#d3872f;overflow:hidden;text-overflow:ellipsis">▲ cost observed only</span></div>
+      <div style="display:flex;overflow:hidden"><span style="flex:none;width:17ch">rp-codex-o3-hi</span><span style="flex:none;width:12ch;color:#8f8f8f">codex</span><span style="flex:none;width:9ch;color:#8f8f8f">0.8.3</span><span style="flex:none;width:22ch">openai/o3 hi</span><span style="flex:none;width:4ch;color:#8f8f8f">D2</span><span style="flex:none;width:17ch;color:#f2f2f2">◐ probing 5/7</span><span style="flex:none;width:7ch;color:#5f5f5f">0s</span><span style="flex:1;min-width:0;color:#5f5f5f;overflow:hidden;text-overflow:ellipsis">Esc cancels probe only</span></div>
+      <div style="display:flex;overflow:hidden"><span style="flex:none;width:17ch">rp-claude-sonnet</span><span style="flex:none;width:12ch;color:#8f8f8f">claude-code</span><span style="flex:none;width:9ch;color:#8f8f8f">1.4.2</span><span style="flex:none;width:22ch">anthropic/sonnet-4-5</span><span style="flex:none;width:4ch;color:#8f8f8f">D2</span><span style="flex:none;width:17ch;color:#d3872f">◌ unauth</span><span style="flex:none;width:7ch;color:#5f5f5f">1m</span><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis"><b style="color:#f2f2f2">claude login</b> → &lt;c&gt;</span></div>
+      <div style="display:flex;overflow:hidden"><span style="flex:none;width:17ch">rp-claude-haiku</span><span style="flex:none;width:12ch;color:#8f8f8f">claude-code</span><span style="flex:none;width:9ch;color:#8f8f8f">1.4.2</span><span style="flex:none;width:22ch">anthropic/haiku-4-5</span><span style="flex:none;width:4ch;color:#8f8f8f">D2</span><span style="flex:none;width:17ch;color:#d3872f">◌ unauth</span><span style="flex:none;width:7ch;color:#5f5f5f">1m</span><span style="flex:1;min-width:0;color:#5f5f5f;overflow:hidden;text-overflow:ellipsis">same credential as sonnet</span></div>
+      <div style="display:flex;overflow:hidden;color:#5f5f5f"><span style="flex:none;width:17ch">rp-opencode</span><span style="flex:none;width:12ch">opencode</span><span style="flex:none;width:9ch">—</span><span style="flex:none;width:22ch">unknown until probe</span><span style="flex:none;width:4ch">—</span><span style="flex:none;width:17ch">○ not installed</span><span style="flex:none;width:7ch">—</span><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis">&lt;e&gt; point at executable</span></div>
+      <div style="display:flex;overflow:hidden;color:#5f5f5f"><span style="flex:none;width:17ch">rp-ymp-native</span><span style="flex:none;width:12ch">ymp-worker</span><span style="flex:none;width:9ch">—</span><span style="flex:none;width:22ch">local/none</span><span style="flex:none;width:4ch">D0</span><span style="flex:none;width:17ch">○ unavailable</span><span style="flex:none;width:7ch">—</span><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis">not approved in this build</span></div>
+      <div style="margin-top:10px;color:#f2f2f2">Selected — rp-claude-sonnet</div>
+      <div style="display:flex;overflow:hidden"><span style="flex:none;width:15ch;color:#d3a24a">executable</span><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis">/opt/homebrew/bin/claude · sha256:9c41ab7e…</span></div>
+      <div style="display:flex;overflow:hidden"><span style="flex:none;width:15ch;color:#d3a24a">gap</span><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis"><span style="color:#d1635c">✗ authentication</span> — disqualifying · recovery is runtime-owned, ymp reads no credential</span></div>
+      <div style="display:flex;overflow:hidden"><span style="flex:none;width:15ch;color:#d3a24a">capabilities</span><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis">start ✓ resume ✓ interrupt ✓ events ✓ capsule ✓ pinning ✓ hard-cost <span style="color:#d3872f">▲ absent</span></span></div>
+      <div style="display:flex;overflow:hidden"><span style="flex:none;width:15ch;color:#d3a24a">probe</span><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis">1m ago · 5/7 · stale after 30m · full history in &lt;d&gt;</span></div>
+      <div style="flex:1"></div>
+      <div style="color:#5f5f5f;overflow:hidden;text-overflow:ellipsis">catalogue presence ≠ availability · no silent fallback between profiles at authorization</div>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:8px;overflow:hidden"><span style="background:#3a3a3a;color:#d0d0d0;padding:0 10px">ymp</span><span style="background:#d3a24a;color:#141414;padding:0 10px;font-weight:700">runtimes</span></div>
+  </div>
+</div>
+
+<!-- 1b describe -->
+<div id="1b" style="display:flex;flex-direction:column;gap:6px">
+  <div style="display:flex;gap:8px;align-items:baseline"><span style="background:#d3a24a;color:#141414;font:700 11px/1 'JetBrains Mono',monospace;padding:3px 6px;border-radius:3px">1b</span><span style="color:#f2f2f2;font:600 13.5px 'JetBrains Mono',monospace">describe — complete object depth</span><span style="color:#5f5f5f;font:11px 'JetBrains Mono',monospace">120×40 · d on rp-claude-sonnet</span></div>
+  <div style="width:890px;height:790px;box-sizing:border-box;background:#141414;border:1px solid #262626;border-radius:6px;padding:10px 14px;font:12px/1.55 'JetBrains Mono',monospace;color:#d0d0d0;display:flex;flex-direction:column;overflow:hidden;white-space:nowrap">
+    <div style="display:flex;gap:24px;overflow:hidden">
+      <div style="display:flex;flex-direction:column;flex:none">
+        <div style="display:flex"><span style="flex:none;width:11ch;color:#d3a24a">Object:</span><span>runtime-profile rp-claude-sonnet</span></div>
+        <div style="display:flex"><span style="flex:none;width:11ch;color:#d3a24a">State:</span><span style="color:#d3872f">◌ unauthenticated</span></div>
+        <div style="display:flex"><span style="flex:none;width:11ch;color:#d3a24a">Probe:</span><span>1m ago · fresh · 5/7</span></div>
+        <div style="display:flex"><span style="flex:none;width:11ch;color:#d3a24a">Mode:</span><span style="color:#5f5f5f">read-only · no authority spent</span></div>
+      </div>
+      <div style="display:flex;flex-direction:column;color:#8f8f8f;flex:none">
+        <div><span style="color:#d3a24a">&lt;y&gt;</span> copy value</div>
+        <div><span style="color:#d3a24a">&lt;/&gt;</span> find field</div>
+        <div><span style="color:#d3a24a">&lt;c&gt;</span> re-probe</div>
+        <div><span style="color:#d3a24a">&lt;Esc&gt;</span> back</div>
+      </div>
+      <span style="flex:1"></span>
+      <pre style="flex:none;margin:0;font:700 10px/1.25 'JetBrains Mono',monospace;color:#d3a24a"> _   _ _ __ ___  _ __
+| | | | '_ ` _ \| '_ \
+| |_| | | | | | | |_) |
+ \__, |_| |_| |_| .__/
+ |___/          |_|</pre>
+    </div>
+    <div style="flex:1;border:1px solid #4a4a4a;border-radius:4px;margin-top:10px;position:relative;padding:8px 10px;display:flex;flex-direction:column;overflow:visible">
+      <span style="position:absolute;top:-9px;left:10px;background:#141414;padding:0 6px;color:#d3a24a">describe(rp-claude-sonnet)</span>
+      <div style="color:#f2f2f2">Identity</div>
+      <div style="display:flex;overflow:hidden"><span style="flex:none;width:26ch;color:#d3a24a">  executable</span><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis">/opt/homebrew/bin/claude</span></div>
+      <div style="display:flex;overflow:hidden"><span style="flex:none;width:26ch;color:#d3a24a">  digest</span><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis">sha256:9c41ab7e5d2f0188c3aa41f09b22d67e01c8a3f4b19e6d05…</span></div>
+      <div style="display:flex;overflow:hidden"><span style="flex:none;width:26ch;color:#d3a24a">  runtime / version</span><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis">claude-code 1.4.2</span></div>
+      <div style="display:flex;overflow:hidden"><span style="flex:none;width:26ch;color:#d3a24a">  driver / harness / prompt</span><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis">cc-driver 3 · hp-2 · pp-2026-05 — provenance, not a grade</span></div>
+      <div style="display:flex;overflow:hidden"><span style="flex:none;width:26ch;color:#d3a24a">  coordination binding</span><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis">mcp/ymp-tools v4 · generated config · ambient cfg excluded</span></div>
+      <div style="color:#f2f2f2;margin-top:6px">Model route <span style="color:#5f5f5f">— runtime ≠ route · nothing is swapped silently</span></div>
+      <div style="display:flex;overflow:hidden"><span style="flex:none;width:26ch;color:#d3a24a">  provider / deployment</span><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis">anthropic · api.anthropic.com · https/json</span></div>
+      <div style="display:flex;overflow:hidden"><span style="flex:none;width:26ch;color:#d3a24a">  model snapshot</span><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis">claude-sonnet-4-5-20260514 · pinned</span></div>
+      <div style="display:flex;overflow:hidden"><span style="flex:none;width:26ch;color:#d3a24a">  account / quota</span><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis">oauth · subject unknown until login</span></div>
+      <div style="display:flex;overflow:hidden"><span style="flex:none;width:26ch;color:#d3a24a">  disclosure class</span><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis">D2 — source and prompts leave this machine · approved per run</span></div>
+      <div style="display:flex;overflow:hidden"><span style="flex:none;width:26ch;color:#d3a24a">  usage / cost evidence</span><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis">tokens reported per request · cost derived · O class</span></div>
+      <div style="color:#f2f2f2;margin-top:6px">Capabilities <span style="color:#5f5f5f">— probe 17:11:02 · 5/7 passed</span></div>
+      <div style="display:flex;overflow:hidden"><span style="flex:none;width:34ch">  start / resume / interrupt</span><span style="flex:none;width:14ch;color:#8fbf5f">✓ ✓ ✓</span><span style="flex:1;min-width:0;color:#5f5f5f;overflow:hidden;text-overflow:ellipsis">required</span></div>
+      <div style="display:flex;overflow:hidden"><span style="flex:none;width:34ch">  descendant cleanup</span><span style="flex:none;width:14ch;color:#8fbf5f">✓ pgid</span><span style="flex:1;min-width:0;color:#5f5f5f;overflow:hidden;text-overflow:ellipsis">required</span></div>
+      <div style="display:flex;overflow:hidden"><span style="flex:none;width:34ch">  structured events</span><span style="flex:none;width:14ch;color:#8fbf5f">✓ jsonl</span><span style="flex:1;min-width:0;color:#5f5f5f;overflow:hidden;text-overflow:ellipsis">required</span></div>
+      <div style="display:flex;overflow:hidden"><span style="flex:none;width:34ch">  session capsule</span><span style="flex:none;width:14ch;color:#8fbf5f">✓ opaque</span><span style="flex:1;min-width:0;color:#5f5f5f;overflow:hidden;text-overflow:ellipsis">never rendered or exported</span></div>
+      <div style="display:flex;overflow:hidden"><span style="flex:none;width:34ch">  native subagents</span><span style="flex:none;width:14ch;color:#8fbf5f">✓ suppressed</span><span style="flex:1;min-width:0;color:#5f5f5f;overflow:hidden;text-overflow:ellipsis">policy</span></div>
+      <div style="display:flex;overflow:hidden"><span style="flex:none;width:34ch">  model pinning</span><span style="flex:none;width:14ch;color:#8fbf5f">✓</span><span style="flex:1;min-width:0;color:#5f5f5f;overflow:hidden;text-overflow:ellipsis">required</span></div>
+      <div style="display:flex;overflow:hidden"><span style="flex:none;width:34ch">  hard cost limit</span><span style="flex:none;width:14ch;color:#d3872f">▲ absent</span><span style="flex:1;min-width:0;color:#d3872f;overflow:hidden;text-overflow:ellipsis">cost becomes observed, not enforced</span></div>
+      <div style="display:flex;overflow:hidden"><span style="flex:none;width:34ch">  authentication</span><span style="flex:none;width:14ch;color:#d1635c">✗ required</span><span style="flex:1;min-width:0;color:#d1635c;overflow:hidden;text-overflow:ellipsis">disqualifying until resolved</span></div>
+      <div style="flex:1"></div>
+      <div style="color:#5f5f5f;overflow:hidden;text-overflow:ellipsis">recovery: run <b style="color:#f2f2f2">claude login</b> in your shell, then &lt;c&gt; — ymp never collects provider credentials in its own forms</div>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:8px;overflow:hidden"><span style="background:#3a3a3a;color:#d0d0d0;padding:0 10px">ymp</span><span style="background:#3a3a3a;color:#d0d0d0;padding:0 10px">runtimes</span><span style="background:#d3a24a;color:#141414;padding:0 10px;font-weight:700">rp-claude-sonnet</span></div>
+  </div>
+</div>
+
+<!-- 1c runs -->
+<div id="1c" style="display:flex;flex-direction:column;gap:6px">
+  <div style="display:flex;gap:8px;align-items:baseline"><span style="background:#d3a24a;color:#141414;font:700 11px/1 'JetBrains Mono',monospace;padding:3px 6px;border-radius:3px">1c</span><span style="color:#f2f2f2;font:600 13.5px 'JetBrains Mono',monospace">runs — history with exact outcomes</span><span style="color:#5f5f5f;font:11px 'JetBrains Mono',monospace">120×40 · :runs</span></div>
+  <div style="width:890px;height:790px;box-sizing:border-box;background:#141414;border:1px solid #262626;border-radius:6px;padding:10px 14px;font:12px/1.55 'JetBrains Mono',monospace;color:#d0d0d0;display:flex;flex-direction:column;overflow:hidden;white-space:nowrap">
+    <div style="display:flex;gap:24px;overflow:hidden">
+      <div style="display:flex;flex-direction:column;flex:none">
+        <div style="display:flex"><span style="flex:none;width:11ch;color:#d3a24a">Project:</span><span>lexer-fix @9f3a12e <span style="color:#8fbf5f">clean ✓</span></span></div>
+        <div style="display:flex"><span style="flex:none;width:11ch;color:#d3a24a">Path:</span><span style="color:#8f8f8f">~/src/ymp-study/toml-lexer</span></div>
+        <div style="display:flex"><span style="flex:none;width:11ch;color:#d3a24a">Capture:</span><span style="color:#8f8f8f">sha256:4b1c…9e2 · 15:41 · rustc 1.89</span></div>
+        <div style="display:flex"><span style="flex:none;width:11ch;color:#d3a24a">Runs:</span><span>1 running · 6 terminal · 2 archived</span></div>
+        <div style="display:flex"><span style="flex:none;width:11ch;color:#d3a24a">Boundary:</span><span style="color:#5f5f5f">working tree is input only</span></div>
+      </div>
+      <div style="display:flex;flex-direction:column;color:#8f8f8f;flex:none">
+        <div><span style="color:#d3a24a">&lt;n&gt;</span> new run</div>
+        <div><span style="color:#d3a24a">&lt;Enter&gt;</span> open</div>
+        <div><span style="color:#d3a24a">&lt;d&gt;</span> describe</div>
+        <div><span style="color:#d3a24a">&lt;E&gt;</span> export</div>
+        <div><span style="color:#d3a24a">&lt;A&gt;</span> archive</div>
+      </div>
+      <div style="display:flex;flex-direction:column;color:#8f8f8f;flex:none">
+        <div><span style="color:#d3a24a">&lt;s&gt;</span> re-capture</div>
+        <div><span style="color:#d3a24a">&lt;/&gt;</span> filter</div>
+        <div><span style="color:#d3a24a">&lt;0&gt;</span> all projects</div>
+        <div><span style="color:#d3a24a">&lt;?&gt;</span> help</div>
+      </div>
+      <span style="flex:1"></span>
+      <pre style="flex:none;margin:0;font:700 10px/1.25 'JetBrains Mono',monospace;color:#d3a24a"> _   _ _ __ ___  _ __
+| | | | '_ ` _ \| '_ \
+| |_| | | | | | | |_) |
+ \__, |_| |_| |_| .__/
+ |___/          |_|</pre>
+    </div>
+    <div style="flex:1;border:1px solid #4a4a4a;border-radius:4px;margin-top:10px;position:relative;padding:8px 10px;display:flex;flex-direction:column;overflow:visible">
+      <span style="position:absolute;top:-9px;left:10px;background:#141414;padding:0 6px;color:#d3a24a">runs(lexer-fix)[7]</span>
+      <div style="display:flex;color:#f2f2f2;overflow:hidden"><span style="flex:none;width:8ch">RUN</span><span style="flex:none;width:11ch">CONTRACT</span><span style="flex:none;width:9ch">SOURCE</span><span style="flex:none;width:24ch">OUTCOME</span><span style="flex:none;width:6ch">CAND</span><span style="flex:none;width:6ch">PASS</span><span style="flex:none;width:8ch">SPEND</span><span style="flex:1;min-width:0">COMPARE</span><span style="flex:none;width:5ch">AGE</span></div>
+      <div style="display:flex;background:#d3a24a;color:#141414;margin:0 -6px;padding:0 6px;font-weight:700;overflow:hidden"><span style="flex:none;width:8ch">r-2419</span><span style="flex:none;width:11ch">cp-007 v3</span><span style="flex:none;width:9ch">9f3a12e</span><span style="flex:none;width:24ch">● running 01:28</span><span style="flex:none;width:6ch">14</span><span style="flex:none;width:6ch">1</span><span style="flex:none;width:8ch">$7.32</span><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis">autonomous</span><span style="flex:none;width:5ch">88m</span></div>
+      <div style="display:flex;overflow:hidden"><span style="flex:none;width:8ch">r-2418</span><span style="flex:none;width:11ch;color:#8f8f8f">cp-007 v3</span><span style="flex:none;width:9ch;color:#8f8f8f">9f3a12e</span><span style="flex:none;width:24ch;color:#8fbf5f">✓ accepted · c-31</span><span style="flex:none;width:6ch;color:#8f8f8f">9</span><span style="flex:none;width:6ch;color:#8f8f8f">1</span><span style="flex:none;width:8ch;color:#8f8f8f">$8.10</span><span style="flex:1;min-width:0;color:#5f5f5f;overflow:hidden;text-overflow:ellipsis">autonomous</span><span style="flex:none;width:5ch;color:#5f5f5f">4h</span></div>
+      <div style="display:flex;overflow:hidden"><span style="flex:none;width:8ch">r-2417</span><span style="flex:none;width:11ch;color:#8f8f8f">cp-007 v2</span><span style="flex:none;width:9ch;color:#8f8f8f">9f3a12e</span><span style="flex:none;width:24ch;color:#d3872f">◐ exhausted · messages</span><span style="flex:none;width:6ch;color:#8f8f8f">6</span><span style="flex:none;width:6ch;color:#8f8f8f">0</span><span style="flex:none;width:8ch;color:#8f8f8f">$9.98</span><span style="flex:1;min-width:0;color:#5f5f5f;overflow:hidden;text-overflow:ellipsis">autonomous</span><span style="flex:none;width:5ch;color:#5f5f5f">6h</span></div>
+      <div style="display:flex;overflow:hidden"><span style="flex:none;width:8ch">r-2416</span><span style="flex:none;width:11ch;color:#8f8f8f">cp-007 v2</span><span style="flex:none;width:9ch;color:#8f8f8f">c04ee81</span><span style="flex:none;width:24ch">— abstained</span><span style="flex:none;width:6ch;color:#8f8f8f">2</span><span style="flex:none;width:6ch;color:#8f8f8f">0</span><span style="flex:none;width:8ch;color:#8f8f8f">$1.24</span><span style="flex:1;min-width:0;color:#5f5f5f;overflow:hidden;text-overflow:ellipsis">autonomous</span><span style="flex:none;width:5ch;color:#5f5f5f">8h</span></div>
+      <div style="display:flex;overflow:hidden"><span style="flex:none;width:8ch">r-2415</span><span style="flex:none;width:11ch;color:#8f8f8f">cp-007 v2</span><span style="flex:none;width:9ch;color:#8f8f8f">c04ee81</span><span style="flex:none;width:24ch">◌ cancelled</span><span style="flex:none;width:6ch;color:#8f8f8f">3</span><span style="flex:none;width:6ch;color:#8f8f8f">0</span><span style="flex:none;width:8ch;color:#8f8f8f">$2.55</span><span style="flex:1;min-width:0;color:#d3872f;overflow:hidden;text-overflow:ellipsis">intervened · excluded</span><span style="flex:none;width:5ch;color:#5f5f5f">1d</span></div>
+      <div style="display:flex;overflow:hidden"><span style="flex:none;width:8ch">r-2414</span><span style="flex:none;width:11ch;color:#8f8f8f">cp-006 v1</span><span style="flex:none;width:9ch;color:#8f8f8f">c04ee81</span><span style="flex:none;width:24ch;color:#d1635c">✗ infrastructure_error</span><span style="flex:none;width:6ch;color:#8f8f8f">1</span><span style="flex:none;width:6ch;color:#8f8f8f">—</span><span style="flex:none;width:8ch;color:#8f8f8f">$0.61</span><span style="flex:1;min-width:0;color:#5f5f5f;overflow:hidden;text-overflow:ellipsis">no candidate judged</span><span style="flex:none;width:5ch;color:#5f5f5f">1d</span></div>
+      <div style="display:flex;overflow:hidden"><span style="flex:none;width:8ch">r-2413</span><span style="flex:none;width:11ch;color:#8f8f8f">cp-006 v1</span><span style="flex:none;width:9ch;color:#8f8f8f">c04ee81</span><span style="flex:none;width:24ch;color:#8fbf5f">✓ accepted · {c-02,c-04}</span><span style="flex:none;width:6ch;color:#8f8f8f">5</span><span style="flex:none;width:6ch;color:#8f8f8f">2</span><span style="flex:none;width:8ch;color:#8f8f8f">$5.87</span><span style="flex:1;min-width:0;color:#5f5f5f;overflow:hidden;text-overflow:ellipsis">plural set · no tie-breaker</span><span style="flex:none;width:5ch;color:#5f5f5f">2d</span></div>
+      <div style="margin-top:10px;color:#f2f2f2">Selected — r-2417 · exhausted(messages)</div>
+      <div style="display:flex;overflow:hidden"><span style="flex:none;width:15ch;color:#d3a24a">accounting</span><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis">quiescence reached 14:02 · 31/31 obligations closed · settlement returned 18 msgs, $2.02</span></div>
+      <div style="display:flex;overflow:hidden"><span style="flex:none;width:15ch;color:#d3a24a">at exhaustion</span><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis">messages 400/400 E · cost 83% · wall 71% · queries 1 left — one dimension blocks alone</span></div>
+      <div style="display:flex;overflow:hidden"><span style="flex:none;width:15ch;color:#d3a24a">evidence</span><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis">6 candidates preserved unverified · export available · archive keeps evidence</span></div>
+      <div style="flex:1"></div>
+      <div style="color:#5f5f5f;overflow:hidden;text-overflow:ellipsis">accepted · exhausted · abstained · cancelled · infrastructure_error — no generic success</div>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:8px;overflow:hidden"><span style="background:#3a3a3a;color:#d0d0d0;padding:0 10px">ymp</span><span style="background:#3a3a3a;color:#d0d0d0;padding:0 10px">lexer-fix</span><span style="background:#d3a24a;color:#141414;padding:0 10px;font-weight:700">runs</span></div>
+  </div>
+</div>
+
+<!-- 1d preflight -->
+<div id="1d" style="display:flex;flex-direction:column;gap:6px">
+  <div style="display:flex;gap:8px;align-items:baseline"><span style="background:#d3a24a;color:#141414;font:700 11px/1 'JetBrains Mono',monospace;padding:3px 6px;border-radius:3px">1d</span><span style="color:#f2f2f2;font:600 13.5px 'JetBrains Mono',monospace">preflight — one exact configuration</span><span style="color:#5f5f5f;font:11px 'JetBrains Mono',monospace">120×40 · n from runs</span></div>
+  <div style="width:890px;height:790px;box-sizing:border-box;background:#141414;border:1px solid #262626;border-radius:6px;padding:10px 14px;font:12px/1.55 'JetBrains Mono',monospace;color:#d0d0d0;display:flex;flex-direction:column;overflow:hidden;white-space:nowrap">
+    <div style="display:flex;gap:24px;overflow:hidden">
+      <div style="display:flex;flex-direction:column;flex:none">
+        <div style="display:flex"><span style="flex:none;width:11ch;color:#d3a24a">Run:</span><span>r-2420 <span style="color:#d3872f">awaiting authorization</span></span></div>
+        <div style="display:flex"><span style="flex:none;width:11ch;color:#d3a24a">Reserved:</span><span style="color:#5f5f5f">nothing — draft only</span></div>
+        <div style="display:flex"><span style="flex:none;width:11ch;color:#d3a24a">Blockers:</span><span style="color:#d1635c">1</span><span style="color:#5f5f5f">&nbsp;· warnings <span style="color:#d3872f">2</span> — do not block</span></div>
+        <div style="display:flex"><span style="flex:none;width:11ch;color:#d3a24a">Fallback:</span><span style="color:#5f5f5f">never — exact config or nothing</span></div>
+      </div>
+      <div style="display:flex;flex-direction:column;color:#8f8f8f;flex:none">
+        <div><span style="color:#d3a24a">&lt;Enter&gt;</span> resolve item</div>
+        <div><span style="color:#d3a24a">&lt;d&gt;</span> describe</div>
+        <div><span style="color:#d3a24a">&lt;A&gt;</span> authorize</div>
+        <div><span style="color:#d3a24a">&lt;Esc&gt;</span> back</div>
+      </div>
+      <span style="flex:1"></span>
+      <pre style="flex:none;margin:0;font:700 10px/1.25 'JetBrains Mono',monospace;color:#d3a24a"> _   _ _ __ ___  _ __
+| | | | '_ ` _ \| '_ \
+| |_| | | | | | | |_) |
+ \__, |_| |_| |_| .__/
+ |___/          |_|</pre>
+    </div>
+    <div style="flex:1;border:1px solid #4a4a4a;border-radius:4px;margin-top:10px;position:relative;padding:8px 10px;display:flex;flex-direction:column;overflow:visible">
+      <span style="position:absolute;top:-9px;left:10px;background:#141414;padding:0 6px;color:#d3a24a">preflight(r-2420)[9 items · 1 blocker]</span>
+      <div style="display:flex;color:#f2f2f2;overflow:hidden"><span style="flex:none;width:16ch">ITEM</span><span style="flex:1;min-width:0">EXACT VALUE</span><span style="flex:none;width:14ch">STATE</span></div>
+      <div style="display:flex;overflow:hidden"><span style="flex:none;width:16ch;color:#d3a24a">source</span><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis">lexer-fix @9f3a12e · sha256:4b1c…9e2 · clean · captured 15:41</span><span style="flex:none;width:14ch;color:#8fbf5f">✓ captured</span></div>
+      <div style="display:flex;overflow:hidden"><span style="flex:none;width:16ch;color:#d3a24a">contract</span><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis">cp-007 v3 · digest 7a11…c4 · approved by operator 15:39 · lineage v1→v2→v3</span><span style="flex:none;width:14ch;color:#8fbf5f">✓ approved</span></div>
+      <div style="display:flex;overflow:hidden"><span style="flex:none;width:16ch;color:#d3a24a">oracle</span><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis">known-good ✓ · 3 invalid mutations caught · negative control ✓ · repro 3/3</span><span style="flex:none;width:14ch;color:#8fbf5f">✓ validated</span></div>
+      <div style="display:flex;overflow:hidden"><span style="flex:none;width:16ch;color:#d3a24a">coverage</span><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis">11/12 requirements evidenced · REQ-09 (error spans) uncovered — documented</span><span style="flex:none;width:14ch;color:#d3872f">▲ warning</span></div>
+      <div style="display:flex;overflow:hidden"><span style="flex:none;width:16ch;color:#d3a24a">origin route</span><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis">rp-codex-o4 · openai/o4-mini · key · D2 approved for openai only</span><span style="flex:none;width:14ch;color:#8fbf5f">✓ ready 3m</span></div>
+      <div style="display:flex;overflow:hidden"><span style="flex:none;width:16ch;color:#d3a24a">approved set</span><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis">rp-codex-o4 + rp-codex-o3 · claude profiles excluded (unauth)</span><span style="flex:none;width:14ch;color:#d3872f">▲ 2 of 4</span></div>
+      <div style="display:flex;overflow:hidden"><span style="flex:none;width:16ch;color:#d3a24a">assurance</span><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis">poc_process_isolation · macOS — attempt isolation + attribution, not hostile-code containment</span><span style="flex:none;width:14ch;color:#8f8f8f">accepted</span></div>
+      <div style="display:flex;background:#d3a24a;color:#141414;margin:0 -6px;padding:0 6px;font-weight:700;overflow:hidden"><span style="flex:none;width:16ch">queries</span><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis">requested 6 · oracle grants 4 per lineage — set 4 or amend contract</span><span style="flex:none;width:14ch">✗ blocker</span></div>
+      <div style="display:flex;overflow:hidden"><span style="flex:none;width:16ch;color:#d3a24a">study</span><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis">condition original-message · repetition 3/5 · seed 41 · stop: first accepted root</span><span style="flex:none;width:14ch;color:#8f8f8f">set</span></div>
+      <div style="margin-top:10px;color:#f2f2f2">Budget vector <span style="color:#5f5f5f">— E enforced · O observed · ~ estimated</span></div>
+      <div style="display:flex;overflow:hidden"><span style="flex:none;width:22ch">  cost</span><span style="flex:none;width:16ch">$12.00 E</span><span style="flex:none;width:22ch">wall time</span><span style="flex:none;width:16ch">02:30:00 E</span><span style="flex:1;min-width:0;color:#5f5f5f;overflow:hidden;text-overflow:ellipsis">provider hard limit ✓</span></div>
+      <div style="display:flex;overflow:hidden"><span style="flex:none;width:22ch">  model tokens</span><span style="flex:none;width:16ch">6.0M O</span><span style="flex:none;width:22ch">participant starts</span><span style="flex:none;width:16ch">12 E</span><span style="flex:1;min-width:0;color:#5f5f5f;overflow:hidden;text-overflow:ellipsis">route-reported</span></div>
+      <div style="display:flex;overflow:hidden"><span style="flex:none;width:22ch">  messages / bytes</span><span style="flex:none;width:16ch">400 / 2 MiB E</span><span style="flex:none;width:22ch">obligations / offers</span><span style="flex:none;width:16ch">64 / 48 E</span><span style="flex:1;min-width:0;color:#5f5f5f;overflow:hidden;text-overflow:ellipsis">creation authority</span></div>
+      <div style="display:flex;overflow:hidden"><span style="flex:none;width:22ch">  audience grants</span><span style="flex:none;width:16ch">16 E</span><span style="flex:none;width:22ch">protected queries</span><span style="flex:none;width:16ch;color:#d1635c">6 → max 4</span><span style="flex:1;min-width:0;color:#5f5f5f;overflow:hidden;text-overflow:ellipsis">participant-spent</span></div>
+      <div style="flex:1"></div>
+      <div style="color:#5f5f5f;overflow:hidden;text-overflow:ellipsis">&lt;A&gt; stays disabled while a blocker exists · the ready state names exactly what will run</div>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:8px;overflow:hidden"><span style="background:#3a3a3a;color:#d0d0d0;padding:0 10px">ymp</span><span style="background:#3a3a3a;color:#d0d0d0;padding:0 10px">lexer-fix</span><span style="background:#3a3a3a;color:#d0d0d0;padding:0 10px">runs</span><span style="background:#d3a24a;color:#141414;padding:0 10px;font-weight:700">preflight</span></div>
+  </div>
+</div>
+
+<!-- 1e overview -->
+<div id="1e" style="display:flex;flex-direction:column;gap:6px">
+  <div style="display:flex;gap:8px;align-items:baseline"><span style="background:#d3a24a;color:#141414;font:700 11px/1 'JetBrains Mono',monospace;padding:3px 6px;border-radius:3px">1e</span><span style="color:#f2f2f2;font:600 13.5px 'JetBrains Mono',monospace">overview — the run at a glance</span><span style="color:#5f5f5f;font:11px 'JetBrains Mono',monospace">120×40 · &lt;1&gt;</span></div>
+  <div style="width:890px;height:790px;box-sizing:border-box;background:#141414;border:1px solid #262626;border-radius:6px;padding:10px 14px;font:12px/1.55 'JetBrains Mono',monospace;color:#d0d0d0;display:flex;flex-direction:column;overflow:hidden;white-space:nowrap">
+    <div style="display:flex;gap:24px;overflow:hidden">
+      <div style="display:flex;flex-direction:column;flex:none">
+        <div style="display:flex"><span style="flex:none;width:11ch;color:#d3a24a">Run:</span><span>r-2419 <span style="color:#8fbf5f">● running</span> 01:28</span></div>
+        <div style="display:flex"><span style="flex:none;width:11ch;color:#d3a24a">Contract:</span><span>cp-007 v3 · @9f3a12e</span></div>
+        <div style="display:flex"><span style="flex:none;width:11ch;color:#d3a24a">Route:</span><span>openai/o4-mini · D2</span></div>
+        <div style="display:flex"><span style="flex:none;width:11ch;color:#d3a24a">Status:</span><span>autonomous · eligible</span></div>
+        <div style="display:flex"><span style="flex:none;width:11ch;color:#d3a24a">Limiting:</span><span style="color:#d3872f">messages 88% E ▲ ≈17:40</span></div>
+      </div>
+      <div style="display:flex;flex-direction:column;color:#8f8f8f;flex:none">
+        <div><span style="color:#d3a24a">&lt;1&gt;</span> overview</div>
+        <div><span style="color:#d3a24a">&lt;2&gt;</span> agents</div>
+        <div><span style="color:#d3a24a">&lt;3&gt;</span> work</div>
+        <div><span style="color:#d3a24a">&lt;4&gt;</span> board</div>
+      </div>
+      <div style="display:flex;flex-direction:column;color:#8f8f8f;flex:none">
+        <div><span style="color:#d3a24a">&lt;5&gt;</span> candidates</div>
+        <div><span style="color:#d3a24a">&lt;6&gt;</span> budgets</div>
+        <div><span style="color:#d3a24a">&lt;7&gt;</span> events</div>
+        <div><span style="color:#d3a24a">&lt;0&gt;</span> runs</div>
+      </div>
+      <div style="display:flex;flex-direction:column;color:#8f8f8f;flex:none">
+        <div><span style="color:#d3a24a">&lt;m&gt;</span> message</div>
+        <div><span style="color:#d3a24a">&lt;P&gt;</span> pause admission</div>
+        <div><span style="color:#d3a24a">&lt;X&gt;</span> cancel run</div>
+        <div><span style="color:#d3a24a">&lt;E&gt;</span> export</div>
+      </div>
+      <span style="flex:1"></span>
+      <pre style="flex:none;margin:0;font:700 10px/1.25 'JetBrains Mono',monospace;color:#d3a24a"> _   _ _ __ ___  _ __
+| | | | '_ ` _ \| '_ \
+| |_| | | | | | | |_) |
+ \__, |_| |_| |_| .__/
+ |___/          |_|</pre>
+    </div>
+    <div style="flex:1;border:1px solid #4a4a4a;border-radius:4px;margin-top:10px;position:relative;padding:8px 10px;display:flex;flex-direction:column;overflow:visible">
+      <span style="position:absolute;top:-9px;left:10px;background:#141414;padding:0 6px;color:#d3a24a">overview(r-2419)[12]</span>
+      <div style="display:flex;color:#f2f2f2;overflow:hidden"><span style="flex:none;width:14ch">AREA</span><span style="flex:none;width:28ch">STATE</span><span style="flex:1;min-width:0">DETAIL</span><span style="flex:none;width:6ch">AGE</span><span style="flex:none;width:6ch">GO</span></div>
+      <div style="display:flex;background:#d3a24a;color:#141414;margin:0 -6px;padding:0 6px;font-weight:700;overflow:hidden"><span style="flex:none;width:14ch">agents</span><span style="flex:none;width:28ch">6 active · 1 idle · 1 done</span><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis">p-02 editing · p-06 merging · p-07 lease 00:41 ▲</span><span style="flex:none;width:6ch">now</span><span style="flex:none;width:6ch">&lt;2&gt;</span></div>
+      <div style="display:flex;overflow:hidden"><span style="flex:none;width:14ch">work</span><span style="flex:none;width:28ch">23 open of 41 obligations</span><span style="flex:1;min-width:0;color:#5f5f5f;overflow:hidden;text-overflow:ellipsis">deepest subtree 4 · 2 dead_end returned · 0 stale</span><span style="flex:none;width:6ch;color:#5f5f5f">now</span><span style="flex:none;width:6ch;color:#5f5f5f">&lt;3&gt;</span></div>
+      <div style="display:flex;overflow:hidden"><span style="flex:none;width:14ch">negotiation</span><span style="flex:none;width:28ch">1 offer · 2 bids · 1 award</span><span style="flex:1;min-width:0;color:#5f5f5f;overflow:hidden;text-overflow:ellipsis">of-22 funded 2 slots · b-19 expires 00:52</span><span style="flex:none;width:6ch;color:#5f5f5f">3m</span><span style="flex:none;width:6ch;color:#5f5f5f">&lt;3&gt;</span></div>
+      <div style="display:flex;overflow:hidden"><span style="flex:none;width:14ch">board</span><span style="flex:none;width:28ch">241 msgs · 4 audiences</span><span style="flex:1;min-width:0;color:#5f5f5f;overflow:hidden;text-overflow:ellipsis">1 unanswered challenge #207 · 1 open disagreement</span><span style="flex:none;width:6ch;color:#5f5f5f">1m</span><span style="flex:none;width:6ch;color:#5f5f5f">&lt;4&gt;</span></div>
+      <div style="display:flex;overflow:hidden"><span style="flex:none;width:14ch">integration</span><span style="flex:none;width:28ch;color:#d3872f">1 typed failure · 1 queued</span><span style="flex:1;min-width:0;color:#5f5f5f;overflow:hidden;text-overflow:ellipsis">s-23 conflict src/lexer.rs:88 · rebase is p-05's move</span><span style="flex:none;width:6ch;color:#5f5f5f">20m</span><span style="flex:none;width:6ch;color:#5f5f5f">&lt;5&gt;</span></div>
+      <div style="display:flex;overflow:hidden"><span style="flex:none;width:14ch">candidates</span><span style="flex:none;width:28ch">14 · 2 parallel roots</span><span style="flex:1;min-width:0;color:#5f5f5f;overflow:hidden;text-overflow:ellipsis">no preferred branch · synthesis c-25 integrating</span><span style="flex:none;width:6ch;color:#5f5f5f">2m</span><span style="flex:none;width:6ch;color:#5f5f5f">&lt;5&gt;</span></div>
+      <div style="display:flex;overflow:hidden"><span style="flex:none;width:14ch">verification</span><span style="flex:none;width:28ch"><span style="color:#8fbf5f">✓ 1</span> · <span style="color:#d1635c">✗ 2</span> · 11 unverified</span><span style="flex:1;min-width:0;color:#5f5f5f;overflow:hidden;text-overflow:ellipsis">c-11 passed root scope ev-05 · failures are evidence</span><span style="flex:none;width:6ch;color:#5f5f5f">47m</span><span style="flex:none;width:6ch;color:#5f5f5f">&lt;5&gt;</span></div>
+      <div style="display:flex;overflow:hidden"><span style="flex:none;width:14ch">queries</span><span style="flex:none;width:28ch;color:#d3872f">2 of 4 E remaining</span><span style="flex:1;min-width:0;color:#5f5f5f;overflow:hidden;text-overflow:ellipsis">spent by participants, not by the operator</span><span style="flex:none;width:6ch;color:#5f5f5f">47m</span><span style="flex:none;width:6ch;color:#5f5f5f">&lt;6&gt;</span></div>
+      <div style="display:flex;overflow:hidden"><span style="flex:none;width:14ch;color:#d3872f">limiting</span><span style="flex:none;width:28ch;color:#d3872f">messages 352/400 E ▲</span><span style="flex:1;min-width:0;color:#5f5f5f;overflow:hidden;text-overflow:ellipsis">exhausted ≈17:40 at current rate · others have room</span><span style="flex:none;width:6ch;color:#5f5f5f">now</span><span style="flex:none;width:6ch;color:#5f5f5f">&lt;6&gt;</span></div>
+      <div style="display:flex;overflow:hidden"><span style="flex:none;width:14ch">journal</span><span style="flex:none;width:28ch;color:#8fbf5f">✓ #8841 durable</span><span style="flex:1;min-width:0;color:#5f5f5f;overflow:hidden;text-overflow:ellipsis">no gap · no digest mismatch · projections 0.2s behind</span><span style="flex:none;width:6ch;color:#5f5f5f">now</span><span style="flex:none;width:6ch;color:#5f5f5f">&lt;7&gt;</span></div>
+      <div style="display:flex;overflow:hidden"><span style="flex:none;width:14ch">intervention</span><span style="flex:none;width:28ch">none · autonomous</span><span style="flex:1;min-width:0;color:#5f5f5f;overflow:hidden;text-overflow:ellipsis">&lt;m&gt; would mark the run human-intervened</span><span style="flex:none;width:6ch;color:#5f5f5f">—</span><span style="flex:none;width:6ch;color:#5f5f5f">&lt;m&gt;</span></div>
+      <div style="display:flex;overflow:hidden"><span style="flex:none;width:14ch">export</span><span style="flex:none;width:28ch">point-in-time allowed</span><span style="flex:1;min-width:0;color:#5f5f5f;overflow:hidden;text-overflow:ellipsis">redaction r2 · protected bytes never included</span><span style="flex:none;width:6ch;color:#5f5f5f">—</span><span style="flex:none;width:6ch;color:#5f5f5f">&lt;E&gt;</span></div>
+      <div style="margin-top:10px;color:#f2f2f2">Ticker <span style="color:#5f5f5f">— bounded 3 lines · follow ✓ · scrolling pauses drawing, never the run</span></div>
+      <div style="display:flex;overflow:hidden"><span style="flex:none;width:10ch;color:#5f5f5f">17:12:40</span><span style="flex:none;width:8ch;color:#8f8f8f">CTRL</span><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis">s-25 queued for integration ← of-14 (p-06)</span></div>
+      <div style="display:flex;overflow:hidden;color:#5f5f5f"><span style="flex:none;width:10ch">17:12:04</span><span style="flex:none;width:8ch;color:#d3a24a">COLLAB</span><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis">m-241 [dead_end] p-05 → au-03 · 412 B charged</span></div>
+      <div style="display:flex;overflow:hidden;color:#5f5f5f"><span style="flex:none;width:10ch">17:08:59</span><span style="flex:none;width:8ch;color:#8f8f8f">CTRL</span><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis">integration_failed(conflict) s-23 · src/lexer.rs:88</span></div>
+      <div style="flex:1"></div>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:8px;overflow:hidden"><span style="background:#3a3a3a;color:#d0d0d0;padding:0 10px">ymp</span><span style="background:#3a3a3a;color:#d0d0d0;padding:0 10px">r-2419</span><span style="background:#d3a24a;color:#141414;padding:0 10px;font-weight:700">overview</span></div>
+  </div>
+</div>
+
+<!-- 1f agents -->
+<div id="1f" style="display:flex;flex-direction:column;gap:6px">
+  <div style="display:flex;gap:8px;align-items:baseline"><span style="background:#d3a24a;color:#141414;font:700 11px/1 'JetBrains Mono',monospace;padding:3px 6px;border-radius:3px">1f</span><span style="color:#f2f2f2;font:600 13.5px 'JetBrains Mono',monospace">agents — dense live table</span><span style="color:#5f5f5f;font:11px 'JetBrains Mono',monospace">120×40 · &lt;2&gt; · command palette “:” — variant</span></div>
+  <div style="width:890px;height:790px;box-sizing:border-box;background:#141414;border:1px solid #262626;border-radius:6px;padding:10px 14px;font:12px/1.55 'JetBrains Mono',monospace;color:#d0d0d0;display:flex;flex-direction:column;overflow:hidden;white-space:nowrap;position:relative">
+    <div style="display:flex;gap:24px;overflow:hidden">
+      <div style="display:flex;flex-direction:column;flex:none">
+        <div style="display:flex"><span style="flex:none;width:11ch;color:#d3a24a">Run:</span><span>r-2419 <span style="color:#8fbf5f">● running</span> 01:28</span></div>
+        <div style="display:flex"><span style="flex:none;width:11ch;color:#d3a24a">Origin:</span><span>p-01 · ignition, not a manager</span></div>
+        <div style="display:flex"><span style="flex:none;width:11ch;color:#d3a24a">Starts:</span><span>8 of 12 E · invocations 31</span></div>
+        <div style="display:flex"><span style="flex:none;width:11ch;color:#d3a24a">Watcher:</span><span>8 private workspaces · live</span></div>
+        <div style="display:flex"><span style="flex:none;width:11ch;color:#d3a24a">Limiting:</span><span style="color:#d3872f">messages 88% E ▲</span></div>
+      </div>
+      <div style="display:flex;flex-direction:column;color:#8f8f8f;flex:none">
+        <div><span style="color:#d3a24a">&lt;1&gt;</span> overview</div>
+        <div><span style="color:#d3a24a">&lt;2&gt;</span> agents</div>
+        <div><span style="color:#d3a24a">&lt;3&gt;</span> work</div>
+        <div><span style="color:#d3a24a">&lt;4&gt;</span> board</div>
+      </div>
+      <div style="display:flex;flex-direction:column;color:#8f8f8f;flex:none">
+        <div><span style="color:#d3a24a">&lt;Enter&gt;</span> drill</div>
+        <div><span style="color:#d3a24a">&lt;d&gt;</span> describe</div>
+        <div><span style="color:#d3a24a">&lt;w&gt;</span> workspace</div>
+        <div><span style="color:#d3a24a">&lt;b&gt;</span> messages</div>
+      </div>
+      <div style="display:flex;flex-direction:column;color:#8f8f8f;flex:none">
+        <div><span style="color:#d3a24a">&lt;i&gt;</span> interrupt</div>
+        <div><span style="color:#d3a24a">&lt;m&gt;</span> message</div>
+        <div><span style="color:#d3a24a">&lt;/&gt;</span> filter</div>
+        <div><span style="color:#d3a24a">&lt;?&gt;</span> help</div>
+      </div>
+      <span style="flex:1"></span>
+      <pre style="flex:none;margin:0;font:700 10px/1.25 'JetBrains Mono',monospace;color:#d3a24a"> _   _ _ __ ___  _ __
+| | | | '_ ` _ \| '_ \
+| |_| | | | | | | |_) |
+ \__, |_| |_| |_| .__/
+ |___/          |_|</pre>
+    </div>
+    <div data-design-state="palette-open">
+    <div style="flex:none;border:1px solid #d3a24a;border-radius:4px;margin-top:10px;padding:1px 10px;display:flex;gap:10px;overflow:hidden"><span style="color:#d3a24a">&gt;</span><span style="color:#f2f2f2">:agents█</span><span style="color:#5f5f5f">ag · agents p-02 drills in · Esc closes the prompt only</span></div>
+    </div>
+    <div style="flex:1;border:1px solid #4a4a4a;border-radius:4px;margin-top:10px;position:relative;padding:8px 10px;display:flex;flex-direction:column;overflow:visible">
+      <span style="position:absolute;top:-9px;left:10px;background:#141414;padding:0 6px;color:#d3a24a">agents(r-2419)[8]</span>
+      <div style="display:flex;color:#f2f2f2;overflow:hidden"><span style="flex:none;width:6ch">ID</span><span style="flex:none;width:3ch">ST</span><span style="flex:none;width:14ch">CONTRACT</span><span style="flex:none;width:12ch">RUNTIME</span><span style="flex:1;min-width:0">ACTIVITY (OBSERVED)</span><span style="flex:none;width:13ch">FILES</span><span style="flex:none;width:11ch">TESTS</span><span style="flex:none;width:7ch">COST</span><span style="flex:none;width:7ch">LEASE</span><span style="flex:none;width:5ch">AGE</span></div>
+      <div style="display:flex;overflow:hidden"><span style="flex:none;width:6ch">p-01</span><span style="flex:none;width:3ch">●</span><span style="flex:none;width:14ch;color:#8f8f8f">origin·sponsor</span><span style="flex:none;width:12ch;color:#8f8f8f">codex-o4</span><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis">funding of-22 · awaiting bids</span><span style="flex:none;width:13ch;color:#5f5f5f">—</span><span style="flex:none;width:11ch;color:#5f5f5f">—</span><span style="flex:none;width:7ch">0.94</span><span style="flex:none;width:7ch;color:#5f5f5f">04:12</span><span style="flex:none;width:5ch;color:#5f5f5f">82m</span></div>
+      <div style="display:flex;background:#d3a24a;color:#141414;margin:0 -6px;padding:0 6px;font-weight:700;overflow:hidden"><span style="flex:none;width:6ch">p-02</span><span style="flex:none;width:3ch">●</span><span style="flex:none;width:14ch">tc-05 contr</span><span style="flex:none;width:12ch">codex-o4</span><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis">editing src/parser/lexer.rs · 3rd min</span><span style="flex:none;width:13ch">+142 −38 4f</span><span style="flex:none;width:11ch">✓ 41/41</span><span style="flex:none;width:7ch">1.71</span><span style="flex:none;width:7ch">02:12</span><span style="flex:none;width:5ch">38m</span></div>
+      <div style="display:flex;overflow:hidden;color:#5f5f5f"><span style="flex:none;width:6ch">p-03</span><span style="flex:none;width:3ch">○</span><span style="flex:none;width:14ch">idle</span><span style="flex:none;width:12ch">codex-o3</span><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis">yielded · wake_on offer in scope · 4m</span><span style="flex:none;width:13ch">—</span><span style="flex:none;width:11ch">—</span><span style="flex:none;width:7ch">0.88</span><span style="flex:none;width:7ch">—</span><span style="flex:none;width:5ch">61m</span></div>
+      <div style="display:flex;overflow:hidden"><span style="flex:none;width:6ch">p-04</span><span style="flex:none;width:3ch">●</span><span style="flex:none;width:14ch;color:#8f8f8f">tc-08 contr</span><span style="flex:none;width:12ch;color:#8f8f8f">codex-o4</span><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis">running cargo test · 18s elapsed</span><span style="flex:none;width:13ch;color:#8f8f8f">+61 −9 2f</span><span style="flex:none;width:11ch;color:#d3872f">◐ running</span><span style="flex:none;width:7ch">1.12</span><span style="flex:none;width:7ch;color:#5f5f5f">01:44</span><span style="flex:none;width:5ch;color:#5f5f5f">44m</span></div>
+      <div style="display:flex;overflow:hidden"><span style="flex:none;width:6ch">p-05</span><span style="flex:none;width:3ch">●</span><span style="flex:none;width:14ch;color:#8f8f8f">tc-09 contr</span><span style="flex:none;width:12ch;color:#8f8f8f">codex-o3</span><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis">published <span style="color:#d3a24a">[dead_end]</span> m-241 → au-03</span><span style="flex:none;width:13ch;color:#8f8f8f">+8 −214 3f</span><span style="flex:none;width:11ch;color:#d1635c">✗ 3 8m</span><span style="flex:none;width:7ch">1.40</span><span style="flex:none;width:7ch;color:#5f5f5f">03:01</span><span style="flex:none;width:5ch;color:#5f5f5f">40m</span></div>
+      <div style="display:flex;overflow:hidden"><span style="flex:none;width:6ch">p-06</span><span style="flex:none;width:3ch">●</span><span style="flex:none;width:14ch;color:#8f8f8f">of-14 synth</span><span style="flex:none;width:12ch;color:#8f8f8f">codex-o4</span><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis">merging c-08 + c-09 → s-25 submitted</span><span style="flex:none;width:13ch;color:#8f8f8f">+203 −77 6f</span><span style="flex:none;width:11ch;color:#8fbf5f">✓ 41/41</span><span style="flex:none;width:7ch">0.66</span><span style="flex:none;width:7ch;color:#5f5f5f">02:58</span><span style="flex:none;width:5ch;color:#5f5f5f">19m</span></div>
+      <div style="display:flex;overflow:hidden"><span style="flex:none;width:6ch">p-07</span><span style="flex:none;width:3ch;color:#d3872f">●</span><span style="flex:none;width:14ch;color:#8f8f8f">tc-11 contr</span><span style="flex:none;width:12ch;color:#8f8f8f">codex-o3</span><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis">editing tests/bom.rs · renewal is p-07's move</span><span style="flex:none;width:13ch;color:#8f8f8f">+29 −0 1f</span><span style="flex:none;width:11ch;color:#5f5f5f">not run</span><span style="flex:none;width:7ch">0.31</span><span style="flex:none;width:7ch;color:#d3872f">00:41▲</span><span style="flex:none;width:5ch;color:#5f5f5f">12m</span></div>
+      <div style="display:flex;overflow:hidden;color:#5f5f5f"><span style="flex:none;width:6ch">p-08</span><span style="flex:none;width:3ch">◌</span><span style="flex:none;width:14ch">tc-07 done</span><span style="flex:none;width:12ch">codex-o4</span><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis">returned: completed → s-14 · 8m ago</span><span style="flex:none;width:13ch">+95 −12 3f</span><span style="flex:none;width:11ch;color:#8fbf5f">✓ 41/41</span><span style="flex:none;width:7ch">0.87</span><span style="flex:none;width:7ch">—</span><span style="flex:none;width:5ch">55m</span></div>
+      <div style="margin-top:10px;color:#f2f2f2">Selected p-02 <span style="color:#5f5f5f">— identity layers, full values in &lt;d&gt;</span></div>
+      <div style="display:flex;overflow:hidden"><span style="flex:none;width:14ch;color:#d3a24a">participant</span><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis">p-02 · recruited by p-01 · rp-codex-o4 → openai/o4-mini D2 · budget 41/96u · $1.71 O</span></div>
+      <div style="display:flex;overflow:hidden"><span style="flex:none;width:14ch;color:#d3a24a">attempt</span><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis">a-07 · base 9f3a12e · workspace ws-07 private writable · lease gen 3 · fence 3 · exp 02:12</span></div>
+      <div style="display:flex;overflow:hidden"><span style="flex:none;width:14ch;color:#d3a24a">invocation</span><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis">i-021 running · resume #2 · cursor #8802 · wake: offer|reply|timer · deadline 17:31</span></div>
+      <div style="display:flex;overflow:hidden"><span style="flex:none;width:14ch;color:#d3a24a">usage</span><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis">cpu 41s · mem 210 MiB · 612k tokens O · 3 invocation starts · continuity ✓ (capsule opaque)</span></div>
+      <div style="flex:1"></div>
+      <div style="color:#5f5f5f;overflow:hidden;text-overflow:ellipsis">ACTIVITY = workspace watcher + runtime events + journal — never chain-of-thought · roles are contract facts, not ranks</div>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:8px;overflow:hidden"><span style="background:#3a3a3a;color:#d0d0d0;padding:0 10px">ymp</span><span style="background:#3a3a3a;color:#d0d0d0;padding:0 10px">r-2419</span><span style="background:#d3a24a;color:#141414;padding:0 10px;font-weight:700">agents</span></div>
+  </div>
+</div>
+
+<!-- 1g agent drill -->
+<div id="1g" style="display:flex;flex-direction:column;gap:6px">
+  <div style="display:flex;gap:8px;align-items:baseline"><span style="background:#d3a24a;color:#141414;font:700 11px/1 'JetBrains Mono',monospace;padding:3px 6px;border-radius:3px">1g</span><span style="color:#f2f2f2;font:600 13.5px 'JetBrains Mono',monospace">agents › p-02 — agent fact stream</span><span style="color:#5f5f5f;font:11px 'JetBrains Mono',monospace">120×40 · Enter from 1f</span></div>
+  <div style="width:890px;height:790px;box-sizing:border-box;background:#141414;border:1px solid #262626;border-radius:6px;padding:10px 14px;font:12px/1.55 'JetBrains Mono',monospace;color:#d0d0d0;display:flex;flex-direction:column;overflow:hidden;white-space:nowrap">
+    <div style="display:flex;gap:24px;overflow:hidden">
+      <div style="display:flex;flex-direction:column;flex:none">
+        <div style="display:flex"><span style="flex:none;width:11ch;color:#d3a24a">Agent:</span><span>p-02 <span style="color:#8fbf5f">● active</span> · tc-05 for p-01</span></div>
+        <div style="display:flex"><span style="flex:none;width:11ch;color:#d3a24a">Layers:</span><span style="color:#8f8f8f">attempt a-07 · invocation i-021 resume #2</span></div>
+        <div style="display:flex"><span style="flex:none;width:11ch;color:#d3a24a">Lease:</span><span>gen 3 · fence 3 · expires 02:12</span></div>
+        <div style="display:flex"><span style="flex:none;width:11ch;color:#d3a24a">Budget:</span><span>41/96u · $1.71 O · 612k tokens</span></div>
+        <div style="display:flex"><span style="flex:none;width:11ch;color:#d3a24a">Route:</span><span>openai/o4-mini · D2</span></div>
+      </div>
+      <div style="display:flex;flex-direction:column;color:#8f8f8f;flex:none">
+        <div><span style="color:#d3a24a">&lt;a&gt;</span> activity</div>
+        <div><span style="color:#d3a24a">&lt;w&gt;</span> workspace</div>
+        <div><span style="color:#d3a24a">&lt;b&gt;</span> messages</div>
+        <div><span style="color:#d3a24a">&lt;o&gt;</span> obligations</div>
+      </div>
+      <div style="display:flex;flex-direction:column;color:#8f8f8f;flex:none">
+        <div><span style="color:#d3a24a">&lt;d&gt;</span> describe</div>
+        <div><span style="color:#d3a24a">&lt;i&gt;</span> interrupt</div>
+        <div><span style="color:#d3a24a">&lt;Enter&gt;</span> row object</div>
+        <div><span style="color:#d3a24a">&lt;Esc&gt;</span> agents</div>
+      </div>
+      <span style="flex:1"></span>
+      <pre style="flex:none;margin:0;font:700 10px/1.25 'JetBrains Mono',monospace;color:#d3a24a"> _   _ _ __ ___  _ __
+| | | | '_ ` _ \| '_ \
+| |_| | | | | | | |_) |
+ \__, |_| |_| |_| .__/
+ |___/          |_|</pre>
+    </div>
+    <div style="flex:1;border:1px solid #4a4a4a;border-radius:4px;margin-top:10px;position:relative;padding:8px 10px;display:flex;flex-direction:column;overflow:visible">
+      <span style="position:absolute;top:-9px;left:10px;background:#141414;padding:0 6px;color:#d3a24a">activity(p-02)[24] · follow ✓</span>
+      <div style="display:flex;color:#f2f2f2;overflow:hidden"><span style="flex:none;width:10ch">TIME</span><span style="flex:none;width:12ch">SOURCE</span><span style="flex:none;width:15ch">WHAT</span><span style="flex:1;min-width:0">FACT</span><span style="flex:none;width:7ch">OBJ</span></div>
+      <div style="display:flex;background:#d3a24a;color:#141414;margin:0 -6px;padding:0 6px;font-weight:700;overflow:hidden"><span style="flex:none;width:10ch">17:12:40</span><span style="flex:none;width:12ch">workspace</span><span style="flex:none;width:15ch">file saved</span><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis">src/parser/lexer.rs +17 −3 · dirty 4 files · Δ base +142 −38</span><span style="flex:none;width:7ch">ws-07</span></div>
+      <div style="display:flex;overflow:hidden"><span style="flex:none;width:10ch;color:#5f5f5f">17:12:04</span><span style="flex:none;width:12ch;color:#8f8f8f">runtime</span><span style="flex:none;width:15ch">tests done</span><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis"><span style="color:#8fbf5f">✓ cargo test 41/41</span> · 3.2s · fixture suite ✓</span><span style="flex:none;width:7ch;color:#5f5f5f">i-021</span></div>
+      <div style="display:flex;overflow:hidden"><span style="flex:none;width:10ch;color:#5f5f5f">17:10:33</span><span style="flex:none;width:12ch;color:#d3a24a">board</span><span style="flex:none;width:15ch">published</span><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis">m-233 [decision] → au-03 · claims causation #201 #207 #219</span><span style="flex:none;width:7ch;color:#5f5f5f">m-233</span></div>
+      <div style="display:flex;overflow:hidden"><span style="flex:none;width:10ch;color:#5f5f5f">17:09:51</span><span style="flex:none;width:12ch;color:#8f8f8f">workspace</span><span style="flex:none;width:15ch">file created</span><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis">tests/parser/bom_crlf.rs +38 · new file</span><span style="flex:none;width:7ch;color:#5f5f5f">ws-07</span></div>
+      <div style="display:flex;overflow:hidden"><span style="flex:none;width:10ch;color:#5f5f5f">17:08:59</span><span style="flex:none;width:12ch;color:#d3a24a">board</span><span style="flex:none;width:15ch">read cursor</span><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis">past m-219 [observation] p-04 · reply chain #201→#207→#219</span><span style="flex:none;width:7ch;color:#5f5f5f">au-03</span></div>
+      <div style="display:flex;overflow:hidden"><span style="flex:none;width:10ch;color:#5f5f5f">17:01:12</span><span style="flex:none;width:12ch;color:#8f8f8f">verify</span><span style="flex:none;width:15ch">result bound</span><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis">vq-03 on c-08 → <span style="color:#d1635c">✗ failed (candidate)</span> · 2 protected checks</span><span style="flex:none;width:7ch;color:#5f5f5f">ev-03</span></div>
+      <div style="display:flex;overflow:hidden"><span style="flex:none;width:10ch;color:#5f5f5f">16:58:41</span><span style="flex:none;width:12ch;color:#8f8f8f">submission</span><span style="flex:none;width:15ch">recorded</span><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis">s-21 patch vs 9f3a12e · 4 objects · fence gen 3 → c-08</span><span style="flex:none;width:7ch;color:#5f5f5f">s-21</span></div>
+      <div style="display:flex;overflow:hidden;color:#5f5f5f"><span style="flex:none;width:10ch">16:31:02</span><span style="flex:none;width:12ch">runtime</span><span style="flex:none;width:15ch">invocation</span><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis">i-019 completed → i-020 yield(wake) → i-021 running · resume #2</span><span style="flex:none;width:7ch">i-021</span></div>
+      <div style="display:flex;overflow:hidden;color:#5f5f5f"><span style="flex:none;width:10ch">16:02:17</span><span style="flex:none;width:12ch">board</span><span style="flex:none;width:15ch">published</span><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis">m-201 [hypothesis] → au-03 · BOM belongs in the reader</span><span style="flex:none;width:7ch">m-201</span></div>
+      <div style="display:flex;overflow:hidden;color:#5f5f5f"><span style="flex:none;width:10ch">15:44:02</span><span style="flex:none;width:12ch">contract</span><span style="flex:none;width:15ch">formed</span><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis">b-17 awarded by p-01 → tc-05 · escrow 60u transferred</span><span style="flex:none;width:7ch">tc-05</span></div>
+      <div style="margin-top:10px;color:#f2f2f2">Workspace ws-07 <span style="color:#5f5f5f">— observable side effects · 12 paths</span></div>
+      <div style="display:flex;overflow:hidden"><span style="flex:none;width:34ch">  src/parser/lexer.rs</span><span style="flex:none;width:12ch;color:#8fbf5f">+118 −31</span><span style="flex:none;width:9ch;color:#5f5f5f">3m ago</span><span style="flex:1;min-width:0;color:#5f5f5f;overflow:hidden;text-overflow:ellipsis">in scope of tc-05</span></div>
+      <div style="display:flex;overflow:hidden"><span style="flex:none;width:34ch">  tests/parser/bom_crlf.rs</span><span style="flex:none;width:12ch;color:#8fbf5f">+38 new</span><span style="flex:none;width:9ch;color:#5f5f5f">22m ago</span><span style="flex:1;min-width:0;color:#5f5f5f;overflow:hidden;text-overflow:ellipsis">in scope</span></div>
+      <div style="display:flex;overflow:hidden"><span style="flex:none;width:34ch">  docs/lexer-notes.md</span><span style="flex:none;width:12ch;color:#8fbf5f">+22 new</span><span style="flex:none;width:9ch;color:#5f5f5f">31m ago</span><span style="flex:1;min-width:0;color:#d3872f;overflow:hidden;text-overflow:ellipsis">▲ outside declared paths — will fail path check at submit</span></div>
+      <div style="flex:1"></div>
+      <div style="color:#5f5f5f;overflow:hidden;text-overflow:ellipsis">facts only — session capsule and private reasoning are never rendered or exported (SEC-02)</div>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:8px;overflow:hidden"><span style="background:#3a3a3a;color:#d0d0d0;padding:0 10px">ymp</span><span style="background:#3a3a3a;color:#d0d0d0;padding:0 10px">r-2419</span><span style="background:#3a3a3a;color:#d0d0d0;padding:0 10px">agents</span><span style="background:#d3a24a;color:#141414;padding:0 10px;font-weight:700">p-02</span></div>
+  </div>
+</div>
+
+<!-- 1h work -->
+<div id="1h" style="display:flex;flex-direction:column;gap:6px">
+  <div style="display:flex;gap:8px;align-items:baseline"><span style="background:#d3a24a;color:#141414;font:700 11px/1 'JetBrains Mono',monospace;padding:3px 6px;border-radius:3px">1h</span><span style="color:#f2f2f2;font:600 13.5px 'JetBrains Mono',monospace">work — contract and obligation tree</span><span style="color:#5f5f5f;font:11px 'JetBrains Mono',monospace">120×40 · &lt;3&gt;</span></div>
+  <div style="width:890px;height:790px;box-sizing:border-box;background:#141414;border:1px solid #262626;border-radius:6px;padding:10px 14px;font:12px/1.55 'JetBrains Mono',monospace;color:#d0d0d0;display:flex;flex-direction:column;overflow:hidden;white-space:nowrap">
+    <div style="display:flex;gap:24px;overflow:hidden">
+      <div style="display:flex;flex-direction:column;flex:none">
+        <div style="display:flex"><span style="flex:none;width:11ch;color:#d3a24a">Run:</span><span>r-2419 <span style="color:#8fbf5f">● running</span></span></div>
+        <div style="display:flex"><span style="flex:none;width:11ch;color:#d3a24a">Open:</span><span>23 of 41 obligations · deepest 4</span></div>
+        <div style="display:flex"><span style="flex:none;width:11ch;color:#d3a24a">Escrow:</span><span>112u held · authority 38/64u E</span></div>
+        <div style="display:flex"><span style="flex:none;width:11ch;color:#d3a24a">Races:</span><span>1 open-accept won · 0 lost</span></div>
+        <div style="display:flex"><span style="flex:none;width:11ch;color:#d3a24a">Assigned:</span><span style="color:#5f5f5f">nothing — ymp never assigns</span></div>
+      </div>
+      <div style="display:flex;flex-direction:column;color:#8f8f8f;flex:none">
+        <div><span style="color:#d3a24a">&lt;Enter&gt;</span> drill</div>
+        <div><span style="color:#d3a24a">&lt;x&gt;</span> collapse</div>
+        <div><span style="color:#d3a24a">&lt;d&gt;</span> describe</div>
+        <div><span style="color:#d3a24a">&lt;/&gt;</span> filter</div>
+      </div>
+      <span style="flex:1"></span>
+      <pre style="flex:none;margin:0;font:700 10px/1.25 'JetBrains Mono',monospace;color:#d3a24a"> _   _ _ __ ___  _ __
+| | | | '_ ` _ \| '_ \
+| |_| | | | | | | |_) |
+ \__, |_| |_| |_| .__/
+ |___/          |_|</pre>
+    </div>
+    <div style="flex:1;border:1px solid #4a4a4a;border-radius:4px;margin-top:10px;position:relative;padding:8px 10px;display:flex;flex-direction:column;overflow:visible">
+      <span style="position:absolute;top:-9px;left:10px;background:#141414;padding:0 6px;color:#d3a24a">work(r-2419)[41 → 12 shown]</span>
+      <div style="display:flex;color:#f2f2f2;overflow:hidden"><span style="flex:none;width:16ch">ID</span><span style="flex:none;width:12ch">KIND</span><span style="flex:none;width:14ch">PARTIES</span><span style="flex:1;min-width:0">SCOPE / NOTE</span><span style="flex:none;width:7ch">RES</span><span style="flex:none;width:16ch">STATE</span><span style="flex:none;width:5ch">AGE</span></div>
+      <div style="display:flex;overflow:hidden"><span style="flex:none;width:16ch">ob-01</span><span style="flex:none;width:12ch;color:#8f8f8f">obligation</span><span style="flex:none;width:14ch;color:#8f8f8f">p-01</span><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis">root goal of cp-007</span><span style="flex:none;width:7ch">1u</span><span style="flex:none;width:16ch;color:#f2f2f2">open</span><span style="flex:none;width:5ch;color:#5f5f5f">82m</span></div>
+      <div style="display:flex;overflow:hidden"><span style="flex:none;width:16ch">├ tc-05</span><span style="flex:none;width:12ch;color:#8f8f8f">contract</span><span style="flex:none;width:14ch;color:#8f8f8f">p-01 ⇄ p-02</span><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis">lexer BOM/CRLF · paths src/parser tests</span><span style="flex:none;width:7ch">60u</span><span style="flex:none;width:16ch">active · gen 3</span><span style="flex:none;width:5ch;color:#5f5f5f">94m</span></div>
+      <div style="display:flex;overflow:hidden;color:#5f5f5f"><span style="flex:none;width:16ch">│ └ ob-09</span><span style="flex:none;width:12ch">obligation</span><span style="flex:none;width:14ch">p-02</span><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis">child of tc-05 · submission s-21 returned</span><span style="flex:none;width:7ch">1u</span><span style="flex:none;width:16ch">open</span><span style="flex:none;width:5ch">80m</span></div>
+      <div style="display:flex;overflow:hidden"><span style="flex:none;width:16ch">├ tc-08</span><span style="flex:none;width:12ch;color:#8f8f8f">contract</span><span style="flex:none;width:14ch;color:#8f8f8f">p-01 ⇄ p-04</span><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis">span regression suite</span><span style="flex:none;width:7ch">40u</span><span style="flex:none;width:16ch">active</span><span style="flex:none;width:5ch;color:#5f5f5f">71m</span></div>
+      <div style="display:flex;overflow:hidden;color:#5f5f5f"><span style="flex:none;width:16ch">│ └ ob-17</span><span style="flex:none;width:12ch">obligation</span><span style="flex:none;width:14ch">p-04</span><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis">explored regex path</span><span style="flex:none;width:7ch">1u</span><span style="flex:none;width:16ch">returned·dead_end</span><span style="flex:none;width:5ch">30m</span></div>
+      <div style="display:flex;overflow:hidden"><span style="flex:none;width:16ch">├ tc-09</span><span style="flex:none;width:12ch;color:#8f8f8f">contract</span><span style="flex:none;width:14ch;color:#8f8f8f">p-01 ⇄ p-05</span><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis">alt lexer approach · winding down</span><span style="flex:none;width:7ch">35u</span><span style="flex:none;width:16ch;color:#d3872f">near return</span><span style="flex:none;width:5ch;color:#5f5f5f">64m</span></div>
+      <div style="display:flex;overflow:hidden"><span style="flex:none;width:16ch">├ tc-11</span><span style="flex:none;width:12ch;color:#8f8f8f">contract</span><span style="flex:none;width:14ch;color:#8f8f8f">p-04 ⇄ p-07</span><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis">BOM fixtures · sub-contracted by p-04</span><span style="flex:none;width:7ch">15u</span><span style="flex:none;width:16ch;color:#d3872f">lease 00:41 ▲</span><span style="flex:none;width:5ch;color:#5f5f5f">12m</span></div>
+      <div style="display:flex;background:#d3a24a;color:#141414;margin:0 -6px;padding:0 6px;font-weight:700;overflow:hidden"><span style="flex:none;width:16ch">├ of-22</span><span style="flex:none;width:12ch">offer</span><span style="flex:none;width:14ch">p-01 sponsor</span><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis">negotiated · 2 slots · escrow 90u · au-04</span><span style="flex:none;width:7ch">90u</span><span style="flex:none;width:16ch">bids open</span><span style="flex:none;width:5ch">9m</span></div>
+      <div style="display:flex;overflow:hidden;color:#5f5f5f"><span style="flex:none;width:16ch">│ ├ b-19</span><span style="flex:none;width:12ch">bid</span><span style="flex:none;width:14ch">p-03</span><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis">counter 45u · artifact: patch · method m-236</span><span style="flex:none;width:7ch">—</span><span style="flex:none;width:16ch;color:#d3872f">expires 00:52</span><span style="flex:none;width:5ch">7m</span></div>
+      <div style="display:flex;overflow:hidden;color:#5f5f5f"><span style="flex:none;width:16ch">│ └ b-21</span><span style="flex:none;width:12ch">bid</span><span style="flex:none;width:14ch">p-08</span><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis">accepts 40u · expected artifact: patch+tests</span><span style="flex:none;width:7ch">—</span><span style="flex:none;width:16ch">open</span><span style="flex:none;width:5ch">3m</span></div>
+      <div style="display:flex;overflow:hidden"><span style="flex:none;width:16ch">└ of-14</span><span style="flex:none;width:12ch;color:#8f8f8f">offer→tc</span><span style="flex:none;width:14ch;color:#8f8f8f">p-02 ⇄ p-06</span><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis">synthesis of c-08 + c-09 · open_accept won</span><span style="flex:none;width:7ch">25u</span><span style="flex:none;width:16ch">active</span><span style="flex:none;width:5ch;color:#5f5f5f">19m</span></div>
+      <div style="display:flex;overflow:hidden;color:#5f5f5f"><span style="flex:none;width:16ch">&nbsp;&nbsp;└ ob-31</span><span style="flex:none;width:12ch">obligation</span><span style="flex:none;width:14ch">p-06</span><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis">child of of-14 · s-25 submitted, integrating</span><span style="flex:none;width:7ch">1u</span><span style="flex:none;width:16ch">open</span><span style="flex:none;width:5ch">19m</span></div>
+      <div style="margin-top:10px;color:#f2f2f2">Selected of-22 <span style="color:#5f5f5f">— offer detail</span></div>
+      <div style="display:flex;overflow:hidden"><span style="flex:none;width:14ch;color:#d3a24a">policy</span><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis">negotiated · proposal allowance 3 · projection 30m · audience au-04 (task detail)</span></div>
+      <div style="display:flex;overflow:hidden"><span style="flex:none;width:14ch;color:#d3a24a">causation</span><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis">← integration conflict s-23 ← candidates c-08, c-09 · refs m-233 [decision]</span></div>
+      <div style="flex:1"></div>
+      <div style="color:#5f5f5f;overflow:hidden;text-overflow:ellipsis">no ranking, no recommendation, no escalation — expiry and escrow are the only mechanics ymp enforces</div>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:8px;overflow:hidden"><span style="background:#3a3a3a;color:#d0d0d0;padding:0 10px">ymp</span><span style="background:#3a3a3a;color:#d0d0d0;padding:0 10px">r-2419</span><span style="background:#d3a24a;color:#141414;padding:0 10px;font-weight:700">work</span></div>
+  </div>
+</div>
+
+<!-- 1i board -->
+<div id="1i" style="display:flex;flex-direction:column;gap:6px">
+  <div style="display:flex;gap:8px;align-items:baseline"><span style="background:#d3a24a;color:#141414;font:700 11px/1 'JetBrains Mono',monospace;padding:3px 6px;border-radius:3px">1i</span><span style="color:#f2f2f2;font:600 13.5px 'JetBrains Mono',monospace">board — audience board, t toggles threads</span><span style="color:#5f5f5f;font:11px 'JetBrains Mono',monospace">120×40 · &lt;4&gt; · threaded variant</span></div>
+  <div style="width:890px;height:790px;box-sizing:border-box;background:#141414;border:1px solid #262626;border-radius:6px;padding:10px 14px;font:12px/1.55 'JetBrains Mono',monospace;color:#d0d0d0;display:flex;flex-direction:column;overflow:hidden;white-space:nowrap">
+    <div style="display:flex;gap:24px;overflow:hidden">
+      <div style="display:flex;flex-direction:column;flex:none">
+        <div style="display:flex"><span style="flex:none;width:11ch;color:#d3a24a">Run:</span><span>r-2419 <span style="color:#8fbf5f">● running</span></span></div>
+        <div style="display:flex"><span style="flex:none;width:11ch;color:#d3a24a">Audience:</span><span>au-03 task detail · 5 members · exp 18:40</span></div>
+        <div style="display:flex"><span style="flex:none;width:11ch;color:#d3a24a">Messages:</span><span style="color:#d3872f">352/400 E ▲</span><span style="color:#5f5f5f">&nbsp;· bytes 1.4/2.0 MiB</span></div>
+        <div style="display:flex"><span style="flex:none;width:11ch;color:#d3a24a">Open:</span><span>1 challenge unanswered · 1 disagreement</span></div>
+        <div style="display:flex"><span style="flex:none;width:11ch;color:#d3a24a">Trust:</span><span style="color:#5f5f5f">inert text — never an action</span></div>
+      </div>
+      <div style="display:flex;flex-direction:column;color:#8f8f8f;flex:none">
+        <div><span style="color:#d3a24a">&lt;t&gt;</span> threads</div>
+        <div><span style="color:#d3a24a">&lt;Enter&gt;</span> full text</div>
+        <div><span style="color:#d3a24a">&lt;r&gt;</span> refs</div>
+        <div><span style="color:#d3a24a">&lt;u&gt;</span> audiences</div>
+      </div>
+      <div style="display:flex;flex-direction:column;color:#8f8f8f;flex:none">
+        <div><span style="color:#d3a24a">&lt;m&gt;</span> send as HUMAN</div>
+        <div><span style="color:#d3a24a">&lt;/&gt;</span> filter</div>
+        <div><span style="color:#d3a24a">&lt;d&gt;</span> describe</div>
+        <div><span style="color:#d3a24a">&lt;?&gt;</span> help</div>
+      </div>
+      <span style="flex:1"></span>
+      <pre style="flex:none;margin:0;font:700 10px/1.25 'JetBrains Mono',monospace;color:#d3a24a"> _   _ _ __ ___  _ __
+| | | | '_ ` _ \| '_ \
+| |_| | | | | | | |_) |
+ \__, |_| |_| |_| .__/
+ |___/          |_|</pre>
+    </div>
+    <div style="flex:1;border:1px solid #4a4a4a;border-radius:4px;margin-top:10px;position:relative;padding:8px 10px;display:flex;flex-direction:column;overflow:visible">
+      <span style="position:absolute;top:-9px;left:10px;background:#141414;padding:0 6px;color:#d3a24a">board(au-03)[38 · thread #201]</span>
+      <div style="display:flex;color:#f2f2f2;overflow:hidden"><span style="flex:none;width:6ch">MSG</span><span style="flex:none;width:6ch">FROM</span><span style="flex:none;width:17ch">KIND</span><span style="flex:1;min-width:0">TEXT (INERT)</span><span style="flex:none;width:12ch">REFS</span><span style="flex:none;width:5ch">DLV</span><span style="flex:none;width:5ch">AGE</span></div>
+      <div data-design-state="board-threaded">
+      <div style="display:flex;overflow:hidden"><span style="flex:none;width:6ch;color:#5f5f5f">#198</span><span style="flex:none;width:6ch">p-01</span><span style="flex:none;width:17ch;color:#d3a24a">constraint</span><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis">contract forbids touching the parser API surface</span><span style="flex:none;width:12ch;color:#5f5f5f">cp-007</span><span style="flex:none;width:5ch;color:#5f5f5f">5/5</span><span style="flex:none;width:5ch;color:#5f5f5f">58m</span></div>
+      <div style="display:flex;overflow:hidden"><span style="flex:none;width:6ch;color:#5f5f5f">#201</span><span style="flex:none;width:6ch">p-02</span><span style="flex:none;width:17ch;color:#d3a24a">hypothesis</span><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis">BOM handling belongs in the reader, not the lexer</span><span style="flex:none;width:12ch;color:#5f5f5f">tc-05</span><span style="flex:none;width:5ch;color:#5f5f5f">5/5</span><span style="flex:none;width:5ch;color:#5f5f5f">51m</span></div>
+      <div style="display:flex;overflow:hidden"><span style="flex:none;width:6ch;color:#5f5f5f">#207</span><span style="flex:none;width:6ch">p-04</span><span style="flex:none;width:17ch;color:#d3a24a">└ challenge</span><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis">reader path breaks CRLF spans — failing fixture attached</span><span style="flex:none;width:12ch;color:#5f5f5f">#201 s-19</span><span style="flex:none;width:5ch;color:#5f5f5f">5/5</span><span style="flex:none;width:5ch;color:#5f5f5f">44m</span></div>
+      <div style="display:flex;overflow:hidden"><span style="flex:none;width:6ch;color:#5f5f5f">#219</span><span style="flex:none;width:6ch">p-04</span><span style="flex:none;width:17ch;color:#d3a24a">&nbsp;&nbsp;└ observation</span><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis">span drift appears only when BOM + CRLF combine</span><span style="flex:none;width:12ch;color:#5f5f5f">#207</span><span style="flex:none;width:5ch;color:#5f5f5f">5/5</span><span style="flex:none;width:5ch;color:#5f5f5f">39m</span></div>
+      <div style="display:flex;background:#d3a24a;color:#141414;margin:0 -6px;padding:0 6px;font-weight:700;overflow:hidden"><span style="flex:none;width:6ch">#233</span><span style="flex:none;width:6ch">p-02</span><span style="flex:none;width:17ch">&nbsp;&nbsp;&nbsp;&nbsp;└ decision</span><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis">revised: lexer keeps spans · claims causation #207 #219</span><span style="flex:none;width:12ch">#207 #219</span><span style="flex:none;width:5ch">5/5</span><span style="flex:none;width:5ch">22m</span></div>
+      <div style="display:flex;overflow:hidden"><span style="flex:none;width:6ch;color:#5f5f5f">#236</span><span style="flex:none;width:6ch">p-08</span><span style="flex:none;width:17ch;color:#d3a24a">proposal</span><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis">method for of-22: table-driven fixtures first</span><span style="flex:none;width:12ch;color:#5f5f5f">of-22</span><span style="flex:none;width:5ch;color:#5f5f5f">4/5</span><span style="flex:none;width:5ch;color:#5f5f5f">11m</span></div>
+      <div style="display:flex;overflow:hidden"><span style="flex:none;width:6ch;color:#5f5f5f">#238</span><span style="flex:none;width:6ch">p-04</span><span style="flex:none;width:17ch;color:#d3a24a">confirmation</span><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis">fixture suite green on c-11 ancestry</span><span style="flex:none;width:12ch;color:#5f5f5f">c-11</span><span style="flex:none;width:5ch;color:#5f5f5f">5/5</span><span style="flex:none;width:5ch;color:#5f5f5f">8m</span></div>
+      <div style="display:flex;overflow:hidden"><span style="flex:none;width:6ch;color:#5f5f5f">#241</span><span style="flex:none;width:6ch">p-05</span><span style="flex:none;width:17ch;color:#d3a24a">dead_end</span><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis">regex lexer path abandoned — quadratic on fixtures</span><span style="flex:none;width:12ch;color:#5f5f5f">tc-09 ob-17</span><span style="flex:none;width:5ch;color:#5f5f5f">3/5</span><span style="flex:none;width:5ch;color:#5f5f5f">4m</span></div>
+      </div>
+      <div data-design-state="board-flat" hidden>
+      <div style="display:flex;overflow:hidden"><span style="flex:none;width:6ch;color:#5f5f5f">#241</span><span style="flex:none;width:6ch">p-05</span><span style="flex:none;width:17ch;color:#d3a24a">dead_end</span><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis">regex lexer path abandoned — quadratic on fixtures</span><span style="flex:none;width:12ch;color:#5f5f5f">tc-09 ob-17</span><span style="flex:none;width:5ch;color:#5f5f5f">3/5</span><span style="flex:none;width:5ch;color:#5f5f5f">4m</span></div>
+      <div style="display:flex;overflow:hidden"><span style="flex:none;width:6ch;color:#5f5f5f">#238</span><span style="flex:none;width:6ch">p-04</span><span style="flex:none;width:17ch;color:#d3a24a">confirmation</span><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis">fixture suite green on c-11 ancestry</span><span style="flex:none;width:12ch;color:#5f5f5f">c-11</span><span style="flex:none;width:5ch;color:#5f5f5f">5/5</span><span style="flex:none;width:5ch;color:#5f5f5f">8m</span></div>
+      <div style="display:flex;overflow:hidden"><span style="flex:none;width:6ch;color:#5f5f5f">#236</span><span style="flex:none;width:6ch">p-08</span><span style="flex:none;width:17ch;color:#d3a24a">proposal</span><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis">method for of-22: table-driven fixtures first</span><span style="flex:none;width:12ch;color:#5f5f5f">of-22</span><span style="flex:none;width:5ch;color:#5f5f5f">4/5</span><span style="flex:none;width:5ch;color:#5f5f5f">11m</span></div>
+      <div style="display:flex;background:#d3a24a;color:#141414;margin:0 -6px;padding:0 6px;font-weight:700;overflow:hidden"><span style="flex:none;width:6ch">#233</span><span style="flex:none;width:6ch">p-02</span><span style="flex:none;width:17ch">decision</span><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis">revised: lexer keeps spans · claims causation #207 #219</span><span style="flex:none;width:12ch">#207 #219</span><span style="flex:none;width:5ch">5/5</span><span style="flex:none;width:5ch">22m</span></div>
+      <div style="display:flex;overflow:hidden"><span style="flex:none;width:6ch;color:#5f5f5f">#219</span><span style="flex:none;width:6ch">p-04</span><span style="flex:none;width:17ch;color:#d3a24a">observation</span><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis">span drift appears only when BOM + CRLF combine</span><span style="flex:none;width:12ch;color:#5f5f5f">#207</span><span style="flex:none;width:5ch;color:#5f5f5f">5/5</span><span style="flex:none;width:5ch;color:#5f5f5f">39m</span></div>
+      <div style="display:flex;overflow:hidden"><span style="flex:none;width:6ch;color:#5f5f5f">#207</span><span style="flex:none;width:6ch">p-04</span><span style="flex:none;width:17ch;color:#d3a24a">challenge</span><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis">reader path breaks CRLF spans — failing fixture attached</span><span style="flex:none;width:12ch;color:#5f5f5f">#201 s-19</span><span style="flex:none;width:5ch;color:#5f5f5f">5/5</span><span style="flex:none;width:5ch;color:#5f5f5f">44m</span></div>
+      <div style="display:flex;overflow:hidden"><span style="flex:none;width:6ch;color:#5f5f5f">#201</span><span style="flex:none;width:6ch">p-02</span><span style="flex:none;width:17ch;color:#d3a24a">hypothesis</span><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis">BOM handling belongs in the reader, not the lexer</span><span style="flex:none;width:12ch;color:#5f5f5f">tc-05</span><span style="flex:none;width:5ch;color:#5f5f5f">5/5</span><span style="flex:none;width:5ch;color:#5f5f5f">51m</span></div>
+      <div style="display:flex;overflow:hidden"><span style="flex:none;width:6ch;color:#5f5f5f">#198</span><span style="flex:none;width:6ch">p-01</span><span style="flex:none;width:17ch;color:#d3a24a">constraint</span><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis">contract forbids touching the parser API surface</span><span style="flex:none;width:12ch;color:#5f5f5f">cp-007</span><span style="flex:none;width:5ch;color:#5f5f5f">5/5</span><span style="flex:none;width:5ch;color:#5f5f5f">58m</span></div>
+      </div>
+      <div style="margin-top:10px;color:#f2f2f2">Selected #233 <span style="color:#5f5f5f">— three separate observations, never merged</span></div>
+      <div style="display:flex;overflow:hidden"><span style="flex:none;width:22ch;color:#d3a24a">delivered / read / cited</span><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis">5 of 5 members · 3 read cursors past · cited by ev-05 note — citation ≠ agreement</span></div>
+      <div style="display:flex;overflow:hidden"><span style="flex:none;width:22ch;color:#d3a24a">charge / salience</span><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis">412 B charged to p-02 · projection active 18m more · history immutable after expiry</span></div>
+      <div style="flex:1"></div>
+      <div style="color:#5f5f5f;overflow:hidden;text-overflow:ellipsis">delivery ≠ reading · citation ≠ agreement · agreement ≠ truth · payload escaped, ANSI/links never execute · HUMAN posts are attributed to you</div>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:8px;overflow:hidden"><span style="background:#3a3a3a;color:#d0d0d0;padding:0 10px">ymp</span><span style="background:#3a3a3a;color:#d0d0d0;padding:0 10px">r-2419</span><span style="background:#3a3a3a;color:#d0d0d0;padding:0 10px">board</span><span style="background:#d3a24a;color:#141414;padding:0 10px;font-weight:700">au-03</span></div>
+  </div>
+</div>
+
+<!-- 1j candidates -->
+<div id="1j" style="display:flex;flex-direction:column;gap:6px">
+  <div style="display:flex;gap:8px;align-items:baseline"><span style="background:#d3a24a;color:#141414;font:700 11px/1 'JetBrains Mono',monospace;padding:3px 6px;border-radius:3px">1j</span><span style="color:#f2f2f2;font:600 13.5px 'JetBrains Mono',monospace">candidates — parallel branches without main</span><span style="color:#5f5f5f;font:11px 'JetBrains Mono',monospace">120×40 · &lt;5&gt;</span></div>
+  <div style="width:890px;height:790px;box-sizing:border-box;background:#141414;border:1px solid #262626;border-radius:6px;padding:10px 14px;font:12px/1.55 'JetBrains Mono',monospace;color:#d0d0d0;display:flex;flex-direction:column;overflow:hidden;white-space:nowrap">
+    <div style="display:flex;gap:24px;overflow:hidden">
+      <div style="display:flex;flex-direction:column;flex:none">
+        <div style="display:flex"><span style="flex:none;width:11ch;color:#d3a24a">Run:</span><span>r-2419 <span style="color:#8fbf5f">● running</span></span></div>
+        <div style="display:flex"><span style="flex:none;width:11ch;color:#d3a24a">Candidates:</span><span>14 · 2 parallel roots · 1 synthesis</span></div>
+        <div style="display:flex"><span style="flex:none;width:11ch;color:#d3a24a">Verified:</span><span><span style="color:#8fbf5f">✓ 1</span> · <span style="color:#d1635c">✗ 2</span> · 11 unverified</span></div>
+        <div style="display:flex"><span style="flex:none;width:11ch;color:#d3a24a">Queries:</span><span style="color:#d3872f">2 of 4 E left</span><span style="color:#5f5f5f">&nbsp;· participant-spent</span></div>
+        <div style="display:flex"><span style="flex:none;width:11ch;color:#d3a24a">Preferred:</span><span style="color:#5f5f5f">none — no visual main, ever</span></div>
+      </div>
+      <div style="display:flex;flex-direction:column;color:#8f8f8f;flex:none">
+        <div><span style="color:#d3a24a">&lt;Enter&gt;</span> ancestry</div>
+        <div><span style="color:#d3a24a">&lt;v&gt;</span> evidence</div>
+        <div><span style="color:#d3a24a">&lt;s&gt;</span> submissions</div>
+        <div><span style="color:#d3a24a">&lt;d&gt;</span> describe</div>
+      </div>
+      <span style="flex:1"></span>
+      <pre style="flex:none;margin:0;font:700 10px/1.25 'JetBrains Mono',monospace;color:#d3a24a"> _   _ _ __ ___  _ __
+| | | | '_ ` _ \| '_ \
+| |_| | | | | | | |_) |
+ \__, |_| |_| |_| .__/
+ |___/          |_|</pre>
+    </div>
+    <div style="flex:1;border:1px solid #4a4a4a;border-radius:4px;margin-top:10px;position:relative;padding:8px 10px;display:flex;flex-direction:column;overflow:visible">
+      <span style="position:absolute;top:-9px;left:10px;background:#141414;padding:0 6px;color:#d3a24a">candidates(r-2419)[14 → 9 shown]</span>
+      <div style="display:flex;color:#f2f2f2;overflow:hidden"><span style="flex:none;width:6ch">ID</span><span style="flex:none;width:7ch">FROM</span><span style="flex:none;width:6ch">SUBM</span><span style="flex:none;width:9ch">BASE</span><span style="flex:none;width:14ch">PARENTS</span><span style="flex:1;min-width:0">VERIFICATION</span><span style="flex:none;width:7ch">SCOPE</span><span style="flex:none;width:5ch">AGE</span></div>
+      <div style="display:flex;overflow:hidden;color:#5f5f5f"><span style="flex:none;width:6ch">c-05</span><span style="flex:none;width:7ch">p-02</span><span style="flex:none;width:6ch">s-11</span><span style="flex:none;width:9ch">9f3a12e</span><span style="flex:none;width:14ch">—</span><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis">unverified · superseded by c-08 lineage · preserved</span><span style="flex:none;width:7ch">root</span><span style="flex:none;width:5ch">63m</span></div>
+      <div style="display:flex;overflow:hidden;color:#5f5f5f"><span style="flex:none;width:6ch">c-07</span><span style="flex:none;width:7ch">p-08</span><span style="flex:none;width:6ch">s-14</span><span style="flex:none;width:9ch">9f3a12e</span><span style="flex:none;width:14ch">—</span><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis">unverified · returned under tc-07</span><span style="flex:none;width:7ch">subtask</span><span style="flex:none;width:5ch">54m</span></div>
+      <div style="display:flex;overflow:hidden"><span style="flex:none;width:6ch">c-08</span><span style="flex:none;width:7ch;color:#8f8f8f">p-02</span><span style="flex:none;width:6ch;color:#8f8f8f">s-21</span><span style="flex:none;width:9ch;color:#8f8f8f">9f3a12e</span><span style="flex:none;width:14ch;color:#8f8f8f">—</span><span style="flex:1;min-width:0;color:#d1635c;overflow:hidden;text-overflow:ellipsis">✗ failed (candidate) · ev-03 · 2 protected checks · L1 diag</span><span style="flex:none;width:7ch;color:#8f8f8f">root</span><span style="flex:none;width:5ch;color:#5f5f5f">31m</span></div>
+      <div style="display:flex;overflow:hidden"><span style="flex:none;width:6ch">c-09</span><span style="flex:none;width:7ch;color:#8f8f8f">p-04</span><span style="flex:none;width:6ch;color:#8f8f8f">s-22</span><span style="flex:none;width:9ch;color:#8f8f8f">9f3a12e</span><span style="flex:none;width:14ch;color:#8f8f8f">—</span><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis">unverified · integrated ✓</span><span style="flex:none;width:7ch;color:#8f8f8f">root</span><span style="flex:none;width:5ch;color:#5f5f5f">26m</span></div>
+      <div style="display:flex;overflow:hidden"><span style="flex:none;width:6ch">—</span><span style="flex:none;width:7ch;color:#8f8f8f">p-05</span><span style="flex:none;width:6ch;color:#8f8f8f">s-23</span><span style="flex:none;width:9ch;color:#8f8f8f">c-09</span><span style="flex:none;width:14ch;color:#8f8f8f">—</span><span style="flex:1;min-width:0;color:#d3872f;overflow:hidden;text-overflow:ellipsis">▲ integration_failed (conflict) src/lexer.rs:88 · rebase = new work</span><span style="flex:none;width:7ch;color:#8f8f8f">—</span><span style="flex:none;width:5ch;color:#5f5f5f">20m</span></div>
+      <div style="display:flex;background:#d3a24a;color:#141414;margin:0 -6px;padding:0 6px;font-weight:700;overflow:hidden"><span style="flex:none;width:6ch">c-11</span><span style="flex:none;width:7ch">p-04</span><span style="flex:none;width:6ch">s-24</span><span style="flex:none;width:9ch">9f3a12e</span><span style="flex:none;width:14ch">—</span><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis">✓ passed · ev-05 · 4 digests bound · repro pending</span><span style="flex:none;width:7ch">root</span><span style="flex:none;width:5ch">47m</span></div>
+      <div style="display:flex;overflow:hidden"><span style="flex:none;width:6ch">c-25</span><span style="flex:none;width:7ch;color:#8f8f8f">p-06</span><span style="flex:none;width:6ch;color:#8f8f8f">s-25</span><span style="flex:none;width:9ch;color:#8f8f8f">9f3a12e</span><span style="flex:none;width:14ch;color:#8f8f8f">c-08 + c-09</span><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis">◐ integrating · multi-parent synthesis · fence 5</span><span style="flex:none;width:7ch;color:#8f8f8f">root</span><span style="flex:none;width:5ch;color:#5f5f5f">2m</span></div>
+      <div style="display:flex;overflow:hidden;color:#5f5f5f"><span style="flex:none;width:6ch">c-12</span><span style="flex:none;width:7ch">p-07</span><span style="flex:none;width:6ch">s-18</span><span style="flex:none;width:9ch">9f3a12e</span><span style="flex:none;width:14ch">—</span><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis">unverified · awaiting fixture data from tc-11</span><span style="flex:none;width:7ch">subtask</span><span style="flex:none;width:5ch">14m</span></div>
+      <div style="display:flex;overflow:hidden;color:#5f5f5f"><span style="flex:none;width:6ch">+6</span><span style="flex:none;width:7ch"></span><span style="flex:none;width:6ch"></span><span style="flex:none;width:9ch"></span><span style="flex:none;width:14ch"></span><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis">older unverified candidates · / to filter, PgDn to scroll</span><span style="flex:none;width:7ch"></span><span style="flex:none;width:5ch"></span></div>
+      <div style="margin-top:10px;color:#f2f2f2">Selected c-11 <span style="color:#5f5f5f">— digest 1fd4…7e · full ancestry and evidence in &lt;v&gt;</span></div>
+      <div style="display:flex;overflow:hidden"><span style="flex:none;width:14ch;color:#d3a24a">provenance</span><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis">s-24 by p-04 under tc-08 · obligation ob-12 · integrated 16:40:58 · fence gen 4</span></div>
+      <div style="display:flex;overflow:hidden"><span style="flex:none;width:14ch;color:#d3a24a">evidence</span><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis">ev-05: contract 7a11…c4 · candidate 1fd4…7e · env b8c3…02 · oracle e2a9…9d · neg-control ✓</span></div>
+      <div style="flex:1"></div>
+      <div style="color:#5f5f5f;overflow:hidden;text-overflow:ellipsis">subtask pass ≠ root acceptance · two passing roots without tie-breaker stay a plural accepted set — ymp never picks a winner</div>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:8px;overflow:hidden"><span style="background:#3a3a3a;color:#d0d0d0;padding:0 10px">ymp</span><span style="background:#3a3a3a;color:#d0d0d0;padding:0 10px">r-2419</span><span style="background:#d3a24a;color:#141414;padding:0 10px;font-weight:700">candidates</span></div>
+  </div>
+</div>
+
+<!-- 1k budgets -->
+<div id="1k" style="display:flex;flex-direction:column;gap:6px">
+  <div style="display:flex;gap:8px;align-items:baseline"><span style="background:#d3a24a;color:#141414;font:700 11px/1 'JetBrains Mono',monospace;padding:3px 6px;border-radius:3px">1k</span><span style="color:#f2f2f2;font:600 13.5px 'JetBrains Mono',monospace">budgets — what actually runs out</span><span style="color:#5f5f5f;font:11px 'JetBrains Mono',monospace">120×40 · &lt;6&gt;</span></div>
+  <div style="width:890px;height:790px;box-sizing:border-box;background:#141414;border:1px solid #262626;border-radius:6px;padding:10px 14px;font:12px/1.55 'JetBrains Mono',monospace;color:#d0d0d0;display:flex;flex-direction:column;overflow:hidden;white-space:nowrap">
+    <div style="display:flex;gap:24px;overflow:hidden">
+      <div style="display:flex;flex-direction:column;flex:none">
+        <div style="display:flex"><span style="flex:none;width:11ch;color:#d3a24a">Run:</span><span>r-2419 <span style="color:#8fbf5f">● running</span> 01:28</span></div>
+        <div style="display:flex"><span style="flex:none;width:11ch;color:#d3a24a">Limiting:</span><span style="color:#d3872f">messages 88% E ▲ exhausted ≈17:40</span></div>
+        <div style="display:flex"><span style="flex:none;width:11ch;color:#d3a24a">Classes:</span><span>E enforced · O observed · ~ estimated</span></div>
+        <div style="display:flex"><span style="flex:none;width:11ch;color:#d3a24a">Telemetry:</span><span>fresh ≤5s · <span style="color:#d3872f">tokens 40s stale</span></span></div>
+        <div style="display:flex"><span style="flex:none;width:11ch;color:#d3a24a">Rule:</span><span style="color:#5f5f5f">one exhausted dimension blocks alone</span></div>
+      </div>
+      <div style="display:flex;flex-direction:column;color:#8f8f8f;flex:none">
+        <div><span style="color:#d3a24a">&lt;Enter&gt;</span> per-agent</div>
+        <div><span style="color:#d3a24a">&lt;d&gt;</span> describe</div>
+        <div><span style="color:#d3a24a">&lt;B&gt;</span> amend budget</div>
+        <div><span style="color:#d3a24a">&lt;Esc&gt;</span> back</div>
+      </div>
+      <span style="flex:1"></span>
+      <pre style="flex:none;margin:0;font:700 10px/1.25 'JetBrains Mono',monospace;color:#d3a24a"> _   _ _ __ ___  _ __
+| | | | '_ ` _ \| '_ \
+| |_| | | | | | | |_) |
+ \__, |_| |_| |_| .__/
+ |___/          |_|</pre>
+    </div>
+    <div style="flex:1;border:1px solid #4a4a4a;border-radius:4px;margin-top:10px;position:relative;padding:8px 10px;display:flex;flex-direction:column;overflow:visible">
+      <span style="position:absolute;top:-9px;left:10px;background:#141414;padding:0 6px;color:#d3a24a">budgets(r-2419)[13]</span>
+      <div style="display:flex;color:#f2f2f2;overflow:hidden"><span style="flex:none;width:19ch">DIMENSION</span><span style="flex:none;width:3ch">CL</span><span style="flex:none;width:13ch">TOTAL</span><span style="flex:none;width:9ch">RESV</span><span style="flex:none;width:13ch">USED</span><span style="flex:none;width:11ch">REMAIN</span><span style="flex:none;width:20ch">GAUGE</span><span style="flex:1;min-width:0">NOTE</span></div>
+      <div style="display:flex;background:#d3a24a;color:#141414;margin:0 -6px;padding:0 6px;font-weight:700;overflow:hidden"><span style="flex:none;width:19ch">messages</span><span style="flex:none;width:3ch">E</span><span style="flex:none;width:13ch">400</span><span style="flex:none;width:9ch">12</span><span style="flex:none;width:13ch">352</span><span style="flex:none;width:11ch">36</span><span style="flex:none;width:20ch">▓▓▓▓▓▓▓▓▓▓▓▓▓▓░░ 88%</span><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis">▲ limiting</span></div>
+      <div style="display:flex;overflow:hidden"><span style="flex:none;width:19ch">cost</span><span style="flex:none;width:3ch;color:#8f8f8f">E</span><span style="flex:none;width:13ch">$12.00</span><span style="flex:none;width:9ch;color:#8f8f8f">$1.10</span><span style="flex:none;width:13ch">$7.32</span><span style="flex:none;width:11ch">$3.58</span><span style="flex:none;width:20ch;color:#8f8f8f">▓▓▓▓▓▓▓▓▓░░░░░░░ 61%</span><span style="flex:1;min-width:0;color:#5f5f5f;overflow:hidden;text-overflow:ellipsis">provider hard limit ✓</span></div>
+      <div style="display:flex;overflow:hidden"><span style="flex:none;width:19ch">wall time</span><span style="flex:none;width:3ch;color:#8f8f8f">E</span><span style="flex:none;width:13ch">02:30:00</span><span style="flex:none;width:9ch;color:#8f8f8f">—</span><span style="flex:none;width:13ch">01:42:11</span><span style="flex:none;width:11ch">00:47:49</span><span style="flex:none;width:20ch;color:#8f8f8f">▓▓▓▓▓▓▓▓▓▓▓░░░░░ 68%</span><span style="flex:1;min-width:0;color:#5f5f5f;overflow:hidden;text-overflow:ellipsis">controller-stopped</span></div>
+      <div style="display:flex;overflow:hidden"><span style="flex:none;width:19ch">model tokens</span><span style="flex:none;width:3ch;color:#8f8f8f">O</span><span style="flex:none;width:13ch">6.0M</span><span style="flex:none;width:9ch;color:#8f8f8f">—</span><span style="flex:none;width:13ch">3.1M</span><span style="flex:none;width:11ch">2.9M</span><span style="flex:none;width:20ch;color:#8f8f8f">▓▓▓▓▓▓▓▓░░░░░░░░ 52%</span><span style="flex:1;min-width:0;color:#d3872f;overflow:hidden;text-overflow:ellipsis">telemetry 40s stale</span></div>
+      <div style="display:flex;overflow:hidden"><span style="flex:none;width:19ch">participant starts</span><span style="flex:none;width:3ch;color:#8f8f8f">E</span><span style="flex:none;width:13ch">12</span><span style="flex:none;width:9ch;color:#8f8f8f">1</span><span style="flex:none;width:13ch">8</span><span style="flex:none;width:11ch">3</span><span style="flex:none;width:20ch;color:#8f8f8f">▓▓▓▓▓▓▓▓▓▓▓░░░░░ 66%</span><span style="flex:1;min-width:0;color:#5f5f5f;overflow:hidden;text-overflow:ellipsis">1 reserved by of-22</span></div>
+      <div style="display:flex;overflow:hidden"><span style="flex:none;width:19ch">invocation starts</span><span style="flex:none;width:3ch;color:#8f8f8f">E</span><span style="flex:none;width:13ch">96</span><span style="flex:none;width:9ch;color:#8f8f8f">—</span><span style="flex:none;width:13ch">31</span><span style="flex:none;width:11ch">65</span><span style="flex:none;width:20ch;color:#8f8f8f">▓▓▓▓▓░░░░░░░░░░░ 32%</span><span style="flex:1;min-width:0;color:#5f5f5f;overflow:hidden;text-overflow:ellipsis"></span></div>
+      <div style="display:flex;overflow:hidden"><span style="flex:none;width:19ch">protected queries</span><span style="flex:none;width:3ch;color:#8f8f8f">E</span><span style="flex:none;width:13ch">4</span><span style="flex:none;width:9ch;color:#8f8f8f">—</span><span style="flex:none;width:13ch">2</span><span style="flex:none;width:11ch">2</span><span style="flex:none;width:20ch;color:#8f8f8f">▓▓▓▓▓▓▓▓░░░░░░░░ 50%</span><span style="flex:1;min-width:0;color:#5f5f5f;overflow:hidden;text-overflow:ellipsis">participant-spent</span></div>
+      <div style="display:flex;overflow:hidden"><span style="flex:none;width:19ch">obligations</span><span style="flex:none;width:3ch;color:#8f8f8f">E</span><span style="flex:none;width:13ch">64</span><span style="flex:none;width:9ch;color:#8f8f8f">—</span><span style="flex:none;width:13ch">41 · 23 open</span><span style="flex:none;width:11ch">23</span><span style="flex:none;width:20ch;color:#8f8f8f">▓▓▓▓▓▓▓▓▓▓░░░░░░ 64%</span><span style="flex:1;min-width:0;color:#5f5f5f;overflow:hidden;text-overflow:ellipsis">creation authority</span></div>
+      <div style="display:flex;overflow:hidden"><span style="flex:none;width:19ch">offers</span><span style="flex:none;width:3ch;color:#8f8f8f">E</span><span style="flex:none;width:13ch">48</span><span style="flex:none;width:9ch;color:#8f8f8f">2</span><span style="flex:none;width:13ch">11</span><span style="flex:none;width:11ch">35</span><span style="flex:none;width:20ch;color:#8f8f8f">▓▓▓▓░░░░░░░░░░░░ 27%</span><span style="flex:1;min-width:0;color:#5f5f5f;overflow:hidden;text-overflow:ellipsis">2 slots escrowed</span></div>
+      <div style="display:flex;overflow:hidden"><span style="flex:none;width:19ch">audience grants</span><span style="flex:none;width:3ch;color:#8f8f8f">E</span><span style="flex:none;width:13ch">16</span><span style="flex:none;width:9ch;color:#8f8f8f">—</span><span style="flex:none;width:13ch">9 · 4 active</span><span style="flex:none;width:11ch">7</span><span style="flex:none;width:20ch;color:#8f8f8f">▓▓▓▓▓▓▓▓▓░░░░░░░ 56%</span><span style="flex:1;min-width:0;color:#5f5f5f;overflow:hidden;text-overflow:ellipsis">expiry returns grant</span></div>
+      <div style="display:flex;overflow:hidden"><span style="flex:none;width:19ch">published bytes</span><span style="flex:none;width:3ch;color:#8f8f8f">E</span><span style="flex:none;width:13ch">2.0 MiB</span><span style="flex:none;width:9ch;color:#8f8f8f">—</span><span style="flex:none;width:13ch">1.4 MiB</span><span style="flex:none;width:11ch">0.6 MiB</span><span style="flex:none;width:20ch;color:#8f8f8f">▓▓▓▓▓▓▓▓▓▓▓░░░░░ 70%</span><span style="flex:1;min-width:0;color:#5f5f5f;overflow:hidden;text-overflow:ellipsis"></span></div>
+      <div style="display:flex;overflow:hidden"><span style="flex:none;width:19ch">cpu / mem</span><span style="flex:none;width:3ch;color:#8f8f8f">O</span><span style="flex:none;width:13ch">— / 4 GiB</span><span style="flex:none;width:9ch;color:#8f8f8f">—</span><span style="flex:none;width:13ch">6m41s / 1.2G</span><span style="flex:none;width:11ch">—</span><span style="flex:none;width:20ch;color:#8f8f8f">▓▓▓▓░░░░░░░░░░░░ 30%</span><span style="flex:1;min-width:0;color:#5f5f5f;overflow:hidden;text-overflow:ellipsis">no enforcement point</span></div>
+      <div style="display:flex;overflow:hidden"><span style="flex:none;width:19ch">disk</span><span style="flex:none;width:3ch;color:#8f8f8f">~</span><span style="flex:none;width:13ch">10 GiB</span><span style="flex:none;width:9ch;color:#8f8f8f">—</span><span style="flex:none;width:13ch">2.1 GiB</span><span style="flex:none;width:11ch">7.9 GiB</span><span style="flex:none;width:20ch;color:#8f8f8f">▓▓▓░░░░░░░░░░░░░ 21%</span><span style="flex:1;min-width:0;color:#5f5f5f;overflow:hidden;text-overflow:ellipsis">estimated from du</span></div>
+      <div style="margin-top:10px;color:#f2f2f2">Selected messages <span style="color:#5f5f5f">— top consumers</span></div>
+      <div style="display:flex;overflow:hidden"><span style="flex:none;width:34ch">  p-02 118 · p-04 92 · p-05 71</span><span style="flex:1;min-width:0;color:#5f5f5f;overflow:hidden;text-overflow:ellipsis">refresh charges included · settlement returns unused reservations at terminal accounting</span></div>
+      <div style="flex:1"></div>
+      <div style="color:#5f5f5f;overflow:hidden;text-overflow:ellipsis">spare capacity in one dimension never authorizes an action blocked by another · rejected actions name the missing reservation</div>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:8px;overflow:hidden"><span style="background:#3a3a3a;color:#d0d0d0;padding:0 10px">ymp</span><span style="background:#3a3a3a;color:#d0d0d0;padding:0 10px">r-2419</span><span style="background:#d3a24a;color:#141414;padding:0 10px;font-weight:700">budgets</span></div>
+  </div>
+</div>
+
+<!-- 1l events -->
+<div id="1l" style="display:flex;flex-direction:column;gap:6px">
+  <div style="display:flex;gap:8px;align-items:baseline"><span style="background:#d3a24a;color:#141414;font:700 11px/1 'JetBrains Mono',monospace;padding:3px 6px;border-radius:3px">1l</span><span style="color:#f2f2f2;font:600 13.5px 'JetBrains Mono',monospace">events — journal filter, cursor, and follow</span><span style="color:#5f5f5f;font:11px 'JetBrains Mono',monospace">120×40 · &lt;7&gt;</span></div>
+  <div style="width:890px;height:790px;box-sizing:border-box;background:#141414;border:1px solid #262626;border-radius:6px;padding:10px 14px;font:12px/1.55 'JetBrains Mono',monospace;color:#d0d0d0;display:flex;flex-direction:column;overflow:hidden;white-space:nowrap">
+    <div style="display:flex;gap:24px;overflow:hidden">
+      <div style="display:flex;flex-direction:column;flex:none">
+        <div style="display:flex"><span style="flex:none;width:11ch;color:#d3a24a">Run:</span><span>r-2419 <span style="color:#8fbf5f">● running</span></span></div>
+        <div style="display:flex"><span style="flex:none;width:11ch;color:#d3a24a">Journal:</span><span><span style="color:#8fbf5f">✓ durable</span> · seq #8841 · no gaps</span></div>
+        <div style="display:flex"><span style="flex:none;width:11ch;color:#d3a24a">Cursor:</span><span>#8836 · 5 behind head</span></div>
+        <div style="display:flex"><span style="flex:none;width:11ch;color:#d3a24a">Follow:</span><span style="color:#d3872f">⏸ paused — drawing only</span></div>
+        <div style="display:flex"><span style="flex:none;width:11ch;color:#d3a24a">Filter:</span><span>⟨all⟩ · 8841 events · tail 14</span></div>
+      </div>
+      <div style="display:flex;flex-direction:column;color:#8f8f8f;flex:none">
+        <div><span style="color:#d3a24a">&lt;f&gt;</span> follow</div>
+        <div><span style="color:#d3a24a">&lt;Enter&gt;</span> causation</div>
+        <div><span style="color:#d3a24a">&lt;d&gt;</span> describe</div>
+        <div><span style="color:#d3a24a">&lt;/&gt;</span> filter</div>
+      </div>
+      <span style="flex:1"></span>
+      <pre style="flex:none;margin:0;font:700 10px/1.25 'JetBrains Mono',monospace;color:#d3a24a"> _   _ _ __ ___  _ __
+| | | | '_ ` _ \| '_ \
+| |_| | | | | | | |_) |
+ \__, |_| |_| |_| .__/
+ |___/          |_|</pre>
+    </div>
+    <div style="flex:1;border:1px solid #4a4a4a;border-radius:4px;margin-top:10px;position:relative;padding:8px 10px;display:flex;flex-direction:column;overflow:visible">
+      <span style="position:absolute;top:-9px;left:10px;background:#141414;padding:0 6px;color:#d3a24a">events(r-2419)[tail 14 of 8841]</span>
+      <div style="display:flex;color:#f2f2f2;overflow:hidden"><span style="flex:none;width:7ch">SEQ</span><span style="flex:none;width:10ch">TIME</span><span style="flex:none;width:8ch">PLANE</span><span style="flex:none;width:26ch">KIND</span><span style="flex:1;min-width:0">SUBJECT</span><span style="flex:none;width:8ch">CAUS</span></div>
+      <div style="display:flex;overflow:hidden;color:#5f5f5f"><span style="flex:none;width:7ch">#8828</span><span style="flex:none;width:10ch">17:09:12</span><span style="flex:none;width:8ch">CTRL</span><span style="flex:none;width:26ch">lease_renewed</span><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis">p-03 gen 7 · expiry +10m</span><span style="flex:none;width:8ch">#8811</span></div>
+      <div style="display:flex;overflow:hidden;color:#5f5f5f"><span style="flex:none;width:7ch">#8829</span><span style="flex:none;width:10ch">17:09:40</span><span style="flex:none;width:8ch;color:#d3a24a">COLLAB</span><span style="flex:none;width:26ch">message_published</span><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis">m-238 [confirmation] p-04 → au-03 · 208 B</span><span style="flex:none;width:8ch">#8820</span></div>
+      <div style="display:flex;overflow:hidden;color:#5f5f5f"><span style="flex:none;width:7ch">#8830</span><span style="flex:none;width:10ch">17:09:41</span><span style="flex:none;width:8ch;color:#d3a24a">COLLAB</span><span style="flex:none;width:26ch">delivery_recorded</span><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis">m-238 → 5 members</span><span style="flex:none;width:8ch">#8829</span></div>
+      <div style="display:flex;overflow:hidden;color:#5f5f5f"><span style="flex:none;width:7ch">#8831</span><span style="flex:none;width:10ch">17:10:02</span><span style="flex:none;width:8ch">CTRL</span><span style="flex:none;width:26ch">charge_settled</span><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis">p-04 messages −1 · bytes −208</span><span style="flex:none;width:8ch">#8829</span></div>
+      <div style="display:flex;overflow:hidden"><span style="flex:none;width:7ch;color:#5f5f5f">#8832</span><span style="flex:none;width:10ch;color:#5f5f5f">17:10:33</span><span style="flex:none;width:8ch;color:#d3a24a">COLLAB</span><span style="flex:none;width:26ch;color:#8f8f8f">message_published</span><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis">m-233 [decision] p-02 → au-03 · claims #207 #219</span><span style="flex:none;width:8ch;color:#5f5f5f">#8820</span></div>
+      <div style="display:flex;overflow:hidden;color:#5f5f5f"><span style="flex:none;width:7ch">#8833</span><span style="flex:none;width:10ch">17:11:08</span><span style="flex:none;width:8ch">CTRL</span><span style="flex:none;width:26ch">offer_funded</span><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis">of-22 · 2 slots · escrow 90u from p-01</span><span style="flex:none;width:8ch">#8815</span></div>
+      <div style="display:flex;overflow:hidden;color:#5f5f5f"><span style="flex:none;width:7ch">#8834</span><span style="flex:none;width:10ch">17:11:29</span><span style="flex:none;width:8ch;color:#d3a24a">COLLAB</span><span style="flex:none;width:26ch">bid_placed</span><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis">b-19 p-03 → of-22 · counter 45u · expires 00:52</span><span style="flex:none;width:8ch">#8833</span></div>
+      <div style="display:flex;overflow:hidden;color:#5f5f5f"><span style="flex:none;width:7ch">#8835</span><span style="flex:none;width:10ch">17:11:41</span><span style="flex:none;width:8ch">CTRL</span><span style="flex:none;width:26ch">workspace_observed</span><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis">ws-07 saved src/parser/lexer.rs +17 −3</span><span style="flex:none;width:8ch">—</span></div>
+      <div style="display:flex;background:#d3a24a;color:#141414;margin:0 -6px;padding:0 6px;font-weight:700;overflow:hidden"><span style="flex:none;width:7ch">#8836</span><span style="flex:none;width:10ch">17:12:04</span><span style="flex:none;width:8ch">CTRL</span><span style="flex:none;width:26ch">integration_queued</span><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis">s-25 · base 9f3a12e · fence gen 5 · from of-14</span><span style="flex:none;width:8ch">#8832</span></div>
+      <div style="display:flex;overflow:hidden;color:#5f5f5f"><span style="flex:none;width:7ch">#8837</span><span style="flex:none;width:10ch">17:12:04</span><span style="flex:none;width:8ch;color:#d3a24a">COLLAB</span><span style="flex:none;width:26ch">message_published</span><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis">m-241 [dead_end] p-05 → au-03 · 412 B</span><span style="flex:none;width:8ch">#8817</span></div>
+      <div style="display:flex;overflow:hidden;color:#5f5f5f"><span style="flex:none;width:7ch">#8838</span><span style="flex:none;width:10ch">17:12:11</span><span style="flex:none;width:8ch">CTRL</span><span style="flex:none;width:26ch">invocation_yielded</span><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis">i-028 p-05 · wake_on reply · deadline 17:42</span><span style="flex:none;width:8ch">#8837</span></div>
+      <div style="display:flex;overflow:hidden;color:#5f5f5f"><span style="flex:none;width:7ch">#8839</span><span style="flex:none;width:10ch">17:12:38</span><span style="flex:none;width:8ch">CTRL</span><span style="flex:none;width:26ch">route_request_ok</span><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis">openai/o4-mini · p-02 · 2.1k tokens · $0.03</span><span style="flex:none;width:8ch">—</span></div>
+      <div style="display:flex;overflow:hidden;color:#5f5f5f"><span style="flex:none;width:7ch">#8840</span><span style="flex:none;width:10ch">17:12:40</span><span style="flex:none;width:8ch">CTRL</span><span style="flex:none;width:26ch">workspace_observed</span><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis">ws-07 dirty 4 files · Δ base +142 −38</span><span style="flex:none;width:8ch">—</span></div>
+      <div style="display:flex;overflow:hidden;color:#5f5f5f"><span style="flex:none;width:7ch">#8841</span><span style="flex:none;width:10ch">17:12:41</span><span style="flex:none;width:8ch">HUMAN</span><span style="flex:none;width:26ch">view_cursor_moved</span><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis">operator paused follow · local, no run effect</span><span style="flex:none;width:8ch">—</span></div>
+      <div style="margin-top:10px;color:#f2f2f2">Selected #8836 <span style="color:#5f5f5f">— correlation cmd-412 · causation #8832 · full chain by &lt;Enter&gt;</span></div>
+      <div style="flex:1"></div>
+      <div style="color:#5f5f5f;overflow:hidden;text-overflow:ellipsis">⏸ pauses drawing, never execution · notification loss recovers from the durable cursor · arrival order ≠ causation — follow CAUS refs</div>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:8px;overflow:hidden"><span style="background:#3a3a3a;color:#d0d0d0;padding:0 10px">ymp</span><span style="background:#3a3a3a;color:#d0d0d0;padding:0 10px">r-2419</span><span style="background:#d3a24a;color:#141414;padding:0 10px;font-weight:700">events</span></div>
+  </div>
+</div>
+
+<!-- 1m terminal + cancel -->
+<div id="1m" style="display:flex;flex-direction:column;gap:6px">
+  <div style="display:flex;gap:8px;align-items:baseline"><span style="background:#d3a24a;color:#141414;font:700 11px/1 'JetBrains Mono',monospace;padding:3px 6px;border-radius:3px">1m</span><span style="color:#f2f2f2;font:600 13.5px 'JetBrains Mono',monospace">terminal — exact outcome with X modal</span><span style="color:#5f5f5f;font:11px 'JetBrains Mono',monospace">120×40 · plural acceptance</span></div>
+  <div style="width:890px;height:790px;box-sizing:border-box;background:#141414;border:1px solid #262626;border-radius:6px;padding:10px 14px;font:12px/1.55 'JetBrains Mono',monospace;color:#d0d0d0;display:flex;flex-direction:column;overflow:hidden;white-space:nowrap;position:relative">
+    <div style="display:flex;gap:24px;overflow:hidden">
+      <div style="display:flex;flex-direction:column;flex:none">
+        <div style="display:flex"><span style="flex:none;width:11ch;color:#d3a24a">Run:</span><span>r-2421 <span style="color:#8fbf5f">✓ accepted</span> · finalized 18:02</span></div>
+        <div style="display:flex"><span style="flex:none;width:11ch;color:#d3a24a">Accepted:</span><span>{c-11, c-12} — plural, no tie-breaker</span></div>
+        <div style="display:flex"><span style="flex:none;width:11ch;color:#d3a24a">Quiescence:</span><span>41/41 obligations closed ✓</span></div>
+        <div style="display:flex"><span style="flex:none;width:11ch;color:#d3a24a">Settled:</span><span>$8.91 of $12 · 74 msgs returned</span></div>
+        <div style="display:flex"><span style="flex:none;width:11ch;color:#d3a24a">Compare:</span><span>autonomous · eligible</span></div>
+      </div>
+      <div style="display:flex;flex-direction:column;color:#8f8f8f;flex:none">
+        <div><span style="color:#d3a24a">&lt;E&gt;</span> export evidence</div>
+        <div><span style="color:#d3a24a">&lt;R&gt;</span> repro rerun</div>
+        <div><span style="color:#d3a24a">&lt;A&gt;</span> archive</div>
+        <div><span style="color:#d3a24a">&lt;0&gt;</span> runs</div>
+      </div>
+      <span style="flex:1"></span>
+      <pre style="flex:none;margin:0;font:700 10px/1.25 'JetBrains Mono',monospace;color:#d3a24a"> _   _ _ __ ___  _ __
+| | | | '_ ` _ \| '_ \
+| |_| | | | | | | |_) |
+ \__, |_| |_| |_| .__/
+ |___/          |_|</pre>
+    </div>
+    <div style="flex:1;border:1px solid #4a4a4a;border-radius:4px;margin-top:10px;position:relative;padding:8px 10px;display:flex;flex-direction:column;overflow:visible">
+      <span style="position:absolute;top:-9px;left:10px;background:#141414;padding:0 6px;color:#d3a24a">terminal(r-2421)</span>
+      <div style="display:flex;color:#f2f2f2;overflow:hidden"><span style="flex:none;width:6ch">ID</span><span style="flex:none;width:28ch">EVIDENCE</span><span style="flex:1;min-width:0">STATUS</span><span style="flex:none;width:8ch">SCOPE</span></div>
+      <div style="display:flex;overflow:hidden"><span style="flex:none;width:6ch;color:#8fbf5f">c-11</span><span style="flex:none;width:28ch;color:#8f8f8f">ev-05 · 4 digests · repro ✓</span><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis"><span style="color:#8fbf5f">✓ accepted</span> · lexer-side span fix</span><span style="flex:none;width:8ch;color:#8f8f8f">root</span></div>
+      <div style="display:flex;overflow:hidden"><span style="flex:none;width:6ch;color:#8fbf5f">c-12</span><span style="flex:none;width:28ch;color:#8f8f8f">ev-07 · 4 digests · repro ✓</span><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis"><span style="color:#8fbf5f">✓ accepted</span> · reader-side fix — different approach</span><span style="flex:none;width:8ch;color:#8f8f8f">root</span></div>
+      <div style="display:flex;overflow:hidden;color:#5f5f5f"><span style="flex:none;width:6ch">c-08</span><span style="flex:none;width:28ch">ev-03 · 4 digests</span><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis">✗ failed (candidate) · preserved as evidence</span><span style="flex:none;width:8ch">root</span></div>
+      <div style="display:flex;overflow:hidden;color:#5f5f5f"><span style="flex:none;width:6ch">11×</span><span style="flex:none;width:28ch">—</span><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis">unverified · preserved, never judged</span><span style="flex:none;width:8ch">mixed</span></div>
+      <div style="margin-top:10px;color:#f2f2f2">Final accounting</div>
+      <div style="display:flex;overflow:hidden"><span style="flex:none;width:22ch;color:#d3a24a">  budget settlement</span><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis">cost $8.91 · wall 02:04 · messages 326 · queries 3 of 4 · unused reservations returned</span></div>
+      <div style="display:flex;overflow:hidden"><span style="flex:none;width:22ch;color:#d3a24a">  participants</span><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis">9 started · all returned typed results · 0 interrupted</span></div>
+      <div style="display:flex;overflow:hidden"><span style="flex:none;width:22ch;color:#d3a24a">  next actions</span><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis">&lt;E&gt; export (redaction r2) · &lt;R&gt; repro rerun (1 query) · applying a candidate is outside this surface</span></div>
+      <div style="flex:1"></div>
+      <div style="color:#5f5f5f;overflow:hidden;text-overflow:ellipsis">both roots pass the same oracle — ymp does not pick between them</div>
+    </div>
+    <div style="position:absolute;left:150px;right:150px;top:290px;background:#1c1c1c;border:1px solid #d1635c;border-radius:4px;padding:10px 14px;display:flex;flex-direction:column;box-shadow:0 12px 40px rgba(0,0,0,.65)">
+      <div style="color:#d1635c;font-weight:700">Cancel run r-2419? <span style="color:#8f8f8f;font-weight:400">— contrast example: every consequence is named</span></div>
+      <div style="color:#8f8f8f;margin-top:6px">■ stops new admission · requests interruption of 6 invocations · revokes endpoints</div>
+      <div style="color:#8f8f8f">■ closes 23 open obligations per protocol · settles all budgets</div>
+      <div style="color:#8f8f8f">■ final state <b style="color:#f2f2f2">cancelled</b> — not failed, not accepted · cannot be undone</div>
+      <div style="color:#8f8f8f">■ immutable history and evidence remain · run becomes human-intervened</div>
+      <div style="display:flex;gap:14px;margin-top:8px"><span style="background:#d1635c;color:#141414;padding:0 10px;font-weight:700">type CANCEL to confirm</span><span style="color:#8f8f8f">&lt;Esc&gt; keep running</span></div>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:8px;overflow:hidden"><span style="background:#3a3a3a;color:#d0d0d0;padding:0 10px">ymp</span><span style="background:#3a3a3a;color:#d0d0d0;padding:0 10px">r-2421</span><span style="background:#d3a24a;color:#141414;padding:0 10px;font-weight:700">terminal</span></div>
+  </div>
+</div>
+
+<!-- 1n 80x24 -->
+<div id="1n" style="display:flex;flex-direction:column;gap:6px">
+  <div style="display:flex;gap:8px;align-items:baseline"><span style="background:#d3a24a;color:#141414;font:700 11px/1 'JetBrains Mono',monospace;padding:3px 6px;border-radius:3px">1n</span><span style="color:#f2f2f2;font:600 13.5px 'JetBrains Mono',monospace">80×24 — the header collapses, the substance remains</span><span style="color:#5f5f5f;font:11px 'JetBrains Mono',monospace">agents in a narrow terminal</span></div>
+  <div style="width:604px;height:475px;box-sizing:border-box;background:#141414;border:1px solid #262626;border-radius:6px;padding:10px 12px;font:12px/1.55 'JetBrains Mono',monospace;color:#d0d0d0;display:flex;flex-direction:column;overflow:hidden;white-space:nowrap">
+    <div style="display:flex;gap:10px;overflow:hidden"><span style="color:#d3a24a">Run:</span><span>r-2419 <span style="color:#8fbf5f">●</span> 01:28</span><span style="color:#d3872f">msgs 88% E ▲</span><span style="flex:1"></span><span style="color:#8f8f8f"><span style="color:#d3a24a">&lt;?&gt;</span> keys</span></div>
+    <div style="flex:1;border:1px solid #4a4a4a;border-radius:4px;margin-top:8px;position:relative;padding:6px 8px;display:flex;flex-direction:column;overflow:visible">
+      <span style="position:absolute;top:-9px;left:8px;background:#141414;padding:0 6px;color:#d3a24a">agents(r-2419)[8]</span>
+      <div style="display:flex;color:#f2f2f2;overflow:hidden"><span style="flex:none;width:6ch">ID</span><span style="flex:none;width:10ch">CONTRACT</span><span style="flex:1;min-width:0">ACTIVITY</span><span style="flex:none;width:5ch">AGE</span></div>
+      <div style="display:flex;overflow:hidden"><span style="flex:none;width:6ch">p-01</span><span style="flex:none;width:10ch;color:#8f8f8f">origin</span><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis">funding of-22 · awaiting bids</span><span style="flex:none;width:5ch;color:#5f5f5f">82m</span></div>
+      <div style="display:flex;background:#d3a24a;color:#141414;margin:0 -4px;padding:0 4px;font-weight:700;overflow:hidden"><span style="flex:none;width:6ch">p-02</span><span style="flex:none;width:10ch">tc-05</span><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis">editing lexer.rs · ✓ 41/41</span><span style="flex:none;width:5ch">38m</span></div>
+      <div style="display:flex;overflow:hidden;color:#5f5f5f"><span style="flex:none;width:6ch">p-03</span><span style="flex:none;width:10ch">idle</span><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis">wake_on offer · 4m</span><span style="flex:none;width:5ch">61m</span></div>
+      <div style="display:flex;overflow:hidden"><span style="flex:none;width:6ch">p-04</span><span style="flex:none;width:10ch;color:#8f8f8f">tc-08</span><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis">running cargo test · 18s</span><span style="flex:none;width:5ch;color:#5f5f5f">44m</span></div>
+      <div style="display:flex;overflow:hidden"><span style="flex:none;width:6ch">p-05</span><span style="flex:none;width:10ch;color:#8f8f8f">tc-09</span><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis">published <span style="color:#d3a24a">[dead_end]</span> · ✗ 3</span><span style="flex:none;width:5ch;color:#5f5f5f">40m</span></div>
+      <div style="display:flex;overflow:hidden"><span style="flex:none;width:6ch">p-06</span><span style="flex:none;width:10ch;color:#8f8f8f">of-14</span><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis">merging c-08 + c-09 → s-25</span><span style="flex:none;width:5ch;color:#5f5f5f">19m</span></div>
+      <div style="display:flex;overflow:hidden"><span style="flex:none;width:6ch">p-07</span><span style="flex:none;width:10ch;color:#8f8f8f">tc-11</span><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis">tests/bom.rs · <span style="color:#d3872f">lease 00:41 ▲</span></span><span style="flex:none;width:5ch;color:#5f5f5f">12m</span></div>
+      <div style="display:flex;overflow:hidden;color:#5f5f5f"><span style="flex:none;width:6ch">p-08</span><span style="flex:none;width:10ch">tc-07</span><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis">returned → s-14 · 8m ago</span><span style="flex:none;width:5ch">55m</span></div>
+      <div style="flex:1"></div>
+      <div style="color:#5f5f5f;overflow:hidden;text-overflow:ellipsis">exact state · limiting dimension · next action — all remain visible at 80×24</div>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:8px;overflow:hidden"><span style="background:#3a3a3a;color:#d0d0d0;padding:0 10px">r-2419</span><span style="background:#d3a24a;color:#141414;padding:0 10px;font-weight:700">agents</span></div>
+  </div>
+  <div style="width:604px;font:11px/1.65 'JetBrains Mono',monospace;color:#5f5f5f;margin-top:4px">Below the minimum, show a stable “terminal too small: need ≥80×24” screen with a safe exit. Monochrome/ASCII mode already names planes in words (CTRL/COLLAB/VERIF/HUMAN) and pairs status with ● ◐ ○ ◌ ✓ ✗ ▲; ASCII mode maps ● → *, ◐ → ~, and ▓ → #.</div>
+</div>
+
+</div>
+</section>
+</main>
+</body>
+</html>

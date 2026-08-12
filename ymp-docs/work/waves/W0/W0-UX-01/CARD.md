@@ -9,7 +9,7 @@ relation: required
 depends_on: []
 blocks: [W1-APP-02e, W1-COR-03e]
 created_at: 2026-08-10T21:23:34+08:00
-updated_at: 2026-08-10T21:23:34+08:00
+updated_at: 2026-08-12T02:47:53+08:00
 started_at:
 accepted_at:
 candidate_commit:
@@ -26,8 +26,8 @@ return_trigger:
 ## Outcome
 
 The POC has an approved terminal-native screen system and state matrix that preserves ymp's domain
-and trust semantics, remains feasible in Rust/ratatui, and leaves layout decisions to Claude
-Design.
+and trust semantics, remains feasible in Rust/ratatui, and binds implementation to one reviewed
+revision of the existing HTML artifact.
 
 ## Invariants
 
@@ -41,8 +41,9 @@ Design.
 
 ## Scope
 
-This card owns the requirements brief at `ympus-docs/CLAUDE_REQUESTS.md`, Claude Design's screen
-and state deliverables, and an independent semantic and implementation-feasibility review.
+This card owns `ymp-docs/design/ymp_k9s_tui.dc.html`, its traceability to the project documents,
+and an independent semantic, accessibility, and implementation-feasibility review. No other design
+artifact or handoff document is expected.
 
 It excludes implementation, changes to the domain protocol, acceptance of the POC product claim,
 and visual requirements for optional server, web, or cluster modes.
@@ -50,7 +51,7 @@ and visual requirements for optional server, web, or cluster modes.
 ## Aggregate acceptance
 
 All three required tasks are accepted. The reviewed design package covers every POC-1 and POC-2
-use case and material failure variant, is traceable to the requirements brief, is feasible at the
+use case and material failure variant, is traceable to the project requirements, is feasible at the
 declared terminal sizes with Ratatui and Crossterm, and contains no visual semantics that turn ymp
 into a dispatcher or overstate acceptance, security, causation, or collective reasoning.
 

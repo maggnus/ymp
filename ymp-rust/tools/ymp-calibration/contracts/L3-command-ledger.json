@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "contract_id": "calibration-l3-command-ledger-v1",
+  "source": "../cases/L3-command-ledger/public",
+  "prompt": "Read TASK.md and repair the implementation completely. Before editing, call ymp.read_control exactly once to confirm the controller scope. Preserve the public API and Cargo.toml. Work only inside the provided workspace. Run cargo fmt --check, cargo test --all-targets, cargo test --doc, cargo clippy --all-targets --all-features -- -D warnings, and git diff --check before reporting the result.",
+  "capture_exclusions": [
+    "target"
+  ],
+  "verifier": {
+    "program": "../../../target/release/ymp-calibration",
+    "arguments": [
+      "verify",
+      "L3-command-ledger"
+    ],
+    "negative_control": "../cases/L3-command-ledger/public",
+    "oracle_digest": "5ecbc50c5487b5e6fe88184c97a004eea32fd2ad2cc1cb4a1c2cf136143f5848",
+    "wall_time_ms": 60000,
+    "output_limit_bytes": 1048576
+  }
+}

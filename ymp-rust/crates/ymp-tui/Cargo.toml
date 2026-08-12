@@ -1,0 +1,23 @@
+[package]
+name = "ymp-tui"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+crossterm.workspace = true
+ratatui.workspace = true
+uuid.workspace = true
+ymp-application.workspace = true
+ymp-domain.workspace = true
+ymp-runtime-api.workspace = true
+ymp-runtime-claude.workspace = true
+ymp-runtime-codex.workspace = true
+ymp-runtime-fake.workspace = true
+ymp-runtime-supervisor.workspace = true
+ymp-verifier.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true

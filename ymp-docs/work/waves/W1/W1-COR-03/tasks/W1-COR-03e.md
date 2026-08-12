@@ -10,7 +10,7 @@ relation: required
 depends_on: [W0-UX-01c, W1-APP-02e, W1-COR-03c, W1-COR-03d]
 blocks: [W1-EVL-04b]
 created_at: 2026-08-10T21:23:34+08:00
-updated_at: 2026-08-10T21:23:34+08:00
+updated_at: 2026-08-12T02:47:53+08:00
 started_at:
 accepted_at:
 candidate_commit:
@@ -70,8 +70,9 @@ acting as a dispatcher or labelling temporal association as collective reasoning
 
 ## Current state
 
-The requirements brief and design-review path exist, but no accepted screen package, collaboration
-projection, multi-participant candidate graph, TUI view state, or rendering test exists.
+The sole HTML artifact and design-review path exist, and the production TUI package has an initial
+single-run scaffold. No accepted screen revision, collaboration projection, multi-participant
+candidate graph, corresponding TUI state, or rendering test exists.
 
 ## Next action
 

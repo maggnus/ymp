@@ -1,0 +1,25 @@
+[package]
+name = "ymp-application"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+uuid.workspace = true
+ymp-agent-api.workspace = true
+ymp-artifacts.workspace = true
+ymp-domain.workspace = true
+ymp-kernel.workspace = true
+ymp-runtime-api.workspace = true
+ymp-storage.workspace = true
+ymp-verifier.workspace = true
+
+[dev-dependencies]
+hex.workspace = true
+sha2.workspace = true
+tempfile.workspace = true
+ymp-agent-mcp.workspace = true

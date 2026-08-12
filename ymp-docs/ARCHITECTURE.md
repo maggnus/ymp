@@ -146,6 +146,12 @@ collaboration, and verification records have separate schemas, access modules, p
 export rules. Neither an agent process nor an MCP bridge opens the journal or object directory
 directly.
 
+The managed-runtime supervisor writes a separate bounded, digest-linked transcript for each
+attempt. It retains exact usage counters and MCP completion status but stores only digests for the
+opaque runtime session identifier, model response text, tool arguments, and tool results. This
+transcript is observational evidence rather than an authority source; the evidence export includes
+it without allowing it to change control state.
+
 The platform-specific data root contains only external data, conceptually:
 
 ```text
@@ -174,11 +180,13 @@ It must preserve the same command, event, idempotency, and object-ordering tests
 a daemon. A future server mode may use the same local store implementation; a future cluster uses a
 different transactional store.
 
-The source may be organized as several internal Rust library crates for auditability, but the
-release build produces and installs only one ymp-owned executable. Store migrations if an embedded
-database is later adopted, agent-runtime drivers, coordination-tool schemas, isolation policies,
-and verifier code are embedded into that artifact; there
-is no runtime-loaded ymp module directory.
+Production Rust source lives in `ymp-rust/`. Its Cargo workspace separates domain, kernel, storage,
+artifact, runtime, agent binding, verifier, application, TUI, composition, test-support, and
+executable-model packages under `crates/` and `tools/`. These are compile-time audit and dependency
+boundaries, not separately installed products. The release build produces and installs only one
+ymp-owned executable. Store migrations if an embedded database is later adopted, agent-runtime
+drivers, coordination-tool schemas, isolation policies, and verifier code remain embedded into
+that artifact; there is no runtime-loaded ymp module directory.
 
 ## Three-plane trust topology
 
