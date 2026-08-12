@@ -3,20 +3,20 @@ id: W1-APP-02a
 kind: task
 wave: W1
 card: W1-APP-02
-state: rework
+state: accepted
 risk: significant
 maturity: BUILD
 relation: required
 depends_on: [W1-EXP-01c, W1-EXP-01d]
 blocks: [W1-APP-02b, W1-APP-02c, W1-APP-02d]
 created_at: 2026-08-10T19:34:25+08:00
-updated_at: 2026-08-12T16:36:00+08:00
+updated_at: 2026-08-12T19:46:07+08:00
 started_at: 2026-08-12T16:17:00+08:00
-accepted_at:
-candidate_commit:
-closure_commit:
-evidence:
-duration_minutes: 0
+accepted_at: 2026-08-12T19:46:07+08:00
+candidate_commit: https://github.com/maggnus/ymp/commit/ecad181e7850df98643fa327dfb0a135f778fe1c
+closure_commit: https://github.com/maggnus/ymp/commit/1026143499c201a57e670f4b8b89c099645365fc
+evidence: ["[df9ac0c](https://github.com/maggnus/ymp/commit/df9ac0c621e937ea643829a2d406a889cf1be528)", "[ecad181](https://github.com/maggnus/ymp/commit/ecad181e7850df98643fa327dfb0a135f778fe1c)", "[1026143](https://github.com/maggnus/ymp/commit/1026143499c201a57e670f4b8b89c099645365fc)"]
+duration_minutes: 97
 blocker:
 pause_reason:
 return_trigger:
@@ -59,22 +59,20 @@ views recover from an event cursor independently of in-memory notifications.
   coalesced notifications do not become lost authoritative state.
 - [x] A second foreground process using the same data root is rejected without replacing or
   terminating the current writer.
-- [ ] After reopening, a repeated command identifier returns its exact original result, while the
+- [x] After reopening, a repeated command identifier returns its exact original result, while the
   same identifier with different command bytes is rejected before any event or budget change.
-- [ ] The public executable starts the TUI and exposes no public non-TUI operation; private child
+- [x] The public executable starts the TUI and exposes no public non-TUI operation; private child
   operations remain reachable only through `ymp internal`.
 
 ## Current state
 
-Independent review returned two defects. Recovery currently accepts one `command_id` with different
-command bytes and does not preserve the original result after later state changes. Public help also
-exposes `demo`, `inspect`, and `probe` despite the foreground-TUI boundary. The corrections are
-separated into W1-APP-02a.1 and W1-APP-02a.2; dispatch follows after the overlapping W1-APP-02b
-writer returns.
+Accepted. The foreground application has one authoritative writer and recoverable event history;
+repeated commands retain one exact result across reopening, and the public executable exposes only
+the TUI while private child operations remain under `ymp internal`.
 
 ## Next action
 
-Complete both required subtasks and repeat the preserved external recovery and CLI checks.
+Continue managed Codex and Claude profile completion under W1-APP-02c and W1-APP-02d.
 
 ## Guardrails
 
@@ -91,12 +89,16 @@ Complete both required subtasks and repeat the preserved external recovery and C
 
 ### Accepted outcome
 
-Not accepted.
+The original core checks and both required corrections were independently reviewed and integrated.
+Recovery, command identity, terminal authority, one-writer storage, event cursors, public CLI shape,
+and foreground TUI entry now satisfy the task contract.
 
 ### Residuals
 
-None recorded.
+None.
 
 ### Evidence
 
-- None until acceptance.
+- [Recovery candidate df9ac0c](https://github.com/maggnus/ymp/commit/df9ac0c621e937ea643829a2d406a889cf1be528)
+- [CLI candidate ecad181](https://github.com/maggnus/ymp/commit/ecad181e7850df98643fa327dfb0a135f778fe1c)
+- [Integrated CLI revision 1026143](https://github.com/maggnus/ymp/commit/1026143499c201a57e670f4b8b89c099645365fc)

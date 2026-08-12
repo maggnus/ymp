@@ -4,20 +4,20 @@ kind: subtask
 wave: W1
 card: W1-APP-02
 parent: W1-APP-02a
-state: review
+state: accepted
 risk: significant
 maturity: BUILD
 relation: required
 depends_on: []
 blocks: []
 created_at: 2026-08-12T16:35:41+08:00
-updated_at: 2026-08-12T19:14:14+08:00
+updated_at: 2026-08-12T19:46:07+08:00
 started_at: 2026-08-12T19:03:00+08:00
-accepted_at:
+accepted_at: 2026-08-12T19:46:07+08:00
 candidate_commit: https://github.com/maggnus/ymp/commit/ecad181e7850df98643fa327dfb0a135f778fe1c
-closure_commit:
-evidence:
-duration_minutes: 11
+closure_commit: https://github.com/maggnus/ymp/commit/1026143499c201a57e670f4b8b89c099645365fc
+evidence: ["[ecad181](https://github.com/maggnus/ymp/commit/ecad181e7850df98643fa327dfb0a135f778fe1c)", "[1026143](https://github.com/maggnus/ymp/commit/1026143499c201a57e670f4b8b89c099645365fc)"]
+duration_minutes: 43
 blocker:
 pause_reason:
 return_trigger:
@@ -46,21 +46,19 @@ process-internal child operations remain explicitly nested under `ymp internal`.
 
 ## Acceptance
 
-- [ ] `ymp --help` exposes no public `demo`, `inspect`, `probe`, daemon, socket, or headless command.
-- [ ] Starting `ymp` without a private child command enters the foreground TUI path.
-- [ ] Required process-internal operations remain reachable only through the explicit `internal`
+- [x] `ymp --help` exposes no public `demo`, `inspect`, `probe`, daemon, socket, or headless command.
+- [x] Starting `ymp` without a private child command enters the foreground TUI path.
+- [x] Required process-internal operations remain reachable only through the explicit `internal`
   namespace, and existing child-mode tests continue to pass.
 
 ## Current state
 
-Candidate [ecad181](https://github.com/maggnus/ymp/commit/ecad181e7850df98643fa327dfb0a135f778fe1c)
-passes the fixed public-interface check and package checks. Independent review must additionally
-observe entry into the alternate TUI screen because the preserved external check has that blind spot.
+Accepted. The public executable starts the foreground TUI, exposes no public headless operation,
+and keeps process-internal operations under `ymp internal`.
 
 ## Next action
 
-Review the exact candidate with the preserved interface check and a stricter product-path control
-that observes alternate-screen entry before exit.
+Continue the parent closure process and the remaining managed-profile tasks.
 
 ## Guardrails
 
@@ -73,16 +71,16 @@ that observes alternate-screen entry before exit.
 
 ## Closure
 
-Filled when the subtask is accepted.
-
 ### Accepted outcome
 
-What was actually accepted.
+The reviewed candidate was integrated byte-equivalently. An external pseudoterminal scenario
+observed alternate-screen entry and safe exit, while a non-TUI imitation was rejected.
 
 ### Residuals
 
-Honestly retained limitations, each with an exact return trigger.
+None.
 
 ### Evidence
 
-- Commit, evidence package, or durable document of record, each as a Markdown link.
+- [Reviewed candidate ecad181](https://github.com/maggnus/ymp/commit/ecad181e7850df98643fa327dfb0a135f778fe1c)
+- [Integrated revision 1026143](https://github.com/maggnus/ymp/commit/1026143499c201a57e670f4b8b89c099645365fc)
