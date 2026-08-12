@@ -3,20 +3,20 @@ id: W0-UX-01a
 kind: task
 wave: W0
 card: W0-UX-01
-state: active
+state: accepted
 risk: significant
 maturity: DESIGN
 relation: required
 depends_on: []
 blocks: [W0-UX-01b]
 created_at: 2026-08-10T21:23:34+08:00
-updated_at: 2026-08-12T11:56:07+08:00
+updated_at: 2026-08-12T12:04:33+08:00
 started_at: 2026-08-12T11:04:55+08:00
-accepted_at:
+accepted_at: 2026-08-12T12:04:33+08:00
 candidate_commit: https://github.com/maggnus/ymp/commit/579eb08b6ceaba93cd44d3853d2e841fc966e2be
-closure_commit:
-evidence:
-duration_minutes: 0
+closure_commit: https://github.com/maggnus/ymp/commit/7642488df04471beb8dac505171ddaf91bfda498
+evidence: ["[579eb08](https://github.com/maggnus/ymp/commit/579eb08b6ceaba93cd44d3853d2e841fc966e2be)", "[7642488](https://github.com/maggnus/ymp/commit/7642488df04471beb8dac505171ddaf91bfda498)"]
+duration_minutes: 60
 blocker:
 pause_reason:
 return_trigger:
@@ -51,31 +51,31 @@ design artifact.
 
 ## Acceptance
 
-- [ ] The matrix covers every predictable entity, operator input, displayed state, setting family,
+- [x] The matrix covers every predictable entity, operator input, displayed state, setting family,
   consequence-bearing action, POC-1 and POC-2 use case, terminal constraint, and material failure
   class found in the project documents.
-- [ ] The matrix binds Rust, Ratatui, and Crossterm as the implementation medium, defines
+- [x] The matrix binds Rust, Ratatui, and Crossterm as the implementation medium, defines
   deterministic terminal-test expectations, and identifies which layout, navigation, composition,
   and widget decisions already exist in the HTML artifact.
-- [ ] Each screen family defines reusable structure, projection-backed data slots, repeated-item
+- [x] Each screen family defines reusable structure, projection-backed data slots, repeated-item
   rules, typed actions, and loading, empty, stale, failure, truncation, and size variants; the same
   template accepts different fixture data at 80 × 24, 120 × 40, and wide sizes.
-- [ ] The matrix explicitly prevents grades, central assignment, candidate ranking, leadership
+- [x] The matrix explicitly prevents grades, central assignment, candidate ranking, leadership
   from centrality, causal claims from temporal order, hidden fallback, and POC containment claims.
-- [ ] A negative review using a deliberately central-dispatch or web-only interpretation rejects
+- [x] A negative review using a deliberately central-dispatch or web-only interpretation rejects
   that interpretation under the brief rather than finding it permissible.
 
 ## Current state
 
-The corrected candidate preserves 172 traceable requirements, nine reusable structural templates,
-named data regions, application projections, typed commands, deterministic fixture rules,
-negative controls, and explicit blockers. It removes the returned table overflow, source-reference
-errors, and clipped header mark; focused independent re-review is active.
+Accepted. The sole artifact contains 172 traceable requirements, nine reusable structural
+templates, named data regions, application projections, typed commands, deterministic fixture
+rules, negative controls, and explicit W0-UX-01b blockers. Independent re-review confirmed the
+template contract and readable layouts at 760, 1440, and 1920 pixel review widths.
 
 ## Next action
 
-Decide acceptance through focused structural and visual re-review at 760, 1440, and 1920 pixel
-widths on the exact corrected candidate.
+Resolve the seven explicit `BLK-*` fixture and state gaps in W0-UX-01b without changing the
+accepted projection-backed template semantics.
 
 ## Guardrails
 
@@ -85,23 +85,26 @@ widths on the exact corrected candidate.
 
 ## Findings
 
-- `MAJOR`: long projection names in the `REG-*` source column cross the fixed table cell boundary
-  and obscure the adjacent column at normal and wide review widths.
-- `MINOR`: `NEG-CENTRAL` cites a nonexistent `INV-13` and must cite the exact central-assignment
-  prohibition headed by `INV-1`.
-- `MINOR`: `NEG-WEB` cites a nonexistent `PROJECT-CONTRACT.md` section.
-- `MINOR`: the `1a` header mark is almost fully clipped in the normal fixture.
+None. The returned table overflow, clipped header mark, and two inaccurate source references were
+corrected and independently rechecked.
 
 ## Closure
 
 ### Accepted outcome
 
-Not accepted.
+The requirements matrix traces the project contract to reusable terminal structures rather than
+static screens. Nine `TPL-*` templates consume immutable application projections through ten named
+`REG-*` regions and twelve `PRJ-*` projection families; all fourteen existing fixtures declare
+their template, projection, and data fixture. Negative central-dispatch and browser-client
+interpretations are explicitly rejected.
 
 ### Residuals
 
-None recorded.
+Seven visible `BLK-*` rows intentionally remain assigned to W0-UX-01b: complete state fixtures,
+three size classes, consequence previews, lost-reply behavior, unread-message quiescence,
+assurance failures, and the final independent freeze review.
 
 ### Evidence
 
-- None until acceptance.
+- [Reviewed candidate](https://github.com/maggnus/ymp/commit/579eb08b6ceaba93cd44d3853d2e841fc966e2be).
+- [Integration commit](https://github.com/maggnus/ymp/commit/7642488df04471beb8dac505171ddaf91bfda498).
