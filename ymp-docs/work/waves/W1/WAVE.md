@@ -46,6 +46,7 @@ unapproved budget and blinded selection lacked an early-disclosure falsifier. Th
 made budget authority explicit, and `W1-COR-03c` plus `W1-EVL-04a` reject early disclosure from the
 primary comparison. Repeated falsifiers and the structural check passed.
 
-Owner gates `G2` and `G3` were resolved on 12 August. External public packages and total study
-spend have no owner-imposed numeric ceilings. Corpus size and resource opportunity are frozen by
-the preregistered statistical design, while actual usage and cost remain fully accounted.
+Owner gates `G2` and `G3` were resolved on 12 August. External public packages have no
+owner-imposed numeric ceiling. A monetary limit is optional and, if configured, applies to the
+project as a whole. Corpus size and resource opportunity are frozen by the preregistered
+statistical design, while actual usage and cost remain fully accounted.

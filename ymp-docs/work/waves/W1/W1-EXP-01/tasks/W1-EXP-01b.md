@@ -51,8 +51,8 @@ minimum practically useful effect before any ymp outcome is observed.
 
 - [ ] A versioned study manifest and human-readable protocol completely determine arm assignment,
   equal resource opportunity, primary outcomes, exclusions, stopping, and the final decision rule.
-  No owner-imposed currency ceiling applies; accounting and statistical treatment are fixed before
-  primary outcomes are observed.
+  An optional currency ceiling may be configured only for the project as a whole; accounting and
+  statistical treatment are fixed before primary outcomes are observed.
 - [ ] A dry run over synthetic records produces the declared analysis without consulting mutable
   defaults or post-outcome configuration.
 - [ ] Deliberately changing one arm's budget, exclusion rule, or primary outcome after the manifest
@@ -63,8 +63,9 @@ minimum practically useful effect before any ymp outcome is observed.
 ## Current state
 
 The required comparisons are described in `ROADMAP.md`, and the owner has delegated corpus breadth,
-resource scale, and effect threshold to the preregistered statistical design without numeric cost
-or package ceilings. No approved corpus or machine-readable study manifest is frozen yet.
+resource scale, and effect threshold to the preregistered statistical design without a package
+ceiling. A project-wide monetary budget may be configured but is currently absent. No approved
+corpus or machine-readable study manifest is frozen yet.
 
 ## Next action
 

@@ -57,7 +57,8 @@ comparable acceptance, false-acceptance, cost, latency, failure, and abstention 
   missing seed assignment, or undeclared exclusion is rejected from the primary comparison by the
   compliance check.
 - [ ] Any in-flight excess is charged to the arm that incurred it and included in the declared
-  accounting and statistical analysis; there is no owner-imposed total currency ceiling.
+  accounting and statistical analysis. If an optional project-wide monetary budget is configured,
+  admission of new work also respects its remaining balance.
 - [ ] The selector commits its primary assessment before receiving arm identity, producer
   rationale, messages, reputation, or other assessments. A deliberately early disclosure makes
   the compliance check reject the observation from the primary comparison.
@@ -65,8 +66,9 @@ comparable acceptance, false-acceptance, cost, latency, failure, and abstention 
 ## Current state
 
 No corpus, complete executable system, study harness, or experimental record exists. The owner has
-removed numeric package and total-spend ceilings; work remains blocked by every listed dependency
-and by operational provider readiness.
+removed numeric package ceilings and made one project-wide monetary budget optional; none is
+currently configured. Work remains blocked by every listed dependency and operational provider
+readiness.
 
 ## Next action
 
