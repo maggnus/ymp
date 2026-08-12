@@ -37,9 +37,6 @@ struct Cli {
 
 #[derive(Debug, Subcommand)]
 enum Command {
-    Demo,
-    Inspect,
-    Probe,
     Internal {
         #[command(subcommand)]
         command: InternalCommand,
@@ -114,27 +111,6 @@ fn main() -> anyhow::Result<()> {
                 .map(ymp_runtime_supervisor::ManagedContract::load)
                 .collect::<anyhow::Result<Vec<_>>>()?;
             ymp_tui::run_with_contracts(cli.data_root, contracts)
-        }
-        Some(Command::Demo) => {
-            let root = cli.data_root.join(format!("demo-{}", Uuid::new_v4()));
-            let report = ymp_testkit::run_accepted_demo(&root)?;
-            println!("{}", serde_json::to_string_pretty(&report)?);
-            eprintln!("data_root={}", root.display());
-            Ok(())
-        }
-        Some(Command::Inspect) => {
-            let app = Application::open(&cli.data_root).context("open run for inspection")?;
-            println!("{}", serde_json::to_string_pretty(app.state())?);
-            Ok(())
-        }
-        Some(Command::Probe) => {
-            let reports = [
-                FakeRuntime::default().probe()?,
-                CodexRuntime::default().probe()?,
-                ClaudeRuntime::default().probe()?,
-            ];
-            println!("{}", serde_json::to_string_pretty(&reports)?);
-            Ok(())
         }
         Some(Command::Internal { command }) => match command {
             InternalCommand::AgentMcp => run_agent_mcp(),
@@ -548,13 +524,62 @@ fn run_agent_mcp() -> anyhow::Result<()> {
 #[cfg(test)]
 mod tests {
     use super::{
-        ManagedVerificationRequest, materialize_controller_candidate, run_managed_verification,
+        Cli, ManagedVerificationRequest, materialize_controller_candidate, run_managed_verification,
     };
+    use clap::{CommandFactory, Parser};
     use std::fs;
     use std::time::Duration;
     use tempfile::tempdir;
     use ymp_application::Application;
     use ymp_domain::{Budget, Command, RunStatus};
+
+    #[test]
+    fn cli_public_command_surface_exposes_only_the_internal_namespace() {
+        let mut command = Cli::command();
+        let public_commands = command
+            .get_subcommands()
+            .map(|subcommand| subcommand.get_name())
+            .collect::<Vec<_>>();
+        assert_eq!(public_commands, ["internal"]);
+
+        let help = command.render_long_help().to_string().to_lowercase();
+        for forbidden in ["demo", "inspect", "probe", "daemon", "socket", "headless"] {
+            assert!(
+                !help
+                    .split(|character: char| !character.is_alphanumeric() && character != '-')
+                    .any(|word| word == forbidden),
+                "public help exposes forbidden command {forbidden}:\n{help}"
+            );
+        }
+    }
+
+    #[test]
+    fn cli_default_invocation_selects_the_foreground_mode() {
+        let cli = Cli::try_parse_from(["ymp"]).expect("default invocation");
+        assert!(cli.command.is_none());
+    }
+
+    #[test]
+    fn cli_internal_children_are_nested_below_the_internal_namespace() {
+        let command = Cli::command();
+        let internal = command
+            .find_subcommand("internal")
+            .expect("internal namespace");
+        for child in [
+            "agent-mcp",
+            "runtime-smoke",
+            "managed-runtime-smoke",
+            "managed-candidate-smoke",
+            "verifier",
+            "verify-managed-candidate",
+        ] {
+            assert!(command.find_subcommand(child).is_none());
+            assert!(
+                internal.find_subcommand(child).is_some(),
+                "missing internal child {child}"
+            );
+        }
+    }
 
     #[test]
     fn managed_verification_materializes_the_controller_bound_candidate() {
