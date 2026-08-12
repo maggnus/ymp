@@ -3,15 +3,15 @@ id: W1-APP-02g
 kind: task
 wave: W1
 card: W1-APP-02
-state: active
+state: ready
 risk: significant
 maturity: BUILD
 relation: required
 depends_on: []
 blocks: []
 created_at: 2026-08-12T09:42:00+08:00
-updated_at: 2026-08-12T09:44:30+08:00
-started_at: 2026-08-12T09:44:30+08:00
+updated_at: 2026-08-12T09:49:00+08:00
+started_at:
 accepted_at:
 candidate_commit:
 closure_commit:
@@ -56,7 +56,7 @@ produce its result. Existing verification evidence therefore cannot establish ex
 
 ## Next action
 
-Implement the smallest compatible environment binding and enforce it through the real verifier path.
+Start after the active runtime corrections are accepted because this task changes the durable schema.
 
 ## Guardrails
 
