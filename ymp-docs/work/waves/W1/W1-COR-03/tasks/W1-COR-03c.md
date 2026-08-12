@@ -10,7 +10,7 @@ relation: required
 depends_on: [W1-COR-03a, W1-COR-03b]
 blocks: [W1-COR-03e]
 created_at: 2026-08-10T19:34:25+08:00
-updated_at: 2026-08-10T21:23:34+08:00
+updated_at: 2026-08-12T09:29:40+08:00
 started_at:
 accepted_at:
 candidate_commit:
@@ -62,6 +62,9 @@ declared provenance without claiming that message order or fluent dialogue prove
   and verifier result and labels none of them causal without a controlled intervention record.
 - [ ] A deliberately malformed or cross-scope message is rejected without changing control or
   verifier state.
+- [ ] When an assessment participates in blinded selection, it is committed before arm identity,
+  producer rationale, other assessments, reputation, or communication evidence is revealed; an
+  early-disclosure attempt is rejected and cannot enter the primary comparison.
 
 ## Current state
 

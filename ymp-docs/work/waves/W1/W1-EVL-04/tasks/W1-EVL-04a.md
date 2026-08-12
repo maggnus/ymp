@@ -10,7 +10,7 @@ relation: required
 depends_on: [W1-EXP-01a, W1-EXP-01b, W1-COR-03b, W1-COR-03d]
 blocks: [W1-EVL-04b, W1-EVL-04c]
 created_at: 2026-08-10T19:34:25+08:00
-updated_at: 2026-08-10T19:34:25+08:00
+updated_at: 2026-08-12T09:29:40+08:00
 started_at:
 accepted_at:
 candidate_commit:
@@ -58,6 +58,9 @@ comparable acceptance, false-acceptance, cost, latency, failure, and abstention 
   compliance check.
 - [ ] Any approved in-flight overshoot is charged to the arm that incurred it and remains within
   the tolerance fixed by `G3` and the preregistration.
+- [ ] The selector commits its primary assessment before receiving arm identity, producer
+  rationale, messages, reputation, or other assessments. A deliberately early disclosure makes
+  the compliance check reject the observation from the primary comparison.
 
 ## Current state
 

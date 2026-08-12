@@ -7,8 +7,8 @@ plan_review_state: pending
 plan_review_evidence:
 plan_review_at:
 created_at: 2026-08-10T19:34:25+08:00
-updated_at: 2026-08-12T09:25:52+08:00
-blocker: Owner gate G2 and independent plan review
+updated_at: 2026-08-12T09:29:40+08:00
+blocker: Owner gates G2 and G3 and independent plan review
 ---
 
 # W1 — POC decision readiness

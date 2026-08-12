@@ -1,14 +1,14 @@
 ---
 id: W0
 kind: wave
-state: blocked
+state: ready
 areas: [UX]
-plan_review_state: pending
-plan_review_evidence:
-plan_review_at:
+plan_review_state: accepted
+plan_review_evidence: https://github.com/maggnus/ymp/commit/7468b37a25f3d5f0f2dec0a8a0482dddbdff1ca9
+plan_review_at: 2026-08-12T09:30:05+08:00
 created_at: 2026-08-10T21:23:34+08:00
-updated_at: 2026-08-12T09:25:52+08:00
-blocker: Independent plan review
+updated_at: 2026-08-12T09:30:05+08:00
+blocker:
 ---
 
 # W0 — Terminal interface design readiness
@@ -36,6 +36,8 @@ single-participant and multi-participant screens are implemented.
 
 ## Plan review
 
-In progress. A non-author reviewer is testing whether the decomposition covers product-to-screen
-traceability, the sole HTML artifact, and implementation-feasibility review without letting design
-work redefine protocol semantics. Owner gate `G1` is resolved.
+Accepted. Independent review returned the plan once because it allowed an unresolved assumption
+affecting trust, authorization, verification, or a terminal outcome to be recorded as an ordinary
+warning. Tasks `W0-UX-01b` and `W0-UX-01c` now make that condition block acceptance and require
+negative controls for lost MCP replies and quiescence with unread inert messages. The repeated
+falsifier no longer found a premature closure path.
