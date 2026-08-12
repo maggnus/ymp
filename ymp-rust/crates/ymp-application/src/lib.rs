@@ -20,7 +20,7 @@ use ymp_domain::{
 use ymp_storage::{
     DataRootLock, Journal, JournalError, JournalLimits, ObjectStore, ObjectStoreError,
 };
-use ymp_verifier::VerifiedEvidence;
+use ymp_verifier::{EnvironmentBoundVerifier, VerifiedEvidence, VerifierError};
 
 const BOOTSTRAP_COMMAND_ID: &str = "ymp.bootstrap";
 
@@ -54,10 +54,30 @@ pub enum ApplicationError {
     Json(#[from] serde_json::Error),
     #[error("verifier evidence object digest does not match its declared digest")]
     EvidenceDigestMismatch,
+    #[error("verification infrastructure error: {0}")]
+    VerificationInfrastructure(#[from] VerificationInfrastructureError),
+    #[error("a candidate must be submitted before verification")]
+    NoCandidateForVerification,
     #[error("evidence export destination already exists: {0}")]
     ExportAlreadyExists(PathBuf),
     #[error("a candidate must be submitted before evidence can be exported")]
     NoCandidateForExport,
+}
+
+#[derive(Debug, Error, Eq, PartialEq)]
+pub enum VerificationInfrastructureError {
+    #[error("verification evidence has no environment binding")]
+    MissingEnvironmentBinding,
+    #[error("version-1 verification evidence has an ambiguous environment binding")]
+    AmbiguousLegacyEvidence,
+    #[error("verification environment object is missing: {0}")]
+    EnvironmentObjectMissing(String),
+    #[error("verification environment object does not match digest {0}")]
+    EnvironmentDigestMismatch(String),
+    #[error("verification evidence does not match its journal record")]
+    EvidenceRecordMismatch,
+    #[error("verification evidence is invalid: {0}")]
+    InvalidEvidence(String),
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -79,6 +99,7 @@ pub struct EvidenceExportReport {
     pub destination: PathBuf,
     pub candidate_digest: String,
     pub evidence_digests: Vec<String>,
+    pub environment_digests: Vec<String>,
     pub event_count: usize,
 }
 
@@ -221,9 +242,27 @@ impl Application {
                     object_store.verify(object_digest)?;
                 }
                 EventKind::VerificationRecorded {
-                    evidence_digest, ..
+                    candidate_digest,
+                    contract_digest,
+                    oracle_digest,
+                    evidence_digest,
+                    accepted,
                 } => {
-                    object_store.verify(evidence_digest)?;
+                    let bytes = object_store.read(evidence_digest)?;
+                    let evidence = VerifiedEvidence::from_object_bytes(&bytes, evidence_digest)
+                        .map_err(verification_evidence_error)?;
+                    let environment_digest = evidence
+                        .environment_digest()
+                        .ok_or(VerificationInfrastructureError::MissingEnvironmentBinding)?;
+                    verify_environment_object(&object_store, environment_digest)?;
+                    if evidence.candidate_digest() != candidate_digest
+                        || evidence.contract_digest() != contract_digest
+                        || evidence.oracle_digest() != oracle_digest
+                        || (evidence.decision() == ymp_domain::VerificationDecision::Accept)
+                            != *accepted
+                    {
+                        return Err(VerificationInfrastructureError::EvidenceRecordMismatch.into());
+                    }
                 }
                 _ => {}
             }
@@ -271,6 +310,70 @@ impl Application {
         evidence: &VerifiedEvidence,
     ) -> Result<CommandOutcome, ApplicationError> {
         let command_id = command_id.into();
+        let Some(environment_digest) = evidence.environment_digest() else {
+            return self.commit_verification_infrastructure(
+                command_id,
+                evidence.evidence_digest(),
+                "verification evidence has no environment binding",
+            );
+        };
+        let stored_environment_digest = self.object_store.put(evidence.environment_object())?;
+        if stored_environment_digest != environment_digest {
+            return self.commit_verification_infrastructure(
+                command_id,
+                evidence.evidence_digest(),
+                "verification environment digest mismatch",
+            );
+        }
+        self.record_bound_verification(command_id, evidence, environment_digest)
+    }
+
+    pub fn verify_with_environment<V: EnvironmentBoundVerifier>(
+        &mut self,
+        command_id: impl Into<String>,
+        environment_object: &[u8],
+        verifier: &V,
+    ) -> Result<CommandOutcome, ApplicationError> {
+        let command_id = command_id.into();
+        let candidate_digest = self
+            .state
+            .candidate_digest
+            .clone()
+            .ok_or(ApplicationError::NoCandidateForVerification)?;
+        let environment_digest = self.object_store.put(environment_object)?;
+        let candidate_path = self.object_store.path_for(&candidate_digest)?;
+        let environment_path = self.object_store.path_for(&environment_digest)?;
+        let evidence = match verifier.verify_candidate_in_environment(
+            &candidate_path,
+            &candidate_digest,
+            &environment_path,
+            &environment_digest,
+        ) {
+            Ok(evidence) => evidence,
+            Err(_) => {
+                return self.commit_verification_infrastructure(
+                    command_id,
+                    &environment_digest,
+                    "verifier could not validate the bound environment",
+                );
+            }
+        };
+        if evidence.environment_digest() != Some(environment_digest.as_str()) {
+            return self.commit_verification_infrastructure(
+                command_id,
+                evidence.evidence_digest(),
+                "verifier returned evidence for a different environment",
+            );
+        }
+        self.record_bound_verification(command_id, &evidence, &environment_digest)
+    }
+
+    fn record_bound_verification(
+        &mut self,
+        command_id: String,
+        evidence: &VerifiedEvidence,
+        environment_digest: &str,
+    ) -> Result<CommandOutcome, ApplicationError> {
         validate_identifier("command_id", &command_id)?;
         let command_digest = evidence.evidence_digest().to_owned();
         if let Some(outcome) = self.replay(&command_id, &command_digest)? {
@@ -279,6 +382,13 @@ impl Application {
         }
 
         self.object_store.verify(evidence.candidate_digest())?;
+        if let Err(error) = verify_environment_object(&self.object_store, environment_digest) {
+            return self.commit_verification_infrastructure(
+                command_id,
+                &command_digest,
+                &error.to_string(),
+            );
+        }
         let evidence_object_digest = self.object_store.put(&evidence.object_bytes()?)?;
         if evidence_object_digest != evidence.evidence_digest() {
             return Err(ApplicationError::EvidenceDigestMismatch);
@@ -287,11 +397,32 @@ impl Application {
             candidate_digest: evidence.candidate_digest().to_owned(),
             contract_digest: evidence.contract_digest().to_owned(),
             oracle_digest: evidence.oracle_digest().to_owned(),
+            environment_digest: environment_digest.to_owned(),
             evidence_digest: evidence.evidence_digest().to_owned(),
             decision: evidence.decision(),
         };
         let event = self.state.decide_verification(&record)?;
         self.commit(command_id, command_digest, event)
+    }
+
+    fn commit_verification_infrastructure(
+        &mut self,
+        command_id: String,
+        command_digest_source: &str,
+        reason: &str,
+    ) -> Result<CommandOutcome, ApplicationError> {
+        validate_identifier("command_id", &command_id)?;
+        let command_digest = ymp_domain::digest_bytes(command_digest_source.as_bytes());
+        if let Some(outcome) = self.replay(&command_id, &command_digest)? {
+            return Ok(outcome);
+        }
+        self.commit(
+            command_id,
+            command_digest,
+            EventKind::RunFailed {
+                reason: reason.chars().take(1024).collect(),
+            },
+        )
     }
 
     /// Captures a quiescent private attempt workspace and commits its immutable candidate.
@@ -367,6 +498,19 @@ impl Application {
                 _ => None,
             })
             .collect();
+        let mut environment_digests = Vec::new();
+        for evidence_digest in &evidence_digests {
+            let bytes = self.object_store.read(evidence_digest)?;
+            let evidence = VerifiedEvidence::from_object_bytes(&bytes, evidence_digest)
+                .map_err(verification_evidence_error)?;
+            let environment_digest = evidence
+                .environment_digest()
+                .ok_or(VerificationInfrastructureError::MissingEnvironmentBinding)?;
+            verify_environment_object(&self.object_store, environment_digest)?;
+            environment_digests.push(environment_digest.to_owned());
+        }
+        environment_digests.sort();
+        environment_digests.dedup();
         let parent = destination.parent().unwrap_or_else(|| Path::new("."));
         fs::create_dir_all(parent)?;
         let temporary = parent.join(format!(".ymp-export-{}", Uuid::new_v4()));
@@ -398,6 +542,14 @@ impl Application {
                     self.object_store.read(digest)?,
                 )?;
             }
+            let environment_directory = temporary.join("environments");
+            fs::create_dir(&environment_directory)?;
+            for digest in &environment_digests {
+                fs::write(
+                    environment_directory.join(digest),
+                    self.object_store.read(digest)?,
+                )?;
+            }
             let runtime_evidence_source = self.data_root.join("runtime-evidence");
             let has_runtime_evidence = runtime_evidence_source.is_dir();
             if has_runtime_evidence {
@@ -414,6 +566,7 @@ impl Application {
                     "status": self.state.status,
                     "candidate_digest": candidate_digest,
                     "evidence_digests": evidence_digests,
+                    "environment_digests": environment_digests,
                     "runtime_evidence": has_runtime_evidence,
                     "event_count": events.len()
                 }))?,
@@ -431,6 +584,7 @@ impl Application {
             destination,
             candidate_digest,
             evidence_digests,
+            environment_digests,
             event_count: events.len(),
         })
     }
@@ -698,6 +852,40 @@ fn agent_application_error(error: ApplicationError) -> AgentToolError {
             AgentToolError::rejected(error.to_string())
         }
         _ => AgentToolError::internal("controller could not commit the tool call"),
+    }
+}
+
+fn verification_evidence_error(error: VerifierError) -> ApplicationError {
+    match error {
+        VerifierError::AmbiguousLegacyEvidence => {
+            VerificationInfrastructureError::AmbiguousLegacyEvidence.into()
+        }
+        VerifierError::MissingEnvironmentBinding => {
+            VerificationInfrastructureError::MissingEnvironmentBinding.into()
+        }
+        error => VerificationInfrastructureError::InvalidEvidence(error.to_string()).into(),
+    }
+}
+
+fn verify_environment_object(
+    object_store: &ObjectStore,
+    environment_digest: &str,
+) -> Result<(), VerificationInfrastructureError> {
+    match object_store.verify(environment_digest) {
+        Ok(()) => Ok(()),
+        Err(ObjectStoreError::Missing(_)) => {
+            Err(VerificationInfrastructureError::EnvironmentObjectMissing(
+                environment_digest.to_owned(),
+            ))
+        }
+        Err(ObjectStoreError::DigestMismatch(_)) => {
+            Err(VerificationInfrastructureError::EnvironmentDigestMismatch(
+                environment_digest.to_owned(),
+            ))
+        }
+        Err(error) => Err(VerificationInfrastructureError::InvalidEvidence(
+            error.to_string(),
+        )),
     }
 }
 

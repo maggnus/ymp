@@ -1,6 +1,6 @@
 #![forbid(unsafe_code)]
 
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::fs::File;
 use std::io::{Read, Write};
@@ -14,7 +14,7 @@ use thiserror::Error;
 use ymp_domain::VerificationDecision;
 use ymp_runtime_api::{configure_process_group, terminate_process_tree};
 
-const EVIDENCE_SCHEMA_VERSION: u32 = 1;
+const EVIDENCE_SCHEMA_VERSION: u32 = 2;
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
 pub struct DigestCheck {
@@ -25,16 +25,20 @@ pub struct DigestCheck {
 
 /// Controller-owned verification evidence. Its fields are intentionally private, so callers
 /// cannot manufacture an acceptance decision and commit it through `ymp-application`.
-#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct VerifiedEvidence {
     schema_version: u32,
     candidate_digest: String,
     contract_digest: String,
     oracle_digest: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    environment_digest: Option<String>,
     verifier_profile: String,
     observation_digest: String,
     decision: VerificationDecision,
     evidence_digest: String,
+    #[serde(skip)]
+    environment_object: Vec<u8>,
 }
 
 impl VerifiedEvidence {
@@ -50,6 +54,10 @@ impl VerifiedEvidence {
         &self.oracle_digest
     }
 
+    pub fn environment_digest(&self) -> Option<&str> {
+        self.environment_digest.as_deref()
+    }
+
     pub fn decision(&self) -> VerificationDecision {
         self.decision
     }
@@ -63,6 +71,57 @@ impl VerifiedEvidence {
         body.evidence_digest.clear();
         serde_json::to_vec(&body)
     }
+
+    pub fn environment_object(&self) -> &[u8] {
+        &self.environment_object
+    }
+
+    pub fn from_object_bytes(
+        bytes: &[u8],
+        evidence_digest: impl Into<String>,
+    ) -> Result<Self, VerifierError> {
+        let evidence_digest = evidence_digest.into();
+        validate_digest("evidence", &evidence_digest)?;
+        let mut evidence: Self = serde_json::from_slice(bytes)?;
+        if evidence.schema_version == 1 {
+            return Err(VerifierError::AmbiguousLegacyEvidence);
+        }
+        if evidence.schema_version != EVIDENCE_SCHEMA_VERSION {
+            return Err(VerifierError::UnsupportedEvidenceSchema(
+                evidence.schema_version,
+            ));
+        }
+        if !evidence.evidence_digest.is_empty() {
+            return Err(VerifierError::StoredEvidenceContainsDigest);
+        }
+        let actual_digest = ymp_domain::digest_bytes(bytes);
+        if actual_digest != evidence_digest {
+            return Err(VerifierError::EvidenceDigestMismatch {
+                expected: evidence_digest,
+                actual: actual_digest,
+            });
+        }
+        validate_digest("candidate", &evidence.candidate_digest)?;
+        validate_digest("contract", &evidence.contract_digest)?;
+        validate_digest("oracle", &evidence.oracle_digest)?;
+        let environment_digest = evidence
+            .environment_digest
+            .as_deref()
+            .ok_or(VerifierError::MissingEnvironmentBinding)?;
+        validate_digest("environment", environment_digest)?;
+        evidence.evidence_digest = actual_digest;
+        Ok(evidence)
+    }
+}
+
+pub trait EnvironmentBoundVerifier {
+    fn verify_candidate_in_environment(
+        &self,
+        candidate_path: &Path,
+        candidate_digest: &str,
+        environment_path: &Path,
+        environment_digest: &str,
+    ) -> Result<VerifiedEvidence, VerifierError>;
 }
 
 #[derive(Clone, Debug)]
@@ -94,7 +153,26 @@ impl ExactDigestVerifier {
         path: impl AsRef<Path>,
         candidate_digest: impl Into<String>,
     ) -> Result<VerifiedEvidence, VerifierError> {
-        let candidate_digest = candidate_digest.into();
+        let environment_object = serde_json::to_vec(&serde_json::json!({
+            "schema_version": 1,
+            "verifier_profile": "exact_digest_v1"
+        }))?;
+        let environment_digest = ymp_domain::digest_bytes(&environment_object);
+        self.verify_candidate_with_environment_bytes(
+            path.as_ref(),
+            candidate_digest.into(),
+            environment_object,
+            environment_digest,
+        )
+    }
+
+    fn verify_candidate_with_environment_bytes(
+        &self,
+        path: &Path,
+        candidate_digest: String,
+        environment_object: Vec<u8>,
+        environment_digest: String,
+    ) -> Result<VerifiedEvidence, VerifierError> {
         validate_digest("candidate", &candidate_digest)?;
         let check = check_exact_digest(path, &self.expected_digest)?;
         let decision = if check.matched && candidate_digest == self.expected_digest {
@@ -107,13 +185,33 @@ impl ExactDigestVerifier {
             candidate_digest,
             contract_digest: self.contract_digest.clone(),
             oracle_digest: self.oracle_digest.clone(),
+            environment_digest: Some(environment_digest),
             verifier_profile: "exact_digest_v1".to_owned(),
             observation_digest: digest_serializable(&check)?,
             decision,
             evidence_digest: String::new(),
+            environment_object,
         };
         evidence.evidence_digest = ymp_domain::digest_bytes(&serde_json::to_vec(&evidence)?);
         Ok(evidence)
+    }
+}
+
+impl EnvironmentBoundVerifier for ExactDigestVerifier {
+    fn verify_candidate_in_environment(
+        &self,
+        candidate_path: &Path,
+        candidate_digest: &str,
+        environment_path: &Path,
+        environment_digest: &str,
+    ) -> Result<VerifiedEvidence, VerifierError> {
+        let environment_object = read_environment_object(environment_path, environment_digest)?;
+        self.verify_candidate_with_environment_bytes(
+            candidate_path,
+            candidate_digest.to_owned(),
+            environment_object,
+            environment_digest.to_owned(),
+        )
     }
 }
 
@@ -174,16 +272,47 @@ impl CommandVerifier {
         negative_control_directory: impl AsRef<Path>,
         candidate_digest: impl Into<String>,
     ) -> Result<VerifiedEvidence, VerifierError> {
-        let candidate_digest = candidate_digest.into();
+        let program_digest = check_exact_digest(
+            &self.program,
+            ymp_domain::digest_bytes(&std::fs::read(&self.program)?),
+        )?
+        .actual_digest;
+        let environment_object = serde_json::to_vec(&serde_json::json!({
+            "schema_version": 1,
+            "verifier_profile": "bounded_command_v1",
+            "program": self.program,
+            "program_digest": program_digest,
+            "arguments_before_subject": self.arguments_before_subject,
+            "wall_time_limit_millis": self.wall_time_limit.as_millis(),
+            "output_limit_bytes": self.output_limit_bytes
+        }))?;
+        let environment_digest = ymp_domain::digest_bytes(&environment_object);
+        self.verify_candidate_with_environment_bytes(
+            candidate_directory.as_ref(),
+            negative_control_directory.as_ref(),
+            candidate_digest.into(),
+            environment_object,
+            environment_digest,
+        )
+    }
+
+    fn verify_candidate_with_environment_bytes(
+        &self,
+        candidate_directory: &Path,
+        negative_control_directory: &Path,
+        candidate_digest: String,
+        environment_object: Vec<u8>,
+        environment_digest: String,
+    ) -> Result<VerifiedEvidence, VerifierError> {
         validate_digest("candidate", &candidate_digest)?;
-        let negative = self.observe(negative_control_directory.as_ref())?;
+        let negative = self.observe(negative_control_directory)?;
         match negative.status_code {
             Some(1) => {}
             Some(0) => return Err(VerifierError::NegativeControlPassed),
             status => return Err(VerifierError::UnexpectedExit(status)),
         }
 
-        let observation = self.observe(candidate_directory.as_ref())?;
+        let observation = self.observe(candidate_directory)?;
         let decision = match observation.status_code {
             Some(0) => VerificationDecision::Accept,
             Some(1) => VerificationDecision::Reject,
@@ -194,10 +323,12 @@ impl CommandVerifier {
             candidate_digest,
             contract_digest: self.contract_digest.clone(),
             oracle_digest: self.oracle_digest.clone(),
+            environment_digest: Some(environment_digest),
             verifier_profile: "bounded_command_v1".to_owned(),
             observation_digest: digest_serializable(&observation)?,
             decision,
             evidence_digest: String::new(),
+            environment_object,
         };
         evidence.evidence_digest = digest_serializable(&evidence)?;
         Ok(evidence)
@@ -324,8 +455,41 @@ pub enum VerifierError {
     NegativeControlPassed,
     #[error("verifier process returned an unclassified exit status: {0:?}")]
     UnexpectedExit(Option<i32>),
+    #[error("verification environment object is missing: {0}")]
+    EnvironmentObjectMissing(PathBuf),
+    #[error("verification environment digest mismatch: expected {expected}, found {actual}")]
+    EnvironmentDigestMismatch { expected: String, actual: String },
+    #[error("verification evidence schema version 1 has no unambiguous environment binding")]
+    AmbiguousLegacyEvidence,
+    #[error("unsupported verification evidence schema version {0}")]
+    UnsupportedEvidenceSchema(u32),
+    #[error("verification evidence object is missing its environment binding")]
+    MissingEnvironmentBinding,
+    #[error("stored verification evidence unexpectedly contains a self digest")]
+    StoredEvidenceContainsDigest,
+    #[error("verification evidence digest mismatch: expected {expected}, found {actual}")]
+    EvidenceDigestMismatch { expected: String, actual: String },
     #[error("{kind} digest is not a canonical lowercase SHA-256 digest: {value}")]
     InvalidDigest { kind: &'static str, value: String },
+}
+
+fn read_environment_object(path: &Path, expected_digest: &str) -> Result<Vec<u8>, VerifierError> {
+    validate_digest("environment", expected_digest)?;
+    let bytes = std::fs::read(path).map_err(|error| {
+        if error.kind() == std::io::ErrorKind::NotFound {
+            VerifierError::EnvironmentObjectMissing(path.to_path_buf())
+        } else {
+            VerifierError::Io(error)
+        }
+    })?;
+    let actual_digest = ymp_domain::digest_bytes(&bytes);
+    if actual_digest != expected_digest {
+        return Err(VerifierError::EnvironmentDigestMismatch {
+            expected: expected_digest.to_owned(),
+            actual: actual_digest,
+        });
+    }
+    Ok(bytes)
 }
 
 fn digest_serializable(value: &impl Serialize) -> Result<String, serde_json::Error> {
@@ -365,7 +529,10 @@ fn validate_digest(kind: &'static str, value: &str) -> Result<(), VerifierError>
 
 #[cfg(test)]
 mod tests {
-    use super::{CommandVerifier, ExactDigestVerifier, VerifierError, check_exact_digest};
+    use super::{
+        CommandVerifier, EnvironmentBoundVerifier, ExactDigestVerifier, VerifiedEvidence,
+        VerifierError, check_exact_digest,
+    };
     use sha2::{Digest, Sha256};
     use std::time::Duration;
     use tempfile::NamedTempFile;
@@ -387,7 +554,47 @@ mod tests {
         assert_eq!(evidence.candidate_digest(), digest);
         assert_eq!(evidence.contract_digest(), "1".repeat(64));
         assert_eq!(evidence.oracle_digest(), "2".repeat(64));
+        assert!(evidence.environment_digest().is_some());
         assert_eq!(evidence.evidence_digest().len(), 64);
+    }
+
+    #[test]
+    fn explicit_environment_binding_survives_serialization_and_detects_substitution() {
+        let candidate = NamedTempFile::new().expect("temporary candidate");
+        std::fs::write(candidate.path(), b"candidate").expect("write candidate");
+        let candidate_digest = hex::encode(Sha256::digest(b"candidate"));
+        let environment = NamedTempFile::new().expect("temporary environment");
+        std::fs::write(environment.path(), b"environment-v1").expect("write environment");
+        let environment_digest = hex::encode(Sha256::digest(b"environment-v1"));
+        let verifier = ExactDigestVerifier::new("1".repeat(64), "2".repeat(64), &candidate_digest)
+            .expect("valid verifier");
+
+        let evidence = verifier
+            .verify_candidate_in_environment(
+                candidate.path(),
+                &candidate_digest,
+                environment.path(),
+                &environment_digest,
+            )
+            .expect("verify in environment");
+        let bytes = evidence.object_bytes().expect("serialize evidence");
+        let restored = VerifiedEvidence::from_object_bytes(&bytes, evidence.evidence_digest())
+            .expect("restore evidence");
+        assert_eq!(
+            restored.environment_digest(),
+            Some(environment_digest.as_str())
+        );
+
+        std::fs::write(environment.path(), b"environment-v2").expect("substitute environment");
+        assert!(matches!(
+            verifier.verify_candidate_in_environment(
+                candidate.path(),
+                &candidate_digest,
+                environment.path(),
+                &environment_digest,
+            ),
+            Err(VerifierError::EnvironmentDigestMismatch { .. })
+        ));
     }
 
     #[test]
