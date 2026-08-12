@@ -10,10 +10,10 @@ relation: required
 depends_on: []
 blocks: []
 created_at: 2026-08-12T09:42:00+08:00
-updated_at: 2026-08-12T10:28:00+08:00
+updated_at: 2026-08-12T10:48:00+08:00
 started_at: 2026-08-12T10:28:00+08:00
 accepted_at:
-candidate_commit:
+candidate_commit: https://github.com/maggnus/ymp/commit/da8632f56800930e8842231fe25a6e9a5168c8e9
 closure_commit:
 evidence:
 duration_minutes: 0
@@ -51,12 +51,13 @@ and replay refuses evidence whose environment digest is absent or mismatched.
 
 ## Current state
 
-Independent review found that `VerificationRecord` does not identify the environment used to
-produce its result. Existing verification evidence therefore cannot establish exact replay.
+The candidate introduces verification evidence schema version 2, binds the exact environment
+object through Application and Verifier, and fails closed on altered, absent, mismatched, or
+ambiguous version-1 environment data. Independent review is pending.
 
 ## Next action
 
-Add and enforce the environment binding as the sole active schema writer.
+Decide acceptance through an independent product-path falsifier on the exact candidate.
 
 ## Guardrails
 
@@ -65,7 +66,7 @@ Add and enforce the environment binding as the sole active schema writer.
 
 ## Findings
 
-- Verification evidence is not currently bound to an environment digest.
+None pending from the author; independent review is in progress.
 
 ## Closure
 
