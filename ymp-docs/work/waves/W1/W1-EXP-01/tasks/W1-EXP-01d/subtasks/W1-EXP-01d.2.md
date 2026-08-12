@@ -11,7 +11,7 @@ relation: required
 depends_on: []
 blocks: [W1-APP-02d]
 created_at: 2026-08-12T20:31:00+08:00
-updated_at: 2026-08-12T22:29:02+08:00
+updated_at: 2026-08-12T22:43:46+08:00
 started_at: 2026-08-12T21:18:00+08:00
 accepted_at:
 candidate_commit: https://github.com/maggnus/ymp/commit/4f27fe0c57001cd83b36d87924b73da5ac09535b
@@ -20,7 +20,7 @@ evidence:
 duration_minutes: 0
 blocker:
 pause_reason:
-return_trigger:
+return_trigger: Second independent RETURN reached the convergence rule; no third research rework
 deliberate_partial: false
 ---
 
@@ -60,16 +60,16 @@ incompatible fixtures, so it can be admitted to the primary comparison independe
 
 ## Current state
 
-Candidate `4f27fe0` replaces the self-certified report with five pinned primary observations. Its
-validator now derives the bounded non-admission result from recomputed executable digests, exact
-arguments, a reduced safe environment, process outcomes, and structured event order. The preserved
-reviewer is repeating the independent Critical BUILD review with the unchanged external falsifier.
+Candidate `4f27fe0` still cannot reproduce its pinned `ymp` digest after a clean build and does not
+bind the reduced observations to the claimed processes, arguments, environment, or MCP request.
+The unchanged external falsifier and production sources independently confirm ambient configuration,
+missing error-path accounting, and incomplete descendant cleanup. The profile remains ineligible.
 
 ## Next action
 
-Complete the repeated independent review of exact candidate `4f27fe0` with the frozen external
-falsifier. Accept only if coherent primary-data mutations remain rejected and the executable,
-arguments, environment, events, and process outcomes are independently bound to the conclusion.
+Apply the convergence rule: close this research subtask only as a bounded non-admission result,
+exclude the candidate's provenance claims, and move configuration isolation, accounting, process
+cleanup, and a new exact probe to W1-APP-02d. Do not start a third research correction.
 
 ## Guardrails
 
@@ -86,6 +86,11 @@ arguments, environment, events, and process outcomes are independently bound to 
   negative variants pass the author-owned evidence validator.
 - No pressure, verdict negotiation, concealment, or author-reviewer coordination was observed.
   The weakened independence is an outcome defect in the evidence design, not evidence of collusion.
+- Repeat review found that the pinned local `ymp` cannot be reproduced by clean documented builds,
+  capture wrappers are absent, exact arguments and semantic MCP projection are not checked, and
+  all eight mutations are rejected only by the bundle-root pin rather than semantic controls.
+- The same review independently confirmed the profile's non-admission causes from the frozen
+  external falsifier and production source, so a third evidence-only correction has no release value.
 
 ## Closure
 
