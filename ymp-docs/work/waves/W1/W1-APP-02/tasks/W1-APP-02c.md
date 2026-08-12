@@ -10,7 +10,7 @@ relation: required
 depends_on: [W1-APP-02a, W1-APP-02b, W1-EXP-01d.1]
 blocks: [W1-APP-02e]
 created_at: 2026-08-10T19:34:25+08:00
-updated_at: 2026-08-12T22:06:42+08:00
+updated_at: 2026-08-12T22:32:10+08:00
 started_at: 2026-08-12T22:06:42+08:00
 accepted_at:
 candidate_commit:
@@ -59,17 +59,19 @@ lifecycle and usage evidence to include the profile in the POC comparison.
 
 ## Current state
 
-The compiled driver pins the intended executable, route, sandbox, process supervision, and
-attempt-scoped MCP server, but the admission probe is rejected. Independent review observed
-`OPENAI_ORGANIZATION` and `OPENAI_PROJECT` inside the managed process, so the actual provider scope
-can differ from the preliminary route check. Existing L1-L3 and TUI evidence remains development
-calibration and does not admit the profile to the primary comparison.
+The compiled driver pins the intended executable and coordination server, but the admission probe
+is rejected because route and home configuration reaches the managed process. A 21-file reviewer
+falsifier frozen before the candidate rejects baseline `f4bb3e7` for that exposure, lost cost and
+excess accounting, and a surviving descendant; existing resume, idempotency, missing-usage,
+timeout, and active-tree checks pass. This evidence does not yet admit the profile.
 
 ## Next action
 
 Generate the complete isolated home and allowlisted process environment before launch, reject any
 ambient route or MCP configuration, then repeat the exact-route probe. Preserve existing lifecycle,
-idempotent submission, usage, cancellation, and descendant-cleanup behavior.
+idempotent submission, usage, cancellation, and descendant-cleanup behavior. When the author
+returns a clean exact candidate, fast-forward the preserved reviewer and run the frozen falsifier
+without modification.
 
 ## Guardrails
 
@@ -82,6 +84,8 @@ idempotent submission, usage, cancellation, and descendant-cleanup behavior.
 - W1-EXP-01d.1 closed after two independent returns with a bounded non-admission result: route
   policy is declared and validator-bound, but ambient organisation and project scope still reach
   the managed Codex process.
+- Reviewer package SHA-256 manifest `423a05212ab005047583c5d489905e3c604100c0c0ec8a804b10bc3ac03ea12d`
+  is frozen, read-only, and has a reproducing negative control on the exact baseline.
 
 ## Closure
 
