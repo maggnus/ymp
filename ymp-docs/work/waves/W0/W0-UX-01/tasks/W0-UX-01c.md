@@ -3,15 +3,15 @@ id: W0-UX-01c
 kind: task
 wave: W0
 card: W0-UX-01
-state: ready
+state: active
 risk: critical
 maturity: DESIGN
 relation: required
 depends_on: [W0-UX-01b]
 blocks: [W1-APP-02e, W1-COR-03e]
 created_at: 2026-08-10T21:23:34+08:00
-updated_at: 2026-08-12T09:27:57+08:00
-started_at:
+updated_at: 2026-08-12T13:30:46+08:00
+started_at: 2026-08-12T13:30:46+08:00
 accepted_at:
 candidate_commit:
 closure_commit:
@@ -65,15 +65,18 @@ Rust, Ratatui, and Crossterm at the declared terminal sizes.
 
 ## Current state
 
-The HTML design package exists, but no independent review or frozen artifact revision exists. The
-initial TUI scaffold therefore remains provisional and both `W1` screen tasks remain blocked on
-this outcome.
+The complete screen and state package is accepted at
+[35cc659](https://github.com/maggnus/ymp/commit/35cc659981f73700296c9ed37b378e59eabff4a1)
+and integrated by [d01354c](https://github.com/maggnus/ymp/commit/d01354c6046b8a7c1fcd4380087f0e43805b24ff).
+The final independent semantic, accessibility, and terminal-feasibility review is active; the `W1`
+screen tasks remain blocked until it freezes an exact contract revision.
 
 ## Next action
 
-Commission an independent semantic, accessibility, and terminal-feasibility review of
-`ymp-docs/design/ymp_k9s_tui.dc.html`; record the accepted artifact revision or exact return
-findings.
+Review the exact accepted HTML artifact against POC-1, POC-2, the forbidden semantics, keyboard and
+monochrome operation, 80 × 24, 120 × 40 and wide terminal feasibility, lost MCP reply, unread inert
+message quiescence, and the two required negative interpretations; then record `ACCEPT` or exact
+return findings.
 
 ## Guardrails
 

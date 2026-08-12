@@ -6,8 +6,8 @@
 |---|---|---|---|---|---|
 | `[ ]` | [`W0-UX-01`](waves/W0/W0-UX-01/CARD.md) | Reviewed terminal screen contract precedes implementation | — | — | — |
 | `[x]` | [`W0-UX-01a`](waves/W0/W0-UX-01/tasks/W0-UX-01a.md) | Project requirements define the terminal product contract | [`7642488d`](https://github.com/maggnus/ymp/commit/7642488df04471beb8dac505171ddaf91bfda498) | 12/08 11:04 | 12/08 12:04 (1h) |
-| `[~]` | [`W0-UX-01b`](waves/W0/W0-UX-01/tasks/W0-UX-01b.md) | HTML artifact supplies the POC screen and state system | [`55452e94`](https://github.com/maggnus/ymp/commit/55452e94c62e02d3aa18c63de9a36ee69c2ae346) | 12/08 12:05 | 12/08 13:01 (0m) |
-| `[ ]` | [`W0-UX-01c`](waves/W0/W0-UX-01/tasks/W0-UX-01c.md) | Independent review freezes an implementable screen contract | — | — | — |
+| `[x]` | [`W0-UX-01b`](waves/W0/W0-UX-01/tasks/W0-UX-01b.md) | HTML artifact supplies the POC screen and state system | [`d01354c6`](https://github.com/maggnus/ymp/commit/d01354c6046b8a7c1fcd4380087f0e43805b24ff) | 12/08 12:05 | 12/08 13:30 (1h25m) |
+| `[~]` | [`W0-UX-01c`](waves/W0/W0-UX-01/tasks/W0-UX-01c.md) | Independent review freezes an implementable screen contract | — | 12/08 13:30 | 12/08 13:30 (0m) |
 | `[ ]` | [`W1-APP-02`](waves/W1/W1-APP-02/CARD.md) | Foreground TUI verifies one exact participant result | — | — | — |
 | `[ ]` | [`W1-APP-02a`](waves/W1/W1-APP-02/tasks/W1-APP-02a.md) | Foreground core commits one recoverable event history | — | — | — |
 | `[ ]` | [`W1-APP-02b`](waves/W1/W1-APP-02/tasks/W1-APP-02b.md) | Private attempt produces independently verified immutable candidate | — | — | — |

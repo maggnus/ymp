@@ -3,20 +3,20 @@ id: W0-UX-01b
 kind: task
 wave: W0
 card: W0-UX-01
-state: active
+state: accepted
 risk: significant
 maturity: DESIGN
 relation: required
 depends_on: [W0-UX-01a]
 blocks: [W0-UX-01c]
 created_at: 2026-08-10T21:23:34+08:00
-updated_at: 2026-08-12T13:01:00+08:00
+updated_at: 2026-08-12T13:30:46+08:00
 started_at: 2026-08-12T12:05:36+08:00
-accepted_at:
-candidate_commit: https://github.com/maggnus/ymp/commit/55452e94c62e02d3aa18c63de9a36ee69c2ae346
-closure_commit:
-evidence:
-duration_minutes: 0
+accepted_at: 2026-08-12T13:30:46+08:00
+candidate_commit: https://github.com/maggnus/ymp/commit/35cc659981f73700296c9ed37b378e59eabff4a1
+closure_commit: https://github.com/maggnus/ymp/commit/d01354c6046b8a7c1fcd4380087f0e43805b24ff
+evidence: ["[35cc659](https://github.com/maggnus/ymp/commit/35cc659981f73700296c9ed37b378e59eabff4a1)", "[d01354c](https://github.com/maggnus/ymp/commit/d01354c6046b8a7c1fcd4380087f0e43805b24ff)"]
+duration_minutes: 85
 blocker:
 pause_reason:
 return_trigger:
@@ -49,32 +49,31 @@ and MVP extension points without becoming production code.
 
 ## Acceptance
 
-- [ ] Every project requirement maps to a reviewable mockup, state variant, interaction annotation,
+- [x] Every project requirement maps to a reviewable mockup, state variant, interaction annotation,
   explicit non-applicability statement, or documented open decision. An open decision that affects
   trust, authorization, verification, or a terminal outcome blocks acceptance rather than becoming
   a warning.
-- [ ] POC-1 and POC-2 designs cover 80 × 24, 120 × 40, and a wide high-volume case with
+- [x] POC-1 and POC-2 designs cover 80 × 24, 120 × 40, and a wide high-volume case with
   keyboard-first and color-independent operation.
-- [ ] The design visibly distinguishes authoritative control, untrusted collaboration, independent
+- [x] The design visibly distinguishes authoritative control, untrusted collaboration, independent
   verification, human intervention, enforced limits, observational values, and typed terminal
   outcomes.
-- [ ] A deliberately misleading fixture containing a fluent but causally irrelevant transcript,
+- [x] A deliberately misleading fixture containing a fluent but causally irrelevant transcript,
   a central graph node, and a failed verifier cannot be presented as collective reasoning,
   leadership, or acceptance under the supplied visual semantics.
 
 ## Current state
 
-The first candidate preserves the nine projection-backed templates and supplies the intended state,
-size, command, lost-reply, unread-message, assurance, and handoff data in the sole HTML artifact.
-Independent review confirmed the template structure, responsive layout, negative semantics, and
-three of the blocking gaps, but returned three bounded fixture-contract defects; author rework is
-active in the original workspace.
+Accepted. The sole HTML artifact supplies mechanical state and volume fixtures for the nine reusable
+templates, explicit projection envelopes, independent command lifecycles, lost-reply and unread-
+message controls, assurance states, three terminal-size classes, and deterministic handoff data.
+Independent re-review confirmed all 138 typed fixtures, 35 boundary-volume cases, twelve command
+previews, the local-only runtime boundary, and the negative semantic control.
 
 ## Next action
 
-Add explicit one-item volume cases, make every fixture's projection and view-state mapping
-mechanical, split compound command previews into independent command lifecycles, correct the
-archive subject, and repeat the preserved independent review on the corrected candidate.
+Perform W0-UX-01c against the exact accepted artifact revision and freeze the implementable screen
+contract only if its semantic, accessibility, and terminal-feasibility checks pass.
 
 ## Guardrails
 
@@ -87,23 +86,24 @@ archive subject, and repeat the preserved independent review on the corrected ca
 
 ## Findings
 
-- `BLOCKER`: `TEST-007` requires zero, one, exactly-full, +1, and large volumes, but the candidate
-  has no unambiguous one-item fixture.
-- `MAJOR`: 21 fixture rows use view-state variants outside the declared `ScreenProjection` enum,
-  and 17 rows cannot yield `FixtureEnvelope.projection_id` without interpreting prose or identifiers.
-- `MAJOR`: pause/resume and amendment previews combine distinct commands under one `command_id`;
-  the archive rejection also names a different run from the command subject.
+None. The returned one-item, projection-envelope, view-state, compound-command, and archive-subject
+defects were corrected and independently rechecked.
 
 ## Closure
 
 ### Accepted outcome
 
-Not accepted.
+The artifact is a projection-backed terminal design system rather than a set of static screens.
+Seven applicable template families now distinguish zero, one, full, overflow, and large data sets;
+every test fixture has a mechanical projection and view-state mapping; every command preview has
+one command identity and a complete lifecycle.
 
 ### Residuals
 
-None recorded.
+The final independent contract freeze remains assigned to W0-UX-01c and is not a residue of this
+accepted task.
 
 ### Evidence
 
-- None until acceptance.
+- [Reviewed candidate](https://github.com/maggnus/ymp/commit/35cc659981f73700296c9ed37b378e59eabff4a1).
+- [Integration commit](https://github.com/maggnus/ymp/commit/d01354c6046b8a7c1fcd4380087f0e43805b24ff).
