@@ -3,21 +3,21 @@ id: W1-APP-02e
 kind: task
 wave: W1
 card: W1-APP-02
-state: active
+state: blocked
 risk: significant
 maturity: BUILD
 relation: required
 depends_on: [W0-UX-01c, W1-APP-02b, W1-APP-02c, W1-APP-02d]
 blocks: [W1-COR-03a]
 created_at: 2026-08-10T19:34:25+08:00
-updated_at: 2026-08-12T16:19:52+08:00
+updated_at: 2026-08-12T19:47:00+08:00
 started_at: 2026-08-12T16:19:52+08:00
 accepted_at:
 candidate_commit:
 closure_commit:
 evidence:
-duration_minutes: 0
-blocker:
+duration_minutes: 59
+blocker: W1-APP-02c and W1-APP-02d, both gated by W1-EXP-01d and Claude authentication
 pause_reason:
 return_trigger:
 deliberate_partial: false
@@ -63,15 +63,14 @@ complete participant attempt.
 
 ## Current state
 
-Deterministic buffer coverage is active in W1-APP-02e.1. The Ratatui application already consumes
-versioned contracts, supervises a ready profile, verifies a candidate, and exports bounded
-evidence. A 120 × 40 PTY run completed the Codex L1 path, and later TUI runs brought L2 and L3 to
-three accepted repetitions each. Existing deterministic tests cover terminal states and 80 × 24.
+Deterministic buffer coverage is accepted in W1-APP-02e.1. The remaining controlled TUI runs depend
+on W1-APP-02c and W1-APP-02d; both require the runtime-profile evidence gated by Claude
+authentication in W1-EXP-01d.
 
 ## Next action
 
-Complete W1-APP-02e.1, then add PTY coverage for cancellation and every typed failure before the
-controlled Claude path resumes after external authentication is restored.
+Resume after Claude authentication, complete W1-EXP-01d and both managed-profile tasks, then run
+the remaining PTY cancellation and typed-failure scenarios.
 
 ## Guardrails
 

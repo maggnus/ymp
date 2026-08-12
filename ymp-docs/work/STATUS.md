@@ -15,7 +15,7 @@
 | `[x]` | [`W1-APP-02b`](waves/W1/W1-APP-02/tasks/W1-APP-02b.md) | Private attempt produces independently verified immutable candidate | [`5571a07f`](https://github.com/maggnus/ymp/commit/5571a07f5ca8f1ffcf515a73fc24401dce361ecd) | 12/08 16:14 | 12/08 19:02 (2h48m) |
 | `[?]` | [`W1-APP-02c`](waves/W1/W1-APP-02/tasks/W1-APP-02c.md) | Codex profile completes one managed candidate attempt | — | — | — |
 | `[?]` | [`W1-APP-02d`](waves/W1/W1-APP-02/tasks/W1-APP-02d.md) | Claude Code profile completes one managed candidate attempt | — | — | — |
-| `[~]` | [`W1-APP-02e`](waves/W1/W1-APP-02/tasks/W1-APP-02e/TASK.md) | TUI completes and exports a single-participant run | — | 12/08 16:19 | 12/08 16:19 (0m) |
+| `[?]` | [`W1-APP-02e`](waves/W1/W1-APP-02/tasks/W1-APP-02e/TASK.md) | TUI completes and exports a single-participant run | — | 12/08 16:19 | 12/08 19:47 (59m) |
 | `[x]` | [`W1-APP-02e.1`](waves/W1/W1-APP-02/tasks/W1-APP-02e/subtasks/W1-APP-02e.1.md) | Deterministic TUI buffers enforce the accepted screen contract | [`bdccf008`](https://github.com/maggnus/ymp/commit/bdccf00825b6a93ff25ab10f34719e645bc8f8f9) | 12/08 16:19 | 12/08 17:38 (59m) |
 | `[x]` | [`W1-APP-02f`](waves/W1/W1-APP-02/tasks/W1-APP-02f.md) | Duplicate or out-of-order runtime events terminate without a candidate | [`4145a442`](https://github.com/maggnus/ymp/commit/4145a442b476afedca8d091de3a30b1eb1ad9b84) | 12/08 09:40 | 12/08 10:03 (23m) |
 | `[x]` | [`W1-APP-02g`](waves/W1/W1-APP-02/tasks/W1-APP-02g.md) | Verification evidence binds the exact runtime environment | [`973a6e33`](https://github.com/maggnus/ymp/commit/973a6e331f4577a894ab95ee325efa4a03005510) | 12/08 10:28 | 12/08 11:18 (50m) |
