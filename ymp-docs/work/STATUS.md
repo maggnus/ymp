@@ -15,7 +15,7 @@
 | `[?]` | [`W1-APP-02d`](waves/W1/W1-APP-02/tasks/W1-APP-02d.md) | Claude Code profile completes one managed candidate attempt | — | — | — |
 | `[ ]` | [`W1-APP-02e`](waves/W1/W1-APP-02/tasks/W1-APP-02e.md) | TUI completes and exports a single-participant run | — | — | — |
 | `[x]` | [`W1-APP-02f`](waves/W1/W1-APP-02/tasks/W1-APP-02f.md) | Duplicate or out-of-order runtime events terminate without a candidate | [`4145a442`](https://github.com/maggnus/ymp/commit/4145a442b476afedca8d091de3a30b1eb1ad9b84) | 12/08 09:40 | 12/08 10:03 (23m) |
-| `[~]` | [`W1-APP-02g`](waves/W1/W1-APP-02/tasks/W1-APP-02g.md) | Verification evidence binds the exact runtime environment | [`7791162f`](https://github.com/maggnus/ymp/commit/7791162f2f561392bce689a518717b0af2eecb4d) | 12/08 10:28 | 12/08 11:10 (0m) |
+| `[x]` | [`W1-APP-02g`](waves/W1/W1-APP-02/tasks/W1-APP-02g.md) | Verification evidence binds the exact runtime environment | [`973a6e33`](https://github.com/maggnus/ymp/commit/973a6e331f4577a894ab95ee325efa4a03005510) | 12/08 10:28 | 12/08 11:18 (50m) |
 | `[x]` | [`W1-APP-02h`](waves/W1/W1-APP-02/tasks/W1-APP-02h.md) | Managed Codex and Claude sessions resume after interruption | [`0d351f60`](https://github.com/maggnus/ymp/commit/0d351f6015c25869bd4e45bb126482fd60945795) | 12/08 09:44 | 12/08 10:26 (41m) |
 | `[ ]` | [`W1-COR-03`](waves/W1/W1-COR-03/CARD.md) | Bounded local commitments self-organize and terminate | — | — | — |
 | `[ ]` | [`W1-COR-03a`](waves/W1/W1-COR-03/tasks/W1-COR-03a.md) | Local commitments conserve budgets and close obligations | — | — | — |

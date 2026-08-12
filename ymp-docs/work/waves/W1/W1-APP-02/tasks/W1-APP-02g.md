@@ -3,20 +3,20 @@ id: W1-APP-02g
 kind: task
 wave: W1
 card: W1-APP-02
-state: active
+state: accepted
 risk: significant
 maturity: BUILD
 relation: required
 depends_on: []
 blocks: []
 created_at: 2026-08-12T09:42:00+08:00
-updated_at: 2026-08-12T11:10:39+08:00
+updated_at: 2026-08-12T11:18:18+08:00
 started_at: 2026-08-12T10:28:00+08:00
-accepted_at:
+accepted_at: 2026-08-12T11:18:18+08:00
 candidate_commit: https://github.com/maggnus/ymp/commit/7791162f2f561392bce689a518717b0af2eecb4d
-closure_commit:
-evidence:
-duration_minutes: 0
+closure_commit: https://github.com/maggnus/ymp/commit/973a6e331f4577a894ab95ee325efa4a03005510
+evidence: ["[7791162](https://github.com/maggnus/ymp/commit/7791162f2f561392bce689a518717b0af2eecb4d)", "[973a6e3](https://github.com/maggnus/ymp/commit/973a6e331f4577a894ab95ee325efa4a03005510)"]
+duration_minutes: 50
 blocker:
 pause_reason:
 return_trigger:
@@ -43,22 +43,21 @@ and replay refuses evidence whose environment digest is absent or mismatched.
 
 ## Acceptance
 
-- [ ] A newly accepted record carries the exact environment digest consumed by verification and
+- [x] A newly accepted record carries the exact environment digest consumed by verification and
   reproduces from clean immutable inputs.
-- [ ] Missing, substituted, or mismatched environment data is rejected as a typed infrastructure
+- [x] Missing, substituted, or mismatched environment data is rejected as a typed infrastructure
   failure rather than accepted evidence.
-- [ ] Compatibility fixtures cover the deliberate schema decision for existing version-1 data.
+- [x] Compatibility fixtures cover the deliberate schema decision for existing version-1 data.
 
 ## Current state
 
-The corrected candidate introduces verification evidence schema version 2 and separates
-verifier-issued evidence from `StoredVerificationEvidence`. Package tests, formatting, full Clippy,
-and a compile-time type-separation regression pass. Independent re-review with the original
-external falsifier is in progress.
+Accepted. Evidence schema version 2 binds each verification to the exact immutable environment
+object, while `StoredVerificationEvidence` keeps recovered data outside the API that records new
+verification results.
 
 ## Next action
 
-Decide acceptance by rerunning the same independent falsifier against the corrected exact commit.
+Proceed with the remaining required W1-APP-02 tasks.
 
 ## Guardrails
 
@@ -67,9 +66,7 @@ Decide acceptance by rerunning the same independent falsifier against the correc
 
 ## Findings
 
-- Blocker: public deserialization and recovery of `VerifiedEvidence` permit a caller to manufacture
-  an accepting record outside Verifier. The external falsifier bound it to the empty environment
-  object, and Application preserved `Accepted` after reopening the run.
+None.
 
 ## Closure
 
@@ -77,12 +74,17 @@ Filled when the task is accepted. Until then this section stays as written.
 
 ### Accepted outcome
 
-What was actually accepted.
+Application stores the environment bytes before verification, supplies their exact immutable path
+and digest to Verifier, verifies the object again before recording, and checks both evidence and
+environment during recovery and export. Independent review confirmed the version-2 path and proved
+that recovered data cannot be passed to `record_verification` or converted into verifier-issued
+evidence through the public API.
 
 ### Residuals
 
-Honestly retained limitations, each with an exact return trigger. Empty when there are none.
+None.
 
 ### Evidence
 
-- Commit, evidence package, or durable document of record, each as a Markdown link.
+- [Reviewed correction](https://github.com/maggnus/ymp/commit/7791162f2f561392bce689a518717b0af2eecb4d).
+- [Integration commit](https://github.com/maggnus/ymp/commit/973a6e331f4577a894ab95ee325efa4a03005510).
