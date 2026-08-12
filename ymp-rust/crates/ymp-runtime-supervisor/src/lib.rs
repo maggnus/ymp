@@ -3,6 +3,7 @@
 use anyhow::{Context, bail};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use std::collections::HashSet;
 use std::fs::{self, File, OpenOptions};
 use std::io::Write;
 use std::path::{Component, Path, PathBuf};
@@ -488,7 +489,9 @@ pub fn start_managed_candidate(
             let result = (|| -> anyhow::Result<()> {
                 let mut completed = false;
                 let mut predecessor_digest = None;
+                let mut runtime_progress = RuntimeProgress::default();
                 while let Some(event) = session.next_event()? {
+                    runtime_progress.validate(&event)?;
                     predecessor_digest = Some(append_runtime_evidence(
                         &mut evidence_file,
                         &run_id,
@@ -653,6 +656,37 @@ fn digest_json(value: &Value) -> anyhow::Result<String> {
     Ok(digest_bytes(&serde_json::to_vec(value)?))
 }
 
+#[derive(Default)]
+struct RuntimeProgress {
+    last_sequence: u64,
+    event_ids: HashSet<String>,
+}
+
+impl RuntimeProgress {
+    fn validate(&mut self, event: &RuntimeEvent) -> anyhow::Result<()> {
+        let event_id_chars = event.event_id.chars().count();
+        if !(1..=MAX_IDENTIFIER_CHARS).contains(&event_id_chars) {
+            bail!("runtime event_id must contain between 1 and {MAX_IDENTIFIER_CHARS} characters");
+        }
+        if self.event_ids.contains(&event.event_id) {
+            bail!("runtime repeated event_id {}", event.event_id);
+        }
+        let expected_sequence = self
+            .last_sequence
+            .checked_add(1)
+            .context("runtime event sequence exhausted")?;
+        if event.sequence != expected_sequence {
+            bail!(
+                "runtime event sequence {} does not match expected sequence {expected_sequence}",
+                event.sequence
+            );
+        }
+        self.event_ids.insert(event.event_id.clone());
+        self.last_sequence = event.sequence;
+        Ok(())
+    }
+}
+
 fn record_infrastructure_failure(
     application: &Arc<Mutex<Application>>,
     attempt_id: &str,
@@ -721,6 +755,7 @@ mod tests {
     use super::{
         ManagedCandidateRequest, ManagedContract, ManagedRunEvent, start_managed_candidate,
     };
+    use std::collections::VecDeque;
     use std::path::Path;
     use std::sync::{Arc, Mutex};
     use std::time::{Duration, Instant};
@@ -729,8 +764,8 @@ mod tests {
     use ymp_application::Application;
     use ymp_domain::{Budget, RunStatus};
     use ymp_runtime_api::{
-        InvocationRequest, ProbeReport, RuntimeDriver, RuntimeError, RuntimeEventKind, RuntimeKind,
-        RuntimeSession, Usage,
+        InvocationRequest, ProbeReport, Readiness, RuntimeDriver, RuntimeError, RuntimeEvent,
+        RuntimeEventKind, RuntimeKind, RuntimeSession, Usage,
     };
     use ymp_runtime_fake::{FakeRuntime, ScriptStep};
 
@@ -767,6 +802,127 @@ mod tests {
                 }))
                 .map_err(|error| RuntimeError::RuntimeReportedFailure(error.to_string()))?;
             self.inner.start(request)
+        }
+    }
+
+    #[derive(Clone, Copy, Debug)]
+    enum ProgressFault {
+        Gap,
+        Reordered,
+        RepeatedEventId,
+        EmptyEventId,
+    }
+
+    struct FaultingRuntime {
+        fault: ProgressFault,
+    }
+
+    impl RuntimeDriver for FaultingRuntime {
+        fn kind(&self) -> RuntimeKind {
+            RuntimeKind::Fake
+        }
+
+        fn executable(&self) -> &Path {
+            Path::new("ymp-internal-faulting")
+        }
+
+        fn probe(&self) -> Result<ProbeReport, RuntimeError> {
+            Ok(ProbeReport {
+                kind: RuntimeKind::Fake,
+                executable: self.executable().display().to_string(),
+                version: Some("test".to_owned()),
+                readiness: Readiness::Ready,
+                detail: "faulting runtime for supervisor regression".to_owned(),
+            })
+        }
+
+        fn start(
+            &self,
+            request: InvocationRequest,
+        ) -> Result<Box<dyn RuntimeSession>, RuntimeError> {
+            let invocation_id = request.invocation_id;
+            let event = |sequence, event_id: String, event| RuntimeEvent {
+                sequence,
+                event_id,
+                invocation_id: invocation_id.clone(),
+                event,
+            };
+            let first_id = format!("{invocation_id}.event-1");
+            let mut events = vec![event(
+                1,
+                first_id.clone(),
+                RuntimeEventKind::Started {
+                    opaque_session_id: "opaque".to_owned(),
+                },
+            )];
+            match self.fault {
+                ProgressFault::Gap => events.push(event(
+                    3,
+                    format!("{invocation_id}.event-3"),
+                    RuntimeEventKind::Output {
+                        text: "gap".to_owned(),
+                    },
+                )),
+                ProgressFault::Reordered => {
+                    events.push(event(
+                        2,
+                        format!("{invocation_id}.event-2"),
+                        RuntimeEventKind::Output {
+                            text: "ordered".to_owned(),
+                        },
+                    ));
+                    events.push(event(
+                        1,
+                        format!("{invocation_id}.event-reordered"),
+                        RuntimeEventKind::Output {
+                            text: "reordered".to_owned(),
+                        },
+                    ));
+                }
+                ProgressFault::RepeatedEventId => events.push(event(
+                    2,
+                    first_id,
+                    RuntimeEventKind::Output {
+                        text: "repeated identifier".to_owned(),
+                    },
+                )),
+                ProgressFault::EmptyEventId => events.push(event(
+                    2,
+                    String::new(),
+                    RuntimeEventKind::Output {
+                        text: "empty identifier".to_owned(),
+                    },
+                )),
+            }
+            events.push(event(
+                4,
+                format!("{invocation_id}.event-completed"),
+                RuntimeEventKind::Completed {
+                    usage: Usage::default(),
+                },
+            ));
+            Ok(Box::new(FaultingSession {
+                events: events.into(),
+            }))
+        }
+    }
+
+    struct FaultingSession {
+        events: VecDeque<RuntimeEvent>,
+    }
+
+    impl RuntimeSession for FaultingSession {
+        fn next_event(&mut self) -> Result<Option<RuntimeEvent>, RuntimeError> {
+            Ok(self.events.pop_front())
+        }
+
+        fn resume(&mut self, _input: String) -> Result<(), RuntimeError> {
+            Err(RuntimeError::Unsupported("faulting test runtime resume"))
+        }
+
+        fn interrupt(&mut self) -> Result<(), RuntimeError> {
+            self.events.clear();
+            Ok(())
         }
     }
 
@@ -930,6 +1086,120 @@ mod tests {
                 .is_file()
         );
         handle.join().expect("join worker");
+    }
+
+    fn assert_invalid_progress_is_terminal(
+        runtime: Box<dyn RuntimeDriver>,
+        expected_detail: &str,
+        recorded_events: usize,
+    ) {
+        let temporary = tempfile::tempdir().expect("temporary directory");
+        let source = temporary.path().join("source");
+        std::fs::create_dir(&source).expect("source directory");
+        std::fs::write(source.join("input.txt"), b"base\n").expect("source file");
+        let data_root = temporary.path().join("data");
+        let application = Arc::new(Mutex::new(
+            Application::create(&data_root, "run-1", Budget::new(1, 1))
+                .expect("create application"),
+        ));
+        let contract = ManagedContract {
+            contract_id: "contract-1".to_owned(),
+            contract_digest: "c".repeat(64),
+            source,
+            prompt: "finish".to_owned(),
+            capture_exclusions: vec!["target".to_owned()],
+            verifier: None,
+        };
+        let handle = start_managed_candidate(
+            Arc::clone(&application),
+            runtime,
+            ManagedCandidateRequest {
+                contract,
+                bridge_executable: std::env::current_exe().expect("current executable"),
+            },
+        )
+        .expect("start managed candidate");
+        let deadline = Instant::now() + Duration::from_secs(5);
+        while Instant::now() < deadline && !handle.is_finished() {
+            std::thread::sleep(Duration::from_millis(5));
+        }
+        let mut failure = None;
+        let mut saw_candidate = false;
+        while let Some(event) = handle.try_next() {
+            match event {
+                ManagedRunEvent::CandidateAvailable { .. } => saw_candidate = true,
+                ManagedRunEvent::Failed { detail } => failure = Some(detail),
+                _ => {}
+            }
+        }
+        assert!(handle.is_finished());
+        assert!(!saw_candidate);
+        let failure = failure.expect("typed managed-run failure");
+        assert!(failure.contains(expected_detail), "{failure}");
+        let state = application.lock().expect("application lock");
+        assert_eq!(state.state().status, RunStatus::InfrastructureError);
+        assert!(state.state().candidate_digest.is_none());
+        assert!(state.state().active_attempts.is_empty());
+        drop(state);
+        let transcript = temporary
+            .path()
+            .join("data/runtime-evidence")
+            .join(handle.attempt_id())
+            .join("events.jsonl");
+        assert_eq!(
+            std::fs::read_to_string(transcript)
+                .expect("runtime transcript")
+                .lines()
+                .count(),
+            recorded_events
+        );
+        handle.join().expect("join worker");
+        drop(application);
+        let recovered = Application::open(data_root).expect("reopen terminal application");
+        assert_eq!(recovered.state().status, RunStatus::InfrastructureError);
+        assert!(recovered.state().candidate_digest.is_none());
+        assert!(recovered.state().active_attempts.is_empty());
+    }
+
+    #[test]
+    fn duplicate_runtime_progress_is_terminal_without_candidate() {
+        assert_invalid_progress_is_terminal(
+            Box::new(FakeRuntime::with_script(vec![
+                ScriptStep::Output("duplicate me".to_owned()),
+                ScriptStep::DuplicateLast,
+                ScriptStep::Complete(Usage::default()),
+            ])),
+            "runtime repeated event_id",
+            2,
+        );
+    }
+
+    #[test]
+    fn other_invalid_runtime_progress_is_terminal_without_candidate() {
+        for (fault, expected_detail, recorded_events) in [
+            (ProgressFault::Gap, "does not match expected sequence", 1),
+            (
+                ProgressFault::Reordered,
+                "does not match expected sequence",
+                2,
+            ),
+            (
+                ProgressFault::RepeatedEventId,
+                "runtime repeated event_id",
+                1,
+            ),
+            (
+                ProgressFault::EmptyEventId,
+                "runtime event_id must contain",
+                1,
+            ),
+        ] {
+            assert_invalid_progress_is_terminal(
+                Box::new(FaultingRuntime { fault }),
+                expected_detail,
+                recorded_events,
+            );
+        }
     }
 
     #[test]
