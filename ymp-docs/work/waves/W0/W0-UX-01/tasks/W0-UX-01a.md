@@ -3,15 +3,15 @@ id: W0-UX-01a
 kind: task
 wave: W0
 card: W0-UX-01
-state: ready
+state: active
 risk: significant
 maturity: DESIGN
 relation: required
 depends_on: []
 blocks: [W0-UX-01b]
 created_at: 2026-08-10T21:23:34+08:00
-updated_at: 2026-08-12T02:47:53+08:00
-started_at:
+updated_at: 2026-08-12T11:04:55+08:00
+started_at: 2026-08-12T11:04:55+08:00
 accepted_at:
 candidate_commit:
 closure_commit:
@@ -61,14 +61,14 @@ the documents of record and maps them to the sole HTML design artifact.
 
 ## Current state
 
-The project requirements and `ymp-docs/design/ymp_k9s_tui.dc.html` exist. A complete
-requirement-to-screen matrix, non-author review, and commit-pinned acceptance evidence do not yet
-exist.
+The project requirements and `ymp-docs/design/ymp_k9s_tui.dc.html` exist. Work is active on a
+complete requirement-to-screen matrix inside the sole artifact; non-author review and
+commit-pinned acceptance evidence remain pending.
 
 ## Next action
 
-Build the requirement-to-screen matrix from the current documents and record every omission,
-contradiction, or intentionally deferred state in the existing artifact.
+Complete the requirement-to-screen matrix in the existing artifact and submit the exact revision
+to non-author review.
 
 ## Guardrails
 
