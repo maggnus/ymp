@@ -3,17 +3,17 @@ id: W1-EXP-01b
 kind: task
 wave: W1
 card: W1-EXP-01
-state: rework
+state: review
 risk: critical
 maturity: RESEARCH
 relation: required
 depends_on: [W1-EXP-01a]
 blocks: [W1-EXP-01d, W1-EVL-04a]
 created_at: 2026-08-10T19:34:25+08:00
-updated_at: 2026-08-12T16:58:01+08:00
+updated_at: 2026-08-12T17:35:00+08:00
 started_at: 2026-08-12T15:44:08+08:00
 accepted_at:
-candidate_commit: https://github.com/maggnus/ymp/commit/a410dc5d32a39880e3bd9c8110637d4a8c70af0a
+candidate_commit: https://github.com/maggnus/ymp/commit/141cbf370a575736a8f7f7d21539ac5f121e7fcd
 closure_commit:
 evidence:
 duration_minutes: 0
@@ -62,15 +62,14 @@ minimum practically useful effect before any ymp outcome is observed.
 
 ## Current state
 
-The first independent review returned the candidate for bounded rework. The statistical design,
-power calculation, resource accounting, and negative-result handling are present, but the
-compliance command still admits four inconsistent or incompletely recorded study variants.
+The corrected candidate is under repeat review. It binds every condition to the frozen corpus,
+profile, model route, protected-result sequence, deterministic seed, assignment order, and
+assignment position. The statistical thresholds and resource budget are unchanged.
 
 ## Next action
 
-Bind each condition to its frozen model route, record and verify protected-result timing, validate
-the exact initial seed and order, and require an explicit corpus path with its digest. Rerun the
-preserved external falsifier before re-review by the same reviewer.
+Complete the preserved external black-box review of the correction and integrate it only after an
+independent `ACCEPT`.
 
 ## Guardrails
 

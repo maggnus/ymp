@@ -12,7 +12,7 @@
 | `[~]` | [`W1-APP-02a`](waves/W1/W1-APP-02/tasks/W1-APP-02a/TASK.md) | Foreground core commits one recoverable event history | — | 12/08 16:17 | 12/08 16:36 (0m) |
 | `[ ]` | [`W1-APP-02a.1`](waves/W1/W1-APP-02/tasks/W1-APP-02a/subtasks/W1-APP-02a.1.md) | Recovered command identifiers preserve one exact result | — | — | — |
 | `[ ]` | [`W1-APP-02a.2`](waves/W1/W1-APP-02/tasks/W1-APP-02a/subtasks/W1-APP-02a.2.md) | Foreground executable exposes no public headless mode | — | — | — |
-| `[~]` | [`W1-APP-02b`](waves/W1/W1-APP-02/tasks/W1-APP-02b.md) | Private attempt produces independently verified immutable candidate | — | 12/08 16:14 | 12/08 16:14 (0m) |
+| `[~]` | [`W1-APP-02b`](waves/W1/W1-APP-02/tasks/W1-APP-02b.md) | Private attempt produces independently verified immutable candidate | [`08c18338`](https://github.com/maggnus/ymp/commit/08c18338ad36a94a5c49b1036f96e1896343d744) | 12/08 16:14 | 12/08 17:35 (0m) |
 | `[?]` | [`W1-APP-02c`](waves/W1/W1-APP-02/tasks/W1-APP-02c.md) | Codex profile completes one managed candidate attempt | — | — | — |
 | `[?]` | [`W1-APP-02d`](waves/W1/W1-APP-02/tasks/W1-APP-02d.md) | Claude Code profile completes one managed candidate attempt | — | — | — |
 | `[~]` | [`W1-APP-02e`](waves/W1/W1-APP-02/tasks/W1-APP-02e/TASK.md) | TUI completes and exports a single-participant run | — | 12/08 16:19 | 12/08 16:19 (0m) |
@@ -32,6 +32,6 @@
 | `[ ]` | [`W1-EVL-04c`](waves/W1/W1-EVL-04/tasks/W1-EVL-04c.md) | POC decision is reproducible from frozen evidence | — | — | — |
 | `[~]` | [`W1-EXP-01`](waves/W1/W1-EXP-01/CARD.md) | POC assumptions are falsifiable before product code | — | 12/08 11:02 | 12/08 11:56 (0m) |
 | `[x]` | [`W1-EXP-01a`](waves/W1/W1-EXP-01/tasks/W1-EXP-01a.md) | POC corpus rejects known invalid candidates | [`ff4a9383`](https://github.com/maggnus/ymp/commit/ff4a9383653a0f09b947ff24b569e760396a0502) | 12/08 11:59 | 12/08 15:34 (2h59m) |
-| `[~]` | [`W1-EXP-01b`](waves/W1/W1-EXP-01/tasks/W1-EXP-01b.md) | Matched-budget study has a frozen decision rule | [`a410dc5d`](https://github.com/maggnus/ymp/commit/a410dc5d32a39880e3bd9c8110637d4a8c70af0a) | 12/08 15:44 | 12/08 16:58 (0m) |
+| `[~]` | [`W1-EXP-01b`](waves/W1/W1-EXP-01/tasks/W1-EXP-01b.md) | Matched-budget study has a frozen decision rule | [`141cbf37`](https://github.com/maggnus/ymp/commit/141cbf370a575736a8f7f7d21539ac5f121e7fcd) | 12/08 15:44 | 12/08 17:35 (0m) |
 | `[x]` | [`W1-EXP-01c`](waves/W1/W1-EXP-01/tasks/W1-EXP-01c.md) | Protocol model terminates under declared fault schedules | [`35ce2b17`](https://github.com/maggnus/ymp/commit/35ce2b171faa0609cfeb95081c7965049f5edddc) | 12/08 11:02 | 12/08 12:38 (1h36m) |
 | `[?]` | [`W1-EXP-01d`](waves/W1/W1-EXP-01/tasks/W1-EXP-01d.md) | Runtime probes expose incompatible POC profiles | — | — | — |

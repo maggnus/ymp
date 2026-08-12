@@ -3,17 +3,17 @@ id: W1-APP-02b
 kind: task
 wave: W1
 card: W1-APP-02
-state: active
+state: rework
 risk: critical
 maturity: BUILD
 relation: required
 depends_on: [W1-APP-02a, W1-EXP-01a]
 blocks: [W1-APP-02e]
 created_at: 2026-08-10T19:34:25+08:00
-updated_at: 2026-08-12T16:14:11+08:00
+updated_at: 2026-08-12T17:35:00+08:00
 started_at: 2026-08-12T16:14:11+08:00
 accepted_at:
-candidate_commit:
+candidate_commit: https://github.com/maggnus/ymp/commit/08c18338ad36a94a5c49b1036f96e1896343d744
 closure_commit:
 evidence:
 duration_minutes: 0
@@ -61,16 +61,16 @@ verifier evidence for that exact candidate and contract package.
 
 ## Current state
 
-Work is active. Production packages capture source manifests, private workspaces, immutable
-submissions, and reproducible candidates while rejecting stale bases and symlinks. Only
-digest-bound opaque verifier evidence can record a result. Tests cover capture, rejection, replay,
-quiescence, and derived-path exclusions; bounded verification moved real managed Codex L1-L3 runs
-to `accepted`, including one complete TUI path. Strict isolation and conflict coverage remain.
+The independent Linux review returned the candidate for bounded rework. It reproduced state
+transfer from the negative control to the candidate through shared namespaces, accepted candidate
+identity changes through a different base or excluded path, and observed a non-idempotent repeated
+verification of the same digest.
 
 ## Next action
 
-Add strict verifier isolation, then test integration conflicts and deliberately invalid candidates
-against an approved corpus package.
+Separate the two verifier phases at the operating-system boundary, freeze full candidate identity,
+and return the stored verification result on a repeated digest. Continue the same external review
+directly with the preserved reviewer.
 
 ## Guardrails
 
@@ -80,7 +80,9 @@ against an approved corpus package.
 
 ## Findings
 
-None.
+- Shared Linux mount, PID, and network namespaces permit state transfer between verifier phases.
+- Candidate identity does not yet reject a different base or an excluded-path modification.
+- Repeating verification for one digest changes the event history and consumes the attempt budget.
 
 ## Closure
 
