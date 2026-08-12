@@ -11,7 +11,7 @@ relation: required
 depends_on: []
 blocks: []
 created_at: 2026-08-13T01:26:13+08:00
-updated_at: 2026-08-13T01:26:13+08:00
+updated_at: 2026-08-13T01:29:56+08:00
 started_at:
 accepted_at:
 candidate_commit:
@@ -49,8 +49,8 @@ dashboard revision without weakening protocol or trust constraints.
 
 - Ratatui implementation, production domain expansion, runtime-profile correction, and rewriting
   the accepted historical closure of `W0-UX-01` or `W1-APP-02e.1`.
-- The 17 owner-provided reference screenshots under `ymp-docs/design/paseo/`, unless the owner
-  separately promotes them into the contract.
+- The 17 owner-provided Paseo screenshots under `ymp-docs/design/paseo/`. They are non-normative
+  visual references for interface ideas, not contract sources or acceptance evidence.
 
 ## Acceptance
 
