@@ -10,7 +10,7 @@ relation: required
 depends_on: []
 blocks: [W0-UX-01b]
 created_at: 2026-08-10T21:23:34+08:00
-updated_at: 2026-08-12T11:04:55+08:00
+updated_at: 2026-08-12T11:07:54+08:00
 started_at: 2026-08-12T11:04:55+08:00
 accepted_at:
 candidate_commit:
@@ -27,9 +27,10 @@ deliberate_partial: false
 
 ## Outcome
 
-One reviewable requirement matrix derives the stable product vocabulary, inputs, displayed
-information, settings, actions, failure states, terminal constraints, and forbidden semantics from
-the documents of record and maps them to the sole HTML design artifact.
+One reviewable requirement matrix derives the stable product vocabulary, reusable screen
+templates, data slots, inputs, displayed information, settings, actions, failure states, terminal
+constraints, and forbidden semantics from the documents of record and maps them to the sole HTML
+design artifact.
 
 ## Scope
 
@@ -38,6 +39,8 @@ the documents of record and maps them to the sole HTML design artifact.
 - POC-1, POC-2, and predictable MVP interface requirements derived from the current documents.
 - Rust, Ratatui, Crossterm, deterministic screen testing, accessibility, terminal sizes, realistic
   fixtures, and design acceptance criteria.
+- Reusable structural templates whose named data slots are populated from application projections;
+  fixtures instantiate those templates but do not define separate screen semantics.
 - Explicit separation of stable requirements, delivery phase, open assumptions, and artifact-owned
   composition decisions.
 
@@ -54,6 +57,9 @@ the documents of record and maps them to the sole HTML design artifact.
 - [ ] The matrix binds Rust, Ratatui, and Crossterm as the implementation medium, defines
   deterministic terminal-test expectations, and identifies which layout, navigation, composition,
   and widget decisions already exist in the HTML artifact.
+- [ ] Each screen family defines reusable structure, projection-backed data slots, repeated-item
+  rules, typed actions, and loading, empty, stale, failure, truncation, and size variants; the same
+  template accepts different fixture data at 80 × 24, 120 × 40, and wide sizes.
 - [ ] The matrix explicitly prevents grades, central assignment, candidate ranking, leadership
   from centrality, causal claims from temporal order, hidden fallback, and POC containment claims.
 - [ ] A negative review using a deliberately central-dispatch or web-only interpretation rejects
