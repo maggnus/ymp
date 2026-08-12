@@ -10,7 +10,7 @@ relation: required
 depends_on: []
 blocks: [W1-APP-02a, W1-COR-03a, W1-COR-03b]
 created_at: 2026-08-10T19:34:25+08:00
-updated_at: 2026-08-12T11:25:15+08:00
+updated_at: 2026-08-12T11:34:48+08:00
 started_at: 2026-08-12T11:02:25+08:00
 accepted_at:
 candidate_commit: https://github.com/maggnus/ymp/commit/2135c5c7532a23749d95363fcdf48e69fe6019dd
@@ -60,15 +60,15 @@ duplicate, delay, expiry, and crash schedules.
 
 ## Current state
 
-The candidate exhaustively enumerates 385,605 reachable states and 1,927,370 transitions with
-separate finite creation, start, wake, and protected-query budgets. It reports no non-terminal
-deadlocks or cycles, bounds every terminal schedule at 30 transitions, and finds shortest
-counterexamples for reservation, fencing, and obligation-return mutations. Independent review is
-checking the graph construction and abstraction.
+The first candidate exhaustively enumerates 385,605 reachable states and 1,927,370 transitions,
+but independent review found that an expired attempt can still return a candidate and that command
+deduplication covers only one advertise replay rather than every consequential command class.
+Bounded corrective work is active in the original author workspace.
 
 ## Next action
 
-Decide acceptance through independent graph and mutation checks on the exact candidate.
+Require the same graph check to reject stale result return, model stored command results for every
+consequential command class, and repeat independent review on the corrected candidate.
 
 ## Guardrails
 
@@ -77,7 +77,11 @@ Decide acceptance through independent graph and mutation checks on the exact can
 
 ## Findings
 
-None.
+- `HIGH`: `ReturnResult` does not require the candidate generation to remain current after lease
+  expiry, so an expired attempt can close an obligation.
+- `HIGH`: the state model lacks command identifiers and stored results for award, submit, return,
+  yield, wake, and protected verification-query replays, so general command idempotency is not
+  established.
 
 ## Closure
 
