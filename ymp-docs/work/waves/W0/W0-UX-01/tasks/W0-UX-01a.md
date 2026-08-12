@@ -10,10 +10,10 @@ relation: required
 depends_on: []
 blocks: [W0-UX-01b]
 created_at: 2026-08-10T21:23:34+08:00
-updated_at: 2026-08-12T11:47:00+08:00
+updated_at: 2026-08-12T11:56:07+08:00
 started_at: 2026-08-12T11:04:55+08:00
 accepted_at:
-candidate_commit: https://github.com/maggnus/ymp/commit/e8ff248fad346071e9adec2b94f07e6c027f17ed
+candidate_commit: https://github.com/maggnus/ymp/commit/579eb08b6ceaba93cd44d3853d2e841fc966e2be
 closure_commit:
 evidence:
 duration_minutes: 0
@@ -67,15 +67,15 @@ design artifact.
 
 ## Current state
 
-The first candidate adds 172 traceable requirements, nine reusable structural templates, named
-data regions, application projections, typed commands, deterministic fixture rules, negative
-controls, and explicit blockers. Independent review confirmed that structure but returned one
-table-readability defect and three bounded source/layout corrections; author rework is active.
+The corrected candidate preserves 172 traceable requirements, nine reusable structural templates,
+named data regions, application projections, typed commands, deterministic fixture rules,
+negative controls, and explicit blockers. It removes the returned table overflow, source-reference
+errors, and clipped header mark; focused independent re-review is active.
 
 ## Next action
 
-Correct the four bounded review findings, then repeat structural and visual review at 760, 1440,
-and 1920 pixel widths on the exact corrected candidate.
+Decide acceptance through focused structural and visual re-review at 760, 1440, and 1920 pixel
+widths on the exact corrected candidate.
 
 ## Guardrails
 
