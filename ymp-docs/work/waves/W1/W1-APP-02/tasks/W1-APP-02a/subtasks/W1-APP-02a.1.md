@@ -4,20 +4,20 @@ kind: subtask
 wave: W1
 card: W1-APP-02
 parent: W1-APP-02a
-state: review
+state: rework
 risk: critical
 maturity: BUILD
 relation: required
 depends_on: []
 blocks: []
 created_at: 2026-08-12T16:35:41+08:00
-updated_at: 2026-08-12T19:15:11+08:00
+updated_at: 2026-08-12T19:27:19+08:00
 started_at: 2026-08-12T19:03:00+08:00
 accepted_at:
 candidate_commit: https://github.com/maggnus/ymp/commit/acc55860f53501c4b5d35b3a5f934f28e12ec998
 closure_commit:
 evidence:
-duration_minutes: 12
+duration_minutes: 20
 blocker:
 pause_reason:
 return_trigger:
@@ -58,14 +58,15 @@ resource charging.
 
 ## Current state
 
-Candidate [acc5586](https://github.com/maggnus/ymp/commit/acc55860f53501c4b5d35b3a5f934f28e12ec998)
-passes the fixed external recovery check and package checks. Critical independent review is queued
-against the exact candidate and the reviewer-owned falsifier.
+Critical review returned candidate
+[acc5586](https://github.com/maggnus/ymp/commit/acc55860f53501c4b5d35b3a5f934f28e12ec998):
+a conflicting digest records `InfrastructureError` but leaves an active attempt, so the recovered
+state violates the kernel terminal-authority invariant. Rework is limited to terminalization.
 
 ## Next action
 
-Review the exact candidate with the preserved external recovery check and an independently selected
-conflict or replay falsifier.
+Clear active attempt authority when recording the conflict as `InfrastructureError`, preserve the
+pre-conflict cursor, journal digest, and budget, and add a package-level kernel-invariant check.
 
 ## Guardrails
 
@@ -75,8 +76,11 @@ conflict or replay falsifier.
 
 ## Findings
 
-- A repeated identifier currently returns current state rather than the original result.
-- Recovery currently applies a second event with the same identifier and different command bytes.
+- Candidate [acc5586](https://github.com/maggnus/ymp/commit/acc55860f53501c4b5d35b3a5f934f28e12ec998)
+  retains `active_attempts` after terminal `InfrastructureError`, violating the terminal-authority
+  invariant.
+- The reviewer-owned external check incorrectly requires `active_attempts` to remain unchanged on
+  terminalization; the reviewer must correct that assertion before re-review.
 
 ## Closure
 
