@@ -371,6 +371,7 @@ impl RuntimeDriver for CodexRuntime {
             completed: false,
             terminal: false,
             recoverable: false,
+            native_resume_started: false,
             interrupted: false,
             interruption_emitted: false,
         }))
@@ -392,6 +393,7 @@ struct CodexSession {
     completed: bool,
     terminal: bool,
     recoverable: bool,
+    native_resume_started: bool,
     interrupted: bool,
     interruption_emitted: bool,
 }
@@ -437,6 +439,7 @@ impl CodexSession {
         self.started_at = process.started_at;
         self.completed = false;
         self.recoverable = false;
+        self.native_resume_started = true;
     }
 
     fn finish_after_error(&mut self, error: &RuntimeError) {
@@ -451,6 +454,7 @@ impl CodexSession {
             let _ = reader.join();
         }
         self.recoverable = self.session_id.is_some()
+            && !self.native_resume_started
             && matches!(
                 error,
                 RuntimeError::Process(_) | RuntimeError::UnsuccessfulExit { .. }
@@ -1006,6 +1010,74 @@ fi
                 .expect("invocation count")
                 .trim(),
             "1"
+        );
+    }
+
+    #[test]
+    fn unknown_session_reported_by_native_resume_is_terminal() {
+        let directory = tempfile::tempdir().expect("temporary directory");
+        let executable = directory.path().join("codex-native-resume-unknown-fixture");
+        fs::write(
+            &executable,
+            r##"#!/bin/sh
+if [ "$1" = "--version" ]; then
+  printf '%s\n' 'codex-cli 0.147.0'
+elif [ "$1" = "login" ]; then
+  exit 0
+else
+  cd "$(dirname "$0")"
+  count=$(($(cat invocation.count 2>/dev/null || printf '0') + 1))
+  printf '%s\n' "$count" > invocation.count
+  cat >/dev/null
+  if [ "$count" -eq 1 ]; then
+    printf '%s\n' '{"type":"thread.started","thread_id":"thread-missing"}'
+    exit 17
+  fi
+  printf '%s\n' 'unknown session thread-missing' >&2
+  exit 23
+fi
+"##,
+        )
+        .expect("write fixture");
+        let mut permissions = fs::metadata(&executable).expect("metadata").permissions();
+        permissions.set_mode(0o700);
+        fs::set_permissions(&executable, permissions).expect("make executable");
+
+        let runtime = CodexRuntime::new(&executable);
+        let mut session = runtime
+            .start(InvocationRequest {
+                invocation_id: "invocation-native-resume-unknown".to_owned(),
+                attempt_id: "attempt-native-resume-unknown".to_owned(),
+                workspace: directory.path().to_owned(),
+                mcp: None,
+                prompt: "fixture".to_owned(),
+                cancellation: Default::default(),
+            })
+            .expect("start fixture");
+        assert!(matches!(
+            session.next_event().expect("started").expect("event").event,
+            RuntimeEventKind::Started { opaque_session_id }
+                if opaque_session_id == "thread-missing"
+        ));
+        assert!(matches!(
+            session.next_event(),
+            Err(RuntimeError::UnsuccessfulExit { .. })
+        ));
+        session.resume("resume".to_owned()).expect("native resume");
+        assert!(matches!(
+            session.next_event(),
+            Err(RuntimeError::UnsuccessfulExit { stderr, .. })
+                if stderr.contains("unknown session thread-missing")
+        ));
+        assert!(matches!(
+            session.resume("replacement".to_owned()),
+            Err(RuntimeError::NotYielded)
+        ));
+        assert_eq!(
+            fs::read_to_string(directory.path().join("invocation.count"))
+                .expect("invocation count")
+                .trim(),
+            "2"
         );
     }
 
