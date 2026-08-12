@@ -10,10 +10,10 @@ relation: required
 depends_on: []
 blocks: [W0-UX-01b]
 created_at: 2026-08-10T21:23:34+08:00
-updated_at: 2026-08-12T11:07:54+08:00
+updated_at: 2026-08-12T11:32:44+08:00
 started_at: 2026-08-12T11:04:55+08:00
 accepted_at:
-candidate_commit:
+candidate_commit: https://github.com/maggnus/ymp/commit/e8ff248fad346071e9adec2b94f07e6c027f17ed
 closure_commit:
 evidence:
 duration_minutes: 0
@@ -67,14 +67,15 @@ design artifact.
 
 ## Current state
 
-The project requirements and `ymp-docs/design/ymp_k9s_tui.dc.html` exist. Work is active on a
-complete requirement-to-screen matrix inside the sole artifact; non-author review and
-commit-pinned acceptance evidence remain pending.
+The candidate adds 172 traceable requirements, nine reusable structural templates, named data
+regions, application projections, typed commands, deterministic fixture rules, negative controls,
+and explicit blockers to the sole HTML artifact. Independent review is checking the exact revision
+for completeness, template reuse, local-only behavior, and terminal layout viability.
 
 ## Next action
 
-Complete the requirement-to-screen matrix in the existing artifact and submit the exact revision
-to non-author review.
+Decide acceptance through an independent structural, negative, and visual review of the exact
+candidate.
 
 ## Guardrails
 
