@@ -8,12 +8,13 @@
 | `[x]` | [`W0-UX-01a`](waves/W0/W0-UX-01/tasks/W0-UX-01a.md) | Project requirements define the terminal product contract | [`7642488d`](https://github.com/maggnus/ymp/commit/7642488df04471beb8dac505171ddaf91bfda498) | 12/08 11:04 | 12/08 12:04 (1h) |
 | `[x]` | [`W0-UX-01b`](waves/W0/W0-UX-01/tasks/W0-UX-01b.md) | HTML artifact supplies the POC screen and state system | [`d01354c6`](https://github.com/maggnus/ymp/commit/d01354c6046b8a7c1fcd4380087f0e43805b24ff) | 12/08 12:05 | 12/08 13:30 (1h25m) |
 | `[x]` | [`W0-UX-01c`](waves/W0/W0-UX-01/tasks/W0-UX-01c.md) | Independent review freezes an implementable screen contract | [`4670fa0a`](https://github.com/maggnus/ymp/commit/4670fa0ad914e73d5dc3a5994d694f82a5ebe449) | 12/08 13:30 | 12/08 13:54 (24m) |
-| `[ ]` | [`W1-APP-02`](waves/W1/W1-APP-02/CARD.md) | Foreground TUI verifies one exact participant result | — | — | — |
+| `[~]` | [`W1-APP-02`](waves/W1/W1-APP-02/CARD.md) | Foreground TUI verifies one exact participant result | — | 12/08 16:14 | 12/08 16:19 (0m) |
 | `[~]` | [`W1-APP-02a`](waves/W1/W1-APP-02/tasks/W1-APP-02a.md) | Foreground core commits one recoverable event history | — | 12/08 16:17 | 12/08 16:17 (0m) |
 | `[~]` | [`W1-APP-02b`](waves/W1/W1-APP-02/tasks/W1-APP-02b.md) | Private attempt produces independently verified immutable candidate | — | 12/08 16:14 | 12/08 16:14 (0m) |
 | `[?]` | [`W1-APP-02c`](waves/W1/W1-APP-02/tasks/W1-APP-02c.md) | Codex profile completes one managed candidate attempt | — | — | — |
 | `[?]` | [`W1-APP-02d`](waves/W1/W1-APP-02/tasks/W1-APP-02d.md) | Claude Code profile completes one managed candidate attempt | — | — | — |
-| `[ ]` | [`W1-APP-02e`](waves/W1/W1-APP-02/tasks/W1-APP-02e.md) | TUI completes and exports a single-participant run | — | — | — |
+| `[~]` | [`W1-APP-02e`](waves/W1/W1-APP-02/tasks/W1-APP-02e/TASK.md) | TUI completes and exports a single-participant run | — | 12/08 16:19 | 12/08 16:19 (0m) |
+| `[~]` | [`W1-APP-02e.1`](waves/W1/W1-APP-02/tasks/W1-APP-02e/subtasks/W1-APP-02e.1.md) | Deterministic TUI buffers enforce the accepted screen contract | — | 12/08 16:19 | 12/08 16:19 (0m) |
 | `[x]` | [`W1-APP-02f`](waves/W1/W1-APP-02/tasks/W1-APP-02f.md) | Duplicate or out-of-order runtime events terminate without a candidate | [`4145a442`](https://github.com/maggnus/ymp/commit/4145a442b476afedca8d091de3a30b1eb1ad9b84) | 12/08 09:40 | 12/08 10:03 (23m) |
 | `[x]` | [`W1-APP-02g`](waves/W1/W1-APP-02/tasks/W1-APP-02g.md) | Verification evidence binds the exact runtime environment | [`973a6e33`](https://github.com/maggnus/ymp/commit/973a6e331f4577a894ab95ee325efa4a03005510) | 12/08 10:28 | 12/08 11:18 (50m) |
 | `[x]` | [`W1-APP-02h`](waves/W1/W1-APP-02/tasks/W1-APP-02h.md) | Managed Codex and Claude sessions resume after interruption | [`0d351f60`](https://github.com/maggnus/ymp/commit/0d351f6015c25869bd4e45bb126482fd60945795) | 12/08 09:44 | 12/08 10:26 (41m) |

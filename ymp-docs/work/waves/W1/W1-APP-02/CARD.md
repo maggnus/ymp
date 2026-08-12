@@ -2,15 +2,15 @@
 id: W1-APP-02
 kind: card
 wave: W1
-state: ready
+state: active
 risk: significant
 maturity: BUILD
 relation: required
 depends_on: [W1-EXP-01]
 blocks: [W1-COR-03]
 created_at: 2026-08-10T19:34:25+08:00
-updated_at: 2026-08-10T19:34:25+08:00
-started_at:
+updated_at: 2026-08-12T16:19:52+08:00
+started_at: 2026-08-12T16:14:11+08:00
 accepted_at:
 candidate_commit:
 closure_commit:
@@ -60,7 +60,7 @@ runtime, MCP, or verifier state as a typed failure rather than acceptance.
 - [W1-APP-02b](tasks/W1-APP-02b.md) — required
 - [W1-APP-02c](tasks/W1-APP-02c.md) — required
 - [W1-APP-02d](tasks/W1-APP-02d.md) — required
-- [W1-APP-02e](tasks/W1-APP-02e.md) — required
+- [W1-APP-02e](tasks/W1-APP-02e/TASK.md) — required
 - [W1-APP-02f](tasks/W1-APP-02f.md) — required
 - [W1-APP-02g](tasks/W1-APP-02g.md) — required
 - [W1-APP-02h](tasks/W1-APP-02h.md) — required

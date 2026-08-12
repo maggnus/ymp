@@ -3,15 +3,15 @@ id: W1-APP-02e
 kind: task
 wave: W1
 card: W1-APP-02
-state: ready
+state: active
 risk: significant
 maturity: BUILD
 relation: required
 depends_on: [W0-UX-01c, W1-APP-02b, W1-APP-02c, W1-APP-02d]
 blocks: [W1-COR-03a]
 created_at: 2026-08-10T19:34:25+08:00
-updated_at: 2026-08-12T02:47:53+08:00
-started_at:
+updated_at: 2026-08-12T16:19:52+08:00
+started_at: 2026-08-12T16:19:52+08:00
 accepted_at:
 candidate_commit:
 closure_commit:
@@ -63,16 +63,15 @@ complete participant attempt.
 
 ## Current state
 
-The Ratatui application implements k9s-style views derived from the sole HTML artifact. It loads
-versioned contracts, supervises a ready profile, captures a candidate, runs the bounded verifier,
-and exports control, verifier, and privacy-reduced runtime evidence. A 120 × 40 PTY run completed
-the entire path with real Codex L1; later TUI runs brought L2 and L3 to three accepted repetitions
-each. Deterministic tests cover terminal states and 80 × 24 behavior.
+Deterministic buffer coverage is active in W1-APP-02e.1. The Ratatui application already consumes
+versioned contracts, supervises a ready profile, verifies a candidate, and exports bounded
+evidence. A 120 × 40 PTY run completed the Codex L1 path, and later TUI runs brought L2 and L3 to
+three accepted repetitions each. Existing deterministic tests cover terminal states and 80 × 24.
 
 ## Next action
 
-Persist approved contract lineage and add PTY coverage for cancellation and every typed failure;
-then repeat the controlled path with Claude after external authentication is restored.
+Complete W1-APP-02e.1, then add PTY coverage for cancellation and every typed failure before the
+controlled Claude path resumes after external authentication is restored.
 
 ## Guardrails
 
