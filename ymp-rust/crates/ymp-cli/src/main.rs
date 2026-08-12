@@ -666,6 +666,91 @@ mod tests {
         assert!(recovered.state().candidate_digest.is_some());
     }
 
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn unavailable_managed_launcher_records_infrastructure_error() {
+        use std::os::unix::fs::PermissionsExt;
+
+        let launcher_available = std::process::Command::new("/usr/bin/unshare")
+            .args([
+                "--user",
+                "--map-root-user",
+                "--mount",
+                "--pid",
+                "--net",
+                "--fork",
+                "/bin/true",
+            ])
+            .status()
+            .is_ok_and(|status| status.success());
+        if launcher_available {
+            return;
+        }
+
+        let root = tempdir().expect("temporary root");
+        let data_root = root.path().join("data");
+        let source = root.path().join("source");
+        let workspace = root.path().join("workspace");
+        let negative = root.path().join("negative");
+        let program = root.path().join("oracle");
+        fs::create_dir_all(&source).expect("source directory");
+        fs::create_dir(&negative).expect("negative directory");
+        fs::write(source.join("result.txt"), b"candidate\n").expect("source file");
+        fs::write(&program, b"#!/bin/sh\nexit 1\n").expect("oracle program");
+        let mut permissions = fs::metadata(&program).expect("metadata").permissions();
+        permissions.set_mode(0o700);
+        fs::set_permissions(&program, permissions).expect("make executable");
+
+        let mut application =
+            Application::create(&data_root, "run-1", Budget::new(1, 1)).expect("application");
+        let base = application
+            .artifact_store()
+            .capture_source(&source)
+            .expect("base capture");
+        application
+            .artifact_store()
+            .materialize(&base.manifest_digest, &workspace)
+            .expect("workspace");
+        application
+            .execute(
+                "attempt.start",
+                Command::StartAttempt {
+                    attempt_id: "attempt-1".to_owned(),
+                },
+            )
+            .expect("attempt start");
+        let candidate_digest = application
+            .submit_workspace_candidate(
+                "attempt.submit",
+                "attempt-1",
+                &base.manifest_digest,
+                &workspace,
+            )
+            .expect("candidate submission")
+            .candidate
+            .snapshot_digest;
+        drop(application);
+
+        run_managed_verification(ManagedVerificationRequest {
+            data_root: data_root.clone(),
+            program,
+            arguments: Vec::new(),
+            negative_control: negative,
+            contract_digest: "1".repeat(64),
+            oracle_digest: "2".repeat(64),
+            wall_time_ms: Duration::from_secs(5).as_millis() as u64,
+            output_limit_bytes: 1024,
+        })
+        .expect("infrastructure result must be committed");
+
+        let recovered = Application::open(&data_root).expect("reopen application");
+        assert_eq!(recovered.state().status, RunStatus::InfrastructureError);
+        assert_eq!(
+            recovered.state().candidate_digest.as_deref(),
+            Some(candidate_digest.as_str())
+        );
+    }
+
     #[cfg(unix)]
     #[test]
     fn repeated_managed_verification_returns_the_stored_result() {

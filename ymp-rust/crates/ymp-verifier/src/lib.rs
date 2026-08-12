@@ -280,6 +280,8 @@ pub struct CommandVerifier {
     arguments_before_subject: Vec<String>,
     wall_time_limit: Duration,
     output_limit_bytes: usize,
+    #[cfg(target_os = "linux")]
+    isolation_launcher: PathBuf,
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -308,6 +310,8 @@ impl CommandVerifier {
             arguments_before_subject,
             wall_time_limit,
             output_limit_bytes,
+            #[cfg(target_os = "linux")]
+            isolation_launcher: PathBuf::from("/usr/bin/unshare"),
         };
         validate_digest("contract", &verifier.contract_digest)?;
         validate_digest("oracle", &verifier.oracle_digest)?;
@@ -359,16 +363,24 @@ impl CommandVerifier {
 
     fn environment_binding(&self) -> Result<(Vec<u8>, String), VerifierError> {
         let program_digest = ymp_domain::digest_bytes(&std::fs::read(&self.program)?);
-        let environment_object = serde_json::to_vec(&serde_json::json!({
+        let environment = serde_json::json!({
             "schema_version": 1,
-            "verifier_profile": "bounded_command_v3",
+            "verifier_profile": "bounded_command_v4",
             "program": self.program,
             "program_digest": program_digest,
             "arguments_before_subject": self.arguments_before_subject,
             "wall_time_limit_millis": self.wall_time_limit.as_millis(),
             "output_limit_bytes": self.output_limit_bytes,
             "subject_isolation": command_isolation_profile()
-        }))?;
+        });
+        #[cfg(target_os = "linux")]
+        let environment = {
+            let mut environment = environment;
+            environment["isolation_launcher"] =
+                serde_json::Value::String(self.isolation_launcher.to_string_lossy().into_owned());
+            environment
+        };
+        let environment_object = serde_json::to_vec(&environment)?;
         Ok((environment_object, program_digest))
     }
 
@@ -401,7 +413,7 @@ impl CommandVerifier {
             contract_digest: self.contract_digest.clone(),
             oracle_digest: self.oracle_digest.clone(),
             environment_digest: Some(environment_digest),
-            verifier_profile: "bounded_command_v3".to_owned(),
+            verifier_profile: "bounded_command_v4".to_owned(),
             observation_digest: digest_serializable(&observation)?,
             decision,
             evidence_digest: String::new(),
@@ -423,24 +435,68 @@ impl CommandVerifier {
         if metadata.file_type().is_symlink() || !metadata.is_dir() {
             return Err(VerifierError::InvalidSubject(subject.to_path_buf()));
         }
-        let isolated = tempfile::tempdir()?;
-        let isolated_subject = isolated.path().join("subject");
+        let isolated = tempfile::tempdir().map_err(|error| {
+            isolation_failure(
+                "root preparation",
+                format!("create temporary root: {error}"),
+            )
+        })?;
+        #[cfg(target_os = "linux")]
+        let isolation_root = {
+            let root = isolated.path().join("rootfs");
+            std::fs::create_dir(&root).map_err(|error| {
+                isolation_failure("root preparation", format!("create rootfs: {error}"))
+            })?;
+            root
+        };
+        #[cfg(not(target_os = "linux"))]
+        let isolation_root = isolated.path().to_path_buf();
+        let isolated_subject = isolation_root.join("subject");
         copy_subject_tree(subject, &isolated_subject)?;
-        let isolated_temporary = isolated.path().join("scratch");
-        std::fs::create_dir(&isolated_temporary)?;
-        let isolated_home = isolated.path().join("home");
-        std::fs::create_dir(&isolated_home)?;
+        #[cfg(target_os = "linux")]
+        let isolated_temporary = isolation_root.join("tmp");
+        #[cfg(not(target_os = "linux"))]
+        let isolated_temporary = isolation_root.join("scratch");
+        std::fs::create_dir(&isolated_temporary).map_err(|error| {
+            isolation_failure(
+                "root preparation",
+                format!("create private scratch: {error}"),
+            )
+        })?;
+        #[cfg(target_os = "linux")]
+        std::fs::create_dir(isolated_temporary.join("scratch")).map_err(|error| {
+            isolation_failure(
+                "root preparation",
+                format!("create temporary workspace: {error}"),
+            )
+        })?;
+        let isolated_home = isolated_temporary.join("home");
+        std::fs::create_dir(&isolated_home).map_err(|error| {
+            isolation_failure("root preparation", format!("create private home: {error}"))
+        })?;
         let isolated_program =
-            prepare_oracle(&self.program, isolated.path(), expected_program_digest)?;
+            prepare_oracle(&self.program, &isolation_root, expected_program_digest).map_err(
+                |error| match error {
+                    VerifierError::InvalidProgram(_)
+                    | VerifierError::ProgramDigestMismatch { .. } => error,
+                    error => isolation_failure("oracle preparation", error.to_string()),
+                },
+            )?;
         #[cfg(target_os = "linux")]
         let _ = &isolated_program;
         #[cfg(target_os = "linux")]
-        let mut command = linux_namespace_command(
-            isolated.path(),
-            &self.arguments_before_subject,
-            &isolated_temporary,
-            &isolated_home,
-        );
+        let mut command = {
+            let launcher_status = isolated.path().join("launcher-status");
+            prepare_linux_root(&isolation_root, &launcher_status)?;
+            linux_namespace_command(
+                &self.isolation_launcher,
+                &isolation_root,
+                &launcher_status,
+                &self.arguments_before_subject,
+            )
+        };
+        #[cfg(target_os = "linux")]
+        let launcher_status = isolated.path().join("launcher-status");
         #[cfg(not(target_os = "linux"))]
         let mut command = {
             let mut command = Command::new(&isolated_program);
@@ -472,6 +528,14 @@ impl CommandVerifier {
             .stdout(Stdio::piped())
             .stderr(Stdio::piped());
         configure_process_group(&mut command);
+        #[cfg(target_os = "linux")]
+        let mut child = command.spawn().map_err(|error| {
+            isolation_failure(
+                "launcher exec",
+                format!("start namespace launcher: {error}"),
+            )
+        })?;
+        #[cfg(not(target_os = "linux"))]
         let mut child = command.spawn()?;
         let stdout = child
             .stdout
@@ -514,6 +578,8 @@ impl CommandVerifier {
         if exceeded.load(Ordering::Acquire) {
             return Err(VerifierError::OutputLimitExceeded(self.output_limit_bytes));
         }
+        #[cfg(target_os = "linux")]
+        validate_linux_launcher(&launcher_status, status.code())?;
         Ok(CommandObservation {
             success: status.success(),
             status_code: status.code(),
@@ -527,7 +593,7 @@ impl CommandVerifier {
 
 #[cfg(target_os = "linux")]
 fn command_isolation_profile() -> &'static str {
-    "linux_user_mount_pid_net_ipc_uts_namespaces_v1"
+    "linux_private_chroot_user_mount_pid_net_ipc_uts_v2"
 }
 
 #[cfg(not(target_os = "linux"))]
@@ -595,34 +661,54 @@ fn prepare_oracle(
 
 #[cfg(target_os = "linux")]
 fn linux_namespace_command(
+    launcher: &Path,
     isolation_root: &Path,
+    launcher_status: &Path,
     arguments_before_subject: &[String],
-    _temporary: &Path,
-    _home: &Path,
 ) -> Command {
-    // This boundary prevents observations from sharing writable scratch mounts, processes,
-    // networking, or verifier capabilities. It deliberately does not claim to contain hostile
-    // code from the rest of the outer disposable host.
+    // Each observation receives a distinct root and writable submounts. Read-only runtime mounts
+    // are supplied only so the checked oracle can execute. This boundary protects experimental
+    // integrity between observations; it does not claim to contain hostile code on the outer host.
     const ISOLATION_SCRIPT: &str = r#"
 root=$1
-shift
-/usr/bin/mount --make-rprivate /
-/usr/bin/mount --bind "$root" /tmp
-/usr/bin/mount --bind /tmp/oracle /tmp/oracle
-/usr/bin/mount -o remount,bind,ro /tmp/oracle
-/usr/bin/mount -t tmpfs -o nosuid,nodev,mode=1777 tmpfs /var/tmp
-/usr/bin/mount -t tmpfs -o nosuid,nodev,mode=1777 tmpfs /dev/shm
-/usr/bin/mount -t tmpfs -o nosuid,nodev,mode=755 tmpfs /run
-cd /tmp/subject
-exec /usr/bin/setpriv \
-  --no-new-privs \
-  --bounding-set=-all \
-  --inh-caps=-all \
-  --ambient-caps=-all \
-  --securebits=+noroot,+noroot_locked,+no_setuid_fixup,+no_setuid_fixup_locked \
-  /tmp/oracle/oracle "$@" /tmp/subject
+status=$2
+shift 2
+exec 9>"$status" || exit 125
+printf 'prepared\n' >&9 || exit 125
+fail() {
+  printf 'isolation_error:%s\n' "$1" >&9 || :
+  exit 125
+}
+bind_read_only() {
+  source=$1
+  target=$2
+  stage=$3
+  if [ -e "$source" ]; then
+    /usr/bin/mount --bind "$source" "$target" || fail "${stage}-bind"
+    /usr/bin/mount -o remount,bind,ro "$target" || fail "${stage}-readonly"
+  fi
+}
+/usr/bin/mount --make-rprivate / || fail mount-private
+/usr/bin/mount --bind "$root" "$root" || fail root-bind
+/usr/bin/mount --bind "$root/subject" "$root/subject" || fail subject-bind
+/usr/bin/mount --bind "$root/tmp" "$root/tmp" || fail scratch-bind
+/usr/bin/mount --bind "$root/oracle" "$root/oracle" || fail oracle-bind
+/usr/bin/mount -o remount,bind,ro "$root/oracle" || fail oracle-readonly
+/usr/bin/mount --bind "$root/launcher" "$root/launcher" || fail internal-launcher-bind
+/usr/bin/mount -o remount,bind,ro "$root/launcher" || fail internal-launcher-readonly
+bind_read_only /bin "$root/bin" bin
+bind_read_only /usr "$root/usr" usr
+bind_read_only /lib "$root/lib" lib
+bind_read_only /lib64 "$root/lib64" lib64
+/usr/bin/mount -t proc proc "$root/proc" || fail proc-mount
+/usr/bin/mount -o remount,ro "$root/proc" || fail proc-readonly
+/usr/bin/mount --bind /dev/null "$root/dev/null" || fail dev-null
+/usr/bin/mount --bind /dev/urandom "$root/dev/urandom" || fail dev-urandom
+/usr/bin/mount -o remount,bind,ro "$root" || fail root-readonly
+printf 'chroot_exec\n' >&9 || exit 125
+/usr/sbin/chroot "$root" /launcher/chroot-stage "$@"
 "#;
-    let mut command = Command::new("/usr/bin/unshare");
+    let mut command = Command::new(launcher);
     command
         .args([
             "--user",
@@ -634,7 +720,6 @@ exec /usr/bin/setpriv \
             "--uts",
             "--fork",
             "--kill-child",
-            "--mount-proc",
             "/bin/sh",
             "-eu",
             "-c",
@@ -642,9 +727,128 @@ exec /usr/bin/setpriv \
             "ymp-verifier-isolation",
         ])
         .arg(isolation_root)
+        .arg(launcher_status)
         .args(arguments_before_subject)
         .current_dir("/");
     command
+}
+
+#[cfg(target_os = "linux")]
+fn prepare_linux_root(isolation_root: &Path, launcher_status: &Path) -> Result<(), VerifierError> {
+    use std::os::unix::fs::PermissionsExt;
+
+    for relative in ["bin", "usr", "lib", "lib64", "proc", "dev", "launcher"] {
+        let path = isolation_root.join(relative);
+        std::fs::create_dir(&path).map_err(|error| {
+            isolation_failure(
+                "root preparation",
+                format!("create {}: {error}", path.display()),
+            )
+        })?;
+    }
+    for relative in ["dev/null", "dev/urandom"] {
+        let path = isolation_root.join(relative);
+        File::create(&path).map_err(|error| {
+            isolation_failure(
+                "root preparation",
+                format!("create {}: {error}", path.display()),
+            )
+        })?;
+    }
+
+    let launcher_directory = isolation_root.join("launcher");
+    let chroot_stage = launcher_directory.join("chroot-stage");
+    std::fs::write(
+        &chroot_stage,
+        r#"#!/bin/sh
+printf 'chroot_ready\n' >&9 || exit 125
+exec /usr/bin/setpriv \
+  --no-new-privs \
+  --bounding-set=-all \
+  --inh-caps=-all \
+  --ambient-caps=-all \
+  --securebits=+noroot,+noroot_locked,+no_setuid_fixup,+no_setuid_fixup_locked \
+  /launcher/oracle-stage "$@"
+"#,
+    )
+    .map_err(|error| {
+        isolation_failure(
+            "root preparation",
+            format!("write {}: {error}", chroot_stage.display()),
+        )
+    })?;
+    let oracle_stage = launcher_directory.join("oracle-stage");
+    std::fs::write(
+        &oracle_stage,
+        r#"#!/bin/sh
+printf 'oracle_exec\n' >&9 || exit 125
+exec 9>&-
+exec /oracle/oracle "$@" /subject
+"#,
+    )
+    .map_err(|error| {
+        isolation_failure(
+            "root preparation",
+            format!("write {}: {error}", oracle_stage.display()),
+        )
+    })?;
+    for path in [&chroot_stage, &oracle_stage] {
+        std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o555)).map_err(
+            |error| {
+                isolation_failure(
+                    "root preparation",
+                    format!("make {} executable: {error}", path.display()),
+                )
+            },
+        )?;
+    }
+    std::fs::set_permissions(&launcher_directory, std::fs::Permissions::from_mode(0o555)).map_err(
+        |error| {
+            isolation_failure(
+                "root preparation",
+                format!("make {} immutable: {error}", launcher_directory.display()),
+            )
+        },
+    )?;
+    std::fs::write(launcher_status, b"prepared\n").map_err(|error| {
+        isolation_failure(
+            "launcher protocol",
+            format!("create {}: {error}", launcher_status.display()),
+        )
+    })?;
+    Ok(())
+}
+
+#[cfg(target_os = "linux")]
+fn validate_linux_launcher(
+    launcher_status: &Path,
+    status_code: Option<i32>,
+) -> Result<(), VerifierError> {
+    let state = std::fs::read_to_string(launcher_status).map_err(|error| {
+        isolation_failure(
+            "launcher protocol",
+            format!("read {}: {error}", launcher_status.display()),
+        )
+    })?;
+    let state = state.lines().next_back().unwrap_or_default().trim();
+    let returned = || format!("launcher returned {status_code:?}");
+    match state {
+        "oracle_exec" if matches!(status_code, Some(126 | 127)) => {
+            Err(isolation_failure("oracle exec", returned()))
+        }
+        "oracle_exec" => Ok(()),
+        "chroot_ready" => Err(isolation_failure("privilege drop", returned())),
+        "chroot_exec" => Err(isolation_failure("chroot", returned())),
+        "prepared" => Err(isolation_failure("namespace launcher", returned())),
+        state if state.starts_with("isolation_error:") => Err(isolation_failure(
+            state.trim_start_matches("isolation_error:"),
+            returned(),
+        )),
+        state => Err(isolation_failure(
+            "launcher protocol",
+            format!("unknown state {state:?}; {}", returned()),
+        )),
+    }
 }
 
 fn copy_subject_tree(source: &Path, destination: &Path) -> Result<(), VerifierError> {
@@ -701,6 +905,13 @@ fn digest_stream(
     })
 }
 
+fn isolation_failure(stage: impl Into<String>, detail: impl Into<String>) -> VerifierError {
+    VerifierError::IsolationFailure {
+        stage: stage.into(),
+        detail: detail.into(),
+    }
+}
+
 #[derive(Debug, Error)]
 pub enum VerifierError {
     #[error("verifier I/O error: {0}")]
@@ -725,6 +936,8 @@ pub enum VerifierError {
     OutputLimitExceeded(usize),
     #[error("verifier process exceeded its {0}-millisecond wall-time limit")]
     TimedOut(u64),
+    #[error("verification isolation failed during {stage}: {detail}")]
+    IsolationFailure { stage: String, detail: String },
     #[error("protected negative control passed")]
     NegativeControlPassed,
     #[error("verifier process returned an unclassified exit status: {0:?}")]
@@ -1091,6 +1304,161 @@ mod tests {
 
         assert_eq!(evidence.decision(), VerificationDecision::Reject);
         assert!(!std::path::Path::new(&marker).exists());
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn observations_cannot_exchange_state_through_the_outer_root() {
+        use std::os::unix::fs::PermissionsExt;
+
+        let temporary = tempfile::tempdir().expect("temporary directory");
+        let program = temporary.path().join("oracle");
+        let marker = std::env::current_dir()
+            .expect("current directory")
+            .join(format!(
+                ".ymp-verifier-outer-root-marker-{}",
+                std::process::id()
+            ));
+        std::fs::write(
+            &program,
+            "#!/bin/sh\n\
+             if [ -e \"$1\" ]; then exit 0; fi\n\
+             touch \"$1\" 2>/dev/null || :\n\
+             exit 1\n",
+        )
+        .expect("write oracle");
+        let mut permissions = std::fs::metadata(&program).expect("metadata").permissions();
+        permissions.set_mode(0o700);
+        std::fs::set_permissions(&program, permissions).expect("make executable");
+        let candidate = temporary.path().join("candidate");
+        let negative = temporary.path().join("negative");
+        std::fs::create_dir(&candidate).expect("candidate directory");
+        std::fs::create_dir(&negative).expect("negative directory");
+        let verifier = CommandVerifier::new(
+            "1".repeat(64),
+            "2".repeat(64),
+            &program,
+            vec![marker.to_string_lossy().into_owned()],
+            Duration::from_secs(5),
+            1024,
+        )
+        .expect("command verifier");
+
+        let result = verifier.verify_candidate(&candidate, &negative, "3".repeat(64));
+        let _ = std::fs::remove_file(&marker);
+        let evidence = result.expect("isolated verification result");
+
+        assert_eq!(evidence.decision(), VerificationDecision::Reject);
+        assert!(!marker.exists());
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn unavailable_namespace_launcher_is_not_an_oracle_rejection() {
+        let temporary = tempfile::tempdir().expect("temporary directory");
+        let program = temporary.path().join("oracle");
+        std::fs::write(&program, "#!/bin/sh\nexit 1\n").expect("write oracle");
+        use std::os::unix::fs::PermissionsExt;
+        let mut permissions = std::fs::metadata(&program).expect("metadata").permissions();
+        permissions.set_mode(0o700);
+        std::fs::set_permissions(&program, permissions).expect("make executable");
+        let subject = temporary.path().join("subject");
+        std::fs::create_dir(&subject).expect("subject directory");
+        let mut verifier = CommandVerifier::new(
+            "1".repeat(64),
+            "2".repeat(64),
+            program,
+            Vec::new(),
+            Duration::from_secs(5),
+            1024,
+        )
+        .expect("command verifier");
+        if linux_namespace_launcher_is_available() {
+            verifier.isolation_launcher = std::path::PathBuf::from("/bin/false");
+        }
+
+        assert!(
+            matches!(
+                verifier.verify_candidate(&subject, &subject, "3".repeat(64)),
+                Err(VerifierError::IsolationFailure { .. })
+            ),
+            "launcher exit 1 was not classified as an isolation failure"
+        );
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn launcher_protocol_distinguishes_isolation_failures_from_oracle_exit_one() {
+        let status = NamedTempFile::new().expect("launcher status");
+
+        std::fs::write(status.path(), "prepared\nchroot_ready\noracle_exec\n")
+            .expect("oracle state");
+        super::validate_linux_launcher(status.path(), Some(1))
+            .expect("oracle exit one is a valid negative result");
+
+        for state in [
+            "prepared\n",
+            "prepared\nisolation_error:root-bind\n",
+            "prepared\nchroot_exec\n",
+            "prepared\nchroot_ready\n",
+            "prepared\nchroot_ready\noracle_exec\n",
+        ] {
+            std::fs::write(status.path(), state).expect("failure state");
+            let code = if state.ends_with("oracle_exec\n") {
+                Some(127)
+            } else {
+                Some(1)
+            };
+            assert!(matches!(
+                super::validate_linux_launcher(status.path(), code),
+                Err(VerifierError::IsolationFailure { .. })
+            ));
+        }
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn oracle_exec_failure_is_an_isolation_failure() {
+        use std::os::unix::fs::PermissionsExt;
+
+        let temporary = tempfile::tempdir().expect("temporary directory");
+        let program = temporary.path().join("oracle");
+        std::fs::write(&program, "#!/missing/interpreter\nexit 1\n").expect("write oracle");
+        let mut permissions = std::fs::metadata(&program).expect("metadata").permissions();
+        permissions.set_mode(0o700);
+        std::fs::set_permissions(&program, permissions).expect("make executable");
+        let subject = temporary.path().join("subject");
+        std::fs::create_dir(&subject).expect("subject directory");
+        let verifier = CommandVerifier::new(
+            "1".repeat(64),
+            "2".repeat(64),
+            program,
+            Vec::new(),
+            Duration::from_secs(5),
+            1024,
+        )
+        .expect("command verifier");
+
+        assert!(matches!(
+            verifier.verify_candidate(&subject, &subject, "3".repeat(64)),
+            Err(VerifierError::IsolationFailure { ref stage, .. }) if stage == "oracle exec"
+        ));
+    }
+
+    #[cfg(target_os = "linux")]
+    fn linux_namespace_launcher_is_available() -> bool {
+        std::process::Command::new("/usr/bin/unshare")
+            .args([
+                "--user",
+                "--map-root-user",
+                "--mount",
+                "--pid",
+                "--net",
+                "--fork",
+                "/bin/true",
+            ])
+            .status()
+            .is_ok_and(|status| status.success())
     }
 
     #[cfg(unix)]
