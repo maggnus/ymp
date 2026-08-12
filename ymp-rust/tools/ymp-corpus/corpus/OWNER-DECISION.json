@@ -2,24 +2,11 @@
   "schema_version": 1,
   "corpus_id": "w1-exp-01a-first-edition-2026-08-12",
   "generated_at": "2026-08-12T06:19:22Z",
-  "status": "not_approved_by_owner",
+  "artifact_role": "non_authoritative_decision_request",
+  "status": "authorization_not_evaluated",
   "approved_set_root_sha256": "e4e886bf1dfd433342f3f10f34c086415462908d60f5a53d1448824c9fe3bfc7",
   "root_definition": "SHA-256 of the exact registry.json bytes; the registry binds policy and task-manifest digests, and each task manifest binds its public contract and other artifacts",
-  "owner_record": {
-    "location": "external_to_corpus_root",
-    "required_authority": "ymp_project_owner",
-    "required_approver_role": "project_owner",
-    "must_bind": [
-      "corpus_id",
-      "approved_set_root_sha256",
-      "decision",
-      "authority",
-      "approver_id",
-      "approver_role",
-      "issued_at_unix_seconds",
-      "expires_at_unix_seconds"
-    ]
-  },
+  "authorization_boundary": "ymp-corpus records the exact technical root but neither ingests nor authenticates an owner decision; authorization is resolved in the external project governance channel",
   "packages": [
     {
       "id": "bstr-eof-and-debug",

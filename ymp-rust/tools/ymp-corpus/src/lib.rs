@@ -170,34 +170,6 @@ pub struct LoadedCorpus {
     pub tasks: Vec<Task>,
 }
 
-#[derive(Clone, Debug, Deserialize)]
-#[serde(deny_unknown_fields)]
-struct ApprovalPolicy {
-    schema_version: u32,
-    approval_required_for_check_and_verify: bool,
-    approval_record_location: String,
-    required_authority: String,
-    required_approver_role: String,
-    forbidden_approver_roles: Vec<String>,
-    maximum_validity_seconds: u64,
-    maximum_future_clock_skew_seconds: u64,
-    missing_record_status: String,
-}
-
-#[derive(Clone, Debug, Deserialize)]
-#[serde(deny_unknown_fields)]
-struct OwnerApprovalRecord {
-    schema_version: u32,
-    corpus_id: String,
-    approved_set_root_sha256: String,
-    decision: String,
-    authority: String,
-    approver_id: String,
-    approver_role: String,
-    issued_at_unix_seconds: u64,
-    expires_at_unix_seconds: u64,
-}
-
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
 struct PublicBinding {
@@ -211,12 +183,6 @@ struct PublicBinding {
 struct PublicArtifactDigest {
     role: String,
     sha256: String,
-}
-
-#[derive(Clone, Debug)]
-pub enum UsageApproval {
-    OwnerApproved { record_sha256: String },
-    UnapprovedEvidence,
 }
 
 #[derive(Debug, Serialize)]
@@ -241,9 +207,7 @@ pub struct ReproductionReport {
     pub corpus_id: String,
     pub registry_sha256: String,
     pub approved_set_root_sha256: String,
-    pub owner_approval_status: String,
-    pub owner_approval_record_sha256: Option<String>,
-    pub approved_for_use: bool,
+    pub authorization_scope: AuthorizationScope,
     pub started_unix_seconds: u64,
     pub offline: bool,
     pub model_calls: u64,
@@ -258,6 +222,12 @@ pub struct ReproductionReport {
     pub usable: bool,
     pub environment: ReproductionEnvironment,
     pub tasks: Vec<TaskReport>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum AuthorizationScope {
+    TechnicalVerificationOnly,
 }
 
 #[derive(Debug, Serialize)]
@@ -341,10 +311,7 @@ pub fn load_corpus(root: &Path) -> Result<LoadedCorpus> {
         "registry must explicitly exclude L1-L3"
     );
     verify_artifact(&root, &registry.expansion_policy)?;
-    let approval_policy_bytes = verify_artifact(&root, &registry.approval_policy)?;
-    let approval_policy: ApprovalPolicy =
-        serde_json::from_slice(&approval_policy_bytes).context("parse approval policy")?;
-    validate_approval_policy(&approval_policy)?;
+    verify_artifact(&root, &registry.approval_policy)?;
     for policy in &registry.policies {
         verify_artifact(&root, policy)?;
     }
@@ -507,49 +474,6 @@ fn validate_task(root: &Path, registry: &Registry, task: &Task, expected_id: &st
     Ok(())
 }
 
-fn validate_approval_policy(policy: &ApprovalPolicy) -> Result<()> {
-    ensure!(
-        policy.schema_version == 1,
-        "unsupported approval policy schema"
-    );
-    ensure!(
-        policy.approval_required_for_check_and_verify,
-        "approval policy does not require approval"
-    );
-    ensure!(
-        policy.approval_record_location == "external_to_corpus_root",
-        "approval record must be external to the corpus root"
-    );
-    ensure!(
-        policy.required_authority == "ymp_project_owner",
-        "unsupported approval authority"
-    );
-    ensure!(
-        policy.required_approver_role == "project_owner",
-        "unsupported approver role"
-    );
-    ensure!(
-        policy
-            .forbidden_approver_roles
-            .iter()
-            .any(|role| role == "corpus_author")
-            && policy
-                .forbidden_approver_roles
-                .iter()
-                .any(|role| role == "corpus_compiler"),
-        "corpus author and compiler roles must be forbidden from approval"
-    );
-    ensure!(
-        policy.maximum_validity_seconds > 0 && policy.maximum_future_clock_skew_seconds > 0,
-        "approval time bounds must be positive"
-    );
-    ensure!(
-        policy.missing_record_status == "not_approved_by_owner",
-        "unsupported missing-approval status"
-    );
-    Ok(())
-}
-
 fn validate_public_binding(root: &Path, registry: &Registry, task: &Task) -> Result<()> {
     let bytes = fs::read(root.join(&task.artifacts.public_contract.path))?;
     let contract = std::str::from_utf8(&bytes).context("public contract is not UTF-8")?;
@@ -638,111 +562,6 @@ fn public_digest(role: &str, sha256: &str) -> PublicArtifactDigest {
         role: role.to_owned(),
         sha256: sha256.to_owned(),
     }
-}
-
-pub fn require_owner_approval(
-    corpus: &LoadedCorpus,
-    approval_path: Option<&Path>,
-) -> Result<UsageApproval> {
-    let approval_path = approval_path
-        .context("owner approval record is required; this corpus is not approved by the owner")?;
-    let requested_path = if approval_path.is_absolute() {
-        approval_path.to_path_buf()
-    } else {
-        std::env::current_dir()
-            .context("read current directory")?
-            .join(approval_path)
-    };
-    ensure!(
-        !requested_path.starts_with(&corpus.root),
-        "owner approval record must be external to the corpus root"
-    );
-    let approval_path = approval_path.canonicalize().with_context(|| {
-        format!(
-            "canonicalize owner approval record {}",
-            approval_path.display()
-        )
-    })?;
-    ensure!(
-        !approval_path.starts_with(&corpus.root),
-        "owner approval record must be external to the corpus root"
-    );
-    let bytes = fs::read(&approval_path)
-        .with_context(|| format!("read owner approval record {}", approval_path.display()))?;
-    let record: OwnerApprovalRecord =
-        serde_json::from_slice(&bytes).context("parse owner approval record")?;
-    let policy_bytes = verify_artifact(&corpus.root, &corpus.registry.approval_policy)?;
-    let policy: ApprovalPolicy =
-        serde_json::from_slice(&policy_bytes).context("parse approval policy")?;
-    let now = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .context("system clock precedes Unix epoch")?
-        .as_secs();
-    validate_owner_approval_record(corpus, &policy, &record, now)?;
-    Ok(UsageApproval::OwnerApproved {
-        record_sha256: sha256_bytes(&bytes),
-    })
-}
-
-fn validate_owner_approval_record(
-    corpus: &LoadedCorpus,
-    policy: &ApprovalPolicy,
-    record: &OwnerApprovalRecord,
-    now: u64,
-) -> Result<()> {
-    ensure!(
-        record.schema_version == 1,
-        "unsupported owner approval schema"
-    );
-    ensure!(
-        record.decision == "approved",
-        "owner decision is not approval"
-    );
-    ensure!(
-        record.corpus_id == corpus.registry.corpus_id,
-        "approval corpus id mismatch"
-    );
-    validate_sha256(&record.approved_set_root_sha256, "approved set root")?;
-    ensure!(
-        record.approved_set_root_sha256 == corpus.registry_sha256,
-        "owner approval is stale or belongs to a different approved-set root"
-    );
-    ensure!(
-        record.expires_at_unix_seconds > record.issued_at_unix_seconds,
-        "owner approval has an invalid validity interval"
-    );
-    ensure!(
-        record
-            .expires_at_unix_seconds
-            .saturating_sub(record.issued_at_unix_seconds)
-            <= policy.maximum_validity_seconds,
-        "owner approval validity exceeds policy"
-    );
-    ensure!(
-        record.issued_at_unix_seconds
-            <= now.saturating_add(policy.maximum_future_clock_skew_seconds),
-        "owner approval is dated in the future"
-    );
-    ensure!(
-        now < record.expires_at_unix_seconds,
-        "owner approval is stale"
-    );
-    ensure!(
-        record.authority == policy.required_authority,
-        "owner approval authority mismatch"
-    );
-    ensure!(
-        record.approver_role == policy.required_approver_role
-            && !policy
-                .forbidden_approver_roles
-                .contains(&record.approver_role),
-        "corpus author or compiler cannot issue owner approval"
-    );
-    ensure!(
-        !record.approver_id.trim().is_empty(),
-        "owner approval has no approver id"
-    );
-    Ok(())
 }
 
 fn verify_artifact(root: &Path, artifact: &ArtifactRef) -> Result<Vec<u8>> {
@@ -947,11 +766,7 @@ enum CandidateBase {
     Fixed,
 }
 
-pub fn reproduce(
-    corpus: &LoadedCorpus,
-    cache: &Path,
-    approval: &UsageApproval,
-) -> Result<ReproductionReport> {
+pub fn reproduce(corpus: &LoadedCorpus, cache: &Path) -> Result<ReproductionReport> {
     let started = Instant::now();
     let environment = check_toolchain(corpus)?;
     check_cache(corpus, cache)?;
@@ -992,22 +807,12 @@ pub fn reproduce(
             check.name == "fixed-protected" || check.expectation == "fail_in_named_protected_test"
         })
         .count() as u64;
-    let (owner_approval_status, owner_approval_record_sha256, approved_for_use) = match approval {
-        UsageApproval::OwnerApproved { record_sha256 } => (
-            "approved_by_owner".to_owned(),
-            Some(record_sha256.clone()),
-            true,
-        ),
-        UsageApproval::UnapprovedEvidence => ("not_approved_by_owner".to_owned(), None, false),
-    };
     Ok(ReproductionReport {
-        schema_version: 2,
+        schema_version: 3,
         corpus_id: corpus.registry.corpus_id.clone(),
         registry_sha256: corpus.registry_sha256.clone(),
         approved_set_root_sha256: corpus.registry_sha256.clone(),
-        owner_approval_status,
-        owner_approval_record_sha256,
-        approved_for_use,
+        authorization_scope: AuthorizationScope::TechnicalVerificationOnly,
         started_unix_seconds,
         offline: true,
         model_calls: 0,
@@ -1550,9 +1355,8 @@ mod tests {
     use tempfile::tempdir;
 
     use super::{
-        ApprovalPolicy, ControlObservation, OwnerApprovalRecord,
-        negative_control_keeps_package_usable, sha256_bytes, tree_digest,
-        validate_owner_approval_record, validate_relative_path,
+        ControlObservation, negative_control_keeps_package_usable, sha256_bytes, tree_digest,
+        validate_relative_path,
     };
 
     #[test]
@@ -1612,69 +1416,6 @@ mod tests {
     }
 
     #[test]
-    fn committed_approval_record_is_forbidden() {
-        let corpus = super::load_corpus(&committed_corpus()).unwrap();
-        let error =
-            super::require_owner_approval(&corpus, Some(&corpus.root.join("registry.json")))
-                .unwrap_err();
-        assert!(
-            error
-                .to_string()
-                .contains("must be external to the corpus root")
-        );
-    }
-
-    #[test]
-    fn missing_owner_approval_blocks_use() {
-        let corpus = super::load_corpus(&committed_corpus()).unwrap();
-        let error = super::require_owner_approval(&corpus, None).unwrap_err();
-        assert!(error.to_string().contains("not approved by the owner"));
-    }
-
-    #[test]
-    fn corpus_author_role_cannot_issue_owner_approval() {
-        let corpus = super::load_corpus(&committed_corpus()).unwrap();
-        let policy = committed_approval_policy(&corpus);
-        let record = unauthorized_test_record(&corpus);
-        let error =
-            validate_owner_approval_record(&corpus, &policy, &record, 1_000_000).unwrap_err();
-        assert!(error.to_string().contains("cannot issue owner approval"));
-    }
-
-    #[test]
-    fn wrong_authority_cannot_issue_owner_approval() {
-        let corpus = super::load_corpus(&committed_corpus()).unwrap();
-        let policy = committed_approval_policy(&corpus);
-        let mut record = unauthorized_test_record(&corpus);
-        record.authority = "corpus_builder".to_owned();
-        record.approver_role = "project_owner".to_owned();
-        let error =
-            validate_owner_approval_record(&corpus, &policy, &record, 1_000_000).unwrap_err();
-        assert!(error.to_string().contains("authority mismatch"));
-    }
-
-    #[test]
-    fn mismatched_or_stale_owner_approval_blocks_use() {
-        let corpus = super::load_corpus(&committed_corpus()).unwrap();
-        let policy = committed_approval_policy(&corpus);
-        let mut mismatched = unauthorized_test_record(&corpus);
-        mismatched.approved_set_root_sha256 = "0".repeat(64);
-        let error =
-            validate_owner_approval_record(&corpus, &policy, &mismatched, 1_000_000).unwrap_err();
-        assert!(
-            error
-                .to_string()
-                .contains("stale or belongs to a different")
-        );
-
-        let mut stale = unauthorized_test_record(&corpus);
-        stale.expires_at_unix_seconds = 1_000_000;
-        let error =
-            validate_owner_approval_record(&corpus, &policy, &stale, 1_000_000).unwrap_err();
-        assert!(error.to_string().contains("owner approval is stale"));
-    }
-
-    #[test]
     fn changed_linked_artifact_is_rejected_by_public_binding() {
         let temp = tempdir().unwrap();
         copy_tree(&committed_corpus(), temp.path());
@@ -1718,25 +1459,6 @@ mod tests {
 
     fn committed_corpus() -> PathBuf {
         PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("corpus")
-    }
-
-    fn committed_approval_policy(corpus: &super::LoadedCorpus) -> ApprovalPolicy {
-        let bytes = super::verify_artifact(&corpus.root, &corpus.registry.approval_policy).unwrap();
-        serde_json::from_slice(&bytes).unwrap()
-    }
-
-    fn unauthorized_test_record(corpus: &super::LoadedCorpus) -> OwnerApprovalRecord {
-        OwnerApprovalRecord {
-            schema_version: 1,
-            corpus_id: corpus.registry.corpus_id.clone(),
-            approved_set_root_sha256: corpus.registry_sha256.clone(),
-            decision: "approved".to_owned(),
-            authority: "ymp_project_owner".to_owned(),
-            approver_id: "test-only-unauthorized-record".to_owned(),
-            approver_role: "corpus_author".to_owned(),
-            issued_at_unix_seconds: 999_900,
-            expires_at_unix_seconds: 1_000_100,
-        }
     }
 
     fn copy_tree(source: &Path, destination: &Path) {

@@ -4,10 +4,7 @@ use std::path::PathBuf;
 
 use anyhow::{Result, ensure};
 use clap::{Parser, Subcommand};
-use ymp_corpus::{
-    UsageApproval, check_cache, load_corpus, prepare, report_json, reproduce,
-    require_owner_approval, write_report,
-};
+use ymp_corpus::{check_cache, load_corpus, prepare, report_json, reproduce, write_report};
 
 #[derive(Debug, Parser)]
 #[command(about = "Prepare and reproduce an ymp repair-corpus edition")]
@@ -26,21 +23,15 @@ struct Cli {
 enum CorpusCommand {
     Prepare,
     Check {
-        #[arg(long, conflicts_with = "unapproved_evidence")]
-        owner_approval: Option<PathBuf>,
-
         #[arg(long)]
-        unapproved_evidence: bool,
+        technical_evidence_only: bool,
     },
     Verify {
         #[arg(long)]
         report: Option<PathBuf>,
 
-        #[arg(long, conflicts_with = "unapproved_evidence")]
-        owner_approval: Option<PathBuf>,
-
         #[arg(long)]
-        unapproved_evidence: bool,
+        technical_evidence_only: bool,
     },
 }
 
@@ -53,29 +44,21 @@ fn main() -> Result<()> {
             println!("{}", report_json(&report)?);
         }
         CorpusCommand::Check {
-            owner_approval,
-            unapproved_evidence,
+            technical_evidence_only,
         } => {
-            let approval = usage_approval(&corpus, owner_approval.as_deref(), unapproved_evidence)?;
+            require_technical_evidence_mode(technical_evidence_only)?;
             check_cache(&corpus, &cli.cache)?;
-            match approval {
-                UsageApproval::OwnerApproved { .. } => println!(
-                    "corpus {} is owner-approved; corpus and cache are intact",
-                    corpus.registry.corpus_id
-                ),
-                UsageApproval::UnapprovedEvidence => println!(
-                    "corpus {} and cache are technically intact; corpus is not approved for use",
-                    corpus.registry.corpus_id
-                ),
-            }
+            println!(
+                "corpus {} and cache are technically intact; owner authorization is external and was not evaluated",
+                corpus.registry.corpus_id
+            );
         }
         CorpusCommand::Verify {
             report,
-            owner_approval,
-            unapproved_evidence,
+            technical_evidence_only,
         } => {
-            let approval = usage_approval(&corpus, owner_approval.as_deref(), unapproved_evidence)?;
-            let result = reproduce(&corpus, &cli.cache, &approval)?;
+            require_technical_evidence_mode(technical_evidence_only)?;
+            let result = reproduce(&corpus, &cli.cache)?;
             if let Some(path) = report {
                 write_report(&path, &result)?;
             }
@@ -86,13 +69,39 @@ fn main() -> Result<()> {
     Ok(())
 }
 
-fn usage_approval(
-    corpus: &ymp_corpus::LoadedCorpus,
-    approval_path: Option<&std::path::Path>,
-    unapproved_evidence: bool,
-) -> Result<UsageApproval> {
-    if unapproved_evidence {
-        return Ok(UsageApproval::UnapprovedEvidence);
+fn require_technical_evidence_mode(technical_evidence_only: bool) -> Result<()> {
+    ensure!(
+        technical_evidence_only,
+        "owner authorization is external and cannot be authenticated by ymp-corpus; use --technical-evidence-only for technical verification"
+    );
+    Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use clap::{Parser, error::ErrorKind};
+
+    use super::{Cli, require_technical_evidence_mode};
+
+    #[test]
+    fn owner_approval_file_is_not_a_public_input() {
+        for command in ["check", "verify"] {
+            let error = Cli::try_parse_from([
+                "ymp-corpus",
+                "--cache",
+                "/tmp/cache",
+                command,
+                "--owner-approval",
+                "/tmp/fabricated.json",
+            ])
+            .unwrap_err();
+            assert_eq!(error.kind(), ErrorKind::UnknownArgument);
+        }
     }
-    require_owner_approval(corpus, approval_path)
+
+    #[test]
+    fn technical_commands_require_explicit_non_authoritative_mode() {
+        assert!(require_technical_evidence_mode(false).is_err());
+        assert!(require_technical_evidence_mode(true).is_ok());
+    }
 }
