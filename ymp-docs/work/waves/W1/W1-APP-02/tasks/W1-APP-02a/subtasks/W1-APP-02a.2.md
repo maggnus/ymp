@@ -4,20 +4,20 @@ kind: subtask
 wave: W1
 card: W1-APP-02
 parent: W1-APP-02a
-state: active
+state: review
 risk: significant
 maturity: BUILD
 relation: required
 depends_on: []
 blocks: []
 created_at: 2026-08-12T16:35:41+08:00
-updated_at: 2026-08-12T19:03:00+08:00
+updated_at: 2026-08-12T19:14:14+08:00
 started_at: 2026-08-12T19:03:00+08:00
 accepted_at:
-candidate_commit:
+candidate_commit: https://github.com/maggnus/ymp/commit/ecad181e7850df98643fa327dfb0a135f778fe1c
 closure_commit:
 evidence:
-duration_minutes: 0
+duration_minutes: 11
 blocker:
 pause_reason:
 return_trigger:
@@ -53,13 +53,14 @@ process-internal child operations remain explicitly nested under `ymp internal`.
 
 ## Current state
 
-W1-APP-02b is accepted and integrated. The independent public-help check remains fixed outside the
-repository, and the implementation now has an exclusive `ymp-cli` write zone.
+Candidate [ecad181](https://github.com/maggnus/ymp/commit/ecad181e7850df98643fa327dfb0a135f778fe1c)
+passes the fixed public-interface check and package checks. Independent review must additionally
+observe entry into the alternate TUI screen because the preserved external check has that blind spot.
 
 ## Next action
 
-Narrow the public parser from the accepted integration baseline and pass the unchanged external
-foreground CLI check before package regressions.
+Review the exact candidate with the preserved interface check and a stricter product-path control
+that observes alternate-screen entry before exit.
 
 ## Guardrails
 

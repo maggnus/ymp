@@ -4,20 +4,20 @@ kind: subtask
 wave: W1
 card: W1-APP-02
 parent: W1-APP-02a
-state: active
+state: review
 risk: critical
 maturity: BUILD
 relation: required
 depends_on: []
 blocks: []
 created_at: 2026-08-12T16:35:41+08:00
-updated_at: 2026-08-12T19:03:00+08:00
+updated_at: 2026-08-12T19:15:11+08:00
 started_at: 2026-08-12T19:03:00+08:00
 accepted_at:
-candidate_commit:
+candidate_commit: https://github.com/maggnus/ymp/commit/acc55860f53501c4b5d35b3a5f934f28e12ec998
 closure_commit:
 evidence:
-duration_minutes: 0
+duration_minutes: 12
 blocker:
 pause_reason:
 return_trigger:
@@ -58,13 +58,14 @@ resource charging.
 
 ## Current state
 
-W1-APP-02b is accepted and integrated. The independent recovery check remains fixed outside the
-repository, and the implementation now has an exclusive `ymp-application` write zone.
+Candidate [acc5586](https://github.com/maggnus/ymp/commit/acc55860f53501c4b5d35b3a5f934f28e12ec998)
+passes the fixed external recovery check and package checks. Critical independent review is queued
+against the exact candidate and the reviewer-owned falsifier.
 
 ## Next action
 
-Implement the recovery invariant from the accepted integration baseline and pass the unchanged
-external recovery check before package regressions.
+Review the exact candidate with the preserved external recovery check and an independently selected
+conflict or replay falsifier.
 
 ## Guardrails
 
