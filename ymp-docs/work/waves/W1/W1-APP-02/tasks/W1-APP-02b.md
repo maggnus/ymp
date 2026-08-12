@@ -10,10 +10,10 @@ relation: required
 depends_on: [W1-APP-02a, W1-EXP-01a]
 blocks: [W1-APP-02e]
 created_at: 2026-08-10T19:34:25+08:00
-updated_at: 2026-08-12T17:35:00+08:00
+updated_at: 2026-08-12T18:27:00+08:00
 started_at: 2026-08-12T16:14:11+08:00
 accepted_at:
-candidate_commit: https://github.com/maggnus/ymp/commit/08c18338ad36a94a5c49b1036f96e1896343d744
+candidate_commit: https://github.com/maggnus/ymp/commit/38a1f4a6b327132667faba2de23ef337f95a8a9b
 closure_commit:
 evidence:
 duration_minutes: 0
@@ -61,16 +61,16 @@ verifier evidence for that exact candidate and contract package.
 
 ## Current state
 
-The independent Linux review returned the candidate for bounded rework. It reproduced state
-transfer from the negative control to the candidate through shared namespaces, accepted candidate
-identity changes through a different base or excluded path, and observed a non-idempotent repeated
-verification of the same digest.
+The second Linux review returned the candidate: separate namespaces retained a shared mutable root,
+allowing negative-control state to produce false acceptance; launcher failure was also misclassified
+as oracle rejection. A third bounded correction round is authorized because this silent failure
+cannot be accepted as residue. The same author, reviewer, and external test are retained.
 
 ## Next action
 
-Separate the two verifier phases at the operating-system boundary, freeze full candidate identity,
-and return the stored verification result on a repeated digest. Continue the same external review
-directly with the preserved reviewer.
+Give each verifier phase a private root filesystem containing only a read-only oracle, the private
+subject copy, and private scratch storage. Distinguish launcher and `exec` failures from an oracle
+exit code, then repeat the same external review with the preserved reviewer.
 
 ## Guardrails
 
@@ -80,9 +80,11 @@ directly with the preserved reviewer.
 
 ## Findings
 
-- Shared Linux mount, PID, and network namespaces permit state transfer between verifier phases.
-- Candidate identity does not yet reject a different base or an excluded-path modification.
-- Repeating verification for one digest changes the event history and consumes the attempt budget.
+- Separate namespaces still expose a shared mutable root filesystem outside the private scratch
+  mounts, which permits state transfer and a silent false acceptance.
+- A namespace-launch failure with exit code 1 is indistinguishable from a genuine oracle rejection.
+- Communication is limited to exact revisions, reproducible evidence, findings, and an
+  evidence-based response without negotiating the verdict.
 
 ## Closure
 
