@@ -74,6 +74,7 @@ pub struct VerificationRecord {
     pub candidate_digest: String,
     pub contract_digest: String,
     pub oracle_digest: String,
+    pub environment_digest: String,
     pub evidence_digest: String,
     pub decision: VerificationDecision,
 }
@@ -298,6 +299,7 @@ impl RunState {
         validate_digest("candidate_digest", &record.candidate_digest)?;
         validate_digest("contract_digest", &record.contract_digest)?;
         validate_digest("oracle_digest", &record.oracle_digest)?;
+        validate_digest("environment_digest", &record.environment_digest)?;
         validate_digest("evidence_digest", &record.evidence_digest)?;
         if self.candidate_digest.as_ref() != Some(&record.candidate_digest) {
             return Err(TransitionError::CandidateMismatch);
@@ -394,7 +396,7 @@ fn validate_reason(value: &str) -> Result<(), TransitionError> {
 mod tests {
     use super::{
         Budget, Command, EventEnvelope, EventKind, MAX_IDENTIFIER_CHARS, MAX_REASON_BYTES,
-        RunState, TransitionError,
+        RunState, TransitionError, VerificationDecision, VerificationRecord,
     };
 
     fn running_state() -> RunState {
@@ -434,6 +436,19 @@ mod tests {
                 reason: "x".repeat(MAX_REASON_BYTES + 1)
             }),
             Err(TransitionError::InvalidReason)
+        ));
+        assert!(matches!(
+            state.decide_verification(&VerificationRecord {
+                candidate_digest: "0".repeat(64),
+                contract_digest: "1".repeat(64),
+                oracle_digest: "2".repeat(64),
+                environment_digest: "not-a-digest".to_owned(),
+                evidence_digest: "3".repeat(64),
+                decision: VerificationDecision::Accept,
+            }),
+            Err(TransitionError::InvalidDigest {
+                kind: "environment_digest"
+            })
         ));
     }
 }

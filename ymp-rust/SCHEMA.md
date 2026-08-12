@@ -49,10 +49,23 @@ raw evidence but cannot be resumed or rewritten by this binary.
 
 Object identifiers are canonical lowercase SHA-256 digests. Object reads rehash stored bytes before
 returning them. Candidate-submission events require their candidate snapshot object to exist.
-Verification events require a verifier-evidence object under the recorded evidence digest. The
-evidence object is the canonical verifier record with its self-referential `evidence_digest` field
-set to the empty string; the event and export manifest supply the verified object identifier.
-Recovery fails closed when either referenced object is missing or fails its digest check.
+Verification events require a verifier-evidence object under the recorded evidence digest.
+Verifier-evidence schema version 2 requires `candidate_digest`, `contract_digest`,
+`oracle_digest`, and `environment_digest`. The environment digest identifies a separate immutable
+object in the same content-addressed store. The evidence object is the canonical verifier record
+with its self-referential `evidence_digest` field set to the empty string; the event and export
+manifest supply the verified object identifier. Before accepting a result, the application stores
+the exact environment bytes passed to the verifier, supplies the resulting object path and digest
+to the verifier, and checks the same object again before committing the verification event.
+Recovery reopens both objects, rehashes them, restores the evidence record, and checks that its
+candidate, contract, oracle, decision, and evidence digest agree with the journal event.
+
+Verifier-evidence schema version 1 did not contain `environment_digest`. Such evidence is
+deliberately not migrated or assigned a guessed environment: recovery returns a typed
+infrastructure error and marks the `run.json` projection as `infrastructure_error`. New evidence is
+written only as version 2. This evidence-object revision does not alter the version-1 journal
+envelope or event shape because the journal already identifies the complete content-addressed
+evidence object.
 
 `run.json` is an atomically replaced projection of the journal, not an independent source of truth.
 If projection replacement fails after a journal commit, retrying the same command replays the
@@ -60,10 +73,11 @@ committed result and repairs the projection without applying the command twice.
 
 An evidence export is constructed in a fresh sibling directory and renamed into place only after
 all files are written. Version 1 contains `manifest.json`, `state.json`, `events.jsonl`, the exact
-candidate manifest and materialized tree, and one content-addressed JSON object per recorded
-verifier result. When a managed runtime was used, the export also contains its
-`runtime-evidence/<attempt_id>/events.jsonl` transcript. Existing destinations are never
-overwritten.
+candidate manifest and materialized tree, one content-addressed JSON object per recorded verifier
+result, and every referenced immutable environment object under `environments/<digest>`. The
+manifest lists both evidence and environment digests. When a managed runtime was used, the export
+also contains its `runtime-evidence/<attempt_id>/events.jsonl` transcript. Existing destinations
+are never overwritten.
 
 ## Managed contract and runtime evidence version 1
 

@@ -43,32 +43,40 @@ fn quiescent_private_workspace_becomes_reproducible_candidate() {
         .expect("reproduce candidate");
     assert_eq!(reproduced, submitted.candidate);
 
-    let candidate_object = application
-        .object_store()
-        .path_for(&submitted.candidate.snapshot_digest)
-        .expect("candidate object path");
     let verifier = ExactDigestVerifier::new(
         "1".repeat(64),
         "2".repeat(64),
         &submitted.candidate.snapshot_digest,
     )
     .expect("configure verifier");
-    let evidence = verifier
-        .verify_candidate(candidate_object, &submitted.candidate.snapshot_digest)
-        .expect("verify candidate");
-    application
-        .record_verification("verify-1", &evidence)
+    let environment = br#"{"profile":"workspace-exact-digest-v1"}"#;
+    let verification = application
+        .verify_with_environment("verify-1", environment, &verifier)
         .expect("record verification");
+    let evidence_digest = match verification.event.event {
+        ymp_domain::EventKind::VerificationRecorded {
+            evidence_digest, ..
+        } => evidence_digest,
+        unexpected => panic!("unexpected event: {unexpected:?}"),
+    };
+    let environment_digest = ymp_domain::digest_bytes(environment);
     let export = temporary.path().join("export");
     let report = application
         .export_evidence(&export)
         .expect("export evidence");
     assert_eq!(report.candidate_digest, submitted.candidate.snapshot_digest);
-    assert_eq!(report.evidence_digests, vec![evidence.evidence_digest()]);
+    assert_eq!(report.evidence_digests, vec![evidence_digest.clone()]);
+    assert_eq!(report.environment_digests, vec![environment_digest.clone()]);
     assert!(export.join("candidate/src/lib.rs").is_file());
     assert!(
         export
-            .join(format!("evidence/{}.json", evidence.evidence_digest()))
+            .join(format!("evidence/{evidence_digest}.json"))
+            .is_file()
+    );
+    assert!(
+        export
+            .join("environments")
+            .join(environment_digest)
             .is_file()
     );
     assert!(matches!(
