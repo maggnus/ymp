@@ -10,7 +10,7 @@ relation: required
 depends_on: [W1-APP-02a, W1-APP-02b, W1-EXP-01d.1]
 blocks: [W1-APP-02e]
 created_at: 2026-08-10T19:34:25+08:00
-updated_at: 2026-08-13T00:22:02+08:00
+updated_at: 2026-08-13T00:48:05+08:00
 started_at: 2026-08-12T22:06:42+08:00
 accepted_at:
 candidate_commit: https://github.com/maggnus/ymp/commit/99cd5d2ade9d8d5d2de04f20799c9c4d5c0e6358
@@ -60,18 +60,18 @@ lifecycle and usage evidence to include the profile in the POC comparison.
 ## Current state
 
 Corrected [candidate `99cd5d2`](https://github.com/maggnus/ymp/commit/99cd5d2ade9d8d5d2de04f20799c9c4d5c0e6358)
-binds launch evidence to the executed process, sanitizes durable failures, terminates descendants,
-records terminal accounting, and carries managed yield/wake/resume through the product path. The
-author reports all targeted, workspace, Clippy, formatting, and executable-model checks successful.
-The candidate is awaiting repeat review; W1-APP-02d implementation remains paused.
+received a second independent `RETURN`. The frozen falsifier completed with code 1: authoritative
+yield is absent, stdout can imitate submit, measured executables can be replaced before use, and
+successful accounting discards in-flight excess. The candidate is not integrated. A bounded author
+response is in progress; W1-APP-02d implementation remains paused.
 
 ## Next action
 
-Review exact candidate `99cd5d2` with the same frozen falsifier and recheck every returned finding
-against the corrected range. Accept only if no child diagnostic or secret reaches durable state,
-descendants terminate after parent failure, all terminal outcomes retain reproducible accounting,
-yield/wake/resume preserve command identity, and launch evidence is derived from the exact process.
-Start the W1-APP-02d writer only from the accepted integrated runtime base.
+Resolve the no-write author response against the three returned findings. If they stand, authorize
+one final bounded correction with the same author and reviewer. A third review is permitted only
+because the new false-submit blocker can silently accept an uncommanded candidate and therefore
+fails the detection test for residue. Start the W1-APP-02d writer only from an accepted integrated
+runtime base.
 
 ## Guardrails
 
@@ -98,6 +98,14 @@ Start the W1-APP-02d writer only from the accepted integrated runtime base.
 - No pressure, concealment, verdict negotiation, author-reviewer contact, or weakening of reviewer
   independence was observed. Provider-family diversity could not be confirmed, so the preselected
   external falsifier remains the compensating independent check.
+- The second review confirmed that secret sanitization and descendant cleanup are corrected, but
+  returned three outcome defects: stdout may substitute for authoritative lifecycle commands,
+  measured executables may be replaced before use, and successful accounting clears non-zero
+  in-flight excess.
+- Rounds: 2. Candidate `53890a0` and correction `99cd5d2` both received `RETURN`.
+- Convergence: one third review is permitted under the blocker exception. Residue is forbidden
+  because false candidate acceptance is silent; splitting would not isolate the defect from the
+  contracted managed-attempt outcome. Candidate `99cd5d2` is not authorized for integration.
 
 ## Closure
 
