@@ -49,7 +49,7 @@ headless mode, daemon, operator socket, HTTP listener, WebSocket endpoint, and r
 
 ## Aggregate acceptance
 
-All five required tasks are accepted. From a clean disposable environment, the TUI detects the two
+All eight required tasks are accepted. From a clean disposable environment, the TUI detects the two
 approved runtime profiles, starts either profile itself, completes a single-participant candidate
 and verifier path, reproduces the evidence from clean inputs, and reports malformed storage,
 runtime, MCP, or verifier state as a typed failure rather than acceptance.
@@ -61,3 +61,6 @@ runtime, MCP, or verifier state as a typed failure rather than acceptance.
 - [W1-APP-02c](tasks/W1-APP-02c.md) — required
 - [W1-APP-02d](tasks/W1-APP-02d.md) — required
 - [W1-APP-02e](tasks/W1-APP-02e.md) — required
+- [W1-APP-02f](tasks/W1-APP-02f.md) — required
+- [W1-APP-02g](tasks/W1-APP-02g.md) — required
+- [W1-APP-02h](tasks/W1-APP-02h.md) — required
