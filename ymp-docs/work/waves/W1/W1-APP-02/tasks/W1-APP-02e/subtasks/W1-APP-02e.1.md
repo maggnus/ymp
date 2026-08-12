@@ -4,20 +4,20 @@ kind: subtask
 wave: W1
 card: W1-APP-02
 parent: W1-APP-02e
-state: rework
+state: accepted
 risk: significant
 maturity: BUILD
 relation: required
 depends_on: [W0-UX-01c]
 blocks: []
 created_at: 2026-08-12T16:19:52+08:00
-updated_at: 2026-08-12T16:46:02+08:00
+updated_at: 2026-08-12T17:38:49+08:00
 started_at: 2026-08-12T16:19:52+08:00
-accepted_at:
-candidate_commit: https://github.com/maggnus/ymp/commit/7a54cc7fc35a86cde267edf629fab5e03c323602
-closure_commit:
-evidence:
-duration_minutes: 0
+accepted_at: 2026-08-12T17:38:49+08:00
+candidate_commit: https://github.com/maggnus/ymp/commit/94a8e127b94ead4be3dcdee1339a6b29bd95ac0d
+closure_commit: https://github.com/maggnus/ymp/commit/bdccf00825b6a93ff25ab10f34719e645bc8f8f9
+evidence: ["[94a8e12](https://github.com/maggnus/ymp/commit/94a8e127b94ead4be3dcdee1339a6b29bd95ac0d)", "[bdccf00](https://github.com/maggnus/ymp/commit/bdccf00825b6a93ff25ab10f34719e645bc8f8f9)"]
+duration_minutes: 59
 blocker:
 pause_reason:
 return_trigger:
@@ -49,25 +49,24 @@ real model provider.
 
 ## Acceptance
 
-- [ ] Deterministic buffer tests cover every declared POC-1 state at 80 × 24 and 120 × 40 and assert
+- [x] Deterministic buffer tests cover every declared POC-1 state at 80 × 24 and 120 × 40 and assert
   required regions, labels, focus, and actions without snapshotting incidental spacing.
-- [ ] High-volume and constrained fixtures clip or scroll within their region without hiding the
+- [x] High-volume and constrained fixtures clip or scroll within their region without hiding the
   terminal reason, primary action, or current selection.
-- [ ] A monochrome rendering produces the same state distinctions through text and symbols, and
+- [x] A monochrome rendering produces the same state distinctions through text and symbols, and
   all required actions remain keyboard-accessible without mouse input.
-- [ ] A deliberately wrong projection-state mapping or omitted required region makes the same
+- [x] A deliberately wrong projection-state mapping or omitted required region makes the same
   test harness fail rather than accepting a visually plausible buffer.
 
 ## Current state
 
-The first independent review returned the candidate for bounded rework. The package-local tests
-pass, but an external consumer cannot construct the required buffers through the current private
-interfaces. High-volume data, terminal actions, and executable keyboard coverage are incomplete.
+Accepted. The public package test interface produces every required deterministic buffer and
+keyboard transition through the production rendering and input paths without owning domain
+transitions.
 
 ## Next action
 
-Expose a minimal package test interface, complete the 16-buffer and keyboard matrices, and rerun
-the preserved external falsifier before re-review by the same reviewer.
+Continue W1-APP-02e with PTY cancellation, typed failure, export, and controlled provider coverage.
 
 ## Guardrails
 
@@ -78,23 +77,17 @@ the preserved external falsifier before re-review by the same reviewer.
 
 ## Findings
 
-Review of
-[`ymp-tui/src/lib.rs`](https://github.com/maggnus/ymp/blob/7a54cc7fc35a86cde267edf629fab5e03c323602/ymp-rust/crates/ymp-tui/src/lib.rs)
-found:
-
-- The externally compiled test cannot access rendering, projections, or interface state.
-- The high-volume fixture uses 257 runtimes instead of 4096 candidates and does not assert the
-  terminal reason.
-- Terminal action hints and key handling diverge for cancellation, search, detail, escape, help,
-  and quit paths.
+None. The three findings from the first review were corrected and independently rechecked through
+an external package and a fixed negative mutation.
 
 ## Closure
 
-Filled when the subtask is accepted.
-
 ### Accepted outcome
 
-Not accepted.
+The reusable screen contract is enforced by 16 deterministic buffers spanning eight POC-1 states
+at 80 × 24 and 120 × 40. The external package confirms named regions, terminal reasons, primary
+actions, current selection among 4096 candidates, monochrome distinctions, and the complete
+keyboard map through production rendering and input handling.
 
 ### Residuals
 
@@ -102,4 +95,5 @@ None recorded.
 
 ### Evidence
 
-- None until acceptance.
+- [Reviewed correction](https://github.com/maggnus/ymp/commit/94a8e127b94ead4be3dcdee1339a6b29bd95ac0d).
+- [Integration commit](https://github.com/maggnus/ymp/commit/bdccf00825b6a93ff25ab10f34719e645bc8f8f9).
