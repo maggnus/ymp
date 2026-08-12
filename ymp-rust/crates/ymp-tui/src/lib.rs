@@ -57,11 +57,12 @@ impl Drop for TerminalGuard {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum View {
     Runtimes,
+    Candidates,
     Run,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-enum ViewStateKind {
+pub enum ViewStateKind {
     Empty,
     Ready,
     Degraded,
@@ -69,7 +70,7 @@ enum ViewStateKind {
 }
 
 impl ViewStateKind {
-    const fn label(self) -> &'static str {
+    pub const fn label(self) -> &'static str {
         match self {
             Self::Empty => "[ ] empty",
             Self::Ready => "[*] ready",
@@ -77,6 +78,46 @@ impl ViewStateKind {
             Self::Terminal => "[!] terminal",
         }
     }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum ScreenFocus {
+    Body,
+    Actions,
+    Filter,
+    Detail,
+    Help,
+}
+
+impl ScreenFocus {
+    const fn label(self) -> &'static str {
+        match self {
+            Self::Body => "body",
+            Self::Actions => "actions",
+            Self::Filter => "filter",
+            Self::Detail => "detail",
+            Self::Help => "help",
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum ScreenKeyAction {
+    None,
+    ProbeRuntime,
+    UseRuntime,
+    StartAttempt,
+    SubmitCandidate,
+    VerifyCandidate,
+    ExportEvidence,
+    CancelRun,
+    Quit,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct CandidateRow {
+    id: String,
+    verification: String,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -131,9 +172,13 @@ impl RunProjection {
 
 struct UiModel {
     view: View,
+    focus: ScreenFocus,
     data_root: PathBuf,
     probes: Vec<ProbeReport>,
     selected_runtime: usize,
+    candidates: Vec<CandidateRow>,
+    selected_candidate: usize,
+    candidate_scroll: usize,
     contracts: Vec<ManagedContract>,
     selected_contract: usize,
     active_contract: Option<ManagedContract>,
@@ -144,9 +189,13 @@ impl UiModel {
     fn new(data_root: &Path, contracts: Vec<ManagedContract>) -> Self {
         Self {
             view: View::Runtimes,
+            focus: ScreenFocus::Body,
             data_root: data_root.to_path_buf(),
             probes: probe_runtimes(),
             selected_runtime: 0,
+            candidates: Vec::new(),
+            selected_candidate: 0,
+            candidate_scroll: 0,
             contracts,
             selected_contract: 0,
             active_contract: None,
@@ -201,6 +250,108 @@ impl UiModel {
     }
 }
 
+fn handle_screen_key(model: &mut UiModel, state: &RunState, key: KeyCode) -> ScreenKeyAction {
+    match key {
+        KeyCode::Char('q') => ScreenKeyAction::Quit,
+        KeyCode::Esc if model.focus != ScreenFocus::Body => {
+            model.focus = ScreenFocus::Body;
+            ScreenKeyAction::None
+        }
+        KeyCode::Char('?') => {
+            model.focus = ScreenFocus::Help;
+            ScreenKeyAction::None
+        }
+        KeyCode::Char('/') => {
+            model.focus = ScreenFocus::Filter;
+            ScreenKeyAction::None
+        }
+        KeyCode::Char('d') => {
+            model.focus = ScreenFocus::Detail;
+            ScreenKeyAction::None
+        }
+        KeyCode::Tab => {
+            model.focus = match model.focus {
+                ScreenFocus::Actions => ScreenFocus::Body,
+                _ => ScreenFocus::Actions,
+            };
+            ScreenKeyAction::None
+        }
+        KeyCode::Char('1') => {
+            model.view = View::Runtimes;
+            model.focus = ScreenFocus::Body;
+            ScreenKeyAction::None
+        }
+        KeyCode::Char('3') => {
+            model.view = View::Run;
+            model.focus = ScreenFocus::Body;
+            ScreenKeyAction::None
+        }
+        KeyCode::Char('5') => {
+            model.view = View::Candidates;
+            model.focus = ScreenFocus::Body;
+            ScreenKeyAction::None
+        }
+        KeyCode::Up | KeyCode::Char('k') if model.view == View::Runtimes => {
+            model.select_previous_runtime();
+            ScreenKeyAction::None
+        }
+        KeyCode::Down | KeyCode::Char('j') if model.view == View::Runtimes => {
+            model.select_next_runtime();
+            ScreenKeyAction::None
+        }
+        KeyCode::PageUp if model.view == View::Runtimes => {
+            model.select_previous_runtime_page();
+            ScreenKeyAction::None
+        }
+        KeyCode::PageDown if model.view == View::Runtimes => {
+            model.select_next_runtime_page();
+            ScreenKeyAction::None
+        }
+        KeyCode::Up | KeyCode::Char('k') if model.view == View::Candidates => {
+            if !model.candidates.is_empty() {
+                model.selected_candidate = model.selected_candidate.saturating_sub(1);
+            }
+            ScreenKeyAction::None
+        }
+        KeyCode::Down | KeyCode::Char('j') if model.view == View::Candidates => {
+            if !model.candidates.is_empty() {
+                model.selected_candidate =
+                    (model.selected_candidate + 1).min(model.candidates.len() - 1);
+            }
+            ScreenKeyAction::None
+        }
+        KeyCode::PageUp if model.view == View::Candidates => {
+            model.candidate_scroll = model.candidate_scroll.saturating_sub(10);
+            ScreenKeyAction::None
+        }
+        KeyCode::PageDown if model.view == View::Candidates => {
+            model.candidate_scroll = model
+                .candidate_scroll
+                .saturating_add(10)
+                .min(model.candidates.len().saturating_sub(1));
+            ScreenKeyAction::None
+        }
+        KeyCode::Enter if model.view == View::Candidates => {
+            model.focus = ScreenFocus::Detail;
+            ScreenKeyAction::None
+        }
+        KeyCode::Char('c') if model.view == View::Runtimes => ScreenKeyAction::ProbeRuntime,
+        KeyCode::Enter | KeyCode::Char('r') if model.view == View::Runtimes => {
+            ScreenKeyAction::UseRuntime
+        }
+        KeyCode::Char('a') if !state.status.is_terminal() => ScreenKeyAction::StartAttempt,
+        KeyCode::Char('s') if !state.status.is_terminal() && !state.active_attempts.is_empty() => {
+            ScreenKeyAction::SubmitCandidate
+        }
+        KeyCode::Char('v') if !state.status.is_terminal() && state.candidate_digest.is_some() => {
+            ScreenKeyAction::VerifyCandidate
+        }
+        KeyCode::Char('e') => ScreenKeyAction::ExportEvidence,
+        KeyCode::Char('x') if !state.status.is_terminal() => ScreenKeyAction::CancelRun,
+        _ => ScreenKeyAction::None,
+    }
+}
+
 pub fn run(data_root: impl AsRef<Path>) -> anyhow::Result<()> {
     run_with_contracts(data_root, Vec::new())
 }
@@ -246,8 +397,15 @@ pub fn run_with_contracts(
         if event::poll(Duration::from_millis(150))?
             && let Event::Key(key) = event::read()?
         {
-            match key.code {
-                KeyCode::Char('q') => {
+            if model.view == View::Runtimes {
+                match key.code {
+                    KeyCode::Char('[') => model.select_previous_contract(),
+                    KeyCode::Char(']') => model.select_next_contract(),
+                    _ => {}
+                }
+            }
+            match handle_screen_key(&mut model, &state, key.code) {
+                ScreenKeyAction::Quit => {
                     if let Some(handle) = &managed_run
                         && !handle.is_finished()
                     {
@@ -266,15 +424,7 @@ pub fn run_with_contracts(
                     }
                     break;
                 }
-                KeyCode::Char('1') => model.view = View::Runtimes,
-                KeyCode::Char('3') => model.view = View::Run,
-                KeyCode::Tab => {
-                    model.view = match model.view {
-                        View::Runtimes => View::Run,
-                        View::Run => View::Runtimes,
-                    };
-                }
-                KeyCode::Char('c') if model.view == View::Runtimes => {
+                ScreenKeyAction::ProbeRuntime => {
                     model.probes = probe_runtimes();
                     model.selected_runtime = model
                         .selected_runtime
@@ -282,30 +432,12 @@ pub fn run_with_contracts(
                     model.notice =
                         "Local executable probes completed; no model was invoked.".to_owned();
                 }
-                KeyCode::Up | KeyCode::Char('k') if model.view == View::Runtimes => {
-                    model.select_previous_runtime();
-                }
-                KeyCode::Down | KeyCode::Char('j') if model.view == View::Runtimes => {
-                    model.select_next_runtime();
-                }
-                KeyCode::PageUp if model.view == View::Runtimes => {
-                    model.select_previous_runtime_page();
-                }
-                KeyCode::PageDown if model.view == View::Runtimes => {
-                    model.select_next_runtime_page();
-                }
-                KeyCode::Char('[') if model.view == View::Runtimes => {
-                    model.select_previous_contract();
-                }
-                KeyCode::Char(']') if model.view == View::Runtimes => {
-                    model.select_next_contract();
-                }
-                KeyCode::Enter | KeyCode::Char('r') if model.view == View::Runtimes => {
+                ScreenKeyAction::UseRuntime => {
                     model.notice =
                         start_selected_runtime(Arc::clone(&app), &mut model, &mut managed_run);
                     model.view = View::Run;
                 }
-                KeyCode::Char('a') => {
+                ScreenKeyAction::StartAttempt => {
                     let attempt_id = format!("attempt-{}", Uuid::new_v4());
                     model.notice = match app
                         .lock()
@@ -319,21 +451,21 @@ pub fn run_with_contracts(
                     };
                     model.view = View::Run;
                 }
-                KeyCode::Char('s') => {
+                ScreenKeyAction::SubmitCandidate => {
                     model.notice = match app.lock() {
                         Ok(mut app) => submit_fixture_candidate(&mut app, &model.data_root),
                         Err(_) => "Application lock was poisoned.".to_owned(),
                     };
                     model.view = View::Run;
                 }
-                KeyCode::Char('v') => {
+                ScreenKeyAction::VerifyCandidate => {
                     model.notice = match app.lock() {
                         Ok(mut app) => verify_selected_candidate(&mut app, &model),
                         Err(_) => "Application lock was poisoned.".to_owned(),
                     };
                     model.view = View::Run;
                 }
-                KeyCode::Char('e') => {
+                ScreenKeyAction::ExportEvidence => {
                     let destination = model.data_root.join("exports").join(state.run_id.as_str());
                     model.notice = match app
                         .lock()
@@ -345,7 +477,7 @@ pub fn run_with_contracts(
                     };
                     model.view = View::Run;
                 }
-                KeyCode::Char('x') if state.status == RunStatus::Running => {
+                ScreenKeyAction::CancelRun => {
                     let result: anyhow::Result<String> = match &managed_run {
                         Some(handle) if !handle.is_finished() => {
                             handle.cancel("operator cancellation").map(|_| {
@@ -372,7 +504,7 @@ pub fn run_with_contracts(
                     };
                     model.view = View::Run;
                 }
-                _ => {}
+                ScreenKeyAction::None => {}
             }
         }
     }
@@ -669,6 +801,7 @@ fn render(
     render_header(frame, areas[0], state, model);
     match model.view {
         View::Runtimes => render_runtimes(frame, areas[1], model),
+        View::Candidates => render_candidates(frame, areas[1], state, projection, model),
         View::Run => render_run(frame, areas[1], state, projection),
     }
     render_footer(frame, areas[2], model);
@@ -706,38 +839,83 @@ fn render_header(frame: &mut ratatui::Frame<'_>, area: Rect, state: &RunState, m
             "Run",
             format!("{} · {}", state.run_id, status_label(state.status)),
         ),
-        key_value("Focus", "body · keyboard"),
+        key_value("Focus", format!("{} · keyboard", model.focus.label())),
     ]);
     frame.render_widget(summary, columns[0]);
 
-    let shortcut_lines = match (model.view, area.width < 100) {
-        (View::Runtimes, true) => vec![
-            Line::from("<1> runtimes · <3> run · <Tab> focus"),
+    let shortcut_lines = match (model.view, area.width < 100, state.status.is_terminal()) {
+        (View::Runtimes, true, _) => vec![
+            Line::from("<1> runtimes · <3> run · <5> candidates"),
             Line::from("<↑↓/jk> move · <PgUp/Dn> page"),
-            Line::from("<Enter> use · <[ ]> contract"),
-            Line::from("<c> probe · <a> fake"),
-            Line::from("<q> quit"),
+            Line::from("<Enter> use · <Tab> focus · </> filter"),
+            Line::from("<c> probe · <d> describe · <?> help"),
+            Line::from("<Esc> back · <q> quit"),
         ],
-        (View::Runtimes, false) => vec![
-            shortcut_line("<1>", "runtimes", "<3>", "run", "<Tab>", "focus"),
+        (View::Runtimes, false, _) => vec![
+            shortcut_line("<1>", "runtimes", "<3>", "run", "<5>", "candidates"),
             shortcut_line("<↑↓/jk>", "runtime", "<[ ]>", "contract", "<Enter>", "use"),
-            shortcut_line("<PgUp/Dn>", "page", "<c>", "probe", "<a>", "fake"),
+            shortcut_line("<PgUp/Dn>", "page", "<c>", "probe", "</>", "filter"),
+            shortcut_line("<d>", "describe", "<?>", "help", "<Tab>", "focus"),
+            shortcut_line("<Esc>", "back", "<q>", "quit", "", ""),
+        ],
+        (View::Candidates, true, _) => vec![
+            Line::from("<1> runtimes · <3> run · <5> candidates"),
+            Line::from("<↑↓/jk> move · <PgUp/Dn> page"),
+            Line::from("<Enter/d> detail · </> filter"),
+            Line::from("<Tab> focus · <?> help"),
+            Line::from("<Esc> back · <q> quit"),
+        ],
+        (View::Candidates, false, _) => vec![
+            shortcut_line("<1>", "runtimes", "<3>", "run", "<5>", "candidates"),
+            shortcut_line("<↑↓/jk>", "candidate", "<PgUp/Dn>", "page", "</>", "filter"),
+            shortcut_line("<Enter/d>", "detail", "<?>", "help", "<Tab>", "focus"),
+            shortcut_line("<Esc>", "back", "<q>", "quit", "", ""),
+        ],
+        (View::Run, true, true) => vec![
+            Line::from("<1> runtimes · <3> run · <5> candidates"),
+            Line::from("<e> export · <d> describe"),
+            Line::from("</> filter · <?> help · <Tab> focus"),
+            Line::from("<Esc> back · <q> quit"),
+        ],
+        (View::Run, false, true) => vec![
+            shortcut_line("<1>", "runtimes", "<3>", "run", "<5>", "candidates"),
+            shortcut_line("<e>", "export", "<d>", "describe", "</>", "filter"),
+            shortcut_line("<?>", "help", "<Tab>", "focus", "<Esc>", "back"),
             shortcut_line("<q>", "quit", "", "", "", ""),
         ],
-        (View::Run, true) => vec![
-            Line::from("<1> runtimes · <3> run · <Tab> focus"),
-            Line::from("<s> submit · <v> verify"),
-            Line::from("<e> export · <x> cancel"),
-            Line::from("<q> quit"),
-        ],
-        (View::Run, false) => vec![
-            shortcut_line("<1>", "runtimes", "<3>", "run", "<Tab>", "focus"),
-            shortcut_line("<s>", "submit", "<v>", "verify", "<e>", "export"),
-            shortcut_line("<x>", "cancel", "<q>", "quit", "", ""),
-        ],
+        (View::Run, true, false) => run_action_lines(state, true),
+        (View::Run, false, false) => run_action_lines(state, false),
     };
     let shortcuts = Paragraph::new(shortcut_lines);
     frame.render_widget(shortcuts, columns[1]);
+}
+
+fn run_action_lines(state: &RunState, compact: bool) -> Vec<Line<'static>> {
+    let mut actions = vec!["<a> start"];
+    if !state.active_attempts.is_empty() {
+        actions.push("<s> submit");
+    }
+    if state.candidate_digest.is_some() {
+        actions.push("<v> verify");
+    }
+    let action_line = actions.join(" · ");
+    if compact {
+        vec![
+            Line::from("<1> runtimes · <3> run · <5> candidates"),
+            Line::from(action_line),
+            Line::from("<e> export · <x> cancel · <d> describe"),
+            Line::from("</> filter · <?> help · <Tab> focus"),
+            Line::from("<Esc> back · <q> quit"),
+        ]
+    } else {
+        vec![
+            shortcut_line("<1>", "runtimes", "<3>", "run", "<5>", "candidates"),
+            Line::from(action_line),
+            shortcut_line("<e>", "export", "<x>", "cancel", "<d>", "describe"),
+            shortcut_line("</>", "filter", "<?>", "help", "<Tab>", "focus"),
+            shortcut_line("<Esc>", "back", "<q>", "quit", "", ""),
+        ]
+    }
 }
 
 fn key_value(key: &str, value: impl Into<String>) -> Line<'static> {
@@ -852,6 +1030,97 @@ fn render_runtimes(frame: &mut ratatui::Frame<'_>, area: Rect, model: &UiModel) 
     );
 }
 
+fn render_candidates(
+    frame: &mut ratatui::Frame<'_>,
+    area: Rect,
+    state: &RunState,
+    projection: &RunProjection,
+    model: &UiModel,
+) {
+    let sections = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([Constraint::Min(6), Constraint::Length(4)])
+        .split(area);
+    let capacity = usize::from(sections[0].height.saturating_sub(3)).max(1);
+    let total = model.candidates.len();
+    let selected = model.selected_candidate.min(total.saturating_sub(1));
+    let max_start = total.saturating_sub(capacity);
+    let mut start = model.candidate_scroll.min(max_start);
+    if total > 0 && selected < start {
+        start = selected;
+    } else if total > 0 && selected >= start.saturating_add(capacity) {
+        start = selected.saturating_add(1).saturating_sub(capacity);
+    }
+    let end = start.saturating_add(capacity).min(total);
+    let rows = model
+        .candidates
+        .iter()
+        .enumerate()
+        .skip(start)
+        .take(end.saturating_sub(start))
+        .map(|(index, candidate)| {
+            let marker = if index == selected { ">" } else { " " };
+            let row = Row::new([
+                format!("{marker} {}", candidate.id),
+                candidate.verification.clone(),
+                "preserved".to_owned(),
+            ]);
+            if index == selected {
+                row.style(Style::default().fg(AMBER))
+            } else {
+                row
+            }
+        });
+    let shown = if start == end {
+        "rows 0/0".to_owned()
+    } else {
+        format!("rows {}–{}/{total}", start + 1, end)
+    };
+    let table = Table::new(
+        rows,
+        [
+            Constraint::Length(18),
+            Constraint::Min(28),
+            Constraint::Length(14),
+        ],
+    )
+    .header(
+        Row::new(["CANDIDATE", "VERIFICATION", "ARTIFACT"]).style(
+            Style::default()
+                .fg(Color::White)
+                .add_modifier(Modifier::BOLD),
+        ),
+    )
+    .block(
+        Block::default()
+            .title(format!(
+                " candidates({})[{total}] · {shown} · PgUp/PgDn ",
+                state.run_id
+            ))
+            .title_style(Style::default().fg(AMBER))
+            .borders(Borders::ALL),
+    );
+    frame.render_widget(table, sections[0]);
+
+    let selection = model.candidates.get(selected).map_or_else(
+        || "selection: none".to_owned(),
+        |candidate| format!("selection: {} · stable_id={}", candidate.id, candidate.id),
+    );
+    frame.render_widget(
+        Paragraph::new(vec![
+            Line::from(selection),
+            Line::from(format!(
+                "state={} · status={}",
+                projection.view_state.label(),
+                status_label(state.status)
+            )),
+            Line::from(format!("reason: {}", projection.reason)),
+            Line::from("primary=<Enter/d> detail · selection and reason remain visible"),
+        ]),
+        sections[1],
+    );
+}
+
 fn visible_range(total: usize, selected: usize, capacity: usize) -> (usize, usize) {
     if total == 0 {
         return (0, 0);
@@ -950,6 +1219,7 @@ fn render_run(
 fn render_footer(frame: &mut ratatui::Frame<'_>, area: Rect, model: &UiModel) {
     let view = match model.view {
         View::Runtimes => "runtimes",
+        View::Candidates => "candidates",
         View::Run => "run",
     };
     let footer = Paragraph::new(vec![
@@ -960,7 +1230,10 @@ fn render_footer(frame: &mut ratatui::Frame<'_>, area: Rect, model: &UiModel) {
                 Style::default().bg(AMBER).fg(Color::Black),
             ),
         ]),
-        Line::styled(model.notice.as_str(), Style::default().fg(MUTED)),
+        Line::styled(
+            format!("{} · focus={}", model.notice, model.focus.label()),
+            Style::default().fg(MUTED),
+        ),
     ]);
     frame.render_widget(footer, area);
 }
@@ -1030,6 +1303,409 @@ fn authority_text(state: &RunState) -> &'static str {
     }
 }
 
+/// Minimal public surface used by a package outside `ymp-tui` to exercise the
+/// accepted screen contract without owning application or domain transitions.
+pub mod screen_contract {
+    use super::{
+        CandidateRow, RunProjection, ScreenFocus, ScreenKeyAction, UiModel, View, ViewStateKind,
+        handle_screen_key, render,
+    };
+    use crossterm::event::KeyCode;
+    use ratatui::Frame;
+    use std::path::PathBuf;
+    use ymp_domain::{Budget, EventEnvelope, EventKind, RunState, RunStatus};
+    use ymp_runtime_api::{ProbeReport, Readiness, RuntimeKind};
+
+    #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+    pub enum Screen {
+        Runtimes,
+        Candidates,
+        Run,
+    }
+
+    #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+    pub enum RuntimeProfileKind {
+        Fake,
+        Codex,
+        ClaudeCode,
+    }
+
+    #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+    pub enum RuntimeReadiness {
+        Ready,
+        NotInstalled,
+        Unauthenticated,
+        Incompatible,
+        Unavailable,
+    }
+
+    #[derive(Clone, Debug, Eq, PartialEq)]
+    pub struct RuntimeProjection {
+        id: String,
+        kind: RuntimeProfileKind,
+        version: Option<String>,
+        readiness: RuntimeReadiness,
+        detail: String,
+    }
+
+    impl RuntimeProjection {
+        pub fn new(
+            id: impl Into<String>,
+            kind: RuntimeProfileKind,
+            version: Option<String>,
+            readiness: RuntimeReadiness,
+            detail: impl Into<String>,
+        ) -> Self {
+            Self {
+                id: id.into(),
+                kind,
+                version,
+                readiness,
+                detail: detail.into(),
+            }
+        }
+    }
+
+    #[derive(Clone, Debug, Eq, PartialEq)]
+    pub struct CandidateProjection {
+        id: String,
+        verification: String,
+    }
+
+    impl CandidateProjection {
+        pub fn new(id: impl Into<String>, verification: impl Into<String>) -> Self {
+            Self {
+                id: id.into(),
+                verification: verification.into(),
+            }
+        }
+    }
+
+    #[derive(Clone, Debug, Eq, PartialEq)]
+    pub enum RunScenario {
+        FirstLaunch,
+        Running,
+        Cancelled { reason: String },
+        Accepted { candidate_id: String },
+        CandidateFailure { candidate_id: String },
+        BudgetExhausted { reason: String },
+        InfrastructureFailure { reason: String },
+    }
+
+    #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+    pub enum RootStatus {
+        Running,
+        Accepted,
+        Exhausted,
+        Cancelled,
+        InfrastructureError,
+    }
+
+    #[derive(Clone, Debug, Eq, PartialEq)]
+    pub struct ScreenProjection {
+        screen: Screen,
+        scenario: RunScenario,
+        runtimes: Vec<RuntimeProjection>,
+        candidates: Vec<CandidateProjection>,
+        selected_runtime: Option<String>,
+        selected_candidate: Option<String>,
+        candidate_scroll: usize,
+        notice: String,
+    }
+
+    impl ScreenProjection {
+        pub fn new(screen: Screen, scenario: RunScenario) -> Self {
+            Self {
+                screen,
+                scenario,
+                runtimes: Vec::new(),
+                candidates: Vec::new(),
+                selected_runtime: None,
+                selected_candidate: None,
+                candidate_scroll: 0,
+                notice: "Deterministic external contract fixture.".to_owned(),
+            }
+        }
+
+        pub fn with_runtimes(
+            mut self,
+            runtimes: Vec<RuntimeProjection>,
+            selected_id: impl Into<String>,
+        ) -> Self {
+            self.runtimes = runtimes;
+            self.selected_runtime = Some(selected_id.into());
+            self
+        }
+
+        pub fn with_candidates(
+            mut self,
+            candidates: Vec<CandidateProjection>,
+            selected_id: impl Into<String>,
+            scroll: usize,
+        ) -> Self {
+            self.candidates = candidates;
+            self.selected_candidate = Some(selected_id.into());
+            self.candidate_scroll = scroll;
+            self
+        }
+    }
+
+    pub struct ScreenHarness {
+        state: RunState,
+        run_projection: RunProjection,
+        model: UiModel,
+    }
+
+    impl ScreenHarness {
+        pub fn new(projection: ScreenProjection) -> Self {
+            let (state, event) = state_and_event(&projection.scenario);
+            let run_projection = RunProjection::from_state(&state, Some(&event));
+            let probes = projection
+                .runtimes
+                .into_iter()
+                .map(|runtime| ProbeReport {
+                    kind: match runtime.kind {
+                        RuntimeProfileKind::Fake => RuntimeKind::Fake,
+                        RuntimeProfileKind::Codex => RuntimeKind::Codex,
+                        RuntimeProfileKind::ClaudeCode => RuntimeKind::ClaudeCode,
+                    },
+                    executable: runtime.id,
+                    version: runtime.version,
+                    readiness: match runtime.readiness {
+                        RuntimeReadiness::Ready => Readiness::Ready,
+                        RuntimeReadiness::NotInstalled => Readiness::NotInstalled,
+                        RuntimeReadiness::Unauthenticated => Readiness::Unauthenticated,
+                        RuntimeReadiness::Incompatible => Readiness::Incompatible,
+                        RuntimeReadiness::Unavailable => Readiness::Unavailable,
+                    },
+                    detail: runtime.detail,
+                })
+                .collect::<Vec<_>>();
+            let candidates = projection
+                .candidates
+                .into_iter()
+                .map(|candidate| CandidateRow {
+                    id: candidate.id,
+                    verification: candidate.verification,
+                })
+                .collect::<Vec<_>>();
+            let selected_runtime = projection
+                .selected_runtime
+                .as_deref()
+                .map(|id| {
+                    probes
+                        .iter()
+                        .position(|runtime| runtime.executable == id)
+                        .unwrap_or_else(|| panic!("selected runtime {id:?} is absent"))
+                })
+                .unwrap_or(0);
+            let selected_candidate = projection
+                .selected_candidate
+                .as_deref()
+                .map(|id| {
+                    candidates
+                        .iter()
+                        .position(|candidate| candidate.id == id)
+                        .unwrap_or_else(|| panic!("selected candidate {id:?} is absent"))
+                })
+                .unwrap_or(0);
+            let model = UiModel {
+                view: match projection.screen {
+                    Screen::Runtimes => View::Runtimes,
+                    Screen::Candidates => View::Candidates,
+                    Screen::Run => View::Run,
+                },
+                focus: ScreenFocus::Body,
+                data_root: PathBuf::from(".ymp-contract"),
+                probes,
+                selected_runtime,
+                candidates,
+                selected_candidate,
+                candidate_scroll: projection.candidate_scroll,
+                contracts: Vec::new(),
+                selected_contract: 0,
+                active_contract: None,
+                notice: projection.notice,
+            };
+            Self {
+                state,
+                run_projection,
+                model,
+            }
+        }
+
+        pub fn render_frame(&self, frame: &mut Frame<'_>) {
+            render(frame, &self.state, &self.run_projection, &self.model);
+        }
+
+        pub fn handle_key(&mut self, key: KeyCode) -> ScreenKeyAction {
+            handle_screen_key(&mut self.model, &self.state, key)
+        }
+
+        pub fn focus(&self) -> ScreenFocus {
+            self.model.focus
+        }
+
+        pub fn screen(&self) -> Screen {
+            match self.model.view {
+                View::Runtimes => Screen::Runtimes,
+                View::Candidates => Screen::Candidates,
+                View::Run => Screen::Run,
+            }
+        }
+
+        pub fn view_state(&self) -> ViewStateKind {
+            self.run_projection.view_state
+        }
+
+        pub fn root_status(&self) -> RootStatus {
+            match self.state.status {
+                RunStatus::Running => RootStatus::Running,
+                RunStatus::Accepted => RootStatus::Accepted,
+                RunStatus::Exhausted => RootStatus::Exhausted,
+                RunStatus::Cancelled => RootStatus::Cancelled,
+                RunStatus::InfrastructureError => RootStatus::InfrastructureError,
+                RunStatus::Abstained => unreachable!("contract fixtures do not use abstention"),
+            }
+        }
+
+        pub fn selected_candidate_id(&self) -> Option<&str> {
+            self.model
+                .candidates
+                .get(self.model.selected_candidate)
+                .map(|candidate| candidate.id.as_str())
+        }
+
+        pub fn selected_runtime_id(&self) -> Option<&str> {
+            self.model
+                .probes
+                .get(self.model.selected_runtime)
+                .map(|runtime| runtime.executable.as_str())
+        }
+
+        pub fn available_actions(&self) -> Vec<ScreenKeyAction> {
+            match (self.model.view, self.state.status.is_terminal()) {
+                (View::Runtimes, _) => vec![
+                    ScreenKeyAction::ProbeRuntime,
+                    ScreenKeyAction::UseRuntime,
+                    ScreenKeyAction::Quit,
+                ],
+                (View::Candidates, _) => vec![ScreenKeyAction::Quit],
+                (View::Run, true) => vec![ScreenKeyAction::ExportEvidence, ScreenKeyAction::Quit],
+                (View::Run, false) => vec![
+                    ScreenKeyAction::StartAttempt,
+                    ScreenKeyAction::ExportEvidence,
+                    ScreenKeyAction::CancelRun,
+                    ScreenKeyAction::Quit,
+                ]
+                .into_iter()
+                .chain(
+                    (!self.state.active_attempts.is_empty())
+                        .then_some(ScreenKeyAction::SubmitCandidate),
+                )
+                .chain(
+                    self.state
+                        .candidate_digest
+                        .is_some()
+                        .then_some(ScreenKeyAction::VerifyCandidate),
+                )
+                .collect(),
+            }
+        }
+    }
+
+    fn state_and_event(scenario: &RunScenario) -> (RunState, EventEnvelope) {
+        let candidate = match scenario {
+            RunScenario::Accepted { candidate_id }
+            | RunScenario::CandidateFailure { candidate_id } => Some(candidate_id.clone()),
+            _ => None,
+        };
+        let (status, attempts, budget, event) = match scenario {
+            RunScenario::FirstLaunch => (
+                RunStatus::Running,
+                Vec::new(),
+                Budget::new(3, 2),
+                EventKind::RunStarted {
+                    budget: Budget::new(3, 2),
+                },
+            ),
+            RunScenario::Running => (
+                RunStatus::Running,
+                vec!["attempt-1".to_owned()],
+                Budget::new(2, 2),
+                EventKind::AttemptStarted {
+                    attempt_id: "attempt-1".to_owned(),
+                },
+            ),
+            RunScenario::Cancelled { reason } => (
+                RunStatus::Cancelled,
+                Vec::new(),
+                Budget::new(2, 2),
+                EventKind::RunCancelled {
+                    reason: reason.clone(),
+                },
+            ),
+            RunScenario::Accepted { candidate_id } => (
+                RunStatus::Accepted,
+                Vec::new(),
+                Budget::new(2, 1),
+                verification_event(candidate_id, true),
+            ),
+            RunScenario::CandidateFailure { candidate_id } => (
+                RunStatus::Running,
+                vec!["attempt-1".to_owned()],
+                Budget::new(2, 1),
+                verification_event(candidate_id, false),
+            ),
+            RunScenario::BudgetExhausted { reason } => (
+                RunStatus::Exhausted,
+                Vec::new(),
+                Budget::new(0, 2),
+                EventKind::RunExhausted {
+                    reason: reason.clone(),
+                },
+            ),
+            RunScenario::InfrastructureFailure { reason } => (
+                RunStatus::InfrastructureError,
+                Vec::new(),
+                Budget::new(2, 2),
+                EventKind::RunFailed {
+                    reason: reason.clone(),
+                },
+            ),
+        };
+        let state = RunState {
+            run_id: "run-contract".to_owned(),
+            status,
+            budget,
+            active_attempts: attempts,
+            candidate_digest: candidate,
+            last_sequence: 8842,
+            last_event_digest: "a".repeat(64),
+        };
+        let event = EventEnvelope::new(
+            "run-contract",
+            8842,
+            "command-contract",
+            "c".repeat(64),
+            Some("a".repeat(64)),
+            event,
+        )
+        .expect("valid deterministic contract event");
+        (state, event)
+    }
+
+    fn verification_event(candidate_id: &str, accepted: bool) -> EventKind {
+        EventKind::VerificationRecorded {
+            candidate_digest: candidate_id.to_owned(),
+            contract_digest: "c".repeat(64),
+            oracle_digest: "d".repeat(64),
+            evidence_digest: "e".repeat(64),
+            accepted,
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::{RunProjection, UiModel, View, ViewStateKind, render, verify_selected_candidate};
@@ -1073,6 +1749,7 @@ mod tests {
     fn model(view: View, notice: &str) -> UiModel {
         UiModel {
             view,
+            focus: super::ScreenFocus::Body,
             data_root: PathBuf::from(".ymp-data"),
             probes: vec![
                 ProbeReport {
@@ -1098,6 +1775,9 @@ mod tests {
                 },
             ],
             selected_runtime: 0,
+            candidates: Vec::new(),
+            selected_candidate: 0,
+            candidate_scroll: 0,
             contracts: Vec::new(),
             selected_contract: 0,
             active_contract: None,
@@ -1169,8 +1849,20 @@ mod tests {
         reason: &str,
     ) -> Result<(), String> {
         validate_common_regions(output)?;
-        for action in ["<s>", "<v>", "<e>", "<x>", "<q>"] {
+        let actions: &[&str] = if status.is_terminal() {
+            &["<e>", "<q>"]
+        } else {
+            &["<a>", "<e>", "<x>", "<q>"]
+        };
+        for action in actions {
             require(output, action, "REG-ACTIONS")?;
+        }
+        if status.is_terminal() {
+            for unavailable in ["<a>", "<s>", "<v>", "<x>"] {
+                if output.contains(unavailable) {
+                    return Err(format!("unavailable terminal action: {unavailable}"));
+                }
+            }
         }
         require(output, "run(run-test)", "REG-BODY")?;
         require(output, "attempts[", "REG-BODY")?;

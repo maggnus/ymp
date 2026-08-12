@@ -1,0 +1,12 @@
+[package]
+name = "ymp-tui-contract-checker"
+version = "0.0.0"
+edition = "2024"
+publish = false
+
+[workspace]
+
+[dependencies]
+crossterm = "0.28"
+ratatui = "0.29"
+ymp-tui = { path = ".." }
