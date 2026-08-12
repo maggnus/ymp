@@ -10,10 +10,10 @@ relation: required
 depends_on: []
 blocks: []
 created_at: 2026-08-12T09:42:00+08:00
-updated_at: 2026-08-12T09:42:00+08:00
+updated_at: 2026-08-12T09:54:00+08:00
 started_at: 2026-08-12T09:40:09+08:00
 accepted_at:
-candidate_commit:
+candidate_commit: https://github.com/maggnus/ymp/commit/a08bf5b2f9af7c6868dac8d4bd99a1d1c76b9583
 closure_commit:
 evidence:
 duration_minutes: 0
@@ -50,12 +50,13 @@ recording or candidate construction, and terminates the run with a typed infrast
 
 ## Current state
 
-Independent review reproduced a duplicate event that still created a candidate while the run
-remained `Running`. The correction is active in an isolated workspace.
+The candidate rejects duplicate, skipped, and reordered runtime progress before durable recording.
+Builder-owned checks pass on the candidate. The preserved independent reviewer is rerunning its
+external product-path falsifier against the exact corrected revision.
 
 ## Next action
 
-Reject invalid runtime progress before recording it and rerun the reviewer-selected falsifier.
+Decide acceptance from the reviewer-selected external falsifier on the candidate commit.
 
 ## Guardrails
 
