@@ -4,6 +4,10 @@ use std::path::PathBuf;
 
 use anyhow::{Result, ensure};
 use clap::{Parser, Subcommand};
+use ymp_corpus::study::{
+    analyze_study_records, load_frozen_manifest, load_study_records, negative_controls,
+    power_analysis,
+};
 use ymp_corpus::{check_cache, load_corpus, prepare, report_json, reproduce, write_report};
 
 #[derive(Debug, Parser)]
@@ -32,6 +36,40 @@ enum CorpusCommand {
 
         #[arg(long)]
         technical_evidence_only: bool,
+    },
+    StudyCheck {
+        #[arg(long)]
+        manifest: PathBuf,
+
+        #[arg(long)]
+        digest: PathBuf,
+    },
+    StudyPower {
+        #[arg(long)]
+        manifest: PathBuf,
+
+        #[arg(long)]
+        digest: PathBuf,
+    },
+    StudyDryRun {
+        #[arg(long)]
+        manifest: PathBuf,
+
+        #[arg(long)]
+        digest: PathBuf,
+
+        #[arg(long)]
+        records: PathBuf,
+    },
+    StudyNegativeControls {
+        #[arg(long)]
+        manifest: PathBuf,
+
+        #[arg(long)]
+        digest: PathBuf,
+
+        #[arg(long)]
+        records: PathBuf,
     },
 }
 
@@ -64,6 +102,38 @@ fn main() -> Result<()> {
             }
             println!("{}", report_json(&result)?);
             ensure!(result.usable, "one or more corpus packages are unusable");
+        }
+        CorpusCommand::StudyCheck { manifest, digest } => {
+            let manifest = load_frozen_manifest(&corpus, &manifest, &digest)?;
+            println!("{}", report_json(&manifest.verification_report())?);
+        }
+        CorpusCommand::StudyPower { manifest, digest } => {
+            let manifest = load_frozen_manifest(&corpus, &manifest, &digest)?;
+            println!("{}", report_json(&power_analysis(&manifest)?)?);
+        }
+        CorpusCommand::StudyDryRun {
+            manifest,
+            digest,
+            records,
+        } => {
+            let manifest = load_frozen_manifest(&corpus, &manifest, &digest)?;
+            let records = load_study_records(&records)?;
+            println!(
+                "{}",
+                report_json(&analyze_study_records(&corpus, &manifest, &records)?)?
+            );
+        }
+        CorpusCommand::StudyNegativeControls {
+            manifest,
+            digest,
+            records,
+        } => {
+            let manifest = load_frozen_manifest(&corpus, &manifest, &digest)?;
+            let records = load_study_records(&records)?;
+            println!(
+                "{}",
+                report_json(&negative_controls(&corpus, &manifest, &records, &digest,)?)?
+            );
         }
     }
     Ok(())

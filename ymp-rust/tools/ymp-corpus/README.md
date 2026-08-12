@@ -47,11 +47,46 @@ protected artifacts. A producer receives only its task's PROJECT.md, source arch
 lockfile, and declared visible upstream checks. L1-L3 are development calibration and are
 explicitly excluded.
 
-## Input for W1-EXP-01b
+## Frozen W1-EXP-01b study design
 
-corpus/W1-EXP-01b.md records the verified fields and the remaining statistical decisions.
-`corpus/policies/expansion.json` defines the mechanical expansion and freeze rule. W1-EXP-01b must
-first preregister its power rationale and the required number of distinct tasks in each structural
-stratum. It then extends this edition until those thresholds are met; repeated runs of one task do
-not increase the number of distinct tasks. Task structure cannot be relabelled after ymp outcomes
-are visible, and corpus preparation checks are not primary-arm observations.
+`corpus/study/PROTOCOL.md` and `corpus/study/manifest-v1.json` preregister the matched-budget
+comparison. The manifest is bound to the approved initial root while explicitly refusing to call
+the four-package edition sufficient. The distribution-free fixed-sample calculation requires
+1,992 distinct tasks in each structural stratum, so 3,980 additional packages are required before
+primary collection.
+This task does not add them.
+
+The commands below require every study input explicitly. They do not consult an environment
+variable, user configuration, or result-dependent default:
+
+    cd ymp-rust
+    cargo run -q -p ymp-corpus -- \
+      --corpus tools/ymp-corpus/corpus \
+      --cache /tmp/unused-by-study-command \
+      study-check \
+      --manifest tools/ymp-corpus/corpus/study/manifest-v1.json \
+      --digest tools/ymp-corpus/corpus/study/manifest-v1.sha256
+    cargo run -q -p ymp-corpus -- \
+      --corpus tools/ymp-corpus/corpus \
+      --cache /tmp/unused-by-study-command \
+      study-power \
+      --manifest tools/ymp-corpus/corpus/study/manifest-v1.json \
+      --digest tools/ymp-corpus/corpus/study/manifest-v1.sha256
+    cargo run -q -p ymp-corpus -- \
+      --corpus tools/ymp-corpus/corpus \
+      --cache /tmp/unused-by-study-command \
+      study-dry-run \
+      --manifest tools/ymp-corpus/corpus/study/manifest-v1.json \
+      --digest tools/ymp-corpus/corpus/study/manifest-v1.sha256 \
+      --records tools/ymp-corpus/corpus/study/synthetic-records-v1.json
+    cargo run -q -p ymp-corpus -- \
+      --corpus tools/ymp-corpus/corpus \
+      --cache /tmp/unused-by-study-command \
+      study-negative-controls \
+      --manifest tools/ymp-corpus/corpus/study/manifest-v1.json \
+      --digest tools/ymp-corpus/corpus/study/manifest-v1.sha256 \
+      --records tools/ymp-corpus/corpus/study/synthetic-records-v1.json
+
+The cache argument remains a global compatibility option for the corpus preparation commands and
+is not read by a study command. A study command reports `technical_verification_only`; it cannot
+assert owner approval, admit a runtime profile, or authorize primary collection.

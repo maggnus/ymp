@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "familywise_alpha": 0.05,
+  "claimable_strata": 2,
+  "target_joint_power": 0.9,
+  "reliability_required_contrasts_for_broad_claim": 4,
+  "communication_required_contrasts_for_broad_claim": 6,
+  "paired_cluster_difference_lower_bound": -1.0,
+  "paired_cluster_difference_upper_bound": 1.0,
+  "minimum_effect_numerator": 1,
+  "minimum_effect_denominator": 8,
+  "planning_alternative_numerator": 1,
+  "planning_alternative_denominator": 4,
+  "repetition_event_probability": 0.5,
+  "repetition_detection_probability": 0.95,
+  "independent_attempt_success_probability": 0.25,
+  "independent_pool_success_probability": 0.95,
+  "per_attempt_additional_call_probability": 0.5,
+  "per_attempt_call_coverage_probability": 0.95
+}

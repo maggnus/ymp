@@ -1,0 +1,286 @@
+{
+  "schema_version": 1,
+  "study_id": "w1-exp-01b-matched-budget-v1",
+  "artifact_role": "technical_study_specification",
+  "authorization_scope": "technical_verification_only",
+  "owner_authorization_evaluated": false,
+  "primary_outcomes_observed": false,
+  "status": "preregistered_requires_corpus_expansion_and_runtime_profile_admission",
+  "digest_algorithm": "sha256",
+  "corpus": {
+    "approved_initial_root_sha256": "e4e886bf1dfd433342f3f10f34c086415462908d60f5a53d1448824c9fe3bfc7",
+    "initial_task_ids": [
+      "bstr-eof-and-debug",
+      "semver-less-than-prerelease",
+      "serde-json-surrogate-escapes",
+      "toml-datetime-validation"
+    ],
+    "initial_distinct_tasks_per_stratum": {
+      "decomposable": 2,
+      "strongly_sequential": 2
+    },
+    "initial_statistically_sufficient": false,
+    "external_package_ceiling": null,
+    "required_distinct_tasks_per_stratum": {
+      "decomposable": 1992,
+      "strongly_sequential": 1992
+    },
+    "additional_tasks_required_per_stratum": {
+      "decomposable": 1990,
+      "strongly_sequential": 1990
+    },
+    "total_additional_tasks_required": 3980,
+    "distinct_task_definition": "one admitted task id bound to one public contract and one source commit; repetitions do not create distinct tasks",
+    "selection_order": "ascending(repository_url, source_commit, task_id) from a preregistered candidate list",
+    "pre_outcome_replacement": "next eligible task in the same stratum",
+    "post_outcome_changes": "no add, remove, substitute, or relabel",
+    "execution_freeze": "both strata meet threshold, every W1-EXP-01a admission check passes, exact expanded root is recorded, and owner approves that root"
+  },
+  "conditions": [
+    {
+      "id": "single_strong",
+      "purpose": "strong single-participant baseline",
+      "producer_participant_limit": 1,
+      "producer_attempt_quanta": 12,
+      "selector_attempt_quanta": 0,
+      "interparticipant_communication": false
+    },
+    {
+      "id": "independent_best_of_n",
+      "purpose": "independent search with blinded artifact selection",
+      "producer_participant_limit": 11,
+      "producer_attempt_quanta": 11,
+      "selector_attempt_quanta": 1,
+      "interparticipant_communication": false
+    },
+    {
+      "id": "coordinated_ymp",
+      "purpose": "locally negotiated coordination without prescribed roles or plan",
+      "producer_participant_limit": 11,
+      "producer_attempt_quanta": 12,
+      "selector_attempt_quanta": 0,
+      "interparticipant_communication": true
+    }
+  ],
+  "randomization": {
+    "unit": "task_id_x_repetition_matched_block",
+    "strata": [
+      "decomposable",
+      "strongly_sequential"
+    ],
+    "repetitions_per_task": 5,
+    "condition_assignment": "all three conditions exactly once per block",
+    "launch_order": "SHA-256 domain ymp-study-order-v1 over manifest digest, task id, and repetition",
+    "seed_assignment": "SHA-256 domain ymp-study-seed-v1 over manifest digest, task id, repetition, and condition",
+    "runtime_profile_balance": "predeclared digest order, identical exact profile and its one bound model route in all three arms of a block",
+    "runtime_profile_admission": "separate W1-EXP-01d capability matrix must prove exact version, configuration isolation, usage, cost, retry identity, and cancellation before primary collection"
+  },
+  "power": {
+    "familywise_alpha": 0.05,
+    "claimable_strata": 2,
+    "alpha_per_claimable_stratum": 0.025,
+    "target_joint_power": 0.9,
+    "minimum_effect_numerator": 1,
+    "minimum_effect_denominator": 8,
+    "minimum_effect": 0.125,
+    "minimum_effect_interpretation": "one additional independently accepted result per eight matched task opportunities",
+    "planning_alternative_effect": 0.25,
+    "power_separation": 0.125,
+    "reliability_required_contrasts_for_broad_claim": 4,
+    "reliability_per_contrast_power": 0.975,
+    "communication_required_contrasts_for_broad_claim": 6,
+    "communication_per_contrast_power": 0.9833333333333334,
+    "reliability_required_distinct_tasks_per_stratum": 1889,
+    "communication_required_distinct_tasks_per_stratum": 1992,
+    "repetitions_count_as_distinct_tasks": false,
+    "sample_size_method": "distribution-free Hoeffding fixed-sample bound for paired task-cluster differences in [-1,1], testing the 0.125 boundary against a 0.25 alternative"
+  },
+  "resources": {
+    "independent_attempt_success_probability": 0.25,
+    "independent_pool_success_probability": 0.95,
+    "independent_best_of_n": 11,
+    "selector_attempt_quanta": 1,
+    "arm_attempt_quanta": 12,
+    "calls_per_attempt_quantum": 5,
+    "per_call_reservation": {
+      "input_tokens": 131072,
+      "cached_input_tokens": 131072,
+      "output_tokens": 16384,
+      "reasoning_output_tokens": 16384,
+      "wall_time_ms": 600000
+    },
+    "equal_arm_budget": {
+      "attempt_quanta": 12,
+      "model_calls": 60,
+      "input_tokens": 7864320,
+      "cached_input_tokens": 7864320,
+      "output_tokens": 983040,
+      "reasoning_output_tokens": 983040,
+      "wall_time_ms": 36000000,
+      "max_parallel_requests": 11,
+      "protected_queries": 1
+    },
+    "project_currency_ceiling": {
+      "scope": "project",
+      "currency": null,
+      "minor_units": null
+    },
+    "mandatory_route_accounting": [
+      "route_sha256",
+      "model_calls",
+      "input_tokens",
+      "cached_input_tokens",
+      "output_tokens",
+      "reasoning_output_tokens",
+      "wall_time_ms",
+      "max_parallelism_observed",
+      "protected_queries",
+      "errors",
+      "retries",
+      "provider_cost_minor_units",
+      "provider_cost_currency",
+      "in_flight_overshoot_model_calls",
+      "in_flight_overshoot_input_tokens",
+      "in_flight_overshoot_cached_input_tokens",
+      "in_flight_overshoot_output_tokens",
+      "in_flight_overshoot_reasoning_output_tokens",
+      "in_flight_overshoot_provider_cost_minor_units"
+    ],
+    "reservation_rule": "reserve a complete per-call maximum before start",
+    "in_flight_overshoot_rule": "charge every category and provider cost to the originating arm, stop later starts, retain the assigned outcome",
+    "actual_cost_required_without_currency_ceiling": true
+  },
+  "blinding": {
+    "selector_sees_before_commit": [
+      "candidate artifact",
+      "public contract",
+      "public development evidence"
+    ],
+    "selector_forbidden_before_commit": [
+      "producer identity",
+      "arm identity",
+      "producer rationale",
+      "collaboration messages",
+      "reputation",
+      "other assessments",
+      "protected verifier result"
+    ],
+    "audit_forbidden": [
+      "condition",
+      "producer identity",
+      "producer rationale",
+      "collaboration messages",
+      "other assessments",
+      "primary aggregate"
+    ],
+    "early_disclosure": "comparison_noncompliant"
+  },
+  "exclusions": {
+    "prerandomization_allowed": [
+      "frozen corpus integrity or admission failure",
+      "runtime profile capability preflight failure",
+      "common disposable environment preflight failure before any arm starts",
+      "exact duplicate schedule entry detected before assignment"
+    ],
+    "post_randomization": "none",
+    "provider_or_runtime_failure": "retain in assigned arm",
+    "missing_accounting_or_integrity": "invalidate comparison; do not delete an arm",
+    "arm_specific_exclusion": "forbidden"
+  },
+  "outcomes": {
+    "permitted_terminal": [
+      "accepted",
+      "exhausted",
+      "abstained",
+      "cancelled",
+      "infrastructure_error"
+    ],
+    "primary": "indicator(terminal_outcome == accepted && exact protected verifier decision == passed)",
+    "all_other_terminal_values": 0,
+    "verifier_failure": "not accepted and not relabelled",
+    "quiescence": "not acceptance",
+    "unknown_terminal": "record_noncompliant"
+  },
+  "stopping": {
+    "run_rule": "permitted terminal, any nonexchangeable resource limit, elapsed-time limit, one protected query, or authorized project cancellation",
+    "study_rule": "fixed sample; no efficacy, futility, cost, or conditional-power look",
+    "sample_size_reestimation": "forbidden",
+    "project_currency_ceiling_effect": "may prevent a new block before start; cannot erase blocks, change target sample, or authorize a partial positive claim",
+    "post_primary_corpus_replacement": "forbidden"
+  },
+  "analysis": {
+    "primary_estimand": "equal-task mean accepted-result probability within each structural stratum",
+    "contrasts": [
+      "coordinated_ymp_minus_single_strong",
+      "coordinated_ymp_minus_independent_best_of_n"
+    ],
+    "cluster_unit": "distinct task",
+    "repetition_treatment": "average within task; never count as distinct task",
+    "reporting_interval": "distribution-free two-sided 95 percent Hoeffding interval for paired task-cluster differences",
+    "decision_interval": "distribution-free one-sided alpha 0.025 Hoeffding bound within each claimable stratum",
+    "support_rule": "complete compliant sample; both lower decision bounds exceed 0.125; measurement and audit conditions hold; external owner authorization confirmed",
+    "reject_rule": "upper decision bound versus independent_best_of_n below 0.125",
+    "otherwise": "inconclusive",
+    "scope_rule": "both supported strata permit two-stratum claim; one supported stratum permits only that restricted claim",
+    "negative_or_inconclusive_result_changes_criterion": false
+  },
+  "instrument_reliability": {
+    "accounting_completeness": 1.0,
+    "integrity_completeness": 1.0,
+    "infrastructure_error_upper_bound": 0.03125,
+    "absolute_arm_infrastructure_difference_upper_bound": 0.015625,
+    "false_acceptance_audit_sample": "census of every verifier-accepted candidate",
+    "false_acceptance_upper_bound": 0.0078125,
+    "interval": "one-sided 97.5 percent for claim conditions; two-sided 95 percent in reports",
+    "missing_mandatory_field": "comparison_noncompliant",
+    "unexpected_oracle_negative_control_pass": "study_invalid"
+  },
+  "communication": {
+    "analysis_separate_from_acceptance": true,
+    "private_chain_of_thought": "not_collected",
+    "episode_unit": "at most one mechanically selected message episode per distinct task",
+    "episode_selection": "smallest SHA-256 over manifest digest, task id, and eligible message id without content or outcome",
+    "endpoint_freeze": "typed receiver next-action endpoint committed before fresh intervention runs",
+    "repetitions_per_episode": 5,
+    "interventions": [
+      "original_message",
+      "no_message",
+      "neutral_same_bytes",
+      "cross_task_or_sender_shuffle",
+      "direct_evidence",
+      "delayed_message",
+      "false_finding",
+      "participant_removed"
+    ],
+    "confirmatory_contrasts": [
+      "positive_listening_original_minus_no_message",
+      "task_value_original_minus_no_message",
+      "task_value_original_minus_direct_evidence"
+    ],
+    "secondary_only": [
+      "positive_signaling",
+      "neutral_same_bytes",
+      "cross_task_or_sender_shuffle",
+      "delayed_message",
+      "false_finding",
+      "participant_removed"
+    ],
+    "insufficient_episodes": "inconclusive",
+    "fluent_transcript_without_listening_or_task_value": "does_not_support_collective_reasoning"
+  },
+  "artifacts": {
+    "protocol": {
+      "path": "PROTOCOL.md",
+      "sha256": "5c9242feba92cd0f01e256e17b2ed1d6746981dbd65fd57d44a4dbef33d2b38a"
+    },
+    "power_inputs": {
+      "path": "power-inputs-v1.json",
+      "sha256": "7b5f742556e9488b3ccced5097c4e436f33062c20467702ce4f1e7e4b56e7ae1"
+    },
+    "power_report": {
+      "path": "power-report-v1.json",
+      "sha256": "4931b0e1ad3a6bd6bd6d91ebd4af85d49a49ce3b3dba78b80588d49257c59477"
+    },
+    "power_and_analysis_code_sha256": "00224a6ce94065809a60f3e86d296816bf6b5821d90b064926f287e514da8915"
+  }
+}

@@ -1,5 +1,7 @@
 #![forbid(unsafe_code)]
 
+pub mod study;
+
 use std::collections::BTreeSet;
 use std::ffi::OsStr;
 use std::fs::{self, File};

@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "method": "distribution-free Hoeffding fixed-sample bound for paired task-cluster differences in [-1,1], testing the 0.125 boundary against a 0.25 alternative; repetitions receive zero distinct-task credit",
+  "familywise_alpha": 0.05,
+  "alpha_per_claimable_stratum": 0.025,
+  "target_joint_power": 0.9,
+  "minimum_practically_useful_effect": 0.125,
+  "planning_alternative_effect": 0.25,
+  "power_separation": 0.125,
+  "reliability_per_contrast_power": 0.975,
+  "communication_per_contrast_power": 0.9833333333333334,
+  "reliability_unrounded_tasks_per_stratum": 1888.7062805063347,
+  "communication_unrounded_tasks_per_stratum": 1991.1525831376011,
+  "reliability_required_distinct_tasks_per_stratum": 1889,
+  "communication_required_distinct_tasks_per_stratum": 1992,
+  "corpus_required_distinct_tasks_per_stratum": 1992,
+  "stochastic_repetitions_per_task": 5,
+  "independent_best_of_n": 11,
+  "selector_quanta": 1,
+  "arm_attempt_quanta": 12,
+  "calls_per_attempt_quantum": 5,
+  "repetitions_count_as_distinct_tasks": false,
+  "expansion_from_initial_edition": {
+    "decomposable_current": 2,
+    "decomposable_additional_required": 1990,
+    "strongly_sequential_current": 2,
+    "strongly_sequential_additional_required": 1990,
+    "total_additional_required": 3980
+  }
+}
