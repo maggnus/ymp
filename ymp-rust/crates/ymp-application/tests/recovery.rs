@@ -3,7 +3,7 @@ use std::io::Write;
 use std::sync::mpsc::TryRecvError;
 use tempfile::tempdir;
 use ymp_application::{Application, ApplicationConfig, ApplicationError};
-use ymp_domain::{Budget, Command, RunState, RunStatus};
+use ymp_domain::{Budget, Command, EventEnvelope, EventKind, RunState, RunStatus};
 use ymp_storage::{JournalError, JournalLimits, ObjectStoreError};
 
 #[test]
@@ -61,6 +61,130 @@ fn duplicate_command_is_replayed_and_state_recovers_from_cursor() {
     let app = Application::open(temporary.path()).expect("reopen application");
     assert_eq!(app.state(), &expected_state);
     assert_eq!(app.events_after(1).expect("replay after restart").len(), 2);
+}
+
+#[test]
+fn recovered_command_replay_returns_its_original_result() {
+    let temporary = tempdir().expect("temporary directory");
+    let original = {
+        let mut app = Application::create(temporary.path(), "run-1", Budget::new(1, 0))
+            .expect("create application");
+        let original = app
+            .execute(
+                "start",
+                Command::StartAttempt {
+                    attempt_id: "attempt-1".to_owned(),
+                },
+            )
+            .expect("start attempt");
+        assert_eq!(original.status, RunStatus::Running);
+        app.execute(
+            "cancel",
+            Command::Cancel {
+                reason: "stop after the recorded result".to_owned(),
+            },
+        )
+        .expect("cancel run");
+        assert_eq!(app.state().status, RunStatus::Cancelled);
+        original
+    };
+
+    let mut app = Application::open(temporary.path()).expect("reopen application");
+    let state_before_replay = app.state().clone();
+    let event_count = app.events_after(0).expect("read events").len();
+    let replay = app
+        .execute(
+            "start",
+            Command::StartAttempt {
+                attempt_id: "attempt-1".to_owned(),
+            },
+        )
+        .expect("replay recovered command");
+
+    assert!(replay.replayed);
+    assert_eq!(replay.event, original.event);
+    assert_eq!(replay.status, original.status);
+    assert_eq!(app.state(), &state_before_replay);
+    assert_eq!(app.events_after(0).expect("read events").len(), event_count);
+}
+
+#[test]
+fn recovery_rejects_conflicting_command_digest_before_applying_the_event() {
+    let temporary = tempdir().expect("temporary directory");
+    let first = {
+        let mut app = Application::create(temporary.path(), "run-1", Budget::new(2, 0))
+            .expect("create application");
+        app.execute(
+            "reused-command",
+            Command::StartAttempt {
+                attempt_id: "attempt-1".to_owned(),
+            },
+        )
+        .expect("start first attempt")
+        .event
+    };
+    let conflicting_command = Command::StartAttempt {
+        attempt_id: "attempt-2".to_owned(),
+    };
+    let conflicting_event = EventEnvelope::new(
+        "run-1",
+        first.sequence + 1,
+        "reused-command",
+        conflicting_command
+            .digest()
+            .expect("digest conflicting command"),
+        Some(first.digest),
+        EventKind::AttemptStarted {
+            attempt_id: "attempt-2".to_owned(),
+        },
+    )
+    .expect("build conflicting event");
+    assert!(conflicting_event.has_valid_digest());
+    assert_ne!(conflicting_event.command_digest, first.command_digest);
+
+    let journal_path = temporary.path().join("events.jsonl");
+    let mut journal = OpenOptions::new()
+        .append(true)
+        .open(&journal_path)
+        .expect("open journal");
+    serde_json::to_writer(&mut journal, &conflicting_event).expect("write conflicting event");
+    journal.write_all(b"\n").expect("complete event line");
+    journal.sync_all().expect("sync conflicting event");
+    drop(journal);
+
+    let journal_before_open = std::fs::read(&journal_path).expect("read journal");
+    let state_before_open: RunState = serde_json::from_slice(
+        &std::fs::read(temporary.path().join("run.json")).expect("read state"),
+    )
+    .expect("parse state");
+    assert!(matches!(
+        Application::open(temporary.path()),
+        Err(ApplicationError::IdempotencyConflict { command_id })
+            if command_id == "reused-command"
+    ));
+
+    assert_eq!(
+        std::fs::read(&journal_path).expect("reread journal"),
+        journal_before_open
+    );
+    let state_after_open: RunState = serde_json::from_slice(
+        &std::fs::read(temporary.path().join("run.json")).expect("read marked state"),
+    )
+    .expect("parse marked state");
+    assert_eq!(state_after_open.status, RunStatus::InfrastructureError);
+    assert_eq!(
+        state_after_open.last_sequence,
+        state_before_open.last_sequence
+    );
+    assert_eq!(
+        state_after_open.last_event_digest,
+        state_before_open.last_event_digest
+    );
+    assert_eq!(state_after_open.budget, state_before_open.budget);
+    assert_eq!(
+        state_after_open.active_attempts,
+        state_before_open.active_attempts
+    );
 }
 
 #[test]

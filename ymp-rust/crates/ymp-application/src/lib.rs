@@ -118,10 +118,16 @@ pub struct Application {
     journal: Journal,
     object_store: ObjectStore,
     state: RunState,
-    command_events: HashMap<String, EventEnvelope>,
+    command_results: HashMap<String, RecordedCommandResult>,
     candidate_identity: Option<CandidateIdentity>,
     recorded_verifications: HashMap<VerificationIdentity, EventEnvelope>,
     notification_senders: Vec<SyncSender<u64>>,
+}
+
+#[derive(Clone, Debug)]
+struct RecordedCommandResult {
+    event: EventEnvelope,
+    status: RunStatus,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -207,14 +213,20 @@ impl Application {
         )?;
         journal.append(&start)?;
         let state = RunState::from_start(&start).ok_or(ApplicationError::InvalidFirstEvent)?;
-        let command_events = HashMap::from([(BOOTSTRAP_COMMAND_ID.to_owned(), start)]);
+        let command_results = HashMap::from([(
+            BOOTSTRAP_COMMAND_ID.to_owned(),
+            RecordedCommandResult {
+                event: start,
+                status: state.status,
+            },
+        )]);
         let app = Self {
             data_root,
             _lock: lock,
             journal,
             object_store,
             state,
-            command_events,
+            command_results,
             candidate_identity: None,
             recorded_verifications: HashMap::new(),
             notification_senders: Vec::new(),
@@ -239,7 +251,11 @@ impl Application {
         match Self::open_locked(data_root.clone(), lock, config) {
             Ok(app) => Ok(app),
             Err(error) => {
-                let _ = mark_infrastructure_error(&data_root);
+                let _ = if matches!(error, ApplicationError::IdempotencyConflict { .. }) {
+                    mark_idempotency_conflict(&data_root)
+                } else {
+                    mark_infrastructure_error(&data_root)
+                };
                 Err(error)
             }
         }
@@ -255,12 +271,25 @@ impl Application {
         let first = events.first().ok_or(ApplicationError::NotInitialized)?;
         let mut state = RunState::from_start(first).ok_or(ApplicationError::InvalidFirstEvent)?;
         let object_store = ObjectStore::open(data_root.join("objects/sha256"))?;
-        let mut command_events = HashMap::new();
-        command_events.insert(first.command_id.clone(), first.clone());
+        let mut command_results = HashMap::new();
+        command_results.insert(
+            first.command_id.clone(),
+            RecordedCommandResult {
+                event: first.clone(),
+                status: state.status,
+            },
+        );
         let mut candidate_identity = None;
         let mut recorded_verifications = HashMap::new();
 
         for event in events.iter().skip(1) {
+            if let Some(result) = command_results.get(&event.command_id)
+                && result.event.command_digest != event.command_digest
+            {
+                return Err(ApplicationError::IdempotencyConflict {
+                    command_id: event.command_id.clone(),
+                });
+            }
             match &event.event {
                 EventKind::CandidateSubmitted {
                     base_digest,
@@ -310,9 +339,12 @@ impl Application {
                 _ => {}
             }
             state.apply(event);
-            command_events
+            command_results
                 .entry(event.command_id.clone())
-                .or_insert_with(|| event.clone());
+                .or_insert_with(|| RecordedCommandResult {
+                    event: event.clone(),
+                    status: state.status,
+                });
         }
 
         Ok(Self {
@@ -321,7 +353,7 @@ impl Application {
             journal,
             object_store,
             state,
-            command_events,
+            command_results,
             candidate_identity,
             recorded_verifications,
             notification_senders: Vec::new(),
@@ -702,18 +734,18 @@ impl Application {
         command_id: &str,
         command_digest: &str,
     ) -> Result<Option<CommandOutcome>, ApplicationError> {
-        let Some(event) = self.command_events.get(command_id) else {
+        let Some(result) = self.command_results.get(command_id) else {
             return Ok(None);
         };
-        if event.command_digest != command_digest {
+        if result.event.command_digest != command_digest {
             return Err(ApplicationError::IdempotencyConflict {
                 command_id: command_id.to_owned(),
             });
         }
         Ok(Some(CommandOutcome {
-            event: event.clone(),
+            event: result.event.clone(),
             replayed: true,
-            status: self.state.status,
+            status: result.status,
         }))
     }
 
@@ -746,7 +778,13 @@ impl Application {
             });
         }
         self.state.apply(&envelope);
-        self.command_events.insert(command_id, envelope.clone());
+        self.command_results.insert(
+            command_id,
+            RecordedCommandResult {
+                event: envelope.clone(),
+                status: self.state.status,
+            },
+        );
         self.write_metadata()?;
         self.notify_subscribers(envelope.sequence);
         Ok(CommandOutcome {
@@ -779,7 +817,13 @@ impl Application {
             )?;
             if self.journal.append_terminal(&terminal).is_ok() {
                 self.state.apply(&terminal);
-                self.command_events.insert(command_id, terminal.clone());
+                self.command_results.insert(
+                    command_id,
+                    RecordedCommandResult {
+                        event: terminal.clone(),
+                        status: self.state.status,
+                    },
+                );
                 self.write_metadata()?;
                 self.notify_subscribers(terminal.sequence);
                 return Err(ApplicationError::Journal(error));
@@ -1029,6 +1073,13 @@ fn mark_infrastructure_error(data_root: &Path) -> Result<(), ApplicationError> {
     let mut state: RunState = serde_json::from_slice(&fs::read(metadata_path)?)?;
     state.status = RunStatus::InfrastructureError;
     state.active_attempts.clear();
+    write_state_metadata(data_root, &state)
+}
+
+fn mark_idempotency_conflict(data_root: &Path) -> Result<(), ApplicationError> {
+    let metadata_path = data_root.join("run.json");
+    let mut state: RunState = serde_json::from_slice(&fs::read(metadata_path)?)?;
+    state.status = RunStatus::InfrastructureError;
     write_state_metadata(data_root, &state)
 }
 
