@@ -56,7 +56,7 @@ runtime, MCP, or verifier state as a typed failure rather than acceptance.
 
 ## Tasks
 
-- [W1-APP-02a](tasks/W1-APP-02a.md) — required
+- [W1-APP-02a](tasks/W1-APP-02a/TASK.md) — required
 - [W1-APP-02b](tasks/W1-APP-02b.md) — required
 - [W1-APP-02c](tasks/W1-APP-02c.md) — required
 - [W1-APP-02d](tasks/W1-APP-02d.md) — required

@@ -3,14 +3,14 @@ id: W1-APP-02a
 kind: task
 wave: W1
 card: W1-APP-02
-state: review
+state: rework
 risk: significant
 maturity: BUILD
 relation: required
 depends_on: [W1-EXP-01c, W1-EXP-01d]
 blocks: [W1-APP-02b, W1-APP-02c, W1-APP-02d]
 created_at: 2026-08-10T19:34:25+08:00
-updated_at: 2026-08-12T16:17:00+08:00
+updated_at: 2026-08-12T16:36:00+08:00
 started_at: 2026-08-12T16:17:00+08:00
 accepted_at:
 candidate_commit:
@@ -59,18 +59,22 @@ views recover from an event cursor independently of in-memory notifications.
   coalesced notifications do not become lost authoritative state.
 - [x] A second foreground process using the same data root is rejected without replacing or
   terminating the current writer.
+- [ ] After reopening, a repeated command identifier returns its exact original result, while the
+  same identifier with different command bytes is rejected before any event or budget change.
+- [ ] The public executable starts the TUI and exposes no public non-TUI operation; private child
+  operations remain reachable only through `ymp internal`.
 
 ## Current state
 
-Independent review is active. The production workspace builds one executable with typed events, recovered idempotency, atomic
-metadata, canonical objects, cursor replay, and one writer. Journal records and total bytes have
-hard ceilings with terminal capacity, and exhaustion persists `infrastructure_error`. Notifications
-are lossy by design; lagging readers recover from a durable cursor. Version-1 schema and fail-closed
-migration rules are frozen in `ymp-rust/SCHEMA.md`; non-author review remains outstanding.
+Independent review returned two defects. Recovery currently accepts one `command_id` with different
+command bytes and does not preserve the original result after later state changes. Public help also
+exposes `demo`, `inspect`, and `probe` despite the foreground-TUI boundary. The corrections are
+separated into W1-APP-02a.1 and W1-APP-02a.2; dispatch follows after the overlapping W1-APP-02b
+writer returns.
 
 ## Next action
 
-Submit the implementation and executable recovery evidence for non-author review.
+Complete both required subtasks and repeat the preserved external recovery and CLI checks.
 
 ## Guardrails
 
@@ -80,7 +84,8 @@ Submit the implementation and executable recovery evidence for non-author review
 
 ## Findings
 
-None.
+- W1-APP-02a.1 owns exact recovered command-result idempotency and conflict rejection.
+- W1-APP-02a.2 owns removal of public non-TUI commands.
 
 ## Closure
 

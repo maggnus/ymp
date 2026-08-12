@@ -9,7 +9,9 @@
 | `[x]` | [`W0-UX-01b`](waves/W0/W0-UX-01/tasks/W0-UX-01b.md) | HTML artifact supplies the POC screen and state system | [`d01354c6`](https://github.com/maggnus/ymp/commit/d01354c6046b8a7c1fcd4380087f0e43805b24ff) | 12/08 12:05 | 12/08 13:30 (1h25m) |
 | `[x]` | [`W0-UX-01c`](waves/W0/W0-UX-01/tasks/W0-UX-01c.md) | Independent review freezes an implementable screen contract | [`4670fa0a`](https://github.com/maggnus/ymp/commit/4670fa0ad914e73d5dc3a5994d694f82a5ebe449) | 12/08 13:30 | 12/08 13:54 (24m) |
 | `[~]` | [`W1-APP-02`](waves/W1/W1-APP-02/CARD.md) | Foreground TUI verifies one exact participant result | — | 12/08 16:14 | 12/08 16:19 (0m) |
-| `[~]` | [`W1-APP-02a`](waves/W1/W1-APP-02/tasks/W1-APP-02a.md) | Foreground core commits one recoverable event history | — | 12/08 16:17 | 12/08 16:17 (0m) |
+| `[~]` | [`W1-APP-02a`](waves/W1/W1-APP-02/tasks/W1-APP-02a/TASK.md) | Foreground core commits one recoverable event history | — | 12/08 16:17 | 12/08 16:36 (0m) |
+| `[ ]` | [`W1-APP-02a.1`](waves/W1/W1-APP-02/tasks/W1-APP-02a/subtasks/W1-APP-02a.1.md) | Recovered command identifiers preserve one exact result | — | — | — |
+| `[ ]` | [`W1-APP-02a.2`](waves/W1/W1-APP-02/tasks/W1-APP-02a/subtasks/W1-APP-02a.2.md) | Foreground executable exposes no public headless mode | — | — | — |
 | `[~]` | [`W1-APP-02b`](waves/W1/W1-APP-02/tasks/W1-APP-02b.md) | Private attempt produces independently verified immutable candidate | — | 12/08 16:14 | 12/08 16:14 (0m) |
 | `[?]` | [`W1-APP-02c`](waves/W1/W1-APP-02/tasks/W1-APP-02c.md) | Codex profile completes one managed candidate attempt | — | — | — |
 | `[?]` | [`W1-APP-02d`](waves/W1/W1-APP-02/tasks/W1-APP-02d.md) | Claude Code profile completes one managed candidate attempt | — | — | — |
