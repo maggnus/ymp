@@ -99,18 +99,32 @@ fields participate in the event digest, so a transcript cannot be rebound to ano
 route observation, invocation, or coordination endpoint without detection.
 
 Runtime-evidence version 3 binds `profile.json` to the immutable launch descriptor used to create
-the managed process. The descriptor contains the executable path and digest, ordered arguments,
+the managed process. The descriptor contains the admitted runtime executable path and digest, the
+admitted coordination executable path and digest when MCP is configured, ordered arguments,
 working directory, attempt and invocation identifiers, and the complete cleared child environment.
 Non-confidential environment entries contain their value and digest. Confidential entries contain
-only their name, confidentiality marker, and value digest. The managed launcher derives both the
-process command and saved profile from that descriptor, rechecks the executable at launch, and
-rejects any executable, argument, environment, attempt, or invocation substitution. Every initial
-or resumed process emits a launch event derived from its actual descriptor; the supervisor rejects
-events that cannot be bound to the profile's invocation and immutable launch fields.
+only their name, confidentiality marker, and value digest. Runtime and coordination executables are
+copied from one already-open source file into private admitted files; probing, descriptor creation,
+MCP configuration, and execution use those admitted files rather than reopening the source paths.
+The managed launcher derives both the process command and saved profile from that descriptor,
+rechecks both executable digests at launch, and rejects any executable, coordination executable,
+argument, environment, attempt, or invocation substitution. Every initial or resumed process emits
+a launch event derived from its actual descriptor; the supervisor rejects events that cannot be
+bound to the profile's invocation and immutable launch fields.
+
+Managed completion and yield authority never comes from runtime output. `submit` is authoritative
+only after its idempotent command is committed to the application journal. `yield` is authoritative
+only after the invocation-bound RPC controller records its command identifier and confirmation;
+repeating that identifier replays the same confirmation. At a turn boundary the supervisor accepts
+exactly one new controller action. No action, multiple fresh actions, or a submitted/yielded message
+that exists only in child output produces a typed protocol failure and no candidate. A wake command
+is likewise idempotent by command identifier and resumes the same attempt, invocation, and opaque
+runtime session.
 
 Version 3 records terminal usage for successful completion, failure, cancellation, and timeout.
 Every terminal record includes total wall time, protected-query count, optional provider cost,
-token counters, and bounded in-flight excess counters. Failures contain a typed safe failure kind
+token counters, and the latest explicitly reported bounded in-flight excess counters; successful
+completion does not replace a non-zero reported excess with zero. Failures contain a typed safe failure kind
 and, when available, only a bounded diagnostic digest, byte count, and truncation marker. Raw child
 standard error and diagnostic text are never written to runtime evidence or the control journal.
 Older serialized usage values remain readable with zero defaults; new evidence is written only as

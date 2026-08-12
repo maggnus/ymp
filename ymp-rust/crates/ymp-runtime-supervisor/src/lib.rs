@@ -15,7 +15,7 @@ use std::thread::{self, JoinHandle};
 use uuid::Uuid;
 use ymp_application::Application;
 use ymp_application::WorkspaceSubmission;
-use ymp_domain::{Command, MAX_IDENTIFIER_CHARS, RunStatus, digest_bytes};
+use ymp_domain::{Command, EventKind, MAX_IDENTIFIER_CHARS, RunStatus, digest_bytes};
 use ymp_runtime_api::{
     CancellationToken, DiagnosticSummary, InvocationRequest, LaunchDescriptor, McpBinding,
     ProbeReport, Readiness, RuntimeDriver, RuntimeError, RuntimeEvent, RuntimeEventKind,
@@ -307,7 +307,7 @@ struct CoordinationEvidence {
     transport: &'static str,
     bridge_executable_digest: String,
     endpoint_path_digest: String,
-    allowed_tools: [&'static str; 3],
+    allowed_tools: [&'static str; 4],
     invocation_scoped: bool,
     credential_values_recorded: bool,
 }
@@ -504,7 +504,7 @@ pub fn start_managed_candidate(
     let attempt_id = format!("attempt-{}", Uuid::new_v4());
     let invocation_id = format!("invocation-{}", Uuid::new_v4());
     let evidence_invocation_id = invocation_id.clone();
-    let (data_root, run_id, base_digest, workspace) = {
+    let (data_root, run_id, base_digest, workspace, controller_cursor) = {
         let mut application = application
             .lock()
             .map_err(|_| anyhow::anyhow!("application lock was poisoned"))?;
@@ -534,6 +534,7 @@ pub fn start_managed_candidate(
             application.state().run_id.clone(),
             base.manifest_digest,
             workspace,
+            application.state().last_sequence,
         )
     };
 
@@ -543,10 +544,11 @@ pub fn start_managed_candidate(
         .join(format!("{}.sock", Uuid::new_v4().simple()));
     let endpoint_path_digest = digest_bytes(socket_path.to_string_lossy().as_bytes());
     let exclusions = request.contract.capture_exclusions.clone();
-    let rpc_server = match ymp_agent_rpc::AgentRpcServer::start_with_submission(
+    let rpc_server = match ymp_agent_rpc::AgentRpcServer::start_with_submission_for_invocation(
         &socket_path,
         &token,
         &attempt_id,
+        &invocation_id,
         Arc::clone(&application),
         WorkspaceSubmission::new(&base_digest, &workspace, exclusions.clone()),
     ) {
@@ -556,6 +558,9 @@ pub fn start_managed_candidate(
             return Err(error.into());
         }
     };
+    let invocation_control = rpc_server
+        .invocation_control()
+        .context("managed invocation control was not created")?;
     let cancellation = CancellationToken::default();
     let invocation_request = InvocationRequest {
         invocation_id: invocation_id.clone(),
@@ -596,6 +601,10 @@ pub fn start_managed_candidate(
         .map(|descriptor| descriptor.executable_digest.clone())
         .map(Some)
         .unwrap_or(probed_runtime_executable_digest);
+    let bridge_executable_digest = launch_descriptor
+        .as_ref()
+        .and_then(|descriptor| descriptor.coordination_executable_digest.clone())
+        .unwrap_or(bridge_executable_digest);
     let evidence_directory = data_root.join("runtime-evidence").join(&attempt_id);
     if let Err(error) = fs::create_dir_all(&evidence_directory) {
         record_infrastructure_failure(&application, &attempt_id, &error.to_string());
@@ -626,7 +635,7 @@ pub fn start_managed_candidate(
                 transport: "stdio_mcp_via_private_rpc",
                 bridge_executable_digest,
                 endpoint_path_digest,
-                allowed_tools: ["read_control", "read_events", "submit"],
+                allowed_tools: ["read_control", "read_events", "yield", "submit"],
                 invocation_scoped: true,
                 credential_values_recorded: false,
             },
@@ -673,8 +682,10 @@ pub fn start_managed_candidate(
                 let mut saw_launch = runtime_kind != RuntimeKind::Codex;
                 let mut pending_error = None;
                 let mut terminal_failure = None;
+                let mut application_cursor = controller_cursor;
+                let mut yield_cursor = 0;
                 loop {
-                    let event = match pending_error.take().map_or_else(
+                    let mut event = match pending_error.take().map_or_else(
                         || session.next_event(),
                         Err::<Option<RuntimeEvent>, RuntimeError>,
                     ) {
@@ -700,6 +711,23 @@ pub fn start_managed_candidate(
                             },
                         },
                     };
+                    if matches!(
+                        &event.event,
+                        RuntimeEventKind::Completed { .. } | RuntimeEventKind::Yielded { .. }
+                    ) {
+                        event.event = authoritative_lifecycle_event(
+                            LifecycleAuthority {
+                                application: &worker_application,
+                                attempt_id: &worker_attempt,
+                                invocation_id: &worker_invocation,
+                                invocation_control: &invocation_control,
+                                application_cursor: &mut application_cursor,
+                                yield_cursor: &mut yield_cursor,
+                            },
+                            &event.event,
+                            session.usage(),
+                        )?;
+                    }
                     if runtime_kind == RuntimeKind::Codex
                         && !saw_launch
                         && !matches!(&event.event, RuntimeEventKind::Launch { .. })
@@ -801,34 +829,22 @@ pub fn start_managed_candidate(
                 if !completed {
                     bail!("runtime ended without a completed event");
                 }
-                let (candidate_digest, change_count) = {
-                    let mut application = worker_application
+                let candidate_digest = {
+                    let application = worker_application
                         .lock()
                         .map_err(|_| anyhow::anyhow!("application lock was poisoned"))?;
                     if application.state().status != RunStatus::Running {
                         return Ok(());
                     }
-                    if let Some(candidate_digest) = application.state().candidate_digest.clone() {
-                        (candidate_digest, None)
-                    } else {
-                        let exclusion_refs: Vec<_> =
-                            exclusions.iter().map(String::as_str).collect();
-                        let outcome = application.submit_workspace_candidate_excluding(
-                            format!("{worker_attempt}.submit-workspace"),
-                            &worker_attempt,
-                            &base_digest,
-                            &workspace,
-                            &exclusion_refs,
-                        )?;
-                        (
-                            outcome.candidate.snapshot_digest,
-                            Some(outcome.submission.change_count),
-                        )
-                    }
+                    application
+                        .state()
+                        .candidate_digest
+                        .clone()
+                        .context("completed runtime has no controller-committed candidate")?
                 };
                 let _ = sender.send(ManagedRunEvent::CandidateAvailable {
                     candidate_digest,
-                    change_count,
+                    change_count: None,
                 });
                 Ok(())
             })();
@@ -858,6 +874,78 @@ pub fn start_managed_candidate(
         finished,
         worker: Some(worker),
     })
+}
+
+struct LifecycleAuthority<'a> {
+    application: &'a Arc<Mutex<Application>>,
+    attempt_id: &'a str,
+    invocation_id: &'a str,
+    invocation_control: &'a ymp_agent_rpc::InvocationControl,
+    application_cursor: &'a mut u64,
+    yield_cursor: &'a mut u64,
+}
+
+fn authoritative_lifecycle_event(
+    authority: LifecycleAuthority<'_>,
+    runtime_event: &RuntimeEventKind,
+    fallback_usage: Usage,
+) -> anyhow::Result<RuntimeEventKind> {
+    let completed_usage = match runtime_event {
+        RuntimeEventKind::Completed { usage } => Some(usage.clone()),
+        RuntimeEventKind::Yielded { .. } => None,
+        _ => bail!("controller classification requires a lifecycle runtime event"),
+    };
+    let application = authority
+        .application
+        .lock()
+        .map_err(|_| anyhow::anyhow!("application lock was poisoned"))?;
+    let events = application.events_after(*authority.application_cursor)?;
+    if let Some(last) = events.last() {
+        *authority.application_cursor = last.sequence;
+    }
+    let submissions: Vec<_> = events
+        .iter()
+        .filter(|event| match &event.event {
+            EventKind::CandidateSubmitted {
+                attempt_id: submitted_attempt,
+                ..
+            } => submitted_attempt == authority.attempt_id,
+            _ => false,
+        })
+        .collect();
+    drop(application);
+    let yields = authority
+        .invocation_control
+        .confirmations_after(*authority.yield_cursor)?;
+    if let Some(last) = yields.last() {
+        *authority.yield_cursor = last.sequence;
+    }
+    let action_count = submissions.len().saturating_add(yields.len());
+    let classified = match action_count {
+        1 if submissions.len() == 1 && completed_usage.is_some() => RuntimeEventKind::Completed {
+            usage: completed_usage.expect("checked completed usage"),
+        },
+        1 if yields.len() == 1 => {
+            let confirmation = &yields[0];
+            if confirmation.attempt_id != authority.attempt_id
+                || confirmation.invocation_id != authority.invocation_id
+            {
+                bail!("yield confirmation identity does not match managed invocation");
+            }
+            RuntimeEventKind::Yielded {
+                cursor: confirmation.command_id.clone(),
+            }
+        }
+        _ => RuntimeEventKind::Failed {
+            kind: RuntimeFailureKind::Protocol,
+            usage: completed_usage.unwrap_or(fallback_usage),
+            diagnostic: Some(DiagnosticSummary::from_bytes(
+                b"controller_action_count_invalid",
+                false,
+            )),
+        },
+    };
+    Ok(classified)
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -947,7 +1035,7 @@ fn digest_regular_file(path: &Path) -> anyhow::Result<Option<String>> {
 fn runtime_evidence_kind(event: &RuntimeEventKind) -> anyhow::Result<RuntimeEvidenceKind> {
     Ok(match event {
         RuntimeEventKind::Launch { descriptor } => RuntimeEvidenceKind::Launch {
-            descriptor: descriptor.clone(),
+            descriptor: descriptor.as_ref().clone(),
             descriptor_digest: digest_serialized(descriptor)?,
         },
         RuntimeEventKind::Started { opaque_session_id } => RuntimeEvidenceKind::Started {
@@ -1077,6 +1165,20 @@ fn validate_launch_descriptor(
     if executable_digest != descriptor.executable_digest {
         bail!("launch descriptor executable digest does not match its bytes");
     }
+    match (
+        descriptor.coordination_executable.as_deref(),
+        descriptor.coordination_executable_digest.as_deref(),
+    ) {
+        (Some(executable), Some(expected_digest)) => {
+            let actual_digest = digest_regular_file(executable)?
+                .context("launch descriptor MCP executable is not a regular file")?;
+            if actual_digest != expected_digest {
+                bail!("launch descriptor MCP executable digest does not match its bytes");
+            }
+        }
+        (None, None) => {}
+        _ => bail!("launch descriptor MCP executable and digest must be declared together"),
+    }
     let mut names = HashSet::new();
     for variable in &descriptor.environment {
         if variable.name.is_empty() || !names.insert(variable.name.as_str()) {
@@ -1116,6 +1218,8 @@ fn validate_runtime_launch(
     }
     if descriptor.executable != initial.executable
         || descriptor.executable_digest != initial.executable_digest
+        || descriptor.coordination_executable != initial.coordination_executable
+        || descriptor.coordination_executable_digest != initial.coordination_executable_digest
         || descriptor.environment != initial.environment
         || descriptor.working_directory != initial.working_directory
     {
@@ -1244,7 +1348,7 @@ mod tests {
     use std::path::Path;
     use std::sync::{Arc, Mutex};
     use std::time::{Duration, Instant};
-    use ymp_agent_api::{AgentToolCall, AgentToolHandler, SubmitArguments};
+    use ymp_agent_api::{AgentToolCall, AgentToolHandler, SubmitArguments, YieldArguments};
     use ymp_agent_rpc::SocketToolHandler;
     use ymp_application::Application;
     use ymp_domain::{Budget, RunStatus};
@@ -1279,14 +1383,89 @@ mod tests {
             let binding = request.mcp.as_ref().ok_or_else(|| {
                 RuntimeError::InvalidProfile("test runtime requires MCP binding".to_owned())
             })?;
-            let mut client =
-                SocketToolHandler::new(&binding.socket_path, &binding.token, &request.attempt_id);
+            let mut client = SocketToolHandler::for_invocation(
+                &binding.socket_path,
+                &binding.token,
+                &request.attempt_id,
+                &request.invocation_id,
+            );
             client
                 .call(AgentToolCall::Submit(SubmitArguments {
                     command_id: "agent.submit".to_owned(),
                 }))
                 .map_err(|error| RuntimeError::RuntimeReportedFailure(error.to_string()))?;
             self.inner.start(request)
+        }
+    }
+
+    struct LifecycleRuntime {
+        inner: FakeRuntime,
+    }
+
+    impl RuntimeDriver for LifecycleRuntime {
+        fn kind(&self) -> RuntimeKind {
+            self.inner.kind()
+        }
+
+        fn executable(&self) -> &Path {
+            self.inner.executable()
+        }
+
+        fn probe(&self) -> Result<ProbeReport, RuntimeError> {
+            self.inner.probe()
+        }
+
+        fn start(
+            &self,
+            request: InvocationRequest,
+        ) -> Result<Box<dyn RuntimeSession>, RuntimeError> {
+            let binding = request.mcp.as_ref().ok_or_else(|| {
+                RuntimeError::InvalidProfile("test runtime requires MCP binding".to_owned())
+            })?;
+            let mut controller = SocketToolHandler::for_invocation(
+                &binding.socket_path,
+                &binding.token,
+                &request.attempt_id,
+                &request.invocation_id,
+            );
+            controller
+                .call(AgentToolCall::Yield(YieldArguments {
+                    command_id: "agent.yield".to_owned(),
+                }))
+                .map_err(|error| RuntimeError::RuntimeReportedFailure(error.to_string()))?;
+            Ok(Box::new(LifecycleSession {
+                inner: self.inner.start(request)?,
+                controller,
+            }))
+        }
+    }
+
+    struct LifecycleSession {
+        inner: Box<dyn RuntimeSession>,
+        controller: SocketToolHandler,
+    }
+
+    impl RuntimeSession for LifecycleSession {
+        fn next_event(&mut self) -> Result<Option<RuntimeEvent>, RuntimeError> {
+            self.inner.next_event()
+        }
+
+        fn resume(&mut self, input: String) -> Result<(), RuntimeError> {
+            self.inner.resume(input)?;
+            self.controller
+                .call(AgentToolCall::Submit(SubmitArguments {
+                    command_id: "agent.submit.after-wake".to_owned(),
+                }))
+                .map_err(|error| RuntimeError::RuntimeReportedFailure(error.to_string()))?;
+            Ok(())
+        }
+
+        fn interrupt(&mut self) -> Result<(), RuntimeError> {
+            self.inner.interrupt()
+        }
+
+        fn usage(&self) -> Usage {
+            self.inner.usage()
         }
     }
 
@@ -1487,7 +1666,7 @@ mod tests {
     }
 
     #[test]
-    fn completed_runtime_produces_controller_captured_candidate() {
+    fn completed_runtime_without_controller_action_is_rejected() {
         let temporary = tempfile::tempdir().expect("temporary directory");
         let source = temporary.path().join("source");
         std::fs::create_dir(&source).expect("source directory");
@@ -1515,15 +1694,15 @@ mod tests {
         )
         .expect("start managed candidate");
         let deadline = Instant::now() + Duration::from_secs(5);
-        let mut saw_completed = false;
+        let mut saw_failed = false;
         let mut saw_candidate = false;
         while Instant::now() < deadline && !handle.is_finished() {
             while let Some(event) = handle.try_next() {
                 match event {
                     ManagedRunEvent::Runtime(event)
-                        if matches!(event.event, RuntimeEventKind::Completed { .. }) =>
+                        if matches!(event.event, RuntimeEventKind::Failed { .. }) =>
                     {
-                        saw_completed = true;
+                        saw_failed = true;
                     }
                     ManagedRunEvent::CandidateAvailable { .. } => saw_candidate = true,
                     _ => {}
@@ -1537,11 +1716,11 @@ mod tests {
             }
         }
         assert!(handle.is_finished());
-        assert!(saw_completed);
-        assert!(saw_candidate);
+        assert!(saw_failed);
+        assert!(!saw_candidate);
         assert_eq!(
             application.lock().expect("application lock").state().status,
-            RunStatus::Running
+            RunStatus::InfrastructureError
         );
         assert!(
             application
@@ -1549,7 +1728,7 @@ mod tests {
                 .expect("application lock")
                 .state()
                 .candidate_digest
-                .is_some()
+                .is_none()
         );
         let transcript = temporary
             .path()
@@ -1564,20 +1743,14 @@ mod tests {
             .collect();
         assert_eq!(records.len(), 2);
         assert_eq!(records[0]["event"]["type"], "started");
-        assert_eq!(records[1]["event"]["type"], "completed");
+        assert_eq!(records[1]["event"]["type"], "failed");
         assert_eq!(records[1]["predecessor_digest"], records[0]["digest"]);
-        let export = temporary.path().join("export");
-        application
-            .lock()
-            .expect("application lock")
-            .export_evidence(&export)
-            .expect("export candidate and runtime evidence");
         assert!(
-            export
-                .join("runtime-evidence")
-                .join(handle.attempt_id())
-                .join("events.jsonl")
-                .is_file()
+            application
+                .lock()
+                .expect("application lock")
+                .export_evidence(temporary.path().join("export"))
+                .is_err()
         );
         handle.join().expect("join worker");
     }
@@ -1782,7 +1955,9 @@ mod tests {
         ));
         let handle = start_managed_candidate(
             Arc::clone(&application),
-            Box::new(FakeRuntime::default()),
+            Box::new(LifecycleRuntime {
+                inner: FakeRuntime::default(),
+            }),
             ManagedCandidateRequest {
                 contract: ManagedContract {
                     contract_id: "contract-yield".to_owned(),

@@ -3,7 +3,7 @@
 use serde_json::Value;
 use std::collections::{HashMap, VecDeque};
 use std::ffi::OsString;
-use std::fs;
+use std::fs::{self, File, OpenOptions};
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, ExitStatus, Stdio};
@@ -154,6 +154,7 @@ impl CodexProfile {
 #[derive(Clone, Debug)]
 pub struct CodexRuntime {
     executable: PathBuf,
+    verified_executable: Arc<Mutex<Option<VerifiedExecutable>>>,
     profile: CodexProfile,
     auth_source: Option<PathBuf>,
     runtime_path: OsString,
@@ -171,6 +172,7 @@ impl CodexRuntime {
         let executable = resolve_executable(executable.into());
         Self {
             executable,
+            verified_executable: Arc::new(Mutex::new(None)),
             profile: CodexProfile::default(),
             auth_source: discover_auth_source(),
             runtime_path: std::env::var_os("PATH")
@@ -196,11 +198,65 @@ impl CodexRuntime {
             &self.profile,
         )
     }
+
+    fn admitted_executable(&self) -> Result<VerifiedExecutable, RuntimeError> {
+        let mut admitted = self.verified_executable.lock().map_err(|_| {
+            RuntimeError::InvalidProfile("verified Codex executable lock failed".to_owned())
+        })?;
+        if let Some(executable) = admitted.as_ref() {
+            return Ok(executable.clone());
+        }
+        let executable = VerifiedExecutable::admit(&self.executable, "codex")?;
+        *admitted = Some(executable.clone());
+        Ok(executable)
+    }
+}
+
+#[derive(Clone, Debug)]
+struct VerifiedExecutable {
+    execution_path: PathBuf,
+    digest: String,
+    _directory: Arc<tempfile::TempDir>,
+}
+
+impl VerifiedExecutable {
+    fn admit(source_path: &Path, label: &str) -> Result<Self, RuntimeError> {
+        let mut source = File::open(source_path)?;
+        if !source.metadata()?.is_file() {
+            return Err(RuntimeError::InvalidProfile(format!(
+                "{label} executable is not a regular file: {}",
+                source_path.display()
+            )));
+        }
+        let directory = Arc::new(
+            tempfile::Builder::new()
+                .prefix("ymp-admitted-executable-")
+                .tempdir()?,
+        );
+        set_private_directory_permissions(directory.path())?;
+        let execution_path = directory.path().join(label);
+        let mut destination = OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(&execution_path)?;
+        std::io::copy(&mut source, &mut destination)?;
+        destination.flush()?;
+        destination.sync_all()?;
+        drop(destination);
+        set_executable_file_permissions(&execution_path)?;
+        let digest = executable_digest(&execution_path)?;
+        Ok(Self {
+            execution_path,
+            digest,
+            _directory: directory,
+        })
+    }
 }
 
 #[derive(Debug)]
 struct CodexLaunch {
-    executable: PathBuf,
+    executable: VerifiedExecutable,
+    coordination_executable: Option<VerifiedExecutable>,
     profile: CodexProfile,
     workspace: PathBuf,
     attempt_id: String,
@@ -326,8 +382,16 @@ impl CodexLaunch {
             schema_version: LAUNCH_DESCRIPTOR_SCHEMA_VERSION,
             invocation_id: self.invocation_id.clone(),
             attempt_id: self.attempt_id.clone(),
-            executable: self.executable.clone(),
-            executable_digest: executable_digest(&self.executable)?,
+            executable: self.executable.execution_path.clone(),
+            executable_digest: self.executable.digest.clone(),
+            coordination_executable: self
+                .coordination_executable
+                .as_ref()
+                .map(|executable| executable.execution_path.clone()),
+            coordination_executable_digest: self
+                .coordination_executable
+                .as_ref()
+                .map(|executable| executable.digest.clone()),
             arguments,
             environment: environment
                 .iter()
@@ -399,6 +463,15 @@ impl CodexLaunch {
                 "Codex executable changed after launch preparation".to_owned(),
             ));
         }
+        if let (Some(executable), Some(digest)) = (
+            descriptor.coordination_executable.as_deref(),
+            descriptor.coordination_executable_digest.as_deref(),
+        ) && executable_digest(executable)? != digest
+        {
+            return Err(RuntimeError::InvalidProfile(
+                "MCP executable changed after launch preparation".to_owned(),
+            ));
+        }
         let environment = self.environment.values(
             self.mcp.as_ref(),
             Some(&self.attempt_id),
@@ -418,6 +491,16 @@ impl CodexLaunch {
             let _ = terminate_process_tree(&mut child);
             return Err(RuntimeError::InvalidProfile(
                 "Codex executable changed while the prepared launch was starting".to_owned(),
+            ));
+        }
+        if let (Some(executable), Some(digest)) = (
+            descriptor.coordination_executable.as_deref(),
+            descriptor.coordination_executable_digest.as_deref(),
+        ) && executable_digest(executable)? != digest
+        {
+            let _ = terminate_process_tree(&mut child);
+            return Err(RuntimeError::InvalidProfile(
+                "MCP executable changed while the prepared launch was starting".to_owned(),
             ));
         }
         let mut stdin = child
@@ -467,7 +550,17 @@ impl RuntimeDriver for CodexRuntime {
         self.profile.validate()?;
         let environment = self.isolated_environment()?;
         let environment_values = environment.values(None, None, None)?;
-        let mut version_command = Command::new(&self.executable);
+        if !self.executable.is_file() {
+            return Ok(ProbeReport {
+                kind: RuntimeKind::Codex,
+                executable: self.executable.display().to_string(),
+                version: None,
+                readiness: Readiness::NotInstalled,
+                detail: "executable not found".to_owned(),
+            });
+        }
+        let admitted = self.admitted_executable()?;
+        let mut version_command = Command::new(&admitted.execution_path);
         CodexEnvironment::apply(&mut version_command, &environment_values);
         let output = match version_command.arg("--version").output() {
             Ok(output) => output,
@@ -507,7 +600,7 @@ impl RuntimeDriver for CodexRuntime {
                 ),
             });
         }
-        let mut auth_command = Command::new(&self.executable);
+        let mut auth_command = Command::new(&admitted.execution_path);
         CodexEnvironment::apply(&mut auth_command, &environment_values);
         let auth = auth_command.args(["login", "status"]).output()?;
         if !auth.status.success() {
@@ -576,13 +669,24 @@ impl RuntimeDriver for CodexRuntime {
         if let Some(mcp) = &request.mcp {
             mcp.validate()?;
         }
+        let executable = self.admitted_executable()?;
+        let (mcp, coordination_executable) = match &request.mcp {
+            Some(binding) => {
+                let executable = VerifiedExecutable::admit(&binding.executable, "ymp-agent-mcp")?;
+                let mut binding = binding.clone();
+                binding.executable = executable.execution_path.clone();
+                (Some(binding), Some(executable))
+            }
+            None => (None, None),
+        };
         let launch = CodexLaunch {
-            executable: self.executable.clone(),
+            executable,
+            coordination_executable,
             profile: self.profile.clone(),
             workspace: request.workspace.clone(),
             attempt_id: request.attempt_id.clone(),
             invocation_id: request.invocation_id.clone(),
-            mcp: request.mcp.clone(),
+            mcp,
             environment: self.isolated_environment()?,
         };
         let descriptor = launch.descriptor(None)?;
@@ -630,7 +734,7 @@ impl RuntimeDriver for CodexRuntime {
         let process = launch.spawn(descriptor, None, &request.prompt)?;
         let mut pending_events = VecDeque::new();
         pending_events.push_back(RuntimeEventKind::Launch {
-            descriptor: descriptor.clone(),
+            descriptor: Box::new(descriptor.clone()),
         });
         Ok(Box::new(CodexSession {
             child: process.child,
@@ -655,7 +759,6 @@ impl RuntimeDriver for CodexRuntime {
             usage: Usage::default(),
             current_turn_usage: Usage::default(),
             in_flight: InFlightExcess::default(),
-            saw_successful_submit: false,
             yielded: false,
             failure_emitted: false,
         }))
@@ -685,7 +788,6 @@ struct CodexSession {
     usage: Usage,
     current_turn_usage: Usage,
     in_flight: InFlightExcess,
-    saw_successful_submit: bool,
     yielded: bool,
     failure_emitted: bool,
 }
@@ -734,9 +836,9 @@ impl CodexSession {
         self.recoverable = false;
         self.native_resume_started = true;
         self.yielded = false;
-        self.saw_successful_submit = false;
-        self.pending_events
-            .push_back(RuntimeEventKind::Launch { descriptor });
+        self.pending_events.push_back(RuntimeEventKind::Launch {
+            descriptor: Box::new(descriptor),
+        });
     }
 
     fn usage_snapshot(&self) -> Usage {
@@ -765,21 +867,17 @@ impl CodexSession {
         }
     }
 
-    fn merge_usage(&mut self, value: &Value, completed: bool) -> Result<(), RuntimeError> {
+    fn merge_usage(&mut self, value: &Value) -> Result<(), RuntimeError> {
         let mut observed = observed_usage(value);
         observed.input_tokens = u64_field(value, "input_tokens")?;
         observed.output_tokens = u64_field(value, "output_tokens")?;
+        let observed_in_flight = value.get("in_flight_excess").map(in_flight_excess);
         self.current_turn_usage = observed;
         add_usage(&mut self.usage, &self.current_turn_usage);
         self.current_turn_usage = Usage::default();
-        self.in_flight = if completed {
-            InFlightExcess::default()
-        } else {
-            value
-                .get("in_flight_excess")
-                .map(in_flight_excess)
-                .unwrap_or_else(|| self.in_flight.clone())
-        };
+        if let Some(observed_in_flight) = observed_in_flight {
+            self.in_flight = observed_in_flight;
+        }
         Ok(())
     }
 
@@ -897,9 +995,6 @@ impl CodexSession {
                         let arguments = item.get("arguments").cloned().unwrap_or(Value::Null);
                         let result = item.get("result").filter(|value| !value.is_null()).cloned();
                         let error = item.get("error").filter(|value| !value.is_null()).cloned();
-                        if server == "ymp" && tool == "submit" && status == "completed" {
-                            self.saw_successful_submit = true;
-                        }
                         Ok(Some(self.emit(RuntimeEventKind::McpToolCall {
                             server,
                             tool,
@@ -916,26 +1011,21 @@ impl CodexSession {
                 let usage = event.get("usage").ok_or_else(|| {
                     RuntimeError::MalformedEvent("turn.completed has no usage".to_owned())
                 })?;
-                self.merge_usage(usage, true)?;
+                self.merge_usage(usage)?;
                 let status = self.finish()?;
                 if !status.success() {
                     return Err(self.unsuccessful(status));
                 }
-                if self.saw_successful_submit {
-                    self.terminal = true;
-                    Ok(Some(self.emit(RuntimeEventKind::Completed {
-                        usage: self.usage_snapshot(),
-                    })))
-                } else {
-                    self.yielded = true;
-                    self.recoverable = true;
-                    let cursor = self.session_id.clone().ok_or_else(|| {
-                        RuntimeError::MalformedEvent(
-                            "Codex completed a turn before reporting its session".to_owned(),
-                        )
-                    })?;
-                    Ok(Some(self.emit(RuntimeEventKind::Yielded { cursor })))
+                if self.session_id.is_none() {
+                    return Err(RuntimeError::MalformedEvent(
+                        "Codex completed a turn before reporting its session".to_owned(),
+                    ));
                 }
+                self.yielded = true;
+                self.recoverable = true;
+                Ok(Some(self.emit(RuntimeEventKind::Completed {
+                    usage: self.usage_snapshot(),
+                })))
             }
             "turn.started" => {
                 self.begin_turn(&event);
@@ -944,7 +1034,7 @@ impl CodexSession {
             "item.started" | "item.updated" => Ok(None),
             "error" | "turn.failed" => {
                 if let Some(usage) = event.get("usage") {
-                    self.merge_usage(usage, false)?;
+                    self.merge_usage(usage)?;
                 }
                 let bytes = serde_json::to_vec(&event).map_err(|error| {
                     RuntimeError::MalformedEvent(format!(
@@ -1154,6 +1244,19 @@ fn set_private_file_permissions(_path: &Path) -> Result<(), RuntimeError> {
     Ok(())
 }
 
+#[cfg(unix)]
+fn set_executable_file_permissions(path: &Path) -> Result<(), RuntimeError> {
+    use std::os::unix::fs::PermissionsExt;
+
+    fs::set_permissions(path, fs::Permissions::from_mode(0o500))?;
+    Ok(())
+}
+
+#[cfg(not(unix))]
+fn set_executable_file_permissions(_path: &Path) -> Result<(), RuntimeError> {
+    Ok(())
+}
+
 fn string_field(value: &Value, field: &str) -> Result<String, RuntimeError> {
     value
         .get(field)
@@ -1193,7 +1296,10 @@ fn observed_usage(value: &Value) -> Usage {
         cost_microusd: value.get("cost_microusd").and_then(Value::as_u64),
         wall_time_ms: 0,
         protected_queries: optional_u64_field(value, "protected_queries"),
-        in_flight_excess: InFlightExcess::default(),
+        in_flight_excess: value
+            .get("in_flight_excess")
+            .map(in_flight_excess)
+            .unwrap_or_default(),
     }
 }
 
@@ -1265,7 +1371,8 @@ fn add_mcp_config_arguments(
     })?;
     for setting in [
         "mcp_servers.ymp.required=true".to_owned(),
-        "mcp_servers.ymp.enabled_tools=[\"read_control\",\"read_events\",\"submit\"]".to_owned(),
+        "mcp_servers.ymp.enabled_tools=[\"read_control\",\"read_events\",\"yield\",\"submit\"]"
+            .to_owned(),
         "mcp_servers.ymp.default_tools_approval_mode=\"approve\"".to_owned(),
         format!(
             "mcp_servers.ymp.command={}",
@@ -1285,8 +1392,8 @@ mod tests {
     use std::fs;
     use std::os::unix::fs::PermissionsExt;
     use ymp_runtime_api::{
-        CancellationToken, InFlightExcess, InvocationRequest, RuntimeDriver, RuntimeError,
-        RuntimeEventKind, RuntimeFailureKind, RuntimeSession,
+        CancellationToken, InvocationRequest, RuntimeDriver, RuntimeError, RuntimeEventKind,
+        RuntimeFailureKind, RuntimeSession,
     };
 
     fn expect_launch(session: &mut dyn RuntimeSession) {
@@ -1376,7 +1483,6 @@ if [ "$1" = "--version" ]; then
 elif [ "$1" = "login" ]; then
   exit 0
 else
-  cd "$(dirname "$0")"
   printf '%s\n' "$@" > invocation.args
   {
     env | sed 's/=.*//' | sort
@@ -1566,7 +1672,7 @@ elif [ "$1" = "login" ]; then
   exit 0
 else
   cat >/dev/null
-  printf '%s\n' "$@" > "$(dirname "$0")/invocation.args"
+  printf '%s\n' "$@" > invocation.args
   printf '%s\n' '{"type":"thread.started","thread_id":"thread-1"}'
   printf '%s\n' '{"type":"turn.started"}'
   printf '%s\n' '{"type":"item.completed","item":{"type":"mcp_tool_call","server":"ymp","tool":"read_control","status":"completed","arguments":{},"result":{"run_id":"run-1"},"error":null}}'
@@ -1643,7 +1749,7 @@ fi
             .expect("captured invocation arguments");
         assert!(arguments.contains("mcp_servers.ymp.required=true"));
         assert!(arguments.contains(
-            "mcp_servers.ymp.enabled_tools=[\"read_control\",\"read_events\",\"submit\"]"
+            "mcp_servers.ymp.enabled_tools=[\"read_control\",\"read_events\",\"yield\",\"submit\"]"
         ));
         assert!(arguments.contains("mcp_servers.ymp.default_tools_approval_mode=\"approve\""));
     }
@@ -1714,7 +1820,6 @@ if [ "$1" = "--version" ]; then
 elif [ "$1" = "login" ]; then
   exit 0
 else
-  cd "$(dirname "$0")"
   count=$(($(cat invocation.count 2>/dev/null || printf '0') + 1))
   printf '%s\n' "$count" > invocation.count
   printf '%s\n' "$@" > "invocation-$count.args"
@@ -1857,7 +1962,6 @@ if [ "$1" = "--version" ]; then
 elif [ "$1" = "login" ]; then
   exit 0
 else
-  cd "$(dirname "$0")"
   count=$(($(cat invocation.count 2>/dev/null || printf '0') + 1))
   printf '%s\n' "$count" > invocation.count
   cat >/dev/null
@@ -1913,7 +2017,6 @@ if [ "$1" = "--version" ]; then
 elif [ "$1" = "login" ]; then
   exit 0
 else
-  cd "$(dirname "$0")"
   count=$(($(cat invocation.count 2>/dev/null || printf '0') + 1))
   printf '%s\n' "$count" > invocation.count
   cat >/dev/null
@@ -1986,7 +2089,6 @@ if [ "$1" = "--version" ]; then
 elif [ "$1" = "login" ]; then
   exit 0
 else
-  cd "$(dirname "$0")"
   sleep 30 &
   printf '%s\n' "$!" > descendant.pid
   wait
@@ -2050,7 +2152,6 @@ if [ "$1" = "--version" ]; then
 elif [ "$1" = "login" ]; then
   exit 0
 else
-  cd "$(dirname "$0")"
   sleep 30 &
   printf '%s\n' "$!" > cancel-descendant.pid
   wait
@@ -2111,7 +2212,6 @@ if [ "$1" = "--version" ]; then
 elif [ "$1" = "login" ]; then
   exit 0
 else
-  cd "$(dirname "$0")"
   printf '%s\n' "$0" > actual.executable
   printf '%s\n' "$@" > actual.arguments
   env | sort > actual.environment
@@ -2126,7 +2226,7 @@ fi
         permissions.set_mode(0o700);
         fs::set_permissions(&executable, permissions).expect("make executable");
 
-        let request = |invocation_id: &str| InvocationRequest {
+        let make_request = |invocation_id: &str| InvocationRequest {
             invocation_id: invocation_id.to_owned(),
             attempt_id: "attempt-launch".to_owned(),
             workspace: directory.path().to_owned(),
@@ -2140,7 +2240,7 @@ fi
         };
 
         let runtime = CodexRuntime::new(&executable);
-        let initial_request = request("invocation-launch-actual");
+        let initial_request = make_request("invocation-launch-actual");
         let descriptor = runtime
             .prepare_launch(&initial_request)
             .expect("prepare launch")
@@ -2165,7 +2265,7 @@ fi
         let launched = session.next_event().expect("launch").expect("event");
         assert!(matches!(
             launched.event,
-            RuntimeEventKind::Launch { descriptor: actual } if actual == descriptor
+            RuntimeEventKind::Launch { descriptor: actual } if *actual == descriptor
         ));
         while session.next_event().expect("runtime event").is_some() {}
 
@@ -2207,7 +2307,7 @@ fi
             ("environment", 1_u8),
             ("invocation", 2_u8),
         ] {
-            let request = request(&format!("invocation-launch-{suffix}"));
+            let request = make_request(&format!("invocation-launch-{suffix}"));
             let mut descriptor = runtime
                 .prepare_launch(&request)
                 .expect("prepare mutation")
@@ -2224,13 +2324,41 @@ fi
             ));
         }
 
-        let request = request("invocation-launch-executable");
+        let request = make_request("invocation-launch-executable");
         let descriptor = runtime
             .prepare_launch(&request)
             .expect("prepare executable mutation")
             .expect("descriptor");
-        fs::write(&executable, format!("{script}\n# substituted\n"))
-            .expect("substitute executable");
+        let mut permissions = fs::metadata(&descriptor.executable)
+            .expect("admitted executable metadata")
+            .permissions();
+        permissions.set_mode(0o700);
+        fs::set_permissions(&descriptor.executable, permissions)
+            .expect("make admitted executable mutable for negative control");
+        fs::write(&descriptor.executable, format!("{script}\n# substituted\n"))
+            .expect("substitute admitted executable");
+        assert!(matches!(
+            runtime.start_prepared(request, Some(&descriptor)),
+            Err(RuntimeError::InvalidProfile(_))
+        ));
+
+        let request = make_request("invocation-launch-mcp-executable");
+        let descriptor = runtime
+            .prepare_launch(&request)
+            .expect("prepare MCP executable mutation")
+            .expect("descriptor");
+        let coordination_executable = descriptor
+            .coordination_executable
+            .as_ref()
+            .expect("coordination executable");
+        let mut permissions = fs::metadata(coordination_executable)
+            .expect("admitted MCP executable metadata")
+            .permissions();
+        permissions.set_mode(0o700);
+        fs::set_permissions(coordination_executable, permissions)
+            .expect("make admitted MCP executable mutable for negative control");
+        fs::write(coordination_executable, "#!/bin/sh\nexit 73\n")
+            .expect("substitute admitted MCP executable");
         assert!(matches!(
             runtime.start_prepared(request, Some(&descriptor)),
             Err(RuntimeError::InvalidProfile(_))
@@ -2255,7 +2383,7 @@ else
   case "$input" in
     *success*)
       printf '%s\n' '{"type":"item.completed","item":{"type":"mcp_tool_call","server":"ymp","tool":"submit","status":"completed","arguments":{"command_id":"accounting-submit"},"result":{"committed":true},"error":null}}'
-      printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":11,"cached_input_tokens":4,"output_tokens":5,"reasoning_output_tokens":2,"cost_microusd":31,"protected_queries":3}}'
+      printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":11,"cached_input_tokens":4,"output_tokens":5,"reasoning_output_tokens":2,"cost_microusd":31,"protected_queries":3,"in_flight_excess":{"model_requests":2,"cost_microusd":3}}}'
       ;;
     *error*)
       printf '%s\n' '{"type":"turn.failed","usage":{"input_tokens":11,"cached_input_tokens":4,"output_tokens":5,"reasoning_output_tokens":2,"cost_microusd":31,"protected_queries":3,"in_flight_excess":{"model_requests":1,"input_tokens":5,"cached_input_tokens":1,"output_tokens":2,"reasoning_output_tokens":1,"cost_microusd":11}},"error":{"code":"fixture"}}'
@@ -2330,11 +2458,159 @@ fi
             assert!(usage.output_tokens > 0);
             assert!(usage.protected_queries > 0);
             if outcome == "success" {
-                assert_eq!(usage.in_flight_excess, InFlightExcess::default());
+                assert_eq!(usage.in_flight_excess.model_requests, 2);
+                assert_eq!(usage.in_flight_excess.cost_microusd, 3);
             } else {
                 assert!(usage.in_flight_excess.model_requests > 0);
                 assert!(usage.in_flight_excess.cost_microusd > 0);
             }
         }
+    }
+
+    #[test]
+    fn admitted_runtime_bytes_execute_after_source_path_replacement() {
+        let directory = tempfile::tempdir().expect("temporary directory");
+        let executable = directory.path().join("codex-admitted-runtime-fixture");
+        let admitted = r##"#!/bin/sh
+if [ "$1" = "--version" ]; then
+  printf '%s\n' 'codex-cli 0.147.0'
+elif [ "$1" = "login" ]; then
+  exit 0
+else
+  cat >/dev/null
+  printf '%s\n' admitted > admitted-runtime.marker
+  printf '%s\n' '{"type":"thread.started","thread_id":"thread-admitted"}'
+  printf '%s\n' '{"type":"item.completed","item":{"type":"mcp_tool_call","server":"ymp","tool":"submit","status":"completed","arguments":{"command_id":"admitted-submit"},"result":{"committed":true},"error":null}}'
+  printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":1,"output_tokens":1}}'
+fi
+"##;
+        fs::write(&executable, admitted).expect("write admitted fixture");
+        let mut permissions = fs::metadata(&executable).expect("metadata").permissions();
+        permissions.set_mode(0o700);
+        fs::set_permissions(&executable, permissions).expect("make executable");
+        let runtime = CodexRuntime::new(&executable);
+        let request = InvocationRequest {
+            invocation_id: "invocation-admitted-runtime".to_owned(),
+            attempt_id: "attempt-admitted-runtime".to_owned(),
+            workspace: directory.path().to_owned(),
+            mcp: None,
+            prompt: "run admitted bytes".to_owned(),
+            cancellation: Default::default(),
+        };
+        runtime.probe().expect("probe admitted runtime");
+        let descriptor = runtime
+            .prepare_launch(&request)
+            .expect("prepare admitted runtime")
+            .expect("launch descriptor");
+        fs::write(
+            &executable,
+            "#!/bin/sh\nprintf '%s\\n' substituted > substituted-runtime.marker\nexit 73\n",
+        )
+        .expect("replace source path");
+        let mut session = runtime
+            .start_prepared(request, Some(&descriptor))
+            .expect("execute admitted runtime object");
+        while session.next_event().expect("runtime event").is_some() {}
+        assert!(directory.path().join("admitted-runtime.marker").is_file());
+        assert!(!directory.path().join("substituted-runtime.marker").exists());
+    }
+
+    #[test]
+    fn configured_bridge_uses_admitted_bytes_after_source_path_replacement() {
+        let directory = tempfile::tempdir().expect("temporary directory");
+        let executable = directory.path().join("codex-bridge-config-fixture");
+        fs::write(
+            &executable,
+            r##"#!/bin/sh
+if [ "$1" = "--version" ]; then
+  printf '%s\n' 'codex-cli 0.147.0'
+elif [ "$1" = "login" ]; then
+  exit 0
+else
+  cat >/dev/null
+  bridge=''
+  for argument in "$@"; do
+    case "$argument" in
+      mcp_servers.ymp.command=*)
+        bridge=${argument#mcp_servers.ymp.command=}
+        bridge=${bridge#\"}
+        bridge=${bridge%\"}
+        ;;
+    esac
+  done
+  "$bridge"
+  printf '%s\n' admitted > admitted-runtime.marker
+  printf '%s\n' '{"type":"thread.started","thread_id":"thread-bridge"}'
+  printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":1,"output_tokens":1}}'
+fi
+"##,
+        )
+        .expect("write Codex fixture");
+        let bridge = directory.path().join("ymp-bridge-fixture");
+        fs::write(
+            &bridge,
+            "#!/bin/sh\nprintf '%s\\n' admitted > admitted-bridge.marker\n",
+        )
+        .expect("write admitted bridge");
+        for path in [&executable, &bridge] {
+            let mut permissions = fs::metadata(path).expect("metadata").permissions();
+            permissions.set_mode(0o700);
+            fs::set_permissions(path, permissions).expect("make executable");
+        }
+        let runtime = CodexRuntime::new(&executable);
+        let request = InvocationRequest {
+            invocation_id: "invocation-admitted-bridge".to_owned(),
+            attempt_id: "attempt-admitted-bridge".to_owned(),
+            workspace: directory.path().to_owned(),
+            mcp: Some(ymp_runtime_api::McpBinding {
+                executable: bridge.clone(),
+                socket_path: directory.path().join("agent.sock"),
+                token: "bridge-token".to_owned(),
+            }),
+            prompt: "inspect bridge binding".to_owned(),
+            cancellation: Default::default(),
+        };
+        runtime.probe().expect("probe admitted runtime");
+        let descriptor = runtime
+            .prepare_launch(&request)
+            .expect("prepare bridge binding")
+            .expect("launch descriptor");
+        let configured_bridge = descriptor
+            .arguments
+            .windows(2)
+            .find_map(|arguments| {
+                (arguments[0] == "-c")
+                    .then_some(arguments[1].as_str())
+                    .and_then(|setting| setting.strip_prefix("mcp_servers.ymp.command="))
+            })
+            .map(|encoded| serde_json::from_str::<String>(encoded).expect("bridge path string"))
+            .expect("configured bridge path");
+        fs::write(
+            &bridge,
+            "#!/bin/sh\nprintf '%s\\n' substituted > substituted-bridge.marker\n",
+        )
+        .expect("replace bridge source path");
+        fs::write(
+            &executable,
+            "#!/bin/sh\nprintf '%s\\n' substituted > substituted-runtime.marker\nexit 73\n",
+        )
+        .expect("replace Codex source path");
+        let mut session = runtime
+            .start_prepared(request, Some(&descriptor))
+            .expect("execute admitted runtime and bridge objects");
+        while session.next_event().expect("runtime event").is_some() {}
+        assert_eq!(
+            configured_bridge,
+            descriptor
+                .coordination_executable
+                .as_ref()
+                .expect("coordination executable")
+                .to_str()
+                .expect("UTF-8 coordination executable")
+        );
+        assert!(directory.path().join("admitted-runtime.marker").is_file());
+        assert!(directory.path().join("admitted-bridge.marker").is_file());
+        assert!(!directory.path().join("substituted-runtime.marker").exists());
+        assert!(!directory.path().join("substituted-bridge.marker").exists());
     }
 }

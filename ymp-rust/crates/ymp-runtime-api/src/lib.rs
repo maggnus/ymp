@@ -57,6 +57,10 @@ pub struct LaunchDescriptor {
     pub attempt_id: String,
     pub executable: PathBuf,
     pub executable_digest: String,
+    #[serde(default)]
+    pub coordination_executable: Option<PathBuf>,
+    #[serde(default)]
+    pub coordination_executable_digest: Option<String>,
     pub arguments: Vec<String>,
     pub environment: Vec<LaunchEnvironmentVariable>,
     pub working_directory: PathBuf,
@@ -220,7 +224,7 @@ pub enum RuntimeFailureKind {
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum RuntimeEventKind {
     Launch {
-        descriptor: LaunchDescriptor,
+        descriptor: Box<LaunchDescriptor>,
     },
     Started {
         opaque_session_id: String,

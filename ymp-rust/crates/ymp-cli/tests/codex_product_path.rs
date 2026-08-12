@@ -5,7 +5,7 @@ use std::os::unix::fs::PermissionsExt;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 use ymp_application::Application;
-use ymp_domain::Budget;
+use ymp_domain::{Budget, EventKind};
 use ymp_runtime_api::RuntimeEventKind;
 use ymp_runtime_codex::{CodexProfile, CodexRuntime};
 use ymp_runtime_supervisor::{
@@ -28,7 +28,6 @@ if [ "$1" = "--version" ]; then
 elif [ "$1" = "login" ]; then
   exit 0
 else
-  printf '%s\n' "$@" > "$(dirname "$0")/actual.args"
   bridge=''
   workspace=''
   previous=''
@@ -47,6 +46,8 @@ else
   done
   test -n "$bridge" || exit 31
   test -n "$workspace" || exit 32
+  printf '%s\n' "$0" > "$workspace/actual.executable"
+  printf '%s\n' "$@" > "$workspace/actual.args"
   test "$OPENAI_BASE_URL" = 'https://api.openai.com/v1' || exit 33
   test -z "${OPENAI_ORGANIZATION+x}" || exit 34
   test -z "${OPENAI_PROJECT+x}" || exit 35
@@ -59,15 +60,15 @@ else
     printf 'YMP_ATTEMPT_ID=%s\n' "$YMP_ATTEMPT_ID"
     printf 'YMP_INVOCATION_ID=%s\n' "$YMP_INVOCATION_ID"
     printf 'YMP_AGENT_TOKEN_PRESENT=yes\n'
-  } > "$(dirname "$0")/actual.environment"
+  } > "$workspace/actual.environment"
   printf '%s\n' 'after through product MCP' > "$workspace/input.txt"
   {
     printf '%s\n' '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-11-25"}}'
     printf '%s\n' '{"jsonrpc":"2.0","method":"notifications/initialized"}'
     printf '%s\n' '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"read_control","arguments":{}}}'
     printf '%s\n' '{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"submit","arguments":{"command_id":"agent.submit.fake-product"}}}'
-  } | "$bridge" internal agent-mcp > "$(dirname "$0")/mcp.responses"
-  grep -q '"snapshot_digest"' "$(dirname "$0")/mcp.responses" || exit 39
+  } | "$bridge" internal agent-mcp > "$workspace/mcp.responses"
+  grep -q '"snapshot_digest"' "$workspace/mcp.responses" || exit 39
   cat >/dev/null
   printf '%s\n' '{"type":"thread.started","thread_id":"thread-fake-product-1"}'
   printf '%s\n' '{"type":"item.completed","item":{"type":"mcp_tool_call","server":"ymp","tool":"read_control","status":"completed","arguments":{},"result":{"status":"running"},"error":null}}'
@@ -139,8 +140,9 @@ fi
             .as_deref()
     );
 
-    let responses =
-        fs::read_to_string(temporary.path().join("mcp.responses")).expect("MCP responses");
+    let workspace = data_root.join("workspaces").join(&attempt_id);
+
+    let responses = fs::read_to_string(workspace.join("mcp.responses")).expect("MCP responses");
     assert!(responses.contains("\"isError\":false"));
     assert!(!responses.contains("YMP_AGENT_TOKEN"));
     let evidence = fs::read_to_string(
@@ -193,7 +195,18 @@ fi
     let launch = &profile["profile"]["launch_descriptor"];
     assert_eq!(launch["invocation_id"], profile["profile"]["invocation_id"]);
     assert_eq!(launch["attempt_id"], attempt_id);
-    let actual_arguments: Vec<_> = fs::read_to_string(temporary.path().join("actual.args"))
+    assert_eq!(
+        launch["coordination_executable_digest"],
+        profile["profile"]["coordination"]["bridge_executable_digest"]
+    );
+    assert!(launch["coordination_executable"].as_str().is_some());
+    assert_eq!(
+        fs::read_to_string(workspace.join("actual.executable"))
+            .expect("actual executable")
+            .trim(),
+        launch["executable"].as_str().expect("launch executable")
+    );
+    let actual_arguments: Vec<_> = fs::read_to_string(workspace.join("actual.args"))
         .expect("actual arguments")
         .lines()
         .map(str::to_owned)
@@ -207,7 +220,7 @@ fi
             .map(|argument| argument.as_str().expect("argument string").to_owned())
             .collect::<Vec<_>>()
     );
-    let actual_environment = fs::read_to_string(temporary.path().join("actual.environment"))
+    let actual_environment = fs::read_to_string(workspace.join("actual.environment"))
         .expect("actual safe environment observation");
     assert!(actual_environment.contains("OPENAI_BASE_URL=https://api.openai.com/v1"));
     assert!(actual_environment.contains(&format!("YMP_ATTEMPT_ID={attempt_id}")));
@@ -258,9 +271,8 @@ if [ "$1" = "--version" ]; then
 elif [ "$1" = "login" ]; then
   exit 0
 else
-  cd "$(dirname "$0")"
   cat >/dev/null
-  printf '%s' "$YMP_AGENT_TOKEN" > observed-token
+  printf '%s' "$YMP_AGENT_TOKEN" > "/tmp/ymp-observed-token-$YMP_ATTEMPT_ID"
   printf 'raw-child-diagnostic:%s\n' "$YMP_AGENT_TOKEN" >&2
   exit 47
 fi
@@ -292,6 +304,8 @@ fi
         },
     )
     .expect("start managed candidate");
+    let token_path =
+        std::path::PathBuf::from(format!("/tmp/ymp-observed-token-{}", handle.attempt_id()));
     let deadline = Instant::now() + Duration::from_secs(10);
     let mut managed_failure = None;
     while Instant::now() < deadline && !handle.is_finished() {
@@ -312,7 +326,6 @@ fi
         managed_failure.as_deref(),
         Some("managed_runtime_supervision_failed")
     );
-    let token_path = temporary.path().join("observed-token");
     let token = fs::read(&token_path).expect("observed child token");
     assert!(!token.is_empty());
     fs::remove_file(&token_path).expect("remove transient token observation");
@@ -357,12 +370,29 @@ elif [ "$1" = "login" ]; then
   exit 0
 else
   input=$(cat)
+  bridge=''
+  for argument in "$@"; do
+    case "$argument" in
+      mcp_servers.ymp.command=*)
+        bridge=${argument#mcp_servers.ymp.command=}
+        bridge=${bridge#\"}
+        bridge=${bridge%\"}
+        ;;
+    esac
+  done
   printf '%s\n' '{"type":"thread.started","thread_id":"thread-durable-accounting"}'
   printf '%s\n' '{"type":"turn.started","usage":{"input_tokens":7,"cached_input_tokens":2,"output_tokens":3,"reasoning_output_tokens":1,"cost_microusd":23,"protected_queries":2,"in_flight_excess":{"model_requests":1,"input_tokens":5,"cached_input_tokens":1,"output_tokens":2,"reasoning_output_tokens":1,"cost_microusd":11}}}'
+  printf '%s\n' '{"type":"item.completed","item":{"type":"agent_message","text":"accounting-ready"}}'
   case "$input" in
     *success*)
+      responses=$({
+        printf '%s\n' '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-11-25"}}'
+        printf '%s\n' '{"jsonrpc":"2.0","method":"notifications/initialized"}'
+        printf '%s\n' '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"submit","arguments":{"command_id":"durable-submit"}}}'
+      } | "$bridge" internal agent-mcp) || exit 41
+      printf '%s' "$responses" | grep -q '"snapshot_digest"' || exit 42
       printf '%s\n' '{"type":"item.completed","item":{"type":"mcp_tool_call","server":"ymp","tool":"submit","status":"completed","arguments":{"command_id":"durable-submit"},"result":{"committed":true},"error":null}}'
-      printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":11,"cached_input_tokens":4,"output_tokens":5,"reasoning_output_tokens":2,"cost_microusd":31,"protected_queries":3}}'
+      printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":11,"cached_input_tokens":4,"output_tokens":5,"reasoning_output_tokens":2,"cost_microusd":31,"protected_queries":3,"in_flight_excess":{"model_requests":2,"cost_microusd":3}}}'
       ;;
     *error*)
       printf '%s\n' '{"type":"turn.failed","usage":{"input_tokens":11,"cached_input_tokens":4,"output_tokens":5,"reasoning_output_tokens":2,"cost_microusd":31,"protected_queries":3,"in_flight_excess":{"model_requests":1,"input_tokens":5,"cached_input_tokens":1,"output_tokens":2,"reasoning_output_tokens":1,"cost_microusd":11}},"error":{"code":"fixture"}}'
@@ -387,7 +417,7 @@ fi
                 .expect("create application"),
         ));
         let profile = CodexProfile {
-            wall_time_limit_ms: if outcome == "timeout" { 150 } else { 5_000 },
+            wall_time_limit_ms: if outcome == "timeout" { 1_000 } else { 5_000 },
             ..CodexProfile::default()
         };
         let handle = start_managed_candidate(
@@ -415,7 +445,10 @@ fi
                 if let ManagedRunEvent::Runtime(event) = event {
                     if outcome == "cancel"
                         && !cancel_sent
-                        && matches!(&event.event, RuntimeEventKind::Started { .. })
+                        && matches!(
+                            &event.event,
+                            RuntimeEventKind::Output { text } if text == "accounting-ready"
+                        )
                     {
                         std::thread::sleep(Duration::from_millis(75));
                         handle.cancel("fixture cancellation").expect("cancel run");
@@ -445,12 +478,13 @@ fi
         }
         assert!(handle.is_finished(), "{outcome} did not finish");
         let usage = terminal_usage.expect("terminal usage");
-        assert!(usage.input_tokens > 0);
-        assert!(usage.output_tokens > 0);
-        assert!(usage.cost_microusd.is_some());
-        assert!(usage.protected_queries > 0);
+        assert!(usage.input_tokens > 0, "{outcome} input tokens");
+        assert!(usage.output_tokens > 0, "{outcome} output tokens");
+        assert!(usage.cost_microusd.is_some(), "{outcome} cost");
+        assert!(usage.protected_queries > 0, "{outcome} protected queries");
         if outcome == "success" {
-            assert_eq!(usage.in_flight_excess.model_requests, 0);
+            assert_eq!(usage.in_flight_excess.model_requests, 2);
+            assert_eq!(usage.in_flight_excess.cost_microusd, 3);
         } else {
             assert!(usage.in_flight_excess.model_requests > 0);
             assert!(usage.in_flight_excess.cost_microusd > 0);
@@ -487,6 +521,130 @@ fi
 }
 
 #[test]
+fn fabricated_stdout_lifecycle_cannot_submit_or_yield() {
+    let temporary = tempfile::tempdir().expect("temporary directory");
+    let source = temporary.path().join("source-fabricated");
+    fs::create_dir(&source).expect("source directory");
+    fs::write(source.join("input.txt"), b"base\n").expect("source file");
+    let executable = temporary.path().join("codex-fabricated-lifecycle-fixture");
+    fs::write(
+        &executable,
+        r##"#!/bin/sh
+if [ "$1" = "--version" ]; then
+  printf '%s\n' 'codex-cli 0.147.0'
+elif [ "$1" = "login" ]; then
+  exit 0
+else
+  cat >/dev/null
+  printf '%s\n' '{"type":"thread.started","thread_id":"thread-fabricated"}'
+  printf '%s\n' '{"type":"item.completed","item":{"type":"mcp_tool_call","server":"ymp","tool":"submit","status":"completed","arguments":{"command_id":"fabricated-submit"},"result":{"committed":true},"error":null}}'
+  printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":1,"output_tokens":1}}'
+fi
+"##,
+    )
+    .expect("write fixture");
+    let mut permissions = fs::metadata(&executable).expect("metadata").permissions();
+    permissions.set_mode(0o700);
+    fs::set_permissions(&executable, permissions).expect("make executable");
+
+    let application = Arc::new(Mutex::new(
+        Application::create(
+            temporary.path().join("data-fabricated"),
+            "run-fabricated",
+            Budget::new(1, 1),
+        )
+        .expect("create application"),
+    ));
+    let handle = start_managed_candidate(
+        Arc::clone(&application),
+        Box::new(CodexRuntime::new(&executable)),
+        ManagedCandidateRequest {
+            contract: ManagedContract {
+                contract_id: "fabricated-contract".to_owned(),
+                contract_digest: "b".repeat(64),
+                source,
+                prompt: "fabricate lifecycle output".to_owned(),
+                capture_exclusions: Vec::new(),
+                verifier: None,
+            },
+            bridge_executable: env!("CARGO_BIN_EXE_ymp").into(),
+        },
+    )
+    .expect("start fabricated lifecycle fixture");
+    let deadline = Instant::now() + Duration::from_secs(10);
+    let mut candidate = false;
+    let mut failure = false;
+    let mut yielded = false;
+    let mut protocol_failure = false;
+    while Instant::now() < deadline && !handle.is_finished() {
+        while let Some(event) = handle.try_next() {
+            match event {
+                ManagedRunEvent::CandidateAvailable { .. } => candidate = true,
+                ManagedRunEvent::Failed { .. } => failure = true,
+                ManagedRunEvent::Runtime(event)
+                    if matches!(event.event, RuntimeEventKind::Yielded { .. }) =>
+                {
+                    yielded = true
+                }
+                ManagedRunEvent::Runtime(event)
+                    if matches!(
+                        event.event,
+                        RuntimeEventKind::Failed {
+                            kind: ymp_runtime_api::RuntimeFailureKind::Protocol,
+                            ..
+                        }
+                    ) =>
+                {
+                    protocol_failure = true
+                }
+                _ => {}
+            }
+        }
+        std::thread::sleep(Duration::from_millis(5));
+    }
+    while let Some(event) = handle.try_next() {
+        match event {
+            ManagedRunEvent::CandidateAvailable { .. } => candidate = true,
+            ManagedRunEvent::Failed { .. } => failure = true,
+            ManagedRunEvent::Runtime(event)
+                if matches!(event.event, RuntimeEventKind::Yielded { .. }) =>
+            {
+                yielded = true
+            }
+            ManagedRunEvent::Runtime(event)
+                if matches!(
+                    event.event,
+                    RuntimeEventKind::Failed {
+                        kind: ymp_runtime_api::RuntimeFailureKind::Protocol,
+                        ..
+                    }
+                ) =>
+            {
+                protocol_failure = true
+            }
+            _ => {}
+        }
+    }
+    assert!(handle.is_finished());
+    assert!(!candidate, "fabricated stdout submitted a candidate");
+    assert!(!yielded, "fabricated stdout yielded the invocation");
+    assert!(failure, "fabricated lifecycle was not rejected");
+    assert!(
+        protocol_failure,
+        "fabricated lifecycle had no typed rejection"
+    );
+    assert!(
+        application
+            .lock()
+            .expect("application lock")
+            .state()
+            .candidate_digest
+            .is_none()
+    );
+    handle.join().expect("join worker");
+}
+
+#[test]
 fn managed_codex_yield_wake_resume_keeps_one_identity_and_effect() {
     let temporary = tempfile::tempdir().expect("temporary directory");
     let source = temporary.path().join("source-resume");
@@ -501,7 +659,23 @@ if [ "$1" = "--version" ]; then
 elif [ "$1" = "login" ]; then
   exit 0
 else
-  cd "$(dirname "$0")"
+  bridge=''
+  workspace=''
+  previous=''
+  for argument in "$@"; do
+    if [ "$previous" = '-C' ]; then workspace=$argument; fi
+    case "$argument" in
+      mcp_servers.ymp.command=*)
+        bridge=${argument#mcp_servers.ymp.command=}
+        bridge=${bridge#\"}
+        bridge=${bridge%\"}
+        ;;
+    esac
+    previous=$argument
+  done
+  test -n "$bridge" || exit 51
+  test -n "$workspace" || exit 52
+  cd "$workspace"
   count=0
   if [ -f invocation.count ]; then count=$(cat invocation.count); fi
   count=$((count + 1))
@@ -515,10 +689,24 @@ else
   done
   printf '%s\n' '{"type":"thread.started","thread_id":"thread-managed-resume"}'
   if [ "$resume" = yes ]; then
+    printf '%s\n' 'submitted after resume' > input.txt
+    responses=$({
+      printf '%s\n' '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-11-25"}}'
+      printf '%s\n' '{"jsonrpc":"2.0","method":"notifications/initialized"}'
+      printf '%s\n' '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"submit","arguments":{"command_id":"resume-submit"}}}'
+    } | "$bridge" internal agent-mcp) || exit 53
+    printf '%s' "$responses" | grep -q '"snapshot_digest"' || exit 54
     printf '%s\n' '{"type":"item.completed","item":{"type":"agent_message","text":"resumed exactly once"}}'
     printf '%s\n' '{"type":"item.completed","item":{"type":"mcp_tool_call","server":"ymp","tool":"submit","status":"completed","arguments":{"command_id":"resume-submit"},"result":{"committed":true},"error":null}}'
     printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":7,"output_tokens":3,"cost_microusd":17}}'
   else
+    responses=$({
+      printf '%s\n' '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-11-25"}}'
+      printf '%s\n' '{"jsonrpc":"2.0","method":"notifications/initialized"}'
+      printf '%s\n' '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"yield","arguments":{"command_id":"resume-yield"}}}'
+      printf '%s\n' '{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"yield","arguments":{"command_id":"resume-yield"}}}'
+    } | "$bridge" internal agent-mcp) || exit 55
+    test "$(printf '%s' "$responses" | grep -c '"isError":false')" -ge 2 || exit 56
     printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":5,"output_tokens":2,"cost_microusd":11}}'
   fi
 fi
@@ -555,8 +743,8 @@ fi
     let deadline = Instant::now() + Duration::from_secs(10);
     let mut session_id = None;
     let mut launches = Vec::new();
-    let mut yielded = false;
-    while Instant::now() < deadline && !yielded {
+    let mut yielded_command = None;
+    while Instant::now() < deadline && yielded_command.is_none() {
         while let Some(event) = handle.try_next() {
             if let ManagedRunEvent::Runtime(event) = event {
                 assert_eq!(event.invocation_id, invocation_id);
@@ -565,14 +753,14 @@ fi
                     RuntimeEventKind::Started { opaque_session_id } => {
                         session_id = Some(opaque_session_id)
                     }
-                    RuntimeEventKind::Yielded { .. } => yielded = true,
+                    RuntimeEventKind::Yielded { cursor } => yielded_command = Some(cursor),
                     _ => {}
                 }
             }
         }
         std::thread::sleep(Duration::from_millis(5));
     }
-    assert!(yielded, "managed Codex did not yield");
+    assert_eq!(yielded_command.as_deref(), Some("resume-yield"));
     handle
         .wake("wake-resume-1", "continue once")
         .expect("first wake");
@@ -625,9 +813,26 @@ fi
     assert_eq!(resumed_outputs, 1);
     assert_eq!(candidates, 1);
     assert_eq!(
-        fs::read_to_string(temporary.path().join("invocation.count")).unwrap(),
+        fs::read_to_string(
+            data_root
+                .join("workspaces")
+                .join(&attempt_id)
+                .join("invocation.count")
+        )
+        .unwrap(),
         "2\n"
     );
+    let controller_events = application
+        .lock()
+        .expect("application lock")
+        .events_after(0)
+        .expect("controller events");
+    let submit_events: Vec<_> = controller_events
+        .iter()
+        .filter(|event| matches!(&event.event, EventKind::CandidateSubmitted { .. }))
+        .collect();
+    assert_eq!(submit_events.len(), 1);
+    assert_eq!(submit_events[0].command_id, "resume-submit");
     assert_eq!(launches.len(), 2);
     let initial = &launches[0];
     let resumed = &launches[1];

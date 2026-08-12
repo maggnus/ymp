@@ -7,6 +7,7 @@ use thiserror::Error;
 pub const READ_CONTROL_TOOL: &str = "read_control";
 pub const READ_EVENTS_TOOL: &str = "read_events";
 pub const SUBMIT_TOOL: &str = "submit";
+pub const YIELD_TOOL: &str = "yield";
 pub const MAX_EVENT_PAGE: u16 = 128;
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -15,6 +16,7 @@ pub enum AgentToolCall {
     ReadControl,
     ReadEvents(ReadEventsArguments),
     Submit(SubmitArguments),
+    Yield(YieldArguments),
 }
 
 impl AgentToolCall {
@@ -26,6 +28,7 @@ impl AgentToolCall {
             }
             READ_EVENTS_TOOL => Ok(Self::ReadEvents(serde_json::from_value(arguments)?)),
             SUBMIT_TOOL => Ok(Self::Submit(serde_json::from_value(arguments)?)),
+            YIELD_TOOL => Ok(Self::Yield(serde_json::from_value(arguments)?)),
             _ => Err(ToolParseError::UnknownTool(name.to_owned())),
         }
     }
@@ -51,6 +54,12 @@ const fn default_event_page() -> u16 {
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct SubmitArguments {
+    pub command_id: String,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct YieldArguments {
     pub command_id: String,
 }
 
@@ -108,6 +117,7 @@ pub enum ToolParseError {
 mod tests {
     use super::{
         AgentToolCall, MAX_EVENT_PAGE, ReadEventsArguments, SubmitArguments, ToolParseError,
+        YieldArguments,
     };
     use serde_json::json;
 
@@ -135,6 +145,13 @@ mod tests {
             ),
             Err(ToolParseError::InvalidArguments(_))
         ));
+        assert_eq!(
+            AgentToolCall::parse("yield", json!({ "command_id": "agent.yield" }))
+                .expect("parse yield"),
+            AgentToolCall::Yield(YieldArguments {
+                command_id: "agent.yield".to_owned()
+            })
+        );
         assert!(matches!(
             AgentToolCall::parse("read_control", json!({"unexpected": true})),
             Err(ToolParseError::InvalidArguments(_))
