@@ -3,15 +3,15 @@ id: W1-APP-02b
 kind: task
 wave: W1
 card: W1-APP-02
-state: ready
+state: active
 risk: critical
 maturity: BUILD
 relation: required
 depends_on: [W1-APP-02a, W1-EXP-01a]
 blocks: [W1-APP-02e]
 created_at: 2026-08-10T19:34:25+08:00
-updated_at: 2026-08-12T02:47:53+08:00
-started_at:
+updated_at: 2026-08-12T16:14:11+08:00
+started_at: 2026-08-12T16:14:11+08:00
 accepted_at:
 candidate_commit:
 closure_commit:
@@ -61,11 +61,11 @@ verifier evidence for that exact candidate and contract package.
 
 ## Current state
 
-Production packages capture source manifests, private workspaces, immutable submissions, and
-reproducible candidates while rejecting stale bases and symlinks. Only digest-bound opaque
-verifier evidence can record a result. Tests cover capture, rejection, replay, quiescence, and
-derived-path exclusions; bounded verification moved real managed Codex L1-L3 runs to `accepted`,
-including one complete TUI path. Strict isolation and conflict coverage remain.
+Work is active. Production packages capture source manifests, private workspaces, immutable
+submissions, and reproducible candidates while rejecting stale bases and symlinks. Only
+digest-bound opaque verifier evidence can record a result. Tests cover capture, rejection, replay,
+quiescence, and derived-path exclusions; bounded verification moved real managed Codex L1-L3 runs
+to `accepted`, including one complete TUI path. Strict isolation and conflict coverage remain.
 
 ## Next action
 
