@@ -10,10 +10,10 @@ relation: required
 depends_on: []
 blocks: [W1-APP-02a, W1-COR-03a, W1-COR-03b]
 created_at: 2026-08-10T19:34:25+08:00
-updated_at: 2026-08-12T11:02:25+08:00
+updated_at: 2026-08-12T11:25:15+08:00
 started_at: 2026-08-12T11:02:25+08:00
 accepted_at:
-candidate_commit:
+candidate_commit: https://github.com/maggnus/ymp/commit/2135c5c7532a23749d95363fcdf48e69fe6019dd
 closure_commit:
 evidence:
 duration_minutes: 0
@@ -60,15 +60,15 @@ duplicate, delay, expiry, and crash schedules.
 
 ## Current state
 
-`ymp-rust/tools/ymp-evals` contains an initial bounded model whose baseline covers one creation
-budget, one obligation, lease fencing, exact-candidate verification, cancellation, and controller
-failure. A disjoint implementation pass is extending it to the declared budget vector, offer and
-award lifecycle, finite wake and query budgets, and multiple causal obligations.
+The candidate exhaustively enumerates 385,605 reachable states and 1,927,370 transitions with
+separate finite creation, start, wake, and protected-query budgets. It reports no non-terminal
+deadlocks or cycles, bounds every terminal schedule at 30 transitions, and finds shortest
+counterexamples for reservation, fencing, and obligation-return mutations. Independent review is
+checking the graph construction and abstraction.
 
 ## Next action
 
-Produce the bounded model extension with same-check mutation controls, then obtain non-author
-review of both the abstraction and generated terminal schedules.
+Decide acceptance through independent graph and mutation checks on the exact candidate.
 
 ## Guardrails
 
