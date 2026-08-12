@@ -1,0 +1,10 @@
+{
+  "schema_version": 1,
+  "task_id": "serde-json-surrogate-escapes",
+  "reviewed_at": "2026-08-12T04:47:52Z",
+  "reviewed_by_role": "corpus_author",
+  "human_approval": false,
+  "review_scope": "Protected inputs vary surrogate and following-escape instances within JSON-SURROGATE-STATE; no hidden requirement was identified.",
+  "source_commit": "4c28c5737b26f15bc7457d53eff8517b33cb4a43",
+  "fixed_commit": "07c740c2ffa2e81c9c3dc7982b67572e990e2cdd"
+}

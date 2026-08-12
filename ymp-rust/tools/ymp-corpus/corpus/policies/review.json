@@ -1,9 +1,11 @@
 {
   "schema_version": 1,
-  "mechanical_requirements_only": true,
-  "human_or_agent_judgment_required": false,
-  "protected_cases_may_only_instantiate_public_requirements": true,
-  "approval_authority": "owner-delegated W1-EXP-01a corpus author",
-  "approval_basis": "OWNER_GATES.md G2 resolution and explicit W1-EXP-01a implementation request",
-  "approval_date": "2026-08-12"
+  "approval_required_for_check_and_verify": true,
+  "approval_record_location": "external_to_corpus_root",
+  "required_authority": "ymp_project_owner",
+  "required_approver_role": "project_owner",
+  "forbidden_approver_roles": ["corpus_author", "corpus_compiler"],
+  "maximum_validity_seconds": 2592000,
+  "maximum_future_clock_skew_seconds": 300,
+  "missing_record_status": "not_approved_by_owner"
 }

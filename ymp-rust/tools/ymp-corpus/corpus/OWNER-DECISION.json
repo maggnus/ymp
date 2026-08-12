@@ -1,0 +1,64 @@
+{
+  "schema_version": 1,
+  "corpus_id": "w1-exp-01a-first-edition-2026-08-12",
+  "generated_at": "2026-08-12T06:19:22Z",
+  "status": "not_approved_by_owner",
+  "approved_set_root_sha256": "e4e886bf1dfd433342f3f10f34c086415462908d60f5a53d1448824c9fe3bfc7",
+  "root_definition": "SHA-256 of the exact registry.json bytes; the registry binds policy and task-manifest digests, and each task manifest binds its public contract and other artifacts",
+  "owner_record": {
+    "location": "external_to_corpus_root",
+    "required_authority": "ymp_project_owner",
+    "required_approver_role": "project_owner",
+    "must_bind": [
+      "corpus_id",
+      "approved_set_root_sha256",
+      "decision",
+      "authority",
+      "approver_id",
+      "approver_role",
+      "issued_at_unix_seconds",
+      "expires_at_unix_seconds"
+    ]
+  },
+  "packages": [
+    {
+      "id": "bstr-eof-and-debug",
+      "source_commit": "cc13102d64de7b43efaf804046065b68f6c9a0c0",
+      "fixed_commit": "af99a6ecb4723d0ea03982797a1becd8437d3f7d",
+      "public_requirements": [
+        "BSTR-EOF: an empty BufRead buffer ends record iteration without another read or an emitted record",
+        "BSTR-DEBUG: invalid UTF-8 bytes in BStr Debug output use two lowercase hexadecimal digits"
+      ],
+      "protected_oracle_sha256": "9d4925ce08644fc3ac9fee03e86bd92ac051f8286973f24bd31337ea1c554232"
+    },
+    {
+      "id": "semver-less-than-prerelease",
+      "source_commit": "35d918d334cdecc9725e217f460b90f478b5dabd",
+      "fixed_commit": "5742fc2f584dc14b46199d797de65305fe9b5144",
+      "public_requirements": [
+        "SEMVER-LT: a partial less-than comparator excludes prereleases at its minor-version boundary",
+        "SEMVER-LTE: a partial less-than-or-equal comparator includes named-minor stable releases but excludes boundary prereleases"
+      ],
+      "protected_oracle_sha256": "8f458c1a8c95a0db8701a2b1ff5de67a11fbc8cf3e7f88bce332c2066888cd1f"
+    },
+    {
+      "id": "serde-json-surrogate-escapes",
+      "source_commit": "4c28c5737b26f15bc7457d53eff8517b33cb4a43",
+      "fixed_commit": "07c740c2ffa2e81c9c3dc7982b67572e990e2cdd",
+      "public_requirements": [
+        "JSON-SURROGATE-STATE: byte-buffer escape parsing resumes immediately after a lone surrogate without weakening invalid-input rejection"
+      ],
+      "protected_oracle_sha256": "d593c1e3c36c95c6416df51dee4822ed1da873b8c36e84c0dcd66242c5f893e9"
+    },
+    {
+      "id": "toml-datetime-validation",
+      "source_commit": "99d50bb686adcdb569c0a1d37db1ac175c57e5ea",
+      "fixed_commit": "045e8966ad21b7d5578fabf503e210b7522d7a47",
+      "public_requirements": [
+        "TOML-LEAP-SECOND: seconds value 60 is accepted and greater values are rejected",
+        "TOML-CALENDAR-DAY: date validation applies Gregorian month lengths and leap-year rules"
+      ],
+      "protected_oracle_sha256": "eb782986c9d9b341ebfa5ec8e8381963d38ee6e044c3f43072f178eb716dd0f8"
+    }
+  ]
+}

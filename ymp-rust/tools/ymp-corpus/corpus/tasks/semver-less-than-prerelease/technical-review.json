@@ -1,0 +1,10 @@
+{
+  "schema_version": 1,
+  "task_id": "semver-less-than-prerelease",
+  "reviewed_at": "2026-08-12T04:47:52Z",
+  "reviewed_by_role": "corpus_author",
+  "human_approval": false,
+  "review_scope": "Protected versions are boundary instances of SEMVER-LT and SEMVER-LTE only; no hidden requirement was identified.",
+  "source_commit": "35d918d334cdecc9725e217f460b90f478b5dabd",
+  "fixed_commit": "5742fc2f584dc14b46199d797de65305fe9b5144"
+}

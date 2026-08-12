@@ -1,7 +1,7 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "id": "bstr-eof-and-debug",
-  "admission_status": "verified",
+  "admission_status": "candidate_technically_verified",
   "verified_at": "2026-08-12T04:47:52Z",
   "upstream": {
     "repository_url": "https://github.com/BurntSushi/bstr.git",
@@ -34,7 +34,7 @@
     "cargo_version": "cargo 1.89.0 (c24e10642 2025-06-23)",
     "host": "aarch64-apple-darwin",
     "git_version": "git version 2.50.1 (Apple Git-155)",
-    "archive_tool": "git archive --format=tar; bsdtar 3.5.3",
+    "archive_tool_version": "bsdtar 3.5.3 - libarchive 3.7.4 zlib/1.2.12 liblzma/5.4.3 bz2lib/1.0.8",
     "timeout_seconds": 300,
     "oracle_path": "tests/ymp_protected.rs",
     "visible_command": {
@@ -59,8 +59,8 @@
     }
   },
   "artifacts": {
-    "public_contract": {"path": "tasks/bstr-eof-and-debug/PROJECT.md", "sha256": "4f17e54aa882d88164bf0d8561608877d8798b9a3c5f3479e9ade97616fe62c8"},
-    "approval_record": {"path": "tasks/bstr-eof-and-debug/approval.json", "sha256": "3375e1c62fab897da2a02d733dfeeb625ca33bc1d6797f64954cec41d65e417e"},
+    "public_contract": {"path": "tasks/bstr-eof-and-debug/PROJECT.md", "sha256": "508dacae0b99f96dc87527970bbc5ed3f0c7ae3021cc60d85f2a46f2d09f5139"},
+    "technical_review": {"path": "tasks/bstr-eof-and-debug/technical-review.json", "sha256": "47f5dad0a665325d132e521010334d72a18b852c7fcec8dc1672c0858fe71f30"},
     "requirement_matrix": {"path": "tasks/bstr-eof-and-debug/requirement-matrix.json", "sha256": "dc20cac4ad040d14bf56ae52a368770f170db76210f846828996364e128f579d"},
     "oracle": {"path": "tasks/bstr-eof-and-debug/protected/oracle.rs", "sha256": "9d4925ce08644fc3ac9fee03e86bd92ac051f8286973f24bd31337ea1c554232"},
     "source_lock": {"path": "tasks/bstr-eof-and-debug/environment/source.Cargo.lock", "sha256": "fad92cf2402fd544e78c0bbadeec211ce5a45d53c1b79fa56b457c7dad559bbf"},

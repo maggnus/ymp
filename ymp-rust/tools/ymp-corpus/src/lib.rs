@@ -16,6 +16,8 @@ use tempfile::{Builder, NamedTempFile, TempDir};
 
 const OUTPUT_LIMIT: usize = 4096;
 const TREE_DOMAIN: &[u8] = b"TREEv1\0";
+const PUBLIC_BINDING_BEGIN: &str = "<!-- YMP-CORPUS-BINDING-V1-BEGIN -->";
+const PUBLIC_BINDING_END: &str = "<!-- YMP-CORPUS-BINDING-V1-END -->";
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum ControlObservation {
@@ -41,6 +43,7 @@ pub struct Registry {
     pub preparation_model_calls: u64,
     pub reproduction_model_calls: u64,
     pub expansion_policy: ArtifactRef,
+    pub approval_policy: ArtifactRef,
     pub policies: Vec<ArtifactRef>,
     pub tasks: Vec<TaskEntry>,
 }
@@ -110,7 +113,7 @@ pub struct Environment {
     pub cargo_version: String,
     pub host: String,
     pub git_version: String,
-    pub archive_tool: String,
+    pub archive_tool_version: String,
     pub timeout_seconds: u64,
     pub oracle_path: PathBuf,
     pub visible_command: CommandSpec,
@@ -144,7 +147,7 @@ pub struct Snapshot {
 #[serde(deny_unknown_fields)]
 pub struct TaskArtifacts {
     pub public_contract: ArtifactRef,
-    pub approval_record: ArtifactRef,
+    pub technical_review: ArtifactRef,
     pub requirement_matrix: ArtifactRef,
     pub oracle: ArtifactRef,
     pub source_lock: ArtifactRef,
@@ -165,6 +168,55 @@ pub struct LoadedCorpus {
     pub registry: Registry,
     pub registry_sha256: String,
     pub tasks: Vec<Task>,
+}
+
+#[derive(Clone, Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct ApprovalPolicy {
+    schema_version: u32,
+    approval_required_for_check_and_verify: bool,
+    approval_record_location: String,
+    required_authority: String,
+    required_approver_role: String,
+    forbidden_approver_roles: Vec<String>,
+    maximum_validity_seconds: u64,
+    maximum_future_clock_skew_seconds: u64,
+    missing_record_status: String,
+}
+
+#[derive(Clone, Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct OwnerApprovalRecord {
+    schema_version: u32,
+    corpus_id: String,
+    approved_set_root_sha256: String,
+    decision: String,
+    authority: String,
+    approver_id: String,
+    approver_role: String,
+    issued_at_unix_seconds: u64,
+    expires_at_unix_seconds: u64,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
+struct PublicBinding {
+    schema_version: u32,
+    task_id: String,
+    artifacts: Vec<PublicArtifactDigest>,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, Ord, PartialEq, PartialOrd, Serialize)]
+#[serde(deny_unknown_fields)]
+struct PublicArtifactDigest {
+    role: String,
+    sha256: String,
+}
+
+#[derive(Clone, Debug)]
+pub enum UsageApproval {
+    OwnerApproved { record_sha256: String },
+    UnapprovedEvidence,
 }
 
 #[derive(Debug, Serialize)]
@@ -188,6 +240,10 @@ pub struct ReproductionReport {
     pub schema_version: u32,
     pub corpus_id: String,
     pub registry_sha256: String,
+    pub approved_set_root_sha256: String,
+    pub owner_approval_status: String,
+    pub owner_approval_record_sha256: Option<String>,
+    pub approved_for_use: bool,
     pub started_unix_seconds: u64,
     pub offline: bool,
     pub model_calls: u64,
@@ -209,6 +265,8 @@ pub struct ReproductionEnvironment {
     pub rustc_version: String,
     pub cargo_version: String,
     pub host: String,
+    pub git_version: String,
+    pub archive_tool_version: String,
 }
 
 #[derive(Debug, Serialize)]
@@ -258,7 +316,7 @@ pub fn load_corpus(root: &Path) -> Result<LoadedCorpus> {
         .with_context(|| format!("read registry {}", registry_path.display()))?;
     let registry_sha256 = sha256_bytes(&registry_bytes);
     let registry: Registry = serde_json::from_slice(&registry_bytes).context("parse registry")?;
-    ensure!(registry.schema_version == 1, "unsupported registry schema");
+    ensure!(registry.schema_version == 2, "unsupported registry schema");
     ensure!(
         registry.corpus_role == "primary_corpus_candidate",
         "registry has an unsupported corpus role"
@@ -283,6 +341,10 @@ pub fn load_corpus(root: &Path) -> Result<LoadedCorpus> {
         "registry must explicitly exclude L1-L3"
     );
     verify_artifact(&root, &registry.expansion_policy)?;
+    let approval_policy_bytes = verify_artifact(&root, &registry.approval_policy)?;
+    let approval_policy: ApprovalPolicy =
+        serde_json::from_slice(&approval_policy_bytes).context("parse approval policy")?;
+    validate_approval_policy(&approval_policy)?;
     for policy in &registry.policies {
         verify_artifact(&root, policy)?;
     }
@@ -294,7 +356,7 @@ pub fn load_corpus(root: &Path) -> Result<LoadedCorpus> {
         let bytes = verify_artifact(&root, &entry.manifest)?;
         let task: Task = serde_json::from_slice(&bytes)
             .with_context(|| format!("parse task manifest {}", entry.manifest.path.display()))?;
-        validate_task(&root, &task, &entry.id)?;
+        validate_task(&root, &registry, &task, &entry.id)?;
         tasks.push(task);
     }
     ensure!(!tasks.is_empty(), "corpus edition contains no tasks");
@@ -318,10 +380,13 @@ pub fn load_corpus(root: &Path) -> Result<LoadedCorpus> {
     })
 }
 
-fn validate_task(root: &Path, task: &Task, expected_id: &str) -> Result<()> {
-    ensure!(task.schema_version == 1, "unsupported task schema");
+fn validate_task(root: &Path, registry: &Registry, task: &Task, expected_id: &str) -> Result<()> {
+    ensure!(task.schema_version == 2, "unsupported task schema");
     ensure!(task.id == expected_id, "task id does not match registry");
-    ensure!(task.admission_status == "verified", "task is not verified");
+    ensure!(
+        task.admission_status == "candidate_technically_verified",
+        "task is not technically verified"
+    );
     ensure!(
         !task.verified_at.is_empty(),
         "task has no verification date"
@@ -368,8 +433,8 @@ fn validate_task(root: &Path, task: &Task, expected_id: &str) -> Result<()> {
         "timeout must be positive"
     );
     ensure!(
-        !task.environment.archive_tool.trim().is_empty(),
-        "archive tool description is empty"
+        !task.environment.archive_tool_version.trim().is_empty(),
+        "archive tool version is empty"
     );
     ensure!(
         task.environment
@@ -430,7 +495,7 @@ fn validate_task(root: &Path, task: &Task, expected_id: &str) -> Result<()> {
     );
     for artifact in [
         &task.artifacts.public_contract,
-        &task.artifacts.approval_record,
+        &task.artifacts.technical_review,
         &task.artifacts.requirement_matrix,
         &task.artifacts.oracle,
         &task.artifacts.source_lock,
@@ -438,6 +503,245 @@ fn validate_task(root: &Path, task: &Task, expected_id: &str) -> Result<()> {
     ] {
         verify_artifact(root, artifact)?;
     }
+    validate_public_binding(root, registry, task)?;
+    Ok(())
+}
+
+fn validate_approval_policy(policy: &ApprovalPolicy) -> Result<()> {
+    ensure!(
+        policy.schema_version == 1,
+        "unsupported approval policy schema"
+    );
+    ensure!(
+        policy.approval_required_for_check_and_verify,
+        "approval policy does not require approval"
+    );
+    ensure!(
+        policy.approval_record_location == "external_to_corpus_root",
+        "approval record must be external to the corpus root"
+    );
+    ensure!(
+        policy.required_authority == "ymp_project_owner",
+        "unsupported approval authority"
+    );
+    ensure!(
+        policy.required_approver_role == "project_owner",
+        "unsupported approver role"
+    );
+    ensure!(
+        policy
+            .forbidden_approver_roles
+            .iter()
+            .any(|role| role == "corpus_author")
+            && policy
+                .forbidden_approver_roles
+                .iter()
+                .any(|role| role == "corpus_compiler"),
+        "corpus author and compiler roles must be forbidden from approval"
+    );
+    ensure!(
+        policy.maximum_validity_seconds > 0 && policy.maximum_future_clock_skew_seconds > 0,
+        "approval time bounds must be positive"
+    );
+    ensure!(
+        policy.missing_record_status == "not_approved_by_owner",
+        "unsupported missing-approval status"
+    );
+    Ok(())
+}
+
+fn validate_public_binding(root: &Path, registry: &Registry, task: &Task) -> Result<()> {
+    let bytes = fs::read(root.join(&task.artifacts.public_contract.path))?;
+    let contract = std::str::from_utf8(&bytes).context("public contract is not UTF-8")?;
+    let binding_json = contract
+        .split_once(PUBLIC_BINDING_BEGIN)
+        .and_then(|(_, tail)| tail.split_once(PUBLIC_BINDING_END).map(|(json, _)| json))
+        .context("public contract has no canonical artifact binding")?;
+    let binding: PublicBinding =
+        serde_json::from_str(binding_json.trim()).context("parse public artifact binding")?;
+    ensure!(
+        binding.schema_version == 1,
+        "unsupported public binding schema"
+    );
+    ensure!(
+        binding.task_id == task.id,
+        "public binding task id mismatch"
+    );
+    let mut sorted = binding.artifacts.clone();
+    sorted.sort();
+    ensure!(
+        sorted == binding.artifacts,
+        "public artifact binding must be sorted by role and digest"
+    );
+    ensure!(
+        binding
+            .artifacts
+            .iter()
+            .map(|artifact| artifact.role.as_str())
+            .collect::<BTreeSet<_>>()
+            .len()
+            == binding.artifacts.len(),
+        "public artifact binding contains duplicate roles"
+    );
+    for artifact in &binding.artifacts {
+        validate_sha256(&artifact.sha256, &artifact.role)?;
+    }
+    ensure!(
+        binding.artifacts == expected_public_binding(registry, task),
+        "public artifact binding does not match the task manifest and corpus policies"
+    );
+    Ok(())
+}
+
+fn expected_public_binding(registry: &Registry, task: &Task) -> Vec<PublicArtifactDigest> {
+    let mut artifacts = vec![
+        public_digest("corpus.approval_policy", &registry.approval_policy.sha256),
+        public_digest("corpus.expansion_policy", &registry.expansion_policy.sha256),
+        public_digest("task.fixed_archive", &task.snapshots.fixed.archive_sha256),
+        public_digest("task.fixed_lock", &task.artifacts.fixed_lock.sha256),
+        public_digest(
+            "task.requirement_matrix",
+            &task.artifacts.requirement_matrix.sha256,
+        ),
+        public_digest("task.source_archive", &task.snapshots.source.archive_sha256),
+        public_digest("task.source_lock", &task.artifacts.source_lock.sha256),
+        public_digest(
+            "task.technical_review",
+            &task.artifacts.technical_review.sha256,
+        ),
+        public_digest("task.vendor_tree", &task.environment.vendor_tree_sha256),
+        public_digest("protected.oracle", &task.artifacts.oracle.sha256),
+    ];
+    for policy in &registry.policies {
+        let name = policy
+            .path
+            .file_stem()
+            .and_then(OsStr::to_str)
+            .unwrap_or("unknown");
+        artifacts.push(public_digest(
+            &format!("corpus.{name}_policy"),
+            &policy.sha256,
+        ));
+    }
+    for variant in &task.control_variants {
+        artifacts.push(public_digest(
+            &format!("protected.control.{}", variant.id),
+            &variant.reverse_patch.sha256,
+        ));
+    }
+    artifacts.sort();
+    artifacts
+}
+
+fn public_digest(role: &str, sha256: &str) -> PublicArtifactDigest {
+    PublicArtifactDigest {
+        role: role.to_owned(),
+        sha256: sha256.to_owned(),
+    }
+}
+
+pub fn require_owner_approval(
+    corpus: &LoadedCorpus,
+    approval_path: Option<&Path>,
+) -> Result<UsageApproval> {
+    let approval_path = approval_path
+        .context("owner approval record is required; this corpus is not approved by the owner")?;
+    let requested_path = if approval_path.is_absolute() {
+        approval_path.to_path_buf()
+    } else {
+        std::env::current_dir()
+            .context("read current directory")?
+            .join(approval_path)
+    };
+    ensure!(
+        !requested_path.starts_with(&corpus.root),
+        "owner approval record must be external to the corpus root"
+    );
+    let approval_path = approval_path.canonicalize().with_context(|| {
+        format!(
+            "canonicalize owner approval record {}",
+            approval_path.display()
+        )
+    })?;
+    ensure!(
+        !approval_path.starts_with(&corpus.root),
+        "owner approval record must be external to the corpus root"
+    );
+    let bytes = fs::read(&approval_path)
+        .with_context(|| format!("read owner approval record {}", approval_path.display()))?;
+    let record: OwnerApprovalRecord =
+        serde_json::from_slice(&bytes).context("parse owner approval record")?;
+    let policy_bytes = verify_artifact(&corpus.root, &corpus.registry.approval_policy)?;
+    let policy: ApprovalPolicy =
+        serde_json::from_slice(&policy_bytes).context("parse approval policy")?;
+    let now = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .context("system clock precedes Unix epoch")?
+        .as_secs();
+    validate_owner_approval_record(corpus, &policy, &record, now)?;
+    Ok(UsageApproval::OwnerApproved {
+        record_sha256: sha256_bytes(&bytes),
+    })
+}
+
+fn validate_owner_approval_record(
+    corpus: &LoadedCorpus,
+    policy: &ApprovalPolicy,
+    record: &OwnerApprovalRecord,
+    now: u64,
+) -> Result<()> {
+    ensure!(
+        record.schema_version == 1,
+        "unsupported owner approval schema"
+    );
+    ensure!(
+        record.decision == "approved",
+        "owner decision is not approval"
+    );
+    ensure!(
+        record.corpus_id == corpus.registry.corpus_id,
+        "approval corpus id mismatch"
+    );
+    validate_sha256(&record.approved_set_root_sha256, "approved set root")?;
+    ensure!(
+        record.approved_set_root_sha256 == corpus.registry_sha256,
+        "owner approval is stale or belongs to a different approved-set root"
+    );
+    ensure!(
+        record.expires_at_unix_seconds > record.issued_at_unix_seconds,
+        "owner approval has an invalid validity interval"
+    );
+    ensure!(
+        record
+            .expires_at_unix_seconds
+            .saturating_sub(record.issued_at_unix_seconds)
+            <= policy.maximum_validity_seconds,
+        "owner approval validity exceeds policy"
+    );
+    ensure!(
+        record.issued_at_unix_seconds
+            <= now.saturating_add(policy.maximum_future_clock_skew_seconds),
+        "owner approval is dated in the future"
+    );
+    ensure!(
+        now < record.expires_at_unix_seconds,
+        "owner approval is stale"
+    );
+    ensure!(
+        record.authority == policy.required_authority,
+        "owner approval authority mismatch"
+    );
+    ensure!(
+        record.approver_role == policy.required_approver_role
+            && !policy
+                .forbidden_approver_roles
+                .contains(&record.approver_role),
+        "corpus author or compiler cannot issue owner approval"
+    );
+    ensure!(
+        !record.approver_id.trim().is_empty(),
+        "owner approval has no approver id"
+    );
     Ok(())
 }
 
@@ -643,7 +947,11 @@ enum CandidateBase {
     Fixed,
 }
 
-pub fn reproduce(corpus: &LoadedCorpus, cache: &Path) -> Result<ReproductionReport> {
+pub fn reproduce(
+    corpus: &LoadedCorpus,
+    cache: &Path,
+    approval: &UsageApproval,
+) -> Result<ReproductionReport> {
     let started = Instant::now();
     let environment = check_toolchain(corpus)?;
     check_cache(corpus, cache)?;
@@ -684,10 +992,22 @@ pub fn reproduce(corpus: &LoadedCorpus, cache: &Path) -> Result<ReproductionRepo
             check.name == "fixed-protected" || check.expectation == "fail_in_named_protected_test"
         })
         .count() as u64;
+    let (owner_approval_status, owner_approval_record_sha256, approved_for_use) = match approval {
+        UsageApproval::OwnerApproved { record_sha256 } => (
+            "approved_by_owner".to_owned(),
+            Some(record_sha256.clone()),
+            true,
+        ),
+        UsageApproval::UnapprovedEvidence => ("not_approved_by_owner".to_owned(), None, false),
+    };
     Ok(ReproductionReport {
-        schema_version: 1,
+        schema_version: 2,
         corpus_id: corpus.registry.corpus_id.clone(),
         registry_sha256: corpus.registry_sha256.clone(),
+        approved_set_root_sha256: corpus.registry_sha256.clone(),
+        owner_approval_status,
+        owner_approval_record_sha256,
+        approved_for_use,
         started_unix_seconds,
         offline: true,
         model_calls: 0,
@@ -1074,6 +1394,7 @@ fn check_toolchain(corpus: &LoadedCorpus) -> Result<ReproductionEnvironment> {
     let rustc = command_stdout("rustc", ["--version", "--verbose"])?;
     let cargo = command_stdout("cargo", ["--version", "--verbose"])?;
     let git = command_stdout("git", ["--version"])?;
+    let archive_tool = command_stdout("tar", ["--version"])?;
     let host = rustc
         .lines()
         .find_map(|line| line.strip_prefix("host: "))
@@ -1099,11 +1420,24 @@ fn check_toolchain(corpus: &LoadedCorpus) -> Result<ReproductionEnvironment> {
             "git version does not match {}",
             task.id
         );
+        ensure!(
+            archive_tool.lines().next().map(str::trim)
+                == Some(task.environment.archive_tool_version.as_str()),
+            "archive tool version does not match {}",
+            task.id
+        );
     }
     Ok(ReproductionEnvironment {
         rustc_version: rustc.lines().next().unwrap_or_default().to_owned(),
         cargo_version: cargo.lines().next().unwrap_or_default().to_owned(),
         host: host.to_owned(),
+        git_version: git.trim().to_owned(),
+        archive_tool_version: archive_tool
+            .lines()
+            .next()
+            .map(str::trim)
+            .unwrap_or_default()
+            .to_owned(),
     })
 }
 
@@ -1210,13 +1544,15 @@ pub fn report_json<T: Serialize>(report: &T) -> Result<String> {
 #[cfg(test)]
 mod tests {
     use std::fs;
-    use std::path::PathBuf;
+    use std::path::{Path, PathBuf};
 
+    use serde_json::Value;
     use tempfile::tempdir;
 
     use super::{
-        ControlObservation, negative_control_keeps_package_usable, tree_digest,
-        validate_relative_path,
+        ApprovalPolicy, ControlObservation, OwnerApprovalRecord,
+        negative_control_keeps_package_usable, sha256_bytes, tree_digest,
+        validate_owner_approval_record, validate_relative_path,
     };
 
     #[test]
@@ -1268,10 +1604,156 @@ mod tests {
 
     #[test]
     fn committed_registry_is_internally_consistent() {
-        let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("corpus");
+        let root = committed_corpus();
         let corpus = super::load_corpus(&root).unwrap();
         assert_eq!(corpus.tasks.len(), 4);
         assert!(!corpus.registry.statistically_sufficient);
         assert!(!corpus.registry.study_frozen);
+    }
+
+    #[test]
+    fn committed_approval_record_is_forbidden() {
+        let corpus = super::load_corpus(&committed_corpus()).unwrap();
+        let error =
+            super::require_owner_approval(&corpus, Some(&corpus.root.join("registry.json")))
+                .unwrap_err();
+        assert!(
+            error
+                .to_string()
+                .contains("must be external to the corpus root")
+        );
+    }
+
+    #[test]
+    fn missing_owner_approval_blocks_use() {
+        let corpus = super::load_corpus(&committed_corpus()).unwrap();
+        let error = super::require_owner_approval(&corpus, None).unwrap_err();
+        assert!(error.to_string().contains("not approved by the owner"));
+    }
+
+    #[test]
+    fn corpus_author_role_cannot_issue_owner_approval() {
+        let corpus = super::load_corpus(&committed_corpus()).unwrap();
+        let policy = committed_approval_policy(&corpus);
+        let record = unauthorized_test_record(&corpus);
+        let error =
+            validate_owner_approval_record(&corpus, &policy, &record, 1_000_000).unwrap_err();
+        assert!(error.to_string().contains("cannot issue owner approval"));
+    }
+
+    #[test]
+    fn wrong_authority_cannot_issue_owner_approval() {
+        let corpus = super::load_corpus(&committed_corpus()).unwrap();
+        let policy = committed_approval_policy(&corpus);
+        let mut record = unauthorized_test_record(&corpus);
+        record.authority = "corpus_builder".to_owned();
+        record.approver_role = "project_owner".to_owned();
+        let error =
+            validate_owner_approval_record(&corpus, &policy, &record, 1_000_000).unwrap_err();
+        assert!(error.to_string().contains("authority mismatch"));
+    }
+
+    #[test]
+    fn mismatched_or_stale_owner_approval_blocks_use() {
+        let corpus = super::load_corpus(&committed_corpus()).unwrap();
+        let policy = committed_approval_policy(&corpus);
+        let mut mismatched = unauthorized_test_record(&corpus);
+        mismatched.approved_set_root_sha256 = "0".repeat(64);
+        let error =
+            validate_owner_approval_record(&corpus, &policy, &mismatched, 1_000_000).unwrap_err();
+        assert!(
+            error
+                .to_string()
+                .contains("stale or belongs to a different")
+        );
+
+        let mut stale = unauthorized_test_record(&corpus);
+        stale.expires_at_unix_seconds = 1_000_000;
+        let error =
+            validate_owner_approval_record(&corpus, &policy, &stale, 1_000_000).unwrap_err();
+        assert!(error.to_string().contains("owner approval is stale"));
+    }
+
+    #[test]
+    fn changed_linked_artifact_is_rejected_by_public_binding() {
+        let temp = tempdir().unwrap();
+        copy_tree(&committed_corpus(), temp.path());
+        let oracle_path = temp
+            .path()
+            .join("tasks/bstr-eof-and-debug/protected/oracle.rs");
+        let mut oracle = fs::read(&oracle_path).unwrap();
+        oracle.push(b' ');
+        fs::write(&oracle_path, &oracle).unwrap();
+
+        let manifest_path = temp.path().join("tasks/bstr-eof-and-debug/manifest.json");
+        let mut manifest: Value =
+            serde_json::from_slice(&fs::read(&manifest_path).unwrap()).unwrap();
+        manifest["artifacts"]["oracle"]["sha256"] = Value::String(sha256_bytes(&oracle));
+        write_json(&manifest_path, &manifest);
+
+        let registry_path = temp.path().join("registry.json");
+        let mut registry: Value =
+            serde_json::from_slice(&fs::read(&registry_path).unwrap()).unwrap();
+        registry["tasks"][0]["manifest"]["sha256"] =
+            Value::String(sha256_bytes(&fs::read(&manifest_path).unwrap()));
+        write_json(&registry_path, &registry);
+
+        let error = super::load_corpus(temp.path()).unwrap_err();
+        assert!(error.to_string().contains("public artifact binding"));
+    }
+
+    #[test]
+    fn one_byte_change_fails_before_candidate_execution() {
+        let temp = tempdir().unwrap();
+        copy_tree(&committed_corpus(), temp.path());
+        let oracle_path = temp
+            .path()
+            .join("tasks/bstr-eof-and-debug/protected/oracle.rs");
+        let mut oracle = fs::read(&oracle_path).unwrap();
+        oracle[0] ^= 1;
+        fs::write(&oracle_path, oracle).unwrap();
+        let error = super::load_corpus(temp.path()).unwrap_err();
+        assert!(error.to_string().contains("artifact digest mismatch"));
+    }
+
+    fn committed_corpus() -> PathBuf {
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("corpus")
+    }
+
+    fn committed_approval_policy(corpus: &super::LoadedCorpus) -> ApprovalPolicy {
+        let bytes = super::verify_artifact(&corpus.root, &corpus.registry.approval_policy).unwrap();
+        serde_json::from_slice(&bytes).unwrap()
+    }
+
+    fn unauthorized_test_record(corpus: &super::LoadedCorpus) -> OwnerApprovalRecord {
+        OwnerApprovalRecord {
+            schema_version: 1,
+            corpus_id: corpus.registry.corpus_id.clone(),
+            approved_set_root_sha256: corpus.registry_sha256.clone(),
+            decision: "approved".to_owned(),
+            authority: "ymp_project_owner".to_owned(),
+            approver_id: "test-only-unauthorized-record".to_owned(),
+            approver_role: "corpus_author".to_owned(),
+            issued_at_unix_seconds: 999_900,
+            expires_at_unix_seconds: 1_000_100,
+        }
+    }
+
+    fn copy_tree(source: &Path, destination: &Path) {
+        for path in super::recursive_paths(source).unwrap() {
+            let relative = path.strip_prefix(source).unwrap();
+            let target = destination.join(relative);
+            if path.is_dir() {
+                fs::create_dir_all(&target).unwrap();
+            } else {
+                fs::copy(path, target).unwrap();
+            }
+        }
+    }
+
+    fn write_json(path: &Path, value: &Value) {
+        let mut bytes = serde_json::to_vec_pretty(value).unwrap();
+        bytes.push(b'\n');
+        fs::write(path, bytes).unwrap();
     }
 }

@@ -1,0 +1,10 @@
+{
+  "schema_version": 1,
+  "task_id": "toml-datetime-validation",
+  "reviewed_at": "2026-08-12T04:47:52Z",
+  "reviewed_by_role": "corpus_author",
+  "human_approval": false,
+  "review_scope": "Protected dates and times instantiate TOML-LEAP-SECOND and TOML-CALENDAR-DAY only; no hidden requirement was identified.",
+  "source_commit": "99d50bb686adcdb569c0a1d37db1ac175c57e5ea",
+  "fixed_commit": "045e8966ad21b7d5578fabf503e210b7522d7a47"
+}

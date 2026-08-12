@@ -1,7 +1,7 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "id": "toml-datetime-validation",
-  "admission_status": "verified",
+  "admission_status": "candidate_technically_verified",
   "verified_at": "2026-08-12T04:47:52Z",
   "upstream": {
     "repository_url": "https://github.com/toml-rs/toml.git",
@@ -37,7 +37,7 @@
     "cargo_version": "cargo 1.89.0 (c24e10642 2025-06-23)",
     "host": "aarch64-apple-darwin",
     "git_version": "git version 2.50.1 (Apple Git-155)",
-    "archive_tool": "git archive --format=tar; bsdtar 3.5.3",
+    "archive_tool_version": "bsdtar 3.5.3 - libarchive 3.7.4 zlib/1.2.12 liblzma/5.4.3 bz2lib/1.0.8",
     "timeout_seconds": 300,
     "oracle_path": "crates/toml_datetime/tests/ymp_protected.rs",
     "visible_command": {
@@ -62,8 +62,8 @@
     }
   },
   "artifacts": {
-    "public_contract": {"path": "tasks/toml-datetime-validation/PROJECT.md", "sha256": "3d0d567a6501b61e2c8539a6067adc2146e6d93ea193fc01f0b3fbe40abacfc9"},
-    "approval_record": {"path": "tasks/toml-datetime-validation/approval.json", "sha256": "cc22c2d0060c6bc0d56e1922d4a9c7f26b0eae9bf2ea50a19fd2865cbabfb8ca"},
+    "public_contract": {"path": "tasks/toml-datetime-validation/PROJECT.md", "sha256": "134e9949a43e8aba11bb4330b51a241985e724cd6cc0dc41450150444fe1aa3b"},
+    "technical_review": {"path": "tasks/toml-datetime-validation/technical-review.json", "sha256": "408bd52c2b5c61b0caea5efdbc3b1ddd64c52b95fa5baf1a1bcb468f6080be90"},
     "requirement_matrix": {"path": "tasks/toml-datetime-validation/requirement-matrix.json", "sha256": "86db19aa588a52619682953dee77dca8141597cba917efcca1632279fb757dcb"},
     "oracle": {"path": "tasks/toml-datetime-validation/protected/oracle.rs", "sha256": "eb782986c9d9b341ebfa5ec8e8381963d38ee6e044c3f43072f178eb716dd0f8"},
     "source_lock": {"path": "tasks/toml-datetime-validation/environment/source.Cargo.lock", "sha256": "4fe086693ba6a075fb6b9a5d5196ebb28092f03da9935b47fab94962d419afe7"},

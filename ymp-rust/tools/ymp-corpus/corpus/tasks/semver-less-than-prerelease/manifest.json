@@ -1,7 +1,7 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "id": "semver-less-than-prerelease",
-  "admission_status": "verified",
+  "admission_status": "candidate_technically_verified",
   "verified_at": "2026-08-12T04:47:52Z",
   "upstream": {
     "repository_url": "https://github.com/dtolnay/semver.git",
@@ -33,7 +33,7 @@
     "cargo_version": "cargo 1.89.0 (c24e10642 2025-06-23)",
     "host": "aarch64-apple-darwin",
     "git_version": "git version 2.50.1 (Apple Git-155)",
-    "archive_tool": "git archive --format=tar; bsdtar 3.5.3",
+    "archive_tool_version": "bsdtar 3.5.3 - libarchive 3.7.4 zlib/1.2.12 liblzma/5.4.3 bz2lib/1.0.8",
     "timeout_seconds": 300,
     "oracle_path": "tests/ymp_protected.rs",
     "visible_command": {
@@ -58,8 +58,8 @@
     }
   },
   "artifacts": {
-    "public_contract": {"path": "tasks/semver-less-than-prerelease/PROJECT.md", "sha256": "41235837480cec7e9037629f64442c42b06456fe022f61c02e1a1364d604a55a"},
-    "approval_record": {"path": "tasks/semver-less-than-prerelease/approval.json", "sha256": "2e43baa2ae8c46c12da48e82f1c923c3ad4095a5ea5283c11e7943339ca49149"},
+    "public_contract": {"path": "tasks/semver-less-than-prerelease/PROJECT.md", "sha256": "23916827c34fc13e87b9924e7c868bc06791c71ea2e7759a636d9581537e35ad"},
+    "technical_review": {"path": "tasks/semver-less-than-prerelease/technical-review.json", "sha256": "7dfc9e515992e3a8c58f9a53d2d676260f4220e6265c634887192586ff624d65"},
     "requirement_matrix": {"path": "tasks/semver-less-than-prerelease/requirement-matrix.json", "sha256": "f88aa85c245c9340783c994b8b9df33706b47ec56e803649163c7a0a24e11977"},
     "oracle": {"path": "tasks/semver-less-than-prerelease/protected/oracle.rs", "sha256": "8f458c1a8c95a0db8701a2b1ff5de67a11fbc8cf3e7f88bce332c2066888cd1f"},
     "source_lock": {"path": "tasks/semver-less-than-prerelease/environment/source.Cargo.lock", "sha256": "f09abe7b1d9830320701b2a2a06a0d106bbc47379c952a5453e05c0b3f835a47"},
