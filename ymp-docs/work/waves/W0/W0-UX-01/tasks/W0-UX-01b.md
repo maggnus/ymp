@@ -3,15 +3,15 @@ id: W0-UX-01b
 kind: task
 wave: W0
 card: W0-UX-01
-state: ready
+state: active
 risk: significant
 maturity: DESIGN
 relation: required
 depends_on: [W0-UX-01a]
 blocks: [W0-UX-01c]
 created_at: 2026-08-10T21:23:34+08:00
-updated_at: 2026-08-12T09:27:57+08:00
-started_at:
+updated_at: 2026-08-12T12:05:36+08:00
+started_at: 2026-08-12T12:05:36+08:00
 accepted_at:
 candidate_commit:
 closure_commit:
@@ -64,15 +64,15 @@ and MVP extension points without becoming production code.
 
 ## Current state
 
-`ymp-docs/design/ymp_k9s_tui.dc.html` now exists and contains the screen system. Its local
-dependencies, complete state coverage, responsive behavior, and requirement-to-screen index have
-not yet passed review.
+The accepted W0-UX-01a matrix defines nine projection-backed templates and seven explicit `BLK-*`
+gaps. Work is active in the sole HTML artifact on complete state fixtures, three terminal-size
+classes, typed consequence previews, lost-reply and unread-message controls, assurance failures,
+and deterministic handoff evidence.
 
 ## Next action
 
-Open the artifact locally without external services, inventory every screen and conditional state,
-and return any missing, contradictory, inaccessible, or non-terminal-native behavior as an exact
-finding against the artifact.
+Resolve every `BLK-*` row in the same reusable template system, validate representative fixtures
+locally at 80 × 24, 120 × 40, and 180 × 50, and submit the exact artifact to non-author review.
 
 ## Guardrails
 
