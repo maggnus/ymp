@@ -3,15 +3,15 @@ id: W1-APP-02a
 kind: task
 wave: W1
 card: W1-APP-02
-state: ready
+state: review
 risk: significant
 maturity: BUILD
 relation: required
 depends_on: [W1-EXP-01c, W1-EXP-01d]
 blocks: [W1-APP-02b, W1-APP-02c, W1-APP-02d]
 created_at: 2026-08-10T19:34:25+08:00
-updated_at: 2026-08-12T02:47:53+08:00
-started_at:
+updated_at: 2026-08-12T16:17:00+08:00
+started_at: 2026-08-12T16:17:00+08:00
 accepted_at:
 candidate_commit:
 closure_commit:
@@ -62,7 +62,7 @@ views recover from an event cursor independently of in-memory notifications.
 
 ## Current state
 
-The production workspace builds one executable with typed events, recovered idempotency, atomic
+Independent review is active. The production workspace builds one executable with typed events, recovered idempotency, atomic
 metadata, canonical objects, cursor replay, and one writer. Journal records and total bytes have
 hard ceilings with terminal capacity, and exhaustion persists `infrastructure_error`. Notifications
 are lossy by design; lagging readers recover from a durable cursor. Version-1 schema and fail-closed
