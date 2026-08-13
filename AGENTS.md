@@ -82,7 +82,7 @@ installation source.
 Claude Code:
 
 ```sh
-PASEO_CTO_TAG=v9.13.0
+PASEO_CTO_TAG=v9.16.0
 claude plugin marketplace add "maggnus/claude-plugins@${PASEO_CTO_TAG}"
 claude plugin install paseo-cto@maggnus
 claude plugin install russian-speech@maggnus
@@ -91,7 +91,7 @@ claude plugin install russian-speech@maggnus
 Codex:
 
 ```sh
-PASEO_CTO_TAG=v9.13.0
+PASEO_CTO_TAG=v9.16.0
 codex plugin marketplace add maggnus/claude-plugins --ref "$PASEO_CTO_TAG"
 codex plugin add paseo-cto@maggnus
 codex plugin add russian-speech@maggnus
@@ -107,7 +107,7 @@ codex plugin list
 ```
 
 The required source is GitHub `maggnus/claude-plugins`; the required `paseo-cto` version is
-`9.13.0`.
+`9.16.0`.
 
 ## work.py
 
@@ -118,7 +118,7 @@ inside the installed plugin:
 - Codex: `~/.codex/plugins/cache/maggnus/paseo-cto/*/skills/paseo-cto/templates/work.py`;
 - Claude Code: `~/.claude/plugins/cache/maggnus/paseo-cto/*/skills/paseo-cto/templates/work.py`.
 
-If several versions are present, use the copy from `paseo-cto` version `9.13.0` installed from the
+If several versions are present, use the copy from `paseo-cto` version `9.16.0` installed from the
 GitHub source above.
 
 ## Change and validation rules
