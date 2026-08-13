@@ -26,12 +26,14 @@ ymp-domain.workspace = true
 ymp-runtime-api.workspace = true
 ymp-runtime-claude.workspace = true
 ymp-runtime-codex.workspace = true
-ymp-runtime-fake.workspace = true
 ymp-runtime-supervisor.workspace = true
-ymp-testkit.workspace = true
 ymp-tui.workspace = true
 ymp-verifier.workspace = true
 
+# The fake runtime and the test kit are used only by the checks in `tests/`. They are declared here
+# so that no path through the shipped binary can reach them.
 [dev-dependencies]
 crossterm.workspace = true
 tempfile.workspace = true
+ymp-runtime-fake.workspace = true
+ymp-testkit.workspace = true

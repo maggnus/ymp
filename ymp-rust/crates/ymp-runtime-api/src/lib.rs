@@ -1171,6 +1171,16 @@ pub fn register_launch_marker(child: &Child, marker: PathBuf) {
 #[cfg(not(unix))]
 pub fn register_launch_marker(_child: &Child, _marker: PathBuf) {}
 
+/// The processes that hold the given marker open, or the reason this could not be established.
+///
+/// Exposed so that a check can measure the difference between "nobody holds this marker" and "this
+/// marker could not be read", which the underlying utility reports alike.
+#[doc(hidden)]
+#[cfg(unix)]
+pub fn marker_holders(marker: &Path) -> Result<Vec<u32>, RuntimeError> {
+    descendants::holders_of(marker)
+}
+
 /// Identifies the processes a managed run started. The authoritative property is the run's marker,
 /// which every descendant carries whatever becomes of its ancestors; the process table is read as
 /// well, so a descendant still attached by parent or process group is found even when it was started
@@ -1225,20 +1235,43 @@ mod descendants {
     /// A failure to ask the question is not the answer "nobody". A utility that cannot be admitted,
     /// or that cannot be executed, is reported to the caller, because a run that reported no
     /// holders here would report a clean termination it never established.
-    fn holders_of(marker: &Path) -> Result<Vec<u32>, RuntimeError> {
+    pub fn holders_of(marker: &Path) -> Result<Vec<u32>, RuntimeError> {
         // Linux reports open descriptors in its own process file system, so no external program is
         // needed there.
-        if Path::new("/proc/self/fd").is_dir() {
-            return proc_holders(marker);
+        let holders = if Path::new("/proc/self/fd").is_dir() {
+            proc_holders(marker)?
+        } else {
+            let program = super::lifecycle::program(super::ProgramRole::DescriptorHolders)?;
+            let output = Command::new(&program)
+                .arg("-t")
+                .arg(marker)
+                .stderr(Stdio::null())
+                .output()?;
+            holders_reported(output.status.code(), &output.stdout).map_err(|reason| {
+                RuntimeError::InvalidProfile(format!("{reason}: {}", program.display()))
+            })?
+        };
+        if holders.is_empty() {
+            readable_marker(marker)?;
         }
-        let program = super::lifecycle::program(super::ProgramRole::DescriptorHolders)?;
-        let output = Command::new(&program)
-            .arg("-t")
-            .arg(marker)
-            .stderr(Stdio::null())
-            .output()?;
-        holders_reported(output.status.code(), &output.stdout).map_err(|reason| {
-            RuntimeError::InvalidProfile(format!("{reason}: {}", program.display()))
+        Ok(holders)
+    }
+
+    /// Confirms the marker an empty answer was given about.
+    ///
+    /// "No process holds this file" and "this file could not be read" reach the caller in the same
+    /// shape: the utility exits with code one and prints nothing in both cases, and the process file
+    /// system silently skips a process whose descriptors this account may not list. An empty list is
+    /// therefore an answer only where the marker still exists and this account can open it. Where it
+    /// cannot, the question was not answered, and the caller is told so rather than being handed the
+    /// answer "nobody", which would let a run report a termination it never established.
+    fn readable_marker(marker: &Path) -> Result<(), RuntimeError> {
+        std::fs::File::open(marker).map(drop).map_err(|error| {
+            RuntimeError::InvalidProfile(format!(
+                "no process was reported holding the run's marker open, and the marker itself \
+                 could not be read, so nothing was established about the run: {} ({error})",
+                marker.display()
+            ))
         })
     }
 
