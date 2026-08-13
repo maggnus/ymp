@@ -203,7 +203,7 @@ must not be closed by pretending in the interface.
 
 | Drawn | Present today |
 |---|---|
-| Assurance profile `poc_disposable` | `poc_process_isolation` in `PROJECT-CONTRACT.md` and code |
+| Assurance profile `poc_disposable` | `poc_process_isolation` in `PROJECT-CONTRACT.md` and code; decided below in favour of the recorded name |
 | Event kinds `workspace.fact`, `budget.reserve`, `budget.use`, `candidate.published`, `verification.started/check`, `board.message.*` | eight kinds in `ymp-domain`, none of them these |
 | Budget of five dimensions, with enforced / observed / estimated classes | two dimensions: remaining attempts and remaining verification queries |
 | Intent, contract package, interview, board messages, participants | absent from the domain |
@@ -221,7 +221,40 @@ result somewhere to go.
 1. Whether an oracle that misses a deliberate break is a blocking item or a warning. The artifact
    answers it as a warning that stays visible (`R2`, `2/3 killed ▲`), while a test failing on a
    clean base blocks (`R5`).
-2. Whether the exit of a live run is `cancelled` or `infrastructure_error`, which the frozen
-   artifact and the current implementation answer differently.
-3. Which assurance-profile name is authoritative, since the drawn name and the recorded name
-   differ.
+
+## Interface decisions
+
+Two questions that the design left open are decided here, because only an implementation can
+answer them, and each is shown by a screen rather than only stated.
+
+### The authoritative assurance-profile name is `poc_process_isolation`
+
+The drawn name `poc_disposable` is superseded. `PROJECT-CONTRACT.md` states that the first release
+uses `poc_process_isolation`, the code uses that name, and it describes the mechanism the product
+actually applies: each attempt runs in a separate process against a private copy of the code.
+`poc_disposable` describes the environment the experiment must be run in, which `INV-8` already
+owns; using it as the profile name would name the wrong thing and, worse, would suggest a
+containment property the profile does not provide.
+
+Wherever the profile appears it is followed by its limit — that it provides no hostile-code
+containment and that agents run with the operator's own permissions. The name is never shown
+alone.
+
+Shown by: the opening transcript, the wide context header, and the `assurance` row of the contract
+authorization surface.
+
+### A run the operator ends is recorded as `cancelled`
+
+`cancelled` and `infrastructure_error` are different facts and are never substituted for one
+another. `cancelled` records a decision by the operator; `infrastructure_error` records a failure
+of the machinery. When the operator confirms a cancellation, the interface issues the domain's
+cancel command, the journal records the cancellation with its reason, and the run reaches the
+terminal outcome `cancelled`. A runtime that dies while being stopped is a consequence of that
+decision and does not change the outcome the operator is shown.
+
+The confirmation is typed: the exact run identifier must be entered before the action becomes
+available, and the screen states beforehand which attempts are interrupted, that consumed budget
+is not returned, that the journal and every published candidate stay readable, and that the
+recorded outcome will be `cancelled`.
+
+Shown by: the cancel confirmation surface and the terminal transcript that follows it.

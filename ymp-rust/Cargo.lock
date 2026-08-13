@@ -1273,7 +1273,8 @@ dependencies = [
  "crossterm",
  "ratatui",
  "tempfile",
- "uuid",
+ "unicode-segmentation",
+ "unicode-width 0.2.0",
  "ymp-application",
  "ymp-domain",
  "ymp-runtime-api",
@@ -1281,7 +1282,6 @@ dependencies = [
  "ymp-runtime-codex",
  "ymp-runtime-fake",
  "ymp-runtime-supervisor",
- "ymp-verifier",
 ]
 
 [[package]]
