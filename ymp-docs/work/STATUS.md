@@ -14,7 +14,7 @@
 | `[x]` | [`W1-APP-02a.2`](waves/W1/W1-APP-02/tasks/W1-APP-02a/subtasks/W1-APP-02a.2.md) | Foreground executable exposes no public headless mode | [`10261434`](https://github.com/maggnus/ymp/commit/1026143499c201a57e670f4b8b89c099645365fc) | 12/08 19:03 | 12/08 19:46 (43m) |
 | `[x]` | [`W1-APP-02b`](waves/W1/W1-APP-02/tasks/W1-APP-02b.md) | Private attempt produces independently verified immutable candidate | [`5571a07f`](https://github.com/maggnus/ymp/commit/5571a07f5ca8f1ffcf515a73fc24401dce361ecd) | 12/08 16:14 | 12/08 19:02 (2h48m) |
 | `[x]` | [`W1-APP-02c`](waves/W1/W1-APP-02/tasks/W1-APP-02c.md) | Codex profile completes one managed candidate attempt | [`d56b199e`](https://github.com/maggnus/ymp/commit/d56b199ed1c8c7e13f479cfcac9647fa4f5abd0b) | 12/08 22:06 | 13/08 09:17 (11h10m) |
-| `[~]` | [`W1-APP-02d`](waves/W1/W1-APP-02/tasks/W1-APP-02d.md) | Claude Code profile completes one managed candidate attempt | — | 12/08 22:44 | 12/08 22:44 (0m) |
+| `[x]` | [`W1-APP-02d`](waves/W1/W1-APP-02/tasks/W1-APP-02d.md) | Claude Code profile completes one managed candidate attempt | [`00e25cb9`](https://github.com/maggnus/ymp/commit/00e25cb95d65bba6056380d7b3fa51536999e5d5) | 12/08 22:44 | 13/08 12:11 (13h15m) |
 | `[?]` | [`W1-APP-02e`](waves/W1/W1-APP-02/tasks/W1-APP-02e/TASK.md) | TUI completes and exports a single-participant run | — | 12/08 16:19 | 13/08 01:26 (59m) |
 | `[x]` | [`W1-APP-02e.1`](waves/W1/W1-APP-02/tasks/W1-APP-02e/subtasks/W1-APP-02e.1.md) | Deterministic TUI buffers enforce the accepted screen contract | [`bdccf008`](https://github.com/maggnus/ymp/commit/bdccf00825b6a93ff25ab10f34719e645bc8f8f9) | 12/08 16:19 | 12/08 17:38 (59m) |
 | `[x]` | [`W1-APP-02e.2`](waves/W1/W1-APP-02/tasks/W1-APP-02e/subtasks/W1-APP-02e.2.md) | Chat-first visual contract is independently accepted | [`b57ec9d0`](https://github.com/maggnus/ymp/commit/b57ec9d0e04b47f0848fba4e7d1b9b2d7cf68336) | 13/08 01:32 | 13/08 09:46 (8h14m) |
@@ -24,6 +24,8 @@
 | `[x]` | [`W1-APP-02h`](waves/W1/W1-APP-02/tasks/W1-APP-02h.md) | Managed Codex and Claude sessions resume after interruption | [`0d351f60`](https://github.com/maggnus/ymp/commit/0d351f6015c25869bd4e45bb126482fd60945795) | 12/08 09:44 | 12/08 10:26 (41m) |
 | `[ ]` | [`W1-APP-02i`](waves/W1/W1-APP-02/tasks/W1-APP-02i.md) | Terminal accounting reports only counters the runtime actually sent | — | — | — |
 | `[=]` | [`W1-APP-02j`](waves/W1/W1-APP-02/tasks/W1-APP-02j.md) | Runtime admission stops duplicating the pinned executable per instance | — | — | — |
+| `[ ]` | [`W1-APP-02k`](waves/W1/W1-APP-02/tasks/W1-APP-02k.md) | No managed descendant survives the supervisor that started it | — | — | — |
+| `[ ]` | [`W1-APP-02l`](waves/W1/W1-APP-02/tasks/W1-APP-02l.md) | Runtime evidence names the models that spent and the environment it passed | — | — | — |
 | `[ ]` | [`W1-COR-03`](waves/W1/W1-COR-03/CARD.md) | Bounded local commitments self-organize and terminate | — | — | — |
 | `[ ]` | [`W1-COR-03a`](waves/W1/W1-COR-03/tasks/W1-COR-03a.md) | Local commitments conserve budgets and close obligations | — | — | — |
 | `[ ]` | [`W1-COR-03b`](waves/W1/W1-COR-03/tasks/W1-COR-03b.md) | Yielded participants resume finitely and runs terminate honestly | — | — | — |
