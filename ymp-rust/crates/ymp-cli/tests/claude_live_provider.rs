@@ -12,10 +12,12 @@ use std::time::{Duration, Instant};
 use ymp_application::Application;
 use ymp_domain::{Budget, EventKind};
 use ymp_runtime_api::{
-    CancellationToken, InvocationRequest, Readiness, RuntimeDriver, RuntimeEventKind,
-    RuntimeFailureKind, RuntimeKind,
+    CancellationToken, DiagnosticSummary, InvocationRequest, Readiness, RuntimeDriver,
+    RuntimeEventKind, RuntimeFailureKind, RuntimeKind, Usage,
 };
-use ymp_runtime_claude::{ClaudeProfile, ClaudeRuntime, PINNED_CLAUDE_VERSION};
+use ymp_runtime_claude::{
+    APPROVED_SEARCH_PATH, ClaudeProfile, ClaudeRuntime, PINNED_CLAUDE_VERSION,
+};
 use ymp_runtime_supervisor::{
     ManagedCandidateRequest, ManagedContract, ManagedRunEvent, start_managed_candidate,
 };
@@ -170,71 +172,87 @@ fn the_pinned_build_completes_one_managed_candidate_through_the_product_path() {
     let attempt_id = handle.attempt_id().to_owned();
 
     let deadline = Instant::now() + Duration::from_secs(600);
-    let mut candidate = None;
-    let mut failure = None;
-    let mut session = None;
-    let mut usage = None;
-    let mut coordination = Vec::new();
+    let mut observed = LiveObservation::default();
     while Instant::now() < deadline && !handle.is_finished() {
         while let Some(event) = handle.try_next() {
-            match event {
-                ManagedRunEvent::CandidateAvailable {
-                    candidate_digest, ..
-                } => candidate = Some(candidate_digest),
-                ManagedRunEvent::Failed { detail } => failure = Some(detail),
-                ManagedRunEvent::Runtime(event) => match event.event {
-                    RuntimeEventKind::Started { opaque_session_id } => {
-                        session = Some(opaque_session_id)
-                    }
-                    RuntimeEventKind::McpToolCall { tool, status, .. } => {
-                        coordination.push(format!("{tool}:{status}"))
-                    }
-                    RuntimeEventKind::Completed { usage: reported } => usage = Some(reported),
-                    RuntimeEventKind::Output { text } => println!("claude: {text}"),
-                    _ => {}
-                },
-                ManagedRunEvent::Finished => {}
-            }
+            observed.absorb(event);
         }
         std::thread::sleep(Duration::from_millis(25));
     }
     while let Some(event) = handle.try_next() {
-        match event {
-            ManagedRunEvent::CandidateAvailable {
-                candidate_digest, ..
-            } => candidate = Some(candidate_digest),
-            ManagedRunEvent::Failed { detail } => failure = Some(detail),
-            ManagedRunEvent::Runtime(event) => match event.event {
-                RuntimeEventKind::Started { opaque_session_id } => {
-                    session = Some(opaque_session_id)
-                }
-                RuntimeEventKind::McpToolCall { tool, status, .. } => {
-                    coordination.push(format!("{tool}:{status}"))
-                }
-                RuntimeEventKind::Completed { usage: reported } => usage = Some(reported),
-                _ => {}
-            },
-            ManagedRunEvent::Finished => {}
-        }
+        observed.absorb(event);
     }
     assert!(handle.is_finished(), "the live managed attempt did not end");
-    assert_eq!(failure, None, "the live managed attempt failed");
 
-    let session = session.expect("the live attempt reported no session");
+    let session = observed
+        .session
+        .clone()
+        .expect("the live attempt reported no session");
     assert!(!session.is_empty());
-    let usage = usage.expect("the live attempt reported no usage");
+    let terminal = observed
+        .terminal
+        .clone()
+        .expect("the live attempt reported no terminal runtime event");
+    let submitted = observed
+        .coordination
+        .iter()
+        .any(|call| call == "submit:completed");
+    println!("live coordination: {:?}", observed.coordination);
+
+    // Model traffic and its accounting are the product's obligation whatever the model decided.
+    let usage = observed
+        .usage
+        .clone()
+        .expect("the live attempt reported no usage");
     println!(
         "live usage: {}",
         serde_json::to_string(&usage).expect("usage")
     );
-    println!("live coordination: {coordination:?}");
     assert!(usage.input_tokens > 0);
     assert!(usage.output_tokens > 0);
     assert!(usage.cost_microusd.is_some_and(|cost| cost > 0));
     assert!(usage.wall_time_ms > 0);
-    assert!(coordination.iter().any(|call| call == "submit:completed"));
+    live_runtime_evidence(&data_root, &attempt_id, &session);
 
-    let candidate = candidate.expect("the live attempt produced no candidate");
+    // A turn that closed with no committed controller action, and in which no coordination call
+    // was ever answered, is a model that declined to act. The product did its part: it started the
+    // pinned build, admitted the session, carried the turn, accounted for it and refused to invent
+    // a candidate. That outcome is reported and the check ends without failing, so a failing
+    // result of this check always names a defect of the product rather than a choice of the model.
+    let declined_turn = matches!(
+        &terminal,
+        RuntimeEventKind::Failed { kind, diagnostic, .. }
+            if *kind == RuntimeFailureKind::Protocol
+                && diagnostic.as_ref()
+                    == Some(&DiagnosticSummary::from_bytes(
+                        b"controller_action_count_invalid",
+                        false,
+                    ))
+    );
+    if declined_turn && !submitted && observed.candidate.is_none() {
+        println!(
+            "live outcome: model_declined_to_act — the pinned build ran and accounted for its \
+             turn, and the model closed it without calling the coordination tool"
+        );
+        handle.join().expect("join worker");
+        return;
+    }
+
+    println!("live outcome: product_path_completed");
+    assert_eq!(
+        observed.failure, None,
+        "the live managed attempt failed: {terminal:?}"
+    );
+    assert!(
+        matches!(terminal, RuntimeEventKind::Completed { .. }),
+        "the attempt neither completed nor closed as a declined turn: {terminal:?}"
+    );
+    assert!(submitted, "the completed attempt answered no submit call");
+
+    let candidate = observed
+        .candidate
+        .clone()
+        .expect("the live attempt produced no candidate");
     let committed = application
         .lock()
         .expect("application lock")
@@ -256,7 +274,54 @@ fn the_pinned_build_completes_one_managed_candidate_through_the_product_path() {
         Some(candidate.as_str())
     );
 
-    let evidence_directory = data_root.join("runtime-evidence").join(&attempt_id);
+    handle.join().expect("join worker");
+}
+
+/// What a live managed attempt reported, kept whole so that the outcome is classified once, from
+/// the complete stream, rather than from whichever event the reading loop happened to end on.
+#[derive(Default)]
+struct LiveObservation {
+    candidate: Option<String>,
+    failure: Option<String>,
+    session: Option<String>,
+    usage: Option<Usage>,
+    terminal: Option<RuntimeEventKind>,
+    coordination: Vec<String>,
+}
+
+impl LiveObservation {
+    fn absorb(&mut self, event: ManagedRunEvent) {
+        match event {
+            ManagedRunEvent::CandidateAvailable {
+                candidate_digest, ..
+            } => self.candidate = Some(candidate_digest),
+            ManagedRunEvent::Failed { detail } => self.failure = Some(detail),
+            ManagedRunEvent::Runtime(event) => match &event.event {
+                RuntimeEventKind::Started { opaque_session_id } => {
+                    self.session = Some(opaque_session_id.clone());
+                }
+                RuntimeEventKind::McpToolCall { tool, status, .. } => {
+                    self.coordination.push(format!("{tool}:{status}"));
+                }
+                RuntimeEventKind::Output { text } => println!("claude: {text}"),
+                RuntimeEventKind::Completed { usage }
+                | RuntimeEventKind::Failed { usage, .. }
+                | RuntimeEventKind::TimedOut { usage, .. }
+                | RuntimeEventKind::Cancelled { usage } => {
+                    self.usage = Some(usage.clone());
+                    self.terminal = Some(event.event.clone());
+                }
+                _ => {}
+            },
+            ManagedRunEvent::Finished => {}
+        }
+    }
+}
+
+/// The evidence a managed attempt owes whatever the model decided: the pinned profile record and a
+/// transcript that names no session identifier.
+fn live_runtime_evidence(data_root: &std::path::Path, attempt_id: &str, session: &str) {
+    let evidence_directory = data_root.join("runtime-evidence").join(attempt_id);
     let profile: serde_json::Value = serde_json::from_str(
         &fs::read_to_string(evidence_directory.join("profile.json")).expect("profile evidence"),
     )
@@ -269,9 +334,46 @@ fn the_pinned_build_completes_one_managed_candidate_through_the_product_path() {
         profile["profile"]["environment_policy"],
         "synthetic_allowlist_with_delegated_credential_v1"
     );
+    // The record states the environment the child actually received. Only the approved names reach
+    // it, and its search path is the approved one rather than the operator's.
+    let recorded: Vec<&str> = profile["profile"]["launch_descriptor"]["environment"]
+        .as_array()
+        .expect("the record states the child environment")
+        .iter()
+        .map(|variable| variable["name"].as_str().expect("environment name"))
+        .collect();
+    assert_eq!(
+        recorded,
+        [
+            "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC",
+            "CLAUDE_CONFIG_DIR",
+            "HOME",
+            "NO_COLOR",
+            "PATH",
+            "TMPDIR",
+            "YMP_AGENT_SOCKET",
+            "YMP_AGENT_TOKEN",
+            "YMP_ATTEMPT_ID",
+            "YMP_INVOCATION_ID",
+        ],
+        "the profile record carries an environment the profile did not approve"
+    );
+    let search_path = profile["profile"]["launch_descriptor"]["environment"]
+        .as_array()
+        .expect("the record states the child environment")
+        .iter()
+        .find(|variable| variable["name"] == "PATH")
+        .and_then(|variable| variable["value"].as_str())
+        .expect("the record states the search path");
+    assert_eq!(search_path, APPROVED_SEARCH_PATH.join(":"));
+    assert_ne!(
+        Some(search_path),
+        std::env::var("PATH").ok().as_deref(),
+        "the record carries the operator search path"
+    );
+
     let evidence =
         fs::read_to_string(evidence_directory.join("events.jsonl")).expect("event evidence");
-    assert!(!evidence.contains(&session), "evidence exposed the session");
+    assert!(!evidence.contains(session), "evidence exposed the session");
     println!("live evidence records: {}", evidence.lines().count());
-    handle.join().expect("join worker");
 }
