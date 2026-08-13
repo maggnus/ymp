@@ -120,7 +120,10 @@ fn a_request_alone_reaches_a_drafted_contract() {
         "{transcript}"
     );
     assert!(
-        transcript.contains("rejected the negative control and accepted a sample"),
+        transcript.contains(
+            "rejected the negative control, and rejected a candidate that had \
+             replaced this project's test entry point"
+        ),
         "the draft does not state both halves of what was demonstrated:\n{transcript}"
     );
 

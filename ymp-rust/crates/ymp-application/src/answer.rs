@@ -12,6 +12,14 @@
 //! well its path resolves. Refusing such an answer is not the same as supplying a usable one: the
 //! acceptance condition still comes from the operator and is never invented here.
 //!
+//! A verifier this module proposes runs the project's own test entry point, which is a file inside
+//! the directory being judged. The bytes of that file are therefore fixed into the proposed program
+//! itself, and a candidate whose copy of it differs is rejected before the tests are run. Without
+//! that, a candidate would decide its own run by writing `exit 0` over the script the verifier
+//! delegates to. The fixed bytes are part of the program, so the oracle digest a contract records
+//! already covers them, and a proposal whose bytes are edited afterwards no longer matches the
+//! contract that approved it.
+//!
 //! Assembly keeps its own validation in [`crate::contract::prepare_contract`]: a contract also
 //! arrives from a package that nobody typed, and what is stored is judged there.
 
@@ -70,10 +78,26 @@ pub enum AnswerError {
         positive_sample: PathBuf,
     },
     #[error(
+        "the verifier program {program} accepted {substitution_control}, a candidate that carries \
+         no result and differs from the project only in having replaced its test entry point with \
+         a program that accepts everything: a candidate that can rewrite the condition it is \
+         judged by decides its own run"
+    )]
+    VerifierAcceptsSubstitutedEntryPoint {
+        program: PathBuf,
+        substitution_control: PathBuf,
+    },
+    #[error(
         "no test entry point was found in {0}: ymp proposes a verifier from the way a project \
          already runs its tests, and this directory names none it can run"
     )]
     NoTestEntryPoint(PathBuf),
+    #[error(
+        "the test entry point {path} could not be fixed into a proposed verifier: {reason}. A \
+         verifier that runs a file inside the candidate is proposed only when the bytes of that \
+         file can be fixed into it, because a candidate that may rewrite them decides its own run"
+    )]
+    TestEntryPointNotFixable { path: PathBuf, reason: String },
     #[error(
         "the source directory {path} was not copied: it holds more than {limit} — state a \
          negative control of your own instead"
@@ -234,18 +258,17 @@ pub struct TestEntryPoint {
     pub relative_path: PathBuf,
     /// The command that runs them, from inside the directory being judged.
     pub command: String,
-    /// A version of that file under which the command succeeds. It is what makes a program that
-    /// rejects everything visible: such a program rejects this too.
-    stub: String,
-    stub_is_executable: bool,
+    /// A version of that file under which the command succeeds whatever the work is. It is what a
+    /// candidate would put in place of the entry point to be accepted without doing the work, so
+    /// the proposed verifier is required to reject a candidate carrying it.
+    substitution: String,
+    substitution_is_executable: bool,
 }
 
 /// The entry points ymp proposes a verifier from, in the order it looks for them.
 ///
-/// Each one is a file whose content decides what the command does, so the product can build a
-/// sample the command must succeed on. An entry point ymp cannot build that sample for is not
-/// proposed at all: a proposal whose acceptance nobody demonstrated is what this list exists to
-/// avoid.
+/// Each one is a file whose content decides what the command does, which is why the proposed
+/// verifier fixes those bytes and why the product can build the candidate that replaces them.
 fn candidates() -> Vec<(&'static str, &'static str, &'static str, bool)> {
     vec![
         (
@@ -274,7 +297,7 @@ fn candidates() -> Vec<(&'static str, &'static str, &'static str, bool)> {
 
 /// The way this project runs its tests, when ymp recognises one.
 pub fn detect_test_entry_point(source: &Path) -> Option<TestEntryPoint> {
-    for (relative, command, stub, executable) in candidates() {
+    for (relative, command, substitution, executable) in candidates() {
         let path = source.join(relative);
         if !path.is_file() {
             continue;
@@ -291,8 +314,8 @@ pub fn detect_test_entry_point(source: &Path) -> Option<TestEntryPoint> {
         return Some(TestEntryPoint {
             relative_path: PathBuf::from(relative),
             command: command.to_owned(),
-            stub: stub.to_owned(),
-            stub_is_executable: executable,
+            substitution: substitution.to_owned(),
+            substitution_is_executable: executable,
         });
     }
     None
@@ -322,13 +345,16 @@ fn names_a_script(package: &Path, script: &str) -> bool {
 #[derive(Clone, Debug)]
 pub struct Assembled {
     /// The proposed verifier: a program ymp writes, which runs this project's own test entry
-    /// point inside whatever directory it is given to judge.
+    /// point inside whatever directory it is given to judge, and which carries the bytes that
+    /// entry point had here, so the directory being judged cannot supply different ones.
     pub program: PathBuf,
     /// A copy of the source as it stands, which holds no result and must therefore be rejected.
     pub negative_control: PathBuf,
-    /// A directory built so that the project's test entry point succeeds in it. A program that
-    /// rejects it rejects everything, and is refused rather than carried into a contract.
-    pub positive_sample: PathBuf,
+    /// A candidate that holds no result either and differs from the project only in having
+    /// replaced its test entry point with a program that accepts everything. A verifier that
+    /// accepts it is judged by the candidate rather than the other way round, and is refused
+    /// rather than carried into a contract.
+    pub substitution_control: PathBuf,
     pub entry_point: TestEntryPoint,
 }
 
@@ -343,9 +369,10 @@ const NOT_COPIED: [&str; 5] = [".git", "target", "node_modules", ".ymp-data", ".
 /// Assemble what the product can supply for a request against this source.
 ///
 /// Everything is written under `workspace`, which the caller owns: the proposed verifier, the
-/// copy that serves as the negative control, and the sample the verifier must accept. Nothing is
-/// run here and nothing is stored durably; [`demonstrates_within`] decides whether what was
-/// assembled can judge anything, and the operator decides whether it may.
+/// copy that serves as the negative control, and the candidate that replaced its own test entry
+/// point. Nothing is run here and nothing is stored durably;
+/// [`refuses_a_substituted_entry_point_within`] decides whether what was assembled can judge
+/// anything, and the operator decides whether it may.
 pub fn assemble(source: &Path, workspace: &Path) -> Result<Assembled, AnswerError> {
     let entry_point = detect_test_entry_point(source)
         .ok_or_else(|| AnswerError::NoTestEntryPoint(source.into()))?;
@@ -353,42 +380,119 @@ pub fn assemble(source: &Path, workspace: &Path) -> Result<Assembled, AnswerErro
         path: workspace.to_path_buf(),
         reason,
     };
+    let entry_path = source.join(&entry_point.relative_path);
+    let not_fixable = |reason: String| AnswerError::TestEntryPointNotFixable {
+        path: entry_path.clone(),
+        reason,
+    };
+    let approved = fs::read(&entry_path).map_err(|error| not_fixable(error.to_string()))?;
 
     fs::create_dir_all(workspace).map_err(|error| failed(error.to_string()))?;
 
     let program = workspace.join("verify.sh");
-    // The subject is the only argument the executor passes. The wrapper judges that directory
-    // and nothing else, and reports the one refusal the executor understands whatever the
-    // project's own command reports, so a project that exits 2 is a rejection rather than a
-    // verifier that could not be run.
     write_program(
         &program,
-        &format!(
-            "#!/bin/sh\ncd \"$1\" || exit 1\n{}\nif [ $? -eq 0 ]; then exit 0; fi\nexit 1\n",
-            entry_point.command
-        ),
+        &proposed_verifier(&entry_point, &approved).map_err(not_fixable)?,
     )
     .map_err(|error| failed(error.to_string()))?;
 
     let negative_control = copy_negative_control(source, workspace)?;
 
-    let positive_sample = workspace.join("positive-sample");
-    let stub = positive_sample.join(&entry_point.relative_path);
-    if let Some(parent) = stub.parent() {
+    let substitution_control = workspace.join("substitution-control");
+    let substituted = substitution_control.join(&entry_point.relative_path);
+    if let Some(parent) = substituted.parent() {
         fs::create_dir_all(parent).map_err(|error| failed(error.to_string()))?;
     }
-    if entry_point.stub_is_executable {
-        write_program(&stub, &entry_point.stub).map_err(|error| failed(error.to_string()))?;
+    if entry_point.substitution_is_executable {
+        write_program(&substituted, &entry_point.substitution)
+            .map_err(|error| failed(error.to_string()))?;
     } else {
-        fs::write(&stub, &entry_point.stub).map_err(|error| failed(error.to_string()))?;
+        fs::write(&substituted, &entry_point.substitution)
+            .map_err(|error| failed(error.to_string()))?;
     }
 
     Ok(Assembled {
         program,
         negative_control,
-        positive_sample,
+        substitution_control,
         entry_point,
     })
+}
+
+/// How many characters of the entry point's digest name the quoted block that carries its bytes.
+const FIXED_BYTES_MARKER_CHARS: usize = 16;
+
+/// The proposed verifier, as the program text it is written as.
+///
+/// The subject is the only argument the executor passes. The program judges that directory and
+/// nothing else, and reports the one refusal the executor understands whatever the project's own
+/// command reports, so a project that exits 2 is a rejection rather than a verifier that could not
+/// be run.
+///
+/// Between those two, it compares the entry point it is about to run against the bytes that file
+/// had in the project the contract was drafted from, and rejects a candidate that carries anything
+/// else. That comparison is what stops the candidate from deciding its own run: without it, the
+/// program the verifier delegates to is one the candidate writes. Trailing newlines are not part of
+/// the comparison, because both sides are read the same way and a shell drops them from both.
+///
+/// The bytes are quoted, not interpreted, so a `$` or a backquote in the entry point is data. The
+/// block that carries them is named after their own digest, so no line of an entry point can end
+/// the block early — and an entry point that carries such a line anyway is refused rather than
+/// quoted wrongly.
+fn proposed_verifier(entry_point: &TestEntryPoint, approved: &[u8]) -> Result<String, String> {
+    let text = std::str::from_utf8(approved).map_err(|_| {
+        "it is not text, and only text can be carried inside a shell program".to_owned()
+    })?;
+    if text.contains('\0') {
+        return Err("it holds a zero byte, which no shell program can carry".to_owned());
+    }
+    let marker = format!(
+        "YMP_APPROVED_ENTRY_{}",
+        &digest_bytes(approved)[..FIXED_BYTES_MARKER_CHARS]
+    );
+    if text.lines().any(|line| line == marker) {
+        return Err(format!(
+            "it holds the line {marker}, which is what ends the bytes carried in the program"
+        ));
+    }
+    /// The program an operator reads when they open the proposed verifier. Only the entry point's
+    /// path, its bytes, the name of the block carrying them, and the project's own command differ
+    /// between one proposal and the next.
+    const TEMPLATE: &str = r#"#!/bin/sh
+# This program decides one contract. It runs the project's own test entry point inside the
+# directory it is given, and the bytes that entry point had when the contract was drafted are
+# carried below. A candidate holding anything else there is rejected before its tests are run:
+# a candidate that could rewrite this file would be deciding its own run.
+cd "$1" || exit 1
+entry={quoted_path}
+approved=$(cat <<'{marker}'
+{body}
+{marker}
+)
+present=$(cat -- "$entry" 2>/dev/null) || present=
+if [ "$approved" != "$present" ]; then
+  printf '%s is not the test entry point this contract was drafted against\n' "$entry" >&2
+  exit 1
+fi
+{command}
+if [ $? -eq 0 ]; then exit 0; fi
+exit 1
+"#;
+    // The entry point's own bytes go in last. Everything else is filled from this host, and a file
+    // that happened to spell one of these names would otherwise be read as one of them.
+    Ok(TEMPLATE
+        .replace(
+            "{quoted_path}",
+            &shell_word(&entry_point.relative_path.to_string_lossy()),
+        )
+        .replace("{marker}", &marker)
+        .replace("{command}", &entry_point.command)
+        .replace("{body}", text.strip_suffix('\n').unwrap_or(text)))
+}
+
+/// One shell word carrying exactly the given text, whatever it holds.
+fn shell_word(text: &str) -> String {
+    format!("'{}'", text.replace('\'', "'\\''"))
 }
 
 fn write_program(path: &Path, body: &str) -> std::io::Result<()> {
@@ -481,12 +585,18 @@ fn copy_tree(source: &Path, destination: &Path) -> Result<(), AnswerError> {
     Ok(())
 }
 
-/// Both halves of what a verifier has to show before it can decide a run.
+/// Both halves of what a verifier has to show when there is a sample it must accept.
 ///
 /// The executor judges the negative control before the subject, so one call demonstrates both:
 /// the program must reject the copy that holds no result, and accept a sample built to satisfy
 /// it. A program that fails the first accepts a wrong candidate; a program that fails the second
 /// rejects every candidate, and neither decides anything.
+///
+/// A verifier proposed from a project's own tests is demonstrated by
+/// [`refuses_a_substituted_entry_point_within`] instead, because the product has no sample it can
+/// build for one: the only candidate it could build that such a program accepts is a candidate
+/// whose test entry point it replaced, and the whole point of that program is to reject exactly
+/// that. What it accepts is stated as undemonstrated rather than shown by a forgery.
 pub fn demonstrates_within(
     program: &Path,
     negative_control: &Path,
@@ -508,6 +618,53 @@ pub fn demonstrates_within(
                 program: program.to_path_buf(),
                 positive_sample: positive_sample.to_path_buf(),
             }),
+        },
+        Err(VerifierError::NegativeControlPassed) => {
+            Err(AnswerError::VerifierAcceptsNegativeControl {
+                program: program.to_path_buf(),
+                negative_control: negative_control.to_path_buf(),
+            })
+        }
+        Err(error) => Err(refused(error.to_string())),
+    }
+}
+
+/// Both halves of what a verifier proposed from a project's own tests has to show.
+///
+/// The executor judges the negative control before the subject, so one call demonstrates both: the
+/// program must reject the copy of the project that holds no result, and it must reject a candidate
+/// that holds no result either and differs only in having replaced the test entry point with a
+/// program that accepts everything. The first half is the same one every verifier answers. The
+/// second is what a verifier delegating to a file inside the candidate has to answer as well,
+/// because a candidate it accepts on the strength of that file has written its own acceptance
+/// condition.
+///
+/// What such a verifier accepts stays undemonstrated here, and the draft says so. The product
+/// cannot build a candidate the project's own tests pass on without replacing those tests, which is
+/// the very substitution this check refuses; the first candidate that satisfies them is where
+/// acceptance is first shown.
+pub fn refuses_a_substituted_entry_point_within(
+    program: &Path,
+    negative_control: &Path,
+    substitution_control: &Path,
+    wall_limit: Duration,
+) -> Result<(), AnswerError> {
+    let refused = |reason: String| AnswerError::VerifierNotRun {
+        program: program.to_path_buf(),
+        negative_control: negative_control.to_path_buf(),
+        reason,
+    };
+    let substituted = || AnswerError::VerifierAcceptsSubstitutedEntryPoint {
+        program: program.to_path_buf(),
+        substitution_control: substitution_control.to_path_buf(),
+    };
+    let verifier = demonstration_verifier(program, negative_control, wall_limit)?;
+    let subject_digest = demonstration_digest(program, negative_control);
+
+    match verifier.verify_candidate(substitution_control, negative_control, subject_digest) {
+        Ok(evidence) => match evidence.decision() {
+            VerificationDecision::Reject => Ok(()),
+            VerificationDecision::Accept => Err(substituted()),
         },
         Err(VerifierError::NegativeControlPassed) => {
             Err(AnswerError::VerifierAcceptsNegativeControl {

@@ -113,7 +113,10 @@ fn a_typed_request_becomes_a_contract_and_starts_a_run_the_journal_records() {
         .collect::<Vec<_>>()
         .join(" ");
     assert!(stated.contains("scripts/test.sh"), "{stated}");
-    assert!(stated.contains("accepted a sample"), "{stated}");
+    assert!(
+        stated.contains("replaced this project's test entry point"),
+        "{stated}"
+    );
 
     // The contract is drafted, nothing is started, and the coverage map offers the run.
     assert!(app.data.run.is_none(), "a run started before authorization");

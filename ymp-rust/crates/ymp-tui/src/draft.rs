@@ -7,10 +7,11 @@
 //! and none of it starts anything.
 //!
 //! What the product supplies, it demonstrates. The proposed verifier has to reject the copy that
-//! holds no result and accept a sample built to satisfy it; a program that fails either half
-//! decides nothing and never reaches a draft. Assembling and demonstrating starts programs and
-//! waits for them, so this module hands that work back to the caller as a [`DraftJob`] rather
-//! than doing it where it was asked for.
+//! holds no result, and reject a candidate that holds no result either and differs only in having
+//! replaced the project's test entry point with a program that accepts everything; a program that
+//! fails either half decides nothing and never reaches a draft. Assembling and demonstrating
+//! starts programs and waits for them, so this module hands that work back to the caller as a
+//! [`DraftJob`] rather than doing it where it was asked for.
 //!
 //! While the draft is unauthorized, the next typed line amends it — a different verifier, source,
 //! negative control or budget — and the amended draft is assembled again and restated. A line
@@ -261,7 +262,7 @@ impl DraftJob {
 
     fn assemble(self) -> Result<Assembly, String> {
         let mut stated = Vec::new();
-        let (program, negative_control, positive_sample) = match &self.program {
+        let (program, negative_control, substitution_control) = match &self.program {
             // A verifier the operator named is theirs; the product supplies the control it must
             // reject and states that it has no sample of its own that this program must accept.
             Some(program) => {
@@ -277,7 +278,8 @@ impl DraftJob {
                 let assembled: Assembled = answer::assemble(&self.source, &self.workspace)
                     .map_err(|refusal| refusal.to_string())?;
                 stated.push(format!(
-                    "verifier {} — proposed from {}, which this project runs as `{}`",
+                    "verifier {} — proposed from {}, which this project runs as `{}`, and it \
+                     carries the bytes that file has here, so a candidate cannot supply its own",
                     assembled.program.display(),
                     assembled.entry_point.relative_path.display(),
                     assembled.entry_point.command
@@ -286,7 +288,11 @@ impl DraftJob {
                     .negative_control
                     .clone()
                     .unwrap_or_else(|| assembled.negative_control.clone());
-                (assembled.program, control, Some(assembled.positive_sample))
+                (
+                    assembled.program,
+                    control,
+                    Some(assembled.substitution_control),
+                )
             }
         };
 
@@ -301,13 +307,21 @@ impl DraftJob {
             ),
         });
 
-        match &positive_sample {
-            Some(sample) => {
-                answer::demonstrates_within(&program, &negative_control, sample, self.wall_limit)
-                    .map_err(|refusal| refusal.to_string())?;
+        match &substitution_control {
+            Some(substituted) => {
+                answer::refuses_a_substituted_entry_point_within(
+                    &program,
+                    &negative_control,
+                    substituted,
+                    self.wall_limit,
+                )
+                .map_err(|refusal| refusal.to_string())?;
                 stated.push(
-                    "demonstrated: the verifier rejected the negative control and accepted a \
-                     sample built to satisfy it, so it decides both ways"
+                    "demonstrated: the verifier rejected the negative control, and rejected a \
+                     candidate that had replaced this project's test entry point with a program \
+                     accepting everything, so the condition is not the candidate's to rewrite · \
+                     what it accepts is undemonstrated until a candidate satisfies the project's \
+                     own tests"
                         .to_owned(),
                 );
             }
@@ -430,10 +444,25 @@ mod tests {
             assembly
                 .stated
                 .iter()
-                .any(|line| line.contains("accepted a sample")),
-            "the draft does not state that acceptance was demonstrated: {:?}",
+                .any(|line| line.contains("replaced this project's test entry point")),
+            "the draft does not state what it demonstrated about the entry point: {:?}",
             assembly.stated
         );
+    }
+
+    /// A project whose test entry point is not text this host can carry inside a shell program is
+    /// told so, rather than being given a verifier the candidate could rewrite.
+    #[test]
+    fn a_test_entry_point_that_cannot_be_carried_is_refused_rather_than_delegated_to() {
+        let project = project();
+        fs::write(project.directory.join("scripts/test.sh"), [0x00, 0xff])
+            .expect("write an entry point that is not text");
+        let mut draft = Draft::new("keep the replay path idempotent");
+        let refusal = draft
+            .job(&project.directory, &project.data_root.join("draft"), 1)
+            .run()
+            .expect_err("a verifier was proposed from bytes it could not carry");
+        assert!(refusal.contains("could not be fixed into"), "{refusal}");
     }
 
     #[test]
