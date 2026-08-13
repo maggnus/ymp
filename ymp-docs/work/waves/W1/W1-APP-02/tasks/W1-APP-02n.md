@@ -56,12 +56,11 @@ with the same authority checks and the same journal path.
 
 ## Current state
 
-Returned by independent review after one round. Every interface action has a command and both
-surfaces share one implementation, but they also share the input channel: argument values are
-delivered as keystrokes, so an answer beginning with a colon opens the command palette and the
-following answers land in windows the command never opened. The reviewer started an irreversible run
-through a command documented as starting nothing, without a confirmation, and the exit code reported
-failure while the state had changed.
+Returned by independent review after one round. Both surfaces share one implementation but also one
+input channel: argument values are delivered as keystrokes, so an answer beginning with a colon opens
+the command palette and later answers land in windows the command never opened. The reviewer started
+an irreversible run through a command documented as starting nothing, with no confirmation, while the
+exit code reported failure.
 
 ## Next action
 
