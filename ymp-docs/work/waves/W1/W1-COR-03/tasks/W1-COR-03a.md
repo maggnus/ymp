@@ -62,12 +62,11 @@ executor or semantic priority.
 
 ## Current state
 
-Accepted at Critical depth and integrated. The kernel decides a command as a pure function of the
-registry: a refusal changes nothing, an award fixes the contract, the escrow transfer, the first
-lease and the child obligation as one set of facts, and contending commands are reduced to one order
-and are idempotent by command identifier. The reviewer's own falsifier, built outside the repository
-against an independent model of the rules, found no conservation violation on the candidate and
-failed on three deliberately broken revisions.
+Accepted at Critical depth and integrated. A command is decided as a pure function of the registry:
+a refusal changes nothing, an award fixes the contract, the escrow transfer, the first lease and the
+child obligation as one set of facts, and contending commands reduce to one order, idempotent by
+command identifier. The reviewer's own falsifier found no conservation violation on the candidate
+and failed on three deliberately broken revisions.
 
 ## Next action
 
