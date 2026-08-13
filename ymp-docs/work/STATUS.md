@@ -22,10 +22,10 @@
 | `[x]` | [`W1-APP-02f`](waves/W1/W1-APP-02/tasks/W1-APP-02f.md) | Duplicate or out-of-order runtime events terminate without a candidate | [`4145a442`](https://github.com/maggnus/ymp/commit/4145a442b476afedca8d091de3a30b1eb1ad9b84) | 12/08 09:40 | 12/08 10:03 (23m) |
 | `[x]` | [`W1-APP-02g`](waves/W1/W1-APP-02/tasks/W1-APP-02g.md) | Verification evidence binds the exact runtime environment | [`973a6e33`](https://github.com/maggnus/ymp/commit/973a6e331f4577a894ab95ee325efa4a03005510) | 12/08 10:28 | 12/08 11:18 (50m) |
 | `[x]` | [`W1-APP-02h`](waves/W1/W1-APP-02/tasks/W1-APP-02h.md) | Managed Codex and Claude sessions resume after interruption | [`0d351f60`](https://github.com/maggnus/ymp/commit/0d351f6015c25869bd4e45bb126482fd60945795) | 12/08 09:44 | 12/08 10:26 (41m) |
-| `[x]` | [`W1-APP-02i`](waves/W1/W1-APP-02/tasks/W1-APP-02i.md) | Terminal accounting reports only counters the runtime actually sent | [`e896738`](https://github.com/maggnus/ymp/commit/e896738) | 14/08 01:40 | 14/08 02:42 (1h) |
+| `[x]` | [`W1-APP-02i`](waves/W1/W1-APP-02/tasks/W1-APP-02i.md) | Terminal accounting reports only counters the runtime actually sent | [`e896738`](https://github.com/maggnus/ymp/commit/e896738) | 14/08 01:40 | 14/08 02:02 (1h) |
 | `[=]` | [`W1-APP-02j`](waves/W1/W1-APP-02/tasks/W1-APP-02j.md) | Runtime admission stops duplicating the pinned executable per instance | — | — | — |
 | `[x]` | [`W1-APP-02k`](waves/W1/W1-APP-02/tasks/W1-APP-02k.md) | No managed descendant survives the supervisor that started it | [`78c767ca`](https://github.com/maggnus/ymp/commit/78c767cab279dd35003cfe6dcdca0884559b08ae) | 13/08 12:44 | 13/08 14:57 (2h11m) |
-| `[~]` | [`W1-APP-02l`](waves/W1/W1-APP-02/tasks/W1-APP-02l.md) | Runtime evidence names the models that spent and the environment it passed | — | 14/08 02:45 | 14/08 02:45 (0m) |
+| `[~]` | [`W1-APP-02l`](waves/W1/W1-APP-02/tasks/W1-APP-02l.md) | Runtime evidence names the models that spent and the environment it passed | — | 14/08 02:04 | 14/08 02:04 (0m) |
 | `[x]` | [`W1-APP-02m`](waves/W1/W1-APP-02/tasks/W1-APP-02m.md) | A typed prompt becomes a contract and starts a run | [`bcaabb3d`](https://github.com/maggnus/ymp/commit/bcaabb3d0e6b014f82d5479b944e117f1e1849a1) | 13/08 12:45 | 13/08 15:06 (2h17m) |
 | `[x]` | [`W1-APP-02n`](waves/W1/W1-APP-02/tasks/W1-APP-02n.md) | Every interface action exists as a command of the same executable | [`57dc051c`](https://github.com/maggnus/ymp/commit/57dc051c4d24e3753766375711b7649d57a89ac3) | 13/08 17:00 | 13/08 19:12 (1h52m) |
 | `[ ]` | [`W1-APP-02o`](waves/W1/W1-APP-02/tasks/W1-APP-02o.md) | The shipped binary carries no path that starts a run without a contract | — | — | — |
@@ -36,7 +36,7 @@
 | `[x]` | [`W1-APP-02t`](waves/W1/W1-APP-02/tasks/W1-APP-02t.md) | Lifecycle tests are isolated from other test binaries | [`51a7ed71`](https://github.com/maggnus/ymp/commit/51a7ed719535e34baed43f04d148629ffa1452de) | 13/08 21:33 | 14/08 01:16 (4h18m) |
 | `[~]` | [`W1-APP-02u`](waves/W1/W1-APP-02/tasks/W1-APP-02u.md) | A verifier answer is an executable that demonstrably discriminates | — | 14/08 01:40 | 14/08 01:40 (0m) |
 | `[ ]` | [`W1-APP-02v`](waves/W1/W1-APP-02/tasks/W1-APP-02v.md) | The dialogue experience converges on the Claude Code interface | — | — | — |
-| `[~]` | [`W1-APP-02w`](waves/W1/W1-APP-02/tasks/W1-APP-02w.md) | Product state lives under one .ymp root that supports many projects | — | 14/08 03:18 | 14/08 03:18 (0m) |
+| `[~]` | [`W1-APP-02w`](waves/W1/W1-APP-02/tasks/W1-APP-02w.md) | Product state lives under one .ymp root that supports many projects | — | 14/08 02:13 | 14/08 02:13 (0m) |
 | `[ ]` | [`W1-COR-03`](waves/W1/W1-COR-03/CARD.md) | Bounded local commitments self-organize and terminate | — | — | — |
 | `[x]` | [`W1-COR-03a`](waves/W1/W1-COR-03/tasks/W1-COR-03a.md) | Local commitments conserve budgets and close obligations | [`58524264`](https://github.com/maggnus/ymp/commit/585242645d405ff1f76d6015a1141144eac4207b) | 13/08 15:10 | 13/08 16:27 (1h25m) |
 | `[ ]` | [`W1-COR-03b`](waves/W1/W1-COR-03/tasks/W1-COR-03b.md) | Yielded participants resume finitely and runs terminate honestly | — | — | — |
@@ -47,7 +47,7 @@
 | `[x]` | [`W1-COR-03g`](waves/W1/W1-COR-03/tasks/W1-COR-03g.md) | Settlement returns escrow only to an account that can still spend it | [`2b390922`](https://github.com/maggnus/ymp/commit/2b390922667426a48b01c9225ccee08c7d8e81f8) | 13/08 16:47 | 13/08 18:43 (1h36m) |
 | `[x]` | [`W1-COR-03h`](waves/W1/W1-COR-03/tasks/W1-COR-03h.md) | Conservation and ownership checks fail on the mutants they name | [`ce0aeecb`](https://github.com/maggnus/ymp/commit/ce0aeecbcdbf598b4badc72529873748efe3d966) | 13/08 18:52 | 13/08 20:02 (48m) |
 | `[x]` | [`W1-COR-03i`](waves/W1/W1-COR-03/tasks/W1-COR-03i.md) | Emitted facts are proved against the command that produced them | [`67fe28d2`](https://github.com/maggnus/ymp/commit/67fe28d2fa21e993d3446de5c546a46c5451a4c1) | 13/08 20:50 | 13/08 21:41 (35m) |
-| `[x]` | [`W1-COR-03j`](waves/W1/W1-COR-03/tasks/W1-COR-03j.md) | A fact is proved against its source account, not only its amount | [`2378798`](https://github.com/maggnus/ymp/commit/2378798) | 14/08 01:40 | 14/08 03:15 (1h35m) |
+| `[x]` | [`W1-COR-03j`](waves/W1/W1-COR-03/tasks/W1-COR-03j.md) | A fact is proved against its source account, not only its amount | [`2378798`](https://github.com/maggnus/ymp/commit/2378798) | 14/08 01:40 | 14/08 02:11 (1h35m) |
 | `[ ]` | [`W1-EVL-04`](waves/W1/W1-EVL-04/CARD.md) | Controlled evidence decides both POC hypotheses | — | — | — |
 | `[?]` | [`W1-EVL-04a`](waves/W1/W1-EVL-04/tasks/W1-EVL-04a.md) | Matched-budget arms produce comparable acceptance evidence | — | — | — |
 | `[ ]` | [`W1-EVL-04b`](waves/W1/W1-EVL-04/tasks/W1-EVL-04b.md) | Message interventions separate appearance from causal use | — | — | — |
