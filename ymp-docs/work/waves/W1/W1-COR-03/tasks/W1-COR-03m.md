@@ -37,6 +37,7 @@ is removed, so it can actually refuse.
 ### In
 
 - The verification fact in the kernel lifecycle and its emission from the live controller.
+- A lifecycle composition holding a contract below the root scope, so AcceptedWithoutVerification gains its negative half (W1-COR-03l review, finding 3).
 - The inert admission-order check at ymp-runtime-supervisor/src/lib.rs:449-454 (measured unable to
   refuse: the agreement is written later, the queue reads empty).
 

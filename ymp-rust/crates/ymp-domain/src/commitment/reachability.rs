@@ -9,12 +9,17 @@
 //!
 //! What makes the space finite is that the states are compared as registries rather than as
 //! histories. The list of committed facts grows with every command, so no two paths ever produce
-//! equal ledgers and a traversal keyed on the whole ledger would be the command tree itself. The key
-//! therefore leaves out the fact list and the sequence a yield was recorded at: no transition reads
-//! either of them, and what a wake may match is already carried by the registry — the candidate a
-//! contract recorded is what the conditions in this alphabet name. Two states with the same key
-//! accept the same commands and refuse the same commands, so exploring one of them is exploring
-//! both.
+//! equal ledgers and a traversal keyed on the whole ledger would be the command tree itself. The
+//! key therefore leaves out the fact list and the sequence a yield was recorded at. One transition
+//! does read the facts — resumption matches a committed fact against the yield's condition — so the
+//! omission is sound only under a property of this alphabet, stated here as its condition: every
+//! yield in this alphabet registers cursor zero, resumption never advances a cursor, and the
+//! candidate digest a condition names is set once by the submission fact and never reset, so the
+//! match is equivalent to reading the registry field the key already carries. An alphabet that
+//! violates this — a non-zero cursor, a moving digest — would glue states with different behaviour
+//! and silently under-explore; extend the key before extending the alphabet. Two states with the
+//! same key then accept the same commands and refuse the same commands, so exploring one of them
+//! is exploring both.
 
 use std::collections::{BTreeSet, VecDeque};
 

@@ -3,19 +3,19 @@ id: W1-COR-03l
 kind: task
 wave: W1
 card: W1-COR-03
-state: active
+state: accepted
 risk: significant
 maturity: BUILD
 relation: required
 depends_on: [W1-COR-03b]
 blocks: []
 created_at: 2026-08-14T04:06:57+08:00
-updated_at: 2026-08-14T04:07:27+08:00
+updated_at: 2026-08-14T05:22:21+08:00
 started_at: 2026-08-14T04:07:27+08:00
-accepted_at:
-candidate_commit:
-closure_commit:
-evidence:
+accepted_at: 2026-08-14T05:22:21+08:00
+candidate_commit: https://github.com/maggnus/ymp/commit/0bf6ef22859f308f4388a566b95423d78a324ee7
+closure_commit: https://github.com/maggnus/ymp/commit/a74c4d2
+evidence: reviewer reran the sweep (31158 states, zero violations with the rules on; 759 and 1638 without) and added a two-attempt application-layer falsifier outside the sweep alphabet; the 288/720 figures of this file were measured by the earlier W1-COR-03b review tool over a 51249-state alphabet — the discrepancy is the tool change, both instruments agree on zero violations after the fix; state-key soundness argument corrected by a disclosed CTO comment fix at integration
 duration_minutes: 0
 blocker:
 pause_reason:

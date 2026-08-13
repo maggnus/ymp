@@ -52,7 +52,7 @@
 | `[x]` | [`W1-COR-03i`](waves/W1/W1-COR-03/tasks/W1-COR-03i.md) | Emitted facts are proved against the command that produced them | [`67fe28d2`](https://github.com/maggnus/ymp/commit/67fe28d2fa21e993d3446de5c546a46c5451a4c1) | 13/08 20:50 | 13/08 21:41 (35m) |
 | `[x]` | [`W1-COR-03j`](waves/W1/W1-COR-03/tasks/W1-COR-03j.md) | A fact is proved against its source account, not only its amount | [`2378798`](https://github.com/maggnus/ymp/commit/2378798) | 14/08 01:40 | 14/08 02:11 (1h35m) |
 | `[x]` | [`W1-COR-03k`](waves/W1/W1-COR-03/tasks/W1-COR-03k.md) | The live controller drives the kernel lifecycle, not its own | [`05cec14`](https://github.com/maggnus/ymp/commit/05cec14) | 14/08 04:07 | 14/08 05:19 (0m) |
-| `[~]` | [`W1-COR-03l`](waves/W1/W1-COR-03/tasks/W1-COR-03l.md) | A stopped run sheds its yielded slices, and an attempt runs one slice | — | 14/08 04:07 | 14/08 04:07 (0m) |
+| `[x]` | [`W1-COR-03l`](waves/W1/W1-COR-03/tasks/W1-COR-03l.md) | A stopped run sheds its yielded slices, and an attempt runs one slice | [`a74c4d2`](https://github.com/maggnus/ymp/commit/a74c4d2) | 14/08 04:07 | 14/08 05:22 (0m) |
 | `[ ]` | [`W1-COR-03m`](waves/W1/W1-COR-03/tasks/W1-COR-03m.md) | Candidate verification is a kernel fact, and a finished run reaches its terminal | — | — | — |
 | `[ ]` | [`W1-EVL-04`](waves/W1/W1-EVL-04/CARD.md) | Controlled evidence decides both POC hypotheses | — | — | — |
 | `[?]` | [`W1-EVL-04a`](waves/W1/W1-EVL-04/tasks/W1-EVL-04a.md) | Matched-budget arms produce comparable acceptance evidence | — | — | — |
