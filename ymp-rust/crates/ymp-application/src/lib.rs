@@ -26,6 +26,7 @@ use ymp_verifier::{
 
 pub mod commitment;
 pub mod contract;
+pub mod root;
 
 pub use commitment::{CommitmentOutcome, CommitmentService, CommitmentServiceError, RecordedFact};
 pub use contract::{
