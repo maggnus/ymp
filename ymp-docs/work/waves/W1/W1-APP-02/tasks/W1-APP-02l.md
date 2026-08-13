@@ -3,20 +3,20 @@ id: W1-APP-02l
 kind: task
 wave: W1
 card: W1-APP-02
-state: active
+state: accepted
 risk: routine
 maturity: BUILD
 relation: follow_up
 depends_on: [W1-APP-02d]
 blocks: [W1-EVL-04a]
 created_at: 2026-08-13T12:09:18+08:00
-updated_at: 2026-08-14T02:04:00+08:00
+updated_at: 2026-08-14T02:46:00+08:00
 started_at: 2026-08-14T02:04:00+08:00
-accepted_at:
-candidate_commit:
-closure_commit:
-evidence:
-duration_minutes: 0
+accepted_at: 2026-08-14T02:46:00+08:00
+candidate_commit: https://github.com/maggnus/ymp/commit/7565b54
+closure_commit: https://github.com/maggnus/ymp/commit/f3c3dc9
+evidence: mandatory per-model breakdown with live confirmation in both outcomes; model-declined keyed to the exact supervision detail after the literal condition proved unreachable; reviewer defect-injections each broke their negative half; one return round, divergence adjudicated for the author
+duration_minutes: 42
 blocker:
 pause_reason:
 return_trigger:

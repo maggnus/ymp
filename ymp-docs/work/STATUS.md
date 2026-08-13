@@ -25,7 +25,7 @@
 | `[x]` | [`W1-APP-02i`](waves/W1/W1-APP-02/tasks/W1-APP-02i.md) | Terminal accounting reports only counters the runtime actually sent | [`e896738`](https://github.com/maggnus/ymp/commit/e896738) | 14/08 01:40 | 14/08 02:02 (1h) |
 | `[=]` | [`W1-APP-02j`](waves/W1/W1-APP-02/tasks/W1-APP-02j.md) | Runtime admission stops duplicating the pinned executable per instance | — | — | — |
 | `[x]` | [`W1-APP-02k`](waves/W1/W1-APP-02/tasks/W1-APP-02k.md) | No managed descendant survives the supervisor that started it | [`78c767ca`](https://github.com/maggnus/ymp/commit/78c767cab279dd35003cfe6dcdca0884559b08ae) | 13/08 12:44 | 13/08 14:57 (2h11m) |
-| `[~]` | [`W1-APP-02l`](waves/W1/W1-APP-02/tasks/W1-APP-02l.md) | Runtime evidence names the models that spent and the environment it passed | — | 14/08 02:04 | 14/08 02:04 (0m) |
+| `[x]` | [`W1-APP-02l`](waves/W1/W1-APP-02/tasks/W1-APP-02l.md) | Runtime evidence names the models that spent and the environment it passed | [`f3c3dc9`](https://github.com/maggnus/ymp/commit/f3c3dc9) | 14/08 02:04 | 14/08 02:46 (42m) |
 | `[x]` | [`W1-APP-02m`](waves/W1/W1-APP-02/tasks/W1-APP-02m.md) | A typed prompt becomes a contract and starts a run | [`bcaabb3d`](https://github.com/maggnus/ymp/commit/bcaabb3d0e6b014f82d5479b944e117f1e1849a1) | 13/08 12:45 | 13/08 15:06 (2h17m) |
 | `[x]` | [`W1-APP-02n`](waves/W1/W1-APP-02/tasks/W1-APP-02n.md) | Every interface action exists as a command of the same executable | [`57dc051c`](https://github.com/maggnus/ymp/commit/57dc051c4d24e3753766375711b7649d57a89ac3) | 13/08 17:00 | 13/08 19:12 (1h52m) |
 | `[ ]` | [`W1-APP-02o`](waves/W1/W1-APP-02/tasks/W1-APP-02o.md) | The shipped binary carries no path that starts a run without a contract | — | — | — |
@@ -38,6 +38,7 @@
 | `[~]` | [`W1-APP-02v`](waves/W1/W1-APP-02/tasks/W1-APP-02v.md) | The dialogue experience converges on the Claude Code interface | — | 14/08 02:19 | 14/08 02:19 (0m) |
 | `[~]` | [`W1-APP-02w`](waves/W1/W1-APP-02/tasks/W1-APP-02w.md) | Product state lives under one .ymp root that supports many projects | — | 14/08 02:13 | 14/08 02:13 (0m) |
 | `[~]` | [`W1-APP-02x`](waves/W1/W1-APP-02/tasks/W1-APP-02x.md) | Entry validation cannot hold the interface | — | 14/08 02:19 | 14/08 02:19 (0m) |
+| `[ ]` | [`W1-APP-02y`](waves/W1/W1-APP-02/tasks/W1-APP-02y.md) | The run record itself carries the per-model spend | — | — | — |
 | `[ ]` | [`W1-COR-03`](waves/W1/W1-COR-03/CARD.md) | Bounded local commitments self-organize and terminate | — | — | — |
 | `[x]` | [`W1-COR-03a`](waves/W1/W1-COR-03/tasks/W1-COR-03a.md) | Local commitments conserve budgets and close obligations | [`58524264`](https://github.com/maggnus/ymp/commit/585242645d405ff1f76d6015a1141144eac4207b) | 13/08 15:10 | 13/08 16:27 (1h25m) |
 | `[ ]` | [`W1-COR-03b`](waves/W1/W1-COR-03/tasks/W1-COR-03b.md) | Yielded participants resume finitely and runs terminate honestly | — | — | — |
