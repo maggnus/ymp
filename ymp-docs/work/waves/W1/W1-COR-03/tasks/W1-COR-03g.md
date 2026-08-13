@@ -3,7 +3,7 @@ id: W1-COR-03g
 kind: task
 wave: W1
 card: W1-COR-03
-state: ready
+state: accepted
 risk: critical
 maturity: BUILD
 relation: required
@@ -11,12 +11,12 @@ depends_on: [W1-COR-03a]
 blocks: [W1-EVL-04a]
 created_at: 2026-08-13T16:27:50+08:00
 updated_at: 2026-08-13T16:27:50+08:00
-started_at:
-accepted_at:
-candidate_commit:
-closure_commit:
-evidence:
-duration_minutes: 0
+started_at: 2026-08-13T16:47:00+08:00
+accepted_at: 2026-08-13T18:43:33+08:00
+candidate_commit: https://github.com/maggnus/ymp/commit/6b10304ccd0aa3ba958bf3eb2b8405ee6c926472
+closure_commit: https://github.com/maggnus/ymp/commit/2b390922667426a48b01c9225ccee08c7d8e81f8
+evidence: [`6b10304`](https://github.com/maggnus/ymp/commit/6b10304ccd0aa3ba958bf3eb2b8405ee6c926472)
+duration_minutes: 96
 blocker:
 pause_reason:
 return_trigger:
@@ -43,19 +43,21 @@ never return into a closed task contract and no former contractor can spend from
 
 ## Acceptance
 
-- [ ] A settlement whose recipient contract is already closed is refused, and the refusal leaves the
+- [x] A settlement whose recipient contract is already closed is refused, and the refusal leaves the
       registry byte-identical. The negative half is the reviewer's reproduction: a returned contract
       holding money from which an advertisement is currently accepted, which must fail with a
       captured non-zero exit.
-- [ ] No funded action can draw on an account whose contract has reached a terminal state, proved
+- [x] No funded action can draw on an account whose contract has reached a terminal state, proved
       over generated schedules rather than one ordering.
 
 ## Current state
 
-Ready. The independent review of the commitment kernel reproduced a settlement that credits a task
-contract already in a returned state, from which a further advertisement was accepted. No acceptance
-item of that card is violated, so the defect stands on its own, and it can spend one reservation
-twice, which the comparison cannot tolerate.
+Accepted at Critical depth and integrated. A contract stops being an account when it reaches a
+terminal state, and it does not close while a return is owed to an offer funded from its escrow, so
+the settlement recipient follows ownership of the escrow rather than whoever executes at the time.
+The reviewer's own integration test, built outside the repository over the public interface with an
+oracle computed from emitted facts, accepts the candidate and rejects the base, where the whole
+spend-from-closed chain went through.
 
 ## Next action
 
@@ -67,7 +69,14 @@ Refuse a settlement whose recipient is not a live account, then prove it over sc
 
 ## Findings
 
-None yet.
+- The defect is closed and independently re-measured: on the base the reviewer's falsifier accepted
+  the spend-from-closed chain end to end and exited 101; on the candidate it passes.
+- `minor`, refinement of the starting hypothesis: the refusal to settle into a closed account is
+  unreachable on executable orderings, because closing sweeps the escrow first. What actually closes
+  the defect is the paired rule that a contract cannot close while a return is owed. The unreachable
+  half becomes reachable only through a path into a terminal state that bypasses that pairing.
+- `minor`, independent product defect, already carried by W1-COR-03h: the aggregate conservation
+  check still reads registry fields rather than emitted facts.
 
 ## Closure
 
@@ -75,12 +84,18 @@ Filled when the task is accepted.
 
 ### Accepted outcome
 
-Not accepted.
+Escrow released by a settlement reaches only an account that can still spend, and no funded action
+draws on an account whose contract has reached a terminal state, measured over the reviewer's own
+interleavings rather than the author's alone.
 
 ### Residuals
 
-None recorded.
+None. The unreachable half of the rule is recorded as a refinement rather than carried as a
+limitation, and the conservation oracle belongs to W1-COR-03h.
 
 ### Evidence
 
-- None until acceptance.
+- [`6b10304`](https://github.com/maggnus/ymp/commit/6b10304ccd0aa3ba958bf3eb2b8405ee6c926472) —
+  reviewed candidate.
+- [`2b39092`](https://github.com/maggnus/ymp/commit/2b390922667426a48b01c9225ccee08c7d8e81f8) —
+  integration into the release branch.
