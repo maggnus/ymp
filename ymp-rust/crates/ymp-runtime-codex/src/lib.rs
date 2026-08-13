@@ -14,10 +14,11 @@ use std::time::{Duration, Instant};
 use ymp_runtime_api::{
     AdmittedProgram, BoundedOutputLine, CancellationToken, DiagnosticSummary, InFlightExcess,
     InvocationRequest, LaunchChain, LaunchDescriptor, LaunchEnvironmentVariable, McpBinding,
-    ProbeReport, Readiness, RuntimeDriver, RuntimeError, RuntimeEvent, RuntimeEventKind,
-    RuntimeFailureKind, RuntimeKind, RuntimeSession, Usage, configure_process_group,
-    create_launch_marker, end_process_tree_or_keep, evidence_digest, managed_launch_command,
-    read_bounded_lines, register_launch_marker, terminate_process_tree, verify_admitted_programs,
+    ModelSpend, ProbeReport, Readiness, RuntimeDriver, RuntimeError, RuntimeEvent,
+    RuntimeEventKind, RuntimeFailureKind, RuntimeKind, RuntimeSession, Usage,
+    configure_process_group, create_launch_marker, end_process_tree_or_keep, evidence_digest,
+    managed_launch_command, read_bounded_lines, register_launch_marker, terminate_process_tree,
+    verify_admitted_programs,
 };
 
 pub const PINNED_CODEX_VERSION: &str = "codex-cli 0.147.0";
@@ -1336,6 +1337,27 @@ fn in_flight_excess(value: &Value) -> InFlightExcess {
     }
 }
 
+/// Reads the per-model breakdown a turn reports beside its total. A turn that names no model is
+/// read as an empty breakdown rather than assigned to the admitted profile, so a cost that arrived
+/// without evidence of the route that spent it stays visibly unattributed in the record.
+fn model_breakdown(value: &Value) -> Vec<ModelSpend> {
+    let Some(reported) = value.get("cost_by_model").and_then(Value::as_array) else {
+        return Vec::new();
+    };
+    let mut breakdown: Vec<ModelSpend> = reported
+        .iter()
+        .filter_map(|spend| {
+            let model = spend.get("model").and_then(Value::as_str)?;
+            Some(ModelSpend {
+                model: model.to_owned(),
+                cost_microusd: optional_u64_field(spend, "cost_microusd"),
+            })
+        })
+        .collect();
+    breakdown.sort();
+    breakdown
+}
+
 fn observed_usage(value: &Value) -> Usage {
     Usage {
         input_tokens: optional_u64_field(value, "input_tokens"),
@@ -1343,6 +1365,7 @@ fn observed_usage(value: &Value) -> Usage {
         output_tokens: optional_u64_field(value, "output_tokens"),
         reasoning_output_tokens: optional_u64_field(value, "reasoning_output_tokens"),
         cost_microusd: value.get("cost_microusd").and_then(Value::as_u64),
+        cost_by_model: model_breakdown(value),
         wall_time_ms: 0,
         protected_queries: optional_u64_field(value, "protected_queries"),
         in_flight_excess: value
@@ -1364,6 +1387,7 @@ fn add_usage(total: &mut Usage, increment: &Usage) {
     if let Some(cost) = increment.cost_microusd {
         total.cost_microusd = Some(total.cost_microusd.unwrap_or_default().saturating_add(cost));
     }
+    total.absorb_model_spend(&increment.cost_by_model);
     total.protected_queries = total
         .protected_queries
         .saturating_add(increment.protected_queries);

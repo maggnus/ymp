@@ -382,7 +382,7 @@ else
     esac
   done
   printf '%s\n' '{"type":"thread.started","thread_id":"thread-durable-accounting"}'
-  printf '%s\n' '{"type":"turn.started","usage":{"input_tokens":7,"cached_input_tokens":2,"output_tokens":3,"reasoning_output_tokens":1,"cost_microusd":23,"protected_queries":2,"in_flight_excess":{"model_requests":1,"input_tokens":5,"cached_input_tokens":1,"output_tokens":2,"reasoning_output_tokens":1,"cost_microusd":11}}}'
+  printf '%s\n' '{"type":"turn.started","usage":{"input_tokens":7,"cached_input_tokens":2,"output_tokens":3,"reasoning_output_tokens":1,"cost_microusd":23,"cost_by_model":[{"model":"gpt-5-codex","cost_microusd":23}],"protected_queries":2,"in_flight_excess":{"model_requests":1,"input_tokens":5,"cached_input_tokens":1,"output_tokens":2,"reasoning_output_tokens":1,"cost_microusd":11}}}'
   printf '%s\n' '{"type":"item.completed","item":{"type":"agent_message","text":"accounting-ready"}}'
   case "$input" in
     *success*)
@@ -393,7 +393,7 @@ else
       } | "$bridge" internal agent-mcp) || exit 41
       printf '%s' "$responses" | grep -q '"snapshot_digest"' || exit 42
       printf '%s\n' '{"type":"item.completed","item":{"type":"mcp_tool_call","server":"ymp","tool":"submit","status":"completed","arguments":{"command_id":"durable-submit"},"result":{"committed":true},"error":null}}'
-      printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":11,"cached_input_tokens":4,"output_tokens":5,"reasoning_output_tokens":2,"cost_microusd":31,"protected_queries":3,"in_flight_excess":{"model_requests":2,"cost_microusd":3}}}'
+      printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":11,"cached_input_tokens":4,"output_tokens":5,"reasoning_output_tokens":2,"cost_microusd":31,"cost_by_model":[{"model":"gpt-5-codex","cost_microusd":31}],"protected_queries":3,"in_flight_excess":{"model_requests":2,"cost_microusd":3}}}'
       ;;
     *error*)
       printf '%s\n' '{"type":"turn.failed","usage":{"input_tokens":11,"cached_input_tokens":4,"output_tokens":5,"reasoning_output_tokens":2,"cost_microusd":31,"protected_queries":3,"in_flight_excess":{"model_requests":1,"input_tokens":5,"cached_input_tokens":1,"output_tokens":2,"reasoning_output_tokens":1,"cost_microusd":11}},"error":{"code":"fixture"}}'
@@ -517,8 +517,56 @@ fi
             terminal["event"]["usage"]["in_flight_excess"]["model_requests"].as_u64(),
             Some(usage.in_flight_excess.model_requests)
         );
+        // The record itself carries the per-model spend, so an attributed cost is told apart from
+        // an unverified one by reading the record rather than by re-running the admission rule.
+        let recorded = recorded_spend(&terminal);
+        assert_eq!(
+            recorded,
+            usage
+                .cost_by_model
+                .iter()
+                .map(|spend| (spend.model.clone(), spend.cost_microusd))
+                .collect::<Vec<_>>(),
+            "{outcome} record and event disagree on the per-model spend"
+        );
+        if outcome == "error" {
+            assert!(
+                recorded.is_empty() && !usage.cost_is_attributed(),
+                "{outcome} recorded a cost its runtime never attributed as an attributed one"
+            );
+        } else {
+            let expected = if outcome == "success" { 31 } else { 23 };
+            assert_eq!(
+                recorded,
+                vec![("gpt-5-codex".to_owned(), expected)],
+                "{outcome} per-model spend"
+            );
+            assert_eq!(
+                recorded.iter().map(|(_, cost)| cost).sum::<u64>(),
+                terminal["event"]["usage"]["cost_microusd"]
+                    .as_u64()
+                    .expect("recorded total"),
+                "{outcome} named spend does not add up to the recorded total"
+            );
+            assert!(usage.cost_is_attributed(), "{outcome} attribution");
+        }
         handle.join().expect("join worker");
     }
+}
+
+/// The per-model spend a terminal record names, in the order the record states it.
+fn recorded_spend(terminal: &serde_json::Value) -> Vec<(String, u64)> {
+    terminal["event"]["usage"]["cost_by_model"]
+        .as_array()
+        .expect("the record carries a per-model breakdown")
+        .iter()
+        .map(|spend| {
+            (
+                spend["model"].as_str().expect("model name").to_owned(),
+                spend["cost_microusd"].as_u64().expect("model spend"),
+            )
+        })
+        .collect()
 }
 
 /// A released Codex build states no in-flight excess anywhere in its output. The durable record of
