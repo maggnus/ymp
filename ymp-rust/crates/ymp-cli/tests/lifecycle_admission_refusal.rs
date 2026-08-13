@@ -188,6 +188,46 @@ fn is_alive(pid: u32) -> bool {
         .is_ok_and(|status| status.success())
 }
 
+/// How long a process must go on existing before this file will say it was left alone.
+///
+/// A signal reaches a process before the operating system stops reporting it: between the two the
+/// process is dying and still answers every liveness question. A single reading taken at that
+/// moment cannot tell "untouched" from "already killed", so every claim that something survived is
+/// read against this window instead.
+const SURVIVAL_WINDOW: Duration = Duration::from_secs(2);
+
+/// Whether the process goes on existing for the whole window, rather than at the instant of asking.
+fn outlives_the_window(pid: u32) -> bool {
+    let deadline = Instant::now() + SURVIVAL_WINDOW;
+    while Instant::now() < deadline {
+        if !is_alive(pid) {
+            return false;
+        }
+        std::thread::sleep(Duration::from_millis(20));
+    }
+    is_alive(pid)
+}
+
+/// The same reading for a process this file started itself, which it must reap to learn that the
+/// process has ended.
+fn child_outlives_the_window(child: &mut Child) -> bool {
+    let deadline = Instant::now() + SURVIVAL_WINDOW;
+    while Instant::now() < deadline {
+        if child
+            .try_wait()
+            .expect("read the process started outside the run")
+            .is_some()
+        {
+            return false;
+        }
+        std::thread::sleep(Duration::from_millis(20));
+    }
+    child
+        .try_wait()
+        .expect("read the process started outside the run")
+        .is_none()
+}
+
 /// Ordinary daemonisation, written in whichever stock interpreter exposes `setsid`. The surviving
 /// process owns its own session and is reparented to init at once, so nothing the operating system
 /// still reports connects it to the run: the marker it carries is the only thing that does, and
@@ -365,7 +405,7 @@ fn termination_that_cannot_read_the_process_table_is_not_reported_clean() {
 
     place_the_reader_where_this_account_can_write(temporary.path());
     let outcome = terminate_process_tree(&mut child);
-    let survived = is_alive(descendant);
+    let survived = outlives_the_window(descendant);
     restore_the_platform_reader();
 
     let Err(error) = outcome else {
@@ -512,10 +552,7 @@ fn a_cancelled_run_that_cannot_establish_termination_reports_it() {
     // started outside the run — from the same executable, and therefore indistinguishable from the
     // run's own by the command it reports — is still alive. This is the measurement, not the
     // convention: it fails if the cleanup ever answers for the machine rather than for this run.
-    let outside_the_run_survived = stranger
-        .try_wait()
-        .expect("read the outside process")
-        .is_none();
+    let outside_the_run_survived = child_outlives_the_window(&mut stranger);
     let _ = stranger.kill();
     let _ = stranger.wait();
     assert!(
