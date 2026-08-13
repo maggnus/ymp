@@ -7,3 +7,6 @@ license.workspace = true
 
 [dependencies]
 ymp-runtime-api.workspace = true
+
+[dev-dependencies]
+ymp-domain.workspace = true
