@@ -293,6 +293,8 @@ pub enum CommitmentEvent {
     ObligationReturned {
         obligation_id: String,
         contract_id: String,
+        /// Who closed the work, so that ownership can be audited from the facts alone.
+        participant: String,
         generation: u64,
         outcome: Outcome,
     },
@@ -364,6 +366,13 @@ pub enum CommitmentError {
     },
     #[error("budget arithmetic would overflow in {dimension}")]
     BudgetOverflow { dimension: Dimension },
+    #[error(
+        "account {account} does not hold the {dimension} the facts of this command move out of it"
+    )]
+    UncoveredDebit {
+        account: String,
+        dimension: Dimension,
+    },
     #[error("task contract {contract_id} is not active")]
     ContractNotActive { contract_id: String },
     #[error("fencing generation {seen} is stale: task contract {contract_id} is at {current}")]

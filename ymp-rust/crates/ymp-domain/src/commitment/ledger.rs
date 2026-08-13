@@ -54,6 +54,10 @@ pub(crate) enum Check {
     LiveAccount,
     /// A task contract stays open while a reservation is still due back to it.
     ReturningReservation,
+    /// An account holds what a command is about to move out of it before that command is decided.
+    Covering,
+    /// Only the participant holding the lease may close the obligation of a task contract.
+    ReturnHolder,
 }
 
 /// Checks a test build may switch off to prove that each one is load-bearing. The field does not
@@ -66,6 +70,8 @@ pub(crate) struct DisabledChecks {
     pub child_return: bool,
     pub live_account: bool,
     pub returning_reservation: bool,
+    pub covering: bool,
+    pub return_holder: bool,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
@@ -181,6 +187,8 @@ impl CommitmentLedger {
             Check::ChildReturn => !self.disabled.child_return,
             Check::LiveAccount => !self.disabled.live_account,
             Check::ReturningReservation => !self.disabled.returning_reservation,
+            Check::Covering => !self.disabled.covering,
+            Check::ReturnHolder => !self.disabled.return_holder,
         }
     }
 
@@ -191,14 +199,22 @@ impl CommitmentLedger {
     }
 
     /// Decide a command without changing anything, then commit every fact it produced.
+    ///
+    /// The facts are committed to a copy that replaces the ledger only once every one of them has
+    /// been honoured. A debit the accounts cannot pay for therefore refuses the whole command and
+    /// says which account and which dimension refused it, instead of being dropped while the facts
+    /// still claim the capacity moved. Deciding already establishes that the capacity exists, so
+    /// reaching that refusal means a check that was supposed to establish it is missing.
     pub fn execute(
         &mut self,
         command: &CommitmentCommand,
     ) -> Result<Vec<CommitmentEvent>, CommitmentError> {
         let events = self.decide(command)?;
+        let mut committed = self.clone();
         for event in &events {
-            self.apply(event);
+            committed.apply(event)?;
         }
+        *self = committed;
         Ok(events)
     }
 
@@ -912,7 +928,12 @@ impl CommitmentLedger {
             validate_digest("candidate_digest", candidate_digest)?;
         }
         let contract = self.active_contract(&command.contract_id)?;
-        self.ensure_holder(contract, &command.participant)?;
+        // A current fencing token is not by itself a claim on the work: it is the token of whoever
+        // holds the lease, and a participant that does not hold it closes nothing here, whether it
+        // held the lease before a reassignment or never held it at all.
+        if self.enforces(Check::ReturnHolder) {
+            self.ensure_holder(contract, &command.participant)?;
+        }
         self.ensure_generation(contract, command.generation)?;
         self.ensure_lease_live(contract)?;
         self.ensure_causal_work_closed(&contract.obligation_id)?;
@@ -920,6 +941,10 @@ impl CommitmentLedger {
         let mut events = vec![CommitmentEvent::ObligationReturned {
             obligation_id: contract.obligation_id.clone(),
             contract_id: contract.contract_id.clone(),
+            // Who closed the work is part of the fact. Without it the event stream records that an
+            // obligation closed under some generation but not by whom, and no audit built from the
+            // facts alone could tell an owner's return from anyone else's.
+            participant: command.participant.clone(),
             generation: command.generation,
             outcome: command.outcome.clone(),
         }];
@@ -1100,6 +1125,7 @@ impl CommitmentLedger {
         let balance = self.balance_of(account)?;
         match balance.shortfall(amount) {
             None => Ok(()),
+            Some(_) if !self.enforces(Check::Covering) => Ok(()),
             Some(dimension) => Err(CommitmentError::InsufficientBudget {
                 account: account_label(account),
                 dimension,
@@ -1240,10 +1266,10 @@ impl CommitmentLedger {
             })
     }
 
-    /// Commit one decided fact. Every precondition was checked while deciding, so this only
-    /// records; where a balance could not move it is left untouched rather than invented, and the
-    /// resulting accounting break is what the conservation property reports.
-    fn apply(&mut self, event: &CommitmentEvent) {
+    /// Commit one decided fact. Every precondition was checked while deciding, so a fact that
+    /// cannot be recorded is a defect in that deciding rather than an ordinary refusal: it is
+    /// reported instead of dropped, and the caller discards the copy it was being written to.
+    fn apply(&mut self, event: &CommitmentEvent) -> Result<(), CommitmentError> {
         match event {
             CommitmentEvent::ClockAdvanced { to } => self.now = *to,
             CommitmentEvent::ParticipantRegistered {
@@ -1260,16 +1286,15 @@ impl CommitmentLedger {
                 );
             }
             CommitmentEvent::BudgetTransferred { from, to, amount } => {
-                if self.debit(from, amount) {
-                    self.credit(to, amount);
-                }
+                self.debit(from, amount)?;
+                self.credit(to, amount)?;
             }
             CommitmentEvent::BudgetConsumed { account, amount } => {
-                if self.debit(account, amount)
-                    && let Ok(total) = self.consumed.checked_add(amount)
-                {
-                    self.consumed = total;
-                }
+                self.debit(account, amount)?;
+                self.consumed = self
+                    .consumed
+                    .checked_add(amount)
+                    .map_err(|dimension| CommitmentError::BudgetOverflow { dimension })?;
             }
             CommitmentEvent::OfferAdvertised {
                 offer_id,
@@ -1514,6 +1539,7 @@ impl CommitmentLedger {
                 self.close_contract(contract_id, ContractState::Cancelled);
             }
         }
+        Ok(())
     }
 
     fn close_contract(&mut self, contract_id: &str, state: ContractState) {
@@ -1527,25 +1553,46 @@ impl CommitmentLedger {
         }
     }
 
-    fn debit(&mut self, account: &AccountRef, amount: &BudgetVector) -> bool {
+    fn debit(
+        &mut self,
+        account: &AccountRef,
+        amount: &BudgetVector,
+    ) -> Result<(), CommitmentError> {
+        let label = account_label(account);
         let Some(balance) = self.balance_mut(account) else {
-            return false;
+            return Err(CommitmentError::Unknown {
+                kind: "account",
+                id: label,
+            });
         };
         match balance.checked_sub(amount) {
             Ok(remaining) => {
                 *balance = remaining;
-                true
+                Ok(())
             }
-            Err(_) => false,
+            Err(dimension) => Err(CommitmentError::UncoveredDebit {
+                account: label,
+                dimension,
+            }),
         }
     }
 
-    fn credit(&mut self, account: &AccountRef, amount: &BudgetVector) {
-        if let Some(balance) = self.balance_mut(account)
-            && let Ok(total) = balance.checked_add(amount)
-        {
-            *balance = total;
-        }
+    fn credit(
+        &mut self,
+        account: &AccountRef,
+        amount: &BudgetVector,
+    ) -> Result<(), CommitmentError> {
+        let label = account_label(account);
+        let Some(balance) = self.balance_mut(account) else {
+            return Err(CommitmentError::Unknown {
+                kind: "account",
+                id: label,
+            });
+        };
+        *balance = balance
+            .checked_add(amount)
+            .map_err(|dimension| CommitmentError::BudgetOverflow { dimension })?;
+        Ok(())
     }
 
     fn balance_mut(&mut self, account: &AccountRef) -> Option<&mut BudgetVector> {
