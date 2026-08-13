@@ -3,7 +3,7 @@ id: W1-APP-02q
 kind: task
 wave: W1
 card: W1-APP-02
-state: rework
+state: accepted
 risk: significant
 maturity: BUILD
 relation: required
@@ -12,11 +12,11 @@ blocks: []
 created_at: 2026-08-13T16:54:11+08:00
 updated_at: 2026-08-13T16:54:11+08:00
 started_at: 2026-08-13T18:53:00+08:00
-accepted_at:
-candidate_commit: https://github.com/maggnus/ymp/commit/6220c71dd993800063296cee87e6e70d845acd3d
-closure_commit:
-evidence:
-duration_minutes: 0
+accepted_at: 2026-08-13T21:11:53+08:00
+candidate_commit: https://github.com/maggnus/ymp/commit/16d53f7254a309e248c565d32dd8bdb1ee1fa08b
+closure_commit: https://github.com/maggnus/ymp/commit/7cf9ed3bdf4642330d4256fc3c0632bd57fd8c92
+evidence: [`16d53f7`](https://github.com/maggnus/ymp/commit/16d53f7254a309e248c565d32dd8bdb1ee1fa08b)
+duration_minutes: 107
 blocker:
 pause_reason:
 return_trigger:
@@ -46,22 +46,21 @@ through an access-control entry.
 
 ## Acceptance
 
-- [ ] A run whose observation utility cannot be admitted refuses to start and says which program and
+- [x] A run whose observation utility cannot be admitted refuses to start and says which program and
       why; the negative half places that utility in an unsuitable location and today's build reports
       a clean termination instead, with a captured exit.
-- [ ] The ownership rule rejects an ancestor directory that grants write access through an
+- [x] The ownership rule rejects an ancestor directory that grants write access through an
       access-control entry while its mode looks safe; the negative half constructs exactly that
       directory outside the repository.
-- [ ] The fake runtime cannot be selected on a path that produces a candidate in the shipped product,
+- [x] The fake runtime cannot be selected on a path that produces a candidate in the shipped product,
       proved by a check rather than by convention.
 
 ## Current state
 
-Returned by independent review after one round. Refusal, the widened ownership rule and the reading
-of access-control entries were measured working on the built product, including a refusal that names
-the entry granting write access. The card does not hold because an internal command still assembles
-a candidate outside the supervisor, with neither attestation nor utility admission, and the check
-that was to make that unreachable inspects a name rather than the path.
+Accepted and integrated. One gate now carries attestation and utility admission, invoked by the
+controller and by the single place where the command line builds a driver, and the fake runtime no
+longer exists on the shipped surface. The reviewer derived the launch sites from the code rather than
+from the author's list and found three, each passing the gate or not starting a run at all.
 
 ## Next action
 
@@ -89,6 +88,13 @@ entries.
 - Established and needing no work here: the access-control reader is incomplete rather than
   circular, because an entry high in the tree could replace the reader itself, while ownership and
   mode come from a system call.
+- All five findings are closed and independently re-measured: the reviewer's own reproduction now
+  exits with an invalid-value refusal and creates no data directory, while a real runtime still
+  reaches a candidate, so the gate refuses selectively rather than universally.
+- `minor`, independent product defect, continued as W1-APP-02r: the holder lookup still reads a
+  permission failure as an empty holder list, because the process utility reports both alike.
+- `minor`, additional work, continued as W1-APP-02r: the fake runtime remains an ordinary dependency
+  of the command crate although no source file names it.
 
 ## Closure
 
@@ -96,12 +102,16 @@ Filled when the task is accepted.
 
 ### Accepted outcome
 
-Not accepted.
+An unadmittable program stops the run naming the program and the reason, the ownership rule reads
+access-control entries on every ancestor, and every path that starts a runtime passes one gate.
 
 ### Residuals
 
-None recorded.
+None. Both remaining weaknesses became W1-APP-02r rather than carried limitations, because a failure
+read as an empty answer is the defect this card was opened to remove.
 
 ### Evidence
 
-- None until acceptance.
+- [`16d53f7`](https://github.com/maggnus/ymp/commit/16d53f7254a309e248c565d32dd8bdb1ee1fa08b) —
+  reviewed correction.
+- [`7cf9ed3`](https://github.com/maggnus/ymp/commit/7cf9ed3bdf4642330d4256fc3c0632bd57fd8c92) — integration into the release branch.
