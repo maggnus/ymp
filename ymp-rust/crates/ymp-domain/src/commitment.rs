@@ -24,6 +24,8 @@ mod protocol;
 mod records;
 
 #[cfg(test)]
+mod reachability;
+#[cfg(test)]
 mod schedules;
 #[cfg(test)]
 mod tests;

@@ -31,13 +31,14 @@ use super::protocol::{
     RecordVerification, RenewLease, ResumeInvocation, ReturnObligation, SettleOffer, StartAttempt,
     StartInvocation, StopRun, SubmitResult, WithdrawOffer, YieldInvocation,
 };
+use super::reachability::{SECOND_INVOCATION, sweep};
 use super::records::{
     AccountRef, BidState, ContractState, FundingSource, ObligationState, OfferPolicy, OfferState,
     Outcome,
 };
 use super::schedules::{
     self, ALPHA, BETA, CROSS_OFFER, DEADLINE, FactAccounts, GAMMA, LEASE_MS, LIFE_ATTEMPT,
-    LIFE_CONTRACT, LIFE_INVOCATION, LIFE_LEASE_MS, LIFE_OBLIGATION, LIFE_WAKE_DEADLINE,
+    LIFE_CONTRACT, LIFE_INVOCATION, LIFE_LEASE_MS, LIFE_OBLIGATION, LIFE_OFFER, LIFE_WAKE_DEADLINE,
     MAIN_MAX_AWARDS, MAIN_OFFER, ROOT_OBLIGATION, ROOT_PARTICIPANT, SECOND_OFFER,
     SOLO_FUNDING_CONTRACT, Scenario, Tokens, Violation, advertise_main, award_main, digest,
     life_setup, new_ledger, requested_escrow, run_altered_schedule, run_lifecycle, run_schedule,
@@ -2762,5 +2763,235 @@ fn removing_the_child_return_check_breaks_the_lifecycle_schedules_as_well() {
             Violation::WorkClosedTooEarly { .. } | Violation::DishonestTerminal { .. }
         )),
         "{where_} produced {violations:?}"
+    );
+}
+
+/// The finite condition on a stopped run: without it a run that has refused every resumption still
+/// counts the wakes those resumptions were for, and reports itself held open by them.
+#[test]
+fn removing_the_stopped_wake_check_produces_a_counterexample() {
+    let (where_, violations) = first_lifecycle_counterexample(DisabledChecks {
+        stopped_wake: true,
+        ..DisabledChecks::default()
+    })
+    .expect("the stopped-wake check must be load-bearing");
+    assert!(
+        violations
+            .iter()
+            .any(|violation| matches!(violation, Violation::DeadWakeHoldsRunOpen { .. })),
+        "{where_} produced {violations:?}"
+    );
+}
+
+// ---------------------------------------------------------------------------------------------
+// A stopped run sheds its yielded slices, and one attempt runs one slice
+// ---------------------------------------------------------------------------------------------
+
+/// Stopping a run releases the wake of every slice that yielded before it, in one step and without
+/// waiting for each slice to be closed.
+///
+/// The two halves of the same rule are asserted together: the resumption is refused, and the run no
+/// longer counts the wake it was for. A run that refused the one while still counting the other
+/// would be held open by work it has already declined to do.
+#[test]
+fn a_stopped_run_counts_no_wake_of_the_slices_it_will_never_resume() {
+    let mut ledger = running_attempt();
+    ledger.execute(&start_slice(0)).expect("the first slice");
+    ledger
+        .execute(&yield_slice(0, submission_condition(), LIFE_WAKE_DEADLINE))
+        .expect("a yield registers what would be worth resuming for");
+    ledger.execute(&submit_life()).expect("a candidate");
+    assert_eq!(
+        ledger.open_authority(),
+        Some(OpenAuthority::FundedWake {
+            invocation_id: LIFE_INVOCATION.to_owned()
+        }),
+        "before the stop the wake is what holds the run open"
+    );
+    ledger
+        .execute(&CommitmentCommand::StopRun(StopRun {
+            authority: ROOT_PARTICIPANT.to_owned(),
+            reason: StopReason::Cancelled,
+        }))
+        .expect("the owner of the root obligation stops the run");
+    assert!(matches!(
+        expect_refusal(&mut ledger, &resume_slice()),
+        CommitmentError::RunStopped
+    ));
+    assert_eq!(
+        ledger.invocations()[LIFE_INVOCATION].state,
+        InvocationState::Yielded,
+        "the slice is still yielded; what changed is that its wake is no longer funded work"
+    );
+    assert_eq!(
+        ledger.open_authority(),
+        Some(OpenAuthority::Obligation {
+            obligation_id: LIFE_OBLIGATION.to_owned()
+        }),
+        "what remains open is the work the contract still owes, not the wake"
+    );
+    // Winding the run down needs no state repair, and the slice never has to be closed for the run
+    // to reach its terminal honestly.
+    ledger
+        .execute(&CommitmentCommand::CancelContract(CancelContract {
+            contract_id: LIFE_CONTRACT.to_owned(),
+            sponsor: ROOT_PARTICIPANT.to_owned(),
+        }))
+        .expect("the sponsor takes the contract back");
+    ledger
+        .execute(&CommitmentCommand::WithdrawOffer(WithdrawOffer {
+            offer_id: LIFE_OFFER.to_owned(),
+            sponsor: ROOT_PARTICIPANT.to_owned(),
+        }))
+        .expect("the offer closes");
+    ledger
+        .execute(&CommitmentCommand::SettleOffer(SettleOffer {
+            offer_id: LIFE_OFFER.to_owned(),
+            sponsor: ROOT_PARTICIPANT.to_owned(),
+        }))
+        .expect("the reservation comes home");
+    assert_eq!(ledger.open_authority(), None);
+    assert_eq!(ledger.root_terminal(), Some(RootTerminal::Cancelled));
+}
+
+/// One attempt runs one process slice at a time. A second slice is admitted only once the first has
+/// stopped running, whether the second one would be new or resumed.
+#[test]
+fn one_attempt_never_runs_two_slices_at_once() {
+    let start_second = CommitmentCommand::StartInvocation(StartInvocation {
+        invocation_id: SECOND_INVOCATION.to_owned(),
+        attempt_id: LIFE_ATTEMPT.to_owned(),
+        contract_id: LIFE_CONTRACT.to_owned(),
+        participant: ALPHA.to_owned(),
+        generation: 1,
+        cursor: 0,
+    });
+    let close_second = CommitmentCommand::CloseInvocation(CloseInvocation {
+        invocation_id: SECOND_INVOCATION.to_owned(),
+        closer: ALPHA.to_owned(),
+        reason: InvocationClosure::Completed,
+    });
+    let mut ledger = running_attempt();
+    ledger.execute(&start_slice(0)).expect("the first slice");
+    assert!(matches!(
+        expect_refusal(&mut ledger, &start_second),
+        CommitmentError::AttemptAlreadyRunning { .. }
+    ));
+    ledger
+        .execute(&yield_slice(0, submission_condition(), LIFE_WAKE_DEADLINE))
+        .expect("the first slice yields");
+    ledger.execute(&submit_life()).expect("a candidate");
+    // The attempt is running nothing now, so a second slice may begin — and while it runs, the first
+    // slice may not be resumed under it.
+    ledger
+        .execute(&start_second)
+        .expect("an idle attempt admits a slice");
+    assert!(matches!(
+        expect_refusal(&mut ledger, &resume_slice()),
+        CommitmentError::AttemptAlreadyRunning { .. }
+    ));
+    ledger
+        .execute(&close_second)
+        .expect("the second slice ends for good");
+    ledger
+        .execute(&resume_slice())
+        .expect("the first slice resumes once the attempt is idle again");
+    assert_eq!(
+        ledger.invocations()[LIFE_INVOCATION].state,
+        InvocationState::Running
+    );
+    assert_eq!(
+        ledger.invocations()[SECOND_INVOCATION].state,
+        InvocationState::Closed
+    );
+}
+
+// ---------------------------------------------------------------------------------------------
+// Every reachable state of one attempt, not only the orderings some seed produced
+// ---------------------------------------------------------------------------------------------
+
+/// The whole reachable state space of one attempt holds no state where a stopped run is held open by
+/// a yielded slice, and none where one attempt runs two slices.
+///
+/// A seeded interleaving answers for the orderings it happened to produce. This answers for every
+/// ordering the alphabet admits: the traversal reaches every registry state, and each of them is
+/// asked both questions along with every invariant the lifecycle model states. The coverage counts
+/// are asserted too, because a sweep that stopped reaching a stopped run with a yielded slice, or
+/// stopped reaching two open slices, would answer both questions by never asking them.
+#[test]
+fn the_reachable_states_of_one_attempt_shed_stopped_wakes_and_run_one_slice() {
+    let report = sweep(DisabledChecks::default());
+    assert!(
+        !report.truncated,
+        "the traversal stopped early at {} states",
+        report.states
+    );
+    assert_eq!(
+        report.held_open_by_dead_wake, 0,
+        "{} of {} states are held open by a wake whose resumption is refused for good",
+        report.held_open_by_dead_wake, report.states
+    );
+    assert_eq!(
+        report.two_running_slices, 0,
+        "{} of {} states run two slices of one attempt",
+        report.two_running_slices, report.states
+    );
+    assert!(
+        report.violations.is_empty(),
+        "the reachable states broke {:?}",
+        report.violations
+    );
+    assert!(
+        report.stopped_with_yielded_slice > 0,
+        "no reachable state stops the run while a slice of it is yielded"
+    );
+    assert!(
+        report.two_open_slices > 0,
+        "no reachable state holds two slices of one attempt at once"
+    );
+    for terminal in ["accepted", "cancelled", "exhausted"] {
+        assert!(
+            report.terminals.contains(terminal),
+            "the reachable states never end in {terminal}, so the terminal checks were not exercised"
+        );
+    }
+}
+
+/// The negative half of the first question, measured over the same space: with the stopped-run
+/// condition removed, the traversal finds the states where a stopped run is still held open by a
+/// yielded slice whose resumption it has already refused.
+#[test]
+fn without_the_stopped_wake_check_the_sweep_finds_stopped_runs_held_open() {
+    let report = sweep(DisabledChecks {
+        stopped_wake: true,
+        ..DisabledChecks::default()
+    });
+    assert!(!report.truncated);
+    assert!(
+        report.held_open_after_stop > 0,
+        "the traversal found no state where a stopped run is held open by a yielded slice"
+    );
+    assert_eq!(
+        report.held_open_after_stop, report.held_open_by_dead_wake,
+        "the stop is the only reason a wake in this space is refused for good"
+    );
+}
+
+/// The negative half of the second question: with the one-slice-per-attempt condition removed, the
+/// traversal finds the states where one attempt is running two slices.
+#[test]
+fn without_the_single_running_slice_check_the_sweep_finds_two_running_slices() {
+    let report = sweep(DisabledChecks {
+        single_running_slice: true,
+        ..DisabledChecks::default()
+    });
+    assert!(!report.truncated);
+    assert!(
+        report.two_running_slices > 0,
+        "the traversal found no state where one attempt runs two slices"
+    );
+    assert!(
+        report.states > sweep(DisabledChecks::default()).states,
+        "admitting a second running slice must open states the enforced kernel does not reach"
     );
 }

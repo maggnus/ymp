@@ -28,7 +28,8 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use super::budget::{BudgetVector, DIMENSION_COUNT, DIMENSIONS, Dimension};
 use super::invocations::{
-    InvocationClosure, OpenAuthority, RootTerminal, StopReason, Verdict, WakeCondition,
+    InvocationClosure, InvocationRecord, InvocationState, OpenAuthority, RootTerminal, StopReason,
+    Verdict, WakeCondition,
 };
 use super::ledger::{AlteredFacts, CommitmentLedger, DisabledChecks};
 use super::protocol::{
@@ -38,7 +39,7 @@ use super::protocol::{
     StartInvocation, StopRun, SubmitResult, WithdrawBid, WithdrawOffer, YieldInvocation,
 };
 use super::records::{
-    AccountRef, ContractState, FundingSource, ObligationState, OfferPolicy, OfferState, Outcome,
+    AccountRef, FundingSource, ObligationState, OfferPolicy, OfferState, Outcome,
 };
 
 pub(crate) const ROOT_PARTICIPANT: &str = "sponsor-root";
@@ -1003,13 +1004,43 @@ pub(crate) enum Violation {
     },
     /// The slices of one attempt were resumed more times than the bound allows.
     WakeCountExceeded { attempt_id: String, wakes: u32 },
-    /// The run reported a terminal state while a funded control object could still advance it.
+    /// Two process slices of one attempt were running at the same time, so the run was executing
+    /// twice what it counts, funds and reads facts for once.
+    TwoRunningSlices {
+        attempt_id: String,
+        running: Vec<String>,
+    },
+    /// The run reported a terminal state although a command it would still accept could advance it.
+    ///
+    /// What is compared is not the ledger's own reason for being open — that is the same function
+    /// the terminal is defined by, and comparing it with itself proves nothing. What is compared is
+    /// the transition: the resumption a yielded slice is for, and the beginning of a slice on an
+    /// existing attempt, are offered to the kernel, and a run that reports itself finished while
+    /// accepting either has shed a control object it still honours.
+    ///
+    /// No ordering in this suite provokes it, and the reason is structural rather than accidental:
+    /// every transition that could still advance work needs an active task contract, an active
+    /// contract carries an obligation that is not terminal, and an obligation that is not terminal is
+    /// itself a control object, so no terminal state can be reported while one exists. What the check
+    /// guards is a change to that structure — a rule that sheds control objects, of which the
+    /// stopped-run rule is the first, shedding one that is still honoured.
     TerminalWhileOpen {
         terminal: RootTerminal,
         outstanding: String,
     },
-    /// The run reported acceptance without a passing protected query against a root-scope
-    /// candidate. Quiescence, a spent budget and a contractor's own result are not acceptance.
+    /// The run reported acceptance without a passing protected query against a candidate whose root
+    /// scope holds up. Quiescence, a spent budget and a contractor's own result are not acceptance.
+    ///
+    /// Root scope is recomputed here from the obligation tree the facts describe, rather than read
+    /// off the flag the kernel wrote into the verification fact: the terminal state is derived from
+    /// that flag, so trusting it would make this check agree with the kernel by construction.
+    ///
+    /// What separates the two sides is a verification fact whose stored scope disagrees with where
+    /// its contract actually hangs. Producing one needs a task contract below root scope that a
+    /// passing query is recorded against, and neither the lifecycle cast nor the reachability
+    /// alphabet holds such a contract — both open exactly one contract, directly under the root
+    /// obligation. Until one of them does, this check is evaluated in every reachable state and
+    /// provoked in none.
     AcceptedWithoutVerification,
     /// The run reached a terminal state its scenario does not describe.
     DishonestTerminal {
@@ -1802,6 +1833,10 @@ pub(crate) struct SliceFacts {
     wakes: BTreeMap<String, u32>,
     /// Which slices were begun or resumed but not yet paid for within the same command.
     started: BTreeSet<String>,
+    /// Which slices the facts say are running now: begun or resumed, and neither yielded nor closed
+    /// since. It is kept here rather than read off the invocation records for the same reason as
+    /// everything else in this projection — the records are built by applying these facts.
+    running: BTreeSet<String>,
 }
 
 impl SliceFacts {
@@ -1825,6 +1860,7 @@ impl SliceFacts {
                     self.attempt
                         .insert(invocation_id.clone(), attempt_id.clone());
                     self.started.insert(invocation_id.clone());
+                    self.running.insert(invocation_id.clone());
                     unpaid.push(invocation_id.clone());
                 }
                 CommitmentEvent::InvocationYielded {
@@ -1835,6 +1871,7 @@ impl SliceFacts {
                 } => {
                     self.registered
                         .insert(invocation_id.clone(), (*cursor, conditions.clone()));
+                    self.running.remove(invocation_id);
                 }
                 CommitmentEvent::InvocationResumed {
                     invocation_id,
@@ -1842,8 +1879,12 @@ impl SliceFacts {
                     ..
                 } => {
                     unpaid.push(invocation_id.clone());
+                    self.running.insert(invocation_id.clone());
                     *self.wakes.entry(invocation_id.clone()).or_default() += 1;
                     violations.extend(self.unjustified(invocation_id, *matched_sequence));
+                }
+                CommitmentEvent::InvocationClosed { invocation_id, .. } => {
+                    self.running.remove(invocation_id);
                 }
                 CommitmentEvent::BudgetConsumed { amount, .. } => {
                     paid += amount.get(Dimension::InvocationStarts);
@@ -1872,7 +1913,29 @@ impl SliceFacts {
                 });
             }
         }
+        violations.extend(self.concurrent_slices());
         violations
+    }
+
+    /// Whether the facts say one attempt is running more than one process slice.
+    fn concurrent_slices(&self) -> Vec<Violation> {
+        let mut per_attempt: BTreeMap<&str, Vec<String>> = BTreeMap::new();
+        for invocation_id in &self.running {
+            if let Some(attempt_id) = self.attempt.get(invocation_id) {
+                per_attempt
+                    .entry(attempt_id.as_str())
+                    .or_default()
+                    .push(invocation_id.clone());
+            }
+        }
+        per_attempt
+            .into_iter()
+            .filter(|(_, running)| running.len() > 1)
+            .map(|(attempt_id, running)| Violation::TwoRunningSlices {
+                attempt_id: attempt_id.to_owned(),
+                running,
+            })
+            .collect()
     }
 
     /// Whether the fact a resumption named is a fact, lies after the cursor of the yield it
@@ -2582,37 +2645,164 @@ pub(crate) fn life_wind_down() -> Vec<CommitmentCommand> {
     ]
 }
 
+/// The resumption a yielded slice holds its wake for, as its own participant would issue it.
+pub(crate) fn resumption(invocation: &InvocationRecord) -> CommitmentCommand {
+    CommitmentCommand::ResumeInvocation(ResumeInvocation {
+        invocation_id: invocation.invocation_id.clone(),
+        participant: invocation.participant.clone(),
+        generation: invocation.generation,
+    })
+}
+
+/// Whether a refusal is one no later command can lift, and how to say so.
+///
+/// A run may honestly wait for a fact nobody has committed yet, and a resumption refused for that
+/// reason is a wake still worth counting. Every reason listed here is different, because each rests
+/// on something the protocol only moves one way: the clock never runs backwards, a stopped run is
+/// never restarted, a fencing generation never returns to a displaced holder, a contract that
+/// reached a terminal state never reopens, and creation authority is never credited back into an
+/// account it left.
+pub(crate) fn permanent_refusal(error: &CommitmentError) -> Option<&'static str> {
+    match error {
+        CommitmentError::RunStopped => Some("the run is stopped and refuses every resumption"),
+        CommitmentError::WakeDeadlinePassed { .. } => Some("its deadline has passed"),
+        CommitmentError::WakeBudgetExhausted { .. } => {
+            Some("its attempt has used every wake it was funded for")
+        }
+        CommitmentError::StaleGeneration { .. } | CommitmentError::NotAuthorized { .. } => {
+            Some("its contract has changed hands")
+        }
+        CommitmentError::LeaseExpired { .. } => Some("its lease has run out"),
+        CommitmentError::ContractNotActive { .. } => Some("its task contract has closed"),
+        CommitmentError::InsufficientBudget { .. } => {
+            Some("nothing left in its escrow pays for the resumption")
+        }
+        CommitmentError::InvocationNotYielded { .. } => Some("the slice registered no wake at all"),
+        _ => None,
+    }
+}
+
 /// Whether the run is waiting on a wake that nothing can honour any more.
 ///
 /// It is asked after every command rather than at the end, because winding a run down closes such a
-/// slice for reasons of its own and the question would then never be reached. What it decides from
-/// is written out here rather than taken from the ledger's own answer, so that the two are produced
-/// by different code and can disagree.
+/// slice for reasons of its own and the question would then never be reached.
+///
+/// What settles it is not a second copy of the rules that keep a wake alive — that would restate the
+/// projection the ledger already computes and agree with it wherever both are wrong together. It is
+/// the transition itself: the kernel is offered the very resumption the wake was registered for, and
+/// a run that counts a wake while refusing its resumption for a reason no later command can lift is
+/// holding itself open on something nobody will ever use.
 fn dead_wake(ledger: &CommitmentLedger) -> Option<Violation> {
     let OpenAuthority::FundedWake { invocation_id } = ledger.open_authority()? else {
         return None;
     };
     let invocation = ledger.invocations().get(&invocation_id)?;
-    let contract = ledger.contracts().get(&invocation.contract_id);
-    let why = match (&invocation.wake, contract) {
-        (None, _) => "the slice registered no wake at all",
-        (Some(wake), _) if ledger.now() > wake.wake_deadline => "its deadline has passed",
-        (_, None) => "its task contract does not exist",
-        (_, Some(contract)) if contract.state != ContractState::Active => "its contract has closed",
-        (_, Some(contract)) if contract.lease.generation != invocation.generation => {
-            "its contract has changed hands"
-        }
-        (_, Some(contract)) if ledger.now() > contract.lease.expires_at => "its lease has run out",
-        (_, Some(contract))
-            if !contract
-                .escrow
-                .covers(&BudgetVector::unit(Dimension::InvocationStarts)) =>
-        {
-            "nothing left in its escrow pays for the resumption"
-        }
-        _ => return None,
-    };
+    let refusal = ledger.decide(&resumption(invocation)).err()?;
+    let why = permanent_refusal(&refusal)?;
     Some(Violation::DeadWakeHoldsRunOpen { invocation_id, why })
+}
+
+/// A control object the kernel would still honour, or `None` when nothing it accepts can advance the
+/// run any further.
+///
+/// This is the other direction of the same question `dead_wake` asks, and it is decided the same
+/// way: by offering the kernel a transition instead of by reading the projection its own terminal
+/// state is defined by. A slice that is running, a yielded slice whose resumption would be accepted,
+/// and an attempt that could still begin a slice are each work the run has not finished.
+fn still_advancing(ledger: &CommitmentLedger) -> Option<String> {
+    for invocation in ledger.invocations().values() {
+        if invocation.state == InvocationState::Running {
+            return Some(format!("running slice {}", invocation.invocation_id));
+        }
+        if ledger.decide(&resumption(invocation)).is_ok() {
+            return Some(format!("resumable slice {}", invocation.invocation_id));
+        }
+    }
+    for attempt in ledger.attempts().values() {
+        let probe = CommitmentCommand::StartInvocation(StartInvocation {
+            invocation_id: format!("probe-{}", attempt.attempt_id),
+            attempt_id: attempt.attempt_id.clone(),
+            contract_id: attempt.contract_id.clone(),
+            participant: attempt.participant.clone(),
+            generation: attempt.generation,
+            cursor: 0,
+        });
+        if ledger.decide(&probe).is_ok() {
+            return Some(format!("startable attempt {}", attempt.attempt_id));
+        }
+    }
+    None
+}
+
+/// Whether the fact stream carries a passing protected query against a candidate of a task contract
+/// that really does hang directly under the root obligation.
+///
+/// The kernel decides root scope while it commits the verification and stores its answer in the
+/// fact; the terminal state is then derived from that stored answer. Reading the same flag back here
+/// would compare the kernel with itself, so the obligation tree is rebuilt from the facts that
+/// created it and the scope of every passing verdict is settled against that.
+fn verified_at_root_scope(ledger: &CommitmentLedger) -> bool {
+    let mut parent: BTreeMap<&str, &str> = BTreeMap::new();
+    let mut carried: BTreeMap<&str, &str> = BTreeMap::new();
+    for fact in ledger.facts() {
+        match fact {
+            CommitmentEvent::ObligationCreated {
+                obligation_id,
+                parent: above,
+                ..
+            } => {
+                parent.insert(obligation_id, above);
+            }
+            CommitmentEvent::TaskContractFormed {
+                contract_id,
+                obligation_id,
+                ..
+            } => {
+                carried.insert(contract_id, obligation_id);
+            }
+            _ => {}
+        }
+    }
+    ledger.facts().iter().any(|fact| {
+        let CommitmentEvent::VerificationRecorded {
+            contract_id,
+            verdict: Verdict::Passed,
+            ..
+        } = fact
+        else {
+            return false;
+        };
+        carried
+            .get(contract_id.as_str())
+            .and_then(|obligation_id| parent.get(*obligation_id))
+            .is_some_and(|above| *above == ledger.root_obligation())
+    })
+}
+
+/// What the terminal state a run reports must agree with: the transitions the kernel would still
+/// accept, and the evidence acceptance is supposed to rest on.
+///
+/// It is answered for a whole reachable state rather than for one interleaving, so the reachability
+/// sweep asks it of every state it reaches and the lifecycle schedules ask it of the state each of
+/// them ends in.
+pub(crate) fn terminal_violations(
+    ledger: &CommitmentLedger,
+    terminal: Option<RootTerminal>,
+) -> Vec<Violation> {
+    let Some(terminal) = terminal else {
+        return Vec::new();
+    };
+    let mut violations = Vec::new();
+    if let Some(outstanding) = still_advancing(ledger) {
+        violations.push(Violation::TerminalWhileOpen {
+            terminal,
+            outstanding,
+        });
+    }
+    if terminal == RootTerminal::Accepted && !verified_at_root_scope(ledger) {
+        violations.push(Violation::AcceptedWithoutVerification);
+    }
+    violations
 }
 
 #[derive(Debug)]
@@ -2706,33 +2896,17 @@ pub(crate) fn run_lifecycle(
         observe(&mut ledger, &mut report, &command);
     }
     report.terminal = ledger.root_terminal();
-    match (report.terminal, ledger.open_authority()) {
-        (None, Some(outstanding)) => report.violations.push(Violation::NeverQuiescent {
-            outstanding: outstanding.label(),
-        }),
-        (Some(terminal), Some(outstanding)) => {
-            report.violations.push(Violation::TerminalWhileOpen {
-                terminal,
-                outstanding: outstanding.label(),
-            });
-        }
-        _ => {}
-    }
-    if report.terminal == Some(RootTerminal::Accepted)
-        && !ledger.facts().iter().any(|fact| {
-            matches!(
-                fact,
-                CommitmentEvent::VerificationRecorded {
-                    verdict: Verdict::Passed,
-                    root_scope: true,
-                    ..
-                }
-            )
-        })
-    {
-        report
-            .violations
-            .push(Violation::AcceptedWithoutVerification);
+    report
+        .violations
+        .extend(terminal_violations(&ledger, report.terminal));
+    // Everything that could wind this run down has been offered by now, so a run still reporting no
+    // terminal never wound down at all, and it must at least be able to name what it waits for.
+    if report.terminal.is_none() {
+        report.violations.push(Violation::NeverQuiescent {
+            outstanding: ledger
+                .open_authority()
+                .map_or_else(|| "nothing it can name".to_owned(), |open| open.label()),
+        });
     }
     if report.terminal != Some(scenario.expected()) {
         report.violations.push(Violation::DishonestTerminal {
