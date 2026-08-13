@@ -9,6 +9,7 @@ use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 use super::budget::{BudgetVector, Dimension};
+use super::invocations::{InvocationClosure, StopReason, Verdict, WakeCondition};
 use super::records::{AccountRef, BidOrigin, FundingSource, OfferPolicy, Outcome};
 use crate::MAX_IDENTIFIER_CHARS;
 
@@ -18,6 +19,12 @@ pub const MAX_AWARDS: u32 = 64;
 pub const MAX_LEASE_MS: u64 = 24 * 60 * 60 * 1000;
 /// The largest number of mechanically declared dependency or capability tokens on one offer.
 pub const MAX_SCOPE_ENTRIES: usize = 64;
+/// The largest number of typed conditions one yield may register. A yield that asked about
+/// everything would be woken by everything, which is the same as not yielding.
+pub const MAX_WAKE_CONDITIONS: usize = 16;
+/// How many times the process slices of one attempt may be resumed in total. It is the bound that
+/// makes a participant which keeps yielding on a condition it keeps meeting a finite thing.
+pub const MAX_ATTEMPT_WAKES: u32 = 8;
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct RegisterParticipant {
@@ -156,6 +163,71 @@ pub struct AdvanceClock {
     pub to: u64,
 }
 
+/// Begin one supervised process slice under a live lease. The cursor states how far into the
+/// committed facts the participant has already read, so that a wake registered later can only match
+/// something it has not seen.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+pub struct StartInvocation {
+    pub invocation_id: String,
+    pub attempt_id: String,
+    pub contract_id: String,
+    pub participant: String,
+    pub generation: u64,
+    pub cursor: u64,
+}
+
+/// End the process slice without returning the task contract, registering what would be worth
+/// resuming for and until when.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+pub struct YieldInvocation {
+    pub invocation_id: String,
+    pub participant: String,
+    pub generation: u64,
+    /// How far the participant has read by the time it stops. It may only move forward.
+    pub cursor: u64,
+    pub conditions: Vec<WakeCondition>,
+    pub wake_deadline: u64,
+}
+
+/// Admit a yielded slice back into a running process. It is the only transition that reads the
+/// committed facts to decide: without one after the cursor that a registered condition names, there
+/// is nothing to resume for.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+pub struct ResumeInvocation {
+    pub invocation_id: String,
+    pub participant: String,
+    pub generation: u64,
+}
+
+/// End a process slice for good, whether the participant finished, stopped answering, or its wake
+/// deadline passed.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+pub struct CloseInvocation {
+    pub invocation_id: String,
+    /// The participant running the slice, or the sponsor of its task contract.
+    pub closer: String,
+    pub reason: InvocationClosure,
+}
+
+/// Spend one protected-query reservation on an exact candidate digest.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+pub struct RecordVerification {
+    pub contract_id: String,
+    pub participant: String,
+    pub generation: u64,
+    pub candidate_digest: String,
+    pub verdict: Verdict,
+}
+
+/// Stop the run. Nothing new may be created afterwards; what already exists still has to be wound
+/// down, so the accounting closes rather than being abandoned.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+pub struct StopRun {
+    /// The participant that owns the root obligation. Nobody else may stop the run.
+    pub authority: String,
+    pub reason: StopReason,
+}
+
 /// One typed shared effect requested against the ledger.
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(tag = "command", rename_all = "snake_case")]
@@ -175,6 +247,12 @@ pub enum CommitmentCommand {
     ReturnObligation(ReturnObligation),
     CancelContract(CancelContract),
     AdvanceClock(AdvanceClock),
+    StartInvocation(StartInvocation),
+    YieldInvocation(YieldInvocation),
+    ResumeInvocation(ResumeInvocation),
+    CloseInvocation(CloseInvocation),
+    RecordVerification(RecordVerification),
+    StopRun(StopRun),
 }
 
 impl CommitmentCommand {
@@ -301,6 +379,45 @@ pub enum CommitmentEvent {
     ContractCancelled {
         contract_id: String,
         obligation_id: String,
+    },
+    InvocationStarted {
+        invocation_id: String,
+        attempt_id: String,
+        contract_id: String,
+        participant: String,
+        generation: u64,
+        cursor: u64,
+    },
+    InvocationYielded {
+        invocation_id: String,
+        cursor: u64,
+        conditions: Vec<WakeCondition>,
+        wake_deadline: u64,
+    },
+    InvocationResumed {
+        invocation_id: String,
+        contract_id: String,
+        participant: String,
+        generation: u64,
+        /// The sequence of the committed fact that authorized this resumption. It is part of the
+        /// record so that every wake can be traced back to the exact fact it matched, instead of
+        /// to a notification nobody kept.
+        matched_sequence: u64,
+        wakes_used: u32,
+    },
+    InvocationClosed {
+        invocation_id: String,
+        reason: InvocationClosure,
+    },
+    VerificationRecorded {
+        contract_id: String,
+        candidate_digest: String,
+        verdict: Verdict,
+        root_scope: bool,
+    },
+    RunStopped {
+        authority: String,
+        reason: StopReason,
     },
 }
 
@@ -432,6 +549,52 @@ pub enum CommitmentError {
         contract_id: String,
         outstanding: String,
     },
+    #[error("invocation {invocation_id} is not running")]
+    InvocationNotRunning { invocation_id: String },
+    #[error("invocation {invocation_id} is not yielded")]
+    InvocationNotYielded { invocation_id: String },
+    #[error("a cursor may not move from {current} back to {seen}")]
+    CursorRegression { current: u64, seen: u64 },
+    #[error("cursor {seen} names a fact that has not been committed; the run is at {committed}")]
+    CursorAhead { seen: u64, committed: u64 },
+    #[error("a yield may register between 1 and {MAX_WAKE_CONDITIONS} typed conditions")]
+    InvalidWakeConditions,
+    #[error(
+        "a wake deadline of {wake_deadline} outlives the lease on task contract {contract_id}, \
+         which is funded to {expires_at}"
+    )]
+    WakeDeadlineUnfunded {
+        contract_id: String,
+        wake_deadline: u64,
+        expires_at: u64,
+    },
+    #[error(
+        "the wake deadline of invocation {invocation_id} passed at {wake_deadline}, clock reads {now}"
+    )]
+    WakeDeadlinePassed {
+        invocation_id: String,
+        wake_deadline: u64,
+        now: u64,
+    },
+    #[error("attempt {attempt_id} has used all {MAX_ATTEMPT_WAKES} of its wakes")]
+    WakeBudgetExhausted { attempt_id: String },
+    #[error(
+        "no committed fact after cursor {cursor} matches a wake condition of invocation {invocation_id}"
+    )]
+    NoMatchingEvent { invocation_id: String, cursor: u64 },
+    #[error("task contract {contract_id} carries no candidate to verify")]
+    NoCandidate { contract_id: String },
+    #[error(
+        "candidate {candidate_digest} is not the candidate task contract {contract_id} recorded"
+    )]
+    CandidateMismatch {
+        contract_id: String,
+        candidate_digest: String,
+    },
+    #[error("the run was stopped and creates nothing further")]
+    RunStopped,
+    #[error("the run has already been stopped")]
+    RunAlreadyStopped,
     #[error("command serialization failed: {0}")]
     Serialization(String),
 }
