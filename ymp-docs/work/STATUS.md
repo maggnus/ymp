@@ -26,7 +26,7 @@
 | `[=]` | [`W1-APP-02j`](waves/W1/W1-APP-02/tasks/W1-APP-02j.md) | Runtime admission stops duplicating the pinned executable per instance | — | — | — |
 | `[~]` | [`W1-APP-02k`](waves/W1/W1-APP-02/tasks/W1-APP-02k.md) | No managed descendant survives the supervisor that started it | [`48bd5503`](https://github.com/maggnus/ymp/commit/48bd5503253b950b8086aa506543281cab3dec80) | 13/08 12:44 | 13/08 12:09 (0m) |
 | `[ ]` | [`W1-APP-02l`](waves/W1/W1-APP-02/tasks/W1-APP-02l.md) | Runtime evidence names the models that spent and the environment it passed | — | — | — |
-| `[ ]` | [`W1-APP-02m`](waves/W1/W1-APP-02/tasks/W1-APP-02m.md) | A typed prompt becomes a contract and starts a run | — | — | — |
+| `[~]` | [`W1-APP-02m`](waves/W1/W1-APP-02/tasks/W1-APP-02m.md) | A typed prompt becomes a contract and starts a run | [`3f420b4f`](https://github.com/maggnus/ymp/commit/3f420b4f1eea91a8c6ed563b76ca1bc359563130) | 13/08 12:45 | 13/08 12:40 (0m) |
 | `[ ]` | [`W1-APP-02n`](waves/W1/W1-APP-02/tasks/W1-APP-02n.md) | Every interface action exists as a command of the same executable | — | — | — |
 | `[ ]` | [`W1-COR-03`](waves/W1/W1-COR-03/CARD.md) | Bounded local commitments self-organize and terminate | — | — | — |
 | `[ ]` | [`W1-COR-03a`](waves/W1/W1-COR-03/tasks/W1-COR-03a.md) | Local commitments conserve budgets and close obligations | — | — | — |

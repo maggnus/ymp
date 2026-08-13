@@ -3,7 +3,7 @@ id: W1-APP-02m
 kind: task
 wave: W1
 card: W1-APP-02
-state: ready
+state: rework
 risk: significant
 maturity: BUILD
 relation: required
@@ -11,9 +11,9 @@ depends_on: [W1-APP-02e.3]
 blocks: []
 created_at: 2026-08-13T12:40:57+08:00
 updated_at: 2026-08-13T12:40:57+08:00
-started_at:
+started_at: 2026-08-13T12:45:00+08:00
 accepted_at:
-candidate_commit:
+candidate_commit: https://github.com/maggnus/ymp/commit/3f420b4f1eea91a8c6ed563b76ca1bc359563130
 closure_commit:
 evidence:
 duration_minutes: 0
@@ -52,15 +52,20 @@ a person writes a prompt — is executable instead of assumed.
       and reports exactly what is missing, with a captured non-zero exit.
 - [ ] The stored contract carries a verifier reference, its digest and a negative control; a package
       without them is rejected at load.
-- [ ] The same result is reachable from the command surface with identical authority checks, and both
-      paths write through the kernel writer.
+- [ ] One implementation serves both the interface and the command surface that W1-APP-02n will add,
+      with no second path into the kernel. The command itself belongs to that node; this card proves
+      only that the scenario is shared and that every start path passes the approved-contract check.
+- [ ] A store or package written under an incompatible schema version is refused without a single
+      write. The negative half compares the bytes of the run summary before and after an attempted
+      open.
 
 ## Current state
 
-Ready. An independent audit found that the path from a typed request to an approved contract belongs
-to no stage of the roadmap and to no node of the work tree, while the product goal states it first.
-The interface already has the input line and the authorization surface; what is missing is the step
-that turns text into a contract with an acceptance condition.
+Returned by independent review after one round. The typed path works end to end — a request produced
+a stored contract, the journal carried the approval record, and a request without an acceptance
+condition started nothing — but opening a store of the previous version rewrites the run summary and
+the version check is inverted against the schema document, so the new reader is unreachable. Two
+further paths bypass the approved-contract requirement.
 
 ## Next action
 
@@ -75,7 +80,20 @@ start without it.
 
 ## Findings
 
-None yet.
+- `blocker`, defect in the contracted outcome. Opening a store written under the previous version
+  rewrites the run summary: a running run becomes an infrastructure error and the interface then
+  reports that no run was recorded. The journal and the objects survive; the projection does not.
+- `blocker`, defect in the contracted outcome. The version check is inverted against the schema
+  document, so a package at the new version is rejected and one at the old version accepted.
+- `major`, defect in the contracted outcome. A contract supplied on the command line offers an
+  enabled start action, but the start path sees only a draft and refuses.
+- `major`, independent product defect. The internal smoke command starts a run under the new schema
+  without an approved contract and exits zero.
+- Defect in this card rather than in the work: the acceptance demanded a command surface that the
+  dispatch had assigned to W1-APP-02n. The item has been rewritten to require one shared
+  implementation and no second path into the kernel.
+- The migration consequence is confirmed by independent measurement: stores of the previous version
+  do not open, no migration tool exists, and a new data root is required.
 
 ## Closure
 
