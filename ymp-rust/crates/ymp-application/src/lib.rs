@@ -24,9 +24,11 @@ use ymp_verifier::{
     EnvironmentBoundVerifier, StoredVerificationEvidence, VerifiedEvidence, VerifierError,
 };
 
+pub mod answer;
 pub mod commitment;
 pub mod contract;
 
+pub use answer::AnswerError;
 pub use commitment::{CommitmentOutcome, CommitmentService, CommitmentServiceError, RecordedFact};
 pub use contract::{
     AcceptanceCondition, ContractRequestError, DEFAULT_RUN_BUDGET, PreparedContract, RunRequest,

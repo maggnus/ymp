@@ -186,7 +186,14 @@ pub fn prepare_contract(request: &RunRequest) -> Result<PreparedContract, Contra
             reason,
         }
     })?;
-    if !program.is_file() || !is_executable(&program)? {
+    let executable = program.is_file()
+        && crate::answer::is_executable(&program).map_err(|error| {
+            ContractRequestError::VerifierProgram {
+                path: program.clone(),
+                reason: error.to_string(),
+            }
+        })?;
+    if !executable {
         return Err(ContractRequestError::VerifierNotExecutable(program));
     }
     // The oracle is identified by the exact program that will decide the run. A package that
@@ -350,20 +357,4 @@ fn resolve(parent: &Path, path: PathBuf) -> PathBuf {
 
 fn canonicalize(path: &Path) -> Result<PathBuf, String> {
     path.canonicalize().map_err(|error| error.to_string())
-}
-
-#[cfg(unix)]
-fn is_executable(path: &Path) -> Result<bool, ContractRequestError> {
-    use std::os::unix::fs::PermissionsExt;
-
-    let metadata = fs::metadata(path).map_err(|error| ContractRequestError::VerifierProgram {
-        path: path.to_path_buf(),
-        reason: error.to_string(),
-    })?;
-    Ok(metadata.permissions().mode() & 0o111 != 0)
-}
-
-#[cfg(not(unix))]
-fn is_executable(path: &Path) -> Result<bool, ContractRequestError> {
-    Ok(path.is_file())
 }
