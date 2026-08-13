@@ -50,12 +50,18 @@ crates that happened to be listed.
       negative half reintroduces such a path and the check rejects it with a captured non-zero exit.
 - [ ] The check names no exclusion by declaration; an excluded crate is either unreachable from the
       binary, proved from the dependency graph, or it is covered.
+- [ ] The check parses source elements instead of truncating a file at its first test marker, and it
+      recognises a call made through an alias. The negative half is the reviewer's pair of mutations:
+      a start placed after the first test marker and an aliased call; both must be rejected with a
+      captured non-zero exit.
 
 ## Current state
 
-Ready. The typed-request correction routes every start through one scenario, but the author records
-that the test kit remains a dependency of the shipped binary, can start a run without a contract,
-and was excluded from the structural check by declaration rather than by unreachability.
+Ready. The typed-request card is accepted, and its independent review measured that the structural
+guard is weaker than its name: it truncates a file at the first test marker and ignores aliased
+calls, so two mutations it claims to catch passed unnoticed. The test kit remains a dependency of
+the command crate, verified unreachable in the built product but excluded from the check by
+declaration.
 
 ## Next action
 

@@ -3,7 +3,7 @@ id: W1-APP-02m
 kind: task
 wave: W1
 card: W1-APP-02
-state: rework
+state: accepted
 risk: significant
 maturity: BUILD
 relation: required
@@ -12,15 +12,15 @@ blocks: []
 created_at: 2026-08-13T12:40:57+08:00
 updated_at: 2026-08-13T12:40:57+08:00
 started_at: 2026-08-13T12:45:00+08:00
-accepted_at:
-candidate_commit: https://github.com/maggnus/ymp/commit/3f420b4f1eea91a8c6ed563b76ca1bc359563130
-closure_commit:
-evidence:
-duration_minutes: 0
+accepted_at: 2026-08-13T15:06:49+08:00
+candidate_commit: https://github.com/maggnus/ymp/commit/690701be4ddbb73c0a74d75b2beae771f6e8954a
+closure_commit: https://github.com/maggnus/ymp/commit/bcaabb3d0e6b014f82d5479b944e117f1e1849a1
+evidence: [`690701b`](https://github.com/maggnus/ymp/commit/690701be4ddbb73c0a74d75b2beae771f6e8954a)
+duration_minutes: 137
 blocker:
 pause_reason:
-return_trigger:
-deliberate_partial: false
+return_trigger: the test kit becomes reachable in the built product, observable as its symbol or demo string appearing in the binary or a command exposing it
+deliberate_partial: true
 ---
 
 # W1-APP-02m — A typed prompt becomes a contract and starts a run
@@ -47,25 +47,24 @@ a person writes a prompt — is executable instead of assumed.
 
 ## Acceptance
 
-- [ ] Typing a request and confirming produces a stored contract and a started run whose journal
+- [x] Typing a request and confirming produces a stored contract and a started run whose journal
       records both. The negative half: a request with no acceptance condition does not start a run
       and reports exactly what is missing, with a captured non-zero exit.
-- [ ] The stored contract carries a verifier reference, its digest and a negative control; a package
+- [x] The stored contract carries a verifier reference, its digest and a negative control; a package
       without them is rejected at load.
-- [ ] One implementation serves both the interface and the command surface that W1-APP-02n will add,
+- [x] One implementation serves both the interface and the command surface that W1-APP-02n will add,
       with no second path into the kernel. The command itself belongs to that node; this card proves
       only that the scenario is shared and that every start path passes the approved-contract check.
-- [ ] A store or package written under an incompatible schema version is refused without a single
+- [x] A store or package written under an incompatible schema version is refused without a single
       write. The negative half compares the bytes of the run summary before and after an attempted
       open.
 
 ## Current state
 
-Returned by independent review after one round. The typed path works end to end — a request produced
-a stored contract, the journal carried the approval record, and a request without an acceptance
-condition started nothing — but opening a store of the previous version rewrites the run summary and
-the version check is inverted against the schema document, so the new reader is unreachable. Two
-further paths bypass the approved-contract requirement.
+Accepted with residue and integrated. A typed request produces a stored contract and starts a run,
+a request without an acceptance condition starts nothing and names what is missing, a store written
+under the previous version is refused without a single byte changed, and a package given on the
+command line reaches the same run as a typed request through one scenario.
 
 ## Next action
 
@@ -94,6 +93,14 @@ start without it.
   implementation and no second path into the kernel.
 - The migration consequence is confirmed by independent measurement: stores of the previous version
   do not open, no migration tool exists, and a new data root is required.
+- All four returned defects are closed and independently re-measured, including a byte-for-byte
+  comparison of the refused store across thirty-four files.
+- `major`, defect in the proof rather than the product, continued as W1-APP-02o: the structural check
+  that forbids starting a run outside the scenario truncates a file at the first test marker and
+  ignores aliased calls, so two mutations it claims to catch pass unnoticed.
+- Residue: the test kit remains an ordinary dependency of the command crate while being unreachable
+  in the built product — no command, no symbol and no demo string in either profile. The return
+  trigger is recorded in the front matter.
 
 ## Closure
 
@@ -101,12 +108,20 @@ Filled when the task is accepted.
 
 ### Accepted outcome
 
-Not accepted.
+The first half of the product goal is executable: a person types a request, supplies the acceptance
+condition the system cannot infer, and a run starts against a stored contract that a verifier can
+decide. One scenario serves both the interface and the command surface that follows.
 
 ### Residuals
 
-None recorded.
+The structural guard is weaker than its name: it can be evaded by an aliased call or by placing the
+call after the first test marker. The product behaviour it guards was verified independently, so the
+gap is in the proof; W1-APP-02o closes it. The test kit stays a dependency of the command crate and
+is unreachable in the built product, with the observable return trigger recorded above.
 
 ### Evidence
 
-- None until acceptance.
+- [`690701b`](https://github.com/maggnus/ymp/commit/690701be4ddbb73c0a74d75b2beae771f6e8954a) —
+  reviewed correction.
+- [`bcaabb3`](https://github.com/maggnus/ymp/commit/bcaabb3d0e6b014f82d5479b944e117f1e1849a1) —
+  integration into the release branch.
