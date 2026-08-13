@@ -18,7 +18,9 @@
 //!
 //! The project segment is derived from the directory the product was started in, and the run
 //! segment is the next free ordinal. Neither is supplied by the operator, so a second project
-//! and a second run collide with nothing and are named by nothing anyone had to choose.
+//! and a second run are named by nothing anyone had to choose.
+//!
+//! What the layout separates, and what it leaves to the writer lock, is stated on [`StoreIntent`].
 //!
 //! The root carries a project level even though today's default root sits inside the project it
 //! serves. That is deliberate: moving the default to a shared location later is then a change of
@@ -101,11 +103,20 @@ pub enum RootError {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum StoreIntent {
     /// The store the project last addressed — what a reader, a report or a cancellation acts on.
-    /// A project that has addressed none names its first store without creating anything.
+    /// A project that has addressed none names its first store without creating that store.
     Current,
-    /// A store that holds no run, because this invocation intends to start one. The last store
-    /// is reused when no run was ever committed into it; otherwise the next ordinal is claimed
-    /// by creating its directory, so two invocations racing for it cannot both win.
+    /// A store that holds no run, because this invocation intends to start one.
+    ///
+    /// The last store is reused when no run was ever committed into it, so a refused start leaves
+    /// no empty directory behind. Creating a run directory is exclusive, so two invocations that
+    /// both reach that step take different ordinals — but a directory holds no journal until its
+    /// run is committed, and an invocation arriving inside that window is given the directory
+    /// another one just took rather than a new one.
+    ///
+    /// The layout therefore does not promise that concurrent starts each receive a store. It
+    /// promises that a store holds one run: the writer lock gives such a store to one invocation
+    /// and refuses the others loudly, naming the store they lost, so no run of theirs is
+    /// committed anywhere.
     New,
 }
 
@@ -209,28 +220,31 @@ impl DataRoot {
     }
 
     /// The store this invocation acts on.
+    ///
+    /// Both intents materialize the project's own directories, a reader's included, so a project
+    /// directory that exists under a root always carries the marker naming what it stands for.
     pub fn store(&self, intent: StoreIntent) -> Result<PathBuf, RootError> {
         let runs = self.runs_directory();
+        create_dir_all(&runs)?;
+        self.write_project_marker()?;
         match intent {
             StoreIntent::Current => Ok(highest_run(&runs)?
                 .map(|(_, path)| path)
                 .unwrap_or_else(|| runs.join(run_segment(1)))),
-            StoreIntent::New => {
-                create_dir_all(&runs)?;
-                self.write_project_marker()?;
-                match highest_run(&runs)? {
-                    // A store addressed but never started into holds no journal. It is where the
-                    // next run belongs, not a reason to leave an empty directory behind.
-                    Some((_, path)) if !path.join(JOURNAL).is_file() => Ok(path),
-                    Some((ordinal, _)) => self.claim(&runs, ordinal + 1),
-                    None => self.claim(&runs, 1),
-                }
-            }
+            StoreIntent::New => match highest_run(&runs)? {
+                // A store addressed but never started into holds no journal. It is where the
+                // next run belongs, not a reason to leave an empty directory behind. Two
+                // invocations reaching it at once are given it together; the writer lock, not
+                // this choice, is what refuses all but one of them.
+                Some((_, path)) if !path.join(JOURNAL).is_file() => Ok(path),
+                Some((ordinal, _)) => self.claim(&runs, ordinal + 1),
+                None => self.claim(&runs, 1),
+            },
         }
     }
 
     /// Claim the first free ordinal from `first`. The directory creation is the claim: it fails
-    /// when the name is taken, so two invocations racing for one ordinal cannot both take it.
+    /// when the name is taken, so two invocations claiming at once take different ordinals.
     fn claim(&self, runs: &Path, first: u32) -> Result<PathBuf, RootError> {
         for ordinal in first..=MAX_RUNS {
             let path = runs.join(run_segment(ordinal));

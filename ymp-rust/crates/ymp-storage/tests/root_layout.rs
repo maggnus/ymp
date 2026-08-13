@@ -50,6 +50,81 @@ fn a_second_run_of_one_project_is_addressed_without_a_stated_name() {
     );
 }
 
+/// Reuse of a store nothing was started into is not a claim, and the layout says so.
+///
+/// Two invocations that reach such a store are given the same directory. That is what the writer
+/// lock is for: the second one is refused loudly instead of being handed a run of its own. The
+/// negative half is the ordinal past a committed run, which is claimed rather than shared.
+#[test]
+fn a_store_nothing_was_started_into_is_shared_rather_than_claimed() {
+    let host = TempDir::new().expect("temporary host");
+    let project = directory(host.path(), "project");
+    let root = project.join(".ymp");
+
+    let first = open(&root, &project)
+        .store(StoreIntent::New)
+        .expect("first store");
+    let second = open(&root, &project)
+        .store(StoreIntent::New)
+        .expect("second store");
+    assert_eq!(
+        first, second,
+        "the layout separated two starts over one empty store; the writer lock is what separates \
+         them, and the layout must not claim otherwise"
+    );
+
+    // The negative half: once a run is committed, the next start is given a directory of its own
+    // rather than the one holding that run.
+    start(&first);
+    let third = open(&root, &project)
+        .store(StoreIntent::New)
+        .expect("third store");
+    assert_ne!(
+        first, third,
+        "a start was given the store that already holds a run"
+    );
+}
+
+/// A project directory the root materialized carries the marker naming what it stands for, on
+/// every path that materializes it — a reader's included.
+#[test]
+fn a_materialized_project_directory_carries_its_marker() {
+    let host = TempDir::new().expect("temporary host");
+    let project = directory(host.path(), "project");
+    let root = project.join(".ymp");
+
+    let addressed = open(&root, &project);
+    addressed
+        .store(StoreIntent::Current)
+        .expect("a reader addresses a store");
+
+    let directory = addressed
+        .runs_directory()
+        .parent()
+        .expect("the project directory")
+        .to_path_buf();
+    assert!(
+        directory.is_dir(),
+        "the reader named a store without materializing its project"
+    );
+    let marker = directory.join("project.json");
+    assert!(
+        marker.is_file(),
+        "a read left the project directory without its marker: {:?}",
+        names(&directory)
+    );
+
+    let recorded: serde_json::Value =
+        serde_json::from_slice(&fs::read(&marker).expect("marker bytes")).expect("readable marker");
+    assert_eq!(
+        Some(project.to_string_lossy().as_ref()),
+        recorded
+            .get("project_path")
+            .and_then(|value| value.as_str()),
+        "the marker names a directory other than the one it stands for"
+    );
+}
+
 /// A reader acts on the run the project is on, never on an empty store beside it.
 #[test]
 fn a_reader_is_addressed_to_the_run_the_project_is_on() {

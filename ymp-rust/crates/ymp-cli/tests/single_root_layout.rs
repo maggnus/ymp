@@ -16,7 +16,7 @@
 use std::collections::BTreeSet;
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::process::{Command, Output};
+use std::process::{Child, Command, Output, Stdio};
 
 use tempfile::TempDir;
 
@@ -86,6 +86,94 @@ fn a_second_run_is_refused_by_the_one_store_an_operator_names() {
         1,
         journals(&store).len(),
         "the refused run wrote a second journal into the named store"
+    );
+}
+
+/// Several starts at once over a project holding no run reach one empty store together, because
+/// a store nothing was started into is reused rather than claimed. The layout does not separate
+/// them; the writer lock does, and it refuses loudly. Whatever the interleaving, no store ends up
+/// holding two runs and no start fails without saying why.
+///
+/// The negative half is the claim this replaces: the layout was documented as separating every
+/// pair of concurrent starts by giving them different ordinals. Driving three at once over an
+/// empty project shows they are given one instead, and the sharing itself is pinned without any
+/// timing by the `ymp-storage` check that two consecutive starts over an empty store are given
+/// the same directory.
+#[test]
+fn concurrent_starts_over_an_empty_store_never_commit_two_runs_into_one() {
+    const STARTS: usize = 3;
+    let host = Host::new();
+    let project = host.project("concurrent-start");
+
+    // Every package is written before any process exists, so the processes overlap on the store
+    // rather than on the fixture.
+    let invocations: Vec<Vec<String>> = (0..STARTS)
+        .map(|index| host.start_arguments(&[], &format!("concurrent work {index}")))
+        .collect();
+    let running: Vec<Child> = invocations
+        .iter()
+        .map(|arguments| host.spawn(&project, arguments))
+        .collect();
+    let outcomes: Vec<Run> = running
+        .into_iter()
+        .map(|child| Run {
+            output: child.wait_with_output().expect("collect the invocation"),
+        })
+        .collect();
+
+    let started = outcomes
+        .iter()
+        .filter(|outcome| outcome.output.status.success())
+        .count();
+    assert!(started >= 1, "no start committed a run at all");
+
+    let stores = host.stores(&project);
+    assert_eq!(
+        started,
+        stores.len(),
+        "{started} starts committed runs into {} stores",
+        stores.len()
+    );
+    for store in &stores {
+        let recorded = runs_recorded(store);
+        assert_eq!(
+            1,
+            recorded.len(),
+            "one store records more than one run: {recorded:?}"
+        );
+    }
+
+    for refused in outcomes
+        .iter()
+        .filter(|outcome| !outcome.output.status.success())
+    {
+        let reason = refused.text();
+        assert!(
+            reason.contains("data root is already owned by another foreground process")
+                || reason.contains("a second run needs its own store"),
+            "a start failed without naming the store it lost: {reason}"
+        );
+    }
+}
+
+/// A read in a project holding no run materializes that project's directory, and a directory the
+/// root materialized carries the marker naming what it stands for.
+#[test]
+fn a_read_leaves_no_project_directory_without_its_marker() {
+    let host = Host::new();
+    let project = host.project("read-only");
+
+    host.command(&project, &["show".to_owned(), "events".to_owned()]);
+
+    let written = relative_paths(&project);
+    let markers: Vec<&String> = written
+        .iter()
+        .filter(|path| path.ends_with("/project.json"))
+        .collect();
+    assert_eq!(
+        1,
+        markers.len(),
+        "the read materialized a project directory without its marker: {written:?}"
     );
 }
 
@@ -372,6 +460,12 @@ impl Host {
 
     /// Start one run of one contract, through the confirmation the interface requires.
     fn start(&self, project: &Path, before: &[String], prompt: &str) -> Run {
+        let arguments = self.start_arguments(before, prompt);
+        self.command(project, &arguments)
+    }
+
+    /// The invocation that starts one run, prepared before any process is spawned.
+    fn start_arguments(&self, before: &[String], prompt: &str) -> Vec<String> {
         let package = self.package(prompt);
         let contract_id = digest(prompt);
         let mut arguments = before.to_vec();
@@ -382,7 +476,18 @@ impl Host {
             contract_id.clone(),
             format!("--confirm={contract_id}"),
         ]);
-        self.command(project, &arguments)
+        arguments
+    }
+
+    /// The executable, left running so several invocations overlap.
+    fn spawn(&self, project: &Path, arguments: &[String]) -> Child {
+        Command::new(env!("CARGO_BIN_EXE_ymp"))
+            .current_dir(project)
+            .args(arguments)
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()
+            .expect("spawn the ymp executable")
     }
 
     /// Every store the root holds for this project, in the order they were claimed.
@@ -404,6 +509,23 @@ fn digest(prompt: &str) -> String {
         "contract-{}",
         &ymp_domain::digest_bytes(prompt.as_bytes())[..8]
     )
+}
+
+/// Every run identifier a store's journal records. One run per store means one identifier.
+fn runs_recorded(store: &Path) -> BTreeSet<String> {
+    let journal = fs::read_to_string(store.join("events.jsonl")).expect("a committed journal");
+    journal
+        .lines()
+        .filter(|line| !line.trim().is_empty())
+        .map(|line| {
+            let record: serde_json::Value = serde_json::from_str(line).expect("a readable record");
+            record
+                .get("run_id")
+                .and_then(serde_json::Value::as_str)
+                .expect("every record names its run")
+                .to_owned()
+        })
+        .collect()
 }
 
 fn run_id(store: &Path) -> String {
