@@ -37,10 +37,12 @@ assumed. Neither is worth a card until the measurement above is repeated on a ma
 two agents were compiling, one of six tests failed twice; the same suite passes cleanly when the
 machine is idle — sixty test binaries, no failures.
 
-**Remove it by grouping.** Tests that observe the process table, timeouts and descendant termination
-belong to a named group that the integration check runs on a quiet machine, not to the set every
-card runs. A flaky red result costs a full diagnosis cycle and teaches the fleet to distrust its own
-checks.
+**Remove it by grouping, and by sequencing.** Tests that observe the process table, timeouts and
+descendant termination belong to a named group that the integration check runs on a quiet machine,
+not to the set every card runs. Sequencing matters as much as grouping: the integration check runs
+**before** the fleet is refilled, never while freshly dispatched writers are compiling. Measured
+three times — each red disappeared when the same suite was rerun in isolation, and each cost a
+diagnosis cycle.
 
 ## 3. The full suite ran at the end of every card
 

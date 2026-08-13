@@ -67,7 +67,10 @@ Confirm the marker exists and is readable before accepting an empty answer.
 
 ## Findings
 
-None yet.
+- The lifecycle refusal tests added by W1-APP-02q fail under machine load and pass in isolation,
+  measured on the integrated tree: a cancelled run reported a supervision failure instead of naming
+  what could not be established. Either their timing assumption is hardened, or they join the named
+  group that only the integration check runs on a quiet machine.
 
 ## Closure
 
