@@ -13,7 +13,7 @@ created_at: 2026-08-13T14:57:22+08:00
 updated_at: 2026-08-13T14:57:22+08:00
 started_at: 2026-08-13T15:10:00+08:00
 accepted_at:
-candidate_commit: https://github.com/maggnus/ymp/commit/296b418
+candidate_commit: https://github.com/maggnus/ymp/commit/296b4183fff289e028b9c5457c7c0157865f3e7c
 closure_commit:
 evidence:
 duration_minutes: 0
