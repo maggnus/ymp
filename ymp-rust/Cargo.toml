@@ -42,6 +42,11 @@ ymp-testkit = { path = "crates/ymp-testkit" }
 ymp-tui = { path = "crates/ymp-tui" }
 ymp-verifier = { path = "crates/ymp-verifier" }
 
+[profile.dev]
+# Line tables are enough for a panic backtrace and cut both build time and disk. Full debuginfo
+# is not read by any check this project runs. See ymp-docs/OPTIMIZATION.md.
+debug = "line-tables-only"
+
 [profile.release]
 lto = "thin"
 strip = true
