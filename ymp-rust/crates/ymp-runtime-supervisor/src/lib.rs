@@ -4,6 +4,7 @@ use anyhow::{Context, bail};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::{HashMap, HashSet};
+use std::ffi::OsStr;
 use std::fs::{self, File, OpenOptions};
 use std::io::Write;
 use std::path::{Component, Path, PathBuf};
@@ -18,8 +19,9 @@ use ymp_application::WorkspaceSubmission;
 use ymp_domain::{Command, EventKind, MAX_IDENTIFIER_CHARS, RunStatus, digest_bytes};
 use ymp_runtime_api::{
     AdmittedProgram, CancellationToken, DiagnosticSummary, InvocationRequest, LaunchDescriptor,
-    McpBinding, ProbeReport, ProgramRole, Readiness, RuntimeDriver, RuntimeError, RuntimeEvent,
-    RuntimeEventKind, RuntimeFailureKind, RuntimeKind, Usage,
+    McpBinding, ProbeReport, ProgramIdentity, ProgramRequirement, ProgramRole, Readiness,
+    RuntimeDriver, RuntimeError, RuntimeEvent, RuntimeEventKind, RuntimeFailureKind, RuntimeKind,
+    Usage, admit_lifecycle_programs,
 };
 
 const CONTRACT_SCHEMA_VERSION: u32 = 1;
@@ -301,6 +303,10 @@ struct RuntimeProfileEvidence<'a> {
     /// The program that builds the managed workspace baseline. It is not part of the launch
     /// descriptor because it runs before the runtime is prepared.
     workspace_program: &'a AdmittedProgram,
+    /// The utilities the run executes to observe and terminate what it started. They are named here
+    /// so that the record enumerates every program the run executes on its own behalf, not only the
+    /// ones the launch enters.
+    lifecycle_programs: &'a [AdmittedProgram],
     coordination: CoordinationEvidence,
     environment_policy: &'static str,
 }
@@ -503,6 +509,7 @@ pub fn start_managed_candidate(
         )
     })?;
     let workspace_program = admit_workspace_program()?;
+    let lifecycle_programs = admit_lifecycle_programs();
     let contract_id = request.contract.contract_id.clone();
     let contract_digest = request.contract.contract_digest.clone();
     let attempt_id = format!("attempt-{}", Uuid::new_v4());
@@ -595,21 +602,30 @@ pub fn start_managed_candidate(
     }
     if let Some(descriptor) = &launch_descriptor {
         validate_launch_descriptor(descriptor, &attempt_id, &invocation_id, &workspace)?;
-        // Without this a driver could omit the chain and reach the same launch through an
-        // unadmitted shell, which is the substitution this check exists to prevent.
-        if cfg!(unix)
-            && requires_launch_attestation(runtime_kind)
-            && !descriptor
+        // A driver that omitted the chain, or that bound one of its programs to a digest it chose
+        // itself rather than to a location this account cannot write, would reach the same launch
+        // through a program the account could have planted. Both are refused here, where the
+        // runtime kind says the launch is one that must be attested.
+        if cfg!(unix) && requires_launch_attestation(runtime_kind) {
+            let admits_shell = descriptor
                 .launch_chain
                 .iter()
-                .any(|program| program.role == ProgramRole::LaunchShell)
-        {
-            record_infrastructure_failure(
-                &application,
-                &attempt_id,
-                "runtime_launch_chain_missing",
-            );
-            bail!("{runtime_kind:?} did not admit the programs its launch chain enters");
+                .any(|program| program.role == ProgramRole::LaunchShell);
+            let bound_by_location = descriptor
+                .launch_chain
+                .iter()
+                .all(|program| program.identity == ProgramIdentity::SystemPath);
+            if !admits_shell || !bound_by_location {
+                record_infrastructure_failure(
+                    &application,
+                    &attempt_id,
+                    "runtime_launch_chain_missing",
+                );
+                bail!(
+                    "{runtime_kind:?} did not admit the programs its launch chain enters at a \
+                     location this account cannot write"
+                );
+            }
         }
     }
     let launch_descriptor_digest = launch_descriptor
@@ -652,6 +668,7 @@ pub fn start_managed_candidate(
             launch_descriptor: launch_descriptor.as_ref(),
             launch_descriptor_digest: launch_descriptor_digest.as_deref(),
             workspace_program: &workspace_program,
+            lifecycle_programs: &lifecycle_programs,
             coordination: CoordinationEvidence {
                 transport: "stdio_mcp_via_private_rpc",
                 bridge_executable_digest,
@@ -1194,9 +1211,11 @@ fn validate_launch_descriptor(
     if executable_digest != descriptor.executable_digest {
         bail!("launch descriptor executable digest does not match its bytes");
     }
-    // The shell and the environment sanitiser run before the runtime image is loaded. The
-    // controller admits them independently of the driver that declared them, so a driver cannot
-    // present a chain whose recorded digest is not the digest of the bytes on disk.
+    // The controller re-establishes each program under the requirement it was admitted with, not
+    // only its digest: a program recorded as standing where the account cannot write is checked
+    // against that location again here. What the controller does not do is decide which programs
+    // the chain should contain; that check is made where the runtime kind is known, because only
+    // there is it known whether the launch is one that must be attested.
     for program in &descriptor.launch_chain {
         program
             .verify()
@@ -1366,23 +1385,39 @@ fn bounded_reason(detail: &str) -> String {
     }
 }
 
-/// Resolves the workspace program through `PATH` once and records the digest of the bytes found
-/// there. Naming the program alone would leave the resolution to every later execution, so the run
-/// would have no record of which bytes it actually ran.
-fn admit_workspace_program() -> anyhow::Result<AdmittedProgram> {
-    const PROGRAM: &str = "git";
+/// Resolves the workspace program once and binds it to a location the account this run executes
+/// under cannot write.
+///
+/// A name resolved through the search path is not an identity: the search path here is led by
+/// several directories this account owns, so a program planted in one of them would answer to the
+/// name and be admitted as if it were the program the run means. The first candidate the search
+/// path yields is therefore refused unless it stands where only the superuser could have put it,
+/// rather than skipped in favour of a later one, because a program answering to that name from a
+/// writable directory is a condition the run must report and not step over.
+pub fn admit_workspace_program() -> anyhow::Result<AdmittedProgram> {
     let path = std::env::var_os("PATH").context("PATH is not set, so git cannot be resolved")?;
-    let resolved = std::env::split_paths(&path)
+    admit_workspace_program_from(&path)
+}
+
+/// The search path is a parameter so that the binding can be checked against a planted program
+/// without changing the environment of the process running the check.
+fn admit_workspace_program_from(search_path: &OsStr) -> anyhow::Result<AdmittedProgram> {
+    const PROGRAM: &str = "git";
+    let resolved = std::env::split_paths(search_path)
         .map(|directory| directory.join(PROGRAM))
         .find(|candidate| candidate.is_file() && is_executable_file(candidate).unwrap_or(false))
         .with_context(|| format!("{PROGRAM} was not found on PATH"))?;
-    let resolved = resolved
-        .canonicalize()
-        .with_context(|| format!("canonicalize {}", resolved.display()))?;
-    Ok(AdmittedProgram::admit(ProgramRole::Workspace, resolved)?)
+    Ok(AdmittedProgram::admit(
+        ProgramRole::Workspace,
+        resolved,
+        &ProgramRequirement::SystemPath,
+    )?)
 }
 
-fn initialize_private_git(workspace: &Path, git: &AdmittedProgram) -> anyhow::Result<()> {
+/// Builds the private baseline of a managed workspace with the admitted program, re-establishing
+/// its identity and bytes before each execution. This is the only copy: a second one that named the
+/// program instead would resolve it through the search path again on every run.
+pub fn initialize_private_git(workspace: &Path, git: &AdmittedProgram) -> anyhow::Result<()> {
     for (action, arguments) in [
         ("initialize private Git repository", vec!["init", "--quiet"]),
         ("stage private workspace", vec!["add", "--all"]),
@@ -1420,11 +1455,11 @@ fn initialize_private_git(workspace: &Path, git: &AdmittedProgram) -> anyhow::Re
 mod tests {
     use super::{
         ManagedCandidateRequest, ManagedContract, ManagedRunEvent, admit_workspace_program,
-        initialize_private_git, start_managed_candidate, validate_launch_descriptor,
-        validate_runtime_launch,
+        admit_workspace_program_from, initialize_private_git, start_managed_candidate,
+        validate_launch_descriptor, validate_runtime_launch,
     };
     use std::collections::VecDeque;
-    use std::path::Path;
+    use std::path::{Path, PathBuf};
     use std::sync::{Arc, Mutex};
     use std::time::{Duration, Instant};
     use ymp_agent_api::{AgentToolCall, AgentToolHandler, SubmitArguments, YieldArguments};
@@ -1432,8 +1467,9 @@ mod tests {
     use ymp_application::Application;
     use ymp_domain::{Budget, RunStatus};
     use ymp_runtime_api::{
-        InvocationRequest, ProbeReport, Readiness, RuntimeDriver, RuntimeError, RuntimeEvent,
-        RuntimeEventKind, RuntimeKind, RuntimeSession, Usage,
+        AdmittedProgram, InvocationRequest, ProbeReport, ProgramIdentity, ProgramRequirement,
+        ProgramRole, Readiness, RuntimeDriver, RuntimeError, RuntimeEvent, RuntimeEventKind,
+        RuntimeKind, RuntimeSession, Usage,
     };
     use ymp_runtime_fake::{FakeRuntime, ScriptStep};
 
@@ -1691,6 +1727,12 @@ mod tests {
         }
     }
 
+    fn stated(role: ProgramRole, path: PathBuf) -> AdmittedProgram {
+        let digest = ymp_domain::digest_bytes(&std::fs::read(&path).expect("program bytes"));
+        AdmittedProgram::admit(role, path, &ProgramRequirement::StatedDigest(digest))
+            .expect("admit a program bound by its stated digest")
+    }
+
     fn chain_descriptor(directory: &Path) -> ymp_runtime_api::LaunchDescriptor {
         let executable = directory.join("runtime");
         executable_fixture(&executable, b"#!/bin/sh\nexit 0\n");
@@ -1709,16 +1751,8 @@ mod tests {
             coordination_executable: None,
             coordination_executable_digest: None,
             launch_chain: vec![
-                ymp_runtime_api::AdmittedProgram::admit(
-                    ymp_runtime_api::ProgramRole::LaunchShell,
-                    shell,
-                )
-                .expect("admit shell"),
-                ymp_runtime_api::AdmittedProgram::admit(
-                    ymp_runtime_api::ProgramRole::EnvironmentSanitiser,
-                    sanitiser,
-                )
-                .expect("admit sanitiser"),
+                stated(ProgramRole::LaunchShell, shell),
+                stated(ProgramRole::EnvironmentSanitiser, sanitiser),
             ],
             arguments: vec!["exec".to_owned(), "-".to_owned()],
             environment: Vec::new(),
@@ -1792,11 +1826,39 @@ mod tests {
         assert!(error.contains("launch chain"), "{error}");
     }
 
+    /// The search path is led by directories this account owns, so a name resolved through it is
+    /// not an identity. A program planted there answers to the name and must be refused rather than
+    /// admitted, and rather than stepped over in favour of a later candidate.
+    #[test]
+    fn a_program_planted_earlier_in_the_search_path_is_refused() {
+        let temporary = tempfile::tempdir().expect("temporary directory");
+        let planted_directory = temporary.path().join("planted");
+        std::fs::create_dir(&planted_directory).expect("planted directory");
+        let planted = planted_directory.join("git");
+        executable_fixture(&planted, b"#!/bin/sh\nexec /usr/bin/git \"$@\"\n");
+
+        let system = admit_workspace_program().expect("the system program is admitted");
+        assert_eq!(system.identity, ProgramIdentity::SystemPath);
+        assert!(system.path.is_absolute());
+
+        let search = std::env::join_paths([planted_directory.as_path(), Path::new("/usr/bin")])
+            .expect("search path");
+        let error = admit_workspace_program_from(&search)
+            .expect_err("a planted program is refused")
+            .to_string();
+        assert!(error.contains("this account can write"), "{error}");
+        assert!(
+            error.contains(planted.to_str().expect("planted path")),
+            "{error}"
+        );
+    }
+
     /// Declares a launch descriptor without admitting the programs its launch chain enters. The
     /// product drivers admit them; this exists so that a driver which does not is refused rather
     /// than reaching the same launch through an unadmitted shell.
     struct ChainlessRuntime {
-        executable: std::path::PathBuf,
+        executable: PathBuf,
+        chain: Vec<AdmittedProgram>,
     }
 
     impl RuntimeDriver for ChainlessRuntime {
@@ -1837,7 +1899,7 @@ mod tests {
                 executable_digest: ymp_domain::digest_bytes(&std::fs::read(&self.executable)?),
                 coordination_executable: None,
                 coordination_executable_digest: None,
-                launch_chain: Vec::new(),
+                launch_chain: self.chain.clone(),
                 arguments: vec!["-".to_owned()],
                 environment: Vec::new(),
                 working_directory: request.workspace.clone(),
@@ -1853,42 +1915,61 @@ mod tests {
         }
     }
 
+    /// Two ways a driver could reach the same launch through a program this account could have
+    /// planted: admit no chain at all, or bind the chain to a digest the driver chose itself rather
+    /// than to a location the account cannot write. Both are refused before the runtime starts.
     #[test]
-    fn a_launch_that_admits_no_chain_is_refused_before_the_runtime_starts() {
-        let temporary = tempfile::tempdir().expect("temporary directory");
-        let source = temporary.path().join("source");
-        std::fs::create_dir(&source).expect("source directory");
-        std::fs::write(source.join("input.txt"), b"base\n").expect("source file");
-        let executable = temporary.path().join("chainless-runtime");
-        executable_fixture(&executable, b"#!/bin/sh\nexit 0\n");
-        let application = Arc::new(Mutex::new(
-            Application::create(temporary.path().join("data"), "run-1", Budget::new(1, 1))
-                .expect("create application"),
-        ));
-        let started = start_managed_candidate(
-            Arc::clone(&application),
-            Box::new(ChainlessRuntime { executable }),
-            ManagedCandidateRequest {
-                contract: ManagedContract {
-                    contract_id: "contract-chainless".to_owned(),
-                    contract_digest: "c".repeat(64),
-                    source,
-                    prompt: "finish".to_owned(),
-                    capture_exclusions: Vec::new(),
-                    verifier: None,
+    fn a_launch_chain_the_account_could_have_chosen_is_refused_before_the_runtime_starts() {
+        for (label, chain) in [
+            ("no admitted chain", Vec::new()),
+            ("a chain the driver bound to its own digest", Vec::new()),
+        ] {
+            let temporary = tempfile::tempdir().expect("temporary directory");
+            let source = temporary.path().join("source");
+            std::fs::create_dir(&source).expect("source directory");
+            std::fs::write(source.join("input.txt"), b"base\n").expect("source file");
+            let executable = temporary.path().join("chainless-runtime");
+            executable_fixture(&executable, b"#!/bin/sh\nexit 0\n");
+            let chain = if chain.is_empty() && label.starts_with("a chain") {
+                let shell = temporary.path().join("chain-shell");
+                executable_fixture(&shell, b"#!/bin/sh\nexec /bin/sh \"$@\"\n");
+                vec![stated(ProgramRole::LaunchShell, shell)]
+            } else {
+                chain
+            };
+            let application = Arc::new(Mutex::new(
+                Application::create(temporary.path().join("data"), "run-1", Budget::new(1, 1))
+                    .expect("create application"),
+            ));
+            let started = start_managed_candidate(
+                Arc::clone(&application),
+                Box::new(ChainlessRuntime { executable, chain }),
+                ManagedCandidateRequest {
+                    contract: ManagedContract {
+                        contract_id: "contract-chainless".to_owned(),
+                        contract_digest: "c".repeat(64),
+                        source,
+                        prompt: "finish".to_owned(),
+                        capture_exclusions: Vec::new(),
+                        verifier: None,
+                    },
+                    bridge_executable: std::env::current_exe().expect("current executable"),
                 },
-                bridge_executable: std::env::current_exe().expect("current executable"),
-            },
-        );
-        let Err(error) = started else {
-            panic!("a launch without an admitted chain must be refused");
-        };
-        let error = error.to_string();
-        assert!(error.contains("did not admit the programs"), "{error}");
-        assert_eq!(
-            application.lock().expect("application lock").state().status,
-            RunStatus::InfrastructureError
-        );
+            );
+            let Err(error) = started else {
+                panic!("{label} must be refused");
+            };
+            let error = error.to_string();
+            assert!(
+                error.contains("did not admit the programs"),
+                "{label}: {error}"
+            );
+            assert_eq!(
+                application.lock().expect("application lock").state().status,
+                RunStatus::InfrastructureError,
+                "{label}"
+            );
+        }
     }
 
     /// The workspace program is resolved through `PATH` once and executed by the absolute path its
@@ -1904,11 +1985,7 @@ mod tests {
         std::fs::create_dir(&workspace).expect("workspace");
         let stand_in = temporary.path().join("git-stand-in");
         executable_fixture(&stand_in, b"#!/bin/sh\nexit 0\n");
-        let stand_in = ymp_runtime_api::AdmittedProgram::admit(
-            ymp_runtime_api::ProgramRole::Workspace,
-            stand_in,
-        )
-        .expect("admit the stand-in");
+        let stand_in = stated(ProgramRole::Workspace, stand_in);
         initialize_private_git(&workspace, &stand_in).expect("an unchanged program is executed");
         executable_fixture(&stand_in.path, b"#!/bin/sh\nexit 1\n");
         let error = initialize_private_git(&workspace, &stand_in)
