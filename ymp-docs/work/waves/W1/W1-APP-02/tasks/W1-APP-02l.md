@@ -3,15 +3,15 @@ id: W1-APP-02l
 kind: task
 wave: W1
 card: W1-APP-02
-state: ready
+state: active
 risk: routine
 maturity: BUILD
 relation: follow_up
 depends_on: [W1-APP-02d]
 blocks: [W1-EVL-04a]
 created_at: 2026-08-13T12:09:18+08:00
-updated_at: 2026-08-13T12:09:18+08:00
-started_at:
+updated_at: 2026-08-14T02:45:00+08:00
+started_at: 2026-08-14T02:45:00+08:00
 accepted_at:
 candidate_commit:
 closure_commit:
@@ -52,6 +52,13 @@ that simply declined to act.
       search path does not. The negative half injects an unexpected variable and fails.
 - [ ] The live check fails for a product defect and reports a distinct, non-failing outcome when the
       model declines to act, so a red result always means the product.
+
+## Absorbed finding
+
+The W1-APP-02i review measured that SCHEMA.md's claim "the request count is the only
+product-derived counter" is inexact for the Claude runtime, where the monetary excess is computed
+by the product by subtracting the ceiling (crates/ymp-runtime-claude/src/lib.rs:1187) rather than
+reported by the runtime. The schema statement must name the Claude-side derived counters too.
 
 ## Current state
 

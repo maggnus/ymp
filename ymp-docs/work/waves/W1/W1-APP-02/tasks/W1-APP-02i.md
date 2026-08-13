@@ -3,20 +3,20 @@ id: W1-APP-02i
 kind: task
 wave: W1
 card: W1-APP-02
-state: active
+state: accepted
 risk: routine
 maturity: BUILD
 relation: follow_up
 depends_on: [W1-APP-02c]
 blocks: []
 created_at: 2026-08-13T09:19:36+08:00
-updated_at: 2026-08-14T01:40:23+08:00
+updated_at: 2026-08-14T02:42:00+08:00
 started_at: 2026-08-14T01:40:23+08:00
-accepted_at:
-candidate_commit:
-closure_commit:
-evidence:
-duration_minutes: 0
+accepted_at: 2026-08-14T02:42:00+08:00
+candidate_commit: https://github.com/maggnus/ymp/commit/0f6f46ba125b0f503fcfe25262cf53a25d78111e
+closure_commit: https://github.com/maggnus/ymp/commit/e896738
+evidence: builder negative halves on the accepted base d56b199 (exit 101 before, 0 after); reviewer ACCEPT with a fault-injection falsifier of a different shape; byte-identical porcelain
+duration_minutes: 60
 blocker:
 pause_reason:
 return_trigger:
@@ -59,7 +59,15 @@ in W1-EVL-04 reads measured numbers instead of a residue of the turn-start messa
 - [ ] The schema statement and the runtime agree on which counters are runtime-reported, and the
       evidence names the ones the product invents from its own state.
 
-## Current state
+## Current state (closed)
+
+Accepted. The terminal merge treats a turn's accounting record as closing the excess: stated
+counters replace the running ones, and a record without the field leaves nothing. SCHEMA.md now
+names the single product-derived counter and the case that preserves it. The reviewer confirmed
+the pair of tests pins the behaviour from both sides; the cross-family property was lost and
+compensated with a fault-injection falsifier.
+
+## Prior state
 
 Ready. The defect was measured by the independent third review of W1-APP-02c: the turn-start message
 sets `model_requests=1` and a terminal report without the ymp-specific field never clears it, so
