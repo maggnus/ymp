@@ -20,9 +20,7 @@ the product was started in, and it is addressed rather than named per run:
 The project segment is derived from the canonical launch directory: its own name, reduced to
 characters every filesystem accepts, followed by the first twelve hexadecimal characters of the
 SHA-256 of the whole path. Two projects whose directories share a name therefore never share a
-segment. The run segment is a four-digit ordinal claimed by creating its directory, so two
-invocations racing for one ordinal cannot both take it. Neither segment is supplied by the
-operator.
+segment. The run segment is a four-digit ordinal. Neither segment is supplied by the operator.
 
 A store is what every earlier rule in this document describes, unchanged: one run, one journal,
 one content-addressed object store, and the recovery and refusal behaviour stated below. What the
@@ -30,7 +28,17 @@ layout adds is that a second run and a second project are addressed, not named.
 
 An invocation that commits a run start is given a store holding no run; every other invocation is
 given the store the project is already on. A store addressed but never started into holds no
-journal and is where the next run belongs, so no empty directory accumulates.
+journal and is where the next run belongs, so a refused start leaves no empty directory behind.
+
+Creating a run directory is exclusive, so two invocations that both reach that step take different
+ordinals. A directory holds no journal until its run is committed, though, and an invocation
+arriving inside that window is given the directory another one just took. The layout therefore
+does not promise that concurrent starts each receive a store; it promises that a store holds one
+run. The writer lock gives such a store to one invocation and refuses the others with `data root
+is already owned by another foreground process`, and no run of theirs is committed anywhere.
+
+Both intents materialize the project's own directories, so a project directory that exists under a
+root always carries `project.json` naming the directory it stands for.
 
 `root.json` carries the layout version. A root of any other version is refused when it is opened,
 and no command migrates a root. A directory holding a journal is refused as a root, because it is
