@@ -581,13 +581,13 @@ pub fn start_managed_candidate(
             return Err(error.into());
         }
     };
-    if runtime_kind == RuntimeKind::Codex && launch_descriptor.is_none() {
+    if requires_launch_attestation(runtime_kind) && launch_descriptor.is_none() {
         record_infrastructure_failure(
             &application,
             &attempt_id,
             "runtime_launch_descriptor_missing",
         );
-        bail!("Codex did not provide a launch descriptor");
+        bail!("{runtime_kind:?} did not provide a launch descriptor");
     }
     if let Some(descriptor) = &launch_descriptor {
         validate_launch_descriptor(descriptor, &attempt_id, &invocation_id, &workspace)?;
@@ -641,7 +641,11 @@ pub fn start_managed_candidate(
             },
             environment_policy: match runtime_kind {
                 RuntimeKind::Codex => "synthetic_allowlist_v1",
-                RuntimeKind::ClaudeCode => "driver_generated_configuration_v1",
+                // Claude Code resolves its subscription credential from the home directory, so a
+                // generated home is authenticated only after the operator's credential is
+                // delegated into it. `SECURITY.md` requires that weaker profile to be labelled
+                // rather than presented as strict containment.
+                RuntimeKind::ClaudeCode => "synthetic_allowlist_with_delegated_credential_v1",
                 RuntimeKind::Fake => "deterministic_fixture",
             },
         },
@@ -679,7 +683,7 @@ pub fn start_managed_candidate(
                 let mut predecessor_digest = None;
                 let mut runtime_progress = RuntimeProgress::new(&worker_invocation);
                 let mut expected_session = None;
-                let mut saw_launch = runtime_kind != RuntimeKind::Codex;
+                let mut saw_launch = !requires_launch_attestation(runtime_kind);
                 let mut pending_error = None;
                 let mut terminal_failure = None;
                 let mut application_cursor = controller_cursor;
@@ -728,16 +732,14 @@ pub fn start_managed_candidate(
                             session.usage(),
                         )?;
                     }
-                    if runtime_kind == RuntimeKind::Codex
-                        && !saw_launch
-                        && !matches!(&event.event, RuntimeEventKind::Launch { .. })
-                    {
-                        bail!("Codex emitted an event before launch attestation");
+                    if !saw_launch && !matches!(&event.event, RuntimeEventKind::Launch { .. }) {
+                        bail!("{runtime_kind:?} emitted an event before launch attestation");
                     }
                     runtime_progress.validate(&event)?;
                     match &event.event {
                         RuntimeEventKind::Launch { descriptor } => {
                             validate_runtime_launch(
+                                runtime_kind,
                                 initial_launch_descriptor.as_ref(),
                                 descriptor,
                                 saw_launch,
@@ -1196,7 +1198,37 @@ fn validate_launch_descriptor(
     Ok(())
 }
 
+/// Runtimes whose managed process must be created from an immutable launch descriptor and must
+/// attest that descriptor before any other event.
+const fn requires_launch_attestation(kind: RuntimeKind) -> bool {
+    matches!(kind, RuntimeKind::Codex | RuntimeKind::ClaudeCode)
+}
+
+/// The exact arguments a resumed managed process may use. Each runtime names its own resume
+/// operand, so the rule is stated per runtime rather than inferred from the observed arguments.
+fn expected_resume_arguments(
+    kind: RuntimeKind,
+    initial: &[String],
+    session: &str,
+) -> anyhow::Result<Vec<String>> {
+    let mut expected = initial.to_vec();
+    match kind {
+        RuntimeKind::Codex => {
+            let prompt_source = expected
+                .pop()
+                .context("initial runtime launch has no prompt-source argument")?;
+            expected.extend(["resume".to_owned(), session.to_owned(), prompt_source]);
+        }
+        RuntimeKind::ClaudeCode => {
+            expected.extend(["--resume".to_owned(), session.to_owned()]);
+        }
+        RuntimeKind::Fake => bail!("this runtime does not attest a resumed launch"),
+    }
+    Ok(expected)
+}
+
 fn validate_runtime_launch(
+    kind: RuntimeKind,
     initial: Option<&LaunchDescriptor>,
     descriptor: &LaunchDescriptor,
     after_initial: bool,
@@ -1226,15 +1258,7 @@ fn validate_runtime_launch(
         bail!("runtime resume changed the executable, environment, or workspace");
     }
     let expected_session = expected_session.context("runtime resume has no established session")?;
-    let mut expected_arguments = initial.arguments.clone();
-    let final_argument = expected_arguments
-        .pop()
-        .context("initial runtime launch has no prompt-source argument")?;
-    expected_arguments.extend([
-        "resume".to_owned(),
-        expected_session.to_owned(),
-        final_argument,
-    ]);
+    let expected_arguments = expected_resume_arguments(kind, &initial.arguments, expected_session)?;
     if descriptor.arguments != expected_arguments {
         bail!("runtime resume changed its prepared arguments or session identifier");
     }
