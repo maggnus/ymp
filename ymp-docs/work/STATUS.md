@@ -31,12 +31,14 @@
 | `[ ]` | [`W1-APP-02o`](waves/W1/W1-APP-02/tasks/W1-APP-02o.md) | The shipped binary carries no path that starts a run without a contract | — | — | — |
 | `[~]` | [`W1-APP-02p`](waves/W1/W1-APP-02/tasks/W1-APP-02p.md) | Every program in the launch chain is verified, not only the pinned runtime | [`296b4183`](https://github.com/maggnus/ymp/commit/296b4183fff289e028b9c5457c7c0157865f3e7c) | 13/08 15:10 | 13/08 14:57 (0m) |
 | `[ ]` | [`W1-COR-03`](waves/W1/W1-COR-03/CARD.md) | Bounded local commitments self-organize and terminate | — | — | — |
-| `[ ]` | [`W1-COR-03a`](waves/W1/W1-COR-03/tasks/W1-COR-03a.md) | Local commitments conserve budgets and close obligations | — | — | — |
+| `[x]` | [`W1-COR-03a`](waves/W1/W1-COR-03/tasks/W1-COR-03a.md) | Local commitments conserve budgets and close obligations | [`58524264`](https://github.com/maggnus/ymp/commit/585242645d405ff1f76d6015a1141144eac4207b) | 13/08 15:10 | 13/08 16:27 (1h25m) |
 | `[ ]` | [`W1-COR-03b`](waves/W1/W1-COR-03/tasks/W1-COR-03b.md) | Yielded participants resume finitely and runs terminate honestly | — | — | — |
 | `[ ]` | [`W1-COR-03c`](waves/W1/W1-COR-03/tasks/W1-COR-03c.md) | Scoped board preserves attribution without carrying authority | — | — | — |
 | `[ ]` | [`W1-COR-03d`](waves/W1/W1-COR-03/tasks/W1-COR-03d.md) | Competing submissions preserve immutable candidate ancestry | — | — | — |
 | `[ ]` | [`W1-COR-03e`](waves/W1/W1-COR-03/tasks/W1-COR-03e.md) | TUI exposes local commitments and communication evidence | — | — | — |
 | `[ ]` | [`W1-COR-03f`](waves/W1/W1-COR-03/tasks/W1-COR-03f.md) | Commitment facts are durable and visible, not only in memory | — | — | — |
+| `[ ]` | [`W1-COR-03g`](waves/W1/W1-COR-03/tasks/W1-COR-03g.md) | Settlement returns escrow only to an account that can still spend it | — | — | — |
+| `[ ]` | [`W1-COR-03h`](waves/W1/W1-COR-03/tasks/W1-COR-03h.md) | Conservation and ownership checks fail on the mutants they name | — | — | — |
 | `[ ]` | [`W1-EVL-04`](waves/W1/W1-EVL-04/CARD.md) | Controlled evidence decides both POC hypotheses | — | — | — |
 | `[?]` | [`W1-EVL-04a`](waves/W1/W1-EVL-04/tasks/W1-EVL-04a.md) | Matched-budget arms produce comparable acceptance evidence | — | — | — |
 | `[ ]` | [`W1-EVL-04b`](waves/W1/W1-EVL-04/tasks/W1-EVL-04b.md) | Message interventions separate appearance from causal use | — | — | — |
