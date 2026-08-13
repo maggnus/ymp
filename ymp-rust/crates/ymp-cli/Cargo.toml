@@ -5,6 +5,10 @@ edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 
+[lib]
+name = "ymp_cli"
+path = "src/lib.rs"
+
 [[bin]]
 name = "ymp"
 path = "src/main.rs"
@@ -12,6 +16,7 @@ path = "src/main.rs"
 [dependencies]
 anyhow.workspace = true
 clap.workspace = true
+ratatui.workspace = true
 serde_json.workspace = true
 uuid.workspace = true
 ymp-agent-mcp.workspace = true
@@ -28,4 +33,5 @@ ymp-tui.workspace = true
 ymp-verifier.workspace = true
 
 [dev-dependencies]
+crossterm.workspace = true
 tempfile.workspace = true
