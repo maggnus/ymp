@@ -24,7 +24,7 @@
 | `[x]` | [`W1-APP-02h`](waves/W1/W1-APP-02/tasks/W1-APP-02h.md) | Managed Codex and Claude sessions resume after interruption | [`0d351f60`](https://github.com/maggnus/ymp/commit/0d351f6015c25869bd4e45bb126482fd60945795) | 12/08 09:44 | 12/08 10:26 (41m) |
 | `[ ]` | [`W1-APP-02i`](waves/W1/W1-APP-02/tasks/W1-APP-02i.md) | Terminal accounting reports only counters the runtime actually sent | — | — | — |
 | `[=]` | [`W1-APP-02j`](waves/W1/W1-APP-02/tasks/W1-APP-02j.md) | Runtime admission stops duplicating the pinned executable per instance | — | — | — |
-| `[ ]` | [`W1-APP-02k`](waves/W1/W1-APP-02/tasks/W1-APP-02k.md) | No managed descendant survives the supervisor that started it | — | — | — |
+| `[~]` | [`W1-APP-02k`](waves/W1/W1-APP-02/tasks/W1-APP-02k.md) | No managed descendant survives the supervisor that started it | [`48bd5503`](https://github.com/maggnus/ymp/commit/48bd5503253b950b8086aa506543281cab3dec80) | 13/08 12:44 | 13/08 12:09 (0m) |
 | `[ ]` | [`W1-APP-02l`](waves/W1/W1-APP-02/tasks/W1-APP-02l.md) | Runtime evidence names the models that spent and the environment it passed | — | — | — |
 | `[ ]` | [`W1-APP-02m`](waves/W1/W1-APP-02/tasks/W1-APP-02m.md) | A typed prompt becomes a contract and starts a run | — | — | — |
 | `[ ]` | [`W1-APP-02n`](waves/W1/W1-APP-02/tasks/W1-APP-02n.md) | Every interface action exists as a command of the same executable | — | — | — |

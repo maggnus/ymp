@@ -3,7 +3,7 @@ id: W1-APP-02k
 kind: task
 wave: W1
 card: W1-APP-02
-state: ready
+state: rework
 risk: significant
 maturity: BUILD
 relation: required
@@ -11,9 +11,9 @@ depends_on: [W1-APP-02d]
 blocks: [W1-EVL-04a]
 created_at: 2026-08-13T12:09:18+08:00
 updated_at: 2026-08-13T12:09:18+08:00
-started_at:
+started_at: 2026-08-13T12:44:00+08:00
 accepted_at:
-candidate_commit:
+candidate_commit: https://github.com/maggnus/ymp/commit/48bd5503253b950b8086aa506543281cab3dec80
 closure_commit:
 evidence:
 duration_minutes: 0
@@ -55,10 +55,10 @@ exactly the work it did, and no agent process acts after the run that authorized
 
 ## Current state
 
-Ready. The independent review of the Claude Code profile measured a descendant that created a new
-session and survived the supervisor's exit by 37 seconds, reparented to init. Process-group
-termination does not reach it. The Codex profile shares the same supervisor and is assumed to share
-the defect until measured.
+Returned by independent review after one round. Ownership of a descendant is established by watching
+its live ancestors, so a child detached by a double fork, with both intermediate processes gone,
+escapes the accounting and survives the run — reproduced three times out of three on the product
+path. Bounded termination and the absence of foreign victims were confirmed and are not in doubt.
 
 ## Next action
 
@@ -72,7 +72,14 @@ Reproduce the escape on the accepted base, then close it in the supervisor for b
 
 ## Findings
 
-None yet.
+- `blocker`, defect in the contracted outcome. Ordinary daemonization defeats ancestor-based
+  ownership: a double-forked descendant whose intermediate processes exit immediately is never
+  recorded, and the product reports success while the process keeps running. Ownership must rest on
+  a property the descendant itself carries.
+- `minor`, defect in the contracted outcome. The evidence record understates the negative half: the
+  suite fails eleven of eleven with the watcher disabled, not zero.
+- Confirmed and not in question: termination stays time-bounded, and a session leader the run did
+  not start survives untouched.
 
 ## Closure
 
