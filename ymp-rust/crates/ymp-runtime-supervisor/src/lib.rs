@@ -485,7 +485,42 @@ impl Drop for ManagedRunHandle {
     }
 }
 
+/// Starts a managed run that produces a candidate.
+///
+/// A runtime whose launch this controller does not attest cannot take this path. The attestation is
+/// what binds the bytes that execute to the bytes that were admitted, so a candidate produced
+/// without it would carry no evidence of the program that wrote it. The in-process fixture runtime
+/// is the one such runtime this workspace holds, and it reaches a candidate only through
+/// [`start_unattested_managed_candidate`], which no shipped module names —
+/// `ymp-cli/tests/unattested_runtime_is_unreachable.rs` establishes that by reading the source of
+/// every crate rather than by convention.
 pub fn start_managed_candidate(
+    application: Arc<Mutex<Application>>,
+    driver: Box<dyn RuntimeDriver>,
+    request: ManagedCandidateRequest,
+) -> anyhow::Result<ManagedRunHandle> {
+    let runtime_kind = driver.kind();
+    if !requires_launch_attestation(runtime_kind) {
+        bail!(
+            "{runtime_kind:?} does not attest the programs its launch enters, so it cannot produce \
+             a candidate"
+        );
+    }
+    start_candidate(application, driver, request)
+}
+
+/// Starts a managed run with a runtime whose launch is not attested. This exists for the checks
+/// that must drive the controller without a runtime executable; nothing the product ships names it.
+#[doc(hidden)]
+pub fn start_unattested_managed_candidate(
+    application: Arc<Mutex<Application>>,
+    driver: Box<dyn RuntimeDriver>,
+    request: ManagedCandidateRequest,
+) -> anyhow::Result<ManagedRunHandle> {
+    start_candidate(application, driver, request)
+}
+
+fn start_candidate(
     application: Arc<Mutex<Application>>,
     driver: Box<dyn RuntimeDriver>,
     request: ManagedCandidateRequest,
@@ -1460,7 +1495,7 @@ mod tests {
     use super::{
         ManagedCandidateRequest, ManagedContract, ManagedRunEvent, admit_workspace_program,
         admit_workspace_program_from, initialize_private_git, start_managed_candidate,
-        validate_launch_descriptor, validate_runtime_launch,
+        start_unattested_managed_candidate, validate_launch_descriptor, validate_runtime_launch,
     };
     use std::collections::VecDeque;
     use std::path::{Path, PathBuf};
@@ -2083,7 +2118,7 @@ mod tests {
             verifier: None,
         };
         let runtime = FakeRuntime::with_script(vec![ScriptStep::Complete(Usage::default())]);
-        let handle = start_managed_candidate(
+        let handle = start_unattested_managed_candidate(
             Arc::clone(&application),
             Box::new(runtime),
             ManagedCandidateRequest {
@@ -2176,7 +2211,7 @@ mod tests {
             capture_exclusions: vec!["target".to_owned()],
             verifier: None,
         };
-        let handle = start_managed_candidate(
+        let handle = start_unattested_managed_candidate(
             Arc::clone(&application),
             runtime,
             ManagedCandidateRequest {
@@ -2294,7 +2329,7 @@ mod tests {
         let runtime = SubmittingRuntime {
             inner: FakeRuntime::with_script(vec![ScriptStep::Complete(Usage::default())]),
         };
-        let handle = start_managed_candidate(
+        let handle = start_unattested_managed_candidate(
             Arc::clone(&application),
             Box::new(runtime),
             ManagedCandidateRequest {
@@ -2352,7 +2387,7 @@ mod tests {
             Application::create(temporary.path().join("data"), "run-1", Budget::new(1, 1))
                 .expect("create application"),
         ));
-        let handle = start_managed_candidate(
+        let handle = start_unattested_managed_candidate(
             Arc::clone(&application),
             Box::new(LifecycleRuntime {
                 inner: FakeRuntime::default(),
