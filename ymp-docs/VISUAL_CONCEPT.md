@@ -191,9 +191,10 @@ The earlier artifact `ymp_k9s_tui.dc.html` has been removed from the working tre
 composition and numbered destinations are superseded. Every retained template family, projection,
 region rule, and vocabulary constraint needed by the current concept must be present in the three
 current sources; implementations must not depend on the removed file. The old artifact remains
-readable in history at the revision pinned by work card `W0-UX-01` (`35cc659`). Because that card is
-accepted, this supersession is recorded as a new design revision in `W1-APP-02e.2` rather than as an
-unreviewed implementation liberty.
+readable in history at the revision pinned by work card `W0-UX-01`,
+[`35cc659`](https://github.com/maggnus/ymp/commit/35cc659981f73700296c9ed37b378e59eabff4a1).
+Because that card is accepted, this supersession is recorded as a new design revision in
+`W1-APP-02e.2` rather than as an unreviewed implementation liberty.
 
 ## Divergence from the current implementation
 
@@ -206,7 +207,7 @@ must not be closed by pretending in the interface.
 | Event kinds `workspace.fact`, `budget.reserve`, `budget.use`, `candidate.published`, `verification.started/check`, `board.message.*` | eight kinds in `ymp-domain`, none of them these |
 | Budget of five dimensions, with enforced / observed / estimated classes | two dimensions: remaining attempts and remaining verification queries |
 | Intent, contract package, interview, board messages, participants | absent from the domain |
-| Runtime profile `rp-gemini` | drivers for fake, Codex and Claude Code only |
+| Runtime profiles `rp-gemini` and `rp-opencode` | drivers for fake, Codex and Claude Code only (`ymp-runtime-fake`, `ymp-runtime-codex`, `ymp-runtime-claude`) |
 | Observed workspace facts — files touched, test runs, diff size | not collected |
 | `ymp apply cd-32` as a separate CLI command | no such command |
 
