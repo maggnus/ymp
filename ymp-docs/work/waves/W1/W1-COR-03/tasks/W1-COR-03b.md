@@ -3,19 +3,19 @@ id: W1-COR-03b
 kind: task
 wave: W1
 card: W1-COR-03
-state: ready
+state: accepted
 risk: critical
 maturity: BUILD
 relation: required
 depends_on: [W1-COR-03a, W1-APP-02a]
 blocks: [W1-COR-03c, W1-EVL-04a]
 created_at: 2026-08-10T19:34:25+08:00
-updated_at: 2026-08-10T19:34:25+08:00
+updated_at: 2026-08-14T04:06:57+08:00
 started_at:
-accepted_at:
-candidate_commit:
-closure_commit:
-evidence:
+accepted_at: 2026-08-14T04:06:57+08:00
+candidate_commit: https://github.com/maggnus/ymp/commit/fddecf0e11a76a516d159dfd5d62c3f411c7e867
+closure_commit: https://github.com/maggnus/ymp/commit/ca52994
+evidence: independent exhaustive reachability falsifier over 51249 ledger states found zero states without a reachable honest terminal; four contracted counterexamples plus three author mutations; reviewer ACCEPT with four minor findings recorded in W1-COR-03l
 duration_minutes: 0
 blocker:
 pause_reason:
