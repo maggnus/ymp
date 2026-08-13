@@ -61,11 +61,14 @@ representing future-only concepts as unavailable rather than fabricating unsuppo
 
 Blocked on independent acceptance of W1-APP-02e.2. The existing production buffers continue to
 represent the superseded dashboard contract and remain usable, but they are not acceptance
-evidence for the chat-first revision.
+evidence for the chat-first revision. An owner-authored chat-first implementation already exists
+outside this fleet and is preserved as an inherited candidate; it has received no review and is
+not acceptance evidence either.
 
 ## Next action
 
-Resume after W1-APP-02e.2 is accepted and implement only its approved POC-1 projection.
+Resume after W1-APP-02e.2 is accepted, then judge the inherited candidate against the approved
+POC-1 projection instead of starting the implementation from an empty write zone.
 
 ## Guardrails
 
@@ -75,7 +78,18 @@ Resume after W1-APP-02e.2 is accepted and implement only its approved POC-1 proj
 
 ## Findings
 
-None until activation.
+- An owner-authored chat-first terminal implementation was completed outside this fleet and left
+  uncommitted in the integration tree. Its finished state is preserved as
+  [`4efd94f`](https://github.com/maggnus/ymp/commit/4efd94f03c77e8a03752805af5825c8eafd67378)
+  on branch `paseo/w1-app-02e3-inherited-candidate-20260813` (local-only until push): 18 files,
+  `+5052/-2199`, rewriting
+  [`ymp-rust/crates/ymp-tui/src/lib.rs`](https://github.com/maggnus/ymp/blob/4efd94f03c77e8a03752805af5825c8eafd67378/ymp-rust/crates/ymp-tui/src/lib.rs)
+  into thirteen modules with a preview example. The integration tree was returned to
+  [`0ca9bac`](https://github.com/maggnus/ymp/commit/0ca9bacb0c4e014ddc48c83782227fe36578c2b9)
+  so an accepted candidate can land.
+- The inherited candidate carries no independent review, no acceptance evidence, and no declared
+  correspondence to the visual contract still under review in W1-APP-02e.2. It is a starting point
+  for this subtask, not a result of it.
 
 ## Closure
 
