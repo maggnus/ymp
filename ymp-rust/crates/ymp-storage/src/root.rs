@@ -400,10 +400,16 @@ fn create_dir_all(path: &Path) -> Result<(), RootError> {
 fn write_json(path: &Path, value: &Value) -> Result<(), RootError> {
     let mut bytes = serde_json::to_vec_pretty(value).expect("a marker value serializes");
     bytes.push(b'\n');
-    fs::write(path, bytes).map_err(|source| RootError::Io {
+    // A marker is read concurrently by other starts. Writing it in place exposes a truncated
+    // file to a concurrent reader, which then reports a readable root as unreadable; the rename
+    // makes the marker appear complete or not at all.
+    let staged = path.with_extension(format!("json.{}.tmp", std::process::id()));
+    let io = |source| RootError::Io {
         path: path.to_path_buf(),
         source,
-    })
+    };
+    fs::write(&staged, bytes).map_err(io)?;
+    fs::rename(&staged, path).map_err(io)
 }
 
 #[cfg(test)]

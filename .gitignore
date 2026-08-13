@@ -16,3 +16,4 @@ ymp-docs/design/paseo/
 
 # Lock file generated when the nested contract checker is built by a test
 ymp-rust/crates/ymp-tui/contract-checker/
+/.ymp/
