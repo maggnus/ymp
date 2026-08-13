@@ -34,6 +34,7 @@
 | `[x]` | [`W1-APP-02r`](waves/W1/W1-APP-02/tasks/W1-APP-02r.md) | An unreadable marker is not read as an absent holder | [`4ab6a80c`](https://github.com/maggnus/ymp/commit/4ab6a80cb5ffce1d0ad2786fa1ef92fffc72dbd6) | 13/08 20:52 | 13/08 21:32 (23m) |
 | `[ ]` | [`W1-APP-02s`](waves/W1/W1-APP-02/tasks/W1-APP-02s.md) | The fake runtime is neither linked nor offered as a profile | — | — | — |
 | `[~]` | [`W1-APP-02t`](waves/W1/W1-APP-02/tasks/W1-APP-02t.md) | Lifecycle tests are isolated from other test binaries | [`5118b7c5`](https://github.com/maggnus/ymp/commit/5118b7c59b18c80e381c6af7a6bbc8d13ecc7485) | 13/08 21:33 | 13/08 21:46 (0m) |
+| `[ ]` | [`W1-APP-02u`](waves/W1/W1-APP-02/tasks/W1-APP-02u.md) | The draft refuses an answer it can check and never loses itself | — | — | — |
 | `[ ]` | [`W1-COR-03`](waves/W1/W1-COR-03/CARD.md) | Bounded local commitments self-organize and terminate | — | — | — |
 | `[x]` | [`W1-COR-03a`](waves/W1/W1-COR-03/tasks/W1-COR-03a.md) | Local commitments conserve budgets and close obligations | [`58524264`](https://github.com/maggnus/ymp/commit/585242645d405ff1f76d6015a1141144eac4207b) | 13/08 15:10 | 13/08 16:27 (1h25m) |
 | `[ ]` | [`W1-COR-03b`](waves/W1/W1-COR-03/tasks/W1-COR-03b.md) | Yielded participants resume finitely and runs terminate honestly | — | — | — |
