@@ -27,7 +27,7 @@
 | `[x]` | [`W1-APP-02k`](waves/W1/W1-APP-02/tasks/W1-APP-02k.md) | No managed descendant survives the supervisor that started it | [`78c767ca`](https://github.com/maggnus/ymp/commit/78c767cab279dd35003cfe6dcdca0884559b08ae) | 13/08 12:44 | 13/08 14:57 (2h11m) |
 | `[ ]` | [`W1-APP-02l`](waves/W1/W1-APP-02/tasks/W1-APP-02l.md) | Runtime evidence names the models that spent and the environment it passed | — | — | — |
 | `[x]` | [`W1-APP-02m`](waves/W1/W1-APP-02/tasks/W1-APP-02m.md) | A typed prompt becomes a contract and starts a run | [`bcaabb3d`](https://github.com/maggnus/ymp/commit/bcaabb3d0e6b014f82d5479b944e117f1e1849a1) | 13/08 12:45 | 13/08 15:06 (2h17m) |
-| `[ ]` | [`W1-APP-02n`](waves/W1/W1-APP-02/tasks/W1-APP-02n.md) | Every interface action exists as a command of the same executable | — | — | — |
+| `[~]` | [`W1-APP-02n`](waves/W1/W1-APP-02/tasks/W1-APP-02n.md) | Every interface action exists as a command of the same executable | [`bca2c262`](https://github.com/maggnus/ymp/commit/bca2c2627b70af49ab349cd8b557d6fe885fab75) | 13/08 17:00 | 13/08 12:40 (0m) |
 | `[ ]` | [`W1-APP-02o`](waves/W1/W1-APP-02/tasks/W1-APP-02o.md) | The shipped binary carries no path that starts a run without a contract | — | — | — |
 | `[x]` | [`W1-APP-02p`](waves/W1/W1-APP-02/tasks/W1-APP-02p.md) | Every program in the launch chain is verified, not only the pinned runtime | [`f6bebcf6`](https://github.com/maggnus/ymp/commit/f6bebcf6b2564f6fb133c4545d7209770037f2cd) | 13/08 15:10 | 13/08 16:54 (1h58m) |
 | `[ ]` | [`W1-APP-02q`](waves/W1/W1-APP-02/tasks/W1-APP-02q.md) | Admission failures refuse instead of degrading, and ownership is proved beyond file mode | — | — | — |
