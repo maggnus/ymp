@@ -3,7 +3,7 @@
 use anyhow::{Context, bail};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 use std::ffi::OsStr;
 use std::fs::{self, File, OpenOptions};
 use std::io::Write;
@@ -16,6 +16,7 @@ use std::thread::{self, JoinHandle};
 use uuid::Uuid;
 use ymp_application::Application;
 use ymp_application::WorkspaceSubmission;
+use ymp_domain::commitment::InvocationClosure;
 use ymp_domain::{Command, EventKind, MAX_IDENTIFIER_CHARS, RunStatus, digest_bytes};
 use ymp_runtime_api::{
     AdmittedProgram, CancellationToken, DiagnosticSummary, InvocationRequest, LaunchDescriptor,
@@ -23,6 +24,10 @@ use ymp_runtime_api::{
     RuntimeDriver, RuntimeError, RuntimeEvent, RuntimeEventKind, RuntimeFailureKind, RuntimeKind,
     Usage, admit_lifecycle_programs, unestablished_terminations,
 };
+
+mod kernel;
+
+pub use kernel::{ManagedKernel, ManagedTermination};
 
 const CONTRACT_SCHEMA_VERSION: u32 = 1;
 const MAX_CONTRACT_BYTES: usize = 1024 * 1024;
@@ -362,20 +367,15 @@ pub struct ManagedRunHandle {
     application: Arc<Mutex<Application>>,
     receiver: Receiver<ManagedRunEvent>,
     control_sender: Sender<ManagedControl>,
-    lifecycle: Arc<Mutex<ManagedLifecycle>>,
+    /// The committed record of this run's process slice. Whether the slice may resume is decided
+    /// here and nowhere else, so the live run and a modelled one answer that question the same way.
+    kernel: Arc<ManagedKernel>,
     finished: Arc<AtomicBool>,
     worker: Option<JoinHandle<()>>,
 }
 
 enum ManagedControl {
     Wake { input: String },
-}
-
-#[derive(Default)]
-struct ManagedLifecycle {
-    yielded: bool,
-    terminal: bool,
-    wake_commands: HashMap<String, String>,
 }
 
 impl ManagedRunHandle {
@@ -415,6 +415,19 @@ impl ManagedRunHandle {
         Ok(())
     }
 
+    /// The committed record of this run's process slice.
+    pub fn kernel(&self) -> &ManagedKernel {
+        &self.kernel
+    }
+
+    /// Ask the kernel to admit one resumption of the yielded slice, and resume the runtime with
+    /// this instruction only if it does.
+    ///
+    /// Nothing about the decision is taken here. The kernel is asked whether this slice is at the
+    /// head of the queue it must be admitted in, and then asked to commit the resumption; a slice
+    /// that is running, closed, out of wakes, past its wake deadline or holding no fact worth
+    /// resuming for is refused, and the instruction never reaches the runtime. A repeated delivery
+    /// of the same wake returns the recorded result and resumes nothing a second time.
     pub fn wake(
         &self,
         command_id: impl Into<String>,
@@ -431,34 +444,22 @@ impl ManagedRunHandle {
         if input.is_empty() || input.len() > MAX_PROMPT_BYTES {
             bail!("wake input must contain between 1 and {MAX_PROMPT_BYTES} bytes");
         }
-        let input_digest = digest_bytes(input.as_bytes());
-        let mut lifecycle = self
-            .lifecycle
-            .lock()
-            .map_err(|_| anyhow::anyhow!("managed lifecycle lock was poisoned"))?;
-        if let Some(recorded) = lifecycle.wake_commands.get(&command_id) {
-            if recorded == &input_digest {
-                return Ok(());
-            }
-            bail!("wake command identifier was reused with different input");
+        // Admission order is the whole of the fairness rule, so a controller that resumed a slice
+        // the kernel did not put first would be scheduling on its own authority.
+        let admissible = self.kernel.admission_order()?;
+        if let Some(first) = admissible.first()
+            && first != &self.invocation_id
+        {
+            bail!("the kernel admits invocation {first} before this one");
         }
-        if lifecycle.terminal {
-            bail!("managed runtime is terminal");
+        if !self.kernel.admit_wake(&command_id, &input)? {
+            return Ok(());
         }
-        if !lifecycle.yielded {
-            bail!("managed runtime is not yielded");
-        }
-        lifecycle
-            .wake_commands
-            .insert(command_id.clone(), input_digest);
-        lifecycle.yielded = false;
         if self
             .control_sender
             .send(ManagedControl::Wake { input })
             .is_err()
         {
-            lifecycle.wake_commands.remove(&command_id);
-            lifecycle.yielded = true;
             bail!("managed runtime control channel is closed");
         }
         Ok(())
@@ -611,6 +612,23 @@ fn start_candidate(
         )
     };
 
+    // The committed record this run's process slice lives in. It is prepared before anything is
+    // executed, because the authority to run a slice is spent out of the work's own account and a
+    // slice the kernel would not fund is one this controller must not start.
+    let kernel = match ManagedKernel::prepare(
+        &attempt_id,
+        &invocation_id,
+        &contract_id,
+        &base_digest,
+        &digest_bytes(request.contract.prompt.as_bytes()),
+    ) {
+        Ok(kernel) => Arc::new(kernel),
+        Err(error) => {
+            record_infrastructure_failure(&application, &attempt_id, &error.to_string());
+            return Err(error);
+        }
+    };
+
     let token = Uuid::new_v4().simple().to_string();
     let socket_path = std::env::temp_dir()
         .join("ymp-runtime")
@@ -756,6 +774,12 @@ fn start_candidate(
             return Err(error);
         }
     };
+    // The slice is admitted before the process exists, so a runtime is never running under a slice
+    // the kernel never funded.
+    if let Err(error) = kernel.start_invocation() {
+        record_infrastructure_failure(&application, &attempt_id, &error.to_string());
+        return Err(error);
+    }
     let mut session = match driver.start_prepared(invocation_request, launch_descriptor.as_ref()) {
         Ok(session) => session,
         Err(error) => {
@@ -770,13 +794,15 @@ fn start_candidate(
                 ));
             }
             record_infrastructure_failure(&application, &attempt_id, &detail);
+            let _ = kernel.terminated(ManagedTermination::Failed(
+                InvocationClosure::InfrastructureError,
+            ));
             return Err(error.into());
         }
     };
     let (sender, receiver) = channel();
     let (control_sender, control_receiver) = channel();
-    let lifecycle = Arc::new(Mutex::new(ManagedLifecycle::default()));
-    let worker_lifecycle = Arc::clone(&lifecycle);
+    let worker_kernel = Arc::clone(&kernel);
     let finished = Arc::new(AtomicBool::new(false));
     let worker_finished = Arc::clone(&finished);
     let worker_application = Arc::clone(&application);
@@ -894,11 +920,10 @@ fn start_candidate(
                         RuntimeEventKind::TimedOut { .. } => Some("managed_runtime_timed_out"),
                         _ => None,
                     };
-                    if yielded {
-                        worker_lifecycle
-                            .lock()
-                            .map_err(|_| anyhow::anyhow!("managed lifecycle lock was poisoned"))?
-                            .yielded = true;
+                    // The yield is committed before it is announced, so a controller acting on the
+                    // announcement cannot reach the kernel before the record it decides against.
+                    if let RuntimeEventKind::Yielded { cursor } = &event.event {
+                        worker_kernel.yielded(cursor)?;
                     }
                     let _ = sender.send(ManagedRunEvent::Runtime(event));
                     if terminal {
@@ -932,6 +957,19 @@ fn start_candidate(
                         }
                     }
                 }
+                // How this slice ended is recorded in the kernel before anything else is reported,
+                // in the terminal vocabulary the run is accountable in. A slice that completed
+                // leaves its work obligation open, because whether its candidate is accepted is
+                // decided by a protected query this controller does not perform.
+                worker_kernel.terminated(match terminal_failure {
+                    Some("managed_runtime_timed_out") => {
+                        ManagedTermination::Failed(InvocationClosure::LimitExceeded)
+                    }
+                    Some(_) => ManagedTermination::Failed(InvocationClosure::RuntimeError),
+                    None if worker_cancellation.is_cancelled() => ManagedTermination::Cancelled,
+                    None if completed => ManagedTermination::Completed,
+                    None => ManagedTermination::Failed(InvocationClosure::RuntimeError),
+                })?;
                 if let Some(failure) = terminal_failure {
                     bail!(failure);
                 }
@@ -954,6 +992,9 @@ fn start_candidate(
                         .clone()
                         .context("completed runtime has no controller-committed candidate")?
                 };
+                // The work the run is accountable for now carries the exact candidate a protected
+                // query would be spent on.
+                worker_kernel.submitted(&candidate_digest)?;
                 let _ = sender.send(ManagedRunEvent::CandidateAvailable {
                     candidate_digest,
                     change_count: None,
@@ -966,10 +1007,6 @@ fn start_candidate(
             // reading of the process table taken at that moment would be racing the supervisor
             // instead of measuring it.
             drop(session);
-            if let Ok(mut lifecycle) = worker_lifecycle.lock() {
-                lifecycle.yielded = false;
-                lifecycle.terminal = true;
-            }
             // The places that end the process tree while they are already reporting a cancellation,
             // a time limit or a runtime failure — and the session being dropped, which reports to
             // nobody — keep what they could not establish. It is read here, because a run may
@@ -991,6 +1028,11 @@ fn start_candidate(
             };
             if let Some(detail) = detail {
                 record_infrastructure_failure(&worker_application, &worker_attempt, &detail);
+                // Supervision that failed on its way out still owes the kernel a terminal: a slice
+                // left open would hold the run open on capacity nothing is running under.
+                let _ = worker_kernel.terminated(ManagedTermination::Failed(
+                    InvocationClosure::InfrastructureError,
+                ));
                 let _ = sender.send(ManagedRunEvent::Failed { detail });
             }
             let _ = sender.send(ManagedRunEvent::Finished);
@@ -1005,7 +1047,7 @@ fn start_candidate(
         application,
         receiver,
         control_sender,
-        lifecycle,
+        kernel,
         finished,
         worker: Some(worker),
     })
