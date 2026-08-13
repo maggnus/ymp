@@ -4,21 +4,21 @@ kind: subtask
 wave: W1
 card: W1-APP-02
 parent: W1-APP-02e
-state: blocked
+state: ready
 risk: significant
 maturity: BUILD
 relation: required
 depends_on: [W1-APP-02e.2]
 blocks: []
 created_at: 2026-08-13T01:26:13+08:00
-updated_at: 2026-08-13T01:26:13+08:00
+updated_at: 2026-08-13T09:47:08+08:00
 started_at:
 accepted_at:
 candidate_commit:
 closure_commit:
 evidence:
 duration_minutes: 0
-blocker: W1-APP-02e.2 has not yet accepted the replacement visual contract
+blocker:
 pause_reason:
 return_trigger:
 deliberate_partial: false
@@ -48,27 +48,34 @@ representing future-only concepts as unavailable rather than fabricating unsuppo
 
 ## Acceptance
 
-- [ ] Starting `ymp` renders the accepted transcript-first POC-1 path and reaches every supported
-  page and decision surface with the declared keyboard commands at 80×24 and 120×40.
+- [ ] Starting `ymp` renders the transcript-first POC-1 path and reaches every supported page and
+      decision surface with the declared keyboard commands at 80x24 and 120x40.
+- [ ] The interface is one framework rather than a set of per-screen implementations: every page and
+      modal is composed from the shared component and layout layer, and no screen owns a private
+      drawing path. The check that must fail: a page that bypasses the shared layer is rejected by an
+      inventory check with a captured non-zero exit.
+- [ ] Every value on screen is derived from an application projection. The check that must fail: a
+      rendered field whose value is fixed in the presentation layer instead of read from state is
+      rejected with a captured non-zero exit.
 - [ ] Deterministic buffers preserve terminal reason, primary action, current selection, bounded
-  content, and state distinctions without relying on colour or mouse input.
-- [ ] Unsupported POC-2 concepts are absent or explicitly unavailable; they never appear as
-  invented participants, budgets, events, or completed actions.
-- [ ] Removing one required surface, state marker, or keyboard transition makes the same test
-  harness fail before independent review.
+      content, and state distinctions without relying on colour or mouse input.
+- [ ] Unsupported POC-2 concepts are absent or explicitly unavailable; they never appear as invented
+      participants, budgets, events, or completed actions.
+- [ ] Removing one required surface, state marker, or keyboard transition makes the same test harness
+      fail before independent review.
 
 ## Current state
 
-Blocked on independent acceptance of W1-APP-02e.2. The existing production buffers continue to
-represent the superseded dashboard contract and remain usable, but they are not acceptance
-evidence for the chat-first revision. An owner-authored chat-first implementation already exists
-outside this fleet and is preserved as an inherited candidate; it has received no review and is
-not acceptance evidence either.
+Ready. The chat-first reference is accepted, and an owner-authored implementation of it already
+exists as an inherited candidate that runs but has not been reviewed and may present values no
+application projection produces. The drawn sources are references rather than a frozen contract:
+what suits the product is taken, what does not is changed and the change is recorded.
 
 ## Next action
 
-Resume after W1-APP-02e.2 is accepted, then judge the inherited candidate against the approved
-POC-1 projection instead of starting the implementation from an empty write zone.
+Rebase the inherited candidate on the accepted base, make it compile against the runtime event
+variants the managed-runtime work added, then prove the framework property and the data binding
+before independent review.
 
 ## Guardrails
 
@@ -86,6 +93,9 @@ POC-1 projection instead of starting the implementation from an empty write zone
 
 ## Findings
 
+- Two interface decisions are open in the rationale document and belong to this subtask: the name
+  of the assurance profile, and what the operator sees when a run is cancelled. Each is decided
+  here, recorded in the rationale document, and evidenced by the screen that shows it.
 - An owner-authored chat-first terminal implementation was completed outside this fleet and left
   uncommitted in the integration tree. Its finished state is preserved as
   [`4efd94f`](https://github.com/maggnus/ymp/commit/4efd94f03c77e8a03752805af5825c8eafd67378)

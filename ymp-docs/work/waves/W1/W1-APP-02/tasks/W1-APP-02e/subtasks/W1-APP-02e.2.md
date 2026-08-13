@@ -4,24 +4,24 @@ kind: subtask
 wave: W1
 card: W1-APP-02
 parent: W1-APP-02e
-state: rework
+state: accepted
 risk: significant
 maturity: DESIGN
 relation: required
 depends_on: []
 blocks: []
 created_at: 2026-08-13T01:26:13+08:00
-updated_at: 2026-08-13T09:25:00+08:00
+updated_at: 2026-08-13T09:46:41+08:00
 started_at: 2026-08-13T01:32:17+08:00
-accepted_at:
-candidate_commit: https://github.com/maggnus/ymp/commit/b3005e29efc695cf29de4d006b5d8a489c4794ac
-closure_commit:
-evidence:
-duration_minutes: 0
+accepted_at: 2026-08-13T09:46:41+08:00
+candidate_commit: https://github.com/maggnus/ymp/commit/4f9671ae3cadb6949ea0866d6f9c4bfd5ce7c489
+closure_commit: https://github.com/maggnus/ymp/commit/b57ec9d0e04b47f0848fba4e7d1b9b2d7cf68336
+evidence: [`4f9671a`](https://github.com/maggnus/ymp/commit/4f9671ae3cadb6949ea0866d6f9c4bfd5ce7c489)
+duration_minutes: 494
 blocker:
 pause_reason:
-return_trigger:
-deliberate_partial: false
+return_trigger: the fixed-layout export is cited as the source of a screen or fixture, or it is regenerated from the accepted HTML revision
+deliberate_partial: true
 ---
 
 # W1-APP-02e.2 — Chat-first visual contract is independently accepted
@@ -57,27 +57,24 @@ dashboard revision without weakening protocol or trust constraints.
 - [ ] Independent review confirms that the HTML and all 23 PDF pages describe the same named
   surfaces, deterministic fixture identities, terminal sizes, navigation model, and state
   distinctions, or returns an exact divergence to the author.
-- [ ] Every local dependency and link required to read either primary format resolves from a clean
+- [x] Every local dependency and link required to read either primary format resolves from a clean
   checkout; the frozen checker rejects one removed dependency or deliberately broken local link.
-- [ ] Every trust-significant action, unavailable capability, and future-only concept is explicit,
+- [x] Every trust-significant action, unavailable capability, and future-only concept is explicit,
   keyboard-operable, distinguishable without colour, and consistent with the project contract,
   protocol, invariants, and documented divergence table.
-- [ ] The reviewer confirms that the three current sources are self-contained and sufficient for
+- [x] The reviewer confirms that the three current sources are self-contained and sufficient for
   W1-APP-02e.3 without consulting the removed dashboard artifact.
 
 ## Current state
 
-Returned by independent review. The three sources are consistent in composition, protocol
-correspondence, keyboard operability and colour-independent distinction, but neither primary format
-is self-contained: the HTML depends on a support file that does not exist in the repository, and
-both formats still lead the reader to the removed dashboard artifact. The reviewer froze a
-resolution checker with an observed negative half before inspecting content.
+Accepted with a recorded residue. The repaired HTML source and the rationale document resolve
+offline and carry every screen, fixture, size, navigation rule and state distinction, while the
+fixed-layout export lags them by ten positions. Both drawn formats are reference implementations
+rather than a frozen contract, so a divergence between them does not block implementation.
 
 ## Next action
 
-Repair the two blockers and the minor record defects inside the design sources, then re-review with
-the same frozen checker. The divergence between the two primary formats needs an owner decision on
-which format carries authority before it can be closed.
+None for this subtask. W1-APP-02e.3 implements from the HTML source and the rationale document.
 
 ## Guardrails
 
@@ -107,6 +104,16 @@ which format carries authority before it can be closed.
   answered by an existing decision: those files are non-normative local references, deliberately
   untracked, and now ignored by
   [`6d73501`](https://github.com/maggnus/ymp/commit/6d7350179fde85e3778e73d8638d660ce24a9c70).
+- The correction removed the missing dependency instead of stubbing it, on independently verified
+  grounds: the file appears in no revision of the history and the document contains no script
+  element. The reference to the removed artifact became a statement pinned to the revision that
+  still holds that file.
+- The re-review returned `ACCEPT` with one minor outcome defect: the fixed-layout export does not
+  carry the correction, so its divergence from the source grew from eight positions to ten. The
+  contracted outcome is met by the HTML source and the rationale document, which the project
+  already records as the exact handoff.
+- Regenerating the export from the accepted revision is separate work that no current goal claims;
+  it is not scheduled, and the residue's return trigger is the event that would make it worth doing.
 
 ## Closure
 
@@ -114,12 +121,25 @@ Not accepted.
 
 ### Accepted outcome
 
-Not accepted.
+The repaired HTML source and the rationale document are one independently reviewed, internally
+consistent chat-first reference that opens from a clean checkout and is sufficient to implement the
+terminal interface without any other artifact.
 
 ### Residuals
 
-None recorded.
+The fixed-layout export lags the accepted source by ten positions, including the two repairs, and
+its annotation still points at a temporary external address. This is carried rather than fixed
+because the export is a reading convenience and no implementation reads it; the seniority of the
+source is recorded in the project entry points and the rationale document, so citing the export
+would be visible. The return trigger is recorded in this file's front matter.
+
+Two open questions in the rationale document — the name of the assurance profile and the outcome of
+a cancellation — are not answered here. They are interface decisions the implementation subtask
+makes and records explicitly rather than design defects.
 
 ### Evidence
 
-- None until acceptance.
+- [`4f9671a`](https://github.com/maggnus/ymp/commit/4f9671ae3cadb6949ea0866d6f9c4bfd5ce7c489) —
+  reviewed correction; the integrated design tree is byte-identical to it.
+- [`b57ec9d`](https://github.com/maggnus/ymp/commit/b57ec9d0e04b47f0848fba4e7d1b9b2d7cf68336) —
+  integration into the release branch.

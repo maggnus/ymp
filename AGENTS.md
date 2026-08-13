@@ -52,6 +52,11 @@ The current chat-first visual concept has three authoritative sources with disti
 - `ymp-docs/VISUAL_CONCEPT.md` — composition rationale, operator path, semantic constraints, and
   known gaps between the target interface and the current domain.
 
+These sources are reference implementations of the future interface, not a frozen contract. What
+suits the product is taken; what does not is changed, and the change is recorded in the work tree.
+The HTML source is the only carrier of correspondence: the PDF is a reading convenience and must
+never be cited as the source of a screen or a fixture.
+
 The removed `ymp-docs/design/ymp_k9s_tui.dc.html` is a superseded historical artifact. Accepted
 work records may retain immutable references to the revision they actually reviewed; those
 references are evidence of history, not current design authority.
