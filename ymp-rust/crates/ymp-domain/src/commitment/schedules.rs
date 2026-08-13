@@ -27,14 +27,18 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use super::budget::{BudgetVector, DIMENSION_COUNT, DIMENSIONS, Dimension};
+use super::invocations::{
+    InvocationClosure, OpenAuthority, RootTerminal, StopReason, Verdict, WakeCondition,
+};
 use super::ledger::{AlteredFacts, CommitmentLedger, DisabledChecks};
 use super::protocol::{
-    AcceptOpen, AdvanceClock, Advertise, Award, CancelContract, CommitmentCommand, CommitmentError,
-    CommitmentEvent, Reassign, RecordBid, RegisterParticipant, RenewLease, ReturnObligation,
-    SettleOffer, StartAttempt, SubmitResult, WithdrawBid, WithdrawOffer,
+    AcceptOpen, AdvanceClock, Advertise, Award, CancelContract, CloseInvocation, CommitmentCommand,
+    CommitmentError, CommitmentEvent, MAX_ATTEMPT_WAKES, Reassign, RecordBid, RecordVerification,
+    RegisterParticipant, RenewLease, ResumeInvocation, ReturnObligation, SettleOffer, StartAttempt,
+    StartInvocation, StopRun, SubmitResult, WithdrawBid, WithdrawOffer, YieldInvocation,
 };
 use super::records::{
-    AccountRef, FundingSource, ObligationState, OfferPolicy, OfferState, Outcome,
+    AccountRef, ContractState, FundingSource, ObligationState, OfferPolicy, OfferState, Outcome,
 };
 
 pub(crate) const ROOT_PARTICIPANT: &str = "sponsor-root";
@@ -61,6 +65,10 @@ pub(crate) const SECOND_OFFER: &str = "offer-second";
 pub(crate) const THIRD_OFFER: &str = "offer-third";
 /// An offer reserving more than the run was ever funded with, which no ordering may accept.
 pub(crate) const UNFUNDED_OFFER: &str = "offer-unfunded";
+/// The slice whose whole life the pool replays.
+pub(crate) const ALPHA_INVOCATION: &str = "invocation-alpha-1";
+/// An offer identifier no command in this pool ever advertises, so nothing can close it.
+pub(crate) const UNREACHED_OFFER: &str = "offer-unreached";
 pub(crate) const MAIN_MAX_AWARDS: u32 = 2;
 pub(crate) const LEASE_MS: u64 = 100;
 pub(crate) const DEADLINE: u64 = 800;
@@ -134,6 +142,7 @@ fn root_budget() -> BudgetVector {
         .with(Dimension::ExternalActions, 1_000)
         .with(Dimension::ParticipantStarts, 10)
         .with(Dimension::AttemptStarts, 1_000)
+        .with(Dimension::InvocationStarts, 1_000)
         .with(Dimension::OfferCreations, 1_000)
         .with(Dimension::ObligationCreations, 1_000)
 }
@@ -146,6 +155,7 @@ fn endowment() -> BudgetVector {
         .with(Dimension::VerificationQueries, 10)
         .with(Dimension::ExternalActions, 10)
         .with(Dimension::AttemptStarts, 20)
+        .with(Dimension::InvocationStarts, 40)
         .with(Dimension::OfferCreations, 20)
         .with(Dimension::ObligationCreations, 20)
 }
@@ -159,6 +169,7 @@ fn execution_escrow() -> BudgetVector {
         .with(Dimension::VerificationQueries, 2)
         .with(Dimension::ExternalActions, 1)
         .with(Dimension::AttemptStarts, 4)
+        .with(Dimension::InvocationStarts, 24)
         .with(Dimension::OfferCreations, 2)
         .with(Dimension::ObligationCreations, 2)
 }
@@ -173,6 +184,11 @@ pub(crate) fn requested_escrow() -> BudgetVector {
         .with(Dimension::WallTimeMs, 8_000)
         .with(Dimension::VerificationQueries, 1)
         .with(Dimension::AttemptStarts, 2)
+        // Deliberately more process slices than the wake bound admits, so that what stops a
+        // participant from being woken forever is that bound and not the escrow running dry — and
+        // still under a third of what the offer pool holds, so that an award beyond the funded
+        // count is refused by that count rather than by arithmetic.
+        .with(Dimension::InvocationStarts, 12)
         .with(Dimension::OfferCreations, 1)
         .with(Dimension::ObligationCreations, 1)
 }
@@ -540,24 +556,22 @@ pub(crate) fn contention_pool(tokens: &Tokens) -> Vec<CommitmentCommand> {
         accept_open(tokens, ALPHA, "a"),
         accept_open(tokens, BETA, "b"),
         accept_open(tokens, GAMMA, "c"),
-        CommitmentCommand::StartAttempt(StartAttempt {
-            attempt_id: "attempt-alpha-1".to_owned(),
-            contract_id: "contract-alpha".to_owned(),
-            participant: ALPHA.to_owned(),
-            generation: 1,
-        }),
-        CommitmentCommand::SubmitResult(SubmitResult {
-            contract_id: "contract-alpha".to_owned(),
-            attempt_id: "attempt-alpha-1".to_owned(),
-            participant: ALPHA.to_owned(),
-            generation: 1,
-            candidate_digest: candidate.clone(),
-        }),
         CommitmentCommand::RenewLease(RenewLease {
             contract_id: "contract-alpha".to_owned(),
             holder: ALPHA.to_owned(),
             generation: 1,
             lease_ms: LEASE_MS,
+        }),
+        // Neither the participant running the slice nor the sponsor of its contract.
+        CommitmentCommand::CloseInvocation(CloseInvocation {
+            invocation_id: ALPHA_INVOCATION.to_owned(),
+            closer: GAMMA.to_owned(),
+            reason: InvocationClosure::ParticipantLost,
+        }),
+        // A participant that does not own the root obligation cannot stop the run.
+        CommitmentCommand::StopRun(StopRun {
+            authority: BETA.to_owned(),
+            reason: StopReason::Cancelled,
         }),
         CommitmentCommand::AdvanceClock(AdvanceClock { to: 50 }),
         CommitmentCommand::AdvanceClock(AdvanceClock { to: 300 }),
@@ -578,6 +592,22 @@ pub(crate) fn contention_pool(tokens: &Tokens) -> Vec<CommitmentCommand> {
             contract_id: "contract-alpha".to_owned(),
             participant: GAMMA.to_owned(),
             generation: 2,
+        }),
+        // A slice of the participant the contract was taken from, offered again after the
+        // reassignment. Its token is the one it started under and is no longer current.
+        CommitmentCommand::ResumeInvocation(ResumeInvocation {
+            invocation_id: ALPHA_INVOCATION.to_owned(),
+            participant: ALPHA.to_owned(),
+            generation: 1,
+        }),
+        // A slice under the replacement holder's own attempt and token.
+        CommitmentCommand::StartInvocation(StartInvocation {
+            invocation_id: "invocation-alpha-2".to_owned(),
+            attempt_id: "attempt-alpha-2".to_owned(),
+            contract_id: "contract-alpha".to_owned(),
+            participant: GAMMA.to_owned(),
+            generation: 2,
+            cursor: 0,
         }),
         CommitmentCommand::SubmitResult(SubmitResult {
             contract_id: "contract-alpha".to_owned(),
@@ -719,6 +749,105 @@ pub(crate) fn contention_pool(tokens: &Tokens) -> Vec<CommitmentCommand> {
     ]
 }
 
+/// One participant's own causally ordered sequence on the task contract it was awarded: it takes
+/// an attempt, begins a process slice, stops it without returning the contract, submits, is
+/// admitted again on the fact that submission committed, closes the slice and spends its protected
+/// query.
+///
+/// It is issued in this order because a participant issues its own commands in order, and because a
+/// uniform shuffle practically never reaches a resumption: admitting one takes a slice that has
+/// begun, a yield, a committed fact the yield asked about and a clock still inside the wake
+/// deadline, which is four things in one order. What the seed varies is where every other
+/// participant's contended commands, and every clock advance, fall around it.
+pub(crate) fn slice_chain() -> Vec<CommitmentCommand> {
+    let candidate = digest("candidate-one");
+    vec![
+        CommitmentCommand::StartAttempt(StartAttempt {
+            attempt_id: "attempt-alpha-1".to_owned(),
+            contract_id: "contract-alpha".to_owned(),
+            participant: ALPHA.to_owned(),
+            generation: 1,
+        }),
+        // One participant's process slice, taken through its whole life: it begins under the lease
+        // it holds, stops without returning the contract, is admitted again once something it
+        // named has been committed, and is finally closed.
+        CommitmentCommand::StartInvocation(StartInvocation {
+            invocation_id: ALPHA_INVOCATION.to_owned(),
+            attempt_id: "attempt-alpha-1".to_owned(),
+            contract_id: "contract-alpha".to_owned(),
+            participant: ALPHA.to_owned(),
+            generation: 1,
+            cursor: 0,
+        }),
+        CommitmentCommand::YieldInvocation(YieldInvocation {
+            invocation_id: ALPHA_INVOCATION.to_owned(),
+            participant: ALPHA.to_owned(),
+            generation: 1,
+            cursor: 0,
+            conditions: vec![
+                WakeCondition::SubmissionRecorded {
+                    contract_id: "contract-alpha".to_owned(),
+                },
+                WakeCondition::ObligationReturned {
+                    obligation_id: "obligation-child".to_owned(),
+                },
+            ],
+            wake_deadline: LEASE_MS,
+        }),
+        CommitmentCommand::SubmitResult(SubmitResult {
+            contract_id: "contract-alpha".to_owned(),
+            attempt_id: "attempt-alpha-1".to_owned(),
+            participant: ALPHA.to_owned(),
+            generation: 1,
+            candidate_digest: candidate.clone(),
+        }),
+        // A protected query against the exact candidate the contract recorded, and one against a
+        // digest it never recorded.
+        CommitmentCommand::RecordVerification(RecordVerification {
+            contract_id: "contract-alpha".to_owned(),
+            participant: ALPHA.to_owned(),
+            generation: 1,
+            candidate_digest: digest("candidate-one"),
+            verdict: Verdict::Failed,
+        }),
+        CommitmentCommand::RecordVerification(RecordVerification {
+            contract_id: "contract-alpha".to_owned(),
+            participant: ALPHA.to_owned(),
+            generation: 1,
+            candidate_digest: digest("candidate-elsewhere"),
+            verdict: Verdict::Passed,
+        }),
+        CommitmentCommand::ResumeInvocation(ResumeInvocation {
+            invocation_id: ALPHA_INVOCATION.to_owned(),
+            participant: ALPHA.to_owned(),
+            generation: 1,
+        }),
+        // A second yield, this time on a fact no ordering of this pool ever commits. Nothing but
+        // the rule that a resumption needs a committed fact stands between the participant and
+        // being woken for nothing.
+        CommitmentCommand::YieldInvocation(YieldInvocation {
+            invocation_id: ALPHA_INVOCATION.to_owned(),
+            participant: ALPHA.to_owned(),
+            generation: 1,
+            cursor: 0,
+            conditions: vec![WakeCondition::OfferClosed {
+                offer_id: UNREACHED_OFFER.to_owned(),
+            }],
+            wake_deadline: LEASE_MS,
+        }),
+        CommitmentCommand::ResumeInvocation(ResumeInvocation {
+            invocation_id: ALPHA_INVOCATION.to_owned(),
+            participant: ALPHA.to_owned(),
+            generation: 1,
+        }),
+        CommitmentCommand::CloseInvocation(CloseInvocation {
+            invocation_id: ALPHA_INVOCATION.to_owned(),
+            closer: ALPHA.to_owned(),
+            reason: InvocationClosure::Completed,
+        }),
+    ]
+}
+
 /// A seeded stream, used only to order commands. It never decides an outcome.
 pub(crate) struct Rng {
     state: u64,
@@ -787,11 +916,12 @@ pub(crate) fn interleaved(
 /// The whole generated schedule for one seed: the contended pool in a seeded order, with the
 /// settlement chain merged into it.
 pub(crate) fn schedule(seed: u64, tokens: &Tokens) -> Vec<CommitmentCommand> {
-    interleaved(
+    let background = interleaved(
         seed,
         &shuffled(seed, contention_pool(tokens)),
         &settlement_chain(tokens),
-    )
+    );
+    interleaved(seed ^ 0x51ED_2701_FA13_C3A9, &background, &slice_chain())
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -862,6 +992,39 @@ pub(crate) enum Violation {
     },
     /// A refused command changed the ledger.
     RefusalMutatedState { position: usize },
+    /// A process slice was begun or resumed without one unit of creation authority being spent for
+    /// it, so the run can run processes it was never funded to run.
+    UnfundedInvocationStart { invocation_id: String },
+    /// A slice was resumed although no committed fact after its cursor matched anything it
+    /// registered. Nothing happened, and the participant was woken for it.
+    ResumedWithoutEvent {
+        invocation_id: String,
+        matched_sequence: u64,
+    },
+    /// The slices of one attempt were resumed more times than the bound allows.
+    WakeCountExceeded { attempt_id: String, wakes: u32 },
+    /// The run reported a terminal state while a funded control object could still advance it.
+    TerminalWhileOpen {
+        terminal: RootTerminal,
+        outstanding: String,
+    },
+    /// The run reported acceptance without a passing protected query against a root-scope
+    /// candidate. Quiescence, a spent budget and a contractor's own result are not acceptance.
+    AcceptedWithoutVerification,
+    /// The run reached a terminal state its scenario does not describe.
+    DishonestTerminal {
+        expected: RootTerminal,
+        actual: Option<RootTerminal>,
+    },
+    /// A funded control object still holds the run open after everything that could wind it down
+    /// has been offered.
+    NeverQuiescent { outstanding: String },
+    /// The run is waiting on a wake nobody can use: its deadline has passed, its lease has run out,
+    /// its contract has changed hands or closed, or its escrow no longer pays for the resumption.
+    DeadWakeHoldsRunOpen {
+        invocation_id: String,
+        why: &'static str,
+    },
 }
 
 /// Which side of an account one fact moves capacity through.
@@ -938,6 +1101,8 @@ pub(crate) struct CommandedAmounts {
     funding: BTreeMap<String, AccountRef>,
     /// Which offer each task contract was formed from, as the command that formed it named it.
     formed_from: BTreeMap<String, String>,
+    /// Which task contract each process slice belongs to, as the command that started it named it.
+    invocation_contract: BTreeMap<String, String>,
     /// Which commands this run actually compared its facts against. A command whose accounts could
     /// never be resolved would be passed over in silence, and the comparison would then hold of it
     /// by never being applied, which is not the same as holding.
@@ -1060,14 +1225,37 @@ impl CommandedAmounts {
             CommitmentCommand::CancelContract(command) => {
                 self.closure(&mut movements, &command.contract_id)?;
             }
-            // Consent, its withdrawal, an offer's withdrawal, a submission and the clock move no
-            // capacity at all, which is itself compared: an empty expectation makes any movement
-            // these commit a contradiction.
+            // Beginning a process slice is bought with one unit of creation authority out of the
+            // escrow of the task contract the command named.
+            CommitmentCommand::StartInvocation(command) => movements.amount(
+                contract_account(&command.contract_id),
+                Flow::Spent,
+                BudgetVector::unit(Dimension::InvocationStarts),
+            ),
+            // Resuming one costs the same. The command names only the slice, so the account comes
+            // from the command that started it — still the schedule's own record and never the
+            // ledger's.
+            CommitmentCommand::ResumeInvocation(command) => movements.amount(
+                contract_account(self.invocation_contract.get(&command.invocation_id)?),
+                Flow::Spent,
+                BudgetVector::unit(Dimension::InvocationStarts),
+            ),
+            CommitmentCommand::RecordVerification(command) => movements.amount(
+                contract_account(&command.contract_id),
+                Flow::Spent,
+                BudgetVector::unit(Dimension::VerificationQueries),
+            ),
+            // Consent, its withdrawal, an offer's withdrawal, a submission, a yield, the closing of
+            // a slice, stopping the run and the clock move no capacity at all, which is itself
+            // compared: an empty expectation makes any movement these commit a contradiction.
             CommitmentCommand::RecordBid(_)
             | CommitmentCommand::WithdrawBid(_)
             | CommitmentCommand::WithdrawOffer(_)
             | CommitmentCommand::SubmitResult(_)
-            | CommitmentCommand::AdvanceClock(_) => {}
+            | CommitmentCommand::AdvanceClock(_)
+            | CommitmentCommand::YieldInvocation(_)
+            | CommitmentCommand::CloseInvocation(_)
+            | CommitmentCommand::StopRun(_) => {}
         }
         Some(movements)
     }
@@ -1139,6 +1327,10 @@ impl CommandedAmounts {
                 self.formed_from
                     .insert(command.contract_id.clone(), command.offer_id.clone());
             }
+            CommitmentCommand::StartInvocation(command) => {
+                self.invocation_contract
+                    .insert(command.invocation_id.clone(), command.contract_id.clone());
+            }
             _ => {}
         }
     }
@@ -1181,6 +1373,12 @@ fn command_name(command: &CommitmentCommand) -> &'static str {
         CommitmentCommand::ReturnObligation(_) => "return_obligation",
         CommitmentCommand::CancelContract(_) => "cancel_contract",
         CommitmentCommand::AdvanceClock(_) => "advance_clock",
+        CommitmentCommand::StartInvocation(_) => "start_invocation",
+        CommitmentCommand::YieldInvocation(_) => "yield_invocation",
+        CommitmentCommand::ResumeInvocation(_) => "resume_invocation",
+        CommitmentCommand::CloseInvocation(_) => "close_invocation",
+        CommitmentCommand::RecordVerification(_) => "record_verification",
+        CommitmentCommand::StopRun(_) => "stop_run",
     }
 }
 
@@ -1586,6 +1784,122 @@ fn moved(event: &CommitmentEvent) -> Vec<(&AccountRef, i128, &BudgetVector)> {
     }
 }
 
+/// What the fact stream alone says about process slices.
+///
+/// Nothing here reads an invocation record: the records are built by applying the same facts, so a
+/// check against them would agree with the kernel by construction. What is read is the stream —
+/// which slice was begun, what its yield registered, what its cursor was, and which fact each
+/// resumption claims authorized it — and the claim is settled by looking that fact up.
+#[derive(Debug, Default)]
+pub(crate) struct SliceFacts {
+    /// Every fact so far, so that the fact a resumption names can be read back out.
+    facts: Vec<CommitmentEvent>,
+    /// Which attempt each slice belongs to, as the fact that began it stated.
+    attempt: BTreeMap<String, String>,
+    /// The cursor and conditions of the last yield of each slice.
+    registered: BTreeMap<String, (u64, Vec<WakeCondition>)>,
+    /// How many times each slice has been resumed, as the facts stated.
+    wakes: BTreeMap<String, u32>,
+    /// Which slices were begun or resumed but not yet paid for within the same command.
+    started: BTreeSet<String>,
+}
+
+impl SliceFacts {
+    /// Take in the facts of one accepted command and report what they broke.
+    ///
+    /// A slice and the unit of authority that buys it are one indivisible pair, so the pairing is
+    /// judged over the facts of one command and not over the stream as a whole: a run that spent
+    /// the right number of units in total while beginning a slice nobody paid for would satisfy
+    /// every total there is.
+    pub(crate) fn observe(&mut self, events: &[CommitmentEvent]) -> Vec<Violation> {
+        let mut violations = Vec::new();
+        let mut unpaid: Vec<String> = Vec::new();
+        let mut paid = 0_u64;
+        for event in events {
+            match event {
+                CommitmentEvent::InvocationStarted {
+                    invocation_id,
+                    attempt_id,
+                    ..
+                } => {
+                    self.attempt
+                        .insert(invocation_id.clone(), attempt_id.clone());
+                    self.started.insert(invocation_id.clone());
+                    unpaid.push(invocation_id.clone());
+                }
+                CommitmentEvent::InvocationYielded {
+                    invocation_id,
+                    cursor,
+                    conditions,
+                    ..
+                } => {
+                    self.registered
+                        .insert(invocation_id.clone(), (*cursor, conditions.clone()));
+                }
+                CommitmentEvent::InvocationResumed {
+                    invocation_id,
+                    matched_sequence,
+                    ..
+                } => {
+                    unpaid.push(invocation_id.clone());
+                    *self.wakes.entry(invocation_id.clone()).or_default() += 1;
+                    violations.extend(self.unjustified(invocation_id, *matched_sequence));
+                }
+                CommitmentEvent::BudgetConsumed { amount, .. } => {
+                    paid += amount.get(Dimension::InvocationStarts);
+                }
+                _ => {}
+            }
+            self.facts.push(event.clone());
+        }
+        for invocation_id in unpaid
+            .into_iter()
+            .skip(usize::try_from(paid).unwrap_or(usize::MAX))
+        {
+            violations.push(Violation::UnfundedInvocationStart { invocation_id });
+        }
+        let mut per_attempt: BTreeMap<&str, u32> = BTreeMap::new();
+        for (invocation_id, wakes) in &self.wakes {
+            if let Some(attempt_id) = self.attempt.get(invocation_id) {
+                *per_attempt.entry(attempt_id.as_str()).or_default() += wakes;
+            }
+        }
+        for (attempt_id, wakes) in per_attempt {
+            if wakes > MAX_ATTEMPT_WAKES {
+                violations.push(Violation::WakeCountExceeded {
+                    attempt_id: attempt_id.to_owned(),
+                    wakes,
+                });
+            }
+        }
+        violations
+    }
+
+    /// Whether the fact a resumption named is a fact, lies after the cursor of the yield it
+    /// resumes, and is one the yield asked about.
+    fn unjustified(&self, invocation_id: &str, matched_sequence: u64) -> Option<Violation> {
+        let unjustified = || {
+            Some(Violation::ResumedWithoutEvent {
+                invocation_id: invocation_id.to_owned(),
+                matched_sequence,
+            })
+        };
+        let (cursor, conditions) = self.registered.get(invocation_id)?;
+        if matched_sequence == 0 || matched_sequence <= *cursor {
+            return unjustified();
+        }
+        let index = usize::try_from(matched_sequence - 1).ok()?;
+        let Some(fact) = self.facts.get(index) else {
+            return unjustified();
+        };
+        if conditions.iter().any(|condition| condition.matches(fact)) {
+            None
+        } else {
+            unjustified()
+        }
+    }
+}
+
 #[derive(Debug)]
 pub(crate) struct ScheduleReport {
     pub violations: Vec<Violation>,
@@ -1622,6 +1936,12 @@ fn fact_name(event: &CommitmentEvent) -> &'static str {
         CommitmentEvent::SubmissionRecorded { .. } => "submission_recorded",
         CommitmentEvent::ObligationReturned { .. } => "obligation_returned",
         CommitmentEvent::ContractCancelled { .. } => "contract_cancelled",
+        CommitmentEvent::InvocationStarted { .. } => "invocation_started",
+        CommitmentEvent::InvocationYielded { .. } => "invocation_yielded",
+        CommitmentEvent::InvocationResumed { .. } => "invocation_resumed",
+        CommitmentEvent::InvocationClosed { .. } => "invocation_closed",
+        CommitmentEvent::VerificationRecorded { .. } => "verification_recorded",
+        CommitmentEvent::RunStopped { .. } => "run_stopped",
     }
 }
 
@@ -1651,6 +1971,7 @@ pub(crate) fn run_altered_schedule(
     };
     let mut accounts = FactAccounts::opening(ROOT_PARTICIPANT, *ledger.initial_total());
     let mut commanded = CommandedAmounts::default();
+    let mut slices = SliceFacts::default();
     for command in setup(tokens) {
         let events = ledger
             .execute(&command)
@@ -1659,6 +1980,7 @@ pub(crate) fn run_altered_schedule(
             .violations
             .extend(commanded.observe(&command, &events));
         report.violations.extend(accounts.observe(&events));
+        report.violations.extend(slices.observe(&events));
     }
     for (position, command) in schedule(seed, tokens).into_iter().enumerate() {
         let before = ledger.clone();
@@ -1673,6 +1995,7 @@ pub(crate) fn run_altered_schedule(
                     .violations
                     .extend(commanded.observe(&command, &events));
                 report.violations.extend(accounts.observe(&events));
+                report.violations.extend(slices.observe(&events));
             }
             Err(error) => {
                 report.refused += 1;
@@ -1692,6 +2015,27 @@ pub(crate) fn run_altered_schedule(
                         if matches!(command, CommitmentCommand::ReturnObligation(_)) =>
                     {
                         report.guarded.insert("return_non_holder")
+                    }
+                    // A resumption offered for a slice that registered a fact this pool never
+                    // commits. Nothing about its lease, its token or its funding is wrong.
+                    CommitmentError::NoMatchingEvent { .. } => {
+                        report.guarded.insert("no_matching_event")
+                    }
+                    CommitmentError::WakeBudgetExhausted { .. } => {
+                        report.guarded.insert("wake_budget_exhausted")
+                    }
+                    CommitmentError::NotAuthorized { .. }
+                        if matches!(command, CommitmentCommand::CloseInvocation(_)) =>
+                    {
+                        report.guarded.insert("close_non_holder")
+                    }
+                    CommitmentError::NotAuthorized { .. }
+                        if matches!(command, CommitmentCommand::StopRun(_)) =>
+                    {
+                        report.guarded.insert("stop_run_unauthorized")
+                    }
+                    CommitmentError::CandidateMismatch { .. } => {
+                        report.guarded.insert("candidate_mismatch")
                     }
                     _ => false,
                 };
@@ -1853,4 +2197,549 @@ pub(crate) fn state_violations(ledger: &CommitmentLedger) -> Vec<Violation> {
         }
     }
     violations
+}
+
+// ---------------------------------------------------------------------------------------------
+// Generated lifecycle schedules and the terminal state each of them must reach
+// ---------------------------------------------------------------------------------------------
+
+pub(crate) const LIFE_OFFER: &str = "offer-life";
+pub(crate) const LIFE_BID: &str = "bid-life";
+pub(crate) const LIFE_CONTRACT: &str = "contract-life";
+pub(crate) const LIFE_OBLIGATION: &str = "obligation-life";
+pub(crate) const LIFE_ATTEMPT: &str = "attempt-life";
+pub(crate) const LIFE_INVOCATION: &str = "invocation-life";
+pub(crate) const LIFE_LEASE_MS: u64 = 1_000;
+/// The last moment a wake registered by these schedules may be admitted. It is inside the funded
+/// lease, and every clock advance the background makes falls before it.
+pub(crate) const LIFE_WAKE_DEADLINE: u64 = 500;
+
+/// The ways a run can stop, one scenario each. Every one of them is reached by something finite
+/// running out or by an authorized command, and the state it must reach is stated with it.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum Scenario {
+    /// The exact root candidate passed the approved oracle.
+    Accepted,
+    /// The same candidate, rejected. A result nobody accepted is not an acceptance.
+    Rejected,
+    /// The protected query could not be carried out, so nothing was learned and assurance is gone.
+    VerifierFailure,
+    /// The contractor found nothing and said so.
+    NoSolution,
+    /// The contractor stopped under an allowed stopping policy.
+    Abstention,
+    /// The participant stopped answering while its slice was yielded.
+    ParticipantLoss,
+    /// The lease ran out under a yielded slice nobody woke.
+    LeaseExpiry,
+    /// An authorized human stopped the run.
+    Cancellation,
+    /// A participant that keeps yielding on a fact it keeps meeting.
+    Churn,
+}
+
+impl Scenario {
+    pub(crate) const ALL: [Self; 9] = [
+        Self::Accepted,
+        Self::Rejected,
+        Self::VerifierFailure,
+        Self::NoSolution,
+        Self::Abstention,
+        Self::ParticipantLoss,
+        Self::LeaseExpiry,
+        Self::Cancellation,
+        Self::Churn,
+    ];
+
+    /// The state this scenario must reach. Every non-success state is a different reason, and the
+    /// one success state is the only one a passing protected query can produce.
+    pub(crate) const fn expected(self) -> RootTerminal {
+        match self {
+            Self::Accepted => RootTerminal::Accepted,
+            Self::VerifierFailure => RootTerminal::InfrastructureError,
+            Self::Abstention => RootTerminal::Abstained,
+            Self::Cancellation => RootTerminal::Cancelled,
+            Self::Rejected
+            | Self::NoSolution
+            | Self::ParticipantLoss
+            | Self::LeaseExpiry
+            | Self::Churn => RootTerminal::Exhausted,
+        }
+    }
+
+    pub(crate) const fn label(self) -> &'static str {
+        match self {
+            Self::Accepted => "accepted",
+            Self::Rejected => "rejected",
+            Self::VerifierFailure => "verifier_failure",
+            Self::NoSolution => "no_solution",
+            Self::Abstention => "abstention",
+            Self::ParticipantLoss => "participant_loss",
+            Self::LeaseExpiry => "lease_expiry",
+            Self::Cancellation => "cancellation",
+            Self::Churn => "churn",
+        }
+    }
+}
+
+fn life_execution_escrow() -> BudgetVector {
+    BudgetVector::ZERO
+        .with(Dimension::MoneyMicros, 40_000)
+        .with(Dimension::ModelTokens, 40_000)
+        .with(Dimension::WallTimeMs, 8_000)
+        .with(Dimension::VerificationQueries, 2)
+        .with(Dimension::AttemptStarts, 4)
+        .with(Dimension::InvocationStarts, 24)
+}
+
+fn life_requested_escrow() -> BudgetVector {
+    BudgetVector::ZERO
+        .with(Dimension::MoneyMicros, 20_000)
+        .with(Dimension::ModelTokens, 20_000)
+        .with(Dimension::WallTimeMs, 5_000)
+        .with(Dimension::VerificationQueries, 1)
+        .with(Dimension::AttemptStarts, 2)
+        // Room for more process slices than the wake bound admits, so that what stops a churning
+        // participant is the bound rather than the escrow.
+        .with(Dimension::InvocationStarts, 20)
+}
+
+/// One participant holding one task contract directly under the root obligation. Everything a
+/// scenario varies happens inside it.
+pub(crate) fn life_setup(tokens: &Tokens) -> Vec<CommitmentCommand> {
+    vec![
+        register(ALPHA),
+        register(BETA),
+        register(GAMMA),
+        CommitmentCommand::Advertise(Advertise {
+            offer_id: LIFE_OFFER.to_owned(),
+            sponsor: ROOT_PARTICIPANT.to_owned(),
+            parent_obligation: ROOT_OBLIGATION.to_owned(),
+            funding_source: FundingSource::Participant,
+            task_scope: tokens.task_scope.clone(),
+            base_digest: tokens.base_digest.clone(),
+            intent_digest: tokens.intent_digest.clone(),
+            artifact_class: tokens.artifact_class.clone(),
+            dependencies: vec![tokens.dependency.clone()],
+            capability_scope: vec![tokens.capability.clone()],
+            execution_escrow: life_execution_escrow(),
+            policy: OfferPolicy::Negotiated,
+            bid_deadline: DEADLINE,
+            offer_deadline: DEADLINE,
+            max_awards: 1,
+        }),
+        CommitmentCommand::RecordBid(RecordBid {
+            bid_id: LIFE_BID.to_owned(),
+            offer_id: LIFE_OFFER.to_owned(),
+            bidder: ALPHA.to_owned(),
+            requested_escrow: life_requested_escrow(),
+            artifact_class: tokens.artifact_class.clone(),
+            proposal_digest: Some(tokens.proposal(ALPHA)),
+            expires_at: DEADLINE,
+        }),
+        CommitmentCommand::Award(Award {
+            contract_id: LIFE_CONTRACT.to_owned(),
+            obligation_id: LIFE_OBLIGATION.to_owned(),
+            lease_id: "lease-life".to_owned(),
+            offer_id: LIFE_OFFER.to_owned(),
+            bid_id: LIFE_BID.to_owned(),
+            sponsor: ROOT_PARTICIPANT.to_owned(),
+            lease_ms: LIFE_LEASE_MS,
+        }),
+        CommitmentCommand::StartAttempt(StartAttempt {
+            attempt_id: LIFE_ATTEMPT.to_owned(),
+            contract_id: LIFE_CONTRACT.to_owned(),
+            participant: ALPHA.to_owned(),
+            generation: 1,
+        }),
+    ]
+}
+
+fn life_start() -> CommitmentCommand {
+    CommitmentCommand::StartInvocation(StartInvocation {
+        invocation_id: LIFE_INVOCATION.to_owned(),
+        attempt_id: LIFE_ATTEMPT.to_owned(),
+        contract_id: LIFE_CONTRACT.to_owned(),
+        participant: ALPHA.to_owned(),
+        generation: 1,
+        cursor: 0,
+    })
+}
+
+/// A yield that asks about the submission of its own task contract. Its cursor stays where it is,
+/// so once a submission exists the same fact answers every later yield: this is the participant
+/// that could be woken forever if nothing bounded it.
+fn life_yield() -> CommitmentCommand {
+    CommitmentCommand::YieldInvocation(YieldInvocation {
+        invocation_id: LIFE_INVOCATION.to_owned(),
+        participant: ALPHA.to_owned(),
+        generation: 1,
+        cursor: 0,
+        conditions: vec![WakeCondition::SubmissionRecorded {
+            contract_id: LIFE_CONTRACT.to_owned(),
+        }],
+        wake_deadline: LIFE_WAKE_DEADLINE,
+    })
+}
+
+fn life_resume() -> CommitmentCommand {
+    CommitmentCommand::ResumeInvocation(ResumeInvocation {
+        invocation_id: LIFE_INVOCATION.to_owned(),
+        participant: ALPHA.to_owned(),
+        generation: 1,
+    })
+}
+
+fn life_submit() -> CommitmentCommand {
+    CommitmentCommand::SubmitResult(SubmitResult {
+        contract_id: LIFE_CONTRACT.to_owned(),
+        attempt_id: LIFE_ATTEMPT.to_owned(),
+        participant: ALPHA.to_owned(),
+        generation: 1,
+        candidate_digest: digest("candidate-life"),
+    })
+}
+
+fn life_verify(verdict: Verdict) -> CommitmentCommand {
+    CommitmentCommand::RecordVerification(RecordVerification {
+        contract_id: LIFE_CONTRACT.to_owned(),
+        participant: ALPHA.to_owned(),
+        generation: 1,
+        candidate_digest: digest("candidate-life"),
+        verdict,
+    })
+}
+
+fn life_return(outcome: Outcome) -> CommitmentCommand {
+    CommitmentCommand::ReturnObligation(ReturnObligation {
+        contract_id: LIFE_CONTRACT.to_owned(),
+        participant: ALPHA.to_owned(),
+        generation: 1,
+        outcome,
+    })
+}
+
+fn life_close(closer: &str, reason: InvocationClosure) -> CommitmentCommand {
+    CommitmentCommand::CloseInvocation(CloseInvocation {
+        invocation_id: LIFE_INVOCATION.to_owned(),
+        closer: closer.to_owned(),
+        reason,
+    })
+}
+
+/// The causally ordered commands one scenario is made of. A participant issues its own commands in
+/// order; what the seed varies is where everything else falls around them.
+pub(crate) fn life_chain(scenario: Scenario) -> Vec<CommitmentCommand> {
+    let result = Outcome::Result {
+        candidate_digest: digest("candidate-life"),
+    };
+    match scenario {
+        Scenario::Accepted | Scenario::Rejected | Scenario::VerifierFailure => {
+            let verdict = match scenario {
+                Scenario::Accepted => Verdict::Passed,
+                Scenario::Rejected => Verdict::Failed,
+                _ => Verdict::InfrastructureError,
+            };
+            vec![
+                life_start(),
+                life_yield(),
+                life_submit(),
+                life_resume(),
+                life_verify(verdict),
+                life_close(ALPHA, InvocationClosure::Completed),
+                life_return(result),
+            ]
+        }
+        Scenario::NoSolution => vec![
+            life_start(),
+            life_close(ALPHA, InvocationClosure::Completed),
+            life_return(Outcome::Exhausted),
+        ],
+        Scenario::Abstention => vec![
+            life_start(),
+            life_yield(),
+            life_submit(),
+            life_resume(),
+            life_close(ALPHA, InvocationClosure::Completed),
+            life_return(Outcome::Declined),
+        ],
+        // Nobody ever resumes it, and nobody has to: the sponsor records the loss and takes the
+        // contract back.
+        Scenario::ParticipantLoss => vec![
+            life_start(),
+            life_yield(),
+            life_close(ROOT_PARTICIPANT, InvocationClosure::ParticipantLost),
+        ],
+        // The clock passes the wake deadline and then the lease. What was funded has run out, and
+        // the yielded slice stops being anything the run waits for.
+        Scenario::LeaseExpiry => vec![
+            life_start(),
+            life_yield(),
+            CommitmentCommand::AdvanceClock(AdvanceClock { to: 600 }),
+            life_close(ALPHA, InvocationClosure::WakeDeadlineExpired),
+            CommitmentCommand::AdvanceClock(AdvanceClock { to: 2_000 }),
+        ],
+        Scenario::Cancellation => vec![
+            life_start(),
+            life_yield(),
+            CommitmentCommand::StopRun(StopRun {
+                authority: ROOT_PARTICIPANT.to_owned(),
+                reason: StopReason::Cancelled,
+            }),
+        ],
+        Scenario::Churn => {
+            let mut chain = vec![life_start(), life_yield(), life_submit()];
+            for _ in 0..MAX_ATTEMPT_WAKES + 4 {
+                chain.push(life_resume());
+                chain.push(life_yield());
+            }
+            chain.push(life_close(ALPHA, InvocationClosure::Completed));
+            chain.push(life_return(Outcome::Exhausted));
+            chain
+        }
+    }
+}
+
+/// Commands no ordering may accept, so that the rules refusing them are reached rather than merely
+/// present, plus clock advances that stay inside the funded lease.
+pub(crate) fn life_background() -> Vec<CommitmentCommand> {
+    vec![
+        // A slice belongs to the participant running it. Nobody else stops it or starts it again.
+        CommitmentCommand::YieldInvocation(YieldInvocation {
+            invocation_id: LIFE_INVOCATION.to_owned(),
+            participant: BETA.to_owned(),
+            generation: 1,
+            cursor: 0,
+            conditions: vec![WakeCondition::RunStopped],
+            wake_deadline: LIFE_WAKE_DEADLINE,
+        }),
+        CommitmentCommand::ResumeInvocation(ResumeInvocation {
+            invocation_id: LIFE_INVOCATION.to_owned(),
+            participant: BETA.to_owned(),
+            generation: 1,
+        }),
+        life_close(GAMMA, InvocationClosure::ParticipantLost),
+        // The participant's own resumption, offered wherever the seed puts it. Before the fact its
+        // yield asked about is committed there is nothing to resume for, and in the scenarios where
+        // that fact is never committed at all there never is.
+        life_resume(),
+        // A token from a generation this contract never reached.
+        CommitmentCommand::StartInvocation(StartInvocation {
+            invocation_id: "invocation-life-stale".to_owned(),
+            attempt_id: LIFE_ATTEMPT.to_owned(),
+            contract_id: LIFE_CONTRACT.to_owned(),
+            participant: ALPHA.to_owned(),
+            generation: 99,
+            cursor: 0,
+        }),
+        // A cursor naming a fact the run has not committed.
+        CommitmentCommand::StartInvocation(StartInvocation {
+            invocation_id: "invocation-life-ahead".to_owned(),
+            attempt_id: LIFE_ATTEMPT.to_owned(),
+            contract_id: LIFE_CONTRACT.to_owned(),
+            participant: ALPHA.to_owned(),
+            generation: 1,
+            cursor: u64::MAX,
+        }),
+        // A verdict attached to a bundle this contract never submitted.
+        CommitmentCommand::RecordVerification(RecordVerification {
+            contract_id: LIFE_CONTRACT.to_owned(),
+            participant: ALPHA.to_owned(),
+            generation: 1,
+            candidate_digest: digest("candidate-elsewhere"),
+            verdict: Verdict::Passed,
+        }),
+        // The run belongs to the participant the root obligation belongs to.
+        CommitmentCommand::StopRun(StopRun {
+            authority: GAMMA.to_owned(),
+            reason: StopReason::Cancelled,
+        }),
+        CommitmentCommand::AdvanceClock(AdvanceClock { to: 100 }),
+        CommitmentCommand::AdvanceClock(AdvanceClock { to: 200 }),
+    ]
+}
+
+/// What a sponsor offers once nothing else is going to happen: the slice is closed, the contract is
+/// taken back, and the reservation comes home. Refusals here are ordinary — most of it is already
+/// done in most scenarios — and what it establishes is that winding a run down needs no state
+/// repair, only the commands the protocol already has.
+pub(crate) fn life_wind_down() -> Vec<CommitmentCommand> {
+    vec![
+        life_close(ROOT_PARTICIPANT, InvocationClosure::ParticipantLost),
+        CommitmentCommand::CancelContract(CancelContract {
+            contract_id: LIFE_CONTRACT.to_owned(),
+            sponsor: ROOT_PARTICIPANT.to_owned(),
+        }),
+        CommitmentCommand::WithdrawOffer(WithdrawOffer {
+            offer_id: LIFE_OFFER.to_owned(),
+            sponsor: ROOT_PARTICIPANT.to_owned(),
+        }),
+        CommitmentCommand::AdvanceClock(AdvanceClock { to: 5_000 }),
+        CommitmentCommand::SettleOffer(SettleOffer {
+            offer_id: LIFE_OFFER.to_owned(),
+            sponsor: ROOT_PARTICIPANT.to_owned(),
+        }),
+    ]
+}
+
+/// Whether the run is waiting on a wake that nothing can honour any more.
+///
+/// It is asked after every command rather than at the end, because winding a run down closes such a
+/// slice for reasons of its own and the question would then never be reached. What it decides from
+/// is written out here rather than taken from the ledger's own answer, so that the two are produced
+/// by different code and can disagree.
+fn dead_wake(ledger: &CommitmentLedger) -> Option<Violation> {
+    let OpenAuthority::FundedWake { invocation_id } = ledger.open_authority()? else {
+        return None;
+    };
+    let invocation = ledger.invocations().get(&invocation_id)?;
+    let contract = ledger.contracts().get(&invocation.contract_id);
+    let why = match (&invocation.wake, contract) {
+        (None, _) => "the slice registered no wake at all",
+        (Some(wake), _) if ledger.now() > wake.wake_deadline => "its deadline has passed",
+        (_, None) => "its task contract does not exist",
+        (_, Some(contract)) if contract.state != ContractState::Active => "its contract has closed",
+        (_, Some(contract)) if contract.lease.generation != invocation.generation => {
+            "its contract has changed hands"
+        }
+        (_, Some(contract)) if ledger.now() > contract.lease.expires_at => "its lease has run out",
+        (_, Some(contract))
+            if !contract
+                .escrow
+                .covers(&BudgetVector::unit(Dimension::InvocationStarts)) =>
+        {
+            "nothing left in its escrow pays for the resumption"
+        }
+        _ => return None,
+    };
+    Some(Violation::DeadWakeHoldsRunOpen { invocation_id, why })
+}
+
+#[derive(Debug)]
+pub(crate) struct LifecycleReport {
+    pub violations: Vec<Violation>,
+    pub terminal: Option<RootTerminal>,
+    /// Which facts this scenario actually committed.
+    pub reached: BTreeSet<&'static str>,
+    /// Which guarded refusals this scenario actually provoked.
+    pub guarded: BTreeSet<&'static str>,
+}
+
+/// Replay one scenario in a seeded interleaving and report the state the run reached.
+pub(crate) fn run_lifecycle(
+    seed: u64,
+    scenario: Scenario,
+    disabled: DisabledChecks,
+) -> LifecycleReport {
+    let tokens = Tokens::variant("life");
+    let mut ledger = new_ledger();
+    ledger.disable_checks(disabled);
+    let mut report = LifecycleReport {
+        violations: Vec::new(),
+        terminal: None,
+        reached: BTreeSet::new(),
+        guarded: BTreeSet::new(),
+    };
+    // The deterministic prefix every scenario shares. It must be accepted, and the projections are
+    // built from the facts it committed so that what follows is compared against a complete
+    // account of the run rather than against its tail.
+    let mut accounts = FactAccounts::opening(ROOT_PARTICIPANT, *ledger.initial_total());
+    let mut commanded = CommandedAmounts::default();
+    let mut slices = SliceFacts::default();
+    for command in life_setup(&tokens) {
+        let events = ledger
+            .execute(&command)
+            .unwrap_or_else(|error| panic!("the deterministic prefix must be accepted: {error}"));
+        report
+            .violations
+            .extend(commanded.observe(&command, &events));
+        report.violations.extend(accounts.observe(&events));
+        report.violations.extend(slices.observe(&events));
+    }
+    let mut observe = |ledger: &mut CommitmentLedger,
+
+                       report: &mut LifecycleReport,
+                       command: &CommitmentCommand| match ledger
+        .execute(command)
+    {
+        Ok(events) => {
+            report.reached.extend(events.iter().map(fact_name));
+            report
+                .violations
+                .extend(commanded.observe(command, &events));
+            report.violations.extend(accounts.observe(&events));
+            report.violations.extend(slices.observe(&events));
+            report.violations.extend(state_violations(ledger));
+            report.violations.extend(accounts.divergence(ledger));
+            report.violations.extend(dead_wake(ledger));
+        }
+        Err(error) => {
+            match error {
+                CommitmentError::NoMatchingEvent { .. } => {
+                    report.guarded.insert("no_matching_event")
+                }
+                CommitmentError::WakeBudgetExhausted { .. } => {
+                    report.guarded.insert("wake_budget_exhausted")
+                }
+                CommitmentError::WakeDeadlinePassed { .. } => {
+                    report.guarded.insert("wake_deadline_passed")
+                }
+                CommitmentError::CursorAhead { .. } => report.guarded.insert("cursor_ahead"),
+                CommitmentError::CandidateMismatch { .. } => {
+                    report.guarded.insert("candidate_mismatch")
+                }
+                CommitmentError::RunStopped => report.guarded.insert("run_stopped"),
+                CommitmentError::StaleGeneration { .. } => {
+                    report.guarded.insert("stale_generation")
+                }
+                CommitmentError::NotAuthorized { .. } => report.guarded.insert("not_authorized"),
+                _ => false,
+            };
+        }
+    };
+    let merged = interleaved(
+        seed,
+        &shuffled(seed, life_background()),
+        &life_chain(scenario),
+    );
+    for command in merged.into_iter().chain(life_wind_down()) {
+        observe(&mut ledger, &mut report, &command);
+    }
+    report.terminal = ledger.root_terminal();
+    match (report.terminal, ledger.open_authority()) {
+        (None, Some(outstanding)) => report.violations.push(Violation::NeverQuiescent {
+            outstanding: outstanding.label(),
+        }),
+        (Some(terminal), Some(outstanding)) => {
+            report.violations.push(Violation::TerminalWhileOpen {
+                terminal,
+                outstanding: outstanding.label(),
+            });
+        }
+        _ => {}
+    }
+    if report.terminal == Some(RootTerminal::Accepted)
+        && !ledger.facts().iter().any(|fact| {
+            matches!(
+                fact,
+                CommitmentEvent::VerificationRecorded {
+                    verdict: Verdict::Passed,
+                    root_scope: true,
+                    ..
+                }
+            )
+        })
+    {
+        report
+            .violations
+            .push(Violation::AcceptedWithoutVerification);
+    }
+    if report.terminal != Some(scenario.expected()) {
+        report.violations.push(Violation::DishonestTerminal {
+            expected: scenario.expected(),
+            actual: report.terminal,
+        });
+    }
+    report.violations.dedup();
+    report
 }

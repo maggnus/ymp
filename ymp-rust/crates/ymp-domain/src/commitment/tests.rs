@@ -10,23 +10,38 @@
 //! that fact is generated, which the records then agree with, and require the comparison with the
 //! command that issued it to be the check that reports it. One corrupts how much an award moved,
 //! one the account it came out of, and one the account a closing contract's escrow went back to.
+//!
+//! A fourth kind of claim is made about how a run stops. Lifecycle schedules replay one scenario
+//! each — a passing query, a rejected candidate, a query that could not be carried out, a
+//! contractor with nothing to offer, an allowed stopping policy, a participant that stopped
+//! answering, a lease that ran out, an authorized stop, and a participant that keeps asking to be
+//! woken — in seeded interleavings, and require every one of them to reach the state its scenario
+//! describes with no state repaired by hand. What none of them may reach is acceptance without a
+//! passing protected query against the exact root candidate.
 
 use super::budget::{BudgetVector, DIMENSIONS, Dimension, DimensionKind};
+use super::invocations::{
+    InvocationClosure, InvocationState, OpenAuthority, RootTerminal, StopReason, Verdict,
+    WakeCondition,
+};
 use super::ledger::{AlteredFacts, CommitmentLedger, DisabledChecks};
 use super::protocol::{
-    AcceptOpen, AdvanceClock, Advertise, Award, CancelContract, CommitmentCommand, CommitmentError,
-    CommitmentEvent, Reassign, RecordBid, RenewLease, ReturnObligation, SettleOffer, StartAttempt,
-    SubmitResult, WithdrawOffer,
+    AcceptOpen, AdvanceClock, Advertise, Award, CancelContract, CloseInvocation, CommitmentCommand,
+    CommitmentError, CommitmentEvent, MAX_ATTEMPT_WAKES, MAX_WAKE_CONDITIONS, Reassign, RecordBid,
+    RecordVerification, RenewLease, ResumeInvocation, ReturnObligation, SettleOffer, StartAttempt,
+    StartInvocation, StopRun, SubmitResult, WithdrawOffer, YieldInvocation,
 };
 use super::records::{
     AccountRef, BidState, ContractState, FundingSource, ObligationState, OfferPolicy, OfferState,
     Outcome,
 };
 use super::schedules::{
-    self, ALPHA, BETA, CROSS_OFFER, DEADLINE, FactAccounts, GAMMA, LEASE_MS, MAIN_MAX_AWARDS,
-    MAIN_OFFER, ROOT_OBLIGATION, ROOT_PARTICIPANT, SECOND_OFFER, SOLO_FUNDING_CONTRACT, Tokens,
-    Violation, advertise_main, award_main, digest, new_ledger, requested_escrow,
-    run_altered_schedule, run_schedule, setup, state_violations,
+    self, ALPHA, BETA, CROSS_OFFER, DEADLINE, FactAccounts, GAMMA, LEASE_MS, LIFE_ATTEMPT,
+    LIFE_CONTRACT, LIFE_INVOCATION, LIFE_LEASE_MS, LIFE_OBLIGATION, LIFE_WAKE_DEADLINE,
+    MAIN_MAX_AWARDS, MAIN_OFFER, ROOT_OBLIGATION, ROOT_PARTICIPANT, SECOND_OFFER,
+    SOLO_FUNDING_CONTRACT, Scenario, Tokens, Violation, advertise_main, award_main, digest,
+    life_setup, new_ledger, requested_escrow, run_altered_schedule, run_lifecycle, run_schedule,
+    setup, state_violations,
 };
 
 /// How many generated schedules the property suite replays. Every seed is a different total order
@@ -580,8 +595,9 @@ fn a_dimension_is_never_paid_for_out_of_another() {
             .into_iter()
             .filter(|dimension| dimension.kind() == DimensionKind::CreationAuthority)
             .count(),
-        4,
-        "offer, obligation, participant and attempt creation are the authority dimensions"
+        5,
+        "offer, obligation, participant, attempt and process-slice creation are the authority \
+         dimensions"
     );
 }
 
@@ -1375,6 +1391,9 @@ fn generated_schedules_conserve_budgets_consent_fencing_and_causal_accounting() 
         "settle_offer",
         "return_obligation",
         "cancel_contract",
+        "start_invocation",
+        "resume_invocation",
+        "record_verification",
     ] {
         assert!(
             compared.contains(command),
@@ -1410,8 +1429,24 @@ fn generated_schedules_conserve_budgets_consent_fencing_and_causal_accounting() 
         "obligation_returned",
         "contract_cancelled",
         "offer_settled",
+        "invocation_started",
+        "invocation_yielded",
+        "invocation_resumed",
+        "invocation_closed",
+        "verification_recorded",
     ] {
         assert!(reached.contains(fact), "no schedule ever reached {fact}");
+    }
+    // The rules a process slice adds are reached the same way: unless some ordering actually
+    // offered a resumption nothing had happened for, a close by a stranger, a stop by a participant
+    // that owns nothing, and a verdict about a bundle that was never submitted, those rules hold by
+    // never being asked.
+    for guard in [
+        "close_non_holder",
+        "stop_run_unauthorized",
+        "candidate_mismatch",
+    ] {
+        assert!(guarded.contains(guard), "no ordering ever provoked {guard}");
     }
 }
 
@@ -1703,8 +1738,13 @@ fn control_records_carry_only_mechanical_fields() {
     let tokens = Tokens::variant("a");
     let mut keys = std::collections::BTreeSet::new();
     let mut ledger = new_ledger();
+    // A causally valid replay: the deterministic prefix, the award the participant's own sequence
+    // needs, that sequence, and then the contended pool. Every command is offered once, and what is
+    // collected is the fields of whatever it committed.
     for command in setup(&tokens)
         .into_iter()
+        .chain([award_main("bid-alpha", "alpha")])
+        .chain(schedules::slice_chain())
         .chain(schedules::contention_pool(&tokens))
     {
         collect_keys(
@@ -1740,6 +1780,12 @@ fn control_records_carry_only_mechanical_fields() {
     for value in ledger.attempts().values() {
         collect_keys(&serde_json::to_value(value).expect("record"), &mut keys);
     }
+    for value in ledger.invocations().values() {
+        collect_keys(&serde_json::to_value(value).expect("record"), &mut keys);
+    }
+    for value in ledger.verifications() {
+        collect_keys(&serde_json::to_value(value).expect("record"), &mut keys);
+    }
     let ledger_value = serde_json::to_value(&ledger).expect("ledger serializes");
     let top_level: std::collections::BTreeSet<&str> = ledger_value
         .as_object()
@@ -1754,11 +1800,16 @@ fn control_records_carry_only_mechanical_fields() {
             "bids",
             "consumed",
             "contracts",
+            "facts",
             "initial_total",
+            "invocations",
             "now",
             "obligations",
             "offers",
             "participants",
+            "root_obligation",
+            "stopped",
+            "verifications",
         ]
         .into_iter()
         .collect::<std::collections::BTreeSet<&str>>()
@@ -1769,6 +1820,7 @@ fn control_records_carry_only_mechanical_fields() {
         "amount",
         "artifact_class",
         "attempt_id",
+        "authority",
         "awards_made",
         "balance",
         "base_digest",
@@ -1778,9 +1830,13 @@ fn control_records_carry_only_mechanical_fields() {
         "candidate_digest",
         "capability_scope",
         "children",
+        "closer",
+        "closure",
         "command",
+        "conditions",
         "contract_id",
         "contractor",
+        "cursor",
         "dependencies",
         "endowment",
         "escrow",
@@ -1793,9 +1849,11 @@ fn control_records_carry_only_mechanical_fields() {
         "generation",
         "holder",
         "intent_digest",
+        "invocation_id",
         "lease",
         "lease_id",
         "lease_ms",
+        "matched_sequence",
         "max_awards",
         "obligation_id",
         "offer_deadline",
@@ -1811,11 +1869,18 @@ fn control_records_carry_only_mechanical_fields() {
         "previous_holder",
         "principal_id",
         "proposal_digest",
+        "reason",
         "requested_escrow",
+        "root_scope",
         "sponsor",
         "state",
         "task_scope",
         "to",
+        "verdict",
+        "wake",
+        "wake_deadline",
+        "wakes_used",
+        "yielded_at",
     ]
     .into_iter()
     .map(str::to_owned)
@@ -1842,4 +1907,860 @@ fn collect_keys(value: &serde_json::Value, keys: &mut std::collections::BTreeSet
         }
         _ => {}
     }
+}
+
+// ---------------------------------------------------------------------------------------------
+// A process slice yields, resumes from its cursor, and stops for good
+// ---------------------------------------------------------------------------------------------
+
+/// A ledger with one participant holding one task contract directly under the root obligation, and
+/// one attempt open on it. Everything the lifecycle tests do happens inside that position.
+fn running_attempt() -> CommitmentLedger {
+    let tokens = Tokens::variant("life");
+    let mut ledger = new_ledger();
+    for command in life_setup(&tokens) {
+        ledger
+            .execute(&command)
+            .expect("the lifecycle prefix is well formed");
+    }
+    ledger
+}
+
+fn start_slice(cursor: u64) -> CommitmentCommand {
+    CommitmentCommand::StartInvocation(StartInvocation {
+        invocation_id: LIFE_INVOCATION.to_owned(),
+        attempt_id: LIFE_ATTEMPT.to_owned(),
+        contract_id: LIFE_CONTRACT.to_owned(),
+        participant: ALPHA.to_owned(),
+        generation: 1,
+        cursor,
+    })
+}
+
+fn yield_slice(cursor: u64, conditions: Vec<WakeCondition>, deadline: u64) -> CommitmentCommand {
+    CommitmentCommand::YieldInvocation(YieldInvocation {
+        invocation_id: LIFE_INVOCATION.to_owned(),
+        participant: ALPHA.to_owned(),
+        generation: 1,
+        cursor,
+        conditions,
+        wake_deadline: deadline,
+    })
+}
+
+fn resume_slice() -> CommitmentCommand {
+    CommitmentCommand::ResumeInvocation(ResumeInvocation {
+        invocation_id: LIFE_INVOCATION.to_owned(),
+        participant: ALPHA.to_owned(),
+        generation: 1,
+    })
+}
+
+fn submit_life() -> CommitmentCommand {
+    CommitmentCommand::SubmitResult(SubmitResult {
+        contract_id: LIFE_CONTRACT.to_owned(),
+        attempt_id: LIFE_ATTEMPT.to_owned(),
+        participant: ALPHA.to_owned(),
+        generation: 1,
+        candidate_digest: digest("candidate-life"),
+    })
+}
+
+fn submission_condition() -> Vec<WakeCondition> {
+    vec![WakeCondition::SubmissionRecorded {
+        contract_id: LIFE_CONTRACT.to_owned(),
+    }]
+}
+
+/// A yielded slice runs no process, is admitted only after a fact it named, and buys each admission
+/// with one unit of creation authority.
+#[test]
+fn a_yielded_slice_has_no_process_and_resumes_only_on_a_committed_fact() {
+    let mut ledger = running_attempt();
+    let held = ledger.contracts()[LIFE_CONTRACT]
+        .escrow
+        .get(Dimension::InvocationStarts);
+    ledger.execute(&start_slice(0)).expect("first slice");
+    assert_eq!(
+        ledger.contracts()[LIFE_CONTRACT]
+            .escrow
+            .get(Dimension::InvocationStarts),
+        held - 1,
+        "beginning a process slice spends one unit of creation authority"
+    );
+    assert_eq!(
+        ledger.invocations()[LIFE_INVOCATION].state,
+        InvocationState::Running
+    );
+
+    ledger
+        .execute(&yield_slice(
+            ledger.sequence(),
+            submission_condition(),
+            LIFE_WAKE_DEADLINE,
+        ))
+        .expect("yield");
+    let yielded = &ledger.invocations()[LIFE_INVOCATION];
+    assert_eq!(yielded.state, InvocationState::Yielded);
+    assert_eq!(
+        ledger.open_authority(),
+        Some(OpenAuthority::FundedWake {
+            invocation_id: LIFE_INVOCATION.to_owned()
+        }),
+        "a funded wake keeps the run open, and nothing else about a yielded slice does"
+    );
+
+    // Nothing it asked about has happened, so there is nothing to resume for.
+    assert!(matches!(
+        expect_refusal(&mut ledger, &resume_slice()),
+        CommitmentError::NoMatchingEvent { .. }
+    ));
+
+    ledger.execute(&submit_life()).expect("submission");
+    let matched = ledger
+        .matching_fact(LIFE_INVOCATION)
+        .expect("the submission is the fact the yield named");
+    let events = ledger.execute(&resume_slice()).expect("resume");
+    assert!(events.iter().any(|event| matches!(
+        event,
+        CommitmentEvent::InvocationResumed {
+            matched_sequence,
+            wakes_used: 1,
+            ..
+        } if *matched_sequence == matched
+    )));
+    assert_eq!(
+        ledger.contracts()[LIFE_CONTRACT]
+            .escrow
+            .get(Dimension::InvocationStarts),
+        held - 2,
+        "an admission is bought with a unit of its own"
+    );
+    assert_eq!(
+        ledger.invocations()[LIFE_INVOCATION].state,
+        InvocationState::Running
+    );
+}
+
+/// The same fact, delivered any number of times or not at all, wakes a slice once. What decides is
+/// the committed stream after the cursor, so a reader that saw every notification and one that saw
+/// none reach the same conclusion.
+#[test]
+fn duplicate_coalesced_and_lost_notifications_change_nothing() {
+    let mut ledger = running_attempt();
+    ledger.execute(&start_slice(0)).expect("first slice");
+    let cursor = ledger.sequence();
+    ledger
+        .execute(&yield_slice(
+            cursor,
+            vec![
+                WakeCondition::SubmissionRecorded {
+                    contract_id: LIFE_CONTRACT.to_owned(),
+                },
+                WakeCondition::BidRecorded {
+                    offer_id: schedules::LIFE_OFFER.to_owned(),
+                },
+            ],
+            LIFE_WAKE_DEADLINE,
+        ))
+        .expect("yield");
+    assert!(ledger.matching_fact(LIFE_INVOCATION).is_none());
+
+    // Several facts the yield asked about, committed one after another. A channel that delivered
+    // one of them, all of them, or none of them is not consulted at any point.
+    ledger.execute(&submit_life()).expect("submission");
+    let first = ledger
+        .matching_fact(LIFE_INVOCATION)
+        .expect("the first matching fact");
+    ledger.execute(&submit_life()).expect("second submission");
+    ledger
+        .execute(&CommitmentCommand::RecordBid(RecordBid {
+            bid_id: "bid-late".to_owned(),
+            offer_id: schedules::LIFE_OFFER.to_owned(),
+            bidder: BETA.to_owned(),
+            requested_escrow: BudgetVector::ZERO,
+            artifact_class: Tokens::variant("life").artifact_class.clone(),
+            proposal_digest: None,
+            expires_at: DEADLINE,
+        }))
+        .expect("consent");
+    assert_eq!(
+        ledger.matching_fact(LIFE_INVOCATION),
+        Some(first),
+        "three matching facts are one answer: whether there is anything to resume for"
+    );
+
+    ledger.execute(&resume_slice()).expect("one resumption");
+    assert!(matches!(
+        expect_refusal(&mut ledger, &resume_slice()),
+        CommitmentError::InvocationNotYielded { .. }
+    ));
+
+    // The reader that missed everything recovers by asking what lies after the cursor it recorded,
+    // and is told exactly the facts it missed.
+    let missed = ledger.facts_after(cursor);
+    assert_eq!(missed.len() as u64, ledger.sequence() - cursor);
+    assert!(missed.iter().any(|fact| matches!(
+        fact,
+        CommitmentEvent::SubmissionRecorded { contract_id, .. } if contract_id == LIFE_CONTRACT
+    )));
+}
+
+/// A cursor moves forward and never back, and never names a fact the run has not committed.
+#[test]
+fn a_cursor_only_moves_forward_into_facts_that_exist() {
+    let mut ledger = running_attempt();
+    ledger.execute(&start_slice(0)).expect("first slice");
+    let cursor = ledger.sequence();
+    ledger
+        .execute(&yield_slice(
+            cursor,
+            submission_condition(),
+            LIFE_WAKE_DEADLINE,
+        ))
+        .expect("yield");
+    ledger.execute(&submit_life()).expect("submission");
+    ledger.execute(&resume_slice()).expect("resume");
+    assert!(matches!(
+        expect_refusal(
+            &mut ledger,
+            &yield_slice(cursor - 1, submission_condition(), LIFE_WAKE_DEADLINE)
+        ),
+        CommitmentError::CursorRegression { .. }
+    ));
+    assert!(matches!(
+        expect_refusal(
+            &mut ledger,
+            &yield_slice(u64::MAX, submission_condition(), LIFE_WAKE_DEADLINE)
+        ),
+        CommitmentError::CursorAhead { .. }
+    ));
+}
+
+/// A wake is bounded three ways at once: by how many conditions it may name, by a deadline inside
+/// the funded lease, and by how many times the slices of one attempt may be admitted at all.
+#[test]
+fn a_wake_is_bounded_in_conditions_in_time_and_in_number() {
+    let mut ledger = running_attempt();
+    ledger.execute(&start_slice(0)).expect("first slice");
+    assert!(matches!(
+        expect_refusal(&mut ledger, &yield_slice(0, Vec::new(), LIFE_WAKE_DEADLINE)),
+        CommitmentError::InvalidWakeConditions
+    ));
+    let too_many = (0..=MAX_WAKE_CONDITIONS)
+        .map(|index| WakeCondition::ObligationReturned {
+            obligation_id: format!("obligation-{index}"),
+        })
+        .collect();
+    assert!(matches!(
+        expect_refusal(&mut ledger, &yield_slice(0, too_many, LIFE_WAKE_DEADLINE)),
+        CommitmentError::InvalidWakeConditions
+    ));
+    // The lease is funded to exactly what the award bought. A wake may not outlive it.
+    assert!(matches!(
+        expect_refusal(
+            &mut ledger,
+            &yield_slice(0, submission_condition(), LIFE_LEASE_MS + 1)
+        ),
+        CommitmentError::WakeDeadlineUnfunded { .. }
+    ));
+
+    ledger.execute(&submit_life()).expect("submission");
+    for _ in 0..MAX_ATTEMPT_WAKES {
+        ledger
+            .execute(&yield_slice(0, submission_condition(), LIFE_WAKE_DEADLINE))
+            .expect("yield");
+        ledger.execute(&resume_slice()).expect("resume");
+    }
+    ledger
+        .execute(&yield_slice(0, submission_condition(), LIFE_WAKE_DEADLINE))
+        .expect("yield");
+    assert!(
+        ledger.contracts()[LIFE_CONTRACT]
+            .escrow
+            .covers(&BudgetVector::unit(Dimension::InvocationStarts)),
+        "the escrow still funds another slice, so only the wake bound can stop this"
+    );
+    assert!(matches!(
+        expect_refusal(&mut ledger, &resume_slice()),
+        CommitmentError::WakeBudgetExhausted { .. }
+    ));
+    assert_eq!(
+        ledger.open_authority(),
+        Some(OpenAuthority::Obligation {
+            obligation_id: LIFE_OBLIGATION.to_owned()
+        }),
+        "what holds the run open is the outstanding obligation; a wake nobody may use any more \
+         is not among the things it waits for"
+    );
+}
+
+/// A wake whose deadline has passed stops being something the run waits for, and the slice can then
+/// be recorded as expired rather than left open.
+#[test]
+fn an_expired_wake_stops_holding_the_run_open() {
+    let mut ledger = running_attempt();
+    ledger.execute(&start_slice(0)).expect("first slice");
+    ledger
+        .execute(&yield_slice(0, submission_condition(), LIFE_WAKE_DEADLINE))
+        .expect("yield");
+    // The deadline has not passed, so the expiry cannot be claimed.
+    assert!(matches!(
+        expect_refusal(
+            &mut ledger,
+            &CommitmentCommand::CloseInvocation(CloseInvocation {
+                invocation_id: LIFE_INVOCATION.to_owned(),
+                closer: ALPHA.to_owned(),
+                reason: InvocationClosure::WakeDeadlineExpired,
+            })
+        ),
+        CommitmentError::WakeDeadlinePassed { .. }
+    ));
+    ledger
+        .execute(&CommitmentCommand::AdvanceClock(AdvanceClock {
+            to: LIFE_WAKE_DEADLINE + 1,
+        }))
+        .expect("clock");
+    assert_eq!(
+        ledger.open_authority(),
+        Some(OpenAuthority::Obligation {
+            obligation_id: LIFE_OBLIGATION.to_owned()
+        }),
+        "what still holds the run open is the outstanding obligation, not the dead wake"
+    );
+    assert!(matches!(
+        expect_refusal(&mut ledger, &resume_slice()),
+        CommitmentError::WakeDeadlinePassed { .. }
+    ));
+    ledger
+        .execute(&CommitmentCommand::CloseInvocation(CloseInvocation {
+            invocation_id: LIFE_INVOCATION.to_owned(),
+            closer: ALPHA.to_owned(),
+            reason: InvocationClosure::WakeDeadlineExpired,
+        }))
+        .expect("the deadline has passed and may now be recorded");
+    assert_eq!(
+        ledger.invocations()[LIFE_INVOCATION].closure,
+        Some(InvocationClosure::WakeDeadlineExpired)
+    );
+}
+
+/// Turns are taken between principals and, inside one principal, in the order the facts recorded
+/// the yields. Yielding more often lengthens a principal's own queue and buys it nothing.
+#[test]
+fn admission_alternates_between_principals_in_recorded_order() {
+    let tokens = Tokens::variant("life");
+    let mut ledger = new_ledger();
+    for command in life_setup(&tokens) {
+        ledger.execute(&command).expect("prefix");
+    }
+    // A second and third contract on the same offer would exceed its funded count, so the other
+    // participants take their own uncontended work: one offer each, awarded to them.
+    let mut open_contract =
+        |offer: &str, bid: &str, contract: &str, obligation: &str, participant: &str| {
+            ledger
+                .execute(&CommitmentCommand::Advertise(Advertise {
+                    offer_id: offer.to_owned(),
+                    sponsor: ROOT_PARTICIPANT.to_owned(),
+                    parent_obligation: ROOT_OBLIGATION.to_owned(),
+                    funding_source: FundingSource::Participant,
+                    task_scope: tokens.task_scope.clone(),
+                    base_digest: tokens.base_digest.clone(),
+                    intent_digest: tokens.intent_digest.clone(),
+                    artifact_class: tokens.artifact_class.clone(),
+                    dependencies: Vec::new(),
+                    capability_scope: Vec::new(),
+                    execution_escrow: requested_escrow()
+                        .with(Dimension::WallTimeMs, 5_000)
+                        .with(Dimension::InvocationStarts, 8),
+                    policy: OfferPolicy::Negotiated,
+                    bid_deadline: DEADLINE,
+                    offer_deadline: DEADLINE,
+                    max_awards: 1,
+                }))
+                .expect("offer");
+            ledger
+                .execute(&CommitmentCommand::RecordBid(RecordBid {
+                    bid_id: bid.to_owned(),
+                    offer_id: offer.to_owned(),
+                    bidder: participant.to_owned(),
+                    requested_escrow: requested_escrow()
+                        .with(Dimension::WallTimeMs, 5_000)
+                        .with(Dimension::InvocationStarts, 8),
+                    artifact_class: tokens.artifact_class.clone(),
+                    proposal_digest: None,
+                    expires_at: DEADLINE,
+                }))
+                .expect("consent");
+            ledger
+                .execute(&CommitmentCommand::Award(Award {
+                    contract_id: contract.to_owned(),
+                    obligation_id: obligation.to_owned(),
+                    lease_id: format!("lease-{contract}"),
+                    offer_id: offer.to_owned(),
+                    bid_id: bid.to_owned(),
+                    sponsor: ROOT_PARTICIPANT.to_owned(),
+                    lease_ms: LIFE_LEASE_MS,
+                }))
+                .expect("award");
+        };
+    open_contract(
+        "offer-alpha2",
+        "bid-alpha2",
+        "contract-alpha2",
+        "obligation-alpha2",
+        ALPHA,
+    );
+    open_contract(
+        "offer-beta",
+        "bid-beta",
+        "contract-beta",
+        "obligation-beta",
+        BETA,
+    );
+    open_contract(
+        "offer-gamma",
+        "bid-gamma",
+        "contract-gamma",
+        "obligation-gamma",
+        GAMMA,
+    );
+
+    let mut open_slice = |invocation: &str, attempt: &str, contract: &str, participant: &str| {
+        ledger
+            .execute(&CommitmentCommand::StartAttempt(StartAttempt {
+                attempt_id: attempt.to_owned(),
+                contract_id: contract.to_owned(),
+                participant: participant.to_owned(),
+                generation: 1,
+            }))
+            .expect("attempt");
+        // The cursor is where the run stands now, so only what happens after the wait is recorded
+        // can answer it.
+        let cursor = ledger.sequence();
+        ledger
+            .execute(&CommitmentCommand::StartInvocation(StartInvocation {
+                invocation_id: invocation.to_owned(),
+                attempt_id: attempt.to_owned(),
+                contract_id: contract.to_owned(),
+                participant: participant.to_owned(),
+                generation: 1,
+                cursor,
+            }))
+            .expect("slice");
+        ledger
+            .execute(&CommitmentCommand::YieldInvocation(YieldInvocation {
+                invocation_id: invocation.to_owned(),
+                participant: participant.to_owned(),
+                generation: 1,
+                cursor,
+                conditions: vec![WakeCondition::BidRecorded {
+                    offer_id: schedules::LIFE_OFFER.to_owned(),
+                }],
+                wake_deadline: LIFE_WAKE_DEADLINE,
+            }))
+            .expect("yield");
+    };
+    // Two waiting slices under one principal and one under each of the others. Alpha's two are
+    // recorded first, which is exactly what must not put both of them ahead of the queue.
+    open_slice(
+        "invocation-alpha-a",
+        "attempt-alpha-x",
+        LIFE_CONTRACT,
+        ALPHA,
+    );
+    open_slice(
+        "invocation-alpha-b",
+        "attempt-alpha-y",
+        "contract-alpha2",
+        ALPHA,
+    );
+    open_slice("invocation-beta-a", "attempt-beta", "contract-beta", BETA);
+    open_slice(
+        "invocation-gamma-a",
+        "attempt-gamma",
+        "contract-gamma",
+        GAMMA,
+    );
+
+    let order: Vec<&str> = ledger
+        .admission_order()
+        .into_iter()
+        .map(|invocation| invocation.invocation_id.as_str())
+        .collect();
+    assert!(
+        order.is_empty(),
+        "nothing any of them asked about has happened yet"
+    );
+
+    ledger
+        .execute(&CommitmentCommand::RecordBid(RecordBid {
+            bid_id: "bid-wakes-everyone".to_owned(),
+            offer_id: schedules::LIFE_OFFER.to_owned(),
+            bidder: BETA.to_owned(),
+            requested_escrow: BudgetVector::ZERO,
+            artifact_class: tokens.artifact_class.clone(),
+            proposal_digest: None,
+            expires_at: DEADLINE,
+        }))
+        .expect("one fact all three asked about");
+    let order: Vec<String> = ledger
+        .admission_order()
+        .into_iter()
+        .map(|invocation| invocation.invocation_id.clone())
+        .collect();
+    assert_eq!(
+        order,
+        vec![
+            "invocation-alpha-a".to_owned(),
+            "invocation-beta-a".to_owned(),
+            "invocation-gamma-a".to_owned(),
+            "invocation-alpha-b".to_owned(),
+        ],
+        "one turn each before anybody takes a second, and inside one principal in the order the \
+         waits were recorded"
+    );
+}
+
+/// A slice belongs to the participant running it. Nobody else stops it, starts it again, or takes
+/// it over after the contract has changed hands.
+#[test]
+fn only_the_participant_or_its_sponsor_touches_a_slice() {
+    let mut ledger = running_attempt();
+    ledger.execute(&start_slice(0)).expect("first slice");
+    assert!(matches!(
+        expect_refusal(
+            &mut ledger,
+            &CommitmentCommand::YieldInvocation(YieldInvocation {
+                invocation_id: LIFE_INVOCATION.to_owned(),
+                participant: BETA.to_owned(),
+                generation: 1,
+                cursor: 0,
+                conditions: submission_condition(),
+                wake_deadline: LIFE_WAKE_DEADLINE,
+            })
+        ),
+        CommitmentError::NotAuthorized { .. }
+    ));
+    ledger
+        .execute(&yield_slice(0, submission_condition(), LIFE_WAKE_DEADLINE))
+        .expect("yield");
+    assert!(matches!(
+        expect_refusal(
+            &mut ledger,
+            &CommitmentCommand::ResumeInvocation(ResumeInvocation {
+                invocation_id: LIFE_INVOCATION.to_owned(),
+                participant: BETA.to_owned(),
+                generation: 1,
+            })
+        ),
+        CommitmentError::NotAuthorized { .. }
+    ));
+    assert!(matches!(
+        expect_refusal(
+            &mut ledger,
+            &CommitmentCommand::CloseInvocation(CloseInvocation {
+                invocation_id: LIFE_INVOCATION.to_owned(),
+                closer: BETA.to_owned(),
+                reason: InvocationClosure::ParticipantLost,
+            })
+        ),
+        CommitmentError::NotAuthorized { .. }
+    ));
+    // The sponsor of the task contract may record that the participant stopped answering.
+    ledger
+        .execute(&CommitmentCommand::CloseInvocation(CloseInvocation {
+            invocation_id: LIFE_INVOCATION.to_owned(),
+            closer: ROOT_PARTICIPANT.to_owned(),
+            reason: InvocationClosure::ParticipantLost,
+        }))
+        .expect("the sponsor records the loss");
+    assert_eq!(
+        ledger.invocations()[LIFE_INVOCATION].state,
+        InvocationState::Closed
+    );
+}
+
+/// A protected query names the exact candidate its task contract recorded, and spends a reservation
+/// whatever its verdict is.
+#[test]
+fn a_protected_query_names_the_exact_candidate_and_spends_its_reservation() {
+    let mut ledger = running_attempt();
+    assert!(matches!(
+        expect_refusal(
+            &mut ledger,
+            &CommitmentCommand::RecordVerification(RecordVerification {
+                contract_id: LIFE_CONTRACT.to_owned(),
+                participant: ALPHA.to_owned(),
+                generation: 1,
+                candidate_digest: digest("candidate-life"),
+                verdict: Verdict::Passed,
+            })
+        ),
+        CommitmentError::NoCandidate { .. }
+    ));
+    ledger.execute(&submit_life()).expect("submission");
+    assert!(matches!(
+        expect_refusal(
+            &mut ledger,
+            &CommitmentCommand::RecordVerification(RecordVerification {
+                contract_id: LIFE_CONTRACT.to_owned(),
+                participant: ALPHA.to_owned(),
+                generation: 1,
+                candidate_digest: digest("candidate-elsewhere"),
+                verdict: Verdict::Passed,
+            })
+        ),
+        CommitmentError::CandidateMismatch { .. }
+    ));
+    let held = ledger.contracts()[LIFE_CONTRACT]
+        .escrow
+        .get(Dimension::VerificationQueries);
+    ledger
+        .execute(&CommitmentCommand::RecordVerification(RecordVerification {
+            contract_id: LIFE_CONTRACT.to_owned(),
+            participant: ALPHA.to_owned(),
+            generation: 1,
+            candidate_digest: digest("candidate-life"),
+            verdict: Verdict::InfrastructureError,
+        }))
+        .expect("a query that could not be carried out is still a query");
+    assert_eq!(
+        ledger.contracts()[LIFE_CONTRACT]
+            .escrow
+            .get(Dimension::VerificationQueries),
+        held - 1
+    );
+    assert!(ledger.verifications()[0].root_scope);
+}
+
+/// A stopped run winds down. Nothing new is begun, extended or paid for, and what already exists is
+/// closed with the commands the protocol already has.
+#[test]
+fn a_stopped_run_creates_nothing_further_and_still_winds_down() {
+    let mut ledger = running_attempt();
+    ledger.execute(&start_slice(0)).expect("first slice");
+    assert!(matches!(
+        expect_refusal(
+            &mut ledger,
+            &CommitmentCommand::StopRun(StopRun {
+                authority: ALPHA.to_owned(),
+                reason: StopReason::Cancelled,
+            })
+        ),
+        CommitmentError::NotAuthorized { .. }
+    ));
+    ledger
+        .execute(&CommitmentCommand::StopRun(StopRun {
+            authority: ROOT_PARTICIPANT.to_owned(),
+            reason: StopReason::Cancelled,
+        }))
+        .expect("the participant the root obligation belongs to stops the run");
+    assert!(matches!(
+        expect_refusal(&mut ledger, &start_slice(0)),
+        CommitmentError::RunStopped
+    ));
+    assert!(matches!(
+        expect_refusal(
+            &mut ledger,
+            &CommitmentCommand::StartAttempt(StartAttempt {
+                attempt_id: "attempt-after-stop".to_owned(),
+                contract_id: LIFE_CONTRACT.to_owned(),
+                participant: ALPHA.to_owned(),
+                generation: 1,
+            })
+        ),
+        CommitmentError::RunStopped
+    ));
+    // Winding down is still allowed, and is what actually closes the accounting.
+    ledger
+        .execute(&yield_slice(0, submission_condition(), LIFE_WAKE_DEADLINE))
+        .expect("a yield ends a slice and begins nothing");
+    assert_eq!(ledger.root_terminal(), None);
+    for command in schedules::life_wind_down() {
+        let _ = ledger.execute(&command);
+    }
+    assert_eq!(ledger.open_authority(), None);
+    assert_eq!(ledger.root_terminal(), Some(RootTerminal::Cancelled));
+}
+
+// ---------------------------------------------------------------------------------------------
+// Every run reaches the terminal state its scenario describes, and never acceptance by accident
+// ---------------------------------------------------------------------------------------------
+
+/// How many interleavings each scenario is replayed in.
+const LIFECYCLE_SEEDS: u64 = 48;
+
+#[test]
+fn generated_lifecycle_schedules_reach_the_terminal_state_each_scenario_describes() {
+    let mut guarded = std::collections::BTreeSet::new();
+    let mut reached = std::collections::BTreeSet::new();
+    for scenario in Scenario::ALL {
+        for seed in 0..LIFECYCLE_SEEDS {
+            let report = run_lifecycle(seed, scenario, DisabledChecks::default());
+            assert!(
+                report.violations.is_empty(),
+                "{} at seed {seed} produced {:?}",
+                scenario.label(),
+                report.violations
+            );
+            assert_eq!(
+                report.terminal,
+                Some(scenario.expected()),
+                "{} at seed {seed}",
+                scenario.label()
+            );
+            guarded.extend(report.guarded);
+            reached.extend(report.reached);
+        }
+    }
+    // Exactly one scenario may end in acceptance, and it is the one whose protected query passed.
+    for fact in [
+        "invocation_started",
+        "invocation_yielded",
+        "invocation_resumed",
+        "invocation_closed",
+        "verification_recorded",
+        "run_stopped",
+        "obligation_returned",
+        "contract_cancelled",
+        "offer_settled",
+    ] {
+        assert!(reached.contains(fact), "no scenario ever reached {fact}");
+    }
+    // Each of these rules is reached by some ordering of some scenario rather than merely stated.
+    for guard in [
+        "no_matching_event",
+        "wake_budget_exhausted",
+        "wake_deadline_passed",
+        "cursor_ahead",
+        "candidate_mismatch",
+        "run_stopped",
+        "stale_generation",
+        "not_authorized",
+    ] {
+        assert!(guarded.contains(guard), "no ordering ever provoked {guard}");
+    }
+}
+
+/// Quiescence is not acceptance. A run that went quiet, spent its last unit, or was handed a result
+/// nobody verified reaches a non-success state, and the one route to acceptance is a passing
+/// protected query against the exact root candidate.
+#[test]
+fn quiescence_a_spent_budget_and_an_unverified_result_are_not_acceptance() {
+    for scenario in Scenario::ALL {
+        for seed in 0..LIFECYCLE_SEEDS {
+            let report = run_lifecycle(seed, scenario, DisabledChecks::default());
+            if scenario == Scenario::Accepted {
+                assert_eq!(report.terminal, Some(RootTerminal::Accepted));
+            } else {
+                assert_ne!(
+                    report.terminal,
+                    Some(RootTerminal::Accepted),
+                    "{} at seed {seed} claimed acceptance",
+                    scenario.label()
+                );
+            }
+        }
+    }
+    // The rejected run and the one that was never verified differ only in whether a query was
+    // spent, and neither of them is accepted.
+    assert_eq!(
+        run_lifecycle(0, Scenario::Rejected, DisabledChecks::default()).terminal,
+        Some(RootTerminal::Exhausted)
+    );
+    assert_eq!(
+        run_lifecycle(0, Scenario::NoSolution, DisabledChecks::default()).terminal,
+        Some(RootTerminal::Exhausted)
+    );
+}
+
+// ---------------------------------------------------------------------------------------------
+// Each finite condition of the lifecycle is shown to be load-bearing
+// ---------------------------------------------------------------------------------------------
+
+fn first_lifecycle_counterexample(disabled: DisabledChecks) -> Option<(String, Vec<Violation>)> {
+    Scenario::ALL.into_iter().find_map(|scenario| {
+        (0..LIFECYCLE_SEEDS).find_map(|seed| {
+            let report = run_lifecycle(seed, scenario, disabled);
+            (!report.violations.is_empty()).then(|| {
+                (
+                    format!("{} at seed {seed}", scenario.label()),
+                    report.violations,
+                )
+            })
+        })
+    })
+}
+
+/// The finite creation condition: without it a process slice begins that nothing paid for, so a run
+/// can run processes it was never funded to run.
+#[test]
+fn removing_the_invocation_start_check_produces_a_counterexample() {
+    let (where_, violations) = first_lifecycle_counterexample(DisabledChecks {
+        invocation_start: true,
+        ..DisabledChecks::default()
+    })
+    .expect("the process-slice creation check must be load-bearing");
+    assert!(
+        violations
+            .iter()
+            .any(|violation| matches!(violation, Violation::UnfundedInvocationStart { .. })),
+        "{where_} produced {violations:?}"
+    );
+}
+
+/// The wake condition: without it a participant is admitted although nothing it asked about has
+/// happened, so a run can be kept alive by resuming on nothing.
+#[test]
+fn removing_the_wake_match_check_produces_a_counterexample() {
+    let (where_, violations) = first_lifecycle_counterexample(DisabledChecks {
+        wake_match: true,
+        ..DisabledChecks::default()
+    })
+    .expect("the wake-match check must be load-bearing");
+    assert!(
+        violations
+            .iter()
+            .any(|violation| matches!(violation, Violation::ResumedWithoutEvent { .. })),
+        "{where_} produced {violations:?}"
+    );
+}
+
+/// The finite wake count: without it the slices of one attempt are admitted past the bound the
+/// protocol states, and a participant that keeps asking keeps being answered.
+#[test]
+fn removing_the_wake_count_check_produces_a_counterexample() {
+    let (where_, violations) = first_lifecycle_counterexample(DisabledChecks {
+        wake_count: true,
+        ..DisabledChecks::default()
+    })
+    .expect("the wake-count check must be load-bearing");
+    assert!(
+        violations
+            .iter()
+            .any(|violation| matches!(violation, Violation::WakeCountExceeded { .. })),
+        "{where_} produced {violations:?}"
+    );
+}
+
+/// The obligation-return condition, seen from the terminal state rather than from the accounting:
+/// without it causal work closes from the inside out, and the lifecycle schedules say so too.
+#[test]
+fn removing_the_child_return_check_breaks_the_lifecycle_schedules_as_well() {
+    let disabled = DisabledChecks {
+        child_return: true,
+        ..DisabledChecks::default()
+    };
+    let (where_, violations) = first_counterexample(disabled)
+        .map(|(seed, violations)| (format!("seed {seed}"), violations))
+        .or_else(|| first_lifecycle_counterexample(disabled))
+        .expect("the child-return check must be load-bearing");
+    assert!(
+        violations.iter().any(|violation| matches!(
+            violation,
+            Violation::WorkClosedTooEarly { .. } | Violation::DishonestTerminal { .. }
+        )),
+        "{where_} produced {violations:?}"
+    );
 }
