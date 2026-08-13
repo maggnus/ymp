@@ -162,6 +162,14 @@ argument, environment, attempt, or invocation substitution. Every initial or res
 a launch event derived from its actual descriptor; the supervisor rejects events that cannot be
 bound to the profile's invocation and immutable launch fields.
 
+The environment the descriptor carries is closed rather than merely reduced. A managed Claude
+invocation names only the generated home, its configuration and temporary directories, the search
+path, the two display and traffic settings, and — when coordination is configured — the endpoint,
+its token, and the attempt and invocation identifiers. Any other name is refused before the process
+is created, whatever placed it in the descriptor. The search path is the approved system
+directories; the operator's own search path is never delegated, so what it names beyond those
+directories reaches neither the child nor the profile record.
+
 Launch attestation is required of every runtime that creates an external process, and such a
 runtime may not emit any other event before it. A resumed launch keeps the executable, coordination
 executable, environment and working directory of the initial launch and may add only its own resume
@@ -190,15 +198,26 @@ Version 3 records terminal usage for successful completion, failure, cancellatio
 Every terminal record includes total wall time, protected-query count, optional provider cost,
 token counters, and bounded in-flight excess counters. Token and cost counters are recorded exactly
 as the runtime reported them and are never invented. The in-flight excess counters state what the
-runtime's own accounting has not yet covered, and only one of them is derived by the product rather
-than reported: the count of model requests observed on the transcript that no accounting record has
-closed. Monetary excess is consumption the runtime reported above the profile's enforced ceiling.
+runtime's own accounting has not yet covered, and both of them are computed by the product from
+values the runtime reported rather than read from a counter the runtime sends. One is the count of
+model requests observed on the transcript that no accounting record has closed. The other is the
+monetary excess: for the Claude runtime the product obtains it by subtracting the profile's
+enforced ceiling from the cost the runtime reported for the turn, so what the record states is a
+difference between a reported cost and an approved bound and not a number the runtime supplied.
 An accounting record settles the excess of the turn it closes — the counters that record states
 replace the current ones, and a record that states none leaves none — so a runtime that reported
 complete accounting records a zero excess rather than the request count the product held while the
-turn ran. A run that ended before its accounting record keeps that unaccounted count, which is the
-only case in which a recorded counter is product-derived. Total wall time is measured
-from process creation, not from the end of the launch checks that follow it.
+turn ran. A run that ended before its accounting record keeps that unaccounted request count. Total
+wall time is measured from process creation, not from the end of the launch checks that follow it.
+
+A recorded cost is kept only while it is attributed to the models that produced it. A Claude result
+that states a cost must carry the per-model breakdown the runtime reports beside its total; the
+product checks that the breakdown adds up to that total, allowing only the rounding of each share
+to whole microdollars, and that no model outside the admitted profile spent anything. A cost with
+no breakdown at all, a total its own breakdown does not support, and consumption by an unadmitted
+model are typed protocol failures rather than recorded costs, because a matched-budget comparison
+reads the recorded number as evidence of one model route and an unattributed number is not that
+evidence. A turn that reports no cost has nothing to attribute and is recorded as before.
 
 Failures contain a typed safe failure kind and, when available, only a bounded diagnostic digest,
 byte count, and truncation marker. Raw child standard error and diagnostic text are never written

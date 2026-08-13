@@ -357,14 +357,14 @@ case "$input" in
       printf '%s\n' '{{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{{"name":"submit","arguments":{{"command_id":"lifecycle-submit"}}}}}}'
     }} | "$bridge" internal agent-mcp) || exit 41
     printf '%s' "$responses" | grep -q '"snapshot_digest"' || exit 42
-    printf '%s\n' '{{"type":"result","subtype":"success","is_error":false,"terminal_reason":"completed","total_cost_usd":0.031,"usage":{{"input_tokens":11,"cache_creation_input_tokens":3,"cache_read_input_tokens":4,"output_tokens":5,"output_tokens_details":{{"thinking_tokens":2}}}}}}'
+    printf '%s\n' '{{"type":"result","subtype":"success","is_error":false,"terminal_reason":"completed","total_cost_usd":0.031,"modelUsage":{{"claude-opus-5":{{"costUSD":0.031}}}},"usage":{{"input_tokens":11,"cache_creation_input_tokens":3,"cache_read_input_tokens":4,"output_tokens":5,"output_tokens_details":{{"thinking_tokens":2}}}}}}'
     ;;
   *error*)
-    printf '%s\n' '{{"type":"result","subtype":"error_during_execution","is_error":true,"terminal_reason":"runtime_error","total_cost_usd":0.004,"usage":{{"input_tokens":9,"cache_creation_input_tokens":1,"cache_read_input_tokens":1,"output_tokens":2,"output_tokens_details":{{"thinking_tokens":0}}}}}}'
+    printf '%s\n' '{{"type":"result","subtype":"error_during_execution","is_error":true,"terminal_reason":"runtime_error","total_cost_usd":0.004,"modelUsage":{{"claude-opus-5":{{"costUSD":0.004}}}},"usage":{{"input_tokens":9,"cache_creation_input_tokens":1,"cache_read_input_tokens":1,"output_tokens":2,"output_tokens_details":{{"thinking_tokens":0}}}}}}'
     exit 1
     ;;
   *budget*)
-    printf '%s\n' '{{"type":"result","subtype":"error_max_budget_usd","is_error":true,"terminal_reason":"budget_exhausted","total_cost_usd":0.031,"usage":{{"input_tokens":11,"cache_creation_input_tokens":3,"cache_read_input_tokens":4,"output_tokens":5,"output_tokens_details":{{"thinking_tokens":2}}}}}}'
+    printf '%s\n' '{{"type":"result","subtype":"error_max_budget_usd","is_error":true,"terminal_reason":"budget_exhausted","total_cost_usd":0.031,"modelUsage":{{"claude-opus-5":{{"costUSD":0.031}}}},"usage":{{"input_tokens":11,"cache_creation_input_tokens":3,"cache_read_input_tokens":4,"output_tokens":5,"output_tokens_details":{{"thinking_tokens":2}}}}}}'
     exit 1
     ;;
   *) sleep 300 ;;

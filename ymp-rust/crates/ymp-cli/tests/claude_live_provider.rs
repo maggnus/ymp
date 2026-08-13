@@ -12,10 +12,12 @@ use std::time::{Duration, Instant};
 use ymp_application::Application;
 use ymp_domain::{Budget, EventKind};
 use ymp_runtime_api::{
-    CancellationToken, InvocationRequest, Readiness, RuntimeDriver, RuntimeEventKind,
-    RuntimeFailureKind, RuntimeKind,
+    CancellationToken, DiagnosticSummary, InvocationRequest, Readiness, RuntimeDriver,
+    RuntimeEventKind, RuntimeFailureKind, RuntimeKind, Usage,
 };
-use ymp_runtime_claude::{ClaudeProfile, ClaudeRuntime, PINNED_CLAUDE_VERSION};
+use ymp_runtime_claude::{
+    APPROVED_SEARCH_PATH, ClaudeProfile, ClaudeRuntime, PINNED_CLAUDE_VERSION,
+};
 use ymp_runtime_supervisor::{
     ManagedCandidateRequest, ManagedContract, ManagedRunEvent, start_managed_candidate,
 };
@@ -136,6 +138,102 @@ fn a_live_budget_stop_ends_the_attempt_and_keeps_its_reported_usage() {
 #[test]
 #[ignore = "starts the real pinned Claude Code build and spends provider budget"]
 fn the_pinned_build_completes_one_managed_candidate_through_the_product_path() {
+    let attempt = live_managed_attempt(concat!(
+        "Replace the whole content of input.txt in the current directory with the ",
+        "single line: after. Then call the ymp submit tool once with command_id ",
+        "agent.submit.live. Then stop."
+    ));
+    let observed = &attempt.observed;
+    let terminal = observed
+        .terminal
+        .clone()
+        .expect("the live attempt reported no terminal runtime event");
+    let outcome = classify(observed);
+    println!("live outcome: {outcome:?}");
+    if outcome == LiveOutcome::ModelDeclinedToAct {
+        // The product did its part: it started the pinned build, admitted the session, carried the
+        // turn, accounted for it and refused to invent a candidate the controller never received.
+        // The turn ended because the model called nothing, so the check ends without failing.
+        return;
+    }
+    assert_eq!(
+        outcome,
+        LiveOutcome::ProductPathCompleted,
+        "the managed attempt is a product defect: terminal={terminal:?}, supervision={:?}, \
+         coordination={:?}, candidate={:?}",
+        observed.failure,
+        observed.coordination,
+        observed.candidate
+    );
+
+    let candidate = observed
+        .candidate
+        .clone()
+        .expect("the live attempt produced no candidate");
+    let committed = attempt
+        .application
+        .lock()
+        .expect("application lock")
+        .events_after(0)
+        .expect("controller events");
+    let submissions: Vec<_> = committed
+        .iter()
+        .filter(|event| matches!(&event.event, EventKind::CandidateSubmitted { .. }))
+        .collect();
+    assert_eq!(submissions.len(), 1);
+    assert_eq!(submissions[0].command_id, "agent.submit.live");
+    assert_eq!(
+        attempt
+            .application
+            .lock()
+            .expect("application lock")
+            .state()
+            .candidate_digest
+            .as_deref(),
+        Some(candidate.as_str())
+    );
+}
+
+/// A model that closes its turn without calling anything is reported as a declined turn rather than
+/// as a failure of the product. This measures the outcome the classification treats as non-failing,
+/// so the two branches of the live check are both evidence rather than one branch and one reading.
+#[test]
+#[ignore = "starts the real pinned Claude Code build and spends provider budget"]
+fn a_model_that_declines_to_act_is_reported_without_failing() {
+    let attempt = live_managed_attempt(concat!(
+        "Do not change any file and do not call any tool, including the ymp tools. ",
+        "Reply with exactly: ok. Then stop."
+    ));
+    assert_eq!(
+        classify(&attempt.observed),
+        LiveOutcome::ModelDeclinedToAct,
+        "a model that called nothing was not reported as a declined turn: terminal={:?}, \
+         supervision={:?}, coordination={:?}",
+        attempt.observed.terminal,
+        attempt.observed.failure,
+        attempt.observed.coordination
+    );
+    assert_eq!(
+        attempt
+            .application
+            .lock()
+            .expect("application lock")
+            .state()
+            .candidate_digest,
+        None,
+        "a declined turn produced a candidate"
+    );
+}
+
+/// One finished live managed attempt, together with what the product owes whatever the model did:
+/// a session, an accounted turn, and the evidence records of the pinned profile.
+struct LiveAttempt {
+    observed: LiveObservation,
+    application: Arc<Mutex<Application>>,
+    _temporary: tempfile::TempDir,
+}
+
+fn live_managed_attempt(prompt: &str) -> LiveAttempt {
     let temporary = tempfile::tempdir().expect("temporary directory");
     let source = temporary.path().join("source");
     fs::create_dir(&source).expect("source directory");
@@ -154,12 +252,7 @@ fn the_pinned_build_completes_one_managed_candidate_through_the_product_path() {
                 contract_id: "claude-live-contract".to_owned(),
                 contract_digest: "d".repeat(64),
                 source,
-                prompt: concat!(
-                    "Replace the whole content of input.txt in the current directory with the ",
-                    "single line: after. Then call the ymp submit tool once with command_id ",
-                    "agent.submit.live. Then stop."
-                )
-                .to_owned(),
+                prompt: prompt.to_owned(),
                 capture_exclusions: Vec::new(),
                 verifier: None,
             },
@@ -170,93 +263,217 @@ fn the_pinned_build_completes_one_managed_candidate_through_the_product_path() {
     let attempt_id = handle.attempt_id().to_owned();
 
     let deadline = Instant::now() + Duration::from_secs(600);
-    let mut candidate = None;
-    let mut failure = None;
-    let mut session = None;
-    let mut usage = None;
-    let mut coordination = Vec::new();
+    let mut observed = LiveObservation::default();
     while Instant::now() < deadline && !handle.is_finished() {
         while let Some(event) = handle.try_next() {
-            match event {
-                ManagedRunEvent::CandidateAvailable {
-                    candidate_digest, ..
-                } => candidate = Some(candidate_digest),
-                ManagedRunEvent::Failed { detail } => failure = Some(detail),
-                ManagedRunEvent::Runtime(event) => match event.event {
-                    RuntimeEventKind::Started { opaque_session_id } => {
-                        session = Some(opaque_session_id)
-                    }
-                    RuntimeEventKind::McpToolCall { tool, status, .. } => {
-                        coordination.push(format!("{tool}:{status}"))
-                    }
-                    RuntimeEventKind::Completed { usage: reported } => usage = Some(reported),
-                    RuntimeEventKind::Output { text } => println!("claude: {text}"),
-                    _ => {}
-                },
-                ManagedRunEvent::Finished => {}
-            }
+            observed.absorb(event);
         }
         std::thread::sleep(Duration::from_millis(25));
     }
     while let Some(event) = handle.try_next() {
+        observed.absorb(event);
+    }
+    assert!(handle.is_finished(), "the live managed attempt did not end");
+    handle.join().expect("join worker");
+
+    let session = observed
+        .session
+        .clone()
+        .expect("the live attempt reported no session");
+    assert!(!session.is_empty());
+    println!("live coordination: {:?}", observed.coordination);
+    println!("live supervision detail: {:?}", observed.failure);
+
+    // Model traffic, its accounting and the evidence records are the product's obligation whatever
+    // the model decided, so they are measured before the outcome is classified.
+    let usage = observed
+        .usage
+        .clone()
+        .expect("the live attempt reported no usage");
+    println!(
+        "live usage: {}",
+        serde_json::to_string(&usage).expect("usage")
+    );
+    assert!(usage.input_tokens > 0);
+    assert!(usage.output_tokens > 0);
+    assert!(usage.cost_microusd.is_some_and(|cost| cost > 0));
+    assert!(usage.wall_time_ms > 0);
+    live_runtime_evidence(&data_root, &attempt_id, &session);
+
+    LiveAttempt {
+        observed,
+        application,
+        _temporary: temporary,
+    }
+}
+
+/// The only supervision detail a declined turn produces. The supervisor reports a turn that closed
+/// with no committed controller action as a failed supervision, so the declined outcome is
+/// recognised by this exact detail; any other detail, including one carrying a termination the run
+/// could not establish, is a defect of the product.
+const DECLINED_SUPERVISION_DETAIL: &str = "managed_runtime_supervision_failed";
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum LiveOutcome {
+    /// The product carried the attempt through to a committed candidate.
+    ProductPathCompleted,
+    /// The product carried the attempt and the model closed the turn without calling anything.
+    ModelDeclinedToAct,
+    /// Anything else, including a coordination call the product failed to answer.
+    ProductDefect,
+}
+
+/// Decides what a finished live attempt measured. A declined turn is recognised only when the
+/// model called nothing at all: a coordination call that was made and failed carries the same
+/// terminal signature — a protocol failure with an invalid controller action count — while being a
+/// defect of the product, so the emptiness of the call list, and not the absence of a completed
+/// submission, separates the two.
+fn classify(observed: &LiveObservation) -> LiveOutcome {
+    let Some(terminal) = &observed.terminal else {
+        return LiveOutcome::ProductDefect;
+    };
+    let submitted = observed
+        .coordination
+        .iter()
+        .any(|call| call == "submit:completed");
+    if matches!(terminal, RuntimeEventKind::Completed { .. })
+        && submitted
+        && observed.candidate.is_some()
+        && observed.failure.is_none()
+    {
+        return LiveOutcome::ProductPathCompleted;
+    }
+    let closed_without_action = matches!(
+        terminal,
+        RuntimeEventKind::Failed { kind, diagnostic, .. }
+            if *kind == RuntimeFailureKind::Protocol
+                && diagnostic.as_ref()
+                    == Some(&DiagnosticSummary::from_bytes(
+                        b"controller_action_count_invalid",
+                        false,
+                    ))
+    );
+    if closed_without_action
+        && observed.coordination.is_empty()
+        && observed.candidate.is_none()
+        && observed.failure.as_deref() == Some(DECLINED_SUPERVISION_DETAIL)
+    {
+        return LiveOutcome::ModelDeclinedToAct;
+    }
+    LiveOutcome::ProductDefect
+}
+
+/// Negative half of the classification: a coordination call the product failed to answer produces
+/// the same terminal signature as a model that called nothing, and must still be a product defect.
+/// This check needs no provider budget, so it runs with the ordinary suite.
+#[test]
+fn a_failed_coordination_call_is_never_read_as_a_declined_model() {
+    let closed_without_action = RuntimeEventKind::Failed {
+        kind: RuntimeFailureKind::Protocol,
+        usage: Usage::default(),
+        diagnostic: Some(DiagnosticSummary::from_bytes(
+            b"controller_action_count_invalid",
+            false,
+        )),
+    };
+    let declined = LiveObservation {
+        session: Some("session".to_owned()),
+        usage: Some(Usage::default()),
+        terminal: Some(closed_without_action.clone()),
+        failure: Some(DECLINED_SUPERVISION_DETAIL.to_owned()),
+        ..LiveObservation::default()
+    };
+    assert_eq!(classify(&declined), LiveOutcome::ModelDeclinedToAct);
+
+    let failed_submission = LiveObservation {
+        coordination: vec!["submit:failed".to_owned()],
+        ..declined.clone()
+    };
+    assert_eq!(
+        classify(&failed_submission),
+        LiveOutcome::ProductDefect,
+        "a submission the product failed to answer was read as a declined model"
+    );
+
+    let unestablished_termination = LiveObservation {
+        failure: Some(format!(
+            "{DECLINED_SUPERVISION_DETAIL}; managed_runtime_termination_unestablished: attempt"
+        )),
+        ..declined.clone()
+    };
+    assert_eq!(
+        classify(&unestablished_termination),
+        LiveOutcome::ProductDefect,
+        "a run that could not establish its terminations was read as a declined model"
+    );
+
+    let submitted_but_uncommitted = LiveObservation {
+        coordination: vec!["submit:completed".to_owned()],
+        ..declined
+    };
+    assert_eq!(
+        classify(&submitted_but_uncommitted),
+        LiveOutcome::ProductDefect
+    );
+
+    let completed = LiveObservation {
+        session: Some("session".to_owned()),
+        usage: Some(Usage::default()),
+        terminal: Some(RuntimeEventKind::Completed {
+            usage: Usage::default(),
+        }),
+        coordination: vec!["submit:completed".to_owned()],
+        candidate: Some("digest".to_owned()),
+        failure: None,
+    };
+    assert_eq!(classify(&completed), LiveOutcome::ProductPathCompleted);
+}
+
+/// What a live managed attempt reported, kept whole so that the outcome is classified once, from
+/// the complete stream, rather than from whichever event the reading loop happened to end on.
+#[derive(Clone, Default)]
+struct LiveObservation {
+    candidate: Option<String>,
+    failure: Option<String>,
+    session: Option<String>,
+    usage: Option<Usage>,
+    terminal: Option<RuntimeEventKind>,
+    coordination: Vec<String>,
+}
+
+impl LiveObservation {
+    fn absorb(&mut self, event: ManagedRunEvent) {
         match event {
             ManagedRunEvent::CandidateAvailable {
                 candidate_digest, ..
-            } => candidate = Some(candidate_digest),
-            ManagedRunEvent::Failed { detail } => failure = Some(detail),
-            ManagedRunEvent::Runtime(event) => match event.event {
+            } => self.candidate = Some(candidate_digest),
+            ManagedRunEvent::Failed { detail } => self.failure = Some(detail),
+            ManagedRunEvent::Runtime(event) => match &event.event {
                 RuntimeEventKind::Started { opaque_session_id } => {
-                    session = Some(opaque_session_id)
+                    self.session = Some(opaque_session_id.clone());
                 }
                 RuntimeEventKind::McpToolCall { tool, status, .. } => {
-                    coordination.push(format!("{tool}:{status}"))
+                    self.coordination.push(format!("{tool}:{status}"));
                 }
-                RuntimeEventKind::Completed { usage: reported } => usage = Some(reported),
+                RuntimeEventKind::Output { text } => println!("claude: {text}"),
+                RuntimeEventKind::Completed { usage }
+                | RuntimeEventKind::Failed { usage, .. }
+                | RuntimeEventKind::TimedOut { usage, .. }
+                | RuntimeEventKind::Cancelled { usage } => {
+                    self.usage = Some(usage.clone());
+                    self.terminal = Some(event.event.clone());
+                }
                 _ => {}
             },
             ManagedRunEvent::Finished => {}
         }
     }
-    assert!(handle.is_finished(), "the live managed attempt did not end");
-    assert_eq!(failure, None, "the live managed attempt failed");
+}
 
-    let session = session.expect("the live attempt reported no session");
-    assert!(!session.is_empty());
-    let usage = usage.expect("the live attempt reported no usage");
-    println!(
-        "live usage: {}",
-        serde_json::to_string(&usage).expect("usage")
-    );
-    println!("live coordination: {coordination:?}");
-    assert!(usage.input_tokens > 0);
-    assert!(usage.output_tokens > 0);
-    assert!(usage.cost_microusd.is_some_and(|cost| cost > 0));
-    assert!(usage.wall_time_ms > 0);
-    assert!(coordination.iter().any(|call| call == "submit:completed"));
-
-    let candidate = candidate.expect("the live attempt produced no candidate");
-    let committed = application
-        .lock()
-        .expect("application lock")
-        .events_after(0)
-        .expect("controller events");
-    let submissions: Vec<_> = committed
-        .iter()
-        .filter(|event| matches!(&event.event, EventKind::CandidateSubmitted { .. }))
-        .collect();
-    assert_eq!(submissions.len(), 1);
-    assert_eq!(submissions[0].command_id, "agent.submit.live");
-    assert_eq!(
-        application
-            .lock()
-            .expect("application lock")
-            .state()
-            .candidate_digest
-            .as_deref(),
-        Some(candidate.as_str())
-    );
-
-    let evidence_directory = data_root.join("runtime-evidence").join(&attempt_id);
+/// The evidence a managed attempt owes whatever the model decided: the pinned profile record and a
+/// transcript that names no session identifier.
+fn live_runtime_evidence(data_root: &std::path::Path, attempt_id: &str, session: &str) {
+    let evidence_directory = data_root.join("runtime-evidence").join(attempt_id);
     let profile: serde_json::Value = serde_json::from_str(
         &fs::read_to_string(evidence_directory.join("profile.json")).expect("profile evidence"),
     )
@@ -269,9 +486,46 @@ fn the_pinned_build_completes_one_managed_candidate_through_the_product_path() {
         profile["profile"]["environment_policy"],
         "synthetic_allowlist_with_delegated_credential_v1"
     );
+    // The record states the environment the child actually received. Only the approved names reach
+    // it, and its search path is the approved one rather than the operator's.
+    let recorded: Vec<&str> = profile["profile"]["launch_descriptor"]["environment"]
+        .as_array()
+        .expect("the record states the child environment")
+        .iter()
+        .map(|variable| variable["name"].as_str().expect("environment name"))
+        .collect();
+    assert_eq!(
+        recorded,
+        [
+            "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC",
+            "CLAUDE_CONFIG_DIR",
+            "HOME",
+            "NO_COLOR",
+            "PATH",
+            "TMPDIR",
+            "YMP_AGENT_SOCKET",
+            "YMP_AGENT_TOKEN",
+            "YMP_ATTEMPT_ID",
+            "YMP_INVOCATION_ID",
+        ],
+        "the profile record carries an environment the profile did not approve"
+    );
+    let search_path = profile["profile"]["launch_descriptor"]["environment"]
+        .as_array()
+        .expect("the record states the child environment")
+        .iter()
+        .find(|variable| variable["name"] == "PATH")
+        .and_then(|variable| variable["value"].as_str())
+        .expect("the record states the search path");
+    assert_eq!(search_path, APPROVED_SEARCH_PATH.join(":"));
+    assert_ne!(
+        Some(search_path),
+        std::env::var("PATH").ok().as_deref(),
+        "the record carries the operator search path"
+    );
+
     let evidence =
         fs::read_to_string(evidence_directory.join("events.jsonl")).expect("event evidence");
-    assert!(!evidence.contains(&session), "evidence exposed the session");
+    assert!(!evidence.contains(session), "evidence exposed the session");
     println!("live evidence records: {}", evidence.lines().count());
-    handle.join().expect("join worker");
 }

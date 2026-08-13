@@ -2,7 +2,6 @@
 
 use serde_json::Value;
 use std::collections::{HashMap, HashSet, VecDeque};
-use std::ffi::OsString;
 use std::fs::{self, File, OpenOptions};
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
@@ -49,6 +48,27 @@ pub const COORDINATION_TOOLS: [&str; 4] = [
     "mcp__ymp__yield",
 ];
 
+/// The program search path a managed invocation receives. The operator's own `PATH` is never
+/// delegated: everything it names would otherwise be reachable from the child and would be written
+/// into the profile record as if the run had approved it.
+pub const APPROVED_SEARCH_PATH: [&str; 5] =
+    ["/usr/local/bin", "/usr/bin", "/bin", "/usr/sbin", "/sbin"];
+
+/// Every environment name a managed invocation may carry. A launch whose environment names
+/// anything else is refused before the child starts, whichever path placed it there.
+pub const ALLOWED_ENVIRONMENT_NAMES: [&str; 10] = [
+    "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC",
+    "CLAUDE_CONFIG_DIR",
+    "HOME",
+    "NO_COLOR",
+    "PATH",
+    "TMPDIR",
+    "YMP_AGENT_SOCKET",
+    "YMP_AGENT_TOKEN",
+    "YMP_ATTEMPT_ID",
+    "YMP_INVOCATION_ID",
+];
+
 const DELEGATION_TOOLS: [&str; 6] = [
     "Task",
     "Agent",
@@ -70,6 +90,9 @@ pub struct ClaudeProfile {
     pub setting_sources: String,
     pub input_format: String,
     pub output_format: String,
+    /// Directories the child may search for programs. Only the approved system directories are
+    /// admitted, so the operator's own search path cannot be delegated by configuration either.
+    pub search_path: Vec<String>,
     pub builtin_tools: Vec<String>,
     pub native_subagents: bool,
     pub strict_mcp_config: bool,
@@ -90,6 +113,10 @@ impl Default for ClaudeProfile {
             setting_sources: String::new(),
             input_format: "text".to_owned(),
             output_format: "stream-json".to_owned(),
+            search_path: APPROVED_SEARCH_PATH
+                .iter()
+                .map(|directory| (*directory).to_owned())
+                .collect(),
             builtin_tools: APPROVED_BUILTIN_TOOLS
                 .iter()
                 .map(|tool| (*tool).to_owned())
@@ -158,6 +185,23 @@ impl ClaudeProfile {
                 self.input_format, self.output_format
             )));
         }
+        if self.search_path.is_empty() {
+            return Err(RuntimeError::InvalidProfile(
+                "the managed search path must name at least one approved directory".to_owned(),
+            ));
+        }
+        for (index, directory) in self.search_path.iter().enumerate() {
+            if !APPROVED_SEARCH_PATH.contains(&directory.as_str()) {
+                return Err(RuntimeError::InvalidProfile(format!(
+                    "unapproved Claude search-path directory {directory}"
+                )));
+            }
+            if self.search_path[..index].contains(directory) {
+                return Err(RuntimeError::InvalidProfile(format!(
+                    "repeated Claude search-path directory {directory}"
+                )));
+            }
+        }
         for tool in &self.builtin_tools {
             if DELEGATION_TOOLS.contains(&tool.as_str()) {
                 return Err(RuntimeError::InvalidProfile(format!(
@@ -205,6 +249,11 @@ impl ClaudeProfile {
         format!("{:.6}", self.max_budget_microusd as f64 / 1_000_000.0)
     }
 
+    /// The `PATH` value the child receives, built from the approved directories alone.
+    fn search_path_value(&self) -> String {
+        self.search_path.join(":")
+    }
+
     fn enforced_cost_ceiling_microusd(&self) -> u64 {
         self.max_budget_microusd
             .saturating_add(self.max_in_flight_overshoot_microusd)
@@ -226,7 +275,6 @@ pub struct ClaudeRuntime {
     verified_executable: Arc<Mutex<Option<VerifiedExecutable>>>,
     profile: ClaudeProfile,
     credential: Option<CredentialSource>,
-    runtime_path: OsString,
     launch_chain: LaunchChain,
     prepared_launches: Arc<Mutex<HashMap<String, ClaudeLaunch>>>,
 }
@@ -245,8 +293,6 @@ impl ClaudeRuntime {
             verified_executable: Arc::new(Mutex::new(None)),
             profile: ClaudeProfile::default(),
             credential: CredentialSource::discover(),
-            runtime_path: std::env::var_os("PATH")
-                .unwrap_or_else(|| OsString::from("/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin")),
             launch_chain: LaunchChain::default(),
             prepared_launches: Arc::new(Mutex::new(HashMap::new())),
         }
@@ -280,11 +326,7 @@ impl ClaudeRuntime {
     }
 
     fn isolated_environment(&self) -> Result<ClaudeEnvironment, RuntimeError> {
-        ClaudeEnvironment::create(
-            self.credential.as_ref(),
-            self.runtime_path.clone(),
-            &self.profile,
-        )
+        ClaudeEnvironment::create(self.credential.as_ref(), &self.profile)
     }
 
     fn admitted_executable(&self) -> Result<VerifiedExecutable, RuntimeError> {
@@ -476,7 +518,7 @@ struct ClaudeEnvironment {
     root: tempfile::TempDir,
     configuration: PathBuf,
     temporary: PathBuf,
-    runtime_path: OsString,
+    search_path: String,
     credential_label: Option<&'static str>,
 }
 
@@ -490,7 +532,6 @@ struct EnvironmentValue {
 impl ClaudeEnvironment {
     fn create(
         credential: Option<&CredentialSource>,
-        runtime_path: OsString,
         profile: &ClaudeProfile,
     ) -> Result<Self, RuntimeError> {
         profile.validate()?;
@@ -517,7 +558,7 @@ impl ClaudeEnvironment {
             root,
             configuration,
             temporary,
-            runtime_path,
+            search_path: profile.search_path_value(),
             credential_label,
         })
     }
@@ -532,19 +573,7 @@ impl ClaudeEnvironment {
             environment_value("HOME", self.root.path(), false)?,
             environment_value("CLAUDE_CONFIG_DIR", &self.configuration, false)?,
             environment_value("TMPDIR", &self.temporary, false)?,
-            EnvironmentValue {
-                name: "PATH".to_owned(),
-                value: self
-                    .runtime_path
-                    .to_str()
-                    .ok_or_else(|| {
-                        RuntimeError::InvalidProfile(
-                            "allowlisted PATH must be valid UTF-8".to_owned(),
-                        )
-                    })?
-                    .to_owned(),
-                confidential: false,
-            },
+            plain_environment_value("PATH", &self.search_path, false),
             plain_environment_value("NO_COLOR", "1", false),
             plain_environment_value("CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC", "1", false),
         ];
@@ -558,6 +587,7 @@ impl ClaudeEnvironment {
             ]);
         }
         values.sort_by(|left, right| left.name.cmp(&right.name));
+        admit_environment_names(values.iter().map(|variable| variable.name.as_str()))?;
         Ok(values)
     }
 
@@ -655,6 +685,15 @@ impl ClaudeLaunch {
         session_id: Option<&str>,
         prompt: &str,
     ) -> Result<ClaudeProcess, RuntimeError> {
+        // The environment of the prepared launch is admitted by name before it is compared with the
+        // expected one, so a variable inserted into the descriptor is refused by the rule it breaks
+        // rather than as an unnamed difference.
+        admit_environment_names(
+            descriptor
+                .environment
+                .iter()
+                .map(|variable| variable.name.as_str()),
+        )?;
         let expected = self.descriptor(session_id)?;
         if descriptor != &expected {
             return Err(RuntimeError::InvalidProfile(
@@ -1158,6 +1197,47 @@ impl ClaudeSession {
         }
     }
 
+    /// Binds a turn's reported cost to the models that produced it. The matched-budget comparison
+    /// reads this number as evidence of one model route, so a cost with no breakdown at all, a
+    /// total whose breakdown does not add up to it, and a breakdown naming a model this profile
+    /// never admitted are all refused instead of being recorded as unattributed numbers.
+    fn admit_cost_attribution(
+        &self,
+        reported_microusd: u64,
+        breakdown: &[ModelSpend],
+    ) -> Result<(), RuntimeError> {
+        if breakdown.is_empty() {
+            if reported_microusd == 0 {
+                return Ok(());
+            }
+            return Err(RuntimeError::MalformedEvent(format!(
+                "Claude reported {reported_microusd} microUSD for a turn without naming the models that spent it"
+            )));
+        }
+        let attributed = breakdown
+            .iter()
+            .map(|spend| spend.cost_microusd)
+            .fold(0_u64, u64::saturating_add);
+        // Each share is rounded to whole microdollars before it is summed, so the sum may trail the
+        // reported total by less than one microdollar per model and by nothing else.
+        if attributed.abs_diff(reported_microusd) > breakdown.len() as u64 {
+            return Err(RuntimeError::MalformedEvent(format!(
+                "Claude attributed {attributed} microUSD across {} model(s) for a turn it reported as {reported_microusd} microUSD",
+                breakdown.len()
+            )));
+        }
+        if let Some(unadmitted) = breakdown
+            .iter()
+            .find(|spend| spend.model != self.launch.profile.model && spend.cost_microusd > 0)
+        {
+            return Err(RuntimeError::InvalidProfile(format!(
+                "the unadmitted model {} spent {} microUSD, profile admits {}",
+                unadmitted.model, unadmitted.cost_microusd, self.launch.profile.model
+            )));
+        }
+        Ok(())
+    }
+
     fn merge_reported_usage(&mut self, event: &Value) -> Result<(), RuntimeError> {
         let reported = event.get("usage").ok_or_else(|| {
             RuntimeError::MalformedEvent("Claude result carries no usage evidence".to_owned())
@@ -1180,6 +1260,10 @@ impl ClaudeSession {
             protected_queries: 0,
             in_flight_excess: InFlightExcess::default(),
         };
+        self.admit_cost_attribution(
+            observed.cost_microusd.unwrap_or_default(),
+            &model_breakdown(event)?,
+        )?;
         add_usage(&mut self.usage, &observed);
         self.accounted_requests = self.observed_requests.len() as u64;
         let spent = self.usage.cost_microusd.unwrap_or_default();
@@ -1846,6 +1930,46 @@ fn optional_u64_field(value: &Value, field: &str) -> u64 {
     value.get(field).and_then(Value::as_u64).unwrap_or(0)
 }
 
+/// One model's share of a turn's reported consumption, as Claude Code reports it in `modelUsage`.
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct ModelSpend {
+    model: String,
+    cost_microusd: u64,
+}
+
+/// Reads the per-model breakdown of a terminal result. A missing breakdown is reported as an empty
+/// one rather than assigned to the admitted model, so the attribution rule refuses the cost instead
+/// of inventing evidence the runtime did not report.
+fn model_breakdown(event: &Value) -> Result<Vec<ModelSpend>, RuntimeError> {
+    let Some(reported) = event.get("modelUsage") else {
+        return Ok(Vec::new());
+    };
+    let reported = reported.as_object().ok_or_else(|| {
+        RuntimeError::MalformedEvent(
+            "Claude per-model accounting is not a model-keyed object".to_owned(),
+        )
+    })?;
+    let mut breakdown: Vec<ModelSpend> = reported
+        .iter()
+        .map(|(model, spend)| {
+            let cost = spend
+                .get("costUSD")
+                .and_then(Value::as_f64)
+                .ok_or_else(|| {
+                    RuntimeError::MalformedEvent(format!(
+                        "Claude reported no cost for the model {model}"
+                    ))
+                })?;
+            Ok(ModelSpend {
+                model: model.clone(),
+                cost_microusd: usd_to_microusd(cost),
+            })
+        })
+        .collect::<Result<_, RuntimeError>>()?;
+    breakdown.sort_by(|left, right| left.model.cmp(&right.model));
+    Ok(breakdown)
+}
+
 fn usd_to_microusd(cost: f64) -> u64 {
     if cost.is_finite() && cost > 0.0 {
         (cost * 1_000_000.0).round() as u64
@@ -1904,6 +2028,29 @@ fn environment_value(
     })
 }
 
+/// Refuses an environment the profile never approved. The check is stated over the names actually
+/// about to reach the child rather than over the code that built them, so a variable added to a
+/// prepared launch is refused with its own name instead of being reported as an anonymous change.
+fn admit_environment_names<'a>(
+    names: impl IntoIterator<Item = &'a str>,
+) -> Result<(), RuntimeError> {
+    let mut admitted: Vec<&str> = Vec::new();
+    for name in names {
+        if !ALLOWED_ENVIRONMENT_NAMES.contains(&name) {
+            return Err(RuntimeError::InvalidProfile(format!(
+                "unapproved environment variable {name} reached a managed Claude invocation"
+            )));
+        }
+        if admitted.contains(&name) {
+            return Err(RuntimeError::InvalidProfile(format!(
+                "environment variable {name} was declared twice for one managed invocation"
+            )));
+        }
+        admitted.push(name);
+    }
+    Ok(())
+}
+
 fn plain_environment_value(name: &str, value: &str, confidential: bool) -> EnvironmentValue {
     EnvironmentValue {
         name: name.to_owned(),
@@ -1934,8 +2081,8 @@ fn mcp_config(binding: Option<&McpBinding>) -> Result<String, RuntimeError> {
 #[cfg(all(test, unix))]
 mod tests {
     use super::{
-        APPROVED_BUILTIN_TOOLS, ClaudeProfile, ClaudeRuntime, G3_MAX_BUDGET_MICROUSD,
-        G3_MAX_IN_FLIGHT_OVERSHOOT_MICROUSD, PINNED_CLAUDE_MODEL,
+        APPROVED_BUILTIN_TOOLS, APPROVED_SEARCH_PATH, ClaudeProfile, ClaudeRuntime,
+        G3_MAX_BUDGET_MICROUSD, G3_MAX_IN_FLIGHT_OVERSHOOT_MICROUSD, PINNED_CLAUDE_MODEL,
     };
     use std::fs;
     use std::os::unix::fs::PermissionsExt;
@@ -2080,6 +2227,20 @@ fi
                     ..ClaudeProfile::default()
                 },
             ),
+            (
+                "unapproved search-path directory",
+                ClaudeProfile {
+                    search_path: vec!["/usr/bin".to_owned(), "/opt/planted/bin".to_owned()],
+                    ..ClaudeProfile::default()
+                },
+            ),
+            (
+                "empty search path",
+                ClaudeProfile {
+                    search_path: Vec::new(),
+                    ..ClaudeProfile::default()
+                },
+            ),
         ] {
             assert!(
                 matches!(profile.validate(), Err(RuntimeError::InvalidProfile(_))),
@@ -2138,7 +2299,7 @@ fi
                 r##"cat >/dev/null
 printf '%s\n' '{{"type":"system","subtype":"init","session_id":"session-1","claude_code_version":"2.1.227","model":"claude-opus-5","permissionMode":"acceptEdits","tools":{INIT_TOOLS},"mcp_servers":[],"slash_commands":[],"plugins":[],"skills":[]}}'
 printf '%s\n' '{{"type":"assistant","request_id":"req_1","parent_tool_use_id":null,"message":{{"content":[{{"type":"text","text":"done"}}]}}}}'
-printf '%s\n' '{{"type":"result","subtype":"success","is_error":false,"terminal_reason":"completed","total_cost_usd":0.125,"usage":{{"input_tokens":11,"cache_creation_input_tokens":100,"cache_read_input_tokens":7,"output_tokens":3,"output_tokens_details":{{"thinking_tokens":2}}}}}}'
+printf '%s\n' '{{"type":"result","subtype":"success","is_error":false,"terminal_reason":"completed","total_cost_usd":0.125,"modelUsage":{{"claude-opus-5":{{"inputTokens":111,"outputTokens":3,"costUSD":0.125}}}},"usage":{{"input_tokens":11,"cache_creation_input_tokens":100,"cache_read_input_tokens":7,"output_tokens":3,"output_tokens_details":{{"thinking_tokens":2}}}}}}'
 "##
             ),
         );
@@ -2166,6 +2327,194 @@ printf '%s\n' '{{"type":"result","subtype":"success","is_error":false,"terminal_
         assert_eq!(usage.in_flight_excess.cost_microusd, 0);
     }
 
+    /// The recorded cost is only evidence of a model route while the runtime named the models that
+    /// produced it and the shares they reported add up to it. A cost with no breakdown, a total its
+    /// breakdown does not add up to, and a total a model this profile never admitted helped to
+    /// produce are all refused.
+    #[test]
+    fn a_cost_its_model_breakdown_does_not_support_is_refused() {
+        for (label, result) in [
+            (
+                "breakdown below the reported total",
+                r#"{"type":"result","subtype":"success","is_error":false,"terminal_reason":"completed","total_cost_usd":0.125,"modelUsage":{"claude-opus-5":{"inputTokens":11,"outputTokens":3,"costUSD":0.030}},"usage":{"input_tokens":11,"output_tokens":3}}"#,
+            ),
+            (
+                "breakdown above the reported total",
+                r#"{"type":"result","subtype":"success","is_error":false,"terminal_reason":"completed","total_cost_usd":0.125,"modelUsage":{"claude-opus-5":{"inputTokens":11,"outputTokens":3,"costUSD":0.900}},"usage":{"input_tokens":11,"output_tokens":3}}"#,
+            ),
+            (
+                "a reported cost with no breakdown at all",
+                r#"{"type":"result","subtype":"success","is_error":false,"terminal_reason":"completed","total_cost_usd":0.125,"usage":{"input_tokens":11,"output_tokens":3}}"#,
+            ),
+            (
+                "an empty breakdown for a reported cost",
+                r#"{"type":"result","subtype":"success","is_error":false,"terminal_reason":"completed","total_cost_usd":0.125,"modelUsage":{},"usage":{"input_tokens":11,"output_tokens":3}}"#,
+            ),
+            (
+                "spend by a model the profile never admitted",
+                r#"{"type":"result","subtype":"success","is_error":false,"terminal_reason":"completed","total_cost_usd":0.125,"modelUsage":{"claude-opus-5":{"inputTokens":11,"outputTokens":3,"costUSD":0.100},"claude-unadmitted":{"inputTokens":4,"outputTokens":1,"costUSD":0.025}},"usage":{"input_tokens":11,"output_tokens":3}}"#,
+            ),
+        ] {
+            let directory = tempfile::tempdir().expect("temporary directory");
+            let executable = fixture(
+                directory.path(),
+                "claude-unattributed-cost",
+                &format!(
+                    r##"cat >/dev/null
+printf '%s\n' '{{"type":"system","subtype":"init","session_id":"session-attribution","claude_code_version":"2.1.227","model":"claude-opus-5","permissionMode":"acceptEdits","tools":{INIT_TOOLS},"mcp_servers":[],"slash_commands":[],"plugins":[],"skills":[]}}'
+printf '%s\n' '{result}'
+"##
+                ),
+            );
+            let mut session = start(&executable, directory.path(), "invocation-attribution")
+                .expect("start fixture");
+            expect_launch(session.as_mut());
+            assert!(matches!(
+                session.next_event().expect("started").expect("event").event,
+                RuntimeEventKind::Started { .. }
+            ));
+            let observed = session.next_event().expect("typed failure").expect("event");
+            assert!(
+                matches!(
+                    observed.event,
+                    RuntimeEventKind::Failed {
+                        kind: RuntimeFailureKind::Protocol,
+                        ..
+                    }
+                ),
+                "{label} was recorded as an attributed cost"
+            );
+        }
+    }
+
+    /// The child receives the approved environment and nothing else, and the same environment is
+    /// what the launch descriptor carries into the profile record. The operator's own search path
+    /// is not delegated, so a directory only the operator can reach is unreachable from the child.
+    #[test]
+    fn only_the_approved_environment_and_search_path_reach_the_child_and_its_record() {
+        let directory = tempfile::tempdir().expect("temporary directory");
+        let executable = fixture(
+            directory.path(),
+            "claude-environment",
+            &format!(
+                r##"cat >/dev/null
+/usr/bin/env > child.env
+printf '%s\n' '{{"type":"system","subtype":"init","session_id":"session-environment","claude_code_version":"2.1.227","model":"claude-opus-5","permissionMode":"acceptEdits","tools":{INIT_TOOLS},"mcp_servers":[],"slash_commands":[],"plugins":[],"skills":[]}}'
+printf '%s\n' '{{"type":"result","subtype":"success","is_error":false,"terminal_reason":"completed","total_cost_usd":0.001,"modelUsage":{{"claude-opus-5":{{"inputTokens":1,"outputTokens":1,"costUSD":0.001}}}},"usage":{{"input_tokens":1,"output_tokens":1}}}}'
+"##
+            ),
+        );
+        let runtime = ClaudeRuntime::new(&executable).without_delegated_credential();
+        let descriptor = runtime
+            .prepare_launch(&request(directory.path(), "invocation-environment"))
+            .expect("prepare the launch")
+            .expect("launch descriptor");
+        let recorded: Vec<&str> = descriptor
+            .environment
+            .iter()
+            .map(|variable| variable.name.as_str())
+            .collect();
+        assert_eq!(
+            recorded,
+            [
+                "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC",
+                "CLAUDE_CONFIG_DIR",
+                "HOME",
+                "NO_COLOR",
+                "PATH",
+                "TMPDIR",
+            ],
+            "the profile record carries an environment the profile did not approve"
+        );
+        let recorded_search_path = descriptor
+            .environment
+            .iter()
+            .find(|variable| variable.name == "PATH")
+            .and_then(|variable| variable.value.clone())
+            .expect("the record states the search path");
+        assert_eq!(recorded_search_path, APPROVED_SEARCH_PATH.join(":"));
+
+        let mut session = runtime
+            .start_prepared(
+                request(directory.path(), "invocation-environment"),
+                Some(&descriptor),
+            )
+            .expect("start the prepared launch");
+        while session.next_event().expect("runtime event").is_some() {}
+        drop(session);
+
+        let observed = fs::read_to_string(directory.path().join("child.env"))
+            .expect("the child recorded its environment");
+        // `PWD`, `SHLVL` and `_` are created by the observing shell rather than inherited, so the
+        // admitted set is compared without them.
+        let mut names: Vec<&str> = observed
+            .lines()
+            .filter_map(|line| line.split_once('=').map(|(name, _)| name))
+            .filter(|name| !["PWD", "SHLVL", "_"].contains(name))
+            .collect();
+        names.sort_unstable();
+        assert_eq!(names, recorded, "the child received an unapproved variable");
+        let child_search_path = observed
+            .lines()
+            .find_map(|line| line.strip_prefix("PATH="))
+            .expect("the child received a search path");
+        assert_eq!(child_search_path, recorded_search_path);
+        // Negative pressure on the delegation itself: whatever the operator's own search path adds
+        // beyond the approved directories must be unreachable from the child.
+        let operator_path = std::env::var("PATH").unwrap_or_default();
+        if let Some(operator_only) = operator_path
+            .split(':')
+            .find(|directory| !directory.is_empty() && !APPROVED_SEARCH_PATH.contains(directory))
+        {
+            assert!(
+                !child_search_path
+                    .split(':')
+                    .any(|entry| entry == operator_only),
+                "the operator search-path directory {operator_only} reached the child"
+            );
+        }
+    }
+
+    /// A variable added to a prepared launch is refused by name, and the runtime never starts.
+    #[test]
+    fn an_unapproved_environment_variable_refuses_the_launch() {
+        let directory = tempfile::tempdir().expect("temporary directory");
+        let executable = fixture(
+            directory.path(),
+            "claude-injected-environment",
+            "printf '%s\\n' started > started.marker\ncat >/dev/null\n",
+        );
+        let runtime = ClaudeRuntime::new(&executable).without_delegated_credential();
+        let invocation = request(directory.path(), "invocation-injected");
+        let mut descriptor = runtime
+            .prepare_launch(&invocation)
+            .expect("prepare the launch")
+            .expect("launch descriptor");
+        descriptor
+            .environment
+            .push(ymp_runtime_api::LaunchEnvironmentVariable {
+                name: "ANTHROPIC_API_KEY".to_owned(),
+                value: Some("planted".to_owned()),
+                value_digest: ymp_runtime_api::evidence_digest(b"planted"),
+                confidential: false,
+            });
+        let error = runtime
+            .start_prepared(invocation, Some(&descriptor))
+            .err()
+            .expect("an unapproved variable refuses the launch");
+        match &error {
+            RuntimeError::InvalidProfile(detail) => assert!(
+                detail.contains("ANTHROPIC_API_KEY"),
+                "the refusal does not name the variable: {detail}"
+            ),
+            other => panic!("unexpected error: {other:?}"),
+        }
+        assert!(
+            !directory.path().join("started.marker").exists(),
+            "the runtime started with an unapproved environment"
+        );
+    }
+
     #[test]
     fn budget_stop_preserves_reported_usage_and_unaccounted_requests() {
         let directory = tempfile::tempdir().expect("temporary directory");
@@ -2176,7 +2525,7 @@ printf '%s\n' '{{"type":"result","subtype":"success","is_error":false,"terminal_
                 r##"cat >/dev/null
 printf '%s\n' '{{"type":"system","subtype":"init","session_id":"session-budget","claude_code_version":"2.1.227","model":"claude-opus-5","permissionMode":"acceptEdits","tools":{INIT_TOOLS},"mcp_servers":[],"slash_commands":[],"plugins":[],"skills":[]}}'
 printf '%s\n' '{{"type":"assistant","request_id":"req_1","message":{{"content":[{{"type":"text","text":"working"}}]}}}}'
-printf '%s\n' '{{"type":"result","subtype":"error_max_budget_usd","is_error":true,"terminal_reason":"budget_exhausted","total_cost_usd":0.9,"usage":{{"input_tokens":41,"cache_creation_input_tokens":9,"cache_read_input_tokens":5,"output_tokens":7,"output_tokens_details":{{"thinking_tokens":1}}}}}}'
+printf '%s\n' '{{"type":"result","subtype":"error_max_budget_usd","is_error":true,"terminal_reason":"budget_exhausted","total_cost_usd":0.9,"modelUsage":{{"claude-opus-5":{{"inputTokens":50,"outputTokens":7,"costUSD":0.9}}}},"usage":{{"input_tokens":41,"cache_creation_input_tokens":9,"cache_read_input_tokens":5,"output_tokens":7,"output_tokens_details":{{"thinking_tokens":1}}}}}}'
 exit 1
 "##
             ),
@@ -2213,7 +2562,7 @@ exit 1
             &format!(
                 r##"cat >/dev/null
 printf '%s\n' '{{"type":"system","subtype":"init","session_id":"session-cost","claude_code_version":"2.1.227","model":"claude-opus-5","permissionMode":"acceptEdits","tools":{INIT_TOOLS},"mcp_servers":[],"slash_commands":[],"plugins":[],"skills":[]}}'
-printf '%s\n' '{{"type":"result","subtype":"success","is_error":false,"terminal_reason":"completed","total_cost_usd":4.0,"usage":{{"input_tokens":1,"output_tokens":1}}}}'
+printf '%s\n' '{{"type":"result","subtype":"success","is_error":false,"terminal_reason":"completed","total_cost_usd":4.0,"modelUsage":{{"claude-opus-5":{{"inputTokens":1,"outputTokens":1,"costUSD":4.0}}}},"usage":{{"input_tokens":1,"output_tokens":1}}}}'
 "##
             ),
         );
@@ -2278,8 +2627,8 @@ printf '%s\n' '{{"type":"result","subtype":"success","is_error":false,"total_cos
             &format!(
                 r##"cat >/dev/null
 printf '%s\n' '{{"type":"system","subtype":"init","session_id":"session-duplicate","claude_code_version":"2.1.227","model":"claude-opus-5","permissionMode":"acceptEdits","tools":{INIT_TOOLS},"mcp_servers":[],"slash_commands":[],"plugins":[],"skills":[]}}'
-printf '%s\n' '{{"type":"result","subtype":"success","is_error":false,"total_cost_usd":0.01,"usage":{{"input_tokens":1,"output_tokens":1}}}}'
-printf '%s\n' '{{"type":"result","subtype":"success","is_error":false,"total_cost_usd":0.01,"usage":{{"input_tokens":1,"output_tokens":1}}}}'
+printf '%s\n' '{{"type":"result","subtype":"success","is_error":false,"total_cost_usd":0.01,"modelUsage":{{"claude-opus-5":{{"inputTokens":1,"outputTokens":1,"costUSD":0.01}}}},"usage":{{"input_tokens":1,"output_tokens":1}}}}'
+printf '%s\n' '{{"type":"result","subtype":"success","is_error":false,"total_cost_usd":0.01,"modelUsage":{{"claude-opus-5":{{"inputTokens":1,"outputTokens":1,"costUSD":0.01}}}},"usage":{{"input_tokens":1,"output_tokens":1}}}}'
 "##
             ),
         );
@@ -2320,7 +2669,7 @@ printf '%s\n' '{"type":"system","subtype":"init","session_id":"session-reply","c
 printf '%s\n' '{"type":"assistant","request_id":"req_1","message":{"content":[{"type":"tool_use","id":"toolu_1","name":"mcp__ymp__submit","input":{"command_id":"agent.submit"}}]}}'
 printf '%s\n' '{"type":"user","message":{"content":[{"type":"tool_result","tool_use_id":"toolu_1","content":[{"type":"text","text":"{\"snapshot_digest\":\"a\"}"}]}]}}'
 printf '%s\n' '{"type":"user","message":{"content":[{"type":"tool_result","tool_use_id":"toolu_1","content":[{"type":"text","text":"{\"snapshot_digest\":\"a\"}"}]}]}}'
-printf '%s\n' '{"type":"result","subtype":"success","is_error":false,"total_cost_usd":0.01,"usage":{"input_tokens":1,"output_tokens":1}}'
+printf '%s\n' '{"type":"result","subtype":"success","is_error":false,"total_cost_usd":0.01,"modelUsage":{"claude-opus-5":{"inputTokens":1,"outputTokens":1,"costUSD":0.01}},"usage":{"input_tokens":1,"output_tokens":1}}'
 "##,
         );
         let mut session = ClaudeRuntime::new(&executable)
@@ -2398,7 +2747,7 @@ printf '%s\n' '{"type":"result","subtype":"success","is_error":false,"total_cost
                     r##"cat >/dev/null
 printf '%s\n' '{init}'
 printf '%s\n' 'model-traffic-started' > model.traffic
-printf '%s\n' '{{"type":"result","subtype":"success","is_error":false,"total_cost_usd":0.5,"usage":{{"input_tokens":1,"output_tokens":1}}}}'
+printf '%s\n' '{{"type":"result","subtype":"success","is_error":false,"total_cost_usd":0.5,"modelUsage":{{"claude-opus-5":{{"inputTokens":1,"outputTokens":1,"costUSD":0.5}}}},"usage":{{"input_tokens":1,"output_tokens":1}}}}'
 "##
                 ),
             );
@@ -2485,7 +2834,7 @@ if [ "$count" -eq 1 ]; then
 fi
 test "$(cat committed.progress)" = 'committed progress' || exit 29
 printf '%s\n' '{{"type":"assistant","request_id":"req_2","message":{{"content":[{{"type":"text","text":"resumed progress"}}]}}}}'
-printf '%s\n' '{{"type":"result","subtype":"success","is_error":false,"total_cost_usd":0.125,"usage":{{"input_tokens":11,"cache_read_input_tokens":7,"output_tokens":3}}}}'
+printf '%s\n' '{{"type":"result","subtype":"success","is_error":false,"total_cost_usd":0.125,"modelUsage":{{"claude-opus-5":{{"inputTokens":18,"outputTokens":3,"costUSD":0.125}}}},"usage":{{"input_tokens":11,"cache_read_input_tokens":7,"output_tokens":3}}}}'
 "##
             ),
         );
@@ -2676,7 +3025,7 @@ sleep 30
                 r##"cat >/dev/null
 printf '%s\n' admitted > admitted-runtime.marker
 printf '%s\n' '{{"type":"system","subtype":"init","session_id":"session-chain","claude_code_version":"2.1.227","model":"claude-opus-5","permissionMode":"acceptEdits","tools":{INIT_TOOLS},"mcp_servers":[],"slash_commands":[],"plugins":[],"skills":[]}}'
-printf '%s\n' '{{"type":"result","subtype":"success","is_error":false,"terminal_reason":"completed","total_cost_usd":0.001,"usage":{{"input_tokens":1,"output_tokens":1}}}}'
+printf '%s\n' '{{"type":"result","subtype":"success","is_error":false,"terminal_reason":"completed","total_cost_usd":0.001,"modelUsage":{{"claude-opus-5":{{"inputTokens":1,"outputTokens":1,"costUSD":0.001}}}},"usage":{{"input_tokens":1,"output_tokens":1}}}}'
 "##
             ),
         );
