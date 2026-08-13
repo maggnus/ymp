@@ -16,11 +16,16 @@ use std::collections::BTreeMap;
 use serde::Serialize;
 
 use super::budget::{BudgetVector, Dimension};
+use super::invocations::{
+    InvocationClosure, InvocationRecord, InvocationState, OpenAuthority, RootTerminal, StopReason,
+    Verdict, VerificationRecord, WakeCondition, WakeRegistration,
+};
 use super::protocol::{
-    AcceptOpen, AdvanceClock, Advertise, Award, CancelContract, CommitmentCommand, CommitmentError,
-    CommitmentEvent, MAX_AWARDS, MAX_LEASE_MS, MAX_SCOPE_ENTRIES, Reassign, RecordBid,
-    RegisterParticipant, RenewLease, ReturnObligation, SettleOffer, StartAttempt, SubmitResult,
-    WithdrawBid, WithdrawOffer,
+    AcceptOpen, AdvanceClock, Advertise, Award, CancelContract, CloseInvocation, CommitmentCommand,
+    CommitmentError, CommitmentEvent, MAX_ATTEMPT_WAKES, MAX_AWARDS, MAX_LEASE_MS,
+    MAX_SCOPE_ENTRIES, MAX_WAKE_CONDITIONS, Reassign, RecordBid, RecordVerification,
+    RegisterParticipant, RenewLease, ResumeInvocation, ReturnObligation, SettleOffer, StartAttempt,
+    StartInvocation, StopRun, SubmitResult, WithdrawBid, WithdrawOffer, YieldInvocation,
 };
 use super::records::{
     AccountRef, AttemptRecord, AttemptState, BidOrigin, BidRecord, BidState, ContractState,
@@ -58,6 +63,12 @@ pub(crate) enum Check {
     Covering,
     /// Only the participant holding the lease may close the obligation of a task contract.
     ReturnHolder,
+    /// Every process slice, first or resumed, is bought with one unit of creation authority.
+    InvocationStart,
+    /// A yielded slice resumes only after a committed fact its own registration named.
+    WakeMatch,
+    /// The slices of one attempt may be resumed only a bounded number of times.
+    WakeCount,
 }
 
 /// Checks a test build may switch off to prove that each one is load-bearing. The field does not
@@ -72,6 +83,9 @@ pub(crate) struct DisabledChecks {
     pub returning_reservation: bool,
     pub covering: bool,
     pub return_holder: bool,
+    pub invocation_start: bool,
+    pub wake_match: bool,
+    pub wake_count: bool,
 }
 
 /// Deliberate corruptions of the facts an accepted command emits, which a test build may switch on
@@ -99,12 +113,26 @@ pub struct CommitmentLedger {
     now: u64,
     initial_total: BudgetVector,
     consumed: BudgetVector,
+    /// The obligation the whole run is accountable for. Work hanging directly under it is what a
+    /// root-scope result and a root-scope verdict are about.
+    root_obligation: String,
     participants: BTreeMap<String, ParticipantRecord>,
     offers: BTreeMap<String, OfferRecord>,
     bids: BTreeMap<String, BidRecord>,
     contracts: BTreeMap<String, TaskContractRecord>,
     obligations: BTreeMap<String, ObligationRecord>,
     attempts: BTreeMap<String, AttemptRecord>,
+    invocations: BTreeMap<String, InvocationRecord>,
+    verifications: Vec<VerificationRecord>,
+    stopped: Option<StopReason>,
+    /// Every committed fact in the order it was committed. Its position, counted from one, is the
+    /// run sequence a cursor names.
+    ///
+    /// This is the authority a wake is decided against. A notification channel may coalesce,
+    /// duplicate, delay or drop what it carries without any of that being recoverable, so nothing
+    /// here is derived from one: what a participant missed is whatever lies after the cursor it
+    /// last recorded, and that question is answered from this list.
+    facts: Vec<CommitmentEvent>,
     #[cfg(test)]
     #[serde(skip)]
     disabled: DisabledChecks,
@@ -149,12 +177,17 @@ impl CommitmentLedger {
             now: 0,
             initial_total: budget,
             consumed: BudgetVector::ZERO,
+            root_obligation: root_obligation.to_owned(),
             participants,
             offers: BTreeMap::new(),
             bids: BTreeMap::new(),
             contracts: BTreeMap::new(),
             obligations,
             attempts: BTreeMap::new(),
+            invocations: BTreeMap::new(),
+            verifications: Vec::new(),
+            stopped: None,
+            facts: Vec::new(),
             #[cfg(test)]
             disabled: DisabledChecks::default(),
             #[cfg(test)]
@@ -199,6 +232,261 @@ impl CommitmentLedger {
         &self.attempts
     }
 
+    pub const fn invocations(&self) -> &BTreeMap<String, InvocationRecord> {
+        &self.invocations
+    }
+
+    pub fn verifications(&self) -> &[VerificationRecord] {
+        &self.verifications
+    }
+
+    pub const fn stopped(&self) -> Option<StopReason> {
+        self.stopped
+    }
+
+    pub fn root_obligation(&self) -> &str {
+        &self.root_obligation
+    }
+
+    /// Every fact committed so far, in the order it was committed.
+    pub fn facts(&self) -> &[CommitmentEvent] {
+        &self.facts
+    }
+
+    /// The run sequence of the last committed fact, which is where a reader that has seen
+    /// everything stands.
+    pub fn sequence(&self) -> u64 {
+        self.facts.len() as u64
+    }
+
+    /// The facts a reader holding this cursor has not seen. Recovery is this and nothing else: a
+    /// reader that missed every notification asks the same question and gets the same answer as one
+    /// that received all of them.
+    pub fn facts_after(&self, cursor: u64) -> &[CommitmentEvent] {
+        let from = usize::try_from(cursor)
+            .unwrap_or(usize::MAX)
+            .min(self.facts.len());
+        &self.facts[from..]
+    }
+
+    /// The first committed fact after an invocation's cursor that one of its registered conditions
+    /// names, by run sequence.
+    ///
+    /// Coalescing lives here: several matching facts are one answer, because what is asked is
+    /// whether there is anything worth resuming for and not how many times there was.
+    pub fn matching_fact(&self, invocation_id: &str) -> Option<u64> {
+        let invocation = self.invocations.get(invocation_id)?;
+        let wake = invocation.wake.as_ref()?;
+        let from = usize::try_from(invocation.cursor)
+            .unwrap_or(usize::MAX)
+            .min(self.facts.len());
+        self.facts[from..]
+            .iter()
+            .position(|fact| {
+                wake.conditions
+                    .iter()
+                    .any(|condition| condition.matches(fact))
+            })
+            .map(|offset| (from + offset + 1) as u64)
+    }
+
+    /// The yielded slices a controller may admit now, in the order it must admit them.
+    ///
+    /// The order is mechanical and is the whole of the fairness rule: principals take turns, and a
+    /// principal's own slices are taken in the order the facts recorded their yields. Nothing here
+    /// reads what a participant is for, how long it has waited in wall time, how much it holds, or
+    /// what the fact that woke it was about — one principal cannot buy a turn by yielding more
+    /// often, because extra slices of its own only lengthen its own queue.
+    pub fn admission_order(&self) -> Vec<&InvocationRecord> {
+        let mut queues: BTreeMap<&str, Vec<&InvocationRecord>> = BTreeMap::new();
+        for invocation in self.invocations.values() {
+            if !self.wake_is_admissible(invocation) {
+                continue;
+            }
+            let Some(participant) = self.participants.get(&invocation.participant) else {
+                continue;
+            };
+            queues
+                .entry(participant.principal_id.as_str())
+                .or_default()
+                .push(invocation);
+        }
+        let mut principals: Vec<(&str, Vec<&InvocationRecord>)> = queues.into_iter().collect();
+        for (_, queue) in &mut principals {
+            queue.sort_by_key(|invocation| invocation.yielded_at);
+        }
+        // Whose turn comes first is decided by durable record order too: the principal whose
+        // earliest waiting slice was recorded first.
+        principals.sort_by_key(|(principal, queue)| {
+            (
+                queue.first().map_or(u64::MAX, |first| first.yielded_at),
+                *principal,
+            )
+        });
+        let rounds = principals
+            .iter()
+            .map(|(_, queue)| queue.len())
+            .max()
+            .unwrap_or(0);
+        let mut order = Vec::new();
+        for round in 0..rounds {
+            for (_, queue) in &principals {
+                if let Some(invocation) = queue.get(round) {
+                    order.push(*invocation);
+                }
+            }
+        }
+        order
+    }
+
+    /// The first funded control object that can still advance the run, or `None` when the run is
+    /// quiescent.
+    ///
+    /// Only funded control objects appear here. A wake that nothing pays for, one whose deadline has
+    /// passed, and one held by a slice whose lease is gone or whose contract has changed hands are
+    /// all absent, which is what stops a participant nobody will ever resume from keeping a run
+    /// open. Nothing that is merely unread, unanswered or unrefreshed is a control object at all.
+    pub fn open_authority(&self) -> Option<OpenAuthority> {
+        if let Some(invocation) = self
+            .invocations
+            .values()
+            .find(|invocation| invocation.state == InvocationState::Running)
+        {
+            return Some(OpenAuthority::Invocation {
+                invocation_id: invocation.invocation_id.clone(),
+            });
+        }
+        if let Some(invocation) = self
+            .invocations
+            .values()
+            .find(|invocation| self.wake_is_live(invocation))
+        {
+            return Some(OpenAuthority::FundedWake {
+                invocation_id: invocation.invocation_id.clone(),
+            });
+        }
+        if let Some(obligation) = self.obligations.values().find(|obligation| {
+            obligation.parent.is_some() && obligation.state != ObligationState::Terminal
+        }) {
+            return Some(OpenAuthority::Obligation {
+                obligation_id: obligation.obligation_id.clone(),
+            });
+        }
+        if let Some(offer) = self
+            .offers
+            .values()
+            .find(|offer| offer.state != OfferState::Settled)
+        {
+            return Some(OpenAuthority::Offer {
+                offer_id: offer.offer_id.clone(),
+            });
+        }
+        None
+    }
+
+    /// How the run ended, or `None` while a funded control object can still advance it.
+    ///
+    /// Quiescence is not one of the answers. Running out of funded work is `Exhausted`, and the
+    /// only route to `Accepted` is a protected query that passed against the exact candidate of a
+    /// task contract hanging directly under the root obligation. A run that went quiet, spent its
+    /// last unit, or was handed a result nobody verified reaches a non-success state and says so.
+    pub fn root_terminal(&self) -> Option<RootTerminal> {
+        self.open_authority().is_none().then(|| {
+            if self.stopped == Some(StopReason::InfrastructureError)
+                || self.root_scope_verdict(Verdict::InfrastructureError)
+                || self.root_scope_outcome(|outcome| *outcome == Outcome::InfrastructureError)
+            {
+                return RootTerminal::InfrastructureError;
+            }
+            if self.stopped == Some(StopReason::Cancelled) {
+                return RootTerminal::Cancelled;
+            }
+            if self.root_scope_verdict(Verdict::Passed) {
+                return RootTerminal::Accepted;
+            }
+            // An allowed stopping policy: every piece of root-scope work that returned said it had
+            // nothing further to offer, rather than offering something nothing verified.
+            let returns = self.root_scope_returns();
+            if !returns.is_empty()
+                && returns
+                    .iter()
+                    .all(|outcome| matches!(outcome, Outcome::Declined | Outcome::DeadEnd))
+            {
+                return RootTerminal::Abstained;
+            }
+            RootTerminal::Exhausted
+        })
+    }
+
+    /// Whether a yielded slice still holds a wake somebody paid for and time to use it in.
+    fn wake_is_live(&self, invocation: &InvocationRecord) -> bool {
+        if invocation.state != InvocationState::Yielded {
+            return false;
+        }
+        let Some(wake) = &invocation.wake else {
+            return false;
+        };
+        if wake.conditions.is_empty() || self.now > wake.wake_deadline {
+            return false;
+        }
+        if self.attempt_wakes(&invocation.attempt_id) >= MAX_ATTEMPT_WAKES {
+            return false;
+        }
+        let Some(contract) = self.contracts.get(&invocation.contract_id) else {
+            return false;
+        };
+        contract.state == ContractState::Active
+            && contract.lease.generation == invocation.generation
+            && self.now <= contract.lease.expires_at
+            && contract
+                .escrow
+                .covers(&BudgetVector::unit(Dimension::InvocationStarts))
+    }
+
+    /// Whether a yielded slice is not merely alive but has something committed to resume for.
+    fn wake_is_admissible(&self, invocation: &InvocationRecord) -> bool {
+        self.wake_is_live(invocation) && self.matching_fact(&invocation.invocation_id).is_some()
+    }
+
+    /// How many times the slices of one attempt have been resumed.
+    fn attempt_wakes(&self, attempt_id: &str) -> u32 {
+        self.invocations
+            .values()
+            .filter(|invocation| invocation.attempt_id == attempt_id)
+            .map(|invocation| invocation.wakes_used)
+            .sum()
+    }
+
+    /// Whether a task contract hangs directly under the obligation the whole run is accountable
+    /// for. A pass there can end the run; a pass one level down is evidence for one parent.
+    fn is_root_scope(&self, contract_id: &str) -> bool {
+        self.contracts
+            .get(contract_id)
+            .and_then(|contract| self.obligations.get(&contract.obligation_id))
+            .and_then(|obligation| obligation.parent.as_deref())
+            .is_some_and(|parent| parent == self.root_obligation)
+    }
+
+    fn root_scope_verdict(&self, verdict: Verdict) -> bool {
+        self.verifications
+            .iter()
+            .any(|record| record.root_scope && record.verdict == verdict)
+    }
+
+    fn root_scope_returns(&self) -> Vec<&Outcome> {
+        self.obligations
+            .values()
+            .filter(|obligation| {
+                obligation.parent.as_deref() == Some(self.root_obligation.as_str())
+            })
+            .filter_map(|obligation| obligation.outcome.as_ref())
+            .collect()
+    }
+
+    fn root_scope_outcome(&self, predicate: impl Fn(&Outcome) -> bool) -> bool {
+        self.root_scope_returns().into_iter().any(predicate)
+    }
+
     #[cfg(test)]
     pub(crate) fn disable_checks(&mut self, disabled: DisabledChecks) {
         self.disabled = disabled;
@@ -214,6 +502,9 @@ impl CommitmentLedger {
             Check::ReturningReservation => !self.disabled.returning_reservation,
             Check::Covering => !self.disabled.covering,
             Check::ReturnHolder => !self.disabled.return_holder,
+            Check::InvocationStart => !self.disabled.invocation_start,
+            Check::WakeMatch => !self.disabled.wake_match,
+            Check::WakeCount => !self.disabled.wake_count,
         }
     }
 
@@ -326,13 +617,29 @@ impl CommitmentLedger {
             CommitmentCommand::ReturnObligation(command) => self.decide_return(command),
             CommitmentCommand::CancelContract(command) => self.decide_cancel(command),
             CommitmentCommand::AdvanceClock(command) => self.decide_advance_clock(command),
+            CommitmentCommand::StartInvocation(command) => self.decide_start_invocation(command),
+            CommitmentCommand::YieldInvocation(command) => self.decide_yield(command),
+            CommitmentCommand::ResumeInvocation(command) => self.decide_resume(command),
+            CommitmentCommand::CloseInvocation(command) => self.decide_close_invocation(command),
+            CommitmentCommand::RecordVerification(command) => self.decide_verification(command),
+            CommitmentCommand::StopRun(command) => self.decide_stop_run(command),
         }
+    }
+
+    /// Whether the run still creates anything. A stopped run winds down: what exists is returned,
+    /// settled and closed, and nothing new is begun, extended or paid for.
+    fn ensure_run_creates(&self) -> Result<(), CommitmentError> {
+        if self.stopped.is_some() {
+            return Err(CommitmentError::RunStopped);
+        }
+        Ok(())
     }
 
     fn decide_register(
         &self,
         command: &RegisterParticipant,
     ) -> Result<Vec<CommitmentEvent>, CommitmentError> {
+        self.ensure_run_creates()?;
         validate_identifier("participant_id", &command.participant_id)?;
         validate_identifier("principal_id", &command.principal_id)?;
         let sponsor = self.participant(&command.sponsor)?;
@@ -371,6 +678,7 @@ impl CommitmentLedger {
         &self,
         command: &Advertise,
     ) -> Result<Vec<CommitmentEvent>, CommitmentError> {
+        self.ensure_run_creates()?;
         validate_identifier("offer_id", &command.offer_id)?;
         validate_identifier("task_scope", &command.task_scope)?;
         validate_identifier("artifact_class", &command.artifact_class)?;
@@ -456,6 +764,7 @@ impl CommitmentLedger {
     }
 
     fn decide_bid(&self, command: &RecordBid) -> Result<Vec<CommitmentEvent>, CommitmentError> {
+        self.ensure_run_creates()?;
         validate_identifier("bid_id", &command.bid_id)?;
         validate_identifier("artifact_class", &command.artifact_class)?;
         if let Some(digest) = &command.proposal_digest {
@@ -701,6 +1010,7 @@ impl CommitmentLedger {
             lease_id,
             lease_ms,
         } = *formation;
+        self.ensure_run_creates()?;
         validate_identifier("contract_id", contract_id)?;
         validate_identifier("obligation_id", obligation_id)?;
         validate_identifier("lease_id", lease_id)?;
@@ -841,6 +1151,7 @@ impl CommitmentLedger {
         &self,
         command: &StartAttempt,
     ) -> Result<Vec<CommitmentEvent>, CommitmentError> {
+        self.ensure_run_creates()?;
         validate_identifier("attempt_id", &command.attempt_id)?;
         if self.attempts.contains_key(&command.attempt_id) {
             return Err(CommitmentError::DuplicateIdentifier {
@@ -875,6 +1186,7 @@ impl CommitmentLedger {
     }
 
     fn decide_renew(&self, command: &RenewLease) -> Result<Vec<CommitmentEvent>, CommitmentError> {
+        self.ensure_run_creates()?;
         if !(1..=MAX_LEASE_MS).contains(&command.lease_ms) {
             return Err(CommitmentError::InvalidLeaseDuration);
         }
@@ -935,6 +1247,7 @@ impl CommitmentLedger {
     /// the consent that replaces the old one; the previous generation can no longer advance
     /// anything.
     fn decide_reassign(&self, command: &Reassign) -> Result<Vec<CommitmentEvent>, CommitmentError> {
+        self.ensure_run_creates()?;
         validate_identifier("lease_id", &command.lease_id)?;
         if !(1..=MAX_LEASE_MS).contains(&command.lease_ms) {
             return Err(CommitmentError::InvalidLeaseDuration);
@@ -1070,6 +1383,322 @@ impl CommitmentLedger {
             });
         }
         Ok(vec![CommitmentEvent::ClockAdvanced { to: command.to }])
+    }
+
+    /// Begin one supervised process slice. It costs one unit of creation authority whether it is
+    /// the first slice of an attempt or a later one, so a participant that keeps starting processes
+    /// runs out of the authority to do so.
+    fn decide_start_invocation(
+        &self,
+        command: &StartInvocation,
+    ) -> Result<Vec<CommitmentEvent>, CommitmentError> {
+        self.ensure_run_creates()?;
+        validate_identifier("invocation_id", &command.invocation_id)?;
+        if self.invocations.contains_key(&command.invocation_id) {
+            return Err(CommitmentError::DuplicateIdentifier {
+                kind: "invocation",
+                id: command.invocation_id.clone(),
+            });
+        }
+        let contract = self.active_contract(&command.contract_id)?;
+        self.ensure_holder(contract, &command.participant)?;
+        self.ensure_generation(contract, command.generation)?;
+        self.ensure_lease_live(contract)?;
+        let attempt = self.attempt(&command.attempt_id)?;
+        if attempt.contract_id != contract.contract_id {
+            return Err(CommitmentError::AttemptMismatch {
+                attempt_id: attempt.attempt_id.clone(),
+                contract_id: contract.contract_id.clone(),
+            });
+        }
+        // An attempt from before a reassignment cannot be run again: what closed it was the
+        // contract changing hands, and its generation says so.
+        if self.enforces(Check::Fencing) && attempt.generation != contract.lease.generation {
+            return Err(CommitmentError::StaleGeneration {
+                contract_id: contract.contract_id.clone(),
+                seen: attempt.generation,
+                current: contract.lease.generation,
+            });
+        }
+        self.ensure_cursor_committed(command.cursor)?;
+        let account = AccountRef::TaskContract {
+            contract_id: contract.contract_id.clone(),
+        };
+        let started = CommitmentEvent::InvocationStarted {
+            invocation_id: command.invocation_id.clone(),
+            attempt_id: command.attempt_id.clone(),
+            contract_id: contract.contract_id.clone(),
+            participant: command.participant.clone(),
+            generation: command.generation,
+            cursor: command.cursor,
+        };
+        self.with_invocation_start(account, started)
+    }
+
+    /// End a process slice without returning the task contract, registering what would be worth
+    /// resuming for.
+    ///
+    /// The conditions name committed facts and the cursor says which of them are still ahead. The
+    /// deadline may not outlive the lease, because a wake that outlived the wall time somebody paid
+    /// for would keep the run open on capacity nobody holds.
+    fn decide_yield(
+        &self,
+        command: &YieldInvocation,
+    ) -> Result<Vec<CommitmentEvent>, CommitmentError> {
+        let invocation = self.invocation(&command.invocation_id)?;
+        if invocation.state != InvocationState::Running {
+            return Err(CommitmentError::InvocationNotRunning {
+                invocation_id: invocation.invocation_id.clone(),
+            });
+        }
+        if invocation.participant != command.participant {
+            return Err(CommitmentError::NotAuthorized {
+                principal: command.participant.clone(),
+            });
+        }
+        let contract = self.active_contract(&invocation.contract_id)?;
+        self.ensure_holder(contract, &command.participant)?;
+        self.ensure_generation(contract, command.generation)?;
+        self.ensure_lease_live(contract)?;
+        if !(1..=MAX_WAKE_CONDITIONS).contains(&command.conditions.len()) {
+            return Err(CommitmentError::InvalidWakeConditions);
+        }
+        for condition in &command.conditions {
+            validate_condition(condition)?;
+        }
+        if command.cursor < invocation.cursor {
+            return Err(CommitmentError::CursorRegression {
+                current: invocation.cursor,
+                seen: command.cursor,
+            });
+        }
+        self.ensure_cursor_committed(command.cursor)?;
+        if command.wake_deadline > contract.lease.expires_at {
+            return Err(CommitmentError::WakeDeadlineUnfunded {
+                contract_id: contract.contract_id.clone(),
+                wake_deadline: command.wake_deadline,
+                expires_at: contract.lease.expires_at,
+            });
+        }
+        Ok(vec![CommitmentEvent::InvocationYielded {
+            invocation_id: command.invocation_id.clone(),
+            cursor: command.cursor,
+            conditions: command.conditions.clone(),
+            wake_deadline: command.wake_deadline,
+        }])
+    }
+
+    /// Admit a yielded slice back into a running process.
+    ///
+    /// This is the only transition whose precondition is a fact rather than a record: without a
+    /// committed fact after the cursor that one of the registered conditions names, there is
+    /// nothing to resume for and the command is refused. The sequence of that fact is committed
+    /// with the resumption, so what authorized every wake stays readable in the stream.
+    fn decide_resume(
+        &self,
+        command: &ResumeInvocation,
+    ) -> Result<Vec<CommitmentEvent>, CommitmentError> {
+        self.ensure_run_creates()?;
+        let invocation = self.invocation(&command.invocation_id)?;
+        if invocation.state != InvocationState::Yielded {
+            return Err(CommitmentError::InvocationNotYielded {
+                invocation_id: invocation.invocation_id.clone(),
+            });
+        }
+        if invocation.participant != command.participant {
+            return Err(CommitmentError::NotAuthorized {
+                principal: command.participant.clone(),
+            });
+        }
+        let wake =
+            invocation
+                .wake
+                .as_ref()
+                .ok_or_else(|| CommitmentError::InvocationNotYielded {
+                    invocation_id: invocation.invocation_id.clone(),
+                })?;
+        if self.now > wake.wake_deadline {
+            return Err(CommitmentError::WakeDeadlinePassed {
+                invocation_id: invocation.invocation_id.clone(),
+                wake_deadline: wake.wake_deadline,
+                now: self.now,
+            });
+        }
+        let contract = self.active_contract(&invocation.contract_id)?;
+        self.ensure_holder(contract, &command.participant)?;
+        self.ensure_generation(contract, command.generation)?;
+        self.ensure_generation(contract, invocation.generation)?;
+        self.ensure_lease_live(contract)?;
+        if self.enforces(Check::WakeCount)
+            && self.attempt_wakes(&invocation.attempt_id) >= MAX_ATTEMPT_WAKES
+        {
+            return Err(CommitmentError::WakeBudgetExhausted {
+                attempt_id: invocation.attempt_id.clone(),
+            });
+        }
+        let matched = self.matching_fact(&command.invocation_id);
+        if self.enforces(Check::WakeMatch) && matched.is_none() {
+            return Err(CommitmentError::NoMatchingEvent {
+                invocation_id: invocation.invocation_id.clone(),
+                cursor: invocation.cursor,
+            });
+        }
+        let account = AccountRef::TaskContract {
+            contract_id: contract.contract_id.clone(),
+        };
+        let resumed = CommitmentEvent::InvocationResumed {
+            invocation_id: command.invocation_id.clone(),
+            contract_id: contract.contract_id.clone(),
+            participant: command.participant.clone(),
+            generation: command.generation,
+            matched_sequence: matched.unwrap_or(0),
+            wakes_used: invocation.wakes_used.saturating_add(1),
+        };
+        self.with_invocation_start(account, resumed)
+    }
+
+    /// One process slice and the creation authority that buys it, as one indivisible pair.
+    fn with_invocation_start(
+        &self,
+        account: AccountRef,
+        slice: CommitmentEvent,
+    ) -> Result<Vec<CommitmentEvent>, CommitmentError> {
+        if !self.enforces(Check::InvocationStart) {
+            return Ok(vec![slice]);
+        }
+        let authority = BudgetVector::unit(Dimension::InvocationStarts);
+        self.ensure_covers(&account, &authority)?;
+        Ok(vec![
+            slice,
+            CommitmentEvent::BudgetConsumed {
+                account,
+                amount: authority,
+            },
+        ])
+    }
+
+    /// End a process slice for good. Its own participant may close it, and so may the sponsor of
+    /// its task contract, which is how a participant that stopped answering is recorded as lost.
+    fn decide_close_invocation(
+        &self,
+        command: &CloseInvocation,
+    ) -> Result<Vec<CommitmentEvent>, CommitmentError> {
+        let invocation = self.invocation(&command.invocation_id)?;
+        if invocation.state == InvocationState::Closed {
+            return Err(CommitmentError::InvocationNotRunning {
+                invocation_id: invocation.invocation_id.clone(),
+            });
+        }
+        let sponsor = self
+            .contracts
+            .get(&invocation.contract_id)
+            .map(|contract| contract.sponsor.as_str());
+        if invocation.participant != command.closer && sponsor != Some(command.closer.as_str()) {
+            return Err(CommitmentError::NotAuthorized {
+                principal: command.closer.clone(),
+            });
+        }
+        // A deadline is a fact about the clock, not a claim: it may be recorded only once it has
+        // actually passed.
+        if command.reason == InvocationClosure::WakeDeadlineExpired {
+            let deadline = invocation
+                .wake
+                .as_ref()
+                .map_or(0, |wake| wake.wake_deadline);
+            if invocation.state != InvocationState::Yielded || self.now <= deadline {
+                return Err(CommitmentError::WakeDeadlinePassed {
+                    invocation_id: invocation.invocation_id.clone(),
+                    wake_deadline: deadline,
+                    now: self.now,
+                });
+            }
+        }
+        Ok(vec![CommitmentEvent::InvocationClosed {
+            invocation_id: command.invocation_id.clone(),
+            reason: command.reason,
+        }])
+    }
+
+    /// Spend one protected-query reservation on the exact candidate a task contract recorded.
+    ///
+    /// The digest is compared rather than trusted: a query names the candidate that was actually
+    /// submitted, so a verdict cannot be attached to a different bundle afterwards.
+    fn decide_verification(
+        &self,
+        command: &RecordVerification,
+    ) -> Result<Vec<CommitmentEvent>, CommitmentError> {
+        self.ensure_run_creates()?;
+        validate_digest("candidate_digest", &command.candidate_digest)?;
+        let contract = self.active_contract(&command.contract_id)?;
+        self.ensure_holder(contract, &command.participant)?;
+        self.ensure_generation(contract, command.generation)?;
+        self.ensure_lease_live(contract)?;
+        let Some(recorded) = &contract.candidate_digest else {
+            return Err(CommitmentError::NoCandidate {
+                contract_id: contract.contract_id.clone(),
+            });
+        };
+        if recorded != &command.candidate_digest {
+            return Err(CommitmentError::CandidateMismatch {
+                contract_id: contract.contract_id.clone(),
+                candidate_digest: command.candidate_digest.clone(),
+            });
+        }
+        let account = AccountRef::TaskContract {
+            contract_id: contract.contract_id.clone(),
+        };
+        let reservation = BudgetVector::unit(Dimension::VerificationQueries);
+        self.ensure_covers(&account, &reservation)?;
+        Ok(vec![
+            CommitmentEvent::VerificationRecorded {
+                contract_id: contract.contract_id.clone(),
+                candidate_digest: command.candidate_digest.clone(),
+                verdict: command.verdict,
+                root_scope: self.is_root_scope(&contract.contract_id),
+            },
+            // An infrastructure error consumes the reservation like any other verdict. Nothing was
+            // learned about the candidate, and the query was spent all the same.
+            CommitmentEvent::BudgetConsumed {
+                account,
+                amount: reservation,
+            },
+        ])
+    }
+
+    /// Stop the run. Only the participant the root obligation belongs to may do it.
+    fn decide_stop_run(&self, command: &StopRun) -> Result<Vec<CommitmentEvent>, CommitmentError> {
+        if self.stopped.is_some() {
+            return Err(CommitmentError::RunAlreadyStopped);
+        }
+        let root = self.obligation(&self.root_obligation)?;
+        if root.owner != command.authority {
+            return Err(CommitmentError::NotAuthorized {
+                principal: command.authority.clone(),
+            });
+        }
+        Ok(vec![CommitmentEvent::RunStopped {
+            authority: command.authority.clone(),
+            reason: command.reason,
+        }])
+    }
+
+    fn ensure_cursor_committed(&self, cursor: u64) -> Result<(), CommitmentError> {
+        if cursor > self.sequence() {
+            return Err(CommitmentError::CursorAhead {
+                seen: cursor,
+                committed: self.sequence(),
+            });
+        }
+        Ok(())
+    }
+
+    fn invocation(&self, invocation_id: &str) -> Result<&InvocationRecord, CommitmentError> {
+        self.invocations
+            .get(invocation_id)
+            .ok_or_else(|| CommitmentError::Unknown {
+                kind: "invocation",
+                id: invocation_id.to_owned(),
+            })
     }
 
     /// Unspent escrow returns to the account that funded the offer this contract came from.
@@ -1357,6 +1986,8 @@ impl CommitmentLedger {
     /// cannot be recorded is a defect in that deciding rather than an ordinary refusal: it is
     /// reported instead of dropped, and the caller discards the copy it was being written to.
     fn apply(&mut self, event: &CommitmentEvent) -> Result<(), CommitmentError> {
+        self.facts.push(event.clone());
+        let sequence = self.sequence();
         match event {
             CommitmentEvent::ClockAdvanced { to } => self.now = *to,
             CommitmentEvent::ParticipantRegistered {
@@ -1576,6 +2207,7 @@ impl CommitmentLedger {
                         attempt.state = AttemptState::Closed;
                     }
                 }
+                Self::supersede_invocations(&mut self.invocations, contract_id);
             }
             CommitmentEvent::AttemptStarted {
                 attempt_id,
@@ -1625,6 +2257,84 @@ impl CommitmentLedger {
                 }
                 self.close_contract(contract_id, ContractState::Cancelled);
             }
+            CommitmentEvent::InvocationStarted {
+                invocation_id,
+                attempt_id,
+                contract_id,
+                participant,
+                generation,
+                cursor,
+            } => {
+                self.invocations.insert(
+                    invocation_id.clone(),
+                    InvocationRecord {
+                        invocation_id: invocation_id.clone(),
+                        attempt_id: attempt_id.clone(),
+                        contract_id: contract_id.clone(),
+                        participant: participant.clone(),
+                        generation: *generation,
+                        cursor: *cursor,
+                        state: InvocationState::Running,
+                        wake: None,
+                        yielded_at: 0,
+                        wakes_used: 0,
+                        closure: None,
+                    },
+                );
+            }
+            CommitmentEvent::InvocationYielded {
+                invocation_id,
+                cursor,
+                conditions,
+                wake_deadline,
+            } => {
+                if let Some(invocation) = self.invocations.get_mut(invocation_id) {
+                    invocation.state = InvocationState::Yielded;
+                    invocation.cursor = *cursor;
+                    invocation.wake = Some(WakeRegistration {
+                        conditions: conditions.clone(),
+                        wake_deadline: *wake_deadline,
+                    });
+                    invocation.yielded_at = sequence;
+                }
+            }
+            CommitmentEvent::InvocationResumed {
+                invocation_id,
+                wakes_used,
+                ..
+            } => {
+                if let Some(invocation) = self.invocations.get_mut(invocation_id) {
+                    invocation.state = InvocationState::Running;
+                    invocation.wake = None;
+                    invocation.wakes_used = *wakes_used;
+                }
+            }
+            CommitmentEvent::InvocationClosed {
+                invocation_id,
+                reason,
+            } => {
+                if let Some(invocation) = self.invocations.get_mut(invocation_id) {
+                    invocation.state = InvocationState::Closed;
+                    invocation.wake = None;
+                    invocation.closure = Some(*reason);
+                }
+            }
+            CommitmentEvent::VerificationRecorded {
+                contract_id,
+                candidate_digest,
+                verdict,
+                root_scope,
+            } => {
+                self.verifications.push(VerificationRecord {
+                    contract_id: contract_id.clone(),
+                    candidate_digest: candidate_digest.clone(),
+                    verdict: *verdict,
+                    root_scope: *root_scope,
+                });
+            }
+            CommitmentEvent::RunStopped { reason, .. } => {
+                self.stopped.get_or_insert(*reason);
+            }
         }
         Ok(())
     }
@@ -1636,6 +2346,23 @@ impl CommitmentLedger {
         for attempt in self.attempts.values_mut() {
             if attempt.contract_id == contract_id {
                 attempt.state = AttemptState::Closed;
+            }
+        }
+        // A process slice of a contract that has closed or changed hands has nothing left to
+        // advance. Leaving it open would let a wake nobody can honour hold the run alive.
+        Self::supersede_invocations(&mut self.invocations, contract_id);
+    }
+
+    fn supersede_invocations(
+        invocations: &mut BTreeMap<String, InvocationRecord>,
+        contract_id: &str,
+    ) {
+        for invocation in invocations.values_mut() {
+            if invocation.contract_id == contract_id && invocation.state != InvocationState::Closed
+            {
+                invocation.state = InvocationState::Closed;
+                invocation.wake = None;
+                invocation.closure = Some(InvocationClosure::Superseded);
             }
         }
     }
@@ -1727,6 +2454,26 @@ fn validate_identifier(kind: &'static str, value: &str) -> Result<(), Commitment
         Ok(())
     } else {
         Err(CommitmentError::InvalidIdentifier { kind })
+    }
+}
+
+/// A wake condition carries one identifier and nothing else, so validating it is validating that
+/// identifier. There is no payload here to bound, because there is no payload.
+fn validate_condition(condition: &WakeCondition) -> Result<(), CommitmentError> {
+    match condition {
+        WakeCondition::ObligationReturned { obligation_id } => {
+            validate_identifier("obligation_id", obligation_id)
+        }
+        WakeCondition::BidRecorded { offer_id } | WakeCondition::OfferClosed { offer_id } => {
+            validate_identifier("offer_id", offer_id)
+        }
+        WakeCondition::LeaseIssued { contract_id }
+        | WakeCondition::SubmissionRecorded { contract_id }
+        | WakeCondition::ContractCancelled { contract_id }
+        | WakeCondition::VerificationRecorded { contract_id } => {
+            validate_identifier("contract_id", contract_id)
+        }
+        WakeCondition::RunStopped => Ok(()),
     }
 }
 

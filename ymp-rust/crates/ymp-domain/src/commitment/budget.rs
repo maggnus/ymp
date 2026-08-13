@@ -26,13 +26,17 @@ pub enum Dimension {
     ParticipantStarts,
     /// Permission to start one further attempt.
     AttemptStarts,
+    /// Permission to run one further supervised process slice, whether it is the first slice of an
+    /// attempt or the resumption of one that yielded. It is counted apart from the attempt so that
+    /// waking a participant costs something: an attempt that yields and resumes buys each slice.
+    InvocationStarts,
     /// Permission to create one further offer.
     OfferCreations,
     /// Permission to create one further work obligation.
     ObligationCreations,
 }
 
-pub const DIMENSIONS: [Dimension; 9] = [
+pub const DIMENSIONS: [Dimension; 10] = [
     Dimension::MoneyMicros,
     Dimension::ModelTokens,
     Dimension::WallTimeMs,
@@ -40,6 +44,7 @@ pub const DIMENSIONS: [Dimension; 9] = [
     Dimension::ExternalActions,
     Dimension::ParticipantStarts,
     Dimension::AttemptStarts,
+    Dimension::InvocationStarts,
     Dimension::OfferCreations,
     Dimension::ObligationCreations,
 ];
@@ -68,8 +73,9 @@ impl Dimension {
             Self::ExternalActions => 4,
             Self::ParticipantStarts => 5,
             Self::AttemptStarts => 6,
-            Self::OfferCreations => 7,
-            Self::ObligationCreations => 8,
+            Self::InvocationStarts => 7,
+            Self::OfferCreations => 8,
+            Self::ObligationCreations => 9,
         }
     }
 
@@ -82,6 +88,7 @@ impl Dimension {
             | Self::ExternalActions => DimensionKind::Capacity,
             Self::ParticipantStarts
             | Self::AttemptStarts
+            | Self::InvocationStarts
             | Self::OfferCreations
             | Self::ObligationCreations => DimensionKind::CreationAuthority,
         }
@@ -96,6 +103,7 @@ impl Dimension {
             Self::ExternalActions => "external_actions",
             Self::ParticipantStarts => "participant_starts",
             Self::AttemptStarts => "attempt_starts",
+            Self::InvocationStarts => "invocation_starts",
             Self::OfferCreations => "offer_creations",
             Self::ObligationCreations => "obligation_creations",
         }

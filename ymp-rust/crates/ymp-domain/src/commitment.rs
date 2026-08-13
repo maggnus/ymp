@@ -18,6 +18,7 @@
 //! that the name was honestly obtained, and nothing here should be read as if it could.
 
 mod budget;
+mod invocations;
 mod ledger;
 mod protocol;
 mod records;
@@ -28,12 +29,17 @@ mod schedules;
 mod tests;
 
 pub use budget::{BudgetVector, DIMENSION_COUNT, DIMENSIONS, Dimension, DimensionKind};
+pub use invocations::{
+    InvocationClosure, InvocationRecord, InvocationState, OpenAuthority, RootTerminal, StopReason,
+    Verdict, VerificationRecord, WakeCondition, WakeRegistration,
+};
 pub use ledger::CommitmentLedger;
 pub use protocol::{
-    AcceptOpen, AdvanceClock, Advertise, Award, CancelContract, CommitmentCommand, CommitmentError,
-    CommitmentEvent, MAX_AWARDS, MAX_LEASE_MS, MAX_SCOPE_ENTRIES, Reassign, RecordBid,
-    RegisterParticipant, RenewLease, ReturnObligation, SettleOffer, StartAttempt, SubmitResult,
-    WithdrawBid, WithdrawOffer,
+    AcceptOpen, AdvanceClock, Advertise, Award, CancelContract, CloseInvocation, CommitmentCommand,
+    CommitmentError, CommitmentEvent, MAX_ATTEMPT_WAKES, MAX_AWARDS, MAX_LEASE_MS,
+    MAX_SCOPE_ENTRIES, MAX_WAKE_CONDITIONS, Reassign, RecordBid, RecordVerification,
+    RegisterParticipant, RenewLease, ResumeInvocation, ReturnObligation, SettleOffer, StartAttempt,
+    StartInvocation, StopRun, SubmitResult, WithdrawBid, WithdrawOffer, YieldInvocation,
 };
 pub use records::{
     AccountRef, AttemptRecord, AttemptState, BidOrigin, BidRecord, BidState, ContractState,
