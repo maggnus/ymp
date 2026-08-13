@@ -28,6 +28,7 @@
 | `[ ]` | [`W1-APP-02l`](waves/W1/W1-APP-02/tasks/W1-APP-02l.md) | Runtime evidence names the models that spent and the environment it passed | — | — | — |
 | `[~]` | [`W1-APP-02m`](waves/W1/W1-APP-02/tasks/W1-APP-02m.md) | A typed prompt becomes a contract and starts a run | [`3f420b4f`](https://github.com/maggnus/ymp/commit/3f420b4f1eea91a8c6ed563b76ca1bc359563130) | 13/08 12:45 | 13/08 12:40 (0m) |
 | `[ ]` | [`W1-APP-02n`](waves/W1/W1-APP-02/tasks/W1-APP-02n.md) | Every interface action exists as a command of the same executable | — | — | — |
+| `[ ]` | [`W1-APP-02o`](waves/W1/W1-APP-02/tasks/W1-APP-02o.md) | The shipped binary carries no path that starts a run without a contract | — | — | — |
 | `[ ]` | [`W1-COR-03`](waves/W1/W1-COR-03/CARD.md) | Bounded local commitments self-organize and terminate | — | — | — |
 | `[ ]` | [`W1-COR-03a`](waves/W1/W1-COR-03/tasks/W1-COR-03a.md) | Local commitments conserve budgets and close obligations | — | — | — |
 | `[ ]` | [`W1-COR-03b`](waves/W1/W1-COR-03/tasks/W1-COR-03b.md) | Yielded participants resume finitely and runs terminate honestly | — | — | — |

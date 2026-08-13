@@ -1,0 +1,88 @@
+---
+id: W1-APP-02o
+kind: task
+wave: W1
+card: W1-APP-02
+state: ready
+risk: significant
+maturity: BUILD
+relation: required
+depends_on: [W1-APP-02m]
+blocks: []
+created_at: 2026-08-13T14:47:29+08:00
+updated_at: 2026-08-13T14:47:29+08:00
+started_at:
+accepted_at:
+candidate_commit:
+closure_commit:
+evidence:
+duration_minutes: 0
+blocker:
+pause_reason:
+return_trigger:
+deliberate_partial: false
+---
+
+# W1-APP-02o — The shipped binary carries no path that starts a run without a contract
+
+## Outcome
+
+The executable a user runs contains no route that begins a run outside the single approved-contract
+scenario, and the check that enforces this covers the whole shipped dependency set rather than the
+crates that happened to be listed.
+
+## Scope
+
+### In
+
+- The test kit's place in the dependency graph of the shipped binary, and any other crate that can
+  begin a run.
+- The structural check that forbids starting a run outside the scenario, including what it currently
+  excludes by declaration.
+
+### Out
+
+- The scenario itself and the contract record, which W1-APP-02m owns.
+
+## Acceptance
+
+- [ ] No crate reachable from the shipped binary can start a run without an approved contract. The
+      negative half reintroduces such a path and the check rejects it with a captured non-zero exit.
+- [ ] The check names no exclusion by declaration; an excluded crate is either unreachable from the
+      binary, proved from the dependency graph, or it is covered.
+
+## Current state
+
+Ready. The typed-request correction routes every start through one scenario, but the author records
+that the test kit remains a dependency of the shipped binary, can start a run without a contract,
+and was excluded from the structural check by declaration rather than by unreachability.
+
+## Next action
+
+Establish from the dependency graph whether the test kit is reachable in the shipped binary, then
+either remove it from that graph or bring it under the check.
+
+## Guardrails
+
+- An exclusion that is declared rather than proved is the defect this card closes, not a shortcut it
+  may reuse.
+
+## Findings
+
+None yet.
+
+## Closure
+
+Filled when the task is accepted.
+
+### Accepted outcome
+
+Not accepted.
+
+### Residuals
+
+None recorded.
+
+### Evidence
+
+- None until acceptance.
