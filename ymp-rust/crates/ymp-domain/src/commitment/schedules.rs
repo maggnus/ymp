@@ -12,9 +12,10 @@
 //!
 //! One further question is asked of every accepted command, and it is the only one here whose
 //! answer does not come out of the run itself: whether the facts a command committed moved the
-//! amounts that command named. Everything else compares facts with facts, or with records built by
-//! applying those facts, and a value corrupted where the fact is generated satisfies all of them at
-//! once.
+//! amounts that command named, out of and into the accounts it named. Everything else compares
+//! facts with facts, or with records built by applying those facts, and a fact corrupted where it
+//! is generated satisfies all of them at once — whether what was corrupted is how much moved or
+//! whose account it came out of.
 //!
 //! Three things the pool alone cannot do are added here. One participant's own commands are merged
 //! in as a causal sequence rather than permuted, because a uniform shuffle practically never
@@ -850,7 +851,8 @@ pub(crate) enum Violation {
         offer_id: String,
         contract_id: String,
     },
-    /// A committed fact moved an amount other than the one the accepted command named.
+    /// A committed fact moved capacity through an account the accepted command did not name, or
+    /// moved through a named account an amount other than the one it named.
     FactContradictsCommand {
         command: &'static str,
         subject: String,
@@ -862,7 +864,52 @@ pub(crate) enum Violation {
     RefusalMutatedState { position: usize },
 }
 
-/// What the accepted command itself says its facts must move.
+/// Which side of an account one fact moves capacity through.
+#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
+enum Flow {
+    /// Capacity arriving in the account.
+    In,
+    /// Capacity leaving it for another account.
+    Out,
+    /// Capacity leaving the accounts for good.
+    Spent,
+}
+
+/// What a command names about one movement.
+#[derive(Clone, Copy, Debug)]
+enum Commanded {
+    /// A quantity the command states outright, which the facts must move exactly.
+    Amount(BudgetVector),
+    /// An account the command names without stating a quantity. What a settlement returns is
+    /// whatever is left of an account rather than a number any command states, so the account it
+    /// reaches is compared and the amount is left to the projection.
+    AccountOnly,
+}
+
+/// The movements one command says its facts must make, keyed by the account and the direction.
+/// A movement absent from here is one the command never named, and the facts must not make it.
+#[derive(Debug, Default)]
+struct Movements {
+    named: BTreeMap<(AccountRef, Flow), Commanded>,
+}
+
+impl Movements {
+    fn amount(&mut self, account: AccountRef, flow: Flow, commanded: BudgetVector) {
+        let named = match self.named.get(&(account.clone(), flow)) {
+            Some(Commanded::Amount(already)) => already
+                .checked_add(&commanded)
+                .expect("the amounts one command names do not overflow"),
+            _ => commanded,
+        };
+        self.named.insert((account, flow), Commanded::Amount(named));
+    }
+
+    fn account_only(&mut self, account: AccountRef, flow: Flow) {
+        self.named.insert((account, flow), Commanded::AccountOnly);
+    }
+}
+
+/// What the accepted command itself says its facts must move, and through which accounts.
 ///
 /// Every other check in this file compares facts with other facts, or with records the kernel built
 /// by applying those same facts. A value corrupted where the fact is generated satisfies all of
@@ -871,179 +918,350 @@ pub(crate) enum Violation {
 /// command the schedule issued — so the two sides of the comparison are produced by different code,
 /// and a fact that no longer states what its command named moves only one of them.
 ///
-/// Only amounts a command names outright are checked. What a settlement returns is whatever is left
-/// of an account rather than a quantity any command states, and stays with the projection.
+/// Both ends of every movement are compared, not only the quantity. A transfer that carries the
+/// commanded amount into the commanded account while taking it out of somebody else's account
+/// leaves every account the facts describe agreeing with every account the kernel keeps, and the
+/// run stays internally consistent under it. What it contradicts is the command, which named the
+/// account the money was to come out of.
+///
+/// The accounts a command does not name outright are the ones an offer's reservation was taken from
+/// and returns to. They are remembered from the command that advertised the offer and the command
+/// that awarded the contract, so both sides of the comparison still come from the schedule rather
+/// than from the kernel. A movement whose account cannot be resolved that way — consent or an offer
+/// from before the run — leaves the command uncompared rather than guessed at.
 #[derive(Debug, Default)]
 pub(crate) struct CommandedAmounts {
     /// What each recorded consent asked for, as the command that recorded it named it.
     requested: BTreeMap<String, BudgetVector>,
+    /// The account each offer's reservation came out of, as the command that advertised it named
+    /// it. It is also the account that reservation returns to.
+    funding: BTreeMap<String, AccountRef>,
+    /// Which offer each task contract was formed from, as the command that formed it named it.
+    formed_from: BTreeMap<String, String>,
+    /// Which commands this run actually compared its facts against. A command whose accounts could
+    /// never be resolved would be passed over in silence, and the comparison would then hold of it
+    /// by never being applied, which is not the same as holding.
+    compared: BTreeSet<&'static str>,
 }
 
 impl CommandedAmounts {
-    /// Compare the facts one accepted command committed with the amounts that command named.
+    /// Compare the facts one accepted command committed with the movements that command named.
     pub(crate) fn observe(
         &mut self,
         command: &CommitmentCommand,
         events: &[CommitmentEvent],
     ) -> Vec<Violation> {
+        let name = command_name(command);
+        let mut violations = match self.movements(command) {
+            Some(movements) => {
+                self.compared.insert(name);
+                compare_movements(name, events, &movements)
+            }
+            None => Vec::new(),
+        };
+        violations.extend(consent_violations(command, events));
+        self.remember(command);
+        violations
+    }
+
+    pub(crate) const fn compared(&self) -> &BTreeSet<&'static str> {
+        &self.compared
+    }
+
+    /// Every movement the command names, or `None` when an account it needs was never named by any
+    /// command in this run.
+    fn movements(&self, command: &CommitmentCommand) -> Option<Movements> {
+        let mut movements = Movements::default();
         match command {
-            CommitmentCommand::RegisterParticipant(command) => credited(
-                "register_participant",
-                events,
-                &AccountRef::Participant {
-                    participant_id: command.participant_id.clone(),
-                },
-                &command.endowment,
-            ),
+            CommitmentCommand::RegisterParticipant(command) => {
+                let sponsor = participant_account(&command.sponsor);
+                movements.amount(
+                    sponsor.clone(),
+                    Flow::Spent,
+                    BudgetVector::unit(Dimension::ParticipantStarts),
+                );
+                movements.amount(sponsor, Flow::Out, command.endowment);
+                movements.amount(
+                    participant_account(&command.participant_id),
+                    Flow::In,
+                    command.endowment,
+                );
+            }
             CommitmentCommand::Advertise(command) => {
-                // What an offer reserves is what one award funds, once per funded slot.
-                let Ok(pool) = command
+                // What an offer reserves is what one award funds, once per funded slot, and it
+                // comes out of the account the command named as the funding source.
+                let pool = command
                     .execution_escrow
                     .checked_scale(u64::from(command.max_awards))
-                else {
-                    return Vec::new();
-                };
-                credited(
-                    "advertise",
-                    events,
-                    &AccountRef::Offer {
+                    .ok()?;
+                let funding = funding_account(&command.funding_source, &command.sponsor);
+                movements.amount(
+                    funding.clone(),
+                    Flow::Spent,
+                    BudgetVector::unit(Dimension::OfferCreations),
+                );
+                movements.amount(funding, Flow::Out, pool);
+                movements.amount(
+                    AccountRef::Offer {
                         offer_id: command.offer_id.clone(),
                     },
-                    &pool,
-                )
+                    Flow::In,
+                    pool,
+                );
+            }
+            CommitmentCommand::Award(command) => self.formation(
+                &mut movements,
+                &command.offer_id,
+                &command.contract_id,
+                *self.requested.get(&command.bid_id)?,
+                command.lease_ms,
+            )?,
+            CommitmentCommand::AcceptOpen(command) => self.formation(
+                &mut movements,
+                &command.offer_id,
+                &command.contract_id,
+                command.requested_escrow,
+                command.lease_ms,
+            )?,
+            // An attempt is bought with one unit of start authority, out of the escrow of the task
+            // contract the command named.
+            CommitmentCommand::StartAttempt(command) => movements.amount(
+                contract_account(&command.contract_id),
+                Flow::Spent,
+                BudgetVector::unit(Dimension::AttemptStarts),
+            ),
+            CommitmentCommand::RenewLease(command) => movements.amount(
+                contract_account(&command.contract_id),
+                Flow::Spent,
+                BudgetVector::units(Dimension::WallTimeMs, command.lease_ms),
+            ),
+            CommitmentCommand::Reassign(command) => movements.amount(
+                contract_account(&command.contract_id),
+                Flow::Spent,
+                BudgetVector::units(Dimension::WallTimeMs, command.lease_ms),
+            ),
+            // A settlement returns what an offer still holds to the account that funded it. The
+            // quantity is a remainder rather than anything the command states, so only the two
+            // accounts are compared.
+            CommitmentCommand::SettleOffer(command) => {
+                movements.account_only(
+                    AccountRef::Offer {
+                        offer_id: command.offer_id.clone(),
+                    },
+                    Flow::Out,
+                );
+                movements.account_only(self.funding.get(&command.offer_id)?.clone(), Flow::In);
+            }
+            // Closing a task contract returns whatever its escrow still holds the same way, so the
+            // same two accounts are compared and the same remainder is left to the projection.
+            CommitmentCommand::ReturnObligation(command) => {
+                self.closure(&mut movements, &command.contract_id)?;
+            }
+            CommitmentCommand::CancelContract(command) => {
+                self.closure(&mut movements, &command.contract_id)?;
+            }
+            // Consent, its withdrawal, an offer's withdrawal, a submission and the clock move no
+            // capacity at all, which is itself compared: an empty expectation makes any movement
+            // these commit a contradiction.
+            CommitmentCommand::RecordBid(_)
+            | CommitmentCommand::WithdrawBid(_)
+            | CommitmentCommand::WithdrawOffer(_)
+            | CommitmentCommand::SubmitResult(_)
+            | CommitmentCommand::AdvanceClock(_) => {}
+        }
+        Some(movements)
+    }
+
+    /// What forming a task contract must move: out of the offer the command named and into the
+    /// contract it named exactly the capacity the consent it named asked for, one unit of creation
+    /// authority out of the account funding that offer, and out of the new contract exactly the
+    /// wall time the command bought its first lease with.
+    fn formation(
+        &self,
+        movements: &mut Movements,
+        offer_id: &str,
+        contract_id: &str,
+        requested: BudgetVector,
+        lease_ms: u64,
+    ) -> Option<()> {
+        let contract = contract_account(contract_id);
+        movements.amount(
+            self.funding.get(offer_id)?.clone(),
+            Flow::Spent,
+            BudgetVector::unit(Dimension::ObligationCreations),
+        );
+        movements.amount(
+            AccountRef::Offer {
+                offer_id: offer_id.to_owned(),
+            },
+            Flow::Out,
+            requested,
+        );
+        movements.amount(contract.clone(), Flow::In, requested);
+        movements.amount(
+            contract,
+            Flow::Spent,
+            BudgetVector::units(Dimension::WallTimeMs, lease_ms),
+        );
+        Some(())
+    }
+
+    /// Where a closing task contract's remaining escrow goes: back to the account that funded the
+    /// offer the contract was awarded from.
+    fn closure(&self, movements: &mut Movements, contract_id: &str) -> Option<()> {
+        let offer_id = self.formed_from.get(contract_id)?;
+        movements.account_only(contract_account(contract_id), Flow::Out);
+        movements.account_only(self.funding.get(offer_id)?.clone(), Flow::In);
+        Some(())
+    }
+
+    /// The accounts and amounts later commands are compared against, taken from the commands that
+    /// named them and never from the ledger.
+    fn remember(&mut self, command: &CommitmentCommand) {
+        match command {
+            CommitmentCommand::Advertise(command) => {
+                self.funding.insert(
+                    command.offer_id.clone(),
+                    funding_account(&command.funding_source, &command.sponsor),
+                );
             }
             CommitmentCommand::RecordBid(command) => {
                 self.requested
                     .insert(command.bid_id.clone(), command.requested_escrow);
-                consent(
-                    "record_bid",
-                    events,
-                    &command.bid_id,
-                    &command.requested_escrow,
-                )
             }
             CommitmentCommand::AcceptOpen(command) => {
                 self.requested
                     .insert(command.bid_id.clone(), command.requested_escrow);
-                let mut violations = consent(
-                    "accept_open",
-                    events,
-                    &command.bid_id,
-                    &command.requested_escrow,
-                );
-                violations.extend(self.formation(
-                    "accept_open",
-                    events,
-                    &command.contract_id,
-                    &command.bid_id,
-                    command.lease_ms,
-                ));
-                violations
+                self.formed_from
+                    .insert(command.contract_id.clone(), command.offer_id.clone());
             }
-            CommitmentCommand::Award(command) => self.formation(
-                "award",
-                events,
-                &command.contract_id,
-                &command.bid_id,
-                command.lease_ms,
-            ),
-            CommitmentCommand::RenewLease(command) => lease(
-                "renew_lease",
-                events,
-                &command.contract_id,
-                command.lease_ms,
-            ),
-            CommitmentCommand::Reassign(command) => {
-                lease("reassign", events, &command.contract_id, command.lease_ms)
+            CommitmentCommand::Award(command) => {
+                self.formed_from
+                    .insert(command.contract_id.clone(), command.offer_id.clone());
             }
-            _ => Vec::new(),
+            _ => {}
         }
-    }
-
-    /// What forming a task contract must move: into its account exactly the capacity the consent
-    /// the command named asked for, and out of it exactly the wall time the command bought its
-    /// first lease with.
-    fn formation(
-        &self,
-        command: &'static str,
-        events: &[CommitmentEvent],
-        contract_id: &str,
-        bid_id: &str,
-        lease_ms: u64,
-    ) -> Vec<Violation> {
-        // Consent recorded before the run began is not something any command in this schedule
-        // named, so there is nothing here to compare it with.
-        let Some(requested) = self.requested.get(bid_id) else {
-            return Vec::new();
-        };
-        let account = AccountRef::TaskContract {
-            contract_id: contract_id.to_owned(),
-        };
-        let mut violations = credited(command, events, &account, requested);
-        violations.extend(lease(command, events, contract_id, lease_ms));
-        violations
     }
 }
 
-/// What one command's facts put into an account, against the amount the command named.
-fn credited(
-    command: &'static str,
-    events: &[CommitmentEvent],
-    account: &AccountRef,
-    commanded: &BudgetVector,
-) -> Vec<Violation> {
-    let mut emitted = [0_i128; DIMENSION_COUNT];
-    for event in events {
-        if let CommitmentEvent::BudgetTransferred { to, amount, .. } = event
-            && to == account
-        {
-            for dimension in DIMENSIONS {
-                emitted[dimension.index()] += i128::from(amount.get(dimension));
-            }
-        }
+fn participant_account(participant_id: &str) -> AccountRef {
+    AccountRef::Participant {
+        participant_id: participant_id.to_owned(),
     }
-    compare(command, &label(account), commanded, &emitted)
 }
 
-/// The wall time a command bought a lease with, against what its facts took out of the account
-/// that paid for it.
-fn lease(
-    command: &'static str,
-    events: &[CommitmentEvent],
-    contract_id: &str,
-    lease_ms: u64,
-) -> Vec<Violation> {
-    let account = AccountRef::TaskContract {
+fn contract_account(contract_id: &str) -> AccountRef {
+    AccountRef::TaskContract {
         contract_id: contract_id.to_owned(),
-    };
-    let mut emitted = [0_i128; DIMENSION_COUNT];
+    }
+}
+
+/// The account an offer is funded from, as its own command names it.
+fn funding_account(source: &FundingSource, sponsor: &str) -> AccountRef {
+    match source {
+        FundingSource::Participant => participant_account(sponsor),
+        FundingSource::TaskContract { contract_id } => contract_account(contract_id),
+    }
+}
+
+fn command_name(command: &CommitmentCommand) -> &'static str {
+    match command {
+        CommitmentCommand::RegisterParticipant(_) => "register_participant",
+        CommitmentCommand::Advertise(_) => "advertise",
+        CommitmentCommand::RecordBid(_) => "record_bid",
+        CommitmentCommand::WithdrawBid(_) => "withdraw_bid",
+        CommitmentCommand::WithdrawOffer(_) => "withdraw_offer",
+        CommitmentCommand::SettleOffer(_) => "settle_offer",
+        CommitmentCommand::Award(_) => "award",
+        CommitmentCommand::AcceptOpen(_) => "accept_open",
+        CommitmentCommand::StartAttempt(_) => "start_attempt",
+        CommitmentCommand::RenewLease(_) => "renew_lease",
+        CommitmentCommand::SubmitResult(_) => "submit_result",
+        CommitmentCommand::Reassign(_) => "reassign",
+        CommitmentCommand::ReturnObligation(_) => "return_obligation",
+        CommitmentCommand::CancelContract(_) => "cancel_contract",
+        CommitmentCommand::AdvanceClock(_) => "advance_clock",
+    }
+}
+
+/// Every account one command's facts moved capacity through, in each direction, against the
+/// movements the command named. A movement through an account the command never named is compared
+/// against nothing, which is what makes money taken out of the wrong account visible.
+fn compare_movements(
+    command: &'static str,
+    events: &[CommitmentEvent],
+    named: &Movements,
+) -> Vec<Violation> {
+    let mut emitted: BTreeMap<(AccountRef, Flow), [i128; DIMENSION_COUNT]> = BTreeMap::new();
     for event in events {
-        if let CommitmentEvent::BudgetConsumed {
-            account: spent_from,
-            amount,
-        } = event
-            && *spent_from == account
-        {
-            for dimension in DIMENSIONS {
-                emitted[dimension.index()] += i128::from(amount.get(dimension));
+        match event {
+            CommitmentEvent::BudgetTransferred { from, to, amount } => {
+                accumulate(&mut emitted, from, Flow::Out, amount);
+                accumulate(&mut emitted, to, Flow::In, amount);
             }
+            CommitmentEvent::BudgetConsumed { account, amount } => {
+                accumulate(&mut emitted, account, Flow::Spent, amount);
+            }
+            _ => {}
         }
     }
-    compare(
-        command,
-        &label(&account),
-        &BudgetVector::units(Dimension::WallTimeMs, lease_ms),
-        &emitted,
-    )
+    let mut violations = Vec::new();
+    let movements: BTreeSet<&(AccountRef, Flow)> =
+        named.named.keys().chain(emitted.keys()).collect();
+    for movement in movements {
+        let commanded = match named.named.get(movement) {
+            Some(Commanded::Amount(commanded)) => *commanded,
+            Some(Commanded::AccountOnly) => continue,
+            // An account this command never named: nothing of it may move here.
+            None => BudgetVector::ZERO,
+        };
+        let moved = emitted
+            .get(movement)
+            .copied()
+            .unwrap_or([0; DIMENSION_COUNT]);
+        violations.extend(compare(
+            command,
+            &movement_label(&movement.0, movement.1),
+            &commanded,
+            &moved,
+        ));
+    }
+    violations
+}
+
+fn accumulate(
+    emitted: &mut BTreeMap<(AccountRef, Flow), [i128; DIMENSION_COUNT]>,
+    account: &AccountRef,
+    flow: Flow,
+    amount: &BudgetVector,
+) {
+    let totals = emitted
+        .entry((account.clone(), flow))
+        .or_insert([0; DIMENSION_COUNT]);
+    for dimension in DIMENSIONS {
+        totals[dimension.index()] += i128::from(amount.get(dimension));
+    }
+}
+
+fn movement_label(account: &AccountRef, flow: Flow) -> String {
+    match flow {
+        Flow::In => format!("what reached {}", label(account)),
+        Flow::Out => format!("what left {}", label(account)),
+        Flow::Spent => format!("what was spent from {}", label(account)),
+    }
 }
 
 /// What a recorded consent says it asks for, against what the command that recorded it named.
-fn consent(
-    command: &'static str,
-    events: &[CommitmentEvent],
-    bid_id: &str,
-    commanded: &BudgetVector,
-) -> Vec<Violation> {
+fn consent_violations(issued: &CommitmentCommand, events: &[CommitmentEvent]) -> Vec<Violation> {
+    let (command, bid_id, commanded) = match issued {
+        CommitmentCommand::RecordBid(issued) => {
+            ("record_bid", &issued.bid_id, &issued.requested_escrow)
+        }
+        CommitmentCommand::AcceptOpen(issued) => {
+            ("accept_open", &issued.bid_id, &issued.requested_escrow)
+        }
+        _ => return Vec::new(),
+    };
     let mut violations = Vec::new();
     for event in events {
         if let CommitmentEvent::BidRecorded {
@@ -1379,6 +1597,9 @@ pub(crate) struct ScheduleReport {
     /// Which guarded refusals this schedule actually provoked. A guard that no ordering ever
     /// reaches holds by never being asked, which is not the same as holding.
     pub guarded: BTreeSet<&'static str>,
+    /// Which commands had their facts compared with what they named. A command the comparison
+    /// passed over would otherwise be indistinguishable from one it found nothing wrong with.
+    pub compared: BTreeSet<&'static str>,
 }
 
 fn fact_name(event: &CommitmentEvent) -> &'static str {
@@ -1426,6 +1647,7 @@ pub(crate) fn run_altered_schedule(
         refused: 0,
         reached: BTreeSet::new(),
         guarded: BTreeSet::new(),
+        compared: BTreeSet::new(),
     };
     let mut accounts = FactAccounts::opening(ROOT_PARTICIPANT, *ledger.initial_total());
     let mut commanded = CommandedAmounts::default();
@@ -1500,6 +1722,7 @@ pub(crate) fn run_altered_schedule(
     // Whether a reservation is stranded is a question about the end of the schedule: until then it
     // is only unsettled, which is ordinary.
     report.violations.extend(accounts.stranded());
+    report.compared = commanded.compared().clone();
     report.violations.dedup();
     report
 }

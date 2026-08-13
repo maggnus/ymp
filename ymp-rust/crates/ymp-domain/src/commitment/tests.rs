@@ -6,9 +6,10 @@
 //! causal accounting. Mutation tests
 //! switch off one guarded check at a time and require the property suite to produce a
 //! counterexample, so that each check is shown to be load-bearing rather than asserted to be.
-//! One mutation is of another kind: it leaves every check in place and corrupts a fact where that
-//! fact is generated, which the records then agree with, and requires the comparison with the
-//! command that issued it to be the check that reports it.
+//! Three mutations are of another kind: they leave every check in place and corrupt a fact where
+//! that fact is generated, which the records then agree with, and require the comparison with the
+//! command that issued it to be the check that reports it. One corrupts how much an award moved,
+//! one the account it came out of, and one the account a closing contract's escrow went back to.
 
 use super::budget::{BudgetVector, DIMENSIONS, Dimension, DimensionKind};
 use super::ledger::{AlteredFacts, CommitmentLedger, DisabledChecks};
@@ -892,6 +893,7 @@ fn an_escrow_transfer_smaller_than_its_command_is_caught_by_that_command_alone()
     let tokens = Tokens::variant("a");
     let understated = AlteredFacts {
         understated_escrow: true,
+        ..AlteredFacts::default()
     };
     assert!(
         run_altered_schedule(
@@ -931,6 +933,112 @@ fn an_escrow_transfer_smaller_than_its_command_is_caught_by_that_command_alone()
              caught it: {elsewhere:?}"
         );
     }
+}
+
+/// An escrow transfer that carries exactly the commanded amount into exactly the commanded account,
+/// while taking it out of an account the command never named, is caught by the command it came
+/// from, and by nothing else.
+///
+/// Everything about this transfer except its source is what the award asked for. The money reaches
+/// the new contract, the registry is built by applying the same fact and therefore agrees with it,
+/// and no total anywhere is short: what the sponsor paid twice over, the offer still holds and
+/// returns when it settles. A comparison that reads only how much moved has nothing to say about
+/// it, which is why the accounts a command names are compared as well as the quantities.
+#[test]
+fn an_escrow_transfer_out_of_an_unnamed_account_is_caught_by_that_command_alone() {
+    let tokens = Tokens::variant("a");
+    let redirected = AlteredFacts {
+        redirected_escrow: true,
+        ..AlteredFacts::default()
+    };
+    for seed in 0..SCHEDULE_SEEDS {
+        let report = run_altered_schedule(seed, &tokens, DisabledChecks::default(), redirected);
+        let (against_the_command, elsewhere): (Vec<&Violation>, Vec<&Violation>) = report
+            .violations
+            .iter()
+            .partition(|violation| matches!(violation, Violation::FactContradictsCommand { .. }));
+        // The offer the award named gave up nothing, and an account it never named gave up the
+        // whole escrow. Both halves are reported, and both name the award that issued the fact.
+        assert!(
+            against_the_command.iter().any(|violation| matches!(
+                violation,
+                Violation::FactContradictsCommand {
+                    command: "award" | "accept_open",
+                    subject,
+                    dimension: Dimension::MoneyMicros,
+                    commanded,
+                    emitted: 0,
+                } if subject.contains("offer") && *commanded > 0
+            )),
+            "seed {seed} took escrow out of an account the award never named, unreported: {:?}",
+            report.violations
+        );
+        assert!(
+            against_the_command.iter().any(|violation| matches!(
+                violation,
+                Violation::FactContradictsCommand {
+                    command: "award" | "accept_open",
+                    subject,
+                    dimension: Dimension::MoneyMicros,
+                    commanded: 0,
+                    emitted,
+                } if subject.contains("participant") && *emitted > 0
+            )),
+            "seed {seed} moved money through an account no command named, unreported: {:?}",
+            report.violations
+        );
+        assert!(
+            elsewhere.is_empty(),
+            "seed {seed}: a fact corrupted at generation must be invisible to every check that \
+             compares facts only with each other, or this test proves nothing about which check \
+             caught it: {elsewhere:?}"
+        );
+    }
+}
+
+/// The same for the other end of a movement, on the path the comparison used to say nothing about
+/// at all: what a closing task contract still holds goes back to the participant that was executing
+/// it instead of to the account that funded the offer.
+///
+/// The quantity is a remainder rather than anything the return command states, so it is the
+/// destination account alone that can be wrong here, and the destination alone that is compared.
+/// The contract is emptied either way, every account the facts describe still agrees with every
+/// account the kernel keeps, and nothing structural notices — the money simply belongs to somebody
+/// else afterwards.
+#[test]
+fn escrow_returned_to_the_wrong_account_is_caught_by_the_command_that_closed_the_contract() {
+    let tokens = Tokens::variant("a");
+    let misdirected = AlteredFacts {
+        misdirected_settlement: true,
+        ..AlteredFacts::default()
+    };
+    let (seed, violations) = (0..SCHEDULE_SEEDS)
+        .find_map(|seed| {
+            let report =
+                run_altered_schedule(seed, &tokens, DisabledChecks::default(), misdirected);
+            (!report.violations.is_empty()).then_some((seed, report.violations))
+        })
+        .expect("a settlement that reaches the wrong account must be reported");
+    assert!(
+        violations.iter().any(|violation| matches!(
+            violation,
+            Violation::FactContradictsCommand {
+                command: "return_obligation" | "cancel_contract",
+                ..
+            }
+        )),
+        "seed {seed} did not report the command that closed the contract: {violations:?}"
+    );
+    let elsewhere: Vec<&Violation> = violations
+        .iter()
+        .filter(|violation| !matches!(violation, Violation::FactContradictsCommand { .. }))
+        .collect();
+    assert!(
+        elsewhere.is_empty(),
+        "seed {seed}: a destination corrupted at generation must be invisible to every check that \
+         compares facts only with each other, or this test proves nothing about which check caught \
+         it: {elsewhere:?}"
+    );
 }
 
 /// The covering check is falsifiable: without it the schedules reach a command whose facts move
@@ -1239,6 +1347,7 @@ fn generated_schedules_conserve_budgets_consent_fencing_and_causal_accounting() 
     let mut committed = 0;
     let mut reached = std::collections::BTreeSet::new();
     let mut guarded = std::collections::BTreeSet::new();
+    let mut compared = std::collections::BTreeSet::new();
     for seed in 0..SCHEDULE_SEEDS {
         let report = run_schedule(seed, &tokens, DisabledChecks::default());
         assert!(
@@ -1249,6 +1358,28 @@ fn generated_schedules_conserve_budgets_consent_fencing_and_causal_accounting() 
         committed += report.committed;
         reached.extend(report.reached);
         guarded.extend(report.guarded);
+        compared.extend(report.compared);
+    }
+    // Every command that moves capacity is compared with what it named, and the comparison is
+    // required to have actually been applied to each of them. A command whose accounts the
+    // comparison could not resolve would be passed over in silence and would look exactly like a
+    // command it found nothing wrong with.
+    for command in [
+        "register_participant",
+        "advertise",
+        "award",
+        "accept_open",
+        "start_attempt",
+        "renew_lease",
+        "reassign",
+        "settle_offer",
+        "return_obligation",
+        "cancel_contract",
+    ] {
+        assert!(
+            compared.contains(command),
+            "no ordering ever compared the facts of {command} with the command that issued them"
+        );
     }
     // A contract that never changes hands cannot show that only its holder may close it, so the
     // orderings are required to have actually refused such a return.

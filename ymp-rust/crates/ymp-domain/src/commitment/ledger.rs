@@ -84,6 +84,14 @@ pub(crate) struct DisabledChecks {
 pub(crate) struct AlteredFacts {
     /// Move one unit of money less into a task contract than the consent the award named asked for.
     pub understated_escrow: bool,
+    /// Take the escrow an award transfers out of the sponsor's own balance instead of out of the
+    /// reservation the offer holds. The quantity and the destination stay exactly as commanded, so
+    /// nothing but the source account of the fact is wrong.
+    pub redirected_escrow: bool,
+    /// Return what a closing task contract still holds to the participant that was executing it,
+    /// instead of to the account that funded the offer it was awarded from. The contract is emptied
+    /// either way, so nothing but the destination account of the fact is wrong.
+    pub misdirected_settlement: bool,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
@@ -237,6 +245,44 @@ impl CommitmentLedger {
     #[allow(clippy::unused_self)]
     const fn stated(&self, amount: BudgetVector) -> BudgetVector {
         amount
+    }
+
+    /// The account an escrow transfer states it came out of. It is the account that was decided,
+    /// unless a test build asked for the money to be taken from somewhere else.
+    #[cfg(test)]
+    fn debited(&self, decided: AccountRef, sponsor: &str) -> AccountRef {
+        if self.altered.redirected_escrow {
+            AccountRef::Participant {
+                participant_id: sponsor.to_owned(),
+            }
+        } else {
+            decided
+        }
+    }
+
+    #[cfg(not(test))]
+    #[allow(clippy::unused_self)]
+    fn debited(&self, decided: AccountRef, _sponsor: &str) -> AccountRef {
+        decided
+    }
+
+    /// The account a closing contract's remaining escrow states it went to. It is the account that
+    /// was decided, unless a test build asked for it to be misdirected.
+    #[cfg(test)]
+    fn returned_to(&self, decided: AccountRef, holder: &str) -> AccountRef {
+        if self.altered.misdirected_settlement {
+            AccountRef::Participant {
+                participant_id: holder.to_owned(),
+            }
+        } else {
+            decided
+        }
+    }
+
+    #[cfg(not(test))]
+    #[allow(clippy::unused_self)]
+    fn returned_to(&self, decided: AccountRef, _holder: &str) -> AccountRef {
+        decided
     }
 
     /// Decide a command without changing anything, then commit every fact it produced.
@@ -767,7 +813,7 @@ impl CommitmentLedger {
             base_digest: offer.base_digest.clone(),
         });
         events.push(CommitmentEvent::BudgetTransferred {
-            from: offer_account,
+            from: self.debited(offer_account, &offer.sponsor),
             to: contract_account.clone(),
             amount: self.stated(bid.requested_escrow),
         });
@@ -1040,7 +1086,7 @@ impl CommitmentLedger {
             from: AccountRef::TaskContract {
                 contract_id: contract.contract_id.clone(),
             },
-            to: destination,
+            to: self.returned_to(destination, &contract.lease.holder),
             amount: contract.escrow,
         }))
     }
