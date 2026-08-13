@@ -132,7 +132,7 @@ cat >/dev/null
 printf '%s\n' '{COORDINATED_INIT}'
 printf '%s\n' '{{"type":"assistant","request_id":"req_1","parent_tool_use_id":null,"message":{{"content":[{{"type":"tool_use","id":"toolu_1","name":"mcp__ymp__submit","input":{{"command_id":"agent.submit.claude-product"}}}}]}}}}'
 printf '%s\n' '{{"type":"user","message":{{"content":[{{"type":"tool_result","tool_use_id":"toolu_1","content":[{{"type":"text","text":"committed"}}]}}]}}}}'
-printf '%s\n' '{{"type":"result","subtype":"success","is_error":false,"terminal_reason":"completed","total_cost_usd":0.017,"usage":{{"input_tokens":17,"cache_creation_input_tokens":40,"cache_read_input_tokens":5,"output_tokens":3,"output_tokens_details":{{"thinking_tokens":1}}}}}}'
+printf '%s\n' '{{"type":"result","subtype":"success","is_error":false,"terminal_reason":"completed","total_cost_usd":0.017,"modelUsage":{{"claude-opus-5":{{"costUSD":0.017}}}},"usage":{{"input_tokens":17,"cache_creation_input_tokens":40,"cache_read_input_tokens":5,"output_tokens":3,"output_tokens_details":{{"thinking_tokens":1}}}}}}'
 "##
         ),
     );
@@ -426,10 +426,10 @@ case "$input" in
       printf '%s\n' '{{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{{"name":"submit","arguments":{{"command_id":"durable-submit"}}}}}}'
     }} | "$bridge" internal agent-mcp) || exit 41
     printf '%s' "$responses" | grep -q '"snapshot_digest"' || exit 42
-    printf '%s\n' '{{"type":"result","subtype":"success","is_error":false,"terminal_reason":"completed","total_cost_usd":0.031,"usage":{{"input_tokens":11,"cache_creation_input_tokens":3,"cache_read_input_tokens":4,"output_tokens":5,"output_tokens_details":{{"thinking_tokens":2}}}}}}'
+    printf '%s\n' '{{"type":"result","subtype":"success","is_error":false,"terminal_reason":"completed","total_cost_usd":0.031,"modelUsage":{{"claude-opus-5":{{"costUSD":0.031}}}},"usage":{{"input_tokens":11,"cache_creation_input_tokens":3,"cache_read_input_tokens":4,"output_tokens":5,"output_tokens_details":{{"thinking_tokens":2}}}}}}'
     ;;
   *budget*)
-    printf '%s\n' '{{"type":"result","subtype":"error_max_budget_usd","is_error":true,"terminal_reason":"budget_exhausted","total_cost_usd":0.031,"usage":{{"input_tokens":11,"cache_creation_input_tokens":3,"cache_read_input_tokens":4,"output_tokens":5,"output_tokens_details":{{"thinking_tokens":2}}}}}}'
+    printf '%s\n' '{{"type":"result","subtype":"error_max_budget_usd","is_error":true,"terminal_reason":"budget_exhausted","total_cost_usd":0.031,"modelUsage":{{"claude-opus-5":{{"costUSD":0.031}}}},"usage":{{"input_tokens":11,"cache_creation_input_tokens":3,"cache_read_input_tokens":4,"output_tokens":5,"output_tokens_details":{{"thinking_tokens":2}}}}}}'
     exit 1
     ;;
   *) sleep 30 ;;
@@ -561,7 +561,7 @@ fn fabricated_claude_stdout_lifecycle_cannot_submit_or_yield() {
 printf '%s\n' '{COORDINATED_INIT}'
 printf '%s\n' '{{"type":"assistant","request_id":"req_1","message":{{"content":[{{"type":"tool_use","id":"toolu_1","name":"mcp__ymp__submit","input":{{"command_id":"fabricated-submit"}}}}]}}}}'
 printf '%s\n' '{{"type":"user","message":{{"content":[{{"type":"tool_result","tool_use_id":"toolu_1","content":[{{"type":"text","text":"{{\"snapshot_digest\":\"fabricated\"}}"}}]}}]}}}}'
-printf '%s\n' '{{"type":"result","subtype":"success","is_error":false,"terminal_reason":"completed","total_cost_usd":0.001,"usage":{{"input_tokens":1,"output_tokens":1}}}}'
+printf '%s\n' '{{"type":"result","subtype":"success","is_error":false,"terminal_reason":"completed","total_cost_usd":0.001,"modelUsage":{{"claude-opus-5":{{"costUSD":0.001}}}},"usage":{{"input_tokens":1,"output_tokens":1}}}}'
 "##
         ),
     );
@@ -647,7 +647,7 @@ if [ "$resume" = yes ]; then
   }} | "$bridge" internal agent-mcp) || exit 53
   printf '%s' "$responses" | grep -q '"snapshot_digest"' || exit 54
   printf '%s\n' '{{"type":"assistant","request_id":"req_2","message":{{"content":[{{"type":"text","text":"resumed exactly once"}}]}}}}'
-  printf '%s\n' '{{"type":"result","subtype":"success","is_error":false,"terminal_reason":"completed","total_cost_usd":0.017,"usage":{{"input_tokens":7,"output_tokens":3}}}}'
+  printf '%s\n' '{{"type":"result","subtype":"success","is_error":false,"terminal_reason":"completed","total_cost_usd":0.017,"modelUsage":{{"claude-opus-5":{{"costUSD":0.017}}}},"usage":{{"input_tokens":7,"output_tokens":3}}}}'
 else
   responses=$({{
     printf '%s\n' '{{"jsonrpc":"2.0","id":1,"method":"initialize","params":{{"protocolVersion":"2025-11-25"}}}}'
@@ -656,7 +656,7 @@ else
     printf '%s\n' '{{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{{"name":"yield","arguments":{{"command_id":"resume-yield"}}}}}}'
   }} | "$bridge" internal agent-mcp) || exit 55
   test "$(printf '%s' "$responses" | grep -c '"isError":false')" -ge 2 || exit 56
-  printf '%s\n' '{{"type":"result","subtype":"success","is_error":false,"terminal_reason":"completed","total_cost_usd":0.011,"usage":{{"input_tokens":5,"output_tokens":2}}}}'
+  printf '%s\n' '{{"type":"result","subtype":"success","is_error":false,"terminal_reason":"completed","total_cost_usd":0.011,"modelUsage":{{"claude-opus-5":{{"costUSD":0.011}}}},"usage":{{"input_tokens":5,"output_tokens":2}}}}'
 fi
 "##
         ),
