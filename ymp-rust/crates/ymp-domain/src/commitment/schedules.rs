@@ -4,15 +4,18 @@
 //! participants, offers and consent, then interleaves a pool of commands issued by different
 //! principals — including commands that are only valid in some orderings, and commands that must
 //! never be valid at all — and replays the whole pool in a seeded order. Refusals are expected and
-//! are not failures; what the schedule asserts is that after every single command the ledger still
-//! conserves every budget dimension, has awarded no more slots than it funded, holds one contract
-//! per consent and one obligation per contract, has advanced nothing under a stale fencing token,
-//! and has closed no obligation whose causal work is still outstanding.
+//! are not failures; what the schedule asserts is that after every single command the facts still
+//! conserve every budget dimension and still agree with the records the kernel keeps, that no more
+//! slots were awarded than were funded, that one consent formed one contract and one contract one
+//! obligation, that nothing advanced under a stale fencing token, that no obligation closed while
+//! its causal work was outstanding, and that nobody closed work it did not hold.
 //!
-//! Two things the pool alone cannot do are added here. One participant's own commands are merged in
-//! as a causal sequence rather than permuted, because a uniform shuffle practically never reaches a
-//! state that takes a dozen ordered commands to build. And the accounts are recomputed from the
-//! facts the ledger emitted, so that what is checked is not the same records the kernel writes.
+//! Three things the pool alone cannot do are added here. One participant's own commands are merged
+//! in as a causal sequence rather than permuted, because a uniform shuffle practically never
+//! reaches a state that takes a dozen ordered commands to build. The accounts are recomputed from
+//! the facts the ledger emitted, so that what is checked is not the same records the kernel writes.
+//! And the pool asks for capacity that does not exist and closes work under participants that do
+//! not hold it, so that the checks refusing those things are reached rather than merely present.
 
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -49,6 +52,8 @@ pub(crate) const CROSS_OFFER: &str = "offer-cross";
 pub(crate) const SECOND_OFFER: &str = "offer-second";
 /// The offer advertised once the funding contract has closed for good.
 pub(crate) const THIRD_OFFER: &str = "offer-third";
+/// An offer reserving more than the run was ever funded with, which no ordering may accept.
+pub(crate) const UNFUNDED_OFFER: &str = "offer-unfunded";
 pub(crate) const MAIN_MAX_AWARDS: u32 = 2;
 pub(crate) const LEASE_MS: u64 = 100;
 pub(crate) const DEADLINE: u64 = 800;
@@ -485,16 +490,43 @@ pub(crate) fn setup(tokens: &Tokens) -> Vec<CommitmentCommand> {
         bid_on_main(tokens, "bid-beta", BETA),
         bid_on_main(tokens, "bid-gamma", GAMMA),
         bid_on_main_for(tokens, "bid-alpha-spare", ALPHA, spare_requested_escrow()),
+        // Consent from a third participant, held in reserve so that a reassignment in the pool
+        // hands a contract to somebody other than the participant that was executing it. Without
+        // it every reassignment would return the contract to the same holder, and the rule that
+        // only the holder closes the work would have no ordering in which it could be wrong.
+        bid_on_main_for(tokens, "bid-gamma-spare", GAMMA, spare_requested_escrow()),
     ]
 }
 
 /// The commands whose order is generated. Several are valid only in some orderings, and several
 /// must never be valid in any: a stale fencing token, an award beyond the funded count, a return
-/// issued over work that is still outstanding.
+/// issued over work that is still outstanding, a reservation larger than the whole run was funded
+/// with.
 pub(crate) fn contention_pool(tokens: &Tokens) -> Vec<CommitmentCommand> {
     let candidate = digest("candidate-one");
     let stale_candidate = digest("candidate-stale");
     vec![
+        // A reservation a hundred times the money the run was ever given. No ordering can make it
+        // affordable, so the only thing that can accept it is a kernel that stopped checking
+        // whether the capacity is there — and the facts it would then commit move a hundred times
+        // more money than exists.
+        CommitmentCommand::Advertise(Advertise {
+            offer_id: UNFUNDED_OFFER.to_owned(),
+            sponsor: ROOT_PARTICIPANT.to_owned(),
+            parent_obligation: ROOT_OBLIGATION.to_owned(),
+            funding_source: FundingSource::Participant,
+            task_scope: tokens.task_scope.clone(),
+            base_digest: tokens.base_digest.clone(),
+            intent_digest: tokens.intent_digest.clone(),
+            artifact_class: tokens.artifact_class.clone(),
+            dependencies: vec![tokens.dependency.clone()],
+            capability_scope: vec![tokens.capability.clone()],
+            execution_escrow: BudgetVector::ZERO.with(Dimension::MoneyMicros, 1_000_000_000),
+            policy: OfferPolicy::Negotiated,
+            bid_deadline: DEADLINE,
+            offer_deadline: DEADLINE,
+            max_awards: 1,
+        }),
         award_main("bid-alpha", "alpha"),
         award_main("bid-beta", "beta"),
         award_main("bid-gamma", "gamma"),
@@ -524,24 +556,26 @@ pub(crate) fn contention_pool(tokens: &Tokens) -> Vec<CommitmentCommand> {
         CommitmentCommand::AdvanceClock(AdvanceClock { to: 300 }),
         CommitmentCommand::AdvanceClock(AdvanceClock { to: 600 }),
         // A lease that has run out is replaced by the next fencing generation, with consent the
-        // sponsor names. Everything issued under the previous generation is stale from here on.
+        // sponsor names. The contract changes hands here: everything issued under the previous
+        // generation is stale from here on, and the participant that was executing it is no longer
+        // the one who may advance or close it.
         CommitmentCommand::Reassign(Reassign {
             contract_id: "contract-alpha".to_owned(),
             sponsor: ROOT_PARTICIPANT.to_owned(),
-            bid_id: "bid-alpha-spare".to_owned(),
+            bid_id: "bid-gamma-spare".to_owned(),
             lease_id: "lease-alpha-2".to_owned(),
             lease_ms: LEASE_MS,
         }),
         CommitmentCommand::StartAttempt(StartAttempt {
             attempt_id: "attempt-alpha-2".to_owned(),
             contract_id: "contract-alpha".to_owned(),
-            participant: ALPHA.to_owned(),
+            participant: GAMMA.to_owned(),
             generation: 2,
         }),
         CommitmentCommand::SubmitResult(SubmitResult {
             contract_id: "contract-alpha".to_owned(),
             attempt_id: "attempt-alpha-2".to_owned(),
-            participant: ALPHA.to_owned(),
+            participant: GAMMA.to_owned(),
             generation: 2,
             candidate_digest: candidate,
         }),
@@ -621,11 +655,29 @@ pub(crate) fn contention_pool(tokens: &Tokens) -> Vec<CommitmentCommand> {
         // whether the work below it is closed and its own token is current.
         CommitmentCommand::ReturnObligation(ReturnObligation {
             contract_id: "contract-alpha".to_owned(),
+            participant: GAMMA.to_owned(),
+            generation: 2,
+            outcome: Outcome::Result {
+                candidate_digest: digest("candidate-one"),
+            },
+        }),
+        // The displaced holder closing the same obligation, at the generation that is current
+        // after the reassignment. Its token is not stale; what it lacks is the lease.
+        CommitmentCommand::ReturnObligation(ReturnObligation {
+            contract_id: "contract-alpha".to_owned(),
             participant: ALPHA.to_owned(),
             generation: 2,
             outcome: Outcome::Result {
                 candidate_digest: digest("candidate-one"),
             },
+        }),
+        // And a participant that never held this contract at all, likewise at the current
+        // generation. Nothing but the holder rule stands between it and somebody else's work.
+        CommitmentCommand::ReturnObligation(ReturnObligation {
+            contract_id: "contract-alpha".to_owned(),
+            participant: BETA.to_owned(),
+            generation: 2,
+            outcome: Outcome::DeadEnd,
         }),
         CommitmentCommand::ReturnObligation(ReturnObligation {
             contract_id: "contract-beta".to_owned(),
@@ -737,11 +789,30 @@ pub(crate) fn schedule(seed: u64, tokens: &Tokens) -> Vec<CommitmentCommand> {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) enum Violation {
-    /// A dimension no longer adds up to what the run started with.
+    /// The facts no longer add up in one dimension to what the run started with.
     Conservation {
         dimension: Dimension,
-        expected: u64,
-        found: u64,
+        expected: i128,
+        found: i128,
+    },
+    /// The accounts the facts describe and the accounts the kernel keeps disagree.
+    RegistryDivergence {
+        account: String,
+        dimension: Dimension,
+        facts: i128,
+        registry: i128,
+    },
+    /// A command the kernel decided moves out of an account more than the facts ever put into it.
+    UncoveredDebit {
+        account: String,
+        dimension: Dimension,
+    },
+    /// A committed fact closed the obligation of a task contract under a participant that did not
+    /// hold its lease.
+    ClosedByNonHolder {
+        contract_id: String,
+        participant: String,
+        holder: String,
     },
     /// More awards than the offer funded.
     AwardCountExceeded {
@@ -783,28 +854,59 @@ pub(crate) enum Violation {
     RefusalMutatedState { position: usize },
 }
 
-/// What the emitted facts alone say about the task-contract accounts.
+/// What the emitted facts alone say about every account, and about who holds what.
 ///
-/// This projection is built from the event stream and never reads a ledger field. A check that
-/// consults the same records the kernel writes agrees with the kernel by construction and can only
-/// confirm what the kernel already believes; recomputing the accounts from the facts that were
-/// actually committed is what makes a divergence between the two visible.
+/// This projection is built from the event stream and never reads a ledger field after the run has
+/// begun. A check that consults the same records the kernel writes agrees with the kernel by
+/// construction and can only confirm what the kernel already believes; recomputing the accounts
+/// from the facts that were actually committed is what makes a divergence between the two visible,
+/// and what allows a command whose facts nothing can pay for to be recognized as such.
 ///
-/// Balances are signed on purpose. A debit the accounts cannot cover is a separate question with
-/// its own record, so the projection follows such a fact rather than deciding what it means.
-#[derive(Debug, Default)]
+/// The one field read from the ledger is the opening budget, taken before any command runs. That
+/// position is the premise of the run rather than something a command wrote.
+///
+/// Balances are signed on purpose. Whether a movement was covered is a question the projection
+/// answers, so it follows a fact wherever it leads instead of saturating at zero.
+#[derive(Debug)]
 pub(crate) struct FactAccounts {
-    contracts: BTreeMap<String, [i128; DIMENSION_COUNT]>,
-    offers: BTreeMap<String, [i128; DIMENSION_COUNT]>,
+    balances: BTreeMap<AccountRef, [i128; DIMENSION_COUNT]>,
+    consumed: [i128; DIMENSION_COUNT],
+    opening: BudgetVector,
     /// Which task contract each offer's reservation is due back to, as the offer was advertised.
     funded_by: BTreeMap<String, String>,
     closed: BTreeSet<String>,
+    /// Who each task contract's lease was last issued to.
+    holders: BTreeMap<String, String>,
 }
 
 impl FactAccounts {
+    /// The accounts as the run begins: one participant holding the whole budget of the run.
+    pub(crate) fn opening(root_participant: &str, opening: BudgetVector) -> Self {
+        let mut balances = BTreeMap::new();
+        let mut root = [0; DIMENSION_COUNT];
+        for dimension in DIMENSIONS {
+            root[dimension.index()] = i128::from(opening.get(dimension));
+        }
+        balances.insert(
+            AccountRef::Participant {
+                participant_id: root_participant.to_owned(),
+            },
+            root,
+        );
+        Self {
+            balances,
+            consumed: [0; DIMENSION_COUNT],
+            opening,
+            funded_by: BTreeMap::new(),
+            closed: BTreeSet::new(),
+            holders: BTreeMap::new(),
+        }
+    }
+
     /// Take in every fact one command committed and report what they broke. The facts of a command
-    /// are one indivisible set, so whether an account was still live is judged against the state
-    /// before the command, and what it holds is judged after all of them.
+    /// are one indivisible set, so whether an account was still live and who held a lease are
+    /// judged against the state before the command, and what an account holds is judged after all
+    /// of them.
     pub(crate) fn observe(&mut self, events: &[CommitmentEvent]) -> Vec<Violation> {
         let mut violations = Vec::new();
         for event in events {
@@ -819,23 +921,55 @@ impl FactAccounts {
             }
         }
         for event in events {
-            if let CommitmentEvent::OfferAdvertised {
-                offer_id,
-                funding_source: FundingSource::TaskContract { contract_id },
-                ..
-            } = event
-            {
-                self.funded_by.insert(offer_id.clone(), contract_id.clone());
+            match event {
+                CommitmentEvent::OfferAdvertised {
+                    offer_id,
+                    funding_source: FundingSource::TaskContract { contract_id },
+                    ..
+                } => {
+                    self.funded_by.insert(offer_id.clone(), contract_id.clone());
+                }
+                CommitmentEvent::LeaseIssued {
+                    contract_id,
+                    holder,
+                    ..
+                }
+                | CommitmentEvent::ContractReassigned {
+                    contract_id,
+                    holder,
+                    ..
+                } => {
+                    self.holders.insert(contract_id.clone(), holder.clone());
+                }
+                CommitmentEvent::ObligationReturned {
+                    contract_id,
+                    participant,
+                    ..
+                } => {
+                    if let Some(holder) = self.holders.get(contract_id)
+                        && holder != participant
+                    {
+                        violations.push(Violation::ClosedByNonHolder {
+                            contract_id: contract_id.clone(),
+                            participant: participant.clone(),
+                            holder: holder.clone(),
+                        });
+                    }
+                }
+                _ => {}
             }
             for (account, sign, amount) in moved(event) {
-                let (ledger, key) = match account {
-                    AccountRef::TaskContract { contract_id } => (&mut self.contracts, contract_id),
-                    AccountRef::Offer { offer_id } => (&mut self.offers, offer_id),
-                    AccountRef::Participant { .. } => continue,
-                };
-                let balance = ledger.entry(key.clone()).or_insert([0; DIMENSION_COUNT]);
+                let balance = self
+                    .balances
+                    .entry(account.clone())
+                    .or_insert([0; DIMENSION_COUNT]);
                 for dimension in DIMENSIONS {
                     balance[dimension.index()] += sign * i128::from(amount.get(dimension));
+                }
+            }
+            if let CommitmentEvent::BudgetConsumed { amount, .. } = event {
+                for dimension in DIMENSIONS {
+                    self.consumed[dimension.index()] += i128::from(amount.get(dimension));
                 }
             }
         }
@@ -846,7 +980,9 @@ impl FactAccounts {
                 _ => continue,
             };
             self.closed.insert(contract_id.clone());
-            let Some(balance) = self.contracts.get(contract_id) else {
+            let Some(balance) = self.balances.get(&AccountRef::TaskContract {
+                contract_id: contract_id.clone(),
+            }) else {
                 continue;
             };
             for dimension in DIMENSIONS {
@@ -861,13 +997,127 @@ impl FactAccounts {
         violations
     }
 
+    /// What the run started with is what the accounts and the spent capacity still add up to. This
+    /// is computed over the facts and the opening position, so no field the kernel maintains takes
+    /// part in it.
+    pub(crate) fn conservation(&self) -> Vec<Violation> {
+        let mut violations = Vec::new();
+        for dimension in DIMENSIONS {
+            let index = dimension.index();
+            let found = self.consumed[index]
+                + self
+                    .balances
+                    .values()
+                    .map(|balance| balance[index])
+                    .sum::<i128>();
+            let expected = i128::from(self.opening.get(dimension));
+            if found != expected {
+                violations.push(Violation::Conservation {
+                    dimension,
+                    expected,
+                    found,
+                });
+            }
+        }
+        violations
+    }
+
+    /// Where the accounts the facts describe and the accounts the kernel keeps have parted company.
+    /// Two independent additions of the same movements must agree in every dimension of every
+    /// account, including the capacity that has left the accounts for good.
+    pub(crate) fn divergence(&self, ledger: &CommitmentLedger) -> Vec<Violation> {
+        let mut registry: BTreeMap<AccountRef, BudgetVector> = BTreeMap::new();
+        for participant in ledger.participants().values() {
+            registry.insert(
+                AccountRef::Participant {
+                    participant_id: participant.participant_id.clone(),
+                },
+                participant.balance,
+            );
+        }
+        for offer in ledger.offers().values() {
+            registry.insert(
+                AccountRef::Offer {
+                    offer_id: offer.offer_id.clone(),
+                },
+                offer.escrow,
+            );
+        }
+        for contract in ledger.contracts().values() {
+            registry.insert(
+                AccountRef::TaskContract {
+                    contract_id: contract.contract_id.clone(),
+                },
+                contract.escrow,
+            );
+        }
+        let mut violations = Vec::new();
+        let accounts: BTreeSet<&AccountRef> = self.balances.keys().chain(registry.keys()).collect();
+        for account in accounts {
+            let facts = self.balances.get(account).copied().unwrap_or_default();
+            let held = registry.get(account).copied().unwrap_or_default();
+            for dimension in DIMENSIONS {
+                let recorded = i128::from(held.get(dimension));
+                if facts[dimension.index()] != recorded {
+                    violations.push(Violation::RegistryDivergence {
+                        account: label(account),
+                        dimension,
+                        facts: facts[dimension.index()],
+                        registry: recorded,
+                    });
+                }
+            }
+        }
+        for dimension in DIMENSIONS {
+            let recorded = i128::from(ledger.consumed().get(dimension));
+            if self.consumed[dimension.index()] != recorded {
+                violations.push(Violation::RegistryDivergence {
+                    account: "consumed".to_owned(),
+                    dimension,
+                    facts: self.consumed[dimension.index()],
+                    registry: recorded,
+                });
+            }
+        }
+        violations
+    }
+
+    /// What the facts of a command the kernel decided but could not commit would have taken out of
+    /// an account that never held it. The facts are followed into a copy of the accounts, so what
+    /// is reported is the shortfall the facts themselves describe.
+    pub(crate) fn uncovered(&self, events: &[CommitmentEvent]) -> Vec<Violation> {
+        let mut projected = self.balances.clone();
+        let mut violations = Vec::new();
+        for event in events {
+            for (account, sign, amount) in moved(event) {
+                let balance = projected
+                    .entry(account.clone())
+                    .or_insert([0; DIMENSION_COUNT]);
+                for dimension in DIMENSIONS {
+                    let index = dimension.index();
+                    balance[index] += sign * i128::from(amount.get(dimension));
+                    if balance[index] < 0 {
+                        violations.push(Violation::UncoveredDebit {
+                            account: label(account),
+                            dimension,
+                        });
+                    }
+                }
+            }
+        }
+        violations.dedup();
+        violations
+    }
+
     /// Capacity that no account can reach any more: an offer still holding a reservation whose
     /// destination has closed. Refusing to settle into a closed contract without also keeping that
     /// contract open would trade one accounting break for this one, so the schedules look for both.
     pub(crate) fn stranded(&self) -> Vec<Violation> {
         let mut violations = Vec::new();
-        for (offer_id, balance) in &self.offers {
-            let Some(contract_id) = self.funded_by.get(offer_id) else {
+        for (offer_id, contract_id) in &self.funded_by {
+            let Some(balance) = self.balances.get(&AccountRef::Offer {
+                offer_id: offer_id.clone(),
+            }) else {
                 continue;
             };
             if self.closed.contains(contract_id) && balance.iter().any(|units| *units != 0) {
@@ -878,6 +1128,14 @@ impl FactAccounts {
             }
         }
         violations
+    }
+}
+
+fn label(account: &AccountRef) -> String {
+    match account {
+        AccountRef::Participant { participant_id } => format!("participant {participant_id}"),
+        AccountRef::Offer { offer_id } => format!("offer {offer_id}"),
+        AccountRef::TaskContract { contract_id } => format!("task contract {contract_id}"),
     }
 }
 
@@ -940,7 +1198,7 @@ pub(crate) fn run_schedule(seed: u64, tokens: &Tokens, disabled: DisabledChecks)
         reached: BTreeSet::new(),
         guarded: BTreeSet::new(),
     };
-    let mut accounts = FactAccounts::default();
+    let mut accounts = FactAccounts::opening(ROOT_PARTICIPANT, *ledger.initial_total());
     for command in setup(tokens) {
         let events = ledger
             .execute(&command)
@@ -967,8 +1225,32 @@ pub(crate) fn run_schedule(seed: u64, tokens: &Tokens, disabled: DisabledChecks)
                     CommitmentError::ReservationOutstanding { .. } => {
                         report.guarded.insert("reservation_outstanding")
                     }
+                    CommitmentError::InsufficientBudget { .. } => {
+                        report.guarded.insert("insufficient_budget")
+                    }
+                    // On the return path this refusal has one meaning: a participant that does not
+                    // hold the lease tried to close the work.
+                    CommitmentError::NotAuthorized { .. }
+                        if matches!(command, CommitmentCommand::ReturnObligation(_)) =>
+                    {
+                        report.guarded.insert("return_non_holder")
+                    }
                     _ => false,
                 };
+                // A command the kernel decided and then could not pay for is an accounting break
+                // whichever way it ends: the facts it produced move capacity no account holds.
+                // Deciding changes nothing, so the same facts can be re-derived and followed into a
+                // copy of the projection to say exactly what they could not pay for.
+                if let CommitmentError::UncoveredDebit { account, dimension } = error {
+                    let mut broken = ledger
+                        .decide(&command)
+                        .map(|events| accounts.uncovered(&events))
+                        .unwrap_or_default();
+                    if broken.is_empty() {
+                        broken.push(Violation::UncoveredDebit { account, dimension });
+                    }
+                    report.violations.extend(broken);
+                }
                 if ledger != before {
                     report
                         .violations
@@ -977,6 +1259,8 @@ pub(crate) fn run_schedule(seed: u64, tokens: &Tokens, disabled: DisabledChecks)
             }
         }
         report.violations.extend(state_violations(&ledger));
+        report.violations.extend(accounts.conservation());
+        report.violations.extend(accounts.divergence(&ledger));
     }
     // Whether a reservation is stranded is a question about the end of the schedule: until then it
     // is only unsettled, which is ordinary.
@@ -1025,31 +1309,16 @@ fn fencing_violations(ledger: &CommitmentLedger, events: &[CommitmentEvent]) -> 
     violations
 }
 
-/// The invariants that must hold of the ledger itself after every command.
+/// The structural invariants that must hold of the ledger itself after every command: how many
+/// awards an offer made, how many contracts one consent formed, and whether causal work was closed
+/// in order.
+///
+/// Conservation is deliberately not among them. Adding the same fields the kernel writes and
+/// comparing the sum with the opening total agrees with the kernel by construction, and a check
+/// that agrees by construction cannot report the divergence it exists to catch. That question is
+/// answered by [`FactAccounts`], from the facts.
 pub(crate) fn state_violations(ledger: &CommitmentLedger) -> Vec<Violation> {
     let mut violations = Vec::new();
-    let mut total = *ledger.consumed();
-    for participant in ledger.participants().values() {
-        total = sum(total, &participant.balance);
-    }
-    for offer in ledger.offers().values() {
-        total = sum(total, &offer.escrow);
-    }
-    for contract in ledger.contracts().values() {
-        total = sum(total, &contract.escrow);
-    }
-    for dimension in DIMENSIONS {
-        let expected = ledger.initial_total().get(dimension);
-        let found = total.get(dimension);
-        if expected != found {
-            violations.push(Violation::Conservation {
-                dimension,
-                expected,
-                found,
-            });
-        }
-    }
-
     for offer in ledger.offers().values() {
         if offer.awards_made > offer.max_awards {
             violations.push(Violation::AwardCountExceeded {
@@ -1125,10 +1394,4 @@ pub(crate) fn state_violations(ledger: &CommitmentLedger) -> Vec<Violation> {
         }
     }
     violations
-}
-
-fn sum(total: BudgetVector, addend: &BudgetVector) -> BudgetVector {
-    total
-        .checked_add(addend)
-        .expect("ledger totals stay within the range the run started with")
 }

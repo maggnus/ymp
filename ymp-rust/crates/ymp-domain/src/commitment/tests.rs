@@ -29,8 +29,13 @@ use super::schedules::{
 const SCHEDULE_SEEDS: u64 = 192;
 
 fn prepared() -> (CommitmentLedger, Tokens) {
+    prepared_with(DisabledChecks::default())
+}
+
+fn prepared_with(disabled: DisabledChecks) -> (CommitmentLedger, Tokens) {
     let tokens = Tokens::variant("a");
     let mut ledger = new_ledger();
+    ledger.disable_checks(disabled);
     for command in setup(&tokens) {
         ledger.execute(&command).expect("prefix command");
     }
@@ -727,6 +732,212 @@ fn withdrawal_and_expiry_settle_reservations_and_create_no_obligation() {
     assert!(state_violations(&ledger).is_empty());
 }
 
+/// An advertisement reserving a thousand times what its sponsor holds, first refused because the
+/// capacity is not there, and then — with that refusal switched off — refused again when the facts
+/// it produced reach the accounts.
+fn oversized_offer(tokens: &Tokens) -> CommitmentCommand {
+    CommitmentCommand::Advertise(Advertise {
+        offer_id: "offer-oversized".to_owned(),
+        sponsor: ROOT_PARTICIPANT.to_owned(),
+        parent_obligation: ROOT_OBLIGATION.to_owned(),
+        funding_source: FundingSource::Participant,
+        task_scope: tokens.task_scope.clone(),
+        base_digest: tokens.base_digest.clone(),
+        intent_digest: tokens.intent_digest.clone(),
+        artifact_class: tokens.artifact_class.clone(),
+        dependencies: Vec::new(),
+        capability_scope: Vec::new(),
+        execution_escrow: BudgetVector::ZERO.with(Dimension::MoneyMicros, 1_000_000_000),
+        policy: OfferPolicy::Negotiated,
+        bid_deadline: DEADLINE,
+        offer_deadline: DEADLINE,
+        max_awards: 1,
+    })
+}
+
+/// A debit that cannot be covered is refused and says so, rather than being dropped while the fact
+/// that produced it goes on claiming the capacity moved.
+///
+/// Under every check the kernel enforces this state is unreachable, which is the point of the
+/// covering check. It is reached here by switching that check off, because a fact the accounts
+/// cannot pay for must fail loudly wherever it comes from — including from a check that is one day
+/// weakened or missed.
+#[test]
+fn a_debit_the_accounts_cannot_cover_is_refused_and_named_in_the_result() {
+    let (mut ledger, tokens) = prepared();
+    let held = ledger.participants()[ROOT_PARTICIPANT]
+        .balance
+        .get(Dimension::MoneyMicros);
+    assert!(
+        held < 1_000_000_000,
+        "the offer must ask for more than exists"
+    );
+    assert!(matches!(
+        expect_refusal(&mut ledger, &oversized_offer(&tokens)),
+        CommitmentError::InsufficientBudget {
+            dimension: Dimension::MoneyMicros,
+            ..
+        }
+    ));
+
+    let (mut weakened, tokens) = prepared_with(DisabledChecks {
+        covering: true,
+        ..DisabledChecks::default()
+    });
+    let refusal = expect_refusal(&mut weakened, &oversized_offer(&tokens));
+    assert!(
+        matches!(
+            &refusal,
+            CommitmentError::UncoveredDebit {
+                account,
+                dimension: Dimension::MoneyMicros,
+            } if account.contains(ROOT_PARTICIPANT)
+        ),
+        "an impossible debit was not named in the result: {refusal}"
+    );
+    // The command was decided, so its facts exist and say a billion units left the sponsor. None of
+    // them were committed: the offer does not exist, and no account moved.
+    assert!(!weakened.offers().contains_key("offer-oversized"));
+    let decided = weakened
+        .decide(&oversized_offer(&tokens))
+        .expect("the weakened kernel still decides the command");
+    assert!(decided.iter().any(|event| matches!(
+        event,
+        CommitmentEvent::BudgetTransferred { amount, .. }
+            if amount.get(Dimension::MoneyMicros) == 1_000_000_000
+    )));
+    assert_eq!(
+        weakened.participants()[ROOT_PARTICIPANT]
+            .balance
+            .get(Dimension::MoneyMicros),
+        held
+    );
+}
+
+/// Conservation is recomputed from the facts, so the covering check is falsifiable: without it the
+/// schedules reach a command whose facts move capacity no account ever held.
+#[test]
+fn removing_the_covering_check_produces_a_counterexample() {
+    let (seed, violations) = first_counterexample(DisabledChecks {
+        covering: true,
+        ..DisabledChecks::default()
+    })
+    .expect("the covering check must be load-bearing");
+    assert!(
+        violations
+            .iter()
+            .any(|violation| matches!(violation, Violation::UncoveredDebit { .. })),
+        "seed {seed} produced {violations:?}"
+    );
+}
+
+// ---------------------------------------------------------------------------------------------
+// Only the participant holding the lease closes the work
+// ---------------------------------------------------------------------------------------------
+
+/// A contract that has changed hands, closed by the participant that now holds it and by nobody
+/// else: not by the participant it was taken from, and not by one that never held it. Both present
+/// the generation that is current, so the fencing token has nothing to say and the holder rule is
+/// the only thing standing between them and somebody else's obligation.
+#[test]
+fn a_participant_that_does_not_hold_the_lease_cannot_close_the_obligation() {
+    let (mut ledger, _tokens) = prepared();
+    ledger
+        .execute(&award_main("bid-alpha", "alpha"))
+        .expect("award");
+    ledger
+        .execute(&CommitmentCommand::AdvanceClock(AdvanceClock { to: 400 }))
+        .expect("the lease runs out");
+    ledger
+        .execute(&CommitmentCommand::Reassign(Reassign {
+            contract_id: "contract-alpha".to_owned(),
+            sponsor: ROOT_PARTICIPANT.to_owned(),
+            bid_id: "bid-gamma-spare".to_owned(),
+            lease_id: "lease-alpha-2".to_owned(),
+            lease_ms: LEASE_MS,
+        }))
+        .expect("the contract changes hands");
+    assert_eq!(ledger.contracts()["contract-alpha"].lease.holder, GAMMA);
+    assert_eq!(ledger.contracts()["contract-alpha"].lease.generation, 2);
+
+    let closing = |participant: &str| {
+        CommitmentCommand::ReturnObligation(ReturnObligation {
+            contract_id: "contract-alpha".to_owned(),
+            participant: participant.to_owned(),
+            generation: 2,
+            outcome: Outcome::DeadEnd,
+        })
+    };
+    for (who, participant) in [("the displaced holder", ALPHA), ("a stranger", BETA)] {
+        assert!(
+            matches!(
+                expect_refusal(&mut ledger, &closing(participant)),
+                CommitmentError::NotAuthorized { .. }
+            ),
+            "{who} closed an obligation it does not hold"
+        );
+    }
+    assert_eq!(
+        ledger.obligations()["obligation-alpha"].state,
+        ObligationState::Active
+    );
+    ledger
+        .execute(&closing(GAMMA))
+        .expect("the participant that holds the lease closes the work");
+    assert_eq!(
+        ledger.obligations()["obligation-alpha"].state,
+        ObligationState::Terminal
+    );
+
+    // Without the rule the displaced holder closes it instead, and the fact records a return by a
+    // participant the same facts show does not hold the lease.
+    let (mut weakened, _tokens) = prepared_with(DisabledChecks {
+        return_holder: true,
+        ..DisabledChecks::default()
+    });
+    for command in [
+        award_main("bid-alpha", "alpha"),
+        CommitmentCommand::AdvanceClock(AdvanceClock { to: 400 }),
+        CommitmentCommand::Reassign(Reassign {
+            contract_id: "contract-alpha".to_owned(),
+            sponsor: ROOT_PARTICIPANT.to_owned(),
+            bid_id: "bid-gamma-spare".to_owned(),
+            lease_id: "lease-alpha-2".to_owned(),
+            lease_ms: LEASE_MS,
+        }),
+    ] {
+        weakened
+            .execute(&command)
+            .expect("the contract changes hands");
+    }
+    let events = weakened
+        .execute(&closing(ALPHA))
+        .expect("the weakened kernel accepts a return from a participant without the lease");
+    assert!(events.iter().any(|event| matches!(
+        event,
+        CommitmentEvent::ObligationReturned { participant, .. } if participant == ALPHA
+    )));
+    assert_eq!(weakened.contracts()["contract-alpha"].lease.holder, GAMMA);
+}
+
+/// The same rule over generated orderings rather than one. A reassignment in the pool hands a
+/// contract to another participant, and both the participant it was taken from and one that never
+/// held it then present the current generation.
+#[test]
+fn removing_the_return_holder_check_produces_a_counterexample() {
+    let (seed, violations) = first_counterexample(DisabledChecks {
+        return_holder: true,
+        ..DisabledChecks::default()
+    })
+    .expect("the holder check on the return path must be load-bearing");
+    assert!(
+        violations
+            .iter()
+            .any(|violation| matches!(violation, Violation::ClosedByNonHolder { .. })),
+        "seed {seed} produced {violations:?}"
+    );
+}
+
 // ---------------------------------------------------------------------------------------------
 // Settlement reaches only an account that can still spend
 // ---------------------------------------------------------------------------------------------
@@ -908,6 +1119,7 @@ fn generated_schedules_conserve_budgets_consent_fencing_and_causal_accounting() 
     let tokens = Tokens::variant("a");
     let mut committed = 0;
     let mut reached = std::collections::BTreeSet::new();
+    let mut guarded = std::collections::BTreeSet::new();
     for seed in 0..SCHEDULE_SEEDS {
         let report = run_schedule(seed, &tokens, DisabledChecks::default());
         assert!(
@@ -917,7 +1129,20 @@ fn generated_schedules_conserve_budgets_consent_fencing_and_causal_accounting() 
         );
         committed += report.committed;
         reached.extend(report.reached);
+        guarded.extend(report.guarded);
     }
+    // A contract that never changes hands cannot show that only its holder may close it, so the
+    // orderings are required to have actually refused such a return.
+    assert!(
+        guarded.contains("return_non_holder"),
+        "no ordering ever offered a return from a participant without the lease"
+    );
+    // Likewise for the capacity a command draws on: unless some ordering was actually asked for
+    // more than an account holds, the covering check holds by never being reached.
+    assert!(
+        guarded.contains("insufficient_budget"),
+        "no ordering ever asked an account for more than it holds"
+    );
     assert!(
         committed > SCHEDULE_SEEDS as usize * 8,
         "the schedules must actually commit work, not only be refused: {committed}"
