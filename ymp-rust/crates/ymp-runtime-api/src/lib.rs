@@ -50,6 +50,141 @@ pub struct LaunchEnvironmentVariable {
     pub confidential: bool,
 }
 
+/// The part a program plays when a managed run starts. The role is recorded beside the digest so
+/// that the evidence names what each admitted program does rather than only where it was read from.
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ProgramRole {
+    /// Opens the run's marker on an inherited descriptor and then replaces itself with the next
+    /// program in the chain.
+    LaunchShell,
+    /// Removes the variables the shell introduced of its own accord, then replaces itself with the
+    /// runtime executable.
+    EnvironmentSanitiser,
+    /// Builds the private baseline of the managed workspace before the runtime is started.
+    Workspace,
+}
+
+impl std::fmt::Display for ProgramRole {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let name = match self {
+            Self::LaunchShell => "launch shell",
+            Self::EnvironmentSanitiser => "environment sanitiser",
+            Self::Workspace => "workspace program",
+        };
+        formatter.write_str(name)
+    }
+}
+
+/// A program whose bytes were read and digested before it was executed on a managed run's behalf.
+///
+/// The pinned runtime executable and the coordination bridge are admitted by copy, so the bytes
+/// that were digested are the bytes the operating system loads. A system program cannot be admitted
+/// that way — a copy of a platform binary is refused by the operating system — so it is admitted by
+/// digest at its own path and re-verified immediately before and after the managed process is
+/// created. The residual window between the last verification and the kernel's image load is stated
+/// in the card that introduced this record.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+pub struct AdmittedProgram {
+    pub role: ProgramRole,
+    pub path: PathBuf,
+    pub digest: String,
+}
+
+impl AdmittedProgram {
+    /// Reads the program's bytes and records their digest. This is the admission the later
+    /// verifications compare against.
+    pub fn admit(role: ProgramRole, path: impl Into<PathBuf>) -> Result<Self, RuntimeError> {
+        let path = path.into();
+        if !path.is_file() {
+            return Err(RuntimeError::InvalidProfile(format!(
+                "{role} is not a regular file: {}",
+                path.display()
+            )));
+        }
+        let digest = digest_bytes(&std::fs::read(&path)?);
+        Ok(Self { role, path, digest })
+    }
+
+    /// Reads the program's bytes again and refuses when they differ from the admitted ones.
+    pub fn verify(&self) -> Result<(), RuntimeError> {
+        if !self.path.is_file() {
+            return Err(RuntimeError::InvalidProfile(format!(
+                "{} is no longer a regular file: {}",
+                self.role,
+                self.path.display()
+            )));
+        }
+        if digest_bytes(&std::fs::read(&self.path)?) != self.digest {
+            return Err(RuntimeError::InvalidProfile(format!(
+                "{} changed after admission: {}",
+                self.role,
+                self.path.display()
+            )));
+        }
+        Ok(())
+    }
+}
+
+/// Refuses unless every admitted program still holds the bytes it was admitted with.
+pub fn verify_admitted_programs(programs: &[AdmittedProgram]) -> Result<(), RuntimeError> {
+    for program in programs {
+        program.verify()?;
+    }
+    Ok(())
+}
+
+/// The programs the managed launch preamble enters before the runtime image is loaded. Product code
+/// uses the system paths; the constructor exists because a test cannot substitute `/bin/sh` and the
+/// operating system refuses to execute a copy of it.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct LaunchChain {
+    shell: PathBuf,
+    sanitiser: Option<PathBuf>,
+}
+
+impl LaunchChain {
+    pub const SYSTEM_SHELL: &'static str = "/bin/sh";
+    pub const SYSTEM_SANITISER: &'static str = "/usr/bin/env";
+
+    pub fn new(shell: impl Into<PathBuf>, sanitiser: Option<PathBuf>) -> Self {
+        Self {
+            shell: shell.into(),
+            sanitiser,
+        }
+    }
+
+    /// Records the digest of every program in the chain. The set is fixed here rather than at spawn
+    /// time, so a sanitiser that appears or disappears between admission and launch changes the
+    /// chain and is refused instead of silently entering or leaving it.
+    pub fn admit(&self) -> Result<Vec<AdmittedProgram>, RuntimeError> {
+        if !cfg!(unix) {
+            return Ok(Vec::new());
+        }
+        let mut chain = vec![AdmittedProgram::admit(
+            ProgramRole::LaunchShell,
+            self.shell.clone(),
+        )?];
+        if let Some(sanitiser) = &self.sanitiser {
+            chain.push(AdmittedProgram::admit(
+                ProgramRole::EnvironmentSanitiser,
+                sanitiser.clone(),
+            )?);
+        }
+        Ok(chain)
+    }
+}
+
+impl Default for LaunchChain {
+    fn default() -> Self {
+        let sanitiser = Path::new(Self::SYSTEM_SANITISER);
+        Self {
+            shell: PathBuf::from(Self::SYSTEM_SHELL),
+            sanitiser: sanitiser.is_file().then(|| sanitiser.to_owned()),
+        }
+    }
+}
+
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct LaunchDescriptor {
     pub schema_version: u32,
@@ -61,6 +196,10 @@ pub struct LaunchDescriptor {
     pub coordination_executable: Option<PathBuf>,
     #[serde(default)]
     pub coordination_executable_digest: Option<String>,
+    /// The programs the launch preamble enters before the runtime image is loaded, in the order it
+    /// enters them.
+    #[serde(default)]
+    pub launch_chain: Vec<AdmittedProgram>,
     pub arguments: Vec<String>,
     pub environment: Vec<LaunchEnvironmentVariable>,
     pub working_directory: PathBuf,
@@ -411,18 +550,46 @@ pub fn create_launch_marker() -> std::io::Result<PathBuf> {
 /// with the program the caller named, so the process that runs, its arguments and its identifier are
 /// the ones the launch descriptor attests. The variables the shell introduces of its own accord are
 /// removed again, so the managed process still sees exactly the environment the driver declared.
+///
+/// The shell and the sanitiser are taken from the admitted chain rather than chosen here, so the
+/// programs that execute are exactly the programs whose digests were recorded. The caller verifies
+/// that chain immediately before and after the managed process is created.
 #[doc(hidden)]
-pub fn managed_launch_command(program: &Path, arguments: &[String], marker: &Path) -> Command {
+pub fn managed_launch_command(
+    program: &Path,
+    arguments: &[String],
+    marker: &Path,
+    chain: &[AdmittedProgram],
+) -> Result<Command, RuntimeError> {
     #[cfg(unix)]
     {
         const OPEN_MARKER: &str = "exec 9<\"$1\"; shift; exec ";
-        const SANITISER: &str = "/usr/bin/env";
-        let preamble = if Path::new(SANITISER).is_file() {
-            format!("{OPEN_MARKER}{SANITISER} -u PWD -u SHLVL -u OLDPWD -u _ \"$@\"")
-        } else {
-            format!("{OPEN_MARKER}\"$@\"")
+        let shell = match chain.first() {
+            Some(shell) if shell.role == ProgramRole::LaunchShell => &shell.path,
+            _ => {
+                return Err(RuntimeError::InvalidProfile(
+                    "managed launch chain does not begin with an admitted shell".to_owned(),
+                ));
+            }
         };
-        let mut command = Command::new("/bin/sh");
+        let preamble = match chain.get(1) {
+            Some(sanitiser) if sanitiser.role == ProgramRole::EnvironmentSanitiser => {
+                let sanitiser = shell_quoted(&sanitiser.path)?;
+                format!("{OPEN_MARKER}{sanitiser} -u PWD -u SHLVL -u OLDPWD -u _ \"$@\"")
+            }
+            None => format!("{OPEN_MARKER}\"$@\""),
+            Some(_) => {
+                return Err(RuntimeError::InvalidProfile(
+                    "managed launch chain records an unexpected program".to_owned(),
+                ));
+            }
+        };
+        if chain.len() > 2 {
+            return Err(RuntimeError::InvalidProfile(
+                "managed launch chain records more programs than the preamble enters".to_owned(),
+            ));
+        }
+        let mut command = Command::new(shell);
         command
             .arg("-c")
             .arg(preamble)
@@ -430,15 +597,33 @@ pub fn managed_launch_command(program: &Path, arguments: &[String], marker: &Pat
             .arg(marker)
             .arg(program)
             .args(arguments);
-        command
+        Ok(command)
     }
     #[cfg(not(unix))]
     {
         let _ = marker;
+        if !chain.is_empty() {
+            return Err(RuntimeError::InvalidProfile(
+                "this platform enters no launch chain".to_owned(),
+            ));
+        }
         let mut command = Command::new(program);
         command.args(arguments);
-        command
+        Ok(command)
     }
+}
+
+/// Renders a path as a single shell word, so a chain program whose path contains a shell
+/// metacharacter cannot extend the preamble.
+#[cfg(unix)]
+fn shell_quoted(path: &Path) -> Result<String, RuntimeError> {
+    let path = path.to_str().ok_or_else(|| {
+        RuntimeError::InvalidProfile(format!(
+            "launch chain program path is not UTF-8: {}",
+            path.display()
+        ))
+    })?;
+    Ok(format!("'{}'", path.replace('\'', r"'\''")))
 }
 
 /// Binds a marker to the managed process that was started with it, so that terminating that process
@@ -854,7 +1039,7 @@ pub fn terminate_process_tree(child: &mut Child) -> std::io::Result<()> {
 #[cfg(all(test, unix))]
 mod tests {
     use super::{
-        configure_process_group, create_launch_marker, managed_launch_command,
+        LaunchChain, configure_process_group, create_launch_marker, managed_launch_command,
         register_launch_marker, terminate_process_tree,
     };
     use std::fs;
@@ -931,11 +1116,16 @@ mod tests {
     /// managed launch, so the run's marker is inherited, and in its own process group.
     fn spawn_managed(script: &str, environment: &[(&str, &str)]) -> Child {
         let marker = create_launch_marker().expect("create the run marker");
+        let chain = LaunchChain::default()
+            .admit()
+            .expect("admit the launch chain");
         let mut command = managed_launch_command(
             Path::new("/bin/sh"),
             &["-c".to_owned(), script.to_owned()],
             &marker,
-        );
+            &chain,
+        )
+        .expect("build the managed launch command");
         for (name, value) in environment {
             command.env(name, value);
         }
