@@ -16,8 +16,8 @@ use ymp_runtime_api::{
     InvocationRequest, LaunchChain, LaunchDescriptor, LaunchEnvironmentVariable, McpBinding,
     ProbeReport, Readiness, RuntimeDriver, RuntimeError, RuntimeEvent, RuntimeEventKind,
     RuntimeFailureKind, RuntimeKind, RuntimeSession, Usage, configure_process_group,
-    create_launch_marker, evidence_digest, managed_launch_command, read_bounded_lines,
-    register_launch_marker, terminate_process_tree, verify_admitted_programs,
+    create_launch_marker, end_process_tree_or_keep, evidence_digest, managed_launch_command,
+    read_bounded_lines, register_launch_marker, terminate_process_tree, verify_admitted_programs,
 };
 
 pub const PINNED_CODEX_VERSION: &str = "codex-cli 0.147.0";
@@ -527,11 +527,11 @@ impl CodexLaunch {
         };
         register_launch_marker(&child, marker);
         if let Err(error) = verify_admitted_programs(&descriptor.launch_chain) {
-            let _ = terminate_process_tree(&mut child);
+            end_process_tree_or_keep(&mut child);
             return Err(error);
         }
         if executable_digest(&descriptor.executable)? != descriptor.executable_digest {
-            let _ = terminate_process_tree(&mut child);
+            end_process_tree_or_keep(&mut child);
             return Err(RuntimeError::InvalidProfile(
                 "Codex executable changed while the prepared launch was starting".to_owned(),
             ));
@@ -541,7 +541,7 @@ impl CodexLaunch {
             descriptor.coordination_executable_digest.as_deref(),
         ) && executable_digest(executable)? != digest
         {
-            let _ = terminate_process_tree(&mut child);
+            end_process_tree_or_keep(&mut child);
             return Err(RuntimeError::InvalidProfile(
                 "MCP executable changed while the prepared launch was starting".to_owned(),
             ));
@@ -944,7 +944,7 @@ impl CodexSession {
             return;
         }
         if !self.completed {
-            let _ = terminate_process_tree(&mut self.child);
+            end_process_tree_or_keep(&mut self.child);
             self.completed = true;
         }
         if let Some(reader) = self.stderr_reader.take() {
@@ -963,13 +963,13 @@ impl CodexSession {
         let limit = Duration::from_millis(self.wall_time_limit_ms);
         loop {
             if self.cancellation.is_cancelled() {
-                let _ = terminate_process_tree(&mut self.child);
+                end_process_tree_or_keep(&mut self.child);
                 self.completed = true;
                 self.interrupted = true;
                 return Ok(None);
             }
             let Some(remaining) = limit.checked_sub(self.started_at.elapsed()) else {
-                let _ = terminate_process_tree(&mut self.child);
+                end_process_tree_or_keep(&mut self.child);
                 self.completed = true;
                 return Err(RuntimeError::TimedOut {
                     limit_ms: self.wall_time_limit_ms,
@@ -985,7 +985,7 @@ impl CodexSession {
                     return Err(RuntimeError::MalformedEvent(error));
                 }
                 Ok(BoundedOutputLine::LimitExceeded) => {
-                    let _ = terminate_process_tree(&mut self.child);
+                    end_process_tree_or_keep(&mut self.child);
                     self.completed = true;
                     return Err(RuntimeError::OutputLimitExceeded {
                         limit_bytes: self.output_limit_bytes,
@@ -1007,7 +1007,7 @@ impl CodexSession {
                 let session_id = string_field(&event, "thread_id")?;
                 if let Some(expected) = &self.session_id {
                     if expected != &session_id {
-                        let _ = terminate_process_tree(&mut self.child);
+                        end_process_tree_or_keep(&mut self.child);
                         self.completed = true;
                         self.terminal = true;
                         return Err(RuntimeError::InvalidProfile(format!(
@@ -1085,7 +1085,7 @@ impl CodexSession {
                         "failed to summarize runtime failure event: {error}"
                     ))
                 })?;
-                let _ = terminate_process_tree(&mut self.child);
+                end_process_tree_or_keep(&mut self.child);
                 self.completed = true;
                 Ok(Some(self.failed_event(
                     RuntimeFailureKind::RuntimeReported,
@@ -1101,7 +1101,7 @@ impl CodexSession {
     fn next_event_inner(&mut self) -> Result<Option<RuntimeEvent>, RuntimeError> {
         if self.cancellation.is_cancelled() && !self.terminal && !self.interrupted {
             if !self.completed {
-                let _ = terminate_process_tree(&mut self.child);
+                end_process_tree_or_keep(&mut self.child);
             }
             self.completed = true;
             self.terminal = true;
@@ -1235,7 +1235,7 @@ impl RuntimeSession for CodexSession {
 impl Drop for CodexSession {
     fn drop(&mut self) {
         if !self.completed {
-            let _ = terminate_process_tree(&mut self.child);
+            end_process_tree_or_keep(&mut self.child);
         }
     }
 }

@@ -21,7 +21,7 @@ use ymp_runtime_api::{
     AdmittedProgram, CancellationToken, DiagnosticSummary, InvocationRequest, LaunchDescriptor,
     McpBinding, ProbeReport, ProgramIdentity, ProgramRequirement, ProgramRole, Readiness,
     RuntimeDriver, RuntimeError, RuntimeEvent, RuntimeEventKind, RuntimeFailureKind, RuntimeKind,
-    Usage, admit_lifecycle_programs,
+    Usage, admit_lifecycle_programs, unestablished_terminations,
 };
 
 const CONTRACT_SCHEMA_VERSION: u32 = 1;
@@ -485,11 +485,74 @@ impl Drop for ManagedRunHandle {
     }
 }
 
+/// Whether the launch of the runtime being started has to be attested.
+#[derive(Clone, Copy, Eq, PartialEq)]
+enum LaunchAttestation {
+    Required,
+    Waived,
+}
+
+/// The one gate every start of a runtime passes, wherever that start is written.
+///
+/// Two things are established here and nowhere else. The runtime must attest the programs its
+/// launch enters, because attestation is what binds the bytes that execute to the bytes that were
+/// admitted; and the utilities the run observes and ends its own processes with must be admitted,
+/// because a run that cannot see what it starts cannot say what it left running. The admitted
+/// utilities are returned, so the caller records what it will execute on its own behalf.
+///
+/// A start written outside this crate reaches the same gate by calling this function. That every
+/// such start does is not left to reading: `ymp-cli/tests/unattested_runtime_is_unreachable.rs`
+/// rejects a shipped module that builds a runtime driver and starts it without this call, and
+/// drives the built product to establish that no command offers a runtime this gate would refuse.
+pub fn admit_runtime_start(kind: RuntimeKind) -> anyhow::Result<Vec<AdmittedProgram>> {
+    admit_start(kind, LaunchAttestation::Required)
+}
+
+fn admit_start(
+    kind: RuntimeKind,
+    attestation: LaunchAttestation,
+) -> anyhow::Result<Vec<AdmittedProgram>> {
+    if attestation == LaunchAttestation::Required && !requires_launch_attestation(kind) {
+        bail!(
+            "{kind:?} does not attest the programs its launch enters, so it cannot start a managed \
+             run"
+        );
+    }
+    // The run observes and ends its own processes with these utilities. One that cannot be admitted
+    // stops the run here, naming the program and the reason, rather than leaving a run that reports
+    // a clean termination it was never able to establish.
+    admit_lifecycle_programs()
+        .context("the utilities this run observes and ends its own processes with")
+}
+
+/// Starts a managed run that produces a candidate. The runtime passes [`admit_runtime_start`]
+/// before anything of it is executed.
 pub fn start_managed_candidate(
     application: Arc<Mutex<Application>>,
     driver: Box<dyn RuntimeDriver>,
     request: ManagedCandidateRequest,
 ) -> anyhow::Result<ManagedRunHandle> {
+    start_candidate(application, driver, request, LaunchAttestation::Required)
+}
+
+/// Starts a managed run with a runtime whose launch is not attested. This exists for the checks
+/// that must drive the controller without a runtime executable; nothing the product ships names it.
+#[doc(hidden)]
+pub fn start_unattested_managed_candidate(
+    application: Arc<Mutex<Application>>,
+    driver: Box<dyn RuntimeDriver>,
+    request: ManagedCandidateRequest,
+) -> anyhow::Result<ManagedRunHandle> {
+    start_candidate(application, driver, request, LaunchAttestation::Waived)
+}
+
+fn start_candidate(
+    application: Arc<Mutex<Application>>,
+    driver: Box<dyn RuntimeDriver>,
+    request: ManagedCandidateRequest,
+    attestation: LaunchAttestation,
+) -> anyhow::Result<ManagedRunHandle> {
+    let lifecycle_programs = admit_start(driver.kind(), attestation)?;
     let probe = driver.probe()?;
     if probe.readiness != Readiness::Ready {
         bail!("runtime profile is not ready: {}", probe.detail);
@@ -509,7 +572,6 @@ pub fn start_managed_candidate(
         )
     })?;
     let workspace_program = admit_workspace_program()?;
-    let lifecycle_programs = admit_lifecycle_programs();
     let contract_id = request.contract.contract_id.clone();
     let contract_digest = request.contract.contract_digest.clone();
     let attempt_id = format!("attempt-{}", Uuid::new_v4());
@@ -697,7 +759,17 @@ pub fn start_managed_candidate(
     let mut session = match driver.start_prepared(invocation_request, launch_descriptor.as_ref()) {
         Ok(session) => session,
         Err(error) => {
-            record_infrastructure_failure(&application, &attempt_id, runtime_error_code(&error));
+            // A launch that failed may also have failed to end what it had already started. That is
+            // kept where it was found and read here, so the run records it beside the failure.
+            let mut detail = runtime_error_code(&error).to_owned();
+            let unestablished = unestablished_terminations();
+            if !unestablished.is_empty() {
+                detail.push_str(&format!(
+                    "; managed_runtime_termination_unestablished: {}",
+                    unestablished.join("; ")
+                ));
+            }
+            record_infrastructure_failure(&application, &attempt_id, &detail);
             return Err(error.into());
         }
     };
@@ -898,9 +970,26 @@ pub fn start_managed_candidate(
                 lifecycle.yielded = false;
                 lifecycle.terminal = true;
             }
-            if let Err(error) = result {
-                let _ = error;
-                let detail = "managed_runtime_supervision_failed".to_owned();
+            // The places that end the process tree while they are already reporting a cancellation,
+            // a time limit or a runtime failure — and the session being dropped, which reports to
+            // nobody — keep what they could not establish. It is read here, because a run may
+            // report that it left nothing running only where that was measured.
+            let unestablished = unestablished_terminations();
+            let kept = (!unestablished.is_empty()).then(|| {
+                format!(
+                    "managed_runtime_termination_unestablished: {}",
+                    unestablished.join("; ")
+                )
+            });
+            let detail = match (result, kept) {
+                (Err(error), kept) => {
+                    let _ = error;
+                    let supervision = "managed_runtime_supervision_failed".to_owned();
+                    Some(kept.map_or(supervision.clone(), |kept| format!("{supervision}; {kept}")))
+                }
+                (Ok(()), kept) => kept,
+            };
+            if let Some(detail) = detail {
                 record_infrastructure_failure(&worker_application, &worker_attempt, &detail);
                 let _ = sender.send(ManagedRunEvent::Failed { detail });
             }
@@ -1456,7 +1545,7 @@ mod tests {
     use super::{
         ManagedCandidateRequest, ManagedContract, ManagedRunEvent, admit_workspace_program,
         admit_workspace_program_from, initialize_private_git, start_managed_candidate,
-        validate_launch_descriptor, validate_runtime_launch,
+        start_unattested_managed_candidate, validate_launch_descriptor, validate_runtime_launch,
     };
     use std::collections::VecDeque;
     use std::path::{Path, PathBuf};
@@ -2079,7 +2168,7 @@ mod tests {
             verifier: None,
         };
         let runtime = FakeRuntime::with_script(vec![ScriptStep::Complete(Usage::default())]);
-        let handle = start_managed_candidate(
+        let handle = start_unattested_managed_candidate(
             Arc::clone(&application),
             Box::new(runtime),
             ManagedCandidateRequest {
@@ -2172,7 +2261,7 @@ mod tests {
             capture_exclusions: vec!["target".to_owned()],
             verifier: None,
         };
-        let handle = start_managed_candidate(
+        let handle = start_unattested_managed_candidate(
             Arc::clone(&application),
             runtime,
             ManagedCandidateRequest {
@@ -2290,7 +2379,7 @@ mod tests {
         let runtime = SubmittingRuntime {
             inner: FakeRuntime::with_script(vec![ScriptStep::Complete(Usage::default())]),
         };
-        let handle = start_managed_candidate(
+        let handle = start_unattested_managed_candidate(
             Arc::clone(&application),
             Box::new(runtime),
             ManagedCandidateRequest {
@@ -2348,7 +2437,7 @@ mod tests {
             Application::create(temporary.path().join("data"), "run-1", Budget::new(1, 1))
                 .expect("create application"),
         ));
-        let handle = start_managed_candidate(
+        let handle = start_unattested_managed_candidate(
             Arc::clone(&application),
             Box::new(LifecycleRuntime {
                 inner: FakeRuntime::default(),

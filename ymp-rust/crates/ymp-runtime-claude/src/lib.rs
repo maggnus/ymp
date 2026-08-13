@@ -16,8 +16,9 @@ use ymp_runtime_api::{
     InvocationRequest, LaunchChain, LaunchDescriptor, LaunchEnvironmentVariable, McpBinding,
     ProbeReport, ProgramRequirement, ProgramRole, Readiness, RuntimeDriver, RuntimeError,
     RuntimeEvent, RuntimeEventKind, RuntimeFailureKind, RuntimeKind, RuntimeSession, Usage,
-    configure_process_group, create_launch_marker, evidence_digest, managed_launch_command,
-    read_bounded_lines, register_launch_marker, terminate_process_tree, verify_admitted_programs,
+    configure_process_group, create_launch_marker, end_process_tree_or_keep, evidence_digest,
+    managed_launch_command, read_bounded_lines, register_launch_marker, terminate_process_tree,
+    verify_admitted_programs,
 };
 
 pub const PINNED_CLAUDE_VERSION: &str = "2.1.227 (Claude Code)";
@@ -733,15 +734,15 @@ impl ClaudeLaunch {
         })();
         drop(stdin);
         if let Err(error) = delivered {
-            let _ = terminate_process_tree(&mut child);
+            end_process_tree_or_keep(&mut child);
             return Err(RuntimeError::Process(error));
         }
         if let Err(error) = verify_admitted_programs(&descriptor.launch_chain) {
-            let _ = terminate_process_tree(&mut child);
+            end_process_tree_or_keep(&mut child);
             return Err(error);
         }
         if executable_digest(&descriptor.executable)? != descriptor.executable_digest {
-            let _ = terminate_process_tree(&mut child);
+            end_process_tree_or_keep(&mut child);
             return Err(RuntimeError::InvalidProfile(
                 "Claude executable changed while the prepared launch was starting".to_owned(),
             ));
@@ -751,7 +752,7 @@ impl ClaudeLaunch {
             descriptor.coordination_executable_digest.as_deref(),
         ) && executable_digest(executable)? != digest
         {
-            let _ = terminate_process_tree(&mut child);
+            end_process_tree_or_keep(&mut child);
             return Err(RuntimeError::InvalidProfile(
                 "MCP executable changed while the prepared launch was starting".to_owned(),
             ));
@@ -1206,7 +1207,7 @@ impl ClaudeSession {
             return;
         }
         if !self.completed {
-            let _ = terminate_process_tree(&mut self.child);
+            end_process_tree_or_keep(&mut self.child);
             self.completed = true;
         }
         if let Some(reader) = self.stderr_reader.take() {
@@ -1225,13 +1226,13 @@ impl ClaudeSession {
         let limit = Duration::from_millis(self.wall_time_limit_ms);
         loop {
             if self.cancellation.is_cancelled() {
-                let _ = terminate_process_tree(&mut self.child);
+                end_process_tree_or_keep(&mut self.child);
                 self.completed = true;
                 self.interrupted = true;
                 return Ok(None);
             }
             let Some(remaining) = limit.checked_sub(self.started_at.elapsed()) else {
-                let _ = terminate_process_tree(&mut self.child);
+                end_process_tree_or_keep(&mut self.child);
                 self.completed = true;
                 return Err(RuntimeError::TimedOut {
                     limit_ms: self.wall_time_limit_ms,
@@ -1247,7 +1248,7 @@ impl ClaudeSession {
                     return Err(RuntimeError::MalformedEvent(error));
                 }
                 Ok(BoundedOutputLine::LimitExceeded) => {
-                    let _ = terminate_process_tree(&mut self.child);
+                    end_process_tree_or_keep(&mut self.child);
                     self.completed = true;
                     return Err(RuntimeError::OutputLimitExceeded {
                         limit_bytes: self.output_limit_bytes,
@@ -1479,7 +1480,7 @@ impl ClaudeSession {
 
     fn parse_result(&mut self, event: &Value) -> Result<Option<RuntimeEvent>, RuntimeError> {
         if self.turn_reported {
-            let _ = terminate_process_tree(&mut self.child);
+            end_process_tree_or_keep(&mut self.child);
             self.completed = true;
             return Err(RuntimeError::MalformedEvent(
                 "Claude reported a second terminal result for one turn".to_owned(),
@@ -1499,7 +1500,7 @@ impl ClaudeSession {
                 format!("subtype={subtype}, terminal_reason={terminal_reason}").as_bytes(),
                 false,
             );
-            let _ = terminate_process_tree(&mut self.child);
+            end_process_tree_or_keep(&mut self.child);
             self.completed = true;
             return Ok(Some(self.failed_event(
                 RuntimeFailureKind::RuntimeReported,
@@ -1516,7 +1517,7 @@ impl ClaudeSession {
                 .as_bytes(),
                 false,
             );
-            let _ = terminate_process_tree(&mut self.child);
+            end_process_tree_or_keep(&mut self.child);
             self.completed = true;
             return Ok(Some(
                 self.failed_event(RuntimeFailureKind::Protocol, Some(diagnostic)),
@@ -1557,7 +1558,7 @@ impl ClaudeSession {
                 let session_id = match self.admit_session(&event) {
                     Ok(session_id) => session_id,
                     Err(error) => {
-                        let _ = terminate_process_tree(&mut self.child);
+                        end_process_tree_or_keep(&mut self.child);
                         self.completed = true;
                         self.terminal = true;
                         return Err(error);
@@ -1565,7 +1566,7 @@ impl ClaudeSession {
                 };
                 if let Some(expected) = &self.session_id {
                     if expected != &session_id {
-                        let _ = terminate_process_tree(&mut self.child);
+                        end_process_tree_or_keep(&mut self.child);
                         self.completed = true;
                         self.terminal = true;
                         return Err(RuntimeError::InvalidProfile(format!(
@@ -1584,7 +1585,7 @@ impl ClaudeSession {
             {
                 let tool = string_field(&event, "tool_name")?;
                 if tool.starts_with("mcp__ymp__") {
-                    let _ = terminate_process_tree(&mut self.child);
+                    end_process_tree_or_keep(&mut self.child);
                     self.completed = true;
                     self.terminal = true;
                     return Err(RuntimeError::InvalidProfile(format!(
@@ -1607,7 +1608,7 @@ impl ClaudeSession {
     fn next_event_inner(&mut self) -> Result<Option<RuntimeEvent>, RuntimeError> {
         if self.cancellation.is_cancelled() && !self.terminal && !self.interrupted {
             if !self.completed {
-                let _ = terminate_process_tree(&mut self.child);
+                end_process_tree_or_keep(&mut self.child);
             }
             self.completed = true;
             self.terminal = true;
@@ -1741,7 +1742,7 @@ impl RuntimeSession for ClaudeSession {
 impl Drop for ClaudeSession {
     fn drop(&mut self) {
         if !self.completed {
-            let _ = terminate_process_tree(&mut self.child);
+            end_process_tree_or_keep(&mut self.child);
         }
     }
 }

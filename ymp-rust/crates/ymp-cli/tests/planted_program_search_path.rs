@@ -72,7 +72,7 @@ fn a_program_planted_in_the_search_path_never_builds_a_managed_workspace() {
         .arg(root.path().join("data"))
         .arg("--contract")
         .arg(&package)
-        .args(["internal", "managed-candidate-smoke", "--runtime", "fake"])
+        .args(["internal", "managed-candidate-smoke", "--runtime", "codex"])
         .env("PATH", {
             let mut search = planted_directory.clone().into_os_string();
             search.push(":/usr/bin:/bin");

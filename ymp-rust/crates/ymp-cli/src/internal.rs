@@ -15,11 +15,15 @@ use std::time::Duration;
 use uuid::Uuid;
 use ymp_application::{Application, PreparedContract};
 use ymp_domain::Command as DomainCommand;
-use ymp_runtime_api::{CancellationToken, InvocationRequest, McpBinding, Readiness, RuntimeDriver};
+use ymp_runtime_api::{
+    CancellationToken, InvocationRequest, McpBinding, Readiness, RuntimeDriver,
+    unestablished_terminations,
+};
 use ymp_runtime_claude::ClaudeRuntime;
 use ymp_runtime_codex::CodexRuntime;
-use ymp_runtime_fake::FakeRuntime;
-use ymp_runtime_supervisor::{admit_workspace_program, initialize_private_git};
+use ymp_runtime_supervisor::{
+    admit_runtime_start, admit_workspace_program, initialize_private_git,
+};
 
 #[derive(Debug, Subcommand)]
 pub enum InternalCommand {
@@ -66,9 +70,12 @@ pub enum InternalCommand {
     },
 }
 
+/// The runtimes this executable can start. The in-process fixture runtime is absent: it attests
+/// nothing about the programs a launch enters, so a run started with it — and any candidate that
+/// run assembled — would carry no evidence of the program that wrote it. It is reachable only from
+/// the checks, which link the fixture crate directly.
 #[derive(Clone, Copy, Debug, ValueEnum)]
 pub enum RuntimeChoice {
-    Fake,
     Codex,
     Claude,
 }
@@ -128,12 +135,33 @@ pub fn run(
     }
 }
 
-fn runtime_driver(runtime: RuntimeChoice) -> Box<dyn RuntimeDriver> {
-    match runtime {
-        RuntimeChoice::Fake => Box::new(FakeRuntime::default()),
+/// The only place in this executable where a runtime driver is built, and therefore the only place
+/// a runtime can be started from. Every driver passes the controller's own gate before it is
+/// handed back: the runtime must attest the programs its launch enters, and the utilities the run
+/// observes and ends its own processes with must be admitted. A command that reached a runtime
+/// without this would start one under neither rule, which is what these commands did.
+fn runtime_driver(runtime: RuntimeChoice) -> anyhow::Result<Box<dyn RuntimeDriver>> {
+    let driver: Box<dyn RuntimeDriver> = match runtime {
         RuntimeChoice::Codex => Box::new(CodexRuntime::default()),
         RuntimeChoice::Claude => Box::new(ClaudeRuntime::default()),
+    };
+    admit_runtime_start(driver.kind())?;
+    Ok(driver)
+}
+
+/// Reads what the runtime session could not establish about the processes it started. The places
+/// that end a process tree while they are already reporting something else keep it, because they
+/// have no caller to tell; a command that printed its events and exited zero without reading it
+/// would report a clean end it never measured.
+fn require_established_termination() -> anyhow::Result<()> {
+    let unestablished = unestablished_terminations();
+    if !unestablished.is_empty() {
+        bail!(
+            "the processes this run started could not be ended: {}",
+            unestablished.join("; ")
+        );
     }
+    Ok(())
 }
 
 fn run_runtime_smoke(
@@ -141,7 +169,7 @@ fn run_runtime_smoke(
     workspace: PathBuf,
     prompt: String,
 ) -> anyhow::Result<()> {
-    let driver = runtime_driver(runtime);
+    let driver = runtime_driver(runtime)?;
     let probe = driver.probe()?;
     println!("{}", serde_json::to_string(&probe)?);
     if probe.readiness != Readiness::Ready {
@@ -158,6 +186,8 @@ fn run_runtime_smoke(
     while let Some(event) = session.next_event()? {
         println!("{}", serde_json::to_string(&event)?);
     }
+    drop(session);
+    require_established_termination()?;
     Ok(())
 }
 
@@ -189,7 +219,7 @@ fn run_managed_runtime_smoke(
         .context("resolve current ymp executable")?
         .canonicalize()
         .context("canonicalize current ymp executable")?;
-    let driver = runtime_driver(runtime);
+    let driver = runtime_driver(runtime)?;
     let probe = driver.probe()?;
     println!("{}", serde_json::to_string(&probe)?);
     if probe.readiness != Readiness::Ready {
@@ -210,6 +240,8 @@ fn run_managed_runtime_smoke(
     while let Some(event) = session.next_event()? {
         println!("{}", serde_json::to_string(&event)?);
     }
+    drop(session);
+    require_established_termination()?;
     let application = application
         .lock()
         .map_err(|_| anyhow::anyhow!("application lock was poisoned"))?;
@@ -265,7 +297,7 @@ fn run_managed_candidate_smoke(
         .context("resolve current ymp executable")?
         .canonicalize()
         .context("canonicalize current ymp executable")?;
-    let driver = runtime_driver(runtime);
+    let driver = runtime_driver(runtime)?;
     let probe = driver.probe()?;
     println!("{}", serde_json::to_string(&probe)?);
     if probe.readiness != Readiness::Ready {
@@ -286,6 +318,8 @@ fn run_managed_candidate_smoke(
     while let Some(event) = session.next_event()? {
         println!("{}", serde_json::to_string(&event)?);
     }
+    drop(session);
+    require_established_termination()?;
 
     let mut application = application
         .lock()

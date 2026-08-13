@@ -52,7 +52,7 @@ pub struct LaunchEnvironmentVariable {
 
 /// The part a program plays when a managed run starts. The role is recorded beside the digest so
 /// that the evidence names what each admitted program does rather than only where it was read from.
-#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[derive(Clone, Copy, Debug, Deserialize, Eq, Ord, PartialEq, PartialOrd, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ProgramRole {
     /// Opens the run's marker on an inherited descriptor and then replaces itself with the next
@@ -73,6 +73,8 @@ pub enum ProgramRole {
     DescriptorHolders,
     /// Signals the managed process and its descendants.
     Signal,
+    /// Reports the access-control entries of a location, which its mode does not describe.
+    AccessControl,
 }
 
 impl std::fmt::Display for ProgramRole {
@@ -85,6 +87,7 @@ impl std::fmt::Display for ProgramRole {
             Self::ProcessTable => "process table reader",
             Self::DescriptorHolders => "descriptor holder reader",
             Self::Signal => "signal program",
+            Self::AccessControl => "access-control reader",
         };
         formatter.write_str(name)
     }
@@ -208,8 +211,34 @@ impl AdmittedProgram {
 /// Refuses unless the program stands where only the superuser could have put it. Every ancestor
 /// directory is examined, because a writable directory anywhere on the path lets the account
 /// exchange the file the name resolves to.
+///
+/// Ownership and mode answer only part of the question. A location can name this account, its
+/// group or everyone in an access-control entry while its mode shows nothing, and an account that
+/// holds such an entry can replace the file the name resolves to exactly as the mode would have
+/// let it. Both grounds are therefore read, and the refusal states each one that failed.
 #[cfg(unix)]
 fn require_system_path(role: ProgramRole, path: &Path) -> Result<(), RuntimeError> {
+    require_superuser_ancestry(role, path, AccessControlEntries::Read)
+}
+
+/// Whether the ancestry walk also reads the access-control entries of each location.
+///
+/// The entries are read by running the platform's own utility, and that utility stands under the
+/// same system directories. Its own admission therefore takes [`AccessControlEntries::Unread`],
+/// which is what stops the reading from requiring itself.
+#[cfg(unix)]
+#[derive(Clone, Copy, Eq, PartialEq)]
+enum AccessControlEntries {
+    Read,
+    Unread,
+}
+
+#[cfg(unix)]
+fn require_superuser_ancestry(
+    role: ProgramRole,
+    path: &Path,
+    entries: AccessControlEntries,
+) -> Result<(), RuntimeError> {
     use std::os::unix::fs::MetadataExt;
 
     if !path.is_absolute() {
@@ -220,19 +249,231 @@ fn require_system_path(role: ProgramRole, path: &Path) -> Result<(), RuntimeErro
     }
     let canonical = path.canonicalize()?;
     let mut current = Some(canonical.as_path());
+    let mut refusals = Vec::new();
     while let Some(component) = current {
         let metadata = std::fs::metadata(component)?;
-        if metadata.uid() != 0 || metadata.mode() & 0o022 != 0 {
-            return Err(RuntimeError::InvalidProfile(format!(
-                "{role} at {} stands under {}, which this account can write, so the bytes admitted \
-                 for it are not bound to the program the run means",
-                path.display(),
-                component.display()
-            )));
+        let mut grounds = Vec::new();
+        if metadata.uid() != 0 {
+            grounds.push(format!(
+                "it belongs to account {} rather than to the superuser",
+                metadata.uid()
+            ));
         }
+        if metadata.mode() & 0o022 != 0 {
+            grounds.push(format!(
+                "its mode {:04o} grants write beyond its owner",
+                metadata.mode() & 0o7777
+            ));
+        }
+        if entries == AccessControlEntries::Read
+            && let Some(entry) = access_control::write_grant(component)?
+        {
+            grounds.push(format!(
+                "an access-control entry grants write access: {entry}"
+            ));
+        }
+        if !grounds.is_empty() {
+            refusals.push(format!("{} {}", component.display(), grounds.join(", ")));
+        }
+        // The walk continues past the first ground it finds, so that the refusal names every
+        // location on the path this account can reach and the ground on which each one fails.
         current = component.parent();
     }
+    if !refusals.is_empty() {
+        return Err(RuntimeError::InvalidProfile(format!(
+            "{role} at {} stands under a location which this account can write, so the bytes \
+             admitted for it are not bound to the program the run means: {}",
+            path.display(),
+            refusals.join("; ")
+        )));
+    }
     Ok(())
+}
+
+/// Reads the access-control entries of a location, which its mode does not describe.
+///
+/// The entries are read by running the platform's own listing utility, because the calls that
+/// answer the question belong to the C library and this workspace executes no unsafe code. That
+/// utility is admitted before it runs, under the ownership and mode of its own location; the
+/// entries of its ancestors cannot be read without running it, so that one leg of the rule cannot
+/// apply to the reader itself. An account that already held a write-granting entry on a system
+/// directory could therefore hide that entry from every later reading — but it could equally
+/// replace the reader, the process table or the pinned runtime outright, so this is the same
+/// boundary the rest of this record draws rather than a new one.
+///
+/// A verdict is remembered per location and per the moment that location's metadata last changed.
+/// Adding, changing or removing an entry changes that moment, so a remembered verdict is never the
+/// answer to a question about a location whose access has since been rearranged.
+#[cfg(unix)]
+mod access_control {
+    use super::{AccessControlEntries, ProgramRole, RuntimeError};
+    use std::collections::HashMap;
+    use std::path::{Path, PathBuf};
+    use std::process::{Command, Stdio};
+    use std::sync::{Mutex, OnceLock};
+
+    /// The platform's listing utility, which reports a location's entries beside its mode.
+    pub const READER: &str = "/bin/ls";
+
+    /// A location as it stood when its entries were read.
+    #[derive(Eq, Hash, PartialEq)]
+    struct Reading {
+        path: PathBuf,
+        device: u64,
+        inode: u64,
+        changed_seconds: i64,
+        changed_nanoseconds: i64,
+    }
+
+    fn readings() -> &'static Mutex<HashMap<Reading, Option<String>>> {
+        static READINGS: OnceLock<Mutex<HashMap<Reading, Option<String>>>> = OnceLock::new();
+        READINGS.get_or_init(|| Mutex::new(HashMap::new()))
+    }
+
+    fn reading(path: &Path) -> Result<Reading, RuntimeError> {
+        use std::os::unix::fs::MetadataExt;
+
+        let metadata = std::fs::metadata(path)?;
+        Ok(Reading {
+            path: path.to_owned(),
+            device: metadata.dev(),
+            inode: metadata.ino(),
+            changed_seconds: metadata.ctime(),
+            changed_nanoseconds: metadata.ctime_nsec(),
+        })
+    }
+
+    /// The entry that grants write access to this location, if it carries one. An error means the
+    /// entries could not be read at all, which is refused rather than read as their absence.
+    pub fn write_grant(path: &Path) -> Result<Option<String>, RuntimeError> {
+        let reading = reading(path)?;
+        if let Ok(readings) = readings().lock()
+            && let Some(remembered) = readings.get(&reading)
+        {
+            return Ok(remembered.clone());
+        }
+        let reader = admitted_reader()?;
+        let grant = write_grant_from(&reader, path)?;
+        if let Ok(mut readings) = readings().lock() {
+            readings.insert(reading, grant.clone());
+        }
+        Ok(grant)
+    }
+
+    /// Establishes that the reader stands where only the superuser could have put it, under the
+    /// ownership and mode of its location alone.
+    fn admitted_reader() -> Result<PathBuf, RuntimeError> {
+        let path = Path::new(READER);
+        if !path.is_file() {
+            return Err(RuntimeError::InvalidProfile(format!(
+                "{} is not a regular file: {READER}",
+                ProgramRole::AccessControl
+            )));
+        }
+        super::require_superuser_ancestry(
+            ProgramRole::AccessControl,
+            path,
+            AccessControlEntries::Unread,
+        )?;
+        Ok(path.to_owned())
+    }
+
+    /// The permissions an entry may grant without letting its holder change what stands at the
+    /// location. Anything else in an allowing entry is treated as write access, so a permission
+    /// this list does not know is refused rather than passed over.
+    #[cfg(target_os = "macos")]
+    const READ_ONLY_PERMISSIONS: [&str; 12] = [
+        "read",
+        "execute",
+        "list",
+        "search",
+        "readattr",
+        "readextattr",
+        "readsecurity",
+        "file_inherit",
+        "directory_inherit",
+        "limit_inherit",
+        "only_inherit",
+        "inherited",
+    ];
+
+    /// Reads the entries themselves, which this platform's listing utility prints under the
+    /// location when it is asked for them. A denying entry can only take access away, so only the
+    /// allowing ones are judged; an entry whose text this rule cannot read is reported as a grant,
+    /// because an unread entry is not an absent one.
+    #[cfg(target_os = "macos")]
+    fn write_grant_from(reader: &Path, path: &Path) -> Result<Option<String>, RuntimeError> {
+        let output = Command::new(reader)
+            .arg("-lde")
+            .arg(path)
+            .stderr(Stdio::null())
+            .output()?;
+        if !output.status.success() {
+            return Err(RuntimeError::InvalidProfile(format!(
+                "the access-control entries of {} could not be read",
+                path.display()
+            )));
+        }
+        let text = String::from_utf8_lossy(&output.stdout);
+        for line in text.lines() {
+            let Some((index, entry)) = line.split_once(':') else {
+                continue;
+            };
+            let index = index.trim();
+            if index.is_empty() || !index.chars().all(|digit| digit.is_ascii_digit()) {
+                continue;
+            }
+            let words: Vec<&str> = entry.split_whitespace().collect();
+            let Some(decision) = words
+                .iter()
+                .position(|word| *word == "allow" || *word == "deny")
+            else {
+                return Ok(Some(line.trim().to_owned()));
+            };
+            if words[decision] == "deny" {
+                continue;
+            }
+            let Some(permissions) = words.get(decision + 1) else {
+                return Ok(Some(line.trim().to_owned()));
+            };
+            if permissions
+                .split(',')
+                .any(|permission| !READ_ONLY_PERMISSIONS.contains(&permission))
+            {
+                return Ok(Some(line.trim().to_owned()));
+            }
+        }
+        Ok(None)
+    }
+
+    /// Where the listing utility does not print the entries, it still marks a location whose
+    /// access is decided by more than its mode. The utility that prints the entries themselves is
+    /// a separate package that is not installed everywhere, so the mark is taken as the answer: a
+    /// location this rule cannot describe is not admitted.
+    #[cfg(not(target_os = "macos"))]
+    fn write_grant_from(reader: &Path, path: &Path) -> Result<Option<String>, RuntimeError> {
+        let output = Command::new(reader)
+            .arg("-ld")
+            .arg(path)
+            .stderr(Stdio::null())
+            .output()?;
+        if !output.status.success() {
+            return Err(RuntimeError::InvalidProfile(format!(
+                "the access-control entries of {} could not be read",
+                path.display()
+            )));
+        }
+        let text = String::from_utf8_lossy(&output.stdout);
+        let Some(mode) = text.split_whitespace().next() else {
+            return Err(RuntimeError::InvalidProfile(format!(
+                "the access-control entries of {} could not be read",
+                path.display()
+            )));
+        };
+        Ok(mode
+            .contains('+')
+            .then(|| format!("its access is decided by more than the mode {mode}")))
+    }
 }
 
 #[cfg(not(unix))]
@@ -333,6 +574,39 @@ mod lifecycle {
         LEDGER.get_or_init(|| Mutex::new(BTreeMap::new()))
     }
 
+    fn placements() -> &'static Mutex<BTreeMap<ProgramRole, Vec<PathBuf>>> {
+        static PLACEMENTS: OnceLock<Mutex<BTreeMap<ProgramRole, Vec<PathBuf>>>> = OnceLock::new();
+        PLACEMENTS.get_or_init(|| Mutex::new(BTreeMap::new()))
+    }
+
+    /// Where a check placed a utility, so that a run which cannot admit one of them can be
+    /// observed on a machine where all of them are in order. Nothing the product ships reaches
+    /// this, which `ymp-cli/tests/unattested_runtime_is_unreachable.rs` establishes by reading the
+    /// shipped source of every crate rather than by convention.
+    pub fn place_for_fixture(role: ProgramRole, locations: Vec<PathBuf>) {
+        if let Ok(mut placements) = placements().lock() {
+            placements.insert(role, locations);
+        }
+    }
+
+    /// The locations this platform offers for the role, in the order they are tried.
+    fn locations(role: ProgramRole) -> Vec<PathBuf> {
+        if let Ok(placements) = placements().lock()
+            && let Some(placed) = placements.get(&role)
+        {
+            return placed.clone();
+        }
+        match role {
+            ProgramRole::ProcessTable => vec![PathBuf::from(PROCESS_TABLE)],
+            ProgramRole::Signal => vec![PathBuf::from(SIGNAL)],
+            ProgramRole::DescriptorHolders => {
+                DESCRIPTOR_HOLDERS.iter().map(PathBuf::from).collect()
+            }
+            ProgramRole::AccessControl => vec![PathBuf::from(super::access_control::READER)],
+            _ => Vec::new(),
+        }
+    }
+
     /// Admits the utility on its first use and re-establishes its identity and bytes on every later
     /// use, so a utility that changes under a running supervisor stops being used.
     pub fn admitted(role: ProgramRole, path: &Path) -> Result<PathBuf, RuntimeError> {
@@ -355,40 +629,85 @@ mod lifecycle {
         Ok(path.to_owned())
     }
 
-    /// Admits every lifecycle utility this platform provides, so the run records which programs it
-    /// will execute on its own behalf before it executes any of them.
-    pub fn admit_all() -> Vec<AdmittedProgram> {
-        let mut programs = Vec::new();
-        let mut record = |role, path: &str| {
-            if Path::new(path).is_file()
-                && let Ok(path) = admitted(role, Path::new(path))
-                && let Ok(ledger) = ledger().lock()
-                && let Some(program) = ledger.get(&path)
-            {
-                programs.push(program.clone());
+    /// Resolves the utility that answers for the role and re-establishes it before it is executed.
+    ///
+    /// A location that stands empty is passed over, because a platform is free to keep the utility
+    /// elsewhere. A location that holds a program which cannot be admitted is refused instead: a
+    /// later candidate would answer a question this one has already answered wrongly, and the
+    /// caller must learn that the run cannot see what it started.
+    pub fn program(role: ProgramRole) -> Result<PathBuf, RuntimeError> {
+        let locations = locations(role);
+        for location in &locations {
+            if !location.is_file() {
+                continue;
             }
-        };
-        record(ProgramRole::ProcessTable, PROCESS_TABLE);
-        record(ProgramRole::Signal, SIGNAL);
-        if !Path::new("/proc/self/fd").is_dir() {
-            for path in DESCRIPTOR_HOLDERS {
-                record(ProgramRole::DescriptorHolders, path);
-            }
+            return admitted(role, location);
         }
-        programs
+        Err(RuntimeError::InvalidProfile(format!(
+            "{role} is present at none of {}",
+            locations
+                .iter()
+                .map(|location| location.display().to_string())
+                .collect::<Vec<_>>()
+                .join(", ")
+        )))
+    }
+
+    /// The record of the admitted utility, for the evidence the run writes before it starts.
+    fn record(role: ProgramRole) -> Result<AdmittedProgram, RuntimeError> {
+        let path = program(role)?;
+        let ledger = ledger().lock().map_err(|_| {
+            RuntimeError::InvalidProfile("admitted program ledger failed".to_owned())
+        })?;
+        ledger.get(&path).cloned().ok_or_else(|| {
+            RuntimeError::InvalidProfile(format!(
+                "{role} left no admission record: {}",
+                path.display()
+            ))
+        })
+    }
+
+    /// Admits every lifecycle utility a managed run needs on this platform.
+    ///
+    /// Each one is required. A run that cannot admit the reader of the process table cannot see the
+    /// processes it starts, and a run that cannot admit the signal program cannot end them; either
+    /// way the absence of survivors would be the absence of an answer rather than a clean
+    /// termination. The descriptor holders are asked for only where the process file system that
+    /// answers the same question is absent.
+    pub fn admit_all() -> Result<Vec<AdmittedProgram>, RuntimeError> {
+        let mut programs = vec![
+            record(ProgramRole::AccessControl)?,
+            record(ProgramRole::ProcessTable)?,
+            record(ProgramRole::Signal)?,
+        ];
+        if !Path::new("/proc/self/fd").is_dir() {
+            programs.push(record(ProgramRole::DescriptorHolders)?);
+        }
+        Ok(programs)
     }
 }
 
-/// Admits every lifecycle utility this platform provides and returns the record, so the run can
-/// name each program it executes on its own behalf before executing any of them.
+/// Admits every lifecycle utility a managed run needs and returns the record, so the run names each
+/// program it executes on its own behalf before executing any of them — and refuses to start when
+/// one of them cannot be admitted, rather than starting with a shortened record and reporting later
+/// that it saw nothing.
 #[cfg(unix)]
-pub fn admit_lifecycle_programs() -> Vec<AdmittedProgram> {
+pub fn admit_lifecycle_programs() -> Result<Vec<AdmittedProgram>, RuntimeError> {
     lifecycle::admit_all()
 }
 
 #[cfg(not(unix))]
-pub fn admit_lifecycle_programs() -> Vec<AdmittedProgram> {
-    Vec::new()
+pub fn admit_lifecycle_programs() -> Result<Vec<AdmittedProgram>, RuntimeError> {
+    Ok(Vec::new())
+}
+
+/// Places a lifecycle utility for a check that must observe a run which cannot admit one of them.
+/// No shipped module reaches this; `ymp-cli/tests/unattested_runtime_is_unreachable.rs` reads the
+/// source of every crate to establish that.
+#[doc(hidden)]
+#[cfg(unix)]
+pub fn place_lifecycle_utility_for_fixture(role: ProgramRole, locations: Vec<PathBuf>) {
+    lifecycle::place_for_fixture(role, locations);
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -858,6 +1177,7 @@ pub fn register_launch_marker(_child: &Child, _marker: PathBuf) {}
 /// by a caller that installed no marker.
 #[cfg(unix)]
 mod descendants {
+    use super::RuntimeError;
     use std::collections::HashMap;
     use std::path::{Path, PathBuf};
     use std::process::{Command, Stdio};
@@ -901,44 +1221,61 @@ mod descendants {
 
     /// Reads which live processes hold the run's marker open. This is the answer to the ownership
     /// question that does not depend on any ancestor still existing.
-    fn holders_of(marker: &Path) -> Vec<u32> {
+    ///
+    /// A failure to ask the question is not the answer "nobody". A utility that cannot be admitted,
+    /// or that cannot be executed, is reported to the caller, because a run that reported no
+    /// holders here would report a clean termination it never established.
+    fn holders_of(marker: &Path) -> Result<Vec<u32>, RuntimeError> {
         // Linux reports open descriptors in its own process file system, so no external program is
         // needed there.
         if Path::new("/proc/self/fd").is_dir() {
             return proc_holders(marker);
         }
-        for program in super::lifecycle::DESCRIPTOR_HOLDERS {
-            if !Path::new(program).is_file() {
-                continue;
-            }
-            // A utility that is not bound to a location only the superuser can write is not used,
-            // rather than used and reported as if its answer came from the program the run means.
-            let Ok(program) = super::lifecycle::admitted(
-                super::ProgramRole::DescriptorHolders,
-                Path::new(program),
-            ) else {
-                continue;
-            };
-            let Ok(output) = Command::new(program)
-                .arg("-t")
-                .arg(marker)
-                .stderr(Stdio::null())
-                .output()
-            else {
-                continue;
-            };
-            return String::from_utf8_lossy(&output.stdout)
-                .lines()
-                .filter_map(|line| line.trim().parse().ok())
-                .collect();
-        }
-        Vec::new()
+        let program = super::lifecycle::program(super::ProgramRole::DescriptorHolders)?;
+        let output = Command::new(&program)
+            .arg("-t")
+            .arg(marker)
+            .stderr(Stdio::null())
+            .output()?;
+        holders_reported(output.status.code(), &output.stdout).map_err(|reason| {
+            RuntimeError::InvalidProfile(format!("{reason}: {}", program.display()))
+        })
     }
 
-    fn proc_holders(marker: &Path) -> Vec<u32> {
-        let Ok(entries) = std::fs::read_dir("/proc") else {
-            return Vec::new();
-        };
+    /// Reads the utility's answer, or refuses it.
+    ///
+    /// The utility distinguishes its two outcomes by exit code: it lists the holders and exits
+    /// zero, or it names none and exits one. Every other exit is a failure to answer, and so is an
+    /// exit of one that carries output, because that is the utility reporting something this rule
+    /// cannot read. Only an answer is parsed, and only an answer is returned: "nobody holds the
+    /// marker" ends a run, and "the question was not answered" must not be read as it.
+    pub fn holders_reported(code: Option<i32>, stdout: &[u8]) -> Result<Vec<u32>, String> {
+        let reported = String::from_utf8_lossy(stdout);
+        let reported = reported.trim();
+        match (code, reported.is_empty()) {
+            (Some(1), true) => Ok(Vec::new()),
+            (Some(0), false) => reported
+                .lines()
+                .map(|line| {
+                    line.trim().parse().map_err(|_| {
+                        format!(
+                            "the descriptor holder reader reported a holder of the run's marker \
+                             that cannot be read: {line}"
+                        )
+                    })
+                })
+                .collect(),
+            _ => Err(format!(
+                "the descriptor holder reader did not answer which processes hold the run's \
+                 marker open: it exited with {} and reported {} byte(s)",
+                code.map_or_else(|| "a signal".to_owned(), |code| code.to_string()),
+                reported.len()
+            )),
+        }
+    }
+
+    fn proc_holders(marker: &Path) -> Result<Vec<u32>, RuntimeError> {
+        let entries = std::fs::read_dir("/proc")?;
         let mut holders = Vec::new();
         for entry in entries.flatten() {
             let Some(pid) = entry
@@ -957,29 +1294,29 @@ mod descendants {
                 holders.push(pid);
             }
         }
-        holders
+        Ok(holders)
     }
 
     /// Attributes every current holder of the run's marker to that run. Reading open descriptors is
     /// far more expensive than reading the process table, so it is done at the points where the
     /// answer is acted upon rather than on every wait.
-    pub fn absorb_marker_holders(root: u32) {
+    pub fn absorb_marker_holders(root: u32) -> Result<(), RuntimeError> {
         let Some(marker) = shared_forest()
             .lock()
             .ok()
             .and_then(|forest| forest.markers.get(&root).cloned())
         else {
-            return;
+            return Ok(());
         };
-        let holders = holders_of(&marker);
+        let holders = holders_of(&marker)?;
         if holders.is_empty() {
-            return;
+            return Ok(());
         }
-        let Some(snapshot) = read_process_table() else {
-            return;
-        };
+        let snapshot = read_process_table()?;
         let Ok(mut forest) = shared_forest().lock() else {
-            return;
+            return Err(RuntimeError::InvalidProfile(
+                "the record of the run's processes failed".to_owned(),
+            ));
         };
         for pid in holders {
             if pid <= 1 || pid == std::process::id() {
@@ -995,6 +1332,7 @@ mod descendants {
                 );
             }
         }
+        Ok(())
     }
 
     fn shared_forest() -> &'static Mutex<Forest> {
@@ -1002,19 +1340,19 @@ mod descendants {
         FOREST.get_or_init(|| Mutex::new(Forest::default()))
     }
 
-    fn read_process_table() -> Option<Vec<ProcessEntry>> {
-        let program = super::lifecycle::admitted(
-            super::ProgramRole::ProcessTable,
-            Path::new(super::lifecycle::PROCESS_TABLE),
-        )
-        .ok()?;
+    /// Reads the process table through the admitted utility. Every failure to read it is reported:
+    /// a run that treated an unreadable table as an empty one would report that nothing it started
+    /// is still running, on no evidence at all.
+    fn read_process_table() -> Result<Vec<ProcessEntry>, RuntimeError> {
+        let program = super::lifecycle::program(super::ProgramRole::ProcessTable)?;
         let output = Command::new(program)
             .args(["-A", "-o", "pid=,ppid=,pgid=,lstart="])
             .stderr(Stdio::null())
-            .output()
-            .ok()?;
+            .output()?;
         if !output.status.success() {
-            return None;
+            return Err(RuntimeError::InvalidProfile(
+                "the process table reader exited unsuccessfully".to_owned(),
+            ));
         }
         let text = String::from_utf8_lossy(&output.stdout);
         let mut entries = Vec::new();
@@ -1040,7 +1378,12 @@ mod descendants {
                 started,
             });
         }
-        (!entries.is_empty()).then_some(entries)
+        if entries.is_empty() {
+            return Err(RuntimeError::InvalidProfile(
+                "the process table reader reported no process at all".to_owned(),
+            ));
+        }
+        Ok(entries)
     }
 
     /// Attributes every live descendant of this process to the managed process it came from. A
@@ -1128,21 +1471,30 @@ mod descendants {
             .spawn(|| {
                 let mut idle = 0u32;
                 loop {
-                    if let Some(snapshot) = read_process_table() {
-                        let Ok(mut forest) = shared_forest().lock() else {
-                            return;
-                        };
-                        absorb(&mut forest.members, &snapshot);
-                        if forest.members.is_empty() {
-                            idle = idle.saturating_add(1);
-                            if idle >= IDLE_OBSERVATIONS_BEFORE_STOP {
-                                forest.observing = false;
-                                return;
-                            }
-                        } else {
-                            idle = 0;
+                    // This background reading has no caller to report a failure to. The readings
+                    // that termination acts upon are taken by `survivors`, which reads the table
+                    // itself and reports what it could not establish, so this one stops rather
+                    // than looping on a utility that can no longer be admitted.
+                    let Ok(snapshot) = read_process_table() else {
+                        if let Ok(mut forest) = shared_forest().lock() {
+                            forest.observing = false;
                         }
+                        return;
+                    };
+                    let Ok(mut forest) = shared_forest().lock() else {
+                        return;
+                    };
+                    absorb(&mut forest.members, &snapshot);
+                    if forest.members.is_empty() {
+                        idle = idle.saturating_add(1);
+                        if idle >= IDLE_OBSERVATIONS_BEFORE_STOP {
+                            forest.observing = false;
+                            return;
+                        }
+                    } else {
+                        idle = 0;
                     }
+                    drop(forest);
                     std::thread::sleep(OBSERVATION_INTERVAL);
                 }
             });
@@ -1156,12 +1508,12 @@ mod descendants {
     /// Reads the process table once and returns every process still alive that belongs to `root`,
     /// including `root` itself. Reading first means a descendant created since the last observation
     /// is attributed before it is signalled.
-    pub fn survivors(root: u32) -> Vec<u32> {
-        let Some(snapshot) = read_process_table() else {
-            return Vec::new();
-        };
+    pub fn survivors(root: u32) -> Result<Vec<u32>, RuntimeError> {
+        let snapshot = read_process_table()?;
         let Ok(mut forest) = shared_forest().lock() else {
-            return Vec::new();
+            return Err(RuntimeError::InvalidProfile(
+                "the record of the run's processes failed".to_owned(),
+            ));
         };
         absorb(&mut forest.members, &snapshot);
         let mut live: Vec<u32> = forest
@@ -1171,7 +1523,7 @@ mod descendants {
             .map(|(pid, _)| *pid)
             .collect();
         live.sort_unstable();
-        live
+        Ok(live)
     }
 
     pub fn forget(root: u32) {
@@ -1190,11 +1542,8 @@ mod descendants {
     /// The group signal reaches members created since the reading; the individual signals reach the
     /// members that left the group.
     pub fn signal(root: u32, group: &str, signal: &str, individual: &[u32]) -> std::io::Result<()> {
-        let program = super::lifecycle::admitted(
-            super::ProgramRole::Signal,
-            Path::new(super::lifecycle::SIGNAL),
-        )
-        .map_err(|error| std::io::Error::other(error.to_string()))?;
+        let program = super::lifecycle::program(super::ProgramRole::Signal)
+            .map_err(|error| std::io::Error::other(error.to_string()))?;
         let status = Command::new(&program)
             .args([signal, group])
             .stdout(Stdio::null())
@@ -1220,21 +1569,70 @@ mod descendants {
     }
 }
 
+/// What a run could not establish about the processes it started.
+///
+/// Most of the places that end a process tree are reporting something else at that moment — a
+/// cancellation, a time limit, a failure the runtime reported — or are a session being dropped,
+/// which has no caller at all. None of them can return a termination failure, and none of them may
+/// discard it either: the whole point of the check is that a run says what it left running. They
+/// keep it here instead, and the controller reads it before it reports the run's outcome.
+fn unestablished() -> &'static std::sync::Mutex<Vec<String>> {
+    static UNESTABLISHED: std::sync::OnceLock<std::sync::Mutex<Vec<String>>> =
+        std::sync::OnceLock::new();
+    UNESTABLISHED.get_or_init(|| std::sync::Mutex::new(Vec::new()))
+}
+
+/// Ends the managed process tree where the caller cannot report a failure to do so, and keeps what
+/// could not be established for the controller to report.
+#[doc(hidden)]
+pub fn end_process_tree_or_keep(child: &mut Child) {
+    if let Err(error) = terminate_process_tree(child)
+        && let Ok(mut kept) = unestablished().lock()
+    {
+        kept.push(error.to_string());
+    }
+}
+
+/// Takes everything no caller could be told about since this was last read. An empty answer here is
+/// the only ground on which a run may report that it left nothing running.
+pub fn unestablished_terminations() -> Vec<String> {
+    unestablished()
+        .lock()
+        .map(|mut kept| std::mem::take(&mut *kept))
+        .unwrap_or_default()
+}
+
 #[doc(hidden)]
 #[cfg(unix)]
 pub fn terminate_process_tree(child: &mut Child) -> std::io::Result<()> {
+    /// Every question this function asks about the operating system must be answered. An
+    /// unanswerable question is returned to the caller, because termination is reported clean only
+    /// where the absence of survivors was established rather than assumed.
+    fn observed<T>(outcome: Result<T, RuntimeError>) -> std::io::Result<T> {
+        outcome.map_err(|error| {
+            std::io::Error::other(format!(
+                "the processes of the managed run could not be observed: {error}"
+            ))
+        })
+    }
+
     let root = child.id();
     let group = format!("-{root}");
     let mut parent_reaped = child.try_wait()?.is_some();
     // Ask the operating system who holds the run's marker open before each signal is sent. Between
     // the two questions the cheaper reading of the process table is enough: a holder found here
     // stays attributed until it dies, and anything it starts afterwards is its child.
-    descendants::absorb_marker_holders(root);
-    let _ = descendants::signal(root, &group, "-TERM", &descendants::survivors(root));
+    observed(descendants::absorb_marker_holders(root))?;
+    let _ = descendants::signal(
+        root,
+        &group,
+        "-TERM",
+        &observed(descendants::survivors(root))?,
+    );
     for _ in 0..20 {
         parent_reaped |= child.try_wait()?.is_some();
-        let remaining = descendants::survivors(root);
-        if remaining.is_empty() && !process_group_exists(&group) {
+        let remaining = observed(descendants::survivors(root))?;
+        if remaining.is_empty() && !process_group_exists(&group)? {
             if !parent_reaped {
                 let _ = child.wait()?;
             }
@@ -1243,19 +1641,24 @@ pub fn terminate_process_tree(child: &mut Child) -> std::io::Result<()> {
         }
         std::thread::sleep(std::time::Duration::from_millis(10));
     }
-    descendants::absorb_marker_holders(root);
-    let outcome = descendants::signal(root, &group, "-KILL", &descendants::survivors(root));
+    observed(descendants::absorb_marker_holders(root))?;
+    let outcome = descendants::signal(
+        root,
+        &group,
+        "-KILL",
+        &observed(descendants::survivors(root))?,
+    );
     if !parent_reaped {
         let _ = child.wait()?;
     }
     for _ in 0..100 {
-        if descendants::survivors(root).is_empty() && !process_group_exists(&group) {
+        if observed(descendants::survivors(root))?.is_empty() && !process_group_exists(&group)? {
             descendants::forget(root);
             return Ok(());
         }
         std::thread::sleep(std::time::Duration::from_millis(10));
     }
-    let remaining = descendants::survivors(root).len();
+    let remaining = observed(descendants::survivors(root))?.len();
     descendants::forget(root);
     match outcome {
         Ok(()) => Err(std::io::Error::new(
@@ -1270,6 +1673,7 @@ pub fn terminate_process_tree(child: &mut Child) -> std::io::Result<()> {
 
 #[cfg(all(test, unix))]
 mod tests {
+    use super::descendants::holders_reported;
     use super::{
         LaunchChain, configure_process_group, create_launch_marker, managed_launch_command,
         register_launch_marker, terminate_process_tree,
@@ -1288,6 +1692,42 @@ mod tests {
             "ymp-runtime-api-{label}-{}-{unique}.pid",
             std::process::id()
         ))
+    }
+
+    /// The two answers the descriptor holder reader can give, and the several ways it can fail to
+    /// give one. An exit of one carrying output is a failure: it is the utility reporting something
+    /// this rule cannot read, and reading it as "nobody holds the marker" would end a run on an
+    /// answer nobody gave.
+    ///
+    /// The check that must fail: parse the output whatever the exit was, and the ambiguous and
+    /// failing cases below are read as an empty answer, with a non-zero exit.
+    #[test]
+    fn a_holder_reader_that_did_not_answer_is_not_read_as_an_empty_answer() {
+        assert_eq!(
+            holders_reported(Some(0), b"412\n413\n").expect("a listed answer is read"),
+            vec![412, 413]
+        );
+        assert_eq!(
+            holders_reported(Some(1), b"").expect("no holders is an answer the utility gives"),
+            Vec::<u32>::new()
+        );
+        for (code, stdout, case) in [
+            (
+                Some(1),
+                &b"412\n"[..],
+                "an exit of one that reported something",
+            ),
+            (Some(2), &b""[..], "an exit this rule does not know"),
+            (Some(0), &b""[..], "a successful exit that reported nothing"),
+            (Some(0), &b"not-a-process\n"[..], "an unreadable holder"),
+            (None, &b""[..], "an exit by signal"),
+        ] {
+            let refusal = holders_reported(code, stdout);
+            assert!(
+                refusal.is_err(),
+                "{case} was read as an answer: {refusal:?}"
+            );
+        }
     }
 
     /// A shell cannot create a session, so the detaching descendant is written in whichever stock
@@ -1607,14 +2047,19 @@ mod tests {
     }
 }
 
+/// Whether the process group still exists. The signal program is the admitted one, and a failure to
+/// run it is returned rather than read as the group's absence, which is what a run would otherwise
+/// report as a clean termination.
 #[cfg(unix)]
-fn process_group_exists(group: &str) -> bool {
-    Command::new("/bin/kill")
+fn process_group_exists(group: &str) -> std::io::Result<bool> {
+    let program = lifecycle::program(ProgramRole::Signal)
+        .map_err(|error| std::io::Error::other(error.to_string()))?;
+    let status = Command::new(program)
         .args(["-0", group])
         .stdout(Stdio::null())
         .stderr(Stdio::null())
-        .status()
-        .is_ok_and(|status| status.success())
+        .status()?;
+    Ok(status.success())
 }
 
 #[doc(hidden)]
