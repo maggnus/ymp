@@ -69,6 +69,10 @@ pub(crate) enum Check {
     WakeMatch,
     /// The slices of one attempt may be resumed only a bounded number of times.
     WakeCount,
+    /// A stopped run counts no yielded slice as a funded wake.
+    StoppedWake,
+    /// One attempt runs one process slice at a time.
+    SingleRunningSlice,
 }
 
 /// Checks a test build may switch off to prove that each one is load-bearing. The field does not
@@ -86,6 +90,8 @@ pub(crate) struct DisabledChecks {
     pub invocation_start: bool,
     pub wake_match: bool,
     pub wake_count: bool,
+    pub stopped_wake: bool,
+    pub single_running_slice: bool,
 }
 
 /// Deliberate corruptions of the facts an accepted command emits, which a test build may switch on
@@ -423,6 +429,13 @@ impl CommitmentLedger {
         if invocation.state != InvocationState::Yielded {
             return false;
         }
+        // A resumption is a process slice being begun, and a stopped run begins nothing: whatever
+        // the wake was registered for, no command can honour it any more. A run that kept counting
+        // such a wake would report itself held open by the one thing it has already refused, so a
+        // stop releases every yielded slice at once instead of waiting for each to be closed.
+        if self.enforces(Check::StoppedWake) && self.stopped.is_some() {
+            return false;
+        }
         let Some(wake) = &invocation.wake else {
             return false;
         };
@@ -492,6 +505,61 @@ impl CommitmentLedger {
         self.disabled = disabled;
     }
 
+    /// What an exhaustive traversal compares two states by: everything the ledger holds except the
+    /// history that produced it.
+    ///
+    /// The fields are taken apart by name rather than read back through the accessors, so a field
+    /// added to the ledger later cannot quietly drop out of the comparison. Two are deliberately
+    /// left out. The list of committed facts grows with every command, so keying on it would make
+    /// every path a state of its own and no traversal would ever converge; everything a transition
+    /// reads out of that list — the clock, the balances, the candidate a contract recorded — is in
+    /// the registry beside it. And the sequence a yield was recorded at only orders the admission
+    /// queue, which no transition reads at all.
+    #[cfg(test)]
+    pub(crate) fn registry_snapshot(&self) -> String {
+        let Self {
+            now,
+            initial_total,
+            consumed,
+            root_obligation,
+            participants,
+            offers,
+            bids,
+            contracts,
+            obligations,
+            attempts,
+            invocations,
+            verifications,
+            stopped,
+            facts: _,
+            disabled: _,
+            altered: _,
+        } = self;
+        let invocations: Vec<InvocationRecord> = invocations
+            .values()
+            .map(|invocation| InvocationRecord {
+                yielded_at: 0,
+                ..invocation.clone()
+            })
+            .collect();
+        serde_json::to_string(&(
+            now,
+            initial_total,
+            consumed,
+            root_obligation,
+            participants,
+            offers,
+            bids,
+            contracts,
+            obligations,
+            attempts,
+            invocations,
+            verifications,
+            stopped,
+        ))
+        .expect("a registry is representable as committed data")
+    }
+
     #[cfg(test)]
     fn enforces(&self, check: Check) -> bool {
         match check {
@@ -505,6 +573,8 @@ impl CommitmentLedger {
             Check::InvocationStart => !self.disabled.invocation_start,
             Check::WakeMatch => !self.disabled.wake_match,
             Check::WakeCount => !self.disabled.wake_count,
+            Check::StoppedWake => !self.disabled.stopped_wake,
+            Check::SingleRunningSlice => !self.disabled.single_running_slice,
         }
     }
 
@@ -1420,6 +1490,7 @@ impl CommitmentLedger {
                 current: contract.lease.generation,
             });
         }
+        self.ensure_attempt_idle(&attempt.attempt_id)?;
         self.ensure_cursor_committed(command.cursor)?;
         let account = AccountRef::TaskContract {
             contract_id: contract.contract_id.clone(),
@@ -1536,6 +1607,7 @@ impl CommitmentLedger {
                 attempt_id: invocation.attempt_id.clone(),
             });
         }
+        self.ensure_attempt_idle(&invocation.attempt_id)?;
         let matched = self.matching_fact(&command.invocation_id);
         if self.enforces(Check::WakeMatch) && matched.is_none() {
             return Err(CommitmentError::NoMatchingEvent {
@@ -1555,6 +1627,30 @@ impl CommitmentLedger {
             wakes_used: invocation.wakes_used.saturating_add(1),
         };
         self.with_invocation_start(account, resumed)
+    }
+
+    /// One attempt runs one process slice at a time, whether the second slice would be a new one or
+    /// a resumed one.
+    ///
+    /// An attempt is the unit the run counts starts and wakes against, and both bounds are stated
+    /// per attempt rather than per slice. Two slices of one attempt running together would spend
+    /// those bounds twice over on work the run counts once, and the facts they commit carry the
+    /// attempt rather than the slice, so nothing downstream could tell which of the two a
+    /// submission or a return came from.
+    fn ensure_attempt_idle(&self, attempt_id: &str) -> Result<(), CommitmentError> {
+        if !self.enforces(Check::SingleRunningSlice) {
+            return Ok(());
+        }
+        let running = self.invocations.values().find(|invocation| {
+            invocation.attempt_id == attempt_id && invocation.state == InvocationState::Running
+        });
+        if let Some(running) = running {
+            return Err(CommitmentError::AttemptAlreadyRunning {
+                attempt_id: attempt_id.to_owned(),
+                invocation_id: running.invocation_id.clone(),
+            });
+        }
+        Ok(())
     }
 
     /// One process slice and the creation authority that buys it, as one indivisible pair.
