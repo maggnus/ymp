@@ -3,7 +3,7 @@ id: W1-APP-02t
 kind: task
 wave: W1
 card: W1-APP-02
-state: review
+state: accepted
 risk: significant
 maturity: BUILD
 relation: required
@@ -12,11 +12,11 @@ blocks: []
 created_at: 2026-08-13T21:46:07+08:00
 updated_at: 2026-08-13T21:46:07+08:00
 started_at: 2026-08-13T21:33:00+08:00
-accepted_at:
-candidate_commit: https://github.com/maggnus/ymp/commit/5118b7c59b18c80e381c6af7a6bbc8d13ecc7485
-closure_commit:
-evidence:
-duration_minutes: 0
+accepted_at: 2026-08-14T01:16:07+08:00
+candidate_commit: https://github.com/maggnus/ymp/commit/47fdf00e2c76498119d3ef40572f8fc244a07ba3
+closure_commit: https://github.com/maggnus/ymp/commit/51a7ed719535e34baed43f04d148629ffa1452de
+evidence: [`47fdf00`](https://github.com/maggnus/ymp/commit/47fdf00e2c76498119d3ef40572f8fc244a07ba3)
+duration_minutes: 258
 blocker:
 pause_reason:
 return_trigger:
@@ -44,17 +44,17 @@ beside it.
 
 ## Acceptance
 
-- [ ] The full workspace suite passes ten consecutive times; the negative half reintroduces the
+- [x] The full workspace suite passes ten consecutive times; the negative half reintroduces the
       shared state and shows the failure returning.
-- [ ] A lifecycle test observes only processes and files belonging to its own run, proved by a check
+- [x] A lifecycle test observes only processes and files belonging to its own run, proved by a check
       rather than by naming convention.
 
 ## Current state
 
-Under independent review. The card's premise is refuted: cargo runs these binaries sequentially and
-shares no state between them. The measured cause is a race inside one test, whose session record the
-profile could not accept, together with a cleanup that searched the whole process table. Four of ten
-runs failed before the change and none after.
+Accepted and integrated. The failure came from a race inside one test, not from concurrency between
+binaries, and survival is now read against a two-second deadline instead of at one instant. The
+reviewer restored the old cleanup and the check failed ten times out of ten, passed ten times without
+it, and the full workspace suite ran clean at the accepted revision.
 
 ## Next action
 
@@ -67,12 +67,17 @@ Reproduce by running the suite repeatedly, then isolate what the test observes.
 
 ## Findings
 
-- The contract's assumption of concurrency between test binaries is refuted by measurement. My
-  diagnosis of machine load, recorded earlier, is likewise refuted: neither load nor parallelism
-  distinguished the failing runs.
-- The failure came from the test racing its own driver over a session record the profile could not
-  accept, and from a cleanup addressing processes by a command fragment rather than by the run's own
-  process group.
+- The card's premise is refuted by direct measurement: sampling the process table every two hundred
+  milliseconds across a full run, 1477 samples, showed exactly one test binary at a time, and the
+  failure reproduced on the parent revision without any neighbouring binary.
+- My own diagnosis of machine load is likewise refuted; neither load nor parallelism distinguished
+  the failing runs.
+- The cause was the test's session record declaring one built-in capability where the profile
+  requires ten, so the driver rejected it and cancellation only sometimes arrived first, together
+  with a cleanup that searched the whole process table by a command fragment.
+- The first correction left a check that could not fail: liveness was read once, immediately after
+  the signal, and a killed but unreaped process reads as alive. Reading against a deadline makes the
+  same mutation fail ten times out of ten.
 
 ## Closure
 
@@ -80,12 +85,17 @@ Filled when the task is accepted.
 
 ### Accepted outcome
 
-Not accepted.
+The integration gate answers the same way every time it runs: ten consecutive full-workspace runs
+pass, and each lifecycle assertion decides on an observed event within a bounded window rather than
+at a single instant.
 
 ### Residuals
 
-None recorded.
+None. Behaviour on another platform and under a different machine load is unmeasured, which the
+review records as unverified rather than as a carried limitation.
 
 ### Evidence
 
-- None until acceptance.
+- [`47fdf00`](https://github.com/maggnus/ymp/commit/47fdf00e2c76498119d3ef40572f8fc244a07ba3) —
+  reviewed correction.
+- [`51a7ed7`](https://github.com/maggnus/ymp/commit/51a7ed719535e34baed43f04d148629ffa1452de) — integration into the release branch.
