@@ -51,12 +51,10 @@ beside it.
 
 ## Current state
 
-Under independent review. The card's premise is refuted: cargo runs these test binaries sequentially,
-and no state is shared between them. The measured cause is a race inside one test — its session record
-declared one built-in capability where the profile requires ten, so the driver rejected the record
-immediately and cancellation only sometimes arrived first — together with a cleanup that searched the
-whole process table by a fragment of a command line. Four of ten runs failed before the change and
-none after, with ten clean full-workspace runs.
+Under independent review. The card's premise is refuted: cargo runs these binaries sequentially and
+shares no state between them. The measured cause is a race inside one test, whose session record the
+profile could not accept, together with a cleanup that searched the whole process table. Four of ten
+runs failed before the change and none after.
 
 ## Next action
 
