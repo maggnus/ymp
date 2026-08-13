@@ -2,11 +2,14 @@
 //!
 //! The command surface performs the interface's actions through the interface's own session. It
 //! therefore has no business naming the kernel writer, the journal, the object store or the
-//! filesystem, and this check rejects a module of that surface which does. The check that must
-//! fail: give `src/surface.rs` a line such as `Application::create_with_contract(&root, &c)?` —
-//! or import it under any alias, since the import itself names the writer — and
-//! `the_public_command_surface_never_names_the_writer` reports the file, the line and the name
-//! with a non-zero exit.
+//! filesystem, and this check rejects a module of that surface which does. It rejects the
+//! interface's input channel for the same reason: a stated value that reached the input row
+//! could open a surface the command never asked for and complete a decision standing behind it.
+//! The check that must fail: give `src/surface.rs` a line such as
+//! `Application::create_with_contract(&root, &c)?` — or import it under any alias, since the
+//! import itself names the writer — or a line that turns a stated value into `KeyCode::Char`,
+//! and `the_public_command_surface_never_names_the_writer` reports the file, the line and the
+//! name with a non-zero exit.
 //!
 //! The source is read as elements, not as text: it is scanned into identifiers with comments,
 //! string literals, raw strings, character literals and lifetimes removed, and a forbidden name
@@ -64,6 +67,21 @@ const KERNEL_CRATES: [&str; 12] = [
 /// Ways to write a file directly.
 const FILESYSTEM: [&str; 3] = ["fs", "File", "OpenOptions"];
 
+/// The interface's input channel.
+///
+/// An argument value is a value, never a key press. The input row reads a leading colon as its
+/// command line and a control character as a key of its own, so a command that turned a stated
+/// value into key presses could open a surface it never asked for and complete a decision
+/// standing behind it. No module of this surface may name that channel.
+const KEY_CHANNEL: [&str; 6] = [
+    "crossterm",
+    "KeyCode",
+    "KeyEvent",
+    "KeyModifiers",
+    "handle_key",
+    "handle_event",
+];
+
 fn source_directory() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("src")
 }
@@ -96,6 +114,7 @@ fn the_public_command_surface_never_names_the_writer() {
         .iter()
         .chain(KERNEL_CRATES.iter())
         .chain(FILESYSTEM.iter())
+        .chain(KEY_CHANNEL.iter())
         .copied()
         .collect();
 

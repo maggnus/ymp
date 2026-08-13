@@ -2,19 +2,26 @@
 //!
 //! The terminal interface is a convenient way to reach the system core, not the only way. What
 //! this module adds is a second way to *reach* the actions, never a second implementation of
-//! them: a command opens the interface's own session over the same data root, feeds the answers
-//! and the confirmations into the interface's own key handling, and executes whatever action
-//! that handling returns. The result is that a command cannot start a run the interface would
+//! them: a command opens the interface's own session over the same data root, hands it the
+//! answers the operator stated, and commits an irreversible action only behind the interface's
+//! own decision surface. The result is that a command cannot start a run the interface would
 //! refuse, cannot skip a confirmation the interface enforces, and cannot reach the journal by
 //! any path the interface does not take.
+//!
+//! An argument value is a value, never a key press. The interface's input row reads a leading
+//! colon as its command line and a control character as a key of its own, so a value carried
+//! through that row could open a surface the command never asked for and complete a decision
+//! standing behind it. Nothing here goes through the input row: an answer is passed to
+//! [`ymp_tui::Session::local_turn`], which is exactly what the interface's event loop passes it,
+//! and a confirmation is compared by the modal's own predicate. `tests/one_command_path.rs`
+//! rejects a module of this surface that names the key channel at all.
 //!
 //! Three properties hold by construction rather than by review:
 //!
 //! * [`perform`] matches the interface's action vocabulary exhaustively, so an action added to
 //!   the interface stops this crate from compiling until a command serves it;
-//! * the typed confirmation of an irreversible command is the interface's own modal — the
-//!   command types into it and only commits what `Enter` returns, which is nothing until the
-//!   typed identifier matches exactly;
+//! * an irreversible action is committed only from the interface's own confirmation, and only
+//!   while that confirmation reports the typed identifier as exact;
 //! * this module never names the kernel writer. Durable state is reached only through
 //!   `ymp_tui::Session`, and `tests/one_command_path.rs` rejects a module of the public surface
 //!   that names the writer, the journal or the object store directly.
@@ -29,17 +36,16 @@ use std::path::PathBuf;
 
 use anyhow::{Result, bail};
 use clap::{Args, Subcommand, ValueEnum};
-use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use ratatui::layout::Rect;
 use ratatui::text::Line;
 use ymp_application::PreparedContract;
 use ymp_domain::RunStatus;
-use ymp_tui::app::{self, Action};
+use ymp_tui::app::Action;
 use ymp_tui::projection::{ContractFacts, Projection};
 use ymp_tui::state::{App, ConfirmAction, Modal, PageKind, Surface};
 use ymp_tui::theme::Markers;
 use ymp_tui::transcript::Entry;
-use ymp_tui::{Session, overlay, ui};
+use ymp_tui::{Session, decisions, overlay, ui};
 
 /// The width a command lays its surfaces out at. The interface uses the terminal; a command
 /// writes to a pipe, so the width is fixed and wide enough for the widest column set.
@@ -242,9 +248,6 @@ fn run_authorize(
     contract_id: Option<String>,
     request: RequestArgs,
 ) -> Result<()> {
-    // The review surface names the runtime profiles a run would be routed to, so the command
-    // probes them exactly where the interface does.
-    session.set_runtimes(ymp_tui::runtimes::probe_all());
     let errors = known_errors(&app.data.entries);
     if request.stated() {
         draft(session, app, &request);
@@ -254,6 +257,11 @@ fn run_authorize(
     reject_new_errors(app, &errors)?;
 
     let index = select(&app.data, contract_id.as_deref())?;
+    // The review surface names the runtime profiles a run would be routed to, so the command
+    // probes them where the interface does — and only once there is a review to state, since
+    // probing starts subprocesses and a refused request has nothing to route.
+    session.set_runtimes(ymp_tui::runtimes::probe_all());
+    app.adopt(session.projection(None));
     app.open_authorize_at(index);
     print_modal(app, markers)?;
     Ok(())
@@ -276,12 +284,17 @@ fn run_start(
 
     let index = select(&app.data, contract_id.as_deref())?;
     app.open_authorize_at(index);
-    // Enter leaves the coverage map for the typed confirmation only when the projection says
-    // this contract can start a run. When it cannot, the map states why and nothing is started.
-    key(app, KeyCode::Enter);
-    if let Modal::Authorize(authorize) = &app.modal {
+    // The coverage map gives way to the typed confirmation only when the projection says this
+    // contract can start a run. When it cannot, the map states why and nothing is started. This
+    // is the transition the interface makes on Enter, made here without a key.
+    let Modal::Authorize(authorize) = &app.modal else {
+        bail!("the interface offers no authorization surface for this contract");
+    };
+    let Some(action) = authorize.action.clone() else {
         bail!("no run was started — {}", authorize.action_note);
-    }
+    };
+    app.modal = Modal::Confirm(decisions::start_run(&action));
+
     let ConfirmAction::StartRun { run_id, .. } = commit(session, app, markers, confirm)? else {
         bail!("the interface confirmed something other than the start of a run");
     };
@@ -337,45 +350,54 @@ fn run_show(
     Ok(())
 }
 
-/// Type the typed confirmation into the interface's own modal and execute what it returns.
+/// Put the stated confirmation to the interface's own modal and commit only what it accepts.
 ///
-/// The modal decides: `Enter` returns an action only once the typed identifier matches the one
-/// the modal requires, so an absent or wrong confirmation commits nothing here for the same
-/// reason it commits nothing in the interface.
+/// The modal decides: it reports the identifier as exact or it does not, and an absent or wrong
+/// confirmation commits nothing here for the same reason it commits nothing in the interface.
 fn commit(
     session: &mut Session,
     app: &mut App,
     markers: &Markers,
     confirm: Option<String>,
 ) -> Result<ConfirmAction> {
-    let Modal::Confirm(pending) = &app.modal else {
+    let Modal::Confirm(pending) = &mut app.modal else {
         bail!("the interface offers no confirmation for this action");
     };
+    pending.typed = confirm.unwrap_or_default();
     let required = pending.required.clone();
     let confirmed = pending.action.clone();
+    let exact = pending.is_exact();
     print_modal(app, markers)?;
 
-    for character in confirm.unwrap_or_default().chars() {
-        key(app, KeyCode::Char(character));
-    }
-    let errors = known_errors(&app.data.entries);
-    let Some(action) = key(app, KeyCode::Enter) else {
+    if !exact {
         bail!(
             "nothing was committed — confirm with --confirm {required}: the identifier must match \
              exactly, as it must be typed in the interface"
         );
-    };
-    perform(session, action);
+    }
+    let errors = known_errors(&app.data.entries);
+    perform(session, committed(&confirmed));
     app.adopt(session.projection(None));
     print_transcript(app, markers);
     reject_new_errors(app, &errors)?;
     Ok(confirmed)
 }
 
-/// Execute what the interface's key handling returned.
+/// The action an exact confirmation commits, as the interface commits it.
 ///
-/// The match is exhaustive over the interface's action vocabulary. Adding an action there
-/// without adding a command here is a compilation failure, not a review finding.
+/// The match is exhaustive over the confirmations the interface can raise, so a third one cannot
+/// be added there without being decided here.
+fn committed(confirmed: &ConfirmAction) -> Action {
+    match confirmed {
+        ConfirmAction::StartRun { contract_id, .. } => Action::StartRun(contract_id.clone()),
+        ConfirmAction::CancelRun { .. } => Action::CancelRun,
+    }
+}
+
+/// Execute one action of the interface's vocabulary.
+///
+/// The match is exhaustive over that vocabulary. Adding an action there without adding a command
+/// here is a compilation failure, not a review finding.
 fn perform(session: &mut Session, action: Action) {
     match action {
         Action::CancelRun => session.cancel_run(),
@@ -387,34 +409,25 @@ fn perform(session: &mut Session, action: Action) {
     }
 }
 
-/// Hand the stated request to the interface, one typed line per question it asks.
+/// Hand the stated request to the interface, one answer per question it asks.
+///
+/// Each answer is the local turn the interface's event loop performs for a completed line, and
+/// nothing else: the value is a value, so a colon, a slash, an escape or any other character in
+/// it is part of the answer rather than a key that could open another surface. The session
+/// decides what the answer means, and the loop stops as soon as it is no longer awaiting one.
 fn draft(session: &mut Session, app: &mut App, request: &RequestArgs) {
-    type_line(session, app, request.prompt.clone().unwrap_or_default());
-    for answer in request.answers() {
+    answer(session, app, request.prompt.clone().unwrap_or_default());
+    for stated in request.answers() {
         if app.data.awaiting.is_none() {
             break;
         }
-        type_line(session, app, answer);
+        answer(session, app, stated);
     }
 }
 
-/// Type one line into the interface's input row and execute what Enter returns.
-fn type_line(session: &mut Session, app: &mut App, text: String) {
-    for character in text.chars() {
-        key(app, KeyCode::Char(character));
-    }
-    if let Some(action) = key(app, KeyCode::Enter) {
-        perform(session, action);
-    }
+fn answer(session: &mut Session, app: &mut App, text: String) {
+    perform(session, Action::LocalTurn(text));
     app.adopt(session.projection(None));
-}
-
-fn key(app: &mut App, code: KeyCode) -> Option<Action> {
-    app::handle_key(
-        app,
-        KeyEvent::new(code, KeyModifiers::NONE),
-        TRANSCRIPT_HEIGHT,
-    )
 }
 
 /// Which contract a command acts on: the one it names, or the only one it carries.

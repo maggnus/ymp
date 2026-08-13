@@ -1,12 +1,17 @@
 //! Acceptance: every action the terminal interface offers is a command of the same executable,
 //! with the same authority checks, the same confirmations and the same journal.
 //!
-//! Four halves, one per acceptance clause.
-//!
 //! * The inventory is compared in both directions. The interface's side is read from the
 //!   interface itself — its page list, the palette a live projection offers, the two typed
 //!   confirmations, and everything its event loop can be asked to perform — never from a copy of
-//!   it kept here. The command's side is read from the parser. Neither side may hold a surplus.
+//!   it kept here. The command's side is read from the parser. Neither side may hold a surplus,
+//!   and the namespace excluded from the comparison is pinned to what it held.
+//! * The comparison is widened past those enumerations to the keyboard: every key, on every
+//!   surface and every modal, either changes what is on screen or returns an action a command
+//!   performs.
+//! * An answer stays an answer. A stated value that begins with a colon, or carries an escape or
+//!   a control character, must not reach a surface the command did not open — the reproduction
+//!   that led to this check started an irreversible run from an `authorize` invocation.
 //! * The journal is compared byte for byte. The same request is carried to a run and then
 //!   cancelled twice: once through the interface's own session, once through the commands of the
 //!   built executable. The two stores must hold the same events, in the same order, under the
@@ -15,6 +20,10 @@
 //!   acceptance condition starts nothing and exits non-zero.
 //! * The typed confirmation is exercised from the command side: absent and wrong confirmations
 //!   commit nothing and exit non-zero.
+//!
+//! What none of this covers: an interface action reachable other than by a key or the palette —
+//! a mouse binding, or a future surface driven by something else — and the contents of the
+//! internal namespace, which is pinned by name rather than compared with the interface.
 
 use std::collections::BTreeSet;
 use std::fs;
@@ -22,6 +31,7 @@ use std::path::{Path, PathBuf};
 use std::process::{Command as Process, Output};
 
 use clap::{CommandFactory, Parser};
+use crossterm::event::{Event, KeyCode, KeyEvent, KeyModifiers};
 use tempfile::TempDir;
 use ymp_cli::surface::{PageName, PublicCommand};
 use ymp_cli::{Cli, Command};
@@ -29,7 +39,7 @@ use ymp_domain::RunStatus;
 use ymp_tui::app::Action;
 use ymp_tui::journal::Model;
 use ymp_tui::projection::{ContractFacts, Environment};
-use ymp_tui::state::{App, Command as InterfaceCommand, ConfirmAction, PageKind, Surface};
+use ymp_tui::state::{App, Command as InterfaceCommand, ConfirmAction, Modal, PageKind, Surface};
 use ymp_tui::theme::Markers;
 use ymp_tui::{Session, decisions, scenario, ui};
 
@@ -70,6 +80,17 @@ const LIFECYCLE: [&str; 1] = ["quit"];
 /// The namespace excluded from the comparison: the product's own machinery, which predates this
 /// card and is not an operator capability. The exclusion is held to exactly this one namespace.
 const NOT_AN_OPERATOR_SURFACE: [&str; 1] = ["internal"];
+
+/// What that namespace held when this card was written. Pinning it keeps the exclusion from
+/// becoming a place to add an operator capability without comparing it to the interface.
+const INTERNAL_MACHINERY: [&str; 6] = [
+    "agent-mcp",
+    "runtime-smoke",
+    "managed-runtime-smoke",
+    "managed-candidate-smoke",
+    "verifier",
+    "verify-managed-candidate",
+];
 
 // ---------------------------------------------------------------------------
 // The interface's own action vocabulary
@@ -190,11 +211,10 @@ fn command_action(command: &PublicCommand) -> String {
     }
 }
 
-#[test]
-fn every_interface_action_is_a_command_and_neither_side_holds_a_surplus() {
-    let root = TempDir::new().expect("temporary root");
-
-    // Every stated invocation parses, and reaches the command it claims to reach.
+/// Every action a command performs, with the invocation that reaches it checked against the
+/// parser: a stated correspondence that no longer parses, or that reaches a different command, is
+/// not a correspondence.
+fn commanded_actions() -> (BTreeSet<String>, BTreeSet<String>) {
     let mut commanded = BTreeSet::new();
     let mut named = BTreeSet::new();
     for (action, invocation) in CORRESPONDENCE {
@@ -211,7 +231,13 @@ fn every_interface_action_is_a_command_and_neither_side_holds_a_surplus() {
         commanded.insert((*action).to_owned());
         named.insert(invocation[1].to_owned());
     }
+    (commanded, named)
+}
 
+#[test]
+fn every_interface_action_is_a_command_and_neither_side_holds_a_surplus() {
+    let root = TempDir::new().expect("temporary root");
+    let (commanded, named) = commanded_actions();
     let offered = interface_actions(root.path());
     let excluded: BTreeSet<String> = LIFECYCLE.iter().map(|name| (*name).to_owned()).collect();
 
@@ -243,9 +269,22 @@ fn every_interface_action_is_a_command_and_neither_side_holds_a_surplus() {
         named,
         "a public command is outside the correspondence"
     );
-    assert!(
-        parser.find_subcommand("internal").is_some(),
-        "the excluded namespace must exist for the exclusion to mean anything"
+    // The excluded namespace is pinned rather than trusted: it is compared to the machinery it
+    // held when this card was written, so a capability cannot be added to the executable by
+    // putting it there instead.
+    let internal = parser
+        .find_subcommand("internal")
+        .expect("the excluded namespace must exist for the exclusion to mean anything");
+    assert_eq!(
+        internal
+            .get_subcommands()
+            .map(|child| child.get_name().to_owned())
+            .collect::<BTreeSet<_>>(),
+        INTERNAL_MACHINERY
+            .iter()
+            .map(|name| (*name).to_owned())
+            .collect::<BTreeSet<_>>(),
+        "the excluded namespace changed; a capability may have been added outside the comparison"
     );
 
     // Every page the command surface can name is in the correspondence too, so a page cannot be
@@ -264,6 +303,142 @@ fn every_interface_action_is_a_command_and_neither_side_holds_a_surplus() {
             page.kind()
         );
     }
+}
+
+/// Every state the interface's key handling can be in, so no binding is read in one state only.
+fn keyboard_states(root: &Path) -> Vec<App> {
+    let run = scenario::running();
+    let mut model = Model::cold(Environment::detect(root), vec![drafted_facts()]);
+    model.absorb(&run.state, &run.events);
+    let projection = model.projection(None);
+    let facts = projection.run.clone().expect("the scenario carries a run");
+
+    let mut states = Vec::new();
+    let base = App::new(projection);
+
+    // The conversation: nothing typed, something typed, and an answer awaited.
+    states.push(base.clone());
+    let mut typing = base.clone();
+    typing.prompt.buffer = "keep the replay path idempotent".into();
+    states.push(typing);
+    let mut awaiting = base.clone();
+    awaiting.data.awaiting = Some("answer: source directory".into());
+    states.push(awaiting);
+
+    // Every page, including the one reached only by opening a candidate.
+    for kind in PageKind::ALL {
+        let mut page = base.clone();
+        page.surface = Surface::Page(kind);
+        states.push(page);
+    }
+
+    // Everything that floats above a surface.
+    let mut palette = base.clone();
+    palette.modal = Modal::Palette(palette.open_palette());
+    states.push(palette);
+    let mut keys = base.clone();
+    keys.modal = Modal::Keys;
+    states.push(keys);
+    let mut authorize = base.clone();
+    authorize.open_authorize_at(0);
+    states.push(authorize);
+    for typed in ["", "wrong", &facts.run_id.clone()] {
+        let mut confirm = decisions::cancel_run(&facts);
+        confirm.typed = typed.to_owned();
+        let mut state = base.clone();
+        state.modal = Modal::Confirm(confirm);
+        states.push(state);
+    }
+
+    states
+}
+
+/// Every key an operator can press, over every modifier the interface distinguishes.
+fn key_presses() -> Vec<KeyEvent> {
+    let mut codes: Vec<KeyCode> = (0x20u8..=0x7e)
+        .map(|byte| KeyCode::Char(byte as char))
+        .collect();
+    codes.extend([KeyCode::Char('\u{1b}'), KeyCode::Char('\u{7}')]);
+    codes.extend([
+        KeyCode::Enter,
+        KeyCode::Esc,
+        KeyCode::Backspace,
+        KeyCode::Tab,
+        KeyCode::BackTab,
+        KeyCode::Delete,
+        KeyCode::Insert,
+        KeyCode::Up,
+        KeyCode::Down,
+        KeyCode::Left,
+        KeyCode::Right,
+        KeyCode::Home,
+        KeyCode::End,
+        KeyCode::PageUp,
+        KeyCode::PageDown,
+        KeyCode::F(1),
+        KeyCode::F(12),
+        KeyCode::Null,
+    ]);
+    let modifiers = [
+        KeyModifiers::NONE,
+        KeyModifiers::CONTROL,
+        KeyModifiers::ALT,
+        KeyModifiers::SHIFT,
+    ];
+    codes
+        .into_iter()
+        .flat_map(|code| {
+            modifiers
+                .iter()
+                .map(move |modifier| KeyEvent::new(code, *modifier))
+        })
+        .collect()
+}
+
+/// The inventory compares four enumerations of the interface's vocabulary. This widens it to the
+/// keyboard: whatever an operator presses, on whatever surface, the interface either changes what
+/// is on screen or returns an action — and every action it can return is one a command performs.
+///
+/// It also states the shape of the boundary. `handle_key` is a pure function over view state: it
+/// holds no session and no store, so a binding cannot commit anything without returning an action
+/// through this path, and a binding that returns nothing changed the view and nothing else.
+#[test]
+fn every_action_a_key_can_reach_is_an_action_a_command_performs() {
+    let root = TempDir::new().expect("temporary root");
+    let (commanded, _) = commanded_actions();
+    let covered: BTreeSet<String> = commanded
+        .union(&LIFECYCLE.iter().map(|name| (*name).to_owned()).collect())
+        .cloned()
+        .collect();
+
+    let mut reached = BTreeSet::new();
+    for state in keyboard_states(root.path()) {
+        for key in key_presses() {
+            let mut app = state.clone();
+            if let Some(action) = ymp_tui::app::handle_key(&mut app, key, 40) {
+                let name = performed_action(&action);
+                assert!(
+                    covered.contains(&name),
+                    "{key:?} reaches {name}, which no command performs"
+                );
+                reached.insert(name);
+            }
+            // Pasted text is the other way input arrives, and it must stay text.
+            let mut app = state.clone();
+            assert!(
+                ymp_tui::app::handle_event(&mut app, Event::Paste(":authorize".into()), 40)
+                    .is_none(),
+                "pasted text reached an action"
+            );
+        }
+    }
+
+    // The keyboard really does reach the actions this asserts about, so the assertion above is
+    // not vacuous.
+    assert!(
+        reached.contains("request") && reached.contains("cancel-run"),
+        "the driven keys reached only {reached:?}"
+    );
 }
 
 // ---------------------------------------------------------------------------
@@ -333,6 +508,81 @@ impl Fixture {
             .args(arguments)
             .output()
             .expect("run the ymp executable")
+    }
+
+    /// A contract package under a known identifier, so an invocation carries a contract whose
+    /// name an answer could be made to spell.
+    fn package(&self, contract_id: &str) -> PathBuf {
+        let path = self._root.path().join(format!("{contract_id}.json"));
+        let oracle = ymp_domain::digest_bytes(&fs::read(&self.verifier).expect("verifier bytes"));
+        fs::write(
+            &path,
+            serde_json::to_vec(&serde_json::json!({
+                "schema_version": 2,
+                "contract_id": contract_id,
+                "source": self.source,
+                "prompt": "keep the replay path idempotent",
+                "verifier": {
+                    "program": self.verifier,
+                    "negative_control": self.negative_control,
+                    "oracle_digest": oracle,
+                    "wall_time_ms": 60_000,
+                    "output_limit_bytes": 1024
+                }
+            }))
+            .expect("package bytes"),
+        )
+        .expect("write package");
+        path
+    }
+}
+
+/// Values an operator may legitimately pass, each of which the interface's input row would read
+/// as something other than text: a leading colon opens its command line, a control character or
+/// an escape sequence is a key press of its own, and a path is ordinary text that must keep
+/// working. The identifier a confirmation would require is spelled by the answers around them,
+/// so an answer that escaped into a decision surface would be able to complete it.
+const ANSWERS_THAT_MUST_STAY_ANSWERS: [(&str, &str); 4] = [
+    ("colon", ":authorize contract-package-1"),
+    ("path", "/no/such/directory"),
+    ("escape", "\u{1b}[2K:authorize contract-package-1"),
+    ("control", "\u{7}:quit"),
+];
+
+#[test]
+fn an_answer_never_reaches_a_surface_the_command_did_not_open() {
+    let fixture = Fixture::new();
+    let package = fixture.package("contract-package-1");
+
+    for (name, value) in ANSWERS_THAT_MUST_STAY_ANSWERS {
+        for verb in ["request", "authorize"] {
+            let data_root = fixture.data_root(&format!("{verb}-{name}"));
+            let refused = fixture.command(
+                &data_root,
+                &[
+                    "--contract".to_owned(),
+                    package.display().to_string(),
+                    verb.to_owned(),
+                    "--prompt=work".to_owned(),
+                    format!("--source={value}"),
+                    "--verifier=anything".to_owned(),
+                    // The exact identifier a start confirmation requires. Nothing in this
+                    // invocation authorizes a run, so nothing may consume it as one.
+                    "--negative-control=contract-package-1".to_owned(),
+                ],
+            );
+
+            assert!(
+                !data_root.join("events.jsonl").exists(),
+                "`ymp {verb}` with a {name} answer started a run: {}",
+                String::from_utf8_lossy(&refused.stdout)
+            );
+            assert!(
+                !refused.status.success(),
+                "`ymp {verb}` with a {name} answer reported success for a request it could not \
+                 prepare"
+            );
+        }
     }
 }
 
