@@ -7,15 +7,24 @@
 //! result the first delivery committed instead of committing a second effect.
 //!
 //! The ledger itself decides; this type only orders, records and replays.
+//!
+//! Waking a reader is the one thing here that is allowed to fail. A subscriber is handed a bounded
+//! channel carrying nothing but a sequence number, and when that channel is full the number is
+//! dropped rather than waited on: a slow reader must not be able to stall the order every other
+//! participant is serialized into. Nothing is lost by that, because the channel is not where the
+//! facts are. What a reader missed is whatever lies after the cursor it last recorded, and it asks
+//! the committed stream for exactly that.
 
 use std::collections::HashMap;
 use std::sync::Mutex;
+use std::sync::mpsc::{Receiver, SyncSender, TrySendError, sync_channel};
 
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use ymp_domain::MAX_IDENTIFIER_CHARS;
 use ymp_domain::commitment::{
-    CommitmentCommand, CommitmentError, CommitmentEvent, CommitmentLedger,
+    CommitmentCommand, CommitmentError, CommitmentEvent, CommitmentLedger, OpenAuthority,
+    RootTerminal,
 };
 
 /// One committed fact in the order it was committed, with the command that committed it.
@@ -45,6 +54,8 @@ pub enum CommitmentServiceError {
     InvalidIdentifier { kind: &'static str },
     #[error("command serialization failed: {0}")]
     Serialization(String),
+    #[error("notification capacity must be between 1 and 1024")]
+    InvalidNotificationCapacity,
     #[error("the commitment ledger is no longer usable after a failed command")]
     Unusable,
 }
@@ -58,6 +69,21 @@ struct Inner {
     ledger: CommitmentLedger,
     log: Vec<RecordedFact>,
     results: HashMap<String, RecordedCommand>,
+    /// Where readers are told that something happened. They hold nothing but a sequence number and
+    /// are allowed to lose it.
+    subscribers: Vec<SyncSender<u64>>,
+}
+
+impl Inner {
+    /// Tell every live subscriber where the run now stands, and drop the number for any that
+    /// cannot take it. A full channel is an ordinary outcome here, not an error to report.
+    fn notify(&mut self, sequence: u64) {
+        self.subscribers
+            .retain(|subscriber| match subscriber.try_send(sequence) {
+                Ok(()) | Err(TrySendError::Full(_)) => true,
+                Err(TrySendError::Disconnected(_)) => false,
+            });
+    }
 }
 
 pub struct CommitmentService {
@@ -71,6 +97,7 @@ impl CommitmentService {
                 ledger,
                 log: Vec::new(),
                 results: HashMap::new(),
+                subscribers: Vec::new(),
             }),
         }
     }
@@ -128,7 +155,62 @@ impl CommitmentService {
                 outcome: outcome.clone(),
             },
         );
+        let last = inner.log.len() as u64;
+        inner.notify(last);
         Ok(outcome)
+    }
+
+    /// A bounded channel carrying the sequence of the last committed fact.
+    ///
+    /// It is a hint and never a record. A subscriber that reads slowly is skipped rather than
+    /// waited on, so what arrives may be one number standing for several commands, the same number
+    /// twice, or nothing at all. None of that can lose a fact, because the facts are not here.
+    pub fn subscribe(&self, capacity: usize) -> Result<Receiver<u64>, CommitmentServiceError> {
+        if !(1..=1024).contains(&capacity) {
+            return Err(CommitmentServiceError::InvalidNotificationCapacity);
+        }
+        let (sender, receiver) = sync_channel(capacity);
+        let mut inner = self
+            .inner
+            .lock()
+            .map_err(|_| CommitmentServiceError::Unusable)?;
+        inner.subscribers.push(sender);
+        Ok(receiver)
+    }
+
+    /// The yielded process slices a controller may admit now, in the order it must admit them.
+    /// The answer is recomputed from the committed facts, so it is the same whether every
+    /// notification arrived or none did.
+    pub fn admission_order(&self) -> Result<Vec<String>, CommitmentServiceError> {
+        let inner = self
+            .inner
+            .lock()
+            .map_err(|_| CommitmentServiceError::Unusable)?;
+        Ok(inner
+            .ledger
+            .admission_order()
+            .into_iter()
+            .map(|invocation| invocation.invocation_id.clone())
+            .collect())
+    }
+
+    /// The first funded control object that can still advance the run, or `None` when it is
+    /// quiescent.
+    pub fn open_authority(&self) -> Result<Option<OpenAuthority>, CommitmentServiceError> {
+        let inner = self
+            .inner
+            .lock()
+            .map_err(|_| CommitmentServiceError::Unusable)?;
+        Ok(inner.ledger.open_authority())
+    }
+
+    /// How the run ended, or `None` while it can still advance.
+    pub fn root_terminal(&self) -> Result<Option<RootTerminal>, CommitmentServiceError> {
+        let inner = self
+            .inner
+            .lock()
+            .map_err(|_| CommitmentServiceError::Unusable)?;
+        Ok(inner.ledger.root_terminal())
     }
 
     /// Committed facts after a cursor, which is how a lagging reader recovers rather than assuming
