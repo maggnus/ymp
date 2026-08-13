@@ -68,3 +68,5 @@ runtime, MCP, or verifier state as a typed failure rather than acceptance.
 - [W1-APP-02j](tasks/W1-APP-02j.md) — follow_up
 - [W1-APP-02k](tasks/W1-APP-02k.md) — required
 - [W1-APP-02l](tasks/W1-APP-02l.md) — follow_up
+- [W1-APP-02m](tasks/W1-APP-02m.md) — required
+- [W1-APP-02n](tasks/W1-APP-02n.md) — required
