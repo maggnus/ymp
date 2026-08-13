@@ -47,7 +47,7 @@ previous composition tried to serve with one dashboard.
 
 A single scrolling transcript fills the screen, with an input line at the bottom, a thin context
 header, and a status line. Data views — runtimes, agents, candidates, events, budgets, object
-detail — are full-screen pages opened on demand through a `:` command line and closed with `Esc`.
+detail — are full-screen pages opened on demand through a `/` command line and closed with `Esc`.
 
 The three stages are one continuous transcript, not three screens. The transcript is interrupted
 exactly once, by contract authorization, because that decision is irreversible and begins spending
@@ -100,7 +100,7 @@ instead of presenting a generated document as finished.
 
 ## Naming model
 
-The interface borrows the navigation model of k9s: a `:` command line instead of numbered screens,
+The interface borrows the navigation model of k9s: a `/` command line instead of numbered screens,
 `Enter` to descend, `Esc` to return, `/` to filter, and a thin header.
 
 | Kubernetes | ymp | Note |

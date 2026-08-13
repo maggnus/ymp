@@ -59,9 +59,10 @@ pub struct Session {
     /// asked under, so an outcome that arrives after a cancellation or a later answer is
     /// recognised as deciding nothing.
     checking: u64,
-    /// The digests of the contracts this session has authorized. Re-authorizing one of them
-    /// unchanged is one confirmation; everything else is authorized by typing its identifier.
-    /// The record is this session's own, so a new process authorizes from the beginning.
+    /// What this session has authorized, keyed by everything an authorization grants: the
+    /// contract that decides the work and the budget the run would spend. Re-authorizing exactly
+    /// that is one confirmation; anything else is authorized by typing the contract id. The
+    /// record is this session's own, so a new process authorizes from the beginning.
     authorized: BTreeSet<String>,
     /// The contract the current draft last produced, so an amended draft replaces it instead of
     /// leaving the version it replaced on the screen.
@@ -330,8 +331,19 @@ impl Session {
 
         let project = self.model.environment().project_path.clone();
         let drafts = self.data_root.join(DRAFT_DIRECTORY);
-        let job = self.draft.as_mut()?.job(&project, &drafts);
         self.checking = self.checking.wrapping_add(1);
+        let job = self.draft.as_mut()?.job(&project, &drafts, self.checking);
+        // What an earlier assembly of this project left behind is of no use to anyone: its copy
+        // is of a state the project has left, and the assembly that took it has been superseded,
+        // so its outcome decides nothing whether it finishes or not.
+        discard_earlier_workspaces(&drafts, &job);
+        // The contract the draft last produced was assembled against what has just been removed,
+        // so it is withdrawn with it. Until this assembly decides, there is nothing on offer.
+        if let Some(withdrawn) = self.drafted.take() {
+            self.model.forget_contract(&withdrawn);
+            self.contracts
+                .retain(|contract| contract.contract_id() != withdrawn);
+        }
         self.model.await_answer(None);
         self.model.working(Some(job.waiting_for()));
         Some(PendingCheck {
@@ -400,7 +412,8 @@ impl Session {
         match prepare_contract(&assembly.request) {
             Ok(prepared) => {
                 let mut facts = ContractFacts::from_prepared(&prepared);
-                facts.previously_authorized = self.authorized.contains(&facts.contract_digest);
+                facts.previously_authorized =
+                    self.authorized.contains(&authorization_key(&prepared));
                 let ceremony = if facts.previously_authorized {
                     "one confirmation, because you authorized this exact contract in this session \
                      and nothing about it changed"
@@ -472,11 +485,11 @@ impl Session {
             ));
             return;
         };
-        // The operator has authorized this exact contract here: they read the coverage map and
-        // typed its identifier. Whether the run then starts is the store's business, so the
+        // The operator has authorized exactly this here: they read the coverage map and typed
+        // the contract id. Whether the run then starts is the store's business, so the
         // authorization is recorded before the attempt and a second one asks for one
         // confirmation rather than for the same identifier again.
-        self.authorized.insert(prepared.contract_digest.clone());
+        self.authorized.insert(authorization_key(&prepared));
         match Application::create_with_contract(&self.data_root, &prepared) {
             Ok((application, outcome)) => {
                 self.application = Some(application);
@@ -495,7 +508,8 @@ impl Session {
                 // The contract is still there and still unauthorized in the store's eyes, so it
                 // is restated with the weight its second authorization carries.
                 let mut facts = ContractFacts::from_prepared(&prepared);
-                facts.previously_authorized = true;
+                facts.previously_authorized =
+                    self.authorized.contains(&authorization_key(&prepared));
                 self.model.record_contract(facts);
                 self.model
                     .error(format!("the run was not started: {error}"));
@@ -509,6 +523,43 @@ impl Session {
 /// A store opened later carries no drafted contract, so the coverage map would otherwise have
 /// nothing to show for a run that has one. The stored object is the source; when it cannot be
 /// read the binding is shown with what the journal alone records and says so.
+/// Remove the workspaces of earlier assemblies of the same project, keeping this one.
+///
+/// Each assembly copies the project, so the copies would otherwise accumulate one per amendment.
+/// Only workspaces of the same source are touched, by the name the assembly derived from it, and
+/// only under the directory the product writes its own drafts into.
+fn discard_earlier_workspaces(drafts: &Path, job: &DraftJob) {
+    let prefix = format!("{}-", crate::draft::source_name(job.source()));
+    let Ok(entries) = std::fs::read_dir(drafts) else {
+        return;
+    };
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if path == job.workspace() || !path.is_dir() {
+            continue;
+        }
+        if entry.file_name().to_string_lossy().starts_with(&prefix) {
+            let _ = std::fs::remove_dir_all(&path);
+        }
+    }
+}
+
+/// What a second authorization has to match to be lighter than the first.
+///
+/// An authorization grants two things: the contract that decides the work, and the budget the
+/// run may spend against it. The contract digest covers the first. The budget is carried beside
+/// the contract rather than inside it, so a draft amended to spend more keeps the digest it had;
+/// naming the budget here is what keeps that amendment from inheriting an authorization given
+/// for a smaller one.
+fn authorization_key(prepared: &PreparedContract) -> String {
+    format!(
+        "{}\u{0}attempts {}\u{0}verification queries {}",
+        prepared.contract_digest,
+        prepared.budget.attempts_remaining,
+        prepared.budget.verification_queries_remaining
+    )
+}
+
 fn first_line(prompt: &str) -> String {
     prompt.lines().next().unwrap_or_default().to_owned()
 }

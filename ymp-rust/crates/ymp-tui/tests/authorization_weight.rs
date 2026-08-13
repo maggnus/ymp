@@ -29,6 +29,10 @@ struct Workspace {
     _root: TempDir,
     data_root: PathBuf,
     source: PathBuf,
+    /// A verifier and a control the operator names, so the paths a contract is derived from stay
+    /// exactly where they are while the draft is amended.
+    program: PathBuf,
+    negative_control: PathBuf,
 }
 
 fn workspace() -> Workspace {
@@ -48,10 +52,18 @@ fn workspace() -> Workspace {
         permissions.set_mode(0o700);
         fs::set_permissions(&entry_point, permissions).expect("make executable");
     }
+    let program = directory.join("verify.sh");
+    fs::write(&program, b"#!/bin/sh\ntest -f \"$1/result.txt\"\n").expect("verifier program");
+    let negative_control = directory.join("negative-control");
+    fs::create_dir_all(&negative_control).expect("negative control directory");
+    #[cfg(unix)]
+    set_mode(&program, 0o700);
     Workspace {
         _root: root,
         data_root,
         source,
+        program,
+        negative_control,
     }
 }
 
@@ -73,6 +85,30 @@ fn drafted(session: &mut Session, app: &mut App, workspace: &Workspace) -> Strin
         .contracts
         .first()
         .expect("the project reached a drafted contract")
+        .contract_id
+        .clone()
+}
+
+/// Draft the same contract from a verifier and a control the operator names. Every path the
+/// contract is derived from is stated, so amending the budget leaves the contract identical and
+/// the budget is the only thing a second authorization could differ by.
+fn drafted_from_stated_paths(
+    session: &mut Session,
+    app: &mut App,
+    workspace: &Workspace,
+) -> String {
+    session.local_turn("keep the replay path idempotent".to_owned());
+    session.local_turn(format!("source {}", workspace.source.display()));
+    session.local_turn(format!("verifier {}", workspace.program.display()));
+    session.local_turn(format!(
+        "negative control {}",
+        workspace.negative_control.display()
+    ));
+    app.adopt(session.projection(None));
+    app.data
+        .contracts
+        .first()
+        .expect("the stated verifier reached a drafted contract")
         .contract_id
         .clone()
 }
@@ -146,6 +182,79 @@ fn a_second_authorization_of_an_unchanged_contract_is_one_confirmation() {
         "the re-authorized contract started no run"
     );
     assert!(workspace.data_root.join("events.jsonl").exists());
+}
+
+/// An authorization grants a budget as well as a contract, and the budget is carried beside the
+/// contract rather than inside it: amending it leaves the contract digest exactly as it was.
+///
+/// The scenario is the reviewer's. A draft is authorized, the budget is then amended upward, and
+/// the second authorization must cost the contract id in full — the confirmation that says
+/// nothing has changed since would otherwise start a run spending five hundred attempts on one
+/// keystroke.
+#[cfg(unix)]
+#[test]
+fn amending_the_budget_after_an_authorization_costs_the_identifier_again() {
+    let workspace = workspace();
+    let mut session = Session::open(&workspace.data_root, &[]);
+    let mut app = App::new(session.projection(None));
+    let contract_id = drafted_from_stated_paths(&mut session, &mut app, &workspace);
+    let digest = app.data.contracts[0].contract_digest.clone();
+
+    // Authorized once, against the budget the draft carried.
+    let (required, _) = confirmation(&mut app);
+    assert_eq!(required, contract_id);
+    set_mode(&workspace.data_root, 0o500);
+    session.start_run(&contract_id);
+    set_mode(&workspace.data_root, 0o700);
+    app.adopt(session.projection(None));
+    let (required, _) = confirmation(&mut app);
+    assert!(
+        required.is_empty(),
+        "the second authorization of an unchanged draft was not the lighter one"
+    );
+
+    // The draft is amended to spend five hundred times as much. The contract itself is
+    // untouched — same identifier, same digest — so only a rule that names the budget can tell
+    // this authorization from the one that was given.
+    session.local_turn("attempts 500".to_owned());
+    app.adopt(session.projection(None));
+    let amended = app
+        .data
+        .contracts
+        .first()
+        .expect("the amended draft is still a contract");
+    assert_eq!(amended.contract_id, contract_id);
+    assert_eq!(
+        amended.contract_digest, digest,
+        "the amendment changed the contract, so the budget rule is not what is measured here"
+    );
+    assert_eq!(
+        amended
+            .budget
+            .as_ref()
+            .expect("the amended budget")
+            .attempts_remaining,
+        500
+    );
+    assert!(
+        !amended.previously_authorized,
+        "a draft that would spend five hundred attempts inherited an authorization given for one"
+    );
+
+    let (required, label) = confirmation(&mut app);
+    assert_eq!(
+        required, contract_id,
+        "the amended budget was authorized without the contract id"
+    );
+    assert!(
+        label.contains("type the contract id"),
+        "the confirmation still claims nothing changed: {label}"
+    );
+    assert_eq!(
+        press(&mut app, KeyCode::Enter, 40),
+        None,
+        "one keystroke authorized a run that spends five hundred attempts"
+    );
 }
 
 /// A contract nobody has authorized in this session is authorized by typing its identifier,

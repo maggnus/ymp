@@ -407,18 +407,23 @@ fn write_program(path: &Path, body: &str) -> std::io::Result<()> {
 /// The negative control the product supplies: a copy of the project as it stands.
 ///
 /// It holds no result, because the work has not been done, so a verifier that can decide the
-/// work must reject it. The copy is taken once per workspace and kept: it is the state the run
-/// is judged against for as long as the run lasts, and the directory the operator keeps working
-/// in is not that state.
+/// work must reject it. The copy is taken here and now, every time: the caller owns the
+/// workspace and gets one workspace per assembly, so what is demonstrated is the project at the
+/// moment the draft was assembled. A copy kept from an earlier assembly would be demonstrated
+/// against a state the project has left, and stated as its current one.
+///
+/// Once the run starts, that copy is what it is judged against for as long as it lasts — the
+/// directory the operator keeps working in is not that state.
 pub fn copy_negative_control(source: &Path, workspace: &Path) -> Result<PathBuf, AnswerError> {
-    let negative_control = workspace.join("negative-control");
-    if negative_control.is_dir() {
-        return Ok(negative_control);
-    }
-    fs::create_dir_all(workspace).map_err(|error| AnswerError::Workspace {
+    let failed = |reason: String| AnswerError::Workspace {
         path: workspace.to_path_buf(),
-        reason: error.to_string(),
-    })?;
+        reason,
+    };
+    let negative_control = workspace.join("negative-control");
+    if negative_control.exists() {
+        fs::remove_dir_all(&negative_control).map_err(|error| failed(error.to_string()))?;
+    }
+    fs::create_dir_all(workspace).map_err(|error| failed(error.to_string()))?;
     copy_tree(source, &negative_control)?;
     Ok(negative_control)
 }

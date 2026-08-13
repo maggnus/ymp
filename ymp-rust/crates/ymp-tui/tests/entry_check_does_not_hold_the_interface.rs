@@ -140,6 +140,23 @@ fn taking_the_answer_returns_before_the_verifier_does() {
         "the interface does not state what it is waiting for:\n{}",
         frames[0]
     );
+
+    // The way out survives a row too narrow for the account of the wait. The notice names a
+    // path, so on the main path — a draft assembled from a project — it is long enough to push
+    // whatever follows it off the row.
+    let mut long = app.clone();
+    long.data.working = Some(format!(
+        "assembling a contract from {} · copying it as the negative control and asking the \
+         proposed verifier to decide it · limit 60 s",
+        workspace.source.display()
+    ));
+    for (width, height) in support::SIZES {
+        let rendered = screen(&long, width, height);
+        assert!(
+            rendered.contains("Esc cancels"),
+            "a {width}-column row lost the way out of the wait:\n{rendered}"
+        );
+    }
     assert_ne!(
         frames[0], frames[1],
         "the interface drew the same frame while it was waiting"

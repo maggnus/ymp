@@ -211,14 +211,17 @@ fn input_left(app: &App, markers: &Markers) -> Vec<Span<'static>> {
         .as_ref()
         .filter(|_| app.prompt.buffer.is_empty() && app.prompt.suspended.is_none())
     {
+        // The way out comes before the account of what is being waited for. The notice names a
+        // path and is as long as that path; the row is as wide as the terminal, so whatever is
+        // last is what a narrow row loses, and losing the way out is what must not happen.
         return vec![
             Span::styled(format!("{} ", markers.prompt), theme::amber()),
             Span::styled(
                 WORKING_MARKS[app.working_ticks % WORKING_MARKS.len()].to_owned(),
                 theme::accent(),
             ),
-            Span::styled(format!(" {notice}"), theme::muted()),
-            Span::styled("  Esc cancels".to_owned(), theme::faint()),
+            Span::styled(" Esc cancels".to_owned(), theme::accent()),
+            Span::styled(format!(" · {notice}"), theme::muted()),
         ];
     }
     match &app.prompt.suspended {

@@ -132,13 +132,17 @@ impl Draft {
     /// The work this draft needs before it can be shown as a contract.
     ///
     /// `project` is the directory the product was started in, which is the source unless a line
-    /// amended it. `drafts` is where the product may write what it supplies; within it, each
-    /// source has a workspace of its own, so amending the source never reuses the copy taken of
-    /// another one.
-    pub fn job(&mut self, project: &Path, drafts: &Path) -> DraftJob {
+    /// amended it. `drafts` is where the product may write what it supplies, and `attempt` is the
+    /// number this assembly is asked under.
+    ///
+    /// Every assembly gets a workspace of its own, so the copy it takes of the project is the
+    /// project as it stands at that moment. Reusing an earlier copy would let a draft assembled
+    /// after the project changed be demonstrated against a state that no longer exists, and be
+    /// stated as a copy of the project as it stands, which it would not be.
+    pub fn job(&mut self, project: &Path, drafts: &Path, attempt: u64) -> DraftJob {
         self.assembling = true;
         let source = self.source.clone().unwrap_or_else(|| project.to_path_buf());
-        let workspace = drafts.join(workspace_name(&source));
+        let workspace = drafts.join(workspace_name(&source, attempt));
         DraftJob {
             prompt: self.prompt.clone(),
             source,
@@ -174,11 +178,16 @@ enum Field {
     Queries,
 }
 
-/// How many characters of the source digest name its workspace. The name is derived, so the
-/// same source always reaches the same copy and a different one never does.
+/// How many characters of the source digest open the name of a workspace. The digest names the
+/// source, and the number after it names the assembly, so no two assemblies share a copy.
 const WORKSPACE_NAME_CHARS: usize = 12;
 
-fn workspace_name(source: &Path) -> String {
+fn workspace_name(source: &Path, attempt: u64) -> String {
+    format!("{}-{attempt}", source_name(source))
+}
+
+/// The part of a workspace name that names the source it was taken from.
+pub fn source_name(source: &Path) -> String {
     ymp_domain::digest_bytes(source.display().to_string().as_bytes())[..WORKSPACE_NAME_CHARS]
         .to_owned()
 }
@@ -215,6 +224,17 @@ pub struct Assembly {
 }
 
 impl DraftJob {
+    /// Where this assembly writes what the product supplies. It belongs to this assembly alone.
+    pub fn workspace(&self) -> &Path {
+        &self.workspace
+    }
+
+    /// The source this assembly copies, so the interface can tell one project's workspaces from
+    /// another's when it removes the ones it no longer needs.
+    pub fn source(&self) -> &Path {
+        &self.source
+    }
+
     /// What the interface says it is waiting for while this runs.
     pub fn waiting_for(&self) -> String {
         match &self.program {
@@ -387,7 +407,7 @@ mod tests {
         let project = project();
         let mut draft = Draft::new("keep the replay path idempotent");
         let assembly = draft
-            .job(&project.directory, &project.data_root.join("draft"))
+            .job(&project.directory, &project.data_root.join("draft"), 1)
             .run()
             .expect("the project names a test entry point");
 
@@ -422,7 +442,7 @@ mod tests {
         fs::remove_file(project.directory.join("scripts/test.sh")).expect("remove entry point");
         let mut draft = Draft::new("keep the replay path idempotent");
         let refusal = draft
-            .job(&project.directory, &project.data_root.join("draft"))
+            .job(&project.directory, &project.data_root.join("draft"), 1)
             .run()
             .expect_err("nothing can be proposed from a project that runs no tests");
         assert!(refusal.contains("no test entry point"), "{refusal}");
@@ -440,7 +460,7 @@ mod tests {
         assert_eq!(draft.prompt, "keep the replay path idempotent");
 
         let assembly = draft
-            .job(&project.directory, &project.data_root.join("draft"))
+            .job(&project.directory, &project.data_root.join("draft"), 1)
             .run()
             .expect("a stated verifier that rejects the copy is taken");
         let acceptance = assembly.request.acceptance.expect("acceptance condition");

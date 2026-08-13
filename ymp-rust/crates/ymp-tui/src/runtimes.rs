@@ -106,7 +106,7 @@ fn runtime_label(kind: RuntimeKind) -> &'static str {
     }
 }
 
-/// The `:runtimes` page. Without a report the page states that the probe is still running.
+/// The `/runtimes` page. Without a report the page states that the probe is still running.
 pub fn page(report: Option<&Report>, status: String) -> Page {
     let columns = vec![
         Column {
