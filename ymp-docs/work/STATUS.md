@@ -29,7 +29,7 @@
 | `[x]` | [`W1-APP-02m`](waves/W1/W1-APP-02/tasks/W1-APP-02m.md) | A typed prompt becomes a contract and starts a run | [`bcaabb3d`](https://github.com/maggnus/ymp/commit/bcaabb3d0e6b014f82d5479b944e117f1e1849a1) | 13/08 12:45 | 13/08 15:06 (2h17m) |
 | `[ ]` | [`W1-APP-02n`](waves/W1/W1-APP-02/tasks/W1-APP-02n.md) | Every interface action exists as a command of the same executable | — | — | — |
 | `[ ]` | [`W1-APP-02o`](waves/W1/W1-APP-02/tasks/W1-APP-02o.md) | The shipped binary carries no path that starts a run without a contract | — | — | — |
-| `[ ]` | [`W1-APP-02p`](waves/W1/W1-APP-02/tasks/W1-APP-02p.md) | Every program in the launch chain is verified, not only the pinned runtime | — | — | — |
+| `[~]` | [`W1-APP-02p`](waves/W1/W1-APP-02/tasks/W1-APP-02p.md) | Every program in the launch chain is verified, not only the pinned runtime | [`296b418`](https://github.com/maggnus/ymp/commit/296b418) | 13/08 15:10 | 13/08 14:57 (0m) |
 | `[ ]` | [`W1-COR-03`](waves/W1/W1-COR-03/CARD.md) | Bounded local commitments self-organize and terminate | — | — | — |
 | `[ ]` | [`W1-COR-03a`](waves/W1/W1-COR-03/tasks/W1-COR-03a.md) | Local commitments conserve budgets and close obligations | — | — | — |
 | `[ ]` | [`W1-COR-03b`](waves/W1/W1-COR-03/tasks/W1-COR-03b.md) | Yielded participants resume finitely and runs terminate honestly | — | — | — |

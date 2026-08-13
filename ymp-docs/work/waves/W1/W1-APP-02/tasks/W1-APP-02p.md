@@ -3,7 +3,7 @@ id: W1-APP-02p
 kind: task
 wave: W1
 card: W1-APP-02
-state: ready
+state: rework
 risk: significant
 maturity: BUILD
 relation: required
@@ -11,9 +11,9 @@ depends_on: [W1-APP-02k]
 blocks: []
 created_at: 2026-08-13T14:57:22+08:00
 updated_at: 2026-08-13T14:57:22+08:00
-started_at:
+started_at: 2026-08-13T15:10:00+08:00
 accepted_at:
-candidate_commit:
+candidate_commit: https://github.com/maggnus/ymp/commit/296b418
 closure_commit:
 evidence:
 duration_minutes: 0
@@ -52,9 +52,11 @@ behalf, is verified by digest before it runs.
 
 ## Current state
 
-Ready. The independent review of the descendant-ownership work found that a shell and an environment
-helper were added to the launch chain without digest verification, while the pinned runtime keeps
-its check. This narrows a property an earlier accepted card established.
+Returned by independent review after one round. Digest verification now covers the shell, the
+environment helper, the pinned runtime, the coordination bridge and the version-control program, and
+the earlier card's termination properties still pass. The review found one root cause the card did
+not close: a program is resolved by name through the environment search path, so a planted program
+is admitted and executed normally — reproduced on the built product.
 
 ## Next action
 
@@ -67,7 +69,23 @@ Enumerate the programs the supervisor executes, then verify each by digest on th
 
 ## Findings
 
-None yet.
+- `blocker`, defect in the contracted outcome. The command crate holds a second copy of baseline
+  construction that invokes the version-control program by name through the search path, with no
+  admission and no digest check; the reviewer executed a planted program three times on the built
+  product.
+- `major`, defect in the contracted outcome. The enumeration omits the platform keychain utility,
+  which runs on every Claude launch and extracts credential material handed to the managed process,
+  and the process-inspection utility used in place of the Linux process filesystem.
+- `major`, defect in the contracted outcome. Admission records the digest of whatever the search
+  path yields, so it is bound to nothing: three user-writable directories precede the system
+  directory in this machine's path, and a process running as the same user — including an agent from
+  an earlier run — can have a planted program admitted.
+- `minor`, defect in the contracted outcome. The descriptor validation checks a digest at the path
+  the driver named rather than correspondence to the expected program, while its comment claims the
+  controller admits the chain independently of the driver.
+- Established and not in question: the window between verification and image load is unreachable for
+  an unprivileged user on this machine, because the system programs are protected by the platform's
+  integrity mechanism and owned by the administrator.
 
 ## Closure
 
