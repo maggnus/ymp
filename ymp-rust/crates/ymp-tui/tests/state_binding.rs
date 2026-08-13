@@ -13,6 +13,8 @@
 mod support;
 
 use support::{app_for, contract, crate_sources, open_command, screen};
+use ymp_tui::journal;
+use ymp_tui::projection::{BudgetClass, BudgetDimension};
 use ymp_tui::scenario;
 use ymp_tui::state::PageKind;
 
@@ -45,11 +47,7 @@ const UNSUPPORTED_CONCEPTS: [&str; 9] = [
 #[test]
 fn no_screen_value_is_fixed_in_the_source() {
     let mut offenders = Vec::new();
-    for (path, source) in crate_sources() {
-        let name = path
-            .file_name()
-            .map(|name| name.to_string_lossy().into_owned())
-            .unwrap_or_default();
+    for (name, source) in crate_sources() {
         for (number, line) in source.lines().enumerate() {
             let trimmed = line.trim_start();
             // Documentation may name the superseded illustration; only code may not.
@@ -80,6 +78,67 @@ fn no_screen_value_is_fixed_in_the_source() {
         "these values are fixed in the source instead of read from state:\n{}",
         offenders.join("\n")
     );
+}
+
+#[test]
+fn the_budget_class_on_screen_follows_the_projection() {
+    // The page is asked to draw a class the current domain never produces. A page that spelled
+    // the class out instead of reading it would print `enforced` here.
+    let dimensions = vec![
+        BudgetDimension {
+            name: "gated",
+            class: BudgetClass::Enforced,
+            total: Some(3),
+            remaining: 1,
+        },
+        BudgetDimension {
+            name: "recorded_only",
+            class: BudgetClass::Observed,
+            total: None,
+            remaining: 7,
+        },
+    ];
+    let page = journal::budgets_page("demo-run", &dimensions, "status".to_owned());
+    let rendered: String = page
+        .layout(120, 24)
+        .iter()
+        .map(|line| {
+            line.spans
+                .iter()
+                .map(|span| span.content.as_ref())
+                .collect::<String>()
+        })
+        .collect::<Vec<_>>()
+        .join("\n");
+
+    for dimension in &dimensions {
+        assert!(
+            rendered.contains(dimension.class.label()),
+            "{} lost its class:\n{rendered}",
+            dimension.name
+        );
+    }
+    assert_eq!(page.breadcrumb[1], "budgets(demo-run)[2]");
+
+    // And the live page shows only the classes the run's own dimensions carry.
+    let run = scenario::running();
+    let mut app = app_for(Some(&run), vec![contract(true)]);
+    let facts = app.data.run.clone().expect("the run was read");
+    let initial = run
+        .initial_budget()
+        .expect("the run recorded its starting budget");
+    let live = facts.budget_dimensions(Some(&initial));
+    open_command(&mut app, "budgets", 40);
+    let screen = screen(&app, 120, 40);
+    for class in [BudgetClass::Observed, BudgetClass::Estimated] {
+        if !live.iter().any(|dimension| dimension.class == class) {
+            assert!(
+                !screen.contains(class.label()),
+                "the live page shows a class no dimension carries: {}\n{screen}",
+                class.label()
+            );
+        }
+    }
 }
 
 #[test]

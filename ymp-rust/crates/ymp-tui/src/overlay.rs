@@ -262,8 +262,15 @@ fn confirm_spec(confirm: &Confirm, markers: &Markers) -> ModalSpec {
         .collect();
 
     body.push(Line::default());
+    // The identifier lives in the body, not only in the border title: the operator has to read
+    // it in full to type it, and a border title yields to the irreversibility badge.
+    for piece in text::wrap(
+        &format!("{} {}", confirm.prompt_label, confirm.required),
+        inner as usize,
+    ) {
+        body.push(Line::from(style::spans(&piece, theme::dim())));
+    }
     body.push(Line::from(vec![
-        Span::styled(format!("{} ", confirm.prompt_label), theme::dim()),
         Span::styled(format!("{} ", markers.prompt), theme::amber()),
         Span::styled(confirm.typed.clone(), theme::text()),
         Span::styled("▁".to_owned(), theme::accent()),

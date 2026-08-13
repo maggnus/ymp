@@ -112,6 +112,40 @@ fn both_decision_surfaces_and_the_key_map_are_reachable_at_both_sizes() {
     }
 }
 
+/// A run identifier the product actually generates: `ymp internal managed-candidate-smoke`
+/// names its run with a prefix and a UUID. A short fixture leaves the decision title well
+/// inside the frame; a real one does not, and the irreversibility marker is what must survive.
+const PRODUCT_RUN_ID: &str = "managed-candidate-smoke-c2b1b17b-49c9-4e11-91cd-f8469e82995d";
+
+#[test]
+fn the_irreversibility_marker_survives_a_product_run_identifier() {
+    for (width, height) in SIZES {
+        let run = scenario::running_named(PRODUCT_RUN_ID);
+
+        let mut app = app_for(Some(&run), vec![contract(true)]);
+        open_command(&mut app, &format!("cancel {PRODUCT_RUN_ID}"), height);
+        assert!(matches!(app.modal, Modal::Confirm(_)));
+        let rendered = screen(&app, width, height);
+        assert!(
+            rendered.contains("irreversible"),
+            "the cancellation reads as reversible at {width}x{height}:\n{rendered}"
+        );
+        // The operator has to type the identifier exactly, so it must be readable in full.
+        assert!(
+            flatten(&rendered).contains(PRODUCT_RUN_ID),
+            "the run id to type is not readable at {width}x{height}:\n{rendered}"
+        );
+
+        let mut app = app_for(Some(&run), vec![contract(true)]);
+        app.open_authorize();
+        let rendered = screen(&app, width, height);
+        assert!(
+            rendered.contains("irreversible"),
+            "the authorization surface lost its marker at {width}x{height}:\n{rendered}"
+        );
+    }
+}
+
 #[test]
 fn typed_confirmation_gates_the_only_irreversible_command() {
     let run = scenario::running();

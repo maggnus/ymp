@@ -135,20 +135,35 @@ pub fn open_command(app: &mut App, name: &str, height: u16) -> Option<Action> {
     press(app, KeyCode::Enter, height)
 }
 
-/// Every non-test Rust source file of this crate.
-pub fn crate_sources() -> Vec<(PathBuf, String)> {
+/// Every Rust source file of this crate, at any depth under `src`, keyed by its path relative
+/// to `src`. The walk is recursive: a screen placed in a subdirectory is not out of reach of the
+/// inventory checks.
+pub fn crate_sources() -> Vec<(String, String)> {
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("src");
-    let mut files: Vec<PathBuf> = std::fs::read_dir(&root)
-        .expect("crate sources")
-        .filter_map(|entry| entry.ok().map(|entry| entry.path()))
-        .filter(|path| path.extension().is_some_and(|extension| extension == "rs"))
-        .collect();
+    let mut files = Vec::new();
+    collect_sources(&root, &mut files);
     files.sort();
     files
         .into_iter()
         .map(|path| {
             let text = std::fs::read_to_string(&path).expect("readable source");
-            (path, text)
+            let name = path
+                .strip_prefix(&root)
+                .unwrap_or(&path)
+                .to_string_lossy()
+                .into_owned();
+            (name, text)
         })
         .collect()
+}
+
+fn collect_sources(directory: &Path, files: &mut Vec<PathBuf>) {
+    for entry in std::fs::read_dir(directory).expect("crate sources") {
+        let path = entry.expect("readable directory entry").path();
+        if path.is_dir() {
+            collect_sources(&path, files);
+        } else if path.extension().is_some_and(|extension| extension == "rs") {
+            files.push(path);
+        }
+    }
 }

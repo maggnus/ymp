@@ -14,8 +14,8 @@ use ymp_domain::{Budget, EventEnvelope, EventKind, RunState};
 
 use crate::pages::{Body, Cell, Column, DescribeGroup, Page, Row};
 use crate::projection::{
-    self, AttemptFacts, CandidateFacts, CandidateVerdict, ContractFacts, Environment, EventFacts,
-    Projection, RunFacts,
+    self, AttemptFacts, BudgetDimension, CandidateFacts, CandidateVerdict, ContractFacts,
+    Environment, EventFacts, Projection, RunFacts,
 };
 use crate::state::{Command, PageKind, PaletteItem};
 use crate::style;
@@ -470,83 +470,11 @@ impl Model {
     }
 
     fn budgets_page(&self, run: &RunFacts) -> Page {
-        let initial = self.initial_budget.clone();
-        let dimension = |name: &str, remaining: u32, total: Option<u32>| Row {
-            cells: vec![
-                Cell::new(name.to_owned(), theme::bold()),
-                Cell::new("enforced", theme::green()),
-                Cell::new(
-                    total.map_or_else(|| "—".to_owned(), |total| total.to_string()),
-                    theme::muted(),
-                ),
-                Cell::new(
-                    total.map_or_else(
-                        || "—".to_owned(),
-                        |total| total.saturating_sub(remaining).to_string(),
-                    ),
-                    theme::dim(),
-                ),
-                Cell::new(remaining.to_string(), theme::text()),
-            ],
-            fix: None,
-            dim: false,
-        };
-
-        let rows = vec![
-            dimension(
-                "attempts",
-                run.budget.attempts_remaining,
-                initial.as_ref().map(|budget| budget.attempts_remaining),
-            ),
-            dimension(
-                "verification_queries",
-                run.budget.verification_queries_remaining,
-                initial
-                    .as_ref()
-                    .map(|budget| budget.verification_queries_remaining),
-            ),
-        ];
-
-        Page {
-            breadcrumb: vec!["transcript".into(), format!("budgets({})[2]", run.run_id)],
-            summary: Vec::new(),
-            body: Body::Table {
-                columns: vec![
-                    Column {
-                        title: "DIMENSION",
-                        width: 24,
-                    },
-                    Column {
-                        title: "CLASS",
-                        width: 11,
-                    },
-                    Column {
-                        title: "TOTAL",
-                        width: 9,
-                    },
-                    Column {
-                        title: "USED",
-                        width: 9,
-                    },
-                    Column {
-                        title: "REMAINING",
-                        width: 0,
-                    },
-                ],
-                rows,
-            },
-            notes: vec![
-                "dimensions are independent — spare capacity in one never authorizes an action \
-                 blocked by another"
-                    .into(),
-                "the domain carries these two dimensions today; cost, wall time and participant \
-                 starts are unavailable, not zero"
-                    .into(),
-            ],
-            footer: style::spans(&self.status_line(), theme::muted()),
-            keys: vec![("Esc", "back")],
-            selected: 0,
-        }
+        budgets_page(
+            &run.run_id,
+            &run.budget_dimensions(self.initial_budget.as_ref()),
+            self.status_line(),
+        )
     }
 
     fn attempts_page(&self, run: &RunFacts) -> Page {
@@ -739,6 +667,83 @@ impl Model {
             selected: 0,
         })
     }
+}
+
+/// The `:budgets` page over the dimensions a projection produced.
+///
+/// The class of a dimension is read from the dimension, never written here: a page that spelled
+/// the class out would keep saying `enforced` after the projection stopped meaning it.
+pub fn budgets_page(run_id: &str, dimensions: &[BudgetDimension], status: String) -> Page {
+    let rows: Vec<Row> = dimensions
+        .iter()
+        .map(|dimension| Row {
+            cells: vec![
+                Cell::new(dimension.name, theme::bold()),
+                Cell::new(
+                    dimension.class.label(),
+                    if dimension.class.gates() {
+                        theme::green()
+                    } else {
+                        theme::muted()
+                    },
+                ),
+                Cell::new(unknown_or(dimension.total), theme::muted()),
+                Cell::new(unknown_or(dimension.used()), theme::dim()),
+                Cell::new(dimension.remaining.to_string(), theme::text()),
+            ],
+            fix: None,
+            dim: false,
+        })
+        .collect();
+
+    Page {
+        breadcrumb: vec![
+            "transcript".into(),
+            format!("budgets({run_id})[{}]", dimensions.len()),
+        ],
+        summary: Vec::new(),
+        body: Body::Table {
+            columns: vec![
+                Column {
+                    title: "DIMENSION",
+                    width: 24,
+                },
+                Column {
+                    title: "CLASS",
+                    width: 11,
+                },
+                Column {
+                    title: "TOTAL",
+                    width: 9,
+                },
+                Column {
+                    title: "USED",
+                    width: 9,
+                },
+                Column {
+                    title: "REMAINING",
+                    width: 0,
+                },
+            ],
+            rows,
+        },
+        notes: vec![
+            "dimensions are independent — spare capacity in one never authorizes an action \
+             blocked by another"
+                .into(),
+            "the domain carries these two dimensions today; cost, wall time and participant \
+             starts are unavailable, not zero"
+                .into(),
+        ],
+        footer: style::spans(&status, theme::muted()),
+        keys: vec![("Esc", "back")],
+        selected: 0,
+    }
+}
+
+/// A number the journal does not carry is shown as unknown, never as zero.
+fn unknown_or(value: Option<u32>) -> String {
+    value.map_or_else(|| "—".to_owned(), |value| value.to_string())
 }
 
 fn plane_style(plane: Plane) -> ratatui::style::Style {

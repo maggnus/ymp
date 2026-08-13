@@ -20,6 +20,16 @@ pub struct Run {
     pub events: Vec<EventEnvelope>,
 }
 
+impl Run {
+    /// The budget the run started with, as its first event records it.
+    pub fn initial_budget(&self) -> Option<Budget> {
+        self.events.first().and_then(|event| match &event.event {
+            EventKind::RunStarted { budget } => Some(budget.clone()),
+            _ => None,
+        })
+    }
+}
+
 /// A digest-shaped value the domain accepts, distinct per seed.
 pub fn digest(seed: u8) -> String {
     let mut value = String::with_capacity(64);
@@ -122,7 +132,14 @@ fn submit(builder: Builder, id: &str, object: &str) -> Builder {
 
 /// A live run: one rejected candidate, a second attempt still working.
 pub fn running() -> Run {
-    let builder = Builder::start("demo-run", Budget::new(3, 2));
+    running_named("demo-run")
+}
+
+/// The same shape under a caller-chosen run identifier. Run identifiers the product generates
+/// are long — `ymp internal managed-candidate-smoke` produces a prefixed UUID — and a surface
+/// has to stay correct under one.
+pub fn running_named(run_id: &str) -> Run {
+    let builder = Builder::start(run_id, Budget::new(3, 2));
     let builder = attempt(builder, "attempt-1");
     let first = digest(0x11);
     let builder = submit(builder, "attempt-1", &first);

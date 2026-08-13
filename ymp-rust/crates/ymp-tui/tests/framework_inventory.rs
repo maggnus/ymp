@@ -5,9 +5,11 @@
 //! surface and modal and requires the shared chrome in each, so a surface cannot be added
 //! without composing the shared layer.
 //!
-//! The check that must fail: give any other module a drawing call — for example add
-//! `frame.render_widget(Clear, area);` to `src/ui.rs` — and
-//! `only_the_frame_layer_draws` reports it with a non-zero exit.
+//! The check that must fail: give any other module a drawing call and
+//! `only_the_frame_layer_draws` reports it with a non-zero exit. Three shapes are covered —
+//! `frame.render_widget(...)` in `src/ui.rs`, `Widget::render(...)` in a screen placed in a
+//! subdirectory such as `src/screens/legacy.rs`, and `buffer.set_string(...)` anywhere. The
+//! source walk is recursive, so depth is not an escape.
 
 mod support;
 
@@ -19,18 +21,20 @@ use ymp_tui::state::{Modal, PageKind, Surface};
 /// The module allowed to write into a frame. Everything else composes specifications.
 const DRAWING_MODULE: &str = "frame.rs";
 
-/// Calls that put something on the screen. Any of them outside the frame layer is a private
-/// drawing path.
-const DRAWING_CALLS: [&str; 3] = ["render_widget", "buffer_mut", "render_stateful_widget"];
+/// Calls that put something on the screen, including the ways a widget can be drawn without
+/// going through `Frame`. Any of them outside the frame layer is a private drawing path.
+const DRAWING_CALLS: [&str; 5] = [
+    "render_widget",
+    "render_stateful_widget",
+    "buffer_mut",
+    "Widget::render",
+    "set_string",
+];
 
 #[test]
 fn only_the_frame_layer_draws() {
     let mut offenders = Vec::new();
-    for (path, source) in crate_sources() {
-        let name = path
-            .file_name()
-            .map(|name| name.to_string_lossy().into_owned())
-            .unwrap_or_default();
+    for (name, source) in crate_sources() {
         if name == DRAWING_MODULE {
             continue;
         }

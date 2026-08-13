@@ -22,6 +22,9 @@ use crate::theme;
 pub const MIN_WIDTH: u16 = 80;
 pub const MIN_HEIGHT: u16 = 24;
 
+/// The narrowest title worth drawing on a border: two spaces and something between them.
+const MIN_TITLE_ROOM: usize = 6;
+
 /// A full-screen surface: one header row, the body, one input row, one status row, hairlines.
 #[derive(Clone, Debug, Default)]
 pub struct SurfaceSpec {
@@ -97,34 +100,66 @@ pub fn render_surface(frame: &mut Frame, area: Rect, spec: &SurfaceSpec) {
 }
 
 /// Draw a floating surface over a dimmed frame.
+///
+/// The badge carries the irreversibility marker, so the border reserves it before the title and
+/// the title yields: a decision drawn with a long identifier reads as truncated, never as
+/// reversible. When even the reserved badge would not fit on the border, it moves to the first
+/// body line rather than disappearing.
 pub fn render_modal(frame: &mut Frame, area: Rect, spec: &ModalSpec) {
     dim(frame, area);
-    let height = spec.body.len() as u16 + 2;
+
+    let badge = if spec.badge.is_empty() {
+        String::new()
+    } else {
+        format!(" {} ", spec.badge)
+    };
+    let badge_width = text::width(&badge);
+    // Reserve one row for the badge when it cannot share the border with the title.
+    let probe_inner = spec
+        .width
+        .min(area.width.saturating_sub(2))
+        .saturating_sub(2) as usize;
+    let badge_on_border = badge.is_empty() || badge_width + MIN_TITLE_ROOM <= probe_inner;
+
+    let mut body = spec.body.clone();
+    if !badge.is_empty() && !badge_on_border {
+        body.insert(
+            0,
+            Line::from(Span::styled(badge.trim().to_owned(), theme::amber())),
+        );
+    }
+
+    let height = body.len() as u16 + 2;
     let rect = centered(area, spec.width, height);
     frame.render_widget(Clear, rect);
+
+    let inner_width = rect.width.saturating_sub(2) as usize;
+    let title_room = if badge_on_border {
+        inner_width.saturating_sub(badge_width + 1)
+    } else {
+        inner_width
+    };
 
     let border = match spec.role {
         ModalRole::Decision => theme::accent(),
         ModalRole::Reference => theme::rule(),
     };
-    let mut block = Block::default()
-        .borders(Borders::ALL)
-        .border_style(border)
-        .title_top(Line::from(Span::styled(
-            format!(" {} ", spec.title),
+    let mut block = Block::default().borders(Borders::ALL).border_style(border);
+    if title_room >= MIN_TITLE_ROOM {
+        block = block.title_top(Line::from(Span::styled(
+            format!(" {} ", text::truncate(&spec.title, title_room - 2)),
             match spec.role {
                 ModalRole::Decision => theme::accent_bold(),
                 ModalRole::Reference => theme::bold(),
             },
         )));
-    if !spec.badge.is_empty() {
-        block = block.title_top(
-            Line::from(Span::styled(format!(" {} ", spec.badge), theme::amber())).right_aligned(),
-        );
+    }
+    if badge_on_border && !badge.is_empty() {
+        block = block.title_top(Line::from(Span::styled(badge, theme::amber())).right_aligned());
     }
     let inner = block.inner(rect);
     frame.render_widget(block, rect);
-    frame.render_widget(Paragraph::new(spec.body.clone()), inner);
+    frame.render_widget(Paragraph::new(body), inner);
 }
 
 /// The guard below the minimum size. It replaces every other surface.

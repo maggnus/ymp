@@ -117,6 +117,71 @@ impl RunFacts {
     pub fn is_live(&self) -> bool {
         !self.status.is_terminal()
     }
+
+    /// The budget as dimensions, each carrying the class the domain gives it.
+    ///
+    /// Both dimensions this domain records are enforced: `RunState::decide` refuses to start an
+    /// attempt or to record a verification once the corresponding remainder reaches zero, and
+    /// turns the request into a terminal `exhausted` instead. Observed and estimated classes
+    /// exist in the vocabulary because a later dimension may carry one; nothing produces them
+    /// today, so nothing shows one.
+    pub fn budget_dimensions(&self, initial: Option<&Budget>) -> Vec<BudgetDimension> {
+        vec![
+            BudgetDimension {
+                name: "attempts",
+                class: BudgetClass::Enforced,
+                total: initial.map(|budget| budget.attempts_remaining),
+                remaining: self.budget.attempts_remaining,
+            },
+            BudgetDimension {
+                name: "verification_queries",
+                class: BudgetClass::Enforced,
+                total: initial.map(|budget| budget.verification_queries_remaining),
+                remaining: self.budget.verification_queries_remaining,
+            },
+        ]
+    }
+}
+
+/// How a dimension acts on the run.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum BudgetClass {
+    /// Reaching zero stops the work the dimension governs.
+    Enforced,
+    /// Recorded, never a gate.
+    Observed,
+    /// Derived rather than measured, never a gate.
+    Estimated,
+}
+
+impl BudgetClass {
+    pub fn label(self) -> &'static str {
+        match self {
+            Self::Enforced => "enforced",
+            Self::Observed => "observed",
+            Self::Estimated => "estimated",
+        }
+    }
+
+    pub fn gates(self) -> bool {
+        matches!(self, Self::Enforced)
+    }
+}
+
+/// One dimension of the run budget.
+#[derive(Clone, Debug)]
+pub struct BudgetDimension {
+    pub name: &'static str,
+    pub class: BudgetClass,
+    /// The amount the run started with, when the journal still carries its first event.
+    pub total: Option<u32>,
+    pub remaining: u32,
+}
+
+impl BudgetDimension {
+    pub fn used(&self) -> Option<u32> {
+        self.total.map(|total| total.saturating_sub(self.remaining))
+    }
 }
 
 /// A managed contract as the operator must judge it before authorizing: what will be run, and
