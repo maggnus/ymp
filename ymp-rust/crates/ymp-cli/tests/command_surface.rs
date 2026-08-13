@@ -461,7 +461,10 @@ impl Fixture {
         fs::create_dir_all(&source).expect("source directory");
         fs::create_dir_all(&negative_control).expect("negative control directory");
         fs::write(source.join("input.txt"), b"before\n").expect("source file");
-        fs::write(&verifier, b"#!/bin/sh\nexit 0\n").expect("verifier program");
+        // A verifier decides: it accepts the source and rejects the empty negative control. A
+        // program that exited zero on anything would be refused where the answer is typed, so a
+        // fixture built on one could no longer reach the surfaces these tests drive.
+        fs::write(&verifier, b"#!/bin/sh\ntest -f \"$1/input.txt\"\n").expect("verifier program");
         #[cfg(unix)]
         {
             use std::os::unix::fs::PermissionsExt;
