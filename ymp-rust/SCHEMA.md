@@ -112,6 +112,21 @@ argument, environment, attempt, or invocation substitution. Every initial or res
 a launch event derived from its actual descriptor; the supervisor rejects events that cannot be
 bound to the profile's invocation and immutable launch fields.
 
+Launch attestation is required of every runtime that creates an external process, and such a
+runtime may not emit any other event before it. A resumed launch keeps the executable, coordination
+executable, environment and working directory of the initial launch and may add only its own resume
+operand carrying the established opaque session: `resume <session>` before the prompt source for
+Codex, and a trailing `--resume <session>` for Claude Code. The rule is stated per runtime rather
+than inferred from the observed arguments, so a resumed process cannot introduce an argument the
+initial descriptor did not contain.
+
+The generated-environment policy names what the label actually provides. `synthetic_allowlist_v1`
+starts from a cleared environment and a synthetic home that carries the runtime's own credential
+file. `synthetic_allowlist_with_delegated_credential_v1` is the same construction for a runtime
+whose subscription credential lives outside its home, so the driver copies the operator's
+credential into the generated home for the invocation. That is deliberately the weaker profile
+`SECURITY.md` requires to be labelled rather than presented as strict containment.
+
 Managed completion and yield authority never comes from runtime output. `submit` is authoritative
 only after its idempotent command is committed to the application journal. `yield` is authoritative
 only after the invocation-bound RPC controller records its command identifier and confirmation;
@@ -124,9 +139,16 @@ runtime session.
 Version 3 records terminal usage for successful completion, failure, cancellation, and timeout.
 Every terminal record includes total wall time, protected-query count, optional provider cost,
 token counters, and the latest explicitly reported bounded in-flight excess counters; successful
-completion does not replace a non-zero reported excess with zero. Failures contain a typed safe failure kind
-and, when available, only a bounded diagnostic digest, byte count, and truncation marker. Raw child
-standard error and diagnostic text are never written to runtime evidence or the control journal.
+completion does not replace a non-zero reported excess with zero. In-flight excess is derived only
+from what a runtime reported: the count of model requests seen on the transcript that no accounting
+record has yet covered, and monetary consumption above the profile's enforced ceiling. A runtime
+that reported complete accounting therefore records a zero excess rather than an invented one, and a
+run that ended before its accounting record keeps the unaccounted count. Total wall time is measured
+from process creation, not from the end of the launch checks that follow it.
+
+Failures contain a typed safe failure kind and, when available, only a bounded diagnostic digest,
+byte count, and truncation marker. Raw child standard error and diagnostic text are never written
+to runtime evidence or the control journal.
 Older serialized usage values remain readable with zero defaults; new evidence is written only as
 version 3. Existing version-1 and version-2 evidence remains immutable and is not rewritten.
 
