@@ -1,0 +1,215 @@
+//! Deterministic runs, built as domain state.
+//!
+//! Every scenario here is a legal sequence of `ymp-domain` events folded through
+//! `RunState::apply`, exactly as the application would have committed them. Nothing in this
+//! module produces a screen value: the projection derives every rendered field from the state
+//! these functions build, which is what makes a rendered buffer evidence about the binding
+//! rather than about a fixture.
+//!
+//! The identifiers are deliberately generic. A scenario is a shape of run, not a re-enactment
+//! of the design artifact's illustration.
+
+use ymp_domain::{
+    Budget, Command, EventEnvelope, EventKind, RunState, VerificationDecision, VerificationRecord,
+};
+
+/// A run and the events that produced it.
+#[derive(Clone, Debug)]
+pub struct Run {
+    pub state: RunState,
+    pub events: Vec<EventEnvelope>,
+}
+
+/// A digest-shaped value the domain accepts, distinct per seed.
+pub fn digest(seed: u8) -> String {
+    let mut value = String::with_capacity(64);
+    for index in 0..32 {
+        value.push_str(&format!("{:02x}", seed.wrapping_add(index)));
+    }
+    value
+}
+
+struct Builder {
+    state: RunState,
+    events: Vec<EventEnvelope>,
+}
+
+impl Builder {
+    fn start(run_id: &str, budget: Budget) -> Self {
+        let start = envelope(run_id, 1, None, EventKind::RunStarted { budget });
+        let state = RunState::from_start(&start).expect("run_started is the first event");
+        Self {
+            state,
+            events: vec![start],
+        }
+    }
+
+    fn command(self, command: &Command) -> Self {
+        let kind = self.state.decide(command).expect("legal command");
+        self.commit(kind)
+    }
+
+    fn verification(self, record: &VerificationRecord) -> Self {
+        let kind = self
+            .state
+            .decide_verification(record)
+            .expect("legal verification");
+        self.commit(kind)
+    }
+
+    fn commit(mut self, kind: EventKind) -> Self {
+        let sequence = self.state.last_sequence + 1;
+        let envelope = envelope(
+            &self.state.run_id,
+            sequence,
+            Some(self.state.last_event_digest.clone()),
+            kind,
+        );
+        self.state.apply(&envelope);
+        self.events.push(envelope);
+        self
+    }
+
+    fn finish(self) -> Run {
+        Run {
+            state: self.state,
+            events: self.events,
+        }
+    }
+}
+
+fn envelope(
+    run_id: &str,
+    sequence: u64,
+    predecessor: Option<String>,
+    event: EventKind,
+) -> EventEnvelope {
+    EventEnvelope::new(
+        run_id,
+        sequence,
+        format!("cmd-{sequence}"),
+        digest(sequence as u8),
+        predecessor,
+        event,
+    )
+    .expect("event envelope")
+}
+
+fn verification_record(candidate: &str, decision: VerificationDecision) -> VerificationRecord {
+    VerificationRecord {
+        candidate_digest: candidate.to_owned(),
+        contract_digest: digest(0xc0),
+        oracle_digest: digest(0x0a),
+        environment_digest: digest(0xe0),
+        evidence_digest: digest(0xed),
+        decision,
+    }
+}
+
+fn attempt(builder: Builder, id: &str) -> Builder {
+    builder.command(&Command::StartAttempt {
+        attempt_id: id.to_owned(),
+    })
+}
+
+fn submit(builder: Builder, id: &str, object: &str) -> Builder {
+    builder.command(&Command::SubmitCandidate {
+        attempt_id: id.to_owned(),
+        base_digest: digest(0xba),
+        object_digest: object.to_owned(),
+    })
+}
+
+/// A live run: one rejected candidate, a second attempt still working.
+pub fn running() -> Run {
+    let builder = Builder::start("demo-run", Budget::new(3, 2));
+    let builder = attempt(builder, "attempt-1");
+    let first = digest(0x11);
+    let builder = submit(builder, "attempt-1", &first);
+    let builder = builder.verification(&verification_record(&first, VerificationDecision::Reject));
+    attempt(builder, "attempt-2").finish()
+}
+
+/// The same run, ended by an accepted candidate.
+pub fn accepted() -> Run {
+    let builder = Builder::start("demo-run", Budget::new(3, 2));
+    let builder = attempt(builder, "attempt-1");
+    let candidate = digest(0x22);
+    let builder = submit(builder, "attempt-1", &candidate);
+    builder
+        .verification(&verification_record(
+            &candidate,
+            VerificationDecision::Accept,
+        ))
+        .finish()
+}
+
+/// A run that ran out of attempts.
+pub fn exhausted() -> Run {
+    let builder = Builder::start("demo-run", Budget::new(1, 1));
+    let builder = attempt(builder, "attempt-1");
+    attempt(builder, "attempt-2").finish()
+}
+
+/// A run the verifier could not decide.
+pub fn abstained() -> Run {
+    let builder = Builder::start("demo-run", Budget::new(2, 1));
+    let builder = attempt(builder, "attempt-1");
+    builder
+        .command(&Command::Abstain {
+            reason: "the verifier could not decide within its wall-time limit".to_owned(),
+        })
+        .finish()
+}
+
+/// A run the operator ended from the terminal interface.
+pub fn cancelled() -> Run {
+    let builder = Builder::start("demo-run", Budget::new(2, 1));
+    let builder = attempt(builder, "attempt-1");
+    builder
+        .command(&Command::Cancel {
+            reason: crate::decisions::cancellation_reason(),
+        })
+        .finish()
+}
+
+/// A run the machinery failed under.
+pub fn infrastructure_error() -> Run {
+    let builder = Builder::start("demo-run", Budget::new(2, 1));
+    let builder = attempt(builder, "attempt-1");
+    builder
+        .command(&Command::FailInfrastructure {
+            reason: "the verifier environment object could not be read".to_owned(),
+        })
+        .finish()
+}
+
+/// A long run: many candidates, so a page has to window its rows.
+pub fn high_volume(candidates: usize) -> Run {
+    let mut builder = Builder::start("demo-run", Budget::new(1, 0));
+    builder = attempt(builder, "attempt-1");
+    for index in 0..candidates {
+        builder = submit(builder, "attempt-1", &digest((index % 200) as u8));
+    }
+    builder.finish()
+}
+
+#[cfg(test)]
+mod tests {
+    use ymp_domain::RunStatus;
+
+    use super::*;
+
+    #[test]
+    fn every_scenario_reaches_the_status_it_is_named_for() {
+        assert_eq!(running().state.status, RunStatus::Running);
+        assert_eq!(accepted().state.status, RunStatus::Accepted);
+        assert_eq!(exhausted().state.status, RunStatus::Exhausted);
+        assert_eq!(abstained().state.status, RunStatus::Abstained);
+        assert_eq!(cancelled().state.status, RunStatus::Cancelled);
+        assert_eq!(
+            infrastructure_error().state.status,
+            RunStatus::InfrastructureError
+        );
+    }
+}
