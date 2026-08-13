@@ -17,12 +17,19 @@ waiting introduced by real processes.
 paths at 1.4 GB and 409 MB, and each agent worktree carries its own. The workspace has 141
 dependencies, so a new worktree starts with a full cold build.
 
-**Remove it with a shared compilation cache.** A shared build directory is the wrong tool: cargo
-locks it, so concurrent agents would serialize. A compiler cache keyed by input hash shares artifacts
-without a shared lock. Neither `sccache` nor a project `.cargo/config.toml` exists today.
+**A compiler cache was tried and refuted.** `sccache` 0.17 was installed and wired in as the compiler
+wrapper with incremental compilation disabled. Three consecutive builds — a second target directory,
+a different source path, and a wiped target directory — each produced fifty compilations and **zero
+cache hits**, while the cache itself filled to 33 MiB and reported twenty-two calls as non-cacheable
+by crate type. The wrapper was removed rather than kept for an effect it does not deliver here.
 
-**Expected effect.** The cold build at the start of each card collapses to a cache read. With two to
-three agents dispatched per hour, this is the largest single saving available.
+**What did work: less debug information.** Setting the development profile to line tables only cut a
+cold build of the command crate from 23.2 to 14.0 seconds and its build directory from 479 to 403
+megabytes, with panic backtraces still carrying file and line. Applied.
+
+**Still open.** Sharing artifacts across worktrees needs either path remapping so that identical
+sources hash identically, or a shared target directory whose lock contention is measured rather than
+assumed. Neither is worth a card until the measurement above is repeated on a machine that is idle.
 
 ## 2. Timing-sensitive tests run against a loaded machine
 
@@ -68,6 +75,9 @@ discovering the overlap at admission time.
 
 A faster linker is a Linux answer. On this machine the platform linker is already the fast one, and
 the alternatives either do not support the platform or are not free software.
+
+A compiler cache, as measured above. The assumption was reasonable and the measurement refuted it;
+the entry stays here so the next reader does not spend the same hour.
 
 ## Order
 
