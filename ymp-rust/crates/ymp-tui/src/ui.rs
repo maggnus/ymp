@@ -12,7 +12,7 @@ use ratatui::text::{Line, Span};
 use crate::frame::{self, SurfaceSpec};
 use crate::overlay;
 use crate::projection::{self, Environment, RunFacts};
-use crate::state::{App, Follow, Surface};
+use crate::state::{App, COMMAND_PREFIX, Follow, Surface};
 use crate::style;
 use crate::text;
 use crate::theme::{self, Markers};
@@ -61,7 +61,7 @@ fn transcript_spec(app: &App, body: Rect, markers: &Markers) -> SurfaceSpec {
         input_right: input_right(app, markers),
         status_left: style::spans(&app.data.status, theme::faint()),
         status_right: vec![
-            Span::styled(":".to_owned(), theme::accent()),
+            Span::styled(COMMAND_PREFIX.to_string(), theme::accent()),
             Span::styled("commands".to_owned(), theme::muted()),
             Span::styled("  ".to_owned(), theme::faint()),
             Span::styled("?".to_owned(), theme::accent()),
@@ -197,7 +197,33 @@ fn dashed_marker(label: &str, width: usize) -> Line<'static> {
     ])
 }
 
+/// The marks the input row cycles through while something runs away from this thread. They are
+/// what makes a redraw visible: the row changes on every heartbeat, so a frozen interface and a
+/// waiting one cannot look alike.
+const WORKING_MARKS: [&str; 4] = ["·", "‥", "…", "‥"];
+
 fn input_left(app: &App, markers: &Markers) -> Vec<Span<'static>> {
+    // While nothing is being typed, the row states what is running away from this thread and how
+    // to end it. A line being typed outranks that notice: it supersedes the run when it is sent.
+    if let Some(notice) = app
+        .data
+        .working
+        .as_ref()
+        .filter(|_| app.prompt.buffer.is_empty() && app.prompt.suspended.is_none())
+    {
+        // The way out comes before the account of what is being waited for. The notice names a
+        // path and is as long as that path; the row is as wide as the terminal, so whatever is
+        // last is what a narrow row loses, and losing the way out is what must not happen.
+        return vec![
+            Span::styled(format!("{} ", markers.prompt), theme::amber()),
+            Span::styled(
+                WORKING_MARKS[app.working_ticks % WORKING_MARKS.len()].to_owned(),
+                theme::accent(),
+            ),
+            Span::styled(" Esc cancels".to_owned(), theme::accent()),
+            Span::styled(format!(" · {notice}"), theme::muted()),
+        ];
+    }
     match &app.prompt.suspended {
         Some(reason) => vec![
             Span::styled(format!("{} ", markers.prompt), theme::faint()),

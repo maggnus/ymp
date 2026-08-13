@@ -9,7 +9,7 @@
 //! any path the interface does not take.
 //!
 //! An argument value is a value, never a key press. The interface's input row reads a leading
-//! colon as its command line and a control character as a key of its own, so a value carried
+//! slash as its command line and a control character as a key of its own, so a value carried
 //! through that row could open a surface the command never asked for and complete a decision
 //! standing behind it. Nothing here goes through the input row: an answer is passed to
 //! [`ymp_tui::Session::local_turn`], which is exactly what the interface's event loop passes it,
@@ -101,13 +101,13 @@ pub enum PublicCommand {
     },
 }
 
-/// The request a command states, in the order the interface asks for it.
+/// The request a command states.
 ///
-/// The four values are the four the interface's draft collects and no others: the work, the
-/// directory it is done in, the program that decides a candidate, and the deliberately wrong
-/// candidate that program must reject. Each one is handed to the draft as the answer a typed
-/// line would have given, so an omitted value means exactly what an empty answer means there —
-/// the project directory for the source, and no acceptance condition for the other two.
+/// The work is the request; the other three are amendments of the draft it opens, and each one
+/// is handed to the interface as the line a typed amendment would have been. An omitted value
+/// means exactly what typing nothing about it means there: the product supplies it — the project
+/// directory for the source, a copy of it for the negative control, and a verifier proposed from
+/// the way the project runs its tests.
 #[derive(Args, Clone, Debug, Default)]
 pub struct RequestArgs {
     /// The work, in your own words.
@@ -129,19 +129,19 @@ impl RequestArgs {
         self.prompt.is_some()
     }
 
-    /// The answers the draft receives, in the order it asks its questions.
-    fn answers(&self) -> [String; 3] {
-        let text = |value: &Option<PathBuf>| {
-            value
-                .as_ref()
-                .map(|path| path.display().to_string())
-                .unwrap_or_default()
-        };
-        [
-            text(&self.source),
-            text(&self.verifier),
-            text(&self.negative_control),
-        ]
+    /// The amendments the draft receives, in the order a typed dialogue would state them.
+    fn amendments(&self) -> Vec<String> {
+        let mut lines = Vec::new();
+        for (keyword, value) in [
+            ("source", &self.source),
+            ("verifier", &self.verifier),
+            ("negative control", &self.negative_control),
+        ] {
+            if let Some(path) = value {
+                lines.push(format!("{keyword} {}", path.display()));
+            }
+        }
+        lines
     }
 }
 
@@ -403,30 +403,45 @@ fn perform(session: &mut Session, action: Action) {
         Action::CancelRun => session.cancel_run(),
         Action::StartRun(contract_id) => session.start_run(&contract_id),
         Action::LocalTurn(text) => session.local_turn(text),
+        // A command has no second thread to wait on: its own process is the check, and it has
+        // already finished by the time anything could ask for it to be abandoned.
+        Action::CancelCheck => session.cancel_check(),
         // The interface rebuilds its projection; a command builds one per invocation and has
         // nothing to commit for it.
         Action::Rebuild => {}
     }
 }
 
-/// Hand the stated request to the interface, one answer per question it asks.
+/// Hand the stated request to the interface, one line per value it states.
 ///
-/// Each answer is the local turn the interface's event loop performs for a completed line, and
-/// nothing else: the value is a value, so a colon, a slash, an escape or any other character in
-/// it is part of the answer rather than a key that could open another surface. The session
-/// decides what the answer means, and the loop stops as soon as it is no longer awaiting one.
+/// Each line is the local turn the interface's event loop performs for a completed line, and
+/// nothing else: the value is a value, so a slash, a colon, an escape or any other character in
+/// it is part of the line rather than a key that could open another surface.
+///
+/// The interface assembles the draft after every line, and a line supersedes the assembly the
+/// line before it started. A command states everything it has at once, so only the last of them
+/// is worth the work: the earlier ones are taken and superseded, and the assembly that runs is
+/// the one for the request as fully stated. That is the same path the interface takes when an
+/// operator types a second line before the first has finished.
 fn draft(session: &mut Session, app: &mut App, request: &RequestArgs) {
-    answer(session, app, request.prompt.clone().unwrap_or_default());
-    for stated in request.answers() {
-        if app.data.awaiting.is_none() {
+    let mut pending = None;
+    for line in
+        std::iter::once(request.prompt.clone().unwrap_or_default()).chain(request.amendments())
+    {
+        let before = known_errors(&app.data.entries).len();
+        pending = session.begin_turn(line);
+        app.adopt(session.projection(None));
+        // A line naming something this host cannot take ends the request where it was stated.
+        // The lines after it would be stated against a draft that already cannot be assembled,
+        // and the refusal the operator is shown must be the one that caused it.
+        if known_errors(&app.data.entries).len() > before {
+            pending = None;
             break;
         }
-        answer(session, app, stated);
     }
-}
-
-fn answer(session: &mut Session, app: &mut App, text: String) {
-    perform(session, Action::LocalTurn(text));
+    if let Some(pending) = pending {
+        session.finish_check(pending.run());
+    }
     app.adopt(session.projection(None));
 }
 
@@ -533,7 +548,7 @@ fn print_modal(app: &App, markers: &Markers) -> Result<()> {
 
 #[cfg(test)]
 mod tests {
-    use super::{PageName, RequestArgs};
+    use super::{PageName, PathBuf, RequestArgs};
     use clap::ValueEnum;
     use ymp_tui::state::PageKind;
 
@@ -553,13 +568,26 @@ mod tests {
         }
     }
 
+    /// An omitted value amends nothing, so the product supplies it. A stated one is the line a
+    /// typed amendment would have been, word for word.
     #[test]
-    fn an_omitted_request_value_is_the_empty_answer_the_interface_receives() {
-        let answers = RequestArgs {
-            prompt: Some("keep the replay path idempotent".to_owned()),
-            ..RequestArgs::default()
-        }
-        .answers();
-        assert_eq!(answers, ["".to_owned(), "".to_owned(), "".to_owned()]);
+    fn an_omitted_request_value_amends_nothing_and_a_stated_one_is_the_line_it_would_be() {
+        assert!(
+            RequestArgs {
+                prompt: Some("keep the replay path idempotent".to_owned()),
+                ..RequestArgs::default()
+            }
+            .amendments()
+            .is_empty()
+        );
+        assert_eq!(
+            RequestArgs {
+                prompt: Some("keep the replay path idempotent".to_owned()),
+                verifier: Some(PathBuf::from("/tmp/verify.sh")),
+                ..RequestArgs::default()
+            }
+            .amendments(),
+            vec!["verifier /tmp/verify.sh".to_owned()]
+        );
     }
 }

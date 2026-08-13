@@ -1,239 +1,386 @@
 //! The typed request as it is assembled into a run request.
 //!
-//! The operator states the work in one line. Two things follow that the kernel cannot infer and
-//! will not invent: the directory the work is done in, and the acceptance condition that decides
-//! a candidate. The first has an honest default — the directory the product was started in —
-//! and the second has none, so it is asked for and never supplied on the operator's behalf.
+//! The operator states the work in one line. Everything else that a contract needs, the product
+//! supplies from the project itself: the directory the work is done in, a negative control that
+//! is a copy of that project as it stands, and a verifier proposed from the way the project
+//! already runs its tests. None of it is an acceptance condition until the operator approves it,
+//! and none of it starts anything.
 //!
-//! This module only collects answers. Validating them, resolving them on this host and turning
-//! them into a contract belongs to `ymp-application`, so the interface and the equivalent
-//! command reach the kernel through one implementation.
+//! What the product supplies, it demonstrates. The proposed verifier has to reject the copy that
+//! holds no result and accept a sample built to satisfy it; a program that fails either half
+//! decides nothing and never reaches a draft. Assembling and demonstrating starts programs and
+//! waits for them, so this module hands that work back to the caller as a [`DraftJob`] rather
+//! than doing it where it was asked for.
 //!
-//! Each answer is taken where it is typed. An answer the application cannot resolve — a verifier
-//! that is not an executable file on this host, a source that is not a directory, or a verifier
-//! that accepts the deliberately wrong candidate — ends the draft at that answer with the reason
-//! named, instead of being carried through the remaining questions and refused at assembly.
+//! While the draft is unauthorized, the next typed line amends it — a different verifier, source,
+//! negative control or budget — and the amended draft is assembled again and restated. A line
+//! that amends nothing restates the work itself.
 
 use std::path::{Path, PathBuf};
+use std::time::Duration;
 
+use ymp_application::answer::Assembled;
 use ymp_application::{AcceptanceCondition, RunRequest, answer};
+use ymp_domain::Budget;
+use ymp_domain::contract::default_wall_time_ms;
 
-/// What the draft is waiting for.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum Question {
-    /// The directory the work is done in. Empty answer accepts the project directory.
-    Source,
-    /// The program that decides whether a candidate is accepted. There is no default.
-    Verifier,
-    /// The deliberately wrong candidate that program must reject.
-    NegativeControl,
-}
-
-/// One request under assembly.
-#[derive(Clone, Debug)]
+/// One request under assembly, and whatever later lines amended.
+///
+/// Every field beyond the prompt is an amendment: absent means the product supplies it.
+#[derive(Clone, Debug, Default)]
 pub struct Draft {
     pub prompt: String,
     pub source: Option<PathBuf>,
     pub program: Option<PathBuf>,
     pub negative_control: Option<PathBuf>,
-    pub question: Question,
+    pub budget: Option<Budget>,
+    /// Whether work this draft asked for is still deciding it.
+    assembling: bool,
 }
 
-/// What the draft needs next.
+/// What a typed line did to the draft.
 #[derive(Clone, Debug)]
-pub enum Step {
-    /// Still collecting: the question to put to the operator.
-    Ask(Question),
-    /// The answer just typed was not taken, and the draft ends here. The text names the answer
-    /// and what this host said about it, so the operator learns it at that answer rather than
-    /// after the remaining questions.
+pub enum Amendment {
+    /// The draft changed and has to be assembled again. The text states what changed.
+    Took(String),
+    /// The line named something this host could not take. The draft is unchanged.
     Refused(String),
-    /// Complete as far as the interface can take it. The application decides whether it is a
-    /// contract: a request with no acceptance condition reaches it and is refused there.
-    Ready(Box<RunRequest>),
 }
 
 impl Draft {
     pub fn new(prompt: impl Into<String>) -> Self {
         Self {
             prompt: prompt.into(),
-            source: None,
-            program: None,
-            negative_control: None,
-            question: Question::Source,
+            ..Self::default()
         }
     }
 
-    /// Take one typed answer and return what the draft needs next.
+    /// Read one typed line as an amendment of this draft.
     ///
-    /// An empty answer to the source question accepts the project directory. An empty answer to
-    /// either acceptance question leaves the condition absent, and the request goes to the
-    /// application without one rather than being silently completed here.
+    /// A line that opens with what it changes changes it; anything else restates the work, which
+    /// leaves what the product supplied in place. Nothing here is a question the operator was
+    /// asked: the dialogue never demands a path, it accepts one when it is offered.
+    pub fn amend(&mut self, text: &str) -> Amendment {
+        let line = text.trim();
+        if line.is_empty() {
+            return Amendment::Refused("an empty line amends nothing".to_owned());
+        }
+        for (keyword, field) in [
+            ("verifier", Field::Verifier),
+            ("verify with", Field::Verifier),
+            ("source", Field::Source),
+            ("negative control", Field::NegativeControl),
+            ("attempts", Field::Attempts),
+            ("verification queries", Field::Queries),
+            ("queries", Field::Queries),
+        ] {
+            let Some(value) = strip_keyword(line, keyword) else {
+                continue;
+            };
+            return self.set(field, value);
+        }
+        self.prompt = line.to_owned();
+        Amendment::Took(format!("the work is now: {line}"))
+    }
+
+    fn set(&mut self, field: Field, value: &str) -> Amendment {
+        match field {
+            Field::Verifier => match answer::verifier_program(Path::new(value)) {
+                Ok(program) => {
+                    let stated = format!("the verifier is now {}", program.display());
+                    self.program = Some(program);
+                    Amendment::Took(stated)
+                }
+                Err(refusal) => Amendment::Refused(refusal.to_string()),
+            },
+            Field::Source => match answer::source_directory(Path::new(value)) {
+                Ok(source) => {
+                    let stated = format!("the work is now done in {}", source.display());
+                    self.source = Some(source);
+                    Amendment::Took(stated)
+                }
+                Err(refusal) => Amendment::Refused(refusal.to_string()),
+            },
+            Field::NegativeControl => match answer::negative_control_directory(Path::new(value)) {
+                Ok(control) => {
+                    let stated = format!("the negative control is now {}", control.display());
+                    self.negative_control = Some(control);
+                    Amendment::Took(stated)
+                }
+                Err(refusal) => Amendment::Refused(refusal.to_string()),
+            },
+            Field::Attempts | Field::Queries => match value.trim().parse::<u32>() {
+                Ok(amount) => {
+                    let budget = self.budget.clone().unwrap_or(DEFAULT_BUDGET);
+                    let (attempts, queries) = match field {
+                        Field::Attempts => (amount, budget.verification_queries_remaining),
+                        _ => (budget.attempts_remaining, amount),
+                    };
+                    self.budget = Some(Budget::new(attempts, queries));
+                    Amendment::Took(format!(
+                        "the run would start with {attempts} attempts and {queries} verification \
+                         queries"
+                    ))
+                }
+                Err(_) => Amendment::Refused(format!(
+                    "a budget dimension is a whole number, and {value} is not one"
+                )),
+            },
+        }
+    }
+
+    /// The work this draft needs before it can be shown as a contract.
     ///
-    /// A non-empty answer is resolved on this host before the next question is asked, and what is
-    /// kept is the resolved path, so the contract is assembled from exactly what was checked. The
-    /// negative control is the last answer of the acceptance condition, so the verifier is asked
-    /// to reject it there — the earliest point at which both halves are known.
-    pub fn answer(&mut self, text: &str, project: &Path) -> Step {
-        let answer = text.trim();
-        match self.question {
-            Question::Source => {
-                let stated = if answer.is_empty() {
-                    project.to_path_buf()
-                } else {
-                    PathBuf::from(answer)
-                };
-                let source = match answer::source_directory(&stated) {
-                    Ok(source) => source,
-                    Err(refusal) => return Step::Refused(refusal.to_string()),
-                };
-                self.source = Some(source);
-                self.question = Question::Verifier;
-                Step::Ask(Question::Verifier)
-            }
-            Question::Verifier => {
-                if answer.is_empty() {
-                    return Step::Ready(Box::new(self.request()));
-                }
-                let program = match answer::verifier_program(Path::new(answer)) {
-                    Ok(program) => program,
-                    Err(refusal) => return Step::Refused(refusal.to_string()),
-                };
-                self.program = Some(program);
-                self.question = Question::NegativeControl;
-                Step::Ask(Question::NegativeControl)
-            }
-            Question::NegativeControl => {
-                if !answer.is_empty() {
-                    let negative_control =
-                        match answer::negative_control_directory(Path::new(answer)) {
-                            Ok(negative_control) => negative_control,
-                            Err(refusal) => return Step::Refused(refusal.to_string()),
-                        };
-                    if let Some(program) = &self.program
-                        && let Err(refusal) = answer::discriminates(program, &negative_control)
-                    {
-                        return Step::Refused(refusal.to_string());
-                    }
-                    self.negative_control = Some(negative_control);
-                }
-                Step::Ready(Box::new(self.request()))
-            }
-        }
-    }
-
-    /// What the answers so far have set, stated back so an accepted default is visible.
-    pub fn taken(&self) -> String {
-        let path = |value: &Option<PathBuf>| {
-            value
-                .as_ref()
-                .map(|path| path.display().to_string())
-                .unwrap_or_default()
-        };
-        match self.question {
-            Question::Source => String::new(),
-            Question::Verifier => format!("source directory {}", path(&self.source)),
-            Question::NegativeControl => format!("verifier program {}", path(&self.program)),
-        }
-    }
-
-    /// The request as it stands. The acceptance condition is present only when both of its parts
-    /// were given.
-    fn request(&self) -> RunRequest {
-        let acceptance = match (&self.program, &self.negative_control) {
-            (Some(program), Some(negative_control)) => {
-                Some(AcceptanceCondition::new(program, negative_control))
-            }
-            // A program with no negative control is still passed on: the application names the
-            // part that is missing, and it names it the same way for every surface.
-            (Some(program), None) => Some(AcceptanceCondition::new(program, PathBuf::new())),
-            _ => None,
-        };
-        RunRequest {
+    /// `project` is the directory the product was started in, which is the source unless a line
+    /// amended it. `drafts` is where the product may write what it supplies, and `attempt` is the
+    /// number this assembly is asked under.
+    ///
+    /// Every assembly gets a workspace of its own, so the copy it takes of the project is the
+    /// project as it stands at that moment. Reusing an earlier copy would let a draft assembled
+    /// after the project changed be demonstrated against a state that no longer exists, and be
+    /// stated as a copy of the project as it stands, which it would not be.
+    pub fn job(&mut self, project: &Path, drafts: &Path, attempt: u64) -> DraftJob {
+        self.assembling = true;
+        let source = self.source.clone().unwrap_or_else(|| project.to_path_buf());
+        let workspace = drafts.join(workspace_name(&source, attempt));
+        DraftJob {
             prompt: self.prompt.clone(),
-            source: self.source.clone().unwrap_or_default(),
-            acceptance,
-            capture_exclusions: Vec::new(),
-            contract_id: None,
-            budget: None,
+            source,
+            workspace,
+            program: self.program.clone(),
+            negative_control: self.negative_control.clone(),
+            budget: self.budget.clone(),
+            wall_limit: Duration::from_millis(default_wall_time_ms()),
         }
+    }
+
+    /// Whether work this draft asked for is still deciding it.
+    pub fn is_assembling(&self) -> bool {
+        self.assembling
+    }
+
+    /// The work has decided, whichever way.
+    pub fn settled(&mut self) {
+        self.assembling = false;
     }
 }
 
-/// The question put to the operator, and why the kernel is asking rather than deciding.
-pub fn question_text(question: Question, project: &Path) -> String {
-    match question {
-        Question::Source => format!(
-            "which directory is this work done in? Enter accepts {}, or type another path",
-            project.display()
-        ),
-        Question::Verifier => "which program decides whether a candidate is accepted? Type its \
-             path. There is no default: a contract whose acceptance condition ymp invented would \
-             judge a result nobody asked for. Enter with nothing typed states that you have none."
-            .to_owned(),
-        Question::NegativeControl => "which deliberately wrong candidate must that program \
-             reject? Type the path of a directory holding it. A program that accepts it is not \
-             discriminating, so the run could not be judged."
-            .to_owned(),
+/// The budget a drafted run starts with when nothing amended it. It is the application's own
+/// default, restated here only so an amendment has something to change.
+const DEFAULT_BUDGET: Budget = Budget::new(1, 1);
+
+#[derive(Clone, Copy, Debug)]
+enum Field {
+    Verifier,
+    Source,
+    NegativeControl,
+    Attempts,
+    Queries,
+}
+
+/// How many characters of the source digest open the name of a workspace. The digest names the
+/// source, and the number after it names the assembly, so no two assemblies share a copy.
+const WORKSPACE_NAME_CHARS: usize = 12;
+
+fn workspace_name(source: &Path, attempt: u64) -> String {
+    format!("{}-{attempt}", source_name(source))
+}
+
+/// The part of a workspace name that names the source it was taken from.
+pub fn source_name(source: &Path) -> String {
+    ymp_domain::digest_bytes(source.display().to_string().as_bytes())[..WORKSPACE_NAME_CHARS]
+        .to_owned()
+}
+
+/// A line amends what it opens by naming, and the rest of the line is the value.
+fn strip_keyword<'a>(line: &'a str, keyword: &str) -> Option<&'a str> {
+    let rest = line.strip_prefix(keyword)?;
+    let value = rest.trim_start_matches([':', '=', ' ']).trim();
+    (!value.is_empty() && rest.starts_with([':', '=', ' '])).then_some(value)
+}
+
+/// Assembling one draft: everything the work needs and nothing that reads the interface, so it
+/// can be moved to another thread and its outcome handed back as a value.
+#[derive(Clone, Debug)]
+pub struct DraftJob {
+    prompt: String,
+    source: PathBuf,
+    workspace: PathBuf,
+    program: Option<PathBuf>,
+    negative_control: Option<PathBuf>,
+    budget: Option<Budget>,
+    /// The limit the contract would apply to the same program. A program that never returns ends
+    /// in a refusal that names this limit rather than in a wait without end.
+    wall_limit: Duration,
+}
+
+/// A draft the product assembled and demonstrated, ready to be shown as one contract.
+#[derive(Clone, Debug)]
+pub struct Assembly {
+    pub request: RunRequest,
+    /// What was supplied and what was demonstrated, in one statement rather than a sequence of
+    /// questions.
+    pub stated: Vec<String>,
+}
+
+impl DraftJob {
+    /// Where this assembly writes what the product supplies. It belongs to this assembly alone.
+    pub fn workspace(&self) -> &Path {
+        &self.workspace
+    }
+
+    /// The source this assembly copies, so the interface can tell one project's workspaces from
+    /// another's when it removes the ones it no longer needs.
+    pub fn source(&self) -> &Path {
+        &self.source
+    }
+
+    /// What the interface says it is waiting for while this runs.
+    pub fn waiting_for(&self) -> String {
+        match &self.program {
+            Some(program) => format!(
+                "checking {} against the negative control · limit {} s",
+                file_name(program),
+                self.wall_limit.as_secs()
+            ),
+            None => format!(
+                "assembling a contract from {} · copying it as the negative control and asking \
+                 the proposed verifier to decide it · limit {} s",
+                self.source.display(),
+                self.wall_limit.as_secs()
+            ),
+        }
+    }
+
+    /// Assemble what the product supplies, demonstrate it, and produce the request a contract
+    /// would be prepared from. The refusal is kept as text, because what the interface does with
+    /// it is state it.
+    pub fn run(self) -> Result<Box<Assembly>, String> {
+        self.assemble().map(Box::new)
+    }
+
+    fn assemble(self) -> Result<Assembly, String> {
+        let mut stated = Vec::new();
+        let (program, negative_control, positive_sample) = match &self.program {
+            // A verifier the operator named is theirs; the product supplies the control it must
+            // reject and states that it has no sample of its own that this program must accept.
+            Some(program) => {
+                let control = match &self.negative_control {
+                    Some(control) => control.clone(),
+                    None => answer::copy_negative_control(&self.source, &self.workspace)
+                        .map_err(|refusal| refusal.to_string())?,
+                };
+                stated.push(format!("verifier {} — stated by you", program.display()));
+                (program.clone(), control, None)
+            }
+            None => {
+                let assembled: Assembled = answer::assemble(&self.source, &self.workspace)
+                    .map_err(|refusal| refusal.to_string())?;
+                stated.push(format!(
+                    "verifier {} — proposed from {}, which this project runs as `{}`",
+                    assembled.program.display(),
+                    assembled.entry_point.relative_path.display(),
+                    assembled.entry_point.command
+                ));
+                let control = self
+                    .negative_control
+                    .clone()
+                    .unwrap_or_else(|| assembled.negative_control.clone());
+                (assembled.program, control, Some(assembled.positive_sample))
+            }
+        };
+
+        stated.push(match &self.negative_control {
+            Some(_) => format!(
+                "negative control {} — stated by you",
+                negative_control.display()
+            ),
+            None => format!(
+                "negative control {} — a copy of the project as it stands, which holds no result",
+                negative_control.display()
+            ),
+        });
+
+        match &positive_sample {
+            Some(sample) => {
+                answer::demonstrates_within(&program, &negative_control, sample, self.wall_limit)
+                    .map_err(|refusal| refusal.to_string())?;
+                stated.push(
+                    "demonstrated: the verifier rejected the negative control and accepted a \
+                     sample built to satisfy it, so it decides both ways"
+                        .to_owned(),
+                );
+            }
+            None => {
+                answer::discriminates_within(&program, &negative_control, self.wall_limit)
+                    .map_err(|refusal| refusal.to_string())?;
+                stated.push(
+                    "demonstrated: the verifier rejected the negative control · what it accepts \
+                     is undemonstrated, because a verifier you named has no sample the product \
+                     can build for it"
+                        .to_owned(),
+                );
+            }
+        }
+
+        Ok(Assembly {
+            request: RunRequest {
+                prompt: self.prompt,
+                source: self.source,
+                acceptance: Some(AcceptanceCondition::new(program, negative_control)),
+                capture_exclusions: Vec::new(),
+                contract_id: None,
+                budget: self.budget,
+            },
+            stated,
+        })
     }
 }
 
-/// The one-line form of the question, shown on the input row while the answer is awaited.
-pub fn question_hint(question: Question) -> String {
-    match question {
-        Question::Source => {
-            "answer: source directory · Enter accepts the project directory".to_owned()
-        }
-        Question::Verifier => {
-            "answer: verifier program · Enter states that you have none".to_owned()
-        }
-        Question::NegativeControl => "answer: negative control directory".to_owned(),
-    }
+fn file_name(path: &Path) -> String {
+    path.file_name()
+        .map(|name| name.to_string_lossy().into_owned())
+        .unwrap_or_else(|| path.display().to_string())
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{Draft, Question, Step};
+    use super::{Amendment, Draft};
     use std::fs;
     use std::path::{Path, PathBuf};
     use tempfile::TempDir;
 
-    /// A project on disk: an answer names something on this host, so a draft can only be driven
-    /// against paths that exist. The verifier discriminates — it accepts a directory holding
-    /// `result.txt` and rejects one that does not — because a draft that completes has been shown
-    /// a program that rejects the negative control.
+    /// A project on disk with the entry point ymp proposes a verifier from: a test script that
+    /// judges the directory it is given, failing while the work is not done.
     struct Project {
         _root: TempDir,
         directory: PathBuf,
-        source: PathBuf,
+        data_root: PathBuf,
         program: PathBuf,
-        negative_control: PathBuf,
     }
 
     fn project() -> Project {
         let root = TempDir::new().expect("temporary root");
-        let directory = canonical(root.path());
-        let source = directory.join("source");
-        let negative_control = directory.join("negative-control");
-        let program = directory.join("verify.sh");
-        fs::create_dir_all(&source).expect("source directory");
-        fs::create_dir_all(&negative_control).expect("negative control directory");
-        fs::write(source.join("result.txt"), b"result\n").expect("source file");
-        // The subject is the only argument the executor passes, so the whole argument list names
-        // it. Spelling it that way keeps a positional digit out of this file, which a guard test
-        // reads as a value fixed in the source.
+        let directory = root
+            .path()
+            .canonicalize()
+            .expect("resolve path")
+            .join("work");
+        let data_root = directory.join(".ymp-data");
+        fs::create_dir_all(directory.join("scripts")).expect("scripts directory");
+        fs::create_dir_all(&data_root).expect("data root");
+        executable(
+            &directory.join("scripts/test.sh"),
+            "#!/bin/sh\ntest -f result.txt\n",
+        );
+        let program = directory.join("stated-verifier.sh");
         executable(&program, "#!/bin/sh\ntest -f \"$*/result.txt\"\n");
         Project {
             _root: root,
             directory,
-            source,
+            data_root,
             program,
-            negative_control,
         }
-    }
-
-    fn canonical(path: &Path) -> PathBuf {
-        path.canonicalize().expect("resolve path")
     }
 
     fn executable(path: &Path, contents: &str) {
@@ -248,141 +395,115 @@ mod tests {
         }
     }
 
-    fn refusal(step: Step) -> String {
-        match step {
-            Step::Refused(reason) => reason,
-            other => panic!("the answer was taken instead of refused: {other:?}"),
+    fn took(amendment: Amendment) -> String {
+        match amendment {
+            Amendment::Took(stated) => stated,
+            Amendment::Refused(reason) => panic!("the line was refused: {reason}"),
         }
     }
 
     #[test]
-    fn an_empty_source_answer_accepts_the_project_directory() {
+    fn a_request_alone_reaches_a_contract_the_product_assembled() {
         let project = project();
         let mut draft = Draft::new("keep the replay path idempotent");
-        assert!(matches!(
-            draft.answer("", &project.directory),
-            Step::Ask(Question::Verifier)
-        ));
+        let assembly = draft
+            .job(&project.directory, &project.data_root.join("draft"), 1)
+            .run()
+            .expect("the project names a test entry point");
+
+        let acceptance = assembly
+            .request
+            .acceptance
+            .expect("the assembled draft carries an acceptance condition");
+        assert!(acceptance.program.starts_with(&project.data_root));
+        assert!(acceptance.negative_control.starts_with(&project.data_root));
+        assert_eq!(assembly.request.source, project.directory);
+        assert!(
+            assembly
+                .stated
+                .iter()
+                .any(|line| line.contains("scripts/test.sh")),
+            "{:?}",
+            assembly.stated
+        );
+        assert!(
+            assembly
+                .stated
+                .iter()
+                .any(|line| line.contains("accepted a sample")),
+            "the draft does not state that acceptance was demonstrated: {:?}",
+            assembly.stated
+        );
+    }
+
+    #[test]
+    fn a_project_with_no_test_entry_point_is_told_so_rather_than_asked_for_a_path() {
+        let project = project();
+        fs::remove_file(project.directory.join("scripts/test.sh")).expect("remove entry point");
+        let mut draft = Draft::new("keep the replay path idempotent");
+        let refusal = draft
+            .job(&project.directory, &project.data_root.join("draft"), 1)
+            .run()
+            .expect_err("nothing can be proposed from a project that runs no tests");
+        assert!(refusal.contains("no test entry point"), "{refusal}");
+    }
+
+    #[test]
+    fn a_line_amends_the_draft_and_the_amended_draft_is_assembled_again() {
+        let project = project();
+        let mut draft = Draft::new("keep the replay path idempotent");
+        assert!(
+            took(draft.amend(&format!("verifier {}", project.program.display())))
+                .contains("stated-verifier.sh")
+        );
+        assert!(took(draft.amend("attempts 3")).contains("3 attempts"));
+        assert_eq!(draft.prompt, "keep the replay path idempotent");
+
+        let assembly = draft
+            .job(&project.directory, &project.data_root.join("draft"), 1)
+            .run()
+            .expect("a stated verifier that rejects the copy is taken");
+        let acceptance = assembly.request.acceptance.expect("acceptance condition");
+        assert_eq!(acceptance.program, project.program);
+        assert_eq!(
+            assembly
+                .request
+                .budget
+                .expect("the amended budget")
+                .attempts_remaining,
+            3
+        );
+        assert!(
+            assembly
+                .stated
+                .iter()
+                .any(|line| line.contains("undemonstrated")),
+            "a verifier nobody demonstrated acceptance for was stated as demonstrated: {:?}",
+            assembly.stated
+        );
+    }
+
+    #[test]
+    fn a_line_that_amends_nothing_restates_the_work() {
+        let project = project();
+        let mut draft = Draft::new("keep the replay path idempotent");
+        draft.amend(&format!("source {}", project.directory.display()));
+        assert!(
+            took(draft.amend("make the replay path idempotent under load")).contains("the work")
+        );
+        assert_eq!(draft.prompt, "make the replay path idempotent under load");
         assert_eq!(draft.source.as_deref(), Some(project.directory.as_path()));
     }
 
     #[test]
-    fn declining_the_acceptance_question_produces_a_request_without_one() {
+    fn a_line_naming_something_this_host_cannot_take_leaves_the_draft_unchanged() {
         let project = project();
         let mut draft = Draft::new("keep the replay path idempotent");
-        draft.answer("", &project.directory);
-        let Step::Ready(request) = draft.answer("", &project.directory) else {
-            panic!("the draft kept asking after the acceptance question was declined");
+        let Amendment::Refused(reason) = draft.amend("verifier /no/such/program") else {
+            panic!("a verifier that is not on this host was taken");
         };
-        assert!(request.acceptance.is_none());
-        assert_eq!(request.prompt, "keep the replay path idempotent");
-    }
-
-    #[test]
-    fn both_acceptance_answers_reach_the_request_resolved() {
-        let project = project();
-        let mut draft = Draft::new("keep the replay path idempotent");
-        draft.answer(&project.source.display().to_string(), &project.directory);
-        assert!(matches!(
-            draft.answer(&project.program.display().to_string(), &project.directory),
-            Step::Ask(Question::NegativeControl)
-        ));
-        let Step::Ready(request) = draft.answer(
-            &project.negative_control.display().to_string(),
-            &project.directory,
-        ) else {
-            panic!("the draft did not complete");
-        };
-        let acceptance = request.acceptance.expect("acceptance condition");
-        assert_eq!(acceptance.program, project.program);
-        assert_eq!(acceptance.negative_control, project.negative_control);
-        assert_eq!(request.source, project.source);
-    }
-
-    /// The source is decided at the source answer, so the two acceptance questions are never put
-    /// for a directory the request could not have used.
-    #[test]
-    fn a_source_that_is_not_a_directory_is_refused_at_the_source_answer() {
-        let project = project();
-        for (stated, expected) in [
-            (
-                project.directory.join("no-such-directory"),
-                "could not be read",
-            ),
-            (project.program.clone(), "not a directory"),
-        ] {
-            let mut draft = Draft::new("keep the replay path idempotent");
-            let reason = refusal(draft.answer(&stated.display().to_string(), &project.directory));
-            assert!(reason.contains(expected), "{reason}");
-            assert_eq!(draft.question, Question::Source);
-            assert!(draft.source.is_none());
-        }
-    }
-
-    /// An answer is one path. A command line, a directory and a file without execute permission
-    /// are all refused where the verifier is typed.
-    #[test]
-    fn a_verifier_that_is_not_an_executable_file_is_refused_at_the_verifier_answer() {
-        let project = project();
-        let unreadable = project.directory.join("not-executable.sh");
-        fs::write(&unreadable, "#!/bin/sh\nexit 1\n").expect("write file");
-        let cases = [
-            (
-                format!("{} --strict", project.program.display()),
-                "could not be read",
-            ),
-            (
-                project
-                    .directory
-                    .join("no-such-program")
-                    .display()
-                    .to_string(),
-                "could not be read",
-            ),
-            (
-                project.source.display().to_string(),
-                "not an executable file",
-            ),
-            (unreadable.display().to_string(), "not an executable file"),
-        ];
-        for (stated, expected) in cases {
-            let mut draft = Draft::new("keep the replay path idempotent");
-            draft.answer(&project.source.display().to_string(), &project.directory);
-            let reason = refusal(draft.answer(&stated, &project.directory));
-            assert!(reason.contains(expected), "{stated} — {reason}");
-            assert_eq!(draft.question, Question::Verifier);
-            assert!(draft.program.is_none());
-        }
-    }
-
-    /// A program that exits zero on the deliberately wrong candidate decides nothing, so the draft
-    /// never completes with it and no request carries it to the application.
-    #[test]
-    fn a_verifier_that_accepts_the_negative_control_is_refused_there() {
-        let project = project();
-        let accepts_anything = project.directory.join("accept.sh");
-        executable(&accepts_anything, "#!/bin/sh\nexit 0\n");
-
-        let mut draft = Draft::new("keep the replay path idempotent");
-        draft.answer(&project.source.display().to_string(), &project.directory);
-        draft.answer(&accepts_anything.display().to_string(), &project.directory);
-        let reason = refusal(draft.answer(
-            &project.negative_control.display().to_string(),
-            &project.directory,
-        ));
-        assert!(reason.contains("accepted the negative control"), "{reason}");
-        assert!(draft.negative_control.is_none());
-    }
-
-    #[test]
-    fn a_negative_control_that_is_not_a_directory_is_refused_at_that_answer() {
-        let project = project();
-        let mut draft = Draft::new("keep the replay path idempotent");
-        draft.answer(&project.source.display().to_string(), &project.directory);
-        draft.answer(&project.program.display().to_string(), &project.directory);
-        let reason =
-            refusal(draft.answer(&project.program.display().to_string(), &project.directory));
-        assert!(reason.contains("not a directory"), "{reason}");
-        assert!(draft.negative_control.is_none());
+        assert!(reason.contains("could not be read"), "{reason}");
+        assert!(draft.program.is_none());
+        let _ = project;
     }
 }

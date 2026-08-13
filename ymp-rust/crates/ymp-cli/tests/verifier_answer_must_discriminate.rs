@@ -5,9 +5,9 @@
 //!
 //! Everything here runs the `ymp` executable through the command that mirrors the interface's
 //! draft, so what is asserted is what an operator reaches. Three refusals are required, and each
-//! has to arrive at the answer that caused it rather than after the remaining questions: the
-//! transcript the command prints shows every question that was put, so a refusal that arrived late
-//! is visible as a question that should never have been asked.
+//! has to arrive at the line that caused it rather than after the lines that follow it: the
+//! transcript the command prints shows what the dialogue said, so a refusal that arrived late is
+//! visible as a value taken after one that could not be.
 //!
 //! The check that must fail: make the verifier answer accept a program that exits zero on
 //! anything — for example by dropping the negative-control demonstration — and
@@ -20,11 +20,13 @@ use std::process::{Command, Output};
 
 use tempfile::TempDir;
 
-/// The question the interface puts for each answer, as the transcript prints it.
-const SOURCE_QUESTION: &str = "which directory is this work done in";
-const VERIFIER_QUESTION: &str = "which program decides whether a candidate is accepted";
-const NEGATIVE_CONTROL_QUESTION: &str =
-    "which deliberately wrong candidate must that program reject";
+/// The questions the replaced dialogue put. The product now proposes what it can and takes what
+/// the operator states, so none of them may appear — least of all after a line that was refused.
+const RETIRED_QUESTIONS: [&str; 3] = [
+    "which directory is this work done in",
+    "which program decides whether a candidate is accepted",
+    "which deliberately wrong candidate must that program reject",
+];
 
 /// How the transcript states that a contract exists. The absence of a contract is stated with a
 /// sentence of its own, so the word alone would match a store that drafted nothing.
@@ -125,21 +127,17 @@ impl Drafted {
         String::from_utf8_lossy(&self.output.stdout).into_owned()
     }
 
-    /// The questions the interface put before it stopped, in the order it put them.
+    /// The questions the transcript put, of those the replaced dialogue used to put.
     ///
     /// The transcript is wrapped to the width a command lays its surfaces out at, so a question
     /// is looked for in the text with its line breaks and indentation collapsed.
     fn questions_asked(&self) -> Vec<&'static str> {
         let transcript = self.transcript();
         let flattened = transcript.split_whitespace().collect::<Vec<_>>().join(" ");
-        [
-            SOURCE_QUESTION,
-            VERIFIER_QUESTION,
-            NEGATIVE_CONTROL_QUESTION,
-        ]
-        .into_iter()
-        .filter(|question| flattened.contains(question))
-        .collect()
+        RETIRED_QUESTIONS
+            .into_iter()
+            .filter(|question| flattened.contains(question))
+            .collect()
     }
 }
 
@@ -154,10 +152,9 @@ fn a_verifier_answer_that_is_not_an_executable_file_is_refused_at_that_answer() 
         refusal.contains("could not be read") && refusal.contains("--strict"),
         "the refusal does not name the answer: {refusal}"
     );
-    assert_eq!(
-        drafted.questions_asked(),
-        vec![SOURCE_QUESTION, VERIFIER_QUESTION],
-        "the negative control was asked for a verifier that could not be taken:\n{}",
+    assert!(
+        drafted.questions_asked().is_empty(),
+        "the dialogue put a question for a verifier that could not be taken:\n{}",
         drafted.transcript()
     );
 }
@@ -180,7 +177,7 @@ fn a_verifier_that_accepts_the_negative_control_never_enters_a_contract() {
 }
 
 #[test]
-fn a_source_that_does_not_exist_is_refused_before_the_remaining_questions() {
+fn a_source_that_does_not_exist_is_refused_before_the_remaining_lines() {
     let workspace = workspace();
     let missing = workspace.root.join("no-such-directory");
 
@@ -190,10 +187,9 @@ fn a_source_that_does_not_exist_is_refused_before_the_remaining_questions() {
         refusal.contains(&missing.display().to_string()) && refusal.contains("could not be read"),
         "the refusal names neither the path nor what this host reported: {refusal}"
     );
-    assert_eq!(
-        drafted.questions_asked(),
-        vec![SOURCE_QUESTION],
-        "the acceptance questions were put for a source that could not be taken:\n{}",
+    assert!(
+        drafted.questions_asked().is_empty(),
+        "a question was put for a source that could not be taken:\n{}",
         drafted.transcript()
     );
 }

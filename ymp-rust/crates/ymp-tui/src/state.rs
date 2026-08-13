@@ -35,7 +35,7 @@ pub struct PaletteItem {
     pub command: Command,
 }
 
-/// The `:` command palette.
+/// The `/` command palette.
 #[derive(Clone, Debug)]
 pub struct Palette {
     pub input: String,
@@ -47,10 +47,19 @@ impl Palette {
     pub fn matches(&self) -> Vec<&PaletteItem> {
         self.items
             .iter()
-            .filter(|item| item.name.starts_with(self.input.trim_start_matches(':')))
+            .filter(|item| {
+                item.name
+                    .starts_with(self.input.trim_start_matches(COMMAND_PREFIX))
+            })
             .collect()
     }
 }
+
+/// The character that opens the command line and prefixes every command the interface names.
+///
+/// An operator arriving from Claude Code types `/` for a command, so the interface offers its
+/// commands under the same key rather than under a second convention of its own.
+pub const COMMAND_PREFIX: char = '/';
 
 /// What a palette entry does when chosen.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -171,6 +180,9 @@ pub struct AuthorizeAction {
     pub source: String,
     pub verifier: String,
     pub negative_control: String,
+    /// Whether this exact contract was already authorized in this session. It decides how much
+    /// ceremony the confirmation asks for, never whether the action is offered.
+    pub reauthorization: bool,
 }
 
 /// What floats above the current surface.
@@ -205,6 +217,9 @@ pub struct App {
     pub viewing_around: Option<String>,
     /// Which candidate the describe surface is showing.
     pub describe_index: Option<usize>,
+    /// How many heartbeats have been drawn while something runs away from the drawing thread.
+    /// The input row reads it, so a redraw during a wait is visible on screen.
+    pub working_ticks: usize,
     /// Row selections, kept across projection rebuilds.
     selection: HashMap<PageKind, usize>,
 }
@@ -221,6 +236,7 @@ impl App {
             should_quit: false,
             viewing_around: None,
             describe_index: None,
+            working_ticks: 0,
             selection: HashMap::new(),
         };
         app.adopt(data);
@@ -308,7 +324,7 @@ impl App {
         }
         items.sort_by(|a, b| a.name.cmp(&b.name));
         Palette {
-            input: ":".into(),
+            input: COMMAND_PREFIX.to_string(),
             selected: 0,
             items,
         }
@@ -372,7 +388,8 @@ mod tests {
         ];
         let mut palette = app.open_palette();
         assert!(palette.items.iter().any(|item| item.name == "quit"));
-        palette.input = ":c".into();
+        assert_eq!(palette.input, "/");
+        palette.input = "/c".into();
         let names: Vec<&str> = palette
             .matches()
             .iter()

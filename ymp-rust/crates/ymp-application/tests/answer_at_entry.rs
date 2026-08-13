@@ -10,12 +10,15 @@
 
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::time::{Duration, Instant};
 
 use tempfile::TempDir;
 use ymp_application::answer::{
-    AnswerError, discriminates, negative_control_directory, source_directory, verifier_program,
+    AnswerError, demonstrates_within, discriminates, discriminates_within,
+    negative_control_directory, source_directory, verifier_program,
 };
 use ymp_application::{AcceptanceCondition, RunRequest, prepare_contract};
+use ymp_domain::contract::default_wall_time_ms;
 
 struct Workspace {
     _root: TempDir,
@@ -108,6 +111,83 @@ fn a_program_that_rejects_the_negative_control_is_taken() {
     // that fails on everything.
     discriminates(&verifier, &workspace.source)
         .expect_err("a directory the program accepts cannot serve as a negative control");
+}
+
+/// The absorbed finding of this card's review: a program that only ever rejects passes a check
+/// that asks it to reject.
+///
+/// Such a program is not a verifier — it can never accept the work, so the run it judges is
+/// exhausted whatever the agents produce, and the budget is spent on a verdict that was fixed
+/// before it started. The demonstration therefore asks for both decisions: reject the control,
+/// accept a sample built to satisfy it. The first half alone is measured here to be insufficient.
+#[test]
+fn a_program_that_rejects_every_candidate_passes_the_first_half_and_is_refused_by_the_second() {
+    let workspace = workspace();
+    let rejects_everything = workspace.program("reject.sh", "exit 1");
+    let limit = Duration::from_millis(default_wall_time_ms());
+
+    // The half that asks only for a rejection takes it.
+    discriminates(&rejects_everything, &workspace.negative_control)
+        .expect("a program that rejects everything rejects the negative control too");
+
+    // The half that also asks for an acceptance refuses it, and names why.
+    let refusal = demonstrates_within(
+        &rejects_everything,
+        &workspace.negative_control,
+        &workspace.source,
+        limit,
+    )
+    .expect_err("a program that rejects every candidate cannot decide a run");
+    assert!(
+        matches!(refusal, AnswerError::VerifierRejectsPositiveSample { .. }),
+        "{refusal}"
+    );
+    assert!(
+        refusal.to_string().contains("rejects every candidate"),
+        "the refusal does not name the reason: {refusal}"
+    );
+
+    // A program that decides both ways passes both halves, so the refusal above is a decision
+    // about the program and not a demonstration that refuses everything.
+    let verifier = workspace.program("verify.sh", DISCRIMINATES);
+    demonstrates_within(
+        &verifier,
+        &workspace.negative_control,
+        &workspace.source,
+        limit,
+    )
+    .expect("a program that rejects the control and accepts the sample decides both ways");
+}
+
+/// A program that never decides is a refusal, not a wait without end.
+///
+/// The check applies the limit the contract would apply to the same program, so what happens at
+/// entry is what would happen to the run: the program is ended and the refusal names the limit.
+/// The interface runs this check away from the thread that draws, so the wait it bounds is a
+/// wait on that thread and never on the screen.
+#[test]
+fn a_program_that_never_returns_is_refused_at_the_limit_the_check_carries() {
+    let workspace = workspace();
+    let never = workspace.program("never.sh", "sleep 30");
+
+    let limit = Duration::from_millis(300);
+    let started = Instant::now();
+    let refusal = discriminates_within(&never, &workspace.negative_control, limit)
+        .expect_err("a program that never decides cannot judge a run");
+    let waited = started.elapsed();
+
+    assert!(
+        matches!(refusal, AnswerError::VerifierNotRun { .. }),
+        "{refusal}"
+    );
+    assert!(
+        refusal.to_string().contains("300"),
+        "the refusal does not name the limit it applied: {refusal}"
+    );
+    assert!(
+        waited < Duration::from_secs(5),
+        "the check waited {waited:?} for a program it was told to bound at {limit:?}"
+    );
 }
 
 #[test]

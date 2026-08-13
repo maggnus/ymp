@@ -30,6 +30,7 @@ fn contract() -> ContractFacts {
         budget: Some(ymp_domain::Budget::new(1, 1)),
         run_id: Some("run-preview".into()),
         blocked: None,
+        previously_authorized: false,
     }
 }
 

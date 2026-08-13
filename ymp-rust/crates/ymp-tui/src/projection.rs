@@ -205,6 +205,10 @@ pub struct ContractFacts {
     pub run_id: Option<String>,
     /// Why no run can be started from this contract, in the application's own words.
     pub blocked: Option<String>,
+    /// Whether this exact contract was already authorized in this session and has not changed
+    /// since. Authorizing it again is one confirmation; a first authorization, and anything that
+    /// changed, is authorized by typing the contract id.
+    pub previously_authorized: bool,
 }
 
 #[derive(Clone, Debug)]
@@ -233,6 +237,7 @@ impl ContractFacts {
             budget: Some(prepared.budget.clone()),
             run_id: Some(prepared.run_id()),
             blocked: None,
+            previously_authorized: false,
         }
     }
 
@@ -247,6 +252,7 @@ impl ContractFacts {
             budget: None,
             run_id: None,
             blocked: Some(reason),
+            previously_authorized: false,
         }
     }
 
@@ -266,6 +272,7 @@ impl ContractFacts {
             budget: None,
             run_id: None,
             blocked: None,
+            previously_authorized: false,
         }
     }
 
@@ -336,6 +343,9 @@ pub struct Projection {
     /// The answer the interface is waiting for while a request is being drafted. It is what
     /// makes an empty Enter meaningful: it accepts what the question offers.
     pub awaiting: Option<String>,
+    /// What the interface is waiting for away from the thread that draws, while it is. The
+    /// screen keeps redrawing under it, and Esc ends it.
+    pub working: Option<String>,
     /// Left half of the status line.
     pub status: String,
 }

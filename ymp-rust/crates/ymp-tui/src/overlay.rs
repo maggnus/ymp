@@ -1,4 +1,4 @@
-//! Floating surfaces: the `:` palette, the two decision modals, the key map.
+//! Floating surfaces: the `/` palette, the two decision modals, the key map.
 //!
 //! Each one is composed into a [`ModalSpec`] and drawn by the frame layer, so a decision cannot
 //! acquire its own drawing path. A decision carries the amber frame, an explicit action and
@@ -73,7 +73,7 @@ fn palette_spec(palette: &Palette, area: Rect) -> ModalSpec {
     }
     if matches.is_empty() {
         body.push(Line::from(Span::styled(
-            "no matching command".to_owned(),
+            "no matching command — Enter sends this line as it was typed".to_owned(),
             theme::faint(),
         )));
     }
@@ -325,9 +325,9 @@ pub const KEY_GROUPS: &[(&str, &[(&str, &str)])] = &[
     (
         "global",
         &[
-            (":", "command line"),
+            ("/", "command line"),
             ("?", "this key map"),
-            ("Esc", "close / back / transcript"),
+            ("Esc", "close / back / transcript · cancels a running check"),
             ("q", "quit"),
         ],
     ),

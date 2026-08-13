@@ -40,6 +40,8 @@ pub struct Model {
     events: Vec<EventFacts>,
     /// The answer the interface is waiting for, while a request is being drafted.
     awaiting: Option<String>,
+    /// What is running away from the thread that draws, while something is.
+    working: Option<String>,
     /// Whether this store was refused because this binary cannot read it.
     refused: bool,
     /// The last journal position folded into this model.
@@ -60,6 +62,7 @@ impl Model {
             attempts: Vec::new(),
             events: Vec::new(),
             awaiting: None,
+            working: None,
             refused: false,
             cursor: 0,
         };
@@ -118,7 +121,7 @@ impl Model {
                     .into(),
             },
             Entry::AppReply {
-                text: ":runtimes  which runtime profiles this host can start".into(),
+                text: "/runtimes  which runtime profiles this host can start".into(),
             },
             Entry::AppReply {
                 text: "?          key map".into(),
@@ -260,10 +263,25 @@ impl Model {
         self.awaiting = hint;
     }
 
+    /// State what is running away from the thread that draws, or that nothing is.
+    pub fn working(&mut self, notice: Option<String>) {
+        self.working = notice;
+    }
+
     /// Report a refusal: what was not done, and why. Nothing here is a journal fact.
     pub fn error(&mut self, text: impl Into<String>) {
         self.push(Entry::Blank);
         self.push(Entry::AppError { text: text.into() });
+    }
+
+    /// Drop a contract the interface no longer offers, by name.
+    ///
+    /// An amended draft replaces the contract its earlier form produced: the operator is judging
+    /// one draft, so the projection carries one contract for it rather than a pile of the
+    /// versions it passed through.
+    pub fn forget_contract(&mut self, contract_id: &str) {
+        self.contracts
+            .retain(|contract| contract.contract_id != contract_id);
     }
 
     /// Take a contract the application prepared, replacing an earlier draft of the same name.
@@ -300,7 +318,7 @@ impl Model {
         if self.elided > 0 {
             entries.push(Entry::AppReply {
                 text: format!(
-                    "{} earlier transcript entries are not held in memory — :events reads the \
+                    "{} earlier transcript entries are not held in memory — /events reads the \
                      journal from its head",
                     self.elided
                 ),
@@ -332,6 +350,7 @@ impl Model {
             pages,
             runtimes: runtimes.cloned(),
             awaiting: self.awaiting.clone(),
+            working: self.working.clone(),
             status: self.status_line(),
         }
     }
@@ -846,7 +865,7 @@ fn contracts_hint(contracts: &[ContractFacts]) -> String {
     match contracts.len() {
         0 => "no contract drafted yet · one is drafted from the request you type below".to_owned(),
         1 => format!(
-            ":authorize {} · nothing runs and nothing is spent until you authorize it",
+            "/authorize {} · nothing runs and nothing is spent until you authorize it",
             contracts[0].contract_id
         ),
         count => format!(

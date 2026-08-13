@@ -9,7 +9,7 @@
 //! * The comparison is widened past those enumerations to the keyboard: every key, on every
 //!   surface and every modal, either changes what is on screen or returns an action a command
 //!   performs.
-//! * An answer stays an answer. A stated value that begins with a colon, or carries an escape or
+//! * An answer stays an answer. A stated value that begins with the command prefix, or carries an escape or
 //!   a control character, must not reach a surface the command did not open — the reproduction
 //!   that led to this check started an irreversible run from an `authorize` invocation.
 //! * The journal is compared byte for byte. The same request is carried to a run and then
@@ -72,10 +72,12 @@ const CORRESPONDENCE: &[(&str, &[&str])] = &[
     ),
 ];
 
-/// The one action of the interface that acts on the interface rather than on the run: leaving
-/// it. A command process leaves when it has finished its work, so no command mirrors it, and the
-/// exclusion is held to exactly this one action.
-const LIFECYCLE: [&str; 1] = ["quit"];
+/// The actions of the interface that act on the interface rather than on the run. A command
+/// process leaves when it has finished its work, and it runs the check a draft needs inside its
+/// own process rather than scheduling it, so neither action has a command to mirror it. Neither
+/// writes anything durable and neither spends anything; the exclusion is held to exactly these
+/// two and the comparison below is an equality, so it cannot grow unnoticed.
+const LIFECYCLE: [&str; 2] = ["quit", "cancel-check"];
 
 /// The namespace excluded from the comparison: the product's own machinery, which predates this
 /// card and is not an operator capability. The exclusion is held to exactly this one namespace.
@@ -124,6 +126,7 @@ fn performed_action(action: &Action) -> String {
         Action::CancelRun => "cancel-run".to_owned(),
         Action::StartRun(_) => "start-run".to_owned(),
         Action::LocalTurn(_) => "request".to_owned(),
+        Action::CancelCheck => "cancel-check".to_owned(),
         // The interface rebuilds its projection when a candidate is opened; the surface that
         // opens is the describe page.
         Action::Rebuild => page_action(PageKind::Describe),
@@ -168,6 +171,7 @@ fn interface_actions(root: &Path) -> BTreeSet<String> {
         Action::CancelRun,
         Action::StartRun("contract-1".to_owned()),
         Action::LocalTurn("keep the replay path idempotent".to_owned()),
+        Action::CancelCheck,
         Action::Rebuild,
     ] {
         actions.insert(performed_action(&action));
@@ -192,6 +196,7 @@ fn drafted_facts() -> ContractFacts {
         budget: Some(ymp_domain::Budget::new(1, 1)),
         run_id: Some("run-aaaaaaaaaaaa".into()),
         blocked: None,
+        previously_authorized: false,
     }
 }
 
@@ -324,6 +329,9 @@ fn keyboard_states(root: &Path) -> Vec<App> {
     let mut awaiting = base.clone();
     awaiting.data.awaiting = Some("answer: source directory".into());
     states.push(awaiting);
+    let mut working = base.clone();
+    working.data.working = Some("running verify.sh against the negative control".into());
+    states.push(working);
 
     // Every page, including the one reached only by opening a candidate.
     for kind in PageKind::ALL {
@@ -484,23 +492,23 @@ impl Fixture {
         self._root.path().join(name)
     }
 
-    /// The request, as the four answers the interface's draft asks for.
-    fn answers(&self) -> [String; 4] {
+    /// The request, as the lines an operator types: the work, then the amendments that name what
+    /// the product would otherwise supply.
+    fn lines(&self) -> [String; 4] {
         [
             "keep the replay path idempotent".to_owned(),
-            self.source.display().to_string(),
-            self.verifier.display().to_string(),
-            self.negative_control.display().to_string(),
+            format!("source {}", self.source.display()),
+            format!("verifier {}", self.verifier.display()),
+            format!("negative control {}", self.negative_control.display()),
         ]
     }
 
     fn request_arguments(&self) -> Vec<String> {
-        let answers = self.answers();
         vec![
-            format!("--prompt={}", answers[0]),
-            format!("--source={}", answers[1]),
-            format!("--verifier={}", answers[2]),
-            format!("--negative-control={}", answers[3]),
+            "--prompt=keep the replay path idempotent".to_owned(),
+            format!("--source={}", self.source.display()),
+            format!("--verifier={}", self.verifier.display()),
+            format!("--negative-control={}", self.negative_control.display()),
         ]
     }
 
@@ -541,15 +549,17 @@ impl Fixture {
 }
 
 /// Values an operator may legitimately pass, each of which the interface's input row would read
-/// as something other than text: a leading colon opens its command line, a control character or
-/// an escape sequence is a key press of its own, and a path is ordinary text that must keep
-/// working. The identifier a confirmation would require is spelled by the answers around them,
-/// so an answer that escaped into a decision surface would be able to complete it.
-const ANSWERS_THAT_MUST_STAY_ANSWERS: [(&str, &str); 4] = [
+/// as something other than text: a leading slash opens its command line, a control character or
+/// an escape sequence is a key press of its own, and a path — which also begins with the command
+/// prefix — is ordinary text that must keep working. The identifier a confirmation would require
+/// is spelled by the answers around them, so an answer that escaped into a decision surface
+/// would be able to complete it.
+const ANSWERS_THAT_MUST_STAY_ANSWERS: [(&str, &str); 5] = [
+    ("slash", "/authorize contract-package-1"),
     ("colon", ":authorize contract-package-1"),
     ("path", "/no/such/directory"),
-    ("escape", "\u{1b}[2K:authorize contract-package-1"),
-    ("control", "\u{7}:quit"),
+    ("escape", "\u{1b}[2K/authorize contract-package-1"),
+    ("control", "\u{7}/quit"),
 ];
 
 #[test]
@@ -592,8 +602,8 @@ fn an_answer_never_reaches_a_surface_the_command_did_not_open() {
 /// Carry the request to a started run and then cancel it, through the interface's own session.
 fn through_the_interface(fixture: &Fixture, data_root: &Path) -> (String, String) {
     let mut session = Session::open(data_root, &[]);
-    for answer in fixture.answers() {
-        session.local_turn(answer);
+    for line in fixture.lines() {
+        session.local_turn(line);
     }
     let contract_id = session
         .projection(None)
@@ -656,17 +666,19 @@ fn the_command_and_the_interface_commit_the_same_journal() {
 // The approved-contract check
 // ---------------------------------------------------------------------------
 
+/// Nothing runs without something that would reject a wrong candidate. Where the product can
+/// propose that something it does, and where it cannot it says so; either way a command that
+/// reaches neither starts nothing and exits non-zero.
 #[test]
-fn a_command_that_states_no_acceptance_condition_starts_nothing() {
+fn a_command_with_nothing_that_could_judge_a_candidate_starts_nothing() {
     let fixture = Fixture::new();
     let data_root = fixture.data_root("no-acceptance");
-    let answers = fixture.answers();
     let refused = fixture.command(
         &data_root,
         &[
             "start".to_owned(),
-            format!("--prompt={}", answers[0]),
-            format!("--source={}", answers[1]),
+            "--prompt=keep the replay path idempotent".to_owned(),
+            format!("--source={}", fixture.source.display()),
             "--confirm=anything".to_owned(),
         ],
     );
@@ -681,8 +693,8 @@ fn a_command_that_states_no_acceptance_condition_starts_nothing() {
         String::from_utf8_lossy(&refused.stderr)
     );
     assert!(
-        reported.contains("no run started — the request states no acceptance condition"),
-        "the refusal does not name the missing part:\n{reported}"
+        reported.contains("no test entry point"),
+        "the refusal does not name what could not be proposed:\n{reported}"
     );
     assert!(
         !data_root.join("events.jsonl").exists(),

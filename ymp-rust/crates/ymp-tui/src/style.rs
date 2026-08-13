@@ -1,7 +1,7 @@
 //! Token-level styling of body text, reproducing the artifact's colour discipline.
 //!
 //! The artifact styles the *words* of a fact, not whole lines: stable identifiers are bold,
-//! positive state words are green, failure words are red, `:commands` are amber. This module
+//! positive state words are green, failure words are red, `/commands` are amber. This module
 //! applies those rules to already-wrapped plain text so every fixture and every live journal
 //! line gets the same treatment without hand-styling.
 

@@ -1,11 +1,12 @@
-//! Acceptance: a request typed in the interface becomes a stored contract and a started run,
-//! and a request with no acceptance condition starts nothing and names what is missing.
+//! Acceptance: a request typed in the interface becomes a stored contract and a started run.
 //!
 //! Everything here goes through the production key handling and the production session, so what
-//! is asserted is what an operator at a terminal would reach. The negative half is the second
-//! test: the acceptance question is declined and the store must stay empty while the screen
-//! states the missing part. An interface that started the run anyway, or that reported a
-//! refusal it had not obtained from the application, fails it.
+//! is asserted is what an operator at a terminal would reach. One line states the work; the
+//! product assembles the rest from the project and demonstrates it, and one authorization starts
+//! the run. The negative half is the second test: a project the product can propose nothing for
+//! says so, the store stays empty, and only a verifier the operator names carries it further. An
+//! interface that started a run anyway, or that reported a refusal it had not obtained from the
+//! application, fails it.
 
 mod support;
 
@@ -30,16 +31,21 @@ struct Workspace {
     negative_control: PathBuf,
 }
 
+/// A project as an operator has one: it runs its tests through a script of its own, and that
+/// script fails while the work is not done. The product proposes a verifier from it, so a
+/// request alone reaches a contract.
 fn workspace() -> Workspace {
     let root = tempfile::tempdir().expect("temporary root");
     let source = root.path().join("source");
     let negative_control = root.path().join("negative-control");
     let program = root.path().join("verify.sh");
     let data_root = root.path().join("data");
-    fs::create_dir_all(&source).expect("source directory");
+    fs::create_dir_all(source.join("scripts")).expect("source directory");
     fs::create_dir_all(&negative_control).expect("negative control");
     fs::create_dir_all(&data_root).expect("data root");
-    fs::write(source.join("result.txt"), b"before\n").expect("source file");
+    let entry_point = source.join("scripts/test.sh");
+    fs::write(&entry_point, b"#!/bin/sh\ntest -f result.txt\n").expect("test entry point");
+    make_executable(&entry_point);
     fs::write(&program, b"#!/bin/sh\ntest -f \"$1/result.txt\"\n").expect("verifier program");
     make_executable(&program);
     Workspace {
@@ -49,6 +55,16 @@ fn workspace() -> Workspace {
         negative_control,
         _root: root,
     }
+}
+
+/// The lines that state a request against this project's own source directory. The first is the
+/// work; the second amends the source, because the project the product was started in is this
+/// test process's working directory rather than the fixture.
+fn request(workspace: &Workspace) -> [String; 2] {
+    [
+        "keep the replay path idempotent".to_owned(),
+        format!("source {}", workspace.source.display()),
+    ]
 }
 
 #[cfg(unix)]
@@ -70,6 +86,7 @@ fn submit(app: &mut App, session: &mut Session, text: &str) {
         Some(Action::LocalTurn(line)) => session.local_turn(line),
         Some(Action::StartRun(contract_id)) => session.start_run(&contract_id),
         Some(Action::CancelRun) => session.cancel_run(),
+        Some(Action::CancelCheck) => session.cancel_check(),
         Some(Action::Rebuild) | None => {}
     }
     app.adopt(session.projection(None));
@@ -86,22 +103,17 @@ fn a_typed_request_becomes_a_contract_and_starts_a_run_the_journal_records() {
         "the cold store does not invite a request"
     );
 
-    submit(&mut app, &mut session, "keep the replay path idempotent");
-    submit(
-        &mut app,
-        &mut session,
-        &workspace.source.display().to_string(),
-    );
-    submit(
-        &mut app,
-        &mut session,
-        &workspace.program.display().to_string(),
-    );
-    submit(
-        &mut app,
-        &mut session,
-        &workspace.negative_control.display().to_string(),
-    );
+    for line in request(&workspace) {
+        submit(&mut app, &mut session, &line);
+    }
+
+    // The product supplied the acceptance condition and stated what it demonstrated.
+    let stated = screen(&app, 120, 40)
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(stated.contains("scripts/test.sh"), "{stated}");
+    assert!(stated.contains("accepted a sample"), "{stated}");
 
     // The contract is drafted, nothing is started, and the coverage map offers the run.
     assert!(app.data.run.is_none(), "a run started before authorization");
@@ -177,24 +189,26 @@ fn a_typed_request_becomes_a_contract_and_starts_a_run_the_journal_records() {
     assert_eq!(parsed.document.verifier.oracle_digest.len(), 64);
 }
 
+/// The negative half of the assembled draft: a project the product recognises nothing in is told
+/// so, in one refusal, and nothing is recorded. It is not asked for a path it has no way to know
+/// — a verifier is taken when the operator offers one, and only then.
 #[test]
-fn a_request_with_no_acceptance_condition_starts_nothing_and_names_what_is_missing() {
+fn a_project_with_no_test_entry_point_starts_nothing_and_says_what_it_could_not_propose() {
     let workspace = workspace();
+    fs::remove_file(workspace.source.join("scripts/test.sh")).expect("remove the entry point");
     let mut session = Session::open(&workspace.data_root, &[]);
     let mut app = App::new(session.projection(None));
 
-    submit(&mut app, &mut session, "keep the replay path idempotent");
-    // Enter with nothing typed accepts the project directory the question offered.
-    submit(&mut app, &mut session, "");
-    // and again, stating that there is no acceptance condition.
-    submit(&mut app, &mut session, "");
+    for line in request(&workspace) {
+        submit(&mut app, &mut session, &line);
+    }
 
     let rendered = screen(&app, 120, 40);
-    assert!(rendered.contains("no run started"), "{rendered}");
-    assert!(rendered.contains("acceptance condition"), "{rendered}");
+    let flattened = rendered.split_whitespace().collect::<Vec<_>>().join(" ");
+    assert!(flattened.contains("no test entry point"), "{rendered}");
     assert!(
         app.data.run.is_none() && app.data.contracts.is_empty(),
-        "a request without an acceptance condition produced a contract"
+        "a project nothing could be proposed from produced a contract"
     );
     assert!(
         !workspace.data_root.join("events.jsonl").exists(),
@@ -204,10 +218,6 @@ fn a_request_with_no_acceptance_condition_starts_nothing_and_names_what_is_missi
         Application::open(&workspace.data_root).is_err(),
         "a refused request created a run"
     );
-
-    // Authorizing is not offered, because there is nothing that could be authorized.
-    app.open_authorize();
-    assert!(matches!(app.modal, Modal::None));
     assert!(
         !app.data
             .commands
@@ -216,31 +226,23 @@ fn a_request_with_no_acceptance_condition_starts_nothing_and_names_what_is_missi
         "a refused request left an authorize command behind"
     );
 
-    // Stating the request again with an acceptance condition starts the run that was refused.
-    submit(&mut app, &mut session, "keep the replay path idempotent");
+    // The draft is still there and still unauthorized, so naming a verifier amends it and the
+    // amended draft reaches the contract the project could not propose.
     submit(
         &mut app,
         &mut session,
-        &workspace.source.display().to_string(),
+        &format!("verifier {}", workspace.program.display()),
     );
     submit(
         &mut app,
         &mut session,
-        &workspace.program.display().to_string(),
-    );
-    submit(
-        &mut app,
-        &mut session,
-        &workspace.negative_control.display().to_string(),
+        &format!("negative control {}", workspace.negative_control.display()),
     );
     assert_eq!(app.data.contracts.len(), 1);
     let contract_id = app.data.contracts[0].contract_id.clone();
     session.start_run(&contract_id);
     app.adopt(session.projection(None));
-    assert!(
-        app.data.run.is_some(),
-        "the completed request started no run"
-    );
+    assert!(app.data.run.is_some(), "the amended draft started no run");
 }
 
 #[test]
@@ -249,22 +251,9 @@ fn a_second_request_cannot_start_a_second_run_in_the_same_store() {
     let mut session = Session::open(&workspace.data_root, &[]);
     let mut app = App::new(session.projection(None));
 
-    submit(&mut app, &mut session, "keep the replay path idempotent");
-    submit(
-        &mut app,
-        &mut session,
-        &workspace.source.display().to_string(),
-    );
-    submit(
-        &mut app,
-        &mut session,
-        &workspace.program.display().to_string(),
-    );
-    submit(
-        &mut app,
-        &mut session,
-        &workspace.negative_control.display().to_string(),
-    );
+    for line in request(&workspace) {
+        submit(&mut app, &mut session, &line);
+    }
     let contract_id = app.data.contracts[0].contract_id.clone();
     session.start_run(&contract_id);
     app.adopt(session.projection(None));

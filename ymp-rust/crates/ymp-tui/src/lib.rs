@@ -1,20 +1,22 @@
 //! The ymp terminal interface.
 //!
 //! The main screen is a conversation: one scrolling transcript, an input line, a thin header
-//! and a status line. Full-screen data pages open over it through a `:` command line in the k9s
+//! and a status line. Full-screen data pages open over it through a `/` command line in the k9s
 //! tradition, and a decision modal interrupts the conversation only for an irreversible
 //! command. The composition follows `ymp-docs/design/ymp_chat_tui.dc.html`; the reasoning is in
 //! `ymp-docs/VISUAL_CONCEPT.md`.
 //!
 //! # From a typed request to a run
 //!
-//! A store with no run answers a typed line as a request. [`draft`] collects what the kernel
-//! cannot infer — the source directory and the acceptance condition — and hands the assembled
-//! request to `ymp-application`, which validates it, computes the oracle digest from the
-//! verifier program itself and produces the contract bytes. The coverage map shows what would
-//! be checked; a typed confirmation stores the contract and starts the run. A request with no
-//! acceptance condition is refused by the application, which names the missing part, so the
-//! interface and the equivalent command refuse identically.
+//! A store with no run answers a typed line as a request. [`draft`] assembles the rest of it
+//! from the project — a copy of the project as the negative control, and a verifier proposed
+//! from the way it already runs its tests — asks that verifier to reject the copy and to accept
+//! a sample built to satisfy it, and hands the assembled request to `ymp-application`, which
+//! validates it, computes the oracle digest from the verifier program itself and produces the
+//! contract bytes. While the draft is unauthorized, the next line amends it. The coverage map
+//! shows what would be checked; a confirmation stores the contract and starts the run. What the
+//! product cannot propose, it says it cannot propose, and it never invents an acceptance
+//! condition, so the interface and the equivalent command refuse identically.
 //!
 //! # Layers
 //!
