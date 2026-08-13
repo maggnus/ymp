@@ -443,6 +443,16 @@ consistent again.
 A command surface is not an automation surface: a command that mutates state remains subject to the
 same decision surfaces, including typing a run identifier to confirm an irreversible action.
 
+### The full suite runs before integration, not at the end of a card
+
+Every card ended with a full workspace run, which cost about seven minutes each time and repeated
+what the narrow tests had already settled. The suite now runs once, immediately before a merge into
+the release branch, where it answers the only question it is good at: whether the combination of
+independently accepted changes still holds together. A worker proves its own card with the narrow
+tests for what it changed and their negative halves, plus formatting and lint on the packages it
+touched. A reviewer runs the suite only to settle a hypothesis that the combined tree alone can
+answer, and says which one.
+
 ### The drawn interface sources are references, not a frozen contract
 
 The HTML source and its fixed-layout export describe an intended interface. What suits the product

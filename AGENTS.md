@@ -129,6 +129,10 @@ GitHub source above.
   visual-design sources.
 - Do not make Claude requests for design work.
 - Change primary work files first, then regenerate indexes with the plugin-provided `work.py`.
-- Before handing off, run the narrow tests, affected project tests, format and lint checks,
-  `git diff --check`, link/path checks, and `git status --short`.
+- Before handing off, run the narrow tests for what changed, their negative halves, format and
+  lint checks on the packages touched, `git diff --check`, link/path checks, and
+  `git status --short`.
+- The full workspace suite is an integration check, not a card check: it runs once before a
+  merge into the release branch. A worker does not run it at the end of its card, and a
+  reviewer runs it only to settle a stated hypothesis the combined tree alone can answer.
 - Report completed checks, anything not verified, and the next concrete step.
