@@ -1,8 +1,9 @@
 //! The transition suite and the property suite for local commitments.
 //!
 //! Three kinds of claim are made here. Transition tests state what one command does and what it
-//! refuses. Property tests replay generated schedules and assert that no ordering breaks
-//! conservation, the funded award count, consent, fencing or causal accounting. Mutation tests
+//! refuses. Property tests replay generated schedules and assert that no ordering makes the facts
+//! and the records disagree, or breaks the funded award count, consent, fencing, ownership or
+//! causal accounting. Mutation tests
 //! switch off one guarded check at a time and require the property suite to produce a
 //! counterexample, so that each check is shown to be load-bearing rather than asserted to be.
 
@@ -18,10 +19,10 @@ use super::records::{
     Outcome,
 };
 use super::schedules::{
-    self, ALPHA, BETA, CROSS_OFFER, DEADLINE, GAMMA, LEASE_MS, MAIN_MAX_AWARDS, MAIN_OFFER,
-    ROOT_OBLIGATION, ROOT_PARTICIPANT, SECOND_OFFER, SOLO_FUNDING_CONTRACT, Tokens, Violation,
-    advertise_main, award_main, digest, new_ledger, requested_escrow, run_schedule, setup,
-    state_violations,
+    self, ALPHA, BETA, CROSS_OFFER, DEADLINE, FactAccounts, GAMMA, LEASE_MS, MAIN_MAX_AWARDS,
+    MAIN_OFFER, ROOT_OBLIGATION, ROOT_PARTICIPANT, SECOND_OFFER, SOLO_FUNDING_CONTRACT, Tokens,
+    Violation, advertise_main, award_main, digest, new_ledger, requested_escrow, run_schedule,
+    setup, state_violations,
 };
 
 /// How many generated schedules the property suite replays. Every seed is a different total order
@@ -814,8 +815,69 @@ fn a_debit_the_accounts_cannot_cover_is_refused_and_named_in_the_result() {
     );
 }
 
-/// Conservation is recomputed from the facts, so the covering check is falsifiable: without it the
-/// schedules reach a command whose facts move capacity no account ever held.
+/// The projection is answerable for what it claims: a stream that no longer describes what was
+/// committed parts company with the records, and a faithful one does not.
+///
+/// Nothing is asserted here about the projection adding up to the budget the run began with. It
+/// always does: every fact that moves capacity takes it out of one account and puts the same
+/// quantity into another, so that sum is the opening budget for any stream of facts at all,
+/// including this altered one. What can be false is the comparison with the registry.
+#[test]
+fn a_fact_stream_that_no_longer_describes_what_was_committed_parts_from_the_registry() {
+    let tokens = Tokens::variant("a");
+    let mut ledger = new_ledger();
+    let mut accounts = FactAccounts::opening(ROOT_PARTICIPANT, *ledger.initial_total());
+    for command in setup(&tokens) {
+        let events = ledger.execute(&command).expect("prefix command");
+        accounts.observe(&events);
+    }
+    assert!(
+        accounts.divergence(&ledger).is_empty(),
+        "the facts as they were committed describe the accounts the kernel keeps"
+    );
+
+    // The same award, recorded as having moved one unit of money more than it did. The registry
+    // holds what was actually committed, so the two now disagree about the two accounts the
+    // altered fact names.
+    let events = ledger
+        .execute(&award_main("bid-alpha", "alpha"))
+        .expect("award");
+    let altered: Vec<CommitmentEvent> = events
+        .iter()
+        .map(|event| match event {
+            CommitmentEvent::BudgetTransferred { from, to, amount } => {
+                CommitmentEvent::BudgetTransferred {
+                    from: from.clone(),
+                    to: to.clone(),
+                    amount: amount
+                        .checked_add(&BudgetVector::unit(Dimension::MoneyMicros))
+                        .expect("one unit more"),
+                }
+            }
+            other => other.clone(),
+        })
+        .collect();
+    assert_ne!(
+        altered, events,
+        "the stream must actually have been altered"
+    );
+    accounts.observe(&altered);
+
+    let reported = accounts.divergence(&ledger);
+    assert!(
+        reported.iter().any(|violation| matches!(
+            violation,
+            Violation::RegistryDivergence {
+                dimension: Dimension::MoneyMicros,
+                ..
+            }
+        )),
+        "an altered stream went unreported: {reported:?}"
+    );
+}
+
+/// The covering check is falsifiable: without it the schedules reach a command whose facts move
+/// capacity no account ever held.
 #[test]
 fn removing_the_covering_check_produces_a_counterexample() {
     let (seed, violations) = first_counterexample(DisabledChecks {

@@ -4,11 +4,11 @@
 //! participants, offers and consent, then interleaves a pool of commands issued by different
 //! principals — including commands that are only valid in some orderings, and commands that must
 //! never be valid at all — and replays the whole pool in a seeded order. Refusals are expected and
-//! are not failures; what the schedule asserts is that after every single command the facts still
-//! conserve every budget dimension and still agree with the records the kernel keeps, that no more
-//! slots were awarded than were funded, that one consent formed one contract and one contract one
-//! obligation, that nothing advanced under a stale fencing token, that no obligation closed while
-//! its causal work was outstanding, and that nobody closed work it did not hold.
+//! are not failures; what the schedule asserts is that after every single command the accounts the
+//! facts describe still agree with the accounts the kernel keeps, that no more slots were awarded
+//! than were funded, that one consent formed one contract and one contract one obligation, that
+//! nothing advanced under a stale fencing token, that no obligation closed while its causal work
+//! was outstanding, and that nobody closed work it did not hold.
 //!
 //! Three things the pool alone cannot do are added here. One participant's own commands are merged
 //! in as a causal sequence rather than permuted, because a uniform shuffle practically never
@@ -789,12 +789,6 @@ pub(crate) fn schedule(seed: u64, tokens: &Tokens) -> Vec<CommitmentCommand> {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) enum Violation {
-    /// The facts no longer add up in one dimension to what the run started with.
-    Conservation {
-        dimension: Dimension,
-        expected: i128,
-        found: i128,
-    },
     /// The accounts the facts describe and the accounts the kernel keeps disagree.
     RegistryDivergence {
         account: String,
@@ -871,7 +865,6 @@ pub(crate) enum Violation {
 pub(crate) struct FactAccounts {
     balances: BTreeMap<AccountRef, [i128; DIMENSION_COUNT]>,
     consumed: [i128; DIMENSION_COUNT],
-    opening: BudgetVector,
     /// Which task contract each offer's reservation is due back to, as the offer was advertised.
     funded_by: BTreeMap<String, String>,
     closed: BTreeSet<String>,
@@ -896,7 +889,6 @@ impl FactAccounts {
         Self {
             balances,
             consumed: [0; DIMENSION_COUNT],
-            opening,
             funded_by: BTreeMap::new(),
             closed: BTreeSet::new(),
             holders: BTreeMap::new(),
@@ -997,34 +989,17 @@ impl FactAccounts {
         violations
     }
 
-    /// What the run started with is what the accounts and the spent capacity still add up to. This
-    /// is computed over the facts and the opening position, so no field the kernel maintains takes
-    /// part in it.
-    pub(crate) fn conservation(&self) -> Vec<Violation> {
-        let mut violations = Vec::new();
-        for dimension in DIMENSIONS {
-            let index = dimension.index();
-            let found = self.consumed[index]
-                + self
-                    .balances
-                    .values()
-                    .map(|balance| balance[index])
-                    .sum::<i128>();
-            let expected = i128::from(self.opening.get(dimension));
-            if found != expected {
-                violations.push(Violation::Conservation {
-                    dimension,
-                    expected,
-                    found,
-                });
-            }
-        }
-        violations
-    }
-
     /// Where the accounts the facts describe and the accounts the kernel keeps have parted company.
     /// Two independent additions of the same movements must agree in every dimension of every
     /// account, including the capacity that has left the accounts for good.
+    ///
+    /// This is what conservation is asserted by. Adding the projection up and comparing the total
+    /// with the opening budget would state nothing: every fact that moves capacity takes it out of
+    /// one account and puts the same quantity into another, so that total equals the opening budget
+    /// for any stream of facts whatsoever, including a stream that is wrong. What can be false is
+    /// the comparison below — the projection and the registry are built by different code from the
+    /// same facts, and a stream that no longer describes what was committed parts company with the
+    /// records here.
     pub(crate) fn divergence(&self, ledger: &CommitmentLedger) -> Vec<Violation> {
         let mut registry: BTreeMap<AccountRef, BudgetVector> = BTreeMap::new();
         for participant in ledger.participants().values() {
@@ -1259,7 +1234,6 @@ pub(crate) fn run_schedule(seed: u64, tokens: &Tokens, disabled: DisabledChecks)
             }
         }
         report.violations.extend(state_violations(&ledger));
-        report.violations.extend(accounts.conservation());
         report.violations.extend(accounts.divergence(&ledger));
     }
     // Whether a reservation is stranded is a question about the end of the schedule: until then it
@@ -1316,7 +1290,8 @@ fn fencing_violations(ledger: &CommitmentLedger, events: &[CommitmentEvent]) -> 
 /// Conservation is deliberately not among them. Adding the same fields the kernel writes and
 /// comparing the sum with the opening total agrees with the kernel by construction, and a check
 /// that agrees by construction cannot report the divergence it exists to catch. That question is
-/// answered by [`FactAccounts`], from the facts.
+/// answered by [`FactAccounts::divergence`], which compares the accounts the facts describe with
+/// the accounts the kernel keeps.
 pub(crate) fn state_violations(ledger: &CommitmentLedger) -> Vec<Violation> {
     let mut violations = Vec::new();
     for offer in ledger.offers().values() {
