@@ -52,12 +52,11 @@ never return into a closed task contract and no former contractor can spend from
 
 ## Current state
 
-Accepted at Critical depth and integrated. A contract stops being an account when it reaches a
-terminal state, and it does not close while a return is owed to an offer funded from its escrow, so
-the settlement recipient follows ownership of the escrow rather than whoever executes at the time.
-The reviewer's own integration test, built outside the repository over the public interface with an
-oracle computed from emitted facts, accepts the candidate and rejects the base, where the whole
-spend-from-closed chain went through.
+Accepted at Critical depth and integrated. A contract stops being an account at a terminal state and
+cannot close while a return is owed to an offer funded from its escrow, so the settlement recipient
+follows ownership of the escrow rather than whoever executes at the time. The reviewer's own
+integration test over the public interface, with an oracle computed from emitted facts, accepts the
+candidate and rejects the base.
 
 ## Next action
 
