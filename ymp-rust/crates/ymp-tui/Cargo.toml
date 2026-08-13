@@ -17,7 +17,6 @@ ymp-runtime-api.workspace = true
 ymp-runtime-claude.workspace = true
 ymp-runtime-codex.workspace = true
 ymp-runtime-fake.workspace = true
-ymp-runtime-supervisor.workspace = true
 
 [dev-dependencies]
 tempfile.workspace = true

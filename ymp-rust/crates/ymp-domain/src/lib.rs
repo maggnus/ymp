@@ -4,7 +4,11 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use thiserror::Error;
 
-pub const EVENT_SCHEMA_VERSION: u32 = 1;
+pub mod contract;
+
+/// Journal schema version 2 adds the `contract_approved` event tag, which binds a run to the
+/// contract it is judged against. Version 1 had no such tag; see `ymp-rust/SCHEMA.md`.
+pub const EVENT_SCHEMA_VERSION: u32 = 2;
 pub const MAX_IDENTIFIER_CHARS: usize = 128;
 pub const MAX_REASON_BYTES: usize = 1024;
 
@@ -43,6 +47,13 @@ impl RunStatus {
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum Command {
+    /// Bind the run to the contract it is judged against. The contract itself is an immutable
+    /// object in the content-addressed store; the command carries only its identity.
+    ApproveContract {
+        contract_id: String,
+        contract_digest: String,
+        oracle_digest: String,
+    },
     StartAttempt {
         attempt_id: String,
     },
@@ -79,11 +90,26 @@ pub struct VerificationRecord {
     pub decision: VerificationDecision,
 }
 
+/// The contract a run is judged against, as the journal records it.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+pub struct ContractBinding {
+    pub contract_id: String,
+    /// The digest of the exact stored contract bytes.
+    pub contract_digest: String,
+    /// The digest of the acceptance condition the contract declares.
+    pub oracle_digest: String,
+}
+
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum EventKind {
     RunStarted {
         budget: Budget,
+    },
+    ContractApproved {
+        contract_id: String,
+        contract_digest: String,
+        oracle_digest: String,
     },
     AttemptStarted {
         attempt_id: String,
@@ -195,6 +221,9 @@ pub struct RunState {
     pub run_id: String,
     pub status: RunStatus,
     pub budget: Budget,
+    /// The contract this run is judged against, once one has been approved for it.
+    #[serde(default)]
+    pub contract: Option<ContractBinding>,
     pub active_attempts: Vec<String>,
     pub candidate_digest: Option<String>,
     pub last_sequence: u64,
@@ -209,6 +238,8 @@ pub enum TransitionError {
     UnknownAttempt(String),
     #[error("candidate does not match the current immutable candidate")]
     CandidateMismatch,
+    #[error("the run is already bound to contract {0}")]
+    ContractAlreadyBound(String),
     #[error("{kind} must contain between 1 and {MAX_IDENTIFIER_CHARS} characters")]
     InvalidIdentifier { kind: &'static str },
     #[error("{kind} is not a canonical lowercase SHA-256 digest")]
@@ -226,6 +257,7 @@ impl RunState {
             run_id: event.run_id.clone(),
             status: RunStatus::Running,
             budget: budget.clone(),
+            contract: None,
             active_attempts: Vec::new(),
             candidate_digest: None,
             last_sequence: event.sequence,
@@ -239,6 +271,25 @@ impl RunState {
         }
 
         match command {
+            Command::ApproveContract {
+                contract_id,
+                contract_digest,
+                oracle_digest,
+            } => {
+                validate_identifier("contract_id", contract_id)?;
+                validate_digest("contract_digest", contract_digest)?;
+                validate_digest("oracle_digest", oracle_digest)?;
+                if let Some(bound) = &self.contract {
+                    return Err(TransitionError::ContractAlreadyBound(
+                        bound.contract_id.clone(),
+                    ));
+                }
+                Ok(EventKind::ContractApproved {
+                    contract_id: contract_id.clone(),
+                    contract_digest: contract_digest.clone(),
+                    oracle_digest: oracle_digest.clone(),
+                })
+            }
             Command::StartAttempt { attempt_id } => {
                 validate_identifier("attempt_id", attempt_id)?;
                 if self.budget.attempts_remaining == 0 {
@@ -323,6 +374,17 @@ impl RunState {
             EventKind::RunStarted { budget } => {
                 self.budget = budget.clone();
                 self.status = RunStatus::Running;
+            }
+            EventKind::ContractApproved {
+                contract_id,
+                contract_digest,
+                oracle_digest,
+            } => {
+                self.contract.get_or_insert_with(|| ContractBinding {
+                    contract_id: contract_id.clone(),
+                    contract_digest: contract_digest.clone(),
+                    oracle_digest: oracle_digest.clone(),
+                });
             }
             EventKind::AttemptStarted { attempt_id } => {
                 self.budget.attempts_remaining = self.budget.attempts_remaining.saturating_sub(1);
@@ -412,6 +474,49 @@ mod tests {
         )
         .expect("start envelope");
         RunState::from_start(&start).expect("running state")
+    }
+
+    #[test]
+    fn approving_a_contract_binds_the_run_once_and_refuses_a_second_binding() {
+        let mut state = running_state();
+        assert!(state.contract.is_none());
+        let command = Command::ApproveContract {
+            contract_id: "contract-000000000000".to_owned(),
+            contract_digest: "1".repeat(64),
+            oracle_digest: "2".repeat(64),
+        };
+        let event = state.decide(&command).expect("first binding");
+        let envelope = EventEnvelope::new("run-1", 2, "approve", "0".repeat(64), None, event)
+            .expect("approval envelope");
+        state.apply(&envelope);
+        let bound = state.contract.as_ref().expect("the run is bound");
+        assert_eq!(bound.contract_digest, "1".repeat(64));
+
+        assert_eq!(
+            state.decide(&Command::ApproveContract {
+                contract_id: "contract-111111111111".to_owned(),
+                contract_digest: "3".repeat(64),
+                oracle_digest: "4".repeat(64),
+            }),
+            Err(TransitionError::ContractAlreadyBound(
+                "contract-000000000000".to_owned()
+            ))
+        );
+    }
+
+    #[test]
+    fn a_contract_approval_without_canonical_digests_is_refused() {
+        let state = running_state();
+        assert!(matches!(
+            state.decide(&Command::ApproveContract {
+                contract_id: "contract-000000000000".to_owned(),
+                contract_digest: "not-a-digest".to_owned(),
+                oracle_digest: "2".repeat(64),
+            }),
+            Err(TransitionError::InvalidDigest {
+                kind: "contract_digest"
+            })
+        ));
     }
 
     #[test]

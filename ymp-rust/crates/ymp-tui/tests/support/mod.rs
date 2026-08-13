@@ -33,17 +33,30 @@ pub fn environment() -> Environment {
 }
 
 pub fn contract(verified: bool) -> ContractFacts {
+    if !verified {
+        return ContractFacts::refused(
+            "contract-1".into(),
+            PathBuf::from("/tmp/checkout/source"),
+            "keep the replay path idempotent".into(),
+            "no run started — the request states no acceptance condition — a verifier that \
+             decides whether a candidate is accepted"
+                .into(),
+        );
+    }
     ContractFacts {
         contract_id: "contract-1".into(),
         contract_digest: scenario::digest(0xc0),
-        source: PathBuf::from("/tmp/checkout/contract.json"),
+        source: PathBuf::from("/tmp/checkout/source"),
         prompt: "keep the replay path idempotent".into(),
-        verifier: verified.then(|| VerifierFacts {
+        verifier: Some(VerifierFacts {
             program: PathBuf::from("/tmp/checkout/verify.sh"),
             oracle_digest: scenario::digest(0x0a),
-            negative_control: PathBuf::from("/tmp/checkout/negative-control.patch"),
+            negative_control: PathBuf::from("/tmp/checkout/negative-control"),
             wall_time_ms: 60_000,
         }),
+        budget: Some(ymp_domain::Budget::new(1, 1)),
+        run_id: Some("run-000000000000".into()),
+        blocked: None,
     }
 }
 

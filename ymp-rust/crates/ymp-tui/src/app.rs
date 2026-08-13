@@ -8,7 +8,7 @@
 //! Input is read by a dedicated thread; journal notifications and the runtime probe arrive on
 //! the same channel. The main thread blocks until something happens and never polls.
 
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::{self, RecvTimeoutError, Sender};
@@ -16,11 +16,14 @@ use std::thread;
 use std::time::Duration;
 
 use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
-use ymp_application::Application;
+use ymp_application::{
+    Application, ApplicationError, PreparedContract, RunRequest, prepare_contract,
+};
 use ymp_domain::Command as DomainCommand;
-use ymp_runtime_supervisor::ManagedContract;
+use ymp_domain::contract::ContractDocument;
 
 use crate::decisions;
+use crate::draft::{self, Draft, Step};
 use crate::journal::Model;
 use crate::pages::Page;
 use crate::projection::{ContractFacts, Environment, Projection};
@@ -38,37 +41,66 @@ const IDLE: Duration = Duration::from_millis(500);
 /// from its event cursor rather than assuming every notification arrived (INV-6).
 const NOTIFICATION_CAPACITY: usize = 64;
 
-/// Everything durable the interface reads and the one command it can commit.
+/// Everything durable the interface reads and the commands it can commit.
 pub struct Session {
     application: Option<Application>,
+    data_root: PathBuf,
     model: Model,
     runtimes: Option<Report>,
+    /// The request being assembled from what the operator typed, while one is.
+    draft: Option<Draft>,
+    /// Every contract this session can start a run from, whatever supplied it: a package the
+    /// command line named, or a request typed here. Both arrive as the same prepared contract,
+    /// so both start through one call.
+    contracts: Vec<PreparedContract>,
 }
 
 impl Session {
     /// Open a data root. A root with no committed run is not an error: the interface states
     /// the absence and offers what is possible from there.
-    pub fn open(data_root: &Path, contracts: &[ManagedContract]) -> Self {
+    pub fn open(data_root: &Path, contracts: &[PreparedContract]) -> Self {
         let environment = Environment::detect(data_root);
-        let facts: Vec<ContractFacts> = contracts.iter().map(ContractFacts::from_managed).collect();
+        let facts: Vec<ContractFacts> =
+            contracts.iter().map(ContractFacts::from_prepared).collect();
         let mut model = Model::cold(environment, facts);
 
         match Application::open(data_root) {
-            Err(_) => Self {
-                application: None,
-                model,
-                runtimes: None,
-            },
+            Err(error) => {
+                // A store this binary cannot read is reported as what it is. It was left
+                // untouched, so the interface neither claims the run never existed nor offers
+                // to start one over it.
+                if let ApplicationError::IncompatibleStore { .. } = &error {
+                    model.error(format!(
+                        "{error}. Nothing in it was changed. Point ymp at another store, or keep \
+                         this one for a binary that reads its version."
+                    ));
+                    model.refuse_store();
+                }
+                Self {
+                    application: None,
+                    data_root: data_root.to_path_buf(),
+                    model,
+                    runtimes: None,
+                    draft: None,
+                    contracts: contracts.to_vec(),
+                }
+            }
             Ok(application) => {
                 let state = application.state().clone();
                 match application.events_after(0) {
                     Ok(events) => model.absorb(&state, &events),
                     Err(error) => model.reply(format!("journal unreadable: {error}")),
                 }
+                if let Some(facts) = bound_contract(&application) {
+                    model.record_contract(facts);
+                }
                 Self {
                     application: Some(application),
+                    data_root: data_root.to_path_buf(),
                     model,
                     runtimes: None,
+                    draft: None,
+                    contracts: contracts.to_vec(),
                 }
             }
         }
@@ -85,10 +117,14 @@ impl Session {
         if let Ok(events) = application.events_after(0) {
             model.absorb(&state, &events);
         }
+        let data_root = application.data_root().to_path_buf();
         Self {
             application: Some(application),
+            data_root,
             model,
             runtimes: None,
+            draft: None,
+            contracts: Vec::new(),
         }
     }
 
@@ -141,6 +177,11 @@ impl Session {
         }
     }
 
+    /// Whether this store holds a run the session has opened.
+    pub fn has_application(&self) -> bool {
+        self.application.is_some()
+    }
+
     /// Subscribe to journal notifications, when there is a journal to follow.
     fn subscribe(&mut self) -> Option<mpsc::Receiver<u64>> {
         self.application
@@ -163,13 +204,162 @@ impl Session {
         self.model.describe_candidate(index)
     }
 
-    /// Record the operator's prose in the transcript, marked as local, with the honest reply.
+    /// Take what the operator typed.
+    ///
+    /// With no run in this store the line is a request: it opens a draft, and the answers that
+    /// follow complete it. Once a run exists there is nothing for prose to become — the domain
+    /// carries no messages — so the turn is answered honestly and recorded nowhere.
     pub fn local_turn(&mut self, text: String) {
-        self.model.human(text);
-        self.model.reply(
-            "local turn — not recorded in the journal. This domain carries no messages, so no \
-             participant can receive it. Commands work: press : for the list, ? for the keys.",
-        );
+        // An empty line is not something the operator said; it accepts what the question
+        // offered, and the reply below states what that was.
+        if !text.trim().is_empty() {
+            self.model.human(text.clone());
+        }
+        if self.application.is_some() {
+            self.model.reply(
+                "local turn — not recorded in the journal. This domain carries no messages, so no \
+                 participant can receive it. Commands work: press : for the list, ? for the keys.",
+            );
+            return;
+        }
+        if self.model.store_refused() {
+            self.model.error(
+                "this store cannot be read by this binary, so no request can be drafted over it",
+            );
+            return;
+        }
+        let project = self.model.environment().project_path.clone();
+        match self.draft.as_mut() {
+            None => {
+                if text.trim().is_empty() {
+                    return;
+                }
+                self.draft = Some(Draft::new(text));
+                self.model.reply(format!(
+                    "request recorded locally — nothing has started and nothing is spent. {}",
+                    draft::question_text(draft::Question::Source, &project)
+                ));
+                self.model
+                    .await_answer(Some(draft::question_hint(draft::Question::Source)));
+            }
+            Some(current) => {
+                let step = current.answer(&text, &project);
+                let taken = current.taken();
+                match step {
+                    Step::Ask(question) => {
+                        self.model.reply(format!(
+                            "{taken} · {}",
+                            draft::question_text(question, &project)
+                        ));
+                        self.model
+                            .await_answer(Some(draft::question_hint(question)));
+                    }
+                    Step::Ready(request) => {
+                        self.model.await_answer(None);
+                        self.prepare(*request);
+                    }
+                }
+            }
+        }
+    }
+
+    /// Hand the assembled request to the application, which decides whether it is a contract.
+    fn prepare(&mut self, request: RunRequest) {
+        self.draft = None;
+        match prepare_contract(&request) {
+            Ok(prepared) => {
+                let facts = ContractFacts::from_prepared(&prepared);
+                self.model.reply(format!(
+                    "contract {} drafted · digest {} · verifier {} · negative control {} · \
+                     nothing has started and nothing is spent. :authorize {} reviews what would \
+                     be checked and starts run {}",
+                    facts.contract_id,
+                    crate::projection::short_digest(&facts.contract_digest),
+                    prepared.verifier().program.display(),
+                    prepared.verifier().negative_control.display(),
+                    facts.contract_id,
+                    prepared.run_id()
+                ));
+                self.model.record_contract(facts);
+                self.contracts
+                    .retain(|contract| contract.contract_id() != prepared.contract_id());
+                self.contracts.push(prepared);
+            }
+            Err(error) => {
+                self.model.error(format!(
+                    "{error}. Nothing was recorded. State the request again to draft another \
+                     contract."
+                ));
+            }
+        }
+    }
+
+    /// Commit the operator's authorization: store the named contract and start its run.
+    ///
+    /// The contract is looked up by the identifier the decision surface required the operator to
+    /// type, so a package named on the command line and a request typed here start identically.
+    pub fn start_run(&mut self, contract_id: &str) {
+        if self.application.is_some() {
+            self.model
+                .error("this store already holds a run — a second run needs its own store");
+            return;
+        }
+        let Some(prepared) = self
+            .contracts
+            .iter()
+            .find(|contract| contract.contract_id() == contract_id)
+            .cloned()
+        else {
+            self.model.error(format!(
+                "no contract named {contract_id} is available to this session"
+            ));
+            return;
+        };
+        match Application::create_with_contract(&self.data_root, &prepared) {
+            Ok((application, outcome)) => {
+                self.application = Some(application);
+                self.model.reply(format!(
+                    "run {} started against contract {} · the journal records the approved \
+                     contract at event #{:04}",
+                    prepared.run_id(),
+                    prepared.contract_id(),
+                    outcome.event.sequence
+                ));
+                self.refresh();
+            }
+            Err(error) => self
+                .model
+                .error(format!("the run was not started: {error}")),
+        }
+    }
+}
+
+/// The contract a started run is bound to, read back from the store it was approved into.
+///
+/// A store opened later carries no drafted contract, so the coverage map would otherwise have
+/// nothing to show for a run that has one. The stored object is the source; when it cannot be
+/// read the binding is shown with what the journal alone records and says so.
+fn bound_contract(application: &Application) -> Option<ContractFacts> {
+    let binding = application.contract()?;
+    match application.contract_bytes() {
+        Ok(Some(bytes)) => match ContractDocument::parse(&bytes) {
+            Ok(parsed) => Some(ContractFacts::from_document(
+                &parsed.document,
+                parsed.digest,
+            )),
+            Err(error) => Some(ContractFacts::refused(
+                binding.contract_id.clone(),
+                PathBuf::new(),
+                String::new(),
+                format!("the stored contract object could not be read: {error}"),
+            )),
+        },
+        _ => Some(ContractFacts::refused(
+            binding.contract_id.clone(),
+            PathBuf::new(),
+            String::new(),
+            "the stored contract object is not in this store".to_owned(),
+        )),
     }
 }
 
@@ -177,6 +367,8 @@ impl Session {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum Action {
     CancelRun,
+    /// Store the named contract and start the run it names.
+    StartRun(String),
     /// The operator typed prose. It is shown as a local turn and answered honestly: no
     /// participant can receive it until the domain carries messages.
     LocalTurn(String),
@@ -210,7 +402,7 @@ fn event_loop(
     let input = spawn_input_thread(tx.clone(), Arc::clone(&stop));
     spawn_probe_thread(tx.clone());
     if let Some(receiver) = session.subscribe() {
-        spawn_journal_thread(tx, receiver);
+        spawn_journal_thread(tx.clone(), receiver);
     }
 
     let mut dirty = true;
@@ -235,7 +427,7 @@ fn event_loop(
                         AppEvent::Terminal(event) => {
                             let height = guard.terminal().size().map_or(24, |size| size.height);
                             if let Some(action) = handle_event(app, event, height) {
-                                perform(session, app, action);
+                                perform(session, app, action, &tx);
                             }
                         }
                         AppEvent::Journal => {
@@ -268,10 +460,20 @@ fn event_loop(
     }
 }
 
-fn perform(session: &mut Session, app: &mut App, action: Action) {
+fn perform(session: &mut Session, app: &mut App, action: Action, tx: &Sender<AppEvent>) {
     match action {
         Action::CancelRun => {
             session.cancel_run();
+            adopt(session, app);
+        }
+        Action::StartRun(contract_id) => {
+            // The store had no journal to follow until now, so the loop starts following the
+            // one this action created rather than waiting for the next keystroke to notice it.
+            let follow = !session.has_application();
+            session.start_run(&contract_id);
+            if follow && let Some(receiver) = session.subscribe() {
+                spawn_journal_thread(tx.clone(), receiver);
+            }
             adopt(session, app);
         }
         Action::LocalTurn(text) => {
@@ -316,13 +518,7 @@ pub fn handle_key(app: &mut App, key: KeyEvent, height: u16) -> Option<Action> {
     match &app.modal {
         Modal::Palette(_) => return palette_key(app, key),
         Modal::Confirm(_) => return confirm_key(app, key),
-        Modal::Authorize(_) => {
-            // The coverage map is reviewable; nothing here commits, so Esc is the only exit.
-            if key.code == KeyCode::Esc {
-                close_modal(app);
-            }
-            return None;
-        }
+        Modal::Authorize(_) => return authorize_key(app, key),
         Modal::Keys => {
             if matches!(key.code, KeyCode::Esc | KeyCode::Char('?')) {
                 close_modal(app);
@@ -365,9 +561,10 @@ fn transcript_key(app: &mut App, key: KeyEvent, height: u16) -> Option<Action> {
             app.prompt.buffer.pop();
         }
         KeyCode::Enter => {
-            // Free prose has nowhere to go until the domain carries messages. Say so rather
-            // than accepting it silently: the transcript never shows a dialogue nothing recorded.
-            if !app.prompt.buffer.trim().is_empty() {
+            // A typed line is a request when the store holds no run, and free prose otherwise;
+            // the session decides, because only it knows what the store holds. An empty line is
+            // sent only while an answer is awaited, where it accepts what the question offers.
+            if !app.prompt.buffer.trim().is_empty() || app.data.awaiting.is_some() {
                 let text = std::mem::take(&mut app.prompt.buffer);
                 app.resume_live();
                 return Some(Action::LocalTurn(text));
@@ -451,10 +648,28 @@ fn palette_key(app: &mut App, key: KeyEvent) -> Option<Action> {
             close_modal(app);
             match command {
                 Some(Command::OpenPage(kind)) => app.surface = Surface::Page(kind),
-                Some(Command::Authorize) => app.open_authorize(),
+                Some(Command::Authorize(index)) => app.open_authorize_at(index),
                 Some(Command::CancelRun) => app.open_cancel_confirm(),
                 Some(Command::Quit) => app.should_quit = true,
                 None => {}
+            }
+        }
+        _ => {}
+    }
+    None
+}
+
+/// The coverage map. Esc always leaves it; Enter moves on to the typed confirmation only when
+/// the projection says this contract can start a run.
+fn authorize_key(app: &mut App, key: KeyEvent) -> Option<Action> {
+    let Modal::Authorize(authorize) = &app.modal else {
+        return None;
+    };
+    match key.code {
+        KeyCode::Esc => close_modal(app),
+        KeyCode::Enter => {
+            if let Some(action) = authorize.action.clone() {
+                app.modal = Modal::Confirm(decisions::start_run(&action));
             }
         }
         _ => {}
@@ -476,8 +691,10 @@ fn confirm_key(app: &mut App, key: KeyEvent) -> Option<Action> {
             let action = confirm.action.clone();
             close_modal(app);
             app.resume_live();
-            let ConfirmAction::CancelRun { .. } = action;
-            return Some(Action::CancelRun);
+            return Some(match action {
+                ConfirmAction::CancelRun { .. } => Action::CancelRun,
+                ConfirmAction::StartRun { contract_id, .. } => Action::StartRun(contract_id),
+            });
         }
         _ => {}
     }

@@ -56,7 +56,8 @@ impl Palette {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum Command {
     OpenPage(PageKind),
-    Authorize,
+    /// Review the coverage of the contract at this position in the projection.
+    Authorize(usize),
     CancelRun,
     Quit,
 }
@@ -117,6 +118,8 @@ pub struct Confirm {
 pub enum ConfirmAction {
     /// Cancel the named run through the application.
     CancelRun { run_id: String },
+    /// Store the named contract and start the run it names, through the application.
+    StartRun { contract_id: String, run_id: String },
 }
 
 impl Confirm {
@@ -151,6 +154,23 @@ pub struct Authorize {
     pub requirements: Vec<Requirement>,
     pub footer_note: String,
     pub blocking: usize,
+    /// What authorizing would start, when this contract can start a run. `None` keeps the map
+    /// reviewable and states why the action is unavailable instead of drawing it as enabled.
+    pub action: Option<AuthorizeAction>,
+    /// Why the action is unavailable, when it is.
+    pub action_note: String,
+}
+
+/// The run an authorization would start.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct AuthorizeAction {
+    pub contract_id: String,
+    pub run_id: String,
+    /// The dimensions the run would start with, named and numbered by the projection.
+    pub budget: Vec<(String, u32)>,
+    pub source: String,
+    pub verifier: String,
+    pub negative_control: String,
 }
 
 /// What floats above the current surface.
@@ -244,11 +264,17 @@ impl App {
         }
     }
 
-    /// Open the coverage map for the first configured contract, when one is configured.
+    /// Open the coverage map for the first contract the projection carries.
     pub fn open_authorize(&mut self) {
-        let (Some(contract), Some(environment)) =
-            (self.data.contracts.first(), self.data.environment.as_ref())
-        else {
+        self.open_authorize_at(0);
+    }
+
+    /// Open the coverage map for one contract of the projection.
+    pub fn open_authorize_at(&mut self, index: usize) {
+        let (Some(contract), Some(environment)) = (
+            self.data.contracts.get(index),
+            self.data.environment.as_ref(),
+        ) else {
             return;
         };
         self.prompt.suspended = Some("decision open — input suspended".into());
@@ -256,6 +282,7 @@ impl App {
             contract,
             environment,
             self.data.runtimes.as_ref(),
+            self.data.run.as_ref(),
         ));
     }
 

@@ -26,11 +26,39 @@ Version 1 records are limited to 64 KiB each. A journal is limited to 16 MiB and
 reserve for one terminal infrastructure-failure record. These constants are part of the local
 storage profile; changing them requires an explicit profile or schema decision.
 
+## Event journal version 2
+
+Version 2 keeps every envelope field, ordering rule, digest input and limit of version 1 and adds
+one event tag: `contract_approved`, carrying `contract_id`, `contract_digest` and `oracle_digest`.
+It binds a run to the contract it is judged against, so a result can be checked against the exact
+contract and acceptance condition that were approved before the run started. Without it the
+journal recorded a run whose contract was known only outside the ledger.
+
+A run start is still the first record. The approval follows it, is idempotent by command
+identifier like every other command, and is refused once the run already carries a binding: a run
+is judged against one contract and no other. The `run.json` projection gains the optional
+`contract` field carrying the same three values; a projection written without it reads back as an
+unbound run rather than failing.
+
 ## Compatibility and migration
 
-Schema version 1 is immutable. A change that alters field meaning, digest input, event tags,
-required fields, ordering rules, or replay behavior requires a new schema version. The current
-binary reads and writes only version 1 and fails closed on every other version.
+Schema version 1 is immutable, and version 2 is a new version rather than an extension of it. A
+change that alters field meaning, digest input, event tags, required fields, ordering rules, or
+replay behavior requires a new schema version. The current binary reads and writes only version 2
+and fails closed on every other version, version 1 included.
+
+The migration consequence is stated rather than worked around: a journal written by an earlier
+binary is rejected at open with an unsupported-schema error, and no command migrates it, because
+no migration tool exists. Such a store remains inspectable as raw evidence and cannot be resumed,
+extended or exported by this binary; a new run needs a new data root. Evidence exported from a
+version-1 store keeps its own bytes and is not rewritten.
+
+Refusing such a store changes nothing in it. The version is read from the first journal record
+before the store is opened for writing, so no writer lock is taken, the `run.json` projection is
+not replaced, and the refusal is not recorded as an infrastructure failure of a run this binary
+cannot read. A store whose journal is unreadable for any other reason keeps the earlier behaviour:
+its projection is marked `infrastructure_error`, because there the failure is this binary's to
+record.
 
 Migration must be an explicit offline operation into a new data root. A future migration tool must:
 
@@ -82,9 +110,31 @@ Existing destinations are never overwritten.
 ## Managed contract and runtime evidence
 
 A managed contract is a bounded JSON file containing one identifier, source directory, prompt,
-capture exclusions, and an optional command-verifier configuration. Relative paths resolve against
-the contract file; the SHA-256 digest of the exact input bytes identifies the contract. Runtime and
+capture exclusions, and a command-verifier configuration. Relative paths resolve against the
+contract file; the SHA-256 digest of the exact input bytes identifies the contract. Runtime and
 verifier selection never changes that file or falls back to another configured profile.
+
+Contract-record version 1 made the verifier optional. Version 2 requires it, and requires the
+verifier to name its program, its negative control and its oracle digest. A package that states
+none of them describes work no mechanical check can decide, so it is rejected when it is read
+rather than accepted and discovered at verification time, when budget has already been spent.
+
+The migration consequence: a version-1 package is rejected with an unsupported-version error, and
+a version-2 package without a verifier is rejected with the missing part named. Neither is
+migrated automatically, because supplying an acceptance condition is exactly the decision the
+kernel may not take for the operator. An existing package is amended by declaring its verifier and
+raising its version, which changes its bytes and therefore its digest — the amended package is a
+new contract identity, and a run started against the old one keeps naming the old digest.
+
+A contract drafted from a typed request is stored as an immutable object under its own digest
+before the run starts, and the run's `contract_approved` record names that digest. In version 2 the
+oracle digest is the digest of the verifier program itself: a drafted contract reads it from the
+program, and a package that declares one is held to it — a declared digest that names something
+else is rejected rather than stored as a claim its own program contradicts.
+
+A package read from a file is stored as the canonical document with its paths resolved, so the
+digest that identifies a stored contract is the digest of what the run is judged against and not of
+the file's formatting. The file itself remains the operator's input, unchanged.
 
 Runtime-evidence version 1 wrote only a separate bounded event transcript. Its records contain the
 run, attempt, runtime kind, contract identifier and digest, runtime event sequence, predecessor

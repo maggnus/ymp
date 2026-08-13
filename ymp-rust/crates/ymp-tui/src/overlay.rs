@@ -208,31 +208,36 @@ fn authorize_spec(authorize: &Authorize, area: Rect, markers: &Markers) -> Modal
     )));
     body.push(Line::default());
 
-    // The action states exactly why it is not available; it is never drawn as enabled.
-    let reason = if authorize.blocking > 0 {
-        format!(
-            "  disabled — {} blocking item · {}",
-            authorize.blocking,
-            crate::decisions::AUTHORIZATION_UNAVAILABLE
-        )
-    } else {
-        format!("  {}", crate::decisions::AUTHORIZATION_UNAVAILABLE)
-    };
+    // The action is drawn as enabled only when the projection carries one; otherwise it states
+    // exactly why it is not available.
+    let enabled = authorize.action.is_some();
     let action = vec![
         Span::styled(
             " [ authorize ] ".to_owned(),
-            theme::faint().bg(theme::PANEL),
+            if enabled {
+                theme::accent_bold().bg(theme::PANEL)
+            } else {
+                theme::faint().bg(theme::PANEL)
+            },
         ),
         Span::styled(
-            text::truncate(&reason, (inner as usize).saturating_sub(24)),
-            theme::amber(),
+            text::truncate(
+                &format!("  {}", authorize.action_note),
+                (inner as usize).saturating_sub(24),
+            ),
+            if enabled {
+                theme::green()
+            } else {
+                theme::amber()
+            },
         ),
     ];
-    body.push(frame::row_line(
-        inner,
-        &action,
-        &frame::key_hints(&[("Esc", "back")]),
-    ));
+    let hints = if enabled {
+        frame::key_hints(&[("Enter", "confirm"), ("Esc", "back")])
+    } else {
+        frame::key_hints(&[("Esc", "back")])
+    };
+    body.push(frame::row_line(inner, &action, &hints));
 
     ModalSpec {
         title: format!("authorize contract {}", authorize.contract),

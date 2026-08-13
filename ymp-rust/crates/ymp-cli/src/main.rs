@@ -8,8 +8,8 @@ use std::process::Command as ProcessCommand;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 use uuid::Uuid;
-use ymp_application::Application;
-use ymp_domain::{Budget, Command as DomainCommand};
+use ymp_application::{Application, PreparedContract};
+use ymp_domain::Command as DomainCommand;
 use ymp_runtime_api::{CancellationToken, InvocationRequest, McpBinding, Readiness, RuntimeDriver};
 use ymp_runtime_claude::ClaudeRuntime;
 use ymp_runtime_codex::CodexRuntime;
@@ -28,7 +28,7 @@ struct Cli {
         long,
         global = true,
         value_name = "FILE",
-        help = "Load a managed TUI contract; may be repeated"
+        help = "Load a contract package; may be repeated"
     )]
     contract: Vec<PathBuf>,
     #[command(subcommand)]
@@ -59,16 +59,10 @@ enum InternalCommand {
         runtime: RuntimeChoice,
         #[arg(long)]
         workspace: PathBuf,
-        #[arg(long)]
-        prompt: String,
     },
     ManagedCandidateSmoke {
         #[arg(long)]
         runtime: RuntimeChoice,
-        #[arg(long)]
-        source: PathBuf,
-        #[arg(long)]
-        prompt: String,
     },
     Verifier {
         #[arg(long)]
@@ -104,14 +98,7 @@ enum RuntimeChoice {
 fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();
     match cli.command {
-        None => {
-            let contracts = cli
-                .contract
-                .iter()
-                .map(ymp_runtime_supervisor::ManagedContract::load)
-                .collect::<anyhow::Result<Vec<_>>>()?;
-            ymp_tui::run_with_contracts(cli.data_root, contracts)
-        }
+        None => ymp_tui::run_with_contracts(cli.data_root, load_contracts(&cli.contract)?),
         Some(Command::Internal { command }) => match command {
             InternalCommand::AgentMcp => run_agent_mcp(),
             InternalCommand::RuntimeSmoke {
@@ -119,16 +106,17 @@ fn main() -> anyhow::Result<()> {
                 workspace,
                 prompt,
             } => run_runtime_smoke(runtime, workspace, prompt),
-            InternalCommand::ManagedRuntimeSmoke {
-                runtime,
-                workspace,
-                prompt,
-            } => run_managed_runtime_smoke(cli.data_root, runtime, workspace, prompt),
-            InternalCommand::ManagedCandidateSmoke {
-                runtime,
-                source,
-                prompt,
-            } => run_managed_candidate_smoke(cli.data_root, runtime, source, prompt),
+            InternalCommand::ManagedRuntimeSmoke { runtime, workspace } => {
+                run_managed_runtime_smoke(
+                    cli.data_root,
+                    runtime,
+                    workspace,
+                    one_contract(&cli.contract)?,
+                )
+            }
+            InternalCommand::ManagedCandidateSmoke { runtime } => {
+                run_managed_candidate_smoke(cli.data_root, runtime, one_contract(&cli.contract)?)
+            }
             InternalCommand::Verifier {
                 candidate,
                 expected_sha256,
@@ -159,6 +147,31 @@ fn main() -> anyhow::Result<()> {
                 output_limit_bytes,
             }),
         },
+    }
+}
+
+/// Every contract the command line named, validated by the one scenario that starts runs.
+///
+/// A package that states no acceptance condition is refused here, before the interface opens
+/// and before any store is touched, with the missing part named.
+fn load_contracts(paths: &[PathBuf]) -> anyhow::Result<Vec<PreparedContract>> {
+    paths
+        .iter()
+        .map(|path| {
+            ymp_application::load_contract_package(path)
+                .with_context(|| format!("load contract package {}", path.display()))
+        })
+        .collect()
+}
+
+/// The single contract a run is started against. A start with no contract is refused: a run
+/// nothing could judge is not started, not even by an internal command.
+fn one_contract(paths: &[PathBuf]) -> anyhow::Result<PreparedContract> {
+    let mut contracts = load_contracts(paths)?;
+    match contracts.len() {
+        1 => Ok(contracts.remove(0)),
+        0 => bail!("no run started — pass --contract <file>: a run is started against a contract"),
+        count => bail!("a run is started against one contract; {count} were given"),
     }
 }
 
@@ -199,11 +212,11 @@ fn run_managed_runtime_smoke(
     data_root: PathBuf,
     runtime: RuntimeChoice,
     workspace: PathBuf,
-    prompt: String,
+    contract: PreparedContract,
 ) -> anyhow::Result<()> {
-    let run_id = format!("managed-smoke-{}", Uuid::new_v4());
     let attempt_id = format!("attempt-{}", Uuid::new_v4());
-    let mut application = Application::create(&data_root, &run_id, Budget::new(1, 1))?;
+    let prompt = contract.document.prompt.clone();
+    let (mut application, _) = Application::create_with_contract(&data_root, &contract)?;
     application.execute(
         format!("{attempt_id}.start"),
         DomainCommand::StartAttempt {
@@ -260,18 +273,20 @@ fn run_managed_runtime_smoke(
 fn run_managed_candidate_smoke(
     data_root: PathBuf,
     runtime: RuntimeChoice,
-    source: PathBuf,
-    prompt: String,
+    contract: PreparedContract,
 ) -> anyhow::Result<()> {
-    let source = source
-        .canonicalize()
-        .with_context(|| format!("canonicalize source directory {}", source.display()))?;
-    if !source.is_dir() {
-        bail!("source is not a directory: {}", source.display());
-    }
-    let run_id = format!("managed-candidate-smoke-{}", Uuid::new_v4());
+    // Source, prompt and capture exclusions come from the approved contract; the command adds
+    // nothing the contract does not state.
+    let source = contract.document.source.clone();
+    let prompt = contract.document.prompt.clone();
+    let exclusions: Vec<&str> = contract
+        .document
+        .capture_exclusions
+        .iter()
+        .map(String::as_str)
+        .collect();
     let attempt_id = format!("attempt-{}", Uuid::new_v4());
-    let mut application = Application::create(&data_root, &run_id, Budget::new(1, 1))?;
+    let (mut application, _) = Application::create_with_contract(&data_root, &contract)?;
     let artifacts = application.artifact_store();
     let base = artifacts.capture_source(&source)?;
     let workspace = data_root.join("workspaces").join(&attempt_id);
@@ -327,7 +342,7 @@ fn run_managed_candidate_smoke(
         &attempt_id,
         &base.manifest_digest,
         &workspace,
-        &["target"],
+        &exclusions,
     )?;
     let candidate_directory = data_root
         .join("candidates")
