@@ -23,59 +23,58 @@ return_trigger:
 deliberate_partial: false
 ---
 
-# W1-APP-02u — The draft refuses an answer it can check and never loses itself
+# W1-APP-02u — A verifier answer is an executable that demonstrably discriminates
 
 ## Outcome
 
-Every answer the draft accepts is one the system verified it can use: a source directory that exists,
-a verifier that is an executable file, a negative control that exists. An answer it cannot use is
-refused on the spot, naming what is wrong, and the draft survives until it is authorized or
-explicitly abandoned.
+The dialogue accepts as a verifier only a program that exists, can be executed, and is shown to
+reject the negative control before the contract is stored. A command name, a directory or a program
+that accepts everything is refused where it is typed, with the reason named.
 
 ## Scope
 
 ### In
 
-- Validation of each answer in the request-to-contract dialogue, in the interface and in the command
-  that shares its scenario.
-- The lifetime of a draft across answers, including what happens after the last question.
+- Validation of the verifier answer and the negative-control answer at the point of entry.
+- Running the negative control against the named verifier before a contract is stored, in the
+  interface and in the command that shares its scenario.
 
 ### Out
 
-- Inventing an acceptance condition, which stays forbidden; this card refuses bad answers rather than
-  supplying good ones.
+- Inventing an acceptance condition, which stays forbidden.
 
 ## Acceptance
 
-- [ ] A source directory that does not exist is refused with its path named; the negative half is the
-      current build, which accepts it.
-- [ ] A verifier answer that is not an existing executable file is refused, including a command line
-      with arguments; the negative half is the current build, which accepted `mkdir ~/Code/test`.
-- [ ] A negative control that does not exist, or that the named verifier accepts, is refused.
-- [ ] After the last answer the draft is either an approved contract or an explicit refusal naming
-      what is missing; it is never silently discarded. Establish first whether it is discarded today
-      and report what you found.
+- [ ] A verifier answer that does not resolve to an existing executable file is refused where it is
+      typed; the negative half is the current build, which accepted a command line with arguments.
+- [ ] A verifier that accepts the negative control is refused with that reason, so a program which
+      succeeds on anything cannot enter a contract; the negative half names such a program and shows
+      today's behaviour.
+- [ ] The source directory is validated where it is typed rather than at assembly. Today the refusal
+      arrives correctly but only after the remaining questions have been answered, naming the path
+      and the system error.
 
 ## Current state
 
-Ready. The owner drove the interface directly and it accepted a non-existent directory as the source
-and a shell command line as the verifier program, then returned to the cold screen reporting no draft.
-A contract assembled from answers nobody checked would start a run that cannot be judged, which is
-the failure the acceptance condition exists to prevent.
+Ready. Driven directly on the built product, the dialogue accepted a command line as the verifier and
+a non-existent directory as the source, and refused only at assembly — correctly, naming the path and
+the system error, recording nothing. What is missing is validation at the point of entry and an
+executed negative control before the contract is stored, which is what separates a verifier from any
+program that exits zero.
 
 ## Next action
 
-Validate each answer where it is entered, then establish what happens to the draft after the last
-question.
+Validate each answer where it is entered, then run the negative control before storing.
 
 ## Guardrails
 
 - Refusing an unusable answer is not the same as inventing a usable one; the second stays forbidden.
+- A program that accepts the negative control is not a verifier, whatever its path.
 
 ## Findings
 
-- Measured by the owner on the built product: source `pong` and verifier `mkdir ~/Code/test` were both
-  accepted as answers.
+- Measured on the built product: `mkdir ~/Code/test` was accepted as the verifier answer, and the
+  refusal for a non-existent source arrived at assembly with an exact message and no record written.
 
 ## Closure
 
