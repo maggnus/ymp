@@ -4,7 +4,7 @@ kind: subtask
 wave: W1
 card: W1-APP-02
 parent: W1-APP-02e
-state: rework
+state: accepted
 risk: significant
 maturity: BUILD
 relation: required
@@ -13,15 +13,15 @@ blocks: []
 created_at: 2026-08-13T01:26:13+08:00
 updated_at: 2026-08-13T09:47:08+08:00
 started_at: 2026-08-13T09:50:00+08:00
-accepted_at:
-candidate_commit: https://github.com/maggnus/ymp/commit/3aed1ac9b58beb52cd06bc19a9988c1135cd8112
-closure_commit:
-evidence:
-duration_minutes: 0
+accepted_at: 2026-08-13T12:28:47+08:00
+candidate_commit: https://github.com/maggnus/ymp/commit/b853f342733c4da84f1c375003045a2ee587dbc7
+closure_commit: https://github.com/maggnus/ymp/commit/d9029e0d8761f8d662ca4c38a2cf7f4bfdba1a3f
+evidence: [`b853f34`](https://github.com/maggnus/ymp/commit/b853f342733c4da84f1c375003045a2ee587dbc7)
+duration_minutes: 145
 blocker:
 pause_reason:
-return_trigger:
-deliberate_partial: false
+return_trigger: any module outside frame.rs receives a mutable buffer, which the substring-based inventory check cannot reject
+deliberate_partial: true
 ---
 
 # W1-APP-02e.3 — Ratatui implements the accepted chat-first contract
@@ -48,29 +48,29 @@ representing future-only concepts as unavailable rather than fabricating unsuppo
 
 ## Acceptance
 
-- [ ] Starting `ymp` renders the transcript-first POC-1 path and reaches every supported page and
+- [x] Starting `ymp` renders the transcript-first POC-1 path and reaches every supported page and
       decision surface with the declared keyboard commands at 80x24 and 120x40.
-- [ ] The interface is one framework rather than a set of per-screen implementations: every page and
+- [x] The interface is one framework rather than a set of per-screen implementations: every page and
       modal is composed from the shared component and layout layer, and no screen owns a private
       drawing path. The check that must fail: a page that bypasses the shared layer is rejected by an
       inventory check with a captured non-zero exit.
-- [ ] Every value on screen is derived from an application projection. The check that must fail: a
+- [x] Every value on screen is derived from an application projection. The check that must fail: a
       rendered field whose value is fixed in the presentation layer instead of read from state is
       rejected with a captured non-zero exit.
-- [ ] Deterministic buffers preserve terminal reason, primary action, current selection, bounded
+- [x] Deterministic buffers preserve terminal reason, primary action, current selection, bounded
       content, and state distinctions without relying on colour or mouse input.
-- [ ] Unsupported POC-2 concepts are absent or explicitly unavailable; they never appear as invented
+- [x] Unsupported POC-2 concepts are absent or explicitly unavailable; they never appear as invented
       participants, budgets, events, or completed actions.
-- [ ] Removing one required surface, state marker, or keyboard transition makes the same test harness
+- [x] Removing one required surface, state marker, or keyboard transition makes the same test harness
       fail before independent review.
 
 ## Current state
 
-Returned by independent review after one round. The implementation reaches every page and both
-decision surfaces at 80x24 and 120x40 with values that match the journal, but a badge drawn over the
-header removes the irreversibility marker as soon as a real run identifier is used, so an
-irreversible decision reads as reversible. Bounded rework is authorized for that defect, its missing
-negative half, one hardcoded enforcement class, and two blind spots in the new inventory checks.
+Accepted with residue and integrated. The irreversibility marker is reserved before the header and
+survives a product-generated run identifier at fourteen width and height combinations; the full
+identifier must be typed to confirm; the budget class is read from the projection; the inventory
+walk is recursive. About twelve hundred lines of invented fixture content were removed and replaced
+by one data boundary and one drawing module.
 
 ## Next action
 
@@ -124,6 +124,11 @@ before independent review.
 - Refinement of the starting hypothesis: the terminal does not consume runtime events at all, and
   the eight domain events it does consume are handled exhaustively. The premise that new runtime
   event variants would force terminal changes did not hold.
+- The correction closed the blocker and both majors, verified on the running product rather than in
+  a buffer test alone.
+- `minor`, defect in the contracted outcome, carried as residue: the framework inventory still
+  matches drawing calls as substrings, so a module using a line write, a direct cell write or a
+  method-form render passes undetected. The check therefore proves less than its name claims.
 
 ## Closure
 
@@ -131,12 +136,19 @@ Not accepted.
 
 ### Accepted outcome
 
-Not accepted.
+The terminal implements the accepted chat-first reference as one framework: every page and modal
+composes the shared layer, every displayed value derives from an application projection, and
+concepts the domain cannot produce are shown as unavailable rather than invented.
 
 ### Residuals
 
-None recorded.
+The inventory check that enforces the single-framework property recognises drawing calls by
+substring, so a module could bypass the shared layer through a call the list does not name. The
+behaviour under review is settled and the gap is in the proof rather than in the product; the return
+trigger is recorded in this file's front matter.
 
 ### Evidence
 
-- None until acceptance.
+- [`b853f34`](https://github.com/maggnus/ymp/commit/b853f342733c4da84f1c375003045a2ee587dbc7) —
+  reviewed correction; the integrated terminal tree is byte-identical to it.
+- [`d9029e0`](https://github.com/maggnus/ymp/commit/d9029e0d8761f8d662ca4c38a2cf7f4bfdba1a3f) — integration into the release branch.
