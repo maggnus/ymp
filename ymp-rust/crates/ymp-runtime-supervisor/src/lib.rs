@@ -17,9 +17,9 @@ use ymp_application::Application;
 use ymp_application::WorkspaceSubmission;
 use ymp_domain::{Command, EventKind, MAX_IDENTIFIER_CHARS, RunStatus, digest_bytes};
 use ymp_runtime_api::{
-    CancellationToken, DiagnosticSummary, InvocationRequest, LaunchDescriptor, McpBinding,
-    ProbeReport, Readiness, RuntimeDriver, RuntimeError, RuntimeEvent, RuntimeEventKind,
-    RuntimeFailureKind, RuntimeKind, Usage,
+    AdmittedProgram, CancellationToken, DiagnosticSummary, InvocationRequest, LaunchDescriptor,
+    McpBinding, ProbeReport, ProgramRole, Readiness, RuntimeDriver, RuntimeError, RuntimeEvent,
+    RuntimeEventKind, RuntimeFailureKind, RuntimeKind, Usage,
 };
 
 const CONTRACT_SCHEMA_VERSION: u32 = 1;
@@ -298,6 +298,9 @@ struct RuntimeProfileEvidence<'a> {
     runtime_executable_digest: Option<String>,
     launch_descriptor: Option<&'a LaunchDescriptor>,
     launch_descriptor_digest: Option<&'a str>,
+    /// The program that builds the managed workspace baseline. It is not part of the launch
+    /// descriptor because it runs before the runtime is prepared.
+    workspace_program: &'a AdmittedProgram,
     coordination: CoordinationEvidence,
     environment_policy: &'static str,
 }
@@ -499,6 +502,7 @@ pub fn start_managed_candidate(
             bridge_executable.display()
         )
     })?;
+    let workspace_program = admit_workspace_program()?;
     let contract_id = request.contract.contract_id.clone();
     let contract_digest = request.contract.contract_digest.clone();
     let attempt_id = format!("attempt-{}", Uuid::new_v4());
@@ -522,7 +526,7 @@ pub fn start_managed_candidate(
         application
             .artifact_store()
             .materialize(&base.manifest_digest, &workspace)?;
-        initialize_private_git(&workspace)?;
+        initialize_private_git(&workspace, &workspace_program)?;
         application.execute(
             format!("{attempt_id}.start"),
             Command::StartAttempt {
@@ -591,6 +595,22 @@ pub fn start_managed_candidate(
     }
     if let Some(descriptor) = &launch_descriptor {
         validate_launch_descriptor(descriptor, &attempt_id, &invocation_id, &workspace)?;
+        // Without this a driver could omit the chain and reach the same launch through an
+        // unadmitted shell, which is the substitution this check exists to prevent.
+        if cfg!(unix)
+            && requires_launch_attestation(runtime_kind)
+            && !descriptor
+                .launch_chain
+                .iter()
+                .any(|program| program.role == ProgramRole::LaunchShell)
+        {
+            record_infrastructure_failure(
+                &application,
+                &attempt_id,
+                "runtime_launch_chain_missing",
+            );
+            bail!("{runtime_kind:?} did not admit the programs its launch chain enters");
+        }
     }
     let launch_descriptor_digest = launch_descriptor
         .as_ref()
@@ -631,6 +651,7 @@ pub fn start_managed_candidate(
             runtime_executable_digest,
             launch_descriptor: launch_descriptor.as_ref(),
             launch_descriptor_digest: launch_descriptor_digest.as_deref(),
+            workspace_program: &workspace_program,
             coordination: CoordinationEvidence {
                 transport: "stdio_mcp_via_private_rpc",
                 bridge_executable_digest,
@@ -1173,6 +1194,14 @@ fn validate_launch_descriptor(
     if executable_digest != descriptor.executable_digest {
         bail!("launch descriptor executable digest does not match its bytes");
     }
+    // The shell and the environment sanitiser run before the runtime image is loaded. The
+    // controller admits them independently of the driver that declared them, so a driver cannot
+    // present a chain whose recorded digest is not the digest of the bytes on disk.
+    for program in &descriptor.launch_chain {
+        program
+            .verify()
+            .map_err(|error| anyhow::anyhow!("launch descriptor {error}"))?;
+    }
     match (
         descriptor.coordination_executable.as_deref(),
         descriptor.coordination_executable_digest.as_deref(),
@@ -1258,10 +1287,11 @@ fn validate_runtime_launch(
         || descriptor.executable_digest != initial.executable_digest
         || descriptor.coordination_executable != initial.coordination_executable
         || descriptor.coordination_executable_digest != initial.coordination_executable_digest
+        || descriptor.launch_chain != initial.launch_chain
         || descriptor.environment != initial.environment
         || descriptor.working_directory != initial.working_directory
     {
-        bail!("runtime resume changed the executable, environment, or workspace");
+        bail!("runtime resume changed the executable, launch chain, environment, or workspace");
     }
     let expected_session = expected_session.context("runtime resume has no established session")?;
     let expected_arguments = expected_resume_arguments(kind, &initial.arguments, expected_session)?;
@@ -1336,7 +1366,23 @@ fn bounded_reason(detail: &str) -> String {
     }
 }
 
-fn initialize_private_git(workspace: &Path) -> anyhow::Result<()> {
+/// Resolves the workspace program through `PATH` once and records the digest of the bytes found
+/// there. Naming the program alone would leave the resolution to every later execution, so the run
+/// would have no record of which bytes it actually ran.
+fn admit_workspace_program() -> anyhow::Result<AdmittedProgram> {
+    const PROGRAM: &str = "git";
+    let path = std::env::var_os("PATH").context("PATH is not set, so git cannot be resolved")?;
+    let resolved = std::env::split_paths(&path)
+        .map(|directory| directory.join(PROGRAM))
+        .find(|candidate| candidate.is_file() && is_executable_file(candidate).unwrap_or(false))
+        .with_context(|| format!("{PROGRAM} was not found on PATH"))?;
+    let resolved = resolved
+        .canonicalize()
+        .with_context(|| format!("canonicalize {}", resolved.display()))?;
+    Ok(AdmittedProgram::admit(ProgramRole::Workspace, resolved)?)
+}
+
+fn initialize_private_git(workspace: &Path, git: &AdmittedProgram) -> anyhow::Result<()> {
     for (action, arguments) in [
         ("initialize private Git repository", vec!["init", "--quiet"]),
         ("stage private workspace", vec!["add", "--all"]),
@@ -1357,7 +1403,8 @@ fn initialize_private_git(workspace: &Path) -> anyhow::Result<()> {
             ],
         ),
     ] {
-        let status = ProcessCommand::new("git")
+        git.verify()?;
+        let status = ProcessCommand::new(&git.path)
             .args(arguments)
             .current_dir(workspace)
             .status()
@@ -1372,7 +1419,9 @@ fn initialize_private_git(workspace: &Path) -> anyhow::Result<()> {
 #[cfg(test)]
 mod tests {
     use super::{
-        ManagedCandidateRequest, ManagedContract, ManagedRunEvent, start_managed_candidate,
+        ManagedCandidateRequest, ManagedContract, ManagedRunEvent, admit_workspace_program,
+        initialize_private_git, start_managed_candidate, validate_launch_descriptor,
+        validate_runtime_launch,
     };
     use std::collections::VecDeque;
     use std::path::Path;
@@ -1627,6 +1676,245 @@ mod tests {
             self.events.clear();
             Ok(())
         }
+    }
+
+    fn executable_fixture(path: &Path, contents: &[u8]) {
+        std::fs::write(path, contents).expect("write program fixture");
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let mut permissions = std::fs::metadata(path)
+                .expect("program metadata")
+                .permissions();
+            permissions.set_mode(0o700);
+            std::fs::set_permissions(path, permissions).expect("program permissions");
+        }
+    }
+
+    fn chain_descriptor(directory: &Path) -> ymp_runtime_api::LaunchDescriptor {
+        let executable = directory.join("runtime");
+        executable_fixture(&executable, b"#!/bin/sh\nexit 0\n");
+        let shell = directory.join("chain-shell");
+        executable_fixture(&shell, b"#!/bin/sh\nexec /bin/sh \"$@\"\n");
+        let sanitiser = directory.join("chain-sanitiser");
+        executable_fixture(&sanitiser, b"#!/bin/sh\nexec /usr/bin/env \"$@\"\n");
+        ymp_runtime_api::LaunchDescriptor {
+            schema_version: 1,
+            invocation_id: "invocation-chain".to_owned(),
+            attempt_id: "attempt-chain".to_owned(),
+            executable: executable.clone(),
+            executable_digest: ymp_domain::digest_bytes(
+                &std::fs::read(&executable).expect("runtime bytes"),
+            ),
+            coordination_executable: None,
+            coordination_executable_digest: None,
+            launch_chain: vec![
+                ymp_runtime_api::AdmittedProgram::admit(
+                    ymp_runtime_api::ProgramRole::LaunchShell,
+                    shell,
+                )
+                .expect("admit shell"),
+                ymp_runtime_api::AdmittedProgram::admit(
+                    ymp_runtime_api::ProgramRole::EnvironmentSanitiser,
+                    sanitiser,
+                )
+                .expect("admit sanitiser"),
+            ],
+            arguments: vec!["exec".to_owned(), "-".to_owned()],
+            environment: Vec::new(),
+            working_directory: directory.to_owned(),
+        }
+    }
+
+    /// The controller admits the chain independently of the driver that declared it, so a program
+    /// replaced between preparation and launch is refused even if the driver accepted it.
+    #[test]
+    fn a_launch_descriptor_whose_chain_program_changed_is_rejected() {
+        let temporary = tempfile::tempdir().expect("temporary directory");
+        let descriptor = chain_descriptor(temporary.path());
+        for index in 0..descriptor.launch_chain.len() {
+            let descriptor = chain_descriptor(temporary.path());
+            validate_launch_descriptor(
+                &descriptor,
+                &descriptor.attempt_id,
+                &descriptor.invocation_id,
+                temporary.path(),
+            )
+            .expect("an unchanged chain is admitted");
+            let replaced = &descriptor.launch_chain[index].path;
+            let bytes = std::fs::read(replaced).expect("chain program bytes");
+            std::fs::write(replaced, [bytes.as_slice(), b"# substituted\n"].concat())
+                .expect("substitute chain program");
+            let error = validate_launch_descriptor(
+                &descriptor,
+                &descriptor.attempt_id,
+                &descriptor.invocation_id,
+                temporary.path(),
+            )
+            .expect_err("a replaced chain program is refused")
+            .to_string();
+            assert!(error.contains("changed after admission"), "{error}");
+        }
+    }
+
+    /// A resumed launch may change its session operand and nothing else. Without this the chain the
+    /// run was admitted with could be exchanged at the first resume.
+    #[test]
+    fn a_resume_that_changes_the_launch_chain_is_rejected() {
+        let temporary = tempfile::tempdir().expect("temporary directory");
+        let initial = chain_descriptor(temporary.path());
+        let mut resumed = initial.clone();
+        resumed.arguments = vec![
+            "exec".to_owned(),
+            "resume".to_owned(),
+            "session-1".to_owned(),
+            "-".to_owned(),
+        ];
+        validate_runtime_launch(
+            RuntimeKind::Codex,
+            Some(&initial),
+            &resumed,
+            true,
+            Some("session-1"),
+        )
+        .expect("an unchanged chain resumes");
+        let mut exchanged = resumed.clone();
+        exchanged.launch_chain.pop();
+        let error = validate_runtime_launch(
+            RuntimeKind::Codex,
+            Some(&initial),
+            &exchanged,
+            true,
+            Some("session-1"),
+        )
+        .expect_err("a resumed launch may not change its chain")
+        .to_string();
+        assert!(error.contains("launch chain"), "{error}");
+    }
+
+    /// Declares a launch descriptor without admitting the programs its launch chain enters. The
+    /// product drivers admit them; this exists so that a driver which does not is refused rather
+    /// than reaching the same launch through an unadmitted shell.
+    struct ChainlessRuntime {
+        executable: std::path::PathBuf,
+    }
+
+    impl RuntimeDriver for ChainlessRuntime {
+        fn kind(&self) -> RuntimeKind {
+            RuntimeKind::Codex
+        }
+
+        fn executable(&self) -> &Path {
+            &self.executable
+        }
+
+        fn probe(&self) -> Result<ProbeReport, RuntimeError> {
+            Ok(ProbeReport {
+                kind: RuntimeKind::Codex,
+                executable: self.executable.display().to_string(),
+                version: Some("codex-cli 0.147.0".to_owned()),
+                readiness: Readiness::Ready,
+                detail: "chainless runtime for supervisor regression".to_owned(),
+            })
+        }
+
+        fn start(
+            &self,
+            _request: InvocationRequest,
+        ) -> Result<Box<dyn RuntimeSession>, RuntimeError> {
+            Err(RuntimeError::Unsupported("chainless runtime start"))
+        }
+
+        fn prepare_launch(
+            &self,
+            request: &InvocationRequest,
+        ) -> Result<Option<ymp_runtime_api::LaunchDescriptor>, RuntimeError> {
+            Ok(Some(ymp_runtime_api::LaunchDescriptor {
+                schema_version: 1,
+                invocation_id: request.invocation_id.clone(),
+                attempt_id: request.attempt_id.clone(),
+                executable: self.executable.clone(),
+                executable_digest: ymp_domain::digest_bytes(&std::fs::read(&self.executable)?),
+                coordination_executable: None,
+                coordination_executable_digest: None,
+                launch_chain: Vec::new(),
+                arguments: vec!["-".to_owned()],
+                environment: Vec::new(),
+                working_directory: request.workspace.clone(),
+            }))
+        }
+
+        fn start_prepared(
+            &self,
+            _request: InvocationRequest,
+            _descriptor: Option<&ymp_runtime_api::LaunchDescriptor>,
+        ) -> Result<Box<dyn RuntimeSession>, RuntimeError> {
+            panic!("a launch without an admitted chain must never be started");
+        }
+    }
+
+    #[test]
+    fn a_launch_that_admits_no_chain_is_refused_before_the_runtime_starts() {
+        let temporary = tempfile::tempdir().expect("temporary directory");
+        let source = temporary.path().join("source");
+        std::fs::create_dir(&source).expect("source directory");
+        std::fs::write(source.join("input.txt"), b"base\n").expect("source file");
+        let executable = temporary.path().join("chainless-runtime");
+        executable_fixture(&executable, b"#!/bin/sh\nexit 0\n");
+        let application = Arc::new(Mutex::new(
+            Application::create(temporary.path().join("data"), "run-1", Budget::new(1, 1))
+                .expect("create application"),
+        ));
+        let started = start_managed_candidate(
+            Arc::clone(&application),
+            Box::new(ChainlessRuntime { executable }),
+            ManagedCandidateRequest {
+                contract: ManagedContract {
+                    contract_id: "contract-chainless".to_owned(),
+                    contract_digest: "c".repeat(64),
+                    source,
+                    prompt: "finish".to_owned(),
+                    capture_exclusions: Vec::new(),
+                    verifier: None,
+                },
+                bridge_executable: std::env::current_exe().expect("current executable"),
+            },
+        );
+        let Err(error) = started else {
+            panic!("a launch without an admitted chain must be refused");
+        };
+        let error = error.to_string();
+        assert!(error.contains("did not admit the programs"), "{error}");
+        assert_eq!(
+            application.lock().expect("application lock").state().status,
+            RunStatus::InfrastructureError
+        );
+    }
+
+    /// The workspace program is resolved through `PATH` once and executed by the absolute path its
+    /// digest was taken from, so a replacement between admission and use is refused.
+    #[test]
+    fn a_replaced_workspace_program_refuses_to_build_the_baseline() {
+        let temporary = tempfile::tempdir().expect("temporary directory");
+        let admitted = admit_workspace_program().expect("admit the workspace program");
+        assert!(admitted.path.is_absolute());
+        assert!(admitted.verify().is_ok());
+
+        let workspace = temporary.path().join("workspace");
+        std::fs::create_dir(&workspace).expect("workspace");
+        let stand_in = temporary.path().join("git-stand-in");
+        executable_fixture(&stand_in, b"#!/bin/sh\nexit 0\n");
+        let stand_in = ymp_runtime_api::AdmittedProgram::admit(
+            ymp_runtime_api::ProgramRole::Workspace,
+            stand_in,
+        )
+        .expect("admit the stand-in");
+        initialize_private_git(&workspace, &stand_in).expect("an unchanged program is executed");
+        executable_fixture(&stand_in.path, b"#!/bin/sh\nexit 1\n");
+        let error = initialize_private_git(&workspace, &stand_in)
+            .expect_err("a replaced workspace program is refused")
+            .to_string();
+        assert!(error.contains("changed after admission"), "{error}");
     }
 
     #[test]

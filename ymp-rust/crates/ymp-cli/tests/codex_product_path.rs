@@ -247,6 +247,7 @@ fi
     ] {
         assert_eq!(digest.as_str().expect("evidence digest").len(), 64);
     }
+    assert_admitted_programs(&profile);
     for event in evidence.lines() {
         let event: serde_json::Value = serde_json::from_str(event).expect("runtime event evidence");
         assert_eq!(event["schema_version"], 3);
@@ -853,4 +854,39 @@ fi
     ]);
     assert_eq!(resumed.arguments, expected_arguments);
     handle.join().expect("join worker");
+}
+
+/// Reads back, from the run's own evidence, every program the run executed on its own behalf. The
+/// record names the program, its role and the digest of the bytes that were admitted for it, so the
+/// chain can be enumerated from the evidence rather than from the source.
+fn assert_admitted_programs(profile: &serde_json::Value) {
+    let chain = profile["profile"]["launch_descriptor"]["launch_chain"]
+        .as_array()
+        .expect("admitted launch chain");
+    let mut expected = vec![("launch_shell", "/bin/sh")];
+    if std::path::Path::new("/usr/bin/env").is_file() {
+        expected.push(("environment_sanitiser", "/usr/bin/env"));
+    }
+    assert_eq!(chain.len(), expected.len());
+    for (program, (role, path)) in chain.iter().zip(expected) {
+        assert_eq!(program["role"], role);
+        assert_eq!(program["path"], path);
+        assert_eq!(
+            program["digest"],
+            ymp_domain::digest_bytes(&fs::read(path).expect("admitted program bytes"))
+        );
+    }
+    let workspace_program = &profile["profile"]["workspace_program"];
+    assert_eq!(workspace_program["role"], "workspace");
+    assert_eq!(
+        workspace_program["digest"],
+        ymp_domain::digest_bytes(
+            &fs::read(
+                workspace_program["path"]
+                    .as_str()
+                    .expect("workspace program path")
+            )
+            .expect("workspace program bytes")
+        )
+    );
 }
