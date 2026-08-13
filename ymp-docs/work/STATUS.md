@@ -22,7 +22,7 @@
 | `[x]` | [`W1-APP-02f`](waves/W1/W1-APP-02/tasks/W1-APP-02f.md) | Duplicate or out-of-order runtime events terminate without a candidate | [`4145a442`](https://github.com/maggnus/ymp/commit/4145a442b476afedca8d091de3a30b1eb1ad9b84) | 12/08 09:40 | 12/08 10:03 (23m) |
 | `[x]` | [`W1-APP-02g`](waves/W1/W1-APP-02/tasks/W1-APP-02g.md) | Verification evidence binds the exact runtime environment | [`973a6e33`](https://github.com/maggnus/ymp/commit/973a6e331f4577a894ab95ee325efa4a03005510) | 12/08 10:28 | 12/08 11:18 (50m) |
 | `[x]` | [`W1-APP-02h`](waves/W1/W1-APP-02/tasks/W1-APP-02h.md) | Managed Codex and Claude sessions resume after interruption | [`0d351f60`](https://github.com/maggnus/ymp/commit/0d351f6015c25869bd4e45bb126482fd60945795) | 12/08 09:44 | 12/08 10:26 (41m) |
-| `[ ]` | [`W1-APP-02i`](waves/W1/W1-APP-02/tasks/W1-APP-02i.md) | Terminal accounting reports only counters the runtime actually sent | — | — | — |
+| `[~]` | [`W1-APP-02i`](waves/W1/W1-APP-02/tasks/W1-APP-02i.md) | Terminal accounting reports only counters the runtime actually sent | — | 14/08 01:40 | 14/08 01:40 (0m) |
 | `[=]` | [`W1-APP-02j`](waves/W1/W1-APP-02/tasks/W1-APP-02j.md) | Runtime admission stops duplicating the pinned executable per instance | — | — | — |
 | `[x]` | [`W1-APP-02k`](waves/W1/W1-APP-02/tasks/W1-APP-02k.md) | No managed descendant survives the supervisor that started it | [`78c767ca`](https://github.com/maggnus/ymp/commit/78c767cab279dd35003cfe6dcdca0884559b08ae) | 13/08 12:44 | 13/08 14:57 (2h11m) |
 | `[ ]` | [`W1-APP-02l`](waves/W1/W1-APP-02/tasks/W1-APP-02l.md) | Runtime evidence names the models that spent and the environment it passed | — | — | — |
@@ -34,7 +34,7 @@
 | `[x]` | [`W1-APP-02r`](waves/W1/W1-APP-02/tasks/W1-APP-02r.md) | An unreadable marker is not read as an absent holder | [`4ab6a80c`](https://github.com/maggnus/ymp/commit/4ab6a80cb5ffce1d0ad2786fa1ef92fffc72dbd6) | 13/08 20:52 | 13/08 21:32 (23m) |
 | `[ ]` | [`W1-APP-02s`](waves/W1/W1-APP-02/tasks/W1-APP-02s.md) | The fake runtime is neither linked nor offered as a profile | — | — | — |
 | `[x]` | [`W1-APP-02t`](waves/W1/W1-APP-02/tasks/W1-APP-02t.md) | Lifecycle tests are isolated from other test binaries | [`51a7ed71`](https://github.com/maggnus/ymp/commit/51a7ed719535e34baed43f04d148629ffa1452de) | 13/08 21:33 | 14/08 01:16 (4h18m) |
-| `[ ]` | [`W1-APP-02u`](waves/W1/W1-APP-02/tasks/W1-APP-02u.md) | A verifier answer is an executable that demonstrably discriminates | — | — | — |
+| `[~]` | [`W1-APP-02u`](waves/W1/W1-APP-02/tasks/W1-APP-02u.md) | A verifier answer is an executable that demonstrably discriminates | — | 14/08 01:40 | 14/08 01:40 (0m) |
 | `[ ]` | [`W1-COR-03`](waves/W1/W1-COR-03/CARD.md) | Bounded local commitments self-organize and terminate | — | — | — |
 | `[x]` | [`W1-COR-03a`](waves/W1/W1-COR-03/tasks/W1-COR-03a.md) | Local commitments conserve budgets and close obligations | [`58524264`](https://github.com/maggnus/ymp/commit/585242645d405ff1f76d6015a1141144eac4207b) | 13/08 15:10 | 13/08 16:27 (1h25m) |
 | `[ ]` | [`W1-COR-03b`](waves/W1/W1-COR-03/tasks/W1-COR-03b.md) | Yielded participants resume finitely and runs terminate honestly | — | — | — |
@@ -45,7 +45,7 @@
 | `[x]` | [`W1-COR-03g`](waves/W1/W1-COR-03/tasks/W1-COR-03g.md) | Settlement returns escrow only to an account that can still spend it | [`2b390922`](https://github.com/maggnus/ymp/commit/2b390922667426a48b01c9225ccee08c7d8e81f8) | 13/08 16:47 | 13/08 18:43 (1h36m) |
 | `[x]` | [`W1-COR-03h`](waves/W1/W1-COR-03/tasks/W1-COR-03h.md) | Conservation and ownership checks fail on the mutants they name | [`ce0aeecb`](https://github.com/maggnus/ymp/commit/ce0aeecbcdbf598b4badc72529873748efe3d966) | 13/08 18:52 | 13/08 20:02 (48m) |
 | `[x]` | [`W1-COR-03i`](waves/W1/W1-COR-03/tasks/W1-COR-03i.md) | Emitted facts are proved against the command that produced them | [`67fe28d2`](https://github.com/maggnus/ymp/commit/67fe28d2fa21e993d3446de5c546a46c5451a4c1) | 13/08 20:50 | 13/08 21:41 (35m) |
-| `[ ]` | [`W1-COR-03j`](waves/W1/W1-COR-03/tasks/W1-COR-03j.md) | A fact is proved against its source account, not only its amount | — | — | — |
+| `[~]` | [`W1-COR-03j`](waves/W1/W1-COR-03/tasks/W1-COR-03j.md) | A fact is proved against its source account, not only its amount | — | 14/08 01:40 | 14/08 01:40 (0m) |
 | `[ ]` | [`W1-EVL-04`](waves/W1/W1-EVL-04/CARD.md) | Controlled evidence decides both POC hypotheses | — | — | — |
 | `[?]` | [`W1-EVL-04a`](waves/W1/W1-EVL-04/tasks/W1-EVL-04a.md) | Matched-budget arms produce comparable acceptance evidence | — | — | — |
 | `[ ]` | [`W1-EVL-04b`](waves/W1/W1-EVL-04/tasks/W1-EVL-04b.md) | Message interventions separate appearance from causal use | — | — | — |
