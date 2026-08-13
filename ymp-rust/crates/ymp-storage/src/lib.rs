@@ -2,12 +2,14 @@
 
 mod journal;
 mod object_store;
+mod root;
 
 pub use journal::{
     Journal, JournalError, JournalLimits, MAX_EVENT_BYTES, MAX_JOURNAL_BYTES,
     TERMINAL_EVENT_RESERVE_BYTES,
 };
 pub use object_store::{ObjectStore, ObjectStoreError};
+pub use root::{DEFAULT_ROOT, DataRoot, LAYOUT_VERSION, LEGACY_STORE, RootError, StoreIntent};
 
 use fs2::FileExt;
 use std::fs::{self, File, OpenOptions};
