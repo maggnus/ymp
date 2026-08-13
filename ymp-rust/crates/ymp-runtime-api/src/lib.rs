@@ -367,12 +367,100 @@ pub fn configure_process_group(command: &mut Command) {
     }
 }
 
-/// Records which managed process every descendant of this process belongs to, so that a descendant
-/// which creates its own session and is later reparented to init can still be identified and
-/// terminated with the run that started it.
+/// Creates the file whose open descriptor marks a managed run. It is created outside any directory
+/// the managed process is given, under a name no other run uses, and is readable only by this user.
+#[doc(hidden)]
+pub fn create_launch_marker() -> std::io::Result<PathBuf> {
+    use std::sync::atomic::AtomicU64;
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    static SEQUENCE: AtomicU64 = AtomicU64::new(0);
+    let directory = std::env::temp_dir().join("ymp-runtime");
+    std::fs::create_dir_all(&directory)?;
+    let unique = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map_err(|_| std::io::Error::other("system clock is before the epoch"))?
+        .as_nanos();
+    let path = directory.join(format!(
+        "launch-{}-{unique}-{}.marker",
+        std::process::id(),
+        SEQUENCE.fetch_add(1, Ordering::Relaxed)
+    ));
+    let mut options = std::fs::OpenOptions::new();
+    options.create_new(true).write(true);
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::OpenOptionsExt;
+        options.mode(0o600);
+    }
+    options.open(&path)?;
+    Ok(path)
+}
+
+/// Builds the command that starts a managed process so that the process, and every descendant it
+/// ever creates, holds the run's marker open.
+///
+/// The marker is opened on a descriptor above the standard three and is not close-on-exec, so it is
+/// inherited across every fork and preserved across every exec. Unlike a process group, a session,
+/// a parent link or a working directory, it is unaffected by `setsid`, by any number of intermediate
+/// processes exiting, by reparenting to init, by changing directory, and by redirecting or closing
+/// the standard descriptors. Holding it therefore identifies a process the run started even when
+/// nothing the operating system reports still connects that process to the run.
+///
+/// The preamble is entered through the shell only to open that descriptor; it then replaces itself
+/// with the program the caller named, so the process that runs, its arguments and its identifier are
+/// the ones the launch descriptor attests. The variables the shell introduces of its own accord are
+/// removed again, so the managed process still sees exactly the environment the driver declared.
+#[doc(hidden)]
+pub fn managed_launch_command(program: &Path, arguments: &[String], marker: &Path) -> Command {
+    #[cfg(unix)]
+    {
+        const OPEN_MARKER: &str = "exec 9<\"$1\"; shift; exec ";
+        const SANITISER: &str = "/usr/bin/env";
+        let preamble = if Path::new(SANITISER).is_file() {
+            format!("{OPEN_MARKER}{SANITISER} -u PWD -u SHLVL -u OLDPWD -u _ \"$@\"")
+        } else {
+            format!("{OPEN_MARKER}\"$@\"")
+        };
+        let mut command = Command::new("/bin/sh");
+        command
+            .arg("-c")
+            .arg(preamble)
+            .arg("ymp-managed-launch")
+            .arg(marker)
+            .arg(program)
+            .args(arguments);
+        command
+    }
+    #[cfg(not(unix))]
+    {
+        let _ = marker;
+        let mut command = Command::new(program);
+        command.args(arguments);
+        command
+    }
+}
+
+/// Binds a marker to the managed process that was started with it, so that terminating that process
+/// can find every descendant still holding the marker open.
+#[doc(hidden)]
+#[cfg(unix)]
+pub fn register_launch_marker(child: &Child, marker: PathBuf) {
+    descendants::remember_marker(child.id(), marker);
+}
+
+#[doc(hidden)]
+#[cfg(not(unix))]
+pub fn register_launch_marker(_child: &Child, _marker: PathBuf) {}
+
+/// Identifies the processes a managed run started. The authoritative property is the run's marker,
+/// which every descendant carries whatever becomes of its ancestors; the process table is read as
+/// well, so a descendant still attached by parent or process group is found even when it was started
+/// by a caller that installed no marker.
 #[cfg(unix)]
 mod descendants {
     use std::collections::HashMap;
+    use std::path::{Path, PathBuf};
     use std::process::{Command, Stdio};
     use std::sync::{Mutex, OnceLock};
     use std::time::Duration;
@@ -402,7 +490,104 @@ mod descendants {
     #[derive(Default)]
     struct Forest {
         members: HashMap<u32, Attribution>,
+        markers: HashMap<u32, PathBuf>,
         observing: bool,
+    }
+
+    pub fn remember_marker(root: u32, marker: PathBuf) {
+        if let Ok(mut forest) = shared_forest().lock() {
+            forest.markers.insert(root, marker);
+        }
+    }
+
+    /// Reads which live processes hold the run's marker open. This is the answer to the ownership
+    /// question that does not depend on any ancestor still existing.
+    fn holders_of(marker: &Path) -> Vec<u32> {
+        // Linux reports open descriptors in its own process file system, so no external program is
+        // needed there.
+        if Path::new("/proc/self/fd").is_dir() {
+            return proc_holders(marker);
+        }
+        for program in ["/usr/sbin/lsof", "/usr/bin/lsof"] {
+            if !Path::new(program).is_file() {
+                continue;
+            }
+            let Ok(output) = Command::new(program)
+                .arg("-t")
+                .arg(marker)
+                .stderr(Stdio::null())
+                .output()
+            else {
+                continue;
+            };
+            return String::from_utf8_lossy(&output.stdout)
+                .lines()
+                .filter_map(|line| line.trim().parse().ok())
+                .collect();
+        }
+        Vec::new()
+    }
+
+    fn proc_holders(marker: &Path) -> Vec<u32> {
+        let Ok(entries) = std::fs::read_dir("/proc") else {
+            return Vec::new();
+        };
+        let mut holders = Vec::new();
+        for entry in entries.flatten() {
+            let Some(pid) = entry
+                .file_name()
+                .to_str()
+                .and_then(|name| name.parse::<u32>().ok())
+            else {
+                continue;
+            };
+            let Ok(descriptors) = std::fs::read_dir(entry.path().join("fd")) else {
+                continue;
+            };
+            if descriptors.flatten().any(|descriptor| {
+                std::fs::read_link(descriptor.path()).is_ok_and(|to| to == marker)
+            }) {
+                holders.push(pid);
+            }
+        }
+        holders
+    }
+
+    /// Attributes every current holder of the run's marker to that run. Reading open descriptors is
+    /// far more expensive than reading the process table, so it is done at the points where the
+    /// answer is acted upon rather than on every wait.
+    pub fn absorb_marker_holders(root: u32) {
+        let Some(marker) = shared_forest()
+            .lock()
+            .ok()
+            .and_then(|forest| forest.markers.get(&root).cloned())
+        else {
+            return;
+        };
+        let holders = holders_of(&marker);
+        if holders.is_empty() {
+            return;
+        }
+        let Some(snapshot) = read_process_table() else {
+            return;
+        };
+        let Ok(mut forest) = shared_forest().lock() else {
+            return;
+        };
+        for pid in holders {
+            if pid <= 1 || pid == std::process::id() {
+                continue;
+            }
+            if let Some(entry) = snapshot.iter().find(|entry| entry.pid == pid) {
+                forest.members.insert(
+                    pid,
+                    Attribution {
+                        root,
+                        started: entry.started.clone(),
+                    },
+                );
+            }
+        }
     }
 
     fn shared_forest() -> &'static Mutex<Forest> {
@@ -584,6 +769,9 @@ mod descendants {
         forest
             .members
             .retain(|_, attribution| attribution.root != root);
+        if let Some(marker) = forest.markers.remove(&root) {
+            let _ = std::fs::remove_file(marker);
+        }
     }
 
     /// Sends `signal` to the managed process group and to every attributed process individually.
@@ -621,6 +809,10 @@ pub fn terminate_process_tree(child: &mut Child) -> std::io::Result<()> {
     let root = child.id();
     let group = format!("-{root}");
     let mut parent_reaped = child.try_wait()?.is_some();
+    // Ask the operating system who holds the run's marker open before each signal is sent. Between
+    // the two questions the cheaper reading of the process table is enough: a holder found here
+    // stays attributed until it dies, and anything it starts afterwards is its child.
+    descendants::absorb_marker_holders(root);
     let _ = descendants::signal(root, &group, "-TERM", &descendants::survivors(root));
     for _ in 0..20 {
         parent_reaped |= child.try_wait()?.is_some();
@@ -634,6 +826,7 @@ pub fn terminate_process_tree(child: &mut Child) -> std::io::Result<()> {
         }
         std::thread::sleep(std::time::Duration::from_millis(10));
     }
+    descendants::absorb_marker_holders(root);
     let outcome = descendants::signal(root, &group, "-KILL", &descendants::survivors(root));
     if !parent_reaped {
         let _ = child.wait()?;
@@ -660,10 +853,13 @@ pub fn terminate_process_tree(child: &mut Child) -> std::io::Result<()> {
 
 #[cfg(all(test, unix))]
 mod tests {
-    use super::{configure_process_group, terminate_process_tree};
+    use super::{
+        configure_process_group, create_launch_marker, managed_launch_command,
+        register_launch_marker, terminate_process_tree,
+    };
     use std::fs;
     use std::path::{Path, PathBuf};
-    use std::process::{Command, Stdio};
+    use std::process::{Child, Command, Stdio};
     use std::time::{Duration, Instant, SystemTime};
 
     fn unique_pid_file(label: &str) -> PathBuf {
@@ -682,6 +878,22 @@ mod tests {
     /// it, because a silent skip would report the escape as closed without measuring it.
     fn session_detaching_command() -> (&'static str, &'static str, &'static str) {
         detaching_command(false)
+    }
+
+    /// The reviewer's case: ordinary daemonisation. The first fork's parent returns at once, the
+    /// second fork's parent exits at once, and the surviving grandchild owns a session, has been
+    /// reparented to init and has redirected its standard descriptors, all within microseconds.
+    fn double_forking_command() -> (&'static str, &'static str, &'static str) {
+        const PERL: &str = "use POSIX; exit 0 if fork(); POSIX::setsid() or die 'setsid'; exit 0 if fork(); open(my $handle, '>', $ARGV[0]) or die 'pid file'; print $handle \"$$\\n\"; close $handle; sleep 120;";
+        const PYTHON: &str = "import os, sys, time\nif os.fork(): raise SystemExit(0)\nos.setsid()\nif os.fork(): raise SystemExit(0)\nopen(sys.argv[1], 'w').write(str(os.getpid()) + '\\n')\ntime.sleep(120)";
+        let candidates: [(&'static str, &'static str, &'static str); 2] = [
+            ("/usr/bin/perl", "-e", PERL),
+            ("/usr/bin/python3", "-c", PYTHON),
+        ];
+        candidates
+            .into_iter()
+            .find(|(program, _, _)| Path::new(program).is_file())
+            .expect("a stock interpreter that can call setsid")
     }
 
     fn detaching_command(ignore_term: bool) -> (&'static str, &'static str, &'static str) {
@@ -715,6 +927,25 @@ mod tests {
             .expect("a stock interpreter that can call setsid")
     }
 
+    /// Starts a shell script the way the runtime drivers start a managed process: through the
+    /// managed launch, so the run's marker is inherited, and in its own process group.
+    fn spawn_managed(script: &str, environment: &[(&str, &str)]) -> Child {
+        let marker = create_launch_marker().expect("create the run marker");
+        let mut command = managed_launch_command(
+            Path::new("/bin/sh"),
+            &["-c".to_owned(), script.to_owned()],
+            &marker,
+        );
+        for (name, value) in environment {
+            command.env(name, value);
+        }
+        command.stdout(Stdio::null()).stderr(Stdio::null());
+        configure_process_group(&mut command);
+        let child = command.spawn().expect("spawn the managed process");
+        register_launch_marker(&child, marker);
+        child
+    }
+
     fn read_pid(path: &Path) -> u32 {
         let deadline = Instant::now() + Duration::from_secs(10);
         while Instant::now() < deadline {
@@ -746,6 +977,62 @@ mod tests {
             .output()
             .ok()?;
         String::from_utf8_lossy(&output.stdout).trim().parse().ok()
+    }
+
+    /// Ordinary daemonisation. Both intermediate processes are gone before any reading of the
+    /// process table could have linked the survivor to the run, so nothing the operating system
+    /// still reports connects it to the managed process. Ownership therefore has to come from a
+    /// property the survivor itself carries.
+    #[test]
+    fn termination_reaches_a_double_forked_descendant_orphaned_at_once() {
+        let pid_file = unique_pid_file("double-fork");
+        let (interpreter, flag, script) = double_forking_command();
+        let mut child = spawn_managed(
+            "\"$YMP_DETACH_INTERPRETER\" \"$YMP_DETACH_FLAG\" \"$YMP_DETACH_SCRIPT\" \
+             \"$YMP_DESCENDANT_PID_FILE\" </dev/null >/dev/null 2>&1; \
+             while [ ! -s \"$YMP_DESCENDANT_PID_FILE\" ]; do sleep 0.05; done; exit 29",
+            &[
+                ("YMP_DETACH_INTERPRETER", interpreter),
+                ("YMP_DETACH_FLAG", flag),
+                ("YMP_DETACH_SCRIPT", script),
+                ("YMP_DESCENDANT_PID_FILE", &pid_file.display().to_string()),
+            ],
+        );
+        let descendant = read_pid(&pid_file);
+        let status = child.wait().expect("wait for managed parent");
+        assert_eq!(status.code(), Some(29));
+        assert!(
+            is_alive(descendant),
+            "the daemonised descendant exited before the escape could be measured"
+        );
+        assert_eq!(
+            parent_of(descendant),
+            Some(1),
+            "the daemonised descendant was not reparented to init"
+        );
+
+        let terminated = terminate_process_tree(&mut child);
+
+        let mut alive = true;
+        let deadline = Instant::now() + Duration::from_secs(2);
+        while Instant::now() < deadline {
+            alive = is_alive(descendant);
+            if !alive {
+                break;
+            }
+            std::thread::sleep(Duration::from_millis(25));
+        }
+        if alive {
+            let _ = Command::new("/bin/kill")
+                .args(["-KILL", &descendant.to_string()])
+                .status();
+        }
+        let _ = fs::remove_file(&pid_file);
+        assert!(
+            !alive,
+            "a descendant orphaned by a double fork survived the supervisor"
+        );
+        terminated.expect("terminate the managed process tree");
     }
 
     /// The measured escape: a managed descendant creates its own session, so it leaves the process
@@ -813,23 +1100,18 @@ mod tests {
     fn termination_of_a_signal_ignoring_detached_descendant_is_bounded() {
         let pid_file = unique_pid_file("bounded-escalation");
         let (interpreter, flag, script) = detaching_command(true);
-        let mut command = Command::new("/bin/sh");
-        command
-            .arg("-c")
-            .arg(
-                "\"$YMP_DETACH_INTERPRETER\" \"$YMP_DETACH_FLAG\" \"$YMP_DETACH_SCRIPT\" \
-                 \"$YMP_DESCENDANT_PID_FILE\" & \
-                 while [ ! -s \"$YMP_DESCENDANT_PID_FILE\" ]; do sleep 0.05; done; \
-                 sleep 0.4; exit 23",
-            )
-            .env("YMP_DETACH_INTERPRETER", interpreter)
-            .env("YMP_DETACH_FLAG", flag)
-            .env("YMP_DETACH_SCRIPT", script)
-            .env("YMP_DESCENDANT_PID_FILE", &pid_file)
-            .stdout(Stdio::null())
-            .stderr(Stdio::null());
-        configure_process_group(&mut command);
-        let mut child = command.spawn().expect("spawn managed parent");
+        let mut child = spawn_managed(
+            "\"$YMP_DETACH_INTERPRETER\" \"$YMP_DETACH_FLAG\" \"$YMP_DETACH_SCRIPT\" \
+             \"$YMP_DESCENDANT_PID_FILE\" & \
+             while [ ! -s \"$YMP_DESCENDANT_PID_FILE\" ]; do sleep 0.05; done; \
+             sleep 0.4; exit 23",
+            &[
+                ("YMP_DETACH_INTERPRETER", interpreter),
+                ("YMP_DETACH_FLAG", flag),
+                ("YMP_DETACH_SCRIPT", script),
+                ("YMP_DESCENDANT_PID_FILE", &pid_file.display().to_string()),
+            ],
+        );
         let descendant = read_pid(&pid_file);
         let status = child.wait().expect("wait for managed parent");
         assert_eq!(status.code(), Some(23));

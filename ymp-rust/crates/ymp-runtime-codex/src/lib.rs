@@ -15,7 +15,8 @@ use ymp_runtime_api::{
     BoundedOutputLine, CancellationToken, DiagnosticSummary, InFlightExcess, InvocationRequest,
     LaunchDescriptor, LaunchEnvironmentVariable, McpBinding, ProbeReport, Readiness, RuntimeDriver,
     RuntimeError, RuntimeEvent, RuntimeEventKind, RuntimeFailureKind, RuntimeKind, RuntimeSession,
-    Usage, configure_process_group, evidence_digest, read_bounded_lines, terminate_process_tree,
+    Usage, configure_process_group, create_launch_marker, evidence_digest, managed_launch_command,
+    read_bounded_lines, register_launch_marker, terminate_process_tree,
 };
 
 pub const PINNED_CODEX_VERSION: &str = "codex-cli 0.147.0";
@@ -477,16 +478,26 @@ impl CodexLaunch {
             Some(&self.attempt_id),
             Some(&self.invocation_id),
         )?;
-        let mut command = Command::new(&descriptor.executable);
+        // Every descendant of the managed process inherits this marker, whatever becomes of the
+        // processes between it and the run, so the run can still identify what it started.
+        let marker = create_launch_marker()?;
+        let mut command =
+            managed_launch_command(&descriptor.executable, &descriptor.arguments, &marker);
         CodexEnvironment::apply(&mut command, &environment);
         command
-            .args(&descriptor.arguments)
             .current_dir(&descriptor.working_directory)
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .stderr(Stdio::piped());
         configure_process_group(&mut command);
-        let mut child = command.spawn()?;
+        let mut child = match command.spawn() {
+            Ok(child) => child,
+            Err(error) => {
+                let _ = std::fs::remove_file(&marker);
+                return Err(error.into());
+            }
+        };
+        register_launch_marker(&child, marker);
         if executable_digest(&descriptor.executable)? != descriptor.executable_digest {
             let _ = terminate_process_tree(&mut child);
             return Err(RuntimeError::InvalidProfile(

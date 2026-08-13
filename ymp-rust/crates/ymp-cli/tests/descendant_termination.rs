@@ -54,20 +54,22 @@ impl Stop {
     }
 }
 
-/// A shell cannot create a session, so the descendant that detaches is written in whichever stock
-/// interpreter exposes `setsid`. Missing interpreters fail the test instead of skipping it, because
-/// a skipped check would report the escape as closed without measuring it.
+/// Ordinary daemonisation, written in whichever stock interpreter exposes `setsid`: the first fork's
+/// parent returns at once and the second fork's parent exits at once, so the surviving grandchild
+/// owns a session and is reparented to init within microseconds of being created. Missing
+/// interpreters fail the test instead of skipping it, because a skipped check would report the
+/// escape as closed without measuring it.
 fn session_detaching_command() -> (&'static str, &'static str, &'static str) {
     const CANDIDATES: [(&str, &str, &str); 2] = [
         (
             "/usr/bin/perl",
             "-e",
-            "use POSIX; POSIX::setsid() or die \"setsid\"; open(my $handle, \">\", $ARGV[0]) or die \"pid file\"; print $handle \"$$\\n\"; close $handle; sleep 300;",
+            "use POSIX; exit 0 if fork(); POSIX::setsid() or die \"setsid\"; exit 0 if fork(); open(my $handle, \">\", $ARGV[0]) or die \"pid file\"; print $handle \"$$\\n\"; close $handle; sleep 300;",
         ),
         (
             "/usr/bin/python3",
             "-c",
-            "import os, sys, time; os.setsid(); open(sys.argv[1], \"w\").write(str(os.getpid()) + \"\\n\"); time.sleep(300)",
+            "import os, sys, time\nif os.fork(): raise SystemExit(0)\nos.setsid()\nif os.fork(): raise SystemExit(0)\nopen(sys.argv[1], \"w\").write(str(os.getpid()) + \"\\n\")\ntime.sleep(300)",
         ),
     ];
     CANDIDATES
@@ -76,28 +78,20 @@ fn session_detaching_command() -> (&'static str, &'static str, &'static str) {
         .expect("a stock interpreter that can call setsid")
 }
 
-/// Writes the helper the managed agent runs in the background. The helper starts a process that
-/// creates its own session, keeps it visible under a live parent for a few readings of the process
-/// table, and then exits, so the session-owning process is reparented to init well before the run
-/// reaches any terminal outcome. That is exactly the escape the review measured, and it means the
-/// only thing that can still link the process to the run is the record kept while it was reachable.
-/// Its standard streams are detached so that holding the agent's pipes open cannot mask the
-/// lifecycle question with an unrelated read that never ends.
-fn detaching_helper(path: &Path, pid_file: &Path, orphaned_file: &Path) -> PathBuf {
+/// The lines every fixture runs before it reaches its terminal behaviour. The daemonising command
+/// runs in the foreground and returns immediately, because its own process exits as soon as it has
+/// forked; the fixture then waits for the survivor to exist and for the test to open the gate. Every
+/// outcome under test therefore starts from the same state: a live process the run created, whose
+/// every intermediate ancestor is already gone, so nothing the operating system still reports
+/// connects it to the run.
+fn detach_prelude(pid_file: &Path, gate_file: &Path) -> String {
     let (interpreter, flag, script) = session_detaching_command();
-    fs::write(
-        path,
-        format!(
-            "#!/bin/sh\n\"{interpreter}\" \"{flag}\" '{script}' \"{pid}\" \
-             </dev/null >/dev/null 2>&1 &\n{}sleep 0.4\nprintf 'orphaned\\n' > \"{orphaned}\"\n\
-             exit 0\n",
-            wait_for(pid_file),
-            pid = pid_file.display(),
-            orphaned = orphaned_file.display(),
-        ),
+    format!(
+        "\"{interpreter}\" \"{flag}\" '{script}' \"{}\" </dev/null >/dev/null 2>&1\n{}{}",
+        pid_file.display(),
+        wait_for(pid_file),
+        wait_for(gate_file)
     )
-    .expect("write detaching helper");
-    executable(path)
 }
 
 /// A bounded shell wait for a file to become non-empty. Waiting for the state instead of pausing for
@@ -115,19 +109,6 @@ fn executable(path: &Path) -> PathBuf {
     permissions.set_mode(0o700);
     fs::set_permissions(path, permissions).expect("make executable");
     path.to_path_buf()
-}
-
-/// The lines every fixture runs before it reaches its terminal behaviour. The fixture waits until
-/// the helper reports that the session-owning process has been orphaned, and then until the test
-/// opens the gate. Every outcome under test therefore starts from the same state, and the reading
-/// that establishes the escape cannot be overtaken by the outcome it is meant to precede.
-fn detach_prelude(helper: &Path, orphaned_file: &Path, gate_file: &Path) -> String {
-    format!(
-        "'{}' &\n{}{}",
-        helper.display(),
-        wait_for(orphaned_file),
-        wait_for(gate_file)
-    )
 }
 
 fn managed_source(root: &Path, name: &str) -> PathBuf {
@@ -254,9 +235,14 @@ fn drive(
 ) -> (u32, Observed) {
     let descendant = read_descendant_pid(pid_file);
     let observed_entry = await_orphaned(descendant);
-    assert_eq!(
-        observed_entry.group, descendant,
-        "the descendant did not leave the managed process group, so the escape is not reproduced"
+    // The session was created by the process between the two forks, so the surviving process leads
+    // a group whose leader is either itself or a process that is already gone. Either way the group
+    // is one the run's own descendants made, not the group the supervisor signals, whose leader is
+    // the managed process still running behind the gate.
+    assert!(
+        observed_entry.group == descendant || entry(observed_entry.group).is_none(),
+        "the descendant is still in a process group whose leader is alive, so it did not leave the \
+         group the supervisor signals"
     );
     fs::write(gate_file, b"observed\n").expect("open the observation gate");
     if let Some(reason) = cancel {
@@ -340,8 +326,8 @@ fn start(
     .expect("start the managed candidate")
 }
 
-fn claude_fixture(path: &Path, helper: &Path, orphaned_file: &Path, gate_file: &Path) -> PathBuf {
-    let prelude = detach_prelude(helper, orphaned_file, gate_file);
+fn claude_fixture(path: &Path, pid_file: &Path, gate_file: &Path) -> PathBuf {
+    let prelude = detach_prelude(pid_file, gate_file);
     fs::write(
         path,
         format!(
@@ -390,8 +376,8 @@ esac
     executable(path)
 }
 
-fn codex_fixture(path: &Path, helper: &Path, orphaned_file: &Path, gate_file: &Path) -> PathBuf {
-    let prelude = detach_prelude(helper, orphaned_file, gate_file);
+fn codex_fixture(path: &Path, pid_file: &Path, gate_file: &Path) -> PathBuf {
+    let prelude = detach_prelude(pid_file, gate_file);
     fs::write(
         path,
         format!(
@@ -442,17 +428,10 @@ fn claude_run(stop: Stop) {
     let label = format!("claude-{}", stop.keyword());
     let temporary = tempfile::tempdir().expect("temporary directory");
     let pid_file = temporary.path().join("descendant.pid");
-    let orphaned_file = temporary.path().join("descendant.orphaned");
     let gate_file = temporary.path().join("descendant.gate");
-    let helper = detaching_helper(
-        &temporary.path().join("detach.sh"),
-        &pid_file,
-        &orphaned_file,
-    );
     let fixture = claude_fixture(
         &temporary.path().join("claude-lifecycle"),
-        &helper,
-        &orphaned_file,
+        &pid_file,
         &gate_file,
     );
     let profile = ClaudeProfile {
@@ -476,17 +455,10 @@ fn codex_run(stop: Stop) {
     let label = format!("codex-{}", stop.keyword());
     let temporary = tempfile::tempdir().expect("temporary directory");
     let pid_file = temporary.path().join("descendant.pid");
-    let orphaned_file = temporary.path().join("descendant.orphaned");
     let gate_file = temporary.path().join("descendant.gate");
-    let helper = detaching_helper(
-        &temporary.path().join("detach.sh"),
-        &pid_file,
-        &orphaned_file,
-    );
     let fixture = codex_fixture(
         &temporary.path().join("codex-lifecycle"),
-        &helper,
-        &orphaned_file,
+        &pid_file,
         &gate_file,
     );
     let profile = CodexProfile {
@@ -568,35 +540,43 @@ fn codex_budget_stop_leaves_no_detached_descendant() {
 }
 
 /// The bound of the check in the other direction: terminating one managed run must not reach a
-/// process that run did not start. A sibling process of the supervisor, and the child that sibling
-/// spawns, both outlive the managed run they were never part of.
+/// process that run did not start. The stranger is created before the run, owns its own session and
+/// is reparented to init exactly as a managed escapee would be, so it is indistinguishable from one
+/// by shape alone; it and the child below it both outlive the run.
 #[test]
 fn termination_spares_processes_the_managed_run_did_not_start() {
     let temporary = tempfile::tempdir().expect("temporary directory");
-    let sibling_pid_file = temporary.path().join("sibling.pid");
-    let mut sibling = Command::new("/bin/sh")
+    let stranger_pid_file = temporary.path().join("stranger.pid");
+    let stranger_child_pid_file = temporary.path().join("stranger-child.pid");
+    let (interpreter, flag, script) = session_detaching_command();
+    let status = Command::new("/bin/sh")
+        .arg("-c")
+        .arg(format!(
+            "\"{interpreter}\" \"{flag}\" '{script}' \"{}\" </dev/null >/dev/null 2>&1",
+            stranger_pid_file.display()
+        ))
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .status()
+        .expect("start an unmanaged session leader");
+    assert!(status.success(), "the stranger did not start");
+    let stranger = read_descendant_pid(&stranger_pid_file);
+    let mut stranger_child = Command::new("/bin/sh")
         .arg("-c")
         .arg("sleep 120 & printf '%s\\n' \"$!\" > \"$1\"; sleep 120")
-        .arg("sibling")
-        .arg(&sibling_pid_file)
+        .arg("stranger-child")
+        .arg(&stranger_child_pid_file)
         .stdout(Stdio::null())
         .stderr(Stdio::null())
         .spawn()
         .expect("spawn an unmanaged sibling");
-    let sibling_child = read_descendant_pid(&sibling_pid_file);
+    let sibling_child = read_descendant_pid(&stranger_child_pid_file);
 
     let pid_file = temporary.path().join("descendant.pid");
-    let orphaned_file = temporary.path().join("descendant.orphaned");
     let gate_file = temporary.path().join("descendant.gate");
-    let helper = detaching_helper(
-        &temporary.path().join("detach.sh"),
-        &pid_file,
-        &orphaned_file,
-    );
     let fixture = codex_fixture(
         &temporary.path().join("codex-lifecycle"),
-        &helper,
-        &orphaned_file,
+        &pid_file,
         &gate_file,
     );
     let handle = start(
@@ -618,15 +598,22 @@ fn termination_spares_processes_the_managed_run_did_not_start() {
 
     let table = process_table();
     let survived = |pid: u32| table.iter().any(|entry| entry.pid == pid);
-    let sibling_alive = survived(sibling.id());
+    let stranger_alive = survived(stranger);
+    let stranger_child_alive = survived(stranger_child.id());
     let sibling_child_alive = survived(sibling_child);
-    let _ = sibling.kill();
-    let _ = sibling.wait();
-    let _ = Command::new("/bin/kill")
-        .args(["-KILL", &sibling_child.to_string()])
-        .status();
+    let _ = stranger_child.kill();
+    let _ = stranger_child.wait();
+    for pid in [stranger, sibling_child] {
+        let _ = Command::new("/bin/kill")
+            .args(["-KILL", &pid.to_string()])
+            .status();
+    }
     assert!(
-        sibling_alive,
+        stranger_alive,
+        "terminating the managed run killed a session leader created before it"
+    );
+    assert!(
+        stranger_child_alive,
         "terminating the managed run killed a sibling process it did not start"
     );
     assert!(
