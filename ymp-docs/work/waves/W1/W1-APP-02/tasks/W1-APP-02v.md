@@ -3,24 +3,24 @@ id: W1-APP-02v
 kind: task
 wave: W1
 card: W1-APP-02
-state: active
+state: accepted
 risk: significant
 maturity: BUILD
 relation: required
 depends_on: [W1-APP-02u]
 blocks: []
 created_at: 2026-08-14T02:05:00+08:00
-updated_at: 2026-08-14T02:19:00+08:00
+updated_at: 2026-08-14T04:08:46+08:00
 started_at: 2026-08-14T02:19:00+08:00
-accepted_at:
-candidate_commit:
-closure_commit:
-evidence:
+accepted_at: 2026-08-14T04:08:46+08:00
+candidate_commit: https://github.com/maggnus/ymp/commit/a21046259075e50b581184fe53ab33a66e13ce29
+closure_commit: https://github.com/maggnus/ymp/commit/7e98831
+evidence: one return round; both blockers closed and re-verified by the reviewer own scenarios (budget re-authorization, fresh copy with revocation, seven assemblies leave one directory); slash surface and one-statement draft proved on the built product
 duration_minutes: 0
 blocker:
 pause_reason:
-return_trigger:
-deliberate_partial: false
+return_trigger: the acceptance half for an operator-named verifier stays undemonstrated, and the per-process assembly counter can reuse a draft directory across command invocations; either surfacing in use returns this card
+
 ---
 
 # W1-APP-02v — The dialogue experience converges on the Claude Code interface

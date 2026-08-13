@@ -3,19 +3,19 @@ id: W1-APP-02x
 kind: task
 wave: W1
 card: W1-APP-02
-state: active
+state: accepted
 risk: significant
 maturity: BUILD
 relation: required
 depends_on: [W1-APP-02u]
 blocks: []
 created_at: 2026-08-14T02:19:00+08:00
-updated_at: 2026-08-14T02:19:00+08:00
+updated_at: 2026-08-14T04:08:46+08:00
 started_at: 2026-08-14T02:19:00+08:00
-accepted_at:
-candidate_commit:
-closure_commit:
-evidence:
+accepted_at: 2026-08-14T04:08:46+08:00
+candidate_commit: https://github.com/maggnus/ymp/commit/4e8c449ff027b0a4380dde4460ac2bf8b683c7ed
+closure_commit: https://github.com/maggnus/ymp/commit/7e98831
+evidence: hanging verifier left the interface redrawing for the full limit and Esc cancelled in 0.23 s; the negative half measured the prior 60.1 s hold on the base revision
 duration_minutes: 0
 blocker:
 pause_reason:
