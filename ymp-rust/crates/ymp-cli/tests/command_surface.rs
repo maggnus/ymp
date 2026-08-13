@@ -9,7 +9,7 @@
 //! * The comparison is widened past those enumerations to the keyboard: every key, on every
 //!   surface and every modal, either changes what is on screen or returns an action a command
 //!   performs.
-//! * An answer stays an answer. A stated value that begins with a colon, or carries an escape or
+//! * An answer stays an answer. A stated value that begins with the command prefix, or carries an escape or
 //!   a control character, must not reach a surface the command did not open — the reproduction
 //!   that led to this check started an irreversible run from an `authorize` invocation.
 //! * The journal is compared byte for byte. The same request is carried to a run and then
@@ -72,10 +72,12 @@ const CORRESPONDENCE: &[(&str, &[&str])] = &[
     ),
 ];
 
-/// The one action of the interface that acts on the interface rather than on the run: leaving
-/// it. A command process leaves when it has finished its work, so no command mirrors it, and the
-/// exclusion is held to exactly this one action.
-const LIFECYCLE: [&str; 1] = ["quit"];
+/// The actions of the interface that act on the interface rather than on the run. A command
+/// process leaves when it has finished its work, and it runs the check a draft needs inside its
+/// own process rather than scheduling it, so neither action has a command to mirror it. Neither
+/// writes anything durable and neither spends anything; the exclusion is held to exactly these
+/// two and the comparison below is an equality, so it cannot grow unnoticed.
+const LIFECYCLE: [&str; 2] = ["quit", "cancel-check"];
 
 /// The namespace excluded from the comparison: the product's own machinery, which predates this
 /// card and is not an operator capability. The exclusion is held to exactly this one namespace.
@@ -124,6 +126,7 @@ fn performed_action(action: &Action) -> String {
         Action::CancelRun => "cancel-run".to_owned(),
         Action::StartRun(_) => "start-run".to_owned(),
         Action::LocalTurn(_) => "request".to_owned(),
+        Action::CancelCheck => "cancel-check".to_owned(),
         // The interface rebuilds its projection when a candidate is opened; the surface that
         // opens is the describe page.
         Action::Rebuild => page_action(PageKind::Describe),
@@ -168,6 +171,7 @@ fn interface_actions(root: &Path) -> BTreeSet<String> {
         Action::CancelRun,
         Action::StartRun("contract-1".to_owned()),
         Action::LocalTurn("keep the replay path idempotent".to_owned()),
+        Action::CancelCheck,
         Action::Rebuild,
     ] {
         actions.insert(performed_action(&action));
@@ -324,6 +328,9 @@ fn keyboard_states(root: &Path) -> Vec<App> {
     let mut awaiting = base.clone();
     awaiting.data.awaiting = Some("answer: source directory".into());
     states.push(awaiting);
+    let mut working = base.clone();
+    working.data.working = Some("running verify.sh against the negative control".into());
+    states.push(working);
 
     // Every page, including the one reached only by opening a candidate.
     for kind in PageKind::ALL {

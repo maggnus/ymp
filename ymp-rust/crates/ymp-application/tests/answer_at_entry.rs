@@ -10,10 +10,12 @@
 
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::time::{Duration, Instant};
 
 use tempfile::TempDir;
 use ymp_application::answer::{
-    AnswerError, discriminates, negative_control_directory, source_directory, verifier_program,
+    AnswerError, discriminates, discriminates_within, negative_control_directory, source_directory,
+    verifier_program,
 };
 use ymp_application::{AcceptanceCondition, RunRequest, prepare_contract};
 
@@ -108,6 +110,37 @@ fn a_program_that_rejects_the_negative_control_is_taken() {
     // that fails on everything.
     discriminates(&verifier, &workspace.source)
         .expect_err("a directory the program accepts cannot serve as a negative control");
+}
+
+/// A program that never decides is a refusal, not a wait without end.
+///
+/// The check applies the limit the contract would apply to the same program, so what happens at
+/// entry is what would happen to the run: the program is ended and the refusal names the limit.
+/// The interface runs this check away from the thread that draws, so the wait it bounds is a
+/// wait on that thread and never on the screen.
+#[test]
+fn a_program_that_never_returns_is_refused_at_the_limit_the_check_carries() {
+    let workspace = workspace();
+    let never = workspace.program("never.sh", "sleep 30");
+
+    let limit = Duration::from_millis(300);
+    let started = Instant::now();
+    let refusal = discriminates_within(&never, &workspace.negative_control, limit)
+        .expect_err("a program that never decides cannot judge a run");
+    let waited = started.elapsed();
+
+    assert!(
+        matches!(refusal, AnswerError::VerifierNotRun { .. }),
+        "{refusal}"
+    );
+    assert!(
+        refusal.to_string().contains("300"),
+        "the refusal does not name the limit it applied: {refusal}"
+    );
+    assert!(
+        waited < Duration::from_secs(5),
+        "the check waited {waited:?} for a program it was told to bound at {limit:?}"
+    );
 }
 
 #[test]

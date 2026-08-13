@@ -197,7 +197,25 @@ fn dashed_marker(label: &str, width: usize) -> Line<'static> {
     ])
 }
 
+/// The marks the input row cycles through while something runs away from this thread. They are
+/// what makes a redraw visible: the row changes on every heartbeat, so a frozen interface and a
+/// waiting one cannot look alike.
+const WORKING_MARKS: [&str; 4] = ["·", "‥", "…", "‥"];
+
 fn input_left(app: &App, markers: &Markers) -> Vec<Span<'static>> {
+    // Work off this thread outranks the buffer: the line that started it has been taken, and the
+    // row states what is being waited for and how to end it.
+    if let Some(notice) = &app.data.working {
+        return vec![
+            Span::styled(format!("{} ", markers.prompt), theme::amber()),
+            Span::styled(
+                WORKING_MARKS[app.working_ticks % WORKING_MARKS.len()].to_owned(),
+                theme::accent(),
+            ),
+            Span::styled(format!(" {notice}"), theme::muted()),
+            Span::styled("  Esc cancels".to_owned(), theme::faint()),
+        ];
+    }
     match &app.prompt.suspended {
         Some(reason) => vec![
             Span::styled(format!("{} ", markers.prompt), theme::faint()),

@@ -15,8 +15,10 @@
 //! named, instead of being carried through the remaining questions and refused at assembly.
 
 use std::path::{Path, PathBuf};
+use std::time::Duration;
 
 use ymp_application::{AcceptanceCondition, RunRequest, answer};
+use ymp_domain::contract::default_wall_time_ms;
 
 /// What the draft is waiting for.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -37,6 +39,9 @@ pub struct Draft {
     pub program: Option<PathBuf>,
     pub negative_control: Option<PathBuf>,
     pub question: Question,
+    /// The negative-control answer whose demonstration is running, while one is. It becomes an
+    /// answer of the draft only when the demonstration decides it.
+    awaiting_check: Option<PathBuf>,
 }
 
 /// What the draft needs next.
@@ -48,9 +53,58 @@ pub enum Step {
     /// and what this host said about it, so the operator learns it at that answer rather than
     /// after the remaining questions.
     Refused(String),
+    /// The answer resolved on this host, and deciding it means running the named verifier. That
+    /// work starts a subprocess and waits for it, so the caller schedules it: the interface runs
+    /// it away from the thread that draws, and a command runs it inline.
+    Check(EntryCheck),
     /// Complete as far as the interface can take it. The application decides whether it is a
     /// contract: a request with no acceptance condition reaches it and is refused there.
     Ready(Box<RunRequest>),
+}
+
+/// The demonstration one answer needs before it can be taken.
+///
+/// It carries everything the work needs and nothing that reads the interface, so it can be
+/// moved to another thread and its outcome handed back as a value.
+#[derive(Clone, Debug)]
+pub struct EntryCheck {
+    pub program: PathBuf,
+    pub negative_control: PathBuf,
+    /// The limit the contract would apply to the same program. A program that never returns
+    /// ends in a refusal that names this limit rather than in a wait without end.
+    pub wall_limit: Duration,
+}
+
+impl EntryCheck {
+    /// The demonstration this answer needs, under the limit the contract carries.
+    pub fn new(program: PathBuf, negative_control: PathBuf) -> Self {
+        Self {
+            program,
+            negative_control,
+            wall_limit: Duration::from_millis(default_wall_time_ms()),
+        }
+    }
+
+    /// Run it. The refusal is kept as text, because what the interface does with it is state it.
+    pub fn run(&self) -> Result<(), String> {
+        answer::discriminates_within(&self.program, &self.negative_control, self.wall_limit)
+            .map_err(|refusal| refusal.to_string())
+    }
+
+    /// What the interface says it is waiting for while this runs.
+    pub fn waiting_for(&self) -> String {
+        format!(
+            "running {} against the negative control · limit {} s",
+            file_name(&self.program),
+            self.wall_limit.as_secs()
+        )
+    }
+}
+
+fn file_name(path: &Path) -> String {
+    path.file_name()
+        .map(|name| name.to_string_lossy().into_owned())
+        .unwrap_or_else(|| path.display().to_string())
 }
 
 impl Draft {
@@ -61,6 +115,7 @@ impl Draft {
             program: None,
             negative_control: None,
             question: Question::Source,
+            awaiting_check: None,
         }
     }
 
@@ -104,22 +159,57 @@ impl Draft {
                 Step::Ask(Question::NegativeControl)
             }
             Question::NegativeControl => {
-                if !answer.is_empty() {
-                    let negative_control =
-                        match answer::negative_control_directory(Path::new(answer)) {
-                            Ok(negative_control) => negative_control,
-                            Err(refusal) => return Step::Refused(refusal.to_string()),
-                        };
-                    if let Some(program) = &self.program
-                        && let Err(refusal) = answer::discriminates(program, &negative_control)
-                    {
-                        return Step::Refused(refusal.to_string());
-                    }
-                    self.negative_control = Some(negative_control);
+                if answer.is_empty() {
+                    return Step::Ready(Box::new(self.request()));
                 }
-                Step::Ready(Box::new(self.request()))
+                let negative_control = match answer::negative_control_directory(Path::new(answer)) {
+                    Ok(negative_control) => negative_control,
+                    Err(refusal) => return Step::Refused(refusal.to_string()),
+                };
+                match &self.program {
+                    // The answer resolves here; what decides it is the verifier's own decision
+                    // about it, which the caller schedules and hands back to `checked`.
+                    Some(program) => {
+                        self.awaiting_check = Some(negative_control.clone());
+                        Step::Check(EntryCheck::new(program.clone(), negative_control))
+                    }
+                    None => {
+                        self.negative_control = Some(negative_control);
+                        Step::Ready(Box::new(self.request()))
+                    }
+                }
             }
         }
+    }
+
+    /// Take the outcome of the demonstration the last answer needed.
+    ///
+    /// The answer becomes part of the draft only on a rejection of the negative control; an
+    /// acceptance ends the draft where the answer was typed, exactly as an unresolvable path
+    /// does. An outcome that arrives for no pending answer changes nothing.
+    pub fn checked(&mut self, outcome: Result<(), String>) -> Step {
+        let Some(negative_control) = self.awaiting_check.take() else {
+            return Step::Ask(self.question);
+        };
+        match outcome {
+            Ok(()) => {
+                self.negative_control = Some(negative_control);
+                Step::Ready(Box::new(self.request()))
+            }
+            Err(refusal) => Step::Refused(refusal),
+        }
+    }
+
+    /// Abandon a demonstration the operator cancelled: the answer it was deciding is not taken,
+    /// and the draft waits for that answer again.
+    pub fn abandon_check(&mut self) -> Question {
+        self.awaiting_check = None;
+        self.question
+    }
+
+    /// Whether a demonstration is deciding an answer of this draft.
+    pub fn is_checking(&self) -> bool {
+        self.awaiting_check.is_some()
     }
 
     /// What the answers so far have set, stated back so an accepted default is visible.
@@ -255,6 +345,18 @@ mod tests {
         }
     }
 
+    /// Run whatever demonstration the answer needs, as the caller that scheduled it would, and
+    /// hand its outcome back to the draft.
+    fn settle(draft: &mut Draft, step: Step) -> Step {
+        match step {
+            Step::Check(check) => {
+                let outcome = check.run();
+                draft.checked(outcome)
+            }
+            other => other,
+        }
+    }
+
     #[test]
     fn an_empty_source_answer_accepts_the_project_directory() {
         let project = project();
@@ -287,10 +389,11 @@ mod tests {
             draft.answer(&project.program.display().to_string(), &project.directory),
             Step::Ask(Question::NegativeControl)
         ));
-        let Step::Ready(request) = draft.answer(
+        let step = draft.answer(
             &project.negative_control.display().to_string(),
             &project.directory,
-        ) else {
+        );
+        let Step::Ready(request) = settle(&mut draft, step) else {
             panic!("the draft did not complete");
         };
         let acceptance = request.acceptance.expect("acceptance condition");
@@ -366,10 +469,11 @@ mod tests {
         let mut draft = Draft::new("keep the replay path idempotent");
         draft.answer(&project.source.display().to_string(), &project.directory);
         draft.answer(&accepts_anything.display().to_string(), &project.directory);
-        let reason = refusal(draft.answer(
+        let step = draft.answer(
             &project.negative_control.display().to_string(),
             &project.directory,
-        ));
+        );
+        let reason = refusal(settle(&mut draft, step));
         assert!(reason.contains("accepted the negative control"), "{reason}");
         assert!(draft.negative_control.is_none());
     }

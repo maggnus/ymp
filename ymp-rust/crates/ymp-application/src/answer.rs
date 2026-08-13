@@ -120,7 +120,25 @@ pub fn negative_control_directory(answer: &Path) -> Result<PathBuf, AnswerError>
 ///
 /// Both paths must already be resolved by [`verifier_program`] and [`negative_control_directory`].
 /// Nothing is stored: the evidence this produces names no contract and is discarded.
+///
+/// The check is bounded: it applies the limit the contract would apply to the same program, so a
+/// program that never returns ends in a refusal that names the limit instead of holding whoever
+/// asked for the check. Running it away from the thread that draws is the caller's decision, and
+/// the interface makes it in `ymp-tui`.
 pub fn discriminates(program: &Path, negative_control: &Path) -> Result<(), AnswerError> {
+    discriminates_within(
+        program,
+        negative_control,
+        Duration::from_millis(default_wall_time_ms()),
+    )
+}
+
+/// [`discriminates`] under a stated limit, which is the limit the contract carries.
+pub fn discriminates_within(
+    program: &Path,
+    negative_control: &Path,
+    wall_limit: Duration,
+) -> Result<(), AnswerError> {
     let refused = |reason: String| AnswerError::VerifierNotRun {
         program: program.to_path_buf(),
         negative_control: negative_control.to_path_buf(),
@@ -148,7 +166,7 @@ pub fn discriminates(program: &Path, negative_control: &Path) -> Result<(), Answ
         oracle_digest,
         program,
         Vec::new(),
-        Duration::from_millis(default_wall_time_ms()),
+        wall_limit,
         default_output_limit_bytes(),
     )
     .map_err(|error| refused(error.to_string()))?;

@@ -40,6 +40,8 @@ pub struct Model {
     events: Vec<EventFacts>,
     /// The answer the interface is waiting for, while a request is being drafted.
     awaiting: Option<String>,
+    /// What is running away from the thread that draws, while something is.
+    working: Option<String>,
     /// Whether this store was refused because this binary cannot read it.
     refused: bool,
     /// The last journal position folded into this model.
@@ -60,6 +62,7 @@ impl Model {
             attempts: Vec::new(),
             events: Vec::new(),
             awaiting: None,
+            working: None,
             refused: false,
             cursor: 0,
         };
@@ -260,6 +263,11 @@ impl Model {
         self.awaiting = hint;
     }
 
+    /// State what is running away from the thread that draws, or that nothing is.
+    pub fn working(&mut self, notice: Option<String>) {
+        self.working = notice;
+    }
+
     /// Report a refusal: what was not done, and why. Nothing here is a journal fact.
     pub fn error(&mut self, text: impl Into<String>) {
         self.push(Entry::Blank);
@@ -332,6 +340,7 @@ impl Model {
             pages,
             runtimes: runtimes.cloned(),
             awaiting: self.awaiting.clone(),
+            working: self.working.clone(),
             status: self.status_line(),
         }
     }

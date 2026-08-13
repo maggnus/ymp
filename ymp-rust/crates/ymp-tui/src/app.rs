@@ -53,6 +53,43 @@ pub struct Session {
     /// command line named, or a request typed here. Both arrive as the same prepared contract,
     /// so both start through one call.
     contracts: Vec<PreparedContract>,
+    /// Which demonstration this session is waiting for. Every check carries the number it was
+    /// asked under, so an outcome that arrives after a cancellation or a later answer is
+    /// recognised as deciding nothing.
+    checking: u64,
+}
+
+/// A demonstration this session asked for, ready to be run wherever the caller decides.
+///
+/// It holds no reference to the session, so the interface can move it to another thread and hand
+/// the outcome back through [`Session::finish_check`].
+#[derive(Clone, Debug)]
+pub struct PendingCheck {
+    generation: u64,
+    check: draft::EntryCheck,
+}
+
+impl PendingCheck {
+    /// What the interface says it is waiting for while this runs.
+    pub fn waiting_for(&self) -> String {
+        self.check.waiting_for()
+    }
+
+    /// Run the demonstration and label its outcome with the check it belongs to.
+    pub fn run(self) -> CheckOutcome {
+        let outcome = self.check.run();
+        CheckOutcome {
+            generation: self.generation,
+            outcome,
+        }
+    }
+}
+
+/// The outcome of one demonstration, with the check it belongs to.
+#[derive(Clone, Debug)]
+pub struct CheckOutcome {
+    generation: u64,
+    outcome: Result<(), String>,
 }
 
 impl Session {
@@ -83,6 +120,7 @@ impl Session {
                     runtimes: None,
                     draft: None,
                     contracts: contracts.to_vec(),
+                    checking: 0,
                 }
             }
             Ok(application) => {
@@ -101,6 +139,7 @@ impl Session {
                     runtimes: None,
                     draft: None,
                     contracts: contracts.to_vec(),
+                    checking: 0,
                 }
             }
         }
@@ -125,6 +164,7 @@ impl Session {
             runtimes: None,
             draft: None,
             contracts: Vec::new(),
+            checking: 0,
         }
     }
 
@@ -204,12 +244,27 @@ impl Session {
         self.model.describe_candidate(index)
     }
 
-    /// Take what the operator typed.
+    /// Take what the operator typed and settle it here, including any demonstration it needs.
+    ///
+    /// A caller with nothing else to do — a command, whose process is the wait — settles the turn
+    /// on its own thread. The interface has a screen to keep drawing, so it uses [`Self::begin_turn`]
+    /// and [`Self::finish_check`] instead: the same two steps, scheduled rather than run inline.
+    pub fn local_turn(&mut self, text: String) {
+        if let Some(pending) = self.begin_turn(text) {
+            let outcome = pending.run();
+            self.finish_check(outcome);
+        }
+    }
+
+    /// Take what the operator typed, up to the point where work would begin.
     ///
     /// With no run in this store the line is a request: it opens a draft, and the answers that
     /// follow complete it. Once a run exists there is nothing for prose to become — the domain
     /// carries no messages — so the turn is answered honestly and recorded nowhere.
-    pub fn local_turn(&mut self, text: String) {
+    ///
+    /// An answer whose decision needs the verifier run returns that work to the caller instead of
+    /// doing it here. Nothing about the draft is settled until the outcome comes back.
+    pub fn begin_turn(&mut self, text: String) -> Option<PendingCheck> {
         // An empty line is not something the operator said; it accepts what the question
         // offered, and the reply below states what that was.
         if !text.trim().is_empty() {
@@ -220,19 +275,19 @@ impl Session {
                 "local turn — not recorded in the journal. This domain carries no messages, so no \
                  participant can receive it. Commands work: press / for the list, ? for the keys.",
             );
-            return;
+            return None;
         }
         if self.model.store_refused() {
             self.model.error(
                 "this store cannot be read by this binary, so no request can be drafted over it",
             );
-            return;
+            return None;
         }
         let project = self.model.environment().project_path.clone();
         match self.draft.as_mut() {
             None => {
                 if text.trim().is_empty() {
-                    return;
+                    return None;
                 }
                 self.draft = Some(Draft::new(text));
                 self.model.reply(format!(
@@ -245,33 +300,109 @@ impl Session {
             Some(current) => {
                 let step = current.answer(&text, &project);
                 let taken = current.taken();
-                match step {
-                    Step::Ask(question) => {
-                        self.model.reply(format!(
-                            "{taken} · {}",
-                            draft::question_text(question, &project)
-                        ));
-                        self.model
-                            .await_answer(Some(draft::question_hint(question)));
-                    }
-                    // An answer this host cannot resolve ends the draft where it was typed. The
-                    // remaining questions are not asked, because they would collect answers for a
-                    // contract that already cannot be assembled.
-                    Step::Refused(reason) => {
-                        self.draft = None;
-                        self.model.await_answer(None);
-                        self.model.error(format!(
-                            "{reason}. Nothing was recorded. State the request again to draft \
-                             another contract."
-                        ));
-                    }
-                    Step::Ready(request) => {
-                        self.model.await_answer(None);
-                        self.prepare(*request);
-                    }
-                }
+                return self.take_step(step, taken, &project);
             }
         }
+        None
+    }
+
+    /// State what one step of the draft means, and return the work it needs, if any.
+    fn take_step(&mut self, step: Step, taken: String, project: &Path) -> Option<PendingCheck> {
+        match step {
+            Step::Ask(question) => {
+                self.model.reply(format!(
+                    "{taken} · {}",
+                    draft::question_text(question, project)
+                ));
+                self.model
+                    .await_answer(Some(draft::question_hint(question)));
+                None
+            }
+            // An answer this host cannot resolve ends the draft where it was typed. The
+            // remaining questions are not asked, because they would collect answers for a
+            // contract that already cannot be assembled.
+            Step::Refused(reason) => {
+                self.draft = None;
+                self.model.await_answer(None);
+                self.model.working(None);
+                self.model.error(format!(
+                    "{reason}. Nothing was recorded. State the request again to draft another \
+                     contract."
+                ));
+                None
+            }
+            // The answer resolved; what decides it is the verifier's own decision about it. The
+            // interface states what it is waiting for and accepts no answer meanwhile, because
+            // the answer being decided is the one that was just typed.
+            Step::Check(check) => {
+                self.checking = self.checking.wrapping_add(1);
+                self.model.await_answer(None);
+                self.model.working(Some(check.waiting_for()));
+                self.model.reply(format!(
+                    "{taken} · {} · nothing has started and nothing is spent · Esc cancels the \
+                     check",
+                    check.waiting_for()
+                ));
+                Some(PendingCheck {
+                    generation: self.checking,
+                    check,
+                })
+            }
+            Step::Ready(request) => {
+                self.model.await_answer(None);
+                self.model.working(None);
+                self.prepare(*request);
+                None
+            }
+        }
+    }
+
+    /// Take the outcome of a demonstration this session asked for.
+    ///
+    /// An outcome from a check the operator has since cancelled, or from one superseded by a
+    /// later answer, decides nothing: the draft it was deciding is no longer waiting for it.
+    pub fn finish_check(&mut self, outcome: CheckOutcome) {
+        if outcome.generation != self.checking {
+            return;
+        }
+        let project = self.model.environment().project_path.clone();
+        let Some(draft) = self.draft.as_mut() else {
+            self.model.working(None);
+            return;
+        };
+        let step = draft.checked(outcome.outcome);
+        let taken = draft.taken();
+        self.model.working(None);
+        self.take_step(step, taken, &project);
+    }
+
+    /// Abandon a running demonstration at the operator's word.
+    ///
+    /// The draft returns to the answer the check was deciding, so the operator can state another
+    /// one. The outcome of the abandoned run is ignored when it arrives; the program it started
+    /// ends on its own, bounded by the limit the check carries.
+    pub fn cancel_check(&mut self) {
+        if !self.is_checking() {
+            return;
+        }
+        self.checking = self.checking.wrapping_add(1);
+        self.model.working(None);
+        let question = self
+            .draft
+            .as_mut()
+            .map(|draft| draft.abandon_check())
+            .unwrap_or(draft::Question::NegativeControl);
+        self.model.reply(
+            "the check was cancelled — nothing was recorded and the answer it was deciding was \
+             not taken",
+        );
+        self.model
+            .await_answer(Some(draft::question_hint(question)));
+    }
+
+    /// Whether a demonstration this session asked for is still deciding an answer.
+    pub fn is_checking(&self) -> bool {
+        self.draft.as_ref().is_some_and(|draft| draft.is_checking())
     }
 
     /// Hand the assembled request to the application, which decides whether it is a contract.
@@ -383,6 +514,10 @@ pub enum Action {
     /// The operator typed prose. It is shown as a local turn and answered honestly: no
     /// participant can receive it until the domain carries messages.
     LocalTurn(String),
+    /// Abandon the demonstration a typed answer started. It acts on this interface's own
+    /// scheduling: nothing durable is written and nothing spent, so there is nothing for a
+    /// command to mirror — a command's process is its own check.
+    CancelCheck,
     Rebuild,
 }
 
@@ -399,6 +534,8 @@ enum AppEvent {
     Terminal(Event),
     Journal,
     Runtimes(Box<Report>),
+    /// A demonstration this session asked for has decided.
+    Checked(Box<CheckOutcome>),
     InputEnded,
 }
 
@@ -449,6 +586,10 @@ fn event_loop(
                             session.set_runtimes(*report);
                             adopt(session, app);
                         }
+                        AppEvent::Checked(outcome) => {
+                            session.finish_check(*outcome);
+                            adopt(session, app);
+                        }
                         AppEvent::InputEnded => {
                             app.should_quit = true;
                         }
@@ -466,7 +607,14 @@ fn event_loop(
                 let _ = input.join();
                 return Ok(());
             }
-            Err(RecvTimeoutError::Timeout) => {}
+            // Nothing arrived. While work runs away from this thread the row that states it
+            // advances, so the interface is visibly drawing rather than held.
+            Err(RecvTimeoutError::Timeout) => {
+                if app.data.working.is_some() {
+                    app.working_ticks = app.working_ticks.wrapping_add(1);
+                    dirty = true;
+                }
+            }
         }
     }
 }
@@ -487,8 +635,19 @@ fn perform(session: &mut Session, app: &mut App, action: Action, tx: &Sender<App
             }
             adopt(session, app);
         }
+        // The turn is taken here; the work it needs is not. A demonstration runs a program and
+        // waits for it, which on this thread would stop every redraw for as long as the program
+        // runs, so it goes to a thread of its own and reports back as an event.
         Action::LocalTurn(text) => {
-            session.local_turn(text);
+            let pending = session.begin_turn(text);
+            adopt(session, app);
+            if let Some(pending) = pending {
+                app.working_ticks = 0;
+                spawn_check_thread(tx.clone(), pending);
+            }
+        }
+        Action::CancelCheck => {
+            session.cancel_check();
             adopt(session, app);
         }
         Action::Rebuild => adopt(session, app),
@@ -558,6 +717,7 @@ fn transcript_key(app: &mut App, key: KeyEvent, height: u16) -> Option<Action> {
         KeyCode::PageUp => app.scroll_up(page),
         KeyCode::PageDown => app.scroll_down(page),
         KeyCode::End => app.resume_live(),
+        KeyCode::Esc if app.data.working.is_some() => return Some(Action::CancelCheck),
         KeyCode::Char('?') if app.prompt.buffer.is_empty() => app.modal = Modal::Keys,
         KeyCode::Char('q') if app.prompt.buffer.is_empty() => app.should_quit = true,
         KeyCode::Char(COMMAND_PREFIX) if app.prompt.buffer.is_empty() => open_palette(app),
@@ -749,6 +909,15 @@ fn spawn_input_thread(tx: Sender<AppEvent>, stop: Arc<AtomicBool>) -> thread::Jo
             }
         }
     })
+}
+
+/// A demonstration runs a program of the operator's choosing and waits for it. It therefore
+/// never runs on the thread that draws; its outcome returns as an event like any other.
+fn spawn_check_thread(tx: Sender<AppEvent>, pending: PendingCheck) {
+    thread::spawn(move || {
+        let outcome = pending.run();
+        let _ = tx.send(AppEvent::Checked(Box::new(outcome)));
+    });
 }
 
 /// Probing starts subprocesses, so it happens once, off the drawing thread.

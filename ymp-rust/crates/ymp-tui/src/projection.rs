@@ -336,6 +336,9 @@ pub struct Projection {
     /// The answer the interface is waiting for while a request is being drafted. It is what
     /// makes an empty Enter meaningful: it accepts what the question offers.
     pub awaiting: Option<String>,
+    /// What the interface is waiting for away from the thread that draws, while it is. The
+    /// screen keeps redrawing under it, and Esc ends it.
+    pub working: Option<String>,
     /// Left half of the status line.
     pub status: String,
 }

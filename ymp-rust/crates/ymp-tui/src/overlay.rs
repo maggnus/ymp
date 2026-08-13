@@ -327,7 +327,7 @@ pub const KEY_GROUPS: &[(&str, &[(&str, &str)])] = &[
         &[
             ("/", "command line"),
             ("?", "this key map"),
-            ("Esc", "close / back / transcript"),
+            ("Esc", "close / back / transcript · cancels a running check"),
             ("q", "quit"),
         ],
     ),

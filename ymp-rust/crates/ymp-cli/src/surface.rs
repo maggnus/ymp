@@ -403,6 +403,9 @@ fn perform(session: &mut Session, action: Action) {
         Action::CancelRun => session.cancel_run(),
         Action::StartRun(contract_id) => session.start_run(&contract_id),
         Action::LocalTurn(text) => session.local_turn(text),
+        // A command has no second thread to wait on: its own process is the check, and it has
+        // already finished by the time anything could ask for it to be abandoned.
+        Action::CancelCheck => session.cancel_check(),
         // The interface rebuilds its projection; a command builds one per invocation and has
         // nothing to commit for it.
         Action::Rebuild => {}
