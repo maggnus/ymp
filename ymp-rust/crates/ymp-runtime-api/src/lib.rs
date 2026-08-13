@@ -1232,17 +1232,46 @@ mod descendants {
             return proc_holders(marker);
         }
         let program = super::lifecycle::program(super::ProgramRole::DescriptorHolders)?;
-        // The utility exits non-zero when nothing holds the marker open, which is an answer rather
-        // than a failure; a failure to run it at all is reported above by the error type.
-        let output = Command::new(program)
+        let output = Command::new(&program)
             .arg("-t")
             .arg(marker)
             .stderr(Stdio::null())
             .output()?;
-        Ok(String::from_utf8_lossy(&output.stdout)
-            .lines()
-            .filter_map(|line| line.trim().parse().ok())
-            .collect())
+        holders_reported(output.status.code(), &output.stdout).map_err(|reason| {
+            RuntimeError::InvalidProfile(format!("{reason}: {}", program.display()))
+        })
+    }
+
+    /// Reads the utility's answer, or refuses it.
+    ///
+    /// The utility distinguishes its two outcomes by exit code: it lists the holders and exits
+    /// zero, or it names none and exits one. Every other exit is a failure to answer, and so is an
+    /// exit of one that carries output, because that is the utility reporting something this rule
+    /// cannot read. Only an answer is parsed, and only an answer is returned: "nobody holds the
+    /// marker" ends a run, and "the question was not answered" must not be read as it.
+    pub fn holders_reported(code: Option<i32>, stdout: &[u8]) -> Result<Vec<u32>, String> {
+        let reported = String::from_utf8_lossy(stdout);
+        let reported = reported.trim();
+        match (code, reported.is_empty()) {
+            (Some(1), true) => Ok(Vec::new()),
+            (Some(0), false) => reported
+                .lines()
+                .map(|line| {
+                    line.trim().parse().map_err(|_| {
+                        format!(
+                            "the descriptor holder reader reported a holder of the run's marker \
+                             that cannot be read: {line}"
+                        )
+                    })
+                })
+                .collect(),
+            _ => Err(format!(
+                "the descriptor holder reader did not answer which processes hold the run's \
+                 marker open: it exited with {} and reported {} byte(s)",
+                code.map_or_else(|| "a signal".to_owned(), |code| code.to_string()),
+                reported.len()
+            )),
+        }
     }
 
     fn proc_holders(marker: &Path) -> Result<Vec<u32>, RuntimeError> {
@@ -1611,6 +1640,7 @@ pub fn terminate_process_tree(child: &mut Child) -> std::io::Result<()> {
 
 #[cfg(all(test, unix))]
 mod tests {
+    use super::descendants::holders_reported;
     use super::{
         LaunchChain, configure_process_group, create_launch_marker, managed_launch_command,
         register_launch_marker, terminate_process_tree,
@@ -1629,6 +1659,42 @@ mod tests {
             "ymp-runtime-api-{label}-{}-{unique}.pid",
             std::process::id()
         ))
+    }
+
+    /// The two answers the descriptor holder reader can give, and the several ways it can fail to
+    /// give one. An exit of one carrying output is a failure: it is the utility reporting something
+    /// this rule cannot read, and reading it as "nobody holds the marker" would end a run on an
+    /// answer nobody gave.
+    ///
+    /// The check that must fail: parse the output whatever the exit was, and the ambiguous and
+    /// failing cases below are read as an empty answer, with a non-zero exit.
+    #[test]
+    fn a_holder_reader_that_did_not_answer_is_not_read_as_an_empty_answer() {
+        assert_eq!(
+            holders_reported(Some(0), b"412\n413\n").expect("a listed answer is read"),
+            vec![412, 413]
+        );
+        assert_eq!(
+            holders_reported(Some(1), b"").expect("no holders is an answer the utility gives"),
+            Vec::<u32>::new()
+        );
+        for (code, stdout, case) in [
+            (
+                Some(1),
+                &b"412\n"[..],
+                "an exit of one that reported something",
+            ),
+            (Some(2), &b""[..], "an exit this rule does not know"),
+            (Some(0), &b""[..], "a successful exit that reported nothing"),
+            (Some(0), &b"not-a-process\n"[..], "an unreadable holder"),
+            (None, &b""[..], "an exit by signal"),
+        ] {
+            let refusal = holders_reported(code, stdout);
+            assert!(
+                refusal.is_err(),
+                "{case} was read as an answer: {refusal:?}"
+            );
+        }
     }
 
     /// A shell cannot create a session, so the detaching descendant is written in whichever stock
