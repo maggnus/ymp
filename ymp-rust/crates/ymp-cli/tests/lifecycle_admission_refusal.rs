@@ -30,9 +30,9 @@ use std::time::{Duration, Instant};
 use ymp_application::Application;
 use ymp_domain::Budget;
 use ymp_runtime_api::{
-    LaunchChain, ProgramRole, RuntimeKind, configure_process_group, create_launch_marker,
-    managed_launch_command, place_lifecycle_utility_for_fixture, register_launch_marker,
-    terminate_process_tree,
+    LaunchChain, ProgramRole, RuntimeEventKind, RuntimeKind, configure_process_group,
+    create_launch_marker, managed_launch_command, place_lifecycle_utility_for_fixture,
+    register_launch_marker, terminate_process_tree,
 };
 use ymp_runtime_claude::{ClaudeProfile, ClaudeRuntime};
 use ymp_runtime_supervisor::{
@@ -105,10 +105,14 @@ exit 9
     path.to_owned()
 }
 
-/// A runtime executable that answers the probe, reports that it started, and then stays alive. The
-/// run under test is stopped by the controller rather than by the runtime, which is the path on
-/// which a failure to end the processes used to be discarded.
-fn waiting_runtime(path: &Path, started: &Path) -> PathBuf {
+/// A runtime executable that answers the probe, records the identifier of its own process, and then
+/// stays alive. The run under test is stopped by the controller rather than by the runtime, which is
+/// the path on which a failure to end the processes used to be discarded.
+///
+/// The identifier is what the check ends the fixture by afterwards. The managed process leads its
+/// own process group and this script is what replaces it, so the recorded identifier names both the
+/// process and the group, and nothing outside the run is named at all.
+fn waiting_runtime(path: &Path, own_process: &Path) -> PathBuf {
     fs::write(
         path,
         format!(
@@ -122,10 +126,10 @@ elif [ "$1" = "auth" ]; then
 fi
 input=$(cat)
 printf '%s\n' '{COORDINATED_INIT}'
-printf 'started\n' > '{}'
+printf '%s\n' "$$" > '{}'
 sleep 120
 "#,
-            started.display()
+            own_process.display()
         ),
     )
     .expect("write the runtime fixture");
@@ -136,25 +140,43 @@ sleep 120
 
 /// The event a Claude launch reports before anything else, which the driver requires before it
 /// accepts any later event.
-const COORDINATED_INIT: &str = r#"{"type":"system","subtype":"init","session_id":"session-unestablished","claude_code_version":"2.1.227","model":"claude-opus-5","permissionMode":"acceptEdits","tools":["Bash"],"mcp_servers":[{"name":"ymp","status":"connected"}],"slash_commands":[],"plugins":[],"skills":[]}"#;
+///
+/// The configuration it reports is the one the profile admits. A record the profile refuses would
+/// end the run with a protocol failure the moment the driver read it, and the case this file
+/// measures — a cancellation that cannot establish what it left running — would never be reached.
+const COORDINATED_INIT: &str = r#"{"type":"system","subtype":"init","session_id":"session-unestablished","claude_code_version":"2.1.227","model":"claude-opus-5","permissionMode":"acceptEdits","tools":["Bash","Edit","Glob","Grep","Read","Write","mcp__ymp__read_control","mcp__ymp__read_events","mcp__ymp__submit","mcp__ymp__yield"],"mcp_servers":[{"name":"ymp","status":"connected"}],"slash_commands":[],"plugins":[],"skills":[]}"#;
 
-/// Ends whatever the fixture left running, by the path it was started from. The case under test is
-/// a termination the run could not establish, so its processes are still there afterwards.
-fn kill_by_command(fragment: &str) {
-    let output = Command::new(PROCESS_TABLE)
-        .args(["-A", "-o", "pid=,command="])
-        .output()
-        .expect("read the process table");
-    for line in String::from_utf8_lossy(&output.stdout).lines() {
-        let Some((pid, command)) = line.trim().split_once(char::is_whitespace) else {
-            continue;
-        };
-        if command.contains(fragment)
-            && let Ok(pid) = pid.parse::<u32>()
+/// Ends the process group of the run this check started, and nothing else.
+///
+/// The managed process is launched into a process group of its own and the fixture replaces that
+/// process, so its recorded identifier names exactly the group the run created. Ending that group
+/// reaches every process the run started and no process it did not: a check that instead searched
+/// the whole process table for a command it recognised would answer for processes belonging to
+/// whatever else was running on the machine.
+fn end_the_process_group_of_this_run(leader: u32) {
+    let _ = Command::new("/bin/kill")
+        .args(["-KILL", &format!("-{leader}")])
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .status();
+}
+
+/// Reads the identifier the fixture recorded for its own process, which is also the leader of the
+/// group the run was launched into.
+fn process_of_this_run(recorded: &Path) -> u32 {
+    let deadline = Instant::now() + Duration::from_secs(30);
+    while Instant::now() < deadline {
+        if let Ok(text) = fs::read_to_string(recorded)
+            && let Ok(pid) = text.trim().parse::<u32>()
         {
-            kill(pid);
+            return pid;
         }
+        std::thread::sleep(Duration::from_millis(10));
     }
+    panic!(
+        "the managed runtime never recorded its own process in {}",
+        recorded.display()
+    );
 }
 
 fn is_alive(pid: u32) -> bool {
@@ -164,6 +186,46 @@ fn is_alive(pid: u32) -> bool {
         .stderr(Stdio::null())
         .status()
         .is_ok_and(|status| status.success())
+}
+
+/// How long a process must go on existing before this file will say it was left alone.
+///
+/// A signal reaches a process before the operating system stops reporting it: between the two the
+/// process is dying and still answers every liveness question. A single reading taken at that
+/// moment cannot tell "untouched" from "already killed", so every claim that something survived is
+/// read against this window instead.
+const SURVIVAL_WINDOW: Duration = Duration::from_secs(2);
+
+/// Whether the process goes on existing for the whole window, rather than at the instant of asking.
+fn outlives_the_window(pid: u32) -> bool {
+    let deadline = Instant::now() + SURVIVAL_WINDOW;
+    while Instant::now() < deadline {
+        if !is_alive(pid) {
+            return false;
+        }
+        std::thread::sleep(Duration::from_millis(20));
+    }
+    is_alive(pid)
+}
+
+/// The same reading for a process this file started itself, which it must reap to learn that the
+/// process has ended.
+fn child_outlives_the_window(child: &mut Child) -> bool {
+    let deadline = Instant::now() + SURVIVAL_WINDOW;
+    while Instant::now() < deadline {
+        if child
+            .try_wait()
+            .expect("read the process started outside the run")
+            .is_some()
+        {
+            return false;
+        }
+        std::thread::sleep(Duration::from_millis(20));
+    }
+    child
+        .try_wait()
+        .expect("read the process started outside the run")
+        .is_none()
 }
 
 /// Ordinary daemonisation, written in whichever stock interpreter exposes `setsid`. The surviving
@@ -343,7 +405,7 @@ fn termination_that_cannot_read_the_process_table_is_not_reported_clean() {
 
     place_the_reader_where_this_account_can_write(temporary.path());
     let outcome = terminate_process_tree(&mut child);
-    let survived = is_alive(descendant);
+    let survived = outlives_the_window(descendant);
     restore_the_platform_reader();
 
     let Err(error) = outcome else {
@@ -393,6 +455,12 @@ fn termination_that_cannot_read_the_process_table_is_not_reported_clean() {
 ///
 /// The check that must fail: discard the result at the cancellation path again, and this reports a
 /// run that ended without saying what it left running, with a non-zero exit.
+///
+/// The order this case depends on is stated rather than raced for. The run is cancelled only after
+/// it has reported that it started, so the record the driver reads is behind it and no later reading
+/// can end the run on some other ground; and a process outside the run, started from the same
+/// executable, is held alive across the whole case, so that ending the run is measured to reach that
+/// run's own process group and nothing else.
 #[test]
 fn a_cancelled_run_that_cannot_establish_termination_reports_it() {
     let _placement = placement();
@@ -400,8 +468,14 @@ fn a_cancelled_run_that_cannot_establish_termination_reports_it() {
     let source = temporary.path().join("source");
     fs::create_dir(&source).expect("source directory");
     fs::write(source.join("input.txt"), b"before\n").expect("source file");
-    let started = temporary.path().join("runtime.started");
-    let runtime = waiting_runtime(&temporary.path().join("claude-waiting"), &started);
+    let recorded = temporary.path().join("runtime.process");
+    let runtime = waiting_runtime(&temporary.path().join("claude-waiting"), &recorded);
+    let mut stranger = Command::new(&runtime)
+        .stdin(Stdio::piped())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .spawn()
+        .expect("start a process outside the run from the same executable");
     let application = Arc::new(Mutex::new(
         Application::create(
             temporary.path().join("data"),
@@ -431,15 +505,34 @@ fn a_cancelled_run_that_cannot_establish_termination_reports_it() {
     )
     .expect("start the managed run");
 
-    let deadline = Instant::now() + Duration::from_secs(30);
-    while !started.exists() && Instant::now() < deadline {
-        std::thread::sleep(Duration::from_millis(20));
+    // The run's own report that it started, rather than a file the fixture writes beside it. The
+    // driver has then already read and admitted the session record, so cancelling here cannot be
+    // overtaken by a reading that ends the run on a different ground.
+    let mut reported = Vec::new();
+    let deadline = Instant::now() + Duration::from_secs(60);
+    let mut running = false;
+    while !running && Instant::now() < deadline {
+        while let Some(event) = handle.try_next() {
+            running |= matches!(
+                &event,
+                ManagedRunEvent::Runtime(runtime_event)
+                    if matches!(&runtime_event.event, RuntimeEventKind::Started { .. })
+            );
+            reported.push(event);
+        }
+        if handle.is_finished() {
+            break;
+        }
+        std::thread::sleep(Duration::from_millis(10));
     }
-    assert!(started.exists(), "the managed runtime never started");
+    assert!(
+        running,
+        "the managed run never reported that it started; it reported {reported:?}"
+    );
+    let leader = process_of_this_run(&recorded);
 
     place_the_reader_where_this_account_can_write(temporary.path());
     handle.cancel("the check stopped the run").expect("cancel");
-    let mut reported = Vec::new();
     let deadline = Instant::now() + Duration::from_secs(60);
     while Instant::now() < deadline && !handle.is_finished() {
         while let Some(event) = handle.try_next() {
@@ -453,7 +546,19 @@ fn a_cancelled_run_that_cannot_establish_termination_reports_it() {
     let finished = handle.is_finished();
     restore_the_platform_reader();
     handle.join().expect("join the supervisor worker");
-    kill_by_command(&runtime.display().to_string());
+    end_the_process_group_of_this_run(leader);
+
+    // What the run left behind is ended by naming its own process group, so a process this check
+    // started outside the run — from the same executable, and therefore indistinguishable from the
+    // run's own by the command it reports — is still alive. This is the measurement, not the
+    // convention: it fails if the cleanup ever answers for the machine rather than for this run.
+    let outside_the_run_survived = child_outlives_the_window(&mut stranger);
+    let _ = stranger.kill();
+    let _ = stranger.wait();
+    assert!(
+        outside_the_run_survived,
+        "ending the run reached a process it did not start"
+    );
 
     assert!(finished, "the cancelled run never reached an outcome");
     let failure = reported.iter().find_map(|event| match event {
@@ -468,6 +573,7 @@ fn a_cancelled_run_that_cannot_establish_termination_reports_it() {
     });
     assert!(
         detail.contains("termination_unestablished") && detail.contains("process table reader"),
-        "the reported failure does not say what could not be established: {detail}"
+        "the reported failure does not say what could not be established: {detail}; the run \
+         reported {reported:?}"
     );
 }
