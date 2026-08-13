@@ -188,12 +188,16 @@ runtime session.
 
 Version 3 records terminal usage for successful completion, failure, cancellation, and timeout.
 Every terminal record includes total wall time, protected-query count, optional provider cost,
-token counters, and the latest explicitly reported bounded in-flight excess counters; successful
-completion does not replace a non-zero reported excess with zero. In-flight excess is derived only
-from what a runtime reported: the count of model requests seen on the transcript that no accounting
-record has yet covered, and monetary consumption above the profile's enforced ceiling. A runtime
-that reported complete accounting therefore records a zero excess rather than an invented one, and a
-run that ended before its accounting record keeps the unaccounted count. Total wall time is measured
+token counters, and bounded in-flight excess counters. Token and cost counters are recorded exactly
+as the runtime reported them and are never invented. The in-flight excess counters state what the
+runtime's own accounting has not yet covered, and only one of them is derived by the product rather
+than reported: the count of model requests observed on the transcript that no accounting record has
+closed. Monetary excess is consumption the runtime reported above the profile's enforced ceiling.
+An accounting record settles the excess of the turn it closes — the counters that record states
+replace the current ones, and a record that states none leaves none — so a runtime that reported
+complete accounting records a zero excess rather than the request count the product held while the
+turn ran. A run that ended before its accounting record keeps that unaccounted count, which is the
+only case in which a recorded counter is product-derived. Total wall time is measured
 from process creation, not from the end of the launch checks that follow it.
 
 Failures contain a typed safe failure kind and, when available, only a bounded diagnostic digest,

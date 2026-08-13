@@ -893,6 +893,9 @@ impl CodexSession {
         usage
     }
 
+    /// A started turn holds one model request the runtime has not yet accounted for. That count is
+    /// the product's own, derived from the observed turn boundary rather than reported by the
+    /// runtime, and it stands only until the turn's accounting record arrives; see `merge_usage`.
     fn begin_turn(&mut self, event: &Value) {
         if let Some(usage) = event.get("usage") {
             self.current_turn_usage = observed_usage(usage);
@@ -911,6 +914,10 @@ impl CodexSession {
         }
     }
 
+    /// Applies a turn's accounting record. The record accounts for everything the turn consumed, so
+    /// it also settles the excess: the counters it states replace the current ones, and a record
+    /// that states none leaves none. Keeping the earlier value instead would record the request the
+    /// product counted at the turn start as if the runtime had reported it unaccounted.
     fn merge_usage(&mut self, value: &Value) -> Result<(), RuntimeError> {
         let mut observed = observed_usage(value);
         observed.input_tokens = u64_field(value, "input_tokens")?;
@@ -919,9 +926,7 @@ impl CodexSession {
         self.current_turn_usage = observed;
         add_usage(&mut self.usage, &self.current_turn_usage);
         self.current_turn_usage = Usage::default();
-        if let Some(observed_in_flight) = observed_in_flight {
-            self.in_flight = observed_in_flight;
-        }
+        self.in_flight = observed_in_flight.unwrap_or_default();
         Ok(())
     }
 
@@ -2509,6 +2514,79 @@ fi
                 assert!(usage.in_flight_excess.model_requests > 0);
                 assert!(usage.in_flight_excess.cost_microusd > 0);
             }
+        }
+    }
+
+    /// A turn's accounting record covers everything the turn consumed, so a terminal report that
+    /// states no in-flight excess leaves none behind. The count the product keeps between the turn
+    /// start and that record — one open model request — is its own, and must not survive into a
+    /// record the runtime closed. A released Codex build reports no excess field at all, which is
+    /// the first fixture below; the second states an excess while the turn runs and then closes the
+    /// turn without one.
+    #[test]
+    fn a_terminal_record_without_an_excess_field_records_no_excess() {
+        let directory = tempfile::tempdir().expect("temporary directory");
+        for (fixture, started_usage) in [
+            (
+                "silent",
+                r#"{"input_tokens":7,"cached_input_tokens":2,"output_tokens":3,"reasoning_output_tokens":1,"cost_microusd":23,"protected_queries":2}"#,
+            ),
+            (
+                "reported",
+                r#"{"input_tokens":7,"cached_input_tokens":2,"output_tokens":3,"reasoning_output_tokens":1,"cost_microusd":23,"protected_queries":2,"in_flight_excess":{"model_requests":4,"input_tokens":5,"cost_microusd":11}}"#,
+            ),
+        ] {
+            let executable = directory.path().join(format!("codex-{fixture}-fixture"));
+            fs::write(
+                &executable,
+                format!(
+                    r##"#!/bin/sh
+if [ "$1" = "--version" ]; then
+  printf '%s\n' 'codex-cli 0.147.0'
+elif [ "$1" = "login" ]; then
+  exit 0
+else
+  cat >/dev/null
+  printf '%s\n' '{{"type":"thread.started","thread_id":"thread-{fixture}"}}'
+  printf '%s\n' '{{"type":"turn.started","usage":{started_usage}}}'
+  printf '%s\n' '{{"type":"turn.completed","usage":{{"input_tokens":11,"cached_input_tokens":4,"output_tokens":5,"reasoning_output_tokens":2,"cost_microusd":31,"protected_queries":3}}}}'
+fi
+"##
+                ),
+            )
+            .expect("write fixture");
+            let mut permissions = fs::metadata(&executable).expect("metadata").permissions();
+            permissions.set_mode(0o700);
+            fs::set_permissions(&executable, permissions).expect("make executable");
+
+            let runtime = CodexRuntime::new(&executable);
+            let mut session = runtime
+                .start(InvocationRequest {
+                    invocation_id: format!("invocation-{fixture}"),
+                    attempt_id: format!("attempt-{fixture}"),
+                    workspace: directory.path().to_owned(),
+                    mcp: None,
+                    prompt: "accounting".to_owned(),
+                    cancellation: CancellationToken::default(),
+                })
+                .expect("start accounting fixture");
+            expect_launch(session.as_mut());
+            let usage = loop {
+                let event = session
+                    .next_event()
+                    .expect("accounting event")
+                    .expect("terminal event");
+                if let RuntimeEventKind::Completed { usage } = event.event {
+                    break usage;
+                }
+            };
+            assert!(usage.input_tokens > 0, "{fixture} input tokens");
+            assert!(usage.output_tokens > 0, "{fixture} output tokens");
+            assert_eq!(
+                usage.in_flight_excess,
+                crate::InFlightExcess::default(),
+                "{fixture} terminal excess"
+            );
         }
     }
 

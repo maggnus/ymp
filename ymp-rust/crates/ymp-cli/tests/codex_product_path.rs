@@ -521,6 +521,126 @@ fi
     }
 }
 
+/// A released Codex build states no in-flight excess anywhere in its output. The durable record of
+/// such a run must therefore carry none: the single open request the product counts while the turn
+/// runs belongs to the product, and the turn's accounting record closes it.
+#[test]
+fn a_run_whose_runtime_states_no_excess_records_none() {
+    let temporary = tempfile::tempdir().expect("temporary directory");
+    let source = temporary.path().join("source-silent-excess");
+    fs::create_dir(&source).expect("source directory");
+    fs::write(source.join("input.txt"), b"base\n").expect("source file");
+    let executable = temporary.path().join("codex-silent-excess-fixture");
+    fs::write(
+        &executable,
+        r##"#!/bin/sh
+if [ "$1" = "--version" ]; then
+  printf '%s\n' 'codex-cli 0.147.0'
+elif [ "$1" = "login" ]; then
+  exit 0
+else
+  cat >/dev/null
+  bridge=''
+  for argument in "$@"; do
+    case "$argument" in
+      mcp_servers.ymp.command=*)
+        bridge=${argument#mcp_servers.ymp.command=}
+        bridge=${bridge#\"}
+        bridge=${bridge%\"}
+        ;;
+    esac
+  done
+  printf '%s\n' '{"type":"thread.started","thread_id":"thread-silent-excess"}'
+  printf '%s\n' '{"type":"turn.started","usage":{"input_tokens":7,"cached_input_tokens":2,"output_tokens":3,"reasoning_output_tokens":1,"cost_microusd":23,"protected_queries":2}}'
+  responses=$({
+    printf '%s\n' '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-11-25"}}'
+    printf '%s\n' '{"jsonrpc":"2.0","method":"notifications/initialized"}'
+    printf '%s\n' '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"submit","arguments":{"command_id":"silent-excess-submit"}}}'
+  } | "$bridge" internal agent-mcp) || exit 41
+  printf '%s' "$responses" | grep -q '"snapshot_digest"' || exit 42
+  printf '%s\n' '{"type":"item.completed","item":{"type":"mcp_tool_call","server":"ymp","tool":"submit","status":"completed","arguments":{"command_id":"silent-excess-submit"},"result":{"committed":true},"error":null}}'
+  printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":11,"cached_input_tokens":4,"output_tokens":5,"reasoning_output_tokens":2,"cost_microusd":31,"protected_queries":3}}'
+fi
+"##,
+    )
+    .expect("write fixture");
+    let mut permissions = fs::metadata(&executable).expect("metadata").permissions();
+    permissions.set_mode(0o700);
+    fs::set_permissions(&executable, permissions).expect("make executable");
+
+    let data_root = temporary.path().join("data-silent-excess");
+    let application = Arc::new(Mutex::new(
+        Application::create(&data_root, "run-silent-excess", Budget::new(1, 1))
+            .expect("create application"),
+    ));
+    let handle = start_managed_candidate(
+        Arc::clone(&application),
+        Box::new(CodexRuntime::new(&executable)),
+        ManagedCandidateRequest {
+            contract: ManagedContract {
+                contract_id: "contract-silent-excess".to_owned(),
+                contract_digest: "e".repeat(64),
+                source,
+                prompt: "silent excess".to_owned(),
+                capture_exclusions: Vec::new(),
+                verifier: None,
+            },
+            bridge_executable: env!("CARGO_BIN_EXE_ymp").into(),
+        },
+    )
+    .expect("start managed candidate");
+    let attempt_id = handle.attempt_id().to_owned();
+    let deadline = Instant::now() + Duration::from_secs(10);
+    let mut terminal_usage = None;
+    while Instant::now() < deadline && !handle.is_finished() {
+        while let Some(event) = handle.try_next() {
+            if let ManagedRunEvent::Runtime(event) = event
+                && let RuntimeEventKind::Completed { usage } = event.event
+            {
+                terminal_usage = Some(usage);
+            }
+        }
+        std::thread::sleep(Duration::from_millis(5));
+    }
+    while let Some(event) = handle.try_next() {
+        if let ManagedRunEvent::Runtime(event) = event
+            && let RuntimeEventKind::Completed { usage } = event.event
+        {
+            terminal_usage = Some(usage);
+        }
+    }
+    assert!(handle.is_finished(), "silent-excess run did not finish");
+    let usage = terminal_usage.expect("terminal usage");
+    assert!(usage.input_tokens > 0, "input tokens");
+    assert!(usage.protected_queries > 0, "protected queries");
+    assert_eq!(
+        usage.in_flight_excess,
+        ymp_runtime_api::InFlightExcess::default(),
+        "emitted terminal excess"
+    );
+    let evidence = fs::read_to_string(
+        data_root
+            .join("runtime-evidence")
+            .join(&attempt_id)
+            .join("events.jsonl"),
+    )
+    .expect("durable runtime evidence");
+    let terminal = evidence
+        .lines()
+        .map(|line| serde_json::from_str::<serde_json::Value>(line).expect("evidence record"))
+        .find(|record| record["event"]["type"] == "completed")
+        .expect("durable terminal record");
+    let recorded: ymp_runtime_api::InFlightExcess =
+        serde_json::from_value(terminal["event"]["usage"]["in_flight_excess"].clone())
+            .expect("recorded excess");
+    assert_eq!(
+        recorded,
+        ymp_runtime_api::InFlightExcess::default(),
+        "recorded terminal excess"
+    );
+    handle.join().expect("join worker");
+}
+
 #[test]
 fn fabricated_stdout_lifecycle_cannot_submit_or_yield() {
     let temporary = tempfile::tempdir().expect("temporary directory");
