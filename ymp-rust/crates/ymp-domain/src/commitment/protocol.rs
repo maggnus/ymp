@@ -412,6 +412,17 @@ pub enum CommitmentError {
     TooManyEntries { kind: &'static str },
     #[error("task contract {contract_id} does not fund this offer")]
     FundingContractMismatch { contract_id: String },
+    #[error(
+        "task contract {contract_id} reached a terminal state and is no longer an account that can be drawn on or settled into"
+    )]
+    AccountClosed { contract_id: String },
+    #[error(
+        "task contract {contract_id} still backs {outstanding}, whose reservation returns to it"
+    )]
+    ReservationOutstanding {
+        contract_id: String,
+        outstanding: String,
+    },
     #[error("command serialization failed: {0}")]
     Serialization(String),
 }
