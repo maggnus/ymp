@@ -38,6 +38,8 @@ pub struct Model {
     candidates: Vec<CandidateFacts>,
     attempts: Vec<AttemptFacts>,
     events: Vec<EventFacts>,
+    /// The answer the interface is waiting for, while a request is being drafted.
+    awaiting: Option<String>,
     /// The last journal position folded into this model.
     pub cursor: u64,
 }
@@ -55,6 +57,7 @@ impl Model {
             candidates: Vec::new(),
             attempts: Vec::new(),
             events: Vec::new(),
+            awaiting: None,
             cursor: 0,
         };
         model.push(Entry::Banner {
@@ -84,6 +87,11 @@ impl Model {
             },
             Entry::AppReply {
                 text: contracts_hint(&self.contracts),
+            },
+            Entry::AppReply {
+                text: "state your request below in one line · ymp asks only for what it cannot \
+                       infer, and starts nothing until you authorize it"
+                    .into(),
             },
             Entry::AppReply {
                 text: ":runtimes  which runtime profiles this host can start".into(),
@@ -133,6 +141,7 @@ impl Model {
             EventKind::RunStarted { budget } => {
                 self.initial_budget = Some(budget.clone());
             }
+            EventKind::ContractApproved { .. } => {}
             EventKind::AttemptStarted { attempt_id } => {
                 self.attempts.push(AttemptFacts {
                     attempt_id: attempt_id.clone(),
@@ -212,6 +221,29 @@ impl Model {
         self.push(Entry::Human { text: text.into() });
     }
 
+    /// State which answer the interface is waiting for, or that it waits for none.
+    pub fn await_answer(&mut self, hint: Option<String>) {
+        self.awaiting = hint;
+    }
+
+    /// Report a refusal: what was not done, and why. Nothing here is a journal fact.
+    pub fn error(&mut self, text: impl Into<String>) {
+        self.push(Entry::Blank);
+        self.push(Entry::AppError { text: text.into() });
+    }
+
+    /// Take a contract the application prepared, replacing an earlier draft of the same name.
+    pub fn record_contract(&mut self, facts: ContractFacts) {
+        match self
+            .contracts
+            .iter_mut()
+            .find(|contract| contract.contract_id == facts.contract_id)
+        {
+            Some(existing) => *existing = facts,
+            None => self.contracts.push(facts),
+        }
+    }
+
     pub fn run(&self) -> Option<&RunFacts> {
         self.run.as_ref()
     }
@@ -265,6 +297,7 @@ impl Model {
             commands: self.commands(&pages),
             pages,
             runtimes: runtimes.cloned(),
+            awaiting: self.awaiting.clone(),
             status: self.status_line(),
         }
     }
@@ -280,12 +313,16 @@ impl Model {
             })
             .collect();
 
-        for contract in &self.contracts {
+        for (index, contract) in self.contracts.iter().enumerate() {
             items.push(PaletteItem {
                 name: format!("authorize {}", contract.contract_id),
-                description: "review the coverage of this contract before anything is spent"
-                    .to_owned(),
-                command: Command::Authorize,
+                description: match contract.can_start(self.run.as_ref()) {
+                    true => "review what would be checked, then start the run it names".to_owned(),
+                    false => {
+                        "review the coverage of this contract before anything is spent".to_owned()
+                    }
+                },
+                command: Command::Authorize(index),
             });
         }
         if let Some(run) = &self.run
@@ -767,8 +804,7 @@ fn page_description(kind: PageKind) -> &'static str {
 
 fn contracts_hint(contracts: &[ContractFacts]) -> String {
     match contracts.len() {
-        0 => "no managed contract configured · pass --contract <file> to make one available"
-            .to_owned(),
+        0 => "no contract drafted yet · one is drafted from the request you type below".to_owned(),
         1 => format!(
             ":authorize {} · nothing runs and nothing is spent until you authorize it",
             contracts[0].contract_id
@@ -789,6 +825,20 @@ fn describe_event(envelope: &EventEnvelope) -> (Plane, &'static str, String) {
             format!(
                 "run {} started · attempts {} · verification queries {}",
                 envelope.run_id, budget.attempts_remaining, budget.verification_queries_remaining
+            ),
+        ),
+        EventKind::ContractApproved {
+            contract_id,
+            contract_digest,
+            oracle_digest,
+        } => (
+            Plane::Control,
+            "contract.approved",
+            format!(
+                "contract {contract_id} approved · digest {} · oracle {} — this run is judged \
+                 against it and against nothing else",
+                projection::short_digest(contract_digest),
+                projection::short_digest(oracle_digest)
             ),
         ),
         EventKind::AttemptStarted { attempt_id } => (
@@ -884,6 +934,7 @@ mod tests {
             run_id: "demo-run".into(),
             status,
             budget: Budget::new(2, 1),
+            contract: None,
             active_attempts: Vec::new(),
             candidate_digest: None,
             last_sequence,

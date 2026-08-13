@@ -14,8 +14,8 @@
 
 use std::path::{Path, PathBuf};
 
-use ymp_domain::{Budget, RunState, RunStatus};
-use ymp_runtime_supervisor::ManagedContract;
+use ymp_application::PreparedContract;
+use ymp_domain::{Budget, ContractBinding, RunState, RunStatus};
 
 use crate::pages::Page;
 use crate::state::{PageKind, PaletteItem};
@@ -184,18 +184,26 @@ impl BudgetDimension {
     }
 }
 
-/// A managed contract as the operator must judge it before authorizing: what will be run, and
-/// what will mechanically check the result. The domain has no contract package object, so this
-/// comes from the file `ymp-cli` was pointed at.
+/// A contract as the operator must judge it before authorizing: what will be run, what will
+/// mechanically check the result, and the run it would start.
+///
+/// Every field is read from what the application prepared from the request — the digests, the
+/// resolved paths and the derived identifiers are its values, not the interface's.
 #[derive(Clone, Debug)]
 pub struct ContractFacts {
     pub contract_id: String,
     pub contract_digest: String,
     pub source: PathBuf,
     pub prompt: String,
-    /// The verifier program, its oracle digest and the deliberately broken version it must
-    /// reject. Absent when the contract declares no mechanical check.
+    /// The verifier program, its oracle digest and the deliberately wrong candidate it must
+    /// reject. Absent when the request states no mechanical check.
     pub verifier: Option<VerifierFacts>,
+    /// The budget the run would start with, as the application derived it.
+    pub budget: Option<Budget>,
+    /// The identifier the run would carry, when this contract can start one.
+    pub run_id: Option<String>,
+    /// Why no run can be started from this contract, in the application's own words.
+    pub blocked: Option<String>,
 }
 
 #[derive(Clone, Debug)]
@@ -207,18 +215,52 @@ pub struct VerifierFacts {
 }
 
 impl ContractFacts {
-    pub fn from_managed(contract: &ManagedContract) -> Self {
+    /// The contract the application prepared: startable, with every value read from it.
+    pub fn from_prepared(prepared: &PreparedContract) -> Self {
+        let verifier = prepared.verifier();
         Self {
-            contract_id: contract.contract_id.clone(),
-            contract_digest: contract.contract_digest.clone(),
-            source: contract.source.clone(),
-            prompt: contract.prompt.clone(),
-            verifier: contract.verifier.as_ref().map(|verifier| VerifierFacts {
+            contract_id: prepared.contract_id().to_owned(),
+            contract_digest: prepared.contract_digest.clone(),
+            source: prepared.document.source.clone(),
+            prompt: prepared.document.prompt.clone(),
+            verifier: Some(VerifierFacts {
                 program: verifier.program.clone(),
                 oracle_digest: verifier.oracle_digest.clone(),
                 negative_control: verifier.negative_control.clone(),
                 wall_time_ms: verifier.wall_time_ms,
             }),
+            budget: Some(prepared.budget.clone()),
+            run_id: Some(prepared.run_id()),
+            blocked: None,
+        }
+    }
+
+    /// A contract the application refused to prepare, carrying the refusal it reported.
+    pub fn refused(contract_id: String, source: PathBuf, prompt: String, reason: String) -> Self {
+        Self {
+            contract_id,
+            contract_digest: String::new(),
+            source,
+            prompt,
+            verifier: None,
+            budget: None,
+            run_id: None,
+            blocked: Some(reason),
+        }
+    }
+
+    /// The contract a started run is bound to, as the journal recorded it. The prompt and the
+    /// source are not in the journal, so they are stated as unavailable rather than invented.
+    pub fn from_binding(binding: &ContractBinding) -> Self {
+        Self {
+            contract_id: binding.contract_id.clone(),
+            contract_digest: binding.contract_digest.clone(),
+            source: PathBuf::new(),
+            prompt: String::new(),
+            verifier: None,
+            budget: None,
+            run_id: None,
+            blocked: Some("this run is already started — its contract is fixed".to_owned()),
         }
     }
 
@@ -226,6 +268,11 @@ impl ContractFacts {
     /// grant authority over a result nothing can reject.
     pub fn blocking_items(&self) -> usize {
         usize::from(self.verifier.is_none())
+    }
+
+    /// Whether authorizing this contract would start a run, given what the store already holds.
+    pub fn can_start(&self, run: Option<&RunFacts>) -> bool {
+        run.is_none() && self.blocking_items() == 0 && self.run_id.is_some()
     }
 }
 
@@ -281,6 +328,9 @@ pub struct Projection {
     pub commands: Vec<PaletteItem>,
     /// The probe of the shipped runtime drivers, once it has returned.
     pub runtimes: Option<crate::runtimes::Report>,
+    /// The answer the interface is waiting for while a request is being drafted. It is what
+    /// makes an empty Enter meaningful: it accepts what the question offers.
+    pub awaiting: Option<String>,
     /// Left half of the status line.
     pub status: String,
 }
@@ -341,13 +391,13 @@ mod tests {
 
     #[test]
     fn a_contract_without_a_mechanical_check_blocks_authorization() {
-        let facts = ContractFacts {
-            contract_id: "demo".into(),
-            contract_digest: "0".repeat(64),
-            source: PathBuf::from("/tmp/source"),
-            prompt: "do the work".into(),
-            verifier: None,
-        };
+        let facts = ContractFacts::refused(
+            "demo".into(),
+            PathBuf::from("/tmp/source"),
+            "do the work".into(),
+            "the request states no acceptance condition".into(),
+        );
         assert_eq!(facts.blocking_items(), 1);
+        assert!(!facts.can_start(None));
     }
 }

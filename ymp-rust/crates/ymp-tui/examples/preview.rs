@@ -19,14 +19,17 @@ fn contract() -> ContractFacts {
     ContractFacts {
         contract_id: "preview-contract".into(),
         contract_digest: scenario::digest(0xc0),
-        source: std::path::PathBuf::from("./contract.json"),
+        source: std::path::PathBuf::from("./source"),
         prompt: "keep the replay path idempotent under concurrent requests".into(),
         verifier: Some(VerifierFacts {
             program: std::path::PathBuf::from("./verify.sh"),
             oracle_digest: scenario::digest(0x0a),
-            negative_control: std::path::PathBuf::from("./negative-control.patch"),
+            negative_control: std::path::PathBuf::from("./negative-control"),
             wall_time_ms: 60_000,
         }),
+        budget: Some(ymp_domain::Budget::new(1, 1)),
+        run_id: Some("run-preview".into()),
+        blocked: None,
     }
 }
 

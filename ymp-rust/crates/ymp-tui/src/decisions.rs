@@ -8,20 +8,27 @@
 
 use crate::projection::{self, ContractFacts, Environment, RunFacts};
 use crate::runtimes::Report;
-use crate::state::{Authorize, Confirm, ConfirmAction, Requirement, RequirementState};
+use crate::state::{
+    Authorize, AuthorizeAction, Confirm, ConfirmAction, Requirement, RequirementState,
+};
 
-/// Why authorization cannot be committed in this build.
+/// Why authorization cannot be committed for a contract that carries no mechanical check.
 ///
-/// The application layer records no contract-authorization command and the domain has no
-/// contract-package event, so the coverage map is reviewable and the action is not offered.
+/// Approving it would grant authority over a result nothing could reject, so the action is not
+/// offered and the coverage map stays reviewable.
 pub const AUTHORIZATION_UNAVAILABLE: &str =
-    "unavailable — this domain records no contract-authorization command";
+    "unavailable — nothing declared would reject a wrong candidate";
 
-/// The coverage map for one managed contract.
+/// Why authorization cannot be committed while this store already holds a run.
+pub const AUTHORIZATION_HAS_RUN: &str =
+    "unavailable — this store already holds a run; a second run needs its own store";
+
+/// The coverage map for one contract, and the run authorizing it would start.
 pub fn authorize(
     contract: &ContractFacts,
     environment: &Environment,
     runtimes: Option<&Report>,
+    run: Option<&RunFacts>,
 ) -> Authorize {
     let mut facts = vec![
         ("intent".to_owned(), first_line(&contract.prompt)),
@@ -59,6 +66,16 @@ pub fn authorize(
         ),
     ));
 
+    if let Some(budget) = &contract.budget {
+        facts.push((
+            "budget".to_owned(),
+            format!(
+                "attempts {} · verification queries {}",
+                budget.attempts_remaining, budget.verification_queries_remaining
+            ),
+        ));
+    }
+
     let requirements = match &contract.verifier {
         Some(verifier) => vec![
             Requirement {
@@ -89,12 +106,53 @@ pub fn authorize(
             name: "a candidate is accepted only on verifier evidence".into(),
             checked_by: "none declared".into(),
             negative_control: "—".into(),
-            detail: Some(
-                "BLOCKING — the contract declares no verifier, so nothing would reject a wrong \
-                 candidate"
-                    .into(),
-            ),
+            detail: Some(format!(
+                "BLOCKING — {}",
+                contract.blocked.clone().unwrap_or_else(|| {
+                    "the contract declares no verifier, so nothing would reject a wrong candidate"
+                        .to_owned()
+                })
+            )),
         }],
+    };
+
+    let action = contract.can_start(run).then(|| AuthorizeAction {
+        contract_id: contract.contract_id.clone(),
+        run_id: contract.run_id.clone().unwrap_or_default(),
+        budget: contract
+            .budget
+            .as_ref()
+            .map(|budget| {
+                vec![
+                    ("attempts".to_owned(), budget.attempts_remaining),
+                    (
+                        "verification_queries".to_owned(),
+                        budget.verification_queries_remaining,
+                    ),
+                ]
+            })
+            .unwrap_or_default(),
+        source: contract.source.display().to_string(),
+        verifier: contract
+            .verifier
+            .as_ref()
+            .map(|verifier| file_name(&verifier.program))
+            .unwrap_or_default(),
+        negative_control: contract
+            .verifier
+            .as_ref()
+            .map(|verifier| file_name(&verifier.negative_control))
+            .unwrap_or_default(),
+    });
+    let action_note = if action.is_some() {
+        "authorize and start — the contract is stored and the run begins".to_owned()
+    } else if contract.blocking_items() > 0 {
+        format!(
+            "disabled — {} blocking item · {AUTHORIZATION_UNAVAILABLE}",
+            contract.blocking_items()
+        )
+    } else {
+        AUTHORIZATION_HAS_RUN.to_owned()
     };
 
     Authorize {
@@ -105,6 +163,45 @@ pub fn authorize(
         footer_note: "your approval grants authority, not validity — the gaps above stay yours"
             .into(),
         blocking: contract.blocking_items(),
+        action,
+        action_note,
+    }
+}
+
+/// The typed confirmation that stores the contract and starts its run.
+pub fn start_run(action: &AuthorizeAction) -> Confirm {
+    let mut consequences = vec![
+        format!(
+            "contract {} is stored immutably and run {} is recorded in the journal",
+            action.contract_id, action.run_id
+        ),
+        format!("the work is done against {}", action.source),
+        format!(
+            "a candidate is accepted only if {} accepts it, and only while {} still rejects the \
+             known-wrong candidate",
+            action.verifier, action.verifier
+        ),
+        format!("negative control: {}", action.negative_control),
+    ];
+    for (dimension, amount) in &action.budget {
+        consequences.push(format!(
+            "{dimension} available to this run: {amount} — spending starts here"
+        ));
+    }
+
+    Confirm {
+        title: format!("start run {}", action.run_id),
+        badge: "irreversible · starts spending".into(),
+        consequences,
+        prompt_label: "type the contract id to confirm:".into(),
+        required: action.contract_id.clone(),
+        typed: String::new(),
+        confirm_hint: "confirm — disabled until the contract id matches exactly".into(),
+        cancel_hint: "start nothing".into(),
+        action: ConfirmAction::StartRun {
+            contract_id: action.contract_id.clone(),
+            run_id: action.run_id.clone(),
+        },
     }
 }
 
@@ -175,43 +272,95 @@ mod tests {
     }
 
     fn contract(verified: bool) -> ContractFacts {
+        if !verified {
+            return ContractFacts::refused(
+                "contract-1".into(),
+                PathBuf::from("/tmp/checkout"),
+                "make the replay path idempotent".into(),
+                "no run started — the request states no acceptance condition".into(),
+            );
+        }
         ContractFacts {
             contract_id: "contract-1".into(),
             contract_digest: "a".repeat(64),
-            source: PathBuf::from("/tmp/checkout/contract.json"),
+            source: PathBuf::from("/tmp/checkout"),
             prompt: "make the replay path idempotent\nsecond line".into(),
-            verifier: verified.then(|| VerifierFacts {
+            verifier: Some(VerifierFacts {
                 program: PathBuf::from("/tmp/checkout/verify.sh"),
                 oracle_digest: "b".repeat(64),
-                negative_control: PathBuf::from("/tmp/checkout/broken.patch"),
+                negative_control: PathBuf::from("/tmp/checkout/broken-candidate"),
                 wall_time_ms: 60_000,
             }),
+            budget: Some(Budget::new(1, 1)),
+            run_id: Some("run-aaaaaaaaaaaa".into()),
+            blocked: None,
         }
     }
 
     #[test]
     fn a_contract_without_a_verifier_blocks_and_says_why() {
-        let modal = authorize(&contract(false), &environment(), None);
+        let modal = authorize(&contract(false), &environment(), None, None);
         assert_eq!(modal.blocking, 1);
         assert_eq!(modal.requirements[0].state, RequirementState::Blocking);
         let detail = modal.requirements[0].detail.as_ref().expect("detail");
-        assert!(detail.contains("BLOCKING"), "{detail}");
+        assert!(detail.contains("acceptance condition"), "{detail}");
+        assert!(modal.action.is_none(), "a blocked contract offered a run");
+        assert!(
+            modal.action_note.contains("blocking item"),
+            "{}",
+            modal.action_note
+        );
     }
 
     #[test]
     fn a_verified_contract_names_its_check_and_its_negative_control() {
-        let modal = authorize(&contract(true), &environment(), None);
+        let modal = authorize(&contract(true), &environment(), None, None);
         assert_eq!(modal.blocking, 0);
         assert_eq!(modal.requirements[0].checked_by, "verify.sh");
         assert!(
             modal.requirements[0]
                 .negative_control
-                .contains("broken.patch")
+                .contains("broken-candidate")
         );
         assert!(
             modal.facts.iter().any(|(label, value)| label == "assurance"
                 && value.contains(projection::ASSURANCE_PROFILE))
         );
+    }
+
+    #[test]
+    fn a_startable_contract_offers_the_run_and_a_store_with_a_run_does_not() {
+        let modal = authorize(&contract(true), &environment(), None, None);
+        let action = modal.action.expect("the run is offered");
+        assert_eq!(action.run_id, "run-aaaaaaaaaaaa");
+        let confirm = start_run(&action);
+        assert_eq!(confirm.required, "contract-1");
+        assert!(
+            confirm.title.contains("run-aaaaaaaaaaaa"),
+            "{}",
+            confirm.title
+        );
+        assert!(
+            confirm
+                .consequences
+                .iter()
+                .any(|line| line.contains("verify.sh")),
+            "{:?}",
+            confirm.consequences
+        );
+
+        let run = RunFacts {
+            run_id: "demo-run".into(),
+            status: RunStatus::Running,
+            budget: Budget::new(2, 1),
+            active_attempts: Vec::new(),
+            candidate_digest: None,
+            last_sequence: 3,
+            terminal_reason: None,
+        };
+        let modal = authorize(&contract(true), &environment(), None, Some(&run));
+        assert!(modal.action.is_none(), "a second run was offered");
+        assert!(modal.action_note.contains("already holds a run"));
     }
 
     #[test]

@@ -203,11 +203,21 @@ fn input_left(app: &App, markers: &Markers) -> Vec<Span<'static>> {
             Span::styled(format!("{} ", markers.prompt), theme::faint()),
             Span::styled(reason.clone(), theme::faint()),
         ],
-        None => vec![
-            Span::styled(format!("{} ", markers.prompt), theme::amber()),
-            Span::styled(app.prompt.buffer.clone(), theme::text()),
-            Span::styled(markers.cursor.to_owned(), theme::accent()),
-        ],
+        None => {
+            let mut spans = vec![
+                Span::styled(format!("{} ", markers.prompt), theme::amber()),
+                Span::styled(app.prompt.buffer.clone(), theme::text()),
+                Span::styled(markers.cursor.to_owned(), theme::accent()),
+            ];
+            // While an answer is awaited, the row states which one, so pressing Enter on an
+            // empty line is a stated choice rather than a guess.
+            if app.prompt.buffer.is_empty()
+                && let Some(awaiting) = &app.data.awaiting
+            {
+                spans.push(Span::styled(format!("  {awaiting}"), theme::faint()));
+            }
+            spans
+        }
     }
 }
 
