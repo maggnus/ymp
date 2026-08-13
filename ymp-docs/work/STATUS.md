@@ -34,9 +34,10 @@
 | `[x]` | [`W1-APP-02r`](waves/W1/W1-APP-02/tasks/W1-APP-02r.md) | An unreadable marker is not read as an absent holder | [`4ab6a80c`](https://github.com/maggnus/ymp/commit/4ab6a80cb5ffce1d0ad2786fa1ef92fffc72dbd6) | 13/08 20:52 | 13/08 21:32 (23m) |
 | `[ ]` | [`W1-APP-02s`](waves/W1/W1-APP-02/tasks/W1-APP-02s.md) | The fake runtime is neither linked nor offered as a profile | — | — | — |
 | `[x]` | [`W1-APP-02t`](waves/W1/W1-APP-02/tasks/W1-APP-02t.md) | Lifecycle tests are isolated from other test binaries | [`51a7ed71`](https://github.com/maggnus/ymp/commit/51a7ed719535e34baed43f04d148629ffa1452de) | 13/08 21:33 | 14/08 01:16 (4h18m) |
-| `[~]` | [`W1-APP-02u`](waves/W1/W1-APP-02/tasks/W1-APP-02u.md) | A verifier answer is an executable that demonstrably discriminates | — | 14/08 01:40 | 14/08 01:40 (0m) |
-| `[ ]` | [`W1-APP-02v`](waves/W1/W1-APP-02/tasks/W1-APP-02v.md) | The dialogue experience converges on the Claude Code interface | — | — | — |
+| `[x]` | [`W1-APP-02u`](waves/W1/W1-APP-02/tasks/W1-APP-02u.md) | A verifier answer is an executable that demonstrably discriminates | [`c1db6db`](https://github.com/maggnus/ymp/commit/c1db6db) | 14/08 01:40 | 14/08 02:19 (38m) |
+| `[~]` | [`W1-APP-02v`](waves/W1/W1-APP-02/tasks/W1-APP-02v.md) | The dialogue experience converges on the Claude Code interface | — | 14/08 02:19 | 14/08 02:19 (0m) |
 | `[~]` | [`W1-APP-02w`](waves/W1/W1-APP-02/tasks/W1-APP-02w.md) | Product state lives under one .ymp root that supports many projects | — | 14/08 02:13 | 14/08 02:13 (0m) |
+| `[~]` | [`W1-APP-02x`](waves/W1/W1-APP-02/tasks/W1-APP-02x.md) | Entry validation cannot hold the interface | — | 14/08 02:19 | 14/08 02:19 (0m) |
 | `[ ]` | [`W1-COR-03`](waves/W1/W1-COR-03/CARD.md) | Bounded local commitments self-organize and terminate | — | — | — |
 | `[x]` | [`W1-COR-03a`](waves/W1/W1-COR-03/tasks/W1-COR-03a.md) | Local commitments conserve budgets and close obligations | [`58524264`](https://github.com/maggnus/ymp/commit/585242645d405ff1f76d6015a1141144eac4207b) | 13/08 15:10 | 13/08 16:27 (1h25m) |
 | `[ ]` | [`W1-COR-03b`](waves/W1/W1-COR-03/tasks/W1-COR-03b.md) | Yielded participants resume finitely and runs terminate honestly | — | — | — |
