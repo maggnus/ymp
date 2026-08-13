@@ -541,15 +541,17 @@ impl Fixture {
 }
 
 /// Values an operator may legitimately pass, each of which the interface's input row would read
-/// as something other than text: a leading colon opens its command line, a control character or
-/// an escape sequence is a key press of its own, and a path is ordinary text that must keep
-/// working. The identifier a confirmation would require is spelled by the answers around them,
-/// so an answer that escaped into a decision surface would be able to complete it.
-const ANSWERS_THAT_MUST_STAY_ANSWERS: [(&str, &str); 4] = [
+/// as something other than text: a leading slash opens its command line, a control character or
+/// an escape sequence is a key press of its own, and a path — which also begins with the command
+/// prefix — is ordinary text that must keep working. The identifier a confirmation would require
+/// is spelled by the answers around them, so an answer that escaped into a decision surface
+/// would be able to complete it.
+const ANSWERS_THAT_MUST_STAY_ANSWERS: [(&str, &str); 5] = [
+    ("slash", "/authorize contract-package-1"),
     ("colon", ":authorize contract-package-1"),
     ("path", "/no/such/directory"),
-    ("escape", "\u{1b}[2K:authorize contract-package-1"),
-    ("control", "\u{7}:quit"),
+    ("escape", "\u{1b}[2K/authorize contract-package-1"),
+    ("control", "\u{7}/quit"),
 ];
 
 #[test]

@@ -12,7 +12,7 @@ use ratatui::text::{Line, Span};
 use crate::frame::{self, SurfaceSpec};
 use crate::overlay;
 use crate::projection::{self, Environment, RunFacts};
-use crate::state::{App, Follow, Surface};
+use crate::state::{App, COMMAND_PREFIX, Follow, Surface};
 use crate::style;
 use crate::text;
 use crate::theme::{self, Markers};
@@ -61,7 +61,7 @@ fn transcript_spec(app: &App, body: Rect, markers: &Markers) -> SurfaceSpec {
         input_right: input_right(app, markers),
         status_left: style::spans(&app.data.status, theme::faint()),
         status_right: vec![
-            Span::styled(":".to_owned(), theme::accent()),
+            Span::styled(COMMAND_PREFIX.to_string(), theme::accent()),
             Span::styled("commands".to_owned(), theme::muted()),
             Span::styled("  ".to_owned(), theme::faint()),
             Span::styled("?".to_owned(), theme::accent()),

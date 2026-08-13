@@ -118,7 +118,7 @@ impl Model {
                     .into(),
             },
             Entry::AppReply {
-                text: ":runtimes  which runtime profiles this host can start".into(),
+                text: "/runtimes  which runtime profiles this host can start".into(),
             },
             Entry::AppReply {
                 text: "?          key map".into(),
@@ -300,7 +300,7 @@ impl Model {
         if self.elided > 0 {
             entries.push(Entry::AppReply {
                 text: format!(
-                    "{} earlier transcript entries are not held in memory — :events reads the \
+                    "{} earlier transcript entries are not held in memory — /events reads the \
                      journal from its head",
                     self.elided
                 ),
@@ -846,7 +846,7 @@ fn contracts_hint(contracts: &[ContractFacts]) -> String {
     match contracts.len() {
         0 => "no contract drafted yet · one is drafted from the request you type below".to_owned(),
         1 => format!(
-            ":authorize {} · nothing runs and nothing is spent until you authorize it",
+            "/authorize {} · nothing runs and nothing is spent until you authorize it",
             contracts[0].contract_id
         ),
         count => format!(

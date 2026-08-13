@@ -141,9 +141,9 @@ pub fn type_text(app: &mut App, text: &str, height: u16) {
     }
 }
 
-/// Open a page through the `:` palette, exactly as an operator would.
+/// Open a page through the `/` palette, exactly as an operator would.
 pub fn open_command(app: &mut App, name: &str, height: u16) -> Option<Action> {
-    press(app, KeyCode::Char(':'), height);
+    press(app, KeyCode::Char('/'), height);
     type_text(app, name, height);
     press(app, KeyCode::Enter, height)
 }

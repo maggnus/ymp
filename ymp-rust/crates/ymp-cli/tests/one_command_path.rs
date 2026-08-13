@@ -69,7 +69,7 @@ const FILESYSTEM: [&str; 3] = ["fs", "File", "OpenOptions"];
 
 /// The interface's input channel.
 ///
-/// An argument value is a value, never a key press. The input row reads a leading colon as its
+/// An argument value is a value, never a key press. The input row reads a leading slash as its
 /// command line and a control character as a key of its own, so a command that turned a stated
 /// value into key presses could open a surface it never asked for and complete a decision
 /// standing behind it. No module of this surface may name that channel.

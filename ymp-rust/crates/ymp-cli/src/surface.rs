@@ -9,7 +9,7 @@
 //! any path the interface does not take.
 //!
 //! An argument value is a value, never a key press. The interface's input row reads a leading
-//! colon as its command line and a control character as a key of its own, so a value carried
+//! slash as its command line and a control character as a key of its own, so a value carried
 //! through that row could open a surface the command never asked for and complete a decision
 //! standing behind it. Nothing here goes through the input row: an answer is passed to
 //! [`ymp_tui::Session::local_turn`], which is exactly what the interface's event loop passes it,

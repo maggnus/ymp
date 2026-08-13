@@ -28,7 +28,7 @@ use crate::journal::Model;
 use crate::pages::Page;
 use crate::projection::{ContractFacts, Environment, Projection};
 use crate::runtimes::Report;
-use crate::state::{App, Command, ConfirmAction, Modal, PageKind, Surface};
+use crate::state::{App, COMMAND_PREFIX, Command, ConfirmAction, Modal, PageKind, Surface};
 use crate::terminal::TerminalGuard;
 use crate::theme::Markers;
 use crate::ui;
@@ -218,7 +218,7 @@ impl Session {
         if self.application.is_some() {
             self.model.reply(
                 "local turn — not recorded in the journal. This domain carries no messages, so no \
-                 participant can receive it. Commands work: press : for the list, ? for the keys.",
+                 participant can receive it. Commands work: press / for the list, ? for the keys.",
             );
             return;
         }
@@ -282,7 +282,7 @@ impl Session {
                 let facts = ContractFacts::from_prepared(&prepared);
                 self.model.reply(format!(
                     "contract {} drafted · digest {} · verifier {} · negative control {} · \
-                     nothing has started and nothing is spent. :authorize {} reviews what would \
+                     nothing has started and nothing is spent. /authorize {} reviews what would \
                      be checked and starts run {}",
                     facts.contract_id,
                     crate::projection::short_digest(&facts.contract_digest),
@@ -560,7 +560,7 @@ fn transcript_key(app: &mut App, key: KeyEvent, height: u16) -> Option<Action> {
         KeyCode::End => app.resume_live(),
         KeyCode::Char('?') if app.prompt.buffer.is_empty() => app.modal = Modal::Keys,
         KeyCode::Char('q') if app.prompt.buffer.is_empty() => app.should_quit = true,
-        KeyCode::Char(':') if app.prompt.buffer.is_empty() => open_palette(app),
+        KeyCode::Char(COMMAND_PREFIX) if app.prompt.buffer.is_empty() => open_palette(app),
         KeyCode::Esc => {
             if app.prompt.buffer.is_empty() {
                 app.resume_live();
@@ -616,7 +616,7 @@ fn page_key(app: &mut App, kind: PageKind, key: KeyEvent) -> Option<Action> {
         }
         KeyCode::Char('?') => app.modal = Modal::Keys,
         KeyCode::Char('q') => app.should_quit = true,
-        KeyCode::Char(':') => open_palette(app),
+        KeyCode::Char(COMMAND_PREFIX) => open_palette(app),
         _ => {}
     }
     None
@@ -652,10 +652,18 @@ fn palette_key(app: &mut App, key: KeyEvent) -> Option<Action> {
             palette.selected = 0;
         }
         KeyCode::Enter => {
-            let command = palette
-                .matches()
-                .get(palette.selected)
-                .map(|item| item.command);
+            let matches = palette.matches();
+            // A line that names no command is a line, not a failed command: it leaves as the
+            // request or answer it was, prefix included, exactly as it was typed. Without this
+            // an absolute path could never be typed, because it opens with the command prefix.
+            if matches.is_empty() {
+                let typed = palette.input.clone();
+                close_modal(app);
+                app.prompt.buffer.clear();
+                app.resume_live();
+                return Some(Action::LocalTurn(typed));
+            }
+            let command = matches.get(palette.selected).map(|item| item.command);
             close_modal(app);
             match command {
                 Some(Command::OpenPage(kind)) => app.surface = Surface::Page(kind),

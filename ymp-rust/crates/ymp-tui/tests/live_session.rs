@@ -52,7 +52,7 @@ fn a_store_with_no_run_opens_on_the_transcript_and_states_the_absence() {
         let rendered = render(&app, width, height);
         assert!(rendered.contains("no run recorded"), "{rendered}");
         assert!(rendered.contains("idle · no run"), "{rendered}");
-        assert!(rendered.contains(":commands"), "{rendered}");
+        assert!(rendered.contains("/commands"), "{rendered}");
     }
 }
 

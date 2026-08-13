@@ -1,7 +1,7 @@
 //! The ymp terminal interface.
 //!
 //! The main screen is a conversation: one scrolling transcript, an input line, a thin header
-//! and a status line. Full-screen data pages open over it through a `:` command line in the k9s
+//! and a status line. Full-screen data pages open over it through a `/` command line in the k9s
 //! tradition, and a decision modal interrupts the conversation only for an irreversible
 //! command. The composition follows `ymp-docs/design/ymp_chat_tui.dc.html`; the reasoning is in
 //! `ymp-docs/VISUAL_CONCEPT.md`.
