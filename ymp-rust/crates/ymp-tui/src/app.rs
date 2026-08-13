@@ -254,6 +254,17 @@ impl Session {
                         self.model
                             .await_answer(Some(draft::question_hint(question)));
                     }
+                    // An answer this host cannot resolve ends the draft where it was typed. The
+                    // remaining questions are not asked, because they would collect answers for a
+                    // contract that already cannot be assembled.
+                    Step::Refused(reason) => {
+                        self.draft = None;
+                        self.model.await_answer(None);
+                        self.model.error(format!(
+                            "{reason}. Nothing was recorded. State the request again to draft \
+                             another contract."
+                        ));
+                    }
                     Step::Ready(request) => {
                         self.model.await_answer(None);
                         self.prepare(*request);

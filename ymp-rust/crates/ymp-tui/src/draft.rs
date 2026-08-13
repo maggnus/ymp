@@ -8,10 +8,15 @@
 //! This module only collects answers. Validating them, resolving them on this host and turning
 //! them into a contract belongs to `ymp-application`, so the interface and the equivalent
 //! command reach the kernel through one implementation.
+//!
+//! Each answer is taken where it is typed. An answer the application cannot resolve — a verifier
+//! that is not an executable file on this host, a source that is not a directory, or a verifier
+//! that accepts the deliberately wrong candidate — ends the draft at that answer with the reason
+//! named, instead of being carried through the remaining questions and refused at assembly.
 
 use std::path::{Path, PathBuf};
 
-use ymp_application::{AcceptanceCondition, RunRequest};
+use ymp_application::{AcceptanceCondition, RunRequest, answer};
 
 /// What the draft is waiting for.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -39,6 +44,10 @@ pub struct Draft {
 pub enum Step {
     /// Still collecting: the question to put to the operator.
     Ask(Question),
+    /// The answer just typed was not taken, and the draft ends here. The text names the answer
+    /// and what this host said about it, so the operator learns it at that answer rather than
+    /// after the remaining questions.
+    Refused(String),
     /// Complete as far as the interface can take it. The application decides whether it is a
     /// contract: a request with no acceptance condition reaches it and is refused there.
     Ready(Box<RunRequest>),
@@ -60,15 +69,25 @@ impl Draft {
     /// An empty answer to the source question accepts the project directory. An empty answer to
     /// either acceptance question leaves the condition absent, and the request goes to the
     /// application without one rather than being silently completed here.
+    ///
+    /// A non-empty answer is resolved on this host before the next question is asked, and what is
+    /// kept is the resolved path, so the contract is assembled from exactly what was checked. The
+    /// negative control is the last answer of the acceptance condition, so the verifier is asked
+    /// to reject it there — the earliest point at which both halves are known.
     pub fn answer(&mut self, text: &str, project: &Path) -> Step {
         let answer = text.trim();
         match self.question {
             Question::Source => {
-                self.source = Some(if answer.is_empty() {
+                let stated = if answer.is_empty() {
                     project.to_path_buf()
                 } else {
                     PathBuf::from(answer)
-                });
+                };
+                let source = match answer::source_directory(&stated) {
+                    Ok(source) => source,
+                    Err(refusal) => return Step::Refused(refusal.to_string()),
+                };
+                self.source = Some(source);
                 self.question = Question::Verifier;
                 Step::Ask(Question::Verifier)
             }
@@ -76,13 +95,27 @@ impl Draft {
                 if answer.is_empty() {
                     return Step::Ready(Box::new(self.request()));
                 }
-                self.program = Some(PathBuf::from(answer));
+                let program = match answer::verifier_program(Path::new(answer)) {
+                    Ok(program) => program,
+                    Err(refusal) => return Step::Refused(refusal.to_string()),
+                };
+                self.program = Some(program);
                 self.question = Question::NegativeControl;
                 Step::Ask(Question::NegativeControl)
             }
             Question::NegativeControl => {
                 if !answer.is_empty() {
-                    self.negative_control = Some(PathBuf::from(answer));
+                    let negative_control =
+                        match answer::negative_control_directory(Path::new(answer)) {
+                            Ok(negative_control) => negative_control,
+                            Err(refusal) => return Step::Refused(refusal.to_string()),
+                        };
+                    if let Some(program) = &self.program
+                        && let Err(refusal) = answer::discriminates(program, &negative_control)
+                    {
+                        return Step::Refused(refusal.to_string());
+                    }
+                    self.negative_control = Some(negative_control);
                 }
                 Step::Ready(Box::new(self.request()))
             }
@@ -161,24 +194,84 @@ pub fn question_hint(question: Question) -> String {
 #[cfg(test)]
 mod tests {
     use super::{Draft, Question, Step};
+    use std::fs;
     use std::path::{Path, PathBuf};
+    use tempfile::TempDir;
+
+    /// A project on disk: an answer names something on this host, so a draft can only be driven
+    /// against paths that exist. The verifier discriminates — it accepts a directory holding
+    /// `result.txt` and rejects one that does not — because a draft that completes has been shown
+    /// a program that rejects the negative control.
+    struct Project {
+        _root: TempDir,
+        directory: PathBuf,
+        source: PathBuf,
+        program: PathBuf,
+        negative_control: PathBuf,
+    }
+
+    fn project() -> Project {
+        let root = TempDir::new().expect("temporary root");
+        let directory = canonical(root.path());
+        let source = directory.join("source");
+        let negative_control = directory.join("negative-control");
+        let program = directory.join("verify.sh");
+        fs::create_dir_all(&source).expect("source directory");
+        fs::create_dir_all(&negative_control).expect("negative control directory");
+        fs::write(source.join("result.txt"), b"result\n").expect("source file");
+        // The subject is the only argument the executor passes, so the whole argument list names
+        // it. Spelling it that way keeps a positional digit out of this file, which a guard test
+        // reads as a value fixed in the source.
+        executable(&program, "#!/bin/sh\ntest -f \"$*/result.txt\"\n");
+        Project {
+            _root: root,
+            directory,
+            source,
+            program,
+            negative_control,
+        }
+    }
+
+    fn canonical(path: &Path) -> PathBuf {
+        path.canonicalize().expect("resolve path")
+    }
+
+    fn executable(path: &Path, contents: &str) {
+        fs::write(path, contents).expect("write program");
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+
+            let mut permissions = fs::metadata(path).expect("metadata").permissions();
+            permissions.set_mode(0o700);
+            fs::set_permissions(path, permissions).expect("make executable");
+        }
+    }
+
+    fn refusal(step: Step) -> String {
+        match step {
+            Step::Refused(reason) => reason,
+            other => panic!("the answer was taken instead of refused: {other:?}"),
+        }
+    }
 
     #[test]
     fn an_empty_source_answer_accepts_the_project_directory() {
+        let project = project();
         let mut draft = Draft::new("keep the replay path idempotent");
-        let project = Path::new("/tmp/checkout");
         assert!(matches!(
-            draft.answer("", project),
+            draft.answer("", &project.directory),
             Step::Ask(Question::Verifier)
         ));
-        assert_eq!(draft.source.as_deref(), Some(project));
+        assert_eq!(draft.source.as_deref(), Some(project.directory.as_path()));
     }
 
     #[test]
     fn declining_the_acceptance_question_produces_a_request_without_one() {
+        let project = project();
         let mut draft = Draft::new("keep the replay path idempotent");
-        draft.answer("", Path::new("/tmp/checkout"));
-        let Step::Ready(request) = draft.answer("", Path::new("/tmp/checkout")) else {
+        draft.answer("", &project.directory);
+        let Step::Ready(request) = draft.answer("", &project.directory) else {
             panic!("the draft kept asking after the acceptance question was declined");
         };
         assert!(request.acceptance.is_none());
@@ -186,19 +279,110 @@ mod tests {
     }
 
     #[test]
-    fn both_acceptance_answers_reach_the_request_unchanged() {
+    fn both_acceptance_answers_reach_the_request_resolved() {
+        let project = project();
         let mut draft = Draft::new("keep the replay path idempotent");
-        draft.answer("/tmp/source", Path::new("/tmp/checkout"));
+        draft.answer(&project.source.display().to_string(), &project.directory);
         assert!(matches!(
-            draft.answer("/tmp/verify.sh", Path::new("/tmp/checkout")),
+            draft.answer(&project.program.display().to_string(), &project.directory),
             Step::Ask(Question::NegativeControl)
         ));
-        let Step::Ready(request) = draft.answer("/tmp/negative", Path::new("/tmp/checkout")) else {
+        let Step::Ready(request) = draft.answer(
+            &project.negative_control.display().to_string(),
+            &project.directory,
+        ) else {
             panic!("the draft did not complete");
         };
         let acceptance = request.acceptance.expect("acceptance condition");
-        assert_eq!(acceptance.program, PathBuf::from("/tmp/verify.sh"));
-        assert_eq!(acceptance.negative_control, PathBuf::from("/tmp/negative"));
-        assert_eq!(request.source, PathBuf::from("/tmp/source"));
+        assert_eq!(acceptance.program, project.program);
+        assert_eq!(acceptance.negative_control, project.negative_control);
+        assert_eq!(request.source, project.source);
+    }
+
+    /// The source is decided at the source answer, so the two acceptance questions are never put
+    /// for a directory the request could not have used.
+    #[test]
+    fn a_source_that_is_not_a_directory_is_refused_at_the_source_answer() {
+        let project = project();
+        for (stated, expected) in [
+            (
+                project.directory.join("no-such-directory"),
+                "could not be read",
+            ),
+            (project.program.clone(), "not a directory"),
+        ] {
+            let mut draft = Draft::new("keep the replay path idempotent");
+            let reason = refusal(draft.answer(&stated.display().to_string(), &project.directory));
+            assert!(reason.contains(expected), "{reason}");
+            assert_eq!(draft.question, Question::Source);
+            assert!(draft.source.is_none());
+        }
+    }
+
+    /// An answer is one path. A command line, a directory and a file without execute permission
+    /// are all refused where the verifier is typed.
+    #[test]
+    fn a_verifier_that_is_not_an_executable_file_is_refused_at_the_verifier_answer() {
+        let project = project();
+        let unreadable = project.directory.join("not-executable.sh");
+        fs::write(&unreadable, "#!/bin/sh\nexit 1\n").expect("write file");
+        let cases = [
+            (
+                format!("{} --strict", project.program.display()),
+                "could not be read",
+            ),
+            (
+                project
+                    .directory
+                    .join("no-such-program")
+                    .display()
+                    .to_string(),
+                "could not be read",
+            ),
+            (
+                project.source.display().to_string(),
+                "not an executable file",
+            ),
+            (unreadable.display().to_string(), "not an executable file"),
+        ];
+        for (stated, expected) in cases {
+            let mut draft = Draft::new("keep the replay path idempotent");
+            draft.answer(&project.source.display().to_string(), &project.directory);
+            let reason = refusal(draft.answer(&stated, &project.directory));
+            assert!(reason.contains(expected), "{stated} — {reason}");
+            assert_eq!(draft.question, Question::Verifier);
+            assert!(draft.program.is_none());
+        }
+    }
+
+    /// A program that exits zero on the deliberately wrong candidate decides nothing, so the draft
+    /// never completes with it and no request carries it to the application.
+    #[test]
+    fn a_verifier_that_accepts_the_negative_control_is_refused_there() {
+        let project = project();
+        let accepts_anything = project.directory.join("accept.sh");
+        executable(&accepts_anything, "#!/bin/sh\nexit 0\n");
+
+        let mut draft = Draft::new("keep the replay path idempotent");
+        draft.answer(&project.source.display().to_string(), &project.directory);
+        draft.answer(&accepts_anything.display().to_string(), &project.directory);
+        let reason = refusal(draft.answer(
+            &project.negative_control.display().to_string(),
+            &project.directory,
+        ));
+        assert!(reason.contains("accepted the negative control"), "{reason}");
+        assert!(draft.negative_control.is_none());
+    }
+
+    #[test]
+    fn a_negative_control_that_is_not_a_directory_is_refused_at_that_answer() {
+        let project = project();
+        let mut draft = Draft::new("keep the replay path idempotent");
+        draft.answer(&project.source.display().to_string(), &project.directory);
+        draft.answer(&project.program.display().to_string(), &project.directory);
+        let reason =
+            refusal(draft.answer(&project.program.display().to_string(), &project.directory));
+        assert!(reason.contains("not a directory"), "{reason}");
+        assert!(draft.negative_control.is_none());
     }
 }
