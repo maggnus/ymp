@@ -32,6 +32,7 @@
 | `[x]` | [`W1-APP-02p`](waves/W1/W1-APP-02/tasks/W1-APP-02p.md) | Every program in the launch chain is verified, not only the pinned runtime | [`f6bebcf6`](https://github.com/maggnus/ymp/commit/f6bebcf6b2564f6fb133c4545d7209770037f2cd) | 13/08 15:10 | 13/08 16:54 (1h58m) |
 | `[x]` | [`W1-APP-02q`](waves/W1/W1-APP-02/tasks/W1-APP-02q.md) | Admission failures refuse instead of degrading, and ownership is proved beyond file mode | [`7cf9ed3b`](https://github.com/maggnus/ymp/commit/7cf9ed3bdf4642330d4256fc3c0632bd57fd8c92) | 13/08 18:53 | 13/08 21:11 (1h47m) |
 | `[ ]` | [`W1-APP-02r`](waves/W1/W1-APP-02/tasks/W1-APP-02r.md) | An unreadable marker is not read as an absent holder | — | — | — |
+| `[ ]` | [`W1-APP-02s`](waves/W1/W1-APP-02/tasks/W1-APP-02s.md) | The fake runtime is neither linked nor offered as a profile | — | — | — |
 | `[ ]` | [`W1-COR-03`](waves/W1/W1-COR-03/CARD.md) | Bounded local commitments self-organize and terminate | — | — | — |
 | `[x]` | [`W1-COR-03a`](waves/W1/W1-COR-03/tasks/W1-COR-03a.md) | Local commitments conserve budgets and close obligations | [`58524264`](https://github.com/maggnus/ymp/commit/585242645d405ff1f76d6015a1141144eac4207b) | 13/08 15:10 | 13/08 16:27 (1h25m) |
 | `[ ]` | [`W1-COR-03b`](waves/W1/W1-COR-03/tasks/W1-COR-03b.md) | Yielded participants resume finitely and runs terminate honestly | — | — | — |
