@@ -47,7 +47,7 @@
 | `[x]` | [`W1-COR-03g`](waves/W1/W1-COR-03/tasks/W1-COR-03g.md) | Settlement returns escrow only to an account that can still spend it | [`2b390922`](https://github.com/maggnus/ymp/commit/2b390922667426a48b01c9225ccee08c7d8e81f8) | 13/08 16:47 | 13/08 18:43 (1h36m) |
 | `[x]` | [`W1-COR-03h`](waves/W1/W1-COR-03/tasks/W1-COR-03h.md) | Conservation and ownership checks fail on the mutants they name | [`ce0aeecb`](https://github.com/maggnus/ymp/commit/ce0aeecbcdbf598b4badc72529873748efe3d966) | 13/08 18:52 | 13/08 20:02 (48m) |
 | `[x]` | [`W1-COR-03i`](waves/W1/W1-COR-03/tasks/W1-COR-03i.md) | Emitted facts are proved against the command that produced them | [`67fe28d2`](https://github.com/maggnus/ymp/commit/67fe28d2fa21e993d3446de5c546a46c5451a4c1) | 13/08 20:50 | 13/08 21:41 (35m) |
-| `[~]` | [`W1-COR-03j`](waves/W1/W1-COR-03/tasks/W1-COR-03j.md) | A fact is proved against its source account, not only its amount | — | 14/08 01:40 | 14/08 01:40 (0m) |
+| `[x]` | [`W1-COR-03j`](waves/W1/W1-COR-03/tasks/W1-COR-03j.md) | A fact is proved against its source account, not only its amount | [`2378798`](https://github.com/maggnus/ymp/commit/2378798) | 14/08 01:40 | 14/08 03:15 (1h35m) |
 | `[ ]` | [`W1-EVL-04`](waves/W1/W1-EVL-04/CARD.md) | Controlled evidence decides both POC hypotheses | — | — | — |
 | `[?]` | [`W1-EVL-04a`](waves/W1/W1-EVL-04/tasks/W1-EVL-04a.md) | Matched-budget arms produce comparable acceptance evidence | — | — | — |
 | `[ ]` | [`W1-EVL-04b`](waves/W1/W1-EVL-04/tasks/W1-EVL-04b.md) | Message interventions separate appearance from causal use | — | — | — |

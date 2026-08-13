@@ -3,23 +3,23 @@ id: W1-COR-03j
 kind: task
 wave: W1
 card: W1-COR-03
-state: active
+state: accepted
 risk: significant
 maturity: BUILD
 relation: required
 depends_on: [W1-COR-03i]
 blocks: []
 created_at: 2026-08-13T21:41:30+08:00
-updated_at: 2026-08-14T01:40:23+08:00
+updated_at: 2026-08-14T03:15:00+08:00
 started_at: 2026-08-14T01:40:23+08:00
-accepted_at:
-candidate_commit:
-closure_commit:
-evidence:
-duration_minutes: 0
+accepted_at: 2026-08-14T03:15:00+08:00
+candidate_commit: https://github.com/maggnus/ymp/commit/bbe79c7
+closure_commit: https://github.com/maggnus/ymp/commit/2378798
+evidence: redirected award transfer caught by all 192 generated schedules (green on base, FactContradictsCommand on candidate); four excluded commands included or justified; reviewer ACCEPT with production-code movement mutations as different-shape falsifiers
+duration_minutes: 95
 blocker:
 pause_reason:
-return_trigger:
+return_trigger: a scenario set that seeds ledger state outside the observed command prefix makes unresolvable accounts reachable; the comparison-wide skip in movements()=None must then be narrowed
 deliberate_partial: false
 ---
 
