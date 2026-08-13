@@ -81,6 +81,8 @@ the entry stays here so the next reader does not spend the same hour.
 
 ## Order
 
-The compilation cache first, because it pays on every future card. Then the test grouping, because a
-flaky red is more expensive than a slow green. Then the file splits, taken as ordinary cards where
-they block the next piece of work.
+Reduced debug information and the removal of the per-card full suite are applied. Next is the test
+grouping, because a flaky red costs a full diagnosis cycle and teaches the fleet to distrust its own
+checks. Then batching homogeneous nodes into one contract, which needs no code at all. Then the file
+splits, taken as ordinary cards where they block the next piece of work. Artifact sharing across
+worktrees stays open until it can be measured on an idle machine.
