@@ -66,6 +66,13 @@ const STARTS: [&str; 5] = [
     "start_unattested_managed_candidate",
 ];
 
+/// The helpers that end the processes a run started. A result of one of them is the only ground on
+/// which a run may say it left nothing running, so no module may throw one away.
+const TERMINATION: [&str; 2] = ["terminate_process_tree(", "end_process_tree"];
+
+/// The ways a result is thrown away on the line that produced it.
+const DISCARDS: [&str; 2] = ["let _ =", ".ok()"];
+
 /// The gate every such module must call. The call is what is looked for, not the name: a module
 /// that imported the gate and never called it would otherwise satisfy this check by its import.
 const GATE: &str = "admit_runtime_start(";
@@ -210,6 +217,25 @@ fn every_shipped_module_that_starts_a_runtime_names_the_gate() {
     assert!(
         offenders.is_empty(),
         "a shipped module builds a runtime driver and starts it without the gate:\n{}",
+        offenders.join("\n")
+    );
+}
+
+#[test]
+fn no_shipped_module_discards_a_termination_result() {
+    let mut offenders = Vec::new();
+    for (name, source) in shipped_sources() {
+        for (number, line) in code_lines(&source) {
+            if TERMINATION.iter().any(|helper| line.contains(helper))
+                && DISCARDS.iter().any(|discard| line.contains(discard))
+            {
+                offenders.push(format!("{name}:{number}:{}", line.trim()));
+            }
+        }
+    }
+    assert!(
+        offenders.is_empty(),
+        "a shipped module throws away what it learned about the processes it started:\n{}",
         offenders.join("\n")
     );
 }

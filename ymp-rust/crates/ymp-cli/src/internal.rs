@@ -15,7 +15,10 @@ use std::time::Duration;
 use uuid::Uuid;
 use ymp_application::{Application, PreparedContract};
 use ymp_domain::Command as DomainCommand;
-use ymp_runtime_api::{CancellationToken, InvocationRequest, McpBinding, Readiness, RuntimeDriver};
+use ymp_runtime_api::{
+    CancellationToken, InvocationRequest, McpBinding, Readiness, RuntimeDriver,
+    unestablished_terminations,
+};
 use ymp_runtime_claude::ClaudeRuntime;
 use ymp_runtime_codex::CodexRuntime;
 use ymp_runtime_supervisor::{
@@ -146,6 +149,21 @@ fn runtime_driver(runtime: RuntimeChoice) -> anyhow::Result<Box<dyn RuntimeDrive
     Ok(driver)
 }
 
+/// Reads what the runtime session could not establish about the processes it started. The places
+/// that end a process tree while they are already reporting something else keep it, because they
+/// have no caller to tell; a command that printed its events and exited zero without reading it
+/// would report a clean end it never measured.
+fn require_established_termination() -> anyhow::Result<()> {
+    let unestablished = unestablished_terminations();
+    if !unestablished.is_empty() {
+        bail!(
+            "the processes this run started could not be ended: {}",
+            unestablished.join("; ")
+        );
+    }
+    Ok(())
+}
+
 fn run_runtime_smoke(
     runtime: RuntimeChoice,
     workspace: PathBuf,
@@ -168,6 +186,8 @@ fn run_runtime_smoke(
     while let Some(event) = session.next_event()? {
         println!("{}", serde_json::to_string(&event)?);
     }
+    drop(session);
+    require_established_termination()?;
     Ok(())
 }
 
@@ -220,6 +240,8 @@ fn run_managed_runtime_smoke(
     while let Some(event) = session.next_event()? {
         println!("{}", serde_json::to_string(&event)?);
     }
+    drop(session);
+    require_established_termination()?;
     let application = application
         .lock()
         .map_err(|_| anyhow::anyhow!("application lock was poisoned"))?;
@@ -296,6 +318,8 @@ fn run_managed_candidate_smoke(
     while let Some(event) = session.next_event()? {
         println!("{}", serde_json::to_string(&event)?);
     }
+    drop(session);
+    require_established_termination()?;
 
     let mut application = application
         .lock()

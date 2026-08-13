@@ -1569,6 +1569,39 @@ mod descendants {
     }
 }
 
+/// What a run could not establish about the processes it started.
+///
+/// Most of the places that end a process tree are reporting something else at that moment — a
+/// cancellation, a time limit, a failure the runtime reported — or are a session being dropped,
+/// which has no caller at all. None of them can return a termination failure, and none of them may
+/// discard it either: the whole point of the check is that a run says what it left running. They
+/// keep it here instead, and the controller reads it before it reports the run's outcome.
+fn unestablished() -> &'static std::sync::Mutex<Vec<String>> {
+    static UNESTABLISHED: std::sync::OnceLock<std::sync::Mutex<Vec<String>>> =
+        std::sync::OnceLock::new();
+    UNESTABLISHED.get_or_init(|| std::sync::Mutex::new(Vec::new()))
+}
+
+/// Ends the managed process tree where the caller cannot report a failure to do so, and keeps what
+/// could not be established for the controller to report.
+#[doc(hidden)]
+pub fn end_process_tree_or_keep(child: &mut Child) {
+    if let Err(error) = terminate_process_tree(child)
+        && let Ok(mut kept) = unestablished().lock()
+    {
+        kept.push(error.to_string());
+    }
+}
+
+/// Takes everything no caller could be told about since this was last read. An empty answer here is
+/// the only ground on which a run may report that it left nothing running.
+pub fn unestablished_terminations() -> Vec<String> {
+    unestablished()
+        .lock()
+        .map(|mut kept| std::mem::take(&mut *kept))
+        .unwrap_or_default()
+}
+
 #[doc(hidden)]
 #[cfg(unix)]
 pub fn terminate_process_tree(child: &mut Child) -> std::io::Result<()> {

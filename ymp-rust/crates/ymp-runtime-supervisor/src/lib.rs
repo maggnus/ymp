@@ -21,7 +21,7 @@ use ymp_runtime_api::{
     AdmittedProgram, CancellationToken, DiagnosticSummary, InvocationRequest, LaunchDescriptor,
     McpBinding, ProbeReport, ProgramIdentity, ProgramRequirement, ProgramRole, Readiness,
     RuntimeDriver, RuntimeError, RuntimeEvent, RuntimeEventKind, RuntimeFailureKind, RuntimeKind,
-    Usage, admit_lifecycle_programs,
+    Usage, admit_lifecycle_programs, unestablished_terminations,
 };
 
 const CONTRACT_SCHEMA_VERSION: u32 = 1;
@@ -759,7 +759,17 @@ fn start_candidate(
     let mut session = match driver.start_prepared(invocation_request, launch_descriptor.as_ref()) {
         Ok(session) => session,
         Err(error) => {
-            record_infrastructure_failure(&application, &attempt_id, runtime_error_code(&error));
+            // A launch that failed may also have failed to end what it had already started. That is
+            // kept where it was found and read here, so the run records it beside the failure.
+            let mut detail = runtime_error_code(&error).to_owned();
+            let unestablished = unestablished_terminations();
+            if !unestablished.is_empty() {
+                detail.push_str(&format!(
+                    "; managed_runtime_termination_unestablished: {}",
+                    unestablished.join("; ")
+                ));
+            }
+            record_infrastructure_failure(&application, &attempt_id, &detail);
             return Err(error.into());
         }
     };
@@ -960,9 +970,26 @@ fn start_candidate(
                 lifecycle.yielded = false;
                 lifecycle.terminal = true;
             }
-            if let Err(error) = result {
-                let _ = error;
-                let detail = "managed_runtime_supervision_failed".to_owned();
+            // The places that end the process tree while they are already reporting a cancellation,
+            // a time limit or a runtime failure — and the session being dropped, which reports to
+            // nobody — keep what they could not establish. It is read here, because a run may
+            // report that it left nothing running only where that was measured.
+            let unestablished = unestablished_terminations();
+            let kept = (!unestablished.is_empty()).then(|| {
+                format!(
+                    "managed_runtime_termination_unestablished: {}",
+                    unestablished.join("; ")
+                )
+            });
+            let detail = match (result, kept) {
+                (Err(error), kept) => {
+                    let _ = error;
+                    let supervision = "managed_runtime_supervision_failed".to_owned();
+                    Some(kept.map_or(supervision.clone(), |kept| format!("{supervision}; {kept}")))
+                }
+                (Ok(()), kept) => kept,
+            };
+            if let Some(detail) = detail {
                 record_infrastructure_failure(&worker_application, &worker_attempt, &detail);
                 let _ = sender.send(ManagedRunEvent::Failed { detail });
             }

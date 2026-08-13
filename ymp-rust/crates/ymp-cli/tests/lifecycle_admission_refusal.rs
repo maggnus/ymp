@@ -36,7 +36,8 @@ use ymp_runtime_api::{
 };
 use ymp_runtime_claude::{ClaudeProfile, ClaudeRuntime};
 use ymp_runtime_supervisor::{
-    ManagedCandidateRequest, ManagedContract, admit_runtime_start, start_managed_candidate,
+    ManagedCandidateRequest, ManagedContract, ManagedRunEvent, admit_runtime_start,
+    start_managed_candidate,
 };
 
 /// Where the platform keeps the reader of the process table, and where this check puts it back.
@@ -102,6 +103,58 @@ exit 9
     fs::set_permissions(path, fs::Permissions::from_mode(0o700))
         .expect("make the fixture executable");
     path.to_owned()
+}
+
+/// A runtime executable that answers the probe, reports that it started, and then stays alive. The
+/// run under test is stopped by the controller rather than by the runtime, which is the path on
+/// which a failure to end the processes used to be discarded.
+fn waiting_runtime(path: &Path, started: &Path) -> PathBuf {
+    fs::write(
+        path,
+        format!(
+            r#"#!/bin/sh
+if [ "$1" = "--version" ]; then
+  printf '%s\n' '2.1.227 (Claude Code)'
+  exit 0
+elif [ "$1" = "auth" ]; then
+  printf '%s\n' '{{"loggedIn":true,"authMethod":"claude.ai","apiProvider":"firstParty"}}'
+  exit 0
+fi
+input=$(cat)
+printf '%s\n' '{COORDINATED_INIT}'
+printf 'started\n' > '{}'
+sleep 120
+"#,
+            started.display()
+        ),
+    )
+    .expect("write the runtime fixture");
+    fs::set_permissions(path, fs::Permissions::from_mode(0o700))
+        .expect("make the fixture executable");
+    path.to_owned()
+}
+
+/// The event a Claude launch reports before anything else, which the driver requires before it
+/// accepts any later event.
+const COORDINATED_INIT: &str = r#"{"type":"system","subtype":"init","session_id":"session-unestablished","claude_code_version":"2.1.227","model":"claude-opus-5","permissionMode":"acceptEdits","tools":["Bash"],"mcp_servers":[{"name":"ymp","status":"connected"}],"slash_commands":[],"plugins":[],"skills":[]}"#;
+
+/// Ends whatever the fixture left running, by the path it was started from. The case under test is
+/// a termination the run could not establish, so its processes are still there afterwards.
+fn kill_by_command(fragment: &str) {
+    let output = Command::new(PROCESS_TABLE)
+        .args(["-A", "-o", "pid=,command="])
+        .output()
+        .expect("read the process table");
+    for line in String::from_utf8_lossy(&output.stdout).lines() {
+        let Some((pid, command)) = line.trim().split_once(char::is_whitespace) else {
+            continue;
+        };
+        if command.contains(fragment)
+            && let Ok(pid) = pid.parse::<u32>()
+        {
+            kill(pid);
+        }
+    }
 }
 
 fn is_alive(pid: u32) -> bool {
@@ -328,5 +381,93 @@ fn termination_that_cannot_read_the_process_table_is_not_reported_clean() {
     assert!(
         !outlived,
         "the detached descendant outlived the termination of the run that started it"
+    );
+}
+
+/// Acceptance: the refusal reaches the run's outcome from the paths that cannot return it.
+///
+/// A cancellation, a time limit and a session being dropped all end the process tree while they are
+/// already reporting something else, so none of them can hand a failure back to a caller. They used
+/// to throw it away, which is the defect this card exists to remove: the run then reported the
+/// outcome it was already reporting, over processes it never established were gone.
+///
+/// The check that must fail: discard the result at the cancellation path again, and this reports a
+/// run that ended without saying what it left running, with a non-zero exit.
+#[test]
+fn a_cancelled_run_that_cannot_establish_termination_reports_it() {
+    let _placement = placement();
+    let temporary = tempfile::tempdir().expect("temporary directory");
+    let source = temporary.path().join("source");
+    fs::create_dir(&source).expect("source directory");
+    fs::write(source.join("input.txt"), b"before\n").expect("source file");
+    let started = temporary.path().join("runtime.started");
+    let runtime = waiting_runtime(&temporary.path().join("claude-waiting"), &started);
+    let application = Arc::new(Mutex::new(
+        Application::create(
+            temporary.path().join("data"),
+            "run-unestablished-termination",
+            Budget::new(1, 1),
+        )
+        .expect("create application"),
+    ));
+
+    let handle = start_managed_candidate(
+        Arc::clone(&application),
+        Box::new(
+            ClaudeRuntime::with_profile(&runtime, ClaudeProfile::default())
+                .without_delegated_credential(),
+        ),
+        ManagedCandidateRequest {
+            contract: ManagedContract {
+                contract_id: "contract-unestablished-termination".to_owned(),
+                contract_digest: "d".repeat(64),
+                source,
+                prompt: "wait to be stopped".to_owned(),
+                capture_exclusions: Vec::new(),
+                verifier: None,
+            },
+            bridge_executable: env!("CARGO_BIN_EXE_ymp").into(),
+        },
+    )
+    .expect("start the managed run");
+
+    let deadline = Instant::now() + Duration::from_secs(30);
+    while !started.exists() && Instant::now() < deadline {
+        std::thread::sleep(Duration::from_millis(20));
+    }
+    assert!(started.exists(), "the managed runtime never started");
+
+    place_the_reader_where_this_account_can_write(temporary.path());
+    handle.cancel("the check stopped the run").expect("cancel");
+    let mut reported = Vec::new();
+    let deadline = Instant::now() + Duration::from_secs(60);
+    while Instant::now() < deadline && !handle.is_finished() {
+        while let Some(event) = handle.try_next() {
+            reported.push(event);
+        }
+        std::thread::sleep(Duration::from_millis(10));
+    }
+    while let Some(event) = handle.try_next() {
+        reported.push(event);
+    }
+    let finished = handle.is_finished();
+    restore_the_platform_reader();
+    handle.join().expect("join the supervisor worker");
+    kill_by_command(&runtime.display().to_string());
+
+    assert!(finished, "the cancelled run never reached an outcome");
+    let failure = reported.iter().find_map(|event| match event {
+        ManagedRunEvent::Failed { detail } => Some(detail.clone()),
+        _ => None,
+    });
+    let detail = failure.unwrap_or_else(|| {
+        panic!(
+            "the run reported no failure while it could not establish that it left nothing \
+             running; it reported {reported:?}"
+        )
+    });
+    assert!(
+        detail.contains("termination_unestablished") && detail.contains("process table reader"),
+        "the reported failure does not say what could not be established: {detail}"
     );
 }
