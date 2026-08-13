@@ -578,6 +578,11 @@ pub enum CommitmentError {
     },
     #[error("attempt {attempt_id} has used all {MAX_ATTEMPT_WAKES} of its wakes")]
     WakeBudgetExhausted { attempt_id: String },
+    #[error("attempt {attempt_id} is already running invocation {invocation_id}")]
+    AttemptAlreadyRunning {
+        attempt_id: String,
+        invocation_id: String,
+    },
     #[error(
         "no committed fact after cursor {cursor} matches a wake condition of invocation {invocation_id}"
     )]
