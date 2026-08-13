@@ -10,6 +10,12 @@
 //! nothing advanced under a stale fencing token, that no obligation closed while its causal work
 //! was outstanding, and that nobody closed work it did not hold.
 //!
+//! One further question is asked of every accepted command, and it is the only one here whose
+//! answer does not come out of the run itself: whether the facts a command committed moved the
+//! amounts that command named. Everything else compares facts with facts, or with records built by
+//! applying those facts, and a value corrupted where the fact is generated satisfies all of them at
+//! once.
+//!
 //! Three things the pool alone cannot do are added here. One participant's own commands are merged
 //! in as a causal sequence rather than permuted, because a uniform shuffle practically never
 //! reaches a state that takes a dozen ordered commands to build. The accounts are recomputed from
@@ -20,7 +26,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use super::budget::{BudgetVector, DIMENSION_COUNT, DIMENSIONS, Dimension};
-use super::ledger::{CommitmentLedger, DisabledChecks};
+use super::ledger::{AlteredFacts, CommitmentLedger, DisabledChecks};
 use super::protocol::{
     AcceptOpen, AdvanceClock, Advertise, Award, CancelContract, CommitmentCommand, CommitmentError,
     CommitmentEvent, Reassign, RecordBid, RegisterParticipant, RenewLease, ReturnObligation,
@@ -844,8 +850,244 @@ pub(crate) enum Violation {
         offer_id: String,
         contract_id: String,
     },
+    /// A committed fact moved an amount other than the one the accepted command named.
+    FactContradictsCommand {
+        command: &'static str,
+        subject: String,
+        dimension: Dimension,
+        commanded: i128,
+        emitted: i128,
+    },
     /// A refused command changed the ledger.
     RefusalMutatedState { position: usize },
+}
+
+/// What the accepted command itself says its facts must move.
+///
+/// Every other check in this file compares facts with other facts, or with records the kernel built
+/// by applying those same facts. A value corrupted where the fact is generated satisfies all of
+/// them at once: the registry is built from the corrupted fact and therefore agrees with it in
+/// every account. The expectation here is taken from somewhere the kernel never writes — the
+/// command the schedule issued — so the two sides of the comparison are produced by different code,
+/// and a fact that no longer states what its command named moves only one of them.
+///
+/// Only amounts a command names outright are checked. What a settlement returns is whatever is left
+/// of an account rather than a quantity any command states, and stays with the projection.
+#[derive(Debug, Default)]
+pub(crate) struct CommandedAmounts {
+    /// What each recorded consent asked for, as the command that recorded it named it.
+    requested: BTreeMap<String, BudgetVector>,
+}
+
+impl CommandedAmounts {
+    /// Compare the facts one accepted command committed with the amounts that command named.
+    pub(crate) fn observe(
+        &mut self,
+        command: &CommitmentCommand,
+        events: &[CommitmentEvent],
+    ) -> Vec<Violation> {
+        match command {
+            CommitmentCommand::RegisterParticipant(command) => credited(
+                "register_participant",
+                events,
+                &AccountRef::Participant {
+                    participant_id: command.participant_id.clone(),
+                },
+                &command.endowment,
+            ),
+            CommitmentCommand::Advertise(command) => {
+                // What an offer reserves is what one award funds, once per funded slot.
+                let Ok(pool) = command
+                    .execution_escrow
+                    .checked_scale(u64::from(command.max_awards))
+                else {
+                    return Vec::new();
+                };
+                credited(
+                    "advertise",
+                    events,
+                    &AccountRef::Offer {
+                        offer_id: command.offer_id.clone(),
+                    },
+                    &pool,
+                )
+            }
+            CommitmentCommand::RecordBid(command) => {
+                self.requested
+                    .insert(command.bid_id.clone(), command.requested_escrow);
+                consent(
+                    "record_bid",
+                    events,
+                    &command.bid_id,
+                    &command.requested_escrow,
+                )
+            }
+            CommitmentCommand::AcceptOpen(command) => {
+                self.requested
+                    .insert(command.bid_id.clone(), command.requested_escrow);
+                let mut violations = consent(
+                    "accept_open",
+                    events,
+                    &command.bid_id,
+                    &command.requested_escrow,
+                );
+                violations.extend(self.formation(
+                    "accept_open",
+                    events,
+                    &command.contract_id,
+                    &command.bid_id,
+                    command.lease_ms,
+                ));
+                violations
+            }
+            CommitmentCommand::Award(command) => self.formation(
+                "award",
+                events,
+                &command.contract_id,
+                &command.bid_id,
+                command.lease_ms,
+            ),
+            CommitmentCommand::RenewLease(command) => lease(
+                "renew_lease",
+                events,
+                &command.contract_id,
+                command.lease_ms,
+            ),
+            CommitmentCommand::Reassign(command) => {
+                lease("reassign", events, &command.contract_id, command.lease_ms)
+            }
+            _ => Vec::new(),
+        }
+    }
+
+    /// What forming a task contract must move: into its account exactly the capacity the consent
+    /// the command named asked for, and out of it exactly the wall time the command bought its
+    /// first lease with.
+    fn formation(
+        &self,
+        command: &'static str,
+        events: &[CommitmentEvent],
+        contract_id: &str,
+        bid_id: &str,
+        lease_ms: u64,
+    ) -> Vec<Violation> {
+        // Consent recorded before the run began is not something any command in this schedule
+        // named, so there is nothing here to compare it with.
+        let Some(requested) = self.requested.get(bid_id) else {
+            return Vec::new();
+        };
+        let account = AccountRef::TaskContract {
+            contract_id: contract_id.to_owned(),
+        };
+        let mut violations = credited(command, events, &account, requested);
+        violations.extend(lease(command, events, contract_id, lease_ms));
+        violations
+    }
+}
+
+/// What one command's facts put into an account, against the amount the command named.
+fn credited(
+    command: &'static str,
+    events: &[CommitmentEvent],
+    account: &AccountRef,
+    commanded: &BudgetVector,
+) -> Vec<Violation> {
+    let mut emitted = [0_i128; DIMENSION_COUNT];
+    for event in events {
+        if let CommitmentEvent::BudgetTransferred { to, amount, .. } = event
+            && to == account
+        {
+            for dimension in DIMENSIONS {
+                emitted[dimension.index()] += i128::from(amount.get(dimension));
+            }
+        }
+    }
+    compare(command, &label(account), commanded, &emitted)
+}
+
+/// The wall time a command bought a lease with, against what its facts took out of the account
+/// that paid for it.
+fn lease(
+    command: &'static str,
+    events: &[CommitmentEvent],
+    contract_id: &str,
+    lease_ms: u64,
+) -> Vec<Violation> {
+    let account = AccountRef::TaskContract {
+        contract_id: contract_id.to_owned(),
+    };
+    let mut emitted = [0_i128; DIMENSION_COUNT];
+    for event in events {
+        if let CommitmentEvent::BudgetConsumed {
+            account: spent_from,
+            amount,
+        } = event
+            && *spent_from == account
+        {
+            for dimension in DIMENSIONS {
+                emitted[dimension.index()] += i128::from(amount.get(dimension));
+            }
+        }
+    }
+    compare(
+        command,
+        &label(&account),
+        &BudgetVector::units(Dimension::WallTimeMs, lease_ms),
+        &emitted,
+    )
+}
+
+/// What a recorded consent says it asks for, against what the command that recorded it named.
+fn consent(
+    command: &'static str,
+    events: &[CommitmentEvent],
+    bid_id: &str,
+    commanded: &BudgetVector,
+) -> Vec<Violation> {
+    let mut violations = Vec::new();
+    for event in events {
+        if let CommitmentEvent::BidRecorded {
+            bid_id: recorded,
+            requested_escrow,
+            ..
+        } = event
+            && recorded == bid_id
+        {
+            let mut emitted = [0_i128; DIMENSION_COUNT];
+            for dimension in DIMENSIONS {
+                emitted[dimension.index()] = i128::from(requested_escrow.get(dimension));
+            }
+            violations.extend(compare(
+                command,
+                &format!("consent {bid_id}"),
+                commanded,
+                &emitted,
+            ));
+        }
+    }
+    violations
+}
+
+fn compare(
+    command: &'static str,
+    subject: &str,
+    commanded: &BudgetVector,
+    emitted: &[i128; DIMENSION_COUNT],
+) -> Vec<Violation> {
+    let mut violations = Vec::new();
+    for dimension in DIMENSIONS {
+        let named = i128::from(commanded.get(dimension));
+        if emitted[dimension.index()] != named {
+            violations.push(Violation::FactContradictsCommand {
+                command,
+                subject: subject.to_owned(),
+                dimension,
+                commanded: named,
+                emitted: emitted[dimension.index()],
+            });
+        }
+    }
+    violations
 }
 
 /// What the emitted facts alone say about every account, and about who holds what.
@@ -1164,8 +1406,20 @@ fn fact_name(event: &CommitmentEvent) -> &'static str {
 
 /// Replay one generated schedule and report every invariant it broke.
 pub(crate) fn run_schedule(seed: u64, tokens: &Tokens, disabled: DisabledChecks) -> ScheduleReport {
+    run_altered_schedule(seed, tokens, disabled, AlteredFacts::default())
+}
+
+/// The same replay against a kernel whose facts have been deliberately corrupted, which is how the
+/// comparison with the command is shown to be the check that catches such a fact.
+pub(crate) fn run_altered_schedule(
+    seed: u64,
+    tokens: &Tokens,
+    disabled: DisabledChecks,
+    altered: AlteredFacts,
+) -> ScheduleReport {
     let mut ledger = new_ledger();
     ledger.disable_checks(disabled);
+    ledger.alter_facts(altered);
     let mut report = ScheduleReport {
         violations: Vec::new(),
         committed: 0,
@@ -1174,10 +1428,14 @@ pub(crate) fn run_schedule(seed: u64, tokens: &Tokens, disabled: DisabledChecks)
         guarded: BTreeSet::new(),
     };
     let mut accounts = FactAccounts::opening(ROOT_PARTICIPANT, *ledger.initial_total());
+    let mut commanded = CommandedAmounts::default();
     for command in setup(tokens) {
         let events = ledger
             .execute(&command)
             .unwrap_or_else(|error| panic!("the deterministic prefix must be accepted: {error}"));
+        report
+            .violations
+            .extend(commanded.observe(&command, &events));
         report.violations.extend(accounts.observe(&events));
     }
     for (position, command) in schedule(seed, tokens).into_iter().enumerate() {
@@ -1189,6 +1447,9 @@ pub(crate) fn run_schedule(seed: u64, tokens: &Tokens, disabled: DisabledChecks)
                 report
                     .violations
                     .extend(fencing_violations(&ledger, &events));
+                report
+                    .violations
+                    .extend(commanded.observe(&command, &events));
                 report.violations.extend(accounts.observe(&events));
             }
             Err(error) => {

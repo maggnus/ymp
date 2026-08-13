@@ -6,9 +6,12 @@
 //! causal accounting. Mutation tests
 //! switch off one guarded check at a time and require the property suite to produce a
 //! counterexample, so that each check is shown to be load-bearing rather than asserted to be.
+//! One mutation is of another kind: it leaves every check in place and corrupts a fact where that
+//! fact is generated, which the records then agree with, and requires the comparison with the
+//! command that issued it to be the check that reports it.
 
 use super::budget::{BudgetVector, DIMENSIONS, Dimension, DimensionKind};
-use super::ledger::{CommitmentLedger, DisabledChecks};
+use super::ledger::{AlteredFacts, CommitmentLedger, DisabledChecks};
 use super::protocol::{
     AcceptOpen, AdvanceClock, Advertise, Award, CancelContract, CommitmentCommand, CommitmentError,
     CommitmentEvent, Reassign, RecordBid, RenewLease, ReturnObligation, SettleOffer, StartAttempt,
@@ -21,8 +24,8 @@ use super::records::{
 use super::schedules::{
     self, ALPHA, BETA, CROSS_OFFER, DEADLINE, FactAccounts, GAMMA, LEASE_MS, MAIN_MAX_AWARDS,
     MAIN_OFFER, ROOT_OBLIGATION, ROOT_PARTICIPANT, SECOND_OFFER, SOLO_FUNDING_CONTRACT, Tokens,
-    Violation, advertise_main, award_main, digest, new_ledger, requested_escrow, run_schedule,
-    setup, state_violations,
+    Violation, advertise_main, award_main, digest, new_ledger, requested_escrow,
+    run_altered_schedule, run_schedule, setup, state_violations,
 };
 
 /// How many generated schedules the property suite replays. Every seed is a different total order
@@ -874,6 +877,60 @@ fn a_fact_stream_that_no_longer_describes_what_was_committed_parts_from_the_regi
         )),
         "an altered stream went unreported: {reported:?}"
     );
+}
+
+/// An escrow transfer that states less than the command reserved is caught by the command it came
+/// from, and by nothing else.
+///
+/// This is the measurement this card was opened on. The corruption is applied where the fact is
+/// generated, so every record the kernel keeps is built by applying the corrupted fact and agrees
+/// with it: the projection, the comparison with the registry and every structural invariant stay
+/// silent, and the whole run stays internally consistent. What parts company with it is the consent
+/// the award named, which the schedule issued and the kernel never wrote.
+#[test]
+fn an_escrow_transfer_smaller_than_its_command_is_caught_by_that_command_alone() {
+    let tokens = Tokens::variant("a");
+    let understated = AlteredFacts {
+        understated_escrow: true,
+    };
+    assert!(
+        run_altered_schedule(
+            0,
+            &tokens,
+            DisabledChecks::default(),
+            AlteredFacts::default()
+        )
+        .violations
+        .is_empty(),
+        "the same seed is clean while the facts state what was commanded"
+    );
+
+    for seed in 0..SCHEDULE_SEEDS {
+        let report = run_altered_schedule(seed, &tokens, DisabledChecks::default(), understated);
+        let (against_the_command, elsewhere): (Vec<&Violation>, Vec<&Violation>) = report
+            .violations
+            .iter()
+            .partition(|violation| matches!(violation, Violation::FactContradictsCommand { .. }));
+        assert!(
+            against_the_command.iter().any(|violation| matches!(
+                violation,
+                Violation::FactContradictsCommand {
+                    dimension: Dimension::MoneyMicros,
+                    commanded,
+                    emitted,
+                    ..
+                } if *commanded == emitted + 1
+            )),
+            "seed {seed} committed an understated escrow transfer unreported: {:?}",
+            report.violations
+        );
+        assert!(
+            elsewhere.is_empty(),
+            "seed {seed}: a fact corrupted at generation must be invisible to every check that \
+             compares facts only with each other, or this test proves nothing about which check \
+             caught it: {elsewhere:?}"
+        );
+    }
 }
 
 /// The covering check is falsifiable: without it the schedules reach a command whose facts move
