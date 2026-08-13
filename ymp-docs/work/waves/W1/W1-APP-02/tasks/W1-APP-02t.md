@@ -3,7 +3,7 @@ id: W1-APP-02t
 kind: task
 wave: W1
 card: W1-APP-02
-state: ready
+state: review
 risk: significant
 maturity: BUILD
 relation: required
@@ -11,9 +11,9 @@ depends_on: [W1-APP-02q]
 blocks: []
 created_at: 2026-08-13T21:46:07+08:00
 updated_at: 2026-08-13T21:46:07+08:00
-started_at:
+started_at: 2026-08-13T21:33:00+08:00
 accepted_at:
-candidate_commit:
+candidate_commit: https://github.com/maggnus/ymp/commit/5118b7c59b18c80e381c6af7a6bbc8d13ecc7485
 closure_commit:
 evidence:
 duration_minutes: 0
@@ -51,11 +51,12 @@ beside it.
 
 ## Current state
 
-Ready. The cancellation refusal test fails during the full workspace run and passes when its binary
-runs alone, including under a twelve-thread external load measured by an independent reviewer. The
-distinguishing condition is therefore concurrency between test binaries, not machine load: cargo runs
-them in parallel, and the test observes state another binary also touches. Until this is closed the
-integration gate cannot be trusted to mean what it says.
+Under independent review. The card's premise is refuted: cargo runs these test binaries sequentially,
+and no state is shared between them. The measured cause is a race inside one test — its session record
+declared one built-in capability where the profile requires ten, so the driver rejected the record
+immediately and cancellation only sometimes arrived first — together with a cleanup that searched the
+whole process table by a fragment of a command line. Four of ten runs failed before the change and
+none after, with ten clean full-workspace runs.
 
 ## Next action
 
@@ -68,7 +69,12 @@ Reproduce by running the suite repeatedly, then isolate what the test observes.
 
 ## Findings
 
-- Measured twice on a quiet machine: the same test fails in the full run and passes alone.
+- The contract's assumption of concurrency between test binaries is refuted by measurement. My
+  diagnosis of machine load, recorded earlier, is likewise refuted: neither load nor parallelism
+  distinguished the failing runs.
+- The failure came from the test racing its own driver over a session record the profile could not
+  accept, and from a cleanup addressing processes by a command fragment rather than by the run's own
+  process group.
 
 ## Closure
 
