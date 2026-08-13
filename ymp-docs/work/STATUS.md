@@ -30,7 +30,7 @@
 | `[x]` | [`W1-APP-02n`](waves/W1/W1-APP-02/tasks/W1-APP-02n.md) | Every interface action exists as a command of the same executable | [`57dc051c`](https://github.com/maggnus/ymp/commit/57dc051c4d24e3753766375711b7649d57a89ac3) | 13/08 17:00 | 13/08 19:12 (1h52m) |
 | `[ ]` | [`W1-APP-02o`](waves/W1/W1-APP-02/tasks/W1-APP-02o.md) | The shipped binary carries no path that starts a run without a contract | — | — | — |
 | `[x]` | [`W1-APP-02p`](waves/W1/W1-APP-02/tasks/W1-APP-02p.md) | Every program in the launch chain is verified, not only the pinned runtime | [`f6bebcf6`](https://github.com/maggnus/ymp/commit/f6bebcf6b2564f6fb133c4545d7209770037f2cd) | 13/08 15:10 | 13/08 16:54 (1h58m) |
-| `[ ]` | [`W1-APP-02q`](waves/W1/W1-APP-02/tasks/W1-APP-02q.md) | Admission failures refuse instead of degrading, and ownership is proved beyond file mode | — | — | — |
+| `[~]` | [`W1-APP-02q`](waves/W1/W1-APP-02/tasks/W1-APP-02q.md) | Admission failures refuse instead of degrading, and ownership is proved beyond file mode | [`6220c71d`](https://github.com/maggnus/ymp/commit/6220c71dd993800063296cee87e6e70d845acd3d) | 13/08 18:53 | 13/08 16:54 (0m) |
 | `[ ]` | [`W1-COR-03`](waves/W1/W1-COR-03/CARD.md) | Bounded local commitments self-organize and terminate | — | — | — |
 | `[x]` | [`W1-COR-03a`](waves/W1/W1-COR-03/tasks/W1-COR-03a.md) | Local commitments conserve budgets and close obligations | [`58524264`](https://github.com/maggnus/ymp/commit/585242645d405ff1f76d6015a1141144eac4207b) | 13/08 15:10 | 13/08 16:27 (1h25m) |
 | `[ ]` | [`W1-COR-03b`](waves/W1/W1-COR-03/tasks/W1-COR-03b.md) | Yielded participants resume finitely and runs terminate honestly | — | — | — |

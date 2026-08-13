@@ -3,7 +3,7 @@ id: W1-APP-02q
 kind: task
 wave: W1
 card: W1-APP-02
-state: ready
+state: rework
 risk: significant
 maturity: BUILD
 relation: required
@@ -11,9 +11,9 @@ depends_on: [W1-APP-02p]
 blocks: []
 created_at: 2026-08-13T16:54:11+08:00
 updated_at: 2026-08-13T16:54:11+08:00
-started_at:
+started_at: 2026-08-13T18:53:00+08:00
 accepted_at:
-candidate_commit:
+candidate_commit: https://github.com/maggnus/ymp/commit/6220c71dd993800063296cee87e6e70d845acd3d
 closure_commit:
 evidence:
 duration_minutes: 0
@@ -57,11 +57,11 @@ through an access-control entry.
 
 ## Current state
 
-Ready. The independent review of the launch chain measured that admission failures for the process
-utilities are swallowed — the holder lookup returns an empty list and the process table returns
-nothing, so the absence of descendants reads as clean termination — and that the ownership rule
-inspects the file mode without looking at access-control entries. Neither is reachable on this
-machine; both are reachable on a machine configured differently.
+Returned by independent review after one round. Refusal, the widened ownership rule and the reading
+of access-control entries were measured working on the built product, including a refusal that names
+the entry granting write access. The card does not hold because an internal command still assembles
+a candidate outside the supervisor, with neither attestation nor utility admission, and the check
+that was to make that unreachable inspects a name rather than the path.
 
 ## Next action
 
@@ -75,7 +75,20 @@ entries.
 
 ## Findings
 
-None yet.
+- `blocker`, defect in the contracted outcome. An internal command assembles a candidate without the
+  supervisor, and the reviewer produced one with the fake runtime at exit zero. The guarding check
+  searches for a seam name and inspects only the attested start.
+- `major`, defect in the contracted outcome. The refusal at start guards the attested start alone,
+  while another internal command launches a driver directly.
+- `minor`, independent product defect. The holder lookup reads the utility's exit code one as "no
+  holders" whether or not it failed, and parses output regardless of the exit.
+- `minor`, independent product defect. Twenty-eight call sites discard the termination helper's
+  result, swallowing the refusal on the cancellation and timeout paths.
+- `minor`, defect in the contracted outcome. The structural check excludes both definition files in
+  full, which is how the first finding stayed invisible.
+- Established and needing no work here: the access-control reader is incomplete rather than
+  circular, because an entry high in the tree could replace the reader itself, while ownership and
+  mode come from a system call.
 
 ## Closure
 
