@@ -52,7 +52,7 @@ pub struct LaunchEnvironmentVariable {
 
 /// The part a program plays when a managed run starts. The role is recorded beside the digest so
 /// that the evidence names what each admitted program does rather than only where it was read from.
-#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[derive(Clone, Copy, Debug, Deserialize, Eq, Ord, PartialEq, PartialOrd, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ProgramRole {
     /// Opens the run's marker on an inherited descriptor and then replaces itself with the next
@@ -73,6 +73,8 @@ pub enum ProgramRole {
     DescriptorHolders,
     /// Signals the managed process and its descendants.
     Signal,
+    /// Reports the access-control entries of a location, which its mode does not describe.
+    AccessControl,
 }
 
 impl std::fmt::Display for ProgramRole {
@@ -85,6 +87,7 @@ impl std::fmt::Display for ProgramRole {
             Self::ProcessTable => "process table reader",
             Self::DescriptorHolders => "descriptor holder reader",
             Self::Signal => "signal program",
+            Self::AccessControl => "access-control reader",
         };
         formatter.write_str(name)
     }
@@ -208,8 +211,34 @@ impl AdmittedProgram {
 /// Refuses unless the program stands where only the superuser could have put it. Every ancestor
 /// directory is examined, because a writable directory anywhere on the path lets the account
 /// exchange the file the name resolves to.
+///
+/// Ownership and mode answer only part of the question. A location can name this account, its
+/// group or everyone in an access-control entry while its mode shows nothing, and an account that
+/// holds such an entry can replace the file the name resolves to exactly as the mode would have
+/// let it. Both grounds are therefore read, and the refusal states each one that failed.
 #[cfg(unix)]
 fn require_system_path(role: ProgramRole, path: &Path) -> Result<(), RuntimeError> {
+    require_superuser_ancestry(role, path, AccessControlEntries::Read)
+}
+
+/// Whether the ancestry walk also reads the access-control entries of each location.
+///
+/// The entries are read by running the platform's own utility, and that utility stands under the
+/// same system directories. Its own admission therefore takes [`AccessControlEntries::Unread`],
+/// which is what stops the reading from requiring itself.
+#[cfg(unix)]
+#[derive(Clone, Copy, Eq, PartialEq)]
+enum AccessControlEntries {
+    Read,
+    Unread,
+}
+
+#[cfg(unix)]
+fn require_superuser_ancestry(
+    role: ProgramRole,
+    path: &Path,
+    entries: AccessControlEntries,
+) -> Result<(), RuntimeError> {
     use std::os::unix::fs::MetadataExt;
 
     if !path.is_absolute() {
@@ -220,19 +249,231 @@ fn require_system_path(role: ProgramRole, path: &Path) -> Result<(), RuntimeErro
     }
     let canonical = path.canonicalize()?;
     let mut current = Some(canonical.as_path());
+    let mut refusals = Vec::new();
     while let Some(component) = current {
         let metadata = std::fs::metadata(component)?;
-        if metadata.uid() != 0 || metadata.mode() & 0o022 != 0 {
-            return Err(RuntimeError::InvalidProfile(format!(
-                "{role} at {} stands under {}, which this account can write, so the bytes admitted \
-                 for it are not bound to the program the run means",
-                path.display(),
-                component.display()
-            )));
+        let mut grounds = Vec::new();
+        if metadata.uid() != 0 {
+            grounds.push(format!(
+                "it belongs to account {} rather than to the superuser",
+                metadata.uid()
+            ));
         }
+        if metadata.mode() & 0o022 != 0 {
+            grounds.push(format!(
+                "its mode {:04o} grants write beyond its owner",
+                metadata.mode() & 0o7777
+            ));
+        }
+        if entries == AccessControlEntries::Read
+            && let Some(entry) = access_control::write_grant(component)?
+        {
+            grounds.push(format!(
+                "an access-control entry grants write access: {entry}"
+            ));
+        }
+        if !grounds.is_empty() {
+            refusals.push(format!("{} {}", component.display(), grounds.join(", ")));
+        }
+        // The walk continues past the first ground it finds, so that the refusal names every
+        // location on the path this account can reach and the ground on which each one fails.
         current = component.parent();
     }
+    if !refusals.is_empty() {
+        return Err(RuntimeError::InvalidProfile(format!(
+            "{role} at {} stands under a location which this account can write, so the bytes \
+             admitted for it are not bound to the program the run means: {}",
+            path.display(),
+            refusals.join("; ")
+        )));
+    }
     Ok(())
+}
+
+/// Reads the access-control entries of a location, which its mode does not describe.
+///
+/// The entries are read by running the platform's own listing utility, because the calls that
+/// answer the question belong to the C library and this workspace executes no unsafe code. That
+/// utility is admitted before it runs, under the ownership and mode of its own location; the
+/// entries of its ancestors cannot be read without running it, so that one leg of the rule cannot
+/// apply to the reader itself. An account that already held a write-granting entry on a system
+/// directory could therefore hide that entry from every later reading — but it could equally
+/// replace the reader, the process table or the pinned runtime outright, so this is the same
+/// boundary the rest of this record draws rather than a new one.
+///
+/// A verdict is remembered per location and per the moment that location's metadata last changed.
+/// Adding, changing or removing an entry changes that moment, so a remembered verdict is never the
+/// answer to a question about a location whose access has since been rearranged.
+#[cfg(unix)]
+mod access_control {
+    use super::{AccessControlEntries, ProgramRole, RuntimeError};
+    use std::collections::HashMap;
+    use std::path::{Path, PathBuf};
+    use std::process::{Command, Stdio};
+    use std::sync::{Mutex, OnceLock};
+
+    /// The platform's listing utility, which reports a location's entries beside its mode.
+    pub const READER: &str = "/bin/ls";
+
+    /// A location as it stood when its entries were read.
+    #[derive(Eq, Hash, PartialEq)]
+    struct Reading {
+        path: PathBuf,
+        device: u64,
+        inode: u64,
+        changed_seconds: i64,
+        changed_nanoseconds: i64,
+    }
+
+    fn readings() -> &'static Mutex<HashMap<Reading, Option<String>>> {
+        static READINGS: OnceLock<Mutex<HashMap<Reading, Option<String>>>> = OnceLock::new();
+        READINGS.get_or_init(|| Mutex::new(HashMap::new()))
+    }
+
+    fn reading(path: &Path) -> Result<Reading, RuntimeError> {
+        use std::os::unix::fs::MetadataExt;
+
+        let metadata = std::fs::metadata(path)?;
+        Ok(Reading {
+            path: path.to_owned(),
+            device: metadata.dev(),
+            inode: metadata.ino(),
+            changed_seconds: metadata.ctime(),
+            changed_nanoseconds: metadata.ctime_nsec(),
+        })
+    }
+
+    /// The entry that grants write access to this location, if it carries one. An error means the
+    /// entries could not be read at all, which is refused rather than read as their absence.
+    pub fn write_grant(path: &Path) -> Result<Option<String>, RuntimeError> {
+        let reading = reading(path)?;
+        if let Ok(readings) = readings().lock()
+            && let Some(remembered) = readings.get(&reading)
+        {
+            return Ok(remembered.clone());
+        }
+        let reader = admitted_reader()?;
+        let grant = write_grant_from(&reader, path)?;
+        if let Ok(mut readings) = readings().lock() {
+            readings.insert(reading, grant.clone());
+        }
+        Ok(grant)
+    }
+
+    /// Establishes that the reader stands where only the superuser could have put it, under the
+    /// ownership and mode of its location alone.
+    fn admitted_reader() -> Result<PathBuf, RuntimeError> {
+        let path = Path::new(READER);
+        if !path.is_file() {
+            return Err(RuntimeError::InvalidProfile(format!(
+                "{} is not a regular file: {READER}",
+                ProgramRole::AccessControl
+            )));
+        }
+        super::require_superuser_ancestry(
+            ProgramRole::AccessControl,
+            path,
+            AccessControlEntries::Unread,
+        )?;
+        Ok(path.to_owned())
+    }
+
+    /// The permissions an entry may grant without letting its holder change what stands at the
+    /// location. Anything else in an allowing entry is treated as write access, so a permission
+    /// this list does not know is refused rather than passed over.
+    #[cfg(target_os = "macos")]
+    const READ_ONLY_PERMISSIONS: [&str; 12] = [
+        "read",
+        "execute",
+        "list",
+        "search",
+        "readattr",
+        "readextattr",
+        "readsecurity",
+        "file_inherit",
+        "directory_inherit",
+        "limit_inherit",
+        "only_inherit",
+        "inherited",
+    ];
+
+    /// Reads the entries themselves, which this platform's listing utility prints under the
+    /// location when it is asked for them. A denying entry can only take access away, so only the
+    /// allowing ones are judged; an entry whose text this rule cannot read is reported as a grant,
+    /// because an unread entry is not an absent one.
+    #[cfg(target_os = "macos")]
+    fn write_grant_from(reader: &Path, path: &Path) -> Result<Option<String>, RuntimeError> {
+        let output = Command::new(reader)
+            .arg("-lde")
+            .arg(path)
+            .stderr(Stdio::null())
+            .output()?;
+        if !output.status.success() {
+            return Err(RuntimeError::InvalidProfile(format!(
+                "the access-control entries of {} could not be read",
+                path.display()
+            )));
+        }
+        let text = String::from_utf8_lossy(&output.stdout);
+        for line in text.lines() {
+            let Some((index, entry)) = line.split_once(':') else {
+                continue;
+            };
+            let index = index.trim();
+            if index.is_empty() || !index.chars().all(|digit| digit.is_ascii_digit()) {
+                continue;
+            }
+            let words: Vec<&str> = entry.split_whitespace().collect();
+            let Some(decision) = words
+                .iter()
+                .position(|word| *word == "allow" || *word == "deny")
+            else {
+                return Ok(Some(line.trim().to_owned()));
+            };
+            if words[decision] == "deny" {
+                continue;
+            }
+            let Some(permissions) = words.get(decision + 1) else {
+                return Ok(Some(line.trim().to_owned()));
+            };
+            if permissions
+                .split(',')
+                .any(|permission| !READ_ONLY_PERMISSIONS.contains(&permission))
+            {
+                return Ok(Some(line.trim().to_owned()));
+            }
+        }
+        Ok(None)
+    }
+
+    /// Where the listing utility does not print the entries, it still marks a location whose
+    /// access is decided by more than its mode. The utility that prints the entries themselves is
+    /// a separate package that is not installed everywhere, so the mark is taken as the answer: a
+    /// location this rule cannot describe is not admitted.
+    #[cfg(not(target_os = "macos"))]
+    fn write_grant_from(reader: &Path, path: &Path) -> Result<Option<String>, RuntimeError> {
+        let output = Command::new(reader)
+            .arg("-ld")
+            .arg(path)
+            .stderr(Stdio::null())
+            .output()?;
+        if !output.status.success() {
+            return Err(RuntimeError::InvalidProfile(format!(
+                "the access-control entries of {} could not be read",
+                path.display()
+            )));
+        }
+        let text = String::from_utf8_lossy(&output.stdout);
+        let Some(mode) = text.split_whitespace().next() else {
+            return Err(RuntimeError::InvalidProfile(format!(
+                "the access-control entries of {} could not be read",
+                path.display()
+            )));
+        };
+        Ok(mode
+            .contains('+')
+            .then(|| format!("its access is decided by more than the mode {mode}")))
+    }
 }
 
 #[cfg(not(unix))]
