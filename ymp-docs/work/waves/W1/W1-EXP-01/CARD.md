@@ -2,19 +2,19 @@
 id: W1-EXP-01
 kind: card
 wave: W1
-state: active
+state: accepted
 risk: critical
 maturity: DESIGN
 relation: required
 depends_on: []
 blocks: [W1-APP-02]
 created_at: 2026-08-10T19:34:25+08:00
-updated_at: 2026-08-12T11:56:07+08:00
+updated_at: 2026-08-14T02:22:00+08:00
 started_at: 2026-08-12T11:02:25+08:00
-accepted_at:
+accepted_at: 2026-08-14T02:22:00+08:00
 candidate_commit:
-closure_commit:
-evidence:
+closure_commit: https://github.com/maggnus/ymp/commit/ca221c9a4b81775bf158cf915d0d7613e9daae92
+evidence: all four required tasks accepted; oracle, protocol and runtime falsifiers each observed failing through the POC checks (W1-EXP-01a, W1-EXP-01c, W1-EXP-01d); the decision rule frozen in W1-EXP-01b
 duration_minutes: 0
 blocker:
 pause_reason:
