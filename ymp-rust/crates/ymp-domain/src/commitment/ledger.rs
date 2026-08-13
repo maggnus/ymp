@@ -50,6 +50,10 @@ pub(crate) enum Check {
     Fencing,
     /// Causal work closes from the leaves inward.
     ChildReturn,
+    /// Only a live task contract is an account that capacity may be drawn from or settled into.
+    LiveAccount,
+    /// A task contract stays open while a reservation is still due back to it.
+    ReturningReservation,
 }
 
 /// Checks a test build may switch off to prove that each one is load-bearing. The field does not
@@ -60,6 +64,8 @@ pub(crate) struct DisabledChecks {
     pub reservation: bool,
     pub fencing: bool,
     pub child_return: bool,
+    pub live_account: bool,
+    pub returning_reservation: bool,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
@@ -173,6 +179,8 @@ impl CommitmentLedger {
             Check::Reservation => !self.disabled.reservation,
             Check::Fencing => !self.disabled.fencing,
             Check::ChildReturn => !self.disabled.child_return,
+            Check::LiveAccount => !self.disabled.live_account,
+            Check::ReturningReservation => !self.disabled.returning_reservation,
         }
     }
 
@@ -451,7 +459,7 @@ impl CommitmentLedger {
                 deadline: offer.offer_deadline,
             });
         }
-        let destination = self.funding_account(&offer.funding_source, &offer.sponsor)?;
+        let destination = self.settlement_destination(&offer.funding_source, &offer.sponsor)?;
         let mut events = vec![CommitmentEvent::OfferSettled {
             offer_id: command.offer_id.clone(),
         }];
@@ -908,6 +916,7 @@ impl CommitmentLedger {
         self.ensure_generation(contract, command.generation)?;
         self.ensure_lease_live(contract)?;
         self.ensure_causal_work_closed(&contract.obligation_id)?;
+        self.ensure_reservations_returned(contract)?;
         let mut events = vec![CommitmentEvent::ObligationReturned {
             obligation_id: contract.obligation_id.clone(),
             contract_id: contract.contract_id.clone(),
@@ -929,6 +938,7 @@ impl CommitmentLedger {
             });
         }
         self.ensure_causal_work_closed(&contract.obligation_id)?;
+        self.ensure_reservations_returned(contract)?;
         let mut events = vec![CommitmentEvent::ContractCancelled {
             contract_id: contract.contract_id.clone(),
             obligation_id: contract.obligation_id.clone(),
@@ -959,7 +969,7 @@ impl CommitmentLedger {
             return Ok(None);
         }
         let offer = self.offer(&contract.offer_id)?;
-        let destination = self.funding_account(&offer.funding_source, &offer.sponsor)?;
+        let destination = self.settlement_destination(&offer.funding_source, &offer.sponsor)?;
         Ok(Some(CommitmentEvent::BudgetTransferred {
             from: AccountRef::TaskContract {
                 contract_id: contract.contract_id.clone(),
@@ -967,6 +977,49 @@ impl CommitmentLedger {
             to: destination,
             amount: contract.escrow,
         }))
+    }
+
+    /// A task contract stays open while a reservation is still due back to it: an offer its escrow
+    /// funded that has not settled, or a contract formed from such an offer that has not returned.
+    ///
+    /// This is the other half of the same rule as [`Self::live_account`]. That one refuses to
+    /// settle into an account that has closed; without this one the refusal would strand the
+    /// reservation instead, because the contract could close first and the escrow would then have
+    /// nowhere left to go.
+    ///
+    /// An offer hanging under this contract's own obligation is left to the causal check: there the
+    /// money follows the work, and closing the work already clears the account. What is checked
+    /// here is the remainder, where a contractor funded an offer from one of its contracts and hung
+    /// it under the obligation of another, so that nothing causal connects the two.
+    fn ensure_reservations_returned(
+        &self,
+        contract: &TaskContractRecord,
+    ) -> Result<(), CommitmentError> {
+        if !self.enforces(Check::ReturningReservation) {
+            return Ok(());
+        }
+        for offer in self.offers.values() {
+            if !funded_by(&offer.funding_source, &contract.contract_id)
+                || offer.parent_obligation == contract.obligation_id
+            {
+                continue;
+            }
+            if offer.state != OfferState::Settled {
+                return Err(CommitmentError::ReservationOutstanding {
+                    contract_id: contract.contract_id.clone(),
+                    outstanding: offer.offer_id.clone(),
+                });
+            }
+            if let Some(open) = self.contracts.values().find(|awarded| {
+                awarded.offer_id == offer.offer_id && awarded.state == ContractState::Active
+            }) {
+                return Err(CommitmentError::ReservationOutstanding {
+                    contract_id: contract.contract_id.clone(),
+                    outstanding: open.contract_id.clone(),
+                });
+            }
+        }
+        Ok(())
     }
 
     /// Causal work closes from the leaves inward: no descendant obligation may still be open, and
@@ -1064,7 +1117,39 @@ impl CommitmentLedger {
         }
     }
 
+    /// The account a command may draw on: it must be live, and a task contract's escrow may be
+    /// spent only by the participant currently contracted to do the work.
     fn funding_account(
+        &self,
+        source: &FundingSource,
+        sponsor: &str,
+    ) -> Result<AccountRef, CommitmentError> {
+        if let FundingSource::TaskContract { contract_id } = source {
+            let contract = self.contract(contract_id)?;
+            if contract.contractor != sponsor {
+                return Err(CommitmentError::FundingContractMismatch {
+                    contract_id: contract_id.clone(),
+                });
+            }
+        }
+        self.live_account(source, sponsor)
+    }
+
+    /// The account a reservation returns to. Escrow belongs to the contract rather than to whoever
+    /// currently holds it, so a change of contractor does not strand it; what the account must
+    /// still be is one that can spend.
+    fn settlement_destination(
+        &self,
+        source: &FundingSource,
+        sponsor: &str,
+    ) -> Result<AccountRef, CommitmentError> {
+        self.live_account(source, sponsor)
+    }
+
+    /// A task contract stops being an account the moment it reaches a terminal state: nothing may
+    /// be drawn from it and nothing may be settled into it, because whatever landed there could
+    /// then be spent a second time by a participant whose obligation is already closed.
+    fn live_account(
         &self,
         source: &FundingSource,
         sponsor: &str,
@@ -1078,8 +1163,8 @@ impl CommitmentLedger {
             }
             FundingSource::TaskContract { contract_id } => {
                 let contract = self.contract(contract_id)?;
-                if contract.contractor != sponsor {
-                    return Err(CommitmentError::FundingContractMismatch {
+                if self.enforces(Check::LiveAccount) && contract.state != ContractState::Active {
+                    return Err(CommitmentError::AccountClosed {
                         contract_id: contract_id.clone(),
                     });
                 }
@@ -1477,6 +1562,15 @@ impl CommitmentLedger {
                 .get_mut(contract_id)
                 .map(|contract| &mut contract.escrow),
         }
+    }
+}
+
+fn funded_by(source: &FundingSource, contract_id: &str) -> bool {
+    match source {
+        FundingSource::Participant => false,
+        FundingSource::TaskContract {
+            contract_id: funder,
+        } => funder == contract_id,
     }
 }
 

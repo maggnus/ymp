@@ -8,17 +8,24 @@
 //! conserves every budget dimension, has awarded no more slots than it funded, holds one contract
 //! per consent and one obligation per contract, has advanced nothing under a stale fencing token,
 //! and has closed no obligation whose causal work is still outstanding.
+//!
+//! Two things the pool alone cannot do are added here. One participant's own commands are merged in
+//! as a causal sequence rather than permuted, because a uniform shuffle practically never reaches a
+//! state that takes a dozen ordered commands to build. And the accounts are recomputed from the
+//! facts the ledger emitted, so that what is checked is not the same records the kernel writes.
 
 use std::collections::{BTreeMap, BTreeSet};
 
-use super::budget::{BudgetVector, DIMENSIONS, Dimension};
+use super::budget::{BudgetVector, DIMENSION_COUNT, DIMENSIONS, Dimension};
 use super::ledger::{CommitmentLedger, DisabledChecks};
 use super::protocol::{
-    AcceptOpen, AdvanceClock, Advertise, Award, CancelContract, CommitmentCommand, CommitmentEvent,
-    Reassign, RecordBid, RegisterParticipant, RenewLease, ReturnObligation, SettleOffer,
-    StartAttempt, SubmitResult, WithdrawBid, WithdrawOffer,
+    AcceptOpen, AdvanceClock, Advertise, Award, CancelContract, CommitmentCommand, CommitmentError,
+    CommitmentEvent, Reassign, RecordBid, RegisterParticipant, RenewLease, ReturnObligation,
+    SettleOffer, StartAttempt, SubmitResult, WithdrawBid, WithdrawOffer,
 };
-use super::records::{FundingSource, ObligationState, OfferPolicy, OfferState, Outcome};
+use super::records::{
+    AccountRef, FundingSource, ObligationState, OfferPolicy, OfferState, Outcome,
+};
 
 pub(crate) const ROOT_PARTICIPANT: &str = "sponsor-root";
 pub(crate) const ROOT_PRINCIPAL: &str = "principal-root";
@@ -29,6 +36,19 @@ pub(crate) const GAMMA: &str = "p-gamma";
 pub(crate) const MAIN_OFFER: &str = "offer-main";
 pub(crate) const OPEN_OFFER: &str = "offer-open";
 pub(crate) const CHILD_OFFER: &str = "offer-child";
+/// An offer nobody contends for, which gives one participant two contracts of its own.
+pub(crate) const SOLO_OFFER: &str = "offer-solo";
+/// The contract whose escrow funds the delegated offer, and which then closes.
+pub(crate) const SOLO_FUNDING_CONTRACT: &str = "contract-solo-a";
+/// The obligation the delegated offer hangs under, held by the same participant but belonging to
+/// its other contract.
+pub(crate) const SOLO_PARENT_OBLIGATION: &str = "obligation-solo-b";
+/// The offer funded from one contract and parented under the obligation of another.
+pub(crate) const CROSS_OFFER: &str = "offer-cross";
+/// The offer advertised from whatever the settlement of the cross offer returned.
+pub(crate) const SECOND_OFFER: &str = "offer-second";
+/// The offer advertised once the funding contract has closed for good.
+pub(crate) const THIRD_OFFER: &str = "offer-third";
 pub(crate) const MAIN_MAX_AWARDS: u32 = 2;
 pub(crate) const LEASE_MS: u64 = 100;
 pub(crate) const DEADLINE: u64 = 800;
@@ -74,7 +94,15 @@ impl Tokens {
             (self.dependency.clone(), other.dependency.clone()),
             (self.capability.clone(), other.capability.clone()),
         ];
-        for who in [ALPHA, BETA, GAMMA, "child"] {
+        for who in [
+            ALPHA,
+            BETA,
+            GAMMA,
+            "child",
+            "second",
+            "bid-solo-a",
+            "bid-solo-b",
+        ] {
             pairs.push((self.proposal(who), other.proposal(who)));
         }
         pairs
@@ -135,6 +163,36 @@ pub(crate) fn requested_escrow() -> BudgetVector {
         .with(Dimension::AttemptStarts, 2)
         .with(Dimension::OfferCreations, 1)
         .with(Dimension::ObligationCreations, 1)
+}
+
+/// What an open acceptance asks for: the same capacity as a bid, plus the creation authority a
+/// contractor needs in order to delegate part of its escrow onward and still fund an award.
+pub(crate) fn delegating_escrow() -> BudgetVector {
+    requested_escrow()
+        .with(Dimension::OfferCreations, 2)
+        .with(Dimension::ObligationCreations, 2)
+}
+
+/// What one award of the delegated offer funds. The offer-creation unit inside the pool is what
+/// makes a settled reservation spendable again, if a settlement may land in a contract that has
+/// already closed.
+pub(crate) fn cross_execution_escrow() -> BudgetVector {
+    BudgetVector::ZERO
+        .with(Dimension::MoneyMicros, 2_000)
+        .with(Dimension::ModelTokens, 2_000)
+        .with(Dimension::WallTimeMs, 2_000)
+        .with(Dimension::AttemptStarts, 1)
+        .with(Dimension::OfferCreations, 1)
+        .with(Dimension::ObligationCreations, 1)
+}
+
+/// What one award of the offer advertised after the settlement funds.
+pub(crate) fn second_execution_escrow() -> BudgetVector {
+    BudgetVector::ZERO
+        .with(Dimension::MoneyMicros, 1_000)
+        .with(Dimension::ModelTokens, 1_000)
+        .with(Dimension::WallTimeMs, 1_000)
+        .with(Dimension::AttemptStarts, 1)
 }
 
 /// The counter-offer of the consent held in reserve for a replacement holder. A replacement can
@@ -234,7 +292,7 @@ pub(crate) fn award_main(bid_id: &str, suffix: &str) -> CommitmentCommand {
     })
 }
 
-fn accept_open(tokens: &Tokens, participant: &str, suffix: &str) -> CommitmentCommand {
+pub(crate) fn accept_open(tokens: &Tokens, participant: &str, suffix: &str) -> CommitmentCommand {
     CommitmentCommand::AcceptOpen(AcceptOpen {
         contract_id: format!("contract-open-{suffix}"),
         obligation_id: format!("obligation-open-{suffix}"),
@@ -247,6 +305,155 @@ fn accept_open(tokens: &Tokens, participant: &str, suffix: &str) -> CommitmentCo
         proposal_digest: Some(tokens.proposal(participant)),
         lease_ms: LEASE_MS,
     })
+}
+
+/// An offer a contractor funds from the escrow of one of its contracts and hangs under the
+/// obligation of another. Both relations are its own, and each is checked on its own terms: the
+/// parent obligation must be active and owned by the sponsor, and the funding contract must be an
+/// account the sponsor can still spend from. Keeping them apart is what lets the funding contract
+/// close first, since the causal check reads the obligation and not the account.
+fn delegated_offer(
+    tokens: &Tokens,
+    offer_id: &str,
+    execution_escrow: BudgetVector,
+) -> CommitmentCommand {
+    CommitmentCommand::Advertise(Advertise {
+        offer_id: offer_id.to_owned(),
+        sponsor: ALPHA.to_owned(),
+        parent_obligation: SOLO_PARENT_OBLIGATION.to_owned(),
+        funding_source: FundingSource::TaskContract {
+            contract_id: SOLO_FUNDING_CONTRACT.to_owned(),
+        },
+        task_scope: tokens.task_scope.clone(),
+        base_digest: tokens.base_digest.clone(),
+        intent_digest: tokens.intent_digest.clone(),
+        artifact_class: tokens.artifact_class.clone(),
+        dependencies: vec![tokens.dependency.clone()],
+        capability_scope: vec![tokens.capability.clone()],
+        execution_escrow,
+        policy: OfferPolicy::Negotiated,
+        bid_deadline: DEADLINE,
+        offer_deadline: DEADLINE,
+        max_awards: 1,
+    })
+}
+
+/// One participant's own causally ordered sequence: it takes two uncontended contracts, funds an
+/// offer from the escrow of the first while hanging it under the obligation of the second, closes
+/// the funding contract, settles the offer, and then advertises and awards from whatever the
+/// settlement returned.
+///
+/// It is issued in this order because a participant issues its own commands in order. What varies
+/// between seeds is how every other participant's contended commands fall around it.
+pub(crate) fn settlement_chain(tokens: &Tokens) -> Vec<CommitmentCommand> {
+    let solo_bid = |bid_id: &str| {
+        CommitmentCommand::RecordBid(RecordBid {
+            bid_id: bid_id.to_owned(),
+            offer_id: SOLO_OFFER.to_owned(),
+            bidder: ALPHA.to_owned(),
+            requested_escrow: delegating_escrow(),
+            artifact_class: tokens.artifact_class.clone(),
+            proposal_digest: Some(tokens.proposal(bid_id)),
+            expires_at: DEADLINE,
+        })
+    };
+    let solo_award = |suffix: &str, bid_id: &str| {
+        CommitmentCommand::Award(Award {
+            contract_id: format!("contract-solo-{suffix}"),
+            obligation_id: format!("obligation-solo-{suffix}"),
+            lease_id: format!("lease-solo-{suffix}"),
+            offer_id: SOLO_OFFER.to_owned(),
+            bid_id: bid_id.to_owned(),
+            sponsor: ROOT_PARTICIPANT.to_owned(),
+            // Long enough to outlast every clock advance in the pool, so that what the schedule
+            // varies is the order of the commands and not whether a lease happened to expire.
+            lease_ms: DEADLINE,
+        })
+    };
+    vec![
+        CommitmentCommand::Advertise(Advertise {
+            offer_id: SOLO_OFFER.to_owned(),
+            sponsor: ROOT_PARTICIPANT.to_owned(),
+            parent_obligation: ROOT_OBLIGATION.to_owned(),
+            funding_source: FundingSource::Participant,
+            task_scope: tokens.task_scope.clone(),
+            base_digest: tokens.base_digest.clone(),
+            intent_digest: tokens.intent_digest.clone(),
+            artifact_class: tokens.artifact_class.clone(),
+            dependencies: vec![tokens.dependency.clone()],
+            capability_scope: vec![tokens.capability.clone()],
+            execution_escrow: delegating_escrow(),
+            policy: OfferPolicy::Negotiated,
+            bid_deadline: DEADLINE,
+            offer_deadline: DEADLINE,
+            max_awards: 2,
+        }),
+        solo_bid("bid-solo-a"),
+        solo_bid("bid-solo-b"),
+        solo_award("a", "bid-solo-a"),
+        solo_award("b", "bid-solo-b"),
+        delegated_offer(tokens, CROSS_OFFER, cross_execution_escrow()),
+        // The funding contract closes while the offer its escrow paid for is still outstanding.
+        // Nothing below its own obligation is open, so the causal check has nothing to say.
+        CommitmentCommand::ReturnObligation(ReturnObligation {
+            contract_id: SOLO_FUNDING_CONTRACT.to_owned(),
+            participant: ALPHA.to_owned(),
+            generation: 1,
+            outcome: Outcome::Declined,
+        }),
+        CommitmentCommand::WithdrawOffer(WithdrawOffer {
+            offer_id: CROSS_OFFER.to_owned(),
+            sponsor: ALPHA.to_owned(),
+        }),
+        // The reservation comes back. The question this whole chain exists to ask is where to.
+        CommitmentCommand::SettleOffer(SettleOffer {
+            offer_id: CROSS_OFFER.to_owned(),
+            sponsor: ALPHA.to_owned(),
+        }),
+        delegated_offer(tokens, SECOND_OFFER, second_execution_escrow()),
+        CommitmentCommand::RecordBid(RecordBid {
+            bid_id: "bid-second".to_owned(),
+            offer_id: SECOND_OFFER.to_owned(),
+            bidder: BETA.to_owned(),
+            requested_escrow: second_execution_escrow(),
+            artifact_class: tokens.artifact_class.clone(),
+            proposal_digest: Some(tokens.proposal("second")),
+            expires_at: DEADLINE,
+        }),
+        CommitmentCommand::Award(Award {
+            contract_id: "contract-second".to_owned(),
+            obligation_id: "obligation-second".to_owned(),
+            lease_id: "lease-second".to_owned(),
+            offer_id: SECOND_OFFER.to_owned(),
+            bid_id: "bid-second".to_owned(),
+            sponsor: ALPHA.to_owned(),
+            lease_ms: DEADLINE,
+        }),
+        // Winding the branch down in the order the rule requires: everything the escrow funded
+        // comes back first, and only then does the account close.
+        CommitmentCommand::ReturnObligation(ReturnObligation {
+            contract_id: "contract-second".to_owned(),
+            participant: BETA.to_owned(),
+            generation: 1,
+            outcome: Outcome::Exhausted,
+        }),
+        CommitmentCommand::WithdrawOffer(WithdrawOffer {
+            offer_id: SECOND_OFFER.to_owned(),
+            sponsor: ALPHA.to_owned(),
+        }),
+        CommitmentCommand::SettleOffer(SettleOffer {
+            offer_id: SECOND_OFFER.to_owned(),
+            sponsor: ALPHA.to_owned(),
+        }),
+        CommitmentCommand::ReturnObligation(ReturnObligation {
+            contract_id: SOLO_FUNDING_CONTRACT.to_owned(),
+            participant: ALPHA.to_owned(),
+            generation: 1,
+            outcome: Outcome::Declined,
+        }),
+        // And once it has closed, it is no longer an account anything may be funded from.
+        delegated_offer(tokens, THIRD_OFFER, second_execution_escrow()),
+    ]
 }
 
 /// The deterministic prefix every schedule starts from: three participants, two offers and four
@@ -490,6 +697,44 @@ pub(crate) fn shuffled(seed: u64, mut commands: Vec<CommitmentCommand>) -> Vec<C
     commands
 }
 
+/// Merge one participant's causal sequence into a shuffled background, keeping the sequence in the
+/// order it was issued while everything else falls around it at random.
+///
+/// A schedule that permuted every command uniformly would practically never reach a state that
+/// takes a dozen causally ordered commands to build, so exactly the deepest accounting would go
+/// untested. Interleaving keeps the contention that matters and still reaches that state.
+pub(crate) fn interleaved(
+    seed: u64,
+    background: &[CommitmentCommand],
+    chain: &[CommitmentCommand],
+) -> Vec<CommitmentCommand> {
+    let mut rng = Rng::new(seed ^ 0x5DEE_CE66_D1B0_9F3D);
+    let mut merged = Vec::with_capacity(background.len() + chain.len());
+    let (mut taken_background, mut taken_chain) = (0, 0);
+    while taken_background < background.len() || taken_chain < chain.len() {
+        let remaining_chain = chain.len() - taken_chain;
+        let remaining = background.len() - taken_background + remaining_chain;
+        if taken_background == background.len() || rng.below(remaining) < remaining_chain {
+            merged.push(chain[taken_chain].clone());
+            taken_chain += 1;
+        } else {
+            merged.push(background[taken_background].clone());
+            taken_background += 1;
+        }
+    }
+    merged
+}
+
+/// The whole generated schedule for one seed: the contended pool in a seeded order, with the
+/// settlement chain merged into it.
+pub(crate) fn schedule(seed: u64, tokens: &Tokens) -> Vec<CommitmentCommand> {
+    interleaved(
+        seed,
+        &shuffled(seed, contention_pool(tokens)),
+        &settlement_chain(tokens),
+    )
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) enum Violation {
     /// A dimension no longer adds up to what the run started with.
@@ -519,8 +764,133 @@ pub(crate) enum Violation {
         obligation_id: String,
         outstanding: String,
     },
+    /// A committed fact moved capacity into or out of a task-contract account after that contract
+    /// had already reached a terminal state.
+    SpentAfterClose { contract_id: String },
+    /// A task contract reached a terminal state while the facts say it still holds capacity, so
+    /// something is still owed to an account nobody can spend from.
+    ClosedHoldingEscrow {
+        contract_id: String,
+        dimension: Dimension,
+    },
+    /// An offer still holds a reservation that is due back to a task contract which has closed, so
+    /// the capacity can never reach any account again.
+    StrandedReservation {
+        offer_id: String,
+        contract_id: String,
+    },
     /// A refused command changed the ledger.
     RefusalMutatedState { position: usize },
+}
+
+/// What the emitted facts alone say about the task-contract accounts.
+///
+/// This projection is built from the event stream and never reads a ledger field. A check that
+/// consults the same records the kernel writes agrees with the kernel by construction and can only
+/// confirm what the kernel already believes; recomputing the accounts from the facts that were
+/// actually committed is what makes a divergence between the two visible.
+///
+/// Balances are signed on purpose. A debit the accounts cannot cover is a separate question with
+/// its own record, so the projection follows such a fact rather than deciding what it means.
+#[derive(Debug, Default)]
+pub(crate) struct FactAccounts {
+    contracts: BTreeMap<String, [i128; DIMENSION_COUNT]>,
+    offers: BTreeMap<String, [i128; DIMENSION_COUNT]>,
+    /// Which task contract each offer's reservation is due back to, as the offer was advertised.
+    funded_by: BTreeMap<String, String>,
+    closed: BTreeSet<String>,
+}
+
+impl FactAccounts {
+    /// Take in every fact one command committed and report what they broke. The facts of a command
+    /// are one indivisible set, so whether an account was still live is judged against the state
+    /// before the command, and what it holds is judged after all of them.
+    pub(crate) fn observe(&mut self, events: &[CommitmentEvent]) -> Vec<Violation> {
+        let mut violations = Vec::new();
+        for event in events {
+            for (account, _, _) in moved(event) {
+                if let AccountRef::TaskContract { contract_id } = account
+                    && self.closed.contains(contract_id)
+                {
+                    violations.push(Violation::SpentAfterClose {
+                        contract_id: contract_id.clone(),
+                    });
+                }
+            }
+        }
+        for event in events {
+            if let CommitmentEvent::OfferAdvertised {
+                offer_id,
+                funding_source: FundingSource::TaskContract { contract_id },
+                ..
+            } = event
+            {
+                self.funded_by.insert(offer_id.clone(), contract_id.clone());
+            }
+            for (account, sign, amount) in moved(event) {
+                let (ledger, key) = match account {
+                    AccountRef::TaskContract { contract_id } => (&mut self.contracts, contract_id),
+                    AccountRef::Offer { offer_id } => (&mut self.offers, offer_id),
+                    AccountRef::Participant { .. } => continue,
+                };
+                let balance = ledger.entry(key.clone()).or_insert([0; DIMENSION_COUNT]);
+                for dimension in DIMENSIONS {
+                    balance[dimension.index()] += sign * i128::from(amount.get(dimension));
+                }
+            }
+        }
+        for event in events {
+            let contract_id = match event {
+                CommitmentEvent::ObligationReturned { contract_id, .. }
+                | CommitmentEvent::ContractCancelled { contract_id, .. } => contract_id,
+                _ => continue,
+            };
+            self.closed.insert(contract_id.clone());
+            let Some(balance) = self.contracts.get(contract_id) else {
+                continue;
+            };
+            for dimension in DIMENSIONS {
+                if balance[dimension.index()] != 0 {
+                    violations.push(Violation::ClosedHoldingEscrow {
+                        contract_id: contract_id.clone(),
+                        dimension,
+                    });
+                }
+            }
+        }
+        violations
+    }
+
+    /// Capacity that no account can reach any more: an offer still holding a reservation whose
+    /// destination has closed. Refusing to settle into a closed contract without also keeping that
+    /// contract open would trade one accounting break for this one, so the schedules look for both.
+    pub(crate) fn stranded(&self) -> Vec<Violation> {
+        let mut violations = Vec::new();
+        for (offer_id, balance) in &self.offers {
+            let Some(contract_id) = self.funded_by.get(offer_id) else {
+                continue;
+            };
+            if self.closed.contains(contract_id) && balance.iter().any(|units| *units != 0) {
+                violations.push(Violation::StrandedReservation {
+                    offer_id: offer_id.clone(),
+                    contract_id: contract_id.clone(),
+                });
+            }
+        }
+        violations
+    }
+}
+
+/// The accounts one fact moves capacity through, each with the direction and the quantity it
+/// moves. Participant balances are left to the totals the schedule already checks.
+fn moved(event: &CommitmentEvent) -> Vec<(&AccountRef, i128, &BudgetVector)> {
+    match event {
+        CommitmentEvent::BudgetTransferred { from, to, amount } => {
+            vec![(from, -1, amount), (to, 1, amount)]
+        }
+        CommitmentEvent::BudgetConsumed { account, amount } => vec![(account, -1, amount)],
+        _ => Vec::new(),
+    }
 }
 
 #[derive(Debug)]
@@ -531,6 +901,9 @@ pub(crate) struct ScheduleReport {
     /// Which facts this schedule actually committed. A pool that quietly stopped reaching
     /// contention would otherwise pass every invariant by doing nothing.
     pub reached: BTreeSet<&'static str>,
+    /// Which guarded refusals this schedule actually provoked. A guard that no ordering ever
+    /// reaches holds by never being asked, which is not the same as holding.
+    pub guarded: BTreeSet<&'static str>,
 }
 
 fn fact_name(event: &CommitmentEvent) -> &'static str {
@@ -565,16 +938,16 @@ pub(crate) fn run_schedule(seed: u64, tokens: &Tokens, disabled: DisabledChecks)
         committed: 0,
         refused: 0,
         reached: BTreeSet::new(),
+        guarded: BTreeSet::new(),
     };
+    let mut accounts = FactAccounts::default();
     for command in setup(tokens) {
-        ledger
+        let events = ledger
             .execute(&command)
             .unwrap_or_else(|error| panic!("the deterministic prefix must be accepted: {error}"));
+        report.violations.extend(accounts.observe(&events));
     }
-    for (position, command) in shuffled(seed, contention_pool(tokens))
-        .into_iter()
-        .enumerate()
-    {
+    for (position, command) in schedule(seed, tokens).into_iter().enumerate() {
         let before = ledger.clone();
         match ledger.execute(&command) {
             Ok(events) => {
@@ -583,9 +956,19 @@ pub(crate) fn run_schedule(seed: u64, tokens: &Tokens, disabled: DisabledChecks)
                 report
                     .violations
                     .extend(fencing_violations(&ledger, &events));
+                report.violations.extend(accounts.observe(&events));
             }
-            Err(_) => {
+            Err(error) => {
                 report.refused += 1;
+                match error {
+                    CommitmentError::AccountClosed { .. } => {
+                        report.guarded.insert("account_closed")
+                    }
+                    CommitmentError::ReservationOutstanding { .. } => {
+                        report.guarded.insert("reservation_outstanding")
+                    }
+                    _ => false,
+                };
                 if ledger != before {
                     report
                         .violations
@@ -595,6 +978,9 @@ pub(crate) fn run_schedule(seed: u64, tokens: &Tokens, disabled: DisabledChecks)
         }
         report.violations.extend(state_violations(&ledger));
     }
+    // Whether a reservation is stranded is a question about the end of the schedule: until then it
+    // is only unsettled, which is ordinary.
+    report.violations.extend(accounts.stranded());
     report.violations.dedup();
     report
 }
