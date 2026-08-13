@@ -850,6 +850,12 @@ pub fn start_managed_candidate(
                 });
                 Ok(())
             })();
+            // The runtime session terminates its process tree when it is dropped, so it is dropped
+            // here rather than at the end of the thread. Without this the controller could observe
+            // a terminal outcome while the managed processes were still being signalled, and a
+            // reading of the process table taken at that moment would be racing the supervisor
+            // instead of measuring it.
+            drop(session);
             if let Ok(mut lifecycle) = worker_lifecycle.lock() {
                 lifecycle.yielded = false;
                 lifecycle.terminal = true;

@@ -359,61 +359,790 @@ pub fn configure_process_group(command: &mut Command) {
     {
         use std::os::unix::process::CommandExt;
         command.process_group(0);
+        // Signalling a process group cannot reach a descendant that leaves that group, and once
+        // its own parent exits nothing in the live process table still links it to the run. The
+        // observer therefore starts before the managed process does and keeps a record of every
+        // descendant while its parent is still visible.
+        descendants::start_observer();
+    }
+}
+
+/// Creates the file whose open descriptor marks a managed run. It is created outside any directory
+/// the managed process is given, under a name no other run uses, and is readable only by this user.
+#[doc(hidden)]
+pub fn create_launch_marker() -> std::io::Result<PathBuf> {
+    use std::sync::atomic::AtomicU64;
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    static SEQUENCE: AtomicU64 = AtomicU64::new(0);
+    let directory = std::env::temp_dir().join("ymp-runtime");
+    std::fs::create_dir_all(&directory)?;
+    let unique = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map_err(|_| std::io::Error::other("system clock is before the epoch"))?
+        .as_nanos();
+    let path = directory.join(format!(
+        "launch-{}-{unique}-{}.marker",
+        std::process::id(),
+        SEQUENCE.fetch_add(1, Ordering::Relaxed)
+    ));
+    let mut options = std::fs::OpenOptions::new();
+    options.create_new(true).write(true);
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::OpenOptionsExt;
+        options.mode(0o600);
+    }
+    options.open(&path)?;
+    Ok(path)
+}
+
+/// Builds the command that starts a managed process so that the process, and every descendant it
+/// ever creates, holds the run's marker open.
+///
+/// The marker is opened on a descriptor above the standard three and is not close-on-exec, so it is
+/// inherited across every fork and preserved across every exec. Unlike a process group, a session,
+/// a parent link or a working directory, it is unaffected by `setsid`, by any number of intermediate
+/// processes exiting, by reparenting to init, by changing directory, and by redirecting or closing
+/// the standard descriptors. Holding it therefore identifies a process the run started even when
+/// nothing the operating system reports still connects that process to the run.
+///
+/// The preamble is entered through the shell only to open that descriptor; it then replaces itself
+/// with the program the caller named, so the process that runs, its arguments and its identifier are
+/// the ones the launch descriptor attests. The variables the shell introduces of its own accord are
+/// removed again, so the managed process still sees exactly the environment the driver declared.
+#[doc(hidden)]
+pub fn managed_launch_command(program: &Path, arguments: &[String], marker: &Path) -> Command {
+    #[cfg(unix)]
+    {
+        const OPEN_MARKER: &str = "exec 9<\"$1\"; shift; exec ";
+        const SANITISER: &str = "/usr/bin/env";
+        let preamble = if Path::new(SANITISER).is_file() {
+            format!("{OPEN_MARKER}{SANITISER} -u PWD -u SHLVL -u OLDPWD -u _ \"$@\"")
+        } else {
+            format!("{OPEN_MARKER}\"$@\"")
+        };
+        let mut command = Command::new("/bin/sh");
+        command
+            .arg("-c")
+            .arg(preamble)
+            .arg("ymp-managed-launch")
+            .arg(marker)
+            .arg(program)
+            .args(arguments);
+        command
+    }
+    #[cfg(not(unix))]
+    {
+        let _ = marker;
+        let mut command = Command::new(program);
+        command.args(arguments);
+        command
+    }
+}
+
+/// Binds a marker to the managed process that was started with it, so that terminating that process
+/// can find every descendant still holding the marker open.
+#[doc(hidden)]
+#[cfg(unix)]
+pub fn register_launch_marker(child: &Child, marker: PathBuf) {
+    descendants::remember_marker(child.id(), marker);
+}
+
+#[doc(hidden)]
+#[cfg(not(unix))]
+pub fn register_launch_marker(_child: &Child, _marker: PathBuf) {}
+
+/// Identifies the processes a managed run started. The authoritative property is the run's marker,
+/// which every descendant carries whatever becomes of its ancestors; the process table is read as
+/// well, so a descendant still attached by parent or process group is found even when it was started
+/// by a caller that installed no marker.
+#[cfg(unix)]
+mod descendants {
+    use std::collections::HashMap;
+    use std::path::{Path, PathBuf};
+    use std::process::{Command, Stdio};
+    use std::sync::{Mutex, OnceLock};
+    use std::time::Duration;
+
+    /// How often the process table is read while a managed process is supervised.
+    const OBSERVATION_INTERVAL: Duration = Duration::from_millis(100);
+    /// Consecutive empty readings after which the observer stops. The next managed launch starts it
+    /// again, so a foreground process that supervises nothing reads nothing.
+    const IDLE_OBSERVATIONS_BEFORE_STOP: u32 = 50;
+
+    #[derive(Clone, Debug, Eq, PartialEq)]
+    struct ProcessEntry {
+        pid: u32,
+        parent: u32,
+        group: u32,
+        /// The start time the operating system reports. It distinguishes the observed process from
+        /// an unrelated one that later reuses the same process identifier.
+        started: String,
+    }
+
+    #[derive(Clone, Debug)]
+    struct Attribution {
+        root: u32,
+        started: String,
+    }
+
+    #[derive(Default)]
+    struct Forest {
+        members: HashMap<u32, Attribution>,
+        markers: HashMap<u32, PathBuf>,
+        observing: bool,
+    }
+
+    pub fn remember_marker(root: u32, marker: PathBuf) {
+        if let Ok(mut forest) = shared_forest().lock() {
+            forest.markers.insert(root, marker);
+        }
+    }
+
+    /// Reads which live processes hold the run's marker open. This is the answer to the ownership
+    /// question that does not depend on any ancestor still existing.
+    fn holders_of(marker: &Path) -> Vec<u32> {
+        // Linux reports open descriptors in its own process file system, so no external program is
+        // needed there.
+        if Path::new("/proc/self/fd").is_dir() {
+            return proc_holders(marker);
+        }
+        for program in ["/usr/sbin/lsof", "/usr/bin/lsof"] {
+            if !Path::new(program).is_file() {
+                continue;
+            }
+            let Ok(output) = Command::new(program)
+                .arg("-t")
+                .arg(marker)
+                .stderr(Stdio::null())
+                .output()
+            else {
+                continue;
+            };
+            return String::from_utf8_lossy(&output.stdout)
+                .lines()
+                .filter_map(|line| line.trim().parse().ok())
+                .collect();
+        }
+        Vec::new()
+    }
+
+    fn proc_holders(marker: &Path) -> Vec<u32> {
+        let Ok(entries) = std::fs::read_dir("/proc") else {
+            return Vec::new();
+        };
+        let mut holders = Vec::new();
+        for entry in entries.flatten() {
+            let Some(pid) = entry
+                .file_name()
+                .to_str()
+                .and_then(|name| name.parse::<u32>().ok())
+            else {
+                continue;
+            };
+            let Ok(descriptors) = std::fs::read_dir(entry.path().join("fd")) else {
+                continue;
+            };
+            if descriptors.flatten().any(|descriptor| {
+                std::fs::read_link(descriptor.path()).is_ok_and(|to| to == marker)
+            }) {
+                holders.push(pid);
+            }
+        }
+        holders
+    }
+
+    /// Attributes every current holder of the run's marker to that run. Reading open descriptors is
+    /// far more expensive than reading the process table, so it is done at the points where the
+    /// answer is acted upon rather than on every wait.
+    pub fn absorb_marker_holders(root: u32) {
+        let Some(marker) = shared_forest()
+            .lock()
+            .ok()
+            .and_then(|forest| forest.markers.get(&root).cloned())
+        else {
+            return;
+        };
+        let holders = holders_of(&marker);
+        if holders.is_empty() {
+            return;
+        }
+        let Some(snapshot) = read_process_table() else {
+            return;
+        };
+        let Ok(mut forest) = shared_forest().lock() else {
+            return;
+        };
+        for pid in holders {
+            if pid <= 1 || pid == std::process::id() {
+                continue;
+            }
+            if let Some(entry) = snapshot.iter().find(|entry| entry.pid == pid) {
+                forest.members.insert(
+                    pid,
+                    Attribution {
+                        root,
+                        started: entry.started.clone(),
+                    },
+                );
+            }
+        }
+    }
+
+    fn shared_forest() -> &'static Mutex<Forest> {
+        static FOREST: OnceLock<Mutex<Forest>> = OnceLock::new();
+        FOREST.get_or_init(|| Mutex::new(Forest::default()))
+    }
+
+    fn read_process_table() -> Option<Vec<ProcessEntry>> {
+        let output = Command::new("/bin/ps")
+            .args(["-A", "-o", "pid=,ppid=,pgid=,lstart="])
+            .stderr(Stdio::null())
+            .output()
+            .ok()?;
+        if !output.status.success() {
+            return None;
+        }
+        let text = String::from_utf8_lossy(&output.stdout);
+        let mut entries = Vec::new();
+        for line in text.lines() {
+            let mut fields = line.split_whitespace();
+            let (Some(pid), Some(parent), Some(group)) =
+                (fields.next(), fields.next(), fields.next())
+            else {
+                continue;
+            };
+            let (Ok(pid), Ok(parent), Ok(group)) = (pid.parse(), parent.parse(), group.parse())
+            else {
+                continue;
+            };
+            let started = fields.collect::<Vec<_>>().join(" ");
+            if started.is_empty() {
+                continue;
+            }
+            entries.push(ProcessEntry {
+                pid,
+                parent,
+                group,
+                started,
+            });
+        }
+        (!entries.is_empty()).then_some(entries)
+    }
+
+    /// Attributes every live descendant of this process to the managed process it came from. A
+    /// process keeps the attribution it was first given for as long as it stays alive, which is what
+    /// survives the exit of its own parent; dead processes are dropped, so the record stays the size
+    /// of the live tree.
+    fn absorb(members: &mut HashMap<u32, Attribution>, snapshot: &[ProcessEntry]) {
+        let this = std::process::id();
+        let by_pid: HashMap<u32, &ProcessEntry> =
+            snapshot.iter().map(|entry| (entry.pid, entry)).collect();
+        let mut attributed: HashMap<u32, u32> = HashMap::new();
+        for entry in snapshot {
+            if let Some(previous) = members.get(&entry.pid)
+                && previous.started == entry.started
+            {
+                attributed.insert(entry.pid, previous.root);
+            }
+        }
+        // A managed process is a direct child of this process that leads its own process group,
+        // which is what launching it through `configure_process_group` makes it. Ordinary helper
+        // processes — reading the process table, sending a signal, running Git — are also direct
+        // children but inherit this process's group, so they start no tree and the record stays
+        // empty while nothing is supervised.
+        for entry in snapshot {
+            if entry.parent == this && entry.pid > 1 && entry.group == entry.pid {
+                attributed.insert(entry.pid, entry.pid);
+            }
+        }
+        loop {
+            // A process group extends the attribution only through its own leader. A managed
+            // process is a group leader because it was launched into a new group, whereas an
+            // unmanaged sibling merely inherits this process's group and must not drag that whole
+            // group into the run.
+            let mut led_groups: HashMap<u32, u32> = HashMap::new();
+            for (pid, root) in &attributed {
+                if by_pid.get(pid).is_some_and(|entry| entry.group == *pid) {
+                    led_groups.entry(*pid).or_insert(*root);
+                }
+            }
+            let mut added = false;
+            for entry in snapshot {
+                if entry.pid <= 1 || entry.pid == this || attributed.contains_key(&entry.pid) {
+                    continue;
+                }
+                let Some(root) = attributed
+                    .get(&entry.parent)
+                    .or_else(|| led_groups.get(&entry.group))
+                    .copied()
+                else {
+                    continue;
+                };
+                attributed.insert(entry.pid, root);
+                added = true;
+            }
+            if !added {
+                break;
+            }
+        }
+        members.clear();
+        for (pid, root) in attributed {
+            let Some(entry) = by_pid.get(&pid) else {
+                continue;
+            };
+            members.insert(
+                pid,
+                Attribution {
+                    root,
+                    started: entry.started.clone(),
+                },
+            );
+        }
+    }
+
+    pub fn start_observer() {
+        let Ok(mut forest) = shared_forest().lock() else {
+            return;
+        };
+        if forest.observing {
+            return;
+        }
+        forest.observing = true;
+        drop(forest);
+        let spawned = std::thread::Builder::new()
+            .name("ymp-descendant-observer".to_owned())
+            .spawn(|| {
+                let mut idle = 0u32;
+                loop {
+                    if let Some(snapshot) = read_process_table() {
+                        let Ok(mut forest) = shared_forest().lock() else {
+                            return;
+                        };
+                        absorb(&mut forest.members, &snapshot);
+                        if forest.members.is_empty() {
+                            idle = idle.saturating_add(1);
+                            if idle >= IDLE_OBSERVATIONS_BEFORE_STOP {
+                                forest.observing = false;
+                                return;
+                            }
+                        } else {
+                            idle = 0;
+                        }
+                    }
+                    std::thread::sleep(OBSERVATION_INTERVAL);
+                }
+            });
+        if spawned.is_err()
+            && let Ok(mut forest) = shared_forest().lock()
+        {
+            forest.observing = false;
+        }
+    }
+
+    /// Reads the process table once and returns every process still alive that belongs to `root`,
+    /// including `root` itself. Reading first means a descendant created since the last observation
+    /// is attributed before it is signalled.
+    pub fn survivors(root: u32) -> Vec<u32> {
+        let Some(snapshot) = read_process_table() else {
+            return Vec::new();
+        };
+        let Ok(mut forest) = shared_forest().lock() else {
+            return Vec::new();
+        };
+        absorb(&mut forest.members, &snapshot);
+        let mut live: Vec<u32> = forest
+            .members
+            .iter()
+            .filter(|(pid, attribution)| attribution.root == root && **pid > 1)
+            .map(|(pid, _)| *pid)
+            .collect();
+        live.sort_unstable();
+        live
+    }
+
+    pub fn forget(root: u32) {
+        let Ok(mut forest) = shared_forest().lock() else {
+            return;
+        };
+        forest
+            .members
+            .retain(|_, attribution| attribution.root != root);
+        if let Some(marker) = forest.markers.remove(&root) {
+            let _ = std::fs::remove_file(marker);
+        }
+    }
+
+    /// Sends `signal` to the managed process group and to every attributed process individually.
+    /// The group signal reaches members created since the reading; the individual signals reach the
+    /// members that left the group.
+    pub fn signal(root: u32, group: &str, signal: &str, individual: &[u32]) -> std::io::Result<()> {
+        let status = Command::new("/bin/kill")
+            .args([signal, group])
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .status();
+        let mut targets: Vec<String> = individual
+            .iter()
+            .filter(|pid| **pid > 1 && **pid != root && **pid != std::process::id())
+            .map(u32::to_string)
+            .collect();
+        targets.sort();
+        targets.dedup();
+        if !targets.is_empty() {
+            let mut arguments: Vec<&str> = vec![signal];
+            arguments.extend(targets.iter().map(String::as_str));
+            let _ = Command::new("/bin/kill")
+                .args(arguments)
+                .stdout(Stdio::null())
+                .stderr(Stdio::null())
+                .status();
+        }
+        status.map(|_| ())
     }
 }
 
 #[doc(hidden)]
 #[cfg(unix)]
 pub fn terminate_process_tree(child: &mut Child) -> std::io::Result<()> {
-    let group = format!("-{}", child.id());
+    let root = child.id();
+    let group = format!("-{root}");
     let mut parent_reaped = child.try_wait()?.is_some();
-    let _ = Command::new("/bin/kill")
-        .args(["-TERM", &group])
-        .stdout(Stdio::null())
-        .stderr(Stdio::null())
-        .status();
+    // Ask the operating system who holds the run's marker open before each signal is sent. Between
+    // the two questions the cheaper reading of the process table is enough: a holder found here
+    // stays attributed until it dies, and anything it starts afterwards is its child.
+    descendants::absorb_marker_holders(root);
+    let _ = descendants::signal(root, &group, "-TERM", &descendants::survivors(root));
     for _ in 0..20 {
-        if !process_group_exists(&group) {
+        parent_reaped |= child.try_wait()?.is_some();
+        let remaining = descendants::survivors(root);
+        if remaining.is_empty() && !process_group_exists(&group) {
             if !parent_reaped {
                 let _ = child.wait()?;
             }
+            descendants::forget(root);
             return Ok(());
         }
-        parent_reaped |= child.try_wait()?.is_some();
         std::thread::sleep(std::time::Duration::from_millis(10));
     }
-    let status = Command::new("/bin/kill")
-        .args(["-KILL", &group])
-        .stdout(Stdio::null())
-        .stderr(Stdio::null())
-        .status()?;
+    descendants::absorb_marker_holders(root);
+    let outcome = descendants::signal(root, &group, "-KILL", &descendants::survivors(root));
     if !parent_reaped {
         let _ = child.wait()?;
     }
     for _ in 0..100 {
-        if !process_group_exists(&group) {
+        if descendants::survivors(root).is_empty() && !process_group_exists(&group) {
+            descendants::forget(root);
             return Ok(());
         }
         std::thread::sleep(std::time::Duration::from_millis(10));
     }
-    if status.success() {
-        Err(std::io::Error::new(
+    let remaining = descendants::survivors(root).len();
+    descendants::forget(root);
+    match outcome {
+        Ok(()) => Err(std::io::Error::new(
             std::io::ErrorKind::TimedOut,
-            format!("process group {group} survived SIGKILL"),
-        ))
-    } else {
-        Err(std::io::Error::other(format!(
-            "failed to send SIGKILL to process group {group}: {status}"
-        )))
+            format!("{remaining} managed process(es) and process group {group} survived SIGKILL"),
+        )),
+        Err(error) => Err(std::io::Error::other(format!(
+            "failed to send SIGKILL to the managed process tree of {root}: {error}"
+        ))),
     }
 }
 
 #[cfg(all(test, unix))]
 mod tests {
-    use super::{configure_process_group, terminate_process_tree};
+    use super::{
+        configure_process_group, create_launch_marker, managed_launch_command,
+        register_launch_marker, terminate_process_tree,
+    };
     use std::fs;
-    use std::process::{Command, Stdio};
-    use std::time::{Duration, SystemTime};
+    use std::path::{Path, PathBuf};
+    use std::process::{Child, Command, Stdio};
+    use std::time::{Duration, Instant, SystemTime};
+
+    fn unique_pid_file(label: &str) -> PathBuf {
+        let unique = SystemTime::now()
+            .duration_since(SystemTime::UNIX_EPOCH)
+            .expect("clock after epoch")
+            .as_nanos();
+        std::env::temp_dir().join(format!(
+            "ymp-runtime-api-{label}-{}-{unique}.pid",
+            std::process::id()
+        ))
+    }
+
+    /// A shell cannot create a session, so the detaching descendant is written in whichever stock
+    /// interpreter exposes `setsid`. The absence of all of them fails the test rather than skipping
+    /// it, because a silent skip would report the escape as closed without measuring it.
+    fn session_detaching_command() -> (&'static str, &'static str, &'static str) {
+        detaching_command(false)
+    }
+
+    /// The reviewer's case: ordinary daemonisation. The first fork's parent returns at once, the
+    /// second fork's parent exits at once, and the surviving grandchild owns a session, has been
+    /// reparented to init and has redirected its standard descriptors, all within microseconds.
+    fn double_forking_command() -> (&'static str, &'static str, &'static str) {
+        const PERL: &str = "use POSIX; exit 0 if fork(); POSIX::setsid() or die 'setsid'; exit 0 if fork(); open(my $handle, '>', $ARGV[0]) or die 'pid file'; print $handle \"$$\\n\"; close $handle; sleep 120;";
+        const PYTHON: &str = "import os, sys, time\nif os.fork(): raise SystemExit(0)\nos.setsid()\nif os.fork(): raise SystemExit(0)\nopen(sys.argv[1], 'w').write(str(os.getpid()) + '\\n')\ntime.sleep(120)";
+        let candidates: [(&'static str, &'static str, &'static str); 2] = [
+            ("/usr/bin/perl", "-e", PERL),
+            ("/usr/bin/python3", "-c", PYTHON),
+        ];
+        candidates
+            .into_iter()
+            .find(|(program, _, _)| Path::new(program).is_file())
+            .expect("a stock interpreter that can call setsid")
+    }
+
+    fn detaching_command(ignore_term: bool) -> (&'static str, &'static str, &'static str) {
+        const PERL: &str = "use POSIX; POSIX::setsid() or die 'setsid'; open(my $handle, '>', $ARGV[0]) or die 'pid file'; print $handle \"$$\\n\"; close $handle; sleep 120;";
+        const PERL_IGNORING_TERM: &str = "use POSIX; POSIX::setsid() or die 'setsid'; $SIG{TERM} = 'IGNORE'; open(my $handle, '>', $ARGV[0]) or die 'pid file'; print $handle \"$$\\n\"; close $handle; sleep 120;";
+        const PYTHON: &str = "import os, sys, time; os.setsid(); open(sys.argv[1], 'w').write(str(os.getpid()) + '\\n'); time.sleep(120)";
+        const PYTHON_IGNORING_TERM: &str = "import os, signal, sys, time; os.setsid(); signal.signal(signal.SIGTERM, signal.SIG_IGN); open(sys.argv[1], 'w').write(str(os.getpid()) + '\\n'); time.sleep(120)";
+        let candidates: [(&'static str, &'static str, &'static str); 2] = [
+            (
+                "/usr/bin/perl",
+                "-e",
+                if ignore_term {
+                    PERL_IGNORING_TERM
+                } else {
+                    PERL
+                },
+            ),
+            (
+                "/usr/bin/python3",
+                "-c",
+                if ignore_term {
+                    PYTHON_IGNORING_TERM
+                } else {
+                    PYTHON
+                },
+            ),
+        ];
+        candidates
+            .into_iter()
+            .find(|(program, _, _)| Path::new(program).is_file())
+            .expect("a stock interpreter that can call setsid")
+    }
+
+    /// Starts a shell script the way the runtime drivers start a managed process: through the
+    /// managed launch, so the run's marker is inherited, and in its own process group.
+    fn spawn_managed(script: &str, environment: &[(&str, &str)]) -> Child {
+        let marker = create_launch_marker().expect("create the run marker");
+        let mut command = managed_launch_command(
+            Path::new("/bin/sh"),
+            &["-c".to_owned(), script.to_owned()],
+            &marker,
+        );
+        for (name, value) in environment {
+            command.env(name, value);
+        }
+        command.stdout(Stdio::null()).stderr(Stdio::null());
+        configure_process_group(&mut command);
+        let child = command.spawn().expect("spawn the managed process");
+        register_launch_marker(&child, marker);
+        child
+    }
+
+    fn read_pid(path: &Path) -> u32 {
+        let deadline = Instant::now() + Duration::from_secs(10);
+        while Instant::now() < deadline {
+            if let Ok(text) = fs::read_to_string(path)
+                && let Ok(pid) = text.trim().parse()
+            {
+                return pid;
+            }
+            std::thread::sleep(Duration::from_millis(10));
+        }
+        panic!(
+            "descendant never recorded its process identifier in {}",
+            path.display()
+        );
+    }
+
+    fn is_alive(pid: u32) -> bool {
+        Command::new("/bin/kill")
+            .args(["-0", &pid.to_string()])
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .status()
+            .is_ok_and(|status| status.success())
+    }
+
+    fn parent_of(pid: u32) -> Option<u32> {
+        let output = Command::new("/bin/ps")
+            .args(["-o", "ppid=", "-p", &pid.to_string()])
+            .output()
+            .ok()?;
+        String::from_utf8_lossy(&output.stdout).trim().parse().ok()
+    }
+
+    /// Ordinary daemonisation. Both intermediate processes are gone before any reading of the
+    /// process table could have linked the survivor to the run, so nothing the operating system
+    /// still reports connects it to the managed process. Ownership therefore has to come from a
+    /// property the survivor itself carries.
+    #[test]
+    fn termination_reaches_a_double_forked_descendant_orphaned_at_once() {
+        let pid_file = unique_pid_file("double-fork");
+        let (interpreter, flag, script) = double_forking_command();
+        let mut child = spawn_managed(
+            "\"$YMP_DETACH_INTERPRETER\" \"$YMP_DETACH_FLAG\" \"$YMP_DETACH_SCRIPT\" \
+             \"$YMP_DESCENDANT_PID_FILE\" </dev/null >/dev/null 2>&1; \
+             while [ ! -s \"$YMP_DESCENDANT_PID_FILE\" ]; do sleep 0.05; done; exit 29",
+            &[
+                ("YMP_DETACH_INTERPRETER", interpreter),
+                ("YMP_DETACH_FLAG", flag),
+                ("YMP_DETACH_SCRIPT", script),
+                ("YMP_DESCENDANT_PID_FILE", &pid_file.display().to_string()),
+            ],
+        );
+        let descendant = read_pid(&pid_file);
+        let status = child.wait().expect("wait for managed parent");
+        assert_eq!(status.code(), Some(29));
+        assert!(
+            is_alive(descendant),
+            "the daemonised descendant exited before the escape could be measured"
+        );
+        assert_eq!(
+            parent_of(descendant),
+            Some(1),
+            "the daemonised descendant was not reparented to init"
+        );
+
+        let terminated = terminate_process_tree(&mut child);
+
+        let mut alive = true;
+        let deadline = Instant::now() + Duration::from_secs(2);
+        while Instant::now() < deadline {
+            alive = is_alive(descendant);
+            if !alive {
+                break;
+            }
+            std::thread::sleep(Duration::from_millis(25));
+        }
+        if alive {
+            let _ = Command::new("/bin/kill")
+                .args(["-KILL", &descendant.to_string()])
+                .status();
+        }
+        let _ = fs::remove_file(&pid_file);
+        assert!(
+            !alive,
+            "a descendant orphaned by a double fork survived the supervisor"
+        );
+        terminated.expect("terminate the managed process tree");
+    }
+
+    /// The measured escape: a managed descendant creates its own session, so it leaves the process
+    /// group the supervisor signals, and it is reparented to init when its own parent exits.
+    #[test]
+    fn termination_reaches_a_descendant_that_created_its_own_session() {
+        let pid_file = unique_pid_file("session-escape");
+        let (interpreter, flag, script) = session_detaching_command();
+        let mut command = Command::new("/bin/sh");
+        command
+            .arg("-c")
+            .arg(
+                "\"$YMP_DETACH_INTERPRETER\" \"$YMP_DETACH_FLAG\" \"$YMP_DETACH_SCRIPT\" \
+                 \"$YMP_DESCENDANT_PID_FILE\" & sleep 0.4; exit 19",
+            )
+            .env("YMP_DETACH_INTERPRETER", interpreter)
+            .env("YMP_DETACH_FLAG", flag)
+            .env("YMP_DETACH_SCRIPT", script)
+            .env("YMP_DESCENDANT_PID_FILE", &pid_file)
+            .stdout(Stdio::null())
+            .stderr(Stdio::null());
+        configure_process_group(&mut command);
+        let mut child = command.spawn().expect("spawn managed parent");
+        let descendant = read_pid(&pid_file);
+        let status = child.wait().expect("wait for managed parent");
+        assert_eq!(status.code(), Some(19));
+        assert!(
+            is_alive(descendant),
+            "the detached descendant exited before the escape could be measured"
+        );
+        assert_eq!(
+            parent_of(descendant),
+            Some(1),
+            "the detached descendant was not reparented to init"
+        );
+
+        let terminated = terminate_process_tree(&mut child);
+
+        let mut alive = true;
+        let deadline = Instant::now() + Duration::from_secs(2);
+        while Instant::now() < deadline {
+            alive = is_alive(descendant);
+            if !alive {
+                break;
+            }
+            std::thread::sleep(Duration::from_millis(25));
+        }
+        if alive {
+            let _ = Command::new("/bin/kill")
+                .args(["-KILL", &descendant.to_string()])
+                .status();
+        }
+        let _ = fs::remove_file(&pid_file);
+        assert!(
+            !alive,
+            "a descendant that created its own session survived the supervisor"
+        );
+        terminated.expect("terminate the managed process tree");
+    }
+
+    /// Termination escalates and stays bounded. A descendant that ignores SIGTERM and has already
+    /// left both the process group and the parent chain is still gone, and the call returns well
+    /// inside the supervisor's own escalation bound rather than waiting for the process to end.
+    #[test]
+    fn termination_of_a_signal_ignoring_detached_descendant_is_bounded() {
+        let pid_file = unique_pid_file("bounded-escalation");
+        let (interpreter, flag, script) = detaching_command(true);
+        let mut child = spawn_managed(
+            "\"$YMP_DETACH_INTERPRETER\" \"$YMP_DETACH_FLAG\" \"$YMP_DETACH_SCRIPT\" \
+             \"$YMP_DESCENDANT_PID_FILE\" & \
+             while [ ! -s \"$YMP_DESCENDANT_PID_FILE\" ]; do sleep 0.05; done; \
+             sleep 0.4; exit 23",
+            &[
+                ("YMP_DETACH_INTERPRETER", interpreter),
+                ("YMP_DETACH_FLAG", flag),
+                ("YMP_DETACH_SCRIPT", script),
+                ("YMP_DESCENDANT_PID_FILE", &pid_file.display().to_string()),
+            ],
+        );
+        let descendant = read_pid(&pid_file);
+        let status = child.wait().expect("wait for managed parent");
+        assert_eq!(status.code(), Some(23));
+        assert_eq!(parent_of(descendant), Some(1));
+
+        let started = Instant::now();
+        let terminated = terminate_process_tree(&mut child);
+        let elapsed = started.elapsed();
+
+        let mut alive = true;
+        let deadline = Instant::now() + Duration::from_secs(2);
+        while Instant::now() < deadline {
+            alive = is_alive(descendant);
+            if !alive {
+                break;
+            }
+            std::thread::sleep(Duration::from_millis(25));
+        }
+        if alive {
+            let _ = Command::new("/bin/kill")
+                .args(["-KILL", &descendant.to_string()])
+                .status();
+        }
+        let _ = fs::remove_file(&pid_file);
+        assert!(!alive, "the detached descendant survived the supervisor");
+        terminated.expect("terminate the managed process tree");
+        assert!(
+            elapsed < Duration::from_secs(5),
+            "termination took {elapsed:?}, which is outside its escalation bound"
+        );
+    }
 
     #[test]
     fn termination_reaches_descendant_after_group_parent_exits() {
