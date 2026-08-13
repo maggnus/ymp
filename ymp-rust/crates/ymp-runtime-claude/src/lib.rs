@@ -1198,16 +1198,21 @@ impl ClaudeSession {
     }
 
     /// Binds a turn's reported cost to the models that produced it. The matched-budget comparison
-    /// reads this number as evidence of one model route, so a total whose own breakdown does not
-    /// add up to it, or which names a model this profile never admitted, is refused instead of
-    /// being recorded as an unattributed number.
+    /// reads this number as evidence of one model route, so a cost with no breakdown at all, a
+    /// total whose breakdown does not add up to it, and a breakdown naming a model this profile
+    /// never admitted are all refused instead of being recorded as unattributed numbers.
     fn admit_cost_attribution(
         &self,
         reported_microusd: u64,
         breakdown: &[ModelSpend],
     ) -> Result<(), RuntimeError> {
         if breakdown.is_empty() {
-            return Ok(());
+            if reported_microusd == 0 {
+                return Ok(());
+            }
+            return Err(RuntimeError::MalformedEvent(format!(
+                "Claude reported {reported_microusd} microUSD for a turn without naming the models that spent it"
+            )));
         }
         let attributed = breakdown
             .iter()
@@ -1932,9 +1937,9 @@ struct ModelSpend {
     cost_microusd: u64,
 }
 
-/// Reads the per-model breakdown of a terminal result. A result that carries no breakdown is left
-/// unattributed rather than assigned to the admitted model, so the attribution rule can never
-/// invent evidence the runtime did not report.
+/// Reads the per-model breakdown of a terminal result. A missing breakdown is reported as an empty
+/// one rather than assigned to the admitted model, so the attribution rule refuses the cost instead
+/// of inventing evidence the runtime did not report.
 fn model_breakdown(event: &Value) -> Result<Vec<ModelSpend>, RuntimeError> {
     let Some(reported) = event.get("modelUsage") else {
         return Ok(Vec::new());
@@ -2322,10 +2327,10 @@ printf '%s\n' '{{"type":"result","subtype":"success","is_error":false,"terminal_
         assert_eq!(usage.in_flight_excess.cost_microusd, 0);
     }
 
-    /// The recorded cost is only evidence of a model route while it agrees with the breakdown the
-    /// runtime reported for the same turn. Both halves of the disagreement are refused: a total
-    /// its own breakdown does not add up to, and a total a model this profile never admitted
-    /// helped to produce.
+    /// The recorded cost is only evidence of a model route while the runtime named the models that
+    /// produced it and the shares they reported add up to it. A cost with no breakdown, a total its
+    /// breakdown does not add up to, and a total a model this profile never admitted helped to
+    /// produce are all refused.
     #[test]
     fn a_cost_its_model_breakdown_does_not_support_is_refused() {
         for (label, result) in [
@@ -2336,6 +2341,14 @@ printf '%s\n' '{{"type":"result","subtype":"success","is_error":false,"terminal_
             (
                 "breakdown above the reported total",
                 r#"{"type":"result","subtype":"success","is_error":false,"terminal_reason":"completed","total_cost_usd":0.125,"modelUsage":{"claude-opus-5":{"inputTokens":11,"outputTokens":3,"costUSD":0.900}},"usage":{"input_tokens":11,"output_tokens":3}}"#,
+            ),
+            (
+                "a reported cost with no breakdown at all",
+                r#"{"type":"result","subtype":"success","is_error":false,"terminal_reason":"completed","total_cost_usd":0.125,"usage":{"input_tokens":11,"output_tokens":3}}"#,
+            ),
+            (
+                "an empty breakdown for a reported cost",
+                r#"{"type":"result","subtype":"success","is_error":false,"terminal_reason":"completed","total_cost_usd":0.125,"modelUsage":{},"usage":{"input_tokens":11,"output_tokens":3}}"#,
             ),
             (
                 "spend by a model the profile never admitted",
@@ -2512,7 +2525,7 @@ printf '%s\n' '{{"type":"result","subtype":"success","is_error":false,"terminal_
                 r##"cat >/dev/null
 printf '%s\n' '{{"type":"system","subtype":"init","session_id":"session-budget","claude_code_version":"2.1.227","model":"claude-opus-5","permissionMode":"acceptEdits","tools":{INIT_TOOLS},"mcp_servers":[],"slash_commands":[],"plugins":[],"skills":[]}}'
 printf '%s\n' '{{"type":"assistant","request_id":"req_1","message":{{"content":[{{"type":"text","text":"working"}}]}}}}'
-printf '%s\n' '{{"type":"result","subtype":"error_max_budget_usd","is_error":true,"terminal_reason":"budget_exhausted","total_cost_usd":0.9,"usage":{{"input_tokens":41,"cache_creation_input_tokens":9,"cache_read_input_tokens":5,"output_tokens":7,"output_tokens_details":{{"thinking_tokens":1}}}}}}'
+printf '%s\n' '{{"type":"result","subtype":"error_max_budget_usd","is_error":true,"terminal_reason":"budget_exhausted","total_cost_usd":0.9,"modelUsage":{{"claude-opus-5":{{"inputTokens":50,"outputTokens":7,"costUSD":0.9}}}},"usage":{{"input_tokens":41,"cache_creation_input_tokens":9,"cache_read_input_tokens":5,"output_tokens":7,"output_tokens_details":{{"thinking_tokens":1}}}}}}'
 exit 1
 "##
             ),
@@ -2549,7 +2562,7 @@ exit 1
             &format!(
                 r##"cat >/dev/null
 printf '%s\n' '{{"type":"system","subtype":"init","session_id":"session-cost","claude_code_version":"2.1.227","model":"claude-opus-5","permissionMode":"acceptEdits","tools":{INIT_TOOLS},"mcp_servers":[],"slash_commands":[],"plugins":[],"skills":[]}}'
-printf '%s\n' '{{"type":"result","subtype":"success","is_error":false,"terminal_reason":"completed","total_cost_usd":4.0,"usage":{{"input_tokens":1,"output_tokens":1}}}}'
+printf '%s\n' '{{"type":"result","subtype":"success","is_error":false,"terminal_reason":"completed","total_cost_usd":4.0,"modelUsage":{{"claude-opus-5":{{"inputTokens":1,"outputTokens":1,"costUSD":4.0}}}},"usage":{{"input_tokens":1,"output_tokens":1}}}}'
 "##
             ),
         );
@@ -2614,8 +2627,8 @@ printf '%s\n' '{{"type":"result","subtype":"success","is_error":false,"total_cos
             &format!(
                 r##"cat >/dev/null
 printf '%s\n' '{{"type":"system","subtype":"init","session_id":"session-duplicate","claude_code_version":"2.1.227","model":"claude-opus-5","permissionMode":"acceptEdits","tools":{INIT_TOOLS},"mcp_servers":[],"slash_commands":[],"plugins":[],"skills":[]}}'
-printf '%s\n' '{{"type":"result","subtype":"success","is_error":false,"total_cost_usd":0.01,"usage":{{"input_tokens":1,"output_tokens":1}}}}'
-printf '%s\n' '{{"type":"result","subtype":"success","is_error":false,"total_cost_usd":0.01,"usage":{{"input_tokens":1,"output_tokens":1}}}}'
+printf '%s\n' '{{"type":"result","subtype":"success","is_error":false,"total_cost_usd":0.01,"modelUsage":{{"claude-opus-5":{{"inputTokens":1,"outputTokens":1,"costUSD":0.01}}}},"usage":{{"input_tokens":1,"output_tokens":1}}}}'
+printf '%s\n' '{{"type":"result","subtype":"success","is_error":false,"total_cost_usd":0.01,"modelUsage":{{"claude-opus-5":{{"inputTokens":1,"outputTokens":1,"costUSD":0.01}}}},"usage":{{"input_tokens":1,"output_tokens":1}}}}'
 "##
             ),
         );
@@ -2656,7 +2669,7 @@ printf '%s\n' '{"type":"system","subtype":"init","session_id":"session-reply","c
 printf '%s\n' '{"type":"assistant","request_id":"req_1","message":{"content":[{"type":"tool_use","id":"toolu_1","name":"mcp__ymp__submit","input":{"command_id":"agent.submit"}}]}}'
 printf '%s\n' '{"type":"user","message":{"content":[{"type":"tool_result","tool_use_id":"toolu_1","content":[{"type":"text","text":"{\"snapshot_digest\":\"a\"}"}]}]}}'
 printf '%s\n' '{"type":"user","message":{"content":[{"type":"tool_result","tool_use_id":"toolu_1","content":[{"type":"text","text":"{\"snapshot_digest\":\"a\"}"}]}]}}'
-printf '%s\n' '{"type":"result","subtype":"success","is_error":false,"total_cost_usd":0.01,"usage":{"input_tokens":1,"output_tokens":1}}'
+printf '%s\n' '{"type":"result","subtype":"success","is_error":false,"total_cost_usd":0.01,"modelUsage":{"claude-opus-5":{"inputTokens":1,"outputTokens":1,"costUSD":0.01}},"usage":{"input_tokens":1,"output_tokens":1}}'
 "##,
         );
         let mut session = ClaudeRuntime::new(&executable)
@@ -2734,7 +2747,7 @@ printf '%s\n' '{"type":"result","subtype":"success","is_error":false,"total_cost
                     r##"cat >/dev/null
 printf '%s\n' '{init}'
 printf '%s\n' 'model-traffic-started' > model.traffic
-printf '%s\n' '{{"type":"result","subtype":"success","is_error":false,"total_cost_usd":0.5,"usage":{{"input_tokens":1,"output_tokens":1}}}}'
+printf '%s\n' '{{"type":"result","subtype":"success","is_error":false,"total_cost_usd":0.5,"modelUsage":{{"claude-opus-5":{{"inputTokens":1,"outputTokens":1,"costUSD":0.5}}}},"usage":{{"input_tokens":1,"output_tokens":1}}}}'
 "##
                 ),
             );
@@ -2821,7 +2834,7 @@ if [ "$count" -eq 1 ]; then
 fi
 test "$(cat committed.progress)" = 'committed progress' || exit 29
 printf '%s\n' '{{"type":"assistant","request_id":"req_2","message":{{"content":[{{"type":"text","text":"resumed progress"}}]}}}}'
-printf '%s\n' '{{"type":"result","subtype":"success","is_error":false,"total_cost_usd":0.125,"usage":{{"input_tokens":11,"cache_read_input_tokens":7,"output_tokens":3}}}}'
+printf '%s\n' '{{"type":"result","subtype":"success","is_error":false,"total_cost_usd":0.125,"modelUsage":{{"claude-opus-5":{{"inputTokens":18,"outputTokens":3,"costUSD":0.125}}}},"usage":{{"input_tokens":11,"cache_read_input_tokens":7,"output_tokens":3}}}}'
 "##
             ),
         );
@@ -3012,7 +3025,7 @@ sleep 30
                 r##"cat >/dev/null
 printf '%s\n' admitted > admitted-runtime.marker
 printf '%s\n' '{{"type":"system","subtype":"init","session_id":"session-chain","claude_code_version":"2.1.227","model":"claude-opus-5","permissionMode":"acceptEdits","tools":{INIT_TOOLS},"mcp_servers":[],"slash_commands":[],"plugins":[],"skills":[]}}'
-printf '%s\n' '{{"type":"result","subtype":"success","is_error":false,"terminal_reason":"completed","total_cost_usd":0.001,"usage":{{"input_tokens":1,"output_tokens":1}}}}'
+printf '%s\n' '{{"type":"result","subtype":"success","is_error":false,"terminal_reason":"completed","total_cost_usd":0.001,"modelUsage":{{"claude-opus-5":{{"inputTokens":1,"outputTokens":1,"costUSD":0.001}}}},"usage":{{"input_tokens":1,"output_tokens":1}}}}'
 "##
             ),
         );
