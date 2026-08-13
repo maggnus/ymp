@@ -14,10 +14,10 @@ use std::time::{Duration, Instant};
 use ymp_runtime_api::{
     AdmittedProgram, BoundedOutputLine, CancellationToken, DiagnosticSummary, InFlightExcess,
     InvocationRequest, LaunchChain, LaunchDescriptor, LaunchEnvironmentVariable, McpBinding,
-    ProbeReport, Readiness, RuntimeDriver, RuntimeError, RuntimeEvent, RuntimeEventKind,
-    RuntimeFailureKind, RuntimeKind, RuntimeSession, Usage, configure_process_group,
-    create_launch_marker, evidence_digest, managed_launch_command, read_bounded_lines,
-    register_launch_marker, terminate_process_tree, verify_admitted_programs,
+    ProbeReport, ProgramRequirement, ProgramRole, Readiness, RuntimeDriver, RuntimeError,
+    RuntimeEvent, RuntimeEventKind, RuntimeFailureKind, RuntimeKind, RuntimeSession, Usage,
+    configure_process_group, create_launch_marker, evidence_digest, managed_launch_command,
+    read_bounded_lines, register_launch_marker, terminate_process_tree, verify_admitted_programs,
 };
 
 pub const PINNED_CLAUDE_VERSION: &str = "2.1.227 (Claude Code)";
@@ -321,6 +321,11 @@ enum CredentialSource {
 }
 
 impl CredentialSource {
+    #[cfg(target_os = "macos")]
+    const MACOS_KEYCHAIN_READER: &'static str = "/usr/bin/security";
+}
+
+impl CredentialSource {
     fn discover() -> Option<Self> {
         let configuration = std::env::var_os("CLAUDE_CONFIG_DIR")
             .map(PathBuf::from)
@@ -341,12 +346,37 @@ impl CredentialSource {
         }
     }
 
+    /// The program this source executes to obtain the credential, admitted before it runs. It hands
+    /// credential material to the managed process, so it belongs to the trusted chain and is named
+    /// in the launch record rather than treated as an incidental utility.
+    fn reader(&self) -> Result<Option<AdmittedProgram>, RuntimeError> {
+        match self {
+            Self::File(_) => Ok(None),
+            #[cfg(target_os = "macos")]
+            Self::MacosKeychain => Ok(Some(AdmittedProgram::admit(
+                ProgramRole::CredentialReader,
+                Self::MACOS_KEYCHAIN_READER,
+                &ProgramRequirement::SystemPath,
+            )?)),
+        }
+    }
+
     fn read(&self) -> Result<Option<Vec<u8>>, RuntimeError> {
+        let reader = self.reader()?;
         let material = match self {
             Self::File(path) => fs::read(path)?,
             #[cfg(target_os = "macos")]
             Self::MacosKeychain => {
-                let output = Command::new("/usr/bin/security")
+                let reader = reader
+                    .as_ref()
+                    .ok_or_else(|| {
+                        RuntimeError::InvalidProfile(
+                            "the keychain credential reader was not admitted".to_owned(),
+                        )
+                    })?
+                    .path
+                    .clone();
+                let output = Command::new(reader)
                     .args([
                         "find-generic-password",
                         "-s",
@@ -916,10 +946,19 @@ impl RuntimeDriver for ClaudeRuntime {
             }
             None => (None, None),
         };
+        // The reader of the operator's credential runs before the runtime image is loaded and its
+        // output reaches the managed process, so it is admitted with the chain and named in the
+        // launch record rather than treated as an incidental utility.
+        let mut launch_chain = self.launch_chain.admit()?;
+        if let Some(credential) = &self.credential
+            && let Some(reader) = credential.reader()?
+        {
+            launch_chain.push(reader);
+        }
         let launch = ClaudeLaunch {
             executable,
             coordination_executable,
-            launch_chain: self.launch_chain.admit()?,
+            launch_chain,
             profile: self.profile.clone(),
             workspace: request.workspace.clone(),
             attempt_id: request.attempt_id.clone(),
@@ -2560,6 +2599,55 @@ sleep 30
     /// system refuses to execute a copy of `/bin/sh` or `/usr/bin/env`, measured as a kill by
     /// signal, so a check enters the real program through a script whose own bytes can be replaced
     /// after admission.
+    /// The program that reads the operator's credential hands material to the managed process, so
+    /// it is admitted under the same rule as the rest of the trusted chain rather than executed as
+    /// an incidental utility.
+    #[test]
+    #[cfg(target_os = "macos")]
+    fn the_credential_reader_is_admitted_before_it_reads_the_credential() {
+        use super::CredentialSource;
+
+        let reader = CredentialSource::MacosKeychain
+            .reader()
+            .expect("admit the keychain reader")
+            .expect("the keychain source reads through a program");
+        assert_eq!(reader.role, ymp_runtime_api::ProgramRole::CredentialReader);
+        assert_eq!(
+            reader.path,
+            Path::new(CredentialSource::MACOS_KEYCHAIN_READER)
+        );
+        assert_eq!(
+            reader.identity,
+            ymp_runtime_api::ProgramIdentity::SystemPath,
+            "the credential reader is bound to a location this account cannot write"
+        );
+        reader.verify().expect("the admitted reader verifies");
+
+        let file = tempfile::tempdir().expect("temporary directory");
+        let credential = file.path().join(".credentials.json");
+        fs::write(&credential, b"{}").expect("write credential");
+        assert!(
+            CredentialSource::File(credential)
+                .reader()
+                .expect("a file source is inspected")
+                .is_none(),
+            "a credential read from a file executes no program"
+        );
+    }
+
+    /// Binds the stand-ins by the digests they were written with, because their location cannot
+    /// carry the binding: they stand in a directory this account owns, which is exactly what the
+    /// product rule refuses.
+    fn stand_in_chain(shell: &Path, sanitiser: &Path) -> ymp_runtime_api::LaunchChain {
+        let digest = |path: &Path| {
+            ymp_runtime_api::evidence_digest(&fs::read(path).expect("stand-in bytes"))
+        };
+        ymp_runtime_api::LaunchChain::stated(
+            (shell.to_owned(), digest(shell)),
+            Some((sanitiser.to_owned(), digest(sanitiser))),
+        )
+    }
+
     fn chain_stand_in(directory: &Path, name: &str, program: &str) -> PathBuf {
         let path = directory.join(name);
         let entered = directory.join(format!("{name}.entered"));
@@ -2595,13 +2683,26 @@ printf '%s\n' '{{"type":"result","subtype":"success","is_error":false,"terminal_
         let sanitiser = chain_stand_in(directory.path(), "chain-sanitiser", "/usr/bin/env");
         let runtime = ClaudeRuntime::new(&executable)
             .without_delegated_credential()
-            .with_launch_chain(ymp_runtime_api::LaunchChain::new(
-                &shell,
-                Some(sanitiser.clone()),
-            ));
+            .with_launch_chain(stand_in_chain(&shell, &sanitiser));
 
         let admitted_workspace = directory.path().join("admitted");
         fs::create_dir(&admitted_workspace).expect("admitted workspace");
+        let prepared = runtime
+            .prepare_launch(&request(&admitted_workspace, "invocation-chain-shape"))
+            .expect("prepare the admitted chain")
+            .expect("launch descriptor");
+        assert_eq!(
+            prepared
+                .launch_chain
+                .iter()
+                .map(|program| program.role)
+                .collect::<Vec<_>>(),
+            vec![
+                ymp_runtime_api::ProgramRole::LaunchShell,
+                ymp_runtime_api::ProgramRole::EnvironmentSanitiser,
+            ],
+            "a run that delegates no credential enters no credential reader"
+        );
         let mut session = runtime
             .start(request(&admitted_workspace, "invocation-chain-admitted"))
             .expect("execute the admitted chain");
@@ -2651,6 +2752,9 @@ printf '%s\n' '{{"type":"result","subtype":"success","is_error":false,"terminal_
                 !workspace.join("admitted-runtime.marker").exists(),
                 "the runtime ran through a replaced chain program"
             );
+            // The next round admits the chain again against the digests this check stated, so the
+            // replaced program is put back rather than left for the following round to trip over.
+            fs::write(replaced, &bytes).expect("restore the admitted chain program");
         }
     }
 }

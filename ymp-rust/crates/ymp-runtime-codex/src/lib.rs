@@ -2516,6 +2516,19 @@ fi
     /// system refuses to execute a copy of `/bin/sh` or `/usr/bin/env`, measured as a kill by
     /// signal, so a check enters the real program through a script whose own bytes can be replaced
     /// after admission.
+    /// Binds the stand-ins by the digests they were written with, because their location cannot
+    /// carry the binding: they stand in a directory this account owns, which is exactly what the
+    /// product rule refuses.
+    fn stand_in_chain(shell: &Path, sanitiser: &Path) -> ymp_runtime_api::LaunchChain {
+        let digest = |path: &Path| {
+            ymp_runtime_api::evidence_digest(&fs::read(path).expect("stand-in bytes"))
+        };
+        ymp_runtime_api::LaunchChain::stated(
+            (shell.to_owned(), digest(shell)),
+            Some((sanitiser.to_owned(), digest(sanitiser))),
+        )
+    }
+
     fn chain_stand_in(directory: &Path, name: &str, program: &str) -> PathBuf {
         let path = directory.join(name);
         let entered = directory.join(format!("{name}.entered"));
@@ -2562,9 +2575,8 @@ fi
         admitted_runtime_fixture(&executable);
         let shell = chain_stand_in(directory.path(), "chain-shell", "/bin/sh");
         let sanitiser = chain_stand_in(directory.path(), "chain-sanitiser", "/usr/bin/env");
-        let runtime = CodexRuntime::new(&executable).with_launch_chain(
-            ymp_runtime_api::LaunchChain::new(&shell, Some(sanitiser.clone())),
-        );
+        let runtime =
+            CodexRuntime::new(&executable).with_launch_chain(stand_in_chain(&shell, &sanitiser));
         runtime.probe().expect("probe chain runtime");
 
         let admitted_workspace = directory.path().join("admitted");
@@ -2651,6 +2663,9 @@ fi
                 !workspace.join("admitted-runtime.marker").exists(),
                 "the runtime ran through a replaced chain program"
             );
+            // The next round admits the chain again against the digests this check stated, so the
+            // replaced program is put back rather than left for the following round to trip over.
+            fs::write(replaced, &bytes).expect("restore the admitted chain program");
         }
     }
 

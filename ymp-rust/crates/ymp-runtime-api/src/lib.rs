@@ -61,8 +61,18 @@ pub enum ProgramRole {
     /// Removes the variables the shell introduced of its own accord, then replaces itself with the
     /// runtime executable.
     EnvironmentSanitiser,
+    /// Reads the operator's credential material and hands it to the generated home the managed
+    /// process is given. It touches the credential, so it belongs to the trusted chain.
+    CredentialReader,
     /// Builds the private baseline of the managed workspace before the runtime is started.
     Workspace,
+    /// Reports the process table, from which descendants of the managed process are attributed.
+    ProcessTable,
+    /// Reports which live processes hold the run's marker open, where the process file system that
+    /// answers the same question is absent.
+    DescriptorHolders,
+    /// Signals the managed process and its descendants.
+    Signal,
 }
 
 impl std::fmt::Display for ProgramRole {
@@ -70,31 +80,63 @@ impl std::fmt::Display for ProgramRole {
         let name = match self {
             Self::LaunchShell => "launch shell",
             Self::EnvironmentSanitiser => "environment sanitiser",
+            Self::CredentialReader => "credential reader",
             Self::Workspace => "workspace program",
+            Self::ProcessTable => "process table reader",
+            Self::DescriptorHolders => "descriptor holder reader",
+            Self::Signal => "signal program",
         };
         formatter.write_str(name)
     }
 }
 
-/// A program whose bytes were read and digested before it was executed on a managed run's behalf.
+/// What binds an admitted program to the program the run means, as opposed to whatever bytes happen
+/// to be reachable under that name when the run starts.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum ProgramRequirement {
+    /// The program must stand at an absolute path whose file and every ancestor directory belong to
+    /// the superuser and are writable by nobody else. The account a run executes under cannot
+    /// create or replace such a file, so it cannot decide which bytes are admitted.
+    SystemPath,
+    /// The program must have exactly these bytes. This carries the binding where the location
+    /// cannot, and obliges the caller to state in advance which program it means.
+    StatedDigest(String),
+}
+
+/// What bound an admitted program to the program the run meant. Recorded in the evidence, because a
+/// digest alone does not say whether the account under test could have chosen the bytes behind it.
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ProgramIdentity {
+    SystemPath,
+    StatedDigest,
+}
+
+/// A program whose identity was established and whose bytes were read and digested before it was
+/// executed on a managed run's behalf.
 ///
 /// The pinned runtime executable and the coordination bridge are admitted by copy, so the bytes
 /// that were digested are the bytes the operating system loads. A system program cannot be admitted
-/// that way — a copy of a platform binary is refused by the operating system — so it is admitted by
-/// digest at its own path and re-verified immediately before and after the managed process is
-/// created. The residual window between the last verification and the kernel's image load is stated
-/// in the card that introduced this record.
+/// that way — a copy of a platform binary is refused by the operating system — so it is admitted at
+/// its own path and re-verified immediately before and after the managed process is created. The
+/// residual window between the last verification and the kernel's image load is stated in the card
+/// that introduced this record.
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct AdmittedProgram {
     pub role: ProgramRole,
     pub path: PathBuf,
+    pub identity: ProgramIdentity,
     pub digest: String,
 }
 
 impl AdmittedProgram {
-    /// Reads the program's bytes and records their digest. This is the admission the later
-    /// verifications compare against.
-    pub fn admit(role: ProgramRole, path: impl Into<PathBuf>) -> Result<Self, RuntimeError> {
+    /// Establishes the program's identity, then reads its bytes and records their digest. Both are
+    /// re-established by [`AdmittedProgram::verify`] before the program is executed.
+    pub fn admit(
+        role: ProgramRole,
+        path: impl Into<PathBuf>,
+        requirement: &ProgramRequirement,
+    ) -> Result<Self, RuntimeError> {
         let path = path.into();
         if !path.is_file() {
             return Err(RuntimeError::InvalidProfile(format!(
@@ -103,10 +145,42 @@ impl AdmittedProgram {
             )));
         }
         let digest = digest_bytes(&std::fs::read(&path)?);
-        Ok(Self { role, path, digest })
+        let identity = match requirement {
+            ProgramRequirement::SystemPath => {
+                require_system_path(role, &path)?;
+                ProgramIdentity::SystemPath
+            }
+            ProgramRequirement::StatedDigest(expected) => {
+                if &digest != expected {
+                    return Err(RuntimeError::InvalidProfile(format!(
+                        "{role} at {} is not the program that was expected",
+                        path.display()
+                    )));
+                }
+                ProgramIdentity::StatedDigest
+            }
+        };
+        Ok(Self {
+            role,
+            path,
+            identity,
+            digest,
+        })
     }
 
-    /// Reads the program's bytes again and refuses when they differ from the admitted ones.
+    /// The requirement this program was admitted under, so a later holder of the record can
+    /// re-establish the same binding instead of only re-reading the digest.
+    pub fn requirement(&self) -> ProgramRequirement {
+        match self.identity {
+            ProgramIdentity::SystemPath => ProgramRequirement::SystemPath,
+            ProgramIdentity::StatedDigest => ProgramRequirement::StatedDigest(self.digest.clone()),
+        }
+    }
+
+    /// Re-establishes the program's identity and reads its bytes again, refusing when either the
+    /// binding or the bytes differ from the admitted ones. A program admitted for its location is
+    /// checked against that location again, so a holder of the record re-establishes the same
+    /// binding rather than only re-reading a digest at a path someone else named.
     pub fn verify(&self) -> Result<(), RuntimeError> {
         if !self.path.is_file() {
             return Err(RuntimeError::InvalidProfile(format!(
@@ -115,6 +189,11 @@ impl AdmittedProgram {
                 self.path.display()
             )));
         }
+        if self.identity == ProgramIdentity::SystemPath {
+            require_system_path(self.role, &self.path)?;
+        }
+        // For a program admitted against a stated digest this comparison is the whole binding; for
+        // one admitted against its location it is what catches a change to the bytes standing there.
         if digest_bytes(&std::fs::read(&self.path)?) != self.digest {
             return Err(RuntimeError::InvalidProfile(format!(
                 "{} changed after admission: {}",
@@ -126,6 +205,44 @@ impl AdmittedProgram {
     }
 }
 
+/// Refuses unless the program stands where only the superuser could have put it. Every ancestor
+/// directory is examined, because a writable directory anywhere on the path lets the account
+/// exchange the file the name resolves to.
+#[cfg(unix)]
+fn require_system_path(role: ProgramRole, path: &Path) -> Result<(), RuntimeError> {
+    use std::os::unix::fs::MetadataExt;
+
+    if !path.is_absolute() {
+        return Err(RuntimeError::InvalidProfile(format!(
+            "{role} was not resolved to an absolute path: {}",
+            path.display()
+        )));
+    }
+    let canonical = path.canonicalize()?;
+    let mut current = Some(canonical.as_path());
+    while let Some(component) = current {
+        let metadata = std::fs::metadata(component)?;
+        if metadata.uid() != 0 || metadata.mode() & 0o022 != 0 {
+            return Err(RuntimeError::InvalidProfile(format!(
+                "{role} at {} stands under {}, which this account can write, so the bytes admitted \
+                 for it are not bound to the program the run means",
+                path.display(),
+                component.display()
+            )));
+        }
+        current = component.parent();
+    }
+    Ok(())
+}
+
+#[cfg(not(unix))]
+fn require_system_path(role: ProgramRole, path: &Path) -> Result<(), RuntimeError> {
+    let _ = (role, path);
+    Err(RuntimeError::Unsupported(
+        "a system-path program identity on this platform",
+    ))
+}
+
 /// Refuses unless every admitted program still holds the bytes it was admitted with.
 pub fn verify_admitted_programs(programs: &[AdmittedProgram]) -> Result<(), RuntimeError> {
     for program in programs {
@@ -135,40 +252,47 @@ pub fn verify_admitted_programs(programs: &[AdmittedProgram]) -> Result<(), Runt
 }
 
 /// The programs the managed launch preamble enters before the runtime image is loaded. Product code
-/// uses the system paths; the constructor exists because a test cannot substitute `/bin/sh` and the
-/// operating system refuses to execute a copy of it.
+/// uses the system paths, whose identity is their location; the other constructor exists because a
+/// check cannot substitute `/bin/sh` and the operating system refuses to execute a copy of it, so
+/// there the caller states which bytes it means instead.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct LaunchChain {
-    shell: PathBuf,
-    sanitiser: Option<PathBuf>,
+    shell: (PathBuf, ProgramRequirement),
+    sanitiser: Option<(PathBuf, ProgramRequirement)>,
 }
 
 impl LaunchChain {
     pub const SYSTEM_SHELL: &'static str = "/bin/sh";
     pub const SYSTEM_SANITISER: &'static str = "/usr/bin/env";
 
-    pub fn new(shell: impl Into<PathBuf>, sanitiser: Option<PathBuf>) -> Self {
+    /// Builds a chain whose programs are bound by the digests the caller states rather than by
+    /// their location.
+    #[doc(hidden)]
+    pub fn stated(shell: (PathBuf, String), sanitiser: Option<(PathBuf, String)>) -> Self {
         Self {
-            shell: shell.into(),
-            sanitiser,
+            shell: (shell.0, ProgramRequirement::StatedDigest(shell.1)),
+            sanitiser: sanitiser
+                .map(|(path, digest)| (path, ProgramRequirement::StatedDigest(digest))),
         }
     }
 
-    /// Records the digest of every program in the chain. The set is fixed here rather than at spawn
-    /// time, so a sanitiser that appears or disappears between admission and launch changes the
-    /// chain and is refused instead of silently entering or leaving it.
+    /// Records the identity and digest of every program in the chain. The set is fixed here rather
+    /// than at spawn time, so a sanitiser that appears or disappears between admission and launch
+    /// changes the chain and is refused instead of silently entering or leaving it.
     pub fn admit(&self) -> Result<Vec<AdmittedProgram>, RuntimeError> {
         if !cfg!(unix) {
             return Ok(Vec::new());
         }
         let mut chain = vec![AdmittedProgram::admit(
             ProgramRole::LaunchShell,
-            self.shell.clone(),
+            self.shell.0.clone(),
+            &self.shell.1,
         )?];
-        if let Some(sanitiser) = &self.sanitiser {
+        if let Some((path, requirement)) = &self.sanitiser {
             chain.push(AdmittedProgram::admit(
                 ProgramRole::EnvironmentSanitiser,
-                sanitiser.clone(),
+                path.clone(),
+                requirement,
             )?);
         }
         Ok(chain)
@@ -179,10 +303,92 @@ impl Default for LaunchChain {
     fn default() -> Self {
         let sanitiser = Path::new(Self::SYSTEM_SANITISER);
         Self {
-            shell: PathBuf::from(Self::SYSTEM_SHELL),
-            sanitiser: sanitiser.is_file().then(|| sanitiser.to_owned()),
+            shell: (
+                PathBuf::from(Self::SYSTEM_SHELL),
+                ProgramRequirement::SystemPath,
+            ),
+            sanitiser: sanitiser
+                .is_file()
+                .then(|| (sanitiser.to_owned(), ProgramRequirement::SystemPath)),
         }
     }
+}
+
+/// The lifecycle utilities a managed run executes to observe and terminate what it started. Each is
+/// named by an absolute system path rather than resolved through the environment search path, and
+/// each is admitted under that location before it is executed.
+#[cfg(unix)]
+mod lifecycle {
+    use super::{AdmittedProgram, ProgramRequirement, ProgramRole, RuntimeError};
+    use std::collections::BTreeMap;
+    use std::path::{Path, PathBuf};
+    use std::sync::{Mutex, OnceLock};
+
+    pub const PROCESS_TABLE: &str = "/bin/ps";
+    pub const SIGNAL: &str = "/bin/kill";
+    pub const DESCRIPTOR_HOLDERS: [&str; 2] = ["/usr/sbin/lsof", "/usr/bin/lsof"];
+
+    fn ledger() -> &'static Mutex<BTreeMap<PathBuf, AdmittedProgram>> {
+        static LEDGER: OnceLock<Mutex<BTreeMap<PathBuf, AdmittedProgram>>> = OnceLock::new();
+        LEDGER.get_or_init(|| Mutex::new(BTreeMap::new()))
+    }
+
+    /// Admits the utility on its first use and re-establishes its identity and bytes on every later
+    /// use, so a utility that changes under a running supervisor stops being used.
+    pub fn admitted(role: ProgramRole, path: &Path) -> Result<PathBuf, RuntimeError> {
+        let program = AdmittedProgram::admit(role, path, &ProgramRequirement::SystemPath)?;
+        let mut ledger = ledger().lock().map_err(|_| {
+            RuntimeError::InvalidProfile("admitted program ledger failed".to_owned())
+        })?;
+        match ledger.get(path) {
+            Some(recorded) if recorded == &program => {}
+            Some(_) => {
+                return Err(RuntimeError::InvalidProfile(format!(
+                    "{role} changed after admission: {}",
+                    path.display()
+                )));
+            }
+            None => {
+                ledger.insert(path.to_owned(), program);
+            }
+        }
+        Ok(path.to_owned())
+    }
+
+    /// Admits every lifecycle utility this platform provides, so the run records which programs it
+    /// will execute on its own behalf before it executes any of them.
+    pub fn admit_all() -> Vec<AdmittedProgram> {
+        let mut programs = Vec::new();
+        let mut record = |role, path: &str| {
+            if Path::new(path).is_file()
+                && let Ok(path) = admitted(role, Path::new(path))
+                && let Ok(ledger) = ledger().lock()
+                && let Some(program) = ledger.get(&path)
+            {
+                programs.push(program.clone());
+            }
+        };
+        record(ProgramRole::ProcessTable, PROCESS_TABLE);
+        record(ProgramRole::Signal, SIGNAL);
+        if !Path::new("/proc/self/fd").is_dir() {
+            for path in DESCRIPTOR_HOLDERS {
+                record(ProgramRole::DescriptorHolders, path);
+            }
+        }
+        programs
+    }
+}
+
+/// Admits every lifecycle utility this platform provides and returns the record, so the run can
+/// name each program it executes on its own behalf before executing any of them.
+#[cfg(unix)]
+pub fn admit_lifecycle_programs() -> Vec<AdmittedProgram> {
+    lifecycle::admit_all()
+}
+
+#[cfg(not(unix))]
+pub fn admit_lifecycle_programs() -> Vec<AdmittedProgram> {
+    Vec::new()
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -564,31 +770,39 @@ pub fn managed_launch_command(
     #[cfg(unix)]
     {
         const OPEN_MARKER: &str = "exec 9<\"$1\"; shift; exec ";
-        let shell = match chain.first() {
-            Some(shell) if shell.role == ProgramRole::LaunchShell => &shell.path,
-            _ => {
-                return Err(RuntimeError::InvalidProfile(
-                    "managed launch chain does not begin with an admitted shell".to_owned(),
-                ));
-            }
+        // The programs the preamble enters are selected by the role they were admitted under. The
+        // record also names programs the run executed earlier on its own behalf, such as the reader
+        // of the operator's credential; those are not entered here.
+        let entered = |role| {
+            let mut matching = chain.iter().filter(|program| program.role == role);
+            let first = matching.next();
+            (matching.next().is_none()).then_some(first).flatten()
         };
-        let preamble = match chain.get(1) {
-            Some(sanitiser) if sanitiser.role == ProgramRole::EnvironmentSanitiser => {
+        let shell = entered(ProgramRole::LaunchShell)
+            .ok_or_else(|| {
+                RuntimeError::InvalidProfile(
+                    "managed launch chain admits no single launch shell".to_owned(),
+                )
+            })?
+            .path
+            .clone();
+        let preamble = match entered(ProgramRole::EnvironmentSanitiser) {
+            Some(sanitiser) => {
                 let sanitiser = shell_quoted(&sanitiser.path)?;
                 format!("{OPEN_MARKER}{sanitiser} -u PWD -u SHLVL -u OLDPWD -u _ \"$@\"")
             }
-            None => format!("{OPEN_MARKER}\"$@\""),
-            Some(_) => {
+            None if chain
+                .iter()
+                .all(|program| program.role != ProgramRole::EnvironmentSanitiser) =>
+            {
+                format!("{OPEN_MARKER}\"$@\"")
+            }
+            None => {
                 return Err(RuntimeError::InvalidProfile(
-                    "managed launch chain records an unexpected program".to_owned(),
+                    "managed launch chain admits more than one environment sanitiser".to_owned(),
                 ));
             }
         };
-        if chain.len() > 2 {
-            return Err(RuntimeError::InvalidProfile(
-                "managed launch chain records more programs than the preamble enters".to_owned(),
-            ));
-        }
         let mut command = Command::new(shell);
         command
             .arg("-c")
@@ -693,10 +907,18 @@ mod descendants {
         if Path::new("/proc/self/fd").is_dir() {
             return proc_holders(marker);
         }
-        for program in ["/usr/sbin/lsof", "/usr/bin/lsof"] {
+        for program in super::lifecycle::DESCRIPTOR_HOLDERS {
             if !Path::new(program).is_file() {
                 continue;
             }
+            // A utility that is not bound to a location only the superuser can write is not used,
+            // rather than used and reported as if its answer came from the program the run means.
+            let Ok(program) = super::lifecycle::admitted(
+                super::ProgramRole::DescriptorHolders,
+                Path::new(program),
+            ) else {
+                continue;
+            };
             let Ok(output) = Command::new(program)
                 .arg("-t")
                 .arg(marker)
@@ -781,7 +1003,12 @@ mod descendants {
     }
 
     fn read_process_table() -> Option<Vec<ProcessEntry>> {
-        let output = Command::new("/bin/ps")
+        let program = super::lifecycle::admitted(
+            super::ProgramRole::ProcessTable,
+            Path::new(super::lifecycle::PROCESS_TABLE),
+        )
+        .ok()?;
+        let output = Command::new(program)
             .args(["-A", "-o", "pid=,ppid=,pgid=,lstart="])
             .stderr(Stdio::null())
             .output()
@@ -963,7 +1190,12 @@ mod descendants {
     /// The group signal reaches members created since the reading; the individual signals reach the
     /// members that left the group.
     pub fn signal(root: u32, group: &str, signal: &str, individual: &[u32]) -> std::io::Result<()> {
-        let status = Command::new("/bin/kill")
+        let program = super::lifecycle::admitted(
+            super::ProgramRole::Signal,
+            Path::new(super::lifecycle::SIGNAL),
+        )
+        .map_err(|error| std::io::Error::other(error.to_string()))?;
+        let status = Command::new(&program)
             .args([signal, group])
             .stdout(Stdio::null())
             .stderr(Stdio::null())
@@ -978,7 +1210,7 @@ mod descendants {
         if !targets.is_empty() {
             let mut arguments: Vec<&str> = vec![signal];
             arguments.extend(targets.iter().map(String::as_str));
-            let _ = Command::new("/bin/kill")
+            let _ = Command::new(&program)
                 .args(arguments)
                 .stdout(Stdio::null())
                 .stderr(Stdio::null())
