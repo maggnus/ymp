@@ -24,6 +24,13 @@ use ymp_verifier::{
     EnvironmentBoundVerifier, StoredVerificationEvidence, VerifiedEvidence, VerifierError,
 };
 
+pub mod contract;
+
+pub use contract::{
+    AcceptanceCondition, ContractRequestError, DEFAULT_RUN_BUDGET, PreparedContract, RunRequest,
+    load_contract_package, prepare_contract,
+};
+
 const BOOTSTRAP_COMMAND_ID: &str = "ymp.bootstrap";
 
 #[derive(Debug, Error)]
@@ -58,6 +65,8 @@ pub enum ApplicationError {
     Json(#[from] serde_json::Error),
     #[error("verifier evidence object digest does not match its declared digest")]
     EvidenceDigestMismatch,
+    #[error("the stored contract object does not match the digest the contract was prepared with")]
+    ContractDigestMismatch,
     #[error("verification infrastructure error: {0}")]
     VerificationInfrastructure(#[from] VerificationInfrastructureError),
     #[error("a candidate must be submitted before verification")]
