@@ -74,6 +74,18 @@ pub(crate) struct DisabledChecks {
     pub return_holder: bool,
 }
 
+/// Deliberate corruptions of the facts an accepted command emits, which a test build may switch on
+/// one at a time. A corrupted fact is committed like any other, so every record the kernel keeps is
+/// built from it and agrees with it: what such a fact can be caught by is the command it came from,
+/// and nothing else. The field does not exist outside `cfg(test)`, so a release build has no way to
+/// reach a kernel that states anything but what it decided.
+#[cfg(test)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub(crate) struct AlteredFacts {
+    /// Move one unit of money less into a task contract than the consent the award named asked for.
+    pub understated_escrow: bool,
+}
+
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
 pub struct CommitmentLedger {
     now: u64,
@@ -88,6 +100,9 @@ pub struct CommitmentLedger {
     #[cfg(test)]
     #[serde(skip)]
     disabled: DisabledChecks,
+    #[cfg(test)]
+    #[serde(skip)]
+    altered: AlteredFacts,
 }
 
 impl CommitmentLedger {
@@ -134,6 +149,8 @@ impl CommitmentLedger {
             attempts: BTreeMap::new(),
             #[cfg(test)]
             disabled: DisabledChecks::default(),
+            #[cfg(test)]
+            altered: AlteredFacts::default(),
         })
     }
 
@@ -196,6 +213,30 @@ impl CommitmentLedger {
     #[allow(clippy::unused_self)]
     const fn enforces(&self, _check: Check) -> bool {
         true
+    }
+
+    #[cfg(test)]
+    pub(crate) fn alter_facts(&mut self, altered: AlteredFacts) {
+        self.altered = altered;
+    }
+
+    /// The amount an escrow transfer states. It is the amount that was decided, unless a test build
+    /// asked for it to be understated.
+    #[cfg(test)]
+    fn stated(&self, amount: BudgetVector) -> BudgetVector {
+        if self.altered.understated_escrow {
+            amount
+                .checked_sub(&BudgetVector::unit(Dimension::MoneyMicros))
+                .unwrap_or(amount)
+        } else {
+            amount
+        }
+    }
+
+    #[cfg(not(test))]
+    #[allow(clippy::unused_self)]
+    const fn stated(&self, amount: BudgetVector) -> BudgetVector {
+        amount
     }
 
     /// Decide a command without changing anything, then commit every fact it produced.
@@ -728,7 +769,7 @@ impl CommitmentLedger {
         events.push(CommitmentEvent::BudgetTransferred {
             from: offer_account,
             to: contract_account.clone(),
-            amount: bid.requested_escrow,
+            amount: self.stated(bid.requested_escrow),
         });
         events.push(CommitmentEvent::ObligationCreated {
             obligation_id: obligation_id.to_owned(),

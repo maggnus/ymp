@@ -5,14 +5,14 @@
 //! actually reduced to one such ordering, that a repeated command identifier commits nothing a
 //! second time, and that a refusal consumes no sequence and leaves no fact.
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 use std::sync::{Arc, Barrier};
 
-use ymp_application::{CommitmentService, CommitmentServiceError};
+use ymp_application::{CommitmentService, CommitmentServiceError, RecordedFact};
 use ymp_domain::commitment::{
-    AcceptOpen, Advertise, Award, BudgetVector, CommitmentCommand, CommitmentError,
-    CommitmentEvent, CommitmentLedger, DIMENSIONS, Dimension, FundingSource, OfferPolicy,
-    RecordBid, RegisterParticipant,
+    AcceptOpen, AccountRef, Advertise, Award, BudgetVector, CommitmentCommand, CommitmentError,
+    CommitmentEvent, CommitmentLedger, DIMENSION_COUNT, DIMENSIONS, Dimension, FundingSource,
+    OfferPolicy, RecordBid, RegisterParticipant,
 };
 
 const ROOT: &str = "sponsor-root";
@@ -198,24 +198,215 @@ where
     })
 }
 
+/// Every account of the run as the committed facts describe it, added up by this test rather than
+/// read out of the records the service keeps.
+///
+/// Adding up those records and comparing the sum with the budget the run began with states nothing:
+/// each movement takes capacity out of one record and puts the same quantity into another, so that
+/// sum is the opening budget for any run at all, including one that lost track of what it moved.
+/// What can be false is the comparison below, because the two sides are built by different code —
+/// one by the kernel applying each fact to its records, the other here from the same facts as they
+/// were committed to the log.
+///
+/// The one quantity read from the ledger is the opening budget, which is the premise of the run
+/// rather than something a command wrote. Balances are signed, so a movement is followed wherever
+/// it leads instead of saturating at zero.
+#[derive(Debug)]
+struct FactAccounts {
+    balances: BTreeMap<AccountRef, [i128; DIMENSION_COUNT]>,
+    consumed: [i128; DIMENSION_COUNT],
+}
+
+impl FactAccounts {
+    fn rebuilt(root: &str, opening: BudgetVector, facts: &[RecordedFact]) -> Self {
+        let mut accounts = Self {
+            balances: BTreeMap::new(),
+            consumed: [0; DIMENSION_COUNT],
+        };
+        accounts.credit(
+            &AccountRef::Participant {
+                participant_id: root.to_owned(),
+            },
+            1,
+            &opening,
+        );
+        for fact in facts {
+            accounts.apply(&fact.event);
+        }
+        accounts
+    }
+
+    fn apply(&mut self, event: &CommitmentEvent) {
+        match event {
+            CommitmentEvent::BudgetTransferred { from, to, amount } => {
+                self.credit(from, -1, amount);
+                self.credit(to, 1, amount);
+            }
+            CommitmentEvent::BudgetConsumed { account, amount } => {
+                self.credit(account, -1, amount);
+                for dimension in DIMENSIONS {
+                    self.consumed[dimension.index()] += i128::from(amount.get(dimension));
+                }
+            }
+            _ => {}
+        }
+    }
+
+    fn credit(&mut self, account: &AccountRef, sign: i128, amount: &BudgetVector) {
+        let balance = self
+            .balances
+            .entry(account.clone())
+            .or_insert([0; DIMENSION_COUNT]);
+        for dimension in DIMENSIONS {
+            balance[dimension.index()] += sign * i128::from(amount.get(dimension));
+        }
+    }
+
+    /// Where the accounts the facts describe and the accounts the service keeps have parted
+    /// company, in any dimension of any account, including the capacity that has left the accounts
+    /// for good.
+    fn divergence(&self, ledger: &CommitmentLedger) -> Vec<String> {
+        let mut registry: BTreeMap<AccountRef, BudgetVector> = BTreeMap::new();
+        for participant in ledger.participants().values() {
+            registry.insert(
+                AccountRef::Participant {
+                    participant_id: participant.participant_id.clone(),
+                },
+                participant.balance,
+            );
+        }
+        for offer in ledger.offers().values() {
+            registry.insert(
+                AccountRef::Offer {
+                    offer_id: offer.offer_id.clone(),
+                },
+                offer.escrow,
+            );
+        }
+        for contract in ledger.contracts().values() {
+            registry.insert(
+                AccountRef::TaskContract {
+                    contract_id: contract.contract_id.clone(),
+                },
+                contract.escrow,
+            );
+        }
+        let mut reported = Vec::new();
+        let accounts: BTreeSet<&AccountRef> = self.balances.keys().chain(registry.keys()).collect();
+        for account in accounts {
+            let facts = self.balances.get(account).copied().unwrap_or_default();
+            let held = registry.get(account).copied().unwrap_or_default();
+            for dimension in DIMENSIONS {
+                let recorded = i128::from(held.get(dimension));
+                if facts[dimension.index()] != recorded {
+                    reported.push(format!(
+                        "{account:?} {dimension}: the facts say {} and the service holds {recorded}",
+                        facts[dimension.index()]
+                    ));
+                }
+            }
+        }
+        for dimension in DIMENSIONS {
+            let recorded = i128::from(ledger.consumed().get(dimension));
+            if self.consumed[dimension.index()] != recorded {
+                reported.push(format!(
+                    "consumed {dimension}: the facts say {} and the service holds {recorded}",
+                    self.consumed[dimension.index()]
+                ));
+            }
+        }
+        reported
+    }
+
+    /// What a decided command would take out of an account that never held it. Its facts are
+    /// followed into a copy of the accounts, so what is reported is the shortfall those facts
+    /// themselves describe.
+    fn uncovered(&self, events: &[CommitmentEvent]) -> Vec<String> {
+        let mut projected = Self {
+            balances: self.balances.clone(),
+            consumed: self.consumed,
+        };
+        let mut reported = Vec::new();
+        for event in events {
+            projected.apply(event);
+        }
+        for (account, balance) in &projected.balances {
+            for dimension in DIMENSIONS {
+                if balance[dimension.index()] < 0 {
+                    reported.push(format!(
+                        "{account:?} {dimension} would be left at {}",
+                        balance[dimension.index()]
+                    ));
+                }
+            }
+        }
+        reported
+    }
+}
+
+/// An advertisement reserving a hundred times the money the run was ever funded with. It is never
+/// executed: what it is for is to ask the kernel, from whatever state the run has reached, whether
+/// it would decide a movement the accounts cannot pay for.
+fn oversized_offer() -> CommitmentCommand {
+    CommitmentCommand::Advertise(Advertise {
+        offer_id: "offer-oversized".to_owned(),
+        sponsor: ROOT.to_owned(),
+        parent_obligation: ROOT_OBLIGATION.to_owned(),
+        funding_source: FundingSource::Participant,
+        task_scope: "scope-under-test".to_owned(),
+        base_digest: digest("base"),
+        intent_digest: digest("intent"),
+        artifact_class: CLASS.to_owned(),
+        dependencies: Vec::new(),
+        capability_scope: Vec::new(),
+        execution_escrow: BudgetVector::ZERO.with(Dimension::MoneyMicros, 1_000_000_000),
+        policy: OfferPolicy::Negotiated,
+        bid_deadline: DEADLINE,
+        offer_deadline: DEADLINE,
+        max_awards: 1,
+    })
+}
+
+/// Conservation, asserted against the facts the service committed rather than against the records
+/// it keeps.
+///
+/// Two things have to hold, and the second is not implied by the first. The accounts rebuilt from
+/// the facts must agree with the accounts the service holds; and every movement the kernel is
+/// willing to decide must be one those accounts can pay for. A kernel that stopped establishing
+/// the capacity before deciding would keep books that add up perfectly — every fact it commits
+/// still moves capacity out of one account and into another — while committing facts that move
+/// capacity nobody ever held.
 fn assert_conserved(service: &CommitmentService) {
     let ledger = service.snapshot().expect("snapshot");
-    let mut total = *ledger.consumed();
-    for participant in ledger.participants().values() {
-        total = total.checked_add(&participant.balance).expect("total");
-    }
-    for offer in ledger.offers().values() {
-        total = total.checked_add(&offer.escrow).expect("total");
-    }
-    for contract in ledger.contracts().values() {
-        total = total.checked_add(&contract.escrow).expect("total");
-    }
-    for dimension in DIMENSIONS {
-        assert_eq!(
-            total.get(dimension),
-            ledger.initial_total().get(dimension),
-            "{dimension} was not conserved"
-        );
+    let accounts = FactAccounts::rebuilt(
+        ROOT,
+        *ledger.initial_total(),
+        &service.facts_after(0).expect("facts"),
+    );
+    let divergence = accounts.divergence(&ledger);
+    assert!(
+        divergence.is_empty(),
+        "the accounts the facts describe and the accounts the service keeps disagree: {divergence:?}"
+    );
+
+    match ledger.decide(&oversized_offer()) {
+        Err(CommitmentError::InsufficientBudget {
+            dimension: Dimension::MoneyMicros,
+            ..
+        }) => {}
+        Err(other) => panic!(
+            "a reservation larger than the whole run was refused for an unrelated reason: {other}"
+        ),
+        Ok(events) => {
+            let uncovered = accounts.uncovered(&events);
+            assert!(
+                uncovered.is_empty(),
+                "the kernel decided a movement the accounts the facts describe cannot pay for: {uncovered:?}"
+            );
+            panic!(
+                "a reservation of a billion units was decided against a run funded with ten million"
+            );
+        }
     }
 }
 
