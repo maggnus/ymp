@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use thiserror::Error;
 
+pub mod commitment;
 pub mod contract;
 
 /// Journal schema version 2 adds the `contract_approved` event tag, which binds a run to the
