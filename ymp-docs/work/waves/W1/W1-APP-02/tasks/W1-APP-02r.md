@@ -13,9 +13,9 @@ created_at: 2026-08-13T21:11:27+08:00
 updated_at: 2026-08-13T21:11:27+08:00
 started_at: 2026-08-13T20:52:00+08:00
 accepted_at: 2026-08-13T21:32:25+08:00
-candidate_commit: https://github.com/maggnus/ymp/commit/8821e4a
+candidate_commit: https://github.com/maggnus/ymp/commit/8821e4a3dc2ad14fe8e383cb3c986c1a654b75dc
 closure_commit: https://github.com/maggnus/ymp/commit/4ab6a80cb5ffce1d0ad2786fa1ef92fffc72dbd6
-evidence: [`8821e4a`](https://github.com/maggnus/ymp/commit/8821e4a)
+evidence: [`8821e4a`](https://github.com/maggnus/ymp/commit/8821e4a3dc2ad14fe8e383cb3c986c1a654b75dc)
 duration_minutes: 23
 blocker:
 pause_reason:
@@ -97,5 +97,5 @@ operator sees and needs its own evidence.
 
 ### Evidence
 
-- [`8821e4a`](https://github.com/maggnus/ymp/commit/8821e4a) — reviewed candidate.
+- [`8821e4a`](https://github.com/maggnus/ymp/commit/8821e4a3dc2ad14fe8e383cb3c986c1a654b75dc) — reviewed candidate.
 - [`4ab6a80`](https://github.com/maggnus/ymp/commit/4ab6a80cb5ffce1d0ad2786fa1ef92fffc72dbd6) — integration into the release branch.
