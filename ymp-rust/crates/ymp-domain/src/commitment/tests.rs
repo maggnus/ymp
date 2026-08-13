@@ -9,17 +9,19 @@
 use super::budget::{BudgetVector, DIMENSIONS, Dimension, DimensionKind};
 use super::ledger::{CommitmentLedger, DisabledChecks};
 use super::protocol::{
-    AcceptOpen, AdvanceClock, Advertise, Award, CommitmentCommand, CommitmentError,
-    CommitmentEvent, Reassign, RecordBid, RenewLease, ReturnObligation, StartAttempt, SubmitResult,
+    AcceptOpen, AdvanceClock, Advertise, Award, CancelContract, CommitmentCommand, CommitmentError,
+    CommitmentEvent, Reassign, RecordBid, RenewLease, ReturnObligation, SettleOffer, StartAttempt,
+    SubmitResult, WithdrawOffer,
 };
 use super::records::{
     AccountRef, BidState, ContractState, FundingSource, ObligationState, OfferPolicy, OfferState,
     Outcome,
 };
 use super::schedules::{
-    self, ALPHA, BETA, DEADLINE, GAMMA, LEASE_MS, MAIN_MAX_AWARDS, MAIN_OFFER, ROOT_OBLIGATION,
-    ROOT_PARTICIPANT, Tokens, Violation, advertise_main, award_main, digest, new_ledger,
-    requested_escrow, run_schedule, setup, shuffled, state_violations,
+    self, ALPHA, BETA, CROSS_OFFER, DEADLINE, GAMMA, LEASE_MS, MAIN_MAX_AWARDS, MAIN_OFFER,
+    ROOT_OBLIGATION, ROOT_PARTICIPANT, SECOND_OFFER, SOLO_FUNDING_CONTRACT, Tokens, Violation,
+    advertise_main, award_main, digest, new_ledger, requested_escrow, run_schedule, setup,
+    state_violations,
 };
 
 /// How many generated schedules the property suite replays. Every seed is a different total order
@@ -726,6 +728,178 @@ fn withdrawal_and_expiry_settle_reservations_and_create_no_obligation() {
 }
 
 // ---------------------------------------------------------------------------------------------
+// Settlement reaches only an account that can still spend
+// ---------------------------------------------------------------------------------------------
+
+struct ChainRun {
+    ledger: CommitmentLedger,
+    chain: Vec<CommitmentCommand>,
+    stopped_at: usize,
+    refusal: CommitmentError,
+}
+
+/// Replay the deterministic prefix and then the settlement chain in the order one participant
+/// issues it, stopping at the first command the kernel refuses. That a refusal leaves the registry
+/// byte for byte as it was is checked here rather than assumed.
+fn chain_until_refusal(disabled: DisabledChecks) -> ChainRun {
+    let tokens = Tokens::variant("a");
+    let mut ledger = new_ledger();
+    ledger.disable_checks(disabled);
+    for command in setup(&tokens) {
+        ledger.execute(&command).expect("prefix command");
+    }
+    let chain = schedules::settlement_chain(&tokens);
+    for (index, command) in chain.iter().enumerate() {
+        let before = ledger.clone();
+        if let Err(refusal) = ledger.execute(command) {
+            assert_eq!(
+                ledger, before,
+                "a refused command left the registry changed: {refusal}"
+            );
+            return ChainRun {
+                ledger,
+                chain,
+                stopped_at: index,
+                refusal,
+            };
+        }
+    }
+    panic!("the whole settlement chain was accepted: nothing refused the closing contract");
+}
+
+fn withdraw_cross() -> CommitmentCommand {
+    CommitmentCommand::WithdrawOffer(WithdrawOffer {
+        offer_id: CROSS_OFFER.to_owned(),
+        sponsor: ALPHA.to_owned(),
+    })
+}
+
+fn settle_cross() -> CommitmentCommand {
+    CommitmentCommand::SettleOffer(SettleOffer {
+        offer_id: CROSS_OFFER.to_owned(),
+        sponsor: ALPHA.to_owned(),
+    })
+}
+
+/// The reviewer's reproduction, now refused at its first step, and the same branch closing
+/// normally once the reservation it funded has come back.
+#[test]
+fn a_task_contract_cannot_close_while_a_reservation_is_still_due_back_to_it() {
+    let run = chain_until_refusal(DisabledChecks::default());
+    assert!(
+        matches!(
+            &run.chain[run.stopped_at],
+            CommitmentCommand::ReturnObligation(command)
+                if command.contract_id == SOLO_FUNDING_CONTRACT
+        ),
+        "the chain was stopped somewhere other than the closing contract"
+    );
+    assert!(matches!(
+        &run.refusal,
+        CommitmentError::ReservationOutstanding { contract_id, outstanding }
+            if contract_id == SOLO_FUNDING_CONTRACT && outstanding == CROSS_OFFER
+    ));
+
+    // Cancellation closes a contract just as a return does, and is held to the same condition:
+    // the sponsor cannot dispose of a contract that is still owed a reservation either.
+    let mut ledger = run.ledger;
+    assert!(matches!(
+        expect_refusal(
+            &mut ledger,
+            &CommitmentCommand::CancelContract(CancelContract {
+                contract_id: SOLO_FUNDING_CONTRACT.to_owned(),
+                sponsor: ROOT_PARTICIPANT.to_owned(),
+            })
+        ),
+        CommitmentError::ReservationOutstanding { contract_id, outstanding }
+            if contract_id == SOLO_FUNDING_CONTRACT && outstanding == CROSS_OFFER
+    ));
+
+    // The refusal is not a dead end: the reservation comes back to a contract that is still an
+    // account, and the same close is then accepted.
+    let funded = ledger.offers()[CROSS_OFFER].escrow;
+    assert!(!funded.is_zero());
+    ledger.execute(&withdraw_cross()).expect("withdraw");
+    ledger.execute(&settle_cross()).expect("settle");
+    assert_eq!(
+        ledger.contracts()[SOLO_FUNDING_CONTRACT].escrow,
+        held_before_settlement(&funded),
+        "the reservation returned to the account that reserved it"
+    );
+    ledger
+        .execute(&run.chain[run.stopped_at])
+        .expect("the contract closes once nothing is due back to it");
+    assert_eq!(
+        ledger.contracts()[SOLO_FUNDING_CONTRACT].state,
+        ContractState::Returned
+    );
+    assert!(
+        ledger.contracts()[SOLO_FUNDING_CONTRACT].escrow.is_zero(),
+        "a contract that has closed holds nothing"
+    );
+    assert!(state_violations(&ledger).is_empty());
+}
+
+/// What the funding contract holds once the reservation it made is returned to it: everything it
+/// had left, plus the whole pool back.
+fn held_before_settlement(returned: &BudgetVector) -> BudgetVector {
+    let spent_on_the_offer = schedules::cross_execution_escrow()
+        .checked_add(&BudgetVector::unit(Dimension::OfferCreations))
+        .expect("the offer cost its pool plus one creation authority");
+    schedules::delegating_escrow()
+        .checked_sub(&BudgetVector::units(Dimension::WallTimeMs, DEADLINE))
+        .expect("the first lease was bought from the escrow")
+        .checked_sub(&spent_on_the_offer)
+        .expect("advertising the offer cost the pool and the authority")
+        .checked_add(returned)
+        .expect("and the pool came back")
+}
+
+/// The other half of the same rule, exercised where it can be reached: with the closing half
+/// switched off a contract does reach a terminal state while a reservation is still due back to
+/// it, and the settlement into it is refused instead of committed.
+#[test]
+fn a_settlement_into_a_task_contract_that_has_closed_is_refused_and_changes_nothing() {
+    let run = chain_until_refusal(DisabledChecks {
+        returning_reservation: true,
+        ..DisabledChecks::default()
+    });
+    assert!(
+        matches!(
+            &run.chain[run.stopped_at],
+            CommitmentCommand::SettleOffer(command) if command.offer_id == CROSS_OFFER
+        ),
+        "the chain was stopped somewhere other than the settlement"
+    );
+    assert!(matches!(
+        &run.refusal,
+        CommitmentError::AccountClosed { contract_id } if contract_id == SOLO_FUNDING_CONTRACT
+    ));
+    let mut ledger = run.ledger;
+    assert_eq!(
+        ledger.contracts()[SOLO_FUNDING_CONTRACT].state,
+        ContractState::Returned
+    );
+    assert!(
+        ledger.contracts()[SOLO_FUNDING_CONTRACT].escrow.is_zero(),
+        "nothing landed in an account that had already closed"
+    );
+
+    // Nor may a funded action draw on it: the advertisement the chain issues next is refused for
+    // the same reason, so no reservation is made out of a closed account either.
+    let advertisement = &run.chain[run.stopped_at + 1];
+    assert!(matches!(
+        advertisement,
+        CommitmentCommand::Advertise(command) if command.offer_id == SECOND_OFFER
+    ));
+    assert!(matches!(
+        expect_refusal(&mut ledger, advertisement),
+        CommitmentError::AccountClosed { contract_id } if contract_id == SOLO_FUNDING_CONTRACT
+    ));
+    assert!(!ledger.contracts().contains_key("contract-second"));
+}
+
+// ---------------------------------------------------------------------------------------------
 // Property suite over generated schedules
 // ---------------------------------------------------------------------------------------------
 
@@ -769,10 +943,10 @@ fn generated_schedules_conserve_budgets_consent_fencing_and_causal_accounting() 
 #[test]
 fn a_generated_schedule_is_reproducible_from_its_seed() {
     let tokens = Tokens::variant("a");
-    let first = shuffled(7, schedules::contention_pool(&tokens));
-    let second = shuffled(7, schedules::contention_pool(&tokens));
+    let first = schedules::schedule(7, &tokens);
+    let second = schedules::schedule(7, &tokens);
     assert_eq!(first, second);
-    assert_ne!(first, shuffled(8, schedules::contention_pool(&tokens)));
+    assert_ne!(first, schedules::schedule(8, &tokens));
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -814,6 +988,174 @@ fn removing_the_fencing_check_produces_a_counterexample() {
         violations
             .iter()
             .any(|violation| matches!(violation, Violation::StaleGenerationAdvanced { .. })),
+        "seed {seed} produced {violations:?}"
+    );
+}
+
+/// Escrow belongs to the task contract, not to whoever is holding it at the time. A reservation
+/// therefore still returns after the contract changes hands, while spending from that escrow
+/// remains the current contractor's alone. Without this the reservation could never come back, and
+/// the contract could then never close.
+#[test]
+fn a_reservation_returns_to_a_contract_that_has_changed_hands() {
+    let (mut ledger, tokens) = prepared();
+    ledger
+        .execute(&award_main("bid-alpha", "alpha"))
+        .expect("award");
+    ledger
+        .execute(&schedules::bid_on_main_for(
+            &tokens,
+            "bid-beta-spare",
+            BETA,
+            schedules::spare_requested_escrow(),
+        ))
+        .expect("consent held in reserve for a replacement holder");
+    let delegate_from_contract_alpha = |offer_id: &str| {
+        CommitmentCommand::Advertise(Advertise {
+            offer_id: offer_id.to_owned(),
+            sponsor: ALPHA.to_owned(),
+            parent_obligation: "obligation-alpha".to_owned(),
+            funding_source: FundingSource::TaskContract {
+                contract_id: "contract-alpha".to_owned(),
+            },
+            task_scope: tokens.task_scope.clone(),
+            base_digest: tokens.base_digest.clone(),
+            intent_digest: tokens.intent_digest.clone(),
+            artifact_class: tokens.artifact_class.clone(),
+            dependencies: Vec::new(),
+            capability_scope: Vec::new(),
+            execution_escrow: BudgetVector::ZERO
+                .with(Dimension::MoneyMicros, 2_000)
+                .with(Dimension::ModelTokens, 2_000)
+                .with(Dimension::WallTimeMs, 2_000),
+            policy: OfferPolicy::Negotiated,
+            bid_deadline: DEADLINE,
+            offer_deadline: DEADLINE,
+            max_awards: 1,
+        })
+    };
+    ledger
+        .execute(&delegate_from_contract_alpha("offer-delegated"))
+        .expect("a contractor delegates from the escrow it holds");
+    ledger
+        .execute(&CommitmentCommand::AdvanceClock(AdvanceClock { to: 400 }))
+        .expect("the lease runs out");
+    ledger
+        .execute(&CommitmentCommand::Reassign(Reassign {
+            contract_id: "contract-alpha".to_owned(),
+            sponsor: ROOT_PARTICIPANT.to_owned(),
+            bid_id: "bid-beta-spare".to_owned(),
+            lease_id: "lease-alpha-2".to_owned(),
+            lease_ms: LEASE_MS,
+        }))
+        .expect("the contract changes hands");
+    assert_eq!(ledger.contracts()["contract-alpha"].contractor, BETA);
+
+    let held = ledger.contracts()["contract-alpha"].escrow;
+    let reserved = ledger.offers()["offer-delegated"].escrow;
+    ledger
+        .execute(&CommitmentCommand::WithdrawOffer(WithdrawOffer {
+            offer_id: "offer-delegated".to_owned(),
+            sponsor: ALPHA.to_owned(),
+        }))
+        .expect("the participant that advertised it may withdraw it");
+    ledger
+        .execute(&CommitmentCommand::SettleOffer(SettleOffer {
+            offer_id: "offer-delegated".to_owned(),
+            sponsor: ALPHA.to_owned(),
+        }))
+        .expect("and settle it, whoever holds the contract now");
+    assert_eq!(
+        ledger.contracts()["contract-alpha"].escrow,
+        held.checked_add(&reserved)
+            .expect("the reservation returned")
+    );
+
+    // Spending from that escrow is another matter: it is the current contractor's alone, and the
+    // sponsor of the contract has no more claim on it than anyone else.
+    let mut spend_from_contract_alpha = delegate_from_contract_alpha("offer-again");
+    if let CommitmentCommand::Advertise(command) = &mut spend_from_contract_alpha {
+        command.sponsor = ROOT_PARTICIPANT.to_owned();
+        command.parent_obligation = ROOT_OBLIGATION.to_owned();
+    }
+    assert!(matches!(
+        expect_refusal(&mut ledger, &spend_from_contract_alpha),
+        CommitmentError::FundingContractMismatch { .. }
+    ));
+    assert!(state_violations(&ledger).is_empty());
+}
+
+/// The settlement rule over generated schedules rather than one ordering. What is asserted is the
+/// projection built from the emitted facts, not the registry fields the kernel itself updates.
+#[test]
+fn generated_schedules_settle_only_into_accounts_that_can_still_spend() {
+    let tokens = Tokens::variant("a");
+    let mut guarded = std::collections::BTreeSet::new();
+    for seed in 0..SCHEDULE_SEEDS {
+        let report = run_schedule(seed, &tokens, DisabledChecks::default());
+        let broken: Vec<&Violation> = report
+            .violations
+            .iter()
+            .filter(|violation| {
+                matches!(
+                    violation,
+                    Violation::SpentAfterClose { .. }
+                        | Violation::ClosedHoldingEscrow { .. }
+                        | Violation::StrandedReservation { .. }
+                )
+            })
+            .collect();
+        assert!(broken.is_empty(), "seed {seed} produced {broken:?}");
+        guarded.extend(report.guarded);
+    }
+    // A guard no ordering ever reaches holds by never being asked. Both halves of the rule are
+    // therefore required to have refused something across the seeds.
+    assert!(
+        guarded.contains("reservation_outstanding"),
+        "no ordering ever closed a contract that was still owed a reservation"
+    );
+    assert!(
+        guarded.contains("account_closed"),
+        "no ordering ever named a closed contract as an account"
+    );
+}
+
+/// Both halves are removed together here, and that is not a convenience. Removing the live-account
+/// half alone leaves the schedules clean, because a contract that closes under the other half in
+/// force has already had its escrow swept and there is nothing in it left to draw on. The state in
+/// which the live-account refusal has anything to say is exactly the state the closing half makes
+/// unreachable, so over schedules the pair is what is falsifiable. That the refusal itself fires
+/// when that state does exist is shown directly, one command at a time, by
+/// `a_settlement_into_a_task_contract_that_has_closed_is_refused_and_changes_nothing`.
+#[test]
+fn removing_the_settlement_rule_produces_a_counterexample() {
+    let (seed, violations) = first_counterexample(DisabledChecks {
+        live_account: true,
+        returning_reservation: true,
+        ..DisabledChecks::default()
+    })
+    .expect("the settlement rule must be load-bearing");
+    assert!(
+        violations
+            .iter()
+            .any(|violation| matches!(violation, Violation::SpentAfterClose { .. })),
+        "seed {seed} produced {violations:?}"
+    );
+}
+
+/// Refusing to settle into a closed contract without also keeping that contract open would only
+/// move the break: the reservation would then be owed to an account nobody can reach.
+#[test]
+fn removing_the_outstanding_reservation_check_strands_a_reservation() {
+    let (seed, violations) = first_counterexample(DisabledChecks {
+        returning_reservation: true,
+        ..DisabledChecks::default()
+    })
+    .expect("the closing half of the settlement rule must be load-bearing");
+    assert!(
+        violations
+            .iter()
+            .any(|violation| matches!(violation, Violation::StrandedReservation { .. })),
         "seed {seed} produced {violations:?}"
     );
 }
@@ -869,7 +1211,7 @@ fn record_events(seed: u64, tokens: &Tokens) -> String {
         let events = ledger.execute(&command).expect("prefix command");
         lines.push(serde_json::to_string(&events).expect("events serialize"));
     }
-    for command in shuffled(seed, schedules::contention_pool(tokens)) {
+    for command in schedules::schedule(seed, tokens) {
         match ledger.execute(&command) {
             Ok(events) => lines.push(serde_json::to_string(&events).expect("events serialize")),
             Err(error) => lines.push(format!("refused: {error}")),
