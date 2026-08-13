@@ -4,7 +4,7 @@ kind: subtask
 wave: W1
 card: W1-APP-02
 parent: W1-APP-02e
-state: ready
+state: rework
 risk: significant
 maturity: BUILD
 relation: required
@@ -12,9 +12,9 @@ depends_on: [W1-APP-02e.2]
 blocks: []
 created_at: 2026-08-13T01:26:13+08:00
 updated_at: 2026-08-13T09:47:08+08:00
-started_at:
+started_at: 2026-08-13T09:50:00+08:00
 accepted_at:
-candidate_commit:
+candidate_commit: https://github.com/maggnus/ymp/commit/3aed1ac9b58beb52cd06bc19a9988c1135cd8112
 closure_commit:
 evidence:
 duration_minutes: 0
@@ -66,10 +66,11 @@ representing future-only concepts as unavailable rather than fabricating unsuppo
 
 ## Current state
 
-Ready. The chat-first reference is accepted, and an owner-authored implementation of it already
-exists as an inherited candidate that runs but has not been reviewed and may present values no
-application projection produces. The drawn sources are references rather than a frozen contract:
-what suits the product is taken, what does not is changed and the change is recorded.
+Returned by independent review after one round. The implementation reaches every page and both
+decision surfaces at 80x24 and 120x40 with values that match the journal, but a badge drawn over the
+header removes the irreversibility marker as soon as a real run identifier is used, so an
+irreversible decision reads as reversible. Bounded rework is authorized for that defect, its missing
+negative half, one hardcoded enforcement class, and two blind spots in the new inventory checks.
 
 ## Next action
 
@@ -108,6 +109,21 @@ before independent review.
 - The inherited candidate carries no independent review, no acceptance evidence, and no declared
   correspondence to the visual contract still under review in W1-APP-02e.2. It is a starting point
   for this subtask, not a result of it.
+- `blocker`, defect in the contracted outcome. The decision badge overlaps the header, and with a
+  product-generated run identifier the irreversibility marker is lost on the transcript and absent
+  from the authorization surface at both sizes. A trust-significant action that renders as its own
+  opposite is the defect this card exists to prevent.
+- `major`, defect in the contracted outcome. The badge assertion runs only against a short fixture
+  and cannot fail on a real identifier, so the check could not have caught the defect above.
+- `minor`, defect in the contracted outcome. The enforcement class is written in code rather than
+  read from the projection, which is the same fabrication class the card forbids, in miniature.
+- `minor`, defect in the contracted outcome. Both inventory checks read only the top level of the
+  source tree and omit two drawing calls, so a screen could bypass the shared layer undetected.
+- Additional work: the product has no command that starts a run or records a verification. Nothing
+  the contract required was removed with the deleted fixtures.
+- Refinement of the starting hypothesis: the terminal does not consume runtime events at all, and
+  the eight domain events it does consume are handled exhaustively. The premise that new runtime
+  event variants would force terminal changes did not hold.
 
 ## Closure
 
