@@ -39,7 +39,7 @@
 | `[ ]` | [`W1-COR-03e`](waves/W1/W1-COR-03/tasks/W1-COR-03e.md) | TUI exposes local commitments and communication evidence | — | — | — |
 | `[ ]` | [`W1-COR-03f`](waves/W1/W1-COR-03/tasks/W1-COR-03f.md) | Commitment facts are durable and visible, not only in memory | — | — | — |
 | `[x]` | [`W1-COR-03g`](waves/W1/W1-COR-03/tasks/W1-COR-03g.md) | Settlement returns escrow only to an account that can still spend it | [`2b390922`](https://github.com/maggnus/ymp/commit/2b390922667426a48b01c9225ccee08c7d8e81f8) | 13/08 16:47 | 13/08 18:43 (1h36m) |
-| `[ ]` | [`W1-COR-03h`](waves/W1/W1-COR-03/tasks/W1-COR-03h.md) | Conservation and ownership checks fail on the mutants they name | — | — | — |
+| `[x]` | [`W1-COR-03h`](waves/W1/W1-COR-03/tasks/W1-COR-03h.md) | Conservation and ownership checks fail on the mutants they name | [`ce0aeecb`](https://github.com/maggnus/ymp/commit/ce0aeecbcdbf598b4badc72529873748efe3d966) | 13/08 18:52 | 13/08 20:02 (48m) |
 | `[ ]` | [`W1-COR-03i`](waves/W1/W1-COR-03/tasks/W1-COR-03i.md) | Emitted facts are proved against the command that produced them | — | — | — |
 | `[ ]` | [`W1-EVL-04`](waves/W1/W1-EVL-04/CARD.md) | Controlled evidence decides both POC hypotheses | — | — | — |
 | `[?]` | [`W1-EVL-04a`](waves/W1/W1-EVL-04/tasks/W1-EVL-04a.md) | Matched-budget arms produce comparable acceptance evidence | — | — | — |
