@@ -1,29 +1,34 @@
 #![forbid(unsafe_code)]
 
-//! Acceptance: the runtime whose launch this workspace does not attest cannot produce a candidate
-//! in the shipped product, and the seams that exist for the checks cannot be reached from it.
+//! Acceptance: every path in the shipped product that starts a runtime passes one gate, and the
+//! runtime this workspace does not attest is not on the product's surface at all.
 //!
-//! Two halves.
+//! The gate establishes two things: the runtime attests the programs its launch enters, and the
+//! utilities the run observes and ends its own processes with are admitted. A start that skipped it
+//! would run an agent this product can neither bind to admitted bytes nor observe, and any
+//! candidate that run assembled would carry no evidence of the program that wrote it.
 //!
-//! The behavioural half hands the in-process fixture runtime to the controller's candidate start
-//! and requires a refusal that names it: attestation is what binds the bytes that execute to the
-//! bytes that were admitted, so a candidate produced without it would carry no evidence of the
-//! program that wrote it. Its negative control hands over a runtime whose launch is attested and
+//! Three halves, each of which can fail on its own.
+//!
+//! The surface half drives the built product: every command that takes a runtime is offered the
+//! fixture runtime and must refuse the value, and no candidate may appear in the data root of such
+//! an invocation. This is the reviewer's own reproduction, and it reads the surface rather than the
+//! source.
+//!
+//! The behavioural half hands the fixture runtime to the controller's candidate start in process
+//! and requires a refusal that names it; its negative control hands over an attested runtime and
 //! requires the refusal to be a different one, because a check that refused every start would pass
-//! the first half while proving nothing.
+//! while proving nothing.
 //!
-//! The structural half walks the shipped source of every crate and rejects a module that names the
-//! seams the checks use — the unattested candidate start and the placement of a lifecycle utility.
-//! Add `start_unattested_managed_candidate(...)` to a product module and
-//! `no_shipped_module_reaches_the_seams_the_checks_use` reports the file, the line and the name
-//! with a non-zero exit.
-//!
-//! What the structural half lets through, stated rather than implied: code that is generated rather
-//! than written, a name reached through an alias introduced by a macro, and the modules that define
-//! the seams, which are named below and cannot be scanned for their own definition.
+//! The structural half walks the shipped source of every crate. It rejects a module that names the
+//! fixture runtime beside any start or candidate submission — the shape the defect took — a module
+//! that starts a runtime it built without naming the gate, and any use of the seams that exist for
+//! the checks. No file is excluded as a whole: a seam may appear only on the line that defines it,
+//! so the module defining a seam is still read for every other use of it.
 
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::process::Command;
 use std::sync::{Arc, Mutex};
 
 use ymp_application::Application;
@@ -32,25 +37,46 @@ use ymp_runtime_claude::{ClaudeProfile, ClaudeRuntime};
 use ymp_runtime_fake::FakeRuntime;
 use ymp_runtime_supervisor::{ManagedCandidateRequest, ManagedContract, start_managed_candidate};
 
-/// The seams the checks use to drive the controller without an attested runtime, and to observe a
-/// run that cannot admit one of its utilities. Neither is an operator capability.
+/// The seams the checks use: an unattested candidate start, and the placement of a lifecycle
+/// utility. Each may appear only where it is defined.
 const SEAMS: [&str; 2] = [
     "start_unattested_managed_candidate",
     "place_lifecycle_utility_for_fixture",
 ];
 
-/// Where each seam is defined. A definition names the seam, and no scan can distinguish that from a
-/// call, so the defining module is named here instead of exempted silently.
-const DEFINITIONS: [&str; 2] = [
-    "crates/ymp-runtime-supervisor/src/lib.rs",
-    "crates/ymp-runtime-api/src/lib.rs",
-];
-
-/// The runtime whose launch is not attested, under the names a module would select it by.
+/// The runtime whose launch is not attested, under the names a module would reach it by.
 const UNATTESTED_RUNTIME: [&str; 2] = ["FakeRuntime", "ymp_runtime_fake"];
 
-/// The controller's candidate start, which that runtime may not reach.
-const CANDIDATE_START: &str = "start_managed_candidate";
+/// The crate that defines that runtime, which necessarily names it.
+const UNATTESTED_RUNTIME_CRATE: &str = "crates/ymp-runtime-fake/";
+
+/// The driver types a module can build a runtime from, beside the crate that defines each one.
+const DRIVERS: [(&str, &str); 3] = [
+    ("FakeRuntime", "crates/ymp-runtime-fake/"),
+    ("CodexRuntime", "crates/ymp-runtime-codex/"),
+    ("ClaudeRuntime", "crates/ymp-runtime-claude/"),
+];
+
+/// Ways a module starts a runtime or commits what one produced.
+const STARTS: [&str; 5] = [
+    ".start(",
+    "start_prepared(",
+    "start_managed_candidate",
+    "submit_workspace_candidate",
+    "start_unattested_managed_candidate",
+];
+
+/// The gate every such module must call. The call is what is looked for, not the name: a module
+/// that imported the gate and never called it would otherwise satisfy this check by its import.
+const GATE: &str = "admit_runtime_start(";
+
+/// The commands of the built product that take a runtime, and whether each also takes a workspace
+/// and a prompt of its own.
+const RUNTIME_COMMANDS: [(&str, bool, bool); 3] = [
+    ("runtime-smoke", true, true),
+    ("managed-runtime-smoke", true, false),
+    ("managed-candidate-smoke", false, false),
+];
 
 fn workspace_root() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -111,16 +137,19 @@ fn code_lines(source: &str) -> impl Iterator<Item = (usize, &str)> {
         })
 }
 
+fn names(source: &str, wanted: &str) -> bool {
+    code_lines(source).any(|(_, line)| line.contains(wanted))
+}
+
 #[test]
-fn no_shipped_module_reaches_the_seams_the_checks_use() {
+fn a_seam_the_checks_use_appears_only_where_it_is_defined() {
     let mut offenders = Vec::new();
     for (name, source) in shipped_sources() {
-        if DEFINITIONS.contains(&name.as_str()) {
-            continue;
-        }
         for (number, line) in code_lines(&source) {
             for seam in SEAMS {
-                if line.contains(seam) {
+                // The line that defines the seam necessarily names it. Every other use of it is an
+                // offence, in the defining module as much as in any other.
+                if line.contains(seam) && !line.contains(&format!("fn {seam}(")) {
                     offenders.push(format!("{name}:{number}: {seam}"));
                 }
             }
@@ -134,29 +163,59 @@ fn no_shipped_module_reaches_the_seams_the_checks_use() {
 }
 
 #[test]
-fn no_shipped_module_takes_the_unattested_runtime_to_a_candidate() {
+fn no_shipped_module_names_the_unattested_runtime_beside_a_start() {
     let mut offenders = Vec::new();
     for (name, source) in shipped_sources() {
-        let selects = code_lines(&source)
-            .any(|(_, line)| UNATTESTED_RUNTIME.iter().any(|name| line.contains(name)));
-        if !selects {
+        if name.starts_with(UNATTESTED_RUNTIME_CRATE) {
+            continue;
+        }
+        if !UNATTESTED_RUNTIME
+            .iter()
+            .any(|runtime| names(&source, runtime))
+        {
             continue;
         }
         for (number, line) in code_lines(&source) {
-            if line.contains(CANDIDATE_START) {
-                offenders.push(format!("{name}:{number}: {CANDIDATE_START}"));
+            for start in STARTS {
+                if line.contains(start) {
+                    offenders.push(format!("{name}:{number}: {start}"));
+                }
             }
         }
     }
     assert!(
         offenders.is_empty(),
-        "a shipped module that selects the unattested runtime also starts a candidate:\n{}",
+        "a shipped module that names the unattested runtime also starts a run or commits what one \
+         produced:\n{}",
         offenders.join("\n")
     );
 }
 
-/// The scan reads the source that stands before a crate's own test module, and reads code rather
-/// than prose. Without this the two checks above could pass because they read nothing.
+#[test]
+fn every_shipped_module_that_starts_a_runtime_names_the_gate() {
+    let mut offenders = Vec::new();
+    for (name, source) in shipped_sources() {
+        let builds = DRIVERS.iter().any(|(driver, crate_prefix)| {
+            !name.starts_with(crate_prefix) && names(&source, driver)
+        });
+        if !builds || names(&source, GATE) {
+            continue;
+        }
+        for (number, line) in code_lines(&source) {
+            if STARTS.iter().any(|start| line.contains(start)) {
+                offenders.push(format!("{name}:{number}: starts a runtime without {GATE}"));
+            }
+        }
+    }
+    assert!(
+        offenders.is_empty(),
+        "a shipped module builds a runtime driver and starts it without the gate:\n{}",
+        offenders.join("\n")
+    );
+}
+
+/// The scan must read the workspace it claims to read. Without this the checks above could pass
+/// because they found nothing at all.
 #[test]
 fn the_scan_reads_the_shipped_source_of_the_whole_workspace() {
     let sources = shipped_sources();
@@ -165,20 +224,106 @@ fn the_scan_reads_the_shipped_source_of_the_whole_workspace() {
         "the scan found {} modules, which is not this workspace",
         sources.len()
     );
-    for definition in DEFINITIONS {
+    for (module, wanted) in [
+        ("crates/ymp-cli/src/internal.rs", GATE),
+        ("crates/ymp-runtime-supervisor/src/lib.rs", GATE),
+        ("crates/ymp-runtime-fake/src/lib.rs", "FakeRuntime"),
+    ] {
         let (_, source) = sources
             .iter()
-            .find(|(name, _)| name == definition)
-            .unwrap_or_else(|| panic!("{definition} was not scanned"));
-        assert!(
-            code_lines(source).any(|(_, line)| SEAMS.iter().any(|seam| line.contains(seam))),
-            "{definition} no longer defines the seam it is exempted for"
-        );
+            .find(|(name, _)| name == module)
+            .unwrap_or_else(|| panic!("{module} was not scanned"));
+        assert!(names(source, wanted), "{module} no longer names {wanted}");
     }
     assert!(
-        !code_lines("// start_unattested_managed_candidate in a comment\n").any(|(_, _)| true),
+        !names(
+            "// start_unattested_managed_candidate in a comment\n",
+            SEAMS[0]
+        ),
         "a comment was read as code"
     );
+}
+
+/// Writes the contract package the candidate-producing command requires.
+fn contract_package(root: &Path) -> PathBuf {
+    let source = root.join("source");
+    let negative_control = root.join("negative-control");
+    fs::create_dir_all(&source).expect("source");
+    fs::create_dir_all(&negative_control).expect("negative control");
+    fs::write(source.join("input.txt"), b"before\n").expect("source file");
+    let program = root.join("verify.sh");
+    fs::write(&program, "#!/bin/sh\nexit 0\n").expect("verifier program");
+    let oracle_digest = ymp_domain::digest_bytes(&fs::read(&program).expect("program bytes"));
+    let package = root.join("contract.json");
+    fs::write(
+        &package,
+        serde_json::to_vec(&serde_json::json!({
+            "schema_version": 2,
+            "contract_id": "contract-unattested-surface",
+            "source": "source",
+            "prompt": "assemble a candidate",
+            "verifier": {
+                "program": "verify.sh",
+                "negative_control": "negative-control",
+                "oracle_digest": oracle_digest,
+                "wall_time_ms": 60_000,
+                "output_limit_bytes": 1024
+            }
+        }))
+        .expect("package bytes"),
+    )
+    .expect("write package");
+    package
+}
+
+#[test]
+fn the_shipped_surface_offers_no_runtime_the_gate_would_refuse() {
+    let temporary = tempfile::tempdir().expect("temporary directory");
+    let package = contract_package(temporary.path());
+    for (index, (command, takes_workspace, takes_prompt)) in RUNTIME_COMMANDS.iter().enumerate() {
+        let data_root = temporary.path().join(format!("data-{index}"));
+        let mut invocation = Command::new(env!("CARGO_BIN_EXE_ymp"));
+        invocation
+            .arg("--data-root")
+            .arg(&data_root)
+            .arg("--contract")
+            .arg(&package)
+            .args(["internal", command])
+            .args(["--runtime", "fake"]);
+        if *takes_workspace {
+            invocation
+                .arg("--workspace")
+                .arg(temporary.path().join("workspace"));
+        }
+        if *takes_prompt {
+            invocation.args(["--prompt", "assemble a candidate"]);
+        }
+        let outcome = invocation.output().expect("run the built product");
+        let diagnostic = String::from_utf8_lossy(&outcome.stderr).into_owned();
+        assert!(
+            !outcome.status.success(),
+            "{command} accepted the unattested runtime: {diagnostic}"
+        );
+        assert!(
+            diagnostic.contains("invalid value 'fake'"),
+            "{command} refused the unattested runtime for another reason: {diagnostic}"
+        );
+        assert!(
+            !data_root.join("candidates").exists(),
+            "{command} assembled a candidate with the unattested runtime"
+        );
+
+        let help = Command::new(env!("CARGO_BIN_EXE_ymp"))
+            .args(["internal", command])
+            .arg("--help")
+            .output()
+            .expect("read the command's own description of its values");
+        let offered = String::from_utf8_lossy(&help.stdout).into_owned();
+        assert!(
+            offered.contains("codex") && !offered.contains("fake"),
+            "{command} still offers the unattested runtime: {offered}"
+        );
+    }
 }
 
 fn contract(source: PathBuf) -> ManagedContract {
@@ -234,8 +379,8 @@ fn the_controller_refuses_a_candidate_from_a_runtime_it_does_not_attest() {
     );
 }
 
-/// The negative control for the refusal above: a runtime whose launch is attested reaches its own
-/// probe, so the refusal is about attestation rather than about starting at all.
+/// The negative control for the refusal above: a runtime whose launch is attested passes the gate
+/// and is stopped by its own probe, so the refusal is about attestation rather than about starting.
 #[test]
 fn a_runtime_whose_launch_is_attested_reaches_its_probe() {
     let temporary = tempfile::tempdir().expect("temporary directory");

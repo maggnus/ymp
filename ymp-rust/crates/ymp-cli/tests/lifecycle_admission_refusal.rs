@@ -30,12 +30,14 @@ use std::time::{Duration, Instant};
 use ymp_application::Application;
 use ymp_domain::Budget;
 use ymp_runtime_api::{
-    LaunchChain, ProgramRole, configure_process_group, create_launch_marker,
+    LaunchChain, ProgramRole, RuntimeKind, configure_process_group, create_launch_marker,
     managed_launch_command, place_lifecycle_utility_for_fixture, register_launch_marker,
     terminate_process_tree,
 };
 use ymp_runtime_claude::{ClaudeProfile, ClaudeRuntime};
-use ymp_runtime_supervisor::{ManagedCandidateRequest, ManagedContract, start_managed_candidate};
+use ymp_runtime_supervisor::{
+    ManagedCandidateRequest, ManagedContract, admit_runtime_start, start_managed_candidate,
+};
 
 /// Where the platform keeps the reader of the process table, and where this check puts it back.
 const PROCESS_TABLE: &str = "/bin/ps";
@@ -188,6 +190,32 @@ fn kill(pid: u32) {
         .stdout(Stdio::null())
         .stderr(Stdio::null())
         .status();
+}
+
+/// The gate itself, which is what the command line passes before it builds any runtime driver. A
+/// command that starts a runtime therefore refuses on the same ground as the controller, and this
+/// is where that is measured for both.
+#[test]
+fn the_gate_every_start_passes_refuses_an_unadmittable_utility() {
+    let _placement = placement();
+    let temporary = tempfile::tempdir().expect("temporary directory");
+    let placed = place_the_reader_where_this_account_can_write(temporary.path());
+    let refusal = admit_runtime_start(RuntimeKind::ClaudeCode);
+    restore_the_platform_reader();
+
+    let error =
+        refusal.expect_err("no runtime may start where the run cannot observe its own processes");
+    let reported = format!("{error:#}");
+    assert!(
+        reported.contains("process table reader") && reported.contains("this account can write"),
+        "the refusal does not name the program and the reason: {reported}"
+    );
+    assert!(
+        reported.contains(&placed.display().to_string()),
+        "the refusal does not name where the program stands: {reported}"
+    );
+    admit_runtime_start(RuntimeKind::ClaudeCode)
+        .expect("the platform's own utilities are admitted once they answer again");
 }
 
 #[test]

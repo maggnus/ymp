@@ -485,28 +485,54 @@ impl Drop for ManagedRunHandle {
     }
 }
 
-/// Starts a managed run that produces a candidate.
+/// Whether the launch of the runtime being started has to be attested.
+#[derive(Clone, Copy, Eq, PartialEq)]
+enum LaunchAttestation {
+    Required,
+    Waived,
+}
+
+/// The one gate every start of a runtime passes, wherever that start is written.
 ///
-/// A runtime whose launch this controller does not attest cannot take this path. The attestation is
-/// what binds the bytes that execute to the bytes that were admitted, so a candidate produced
-/// without it would carry no evidence of the program that wrote it. The in-process fixture runtime
-/// is the one such runtime this workspace holds, and it reaches a candidate only through
-/// [`start_unattested_managed_candidate`], which no shipped module names —
-/// `ymp-cli/tests/unattested_runtime_is_unreachable.rs` establishes that by reading the source of
-/// every crate rather than by convention.
+/// Two things are established here and nowhere else. The runtime must attest the programs its
+/// launch enters, because attestation is what binds the bytes that execute to the bytes that were
+/// admitted; and the utilities the run observes and ends its own processes with must be admitted,
+/// because a run that cannot see what it starts cannot say what it left running. The admitted
+/// utilities are returned, so the caller records what it will execute on its own behalf.
+///
+/// A start written outside this crate reaches the same gate by calling this function. That every
+/// such start does is not left to reading: `ymp-cli/tests/unattested_runtime_is_unreachable.rs`
+/// rejects a shipped module that builds a runtime driver and starts it without this call, and
+/// drives the built product to establish that no command offers a runtime this gate would refuse.
+pub fn admit_runtime_start(kind: RuntimeKind) -> anyhow::Result<Vec<AdmittedProgram>> {
+    admit_start(kind, LaunchAttestation::Required)
+}
+
+fn admit_start(
+    kind: RuntimeKind,
+    attestation: LaunchAttestation,
+) -> anyhow::Result<Vec<AdmittedProgram>> {
+    if attestation == LaunchAttestation::Required && !requires_launch_attestation(kind) {
+        bail!(
+            "{kind:?} does not attest the programs its launch enters, so it cannot start a managed \
+             run"
+        );
+    }
+    // The run observes and ends its own processes with these utilities. One that cannot be admitted
+    // stops the run here, naming the program and the reason, rather than leaving a run that reports
+    // a clean termination it was never able to establish.
+    admit_lifecycle_programs()
+        .context("the utilities this run observes and ends its own processes with")
+}
+
+/// Starts a managed run that produces a candidate. The runtime passes [`admit_runtime_start`]
+/// before anything of it is executed.
 pub fn start_managed_candidate(
     application: Arc<Mutex<Application>>,
     driver: Box<dyn RuntimeDriver>,
     request: ManagedCandidateRequest,
 ) -> anyhow::Result<ManagedRunHandle> {
-    let runtime_kind = driver.kind();
-    if !requires_launch_attestation(runtime_kind) {
-        bail!(
-            "{runtime_kind:?} does not attest the programs its launch enters, so it cannot produce \
-             a candidate"
-        );
-    }
-    start_candidate(application, driver, request)
+    start_candidate(application, driver, request, LaunchAttestation::Required)
 }
 
 /// Starts a managed run with a runtime whose launch is not attested. This exists for the checks
@@ -517,14 +543,16 @@ pub fn start_unattested_managed_candidate(
     driver: Box<dyn RuntimeDriver>,
     request: ManagedCandidateRequest,
 ) -> anyhow::Result<ManagedRunHandle> {
-    start_candidate(application, driver, request)
+    start_candidate(application, driver, request, LaunchAttestation::Waived)
 }
 
 fn start_candidate(
     application: Arc<Mutex<Application>>,
     driver: Box<dyn RuntimeDriver>,
     request: ManagedCandidateRequest,
+    attestation: LaunchAttestation,
 ) -> anyhow::Result<ManagedRunHandle> {
+    let lifecycle_programs = admit_start(driver.kind(), attestation)?;
     let probe = driver.probe()?;
     if probe.readiness != Readiness::Ready {
         bail!("runtime profile is not ready: {}", probe.detail);
@@ -544,11 +572,6 @@ fn start_candidate(
         )
     })?;
     let workspace_program = admit_workspace_program()?;
-    // The run observes and ends its own processes with these utilities. One that cannot be admitted
-    // stops the run here, naming the program and the reason, rather than leaving a run that reports
-    // a clean termination it was never able to establish.
-    let lifecycle_programs = admit_lifecycle_programs()
-        .context("the utilities this run observes and ends its own processes with")?;
     let contract_id = request.contract.contract_id.clone();
     let contract_digest = request.contract.contract_digest.clone();
     let attempt_id = format!("attempt-{}", Uuid::new_v4());
