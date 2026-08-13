@@ -3,6 +3,52 @@
 This document freezes the durable schema implemented by the initial production codebase. It is a
 compatibility contract, not a promise that every later feature fits schema version 1.
 
+## Product state layout version 1
+
+Everything the product writes on a host lives under one root. The root is `.ymp` in the directory
+the product was started in, and it is addressed rather than named per run:
+
+```text
+.ymp/
+  root.json                     layout marker and version
+  projects/<project>/
+    project.json                the directory this project addresses
+    runs/0001/                  one store: one run, its objects and its evidence
+    runs/0002/
+```
+
+The project segment is derived from the canonical launch directory: its own name, reduced to
+characters every filesystem accepts, followed by the first twelve hexadecimal characters of the
+SHA-256 of the whole path. Two projects whose directories share a name therefore never share a
+segment. The run segment is a four-digit ordinal claimed by creating its directory, so two
+invocations racing for one ordinal cannot both take it. Neither segment is supplied by the
+operator.
+
+A store is what every earlier rule in this document describes, unchanged: one run, one journal,
+one content-addressed object store, and the recovery and refusal behaviour stated below. What the
+layout adds is that a second run and a second project are addressed, not named.
+
+An invocation that commits a run start is given a store holding no run; every other invocation is
+given the store the project is already on. A store addressed but never started into holds no
+journal and is where the next run belongs, so no empty directory accumulates.
+
+`root.json` carries the layout version. A root of any other version is refused when it is opened,
+and no command migrates a root. A directory holding a journal is refused as a root, because it is
+a store.
+
+`--data-root` addresses one exact store instead of one under a root. That is how a store written
+before this layout is read where it stands. When the default root would begin beside a `.ymp-data`
+store written by an earlier build, the invocation is refused and names both ways to proceed:
+reading that store where it stands, or declaring the new root and leaving it untouched. Nothing is
+copied out of it and nothing is written into it.
+
+Three kinds of path are deliberately outside the root, each for a reason that does not apply to
+durable state. The coordination socket, the generated runtime home and the private copies of
+admitted executables live in the operating system's temporary directory: they exist only while one
+process does, they are removed with it, and a unix socket path is length-limited in a way a
+project-relative path cannot honour. An evidence export is written where the operator names it,
+because an export exists to leave the root.
+
 ## Event journal version 1
 
 Every line in `events.jsonl` is one UTF-8 JSON `EventEnvelope` followed by `\n`. Version 1 fixes the
