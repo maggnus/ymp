@@ -410,6 +410,53 @@ reference implementation in protocol conformance tests, but it is not a shipped 
 access changes the harness and therefore must be evaluated as its own runtime profile rather than
 treated as a transparent transport swap.
 
+## Owner decisions of 2026-08-13
+
+These entries record decisions taken during execution. Each states what was decided, why, and what
+it changes in already accepted work, so a later reader is not left comparing two documents that
+disagree.
+
+### The product goal governs the mechanics
+
+A person writes a prompt; ymp turns it into an approved contract with a checkable acceptance
+condition, raises several agents that divide the work among themselves with no assigner above them,
+and returns a result an independent verifier accepted. Every protective and mechanical decision
+exists to make that sentence trustworthy. A decision that hardens the system while making that path
+impossible is a divergence to resolve, not a design to preserve. The full statement is in
+[`ymp-docs/CONCEPT.md`](https://github.com/maggnus/ymp/blob/e97fd1ec269c80d1ba45c90a2089ec31a9f868fd/ymp-docs/CONCEPT.md).
+
+### Everything the interface can do is available as a command
+
+The terminal interface is a convenient way to reach the system core, not the only way. Any action
+the interface offers — starting a run from a prompt, authorizing a contract, cancelling, exporting
+evidence, applying an accepted candidate — must also exist as a command of the same executable, with
+the same authority checks and the same journal path through the kernel writer.
+
+This supersedes the constraint recorded in accepted subtask `W1-APP-02a.2`, which forbade a public
+mode outside the interface. That constraint was taken to prevent a second, weaker path into the
+kernel; the risk it addressed is answered by routing every command through the same writer and the
+same authorization, not by removing the command surface. The accepted closure record of that subtask
+stands as history and is not rewritten; its restriction no longer binds new work. The line
+`ymp apply cd-32` in the visual concept, which an audit reported as contradicting that subtask, is
+consistent again.
+
+A command surface is not an automation surface: a command that mutates state remains subject to the
+same decision surfaces, including typing a run identifier to confirm an irreversible action.
+
+### The drawn interface sources are references, not a frozen contract
+
+The HTML source and its fixed-layout export describe an intended interface. What suits the product
+is taken; what does not is changed, and the change is recorded in the work tree. The HTML source is
+the only carrier of correspondence, and the export is a reading convenience that is never cited as
+the source of a screen or a fixture.
+
+### The interface is one framework bound to real state
+
+Screens compose one shared component and layout layer, and every displayed value derives from an
+application projection. A concept the current domain cannot produce is shown as unavailable rather
+than invented. Both properties are enforced by checks that must fail on violation, because an
+interface that fabricates a value corrupts the judgement the comparison depends on.
+
 ## Change rule
 
 A semantic allocation mechanism does not enter the trusted kernel. A new mechanical mechanism must
