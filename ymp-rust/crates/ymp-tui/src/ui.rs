@@ -203,9 +203,14 @@ fn dashed_marker(label: &str, width: usize) -> Line<'static> {
 const WORKING_MARKS: [&str; 4] = ["·", "‥", "…", "‥"];
 
 fn input_left(app: &App, markers: &Markers) -> Vec<Span<'static>> {
-    // Work off this thread outranks the buffer: the line that started it has been taken, and the
-    // row states what is being waited for and how to end it.
-    if let Some(notice) = &app.data.working {
+    // While nothing is being typed, the row states what is running away from this thread and how
+    // to end it. A line being typed outranks that notice: it supersedes the run when it is sent.
+    if let Some(notice) = app
+        .data
+        .working
+        .as_ref()
+        .filter(|_| app.prompt.buffer.is_empty() && app.prompt.suspended.is_none())
+    {
         return vec![
             Span::styled(format!("{} ", markers.prompt), theme::amber()),
             Span::styled(

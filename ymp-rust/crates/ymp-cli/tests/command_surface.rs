@@ -196,6 +196,7 @@ fn drafted_facts() -> ContractFacts {
         budget: Some(ymp_domain::Budget::new(1, 1)),
         run_id: Some("run-aaaaaaaaaaaa".into()),
         blocked: None,
+        previously_authorized: false,
     }
 }
 
@@ -491,23 +492,23 @@ impl Fixture {
         self._root.path().join(name)
     }
 
-    /// The request, as the four answers the interface's draft asks for.
-    fn answers(&self) -> [String; 4] {
+    /// The request, as the lines an operator types: the work, then the amendments that name what
+    /// the product would otherwise supply.
+    fn lines(&self) -> [String; 4] {
         [
             "keep the replay path idempotent".to_owned(),
-            self.source.display().to_string(),
-            self.verifier.display().to_string(),
-            self.negative_control.display().to_string(),
+            format!("source {}", self.source.display()),
+            format!("verifier {}", self.verifier.display()),
+            format!("negative control {}", self.negative_control.display()),
         ]
     }
 
     fn request_arguments(&self) -> Vec<String> {
-        let answers = self.answers();
         vec![
-            format!("--prompt={}", answers[0]),
-            format!("--source={}", answers[1]),
-            format!("--verifier={}", answers[2]),
-            format!("--negative-control={}", answers[3]),
+            "--prompt=keep the replay path idempotent".to_owned(),
+            format!("--source={}", self.source.display()),
+            format!("--verifier={}", self.verifier.display()),
+            format!("--negative-control={}", self.negative_control.display()),
         ]
     }
 
@@ -601,8 +602,8 @@ fn an_answer_never_reaches_a_surface_the_command_did_not_open() {
 /// Carry the request to a started run and then cancel it, through the interface's own session.
 fn through_the_interface(fixture: &Fixture, data_root: &Path) -> (String, String) {
     let mut session = Session::open(data_root, &[]);
-    for answer in fixture.answers() {
-        session.local_turn(answer);
+    for line in fixture.lines() {
+        session.local_turn(line);
     }
     let contract_id = session
         .projection(None)
@@ -665,17 +666,19 @@ fn the_command_and_the_interface_commit_the_same_journal() {
 // The approved-contract check
 // ---------------------------------------------------------------------------
 
+/// Nothing runs without something that would reject a wrong candidate. Where the product can
+/// propose that something it does, and where it cannot it says so; either way a command that
+/// reaches neither starts nothing and exits non-zero.
 #[test]
-fn a_command_that_states_no_acceptance_condition_starts_nothing() {
+fn a_command_with_nothing_that_could_judge_a_candidate_starts_nothing() {
     let fixture = Fixture::new();
     let data_root = fixture.data_root("no-acceptance");
-    let answers = fixture.answers();
     let refused = fixture.command(
         &data_root,
         &[
             "start".to_owned(),
-            format!("--prompt={}", answers[0]),
-            format!("--source={}", answers[1]),
+            "--prompt=keep the replay path idempotent".to_owned(),
+            format!("--source={}", fixture.source.display()),
             "--confirm=anything".to_owned(),
         ],
     );
@@ -690,8 +693,8 @@ fn a_command_that_states_no_acceptance_condition_starts_nothing() {
         String::from_utf8_lossy(&refused.stderr)
     );
     assert!(
-        reported.contains("no run started — the request states no acceptance condition"),
-        "the refusal does not name the missing part:\n{reported}"
+        reported.contains("no test entry point"),
+        "the refusal does not name what could not be proposed:\n{reported}"
     );
     assert!(
         !data_root.join("events.jsonl").exists(),

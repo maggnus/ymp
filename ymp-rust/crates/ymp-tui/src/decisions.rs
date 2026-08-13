@@ -143,6 +143,7 @@ pub fn authorize(
             .as_ref()
             .map(|verifier| file_name(&verifier.negative_control))
             .unwrap_or_default(),
+        reauthorization: contract.previously_authorized,
     });
     let action_note = if action.is_some() {
         "authorize and start — the contract is stored and the run begins".to_owned()
@@ -189,14 +190,33 @@ pub fn start_run(action: &AuthorizeAction) -> Confirm {
         ));
     }
 
+    // Weight follows what is new. A contract this session already authorized, unchanged since,
+    // has been read and typed out once; asking for the identifier again buys nothing, so the
+    // confirmation is a single one. Everything else — a first authorization, and every contract
+    // that changed — is confirmed by typing the identifier, because that is the point at which
+    // spending starts.
+    let (prompt_label, required, confirm_hint) = if action.reauthorization {
+        (
+            "this contract was authorized in this session and has not changed since:".to_owned(),
+            String::new(),
+            "confirm".to_owned(),
+        )
+    } else {
+        (
+            "type the contract id to confirm:".to_owned(),
+            action.contract_id.clone(),
+            "confirm — disabled until the contract id matches exactly".to_owned(),
+        )
+    };
+
     Confirm {
         title: format!("start run {}", action.run_id),
         badge: "irreversible · starts spending".into(),
         consequences,
-        prompt_label: "type the contract id to confirm:".into(),
-        required: action.contract_id.clone(),
+        prompt_label,
+        required,
         typed: String::new(),
-        confirm_hint: "confirm — disabled until the contract id matches exactly".into(),
+        confirm_hint,
         cancel_hint: "start nothing".into(),
         action: ConfirmAction::StartRun {
             contract_id: action.contract_id.clone(),
@@ -294,6 +314,7 @@ mod tests {
             budget: Some(Budget::new(1, 1)),
             run_id: Some("run-aaaaaaaaaaaa".into()),
             blocked: None,
+            previously_authorized: false,
         }
     }
 

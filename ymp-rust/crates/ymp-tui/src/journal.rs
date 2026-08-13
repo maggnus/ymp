@@ -274,6 +274,16 @@ impl Model {
         self.push(Entry::AppError { text: text.into() });
     }
 
+    /// Drop a contract the interface no longer offers, by name.
+    ///
+    /// An amended draft replaces the contract its earlier form produced: the operator is judging
+    /// one draft, so the projection carries one contract for it rather than a pile of the
+    /// versions it passed through.
+    pub fn forget_contract(&mut self, contract_id: &str) {
+        self.contracts
+            .retain(|contract| contract.contract_id != contract_id);
+    }
+
     /// Take a contract the application prepared, replacing an earlier draft of the same name.
     pub fn record_contract(&mut self, facts: ContractFacts) {
         match self

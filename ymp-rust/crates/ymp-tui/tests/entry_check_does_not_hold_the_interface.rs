@@ -10,8 +10,8 @@
 //! * taking the answer returns at once, while the program it names is still running;
 //! * the interface redraws while it runs, and the row that states the wait changes, so a wait
 //!   cannot be mistaken for a freeze;
-//! * Esc ends the wait at once, the answer it was deciding is not taken, and the outcome that
-//!   arrives afterwards decides nothing.
+//! * Esc ends the wait at once, the draft it was deciding is not shown as a contract, and the
+//!   outcome that arrives afterwards decides nothing.
 //!
 //! The negative half is the build this card started from, where the verifier ran inside the
 //! event loop's own call: `taking_the_answer_returns_before_the_verifier_does` reports the take
@@ -82,27 +82,30 @@ fn write_program(path: &Path, body: &str) {
     }
 }
 
-/// Drive the dialogue up to the answer that needs the verifier, and return the work it produced
-/// together with how long taking that answer took.
+/// State the request and the two values that make the check decidable, and return the work the
+/// last line produced together with how long taking that line took.
+///
+/// Every line is a turn of the interface's own dialogue: the first states the work, the rest
+/// amend the draft it opened, and each one supersedes the work the line before it asked for.
 fn up_to_the_check(
     session: &mut Session,
     app: &mut App,
     workspace: &Workspace,
 ) -> (ymp_tui::app::PendingCheck, Duration) {
-    for answer in [
+    for line in [
         "keep the replay path idempotent".to_owned(),
-        workspace.source.display().to_string(),
-        workspace.program.display().to_string(),
+        format!("source {}", workspace.source.display()),
+        format!("verifier {}", workspace.program.display()),
     ] {
-        assert!(
-            session.begin_turn(answer).is_none(),
-            "an answer that needs no program produced work"
-        );
+        session.begin_turn(line);
     }
     let started = Instant::now();
     let pending = session
-        .begin_turn(workspace.negative_control.display().to_string())
-        .expect("the negative-control answer needs the verifier run to decide it");
+        .begin_turn(format!(
+            "negative control {}",
+            workspace.negative_control.display()
+        ))
+        .expect("the amended draft has to be demonstrated before it can be shown");
     let taken = started.elapsed();
     app.adopt(session.projection(None));
     (pending, taken)
@@ -165,7 +168,7 @@ fn taking_the_answer_returns_before_the_verifier_does() {
 }
 
 #[test]
-fn esc_cancels_a_running_check_and_returns_to_the_answer() {
+fn esc_cancels_a_running_check_and_returns_to_the_draft() {
     let workspace = workspace();
     let mut session = Session::open(&workspace.data_root, &[]);
     let mut app = App::new(session.projection(None));
@@ -192,8 +195,8 @@ fn esc_cancels_a_running_check_and_returns_to_the_answer() {
         "the interface still states a wait it was told to end"
     );
     assert!(
-        app.data.awaiting.is_some(),
-        "the dialogue did not return to the answer the check was deciding"
+        app.data.contracts.is_empty(),
+        "a cancelled check left a contract behind"
     );
 
     // The abandoned run decides nothing when it finally returns.

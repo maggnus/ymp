@@ -8,6 +8,7 @@
 //! Input is read by a dedicated thread; journal notifications and the runtime probe arrive on
 //! the same channel. The main thread blocks until something happens and never polls.
 
+use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -16,14 +17,12 @@ use std::thread;
 use std::time::Duration;
 
 use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
-use ymp_application::{
-    Application, ApplicationError, PreparedContract, RunRequest, prepare_contract,
-};
+use ymp_application::{Application, ApplicationError, PreparedContract, prepare_contract};
 use ymp_domain::Command as DomainCommand;
 use ymp_domain::contract::ContractDocument;
 
 use crate::decisions;
-use crate::draft::{self, Draft, Step};
+use crate::draft::{Amendment, Assembly, Draft, DraftJob};
 use crate::journal::Model;
 use crate::pages::Page;
 use crate::projection::{ContractFacts, Environment, Projection};
@@ -40,6 +39,9 @@ const IDLE: Duration = Duration::from_millis(500);
 /// Journal notifications buffered before the reader is considered lagging; it then recovers
 /// from its event cursor rather than assuming every notification arrived (INV-6).
 const NOTIFICATION_CAPACITY: usize = 64;
+/// Where under the data root the product writes what it supplies for a draft: the verifier it
+/// proposes, the copy it takes as the negative control, and the sample that verifier must accept.
+const DRAFT_DIRECTORY: &str = "draft";
 
 /// Everything durable the interface reads and the commands it can commit.
 pub struct Session {
@@ -57,6 +59,13 @@ pub struct Session {
     /// asked under, so an outcome that arrives after a cancellation or a later answer is
     /// recognised as deciding nothing.
     checking: u64,
+    /// The digests of the contracts this session has authorized. Re-authorizing one of them
+    /// unchanged is one confirmation; everything else is authorized by typing its identifier.
+    /// The record is this session's own, so a new process authorizes from the beginning.
+    authorized: BTreeSet<String>,
+    /// The contract the current draft last produced, so an amended draft replaces it instead of
+    /// leaving the version it replaced on the screen.
+    drafted: Option<String>,
 }
 
 /// A demonstration this session asked for, ready to be run wherever the caller decides.
@@ -66,7 +75,7 @@ pub struct Session {
 #[derive(Clone, Debug)]
 pub struct PendingCheck {
     generation: u64,
-    check: draft::EntryCheck,
+    check: DraftJob,
 }
 
 impl PendingCheck {
@@ -75,7 +84,7 @@ impl PendingCheck {
         self.check.waiting_for()
     }
 
-    /// Run the demonstration and label its outcome with the check it belongs to.
+    /// Assemble and demonstrate the draft, and label the outcome with the work it belongs to.
     pub fn run(self) -> CheckOutcome {
         let outcome = self.check.run();
         CheckOutcome {
@@ -85,11 +94,11 @@ impl PendingCheck {
     }
 }
 
-/// The outcome of one demonstration, with the check it belongs to.
+/// The outcome of one assembly, with the work it belongs to.
 #[derive(Clone, Debug)]
 pub struct CheckOutcome {
     generation: u64,
-    outcome: Result<(), String>,
+    outcome: Result<Box<Assembly>, String>,
 }
 
 impl Session {
@@ -121,6 +130,8 @@ impl Session {
                     draft: None,
                     contracts: contracts.to_vec(),
                     checking: 0,
+                    authorized: BTreeSet::new(),
+                    drafted: None,
                 }
             }
             Ok(application) => {
@@ -140,6 +151,8 @@ impl Session {
                     draft: None,
                     contracts: contracts.to_vec(),
                     checking: 0,
+                    authorized: BTreeSet::new(),
+                    drafted: None,
                 }
             }
         }
@@ -165,6 +178,8 @@ impl Session {
             draft: None,
             contracts: Vec::new(),
             checking: 0,
+            authorized: BTreeSet::new(),
+            drafted: None,
         }
     }
 
@@ -258,15 +273,17 @@ impl Session {
 
     /// Take what the operator typed, up to the point where work would begin.
     ///
-    /// With no run in this store the line is a request: it opens a draft, and the answers that
-    /// follow complete it. Once a run exists there is nothing for prose to become — the domain
-    /// carries no messages — so the turn is answered honestly and recorded nowhere.
+    /// With no run in this store the line is a request: the first one opens a draft, and every
+    /// line after it amends that draft while it is still unauthorized. Once a run exists there is
+    /// nothing for prose to become — the domain carries no messages — so the turn is answered
+    /// honestly and recorded nowhere.
     ///
-    /// An answer whose decision needs the verifier run returns that work to the caller instead of
-    /// doing it here. Nothing about the draft is settled until the outcome comes back.
+    /// Assembling the draft copies the project and runs the verifier over it, so that work is
+    /// returned to the caller instead of being done here. Nothing about the draft is settled
+    /// until its outcome comes back, and a line typed while an assembly is running supersedes
+    /// it: the amended draft is what the operator asked about, so the older outcome decides
+    /// nothing when it arrives.
     pub fn begin_turn(&mut self, text: String) -> Option<PendingCheck> {
-        // An empty line is not something the operator said; it accepts what the question
-        // offered, and the reply below states what that was.
         if !text.trim().is_empty() {
             self.model.human(text.clone());
         }
@@ -283,145 +300,144 @@ impl Session {
             );
             return None;
         }
-        let project = self.model.environment().project_path.clone();
+        if text.trim().is_empty() {
+            return None;
+        }
         match self.draft.as_mut() {
             None => {
-                if text.trim().is_empty() {
+                self.draft = Some(Draft::new(text));
+                self.model.reply(
+                    "request recorded locally — nothing has started and nothing is spent. \
+                     Assembling a contract from this project: a copy of it as the negative \
+                     control, and a verifier proposed from the way it runs its tests.",
+                );
+            }
+            // While a draft is unauthorized the next line amends it. A line that names something
+            // this host cannot take leaves the draft exactly as it was.
+            Some(current) => match current.amend(&text) {
+                Amendment::Took(stated) => {
+                    self.model
+                        .reply(format!("{stated} · assembling the amended draft"));
+                }
+                Amendment::Refused(reason) => {
+                    self.model.error(format!(
+                        "{reason}. The draft is unchanged and nothing was recorded."
+                    ));
                     return None;
                 }
-                self.draft = Some(Draft::new(text));
-                self.model.reply(format!(
-                    "request recorded locally — nothing has started and nothing is spent. {}",
-                    draft::question_text(draft::Question::Source, &project)
-                ));
-                self.model
-                    .await_answer(Some(draft::question_hint(draft::Question::Source)));
-            }
-            Some(current) => {
-                let step = current.answer(&text, &project);
-                let taken = current.taken();
-                return self.take_step(step, taken, &project);
-            }
+            },
         }
-        None
+
+        let project = self.model.environment().project_path.clone();
+        let drafts = self.data_root.join(DRAFT_DIRECTORY);
+        let job = self.draft.as_mut()?.job(&project, &drafts);
+        self.checking = self.checking.wrapping_add(1);
+        self.model.await_answer(None);
+        self.model.working(Some(job.waiting_for()));
+        Some(PendingCheck {
+            generation: self.checking,
+            check: job,
+        })
     }
 
-    /// State what one step of the draft means, and return the work it needs, if any.
-    fn take_step(&mut self, step: Step, taken: String, project: &Path) -> Option<PendingCheck> {
-        match step {
-            Step::Ask(question) => {
-                self.model.reply(format!(
-                    "{taken} · {}",
-                    draft::question_text(question, project)
-                ));
-                self.model
-                    .await_answer(Some(draft::question_hint(question)));
-                None
-            }
-            // An answer this host cannot resolve ends the draft where it was typed. The
-            // remaining questions are not asked, because they would collect answers for a
-            // contract that already cannot be assembled.
-            Step::Refused(reason) => {
-                self.draft = None;
-                self.model.await_answer(None);
-                self.model.working(None);
-                self.model.error(format!(
-                    "{reason}. Nothing was recorded. State the request again to draft another \
-                     contract."
-                ));
-                None
-            }
-            // The answer resolved; what decides it is the verifier's own decision about it. The
-            // interface states what it is waiting for and accepts no answer meanwhile, because
-            // the answer being decided is the one that was just typed.
-            Step::Check(check) => {
-                self.checking = self.checking.wrapping_add(1);
-                self.model.await_answer(None);
-                self.model.working(Some(check.waiting_for()));
-                self.model.reply(format!(
-                    "{taken} · {} · nothing has started and nothing is spent · Esc cancels the \
-                     check",
-                    check.waiting_for()
-                ));
-                Some(PendingCheck {
-                    generation: self.checking,
-                    check,
-                })
-            }
-            Step::Ready(request) => {
-                self.model.await_answer(None);
-                self.model.working(None);
-                self.prepare(*request);
-                None
-            }
-        }
-    }
-
-    /// Take the outcome of a demonstration this session asked for.
+    /// Take the outcome of an assembly this session asked for.
     ///
-    /// An outcome from a check the operator has since cancelled, or from one superseded by a
-    /// later answer, decides nothing: the draft it was deciding is no longer waiting for it.
+    /// An outcome from work the operator has since cancelled, or from work superseded by a later
+    /// amendment, decides nothing: the draft it was assembling is no longer waiting for it.
     pub fn finish_check(&mut self, outcome: CheckOutcome) {
         if outcome.generation != self.checking {
             return;
         }
-        let project = self.model.environment().project_path.clone();
+        self.model.working(None);
         let Some(draft) = self.draft.as_mut() else {
-            self.model.working(None);
             return;
         };
-        let step = draft.checked(outcome.outcome);
-        let taken = draft.taken();
-        self.model.working(None);
-        self.take_step(step, taken, &project);
+        draft.settled();
+        match outcome.outcome {
+            Ok(assembly) => self.prepare(*assembly),
+            // The draft stays: it is unauthorized, so the next line can amend whatever the
+            // refusal named. Nothing was recorded and nothing was spent.
+            Err(reason) => self.model.error(format!(
+                "{reason}. Nothing was recorded. Amend the draft — for example `verifier \
+                 <path>` — or state the work again."
+            )),
+        }
     }
 
-    /// Abandon a running demonstration at the operator's word.
+    /// Abandon a running assembly at the operator's word.
     ///
-    /// The draft returns to the answer the check was deciding, so the operator can state another
-    /// one. The outcome of the abandoned run is ignored when it arrives; the program it started
-    /// ends on its own, bounded by the limit the check carries.
+    /// The draft stays as it was, so the operator can amend it or state the work again. The
+    /// outcome of the abandoned work is ignored when it arrives; the program it started ends on
+    /// its own, bounded by the limit the assembly carries.
     pub fn cancel_check(&mut self) {
-        if !self.is_checking() {
+        if !self.is_assembling() {
             return;
         }
         self.checking = self.checking.wrapping_add(1);
         self.model.working(None);
-        let question = self
-            .draft
-            .as_mut()
-            .map(|draft| draft.abandon_check())
-            .unwrap_or(draft::Question::NegativeControl);
+        if let Some(draft) = self.draft.as_mut() {
+            draft.settled();
+        }
         self.model.reply(
-            "the check was cancelled — nothing was recorded and the answer it was deciding was \
-             not taken",
+            "the check was cancelled — nothing was recorded and the draft was left as it was",
         );
-        self.model
-            .await_answer(Some(draft::question_hint(question)));
     }
 
-    /// Whether a demonstration this session asked for is still deciding an answer.
-    pub fn is_checking(&self) -> bool {
-        self.draft.as_ref().is_some_and(|draft| draft.is_checking())
+    /// Whether work this session asked for is still assembling a draft.
+    pub fn is_assembling(&self) -> bool {
+        self.draft
+            .as_ref()
+            .is_some_and(|draft| draft.is_assembling())
     }
 
-    /// Hand the assembled request to the application, which decides whether it is a contract.
-    fn prepare(&mut self, request: RunRequest) {
-        self.draft = None;
-        match prepare_contract(&request) {
+    /// Hand the assembled request to the application, which decides whether it is a contract,
+    /// and state the whole draft at once.
+    ///
+    /// What the operator has to judge is one statement — what will be run, what will decide it,
+    /// what it was shown deciding — followed by one authorization. The draft stays here while it
+    /// is unauthorized, so the next line can amend it.
+    fn prepare(&mut self, assembly: Assembly) {
+        match prepare_contract(&assembly.request) {
             Ok(prepared) => {
-                let facts = ContractFacts::from_prepared(&prepared);
-                self.model.reply(format!(
-                    "contract {} drafted · digest {} · verifier {} · negative control {} · \
-                     nothing has started and nothing is spent. /authorize {} reviews what would \
-                     be checked and starts run {}",
+                let mut facts = ContractFacts::from_prepared(&prepared);
+                facts.previously_authorized = self.authorized.contains(&facts.contract_digest);
+                let ceremony = if facts.previously_authorized {
+                    "one confirmation, because you authorized this exact contract in this session \
+                     and nothing about it changed"
+                } else {
+                    "the contract id typed in full"
+                };
+                let mut statement = vec![format!(
+                    "contract {} drafted · digest {} · nothing has started and nothing is spent",
                     facts.contract_id,
-                    crate::projection::short_digest(&facts.contract_digest),
-                    prepared.verifier().program.display(),
-                    prepared.verifier().negative_control.display(),
+                    crate::projection::short_digest(&facts.contract_digest)
+                )];
+                statement.push(format!("work {}", first_line(&prepared.document.prompt)));
+                statement.push(format!("source {}", prepared.document.source.display()));
+                statement.extend(assembly.stated.iter().cloned());
+                statement.push(format!(
+                    "budget attempts {} · verification queries {}",
+                    prepared.budget.attempts_remaining,
+                    prepared.budget.verification_queries_remaining
+                ));
+                statement.push(format!(
+                    "/authorize {} starts run {} — {ceremony}. Anything else you type amends this \
+                     draft first.",
                     facts.contract_id,
                     prepared.run_id()
                 ));
+                self.model.reply(statement.join(" · "));
+                // The draft is judged as one contract, so the version an amendment replaced
+                // leaves the screen with it.
+                if let Some(replaced) = self
+                    .drafted
+                    .replace(prepared.contract_id().to_owned())
+                    .filter(|replaced| replaced != prepared.contract_id())
+                {
+                    self.model.forget_contract(&replaced);
+                    self.contracts
+                        .retain(|contract| contract.contract_id() != replaced);
+                }
                 self.model.record_contract(facts);
                 self.contracts
                     .retain(|contract| contract.contract_id() != prepared.contract_id());
@@ -429,8 +445,7 @@ impl Session {
             }
             Err(error) => {
                 self.model.error(format!(
-                    "{error}. Nothing was recorded. State the request again to draft another \
-                     contract."
+                    "{error}. Nothing was recorded. Amend the draft or state the work again."
                 ));
             }
         }
@@ -457,9 +472,16 @@ impl Session {
             ));
             return;
         };
+        // The operator has authorized this exact contract here: they read the coverage map and
+        // typed its identifier. Whether the run then starts is the store's business, so the
+        // authorization is recorded before the attempt and a second one asks for one
+        // confirmation rather than for the same identifier again.
+        self.authorized.insert(prepared.contract_digest.clone());
         match Application::create_with_contract(&self.data_root, &prepared) {
             Ok((application, outcome)) => {
                 self.application = Some(application);
+                self.draft = None;
+                self.drafted = None;
                 self.model.reply(format!(
                     "run {} started against contract {} · the journal records the approved \
                      contract at event #{:04}",
@@ -469,9 +491,15 @@ impl Session {
                 ));
                 self.refresh();
             }
-            Err(error) => self
-                .model
-                .error(format!("the run was not started: {error}")),
+            Err(error) => {
+                // The contract is still there and still unauthorized in the store's eyes, so it
+                // is restated with the weight its second authorization carries.
+                let mut facts = ContractFacts::from_prepared(&prepared);
+                facts.previously_authorized = true;
+                self.model.record_contract(facts);
+                self.model
+                    .error(format!("the run was not started: {error}"));
+            }
         }
     }
 }
@@ -481,6 +509,10 @@ impl Session {
 /// A store opened later carries no drafted contract, so the coverage map would otherwise have
 /// nothing to show for a run that has one. The stored object is the source; when it cannot be
 /// read the binding is shown with what the journal alone records and says so.
+fn first_line(prompt: &str) -> String {
+    prompt.lines().next().unwrap_or_default().to_owned()
+}
+
 fn bound_contract(application: &Application) -> Option<ContractFacts> {
     let binding = application.contract()?;
     match application.contract_bytes() {

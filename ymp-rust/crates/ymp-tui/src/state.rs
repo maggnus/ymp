@@ -180,6 +180,9 @@ pub struct AuthorizeAction {
     pub source: String,
     pub verifier: String,
     pub negative_control: String,
+    /// Whether this exact contract was already authorized in this session. It decides how much
+    /// ceremony the confirmation asks for, never whether the action is offered.
+    pub reauthorization: bool,
 }
 
 /// What floats above the current surface.

@@ -57,6 +57,7 @@ pub fn contract(verified: bool) -> ContractFacts {
         budget: Some(ymp_domain::Budget::new(1, 1)),
         run_id: Some("run-000000000000".into()),
         blocked: None,
+        previously_authorized: false,
     }
 }
 

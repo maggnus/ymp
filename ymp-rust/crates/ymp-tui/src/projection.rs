@@ -205,6 +205,10 @@ pub struct ContractFacts {
     pub run_id: Option<String>,
     /// Why no run can be started from this contract, in the application's own words.
     pub blocked: Option<String>,
+    /// Whether this exact contract was already authorized in this session and has not changed
+    /// since. Authorizing it again is one confirmation; a first authorization, and anything that
+    /// changed, is authorized by typing the contract id.
+    pub previously_authorized: bool,
 }
 
 #[derive(Clone, Debug)]
@@ -233,6 +237,7 @@ impl ContractFacts {
             budget: Some(prepared.budget.clone()),
             run_id: Some(prepared.run_id()),
             blocked: None,
+            previously_authorized: false,
         }
     }
 
@@ -247,6 +252,7 @@ impl ContractFacts {
             budget: None,
             run_id: None,
             blocked: Some(reason),
+            previously_authorized: false,
         }
     }
 
@@ -266,6 +272,7 @@ impl ContractFacts {
             budget: None,
             run_id: None,
             blocked: None,
+            previously_authorized: false,
         }
     }
 
