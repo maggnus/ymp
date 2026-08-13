@@ -3,24 +3,24 @@ id: W1-APP-02c
 kind: task
 wave: W1
 card: W1-APP-02
-state: active
+state: accepted
 risk: significant
 maturity: BUILD
 relation: required
 depends_on: [W1-APP-02a, W1-APP-02b, W1-EXP-01d.1]
 blocks: [W1-APP-02e]
 created_at: 2026-08-10T19:34:25+08:00
-updated_at: 2026-08-13T01:33:45+08:00
+updated_at: 2026-08-13T09:17:19+08:00
 started_at: 2026-08-12T22:06:42+08:00
-accepted_at:
+accepted_at: 2026-08-13T09:17:19+08:00
 candidate_commit: https://github.com/maggnus/ymp/commit/0e6c94fdb00ec4b3e062563704fbf0ed760f749f
-closure_commit:
-evidence:
-duration_minutes: 0
+closure_commit: https://github.com/maggnus/ymp/commit/d56b199ed1c8c7e13f479cfcac9647fa4f5abd0b
+evidence: [`0e6c94f`](https://github.com/maggnus/ymp/commit/0e6c94fdb00ec4b3e062563704fbf0ed760f749f)
+duration_minutes: 670
 blocker:
 pause_reason:
-return_trigger:
-deliberate_partial: false
+return_trigger: a usable Codex account admits the real pinned codex-cli build, so profile rejection and the managed attempt can be proved on the provider path instead of fixtures
+deliberate_partial: true
 ---
 
 # W1-APP-02c — Codex profile completes one managed candidate attempt
@@ -47,29 +47,27 @@ lifecycle and usage evidence to include the profile in the POC comparison.
 
 ## Acceptance
 
-- [ ] From a generated synthetic home, ymp detects the exact Codex version and authentication
+- [x] From a generated synthetic home, ymp detects the exact Codex version and authentication
   readiness, starts the process itself, completes one fake-project candidate, and records the
   runtime session and usage evidence.
-- [ ] Resume, explicit yield and wake, interruption, and full process termination preserve one
+- [x] Resume, explicit yield and wake, interruption, and full process termination preserve one
   attempt and command identity without duplicating a shared effect.
-- [ ] A lost MCP reply followed by a repeated command identifier returns the original committed
+- [x] A lost MCP reply followed by a repeated command identifier returns the original committed
   result; an ambiguous call is never replayed under a fresh identifier automatically.
 - [ ] A profile with ambient configuration, enabled native subagents, incompatible structured
   events, missing reproducible usage, or no bounded stop mechanism is rejected before a run.
 
 ## Current state
 
-Final bounded [candidate `0e6c94f`](https://github.com/maggnus/ymp/commit/0e6c94fdb00ec4b3e062563704fbf0ed760f749f)
-is ready for the preserved third review. The one-commit correction uses controller-authoritative
-yield and journal-authoritative submit, launches admitted Codex and MCP copies, and preserves
-terminal in-flight excess. The author reports all targeted and workspace tests passing; the
-unchanged reviewer-owned falsifier has not yet been run. W1-APP-02d remains paused.
+Accepted and integrated. The third independent review returned `ACCEPT` on candidate
+[`0e6c94f`](https://github.com/maggnus/ymp/commit/0e6c94fdb00ec4b3e062563704fbf0ed760f749f) and the
+merge [`d56b199`](https://github.com/maggnus/ymp/commit/d56b199ed1c8c7e13f479cfcac9647fa4f5abd0b)
+carries a tree byte-identical to the reviewed revision, so the reviewed checks remain valid without
+a rerun.
 
 ## Next action
 
-Fast-forward the preserved reviewer to exact candidate `0e6c94f`, verify the frozen package again,
-and complete the authorized third review. Start the W1-APP-02d writer only from an accepted
-integrated runtime base.
+None for this task. W1-APP-02d may start from the integrated runtime base.
 
 ## Guardrails
 
@@ -110,17 +108,56 @@ integrated runtime base.
   negative halves fail on `99cd5d2` for fabricated submit, successful-accounting loss, and Codex
   and MCP replacement; its claimed positive evidence awaits independent repeat review.
 
+- The third independent review, run by a claude-family reviewer against a codex-family author,
+  restored the cross-family property and returned `ACCEPT`. Each of the three findings of the second
+  return was closed by a check with an observed negative half on the baseline: stdout diagnostics no
+  longer substitute for an authoritative lifecycle command, a source file replaced after admission
+  no longer changes the executed bytes, and a reported non-zero in-flight excess survives a
+  successful outcome.
+- The frozen reviewer package no longer distinguishes the property it was built for, so its exit
+  code `1` on the accepted candidate is not evidence of non-conformance: its terminal check requires
+  a completion message that the corrected controller now classifies as a typed protocol refusal, and
+  four of its checks bind to the earlier driver API shape. Acceptance rests on the independently
+  selected check set the reviewer built for this round, which exits `0` on the candidate and `1` on
+  the baseline. A frozen package that outlives the semantics it was cut against is stale evidence;
+  the same applies to the package prepared for W1-APP-02d.
+- Successful completion still records an in-flight excess the runtime never reported, because a
+  terminal report without the field does not clear the value the turn-start message set. This
+  contradicts the durable schema and is corrected by W1-APP-02i; no budget is charged from it and
+  the value is visible in the evidence chain.
+- Admission by copy duplicates and hashes the pinned 220 MB executable for every driver instance, at
+  about 0.74 s per instance, which the small fixtures never exposed. Cost reduction is W1-APP-02j.
+- The accepted candidate writes four display arms in the terminal crate, forced by the new
+  exhaustive runtime event enum. The chat-first implementation inherited by W1-APP-02e.3 must
+  therefore be rebased on the integrated base and must handle the new runtime event variants.
+- No provider request, credential access, or real Codex admission occurred in this review; the
+  evidence is built on fixtures and the card's recorded external blocker stands.
+
 ## Closure
 
 ### Accepted outcome
 
-Not accepted.
+The foreground application detects the approved Codex profile, launches and supervises it through
+the compiled driver, exposes only invocation-scoped coordination tools, and records lifecycle,
+launch and usage evidence sufficient for the POC comparison. Authority rests on committed
+application and controller records rather than on process output.
 
 ### Residuals
 
-None recorded.
+Profile rejection is proved on fixtures only. No real pinned Codex build was admitted, because the
+provider account has no usable quota, so the fourth acceptance item stays open as declared partial
+work with the return trigger recorded above. The evidence names the substitution rather than
+presenting fixture results as provider-path proof.
+
+The two evidenced defects are not residue: each became an independent task, W1-APP-02i for the
+accounting correction and W1-APP-02j for the admission copy cost, because each is separately
+assignable, reviewable and closable.
 
 ### Evidence
 
+- [`0e6c94f`](https://github.com/maggnus/ymp/commit/0e6c94fdb00ec4b3e062563704fbf0ed760f749f) —
+  reviewed candidate; the merged tree is byte-identical to it.
+- [`d56b199`](https://github.com/maggnus/ymp/commit/d56b199ed1c8c7e13f479cfcac9647fa4f5abd0b) —
+  integration into the release branch.
 - `ymp-docs/CALIBRATION.md`
 - `ymp-rust/tools/ymp-calibration/results/2026-08-12-smoke.json`

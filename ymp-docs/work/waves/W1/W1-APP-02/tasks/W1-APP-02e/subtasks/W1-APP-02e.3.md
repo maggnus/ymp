@@ -75,6 +75,14 @@ POC-1 projection instead of starting the implementation from an empty write zone
 - Widgets consume immutable application projections and never own domain transition rules.
 - Missing domain concepts are not added as presentation-only state.
 - Changes to application or domain boundaries require a separately approved scope expansion.
+- The inherited implementation is functional and replaces a poor earlier interface, so a review of
+  it aims at one question: does every value on screen come from real application state. Invented
+  participants, budgets, events or completed actions are the defect to look for. A return is narrow,
+  names the exact fabricated or unbound value, and never discards working behaviour over
+  presentation preference.
+- The integrated managed-runtime work added exhaustive runtime event variants that the terminal
+  crate must handle, so the inherited implementation is rebased on the accepted base before it is
+  judged.
 
 ## Findings
 
