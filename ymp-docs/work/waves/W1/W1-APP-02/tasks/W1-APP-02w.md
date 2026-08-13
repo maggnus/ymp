@@ -3,23 +3,23 @@ id: W1-APP-02w
 kind: task
 wave: W1
 card: W1-APP-02
-state: active
+state: accepted
 risk: significant
 maturity: BUILD
 relation: required
 depends_on: []
 blocks: []
 created_at: 2026-08-14T02:08:00+08:00
-updated_at: 2026-08-14T02:13:00+08:00
+updated_at: 2026-08-14T03:06:00+08:00
 started_at: 2026-08-14T02:13:00+08:00
-accepted_at:
-candidate_commit:
-closure_commit:
-evidence:
-duration_minutes: 0
+accepted_at: 2026-08-14T03:06:00+08:00
+candidate_commit: https://github.com/maggnus/ymp/commit/70a8d919b3d478d0600858e22d7262a8d13c1cde
+closure_commit: https://github.com/maggnus/ymp/commit/9996944
+evidence: nine concurrent-start trials up to 24 processes never committed two runs into one store; honest schema claim pinned by tests; reviewer re-review ACCEPT; disclosed CTO fix 9399844 stages the root marker after the reviewer reproduced a truncated concurrent read
+duration_minutes: 53
 blocker:
 pause_reason:
-return_trigger:
+return_trigger: the interface learns to start runs (W1-APP-02e); its refusal of a second run must then address a fresh store under the single root
 deliberate_partial: false
 ---
 
