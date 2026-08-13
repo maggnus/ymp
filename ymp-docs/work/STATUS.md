@@ -39,7 +39,7 @@
 | `[x]` | [`W1-APP-02w`](waves/W1/W1-APP-02/tasks/W1-APP-02w.md) | Product state lives under one .ymp root that supports many projects | [`9996944`](https://github.com/maggnus/ymp/commit/9996944) | 14/08 02:13 | 14/08 03:06 (53m) |
 | `[x]` | [`W1-APP-02x`](waves/W1/W1-APP-02/tasks/W1-APP-02x.md) | Entry validation cannot hold the interface | [`7e98831`](https://github.com/maggnus/ymp/commit/7e98831) | 14/08 02:19 | 14/08 04:08 (0m) |
 | `[ ]` | [`W1-APP-02y`](waves/W1/W1-APP-02/tasks/W1-APP-02y.md) | The run record itself carries the per-model spend | — | — | — |
-| `[ ]` | [`W1-APP-02z`](waves/W1/W1-APP-02/tasks/W1-APP-02z.md) | A verifier cannot be rewritten by the candidate it judges | — | — | — |
+| `[~]` | [`W1-APP-02z`](waves/W1/W1-APP-02/tasks/W1-APP-02z.md) | A verifier cannot be rewritten by the candidate it judges | — | 14/08 05:07 | 14/08 05:07 (0m) |
 | `[ ]` | [`W1-COR-03`](waves/W1/W1-COR-03/CARD.md) | Bounded local commitments self-organize and terminate | — | — | — |
 | `[x]` | [`W1-COR-03a`](waves/W1/W1-COR-03/tasks/W1-COR-03a.md) | Local commitments conserve budgets and close obligations | [`58524264`](https://github.com/maggnus/ymp/commit/585242645d405ff1f76d6015a1141144eac4207b) | 13/08 15:10 | 13/08 16:27 (1h25m) |
 | `[x]` | [`W1-COR-03b`](waves/W1/W1-COR-03/tasks/W1-COR-03b.md) | Yielded participants resume finitely and runs terminate honestly | [`ca52994`](https://github.com/maggnus/ymp/commit/ca52994) | — | 14/08 04:06 (0m) |
