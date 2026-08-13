@@ -210,14 +210,14 @@ complete accounting records a zero excess rather than the request count the prod
 turn ran. A run that ended before its accounting record keeps that unaccounted request count. Total
 wall time is measured from process creation, not from the end of the launch checks that follow it.
 
-A recorded cost is kept only while it is attributed to the models that produced it. When a Claude
-result carries the per-model breakdown the runtime reports beside its total, the product checks
-that the breakdown adds up to that total, allowing only the rounding of each share to whole
-microdollars, and that no model outside the admitted profile spent anything. A total its own
-breakdown does not support, and consumption by an unadmitted model, are typed protocol failures
-rather than recorded costs, because a matched-budget comparison reads the recorded number as
-evidence of one model route. A result that carries no breakdown is recorded as before and is not
-attributed to the admitted model by assumption.
+A recorded cost is kept only while it is attributed to the models that produced it. A Claude result
+that states a cost must carry the per-model breakdown the runtime reports beside its total; the
+product checks that the breakdown adds up to that total, allowing only the rounding of each share
+to whole microdollars, and that no model outside the admitted profile spent anything. A cost with
+no breakdown at all, a total its own breakdown does not support, and consumption by an unadmitted
+model are typed protocol failures rather than recorded costs, because a matched-budget comparison
+reads the recorded number as evidence of one model route and an unattributed number is not that
+evidence. A turn that reports no cost has nothing to attribute and is recorded as before.
 
 Failures contain a typed safe failure kind and, when available, only a bounded diagnostic digest,
 byte count, and truncation marker. Raw child standard error and diagnostic text are never written
