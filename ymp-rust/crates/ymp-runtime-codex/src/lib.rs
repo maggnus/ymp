@@ -12,11 +12,12 @@ use std::sync::{Arc, Mutex};
 use std::thread::{self, JoinHandle};
 use std::time::{Duration, Instant};
 use ymp_runtime_api::{
-    BoundedOutputLine, CancellationToken, DiagnosticSummary, InFlightExcess, InvocationRequest,
-    LaunchDescriptor, LaunchEnvironmentVariable, McpBinding, ProbeReport, Readiness, RuntimeDriver,
-    RuntimeError, RuntimeEvent, RuntimeEventKind, RuntimeFailureKind, RuntimeKind, RuntimeSession,
-    Usage, configure_process_group, create_launch_marker, evidence_digest, managed_launch_command,
-    read_bounded_lines, register_launch_marker, terminate_process_tree,
+    AdmittedProgram, BoundedOutputLine, CancellationToken, DiagnosticSummary, InFlightExcess,
+    InvocationRequest, LaunchChain, LaunchDescriptor, LaunchEnvironmentVariable, McpBinding,
+    ProbeReport, Readiness, RuntimeDriver, RuntimeError, RuntimeEvent, RuntimeEventKind,
+    RuntimeFailureKind, RuntimeKind, RuntimeSession, Usage, configure_process_group,
+    create_launch_marker, evidence_digest, managed_launch_command, read_bounded_lines,
+    register_launch_marker, terminate_process_tree, verify_admitted_programs,
 };
 
 pub const PINNED_CODEX_VERSION: &str = "codex-cli 0.147.0";
@@ -159,6 +160,7 @@ pub struct CodexRuntime {
     profile: CodexProfile,
     auth_source: Option<PathBuf>,
     runtime_path: OsString,
+    launch_chain: LaunchChain,
     prepared_launches: Arc<Mutex<HashMap<String, CodexLaunch>>>,
 }
 
@@ -178,6 +180,7 @@ impl CodexRuntime {
             auth_source: discover_auth_source(),
             runtime_path: std::env::var_os("PATH")
                 .unwrap_or_else(|| OsString::from("/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin")),
+            launch_chain: LaunchChain::default(),
             prepared_launches: Arc::new(Mutex::new(HashMap::new())),
         }
     }
@@ -186,6 +189,15 @@ impl CodexRuntime {
         let mut runtime = Self::new(executable);
         runtime.profile = profile;
         runtime
+    }
+
+    /// Replaces the programs the launch preamble enters. The product path uses the system shell and
+    /// sanitiser; this exists so that a check can substitute a chain program after admission, which
+    /// the system paths do not allow.
+    #[doc(hidden)]
+    pub fn with_launch_chain(mut self, chain: LaunchChain) -> Self {
+        self.launch_chain = chain;
+        self
     }
 
     pub fn profile(&self) -> &CodexProfile {
@@ -258,6 +270,7 @@ impl VerifiedExecutable {
 struct CodexLaunch {
     executable: VerifiedExecutable,
     coordination_executable: Option<VerifiedExecutable>,
+    launch_chain: Vec<AdmittedProgram>,
     profile: CodexProfile,
     workspace: PathBuf,
     attempt_id: String,
@@ -393,6 +406,7 @@ impl CodexLaunch {
                 .coordination_executable
                 .as_ref()
                 .map(|executable| executable.digest.clone()),
+            launch_chain: self.launch_chain.clone(),
             arguments,
             environment: environment
                 .iter()
@@ -478,11 +492,25 @@ impl CodexLaunch {
             Some(&self.attempt_id),
             Some(&self.invocation_id),
         )?;
+        // The shell and the environment sanitiser execute before the runtime image is loaded, so
+        // they are part of the trusted path and are refused unless they still hold the bytes that
+        // were admitted for this launch.
+        verify_admitted_programs(&descriptor.launch_chain)?;
         // Every descendant of the managed process inherits this marker, whatever becomes of the
         // processes between it and the run, so the run can still identify what it started.
         let marker = create_launch_marker()?;
-        let mut command =
-            managed_launch_command(&descriptor.executable, &descriptor.arguments, &marker);
+        let mut command = match managed_launch_command(
+            &descriptor.executable,
+            &descriptor.arguments,
+            &marker,
+            &descriptor.launch_chain,
+        ) {
+            Ok(command) => command,
+            Err(error) => {
+                let _ = std::fs::remove_file(&marker);
+                return Err(error);
+            }
+        };
         CodexEnvironment::apply(&mut command, &environment);
         command
             .current_dir(&descriptor.working_directory)
@@ -498,6 +526,10 @@ impl CodexLaunch {
             }
         };
         register_launch_marker(&child, marker);
+        if let Err(error) = verify_admitted_programs(&descriptor.launch_chain) {
+            let _ = terminate_process_tree(&mut child);
+            return Err(error);
+        }
         if executable_digest(&descriptor.executable)? != descriptor.executable_digest {
             let _ = terminate_process_tree(&mut child);
             return Err(RuntimeError::InvalidProfile(
@@ -693,6 +725,7 @@ impl RuntimeDriver for CodexRuntime {
         let launch = CodexLaunch {
             executable,
             coordination_executable,
+            launch_chain: self.launch_chain.admit()?,
             profile: self.profile.clone(),
             workspace: request.workspace.clone(),
             attempt_id: request.attempt_id.clone(),
@@ -1402,6 +1435,7 @@ mod tests {
     use super::{CodexProfile, CodexRuntime, PINNED_CODEX_MODEL};
     use std::fs;
     use std::os::unix::fs::PermissionsExt;
+    use std::path::{Path, PathBuf};
     use ymp_runtime_api::{
         CancellationToken, InvocationRequest, RuntimeDriver, RuntimeError, RuntimeEventKind,
         RuntimeFailureKind, RuntimeSession,
@@ -2475,6 +2509,163 @@ fi
                 assert!(usage.in_flight_excess.model_requests > 0);
                 assert!(usage.in_flight_excess.cost_microusd > 0);
             }
+        }
+    }
+
+    /// Builds a substitutable stand-in for a system program of the launch chain. The operating
+    /// system refuses to execute a copy of `/bin/sh` or `/usr/bin/env`, measured as a kill by
+    /// signal, so a check enters the real program through a script whose own bytes can be replaced
+    /// after admission.
+    /// Binds the stand-ins by the digests they were written with, because their location cannot
+    /// carry the binding: they stand in a directory this account owns, which is exactly what the
+    /// product rule refuses.
+    fn stand_in_chain(shell: &Path, sanitiser: &Path) -> ymp_runtime_api::LaunchChain {
+        let digest = |path: &Path| {
+            ymp_runtime_api::evidence_digest(&fs::read(path).expect("stand-in bytes"))
+        };
+        ymp_runtime_api::LaunchChain::stated(
+            (shell.to_owned(), digest(shell)),
+            Some((sanitiser.to_owned(), digest(sanitiser))),
+        )
+    }
+
+    fn chain_stand_in(directory: &Path, name: &str, program: &str) -> PathBuf {
+        let path = directory.join(name);
+        let entered = directory.join(format!("{name}.entered"));
+        fs::write(
+            &path,
+            format!(
+                "#!/bin/sh\nprintf '%s\\n' entered >> '{}'\nexec {program} \"$@\"\n",
+                entered.display()
+            ),
+        )
+        .expect("write launch chain stand-in");
+        let mut permissions = fs::metadata(&path).expect("metadata").permissions();
+        permissions.set_mode(0o700);
+        fs::set_permissions(&path, permissions).expect("make executable");
+        path
+    }
+
+    fn admitted_runtime_fixture(path: &Path) {
+        fs::write(
+            path,
+            r##"#!/bin/sh
+if [ "$1" = "--version" ]; then
+  printf '%s\n' 'codex-cli 0.147.0'
+elif [ "$1" = "login" ]; then
+  exit 0
+else
+  cat >/dev/null
+  printf '%s\n' admitted > admitted-runtime.marker
+  printf '%s\n' '{"type":"thread.started","thread_id":"thread-chain"}'
+  printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":1,"output_tokens":1}}'
+fi
+"##,
+        )
+        .expect("write admitted fixture");
+        let mut permissions = fs::metadata(path).expect("metadata").permissions();
+        permissions.set_mode(0o700);
+        fs::set_permissions(path, permissions).expect("make executable");
+    }
+
+    #[test]
+    fn every_admitted_launch_chain_program_executes_and_refuses_replacement() {
+        let directory = tempfile::tempdir().expect("temporary directory");
+        let executable = directory.path().join("codex-chain-fixture");
+        admitted_runtime_fixture(&executable);
+        let shell = chain_stand_in(directory.path(), "chain-shell", "/bin/sh");
+        let sanitiser = chain_stand_in(directory.path(), "chain-sanitiser", "/usr/bin/env");
+        let runtime =
+            CodexRuntime::new(&executable).with_launch_chain(stand_in_chain(&shell, &sanitiser));
+        runtime.probe().expect("probe chain runtime");
+
+        let admitted_workspace = directory.path().join("admitted");
+        fs::create_dir(&admitted_workspace).expect("admitted workspace");
+        let request = InvocationRequest {
+            invocation_id: "invocation-chain-admitted".to_owned(),
+            attempt_id: "attempt-chain-admitted".to_owned(),
+            workspace: admitted_workspace.clone(),
+            mcp: None,
+            prompt: "run through the admitted chain".to_owned(),
+            cancellation: Default::default(),
+        };
+        let descriptor = runtime
+            .prepare_launch(&request)
+            .expect("prepare admitted chain")
+            .expect("launch descriptor");
+        assert_eq!(
+            descriptor
+                .launch_chain
+                .iter()
+                .map(|program| (program.role, program.path.clone()))
+                .collect::<Vec<_>>(),
+            vec![
+                (ymp_runtime_api::ProgramRole::LaunchShell, shell.clone()),
+                (
+                    ymp_runtime_api::ProgramRole::EnvironmentSanitiser,
+                    sanitiser.clone()
+                ),
+            ]
+        );
+        let mut session = runtime
+            .start_prepared(request, Some(&descriptor))
+            .expect("execute the admitted chain");
+        while session.next_event().expect("runtime event").is_some() {}
+        drop(session);
+        assert!(
+            admitted_workspace.join("admitted-runtime.marker").is_file(),
+            "the admitted chain did not reach the runtime"
+        );
+        // The marker alone would also appear if the launch had ignored the admitted chain and
+        // entered the system shell, so each stand-in records that it was the program that ran.
+        for name in ["chain-shell", "chain-sanitiser"] {
+            assert_eq!(
+                fs::read_to_string(directory.path().join(format!("{name}.entered")))
+                    .unwrap_or_default()
+                    .lines()
+                    .count(),
+                1,
+                "the launch did not enter the admitted {name}"
+            );
+        }
+
+        for (index, expected) in [(0_usize, "launch shell"), (1, "environment sanitiser")] {
+            let workspace = directory.path().join(format!("replaced-{index}"));
+            fs::create_dir(&workspace).expect("negative workspace");
+            let request = InvocationRequest {
+                invocation_id: format!("invocation-chain-replaced-{index}"),
+                attempt_id: format!("attempt-chain-replaced-{index}"),
+                workspace: workspace.clone(),
+                mcp: None,
+                prompt: "run through a replaced chain".to_owned(),
+                cancellation: Default::default(),
+            };
+            let descriptor = runtime
+                .prepare_launch(&request)
+                .expect("prepare replaced chain")
+                .expect("launch descriptor");
+            let replaced = &descriptor.launch_chain[index].path;
+            let bytes = fs::read(replaced).expect("admitted chain program");
+            fs::write(replaced, [bytes.as_slice(), b"# substituted\n"].concat())
+                .expect("substitute admitted chain program");
+            let error = runtime
+                .start_prepared(request, Some(&descriptor))
+                .err()
+                .expect("a replaced chain program refuses the launch");
+            match &error {
+                RuntimeError::InvalidProfile(detail) => assert!(
+                    detail.contains(expected) && detail.contains("changed after admission"),
+                    "unexpected refusal: {detail}"
+                ),
+                other => panic!("unexpected error: {other:?}"),
+            }
+            assert!(
+                !workspace.join("admitted-runtime.marker").exists(),
+                "the runtime ran through a replaced chain program"
+            );
+            // The next round admits the chain again against the digests this check stated, so the
+            // replaced program is put back rather than left for the following round to trip over.
+            fs::write(replaced, &bytes).expect("restore the admitted chain program");
         }
     }
 

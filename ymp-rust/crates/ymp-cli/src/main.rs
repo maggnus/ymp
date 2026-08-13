@@ -4,7 +4,6 @@ use anyhow::{Context, bail};
 use clap::{Parser, Subcommand, ValueEnum};
 use std::io::{self, BufRead, Write};
 use std::path::PathBuf;
-use std::process::Command as ProcessCommand;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 use uuid::Uuid;
@@ -14,6 +13,7 @@ use ymp_runtime_api::{CancellationToken, InvocationRequest, McpBinding, Readines
 use ymp_runtime_claude::ClaudeRuntime;
 use ymp_runtime_codex::CodexRuntime;
 use ymp_runtime_fake::FakeRuntime;
+use ymp_runtime_supervisor::{admit_workspace_program, initialize_private_git};
 
 #[derive(Debug, Parser)]
 #[command(
@@ -291,7 +291,7 @@ fn run_managed_candidate_smoke(
     let base = artifacts.capture_source(&source)?;
     let workspace = data_root.join("workspaces").join(&attempt_id);
     artifacts.materialize(&base.manifest_digest, &workspace)?;
-    initialize_private_git(&workspace)?;
+    initialize_private_git(&workspace, &admit_workspace_program()?)?;
     application.execute(
         format!("{attempt_id}.start"),
         DomainCommand::StartAttempt {
@@ -361,39 +361,6 @@ fn run_managed_candidate_smoke(
             "state": application.state()
         }))?
     );
-    Ok(())
-}
-
-fn initialize_private_git(workspace: &std::path::Path) -> anyhow::Result<()> {
-    for (action, arguments) in [
-        ("initialize private Git repository", vec!["init", "--quiet"]),
-        ("stage private workspace", vec!["add", "--all"]),
-        (
-            "commit private baseline",
-            vec![
-                "-c",
-                "user.name=ymp",
-                "-c",
-                "user.email=ymp@invalid",
-                "-c",
-                "core.hooksPath=/dev/null",
-                "commit",
-                "--quiet",
-                "--allow-empty",
-                "-m",
-                "ymp private baseline",
-            ],
-        ),
-    ] {
-        let status = ProcessCommand::new("git")
-            .args(arguments)
-            .current_dir(workspace)
-            .status()
-            .with_context(|| format!("{action} in {}", workspace.display()))?;
-        if !status.success() {
-            bail!("{action} failed with {status}");
-        }
-    }
     Ok(())
 }
 

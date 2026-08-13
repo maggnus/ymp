@@ -313,6 +313,7 @@ printf '%s\n' '{{"type":"result","subtype":"success","is_error":false,"terminal_
         .expect("token environment evidence");
     assert_eq!(token_entry["confidential"], true);
     assert!(token_entry["value"].is_null());
+    assert_admitted_programs(&profile);
 
     let evidence = fs::read_to_string(
         data_root
@@ -780,4 +781,56 @@ fi
     ]);
     assert_eq!(resumed.arguments, expected_arguments);
     handle.join().expect("join worker");
+}
+
+/// Reads back, from the run's own evidence, every program the run executed on its own behalf: the
+/// programs the launch entered, the program that built the workspace baseline, and the utilities
+/// that observe and terminate what the run started. Each is named with its role, the binding its
+/// identity rests on, and the digest of the bytes admitted for it, so the enumeration comes from the
+/// run's own record rather than from the source.
+fn assert_admitted_programs(profile: &serde_json::Value) {
+    let chain = profile["profile"]["launch_descriptor"]["launch_chain"]
+        .as_array()
+        .expect("admitted launch chain");
+    let mut expected = vec![("launch_shell", "/bin/sh")];
+    if std::path::Path::new("/usr/bin/env").is_file() {
+        expected.push(("environment_sanitiser", "/usr/bin/env"));
+    }
+    assert_eq!(chain.len(), expected.len());
+    for (program, (role, path)) in chain.iter().zip(expected) {
+        assert_eq!(program["role"], role);
+        assert_eq!(program["path"], path);
+        assert_admitted(program);
+    }
+    let workspace_program = &profile["profile"]["workspace_program"];
+    assert_eq!(workspace_program["role"], "workspace");
+    assert_admitted(workspace_program);
+
+    let lifecycle = profile["profile"]["lifecycle_programs"]
+        .as_array()
+        .expect("admitted lifecycle programs");
+    let roles: Vec<&str> = lifecycle
+        .iter()
+        .map(|program| program["role"].as_str().expect("lifecycle role"))
+        .collect();
+    assert!(roles.contains(&"process_table"), "{roles:?}");
+    assert!(roles.contains(&"signal"), "{roles:?}");
+    if !std::path::Path::new("/proc/self/fd").is_dir() {
+        assert!(roles.contains(&"descriptor_holders"), "{roles:?}");
+    }
+    for program in lifecycle {
+        assert_admitted(program);
+    }
+}
+
+/// Every program the record names is bound to a location this account cannot write, and carries the
+/// digest of the bytes standing there.
+fn assert_admitted(program: &serde_json::Value) {
+    let path = program["path"].as_str().expect("admitted program path");
+    assert_eq!(program["identity"], "system_path", "{path}");
+    assert_eq!(
+        program["digest"],
+        ymp_domain::digest_bytes(&fs::read(path).expect("admitted program bytes")),
+        "{path}"
+    );
 }

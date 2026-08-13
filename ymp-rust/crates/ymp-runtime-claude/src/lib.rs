@@ -12,11 +12,12 @@ use std::sync::{Arc, Mutex};
 use std::thread::{self, JoinHandle};
 use std::time::{Duration, Instant};
 use ymp_runtime_api::{
-    BoundedOutputLine, CancellationToken, DiagnosticSummary, InFlightExcess, InvocationRequest,
-    LaunchDescriptor, LaunchEnvironmentVariable, McpBinding, ProbeReport, Readiness, RuntimeDriver,
-    RuntimeError, RuntimeEvent, RuntimeEventKind, RuntimeFailureKind, RuntimeKind, RuntimeSession,
-    Usage, configure_process_group, create_launch_marker, evidence_digest, managed_launch_command,
-    read_bounded_lines, register_launch_marker, terminate_process_tree,
+    AdmittedProgram, BoundedOutputLine, CancellationToken, DiagnosticSummary, InFlightExcess,
+    InvocationRequest, LaunchChain, LaunchDescriptor, LaunchEnvironmentVariable, McpBinding,
+    ProbeReport, ProgramRequirement, ProgramRole, Readiness, RuntimeDriver, RuntimeError,
+    RuntimeEvent, RuntimeEventKind, RuntimeFailureKind, RuntimeKind, RuntimeSession, Usage,
+    configure_process_group, create_launch_marker, evidence_digest, managed_launch_command,
+    read_bounded_lines, register_launch_marker, terminate_process_tree, verify_admitted_programs,
 };
 
 pub const PINNED_CLAUDE_VERSION: &str = "2.1.227 (Claude Code)";
@@ -225,6 +226,7 @@ pub struct ClaudeRuntime {
     profile: ClaudeProfile,
     credential: Option<CredentialSource>,
     runtime_path: OsString,
+    launch_chain: LaunchChain,
     prepared_launches: Arc<Mutex<HashMap<String, ClaudeLaunch>>>,
 }
 
@@ -244,6 +246,7 @@ impl ClaudeRuntime {
             credential: CredentialSource::discover(),
             runtime_path: std::env::var_os("PATH")
                 .unwrap_or_else(|| OsString::from("/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin")),
+            launch_chain: LaunchChain::default(),
             prepared_launches: Arc::new(Mutex::new(HashMap::new())),
         }
     }
@@ -252,6 +255,15 @@ impl ClaudeRuntime {
         let mut runtime = Self::new(executable);
         runtime.profile = profile;
         runtime
+    }
+
+    /// Replaces the programs the launch preamble enters. The product path uses the system shell and
+    /// sanitiser; this exists so that a check can substitute a chain program after admission, which
+    /// the system paths do not allow.
+    #[doc(hidden)]
+    pub fn with_launch_chain(mut self, chain: LaunchChain) -> Self {
+        self.launch_chain = chain;
+        self
     }
 
     pub fn profile(&self) -> &ClaudeProfile {
@@ -309,6 +321,11 @@ enum CredentialSource {
 }
 
 impl CredentialSource {
+    #[cfg(target_os = "macos")]
+    const MACOS_KEYCHAIN_READER: &'static str = "/usr/bin/security";
+}
+
+impl CredentialSource {
     fn discover() -> Option<Self> {
         let configuration = std::env::var_os("CLAUDE_CONFIG_DIR")
             .map(PathBuf::from)
@@ -329,12 +346,37 @@ impl CredentialSource {
         }
     }
 
+    /// The program this source executes to obtain the credential, admitted before it runs. It hands
+    /// credential material to the managed process, so it belongs to the trusted chain and is named
+    /// in the launch record rather than treated as an incidental utility.
+    fn reader(&self) -> Result<Option<AdmittedProgram>, RuntimeError> {
+        match self {
+            Self::File(_) => Ok(None),
+            #[cfg(target_os = "macos")]
+            Self::MacosKeychain => Ok(Some(AdmittedProgram::admit(
+                ProgramRole::CredentialReader,
+                Self::MACOS_KEYCHAIN_READER,
+                &ProgramRequirement::SystemPath,
+            )?)),
+        }
+    }
+
     fn read(&self) -> Result<Option<Vec<u8>>, RuntimeError> {
+        let reader = self.reader()?;
         let material = match self {
             Self::File(path) => fs::read(path)?,
             #[cfg(target_os = "macos")]
             Self::MacosKeychain => {
-                let output = Command::new("/usr/bin/security")
+                let reader = reader
+                    .as_ref()
+                    .ok_or_else(|| {
+                        RuntimeError::InvalidProfile(
+                            "the keychain credential reader was not admitted".to_owned(),
+                        )
+                    })?
+                    .path
+                    .clone();
+                let output = Command::new(reader)
                     .args([
                         "find-generic-password",
                         "-s",
@@ -419,6 +461,7 @@ impl VerifiedExecutable {
 struct ClaudeLaunch {
     executable: VerifiedExecutable,
     coordination_executable: Option<VerifiedExecutable>,
+    launch_chain: Vec<AdmittedProgram>,
     profile: ClaudeProfile,
     workspace: PathBuf,
     attempt_id: String,
@@ -554,6 +597,7 @@ impl ClaudeLaunch {
                 .coordination_executable
                 .as_ref()
                 .map(|executable| executable.digest.clone()),
+            launch_chain: self.launch_chain.clone(),
             arguments,
             environment: environment
                 .iter()
@@ -635,11 +679,25 @@ impl ClaudeLaunch {
             Some(&self.attempt_id),
             Some(&self.invocation_id),
         )?;
+        // The shell and the environment sanitiser execute before the runtime image is loaded, so
+        // they are part of the trusted path and are refused unless they still hold the bytes that
+        // were admitted for this launch.
+        verify_admitted_programs(&descriptor.launch_chain)?;
         // Every descendant of the managed process inherits this marker, whatever becomes of the
         // processes between it and the run, so the run can still identify what it started.
         let marker = create_launch_marker()?;
-        let mut command =
-            managed_launch_command(&descriptor.executable, &descriptor.arguments, &marker);
+        let mut command = match managed_launch_command(
+            &descriptor.executable,
+            &descriptor.arguments,
+            &marker,
+            &descriptor.launch_chain,
+        ) {
+            Ok(command) => command,
+            Err(error) => {
+                let _ = std::fs::remove_file(&marker);
+                return Err(error);
+            }
+        };
         ClaudeEnvironment::apply(&mut command, &environment);
         command
             .current_dir(&descriptor.working_directory)
@@ -677,6 +735,10 @@ impl ClaudeLaunch {
         if let Err(error) = delivered {
             let _ = terminate_process_tree(&mut child);
             return Err(RuntimeError::Process(error));
+        }
+        if let Err(error) = verify_admitted_programs(&descriptor.launch_chain) {
+            let _ = terminate_process_tree(&mut child);
+            return Err(error);
         }
         if executable_digest(&descriptor.executable)? != descriptor.executable_digest {
             let _ = terminate_process_tree(&mut child);
@@ -884,9 +946,19 @@ impl RuntimeDriver for ClaudeRuntime {
             }
             None => (None, None),
         };
+        // The reader of the operator's credential runs before the runtime image is loaded and its
+        // output reaches the managed process, so it is admitted with the chain and named in the
+        // launch record rather than treated as an incidental utility.
+        let mut launch_chain = self.launch_chain.admit()?;
+        if let Some(credential) = &self.credential
+            && let Some(reader) = credential.reader()?
+        {
+            launch_chain.push(reader);
+        }
         let launch = ClaudeLaunch {
             executable,
             coordination_executable,
+            launch_chain,
             profile: self.profile.clone(),
             workspace: request.workspace.clone(),
             attempt_id: request.attempt_id.clone(),
@@ -2521,5 +2593,168 @@ sleep 30
             .without_delegated_credential();
         let probe = runtime.probe().expect("probe");
         assert_eq!(probe.readiness, Readiness::NotInstalled);
+    }
+
+    /// Builds a substitutable stand-in for a system program of the launch chain. The operating
+    /// system refuses to execute a copy of `/bin/sh` or `/usr/bin/env`, measured as a kill by
+    /// signal, so a check enters the real program through a script whose own bytes can be replaced
+    /// after admission.
+    /// The program that reads the operator's credential hands material to the managed process, so
+    /// it is admitted under the same rule as the rest of the trusted chain rather than executed as
+    /// an incidental utility.
+    #[test]
+    #[cfg(target_os = "macos")]
+    fn the_credential_reader_is_admitted_before_it_reads_the_credential() {
+        use super::CredentialSource;
+
+        let reader = CredentialSource::MacosKeychain
+            .reader()
+            .expect("admit the keychain reader")
+            .expect("the keychain source reads through a program");
+        assert_eq!(reader.role, ymp_runtime_api::ProgramRole::CredentialReader);
+        assert_eq!(
+            reader.path,
+            Path::new(CredentialSource::MACOS_KEYCHAIN_READER)
+        );
+        assert_eq!(
+            reader.identity,
+            ymp_runtime_api::ProgramIdentity::SystemPath,
+            "the credential reader is bound to a location this account cannot write"
+        );
+        reader.verify().expect("the admitted reader verifies");
+
+        let file = tempfile::tempdir().expect("temporary directory");
+        let credential = file.path().join(".credentials.json");
+        fs::write(&credential, b"{}").expect("write credential");
+        assert!(
+            CredentialSource::File(credential)
+                .reader()
+                .expect("a file source is inspected")
+                .is_none(),
+            "a credential read from a file executes no program"
+        );
+    }
+
+    /// Binds the stand-ins by the digests they were written with, because their location cannot
+    /// carry the binding: they stand in a directory this account owns, which is exactly what the
+    /// product rule refuses.
+    fn stand_in_chain(shell: &Path, sanitiser: &Path) -> ymp_runtime_api::LaunchChain {
+        let digest = |path: &Path| {
+            ymp_runtime_api::evidence_digest(&fs::read(path).expect("stand-in bytes"))
+        };
+        ymp_runtime_api::LaunchChain::stated(
+            (shell.to_owned(), digest(shell)),
+            Some((sanitiser.to_owned(), digest(sanitiser))),
+        )
+    }
+
+    fn chain_stand_in(directory: &Path, name: &str, program: &str) -> PathBuf {
+        let path = directory.join(name);
+        let entered = directory.join(format!("{name}.entered"));
+        fs::write(
+            &path,
+            format!(
+                "#!/bin/sh\nprintf '%s\\n' entered >> '{}'\nexec {program} \"$@\"\n",
+                entered.display()
+            ),
+        )
+        .expect("write launch chain stand-in");
+        let mut permissions = fs::metadata(&path).expect("metadata").permissions();
+        permissions.set_mode(0o700);
+        fs::set_permissions(&path, permissions).expect("make executable");
+        path
+    }
+
+    #[test]
+    fn every_admitted_launch_chain_program_executes_and_refuses_replacement() {
+        let directory = tempfile::tempdir().expect("temporary directory");
+        let executable = fixture(
+            directory.path(),
+            "claude-chain",
+            &format!(
+                r##"cat >/dev/null
+printf '%s\n' admitted > admitted-runtime.marker
+printf '%s\n' '{{"type":"system","subtype":"init","session_id":"session-chain","claude_code_version":"2.1.227","model":"claude-opus-5","permissionMode":"acceptEdits","tools":{INIT_TOOLS},"mcp_servers":[],"slash_commands":[],"plugins":[],"skills":[]}}'
+printf '%s\n' '{{"type":"result","subtype":"success","is_error":false,"terminal_reason":"completed","total_cost_usd":0.001,"usage":{{"input_tokens":1,"output_tokens":1}}}}'
+"##
+            ),
+        );
+        let shell = chain_stand_in(directory.path(), "chain-shell", "/bin/sh");
+        let sanitiser = chain_stand_in(directory.path(), "chain-sanitiser", "/usr/bin/env");
+        let runtime = ClaudeRuntime::new(&executable)
+            .without_delegated_credential()
+            .with_launch_chain(stand_in_chain(&shell, &sanitiser));
+
+        let admitted_workspace = directory.path().join("admitted");
+        fs::create_dir(&admitted_workspace).expect("admitted workspace");
+        let prepared = runtime
+            .prepare_launch(&request(&admitted_workspace, "invocation-chain-shape"))
+            .expect("prepare the admitted chain")
+            .expect("launch descriptor");
+        assert_eq!(
+            prepared
+                .launch_chain
+                .iter()
+                .map(|program| program.role)
+                .collect::<Vec<_>>(),
+            vec![
+                ymp_runtime_api::ProgramRole::LaunchShell,
+                ymp_runtime_api::ProgramRole::EnvironmentSanitiser,
+            ],
+            "a run that delegates no credential enters no credential reader"
+        );
+        let mut session = runtime
+            .start(request(&admitted_workspace, "invocation-chain-admitted"))
+            .expect("execute the admitted chain");
+        while session.next_event().expect("runtime event").is_some() {}
+        drop(session);
+        assert!(
+            admitted_workspace.join("admitted-runtime.marker").is_file(),
+            "the admitted chain did not reach the runtime"
+        );
+        // The marker alone would also appear if the launch had ignored the admitted chain and
+        // entered the system shell, so each stand-in records that it was the program that ran.
+        for name in ["chain-shell", "chain-sanitiser"] {
+            assert_eq!(
+                fs::read_to_string(directory.path().join(format!("{name}.entered")))
+                    .unwrap_or_default()
+                    .lines()
+                    .count(),
+                1,
+                "the launch did not enter the admitted {name}"
+            );
+        }
+
+        for (index, expected) in [(0_usize, "launch shell"), (1, "environment sanitiser")] {
+            let workspace = directory.path().join(format!("replaced-{index}"));
+            fs::create_dir(&workspace).expect("negative workspace");
+            let request = request(&workspace, &format!("invocation-chain-replaced-{index}"));
+            let descriptor = runtime
+                .prepare_launch(&request)
+                .expect("prepare replaced chain")
+                .expect("launch descriptor");
+            let replaced = &descriptor.launch_chain[index].path;
+            let bytes = fs::read(replaced).expect("admitted chain program");
+            fs::write(replaced, [bytes.as_slice(), b"# substituted\n"].concat())
+                .expect("substitute admitted chain program");
+            let error = runtime
+                .start_prepared(request, Some(&descriptor))
+                .err()
+                .expect("a replaced chain program refuses the launch");
+            match &error {
+                RuntimeError::InvalidProfile(detail) => assert!(
+                    detail.contains(expected) && detail.contains("changed after admission"),
+                    "unexpected refusal: {detail}"
+                ),
+                other => panic!("unexpected error: {other:?}"),
+            }
+            assert!(
+                !workspace.join("admitted-runtime.marker").exists(),
+                "the runtime ran through a replaced chain program"
+            );
+            // The next round admits the chain again against the digests this check stated, so the
+            // replaced program is put back rather than left for the following round to trip over.
+            fs::write(replaced, &bytes).expect("restore the admitted chain program");
+        }
     }
 }
