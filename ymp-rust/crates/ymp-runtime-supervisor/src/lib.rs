@@ -509,7 +509,11 @@ pub fn start_managed_candidate(
         )
     })?;
     let workspace_program = admit_workspace_program()?;
-    let lifecycle_programs = admit_lifecycle_programs();
+    // The run observes and ends its own processes with these utilities. One that cannot be admitted
+    // stops the run here, naming the program and the reason, rather than leaving a run that reports
+    // a clean termination it was never able to establish.
+    let lifecycle_programs = admit_lifecycle_programs()
+        .context("the utilities this run observes and ends its own processes with")?;
     let contract_id = request.contract.contract_id.clone();
     let contract_digest = request.contract.contract_digest.clone();
     let attempt_id = format!("attempt-{}", Uuid::new_v4());
