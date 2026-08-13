@@ -47,6 +47,11 @@ pub enum ApplicationError {
     Transition(#[from] TransitionError),
     #[error("data root is already initialized")]
     AlreadyInitialized,
+    #[error(
+        "this store was written under event schema version {actual}; this binary reads version \
+         {expected} and left the store unchanged"
+    )]
+    IncompatibleStore { actual: u32, expected: u32 },
     #[error("data root has no committed run")]
     NotInitialized,
     #[error("data root is already owned by another foreground process")]
@@ -202,12 +207,14 @@ impl Application {
         let data_root = data_root.as_ref().to_path_buf();
         let run_id = run_id.into();
         validate_identifier("run_id", &run_id)?;
+        store_compatibility(&data_root)?;
         let lock = DataRootLock::acquire(&data_root).map_err(|error| match error {
             ymp_storage::LockError::AlreadyLocked => ApplicationError::WriterAlreadyActive,
             ymp_storage::LockError::Io(source) => ApplicationError::Io(source),
         })?;
         let (mut journal, existing) =
-            Journal::open_with_limits(data_root.join("events.jsonl"), config.journal_limits)?;
+            Journal::open_with_limits(data_root.join("events.jsonl"), config.journal_limits)
+                .map_err(journal_open_error)?;
         if !existing.is_empty() {
             return Err(ApplicationError::AlreadyInitialized);
         }
@@ -253,12 +260,18 @@ impl Application {
         config: ApplicationConfig,
     ) -> Result<Self, ApplicationError> {
         let data_root = data_root.as_ref().to_path_buf();
+        // A store this binary cannot read is refused before anything is opened for writing: no
+        // lock is taken, no projection is replaced, and not one byte of it changes. Marking such
+        // a store as an infrastructure failure would destroy the record of a run this binary is
+        // in no position to judge.
+        store_compatibility(&data_root)?;
         let lock = DataRootLock::acquire(&data_root).map_err(|error| match error {
             ymp_storage::LockError::AlreadyLocked => ApplicationError::WriterAlreadyActive,
             ymp_storage::LockError::Io(source) => ApplicationError::Io(source),
         })?;
         match Self::open_locked(data_root.clone(), lock, config) {
             Ok(app) => Ok(app),
+            Err(error @ ApplicationError::IncompatibleStore { .. }) => Err(error),
             Err(error) => {
                 let _ = mark_infrastructure_error(&data_root);
                 Err(error)
@@ -272,7 +285,8 @@ impl Application {
         config: ApplicationConfig,
     ) -> Result<Self, ApplicationError> {
         let (journal, events) =
-            Journal::open_with_limits(data_root.join("events.jsonl"), config.journal_limits)?;
+            Journal::open_with_limits(data_root.join("events.jsonl"), config.journal_limits)
+                .map_err(journal_open_error)?;
         let first = events.first().ok_or(ApplicationError::NotInitialized)?;
         let mut state = RunState::from_start(first).ok_or(ApplicationError::InvalidFirstEvent)?;
         let object_store = ObjectStore::open(data_root.join("objects/sha256"))?;
@@ -1003,6 +1017,44 @@ fn copy_export_tree(source: &Path, destination: &Path) -> Result<(), Application
     fs::copy(source, destination)?;
     File::open(destination)?.sync_all()?;
     Ok(())
+}
+
+/// Read the schema version of a store without opening it for writing.
+///
+/// Only the first journal record is read, and only its version field is used: the record is
+/// immutable once written, so this needs neither the writer lock nor the digest chain.
+fn store_compatibility(data_root: &Path) -> Result<(), ApplicationError> {
+    let journal = data_root.join("events.jsonl");
+    let Ok(bytes) = fs::read(&journal) else {
+        return Ok(());
+    };
+    let Some(line) = bytes.split(|byte| *byte == b'\n').next() else {
+        return Ok(());
+    };
+    #[derive(Deserialize)]
+    struct Versioned {
+        schema_version: u32,
+    }
+    let Ok(record) = serde_json::from_slice::<Versioned>(line) else {
+        return Ok(());
+    };
+    if record.schema_version == ymp_domain::EVENT_SCHEMA_VERSION {
+        return Ok(());
+    }
+    Err(ApplicationError::IncompatibleStore {
+        actual: record.schema_version,
+        expected: ymp_domain::EVENT_SCHEMA_VERSION,
+    })
+}
+
+fn journal_open_error(error: JournalError) -> ApplicationError {
+    match error {
+        JournalError::UnsupportedSchema { actual, .. } => ApplicationError::IncompatibleStore {
+            actual,
+            expected: ymp_domain::EVENT_SCHEMA_VERSION,
+        },
+        error => ApplicationError::Journal(error),
+    }
 }
 
 fn validate_identifier(kind: &'static str, value: &str) -> Result<(), ApplicationError> {

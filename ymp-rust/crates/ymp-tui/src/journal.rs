@@ -40,6 +40,8 @@ pub struct Model {
     events: Vec<EventFacts>,
     /// The answer the interface is waiting for, while a request is being drafted.
     awaiting: Option<String>,
+    /// Whether this store was refused because this binary cannot read it.
+    refused: bool,
     /// The last journal position folded into this model.
     pub cursor: u64,
 }
@@ -58,6 +60,7 @@ impl Model {
             attempts: Vec::new(),
             events: Vec::new(),
             awaiting: None,
+            refused: false,
             cursor: 0,
         };
         model.push(Entry::Banner {
@@ -77,7 +80,28 @@ impl Model {
     }
 
     /// What the interface says when the store holds no run: the absence, and the next step.
+    ///
+    /// A store that was refused is a different case and says so: whether it holds a run is
+    /// unknown to this binary, so nothing claims it is empty and nothing is offered over it.
     fn cold_start_entries(&self) -> Vec<Entry> {
+        if self.refused {
+            return vec![
+                Entry::Blank,
+                Entry::AppReply {
+                    text: "this store was left exactly as it was found — whether it holds a run \
+                           is not something this binary can read"
+                        .into(),
+                },
+                Entry::AppReply {
+                    text: "no request can be drafted here · point ymp at another store, or use a \
+                           binary that reads this one's version"
+                        .into(),
+                },
+                Entry::AppReply {
+                    text: "?          key map".into(),
+                },
+            ];
+        }
         vec![
             Entry::Blank,
             Entry::AppReply {
@@ -221,6 +245,16 @@ impl Model {
         self.push(Entry::Human { text: text.into() });
     }
 
+    /// Record that this store cannot be read by this binary, so nothing is offered over it.
+    pub fn refuse_store(&mut self) {
+        self.refused = true;
+    }
+
+    /// Whether this store was refused as unreadable.
+    pub fn store_refused(&self) -> bool {
+        self.refused
+    }
+
     /// State which answer the interface is waiting for, or that it waits for none.
     pub fn await_answer(&mut self, hint: Option<String>) {
         self.awaiting = hint;
@@ -344,6 +378,12 @@ impl Model {
 
     /// The status line: what is true about the run right now.
     pub fn status_line(&self) -> String {
+        if self.refused {
+            return format!(
+                "unreadable store · nothing changed · store {}",
+                self.environment.data_root.display()
+            );
+        }
         match &self.run {
             None => format!(
                 "idle · no run · store {}",

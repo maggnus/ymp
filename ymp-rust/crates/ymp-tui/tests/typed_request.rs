@@ -68,7 +68,7 @@ fn submit(app: &mut App, session: &mut Session, text: &str) {
     type_text(app, text, 40);
     match press(app, KeyCode::Enter, 40) {
         Some(Action::LocalTurn(line)) => session.local_turn(line),
-        Some(Action::StartRun) => session.start_run(),
+        Some(Action::StartRun(contract_id)) => session.start_run(&contract_id),
         Some(Action::CancelRun) => session.cancel_run(),
         Some(Action::Rebuild) | None => {}
     }
@@ -136,8 +136,8 @@ fn a_typed_request_becomes_a_contract_and_starts_a_run_the_journal_records() {
 
     type_text(&mut app, &contract_id[4..], 40);
     let action = press(&mut app, KeyCode::Enter, 40);
-    assert_eq!(action, Some(Action::StartRun));
-    session.start_run();
+    assert_eq!(action, Some(Action::StartRun(contract_id.clone())));
+    session.start_run(&contract_id);
     app.adopt(session.projection(None));
 
     // The run is live on screen and both facts are in the journal.
@@ -234,7 +234,8 @@ fn a_request_with_no_acceptance_condition_starts_nothing_and_names_what_is_missi
         &workspace.negative_control.display().to_string(),
     );
     assert_eq!(app.data.contracts.len(), 1);
-    session.start_run();
+    let contract_id = app.data.contracts[0].contract_id.clone();
+    session.start_run(&contract_id);
     app.adopt(session.projection(None));
     assert!(
         app.data.run.is_some(),
@@ -264,7 +265,8 @@ fn a_second_request_cannot_start_a_second_run_in_the_same_store() {
         &mut session,
         &workspace.negative_control.display().to_string(),
     );
-    session.start_run();
+    let contract_id = app.data.contracts[0].contract_id.clone();
+    session.start_run(&contract_id);
     app.adopt(session.projection(None));
     let sequence = app
         .data
@@ -281,7 +283,7 @@ fn a_second_request_cannot_start_a_second_run_in_the_same_store() {
     assert!(authorize.action.is_none());
     assert!(authorize.action_note.contains("already holds a run"));
 
-    session.start_run();
+    session.start_run(&contract_id);
     app.adopt(session.projection(None));
     assert_eq!(
         app.data
@@ -295,5 +297,149 @@ fn a_second_request_cannot_start_a_second_run_in_the_same_store() {
     assert!(
         screen(&app, 120, 40).contains("already holds a run"),
         "the refusal was not stated"
+    );
+}
+
+/// A contract as the command line supplies one: prepared by the application from a package,
+/// exactly as `--contract` prepares it before the interface opens.
+fn command_line_contract(workspace: &Workspace) -> ymp_application::PreparedContract {
+    ymp_application::prepare_contract(&ymp_application::RunRequest {
+        prompt: "keep the replay path idempotent".to_owned(),
+        source: workspace.source.clone(),
+        acceptance: Some(ymp_application::AcceptanceCondition::new(
+            &workspace.program,
+            &workspace.negative_control,
+        )),
+        capture_exclusions: Vec::new(),
+        contract_id: Some("contract-from-the-command-line".to_owned()),
+        budget: None,
+    })
+    .expect("the command line prepares its contract before the interface opens")
+}
+
+#[test]
+fn a_contract_from_the_command_line_starts_the_same_run_a_typed_request_would() {
+    let workspace = workspace();
+    let contract = command_line_contract(&workspace);
+    let run_id = contract.run_id();
+    let mut session = Session::open(&workspace.data_root, std::slice::from_ref(&contract));
+    let mut app = App::new(session.projection(None));
+
+    // The coverage map offers the run, and the offer is honoured: the action the operator sees
+    // and the start the session performs name the same contract.
+    app.open_authorize();
+    let Modal::Authorize(authorize) = &app.modal else {
+        panic!("the coverage map is not open");
+    };
+    let action = authorize
+        .action
+        .clone()
+        .expect("a contract the command line supplied offers its run");
+    assert_eq!(action.contract_id, "contract-from-the-command-line");
+    assert_eq!(action.run_id, run_id);
+
+    press(&mut app, KeyCode::Enter, 40);
+    type_text(&mut app, "contract-from-the-command-line", 40);
+    let started = press(&mut app, KeyCode::Enter, 40);
+    assert_eq!(
+        started,
+        Some(Action::StartRun(
+            "contract-from-the-command-line".to_owned()
+        ))
+    );
+    let Some(Action::StartRun(contract_id)) = started else {
+        panic!("the confirmation did not ask for a start");
+    };
+    session.start_run(&contract_id);
+    app.adopt(session.projection(None));
+
+    let run = app
+        .data
+        .run
+        .as_ref()
+        .expect("the command-line contract started its run");
+    assert_eq!(run.run_id, run_id);
+    let rendered = screen(&app, 120, 40);
+    assert!(rendered.contains("[*] running"), "{rendered}");
+    assert!(!rendered.contains("no contract is drafted"), "{rendered}");
+
+    drop(session);
+    let application = Application::open(&workspace.data_root).expect("the store holds a run");
+    let binding = application
+        .contract()
+        .expect("the run is bound to the command-line contract");
+    assert_eq!(binding.contract_id, "contract-from-the-command-line");
+    assert_eq!(binding.contract_digest, contract.contract_digest);
+
+    // Reopening shows the contract of the started run, read back from the store.
+    drop(application);
+    let reopened = Session::open(&workspace.data_root, &[]);
+    let facts = reopened
+        .projection(None)
+        .contracts
+        .first()
+        .cloned()
+        .expect("the bound contract is projected after reopening");
+    assert_eq!(facts.contract_id, "contract-from-the-command-line");
+    assert!(facts.verifier.is_some());
+}
+
+#[test]
+fn a_start_naming_a_contract_the_session_does_not_carry_writes_nothing() {
+    let workspace = workspace();
+    let mut session = Session::open(&workspace.data_root, &[]);
+    let mut app = App::new(session.projection(None));
+
+    session.start_run("contract-that-was-never-prepared");
+    app.adopt(session.projection(None));
+
+    assert!(app.data.run.is_none(), "an unknown contract started a run");
+    assert!(
+        !workspace.data_root.join("events.jsonl").exists(),
+        "an unknown contract wrote a journal"
+    );
+    assert!(
+        screen(&app, 120, 40).contains("no contract named"),
+        "the refusal was not stated"
+    );
+}
+
+#[test]
+fn a_store_written_under_another_schema_version_is_reported_and_left_alone() {
+    let workspace = workspace();
+    let events = "{\"schema_version\":1,\"run_id\":\"older-run\",\"sequence\":1,\"command_id\":\"ymp.bootstrap\",\"command_digest\":\"00\",\"predecessor_digest\":null,\"event\":{\"type\":\"run_started\",\"budget\":{\"attempts_remaining\":2,\"verification_queries_remaining\":1}},\"digest\":\"11\"}\n";
+    let projection = b"{\n  \"run_id\": \"older-run\",\n  \"status\": \"running\"\n}\n";
+    fs::write(workspace.data_root.join("events.jsonl"), events).expect("journal");
+    fs::write(workspace.data_root.join("run.json"), projection).expect("projection");
+
+    let mut session = Session::open(&workspace.data_root, &[]);
+    let mut app = App::new(session.projection(None));
+
+    let rendered = screen(&app, 120, 40);
+    assert!(rendered.contains("schema version 1"), "{rendered}");
+    assert!(rendered.contains("Nothing in it was changed"), "{rendered}");
+    assert!(
+        !rendered.contains("no run recorded"),
+        "an unreadable store was reported as an empty one:\n{rendered}"
+    );
+
+    // The projection is byte-for-byte what it was, and typing a request over it is refused.
+    assert_eq!(
+        fs::read(workspace.data_root.join("run.json")).expect("projection after"),
+        projection,
+        "opening the store rewrote its projection"
+    );
+    submit(&mut app, &mut session, "keep the replay path idempotent");
+    assert!(
+        app.data.contracts.is_empty(),
+        "a request was drafted over a store that cannot be read"
+    );
+    assert!(
+        screen(&app, 120, 40).contains("cannot be read by this binary"),
+        "the refusal to draft was not stated"
+    );
+    assert_eq!(
+        fs::read(workspace.data_root.join("run.json")).expect("projection after"),
+        projection
     );
 }

@@ -15,7 +15,8 @@
 use std::path::{Path, PathBuf};
 
 use ymp_application::PreparedContract;
-use ymp_domain::{Budget, ContractBinding, RunState, RunStatus};
+use ymp_domain::contract::ContractDocument;
+use ymp_domain::{Budget, RunState, RunStatus};
 
 use crate::pages::Page;
 use crate::state::{PageKind, PaletteItem};
@@ -249,18 +250,22 @@ impl ContractFacts {
         }
     }
 
-    /// The contract a started run is bound to, as the journal recorded it. The prompt and the
-    /// source are not in the journal, so they are stated as unavailable rather than invented.
-    pub fn from_binding(binding: &ContractBinding) -> Self {
+    /// A contract read back from the store, with no run left for it to start.
+    pub fn from_document(document: &ContractDocument, digest: String) -> Self {
         Self {
-            contract_id: binding.contract_id.clone(),
-            contract_digest: binding.contract_digest.clone(),
-            source: PathBuf::new(),
-            prompt: String::new(),
-            verifier: None,
+            contract_id: document.contract_id.clone(),
+            contract_digest: digest,
+            source: document.source.clone(),
+            prompt: document.prompt.clone(),
+            verifier: Some(VerifierFacts {
+                program: document.verifier.program.clone(),
+                oracle_digest: document.verifier.oracle_digest.clone(),
+                negative_control: document.verifier.negative_control.clone(),
+                wall_time_ms: document.verifier.wall_time_ms,
+            }),
             budget: None,
             run_id: None,
-            blocked: Some("this run is already started — its contract is fixed".to_owned()),
+            blocked: None,
         }
     }
 

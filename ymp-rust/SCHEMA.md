@@ -53,6 +53,13 @@ no migration tool exists. Such a store remains inspectable as raw evidence and c
 extended or exported by this binary; a new run needs a new data root. Evidence exported from a
 version-1 store keeps its own bytes and is not rewritten.
 
+Refusing such a store changes nothing in it. The version is read from the first journal record
+before the store is opened for writing, so no writer lock is taken, the `run.json` projection is
+not replaced, and the refusal is not recorded as an infrastructure failure of a run this binary
+cannot read. A store whose journal is unreadable for any other reason keeps the earlier behaviour:
+its projection is marked `infrastructure_error`, because there the failure is this binary's to
+record.
+
 Migration must be an explicit offline operation into a new data root. A future migration tool must:
 
 1. acquire exclusive ownership of the source and destination;

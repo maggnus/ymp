@@ -16,9 +16,11 @@ use std::thread;
 use std::time::Duration;
 
 use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
-use ymp_application::{Application, PreparedContract, RunRequest, prepare_contract};
+use ymp_application::{
+    Application, ApplicationError, PreparedContract, RunRequest, prepare_contract,
+};
 use ymp_domain::Command as DomainCommand;
-use ymp_runtime_supervisor::ManagedContract;
+use ymp_domain::contract::ContractDocument;
 
 use crate::decisions;
 use crate::draft::{self, Draft, Step};
@@ -47,32 +49,50 @@ pub struct Session {
     runtimes: Option<Report>,
     /// The request being assembled from what the operator typed, while one is.
     draft: Option<Draft>,
-    /// The contract the application prepared from that request, once it validated.
-    prepared: Option<PreparedContract>,
+    /// Every contract this session can start a run from, whatever supplied it: a package the
+    /// command line named, or a request typed here. Both arrive as the same prepared contract,
+    /// so both start through one call.
+    contracts: Vec<PreparedContract>,
 }
 
 impl Session {
     /// Open a data root. A root with no committed run is not an error: the interface states
     /// the absence and offers what is possible from there.
-    pub fn open(data_root: &Path, contracts: &[ManagedContract]) -> Self {
+    pub fn open(data_root: &Path, contracts: &[PreparedContract]) -> Self {
         let environment = Environment::detect(data_root);
-        let facts: Vec<ContractFacts> = contracts.iter().map(configured_contract).collect();
+        let facts: Vec<ContractFacts> =
+            contracts.iter().map(ContractFacts::from_prepared).collect();
         let mut model = Model::cold(environment, facts);
 
         match Application::open(data_root) {
-            Err(_) => Self {
-                application: None,
-                data_root: data_root.to_path_buf(),
-                model,
-                runtimes: None,
-                draft: None,
-                prepared: None,
-            },
+            Err(error) => {
+                // A store this binary cannot read is reported as what it is. It was left
+                // untouched, so the interface neither claims the run never existed nor offers
+                // to start one over it.
+                if let ApplicationError::IncompatibleStore { .. } = &error {
+                    model.error(format!(
+                        "{error}. Nothing in it was changed. Point ymp at another store, or keep \
+                         this one for a binary that reads its version."
+                    ));
+                    model.refuse_store();
+                }
+                Self {
+                    application: None,
+                    data_root: data_root.to_path_buf(),
+                    model,
+                    runtimes: None,
+                    draft: None,
+                    contracts: contracts.to_vec(),
+                }
+            }
             Ok(application) => {
                 let state = application.state().clone();
                 match application.events_after(0) {
                     Ok(events) => model.absorb(&state, &events),
                     Err(error) => model.reply(format!("journal unreadable: {error}")),
+                }
+                if let Some(facts) = bound_contract(&application) {
+                    model.record_contract(facts);
                 }
                 Self {
                     application: Some(application),
@@ -80,7 +100,7 @@ impl Session {
                     model,
                     runtimes: None,
                     draft: None,
-                    prepared: None,
+                    contracts: contracts.to_vec(),
                 }
             }
         }
@@ -104,7 +124,7 @@ impl Session {
             model,
             runtimes: None,
             draft: None,
-            prepared: None,
+            contracts: Vec::new(),
         }
     }
 
@@ -202,6 +222,12 @@ impl Session {
             );
             return;
         }
+        if self.model.store_refused() {
+            self.model.error(
+                "this store cannot be read by this binary, so no request can be drafted over it",
+            );
+            return;
+        }
         let project = self.model.environment().project_path.clone();
         match self.draft.as_mut() {
             None => {
@@ -255,10 +281,11 @@ impl Session {
                     prepared.run_id()
                 ));
                 self.model.record_contract(facts);
-                self.prepared = Some(prepared);
+                self.contracts
+                    .retain(|contract| contract.contract_id() != prepared.contract_id());
+                self.contracts.push(prepared);
             }
             Err(error) => {
-                self.prepared = None;
                 self.model.error(format!(
                     "{error}. Nothing was recorded. State the request again to draft another \
                      contract."
@@ -267,16 +294,25 @@ impl Session {
         }
     }
 
-    /// Commit the operator's authorization: store the contract and start the run against it.
-    pub fn start_run(&mut self) {
+    /// Commit the operator's authorization: store the named contract and start its run.
+    ///
+    /// The contract is looked up by the identifier the decision surface required the operator to
+    /// type, so a package named on the command line and a request typed here start identically.
+    pub fn start_run(&mut self, contract_id: &str) {
         if self.application.is_some() {
             self.model
                 .error("this store already holds a run — a second run needs its own store");
             return;
         }
-        let Some(prepared) = self.prepared.clone() else {
-            self.model
-                .error("no contract is drafted — state the request first");
+        let Some(prepared) = self
+            .contracts
+            .iter()
+            .find(|contract| contract.contract_id() == contract_id)
+            .cloned()
+        else {
+            self.model.error(format!(
+                "no contract named {contract_id} is available to this session"
+            ));
             return;
         };
         match Application::create_with_contract(&self.data_root, &prepared) {
@@ -298,36 +334,32 @@ impl Session {
     }
 }
 
-/// A contract configured on the command line, taken through the same application path a typed
-/// request takes. A package the application refuses carries its refusal onto the screen instead
-/// of appearing as a contract that could be authorized.
-fn configured_contract(contract: &ManagedContract) -> ContractFacts {
-    let request = RunRequest {
-        prompt: contract.prompt.clone(),
-        source: contract.source.clone(),
-        acceptance: contract.verifier.as_ref().map(|verifier| {
-            let mut acceptance = ymp_application::AcceptanceCondition::new(
-                verifier.program.clone(),
-                verifier.negative_control.clone(),
-            );
-            acceptance.arguments = verifier.arguments.clone();
-            acceptance.oracle_digest = Some(verifier.oracle_digest.clone());
-            acceptance.wall_time_ms = verifier.wall_time_ms;
-            acceptance.output_limit_bytes = verifier.output_limit_bytes;
-            acceptance
-        }),
-        capture_exclusions: contract.capture_exclusions.clone(),
-        contract_id: Some(contract.contract_id.clone()),
-        budget: None,
-    };
-    match prepare_contract(&request) {
-        Ok(prepared) => ContractFacts::from_prepared(&prepared),
-        Err(error) => ContractFacts::refused(
-            contract.contract_id.clone(),
-            contract.source.clone(),
-            contract.prompt.clone(),
-            error.to_string(),
-        ),
+/// The contract a started run is bound to, read back from the store it was approved into.
+///
+/// A store opened later carries no drafted contract, so the coverage map would otherwise have
+/// nothing to show for a run that has one. The stored object is the source; when it cannot be
+/// read the binding is shown with what the journal alone records and says so.
+fn bound_contract(application: &Application) -> Option<ContractFacts> {
+    let binding = application.contract()?;
+    match application.contract_bytes() {
+        Ok(Some(bytes)) => match ContractDocument::parse(&bytes) {
+            Ok(parsed) => Some(ContractFacts::from_document(
+                &parsed.document,
+                parsed.digest,
+            )),
+            Err(error) => Some(ContractFacts::refused(
+                binding.contract_id.clone(),
+                PathBuf::new(),
+                String::new(),
+                format!("the stored contract object could not be read: {error}"),
+            )),
+        },
+        _ => Some(ContractFacts::refused(
+            binding.contract_id.clone(),
+            PathBuf::new(),
+            String::new(),
+            "the stored contract object is not in this store".to_owned(),
+        )),
     }
 }
 
@@ -335,8 +367,8 @@ fn configured_contract(contract: &ManagedContract) -> ContractFacts {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum Action {
     CancelRun,
-    /// Store the drafted contract and start the run it names.
-    StartRun,
+    /// Store the named contract and start the run it names.
+    StartRun(String),
     /// The operator typed prose. It is shown as a local turn and answered honestly: no
     /// participant can receive it until the domain carries messages.
     LocalTurn(String),
@@ -434,11 +466,11 @@ fn perform(session: &mut Session, app: &mut App, action: Action, tx: &Sender<App
             session.cancel_run();
             adopt(session, app);
         }
-        Action::StartRun => {
+        Action::StartRun(contract_id) => {
             // The store had no journal to follow until now, so the loop starts following the
             // one this action created rather than waiting for the next keystroke to notice it.
             let follow = !session.has_application();
-            session.start_run();
+            session.start_run(&contract_id);
             if follow && let Some(receiver) = session.subscribe() {
                 spawn_journal_thread(tx.clone(), receiver);
             }
@@ -661,7 +693,7 @@ fn confirm_key(app: &mut App, key: KeyEvent) -> Option<Action> {
             app.resume_live();
             return Some(match action {
                 ConfirmAction::CancelRun { .. } => Action::CancelRun,
-                ConfirmAction::StartRun { .. } => Action::StartRun,
+                ConfirmAction::StartRun { contract_id, .. } => Action::StartRun(contract_id),
             });
         }
         _ => {}

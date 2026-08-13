@@ -35,7 +35,7 @@
 
 use std::path::Path;
 
-use ymp_runtime_supervisor::ManagedContract;
+use ymp_application::PreparedContract;
 
 pub mod app;
 pub mod decisions;
@@ -64,10 +64,14 @@ pub fn run(data_root: impl AsRef<Path>) -> anyhow::Result<()> {
     run_with_contracts(data_root, Vec::new())
 }
 
-/// Start the interface. The signature is the one `ymp-cli` calls.
+/// Start the interface over contracts the application already validated.
+///
+/// The command line hands over prepared contracts rather than files, so a package reaches the
+/// kernel through the same scenario a typed request does and is refused before the interface
+/// opens if it states no acceptance condition.
 pub fn run_with_contracts(
     data_root: impl AsRef<Path>,
-    contracts: Vec<ManagedContract>,
+    contracts: Vec<PreparedContract>,
 ) -> anyhow::Result<()> {
     let session = Session::open(data_root.as_ref(), &contracts);
     app::run(session, theme::Markers::detect())
