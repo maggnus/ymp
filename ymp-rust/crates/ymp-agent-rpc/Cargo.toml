@@ -11,7 +11,7 @@ serde_json.workspace = true
 thiserror.workspace = true
 ymp-agent-api.workspace = true
 ymp-application.workspace = true
+ymp-domain.workspace = true
 
 [dev-dependencies]
 tempfile.workspace = true
-ymp-domain.workspace = true

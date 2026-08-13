@@ -331,6 +331,7 @@ impl RuntimeDriver for ClaudeRuntime {
             output_limit_bytes: self.profile.output_limit_bytes,
             wall_time_limit_ms: self.profile.wall_time_limit_ms,
             started_at: process.started_at,
+            session_started_at: process.started_at,
             cancellation: request.cancellation,
             completed: false,
             terminal: false,
@@ -353,6 +354,7 @@ struct ClaudeSession {
     output_limit_bytes: usize,
     wall_time_limit_ms: u64,
     started_at: Instant,
+    session_started_at: Instant,
     cancellation: CancellationToken,
     completed: bool,
     terminal: bool,
@@ -533,6 +535,10 @@ impl ClaudeSession {
                     output_tokens: optional_u64_field(raw_usage, "output_tokens"),
                     reasoning_output_tokens: 0,
                     cost_microusd,
+                    wall_time_ms: u64::try_from(self.session_started_at.elapsed().as_millis())
+                        .unwrap_or(u64::MAX),
+                    protected_queries: 0,
+                    in_flight_excess: Default::default(),
                 };
                 let status = self.finish()?;
                 if !status.success() {

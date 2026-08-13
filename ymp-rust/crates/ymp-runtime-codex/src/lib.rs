@@ -1,39 +1,67 @@
 #![forbid(unsafe_code)]
 
 use serde_json::Value;
+use std::collections::{HashMap, VecDeque};
+use std::ffi::OsString;
+use std::fs::{self, File, OpenOptions};
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, ExitStatus, Stdio};
 use std::sync::mpsc::{Receiver, RecvTimeoutError};
+use std::sync::{Arc, Mutex};
 use std::thread::{self, JoinHandle};
 use std::time::{Duration, Instant};
 use ymp_runtime_api::{
-    BoundedOutputLine, CancellationToken, InvocationRequest, McpBinding, ProbeReport, Readiness,
-    RuntimeDriver, RuntimeError, RuntimeEvent, RuntimeEventKind, RuntimeKind, RuntimeSession,
-    Usage, configure_process_group, read_bounded_lines, terminate_process_tree,
+    BoundedOutputLine, CancellationToken, DiagnosticSummary, InFlightExcess, InvocationRequest,
+    LaunchDescriptor, LaunchEnvironmentVariable, McpBinding, ProbeReport, Readiness, RuntimeDriver,
+    RuntimeError, RuntimeEvent, RuntimeEventKind, RuntimeFailureKind, RuntimeKind, RuntimeSession,
+    Usage, configure_process_group, evidence_digest, read_bounded_lines, terminate_process_tree,
 };
 
 pub const PINNED_CODEX_VERSION: &str = "codex-cli 0.147.0";
 pub const PINNED_CODEX_MODEL: &str = "gpt-5.6-sol";
 pub const PINNED_CODEX_PROMPT_POLICY: &str = "ymp-codex-low-v1";
+pub const PINNED_CODEX_API_ORIGIN: &str = "https://api.openai.com/v1";
 const DEFAULT_OUTPUT_LIMIT_BYTES: usize = 16 * 1024 * 1024;
 const DEFAULT_WALL_TIME_LIMIT_MS: u64 = 10 * 60 * 1000;
+const LAUNCH_DESCRIPTOR_SCHEMA_VERSION: u32 = 1;
 const HARNESS_INSTRUCTIONS: &str = "Execution policy: work without delegation or subagents. Do not send progress reports. Batch independent file reads and batch the final formatting, tests, lint, and diff checks. Use only the files and tools needed for the requested outcome. Do not commit. Stop immediately after a concise final report.";
-const DISABLED_AMBIENT_FEATURES: [&str; 14] = [
+const DISABLED_AMBIENT_FEATURES: [&str; 35] = [
     "apps",
+    "auth_elicitation",
     "browser_use",
     "browser_use_external",
     "browser_use_full_cdp_access",
+    "code_mode_host",
     "computer_use",
+    "deferred_executor",
+    "enable_fanout",
+    "fast_mode",
     "goals",
+    "guardian_approval",
+    "hooks",
     "image_generation",
+    "in_app_browser",
+    "in_app_updates",
     "multi_agent",
+    "multi_agent_v2",
+    "network_proxy",
     "personality",
+    "plugin_sharing",
     "plugins",
+    "recommended_plugins",
+    "remote_compaction_v2",
+    "remote_control",
+    "remote_models",
+    "remote_plugin",
+    "skill_mcp_dependency_install",
     "skill_search",
+    "shell_snapshot",
+    "standalone_web_search",
     "tool_call_mcp_elicitation",
     "tool_suggest",
     "view_image",
+    "web_search_request",
 ];
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -126,7 +154,11 @@ impl CodexProfile {
 #[derive(Clone, Debug)]
 pub struct CodexRuntime {
     executable: PathBuf,
+    verified_executable: Arc<Mutex<Option<VerifiedExecutable>>>,
     profile: CodexProfile,
+    auth_source: Option<PathBuf>,
+    runtime_path: OsString,
+    prepared_launches: Arc<Mutex<HashMap<String, CodexLaunch>>>,
 }
 
 impl Default for CodexRuntime {
@@ -137,38 +169,198 @@ impl Default for CodexRuntime {
 
 impl CodexRuntime {
     pub fn new(executable: impl Into<PathBuf>) -> Self {
+        let executable = resolve_executable(executable.into());
         Self {
-            executable: executable.into(),
+            executable,
+            verified_executable: Arc::new(Mutex::new(None)),
             profile: CodexProfile::default(),
+            auth_source: discover_auth_source(),
+            runtime_path: std::env::var_os("PATH")
+                .unwrap_or_else(|| OsString::from("/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin")),
+            prepared_launches: Arc::new(Mutex::new(HashMap::new())),
         }
     }
 
     pub fn with_profile(executable: impl Into<PathBuf>, profile: CodexProfile) -> Self {
-        Self {
-            executable: executable.into(),
-            profile,
-        }
+        let mut runtime = Self::new(executable);
+        runtime.profile = profile;
+        runtime
     }
 
     pub fn profile(&self) -> &CodexProfile {
         &self.profile
     }
 
-    fn version_output(&self) -> Result<std::process::Output, RuntimeError> {
-        Command::new(&self.executable)
-            .arg("--version")
-            .output()
-            .map_err(RuntimeError::Process)
+    fn isolated_environment(&self) -> Result<CodexEnvironment, RuntimeError> {
+        CodexEnvironment::create(
+            self.auth_source.as_deref(),
+            self.runtime_path.clone(),
+            &self.profile,
+        )
+    }
+
+    fn admitted_executable(&self) -> Result<VerifiedExecutable, RuntimeError> {
+        let mut admitted = self.verified_executable.lock().map_err(|_| {
+            RuntimeError::InvalidProfile("verified Codex executable lock failed".to_owned())
+        })?;
+        if let Some(executable) = admitted.as_ref() {
+            return Ok(executable.clone());
+        }
+        let executable = VerifiedExecutable::admit(&self.executable, "codex")?;
+        *admitted = Some(executable.clone());
+        Ok(executable)
     }
 }
 
 #[derive(Clone, Debug)]
+struct VerifiedExecutable {
+    execution_path: PathBuf,
+    digest: String,
+    _directory: Arc<tempfile::TempDir>,
+}
+
+impl VerifiedExecutable {
+    fn admit(source_path: &Path, label: &str) -> Result<Self, RuntimeError> {
+        let mut source = File::open(source_path)?;
+        if !source.metadata()?.is_file() {
+            return Err(RuntimeError::InvalidProfile(format!(
+                "{label} executable is not a regular file: {}",
+                source_path.display()
+            )));
+        }
+        let directory = Arc::new(
+            tempfile::Builder::new()
+                .prefix("ymp-admitted-executable-")
+                .tempdir()?,
+        );
+        set_private_directory_permissions(directory.path())?;
+        let execution_path = directory.path().join(label);
+        let mut destination = OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(&execution_path)?;
+        std::io::copy(&mut source, &mut destination)?;
+        destination.flush()?;
+        destination.sync_all()?;
+        drop(destination);
+        set_executable_file_permissions(&execution_path)?;
+        let digest = executable_digest(&execution_path)?;
+        Ok(Self {
+            execution_path,
+            digest,
+            _directory: directory,
+        })
+    }
+}
+
+#[derive(Debug)]
 struct CodexLaunch {
-    executable: PathBuf,
+    executable: VerifiedExecutable,
+    coordination_executable: Option<VerifiedExecutable>,
     profile: CodexProfile,
     workspace: PathBuf,
     attempt_id: String,
+    invocation_id: String,
     mcp: Option<McpBinding>,
+    environment: CodexEnvironment,
+}
+
+#[derive(Debug)]
+struct CodexEnvironment {
+    root: tempfile::TempDir,
+    codex_home: PathBuf,
+    temporary: PathBuf,
+    runtime_path: OsString,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct EnvironmentValue {
+    name: String,
+    value: String,
+    confidential: bool,
+}
+
+impl CodexEnvironment {
+    fn create(
+        auth_source: Option<&Path>,
+        runtime_path: OsString,
+        profile: &CodexProfile,
+    ) -> Result<Self, RuntimeError> {
+        profile.validate()?;
+        let root = tempfile::Builder::new()
+            .prefix("ymp-codex-home-")
+            .tempdir()?;
+        let codex_home = root.path().join(".codex");
+        let temporary = root.path().join("tmp");
+        fs::create_dir(&codex_home)?;
+        fs::create_dir(&temporary)?;
+        set_private_directory_permissions(root.path())?;
+        set_private_directory_permissions(&codex_home)?;
+        set_private_directory_permissions(&temporary)?;
+        if let Some(auth_source) = auth_source {
+            let auth = fs::read(auth_source)?;
+            if auth.len() > 1024 * 1024 {
+                return Err(RuntimeError::InvalidProfile(
+                    "Codex authentication material exceeds its 1 MiB limit".to_owned(),
+                ));
+            }
+            let destination = codex_home.join("auth.json");
+            fs::write(&destination, auth)?;
+            set_private_file_permissions(&destination)?;
+        }
+        Ok(Self {
+            root,
+            codex_home,
+            temporary,
+            runtime_path,
+        })
+    }
+
+    fn values(
+        &self,
+        mcp: Option<&McpBinding>,
+        attempt_id: Option<&str>,
+        invocation_id: Option<&str>,
+    ) -> Result<Vec<EnvironmentValue>, RuntimeError> {
+        let mut values = vec![
+            environment_value("HOME", self.root.path(), false)?,
+            environment_value("CODEX_HOME", &self.codex_home, false)?,
+            environment_value("TMPDIR", &self.temporary, false)?,
+            EnvironmentValue {
+                name: "PATH".to_owned(),
+                value: self
+                    .runtime_path
+                    .to_str()
+                    .ok_or_else(|| {
+                        RuntimeError::InvalidProfile(
+                            "allowlisted PATH must be valid UTF-8".to_owned(),
+                        )
+                    })?
+                    .to_owned(),
+                confidential: false,
+            },
+            plain_environment_value("NO_COLOR", "1", false),
+            plain_environment_value("OPENAI_BASE_URL", PINNED_CODEX_API_ORIGIN, false),
+        ];
+        if let (Some(mcp), Some(attempt_id), Some(invocation_id)) = (mcp, attempt_id, invocation_id)
+        {
+            values.extend([
+                environment_value("YMP_AGENT_SOCKET", &mcp.socket_path, true)?,
+                plain_environment_value("YMP_AGENT_TOKEN", &mcp.token, true),
+                plain_environment_value("YMP_ATTEMPT_ID", attempt_id, false),
+                plain_environment_value("YMP_INVOCATION_ID", invocation_id, false),
+            ]);
+        }
+        values.sort_by(|left, right| left.name.cmp(&right.name));
+        Ok(values)
+    }
+
+    fn apply(command: &mut Command, values: &[EnvironmentValue]) {
+        command.env_clear();
+        for variable in values {
+            command.env(&variable.name, &variable.value);
+        }
+    }
 }
 
 struct CodexProcess {
@@ -179,42 +371,138 @@ struct CodexProcess {
 }
 
 impl CodexLaunch {
-    fn spawn(&self, session_id: Option<&str>, prompt: &str) -> Result<CodexProcess, RuntimeError> {
-        let mut command = Command::new(&self.executable);
-        command
-            .arg("exec")
-            .arg("--json")
-            .arg("--ignore-user-config")
-            .arg("--ignore-rules")
-            .args(["--sandbox", self.profile.sandbox.as_arg()])
-            .args(["--model", &self.profile.model])
-            .arg("-c")
-            .arg(format!(
+    fn descriptor(&self, session_id: Option<&str>) -> Result<LaunchDescriptor, RuntimeError> {
+        let arguments = self.arguments(session_id)?;
+        let environment = self.environment.values(
+            self.mcp.as_ref(),
+            Some(&self.attempt_id),
+            Some(&self.invocation_id),
+        )?;
+        Ok(LaunchDescriptor {
+            schema_version: LAUNCH_DESCRIPTOR_SCHEMA_VERSION,
+            invocation_id: self.invocation_id.clone(),
+            attempt_id: self.attempt_id.clone(),
+            executable: self.executable.execution_path.clone(),
+            executable_digest: self.executable.digest.clone(),
+            coordination_executable: self
+                .coordination_executable
+                .as_ref()
+                .map(|executable| executable.execution_path.clone()),
+            coordination_executable_digest: self
+                .coordination_executable
+                .as_ref()
+                .map(|executable| executable.digest.clone()),
+            arguments,
+            environment: environment
+                .iter()
+                .map(|variable| LaunchEnvironmentVariable {
+                    name: variable.name.clone(),
+                    value: (!variable.confidential).then(|| variable.value.clone()),
+                    value_digest: evidence_digest(variable.value.as_bytes()),
+                    confidential: variable.confidential,
+                })
+                .collect(),
+            working_directory: self.workspace.clone(),
+        })
+    }
+
+    fn arguments(&self, session_id: Option<&str>) -> Result<Vec<String>, RuntimeError> {
+        let workspace = self.workspace.to_str().ok_or_else(|| {
+            RuntimeError::InvalidProfile("Codex workspace path must be UTF-8".to_owned())
+        })?;
+        let mut arguments = vec![
+            "exec".to_owned(),
+            "--json".to_owned(),
+            "--ignore-user-config".to_owned(),
+            "--ignore-rules".to_owned(),
+            "--sandbox".to_owned(),
+            self.profile.sandbox.as_arg().to_owned(),
+            "--model".to_owned(),
+            self.profile.model.clone(),
+            "-c".to_owned(),
+            format!(
                 "model_reasoning_effort=\"{}\"",
                 self.profile.reasoning_effort
-            ))
-            .arg("-c")
-            .arg(format!(
-                "approval_policy=\"{}\"",
-                self.profile.approval_policy
-            ))
-            .arg("-C")
-            .arg(&self.workspace)
+            ),
+            "-c".to_owned(),
+            format!("approval_policy=\"{}\"", self.profile.approval_policy),
+            "-c".to_owned(),
+            "shell_environment_policy.inherit=\"none\"".to_owned(),
+            "-C".to_owned(),
+            workspace.to_owned(),
+        ];
+        for feature in DISABLED_AMBIENT_FEATURES {
+            arguments.push("--disable".to_owned());
+            arguments.push(feature.to_owned());
+        }
+        if let Some(mcp) = &self.mcp {
+            add_mcp_config_arguments(&mut arguments, mcp)?;
+        }
+        if let Some(session_id) = session_id {
+            arguments.push("resume".to_owned());
+            arguments.push(session_id.to_owned());
+        }
+        arguments.push("-".to_owned());
+        Ok(arguments)
+    }
+
+    fn spawn(
+        &self,
+        descriptor: &LaunchDescriptor,
+        session_id: Option<&str>,
+        prompt: &str,
+    ) -> Result<CodexProcess, RuntimeError> {
+        let expected = self.descriptor(session_id)?;
+        if descriptor != &expected {
+            return Err(RuntimeError::InvalidProfile(
+                "prepared Codex launch descriptor was modified".to_owned(),
+            ));
+        }
+        if executable_digest(&descriptor.executable)? != descriptor.executable_digest {
+            return Err(RuntimeError::InvalidProfile(
+                "Codex executable changed after launch preparation".to_owned(),
+            ));
+        }
+        if let (Some(executable), Some(digest)) = (
+            descriptor.coordination_executable.as_deref(),
+            descriptor.coordination_executable_digest.as_deref(),
+        ) && executable_digest(executable)? != digest
+        {
+            return Err(RuntimeError::InvalidProfile(
+                "MCP executable changed after launch preparation".to_owned(),
+            ));
+        }
+        let environment = self.environment.values(
+            self.mcp.as_ref(),
+            Some(&self.attempt_id),
+            Some(&self.invocation_id),
+        )?;
+        let mut command = Command::new(&descriptor.executable);
+        CodexEnvironment::apply(&mut command, &environment);
+        command
+            .args(&descriptor.arguments)
+            .current_dir(&descriptor.working_directory)
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .stderr(Stdio::piped());
-        for feature in DISABLED_AMBIENT_FEATURES {
-            command.arg("--disable").arg(feature);
-        }
-        if let Some(mcp) = &self.mcp {
-            add_mcp_config(&mut command, mcp, &self.attempt_id)?;
-        }
-        if let Some(session_id) = session_id {
-            command.arg("resume").arg(session_id);
-        }
-        command.arg("-");
         configure_process_group(&mut command);
         let mut child = command.spawn()?;
+        if executable_digest(&descriptor.executable)? != descriptor.executable_digest {
+            let _ = terminate_process_tree(&mut child);
+            return Err(RuntimeError::InvalidProfile(
+                "Codex executable changed while the prepared launch was starting".to_owned(),
+            ));
+        }
+        if let (Some(executable), Some(digest)) = (
+            descriptor.coordination_executable.as_deref(),
+            descriptor.coordination_executable_digest.as_deref(),
+        ) && executable_digest(executable)? != digest
+        {
+            let _ = terminate_process_tree(&mut child);
+            return Err(RuntimeError::InvalidProfile(
+                "MCP executable changed while the prepared launch was starting".to_owned(),
+            ));
+        }
         let mut stdin = child
             .stdin
             .take()
@@ -260,9 +548,23 @@ impl RuntimeDriver for CodexRuntime {
 
     fn probe(&self) -> Result<ProbeReport, RuntimeError> {
         self.profile.validate()?;
-        let output = match self.version_output() {
+        let environment = self.isolated_environment()?;
+        let environment_values = environment.values(None, None, None)?;
+        if !self.executable.is_file() {
+            return Ok(ProbeReport {
+                kind: RuntimeKind::Codex,
+                executable: self.executable.display().to_string(),
+                version: None,
+                readiness: Readiness::NotInstalled,
+                detail: "executable not found".to_owned(),
+            });
+        }
+        let admitted = self.admitted_executable()?;
+        let mut version_command = Command::new(&admitted.execution_path);
+        CodexEnvironment::apply(&mut version_command, &environment_values);
+        let output = match version_command.arg("--version").output() {
             Ok(output) => output,
-            Err(RuntimeError::Process(error)) if error.kind() == std::io::ErrorKind::NotFound => {
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
                 return Ok(ProbeReport {
                     kind: RuntimeKind::Codex,
                     executable: self.executable.display().to_string(),
@@ -271,7 +573,7 @@ impl RuntimeDriver for CodexRuntime {
                     detail: "executable not found".to_owned(),
                 });
             }
-            Err(error) => return Err(error),
+            Err(error) => return Err(RuntimeError::Process(error)),
         };
         if !output.status.success() {
             return Ok(ProbeReport {
@@ -298,9 +600,9 @@ impl RuntimeDriver for CodexRuntime {
                 ),
             });
         }
-        let auth = Command::new(&self.executable)
-            .args(["login", "status"])
-            .output()?;
+        let mut auth_command = Command::new(&admitted.execution_path);
+        CodexEnvironment::apply(&mut auth_command, &environment_values);
+        let auth = auth_command.args(["login", "status"]).output()?;
         if !auth.status.success() {
             return Ok(ProbeReport {
                 kind: RuntimeKind::Codex,
@@ -316,8 +618,9 @@ impl RuntimeDriver for CodexRuntime {
             version: Some(version),
             readiness: Readiness::Ready,
             detail: format!(
-                "pinned local profile ready: model={}, reasoning_effort={}, approval_policy={}, prompt_policy={}, sandbox={}, wall_time_limit_ms={}, output_limit_bytes={}",
+                "pinned local profile ready: model={}, api_origin={}, reasoning_effort={}, approval_policy={}, prompt_policy={}, sandbox={}, environment=synthetic_allowlist_v1, wall_time_limit_ms={}, output_limit_bytes={}",
                 self.profile.model,
+                PINNED_CODEX_API_ORIGIN,
                 self.profile.reasoning_effort,
                 self.profile.approval_policy,
                 self.profile.prompt_policy,
@@ -329,7 +632,6 @@ impl RuntimeDriver for CodexRuntime {
     }
 
     fn start(&self, request: InvocationRequest) -> Result<Box<dyn RuntimeSession>, RuntimeError> {
-        self.profile.validate()?;
         let readiness = self.probe()?;
         if readiness.readiness != Readiness::Ready {
             return Err(RuntimeError::InvalidProfile(format!(
@@ -337,6 +639,17 @@ impl RuntimeDriver for CodexRuntime {
                 readiness.detail
             )));
         }
+        let descriptor = self.prepare_launch(&request)?.ok_or_else(|| {
+            RuntimeError::InvalidProfile("Codex launch descriptor was not prepared".to_owned())
+        })?;
+        self.start_prepared(request, Some(&descriptor))
+    }
+
+    fn prepare_launch(
+        &self,
+        request: &InvocationRequest,
+    ) -> Result<Option<LaunchDescriptor>, RuntimeError> {
+        self.profile.validate()?;
         if !request.workspace.is_dir() {
             return Err(RuntimeError::InvalidProfile(format!(
                 "workspace is not a directory: {}",
@@ -348,14 +661,81 @@ impl RuntimeDriver for CodexRuntime {
                 "attempt identifier must contain between 1 and 128 bytes".to_owned(),
             ));
         }
-        let launch = CodexLaunch {
-            executable: self.executable.clone(),
-            profile: self.profile.clone(),
-            workspace: request.workspace,
-            attempt_id: request.attempt_id,
-            mcp: request.mcp,
+        if request.invocation_id.is_empty() || request.invocation_id.len() > 128 {
+            return Err(RuntimeError::InvalidProfile(
+                "invocation identifier must contain between 1 and 128 bytes".to_owned(),
+            ));
+        }
+        if let Some(mcp) = &request.mcp {
+            mcp.validate()?;
+        }
+        let executable = self.admitted_executable()?;
+        let (mcp, coordination_executable) = match &request.mcp {
+            Some(binding) => {
+                let executable = VerifiedExecutable::admit(&binding.executable, "ymp-agent-mcp")?;
+                let mut binding = binding.clone();
+                binding.executable = executable.execution_path.clone();
+                (Some(binding), Some(executable))
+            }
+            None => (None, None),
         };
-        let process = launch.spawn(None, &request.prompt)?;
+        let launch = CodexLaunch {
+            executable,
+            coordination_executable,
+            profile: self.profile.clone(),
+            workspace: request.workspace.clone(),
+            attempt_id: request.attempt_id.clone(),
+            invocation_id: request.invocation_id.clone(),
+            mcp,
+            environment: self.isolated_environment()?,
+        };
+        let descriptor = launch.descriptor(None)?;
+        let mut prepared = self
+            .prepared_launches
+            .lock()
+            .map_err(|_| RuntimeError::InvalidProfile("prepared launch lock failed".to_owned()))?;
+        if prepared
+            .insert(request.invocation_id.clone(), launch)
+            .is_some()
+        {
+            return Err(RuntimeError::InvalidProfile(
+                "duplicate prepared Codex invocation identifier".to_owned(),
+            ));
+        }
+        Ok(Some(descriptor))
+    }
+
+    fn start_prepared(
+        &self,
+        request: InvocationRequest,
+        descriptor: Option<&LaunchDescriptor>,
+    ) -> Result<Box<dyn RuntimeSession>, RuntimeError> {
+        let descriptor = descriptor.ok_or_else(|| {
+            RuntimeError::InvalidProfile("Codex requires a prepared launch descriptor".to_owned())
+        })?;
+        let launch = self
+            .prepared_launches
+            .lock()
+            .map_err(|_| RuntimeError::InvalidProfile("prepared launch lock failed".to_owned()))?
+            .remove(&request.invocation_id)
+            .ok_or_else(|| {
+                RuntimeError::InvalidProfile(
+                    "prepared Codex invocation is missing or already consumed".to_owned(),
+                )
+            })?;
+        if descriptor.invocation_id != request.invocation_id
+            || descriptor.attempt_id != request.attempt_id
+            || descriptor.working_directory != request.workspace
+        {
+            return Err(RuntimeError::InvalidProfile(
+                "prepared Codex launch identity does not match the invocation request".to_owned(),
+            ));
+        }
+        let process = launch.spawn(descriptor, None, &request.prompt)?;
+        let mut pending_events = VecDeque::new();
+        pending_events.push_back(RuntimeEventKind::Launch {
+            descriptor: Box::new(descriptor.clone()),
+        });
         Ok(Box::new(CodexSession {
             child: process.child,
             lines: process.lines,
@@ -367,6 +747,7 @@ impl RuntimeDriver for CodexRuntime {
             output_limit_bytes: self.profile.output_limit_bytes,
             wall_time_limit_ms: self.profile.wall_time_limit_ms,
             started_at: process.started_at,
+            session_started_at: process.started_at,
             cancellation: request.cancellation,
             completed: false,
             terminal: false,
@@ -374,6 +755,12 @@ impl RuntimeDriver for CodexRuntime {
             native_resume_started: false,
             interrupted: false,
             interruption_emitted: false,
+            pending_events,
+            usage: Usage::default(),
+            current_turn_usage: Usage::default(),
+            in_flight: InFlightExcess::default(),
+            yielded: false,
+            failure_emitted: false,
         }))
     }
 }
@@ -389,6 +776,7 @@ struct CodexSession {
     output_limit_bytes: usize,
     wall_time_limit_ms: u64,
     started_at: Instant,
+    session_started_at: Instant,
     cancellation: CancellationToken,
     completed: bool,
     terminal: bool,
@@ -396,6 +784,12 @@ struct CodexSession {
     native_resume_started: bool,
     interrupted: bool,
     interruption_emitted: bool,
+    pending_events: VecDeque<RuntimeEventKind>,
+    usage: Usage,
+    current_turn_usage: Usage,
+    in_flight: InFlightExcess,
+    yielded: bool,
+    failure_emitted: bool,
 }
 
 impl CodexSession {
@@ -412,27 +806,28 @@ impl CodexSession {
     fn finish(&mut self) -> Result<ExitStatus, RuntimeError> {
         let status = self.child.wait()?;
         self.completed = true;
+        terminate_process_tree(&mut self.child)?;
         Ok(status)
     }
 
-    fn stderr(&mut self) -> String {
+    fn stderr(&mut self) -> DiagnosticSummary {
         let Some(reader) = self.stderr_reader.take() else {
-            return String::new();
+            return DiagnosticSummary::from_bytes(&[], false);
         };
-        reader
-            .join()
-            .map(|bytes| String::from_utf8_lossy(&bytes).trim().to_owned())
-            .unwrap_or_else(|_| "stderr reader failed".to_owned())
+        let mut bytes = reader.join().unwrap_or_default();
+        let truncated = bytes.len() > self.output_limit_bytes;
+        bytes.truncate(self.output_limit_bytes);
+        DiagnosticSummary::from_bytes(&bytes, truncated)
     }
 
     fn unsuccessful(&mut self, status: ExitStatus) -> RuntimeError {
-        RuntimeError::UnsuccessfulExit {
+        RuntimeError::SanitizedUnsuccessfulExit {
             status: status.to_string(),
-            stderr: self.stderr(),
+            diagnostic: self.stderr(),
         }
     }
 
-    fn install_process(&mut self, process: CodexProcess) {
+    fn install_process(&mut self, process: CodexProcess, descriptor: LaunchDescriptor) {
         self.child = process.child;
         self.lines = process.lines;
         self.stderr_reader = Some(process.stderr_reader);
@@ -440,6 +835,64 @@ impl CodexSession {
         self.completed = false;
         self.recoverable = false;
         self.native_resume_started = true;
+        self.yielded = false;
+        self.pending_events.push_back(RuntimeEventKind::Launch {
+            descriptor: Box::new(descriptor),
+        });
+    }
+
+    fn usage_snapshot(&self) -> Usage {
+        let mut usage = self.usage.clone();
+        add_usage(&mut usage, &self.current_turn_usage);
+        usage.wall_time_ms = elapsed_millis(self.session_started_at);
+        usage.in_flight_excess = self.in_flight.clone();
+        usage
+    }
+
+    fn begin_turn(&mut self, event: &Value) {
+        if let Some(usage) = event.get("usage") {
+            self.current_turn_usage = observed_usage(usage);
+            self.in_flight = usage
+                .get("in_flight_excess")
+                .map(in_flight_excess)
+                .unwrap_or_else(|| InFlightExcess {
+                    model_requests: 1,
+                    ..InFlightExcess::default()
+                });
+        } else {
+            self.in_flight = InFlightExcess {
+                model_requests: 1,
+                ..InFlightExcess::default()
+            };
+        }
+    }
+
+    fn merge_usage(&mut self, value: &Value) -> Result<(), RuntimeError> {
+        let mut observed = observed_usage(value);
+        observed.input_tokens = u64_field(value, "input_tokens")?;
+        observed.output_tokens = u64_field(value, "output_tokens")?;
+        let observed_in_flight = value.get("in_flight_excess").map(in_flight_excess);
+        self.current_turn_usage = observed;
+        add_usage(&mut self.usage, &self.current_turn_usage);
+        self.current_turn_usage = Usage::default();
+        if let Some(observed_in_flight) = observed_in_flight {
+            self.in_flight = observed_in_flight;
+        }
+        Ok(())
+    }
+
+    fn failed_event(
+        &mut self,
+        kind: RuntimeFailureKind,
+        diagnostic: Option<DiagnosticSummary>,
+    ) -> RuntimeEvent {
+        self.failure_emitted = true;
+        self.terminal = true;
+        self.emit(RuntimeEventKind::Failed {
+            kind,
+            usage: self.usage_snapshot(),
+            diagnostic,
+        })
     }
 
     fn finish_after_error(&mut self, error: &RuntimeError) {
@@ -457,7 +910,7 @@ impl CodexSession {
             && !self.native_resume_started
             && matches!(
                 error,
-                RuntimeError::Process(_) | RuntimeError::UnsuccessfulExit { .. }
+                RuntimeError::Process(_) | RuntimeError::SanitizedUnsuccessfulExit { .. }
             );
         self.terminal = self.session_id.is_some() && !self.recoverable;
     }
@@ -558,22 +1011,43 @@ impl CodexSession {
                 let usage = event.get("usage").ok_or_else(|| {
                     RuntimeError::MalformedEvent("turn.completed has no usage".to_owned())
                 })?;
-                let usage = Usage {
-                    input_tokens: u64_field(usage, "input_tokens")?,
-                    cached_input_tokens: optional_u64_field(usage, "cached_input_tokens"),
-                    output_tokens: u64_field(usage, "output_tokens")?,
-                    reasoning_output_tokens: optional_u64_field(usage, "reasoning_output_tokens"),
-                    cost_microusd: None,
-                };
+                self.merge_usage(usage)?;
                 let status = self.finish()?;
                 if !status.success() {
                     return Err(self.unsuccessful(status));
                 }
-                self.terminal = true;
-                Ok(Some(self.emit(RuntimeEventKind::Completed { usage })))
+                if self.session_id.is_none() {
+                    return Err(RuntimeError::MalformedEvent(
+                        "Codex completed a turn before reporting its session".to_owned(),
+                    ));
+                }
+                self.yielded = true;
+                self.recoverable = true;
+                Ok(Some(self.emit(RuntimeEventKind::Completed {
+                    usage: self.usage_snapshot(),
+                })))
             }
-            "turn.started" | "item.started" | "item.updated" => Ok(None),
-            "error" | "turn.failed" => Err(RuntimeError::MalformedEvent(event.to_string())),
+            "turn.started" => {
+                self.begin_turn(&event);
+                Ok(None)
+            }
+            "item.started" | "item.updated" => Ok(None),
+            "error" | "turn.failed" => {
+                if let Some(usage) = event.get("usage") {
+                    self.merge_usage(usage)?;
+                }
+                let bytes = serde_json::to_vec(&event).map_err(|error| {
+                    RuntimeError::MalformedEvent(format!(
+                        "failed to summarize runtime failure event: {error}"
+                    ))
+                })?;
+                let _ = terminate_process_tree(&mut self.child);
+                self.completed = true;
+                Ok(Some(self.failed_event(
+                    RuntimeFailureKind::RuntimeReported,
+                    Some(DiagnosticSummary::from_bytes(&bytes, false)),
+                )))
+            }
             other => Err(RuntimeError::MalformedEvent(format!(
                 "unsupported Codex event type {other}"
             ))),
@@ -581,18 +1055,23 @@ impl CodexSession {
     }
 
     fn next_event_inner(&mut self) -> Result<Option<RuntimeEvent>, RuntimeError> {
-        if self.cancellation.is_cancelled() && !self.completed {
-            let _ = terminate_process_tree(&mut self.child);
+        if self.cancellation.is_cancelled() && !self.terminal && !self.interrupted {
+            if !self.completed {
+                let _ = terminate_process_tree(&mut self.child);
+            }
             self.completed = true;
             self.terminal = true;
             self.interrupted = true;
+            self.yielded = false;
         }
         if self.interrupted {
             if self.interruption_emitted {
                 return Ok(None);
             }
             self.interruption_emitted = true;
-            return Ok(Some(self.emit(RuntimeEventKind::Interrupted)));
+            return Ok(Some(self.emit(RuntimeEventKind::Cancelled {
+                usage: self.usage_snapshot(),
+            })));
         }
         if self.completed {
             return Ok(None);
@@ -602,7 +1081,9 @@ impl CodexSession {
                 if self.interrupted {
                     self.terminal = true;
                     self.interruption_emitted = true;
-                    return Ok(Some(self.emit(RuntimeEventKind::Interrupted)));
+                    return Ok(Some(self.emit(RuntimeEventKind::Cancelled {
+                        usage: self.usage_snapshot(),
+                    })));
                 }
                 let status = self.finish()?;
                 if status.success() {
@@ -623,11 +1104,50 @@ impl CodexSession {
 
 impl RuntimeSession for CodexSession {
     fn next_event(&mut self) -> Result<Option<RuntimeEvent>, RuntimeError> {
+        if let Some(event) = self.pending_events.pop_front() {
+            return Ok(Some(self.emit(event)));
+        }
         let result = self.next_event_inner();
         if let Err(error) = &result {
             self.finish_after_error(error);
         }
-        result
+        match result {
+            Err(RuntimeError::TimedOut { limit_ms }) => {
+                self.terminal = true;
+                Ok(Some(self.emit(RuntimeEventKind::TimedOut {
+                    limit_ms,
+                    usage: self.usage_snapshot(),
+                })))
+            }
+            Err(RuntimeError::OutputLimitExceeded { limit_bytes }) => {
+                let diagnostic = DiagnosticSummary::from_bytes(
+                    format!("output_limit_bytes={limit_bytes}").as_bytes(),
+                    false,
+                );
+                Ok(Some(self.failed_event(
+                    RuntimeFailureKind::OutputLimit,
+                    Some(diagnostic),
+                )))
+            }
+            Err(error) if self.recoverable => Err(error),
+            Err(error) if !self.failure_emitted => {
+                let kind = match error {
+                    RuntimeError::SanitizedUnsuccessfulExit { .. } | RuntimeError::Process(_) => {
+                        RuntimeFailureKind::ProcessExit
+                    }
+                    RuntimeError::RuntimeReportedFailure(_) => RuntimeFailureKind::RuntimeReported,
+                    _ => RuntimeFailureKind::Protocol,
+                };
+                let diagnostic = match &error {
+                    RuntimeError::SanitizedUnsuccessfulExit { diagnostic, .. } => {
+                        diagnostic.clone()
+                    }
+                    _ => DiagnosticSummary::from_bytes(error.to_string().as_bytes(), false),
+                };
+                Ok(Some(self.failed_event(kind, Some(diagnostic))))
+            }
+            other => other,
+        }
     }
 
     fn resume(&mut self, input: String) -> Result<(), RuntimeError> {
@@ -640,23 +1160,31 @@ impl RuntimeSession for CodexSession {
                     .to_owned(),
             )
         })?;
-        if !self.recoverable {
+        if !self.recoverable && !self.yielded {
             return Err(RuntimeError::NotYielded);
         }
-        let process = self.launch.spawn(Some(&session_id), &input)?;
-        self.install_process(process);
+        let descriptor = self.launch.descriptor(Some(&session_id))?;
+        let process = self.launch.spawn(&descriptor, Some(&session_id), &input)?;
+        self.install_process(process, descriptor);
         Ok(())
     }
 
     fn interrupt(&mut self) -> Result<(), RuntimeError> {
         self.cancellation.cancel();
-        if !self.completed && !self.interrupted {
-            terminate_process_tree(&mut self.child)?;
+        if !self.terminal && !self.interrupted {
+            if !self.completed {
+                terminate_process_tree(&mut self.child)?;
+            }
             self.completed = true;
             self.terminal = true;
             self.interrupted = true;
+            self.yielded = false;
         }
         Ok(())
+    }
+
+    fn usage(&self) -> Usage {
+        self.usage_snapshot()
     }
 }
 
@@ -666,6 +1194,67 @@ impl Drop for CodexSession {
             let _ = terminate_process_tree(&mut self.child);
         }
     }
+}
+
+fn resolve_executable(executable: PathBuf) -> PathBuf {
+    if executable.is_absolute() || executable.components().count() > 1 {
+        return executable.canonicalize().unwrap_or(executable);
+    }
+    let Some(path) = std::env::var_os("PATH") else {
+        return executable;
+    };
+    std::env::split_paths(&path)
+        .map(|directory| directory.join(&executable))
+        .find(|candidate| candidate.is_file())
+        .and_then(|candidate| candidate.canonicalize().ok())
+        .unwrap_or(executable)
+}
+
+fn discover_auth_source() -> Option<PathBuf> {
+    let codex_home = std::env::var_os("CODEX_HOME")
+        .map(PathBuf::from)
+        .or_else(|| std::env::var_os("HOME").map(|home| PathBuf::from(home).join(".codex")))?;
+    let auth = codex_home.join("auth.json");
+    auth.is_file().then_some(auth)
+}
+
+#[cfg(unix)]
+fn set_private_directory_permissions(path: &Path) -> Result<(), RuntimeError> {
+    use std::os::unix::fs::PermissionsExt;
+
+    fs::set_permissions(path, fs::Permissions::from_mode(0o700))?;
+    Ok(())
+}
+
+#[cfg(not(unix))]
+fn set_private_directory_permissions(_path: &Path) -> Result<(), RuntimeError> {
+    Ok(())
+}
+
+#[cfg(unix)]
+fn set_private_file_permissions(path: &Path) -> Result<(), RuntimeError> {
+    use std::os::unix::fs::PermissionsExt;
+
+    fs::set_permissions(path, fs::Permissions::from_mode(0o600))?;
+    Ok(())
+}
+
+#[cfg(not(unix))]
+fn set_private_file_permissions(_path: &Path) -> Result<(), RuntimeError> {
+    Ok(())
+}
+
+#[cfg(unix)]
+fn set_executable_file_permissions(path: &Path) -> Result<(), RuntimeError> {
+    use std::os::unix::fs::PermissionsExt;
+
+    fs::set_permissions(path, fs::Permissions::from_mode(0o500))?;
+    Ok(())
+}
+
+#[cfg(not(unix))]
+fn set_executable_file_permissions(_path: &Path) -> Result<(), RuntimeError> {
+    Ok(())
 }
 
 fn string_field(value: &Value, field: &str) -> Result<String, RuntimeError> {
@@ -687,42 +1276,112 @@ fn optional_u64_field(value: &Value, field: &str) -> u64 {
     value.get(field).and_then(Value::as_u64).unwrap_or(0)
 }
 
-fn add_mcp_config(
-    command: &mut Command,
+fn in_flight_excess(value: &Value) -> InFlightExcess {
+    InFlightExcess {
+        model_requests: optional_u64_field(value, "model_requests"),
+        input_tokens: optional_u64_field(value, "input_tokens"),
+        cached_input_tokens: optional_u64_field(value, "cached_input_tokens"),
+        output_tokens: optional_u64_field(value, "output_tokens"),
+        reasoning_output_tokens: optional_u64_field(value, "reasoning_output_tokens"),
+        cost_microusd: optional_u64_field(value, "cost_microusd"),
+    }
+}
+
+fn observed_usage(value: &Value) -> Usage {
+    Usage {
+        input_tokens: optional_u64_field(value, "input_tokens"),
+        cached_input_tokens: optional_u64_field(value, "cached_input_tokens"),
+        output_tokens: optional_u64_field(value, "output_tokens"),
+        reasoning_output_tokens: optional_u64_field(value, "reasoning_output_tokens"),
+        cost_microusd: value.get("cost_microusd").and_then(Value::as_u64),
+        wall_time_ms: 0,
+        protected_queries: optional_u64_field(value, "protected_queries"),
+        in_flight_excess: value
+            .get("in_flight_excess")
+            .map(in_flight_excess)
+            .unwrap_or_default(),
+    }
+}
+
+fn add_usage(total: &mut Usage, increment: &Usage) {
+    total.input_tokens = total.input_tokens.saturating_add(increment.input_tokens);
+    total.cached_input_tokens = total
+        .cached_input_tokens
+        .saturating_add(increment.cached_input_tokens);
+    total.output_tokens = total.output_tokens.saturating_add(increment.output_tokens);
+    total.reasoning_output_tokens = total
+        .reasoning_output_tokens
+        .saturating_add(increment.reasoning_output_tokens);
+    if let Some(cost) = increment.cost_microusd {
+        total.cost_microusd = Some(total.cost_microusd.unwrap_or_default().saturating_add(cost));
+    }
+    total.protected_queries = total
+        .protected_queries
+        .saturating_add(increment.protected_queries);
+}
+
+fn elapsed_millis(started_at: Instant) -> u64 {
+    u64::try_from(started_at.elapsed().as_millis()).unwrap_or(u64::MAX)
+}
+
+fn executable_digest(executable: &Path) -> Result<String, RuntimeError> {
+    if !executable.is_file() {
+        return Err(RuntimeError::InvalidProfile(format!(
+            "Codex executable is not a regular file: {}",
+            executable.display()
+        )));
+    }
+    Ok(evidence_digest(&fs::read(executable)?))
+}
+
+fn environment_value(
+    name: &str,
+    value: &Path,
+    confidential: bool,
+) -> Result<EnvironmentValue, RuntimeError> {
+    Ok(EnvironmentValue {
+        name: name.to_owned(),
+        value: value
+            .to_str()
+            .ok_or_else(|| {
+                RuntimeError::InvalidProfile(format!(
+                    "allowlisted environment value for {name} must be UTF-8"
+                ))
+            })?
+            .to_owned(),
+        confidential,
+    })
+}
+
+fn plain_environment_value(name: &str, value: &str, confidential: bool) -> EnvironmentValue {
+    EnvironmentValue {
+        name: name.to_owned(),
+        value: value.to_owned(),
+        confidential,
+    }
+}
+
+fn add_mcp_config_arguments(
+    arguments: &mut Vec<String>,
     binding: &McpBinding,
-    attempt_id: &str,
 ) -> Result<(), RuntimeError> {
     binding.validate()?;
     let executable = binding.executable.to_str().ok_or_else(|| {
         RuntimeError::InvalidProfile("MCP executable path must be UTF-8".to_owned())
     })?;
-    let socket = binding
-        .socket_path
-        .to_str()
-        .ok_or_else(|| RuntimeError::InvalidProfile("MCP socket path must be UTF-8".to_owned()))?;
     for setting in [
         "mcp_servers.ymp.required=true".to_owned(),
-        "mcp_servers.ymp.enabled_tools=[\"read_control\",\"read_events\",\"submit\"]".to_owned(),
+        "mcp_servers.ymp.enabled_tools=[\"read_control\",\"read_events\",\"yield\",\"submit\"]"
+            .to_owned(),
         "mcp_servers.ymp.default_tools_approval_mode=\"approve\"".to_owned(),
         format!(
             "mcp_servers.ymp.command={}",
             serde_json::to_string(executable).expect("string serialization cannot fail")
         ),
         "mcp_servers.ymp.args=[\"internal\",\"agent-mcp\"]".to_owned(),
-        format!(
-            "mcp_servers.ymp.env.YMP_AGENT_SOCKET={}",
-            serde_json::to_string(socket).expect("string serialization cannot fail")
-        ),
-        format!(
-            "mcp_servers.ymp.env.YMP_AGENT_TOKEN={}",
-            serde_json::to_string(&binding.token).expect("string serialization cannot fail")
-        ),
-        format!(
-            "mcp_servers.ymp.env.YMP_ATTEMPT_ID={}",
-            serde_json::to_string(attempt_id).expect("string serialization cannot fail")
-        ),
     ] {
-        command.arg("-c").arg(setting);
+        arguments.push("-c".to_owned());
+        arguments.push(setting);
     }
     Ok(())
 }
@@ -734,12 +1393,38 @@ mod tests {
     use std::os::unix::fs::PermissionsExt;
     use ymp_runtime_api::{
         CancellationToken, InvocationRequest, RuntimeDriver, RuntimeError, RuntimeEventKind,
+        RuntimeFailureKind, RuntimeSession,
     };
+
+    fn expect_launch(session: &mut dyn RuntimeSession) {
+        assert!(matches!(
+            session.next_event().expect("launch").expect("event").event,
+            RuntimeEventKind::Launch { .. }
+        ));
+    }
 
     #[test]
     fn profile_rejects_unapproved_model_and_effort() {
         let profile = CodexProfile {
             model: "unapproved".to_owned(),
+            ..CodexProfile::default()
+        };
+        assert!(matches!(
+            profile.validate(),
+            Err(RuntimeError::InvalidProfile(_))
+        ));
+
+        let profile = CodexProfile {
+            output_limit_bytes: 0,
+            ..CodexProfile::default()
+        };
+        assert!(matches!(
+            profile.validate(),
+            Err(RuntimeError::InvalidProfile(_))
+        ));
+
+        let profile = CodexProfile {
+            wall_time_limit_ms: 0,
             ..CodexProfile::default()
         };
         assert!(matches!(
@@ -766,6 +1451,215 @@ mod tests {
     }
 
     #[test]
+    fn managed_launch_uses_a_synthetic_home_and_allowlisted_environment() {
+        let directory = tempfile::tempdir().expect("temporary directory");
+        let negative_control_home =
+            std::env::var_os("YMP_NEGATIVE_CONTROL_CONFIG_ROOT").map(std::path::PathBuf::from);
+        if let Some(ambient_codex_home) = &negative_control_home {
+            assert_eq!(
+                std::env::var_os("CODEX_HOME").map(std::path::PathBuf::from),
+                Some(ambient_codex_home.clone())
+            );
+            fs::create_dir_all(ambient_codex_home.join("hooks")).expect("ambient hooks directory");
+            fs::create_dir_all(ambient_codex_home.join("plugins"))
+                .expect("ambient plugins directory");
+            fs::write(
+                ambient_codex_home.join("config.toml"),
+                b"model = 'ambient-model'\n",
+            )
+            .expect("ambient configuration");
+            fs::write(
+                ambient_codex_home.join("auth.json"),
+                b"{\"OPENAI_API_KEY\":\"fixture-auth-only\"}\n",
+            )
+            .expect("ambient authentication fixture");
+        }
+        let executable = directory.path().join("codex-environment-fixture");
+        fs::write(
+            &executable,
+            r##"#!/bin/sh
+if [ "$1" = "--version" ]; then
+  printf '%s\n' 'codex-cli 0.147.0'
+elif [ "$1" = "login" ]; then
+  exit 0
+else
+  printf '%s\n' "$@" > invocation.args
+  {
+    env | sed 's/=.*//' | sort
+  } > invocation.env-keys
+  {
+    printf 'HOME=%s\n' "$HOME"
+    printf 'CODEX_HOME=%s\n' "$CODEX_HOME"
+    printf 'OPENAI_BASE_URL=%s\n' "${OPENAI_BASE_URL-unset}"
+    printf 'OPENAI_ORGANIZATION=%s\n' "${OPENAI_ORGANIZATION-unset}"
+    printf 'OPENAI_PROJECT=%s\n' "${OPENAI_PROJECT-unset}"
+    printf 'YMP_ATTEMPT_ID=%s\n' "${YMP_ATTEMPT_ID-unset}"
+    if [ -f "$CODEX_HOME/auth.json" ]; then
+      printf '%s\n' 'AUTH_FILE=present'
+    else
+      printf '%s\n' 'AUTH_FILE=absent'
+    fi
+    if [ -e "$CODEX_HOME/config.toml" ] || [ -e "$CODEX_HOME/hooks" ] || [ -e "$CODEX_HOME/plugins" ]; then
+      printf '%s\n' 'AMBIENT_CONFIG=present'
+    else
+      printf '%s\n' 'AMBIENT_CONFIG=absent'
+    fi
+    if [ -n "${YMP_AGENT_TOKEN-}" ]; then
+      printf '%s\n' 'YMP_AGENT_TOKEN=present'
+    else
+      printf '%s\n' 'YMP_AGENT_TOKEN=absent'
+    fi
+  } > invocation.environment
+  cat >/dev/null
+  printf '%s\n' '{"type":"thread.started","thread_id":"thread-environment-1"}'
+  printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":1,"cached_input_tokens":0,"output_tokens":1,"reasoning_output_tokens":0}}'
+fi
+"##,
+        )
+        .expect("write fixture");
+        let mut permissions = fs::metadata(&executable).expect("metadata").permissions();
+        permissions.set_mode(0o700);
+        fs::set_permissions(&executable, permissions).expect("make executable");
+
+        let runtime = CodexRuntime::new(&executable);
+        let mut session = runtime
+            .start(InvocationRequest {
+                invocation_id: "invocation-environment".to_owned(),
+                attempt_id: "attempt-environment".to_owned(),
+                workspace: directory.path().to_owned(),
+                mcp: Some(ymp_runtime_api::McpBinding {
+                    executable: executable.clone(),
+                    socket_path: directory.path().join("agent.sock"),
+                    token: "fixture-secret-token".to_owned(),
+                }),
+                prompt: "fixture".to_owned(),
+                cancellation: Default::default(),
+            })
+            .expect("start fixture");
+        while session.next_event().expect("runtime event").is_some() {}
+
+        let arguments = fs::read_to_string(directory.path().join("invocation.args"))
+            .expect("captured arguments");
+        let environment = fs::read_to_string(directory.path().join("invocation.environment"))
+            .expect("captured environment facts");
+        let ambient_home = std::env::var("HOME").expect("ambient HOME for negative control");
+        let keys = fs::read_to_string(directory.path().join("invocation.env-keys"))
+            .expect("captured environment keys");
+        let mut violations = Vec::new();
+        for (required, detail) in [
+            (
+                !arguments.contains("fixture-secret-token"),
+                "MCP token reached argv",
+            ),
+            (
+                arguments.contains("--ignore-user-config"),
+                "user configuration was not rejected",
+            ),
+            (
+                arguments.contains("--ignore-rules"),
+                "ambient rules were not rejected",
+            ),
+            (
+                arguments.contains("--disable\nhooks\n"),
+                "hooks were not disabled",
+            ),
+            (
+                arguments.contains("--disable\nmulti_agent\n"),
+                "native subagents were not disabled",
+            ),
+            (
+                arguments.contains("--disable\nmulti_agent_v2\n"),
+                "native subagents v2 were not disabled",
+            ),
+            (
+                arguments.contains("--disable\nplugins\n"),
+                "plugins were not disabled",
+            ),
+            (
+                arguments.contains("--disable\nremote_control\n"),
+                "remote control was not disabled",
+            ),
+            (
+                arguments.contains("--disable\nremote_models\n"),
+                "remote models were not disabled",
+            ),
+            (
+                arguments.contains("--disable\nremote_plugin\n"),
+                "remote plugins were not disabled",
+            ),
+            (
+                arguments.contains("--disable\nshell_snapshot\n"),
+                "ambient shell snapshot was not disabled",
+            ),
+            (
+                arguments.contains("shell_environment_policy.inherit=\"none\""),
+                "shell environment inheritance was not disabled",
+            ),
+            (
+                environment.contains("OPENAI_BASE_URL=https://api.openai.com/v1"),
+                "ambient provider base URL reached the child",
+            ),
+            (
+                environment.contains("OPENAI_ORGANIZATION=unset"),
+                "ambient OpenAI organization reached the child",
+            ),
+            (
+                environment.contains("OPENAI_PROJECT=unset"),
+                "ambient OpenAI project reached the child",
+            ),
+            (
+                environment.contains("YMP_ATTEMPT_ID=attempt-environment"),
+                "attempt identity was not bound",
+            ),
+            (
+                environment.contains("YMP_AGENT_TOKEN=present"),
+                "MCP token was not delivered through the child environment",
+            ),
+            (
+                environment.contains("AMBIENT_CONFIG=absent"),
+                "ambient Codex configuration reached the synthetic home",
+            ),
+            (
+                !environment.contains(&format!("HOME={ambient_home}\n")),
+                "ambient HOME reached the child",
+            ),
+        ] {
+            if !required {
+                violations.push(detail.to_owned());
+            }
+        }
+        if negative_control_home.is_some() && !environment.contains("AUTH_FILE=present") {
+            violations.push("allowlisted authentication was not copied".to_owned());
+        }
+        if let Ok(ambient_codex_home) = std::env::var("CODEX_HOME")
+            && environment.contains(&format!("CODEX_HOME={ambient_codex_home}\n"))
+        {
+            violations.push("ambient CODEX_HOME reached the child".to_owned());
+        }
+        for forbidden in [
+            "OPENAI_ORGANIZATION",
+            "OPENAI_PROJECT",
+            "YMP_AMBIENT_HOOK",
+            "YMP_AMBIENT_MCP",
+            "YMP_AMBIENT_PLUGIN",
+            "YMP_NEGATIVE_CONTROL_CONFIG_ROOT",
+            "YMP_NATIVE_SUBAGENT",
+            "YMP_REMOTE_EXECUTION",
+        ] {
+            if keys.lines().any(|key| key == forbidden) {
+                violations.push(format!(
+                    "managed child inherited environment key {forbidden}"
+                ));
+            }
+        }
+        assert!(
+            violations.is_empty(),
+            "managed child was not isolated:\n{}",
+            violations.join("\n")
+        );
+    }
+
+    #[test]
     fn structured_process_stream_preserves_session_output_and_usage() {
         let directory = tempfile::tempdir().expect("temporary directory");
         let executable = directory.path().join("codex-fixture");
@@ -778,12 +1672,13 @@ elif [ "$1" = "login" ]; then
   exit 0
 else
   cat >/dev/null
-  printf '%s\n' "$@" > "$(dirname "$0")/invocation.args"
+  printf '%s\n' "$@" > invocation.args
   printf '%s\n' '{"type":"thread.started","thread_id":"thread-1"}'
   printf '%s\n' '{"type":"turn.started"}'
   printf '%s\n' '{"type":"item.completed","item":{"type":"mcp_tool_call","server":"ymp","tool":"read_control","status":"completed","arguments":{},"result":{"run_id":"run-1"},"error":null}}'
+  printf '%s\n' '{"type":"item.completed","item":{"type":"mcp_tool_call","server":"ymp","tool":"submit","status":"completed","arguments":{"command_id":"submit-1"},"result":{"committed":true},"error":null}}'
   printf '%s\n' '{"type":"item.completed","item":{"type":"agent_message","text":"done"}}'
-  printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":11,"cached_input_tokens":7,"output_tokens":3,"reasoning_output_tokens":2}}'
+  printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":11,"cached_input_tokens":7,"output_tokens":3,"reasoning_output_tokens":2,"cost_microusd":91,"protected_queries":2}}'
 fi
 "##,
         )
@@ -807,6 +1702,7 @@ fi
                 cancellation: Default::default(),
             })
             .expect("start fixture");
+        expect_launch(session.as_mut());
         let started = session.next_event().expect("started").expect("event");
         assert!(matches!(
             started.event,
@@ -827,6 +1723,11 @@ fi
                 && status == "completed"
                 && result["run_id"] == "run-1"
         ));
+        assert!(matches!(
+            session.next_event().expect("submit").expect("event").event,
+            RuntimeEventKind::McpToolCall { tool, status, .. }
+                if tool == "submit" && status == "completed"
+        ));
         let output = session.next_event().expect("output").expect("event");
         assert!(matches!(
             output.event,
@@ -840,15 +1741,71 @@ fi
                     && usage.cached_input_tokens == 7
                     && usage.output_tokens == 3
                     && usage.reasoning_output_tokens == 2
+                    && usage.cost_microusd == Some(91)
+                    && usage.protected_queries == 2
         ));
         assert!(session.next_event().expect("terminal").is_none());
         let arguments = fs::read_to_string(directory.path().join("invocation.args"))
             .expect("captured invocation arguments");
         assert!(arguments.contains("mcp_servers.ymp.required=true"));
         assert!(arguments.contains(
-            "mcp_servers.ymp.enabled_tools=[\"read_control\",\"read_events\",\"submit\"]"
+            "mcp_servers.ymp.enabled_tools=[\"read_control\",\"read_events\",\"yield\",\"submit\"]"
         ));
         assert!(arguments.contains("mcp_servers.ymp.default_tools_approval_mode=\"approve\""));
+    }
+
+    #[test]
+    fn missing_usage_and_incompatible_structured_events_reject_the_run() {
+        let directory = tempfile::tempdir().expect("temporary directory");
+        let executable = directory.path().join("codex-invalid-event-fixture");
+        fs::write(
+            &executable,
+            r##"#!/bin/sh
+if [ "$1" = "--version" ]; then
+  printf '%s\n' 'codex-cli 0.147.0'
+elif [ "$1" = "login" ]; then
+  exit 0
+else
+  input=$(cat)
+  printf '%s\n' '{"type":"thread.started","thread_id":"thread-invalid-event"}'
+  case "$input" in
+    *missing-usage*) printf '%s\n' '{"type":"turn.completed"}' ;;
+    *) printf '%s\n' '{"type":"future.incompatible_event"}' ;;
+  esac
+fi
+"##,
+        )
+        .expect("write fixture");
+        let mut permissions = fs::metadata(&executable).expect("metadata").permissions();
+        permissions.set_mode(0o700);
+        fs::set_permissions(&executable, permissions).expect("make executable");
+
+        for prompt in ["missing-usage", "incompatible-event"] {
+            let runtime = CodexRuntime::new(&executable);
+            let mut session = runtime
+                .start(InvocationRequest {
+                    invocation_id: format!("invocation-{prompt}"),
+                    attempt_id: format!("attempt-{prompt}"),
+                    workspace: directory.path().to_owned(),
+                    mcp: None,
+                    prompt: prompt.to_owned(),
+                    cancellation: Default::default(),
+                })
+                .expect("start fixture");
+            expect_launch(session.as_mut());
+            assert!(matches!(
+                session.next_event().expect("started").expect("event").event,
+                RuntimeEventKind::Started { .. }
+            ));
+            assert!(matches!(
+                session.next_event().expect("failure").expect("event").event,
+                RuntimeEventKind::Failed {
+                    kind: RuntimeFailureKind::Protocol,
+                    diagnostic: Some(diagnostic),
+                    ..
+                } if diagnostic.digest.len() == 64
+            ));
+        }
     }
 
     #[test]
@@ -863,10 +1820,22 @@ if [ "$1" = "--version" ]; then
 elif [ "$1" = "login" ]; then
   exit 0
 else
-  cd "$(dirname "$0")"
   count=$(($(cat invocation.count 2>/dev/null || printf '0') + 1))
   printf '%s\n' "$count" > invocation.count
   printf '%s\n' "$@" > "invocation-$count.args"
+  {
+    printf 'HOME=%s\n' "$HOME"
+    printf 'CODEX_HOME=%s\n' "$CODEX_HOME"
+    printf 'OPENAI_BASE_URL=%s\n' "${OPENAI_BASE_URL-unset}"
+    printf 'OPENAI_ORGANIZATION=%s\n' "${OPENAI_ORGANIZATION-unset}"
+    printf 'OPENAI_PROJECT=%s\n' "${OPENAI_PROJECT-unset}"
+    printf 'YMP_ATTEMPT_ID=%s\n' "${YMP_ATTEMPT_ID-unset}"
+    if [ -n "${YMP_AGENT_TOKEN-}" ]; then
+      printf '%s\n' 'YMP_AGENT_TOKEN=present'
+    else
+      printf '%s\n' 'YMP_AGENT_TOKEN=absent'
+    fi
+  } > "invocation-$count.environment"
   cat > "invocation-$count.stdin"
   printf '%s\n' '{"type":"thread.started","thread_id":"thread-resume-1"}'
   if [ "$count" -eq 1 ]; then
@@ -876,6 +1845,7 @@ else
   fi
   test "$(cat committed.progress)" = 'committed progress' || exit 29
   printf '%s\n' '{"type":"item.completed","item":{"type":"agent_message","text":"resumed progress"}}'
+  printf '%s\n' '{"type":"item.completed","item":{"type":"mcp_tool_call","server":"ymp","tool":"submit","status":"completed","arguments":{"command_id":"resume-submit"},"result":{"committed":true},"error":null}}'
   printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":13,"cached_input_tokens":5,"output_tokens":3,"reasoning_output_tokens":1}}'
 fi
 "##,
@@ -901,8 +1871,9 @@ fi
             })
             .expect("start fixture");
 
+        expect_launch(session.as_mut());
         let started = session.next_event().expect("started").expect("event");
-        assert_eq!(started.sequence, 1);
+        assert_eq!(started.sequence, 2);
         assert!(matches!(
             started.event,
             RuntimeEventKind::Started { opaque_session_id }
@@ -915,14 +1886,15 @@ fi
         ));
         assert!(matches!(
             session.next_event(),
-            Err(RuntimeError::UnsuccessfulExit { .. })
+            Err(RuntimeError::SanitizedUnsuccessfulExit { .. })
         ));
 
         session
             .resume("continue after interruption".to_owned())
             .expect("resume fixture");
+        expect_launch(session.as_mut());
         let resumed = session.next_event().expect("resumed start").expect("event");
-        assert_eq!(resumed.sequence, 3);
+        assert_eq!(resumed.sequence, 5);
         assert!(matches!(
             resumed.event,
             RuntimeEventKind::Started { opaque_session_id }
@@ -935,6 +1907,10 @@ fi
                 .expect("event")
                 .event,
             RuntimeEventKind::Output { text } if text == "resumed progress"
+        ));
+        assert!(matches!(
+            session.next_event().expect("submit").expect("event").event,
+            RuntimeEventKind::McpToolCall { tool, .. } if tool == "submit"
         ));
         assert!(matches!(
             session
@@ -952,7 +1928,20 @@ fi
         assert!(!initial_arguments.contains("--ephemeral"));
         assert!(resumed_arguments.contains("resume\nthread-resume-1\n"));
         assert!(!resumed_arguments.contains("--ephemeral"));
-        assert!(resumed_arguments.contains("YMP_ATTEMPT_ID=\"attempt-resume\""));
+        assert!(!initial_arguments.contains("fixture-token"));
+        assert!(!resumed_arguments.contains("fixture-token"));
+        let initial_environment =
+            fs::read_to_string(directory.path().join("invocation-1.environment"))
+                .expect("initial environment");
+        let resumed_environment =
+            fs::read_to_string(directory.path().join("invocation-2.environment"))
+                .expect("resumed environment");
+        assert_eq!(initial_environment, resumed_environment);
+        assert!(initial_environment.contains("OPENAI_BASE_URL=https://api.openai.com/v1"));
+        assert!(initial_environment.contains("OPENAI_ORGANIZATION=unset"));
+        assert!(initial_environment.contains("OPENAI_PROJECT=unset"));
+        assert!(initial_environment.contains("YMP_ATTEMPT_ID=attempt-resume"));
+        assert!(initial_environment.contains("YMP_AGENT_TOKEN=present"));
         assert_eq!(
             fs::read_to_string(directory.path().join("invocation.count"))
                 .expect("invocation count")
@@ -973,7 +1962,6 @@ if [ "$1" = "--version" ]; then
 elif [ "$1" = "login" ]; then
   exit 0
 else
-  cd "$(dirname "$0")"
   count=$(($(cat invocation.count 2>/dev/null || printf '0') + 1))
   printf '%s\n' "$count" > invocation.count
   cat >/dev/null
@@ -997,13 +1985,17 @@ fi
                 cancellation: Default::default(),
             })
             .expect("start fixture");
+        expect_launch(session.as_mut());
         assert!(matches!(
-            session.next_event(),
-            Err(RuntimeError::UnsuccessfulExit { .. })
+            session.next_event().expect("failure").expect("event").event,
+            RuntimeEventKind::Failed {
+                kind: RuntimeFailureKind::ProcessExit,
+                ..
+            }
         ));
         assert!(matches!(
             session.resume("do not replace".to_owned()),
-            Err(RuntimeError::InvalidProfile(_))
+            Err(RuntimeError::NotYielded)
         ));
         assert_eq!(
             fs::read_to_string(directory.path().join("invocation.count"))
@@ -1025,7 +2017,6 @@ if [ "$1" = "--version" ]; then
 elif [ "$1" = "login" ]; then
   exit 0
 else
-  cd "$(dirname "$0")"
   count=$(($(cat invocation.count 2>/dev/null || printf '0') + 1))
   printf '%s\n' "$count" > invocation.count
   cat >/dev/null
@@ -1054,6 +2045,7 @@ fi
                 cancellation: Default::default(),
             })
             .expect("start fixture");
+        expect_launch(session.as_mut());
         assert!(matches!(
             session.next_event().expect("started").expect("event").event,
             RuntimeEventKind::Started { opaque_session_id }
@@ -1061,13 +2053,17 @@ fi
         ));
         assert!(matches!(
             session.next_event(),
-            Err(RuntimeError::UnsuccessfulExit { .. })
+            Err(RuntimeError::SanitizedUnsuccessfulExit { .. })
         ));
         session.resume("resume".to_owned()).expect("native resume");
+        expect_launch(session.as_mut());
         assert!(matches!(
-            session.next_event(),
-            Err(RuntimeError::UnsuccessfulExit { stderr, .. })
-                if stderr.contains("unknown session thread-missing")
+            session.next_event().expect("failure").expect("event").event,
+            RuntimeEventKind::Failed {
+                kind: RuntimeFailureKind::ProcessExit,
+                diagnostic: Some(diagnostic),
+                ..
+            } if diagnostic.bytes > 0 && diagnostic.digest.len() == 64
         ));
         assert!(matches!(
             session.resume("replacement".to_owned()),
@@ -1093,7 +2089,6 @@ if [ "$1" = "--version" ]; then
 elif [ "$1" = "login" ]; then
   exit 0
 else
-  cd "$(dirname "$0")"
   sleep 30 &
   printf '%s\n' "$!" > descendant.pid
   wait
@@ -1120,9 +2115,10 @@ fi
                 cancellation: Default::default(),
             })
             .expect("start fixture");
+        expect_launch(session.as_mut());
         assert!(matches!(
-            session.next_event(),
-            Err(RuntimeError::TimedOut { limit_ms: 100 })
+            session.next_event().expect("timeout").expect("event").event,
+            RuntimeEventKind::TimedOut { limit_ms: 100, .. }
         ));
 
         let descendant =
@@ -1156,7 +2152,6 @@ if [ "$1" = "--version" ]; then
 elif [ "$1" = "login" ]; then
   exit 0
 else
-  cd "$(dirname "$0")"
   sleep 30 &
   printf '%s\n' "$!" > cancel-descendant.pid
   wait
@@ -1180,6 +2175,7 @@ fi
                 cancellation: cancellation.clone(),
             })
             .expect("start fixture");
+        expect_launch(session.as_mut());
         let worker = std::thread::spawn(move || session.next_event());
         let pid_path = directory.path().join("cancel-descendant.pid");
         for _ in 0..40 {
@@ -1194,7 +2190,7 @@ fi
             .expect("runtime thread")
             .expect("runtime result")
             .expect("interrupted event");
-        assert!(matches!(event.event, RuntimeEventKind::Interrupted));
+        assert!(matches!(event.event, RuntimeEventKind::Cancelled { .. }));
 
         let descendant = fs::read_to_string(pid_path).expect("descendant pid");
         let alive = std::process::Command::new("/bin/kill")
@@ -1204,5 +2200,417 @@ fi
             .status()
             .is_ok_and(|status| status.success());
         assert!(!alive, "descendant process survived cancellation");
+    }
+
+    #[test]
+    fn prepared_launch_matches_actual_process_and_rejects_all_mutations() {
+        let directory = tempfile::tempdir().expect("temporary directory");
+        let executable = directory.path().join("codex-launch-descriptor-fixture");
+        let script = r##"#!/bin/sh
+if [ "$1" = "--version" ]; then
+  printf '%s\n' 'codex-cli 0.147.0'
+elif [ "$1" = "login" ]; then
+  exit 0
+else
+  printf '%s\n' "$0" > actual.executable
+  printf '%s\n' "$@" > actual.arguments
+  env | sort > actual.environment
+  cat >/dev/null
+  printf '%s\n' '{"type":"thread.started","thread_id":"thread-launch"}'
+  printf '%s\n' '{"type":"item.completed","item":{"type":"mcp_tool_call","server":"ymp","tool":"submit","status":"completed","arguments":{"command_id":"launch-submit"},"result":{"committed":true},"error":null}}'
+  printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":1,"output_tokens":1}}'
+fi
+"##;
+        fs::write(&executable, script).expect("write fixture");
+        let mut permissions = fs::metadata(&executable).expect("metadata").permissions();
+        permissions.set_mode(0o700);
+        fs::set_permissions(&executable, permissions).expect("make executable");
+
+        let make_request = |invocation_id: &str| InvocationRequest {
+            invocation_id: invocation_id.to_owned(),
+            attempt_id: "attempt-launch".to_owned(),
+            workspace: directory.path().to_owned(),
+            mcp: Some(ymp_runtime_api::McpBinding {
+                executable: executable.clone(),
+                socket_path: directory.path().join("agent.sock"),
+                token: "launch-fixture-secret".to_owned(),
+            }),
+            prompt: "fixture".to_owned(),
+            cancellation: Default::default(),
+        };
+
+        let runtime = CodexRuntime::new(&executable);
+        let initial_request = make_request("invocation-launch-actual");
+        let descriptor = runtime
+            .prepare_launch(&initial_request)
+            .expect("prepare launch")
+            .expect("Codex descriptor");
+        assert_eq!(descriptor.invocation_id, initial_request.invocation_id);
+        assert_eq!(descriptor.attempt_id, initial_request.attempt_id);
+        let token_entry = descriptor
+            .environment
+            .iter()
+            .find(|variable| variable.name == "YMP_AGENT_TOKEN")
+            .expect("token evidence");
+        assert!(token_entry.confidential);
+        assert_eq!(token_entry.value, None);
+        assert!(
+            !serde_json::to_string(&descriptor)
+                .expect("serialize descriptor")
+                .contains("launch-fixture-secret")
+        );
+        let mut session = runtime
+            .start_prepared(initial_request, Some(&descriptor))
+            .expect("start prepared launch");
+        let launched = session.next_event().expect("launch").expect("event");
+        assert!(matches!(
+            launched.event,
+            RuntimeEventKind::Launch { descriptor: actual } if *actual == descriptor
+        ));
+        while session.next_event().expect("runtime event").is_some() {}
+
+        assert_eq!(
+            fs::read_to_string(directory.path().join("actual.executable"))
+                .expect("actual executable")
+                .trim(),
+            descriptor.executable.to_str().expect("UTF-8 executable")
+        );
+        let actual_arguments: Vec<_> =
+            fs::read_to_string(directory.path().join("actual.arguments"))
+                .expect("actual arguments")
+                .lines()
+                .map(str::to_owned)
+                .collect();
+        assert_eq!(actual_arguments, descriptor.arguments);
+        let environment_bytes =
+            fs::read(directory.path().join("actual.environment")).expect("actual environment");
+        let actual_environment =
+            String::from_utf8(environment_bytes.clone()).expect("UTF-8 environment");
+        for variable in &descriptor.environment {
+            let actual = actual_environment
+                .lines()
+                .find_map(|line| line.strip_prefix(&format!("{}=", variable.name)))
+                .expect("descriptor environment entry reached child");
+            assert_eq!(
+                ymp_runtime_api::evidence_digest(actual.as_bytes()),
+                variable.value_digest
+            );
+            if let Some(expected) = &variable.value {
+                assert_eq!(actual, expected);
+            }
+        }
+        fs::remove_file(directory.path().join("actual.environment"))
+            .expect("remove raw test observation");
+
+        for (suffix, mutate) in [
+            ("argument", 0_u8),
+            ("environment", 1_u8),
+            ("invocation", 2_u8),
+        ] {
+            let request = make_request(&format!("invocation-launch-{suffix}"));
+            let mut descriptor = runtime
+                .prepare_launch(&request)
+                .expect("prepare mutation")
+                .expect("descriptor");
+            match mutate {
+                0 => descriptor.arguments.push("--mutated".to_owned()),
+                1 => descriptor.environment[0].value_digest = "0".repeat(64),
+                2 => descriptor.invocation_id.push_str("-mutated"),
+                _ => unreachable!(),
+            }
+            assert!(matches!(
+                runtime.start_prepared(request, Some(&descriptor)),
+                Err(RuntimeError::InvalidProfile(_))
+            ));
+        }
+
+        let request = make_request("invocation-launch-executable");
+        let descriptor = runtime
+            .prepare_launch(&request)
+            .expect("prepare executable mutation")
+            .expect("descriptor");
+        let mut permissions = fs::metadata(&descriptor.executable)
+            .expect("admitted executable metadata")
+            .permissions();
+        permissions.set_mode(0o700);
+        fs::set_permissions(&descriptor.executable, permissions)
+            .expect("make admitted executable mutable for negative control");
+        fs::write(&descriptor.executable, format!("{script}\n# substituted\n"))
+            .expect("substitute admitted executable");
+        assert!(matches!(
+            runtime.start_prepared(request, Some(&descriptor)),
+            Err(RuntimeError::InvalidProfile(_))
+        ));
+
+        let request = make_request("invocation-launch-mcp-executable");
+        let descriptor = runtime
+            .prepare_launch(&request)
+            .expect("prepare MCP executable mutation")
+            .expect("descriptor");
+        let coordination_executable = descriptor
+            .coordination_executable
+            .as_ref()
+            .expect("coordination executable");
+        let mut permissions = fs::metadata(coordination_executable)
+            .expect("admitted MCP executable metadata")
+            .permissions();
+        permissions.set_mode(0o700);
+        fs::set_permissions(coordination_executable, permissions)
+            .expect("make admitted MCP executable mutable for negative control");
+        fs::write(coordination_executable, "#!/bin/sh\nexit 73\n")
+            .expect("substitute admitted MCP executable");
+        assert!(matches!(
+            runtime.start_prepared(request, Some(&descriptor)),
+            Err(RuntimeError::InvalidProfile(_))
+        ));
+    }
+
+    #[test]
+    fn terminal_outcomes_preserve_available_accounting() {
+        let directory = tempfile::tempdir().expect("temporary directory");
+        let executable = directory.path().join("codex-accounting-fixture");
+        fs::write(
+            &executable,
+            r##"#!/bin/sh
+if [ "$1" = "--version" ]; then
+  printf '%s\n' 'codex-cli 0.147.0'
+elif [ "$1" = "login" ]; then
+  exit 0
+else
+  input=$(cat)
+  printf '%s\n' '{"type":"thread.started","thread_id":"thread-accounting"}'
+  printf '%s\n' '{"type":"turn.started","usage":{"input_tokens":7,"cached_input_tokens":2,"output_tokens":3,"reasoning_output_tokens":1,"cost_microusd":23,"protected_queries":2,"in_flight_excess":{"model_requests":1,"input_tokens":5,"cached_input_tokens":1,"output_tokens":2,"reasoning_output_tokens":1,"cost_microusd":11}}}'
+  case "$input" in
+    *success*)
+      printf '%s\n' '{"type":"item.completed","item":{"type":"mcp_tool_call","server":"ymp","tool":"submit","status":"completed","arguments":{"command_id":"accounting-submit"},"result":{"committed":true},"error":null}}'
+      printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":11,"cached_input_tokens":4,"output_tokens":5,"reasoning_output_tokens":2,"cost_microusd":31,"protected_queries":3,"in_flight_excess":{"model_requests":2,"cost_microusd":3}}}'
+      ;;
+    *error*)
+      printf '%s\n' '{"type":"turn.failed","usage":{"input_tokens":11,"cached_input_tokens":4,"output_tokens":5,"reasoning_output_tokens":2,"cost_microusd":31,"protected_queries":3,"in_flight_excess":{"model_requests":1,"input_tokens":5,"cached_input_tokens":1,"output_tokens":2,"reasoning_output_tokens":1,"cost_microusd":11}},"error":{"code":"fixture"}}'
+      ;;
+    *) sleep 30 ;;
+  esac
+fi
+"##,
+        )
+        .expect("write fixture");
+        let mut permissions = fs::metadata(&executable).expect("metadata").permissions();
+        permissions.set_mode(0o700);
+        fs::set_permissions(&executable, permissions).expect("make executable");
+
+        for outcome in ["success", "error", "cancel", "timeout"] {
+            let cancellation = CancellationToken::default();
+            let profile = CodexProfile {
+                wall_time_limit_ms: if outcome == "timeout" { 150 } else { 5_000 },
+                ..CodexProfile::default()
+            };
+            let runtime = CodexRuntime::with_profile(&executable, profile);
+            let mut session = runtime
+                .start(InvocationRequest {
+                    invocation_id: format!("invocation-{outcome}"),
+                    attempt_id: format!("attempt-{outcome}"),
+                    workspace: directory.path().to_owned(),
+                    mcp: None,
+                    prompt: outcome.to_owned(),
+                    cancellation: cancellation.clone(),
+                })
+                .expect("start accounting fixture");
+            expect_launch(session.as_mut());
+            assert!(matches!(
+                session.next_event().expect("started").expect("event").event,
+                RuntimeEventKind::Started { .. }
+            ));
+            let terminal = if outcome == "cancel" {
+                let worker = std::thread::spawn(move || session.next_event());
+                std::thread::sleep(std::time::Duration::from_millis(75));
+                cancellation.cancel();
+                worker
+                    .join()
+                    .expect("cancel worker")
+                    .expect("cancel event")
+                    .expect("terminal event")
+            } else {
+                loop {
+                    let event = session
+                        .next_event()
+                        .expect("accounting event")
+                        .expect("terminal event");
+                    if matches!(
+                        &event.event,
+                        RuntimeEventKind::Completed { .. }
+                            | RuntimeEventKind::Failed { .. }
+                            | RuntimeEventKind::TimedOut { .. }
+                    ) {
+                        break event;
+                    }
+                }
+            };
+            let usage = match terminal.event {
+                RuntimeEventKind::Completed { usage }
+                | RuntimeEventKind::Failed { usage, .. }
+                | RuntimeEventKind::TimedOut { usage, .. }
+                | RuntimeEventKind::Cancelled { usage } => usage,
+                other => panic!("unexpected terminal event: {other:?}"),
+            };
+            assert!(usage.wall_time_ms > 0);
+            assert!(usage.cost_microusd.is_some());
+            assert!(usage.input_tokens > 0);
+            assert!(usage.output_tokens > 0);
+            assert!(usage.protected_queries > 0);
+            if outcome == "success" {
+                assert_eq!(usage.in_flight_excess.model_requests, 2);
+                assert_eq!(usage.in_flight_excess.cost_microusd, 3);
+            } else {
+                assert!(usage.in_flight_excess.model_requests > 0);
+                assert!(usage.in_flight_excess.cost_microusd > 0);
+            }
+        }
+    }
+
+    #[test]
+    fn admitted_runtime_bytes_execute_after_source_path_replacement() {
+        let directory = tempfile::tempdir().expect("temporary directory");
+        let executable = directory.path().join("codex-admitted-runtime-fixture");
+        let admitted = r##"#!/bin/sh
+if [ "$1" = "--version" ]; then
+  printf '%s\n' 'codex-cli 0.147.0'
+elif [ "$1" = "login" ]; then
+  exit 0
+else
+  cat >/dev/null
+  printf '%s\n' admitted > admitted-runtime.marker
+  printf '%s\n' '{"type":"thread.started","thread_id":"thread-admitted"}'
+  printf '%s\n' '{"type":"item.completed","item":{"type":"mcp_tool_call","server":"ymp","tool":"submit","status":"completed","arguments":{"command_id":"admitted-submit"},"result":{"committed":true},"error":null}}'
+  printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":1,"output_tokens":1}}'
+fi
+"##;
+        fs::write(&executable, admitted).expect("write admitted fixture");
+        let mut permissions = fs::metadata(&executable).expect("metadata").permissions();
+        permissions.set_mode(0o700);
+        fs::set_permissions(&executable, permissions).expect("make executable");
+        let runtime = CodexRuntime::new(&executable);
+        let request = InvocationRequest {
+            invocation_id: "invocation-admitted-runtime".to_owned(),
+            attempt_id: "attempt-admitted-runtime".to_owned(),
+            workspace: directory.path().to_owned(),
+            mcp: None,
+            prompt: "run admitted bytes".to_owned(),
+            cancellation: Default::default(),
+        };
+        runtime.probe().expect("probe admitted runtime");
+        let descriptor = runtime
+            .prepare_launch(&request)
+            .expect("prepare admitted runtime")
+            .expect("launch descriptor");
+        fs::write(
+            &executable,
+            "#!/bin/sh\nprintf '%s\\n' substituted > substituted-runtime.marker\nexit 73\n",
+        )
+        .expect("replace source path");
+        let mut session = runtime
+            .start_prepared(request, Some(&descriptor))
+            .expect("execute admitted runtime object");
+        while session.next_event().expect("runtime event").is_some() {}
+        assert!(directory.path().join("admitted-runtime.marker").is_file());
+        assert!(!directory.path().join("substituted-runtime.marker").exists());
+    }
+
+    #[test]
+    fn configured_bridge_uses_admitted_bytes_after_source_path_replacement() {
+        let directory = tempfile::tempdir().expect("temporary directory");
+        let executable = directory.path().join("codex-bridge-config-fixture");
+        fs::write(
+            &executable,
+            r##"#!/bin/sh
+if [ "$1" = "--version" ]; then
+  printf '%s\n' 'codex-cli 0.147.0'
+elif [ "$1" = "login" ]; then
+  exit 0
+else
+  cat >/dev/null
+  bridge=''
+  for argument in "$@"; do
+    case "$argument" in
+      mcp_servers.ymp.command=*)
+        bridge=${argument#mcp_servers.ymp.command=}
+        bridge=${bridge#\"}
+        bridge=${bridge%\"}
+        ;;
+    esac
+  done
+  "$bridge"
+  printf '%s\n' admitted > admitted-runtime.marker
+  printf '%s\n' '{"type":"thread.started","thread_id":"thread-bridge"}'
+  printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":1,"output_tokens":1}}'
+fi
+"##,
+        )
+        .expect("write Codex fixture");
+        let bridge = directory.path().join("ymp-bridge-fixture");
+        fs::write(
+            &bridge,
+            "#!/bin/sh\nprintf '%s\\n' admitted > admitted-bridge.marker\n",
+        )
+        .expect("write admitted bridge");
+        for path in [&executable, &bridge] {
+            let mut permissions = fs::metadata(path).expect("metadata").permissions();
+            permissions.set_mode(0o700);
+            fs::set_permissions(path, permissions).expect("make executable");
+        }
+        let runtime = CodexRuntime::new(&executable);
+        let request = InvocationRequest {
+            invocation_id: "invocation-admitted-bridge".to_owned(),
+            attempt_id: "attempt-admitted-bridge".to_owned(),
+            workspace: directory.path().to_owned(),
+            mcp: Some(ymp_runtime_api::McpBinding {
+                executable: bridge.clone(),
+                socket_path: directory.path().join("agent.sock"),
+                token: "bridge-token".to_owned(),
+            }),
+            prompt: "inspect bridge binding".to_owned(),
+            cancellation: Default::default(),
+        };
+        runtime.probe().expect("probe admitted runtime");
+        let descriptor = runtime
+            .prepare_launch(&request)
+            .expect("prepare bridge binding")
+            .expect("launch descriptor");
+        let configured_bridge = descriptor
+            .arguments
+            .windows(2)
+            .find_map(|arguments| {
+                (arguments[0] == "-c")
+                    .then_some(arguments[1].as_str())
+                    .and_then(|setting| setting.strip_prefix("mcp_servers.ymp.command="))
+            })
+            .map(|encoded| serde_json::from_str::<String>(encoded).expect("bridge path string"))
+            .expect("configured bridge path");
+        fs::write(
+            &bridge,
+            "#!/bin/sh\nprintf '%s\\n' substituted > substituted-bridge.marker\n",
+        )
+        .expect("replace bridge source path");
+        fs::write(
+            &executable,
+            "#!/bin/sh\nprintf '%s\\n' substituted > substituted-runtime.marker\nexit 73\n",
+        )
+        .expect("replace Codex source path");
+        let mut session = runtime
+            .start_prepared(request, Some(&descriptor))
+            .expect("execute admitted runtime and bridge objects");
+        while session.next_event().expect("runtime event").is_some() {}
+        assert_eq!(
+            configured_bridge,
+            descriptor
+                .coordination_executable
+                .as_ref()
+                .expect("coordination executable")
+                .to_str()
+                .expect("UTF-8 coordination executable")
+        );
+        assert!(directory.path().join("admitted-runtime.marker").is_file());
+        assert!(directory.path().join("admitted-bridge.marker").is_file());
+        assert!(!directory.path().join("substituted-runtime.marker").exists());
+        assert!(!directory.path().join("substituted-bridge.marker").exists());
     }
 }

@@ -11,9 +11,93 @@ use std::time::Duration;
 use thiserror::Error;
 use ymp_agent_api::{AgentToolCall, AgentToolError, AgentToolHandler};
 use ymp_application::{Application, WorkspaceSubmission};
+use ymp_domain::digest_bytes;
 
 const MAX_REQUEST_BYTES: usize = 64 * 1024;
 const MAX_RESPONSE_BYTES: usize = 1024 * 1024;
+const MAX_COMMAND_ID_CHARS: usize = 128;
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+pub struct YieldConfirmation {
+    pub sequence: u64,
+    pub command_id: String,
+    pub attempt_id: String,
+    pub invocation_id: String,
+    pub digest: String,
+}
+
+#[derive(Clone, Debug, Default)]
+pub struct InvocationControl {
+    state: Arc<Mutex<InvocationControlState>>,
+}
+
+#[derive(Debug, Default)]
+struct InvocationControlState {
+    confirmations: Vec<YieldConfirmation>,
+}
+
+impl InvocationControl {
+    pub fn confirmations_after(
+        &self,
+        cursor: u64,
+    ) -> Result<Vec<YieldConfirmation>, AgentToolError> {
+        let state = self
+            .state
+            .lock()
+            .map_err(|_| AgentToolError::internal("invocation control lock is unavailable"))?;
+        Ok(state
+            .confirmations
+            .iter()
+            .filter(|confirmation| confirmation.sequence > cursor)
+            .cloned()
+            .collect())
+    }
+
+    fn authorize_yield(
+        &self,
+        command_id: String,
+        attempt_id: &str,
+        invocation_id: &str,
+    ) -> Result<Value, AgentToolError> {
+        let command_chars = command_id.chars().count();
+        if !(1..=MAX_COMMAND_ID_CHARS).contains(&command_chars) {
+            return Err(AgentToolError::invalid(
+                "yield command_id must contain between 1 and 128 characters",
+            ));
+        }
+        let mut state = self
+            .state
+            .lock()
+            .map_err(|_| AgentToolError::internal("invocation control lock is unavailable"))?;
+        if let Some(confirmation) = state
+            .confirmations
+            .iter()
+            .find(|confirmation| confirmation.command_id == command_id)
+        {
+            return serde_json::to_value(confirmation)
+                .map_err(|_| AgentToolError::internal("yield confirmation serialization failed"));
+        }
+        let sequence = u64::try_from(state.confirmations.len())
+            .ok()
+            .and_then(|value| value.checked_add(1))
+            .ok_or_else(|| AgentToolError::internal("yield confirmation sequence exhausted"))?;
+        let digest = digest_bytes(
+            &serde_json::to_vec(&(sequence, &command_id, attempt_id, invocation_id))
+                .map_err(|_| AgentToolError::internal("yield confirmation serialization failed"))?,
+        );
+        let confirmation = YieldConfirmation {
+            sequence,
+            command_id,
+            attempt_id: attempt_id.to_owned(),
+            invocation_id: invocation_id.to_owned(),
+            digest,
+        };
+        let value = serde_json::to_value(&confirmation)
+            .map_err(|_| AgentToolError::internal("yield confirmation serialization failed"))?;
+        state.confirmations.push(confirmation);
+        Ok(value)
+    }
+}
 
 #[derive(Debug, Error)]
 pub enum AgentRpcError {
@@ -31,6 +115,8 @@ pub enum AgentRpcError {
 struct RpcRequest {
     token: String,
     attempt_id: String,
+    #[serde(default)]
+    invocation_id: Option<String>,
     call: AgentToolCall,
 }
 
@@ -60,6 +146,7 @@ pub struct SocketToolHandler {
     socket_path: PathBuf,
     token: String,
     attempt_id: String,
+    invocation_id: Option<String>,
 }
 
 impl SocketToolHandler {
@@ -72,6 +159,21 @@ impl SocketToolHandler {
             socket_path: socket_path.into(),
             token: token.into(),
             attempt_id: attempt_id.into(),
+            invocation_id: None,
+        }
+    }
+
+    pub fn for_invocation(
+        socket_path: impl Into<PathBuf>,
+        token: impl Into<String>,
+        attempt_id: impl Into<String>,
+        invocation_id: impl Into<String>,
+    ) -> Self {
+        Self {
+            socket_path: socket_path.into(),
+            token: token.into(),
+            attempt_id: attempt_id.into(),
+            invocation_id: Some(invocation_id.into()),
         }
     }
 
@@ -83,7 +185,14 @@ impl SocketToolHandler {
             std::env::var("YMP_AGENT_TOKEN").map_err(|_| AgentRpcError::UnsupportedPlatform)?;
         let attempt_id =
             std::env::var("YMP_ATTEMPT_ID").map_err(|_| AgentRpcError::UnsupportedPlatform)?;
-        Ok(Self::new(socket_path, token, attempt_id))
+        let invocation_id =
+            std::env::var("YMP_INVOCATION_ID").map_err(|_| AgentRpcError::UnsupportedPlatform)?;
+        Ok(Self::for_invocation(
+            socket_path,
+            token,
+            attempt_id,
+            invocation_id,
+        ))
     }
 }
 
@@ -96,6 +205,7 @@ impl AgentToolHandler for SocketToolHandler {
         let request = RpcRequest {
             token: self.token.clone(),
             attempt_id: self.attempt_id.clone(),
+            invocation_id: self.invocation_id.clone(),
             call,
         };
         let encoded = serde_json::to_vec(&request)
@@ -136,6 +246,7 @@ pub struct AgentRpcServer {
     socket_path: PathBuf,
     shutdown: Arc<AtomicBool>,
     thread: Option<JoinHandle<()>>,
+    invocation_control: Option<InvocationControl>,
 }
 
 impl AgentRpcServer {
@@ -146,7 +257,7 @@ impl AgentRpcServer {
         attempt_id: impl Into<String>,
         application: Arc<Mutex<Application>>,
     ) -> Result<Self, AgentRpcError> {
-        Self::start_inner(socket_path, token, attempt_id, application, None)
+        Self::start_inner(socket_path, token, attempt_id, None, application, None)
     }
 
     #[cfg(unix)]
@@ -161,6 +272,26 @@ impl AgentRpcServer {
             socket_path,
             token,
             attempt_id,
+            None,
+            application,
+            Some(submission),
+        )
+    }
+
+    #[cfg(unix)]
+    pub fn start_with_submission_for_invocation(
+        socket_path: impl Into<PathBuf>,
+        token: impl Into<String>,
+        attempt_id: impl Into<String>,
+        invocation_id: impl Into<String>,
+        application: Arc<Mutex<Application>>,
+        submission: WorkspaceSubmission,
+    ) -> Result<Self, AgentRpcError> {
+        Self::start_inner(
+            socket_path,
+            token,
+            attempt_id,
+            Some(invocation_id.into()),
             application,
             Some(submission),
         )
@@ -171,6 +302,7 @@ impl AgentRpcServer {
         socket_path: impl Into<PathBuf>,
         token: impl Into<String>,
         attempt_id: impl Into<String>,
+        invocation_id: Option<String>,
         application: Arc<Mutex<Application>>,
         submission: Option<WorkspaceSubmission>,
     ) -> Result<Self, AgentRpcError> {
@@ -197,6 +329,8 @@ impl AgentRpcServer {
         listener.set_nonblocking(true)?;
         let token = token.into();
         let attempt_id = attempt_id.into();
+        let invocation_control = invocation_id.as_ref().map(|_| InvocationControl::default());
+        let thread_control = invocation_control.clone();
         let shutdown = Arc::new(AtomicBool::new(false));
         let thread_shutdown = Arc::clone(&shutdown);
         let thread = thread::spawn(move || {
@@ -207,6 +341,8 @@ impl AgentRpcServer {
                             &mut stream,
                             &token,
                             &attempt_id,
+                            invocation_id.as_deref(),
+                            thread_control.as_ref(),
                             &application,
                             submission.clone(),
                         );
@@ -226,6 +362,7 @@ impl AgentRpcServer {
             socket_path,
             shutdown,
             thread: Some(thread),
+            invocation_control,
         })
     }
 
@@ -249,6 +386,22 @@ impl AgentRpcServer {
     ) -> Result<Self, AgentRpcError> {
         Err(AgentRpcError::UnsupportedPlatform)
     }
+
+    #[cfg(not(unix))]
+    pub fn start_with_submission_for_invocation(
+        _socket_path: impl Into<PathBuf>,
+        _token: impl Into<String>,
+        _attempt_id: impl Into<String>,
+        _invocation_id: impl Into<String>,
+        _application: Arc<Mutex<Application>>,
+        _submission: WorkspaceSubmission,
+    ) -> Result<Self, AgentRpcError> {
+        Err(AgentRpcError::UnsupportedPlatform)
+    }
+
+    pub fn invocation_control(&self) -> Option<InvocationControl> {
+        self.invocation_control.clone()
+    }
 }
 
 impl Drop for AgentRpcServer {
@@ -270,6 +423,8 @@ fn handle_connection(
     stream: &mut std::os::unix::net::UnixStream,
     expected_token: &str,
     expected_attempt: &str,
+    expected_invocation: Option<&str>,
+    invocation_control: Option<&InvocationControl>,
     application: &Arc<Mutex<Application>>,
     submission: Option<WorkspaceSubmission>,
 ) -> Result<Value, AgentToolError> {
@@ -280,16 +435,33 @@ fn handle_connection(
     if request.token != expected_token || request.attempt_id != expected_attempt {
         return Err(AgentToolError::rejected("agent RPC capability is invalid"));
     }
+    if let Some(expected_invocation) = expected_invocation
+        && request.invocation_id.as_deref() != Some(expected_invocation)
+    {
+        return Err(AgentToolError::rejected(
+            "agent RPC invocation capability is invalid",
+        ));
+    }
+    let call = match request.call {
+        AgentToolCall::Yield(arguments) => {
+            let invocation_id = expected_invocation.ok_or_else(|| {
+                AgentToolError::rejected("this endpoint is not bound to a managed invocation")
+            })?;
+            let control = invocation_control.ok_or_else(|| {
+                AgentToolError::internal("managed invocation control is unavailable")
+            })?;
+            return control.authorize_yield(arguments.command_id, expected_attempt, invocation_id);
+        }
+        call => call,
+    };
     let mut application = application
         .lock()
         .map_err(|_| AgentToolError::internal("controller state lock is unavailable"))?;
     match submission {
         Some(submission) => application
             .workspace_agent_session(expected_attempt, submission)
-            .call(request.call),
-        None => application
-            .agent_session(expected_attempt)
-            .call(request.call),
+            .call(call),
+        None => application.agent_session(expected_attempt).call(call),
     }
 }
 
@@ -321,7 +493,9 @@ mod tests {
     use super::{AgentRpcServer, SocketToolHandler, socket_path_is_private};
     use std::fs;
     use std::sync::{Arc, Mutex};
-    use ymp_agent_api::{AgentToolCall, AgentToolErrorCode, AgentToolHandler, SubmitArguments};
+    use ymp_agent_api::{
+        AgentToolCall, AgentToolErrorCode, AgentToolHandler, SubmitArguments, YieldArguments,
+    };
     use ymp_application::{Application, WorkspaceSubmission};
     use ymp_domain::{Budget, Command};
 
@@ -392,6 +566,91 @@ mod tests {
         let error = wrong
             .call(AgentToolCall::ReadControl)
             .expect_err("reject wrong token");
+        assert_eq!(error.code, AgentToolErrorCode::Rejected);
+    }
+
+    #[test]
+    fn invocation_bound_yield_replays_one_authoritative_confirmation() {
+        let temporary = tempfile::tempdir().expect("temporary directory");
+        let app = Arc::new(Mutex::new(
+            Application::create(
+                temporary.path().join("data"),
+                "run-yield",
+                Budget::new(1, 1),
+            )
+            .expect("create application"),
+        ));
+        let source = temporary.path().join("source");
+        let workspace = temporary.path().join("workspace");
+        fs::create_dir(&source).expect("source directory");
+        fs::write(source.join("result.txt"), b"before\n").expect("source file");
+        let base = {
+            let mut application = app.lock().expect("application lock");
+            let base = application
+                .artifact_store()
+                .capture_source(&source)
+                .expect("capture base");
+            application
+                .artifact_store()
+                .materialize(&base.manifest_digest, &workspace)
+                .expect("materialize workspace");
+            application
+                .execute(
+                    "start",
+                    Command::StartAttempt {
+                        attempt_id: "attempt-yield".to_owned(),
+                    },
+                )
+                .expect("start attempt");
+            base
+        };
+        let socket = temporary.path().join("runtime").join("yield.sock");
+        let server = AgentRpcServer::start_with_submission_for_invocation(
+            &socket,
+            "secret-token",
+            "attempt-yield",
+            "invocation-yield",
+            Arc::clone(&app),
+            WorkspaceSubmission::new(&base.manifest_digest, &workspace, Vec::new()),
+        )
+        .expect("start invocation-bound RPC server");
+        let mut client = SocketToolHandler::for_invocation(
+            &socket,
+            "secret-token",
+            "attempt-yield",
+            "invocation-yield",
+        );
+        let first = client
+            .call(AgentToolCall::Yield(YieldArguments {
+                command_id: "yield-1".to_owned(),
+            }))
+            .expect("authorize yield");
+        let replay = client
+            .call(AgentToolCall::Yield(YieldArguments {
+                command_id: "yield-1".to_owned(),
+            }))
+            .expect("replay lost yield reply");
+        assert_eq!(first, replay);
+        let confirmations = server
+            .invocation_control()
+            .expect("invocation control")
+            .confirmations_after(0)
+            .expect("yield confirmations");
+        assert_eq!(confirmations.len(), 1);
+        assert_eq!(confirmations[0].command_id, "yield-1");
+        assert_eq!(confirmations[0].invocation_id, "invocation-yield");
+
+        let mut wrong = SocketToolHandler::for_invocation(
+            &socket,
+            "secret-token",
+            "attempt-yield",
+            "substituted-invocation",
+        );
+        let error = wrong
+            .call(AgentToolCall::Yield(YieldArguments {
+                command_id: "yield-wrong".to_owned(),
+            }))
+            .expect_err("reject substituted invocation");
         assert_eq!(error.code, AgentToolErrorCode::Rejected);
     }
 }

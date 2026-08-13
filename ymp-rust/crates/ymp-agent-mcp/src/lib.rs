@@ -4,7 +4,7 @@ use serde::Deserialize;
 use serde_json::{Value, json};
 use ymp_agent_api::{
     AgentToolCall, AgentToolError, AgentToolHandler, MAX_EVENT_PAGE, READ_CONTROL_TOOL,
-    READ_EVENTS_TOOL, SUBMIT_TOOL,
+    READ_EVENTS_TOOL, SUBMIT_TOOL, YIELD_TOOL,
 };
 
 pub const MCP_PROTOCOL_VERSION: &str = "2025-11-25";
@@ -164,6 +164,19 @@ pub fn tool_catalog() -> Vec<Value> {
             }
         }),
         json!({
+            "name": YIELD_TOOL,
+            "title": "Yield the current invocation",
+            "description": "Commit an explicit yield for this invocation before it stops.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "command_id": { "type": "string", "minLength": 1, "maxLength": 128 }
+                },
+                "required": ["command_id"],
+                "additionalProperties": false
+            }
+        }),
+        json!({
             "name": SUBMIT_TOOL,
             "title": "Capture and submit candidate",
             "description": "Capture the bound workspace and submit its immutable candidate for this attempt.",
@@ -279,7 +292,7 @@ mod tests {
                 .as_array()
                 .expect("tool array")
                 .len(),
-            3
+            4
         );
     }
 

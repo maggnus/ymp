@@ -902,6 +902,9 @@ impl AgentToolHandler for AgentSession<'_> {
                 .map_err(|_| AgentToolError::internal("control state serialization failed")),
             AgentToolCall::ReadEvents(arguments) => self.read_events(arguments),
             AgentToolCall::Submit(arguments) => self.submit(arguments),
+            AgentToolCall::Yield(_) => Err(AgentToolError::rejected(
+                "yield requires an invocation-bound controller endpoint",
+            )),
         }
     }
 }

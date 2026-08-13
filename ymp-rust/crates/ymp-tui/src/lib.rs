@@ -616,6 +616,12 @@ fn poll_managed_run(
 
 fn runtime_event_notice(event: ymp_runtime_api::RuntimeEventKind) -> String {
     match event {
+        ymp_runtime_api::RuntimeEventKind::Launch { descriptor } => format!(
+            "Runtime launch attested: schema={} arguments={} environment={}",
+            descriptor.schema_version,
+            descriptor.arguments.len(),
+            descriptor.environment.len()
+        ),
         ymp_runtime_api::RuntimeEventKind::Started { .. } => "Runtime session started.".to_owned(),
         ymp_runtime_api::RuntimeEventKind::Output { text } => {
             let first_line = text.lines().next().unwrap_or_default();
@@ -645,6 +651,26 @@ fn runtime_event_notice(event: ymp_runtime_api::RuntimeEventKind) -> String {
             usage.cached_input_tokens,
             usage.output_tokens,
             usage.reasoning_output_tokens
+        ),
+        ymp_runtime_api::RuntimeEventKind::Failed { kind, usage, .. } => {
+            let reason = match kind {
+                ymp_runtime_api::RuntimeFailureKind::ProcessExit => "process_exit",
+                ymp_runtime_api::RuntimeFailureKind::RuntimeReported => "runtime_reported",
+                ymp_runtime_api::RuntimeFailureKind::Protocol => "protocol",
+                ymp_runtime_api::RuntimeFailureKind::OutputLimit => "output_limit",
+            };
+            format!(
+                "Runtime failed: reason={reason} input={} output={} in_flight_requests={}",
+                usage.input_tokens, usage.output_tokens, usage.in_flight_excess.model_requests
+            )
+        }
+        ymp_runtime_api::RuntimeEventKind::TimedOut { limit_ms, usage } => format!(
+            "Runtime timed out: limit_ms={limit_ms} input={} output={} in_flight_requests={}",
+            usage.input_tokens, usage.output_tokens, usage.in_flight_excess.model_requests
+        ),
+        ymp_runtime_api::RuntimeEventKind::Cancelled { usage } => format!(
+            "Runtime cancelled: input={} output={} in_flight_requests={}",
+            usage.input_tokens, usage.output_tokens, usage.in_flight_excess.model_requests
         ),
         ymp_runtime_api::RuntimeEventKind::Interrupted => {
             "Managed runtime process tree was interrupted.".to_owned()
