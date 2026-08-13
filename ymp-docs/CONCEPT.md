@@ -4,6 +4,24 @@
 solution while a small trusted kernel enforces the mechanical conditions required for safe
 composition and independent evaluation.
 
+## Product goal
+
+A person writes a prompt. ymp turns it into an approved contract with a checkable acceptance
+condition, raises several agents that divide the work among themselves with no assigner above them,
+and returns a result an independent verifier accepted. What separates this from one strong agent is
+not the interface but the absence of a single executor and of a central assigner deciding what was
+produced.
+
+Every mechanical and protective decision in this project exists to make that sentence trustworthy,
+not to constrain it. The single kernel writer, the append-only control ledger, the private
+per-attempt workspaces, the invocation-scoped tool bridge, and the protected acceptance bundle are
+there so that a result can be believed and two ways of producing it can be compared. A decision that
+hardens the system while making that path impossible has misread its purpose: it is recorded as a
+divergence and resolved, not preserved as design.
+
+The claim below is the falsifiable half of the same goal. The goal says what the product does; the
+claim says what must be measured before the product may assert that doing it this way is better.
+
 ## The bounded claim
 
 An agent is a stochastic, fallible executor. A collection of agents is not automatically more
