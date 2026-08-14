@@ -10,7 +10,7 @@ relation: required
 depends_on: [W1-APP-02v]
 blocks: []
 created_at: 2026-08-14T03:44:51+08:00
-updated_at: 2026-08-14T05:07:51+08:00
+updated_at: 2026-08-14T23:42:18+08:00
 started_at: 2026-08-14T05:07:51+08:00
 accepted_at:
 candidate_commit:
@@ -49,6 +49,18 @@ script with "exit 0" is rejected, not accepted.
 - [ ] A candidate that replaces its own test entry point with an always-accepting program is
       rejected by the pinned oracle; the negative half is the current build, where such a
       candidate was measured accepted (exit 0).
+
+## Rounds
+
+2
+
+## Convergence
+
+Split. The script and make entry points are proved by two independent shields and land; the
+package.json entry point is removed from the proposal and becomes its own node, because the
+candidate chooses the program that runs the pinned file (.npmrc script-shell — a measured silent
+false accept) and because under the executor environment the generated npm verifier accepts
+nothing. A silent false accept fails the detection test, so residue was not available.
 
 ## Current state
 
