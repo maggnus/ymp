@@ -73,7 +73,7 @@
 | `[?]` | [`W1-EVL-04a`](waves/W1/W1-EVL-04/tasks/W1-EVL-04a.md) | Matched-budget arms produce comparable acceptance evidence | — | — | — |
 | `[ ]` | [`W1-EVL-04b`](waves/W1/W1-EVL-04/tasks/W1-EVL-04b.md) | Message interventions separate appearance from causal use | — | — | — |
 | `[ ]` | [`W1-EVL-04c`](waves/W1/W1-EVL-04/tasks/W1-EVL-04c.md) | POC decision is reproducible from frozen evidence | — | — | — |
-| `[ ]` | [`W1-EVL-04d`](waves/W1/W1-EVL-04/tasks/W1-EVL-04d.md) | The model-use policy is decided before pools form | — | — | — |
+| `[=]` | [`W1-EVL-04d`](waves/W1/W1-EVL-04/tasks/W1-EVL-04d.md) | The model-use policy is decided before pools form | — | — | — |
 | `[x]` | [`W1-EXP-01`](waves/W1/W1-EXP-01/CARD.md) | POC assumptions are falsifiable before product code | [`ca221c9a`](https://github.com/maggnus/ymp/commit/ca221c9a4b81775bf158cf915d0d7613e9daae92) | 12/08 11:02 | 14/08 02:22 (0m) |
 | `[x]` | [`W1-EXP-01a`](waves/W1/W1-EXP-01/tasks/W1-EXP-01a.md) | POC corpus rejects known invalid candidates | [`ff4a9383`](https://github.com/maggnus/ymp/commit/ff4a9383653a0f09b947ff24b569e760396a0502) | 12/08 11:59 | 12/08 15:34 (2h59m) |
 | `[x]` | [`W1-EXP-01b`](waves/W1/W1-EXP-01/tasks/W1-EXP-01b.md) | Matched-budget study has a frozen decision rule | [`d12eff31`](https://github.com/maggnus/ymp/commit/d12eff31940f8ad124f5f8f566a0dd21de3d2ae6) | 12/08 15:44 | 12/08 17:44 (1h42m) |
@@ -81,3 +81,5 @@
 | `[x]` | [`W1-EXP-01d`](waves/W1/W1-EXP-01/tasks/W1-EXP-01d/TASK.md) | Runtime probes expose incompatible POC profiles | [`ca221c9a`](https://github.com/maggnus/ymp/commit/ca221c9a4b81775bf158cf915d0d7613e9daae92) | 12/08 20:31 | 12/08 22:44 (2h13m) |
 | `[x]` | [`W1-EXP-01d.1`](waves/W1/W1-EXP-01/tasks/W1-EXP-01d/subtasks/W1-EXP-01d.1.md) | Codex profile satisfies the primary-comparison runtime contract | [`66f075a0`](https://github.com/maggnus/ymp/commit/66f075a0e778bcd36a2e1974ba10b96d75837389) | 12/08 20:42 | 12/08 22:04 (1h22m) |
 | `[x]` | [`W1-EXP-01d.2`](waves/W1/W1-EXP-01/tasks/W1-EXP-01d/subtasks/W1-EXP-01d.2.md) | Claude Code profile satisfies the primary-comparison runtime contract | [`ca221c9a`](https://github.com/maggnus/ymp/commit/ca221c9a4b81775bf158cf915d0d7613e9daae92) | 12/08 21:18 | 12/08 22:44 (1h26m) |
+| `[~]` | [`W1-PRD-05`](waves/W1/W1-PRD-05/CARD.md) | The product is experienced as an autonomous collective | — | 15/08 02:07 | 15/08 02:07 (0m) |
+| `[~]` | [`W1-PRD-05a`](waves/W1/W1-PRD-05/tasks/W1-PRD-05a.md) | The collective design deliverable | — | 15/08 02:07 | 15/08 02:07 (0m) |

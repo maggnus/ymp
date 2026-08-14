@@ -3,14 +3,14 @@ id: W1-EVL-04d
 kind: task
 wave: W1
 card: W1-EVL-04
-state: ready
+state: deferred
 risk: significant
 maturity: RESEARCH
 relation: required
 depends_on: []
 blocks: []
 created_at: 2026-08-15T01:52:53+08:00
-updated_at: 2026-08-15T01:52:53+08:00
+updated_at: 2026-08-15T02:07:10+08:00
 started_at:
 accepted_at:
 candidate_commit:
@@ -18,8 +18,8 @@ closure_commit:
 evidence:
 duration_minutes: 0
 blocker:
-pause_reason:
-return_trigger:
+pause_reason: absorbed by the collective product brief — the catalog/pool/recruitment mechanism is decided there; the remaining unknowns are item 24 of W1-PRD-05a
+return_trigger: W1-PRD-05a leaves a model-policy question the design cannot settle
 deliberate_partial: false
 ---
 
