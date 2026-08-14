@@ -22,6 +22,7 @@
 | `[x]` | [`W1-APP-02e.4`](waves/W1/W1-APP-02/tasks/W1-APP-02e/subtasks/W1-APP-02e.4.md) | The pinned runtime profiles admit the owner's host | [`f74d211`](https://github.com/maggnus/ymp/commit/f74d211) | 15/08 01:30 | 15/08 02:30 (0m) |
 | `[ ]` | [`W1-APP-02e.5`](waves/W1/W1-APP-02/tasks/W1-APP-02e/subtasks/W1-APP-02e.5.md) | The start screen carries the logo and one line of basics | — | — | — |
 | `[ ]` | [`W1-APP-02e.6`](waves/W1/W1-APP-02/tasks/W1-APP-02e/subtasks/W1-APP-02e.6.md) | Runtime engines are managed entities with properties and model lists | — | — | — |
+| `[ ]` | [`W1-APP-02e.7`](waves/W1/W1-APP-02/tasks/W1-APP-02e/subtasks/W1-APP-02e.7.md) | The product itself tells the runtime how a candidate is published | — | — | — |
 | `[x]` | [`W1-APP-02f`](waves/W1/W1-APP-02/tasks/W1-APP-02f.md) | Duplicate or out-of-order runtime events terminate without a candidate | [`4145a442`](https://github.com/maggnus/ymp/commit/4145a442b476afedca8d091de3a30b1eb1ad9b84) | 12/08 09:40 | 12/08 10:03 (23m) |
 | `[x]` | [`W1-APP-02g`](waves/W1/W1-APP-02/tasks/W1-APP-02g.md) | Verification evidence binds the exact runtime environment | [`973a6e33`](https://github.com/maggnus/ymp/commit/973a6e331f4577a894ab95ee325efa4a03005510) | 12/08 10:28 | 12/08 11:18 (50m) |
 | `[x]` | [`W1-APP-02h`](waves/W1/W1-APP-02/tasks/W1-APP-02h.md) | Managed Codex and Claude sessions resume after interruption | [`0d351f60`](https://github.com/maggnus/ymp/commit/0d351f6015c25869bd4e45bb126482fd60945795) | 12/08 09:44 | 12/08 10:26 (41m) |
