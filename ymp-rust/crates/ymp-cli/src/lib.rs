@@ -66,6 +66,18 @@ pub enum Command {
 }
 
 pub fn run(cli: Cli) -> anyhow::Result<()> {
+    // The agent bridge addresses no store. It reads its capability from the environment and
+    // reaches durable state only through the controller that started it, and it runs with the
+    // agent's own workspace as its working directory — so addressing a store here would create
+    // one inside the very tree the agent is producing, and the candidate captured from that
+    // workspace would carry it. `tests/the_bridge_leaves_no_store_in_the_workspace.rs` drives the
+    // built product to establish that it does not.
+    if let Some(Command::Internal {
+        command: internal::InternalCommand::AgentMcp,
+    }) = &cli.command
+    {
+        return internal::run(PathBuf::new(), &[], internal::InternalCommand::AgentMcp);
+    }
     let store = store(&cli)?;
     match cli.command {
         // The interface is given the root as well as the store. A store holds one run, so the
