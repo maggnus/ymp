@@ -256,6 +256,18 @@ fn wait_for_candidate(handle: &ManagedRunHandle) -> String {
     panic!("the managed run announced no candidate");
 }
 
+/// The terminal the run's own journal reports, read so that a journal whose lock a panic poisoned
+/// can still be measured. What is being checked is what the record says, and a check that could not
+/// read a poisoned record could not tell a recorded terminal from a missing one.
+fn journal_status(fixture: &Fixture) -> RunStatus {
+    fixture
+        .application
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner())
+        .state()
+        .status
+}
+
 fn drain_until_finished(handle: &ManagedRunHandle) {
     let _ = failures_until_finished(handle);
 }
@@ -969,6 +981,58 @@ fn a_worker_that_dies_of_a_panic_still_reaches_a_kernel_terminal() {
             .status,
         RunStatus::InfrastructureError,
         "a later cancellation renamed the terminal the journal already held"
+    );
+}
+
+/// A journal whose lock a panic poisoned still receives the terminal of the run.
+///
+/// A panic under the held journal lock poisons it, and the record of the failure used to be
+/// abandoned there: the kernel closed the slice on the infrastructure error while the journal was
+/// left saying the run was still running. The two records then disagreed about whether the run had
+/// ended at all, and the journal — the record an operator reads — was the one claiming work that
+/// nothing was performing. The guard is taken poisoned for the same reason the terminal guard is:
+/// every fact of the run is committed whole before it is applied, so there is no half-written datum
+/// behind the poison, and refusing to write leaves a worse record than writing does.
+#[test]
+fn a_poisoned_journal_still_records_the_terminal_of_the_run() {
+    let fixture = start(1);
+    let handle = &fixture.handle;
+    wait_until_yielded(handle);
+
+    let application = Arc::clone(&fixture.application);
+    let poisoning = std::thread::spawn(move || {
+        let _journal = application.lock().expect("the journal");
+        panic!("a controller died while it held the journal");
+    });
+    assert!(
+        poisoning.join().is_err(),
+        "the thread that was to poison the journal did not die"
+    );
+    assert!(
+        fixture.application.is_poisoned(),
+        "the journal lock outlived the panic unpoisoned"
+    );
+
+    handle.wake("wake-1", "continue once").expect("the wake");
+    let failures = failures_until_finished(handle);
+
+    assert!(
+        handle.is_finished(),
+        "the run did not report itself finished"
+    );
+    assert!(
+        !failures.is_empty(),
+        "the run reported nothing about supervision it could not complete"
+    );
+    assert_eq!(
+        handle.kernel().root_terminal().expect("the terminal"),
+        Some(RootTerminal::InfrastructureError),
+        "the run holds no kernel terminal"
+    );
+    assert_eq!(
+        journal_status(&fixture),
+        RunStatus::InfrastructureError,
+        "the journal reports as running a run the kernel has ended"
     );
 }
 

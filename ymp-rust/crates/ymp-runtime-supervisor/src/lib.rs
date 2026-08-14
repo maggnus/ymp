@@ -1604,14 +1604,22 @@ fn runtime_error_diagnostic(error: &RuntimeError) -> Option<DiagnosticSummary> {
     }
 }
 
+/// Record in the journal that this run failed for reasons of its supervision.
+///
+/// The journal lock is taken poisoned, for the reason the terminal guard is: a panic under it
+/// leaves no half-written datum behind, because every fact of the run is appended to the journal
+/// whole before it is applied in memory, and a command whose application a panic interrupted is
+/// refused on the sequence it would repeat rather than written twice. Abandoning the record here
+/// left the worse state of the two — the kernel closed the slice on the infrastructure error while
+/// the journal, which is the record an operator reads, went on reporting the run as running.
 fn record_infrastructure_failure(
     application: &Arc<Mutex<Application>>,
     attempt_id: &str,
     detail: &str,
 ) {
-    let Ok(mut application) = application.lock() else {
-        return;
-    };
+    let mut application = application
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
     if application.state().status != RunStatus::Running {
         return;
     }
