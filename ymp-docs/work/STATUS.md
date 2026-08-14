@@ -59,8 +59,8 @@
 | `[x]` | [`W1-COR-03n`](waves/W1/W1-COR-03/tasks/W1-COR-03n.md) | Cancelling a finished run reaches the kernel, and the two accountings agree | [`b5a691b`](https://github.com/maggnus/ymp/commit/b5a691b) | 14/08 23:29 | 15/08 00:03 (0m) |
 | `[x]` | [`W1-COR-03o`](waves/W1/W1-COR-03/tasks/W1-COR-03o.md) | Cancel during a running tool call terminates as cancelled, not as infrastructure error | [`d6ec0f7`](https://github.com/maggnus/ymp/commit/d6ec0f7) | 15/08 00:03 | 15/08 00:34 (0m) |
 | `[x]` | [`W1-COR-03p`](waves/W1/W1-COR-03/tasks/W1-COR-03p.md) | A worker death by panic still drives the kernel to a terminal | [`d6ec0f7`](https://github.com/maggnus/ymp/commit/d6ec0f7) | 15/08 00:03 | 15/08 00:34 (0m) |
-| `[ ]` | [`W1-COR-03q`](waves/W1/W1-COR-03/tasks/W1-COR-03q.md) | A poisoned journal lock still lets the run record its terminal | — | — | — |
-| `[ ]` | [`W1-COR-03r`](waves/W1/W1-COR-03/tasks/W1-COR-03r.md) | A limit expiry is not silenced by a simultaneous cancel | — | — | — |
+| `[~]` | [`W1-COR-03q`](waves/W1/W1-COR-03/tasks/W1-COR-03q.md) | A poisoned journal lock still lets the run record its terminal | — | 15/08 00:34 | 15/08 00:34 (0m) |
+| `[~]` | [`W1-COR-03r`](waves/W1/W1-COR-03/tasks/W1-COR-03r.md) | A limit expiry is not silenced by a simultaneous cancel | — | 15/08 00:34 | 15/08 00:34 (0m) |
 | `[ ]` | [`W1-EVL-04`](waves/W1/W1-EVL-04/CARD.md) | Controlled evidence decides both POC hypotheses | — | — | — |
 | `[?]` | [`W1-EVL-04a`](waves/W1/W1-EVL-04/tasks/W1-EVL-04a.md) | Matched-budget arms produce comparable acceptance evidence | — | — | — |
 | `[ ]` | [`W1-EVL-04b`](waves/W1/W1-EVL-04/tasks/W1-EVL-04b.md) | Message interventions separate appearance from causal use | — | — | — |
