@@ -22,7 +22,11 @@ use ymp_runtime_api::{
 };
 
 pub const PINNED_CODEX_VERSION: &str = "codex-cli 0.147.0";
-pub const PINNED_CODEX_MODEL: &str = "gpt-5.6-sol";
+/// The model route the managed profile requests. `gpt-5.6-sol` was refused with HTTP 400
+/// (`invalid_request_error`: not supported when using Codex with a ChatGPT account), so the route
+/// is the balanced agentic coding model the account does list, which accepts the `low` reasoning
+/// effort this profile pins.
+pub const PINNED_CODEX_MODEL: &str = "gpt-5.6-terra";
 pub const PINNED_CODEX_PROMPT_POLICY: &str = "ymp-codex-low-v1";
 pub const PINNED_CODEX_API_ORIGIN: &str = "https://api.openai.com/v1";
 const DEFAULT_OUTPUT_LIMIT_BYTES: usize = 16 * 1024 * 1024;

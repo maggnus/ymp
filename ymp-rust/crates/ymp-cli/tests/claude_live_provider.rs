@@ -16,7 +16,7 @@ use ymp_runtime_api::{
     RuntimeEventKind, RuntimeFailureKind, RuntimeKind, Usage,
 };
 use ymp_runtime_claude::{
-    APPROVED_SEARCH_PATH, ClaudeProfile, ClaudeRuntime, PINNED_CLAUDE_VERSION,
+    APPROVED_SEARCH_PATH, ClaudeProfile, ClaudeRuntime, MINIMUM_CLAUDE_VERSION,
 };
 use ymp_runtime_supervisor::{
     ManagedCandidateRequest, ManagedContract, ManagedRunEvent, start_managed_candidate,
@@ -24,15 +24,30 @@ use ymp_runtime_supervisor::{
 
 #[test]
 #[ignore = "starts the real pinned Claude Code build and spends provider budget"]
-fn the_pinned_build_reports_its_exact_version_and_authentication_readiness() {
+fn the_installed_build_reports_its_own_version_and_authentication_readiness() {
     let runtime = ClaudeRuntime::default();
-    let probe = runtime.probe().expect("probe the pinned build");
+    let probe = runtime.probe().expect("probe the installed build");
     println!("probe: {}", serde_json::to_string(&probe).expect("probe"));
     assert_eq!(probe.kind, RuntimeKind::ClaudeCode);
-    assert_eq!(probe.version.as_deref(), Some(PINNED_CLAUDE_VERSION));
-    assert_eq!(probe.readiness, Readiness::Ready);
+    // The probe names the build this host has installed, whatever it is, and admits it because it
+    // is at or above the floor rather than because it repeats one frozen string.
+    let version = probe
+        .version
+        .clone()
+        .expect("the probe measured no version");
+    assert!(version.ends_with("(Claude Code)"), "{version}");
+    assert!(
+        at_least_the_floor(&version),
+        "{version} is below {MINIMUM_CLAUDE_VERSION}"
+    );
+    assert_eq!(probe.readiness, Readiness::Ready, "{}", probe.detail);
     assert!(probe.detail.contains("api_provider=firstParty"));
     assert!(probe.detail.contains("native_subagents=disabled"));
+    assert!(
+        probe.detail.contains("executable_digest="),
+        "the readiness report does not name the executable it measured: {}",
+        probe.detail
+    );
 
     // Negative half: the same build in the same generated home, with no credential delegated, is
     // unauthenticated. The generated home therefore isolates authentication rather than inheriting
@@ -46,34 +61,83 @@ fn the_pinned_build_reports_its_exact_version_and_authentication_readiness() {
     assert_eq!(isolated.readiness, Readiness::Unauthenticated);
 }
 
+/// Admission now follows the installed release, so every build this host has at or above the floor
+/// is admitted rather than refused for not being one frozen string. What keeps that honest is the
+/// agreement between the two measurements: the build the probe reads from an executable is the
+/// build the session started from that same executable announces, and a session that named any
+/// other build would have been refused before model traffic.
 #[test]
-#[ignore = "starts the real pinned Claude Code build and spends provider budget"]
-fn an_unpinned_build_is_detected_and_refused() {
+#[ignore = "starts the real installed Claude Code build and spends provider budget"]
+fn every_installed_build_is_admitted_and_the_session_names_the_build_that_was_probed() {
     let installed = std::env::var_os("HOME")
         .map(std::path::PathBuf::from)
         .expect("home directory")
         .join(".local/share/claude/versions");
-    let unpinned = fs::read_dir(&installed)
+    let builds: Vec<std::path::PathBuf> = fs::read_dir(&installed)
         .expect("installed Claude Code builds")
         .filter_map(Result::ok)
         .map(|entry| entry.path())
-        .find(|path| {
-            path.is_file()
-                && path
-                    .file_name()
-                    .and_then(|name| name.to_str())
-                    .is_some_and(|name| !PINNED_CLAUDE_VERSION.starts_with(name))
-        })
-        .expect("an installed build other than the pinned one");
-    let probe = ClaudeRuntime::new(&unpinned)
-        .probe()
-        .expect("probe the unpinned build");
-    println!(
-        "unpinned probe: {}",
-        serde_json::to_string(&probe).expect("probe")
+        .filter(|path| path.is_file())
+        .collect();
+    assert!(!builds.is_empty(), "no Claude Code build is installed");
+    for build in &builds {
+        let probe = ClaudeRuntime::new(build)
+            .probe()
+            .expect("probe an installed build");
+        println!(
+            "installed probe: {}",
+            serde_json::to_string(&probe).expect("probe")
+        );
+        let version = probe
+            .version
+            .clone()
+            .expect("the probe measured no version");
+        let named = build
+            .file_name()
+            .and_then(|name| name.to_str())
+            .expect("build file name");
+        assert!(
+            version.starts_with(named),
+            "the probe of {named} measured {version}"
+        );
+        assert_eq!(
+            probe.readiness,
+            Readiness::Ready,
+            "{named}: {}",
+            probe.detail
+        );
+    }
+
+    // The live half: a real session against the installed build starts, which it can only do after
+    // its `init` reported the same build the probe measured from that executable.
+    let attempt = live_managed_attempt("Reply with the single word done. Change no file.");
+    assert!(
+        attempt.observed.session.is_some(),
+        "the live attempt reported no session"
     );
-    assert_eq!(probe.readiness, Readiness::Incompatible);
-    assert!(probe.detail.contains(PINNED_CLAUDE_VERSION));
+}
+
+/// Reads a `--version` line against the profile floor, comparing the build ordinals as numbers.
+fn at_least_the_floor(reported: &str) -> bool {
+    let ordinal = |version: &str| -> Vec<u64> {
+        version
+            .split_whitespace()
+            .next()
+            .unwrap_or_default()
+            .split('.')
+            .map(|component| component.parse::<u64>().unwrap_or_default())
+            .collect()
+    };
+    let (found, floor) = (ordinal(reported), ordinal(MINIMUM_CLAUDE_VERSION));
+    let read = |values: &[u64], index: usize| values.get(index).copied().unwrap_or(0);
+    (0..found.len().max(floor.len()))
+        .find_map(
+            |index| match read(&found, index).cmp(&read(&floor, index)) {
+                std::cmp::Ordering::Equal => None,
+                ordering => Some(ordering == std::cmp::Ordering::Greater),
+            },
+        )
+        .unwrap_or(true)
 }
 
 #[test]
@@ -90,19 +154,8 @@ fn a_live_budget_stop_ends_the_attempt_and_keeps_its_reported_usage() {
         max_budget_microusd: 1,
         ..ClaudeProfile::default()
     };
-    let runtime = ClaudeRuntime::with_profile(
-        std::env::var_os("HOME")
-            .map(std::path::PathBuf::from)
-            .expect("home directory")
-            .join(".local/share/claude/versions")
-            .join(
-                PINNED_CLAUDE_VERSION
-                    .split_whitespace()
-                    .next()
-                    .expect("pinned build"),
-            ),
-        profile,
-    );
+    let runtime =
+        ClaudeRuntime::with_profile(ClaudeRuntime::default().executable().to_owned(), profile);
     let mut session = runtime
         .start(InvocationRequest {
             invocation_id: "invocation-live-budget".to_owned(),
@@ -478,9 +531,14 @@ fn live_runtime_evidence(data_root: &std::path::Path, attempt_id: &str, session:
         &fs::read_to_string(evidence_directory.join("profile.json")).expect("profile evidence"),
     )
     .expect("parse profile evidence");
-    assert_eq!(
-        profile["profile"]["probe"]["version"],
-        PINNED_CLAUDE_VERSION
+    // The record states the release that was measured for this attempt, not a constant, so the
+    // evidence names the build that actually ran.
+    let recorded_version = profile["profile"]["probe"]["version"]
+        .as_str()
+        .expect("the record names no measured version");
+    assert!(
+        recorded_version.ends_with("(Claude Code)") && at_least_the_floor(recorded_version),
+        "the record names {recorded_version}, which this profile does not admit"
     );
     assert_eq!(
         profile["profile"]["environment_policy"],

@@ -20,7 +20,14 @@ use ymp_runtime_api::{
     terminate_process_tree, verify_admitted_programs,
 };
 
-pub const PINNED_CLAUDE_VERSION: &str = "2.1.227 (Claude Code)";
+/// The oldest Claude Code release this profile admits, written the way `claude --version` prints
+/// it. Admission measures the installed build against this floor instead of comparing the printed
+/// string to one frozen build: a release at or above the floor is admitted, an older one is
+/// refused, and a build that does not name this product is refused whatever it reports.
+pub const MINIMUM_CLAUDE_VERSION: &str = "2.1.227 (Claude Code)";
+/// The product name `claude --version` prints after the build number. A file that answers
+/// `--version` with anything else is not the runtime this profile admits.
+pub const CLAUDE_PRODUCT_NAME: &str = "Claude Code";
 pub const PINNED_CLAUDE_MODEL: &str = "claude-opus-5";
 pub const PINNED_CLAUDE_PROMPT_POLICY: &str = "ymp-claude-low-v1";
 pub const PINNED_CLAUDE_API_PROVIDER: &str = "firstParty";
@@ -80,7 +87,10 @@ const DELEGATION_TOOLS: [&str; 6] = [
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ClaudeProfile {
-    pub expected_version: String,
+    /// The lowest Claude Code release admission accepts. It is a floor and not an identity: the
+    /// build that actually runs is whatever the installed executable reports, measured before the
+    /// launch and required again from the session.
+    pub minimum_version: String,
     pub model: String,
     pub effort: String,
     pub permission_mode: String,
@@ -105,7 +115,7 @@ pub struct ClaudeProfile {
 impl Default for ClaudeProfile {
     fn default() -> Self {
         Self {
-            expected_version: PINNED_CLAUDE_VERSION.to_owned(),
+            minimum_version: MINIMUM_CLAUDE_VERSION.to_owned(),
             model: PINNED_CLAUDE_MODEL.to_owned(),
             effort: "low".to_owned(),
             permission_mode: "acceptEdits".to_owned(),
@@ -133,10 +143,11 @@ impl Default for ClaudeProfile {
 
 impl ClaudeProfile {
     pub fn validate(&self) -> Result<(), RuntimeError> {
-        if self.expected_version.trim().is_empty() {
-            return Err(RuntimeError::InvalidProfile(
-                "expected version must not be empty".to_owned(),
-            ));
+        if InstalledBuild::parse(&self.minimum_version).is_none() {
+            return Err(RuntimeError::InvalidProfile(format!(
+                "the minimum version must name a {CLAUDE_PRODUCT_NAME} build: {}",
+                self.minimum_version
+            )));
         }
         if self.model != PINNED_CLAUDE_MODEL {
             return Err(RuntimeError::InvalidProfile(format!(
@@ -259,14 +270,65 @@ impl ClaudeProfile {
             .saturating_add(self.max_in_flight_overshoot_microusd)
     }
 
-    /// The build identifier Claude Code reports inside its `system`/`init` event, which omits the
-    /// product suffix that `--version` prints.
-    fn expected_build(&self) -> &str {
-        self.expected_version
-            .split_whitespace()
-            .next()
-            .unwrap_or(&self.expected_version)
+    /// Answers whether an installed release is new enough for this profile. The comparison is
+    /// ordinal, so `2.1.232` satisfies a floor of `2.1.227` while `2.1.9` does not, which string
+    /// ordering would get wrong.
+    fn admits(&self, installed: &InstalledBuild) -> bool {
+        InstalledBuild::parse(&self.minimum_version)
+            .is_some_and(|floor| installed.is_at_least(&floor))
     }
+}
+
+/// A Claude Code release as its executable reports it: the build identifier that the `system`/`init`
+/// event repeats, and the ordinal reading of that identifier used for the floor comparison.
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct InstalledBuild {
+    build: String,
+    ordinal: Vec<u64>,
+}
+
+impl InstalledBuild {
+    /// Reads what `claude --version` printed. Anything that does not name this product, or whose
+    /// build identifier is not a dotted sequence of numbers, is not a release this profile can
+    /// order against the floor and is therefore not parsed at all.
+    fn parse(reported: &str) -> Option<Self> {
+        let reported = reported.trim();
+        let (build, product) = reported.split_once(char::is_whitespace)?;
+        if product.trim() != format!("({CLAUDE_PRODUCT_NAME})") {
+            return None;
+        }
+        let ordinal = build
+            .split('.')
+            .map(|component| component.parse::<u64>().ok())
+            .collect::<Option<Vec<u64>>>()?;
+        if ordinal.is_empty() {
+            return None;
+        }
+        Some(Self {
+            build: build.to_owned(),
+            ordinal,
+        })
+    }
+
+    fn is_at_least(&self, floor: &Self) -> bool {
+        let width = self.ordinal.len().max(floor.ordinal.len());
+        let read = |ordinal: &[u64], index: usize| ordinal.get(index).copied().unwrap_or(0);
+        for index in 0..width {
+            match read(&self.ordinal, index).cmp(&read(&floor.ordinal, index)) {
+                std::cmp::Ordering::Less => return false,
+                std::cmp::Ordering::Greater => return true,
+                std::cmp::Ordering::Equal => {}
+            }
+        }
+        true
+    }
+}
+
+/// What running `--version` on the admitted executable produced.
+enum VersionMeasurement {
+    NotInstalled,
+    ProbeFailed(ExitStatus),
+    Reported(String),
 }
 
 #[derive(Clone, Debug)]
@@ -281,7 +343,7 @@ pub struct ClaudeRuntime {
 
 impl Default for ClaudeRuntime {
     fn default() -> Self {
-        Self::new(pinned_executable_path())
+        Self::new(installed_executable_path())
     }
 }
 
@@ -339,6 +401,82 @@ impl ClaudeRuntime {
         let executable = VerifiedExecutable::admit(&self.executable, "claude")?;
         *admitted = Some(executable.clone());
         Ok(executable)
+    }
+
+    /// Reads the release the admitted executable reports. The measurement runs against the copy
+    /// that admission took and holds by digest, so the readiness report and the launch describe the
+    /// same bytes rather than whatever the original path may point at afterwards.
+    fn measure_version(
+        &self,
+        admitted: &VerifiedExecutable,
+        environment_values: &[EnvironmentValue],
+    ) -> Result<VersionMeasurement, RuntimeError> {
+        let mut command = Command::new(&admitted.execution_path);
+        ClaudeEnvironment::apply(&mut command, environment_values);
+        let output = match command.arg("--version").stdin(Stdio::null()).output() {
+            Ok(output) => output,
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+                return Ok(VersionMeasurement::NotInstalled);
+            }
+            Err(error) => return Err(RuntimeError::Process(error)),
+        };
+        if !output.status.success() {
+            return Ok(VersionMeasurement::ProbeFailed(output.status));
+        }
+        Ok(VersionMeasurement::Reported(
+            String::from_utf8(output.stdout)
+                .map_err(|_| RuntimeError::NonUtf8Output)?
+                .trim()
+                .to_owned(),
+        ))
+    }
+
+    /// Measures the installed release and refuses everything the profile does not admit. Both the
+    /// readiness probe and the launch resolve the running build through this one path, so a launch
+    /// can never proceed on a build the probe would have refused.
+    fn admitted_build(
+        &self,
+        admitted: &VerifiedExecutable,
+        environment_values: &[EnvironmentValue],
+    ) -> Result<Result<(InstalledBuild, String), ProbeReport>, RuntimeError> {
+        let reported = match self.measure_version(admitted, environment_values)? {
+            VersionMeasurement::NotInstalled => return Ok(Err(self.not_installed())),
+            VersionMeasurement::ProbeFailed(status) => {
+                return Ok(Err(ProbeReport {
+                    kind: RuntimeKind::ClaudeCode,
+                    executable: self.executable.display().to_string(),
+                    version: None,
+                    readiness: Readiness::Unavailable,
+                    detail: format!("version probe exited with {status}"),
+                }));
+            }
+            VersionMeasurement::Reported(reported) => reported,
+        };
+        let Some(installed) = InstalledBuild::parse(&reported) else {
+            return Ok(Err(ProbeReport {
+                kind: RuntimeKind::ClaudeCode,
+                executable: self.executable.display().to_string(),
+                version: Some(reported.clone()),
+                readiness: Readiness::Incompatible,
+                detail: format!(
+                    "profile requires a {CLAUDE_PRODUCT_NAME} build of at least {}, found {reported}",
+                    self.profile.minimum_version
+                ),
+            }));
+        };
+        if !self.profile.admits(&installed) {
+            return Ok(Err(ProbeReport {
+                kind: RuntimeKind::ClaudeCode,
+                executable: self.executable.display().to_string(),
+                version: Some(reported.clone()),
+                readiness: Readiness::Incompatible,
+                detail: format!(
+                    "profile requires at least {}, found {reported}",
+                    self.profile.minimum_version
+                ),
+            }));
+        }
+        Ok(Ok((installed, reported)))
     }
 
     fn not_installed(&self) -> ProbeReport {
@@ -503,6 +641,9 @@ impl VerifiedExecutable {
 #[derive(Debug)]
 struct ClaudeLaunch {
     executable: VerifiedExecutable,
+    /// The build the admitted executable reported before this launch was prepared. The session has
+    /// to report the same one, so the release that was measured is the release that ran.
+    measured_build: InstalledBuild,
     coordination_executable: Option<VerifiedExecutable>,
     launch_chain: Vec<AdmittedProgram>,
     profile: ClaudeProfile,
@@ -836,44 +977,10 @@ impl RuntimeDriver for ClaudeRuntime {
         let environment = self.isolated_environment()?;
         let environment_values = environment.values(None, None, None)?;
         let admitted = self.admitted_executable()?;
-        let mut version_command = Command::new(&admitted.execution_path);
-        ClaudeEnvironment::apply(&mut version_command, &environment_values);
-        let output = match version_command
-            .arg("--version")
-            .stdin(Stdio::null())
-            .output()
-        {
-            Ok(output) => output,
-            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
-                return Ok(self.not_installed());
-            }
-            Err(error) => return Err(RuntimeError::Process(error)),
+        let version = match self.admitted_build(&admitted, &environment_values)? {
+            Ok((_, reported)) => reported,
+            Err(report) => return Ok(report),
         };
-        if !output.status.success() {
-            return Ok(ProbeReport {
-                kind: RuntimeKind::ClaudeCode,
-                executable: self.executable.display().to_string(),
-                version: None,
-                readiness: Readiness::Unavailable,
-                detail: format!("version probe exited with {}", output.status),
-            });
-        }
-        let version = String::from_utf8(output.stdout)
-            .map_err(|_| RuntimeError::NonUtf8Output)?
-            .trim()
-            .to_owned();
-        if version != self.profile.expected_version {
-            return Ok(ProbeReport {
-                kind: RuntimeKind::ClaudeCode,
-                executable: self.executable.display().to_string(),
-                version: Some(version.clone()),
-                readiness: Readiness::Incompatible,
-                detail: format!(
-                    "profile requires {}, found {version}",
-                    self.profile.expected_version
-                ),
-            });
-        }
         let mut auth_command = Command::new(&admitted.execution_path);
         ClaudeEnvironment::apply(&mut auth_command, &environment_values);
         let auth = auth_command
@@ -922,7 +1029,9 @@ impl RuntimeDriver for ClaudeRuntime {
             version: Some(version),
             readiness: Readiness::Ready,
             detail: format!(
-                "pinned local profile ready: model={}, api_provider={api_provider}, auth_method={auth_method}, credential={}, effort={}, prompt_policy={}, permission_mode={}, builtin_tools={}, coordination_tools={}, native_subagents=disabled, setting_sources=none, strict_mcp_config=true, max_budget_usd={}, permitted_overshoot_microusd={}, wall_time_limit_ms={}, output_limit_bytes={}",
+                "pinned local profile ready: minimum_version={}, executable_digest={}, model={}, api_provider={api_provider}, auth_method={auth_method}, credential={}, effort={}, prompt_policy={}, permission_mode={}, builtin_tools={}, coordination_tools={}, native_subagents=disabled, setting_sources=none, strict_mcp_config=true, max_budget_usd={}, permitted_overshoot_microusd={}, wall_time_limit_ms={}, output_limit_bytes={}",
+                self.profile.minimum_version,
+                admitted.digest,
                 self.profile.model,
                 environment.credential_label.unwrap_or("none"),
                 self.profile.effort,
@@ -977,6 +1086,17 @@ impl RuntimeDriver for ClaudeRuntime {
             mcp.validate()?;
         }
         let executable = self.admitted_executable()?;
+        let environment = self.isolated_environment()?;
+        let measured_build =
+            match self.admitted_build(&executable, &environment.values(None, None, None)?)? {
+                Ok((build, _)) => build,
+                Err(report) => {
+                    return Err(RuntimeError::InvalidProfile(format!(
+                        "Claude profile is not ready: {}",
+                        report.detail
+                    )));
+                }
+            };
         let (mcp, coordination_executable) = match &request.mcp {
             Some(binding) => {
                 let executable = VerifiedExecutable::admit(&binding.executable, "ymp-agent-mcp")?;
@@ -997,6 +1117,7 @@ impl RuntimeDriver for ClaudeRuntime {
         }
         let launch = ClaudeLaunch {
             executable,
+            measured_build,
             coordination_executable,
             launch_chain,
             profile: self.profile.clone(),
@@ -1004,7 +1125,7 @@ impl RuntimeDriver for ClaudeRuntime {
             attempt_id: request.attempt_id.clone(),
             invocation_id: request.invocation_id.clone(),
             mcp,
-            environment: self.isolated_environment()?,
+            environment,
         };
         let descriptor = launch.descriptor(None)?;
         let mut prepared = self
@@ -1350,10 +1471,10 @@ impl ClaudeSession {
     /// servers and every ambient extension in `system`/`init`, which precedes model traffic.
     fn admit_session(&mut self, event: &Value) -> Result<String, RuntimeError> {
         let build = string_field(event, "claude_code_version")?;
-        if build != self.launch.profile.expected_build() {
+        if build != self.launch.measured_build.build {
             return Err(RuntimeError::InvalidProfile(format!(
-                "Claude reported build {build}, profile requires {}",
-                self.launch.profile.expected_build()
+                "Claude reported build {build}, admission measured {}",
+                self.launch.measured_build.build
             )));
         }
         let model = string_field(event, "model")?;
@@ -1832,21 +1953,21 @@ impl Drop for ClaudeSession {
     }
 }
 
-/// Resolves the exact approved build. Claude Code installs every build under a version-named path,
-/// so the pinned build is addressed directly instead of trusting whichever build the `claude` name
-/// currently points at. The probe still compares the reported version, so this resolution can never
-/// admit a different build.
-fn pinned_executable_path() -> PathBuf {
-    let build = PINNED_CLAUDE_VERSION
-        .split_whitespace()
-        .next()
-        .unwrap_or(PINNED_CLAUDE_VERSION);
-    if let Some(home) = std::env::var_os("HOME") {
-        let pinned = PathBuf::from(home)
-            .join(".local/share/claude/versions")
-            .join(build);
-        if pinned.is_file() {
-            return pinned;
+/// Resolves the Claude Code the operator has installed. The path is deliberately not derived from
+/// the pinned version: Claude Code installs each release under a version-named file, so addressing
+/// one build by name refuses the release the operator upgraded to and reports it as missing. The
+/// installation an explicit `CLAUDE_CONFIG_DIR` names wins over the search path, and whichever file
+/// is resolved is copied and held by digest before it runs, so the identity of what executed is
+/// recorded rather than assumed from its path.
+fn installed_executable_path() -> PathBuf {
+    installed_executable_under(std::env::var_os("CLAUDE_CONFIG_DIR").map(PathBuf::from))
+}
+
+fn installed_executable_under(configuration: Option<PathBuf>) -> PathBuf {
+    if let Some(configuration) = configuration {
+        let installed = configuration.join("claude");
+        if installed.is_file() {
+            return installed;
         }
     }
     PathBuf::from("claude")
@@ -2077,7 +2198,9 @@ fn mcp_config(binding: Option<&McpBinding>) -> Result<String, RuntimeError> {
 mod tests {
     use super::{
         APPROVED_BUILTIN_TOOLS, APPROVED_SEARCH_PATH, ClaudeProfile, ClaudeRuntime,
-        G3_MAX_BUDGET_MICROUSD, G3_MAX_IN_FLIGHT_OVERSHOOT_MICROUSD, PINNED_CLAUDE_MODEL,
+        G3_MAX_BUDGET_MICROUSD, G3_MAX_IN_FLIGHT_OVERSHOOT_MICROUSD, InstalledBuild,
+        MINIMUM_CLAUDE_VERSION, PINNED_CLAUDE_MODEL, installed_executable_path,
+        installed_executable_under,
     };
     use std::fs;
     use std::os::unix::fs::PermissionsExt;
@@ -2090,13 +2213,19 @@ mod tests {
     const INIT_TOOLS: &str = r#"["Bash","Edit","Glob","Grep","Read","Write"]"#;
 
     fn fixture(directory: &Path, name: &str, body: &str) -> PathBuf {
+        fixture_reporting(directory, name, "2.1.227 (Claude Code)", body)
+    }
+
+    /// A fixture that answers `--version` with a release of the caller's choosing, so admission can
+    /// be measured against builds this host does not have installed.
+    fn fixture_reporting(directory: &Path, name: &str, version: &str, body: &str) -> PathBuf {
         let path = directory.join(name);
         fs::write(
             &path,
             format!(
                 r##"#!/bin/sh
 if [ "$1" = "--version" ]; then
-  printf '%s\n' '2.1.227 (Claude Code)'
+  printf '%s\n' '{version}'
   exit 0
 elif [ "$1" = "auth" ]; then
   printf '%s\n' '{{"loggedIn":true,"authMethod":"claude.ai","apiProvider":"firstParty"}}'
@@ -2282,6 +2411,163 @@ fi
         assert!(profile.setting_sources.is_empty());
         assert!(profile.strict_mcp_config);
         assert!(!profile.native_subagents);
+    }
+
+    /// A body that reports one completed turn, naming `build` as the release the session resolved.
+    fn completing_body(build: &str) -> String {
+        format!(
+            r##"cat >/dev/null
+printf '%s\n' '{{"type":"system","subtype":"init","session_id":"session-admitted","claude_code_version":"{build}","model":"claude-opus-5","permissionMode":"acceptEdits","tools":{INIT_TOOLS},"mcp_servers":[],"slash_commands":[],"plugins":[],"skills":[]}}'
+printf '%s\n' '{{"type":"result","subtype":"success","is_error":false,"terminal_reason":"completed","total_cost_usd":0.0,"modelUsage":{{}},"usage":{{"input_tokens":1,"output_tokens":1}}}}'
+"##
+        )
+    }
+
+    /// The change this profile turns on: a release newer than the floor starts instead of being
+    /// refused for not matching one frozen build.
+    #[test]
+    fn a_release_newer_than_the_floor_is_admitted() {
+        let directory = tempfile::tempdir().expect("temporary directory");
+        let executable = fixture_reporting(
+            directory.path(),
+            "claude-newer",
+            "2.1.232 (Claude Code)",
+            &completing_body("2.1.232"),
+        );
+        let runtime = ClaudeRuntime::new(&executable).without_delegated_credential();
+        let probe = runtime.probe().expect("probe the newer release");
+        assert_eq!(probe.readiness, Readiness::Ready, "{}", probe.detail);
+        assert_eq!(probe.version.as_deref(), Some("2.1.232 (Claude Code)"));
+
+        let mut session = start(&executable, directory.path(), "invocation-newer")
+            .expect("start the newer build");
+        expect_launch(session.as_mut());
+        assert!(matches!(
+            session.next_event().expect("started").expect("event").event,
+            RuntimeEventKind::Started { .. }
+        ));
+        assert!(matches!(
+            session
+                .next_event()
+                .expect("completed")
+                .expect("event")
+                .event,
+            RuntimeEventKind::Completed { .. }
+        ));
+    }
+
+    /// The negative half of the widened admission: it is a floor and not an open door. A release
+    /// below the floor, and a file that answers `--version` without naming this product, are both
+    /// refused, and the ordering is read as numbers rather than as text.
+    #[test]
+    fn a_release_below_the_floor_or_of_another_product_is_refused() {
+        for (label, reported, expected) in [
+            (
+                "older release",
+                "2.1.226 (Claude Code)",
+                "profile requires at least 2.1.227 (Claude Code), found 2.1.226 (Claude Code)",
+            ),
+            (
+                "release whose text sorts high but whose number is low",
+                "2.1.99 (Claude Code)",
+                "profile requires at least 2.1.227 (Claude Code), found 2.1.99 (Claude Code)",
+            ),
+            (
+                "another product",
+                "9.9.9 (Other Code)",
+                "profile requires a Claude Code build of at least 2.1.227 (Claude Code), found 9.9.9 (Other Code)",
+            ),
+        ] {
+            let directory = tempfile::tempdir().expect("temporary directory");
+            let executable =
+                fixture_reporting(directory.path(), "claude-refused", reported, "exit 0\n");
+            let probe = ClaudeRuntime::new(&executable)
+                .without_delegated_credential()
+                .probe()
+                .expect("probe the refused build");
+            assert_eq!(
+                probe.readiness,
+                Readiness::Incompatible,
+                "{label} was admitted"
+            );
+            assert_eq!(probe.detail, expected, "{label}");
+
+            let started = start(&executable, directory.path(), "invocation-refused");
+            assert!(
+                matches!(started, Err(RuntimeError::InvalidProfile(_))),
+                "{label} started a session"
+            );
+        }
+    }
+
+    /// Admitting the installed release only stays honest while the release that was measured is the
+    /// release that ran. A session whose `init` names any other build is refused in both
+    /// directions, including a build that would clear the floor on its own.
+    #[test]
+    fn a_session_that_names_a_build_other_than_the_measured_one_is_refused() {
+        for (label, reported, announced) in [
+            (
+                "a build below the measured one",
+                "2.1.232 (Claude Code)",
+                "2.1.227",
+            ),
+            (
+                "a build above the measured one",
+                "2.1.227 (Claude Code)",
+                "2.1.232",
+            ),
+        ] {
+            let directory = tempfile::tempdir().expect("temporary directory");
+            let executable = fixture_reporting(
+                directory.path(),
+                "claude-disagreeing",
+                reported,
+                &completing_body(announced),
+            );
+            let mut session = start(&executable, directory.path(), "invocation-disagreeing")
+                .expect("start the disagreeing fixture");
+            expect_launch(session.as_mut());
+            assert!(
+                matches!(
+                    session
+                        .next_event()
+                        .expect("typed failure")
+                        .expect("event")
+                        .event,
+                    RuntimeEventKind::Failed {
+                        kind: RuntimeFailureKind::Protocol,
+                        ..
+                    }
+                ),
+                "{label} was admitted"
+            );
+        }
+    }
+
+    /// The executable is resolved from the installation, never composed from the pinned version, so
+    /// upgrading the release does not make the runtime report itself as missing.
+    #[test]
+    fn the_executable_is_resolved_from_the_installation_and_not_from_the_version() {
+        let directory = tempfile::tempdir().expect("temporary directory");
+        assert_eq!(installed_executable_under(None), PathBuf::from("claude"));
+        assert_eq!(
+            installed_executable_under(Some(directory.path().to_owned())),
+            PathBuf::from("claude"),
+            "a configuration directory holding no executable falls back to the search path"
+        );
+        let configured = directory.path().join("claude");
+        fs::write(&configured, b"#!/bin/sh\n").expect("write configured executable");
+        assert_eq!(
+            installed_executable_under(Some(directory.path().to_owned())),
+            configured
+        );
+        let floor = InstalledBuild::parse(MINIMUM_CLAUDE_VERSION).expect("floor");
+        let resolved = installed_executable_path();
+        assert!(
+            !resolved.to_string_lossy().contains(floor.build.as_str()),
+            "the resolved path {} still names the pinned build",
+            resolved.display()
+        );
     }
 
     #[test]
