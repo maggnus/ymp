@@ -402,6 +402,14 @@ fn a_live_run_whose_candidate_was_rejected_closes_without_acceptance() {
     let (fixture, ledger) = verified_run(Verdict::Failed);
     let contract_id = fixture.handle.kernel().contract_id();
 
+    // Stated rather than assumed: closing the work and settling the offer reach this same terminal
+    // on their own, so without this the test would pass over a run nothing had judged at all.
+    let verification = ledger
+        .verifications()
+        .iter()
+        .find(|record| record.contract_id == contract_id)
+        .expect("the run records the verdict it was given");
+    assert_eq!(verification.verdict, Verdict::Failed);
     assert_eq!(
         work_obligation(&ledger, contract_id),
         ObligationState::Terminal
