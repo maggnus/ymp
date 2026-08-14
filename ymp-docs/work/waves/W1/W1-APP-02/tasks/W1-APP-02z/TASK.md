@@ -3,24 +3,24 @@ id: W1-APP-02z
 kind: task
 wave: W1
 card: W1-APP-02
-state: active
+state: accepted
 risk: critical
 maturity: BUILD
 relation: required
 depends_on: [W1-APP-02v]
 blocks: []
 created_at: 2026-08-14T03:44:51+08:00
-updated_at: 2026-08-14T23:42:18+08:00
+updated_at: 2026-08-15T00:05:22+08:00
 started_at: 2026-08-14T05:07:51+08:00
-accepted_at:
-candidate_commit:
-closure_commit:
-evidence:
+accepted_at: 2026-08-15T00:05:22+08:00
+candidate_commit: https://github.com/maggnus/ymp/commit/2e9570a
+closure_commit: https://github.com/maggnus/ymp/commit/c364e30
+evidence: two independent shields (explicit -f invocation and read-before names refusal) measured separately, on a case-insensitive and a case-sensitive volume; the hostile GNUmakefile and .npmrc script-shell falsifiers drove two return rounds; the npm branch left the proposal as a typed distinction and the split children carry it
 duration_minutes: 0
 blocker:
 pause_reason:
-return_trigger:
-deliberate_partial: false
+return_trigger: the internal verify-managed-candidate command still checks the program against a digest computed at verification time, not the contract oracle_digest; wiring verification through the public surface (W1-APP-02e) or reviving the internal path returns this residual
+deliberate_partial: true
 ---
 
 # W1-APP-02z — A verifier cannot be rewritten by the candidate it judges
