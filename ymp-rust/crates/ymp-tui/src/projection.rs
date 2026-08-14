@@ -282,9 +282,17 @@ impl ContractFacts {
         usize::from(self.verifier.is_none())
     }
 
-    /// Whether authorizing this contract would start a run, given what the store already holds.
-    pub fn can_start(&self, run: Option<&RunFacts>) -> bool {
-        run.is_none() && self.blocking_items() == 0 && self.run_id.is_some()
+    /// Whether authorizing this contract would start a run.
+    ///
+    /// A store holds one run, and that is a rule about stores rather than about sessions: where
+    /// the next store can be addressed — under a root, by the layout and not by the operator —
+    /// the run this authorization starts belongs there, and the store being read is left exactly
+    /// as it stands. Where it cannot, because the invocation named one exact store, there is
+    /// nowhere for a second run to go and the authorization is not offered.
+    pub fn can_start(&self, run: Option<&RunFacts>, in_a_store_of_its_own: bool) -> bool {
+        (run.is_none() || in_a_store_of_its_own)
+            && self.blocking_items() == 0
+            && self.run_id.is_some()
     }
 }
 
@@ -340,6 +348,10 @@ pub struct Projection {
     pub commands: Vec<PaletteItem>,
     /// The probe of the shipped runtime drivers, once it has returned.
     pub runtimes: Option<crate::runtimes::Report>,
+    /// Whether a run authorized now would be given a store of its own, addressed under the root
+    /// by the layout, because the store this session is reading already holds one. It is the
+    /// session's fact: which stores a root holds is not something the journal records.
+    pub addresses_a_store_of_its_own: bool,
     /// The runtime profile this run's work would be done by, when exactly one is settled.
     pub route: Option<String>,
     /// What is true about that routing, in the words the operator is shown: the profile that
@@ -418,6 +430,10 @@ mod tests {
             "the request states no acceptance condition".into(),
         );
         assert_eq!(facts.blocking_items(), 1);
-        assert!(!facts.can_start(None));
+        assert!(!facts.can_start(None, false));
+        assert!(
+            !facts.can_start(None, true),
+            "a store of its own does not make a contract nothing could judge startable"
+        );
     }
 }

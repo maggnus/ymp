@@ -166,7 +166,7 @@ fn interface_actions(root: &Path) -> BTreeSet<String> {
         model.environment(),
         None,
         None,
-        decisions::RouteFacts::unknown(),
+        decisions::StartFacts::unknown(),
     );
     let start = decisions::start_run(&authorize.action.expect("a startable contract"));
     let cancel = decisions::cancel_run(

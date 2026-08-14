@@ -360,8 +360,10 @@ impl Model {
             commands: self.commands(&pages),
             pages,
             runtimes: runtimes.cloned(),
-            // Where the work would go is the session's to settle: it holds the profile the
-            // operator named, which the journal does not record.
+            // Where the work would go, and which store the next run belongs in, are the session's
+            // to settle: it holds the profile the operator named and knows the root this store was
+            // addressed under, and the journal records neither.
+            addresses_a_store_of_its_own: false,
             route: None,
             route_note: String::new(),
             awaiting: self.awaiting.clone(),
@@ -381,15 +383,15 @@ impl Model {
             })
             .collect();
 
+        // Whether authorizing this contract would start a run is not the palette's to say: it
+        // turns on which store the next run belongs in, which the session settles and the journal
+        // does not record. The entry offers the review; the coverage map states what follows it.
         for (index, contract) in self.contracts.iter().enumerate() {
             items.push(PaletteItem {
                 name: format!("authorize {}", contract.contract_id),
-                description: match contract.can_start(self.run.as_ref()) {
-                    true => "review what would be checked, then start the run it names".to_owned(),
-                    false => {
-                        "review the coverage of this contract before anything is spent".to_owned()
-                    }
-                },
+                description: "review what this contract would have checked, before anything is \
+                              spent"
+                    .to_owned(),
                 command: Command::Authorize(index),
             });
         }

@@ -306,9 +306,10 @@ impl App {
             environment,
             self.data.runtimes.as_ref(),
             self.data.run.as_ref(),
-            crate::decisions::RouteFacts {
+            crate::decisions::StartFacts {
                 profile: self.data.route.as_deref(),
                 note: &self.data.route_note,
+                in_a_store_of_its_own: self.data.addresses_a_store_of_its_own,
             },
         ));
     }

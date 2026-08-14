@@ -309,9 +309,14 @@ impl Session {
                     self.verifying = self.verifying.wrapping_add(1);
                     self.model.working(None);
                     self.refresh();
+                    // What the run ended as is read from the journal after it was caught up, not
+                    // assumed from the command that was issued. A cancellation asked for while the
+                    // attempt was already failing finds the run terminal for another reason, and
+                    // the domain refuses to rename it; saying `cancelled` here would be the
+                    // interface asserting an outcome the record does not hold.
                     self.model.reply(format!(
-                        "cancel recorded — the run ended with the terminal outcome cancelled, \
-                         {kernel}, and the managed process tree was ended"
+                        "cancel recorded — {}, {kernel}, and the managed process tree was ended",
+                        self.recorded_terminal()
                     ));
                 }
                 Some(Err(error)) => self
@@ -338,11 +343,28 @@ impl Session {
             Ok(_) => {
                 self.refresh();
                 self.model
-                    .reply("cancel recorded — the run ended with the terminal outcome cancelled");
+                    .reply(format!("cancel recorded — {}", self.recorded_terminal()));
             }
             Err(error) => self
                 .model
                 .reply(format!("cancel was not recorded: {error}")),
+        }
+    }
+
+    /// How the run stands in the journal, in the domain's own vocabulary.
+    ///
+    /// It is read after the model has caught up, so what the interface says about an ending is
+    /// what the record holds rather than what the command asked for.
+    fn recorded_terminal(&self) -> String {
+        match self.model.run() {
+            None => "this store holds no run".to_owned(),
+            Some(run) if run.is_live() => {
+                "the run is still live — nothing terminal was recorded".to_owned()
+            }
+            Some(run) => format!(
+                "the run ended with the terminal outcome {}",
+                crate::projection::outcome(run.status)
+            ),
         }
     }
 
@@ -369,6 +391,7 @@ impl Session {
         let (route, note) = attempt::routing_facts(self.route, self.runtimes.as_ref());
         projection.route = route;
         projection.route_note = note;
+        projection.addresses_a_store_of_its_own = self.addresses_a_store_of_its_own();
         // The action that starts the agent is offered where a run is live, no attempt of it is
         // working, and one profile is settled to do the work.
         if let Some(run) = projection.run.as_ref().filter(|run| run.is_live())
@@ -425,25 +448,23 @@ impl Session {
         // the contract — the same contract can be done by either profile — so it amends nothing
         // and starts no assembly. It is read before anything else a line can be, because the run
         // it routes may already exist: an attempt is launched into a run this session did not
-        // start as readily as into one it did.
-        if let Some(named) = runtime_line(&text) {
-            match Route::parse(named) {
-                Some(route) => {
-                    self.route = Some(route);
-                    self.model.reply(format!(
-                        "the work would be done by the {} profile · nothing has started and \
-                         nothing is spent",
-                        route.name()
-                    ));
-                }
-                None => self.model.error(format!(
-                    "no runtime profile is named {named} — this product starts {}",
-                    Route::ALL.map(|route| route.name()).join(" and ")
-                )),
-            }
+        // start as readily as into one it did. Only the word and a profile this product ships is
+        // that choice; anything else opening with the word is a line like any other.
+        if let Some(route) = runtime_line(&text) {
+            self.route = Some(route);
+            self.model.reply(format!(
+                "the work would be done by the {} profile · nothing has started and nothing is \
+                 spent",
+                route.name()
+            ));
             return None;
         }
-        if self.application.is_some() {
+        // A store that holds a finished run, under a root that can address the next one, is
+        // ready for the next request: the line is a request again, and authorizing what it drafts
+        // records that run in a store of its own. While the run being read is still live there is
+        // nothing for prose to become — the domain carries no messages — so the turn is answered
+        // honestly and recorded nowhere.
+        if self.application.is_some() && !self.addresses_a_store_of_its_own() {
             self.model.reply(
                 "local turn — not recorded in the journal. This domain carries no messages, so no \
                  participant can receive it. Commands work: press / for the list, ? for the keys.",
@@ -698,6 +719,20 @@ impl Session {
         }
     }
 
+    /// Whether a run authorized now would be recorded in a store of its own.
+    ///
+    /// It would, exactly when the run being read has ended, this invocation addressed a root
+    /// rather than one exact store, and no attempt is still working — because the layout can then
+    /// name the next store, the run left behind is finished, and nothing this session holds is
+    /// abandoned by moving on. A run that is still live is one to watch, not one to start another
+    /// beside.
+    fn addresses_a_store_of_its_own(&self) -> bool {
+        self.application.is_some()
+            && self.root.is_some()
+            && self.attempt.is_none()
+            && self.model.run().is_some_and(|run| !run.is_live())
+    }
+
     /// Move this session to a store of its own for the run it is about to start.
     ///
     /// A store holds one run. Under a root the product addresses the next store itself, so a
@@ -708,7 +743,7 @@ impl Session {
         let Some(root) = self.root.clone() else {
             self.model.error(
                 "this store already holds a run, and this invocation names one exact store rather \
-                 than a root — a second run needs a store of its own",
+                 than a root — a second run needs its own store",
             );
             return false;
         };
@@ -1183,11 +1218,17 @@ fn runtime_note(event: &RuntimeEventKind) -> Option<String> {
 }
 
 /// A line that names the runtime profile this run would use.
-fn runtime_line(text: &str) -> Option<&str> {
-    let line = text.trim();
-    let rest = line.strip_prefix("runtime")?;
-    let value = rest.trim_start_matches([':', '=', ' ']).trim();
-    (!value.is_empty() && rest.starts_with([':', '=', ' '])).then_some(value)
+///
+/// It is the word `runtime` and the name of a profile this product ships, and nothing else. A line
+/// that merely opens with the word is a line: `runtime overhead in the parser must be reduced` is
+/// work somebody is asking for, and taking it as a failed choice of agent would lose the request
+/// and answer a question nobody asked.
+fn runtime_line(text: &str) -> Option<Route> {
+    let rest = text.trim().strip_prefix("runtime")?;
+    if !rest.starts_with([':', '=', ' ']) {
+        return None;
+    }
+    Route::parse(rest.trim_start_matches([':', '=', ' ']).trim())
 }
 
 /// The contract a started run is bound to, read back from the store it was approved into.

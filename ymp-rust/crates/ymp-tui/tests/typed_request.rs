@@ -17,6 +17,7 @@ use crossterm::event::KeyCode;
 use support::{SIZES, press, screen, type_text};
 use tempfile::TempDir;
 use ymp_application::Application;
+use ymp_application::root::{StoreIntent, store_under};
 use ymp_domain::EventKind;
 use ymp_domain::contract::ContractDocument;
 use ymp_tui::app::Action;
@@ -251,8 +252,165 @@ fn a_project_with_no_test_entry_point_starts_nothing_and_says_what_it_could_not_
     assert!(app.data.run.is_some(), "the amended draft started no run");
 }
 
+/// A request is what the operator typed. Choosing the agent is the word `runtime` and the name of
+/// a profile this product ships; a line that merely opens with that word is work somebody is
+/// asking for, and it has to reach a contract like any other.
+///
+/// The check that must fail: intercept every line beginning with `runtime` again, and this request
+/// drafts nothing.
 #[test]
-fn a_second_request_cannot_start_a_second_run_in_the_same_store() {
+fn a_request_that_opens_with_the_word_runtime_still_becomes_a_contract() {
+    let workspace = workspace();
+    let mut session = Session::open(&workspace.data_root, &[]);
+    let mut app = App::new(session.projection(None));
+
+    submit(
+        &mut app,
+        &mut session,
+        "runtime overhead in the parser must be reduced",
+    );
+    submit(
+        &mut app,
+        &mut session,
+        &format!("source {}", workspace.source.display()),
+    );
+
+    let contract = app
+        .data
+        .contracts
+        .first()
+        .expect("the request produced a contract");
+    assert_eq!(
+        contract.prompt,
+        "runtime overhead in the parser must be reduced"
+    );
+    assert!(
+        contract.run_id.is_some(),
+        "the request drafted a contract no run could start from"
+    );
+    // Nothing about it was read as a choice of agent.
+    assert_eq!(app.data.route, None);
+}
+
+/// A store holds one run, and that is a rule about stores. Where the layout can address the next
+/// one — under a root, by an ordinal the layout gives and the operator never types — a second
+/// authorization starts its run there and leaves the run being read exactly as it stands.
+#[test]
+fn a_second_authorization_starts_its_run_in_a_store_of_its_own() {
+    let workspace = workspace();
+    let root = workspace.data_root.join("root");
+    let first_store =
+        store_under(&root, StoreIntent::New).expect("the layout addresses the first store");
+    let mut session = Session::open_under_root(&root, &first_store, &[]);
+    let mut app = App::new(session.projection(None));
+
+    for line in request(&workspace) {
+        submit(&mut app, &mut session, &line);
+    }
+    let contract_id = app.data.contracts[0].contract_id.clone();
+    session.start_run(&contract_id);
+    app.adopt(session.projection(None));
+    let first_run = app
+        .data
+        .run
+        .as_ref()
+        .expect("the first run started")
+        .run_id
+        .clone();
+    // The first run reaches its end. What follows is a second run, not a second attempt at this
+    // one, so the store it goes to is a store of its own.
+    session.cancel_run();
+    app.adopt(session.projection(None));
+    let first_journal = fs::read(first_store.join("events.jsonl")).expect("the first journal");
+
+    // The coverage map still offers the run, and says where it would be recorded.
+    app.open_authorize();
+    let Modal::Authorize(authorize) = &app.modal else {
+        panic!("the coverage map is not open");
+    };
+    assert!(
+        authorize.action.is_some(),
+        "a second authorization was refused although the layout can address a store for it: {}",
+        authorize.action_note
+    );
+    assert!(
+        authorize
+            .facts
+            .iter()
+            .any(|(label, value)| label == "store" && value.contains("store of its own")),
+        "the map does not say where the second run would be recorded: {:?}",
+        authorize.facts
+    );
+    app.modal = Modal::None;
+
+    // A second request, so the second run is a run of its own rather than the same one twice.
+    submit(
+        &mut app,
+        &mut session,
+        "keep the replay path idempotent under load",
+    );
+    submit(
+        &mut app,
+        &mut session,
+        &format!("source {}", workspace.source.display()),
+    );
+    let second_contract = app
+        .data
+        .contracts
+        .iter()
+        .map(|contract| contract.contract_id.clone())
+        .find(|identifier| *identifier != contract_id)
+        .expect("the second request produced a contract of its own");
+    session.start_run(&second_contract);
+    app.adopt(session.projection(None));
+
+    let second_run = app
+        .data
+        .run
+        .as_ref()
+        .expect("the second run started")
+        .run_id
+        .clone();
+    assert_ne!(second_run, first_run);
+
+    // The store the second run went to is named by the layout, not by the operator, and the
+    // session says which one it is.
+    let second_store = app
+        .data
+        .environment
+        .as_ref()
+        .expect("the session states its store")
+        .data_root
+        .clone();
+    assert_ne!(second_store, first_store);
+    assert_eq!(
+        second_store.parent(),
+        first_store.parent(),
+        "the second run left the root the first was addressed under"
+    );
+    assert_eq!(
+        second_store.file_name().and_then(|name| name.to_str()),
+        Some("0002"),
+        "the layout did not name the next store: {}",
+        second_store.display()
+    );
+    assert!(
+        screen(&app, 120, 40).contains(&second_store.display().to_string()),
+        "the interface did not say which store the run went to"
+    );
+
+    // The run being read is untouched: one store, one run, byte for byte.
+    assert_eq!(
+        fs::read(first_store.join("events.jsonl")).expect("the first journal"),
+        first_journal,
+        "starting a second run wrote into the store of the first"
+    );
+}
+
+/// The negative half of the transition: an invocation that named one exact store named what it
+/// acts on, so there is nowhere for a second run to go and the authorization is not offered.
+#[test]
+fn a_session_that_names_one_exact_store_still_refuses_a_second_run() {
     let workspace = workspace();
     let mut session = Session::open(&workspace.data_root, &[]);
     let mut app = App::new(session.projection(None));
@@ -270,13 +428,13 @@ fn a_second_request_cannot_start_a_second_run_in_the_same_store() {
         .expect("the run started")
         .last_sequence;
 
-    // The coverage map no longer offers a run, and asking for one anyway is refused.
     app.open_authorize();
     let Modal::Authorize(authorize) = &app.modal else {
         panic!("the coverage map is not open");
     };
     assert!(authorize.action.is_none());
     assert!(authorize.action_note.contains("already holds a run"));
+    app.modal = Modal::None;
 
     session.start_run(&contract_id);
     app.adopt(session.projection(None));
@@ -289,9 +447,14 @@ fn a_second_request_cannot_start_a_second_run_in_the_same_store() {
         sequence,
         "a second start wrote to the journal"
     );
+    // The screen wraps, so the refusal is read as words rather than as one line.
+    let rendered = screen(&app, 120, 40);
+    let flattened = rendered.split_whitespace().collect::<Vec<_>>().join(" ");
     assert!(
-        screen(&app, 120, 40).contains("already holds a run"),
-        "the refusal was not stated"
+        flattened.contains(
+            "names one exact store rather than a root — a second run needs its own store"
+        ),
+        "the refusal was not stated:\n{rendered}"
     );
 }
 

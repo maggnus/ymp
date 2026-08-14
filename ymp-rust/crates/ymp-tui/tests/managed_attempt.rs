@@ -158,19 +158,41 @@ fn a_named_profile_that_cannot_do_the_work_is_never_replaced_by_the_one_that_can
     );
 }
 
-/// A name that selects no profile selects nothing at all.
+/// Choosing the agent is the word `runtime` and the name of a profile this product ships. A line
+/// that merely opens with the word is a line: it is work somebody is asking for, and taking it as
+/// a failed choice of agent would lose the request and answer a question nobody asked.
+///
+/// The check that must fail: intercept every line beginning with `runtime` again, and the request
+/// below is answered as a profile that does not exist.
 #[test]
-fn a_profile_name_this_product_does_not_ship_is_refused_rather_than_resolved() {
+fn a_line_that_only_opens_with_the_word_runtime_stays_the_line_it_is() {
     let (_directory, mut session) = live_run(one_ready());
-    session.local_turn("runtime claude".to_owned());
+    for line in [
+        "runtime overhead in the parser must be reduced",
+        "runtime claude",
+        "runtimes",
+    ] {
+        session.local_turn(line.to_owned());
+        let projection = session.projection(None);
+        assert!(
+            !projection.entries.iter().any(|entry| matches!(
+                entry,
+                ymp_tui::Entry::AppReply { text } if text.contains("the work would be done by")
+            )),
+            "`{line}` was taken as a choice of agent"
+        );
+        // The route this host settled on its own is untouched by any of them.
+        assert_eq!(projection.route.as_deref(), Some("codex"));
+    }
+
+    // The one line that is a choice still is.
+    session.local_turn("runtime claude-code".to_owned());
+    assert_eq!(session.projection(None).route, None);
     let rendered = screen(&App::new(session.projection(None)), 120, 40);
     assert!(
-        rendered.contains("no runtime profile is named claude"),
+        rendered.contains("the work would be done by the claude-code profile"),
         "{rendered}"
     );
-    // The route the host settled on its own is untouched: a line that named nothing changed
-    // nothing.
-    assert_eq!(session.projection(None).route.as_deref(), Some("codex"));
 }
 
 /// What the agent says is the agent's, and it is never dressed as a durable fact.

@@ -19,30 +19,36 @@ use crate::state::{
 pub const AUTHORIZATION_UNAVAILABLE: &str =
     "unavailable — nothing declared would reject a wrong candidate";
 
-/// Why authorization cannot be committed while this store already holds a run.
-pub const AUTHORIZATION_HAS_RUN: &str =
-    "unavailable — this store already holds a run; a second run needs its own store";
+/// Why authorization cannot be committed while this store already holds a run and no other store
+/// can be addressed for the next one.
+pub const AUTHORIZATION_HAS_RUN: &str = "unavailable — this store already holds a run, and this invocation names one exact store \
+     rather than a root; a second run needs its own store";
 
 /// Why authorization cannot be committed while no runtime profile can do the work.
 pub const AUTHORIZATION_HAS_NO_ROUTE: &str =
     "unavailable — no runtime profile on this host would do this work";
 
-/// Where this run's work would go, as the session settled it.
+/// What the session settled about the run an authorization would start: which profile would do
+/// the work, and which store the run would be recorded in.
 #[derive(Clone, Copy, Debug)]
-pub struct RouteFacts<'a> {
+pub struct StartFacts<'a> {
     /// The profile that would do the work, when exactly one is settled.
     pub profile: Option<&'a str>,
     /// What is true about the routing, in the words the operator is shown.
     pub note: &'a str,
+    /// Whether this run would be given a store of its own, because the one being read already
+    /// holds a run and the layout can address the next one.
+    pub in_a_store_of_its_own: bool,
 }
 
-impl RouteFacts<'_> {
-    /// A caller that has not settled the routing — a surface built before this host was probed,
-    /// or one that is not about to start anything.
+impl StartFacts<'_> {
+    /// A caller that has settled neither — a surface built before this host was probed, or one
+    /// that is not about to start anything.
     pub const fn unknown() -> Self {
         Self {
             profile: None,
             note: "",
+            in_a_store_of_its_own: false,
         }
     }
 }
@@ -53,7 +59,7 @@ pub fn authorize(
     environment: &Environment,
     runtimes: Option<&Report>,
     run: Option<&RunFacts>,
-    route: RouteFacts<'_>,
+    start: StartFacts<'_>,
 ) -> Authorize {
     let mut facts = vec![
         ("intent".to_owned(), first_line(&contract.prompt)),
@@ -67,15 +73,26 @@ pub fn authorize(
         ),
         ("source".to_owned(), contract.source.display().to_string()),
     ];
+    // A store holds one run. Where the one being read already holds one, the run this
+    // authorization starts is recorded in a store of its own, addressed under the same root by
+    // the layout rather than named by the operator — and the run being read is untouched.
+    if start.in_a_store_of_its_own {
+        facts.push((
+            "store".to_owned(),
+            "the store you are reading already holds a run · this one is recorded in a store of \
+             its own under the same root, and the run you are reading is left exactly as it stands"
+                .to_owned(),
+        ));
+    }
     // Which agent would do the work, and what this host reported about every profile that could
     // have. A profile that is not ready is named here, before anything is stored, and nothing is
     // ever routed to another profile in its place.
     facts.push((
         "route".to_owned(),
-        match (route.profile, runtimes) {
+        match (start.profile, runtimes) {
             (Some(profile), _) => format!("{profile} — this run's work would be done by it"),
             (None, None) => "probing runtime profiles…".to_owned(),
-            (None, Some(_)) => route.note.to_owned(),
+            (None, Some(_)) => start.note.to_owned(),
         },
     ));
     if let Some(report) = runtimes {
@@ -107,7 +124,7 @@ pub fn authorize(
         ));
     }
 
-    let routed = route.profile.is_some() || runtimes.is_none();
+    let routed = start.profile.is_some() || runtimes.is_none();
     let mut requirements = match &contract.verifier {
         Some(verifier) => vec![
             Requirement {
@@ -159,9 +176,9 @@ pub fn authorize(
             RequirementState::Warning
         },
         name: "the work is done by a runtime profile you approved".into(),
-        checked_by: route.profile.unwrap_or("none ready").to_owned(),
+        checked_by: start.profile.unwrap_or("none ready").to_owned(),
         negative_control: "—".into(),
-        detail: Some(match route.profile {
+        detail: Some(match start.profile {
             Some(profile) => format!(
                 "{profile} · a profile that is not ready stops the attempt rather than being \
                  replaced by another"
@@ -169,41 +186,47 @@ pub fn authorize(
             None if runtimes.is_none() => {
                 "this host has not been probed yet — the profiles are named once it is".to_owned()
             }
-            None => format!("{} · nothing is spent until one can", route.note),
+            None => format!("{} · nothing is spent until one can", start.note),
         }),
     });
 
-    let action = contract.can_start(run).then(|| AuthorizeAction {
-        contract_id: contract.contract_id.clone(),
-        run_id: contract.run_id.clone().unwrap_or_default(),
-        budget: contract
-            .budget
-            .as_ref()
-            .map(|budget| {
-                vec![
-                    ("attempts".to_owned(), budget.attempts_remaining),
-                    (
-                        "verification_queries".to_owned(),
-                        budget.verification_queries_remaining,
-                    ),
-                ]
-            })
-            .unwrap_or_default(),
-        source: contract.source.display().to_string(),
-        verifier: contract
-            .verifier
-            .as_ref()
-            .map(|verifier| file_name(&verifier.program))
-            .unwrap_or_default(),
-        negative_control: contract
-            .verifier
-            .as_ref()
-            .map(|verifier| file_name(&verifier.negative_control))
-            .unwrap_or_default(),
-        reauthorization: contract.previously_authorized,
-    });
+    let action = contract
+        .can_start(run, start.in_a_store_of_its_own)
+        .then(|| AuthorizeAction {
+            contract_id: contract.contract_id.clone(),
+            run_id: contract.run_id.clone().unwrap_or_default(),
+            budget: contract
+                .budget
+                .as_ref()
+                .map(|budget| {
+                    vec![
+                        ("attempts".to_owned(), budget.attempts_remaining),
+                        (
+                            "verification_queries".to_owned(),
+                            budget.verification_queries_remaining,
+                        ),
+                    ]
+                })
+                .unwrap_or_default(),
+            source: contract.source.display().to_string(),
+            verifier: contract
+                .verifier
+                .as_ref()
+                .map(|verifier| file_name(&verifier.program))
+                .unwrap_or_default(),
+            negative_control: contract
+                .verifier
+                .as_ref()
+                .map(|verifier| file_name(&verifier.negative_control))
+                .unwrap_or_default(),
+            reauthorization: contract.previously_authorized,
+        });
     let blocking = contract.blocking_items();
-    let action_note = if action.is_some() && routed {
+    let action_note = if action.is_some() && routed && start.in_a_store_of_its_own {
+        "authorize and start — the contract is stored, the run begins in a store of its own and \
+         the profile above does the work"
+            .to_owned()
+    } else if action.is_some() && routed {
         "authorize and start — the contract is stored, the run begins and the profile above does \
          the work"
             .to_owned()
@@ -422,7 +445,7 @@ mod tests {
             &environment(),
             None,
             None,
-            RouteFacts::unknown(),
+            StartFacts::unknown(),
         );
         assert_eq!(modal.blocking, 1);
         assert_eq!(modal.requirements[0].state, RequirementState::Blocking);
@@ -443,7 +466,7 @@ mod tests {
             &environment(),
             None,
             None,
-            RouteFacts::unknown(),
+            StartFacts::unknown(),
         );
         assert_eq!(modal.blocking, 0);
         assert_eq!(modal.requirements[0].checked_by, "verify.sh");
@@ -465,7 +488,7 @@ mod tests {
             &environment(),
             None,
             None,
-            RouteFacts::unknown(),
+            StartFacts::unknown(),
         );
         let action = modal.action.expect("the run is offered");
         assert_eq!(action.run_id, "run-aaaaaaaaaaaa");
@@ -499,7 +522,7 @@ mod tests {
             &environment(),
             None,
             Some(&run),
-            RouteFacts::unknown(),
+            StartFacts::unknown(),
         );
         assert!(modal.action.is_none(), "a second run was offered");
         assert!(modal.action_note.contains("already holds a run"));

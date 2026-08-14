@@ -1,0 +1,139 @@
+//! Acceptance: a cancellation reports the terminal the record holds, not the one it asked for.
+//!
+//! There is a window between an attempt failing and its worker reporting itself finished. A
+//! cancellation issued inside it finds the run already terminal for another reason, the domain
+//! refuses to rename a terminal, and nothing about the run was cancelled. Saying `cancelled`
+//! anyway would be the interface asserting an outcome the journal does not carry — and an
+//! operator would read a run the machinery lost as a run they had ended.
+//!
+//! The check that must fail: state the outcome from the command instead of from the state after
+//! the model has caught up, and the reply below reads `cancelled` over a run the journal records
+//! as `infrastructure_error`.
+//!
+//! This binary holds one test and sets its own search path, so the profile the product probes is
+//! the fixture beside it. The agent is deterministic and spends nothing.
+
+use std::fs;
+use std::path::Path;
+use std::time::{Duration, Instant};
+
+use ymp_domain::RunStatus;
+use ymp_tui::runtimes::probe_all;
+use ymp_tui::{Session, projection};
+
+/// A Codex build that launches and then dies without a terminal event of its own. The controller
+/// records the run as an infrastructure failure; the worker is still on its way out.
+const DYING_FIXTURE: &str = r##"#!/bin/sh
+if [ "$1" = "--version" ]; then
+  printf '%s\n' 'codex-cli 0.147.0'
+elif [ "$1" = "login" ]; then
+  exit 0
+else
+  cat >/dev/null
+  printf '%s\n' '{"type":"thread.started","thread_id":"thread-dying"}'
+  exit 19
+fi
+"##;
+
+fn executable(path: &Path, contents: &str) {
+    fs::write(path, contents).expect("write program");
+    use std::os::unix::fs::PermissionsExt;
+    let mut permissions = fs::metadata(path).expect("metadata").permissions();
+    permissions.set_mode(0o700);
+    fs::set_permissions(path, permissions).expect("make executable");
+}
+
+#[test]
+fn cancelling_a_run_the_machinery_already_ended_reports_what_the_record_holds() {
+    let temporary = tempfile::tempdir().expect("temporary root");
+    let base = temporary.path();
+    let source = base.join("source");
+    let negative_control = base.join("negative-control");
+    let search_path = base.join("bin");
+    for directory in [&source, &negative_control, &search_path] {
+        fs::create_dir_all(directory).expect("fixture directory");
+    }
+    fs::write(source.join("input.txt"), b"before\n").expect("source file");
+    let verifier = base.join("verify.sh");
+    executable(&verifier, "#!/bin/sh\ntest -f \"$1/result.txt\"\n");
+    executable(&search_path.join("codex"), DYING_FIXTURE);
+
+    // This binary holds one test, so the search path it sets is read by nothing else.
+    let path = format!("{}:/usr/bin:/bin:/usr/sbin:/sbin", search_path.display());
+    unsafe {
+        std::env::set_var("PATH", &path);
+    }
+
+    let store = base.join("store");
+    let mut session = Session::open(&store, &[]);
+    for line in [
+        "write the result of the work".to_owned(),
+        format!("source {}", source.display()),
+        format!("verifier {}", verifier.display()),
+        format!("negative control {}", negative_control.display()),
+    ] {
+        session.local_turn(line);
+    }
+    let contract_id = session
+        .projection(None)
+        .contracts
+        .first()
+        .expect("the request produced a contract")
+        .contract_id
+        .clone();
+    session.set_runtimes(probe_all());
+    session.start_run(&contract_id);
+    session.start_attempt();
+    assert!(session.attempt_is_live(), "no attempt was launched");
+
+    // The attempt is never polled, so the session still holds it while the controller records the
+    // failure. Waiting on the journal rather than on the attempt is what puts the cancellation
+    // inside the window this check is about.
+    let deadline = Instant::now() + Duration::from_secs(20);
+    loop {
+        session.refresh();
+        let run = session
+            .projection(None)
+            .run
+            .expect("the run is readable")
+            .status;
+        if run == RunStatus::InfrastructureError {
+            break;
+        }
+        assert!(
+            Instant::now() < deadline,
+            "the controller never recorded the failure of the attempt"
+        );
+        std::thread::sleep(Duration::from_millis(20));
+    }
+
+    session.cancel_run();
+
+    let projection = session.projection(None);
+    let status = projection.run.as_ref().expect("the run is readable").status;
+    assert_eq!(
+        status,
+        RunStatus::InfrastructureError,
+        "a cancellation renamed a terminal the machinery had already recorded"
+    );
+    let said: String = projection
+        .entries
+        .iter()
+        .filter_map(|entry| match entry {
+            ymp_tui::Entry::AppReply { text } => Some(text.as_str()),
+            _ => None,
+        })
+        .collect::<Vec<_>>()
+        .join("\n");
+    let outcome = projection::outcome(status);
+    assert!(
+        said.contains(&format!(
+            "the run ended with the terminal outcome {outcome}"
+        )),
+        "the cancellation did not report the terminal the record holds:\n{said}"
+    );
+    assert!(
+        !said.contains("the terminal outcome cancelled"),
+        "the cancellation claimed an outcome the journal does not carry:\n{said}"
+    );
+}
