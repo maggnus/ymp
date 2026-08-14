@@ -17,19 +17,38 @@ use ymp_agent_api::{AgentToolCall, AgentToolHandler, SubmitArguments, YieldArgum
 use ymp_agent_rpc::SocketToolHandler;
 use ymp_application::Application;
 use ymp_domain::commitment::{
-    CommitmentEvent, CommitmentLedger, InvocationState, ObligationState, OpenAuthority,
-    RootTerminal, Verdict, WakeCondition,
+    CommitmentEvent, CommitmentLedger, InvocationClosure, InvocationState, ObligationState,
+    OpenAuthority, RootTerminal, Verdict, WakeCondition,
 };
 use ymp_domain::{Budget, RunStatus, digest_bytes};
 use ymp_runtime_api::{
-    InvocationRequest, ProbeReport, RuntimeDriver, RuntimeError, RuntimeEvent, RuntimeKind,
-    RuntimeSession, Usage,
+    InvocationRequest, ProbeReport, RuntimeDriver, RuntimeError, RuntimeEvent, RuntimeEventKind,
+    RuntimeKind, RuntimeSession, Usage,
 };
 use ymp_runtime_fake::{FakeRuntime, ScriptStep};
 use ymp_runtime_supervisor::{
     ManagedCandidateRequest, ManagedContract, ManagedRunEvent, ManagedRunHandle,
-    start_unattested_managed_candidate,
+    ManagedTermination, start_unattested_managed_candidate,
 };
+
+/// How the scripted runtime behaves at the two points a supervised run can end badly at: the
+/// interruption a cancellation reaches it through, and the resumption a wake drives.
+#[derive(Clone, Copy, Eq, PartialEq)]
+enum Disposition {
+    /// The runtime answers an interruption with an interruption, which is what the fixture runtime
+    /// does on its own.
+    Orderly,
+    /// The tool call the runtime had in flight fails because the interruption landed in the middle
+    /// of it, and the runtime reports that failure instead of an interruption. This is how a
+    /// cancellation reaches a runtime that is working rather than waiting.
+    FailsWhenInterrupted,
+    /// The wall-time limit of this runtime had already run out when the interruption reached it,
+    /// so what it reports on its way out is the limit it exceeded and not the interruption. This
+    /// is how an expired limit and an operator's cancellation land in the same window.
+    ExceedsItsLimitWhenInterrupted,
+    /// Supervision of this run dies of a panic while it drives the runtime.
+    PanicsWhenResumed,
+}
 
 /// A runtime that yields through the coordination tool the way a supervised participant does. It
 /// yields once for each step of its script and submits its candidate when it has no yields left.
@@ -39,6 +58,7 @@ struct YieldingRuntime {
     /// the runtime down after it has recorded the terminal of the slice and before it reports
     /// itself finished, so holding it there is what puts a controller inside that window.
     teardown: Option<Arc<AtomicBool>>,
+    disposition: Disposition,
 }
 
 impl RuntimeDriver for YieldingRuntime {
@@ -74,12 +94,18 @@ impl RuntimeDriver for YieldingRuntime {
                 command_id: "agent.yield.0".to_owned(),
             }))
             .map_err(|error| RuntimeError::RuntimeReportedFailure(error.to_string()))?;
+        let invocation_id = request.invocation_id.clone();
         Ok(Box::new(YieldingSession {
             inner: FakeRuntime::with_script(script).start(request)?,
             controller,
             taken,
             yields: self.yields,
             teardown: self.teardown.clone(),
+            disposition: self.disposition,
+            interrupted: false,
+            invocation_id,
+            last_sequence: 0,
+            limit_reported: false,
         }))
     }
 }
@@ -90,6 +116,13 @@ struct YieldingSession {
     taken: AtomicU32,
     yields: u32,
     teardown: Option<Arc<AtomicBool>>,
+    disposition: Disposition,
+    interrupted: bool,
+    /// The identity and the ordering of the events this session has passed on, so that an event it
+    /// reports on its own continues the same numbered progression the controller validates.
+    invocation_id: String,
+    last_sequence: u64,
+    limit_reported: bool,
 }
 
 /// Winding the runtime down is where the worker spends the time between recording the terminal of
@@ -109,13 +142,46 @@ impl Drop for YieldingSession {
 
 impl RuntimeSession for YieldingSession {
     fn next_event(&mut self) -> Result<Option<RuntimeEvent>, RuntimeError> {
-        self.inner.next_event()
+        // The work the interruption landed in the middle of is what fails, so the failure is what
+        // the runtime reports next.
+        if self.interrupted && self.disposition == Disposition::FailsWhenInterrupted {
+            return Err(RuntimeError::RuntimeReportedFailure(
+                "the tool call in flight failed when the interruption reached it".to_owned(),
+            ));
+        }
+        // The wall-time limit ran out while the runtime worked, and the interruption reached it
+        // afterwards. What it has to report is therefore the limit and not the interruption.
+        if self.interrupted && self.disposition == Disposition::ExceedsItsLimitWhenInterrupted {
+            if self.limit_reported {
+                return Ok(None);
+            }
+            self.limit_reported = true;
+            self.last_sequence += 1;
+            return Ok(Some(RuntimeEvent {
+                sequence: self.last_sequence,
+                event_id: format!("{}.event-timed-out", self.invocation_id),
+                invocation_id: self.invocation_id.clone(),
+                event: RuntimeEventKind::TimedOut {
+                    limit_ms: 1,
+                    usage: Usage::default(),
+                },
+            }));
+        }
+        let event = self.inner.next_event()?;
+        if let Some(event) = &event {
+            self.last_sequence = event.sequence;
+        }
+        Ok(event)
     }
 
     /// A resumed participant either asks to be paused again or finishes its work. Both are
     /// recorded through the coordination tool, which is what the controller classifies the slice
     /// by.
     fn resume(&mut self, input: String) -> Result<(), RuntimeError> {
+        assert!(
+            self.disposition != Disposition::PanicsWhenResumed,
+            "the supervision of this run died while it drove the runtime"
+        );
         self.inner.resume(input)?;
         let taken = self.taken.fetch_add(1, Ordering::Relaxed);
         let call = if taken < self.yields {
@@ -134,6 +200,7 @@ impl RuntimeSession for YieldingSession {
     }
 
     fn interrupt(&mut self) -> Result<(), RuntimeError> {
+        self.interrupted = true;
         self.inner.interrupt()
     }
 
@@ -145,14 +212,22 @@ impl RuntimeSession for YieldingSession {
 struct Fixture {
     handle: ManagedRunHandle,
     application: Arc<Mutex<Application>>,
-    _temporary: tempfile::TempDir,
+    temporary: tempfile::TempDir,
+}
+
+impl Fixture {
+    /// The file the run's journal is appended to. A check that makes it unwritable measures what a
+    /// run does when the record an operator reads will take nothing further from it.
+    fn journal_file(&self) -> std::path::PathBuf {
+        self.temporary.path().join("data").join("events.jsonl")
+    }
 }
 
 fn start(yields: u32) -> Fixture {
-    start_with(yields, None)
+    start_with(yields, None, Disposition::Orderly)
 }
 
-fn start_with(yields: u32, teardown: Option<Arc<AtomicBool>>) -> Fixture {
+fn start_with(yields: u32, teardown: Option<Arc<AtomicBool>>, disposition: Disposition) -> Fixture {
     let temporary = tempfile::tempdir().expect("temporary directory");
     let source = temporary.path().join("source");
     std::fs::create_dir(&source).expect("source directory");
@@ -163,7 +238,11 @@ fn start_with(yields: u32, teardown: Option<Arc<AtomicBool>>) -> Fixture {
     ));
     let handle = start_unattested_managed_candidate(
         Arc::clone(&application),
-        Box::new(YieldingRuntime { yields, teardown }),
+        Box::new(YieldingRuntime {
+            yields,
+            teardown,
+            disposition,
+        }),
         ManagedCandidateRequest {
             contract: ManagedContract {
                 contract_id: "contract-yield".to_owned(),
@@ -180,8 +259,37 @@ fn start_with(yields: u32, teardown: Option<Arc<AtomicBool>>) -> Fixture {
     Fixture {
         handle,
         application,
-        _temporary: temporary,
+        temporary,
     }
+}
+
+/// Kill a thread under the held journal lock, which is how the lock a controller reads through is
+/// poisoned in production.
+fn poison_journal(application: &Arc<Mutex<Application>>) {
+    let application = Arc::clone(application);
+    let poisoning = std::thread::spawn(move || {
+        let _journal = application.lock().expect("the journal");
+        panic!("a controller died while it held the journal");
+    });
+    assert!(
+        poisoning.join().is_err(),
+        "the thread that was to poison the journal did not die"
+    );
+}
+
+/// Close one controller and answer whether it finished within the time allowed.
+///
+/// Closing a controller waits for the worker thread, and a wait that cannot end is the defect being
+/// measured, so it is performed on a thread of its own and given a deadline. A check that closed
+/// the controller where it stands would take the whole process down with it rather than reporting
+/// what it measured.
+fn closed_within(fixture: Fixture, allowed: Duration) -> bool {
+    let (closed, reported) = std::sync::mpsc::channel();
+    std::thread::spawn(move || {
+        drop(fixture);
+        let _ = closed.send(());
+    });
+    reported.recv_timeout(allowed).is_ok()
 }
 
 /// Wait until the kernel record of the slice says it has yielded. The record is what a resumption
@@ -220,13 +328,40 @@ fn wait_for_candidate(handle: &ManagedRunHandle) -> String {
     panic!("the managed run announced no candidate");
 }
 
+/// The terminal the run's own journal reports, read so that a journal whose lock a panic poisoned
+/// can still be measured. What is being checked is what the record says, and a check that could not
+/// read a poisoned record could not tell a recorded terminal from a missing one.
+fn journal_status(fixture: &Fixture) -> RunStatus {
+    fixture
+        .application
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner())
+        .state()
+        .status
+}
+
 fn drain_until_finished(handle: &ManagedRunHandle) {
+    let _ = failures_until_finished(handle);
+}
+
+/// Drain the run to its end and answer with what it reported as failing. It is what the run says
+/// about itself, next to what the two records of its terminal say.
+fn failures_until_finished(handle: &ManagedRunHandle) -> Vec<String> {
     let deadline = Instant::now() + Duration::from_secs(10);
+    let mut failures = Vec::new();
+    let take = |handle: &ManagedRunHandle, failures: &mut Vec<String>| {
+        while let Some(event) = handle.try_next() {
+            if let ManagedRunEvent::Failed { detail } = event {
+                failures.push(detail);
+            }
+        }
+    };
     while Instant::now() < deadline && !handle.is_finished() {
-        while handle.try_next().is_some() {}
+        take(handle, &mut failures);
         std::thread::sleep(Duration::from_millis(5));
     }
-    while handle.try_next().is_some() {}
+    take(handle, &mut failures);
+    failures
 }
 
 /// One live resumption, read out of the committed facts rather than out of the controller.
@@ -577,7 +712,7 @@ fn cancelling_a_finished_run_reaches_the_kernel_and_refuses_a_later_verdict() {
 #[test]
 fn a_cancellation_inside_the_teardown_window_reaches_the_kernel() {
     let teardown = Arc::new(AtomicBool::new(false));
-    let fixture = start_with(1, Some(Arc::clone(&teardown)));
+    let fixture = start_with(1, Some(Arc::clone(&teardown)), Disposition::Orderly);
     let handle = &fixture.handle;
     wait_until_yielded(handle);
     handle.wake("wake-1", "continue once").expect("the wake");
@@ -785,6 +920,20 @@ fn a_cancelled_live_run_reaches_the_same_terminal_in_both_records() {
         handle.kernel().root_terminal().expect("the terminal"),
         Some(RootTerminal::Cancelled)
     );
+    // A slice that ran nothing out closed of the cancellation and of nothing else. Stated here so
+    // that the closure a stopped run records cannot drift into the vocabulary reserved for a run
+    // that exceeded something.
+    assert_eq!(
+        handle
+            .kernel()
+            .snapshot()
+            .expect("the ledger")
+            .invocations()
+            .get(handle.invocation_id())
+            .expect("the recorded slice")
+            .closure,
+        Some(InvocationClosure::Cancelled)
+    );
     assert_eq!(
         handle
             .kernel()
@@ -802,4 +951,429 @@ fn a_cancelled_live_run_reaches_the_same_terminal_in_both_records() {
             .status,
         RunStatus::Cancelled
     );
+}
+
+/// A cancellation that makes the runtime fail ends the run as cancelled in both records.
+///
+/// A cancellation reaches a working runtime by interrupting it, and the tool call the interruption
+/// lands in the middle of fails. Classified by that failure, the slice would close as a runtime
+/// failure, which the kernel accounts as an infrastructure error, while the journal the same
+/// cancellation moved reports the run as cancelled: two records naming different terminals for one
+/// run, and the more serious of the two naming a fault where an operator merely stopped the work.
+/// What the run ended of is the cancellation, so the cancellation is what both records state.
+#[test]
+fn a_cancel_that_makes_the_runtime_fail_ends_the_run_as_cancelled() {
+    let fixture = start_with(1, None, Disposition::FailsWhenInterrupted);
+    let handle = &fixture.handle;
+    wait_until_yielded(handle);
+    handle.cancel("stopped by the operator").expect("cancel");
+    let failures = failures_until_finished(handle);
+
+    assert_eq!(
+        handle.kernel().root_terminal().expect("the terminal"),
+        Some(RootTerminal::Cancelled),
+        "the kernel named the failure the cancellation caused as the ending of the run"
+    );
+    assert!(
+        !failures
+            .iter()
+            .any(|detail| detail.contains("managed_runtime_supervision_failed")),
+        "a cancelled run reported the supervision of itself as having failed: {failures:?}"
+    );
+    assert_eq!(
+        fixture
+            .application
+            .lock()
+            .expect("application")
+            .state()
+            .status,
+        RunStatus::Cancelled,
+        "the journal records a terminal the kernel does not hold"
+    );
+    assert_eq!(
+        handle
+            .kernel()
+            .open_authority()
+            .expect("the open authority"),
+        None,
+        "a stopped run is still held open"
+    );
+}
+
+/// A worker that dies of a panic still drives the run to a kernel terminal.
+///
+/// A panic used to take the ending of the run with it: the thread unwound, the slice stayed open,
+/// the run reached no terminal at all, and a cancellation issued afterwards moved the journal alone
+/// and reported success for stopping a run the kernel still held running. Supervision that dies is
+/// an infrastructure failure, and it is recorded as one before the worker leaves.
+#[test]
+fn a_worker_that_dies_of_a_panic_still_reaches_a_kernel_terminal() {
+    let fixture = start_with(1, None, Disposition::PanicsWhenResumed);
+    let handle = &fixture.handle;
+    wait_until_yielded(handle);
+    handle.wake("wake-1", "continue once").expect("the wake");
+    let failures = failures_until_finished(handle);
+
+    assert!(
+        handle.is_finished(),
+        "the worker died without reporting the run finished"
+    );
+    assert!(
+        failures
+            .iter()
+            .any(|detail| detail.contains("managed_runtime_worker_panicked")),
+        "the run reported nothing about the supervision that died: {failures:?}"
+    );
+    assert_eq!(
+        handle.kernel().root_terminal().expect("the terminal"),
+        Some(RootTerminal::InfrastructureError),
+        "the run whose supervision died holds no kernel terminal"
+    );
+    assert_eq!(
+        fixture
+            .application
+            .lock()
+            .expect("application")
+            .state()
+            .status,
+        RunStatus::InfrastructureError,
+        "the journal reports a run the kernel ended as still open"
+    );
+
+    // The run is over, and neither of the two commands that end one moves it any further.
+    assert!(
+        handle
+            .verified(
+                &digest_bytes(b"a bundle nothing committed"),
+                Verdict::Passed
+            )
+            .is_err(),
+        "the kernel judged a run whose supervision died"
+    );
+    handle
+        .cancel("stopped after the supervision died")
+        .expect("cancel");
+    assert_eq!(
+        handle.kernel().root_terminal().expect("the terminal"),
+        Some(RootTerminal::InfrastructureError),
+        "a later cancellation renamed the terminal the kernel already held"
+    );
+    assert_eq!(
+        fixture
+            .application
+            .lock()
+            .expect("application")
+            .state()
+            .status,
+        RunStatus::InfrastructureError,
+        "a later cancellation renamed the terminal the journal already held"
+    );
+}
+
+/// A journal whose lock a panic poisoned still receives the terminal of the run.
+///
+/// A panic under the held journal lock poisons it, and the record of the failure used to be
+/// abandoned there: the kernel closed the slice on the infrastructure error while the journal was
+/// left saying the run was still running. The two records then disagreed about whether the run had
+/// ended at all, and the journal — the record an operator reads — was the one claiming work that
+/// nothing was performing. The guard is taken poisoned for the same reason the terminal guard is:
+/// every fact of the run is committed whole before it is applied, so there is no half-written datum
+/// behind the poison, and refusing to write leaves a worse record than writing does.
+#[test]
+fn a_poisoned_journal_still_records_the_terminal_of_the_run() {
+    let fixture = start(1);
+    let handle = &fixture.handle;
+    wait_until_yielded(handle);
+
+    poison_journal(&fixture.application);
+    assert!(
+        fixture.application.is_poisoned(),
+        "the journal lock outlived the panic unpoisoned"
+    );
+
+    handle.wake("wake-1", "continue once").expect("the wake");
+    let failures = failures_until_finished(handle);
+
+    assert!(
+        handle.is_finished(),
+        "the run did not report itself finished"
+    );
+    assert!(
+        !failures.is_empty(),
+        "the run reported nothing about supervision it could not complete"
+    );
+    assert_eq!(
+        handle.kernel().root_terminal().expect("the terminal"),
+        Some(RootTerminal::InfrastructureError),
+        "the run holds no kernel terminal"
+    );
+    assert_eq!(
+        journal_status(&fixture),
+        RunStatus::InfrastructureError,
+        "the journal reports as running a run the kernel has ended"
+    );
+}
+
+/// A limit that ran out is accounted for even when a cancellation lands in the same window.
+///
+/// A cancellation is what a run ends of whenever it arrives, and both records name it: that is what
+/// keeps an operator's stop from being reported as a fault. An exhausted limit is not something the
+/// cancellation caused, though, and it is a fact about what the run consumed rather than a competing
+/// account of who ended it. Classifying the ending by the cancellation alone dropped it: the slice
+/// closed as cancelled and the exceeded limit appeared nowhere. The run is therefore stopped as
+/// cancelled, in both records, while the slice closes on the limit it ran out of.
+#[test]
+fn a_limit_that_expired_survives_a_cancellation_in_the_same_window() {
+    let fixture = start_with(1, None, Disposition::ExceedsItsLimitWhenInterrupted);
+    let handle = &fixture.handle;
+    wait_until_yielded(handle);
+    handle.cancel("stopped by the operator").expect("cancel");
+    drain_until_finished(handle);
+
+    let closure = handle
+        .kernel()
+        .snapshot()
+        .expect("the ledger")
+        .invocations()
+        .get(handle.invocation_id())
+        .expect("the recorded slice")
+        .closure;
+    assert_eq!(
+        closure,
+        Some(InvocationClosure::LimitExceeded),
+        "the limit the run exceeded is absent from the accounting of the slice"
+    );
+    assert_eq!(
+        handle.kernel().root_terminal().expect("the terminal"),
+        Some(RootTerminal::Cancelled),
+        "the run an operator stopped holds another terminal"
+    );
+    assert_eq!(
+        journal_status(&fixture),
+        RunStatus::Cancelled,
+        "the journal records a terminal the kernel does not hold"
+    );
+    assert_eq!(
+        handle
+            .kernel()
+            .open_authority()
+            .expect("the open authority"),
+        None,
+        "a stopped run is still held open"
+    );
+}
+
+/// The two commands that end a run from the control side decide its terminal one at a time.
+///
+/// A cancellation reads the kernel, then moves the journal, then takes the kernel transition that
+/// reading admitted. A verdict recorded between the reading and the transition is a fact the
+/// cancellation has already decided against: the run is stopped on the strength of a kernel that no
+/// longer holds, and the terminal a committed query produced is renamed. The journal lock is what
+/// holds a cancellation between those two points, so it is taken here to place a verdict exactly
+/// there.
+#[test]
+fn a_verdict_racing_a_cancellation_renames_no_committed_terminal() {
+    let (fixture, candidate) = finished_run();
+    let handle = &fixture.handle;
+    // The cancellation reads the kernel before it takes this, and moves neither record until it
+    // has it.
+    let journal = fixture.application.lock().expect("the journal");
+    std::thread::scope(|scope| {
+        let cancelling = scope.spawn(|| handle.cancel("stopped while the query was answering"));
+        // Long enough for the cancellation to have read the kernel and to be waiting on the
+        // journal. A cancellation that has not got that far leaves the two commands in their
+        // sequential order, which is consistent whatever this measures.
+        std::thread::sleep(Duration::from_millis(200));
+        let judging = scope.spawn(|| handle.verified(&candidate, Verdict::Passed));
+        // A verdict serialized against the cancellation cannot be recorded while the cancellation
+        // is between its reading and its transition, so the journal is released after waiting for
+        // one rather than requiring one.
+        let deadline = Instant::now() + Duration::from_millis(500);
+        while Instant::now() < deadline && !judging.is_finished() {
+            std::thread::sleep(Duration::from_millis(5));
+        }
+        drop(journal);
+        let _ = cancelling.join().expect("the cancelling thread");
+        let _ = judging.join().expect("the judging thread");
+    });
+
+    let terminal = handle.kernel().root_terminal().expect("the terminal");
+    let status = fixture
+        .application
+        .lock()
+        .expect("application")
+        .state()
+        .status;
+    if handle
+        .kernel()
+        .snapshot()
+        .expect("the ledger")
+        .verifications()
+        .is_empty()
+    {
+        assert_eq!(
+            terminal,
+            Some(RootTerminal::Cancelled),
+            "the run the cancellation stopped holds another terminal"
+        );
+        assert_eq!(
+            status,
+            RunStatus::Cancelled,
+            "the journal records a terminal the kernel does not hold"
+        );
+    } else {
+        assert_eq!(
+            terminal,
+            Some(RootTerminal::Accepted),
+            "a cancellation renamed the terminal a recorded verdict had committed"
+        );
+        assert_ne!(
+            status,
+            RunStatus::Cancelled,
+            "the journal stopped a run the kernel had accepted"
+        );
+    }
+}
+
+/// An operator's cancellation stops a run whose journal lock a panic poisoned, and closing the
+/// controller afterwards ends rather than waiting for ever.
+///
+/// The cancellation used to be refused at the poisoned lock, and refusing it there was the worst of
+/// the available states: the token the runtime watches was never set, so the runtime went on
+/// working, both records went on calling the run running, and the controller that closed next
+/// waited for a worker nothing had asked to stop. Nothing measured the wait, because there was
+/// nothing left to measure it with — the process had to be killed. The lock is therefore taken
+/// poisoned, for the reason the terminal guard is: every fact of the run is appended whole before
+/// it is applied, so no half-written datum stands behind the poison.
+#[test]
+fn a_cancellation_on_a_poisoned_journal_stops_the_run_in_both_records() {
+    let fixture = start(1);
+    wait_until_yielded(&fixture.handle);
+    poison_journal(&fixture.application);
+
+    let cancelled = fixture.handle.cancel("stopped by the operator");
+    drain_until_finished(&fixture.handle);
+    let terminal = fixture
+        .handle
+        .kernel()
+        .root_terminal()
+        .expect("the terminal");
+    let status = journal_status(&fixture);
+    let finished = fixture.handle.is_finished();
+    // Read before the controller is closed, and asserted after: a controller that cannot close is
+    // the defect under measurement, so nothing is left holding it while the measurement is made.
+    let closed = closed_within(fixture, Duration::from_secs(30));
+
+    assert!(
+        cancelled.is_ok(),
+        "a run whose journal lock was poisoned could not be stopped: {:?}",
+        cancelled.err()
+    );
+    assert!(
+        finished,
+        "the runtime went on working after the cancellation"
+    );
+    assert_eq!(
+        terminal,
+        Some(RootTerminal::Cancelled),
+        "the kernel holds no terminal for a run an operator stopped"
+    );
+    assert_eq!(
+        status,
+        RunStatus::Cancelled,
+        "the journal records a terminal the kernel does not hold"
+    );
+    assert!(
+        closed,
+        "closing the controller of a stopped run did not end"
+    );
+}
+
+/// Closing a controller ends the wait it performs, even where the cancellation it issues first is
+/// refused.
+///
+/// A yielded slice waits for one of two things: the cancellation token, or a wake over the control
+/// channel. A controller that waited for the worker while it still held the sending end of that
+/// channel waited for a wake nobody could send — itself being the only sender, and on its way out —
+/// so any cancellation that did not reach the token made the wait unbounded. The run is ended in the
+/// kernel from outside here, which is the one state a cancellation refuses to move, so the wait is
+/// measured with the token genuinely unset rather than with a cancellation that happens to work.
+#[test]
+fn closing_a_controller_never_waits_behind_the_control_channel_it_holds() {
+    let fixture = start(1);
+    wait_until_yielded(&fixture.handle);
+    fixture
+        .handle
+        .kernel()
+        .terminated(ManagedTermination::Failed(InvocationClosure::RuntimeError))
+        .expect("the kernel terminal");
+
+    let refusal = fixture
+        .handle
+        .cancel("stopped after the kernel had ended the run")
+        .expect_err("a run the kernel had already ended was cancelled");
+    assert!(
+        refusal.to_string().contains("already ended this run"),
+        "unexpected refusal: {refusal}"
+    );
+
+    assert!(
+        closed_within(fixture, Duration::from_secs(30)),
+        "the controller waited for a worker it was itself holding open"
+    );
+}
+
+/// A failure the journal would not record is reported with the run rather than passed over.
+///
+/// The journal refuses an append it cannot write, and it refuses a record whose sequence it has
+/// already taken — which is what a panic between the append of a fact and its application in memory
+/// leaves behind. Discarding that refusal left nothing anywhere saying so: the kernel closed the
+/// slice, the journal went on naming a run in progress, and the two records disagreed in silence.
+/// What the journal declined is therefore carried out with the failure it belongs to.
+#[test]
+fn a_failure_the_journal_would_not_record_is_reported_with_the_run() {
+    let fixture = start_with(1, None, Disposition::PanicsWhenResumed);
+    wait_until_yielded(&fixture.handle);
+
+    // From here the journal takes nothing further, which is what a run reaches when the record it
+    // writes to cannot be appended to.
+    let journal = fixture.journal_file();
+    let writable = std::fs::metadata(&journal)
+        .expect("the journal file")
+        .permissions();
+    let mut closed = writable.clone();
+    closed.set_readonly(true);
+    std::fs::set_permissions(&journal, closed).expect("close the journal to further records");
+
+    fixture
+        .handle
+        .wake("wake-1", "continue once")
+        .expect("the wake");
+    let failures = failures_until_finished(&fixture.handle);
+
+    assert!(
+        failures
+            .iter()
+            .any(|detail| detail.contains("managed_runtime_worker_panicked")),
+        "the run reported nothing about the supervision that died: {failures:?}"
+    );
+    assert!(
+        failures
+            .iter()
+            .any(|detail| detail.contains("managed_runtime_failure_unrecorded")),
+        "the run passed over a failure its journal would not take: {failures:?}"
+    );
+    assert_eq!(
+        fixture
+            .handle
+            .kernel()
+            .root_terminal()
+            .expect("the terminal"),
+        Some(RootTerminal::InfrastructureError),
+        "the run whose supervision died holds no kernel terminal"
+    );
+
+    // The permissions the journal was created with, restored so that the temporary tree the check
+    // ran in is removed as any other is.
+    std::fs::set_permissions(&journal, writable).expect("reopen the journal for cleanup");
 }

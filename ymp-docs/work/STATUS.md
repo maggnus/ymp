@@ -19,6 +19,9 @@
 | `[x]` | [`W1-APP-02e.1`](waves/W1/W1-APP-02/tasks/W1-APP-02e/subtasks/W1-APP-02e.1.md) | Deterministic TUI buffers enforce the accepted screen contract | [`bdccf008`](https://github.com/maggnus/ymp/commit/bdccf00825b6a93ff25ab10f34719e645bc8f8f9) | 12/08 16:19 | 12/08 17:38 (59m) |
 | `[x]` | [`W1-APP-02e.2`](waves/W1/W1-APP-02/tasks/W1-APP-02e/subtasks/W1-APP-02e.2.md) | Chat-first visual contract is independently accepted | [`b57ec9d0`](https://github.com/maggnus/ymp/commit/b57ec9d0e04b47f0848fba4e7d1b9b2d7cf68336) | 13/08 01:32 | 13/08 09:46 (8h14m) |
 | `[x]` | [`W1-APP-02e.3`](waves/W1/W1-APP-02/tasks/W1-APP-02e/subtasks/W1-APP-02e.3.md) | Ratatui implements the accepted chat-first contract | [`d9029e0d`](https://github.com/maggnus/ymp/commit/d9029e0d8761f8d662ca4c38a2cf7f4bfdba1a3f) | 13/08 09:50 | 13/08 12:28 (2h25m) |
+| `[x]` | [`W1-APP-02e.4`](waves/W1/W1-APP-02/tasks/W1-APP-02e/subtasks/W1-APP-02e.4.md) | The pinned runtime profiles admit the owner's host | [`f74d211`](https://github.com/maggnus/ymp/commit/f74d211) | 15/08 01:30 | 15/08 02:30 (0m) |
+| `[ ]` | [`W1-APP-02e.5`](waves/W1/W1-APP-02/tasks/W1-APP-02e/subtasks/W1-APP-02e.5.md) | The start screen carries the logo and one line of basics | — | — | — |
+| `[ ]` | [`W1-APP-02e.6`](waves/W1/W1-APP-02/tasks/W1-APP-02e/subtasks/W1-APP-02e.6.md) | Runtime engines are managed entities with properties and model lists | — | — | — |
 | `[x]` | [`W1-APP-02f`](waves/W1/W1-APP-02/tasks/W1-APP-02f.md) | Duplicate or out-of-order runtime events terminate without a candidate | [`4145a442`](https://github.com/maggnus/ymp/commit/4145a442b476afedca8d091de3a30b1eb1ad9b84) | 12/08 09:40 | 12/08 10:03 (23m) |
 | `[x]` | [`W1-APP-02g`](waves/W1/W1-APP-02/tasks/W1-APP-02g.md) | Verification evidence binds the exact runtime environment | [`973a6e33`](https://github.com/maggnus/ymp/commit/973a6e331f4577a894ab95ee325efa4a03005510) | 12/08 10:28 | 12/08 11:18 (50m) |
 | `[x]` | [`W1-APP-02h`](waves/W1/W1-APP-02/tasks/W1-APP-02h.md) | Managed Codex and Claude sessions resume after interruption | [`0d351f60`](https://github.com/maggnus/ymp/commit/0d351f6015c25869bd4e45bb126482fd60945795) | 12/08 09:44 | 12/08 10:26 (41m) |
@@ -36,12 +39,14 @@
 | `[x]` | [`W1-APP-02t`](waves/W1/W1-APP-02/tasks/W1-APP-02t.md) | Lifecycle tests are isolated from other test binaries | [`51a7ed71`](https://github.com/maggnus/ymp/commit/51a7ed719535e34baed43f04d148629ffa1452de) | 13/08 21:33 | 14/08 01:16 (4h18m) |
 | `[x]` | [`W1-APP-02u`](waves/W1/W1-APP-02/tasks/W1-APP-02u.md) | A verifier answer is an executable that demonstrably discriminates | [`c1db6db`](https://github.com/maggnus/ymp/commit/c1db6db) | 14/08 01:40 | 14/08 02:19 (38m) |
 | `[x]` | [`W1-APP-02v`](waves/W1/W1-APP-02/tasks/W1-APP-02v.md) | The dialogue experience converges on the Claude Code interface | [`7e98831`](https://github.com/maggnus/ymp/commit/7e98831) | 14/08 02:19 | 14/08 04:08 (0m) |
-| `[x]` | [`W1-APP-02w`](waves/W1/W1-APP-02/tasks/W1-APP-02w.md) | Product state lives under one .ymp root that supports many projects | [`9996944`](https://github.com/maggnus/ymp/commit/9996944) | 14/08 02:13 | 14/08 03:06 (53m) |
+| `[x]` | [`W1-APP-02w`](waves/W1/W1-APP-02/tasks/W1-APP-02w/TASK.md) | Product state lives under one .ymp root that supports many projects | [`9996944`](https://github.com/maggnus/ymp/commit/9996944) | 14/08 02:13 | 14/08 03:06 (53m) |
+| `[ ]` | [`W1-APP-02w.1`](waves/W1/W1-APP-02/tasks/W1-APP-02w/subtasks/W1-APP-02w.1.md) | Product state lives under ~/.ymp; the launch directory stays untouched | — | — | — |
 | `[x]` | [`W1-APP-02x`](waves/W1/W1-APP-02/tasks/W1-APP-02x.md) | Entry validation cannot hold the interface | [`7e98831`](https://github.com/maggnus/ymp/commit/7e98831) | 14/08 02:19 | 14/08 04:08 (0m) |
 | `[x]` | [`W1-APP-02y`](waves/W1/W1-APP-02/tasks/W1-APP-02y.md) | The run record itself carries the per-model spend | [`c63130c`](https://github.com/maggnus/ymp/commit/c63130c) | 14/08 05:19 | 14/08 22:59 (0m) |
 | `[x]` | [`W1-APP-02z`](waves/W1/W1-APP-02/tasks/W1-APP-02z/TASK.md) | A verifier cannot be rewritten by the candidate it judges | [`c364e30`](https://github.com/maggnus/ymp/commit/c364e30) | 14/08 05:07 | 15/08 00:05 (0m) |
 | `[ ]` | [`W1-APP-02z.1`](waves/W1/W1-APP-02/tasks/W1-APP-02z/subtasks/W1-APP-02z.1.md) | The npm entry point is pinned to its interpreter choice, or stays refused | — | — | — |
 | `[ ]` | [`W1-APP-02z.2`](waves/W1/W1-APP-02/tasks/W1-APP-02z/subtasks/W1-APP-02z.2.md) | The refusal names the actual obstacle | — | — | — |
+| `[ ]` | [`W1-APP-02z.3`](waves/W1/W1-APP-02/tasks/W1-APP-02z/subtasks/W1-APP-02z.3.md) | A testless project receives a generated verifier proposal for approval | — | — | — |
 | `[ ]` | [`W1-COR-03`](waves/W1/W1-COR-03/CARD.md) | Bounded local commitments self-organize and terminate | — | — | — |
 | `[x]` | [`W1-COR-03a`](waves/W1/W1-COR-03/tasks/W1-COR-03a.md) | Local commitments conserve budgets and close obligations | [`58524264`](https://github.com/maggnus/ymp/commit/585242645d405ff1f76d6015a1141144eac4207b) | 13/08 15:10 | 13/08 16:27 (1h25m) |
 | `[x]` | [`W1-COR-03b`](waves/W1/W1-COR-03/tasks/W1-COR-03b.md) | Yielded participants resume finitely and runs terminate honestly | [`ca52994`](https://github.com/maggnus/ymp/commit/ca52994) | — | 14/08 04:06 (0m) |
@@ -57,12 +62,18 @@
 | `[x]` | [`W1-COR-03l`](waves/W1/W1-COR-03/tasks/W1-COR-03l.md) | A stopped run sheds its yielded slices, and an attempt runs one slice | [`a74c4d2`](https://github.com/maggnus/ymp/commit/a74c4d2) | 14/08 04:07 | 14/08 05:22 (0m) |
 | `[x]` | [`W1-COR-03m`](waves/W1/W1-COR-03/tasks/W1-COR-03m.md) | Candidate verification is a kernel fact, and a finished run reaches its terminal | [`7fd1769`](https://github.com/maggnus/ymp/commit/7fd1769) | 14/08 05:22 | 14/08 23:29 (0m) |
 | `[x]` | [`W1-COR-03n`](waves/W1/W1-COR-03/tasks/W1-COR-03n.md) | Cancelling a finished run reaches the kernel, and the two accountings agree | [`b5a691b`](https://github.com/maggnus/ymp/commit/b5a691b) | 14/08 23:29 | 15/08 00:03 (0m) |
-| `[~]` | [`W1-COR-03o`](waves/W1/W1-COR-03/tasks/W1-COR-03o.md) | Cancel during a running tool call terminates as cancelled, not as infrastructure error | — | 15/08 00:03 | 15/08 00:03 (0m) |
-| `[~]` | [`W1-COR-03p`](waves/W1/W1-COR-03/tasks/W1-COR-03p.md) | A worker death by panic still drives the kernel to a terminal | — | 15/08 00:03 | 15/08 00:03 (0m) |
+| `[x]` | [`W1-COR-03o`](waves/W1/W1-COR-03/tasks/W1-COR-03o.md) | Cancel during a running tool call terminates as cancelled, not as infrastructure error | [`d6ec0f7`](https://github.com/maggnus/ymp/commit/d6ec0f7) | 15/08 00:03 | 15/08 00:34 (0m) |
+| `[x]` | [`W1-COR-03p`](waves/W1/W1-COR-03/tasks/W1-COR-03p.md) | A worker death by panic still drives the kernel to a terminal | [`d6ec0f7`](https://github.com/maggnus/ymp/commit/d6ec0f7) | 15/08 00:03 | 15/08 00:34 (0m) |
+| `[x]` | [`W1-COR-03q`](waves/W1/W1-COR-03/tasks/W1-COR-03q.md) | A poisoned journal lock still lets the run record its terminal | [`40c1095`](https://github.com/maggnus/ymp/commit/40c1095) | 15/08 00:34 | 15/08 01:04 (0m) |
+| `[x]` | [`W1-COR-03r`](waves/W1/W1-COR-03/tasks/W1-COR-03r.md) | A limit expiry is not silenced by a simultaneous cancel | [`40c1095`](https://github.com/maggnus/ymp/commit/40c1095) | 15/08 00:34 | 15/08 01:04 (0m) |
+| `[x]` | [`W1-COR-03s`](waves/W1/W1-COR-03/tasks/W1-COR-03s.md) | An operator cancel survives a poisoned lock, and Drop never hangs | [`ddd250c`](https://github.com/maggnus/ymp/commit/ddd250c) | 15/08 01:04 | 15/08 01:55 (0m) |
+| `[ ]` | [`W1-COR-03t`](waves/W1/W1-COR-03/tasks/W1-COR-03t.md) | A cancel interrupts a runtime that is still working | — | — | — |
+| `[ ]` | [`W1-COR-03u`](waves/W1/W1-COR-03/tasks/W1-COR-03u.md) | The application recovers its memory from the journal after an interrupted apply | — | — | — |
 | `[ ]` | [`W1-EVL-04`](waves/W1/W1-EVL-04/CARD.md) | Controlled evidence decides both POC hypotheses | — | — | — |
 | `[?]` | [`W1-EVL-04a`](waves/W1/W1-EVL-04/tasks/W1-EVL-04a.md) | Matched-budget arms produce comparable acceptance evidence | — | — | — |
 | `[ ]` | [`W1-EVL-04b`](waves/W1/W1-EVL-04/tasks/W1-EVL-04b.md) | Message interventions separate appearance from causal use | — | — | — |
 | `[ ]` | [`W1-EVL-04c`](waves/W1/W1-EVL-04/tasks/W1-EVL-04c.md) | POC decision is reproducible from frozen evidence | — | — | — |
+| `[=]` | [`W1-EVL-04d`](waves/W1/W1-EVL-04/tasks/W1-EVL-04d.md) | The model-use policy is decided before pools form | — | — | — |
 | `[x]` | [`W1-EXP-01`](waves/W1/W1-EXP-01/CARD.md) | POC assumptions are falsifiable before product code | [`ca221c9a`](https://github.com/maggnus/ymp/commit/ca221c9a4b81775bf158cf915d0d7613e9daae92) | 12/08 11:02 | 14/08 02:22 (0m) |
 | `[x]` | [`W1-EXP-01a`](waves/W1/W1-EXP-01/tasks/W1-EXP-01a.md) | POC corpus rejects known invalid candidates | [`ff4a9383`](https://github.com/maggnus/ymp/commit/ff4a9383653a0f09b947ff24b569e760396a0502) | 12/08 11:59 | 12/08 15:34 (2h59m) |
 | `[x]` | [`W1-EXP-01b`](waves/W1/W1-EXP-01/tasks/W1-EXP-01b.md) | Matched-budget study has a frozen decision rule | [`d12eff31`](https://github.com/maggnus/ymp/commit/d12eff31940f8ad124f5f8f566a0dd21de3d2ae6) | 12/08 15:44 | 12/08 17:44 (1h42m) |
@@ -70,3 +81,5 @@
 | `[x]` | [`W1-EXP-01d`](waves/W1/W1-EXP-01/tasks/W1-EXP-01d/TASK.md) | Runtime probes expose incompatible POC profiles | [`ca221c9a`](https://github.com/maggnus/ymp/commit/ca221c9a4b81775bf158cf915d0d7613e9daae92) | 12/08 20:31 | 12/08 22:44 (2h13m) |
 | `[x]` | [`W1-EXP-01d.1`](waves/W1/W1-EXP-01/tasks/W1-EXP-01d/subtasks/W1-EXP-01d.1.md) | Codex profile satisfies the primary-comparison runtime contract | [`66f075a0`](https://github.com/maggnus/ymp/commit/66f075a0e778bcd36a2e1974ba10b96d75837389) | 12/08 20:42 | 12/08 22:04 (1h22m) |
 | `[x]` | [`W1-EXP-01d.2`](waves/W1/W1-EXP-01/tasks/W1-EXP-01d/subtasks/W1-EXP-01d.2.md) | Claude Code profile satisfies the primary-comparison runtime contract | [`ca221c9a`](https://github.com/maggnus/ymp/commit/ca221c9a4b81775bf158cf915d0d7613e9daae92) | 12/08 21:18 | 12/08 22:44 (1h26m) |
+| `[~]` | [`W1-PRD-05`](waves/W1/W1-PRD-05/CARD.md) | The product is experienced as an autonomous collective | — | 15/08 02:07 | 15/08 02:07 (0m) |
+| `[~]` | [`W1-PRD-05a`](waves/W1/W1-PRD-05/tasks/W1-PRD-05a.md) | The collective design deliverable | — | 15/08 02:07 | 15/08 02:07 (0m) |

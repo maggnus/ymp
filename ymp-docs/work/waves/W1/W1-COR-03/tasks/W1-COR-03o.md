@@ -3,19 +3,19 @@ id: W1-COR-03o
 kind: task
 wave: W1
 card: W1-COR-03
-state: active
+state: accepted
 risk: significant
 maturity: BUILD
 relation: required
 depends_on: [W1-COR-03n]
 blocks: []
 created_at: 2026-08-15T00:03:05+08:00
-updated_at: 2026-08-15T00:03:21+08:00
+updated_at: 2026-08-15T00:34:25+08:00
 started_at: 2026-08-15T00:03:21+08:00
-accepted_at:
-candidate_commit:
-closure_commit:
-evidence:
+accepted_at: 2026-08-15T00:34:25+08:00
+candidate_commit: https://github.com/maggnus/ymp/commit/3ee3942beb0c231f99a6d319372a400c5d760a90
+closure_commit: https://github.com/maggnus/ymp/commit/d6ec0f7
+evidence: cancel visible under the completion mutex decides the terminal regardless of the runtime's last report; reviewer reproduced both serialization mutations (exit 101 each) and the base divergence
 duration_minutes: 0
 blocker:
 pause_reason:

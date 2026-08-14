@@ -53,6 +53,12 @@ pub enum ManagedTermination {
     Completed,
     /// An authorized command stopped the run.
     Cancelled,
+    /// An authorized command stopped a run whose slice had already run a bounded dimension out.
+    ///
+    /// The run is stopped as cancelled, which is what an operator did and what both records state.
+    /// The slice closes on the exhausted limit, because what the run consumed is not something the
+    /// cancellation caused and not something its arrival undoes.
+    CancelledPastLimit,
     /// The runtime, the model route or the supervision around them failed.
     Failed(InvocationClosure),
 }
@@ -469,6 +475,7 @@ impl ManagedKernel {
             let reason = match termination {
                 ManagedTermination::Completed => InvocationClosure::Completed,
                 ManagedTermination::Cancelled => InvocationClosure::Cancelled,
+                ManagedTermination::CancelledPastLimit => InvocationClosure::LimitExceeded,
                 ManagedTermination::Failed(reason) => reason,
             };
             self.commit(
@@ -490,7 +497,9 @@ impl ManagedKernel {
         }
         let (stop, outcome) = match termination {
             ManagedTermination::Completed => return Ok(()),
-            ManagedTermination::Cancelled => (StopReason::Cancelled, Outcome::Cancelled),
+            ManagedTermination::Cancelled | ManagedTermination::CancelledPastLimit => {
+                (StopReason::Cancelled, Outcome::Cancelled)
+            }
             ManagedTermination::Failed(_) => (
                 StopReason::InfrastructureError,
                 Outcome::InfrastructureError,

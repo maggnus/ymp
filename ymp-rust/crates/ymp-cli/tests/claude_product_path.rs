@@ -234,6 +234,10 @@ printf '%s\n' '{{"type":"result","subtype":"success","is_error":false,"terminal_
     let detail = profile["profile"]["probe"]["detail"]
         .as_str()
         .expect("probe detail");
+    // Admission is a floor plus a measurement, so the record names both the floor it applied and
+    // the executable it measured, and not just a version string it could have copied from a pin.
+    assert!(detail.contains("minimum_version=2.1.227 (Claude Code)"));
+    assert!(detail.contains("executable_digest="));
     assert!(detail.contains("model=claude-opus-5"));
     assert!(detail.contains("api_provider=firstParty"));
     assert!(detail.contains("native_subagents=disabled"));

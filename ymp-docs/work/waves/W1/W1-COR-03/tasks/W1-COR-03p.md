@@ -3,19 +3,19 @@ id: W1-COR-03p
 kind: task
 wave: W1
 card: W1-COR-03
-state: active
+state: accepted
 risk: significant
 maturity: BUILD
 relation: required
 depends_on: [W1-COR-03n]
 blocks: []
 created_at: 2026-08-15T00:03:05+08:00
-updated_at: 2026-08-15T00:03:21+08:00
+updated_at: 2026-08-15T00:34:25+08:00
 started_at: 2026-08-15T00:03:21+08:00
-accepted_at:
-candidate_commit:
-closure_commit:
-evidence:
+accepted_at: 2026-08-15T00:34:25+08:00
+candidate_commit: https://github.com/maggnus/ymp/commit/3bb61d831eadbd0733cadf78685a8288f6ff2774
+closure_commit: https://github.com/maggnus/ymp/commit/d6ec0f7
+evidence: worker body runs under catch_unwind with its own diagnosis; reviewer's fault injection panicked under the journal lock and still reached the kernel terminal; reduced 12-run sweep clean
 duration_minutes: 0
 blocker:
 pause_reason:
