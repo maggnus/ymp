@@ -133,9 +133,15 @@ which must still refuse to run against a condition it cannot show to discriminat
 **Brief.** §1 — "Please create an acceptance oracle / agent contract / verifier" is named as the
 inappropriate question.
 
-**Now.** A project with no detectable test entry point is refused with the instruction to "state a
-verifier of your own instead", and an unsupported entry point is refused the same way
-([`answer.rs`](https://github.com/maggnus/ymp/blob/dfdac03dede6fa6d50298b07d6d1cd8c6d6687bf/ymp-rust/crates/ymp-application/src/answer.rs#L88-L99)).
+**Now.** Two different refusals return the work to the operator, and they are not the same refusal.
+A project whose test entry point ymp will not propose from — npm, for the reason node `W1-APP-02z`
+recorded — is refused with the instruction to "state a verifier of your own instead"
+([`answer.rs`](https://github.com/maggnus/ymp/blob/dfdac03dede6fa6d50298b07d6d1cd8c6d6687bf/ymp-rust/crates/ymp-application/src/answer.rs#L94-L99)).
+A project with no detectable test entry point at all is refused more quietly, with the statement
+that ymp proposes a verifier from the way a project already runs its tests and this directory names
+none it can run
+([`answer.rs`](https://github.com/maggnus/ymp/blob/dfdac03dede6fa6d50298b07d6d1cd8c6d6687bf/ymp-rust/crates/ymp-application/src/answer.rs#L89-L93)) —
+which leaves the operator with the same task and without naming it.
 
 **Move.** Generation becomes the default source of the acceptance plan for every project rather
 than the fallback for projects with tests; node `W1-APP-02z.3` already records this decision and is
@@ -198,7 +204,7 @@ be presented as one it can.
 **Now.** The fake in-process runtime is probed and listed alongside Codex and Claude Code
 ([`runtimes.rs`](https://github.com/maggnus/ymp/blob/dfdac03dede6fa6d50298b07d6d1cd8c6d6687bf/ymp-rust/crates/ymp-tui/src/runtimes.rs#L62-L73)),
 and `ymp-tui` links it
-([`Cargo.toml`](https://github.com/maggnus/ymp/blob/dfdac03dede6fa6d50298b07d6d1cd8c6d6687bf/ymp-rust/crates/ymp-tui/Cargo.toml#L18)).
+([`Cargo.toml`](https://github.com/maggnus/ymp/blob/dfdac03dede6fa6d50298b07d6d1cd8c6d6687bf/ymp-rust/crates/ymp-tui/Cargo.toml#L19)).
 Node `W1-APP-02s` records this and is open.
 
 **Move.** The interface stops constructing drivers; it reads a catalog. The fake is then neither
@@ -475,5 +481,7 @@ easiest to violate while closing G-01 and G-07.
    dimension of a finite vector (INV-2).
 5. Exhausted, cancelled, abstained, infrastructure error and accepted remain five distinct
    terminals, and quiescence is never acceptance (INV-7).
-6. The kernel gains exactly one new check — set membership of a catalog entry — and gains no
-   ordering, ranking or preference over that set (INV-1).
+6. The kernel gains one new refusal and one new kind of check — containment of a catalog entry
+   against facts already committed — and gains no ordering, ranking or preference over that set
+   (INV-1). Liveness is measured outside the kernel and reaches it as a fact, so `ymp-domain`
+   performs no input or output and a replayed journal reaches the same decision.

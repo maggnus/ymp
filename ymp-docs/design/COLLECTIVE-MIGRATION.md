@@ -165,7 +165,7 @@ Each row names what disappears, what replaces it, and what must be proved before
 | What closes | Replaced by | Proof required first |
 |---|---|---|
 | The operator-facing acceptance condition: `RunRequest.acceptance` as a required input and `MissingPart::AcceptanceCondition` as an operator refusal ([`contract.rs`](https://github.com/maggnus/ymp/blob/dfdac03dede6fa6d50298b07d6d1cd8c6d6687bf/ymp-rust/crates/ymp-application/src/contract.rs#L38-L48)) | Derivation (item 16) | Tests 1–3, 12, 15 of item 22: a derived plan is complete, classified and discriminating |
-| The refusal that instructs the operator to write a verifier ([`answer.rs`](https://github.com/maggnus/ymp/blob/dfdac03dede6fa6d50298b07d6d1cd8c6d6687bf/ymp-rust/crates/ymp-application/src/answer.rs#L88-L99)) | Generation everywhere, plus the honest semantic-remainder statement | Node `W1-APP-02z.3` and test 15 |
+| Both refusals that leave the acceptance condition with the operator: the one that names the task — "state a verifier of your own instead" ([`answer.rs`](https://github.com/maggnus/ymp/blob/dfdac03dede6fa6d50298b07d6d1cd8c6d6687bf/ymp-rust/crates/ymp-application/src/answer.rs#L94-L99)) — and the one that leaves it unnamed when no entry point is found ([`answer.rs`](https://github.com/maggnus/ymp/blob/dfdac03dede6fa6d50298b07d6d1cd8c6d6687bf/ymp-rust/crates/ymp-application/src/answer.rs#L89-L93)) | Generation everywhere, plus the honest semantic-remainder statement | Node `W1-APP-02z.3` and test 15 |
 | The per-run engine argument as the way a run selects a runtime ([`internal.rs`](https://github.com/maggnus/ymp/blob/dfdac03dede6fa6d50298b07d6d1cd8c6d6687bf/ymp-rust/crates/ymp-cli/src/internal.rs#L141-L149)) | Catalog entry recorded by the kernel at recruitment | Tests 6–8 |
 | One model per driver profile, enforced by refusing any other ([`runtime-claude/lib.rs`](https://github.com/maggnus/ymp/blob/dfdac03dede6fa6d50298b07d6d1cd8c6d6687bf/ymp-rust/crates/ymp-runtime-claude/src/lib.rs#L141)) | Model as a catalog-entry field; pinning as recorded identity | Conformance evidence per pairing, as `W1-EXP-01d` established |
 | The single-active-attempt constant ([`supervisor/lib.rs`](https://github.com/maggnus/ymp/blob/dfdac03dede6fa6d50298b07d6d1cd8c6d6687bf/ymp-rust/crates/ymp-runtime-supervisor/src/lib.rs#L683)) | A policy ceiling from the budget vector and the concurrency limit | The isolation property it protected, proved for concurrent sandboxes (node `W1-COR-03d`) |
@@ -214,6 +214,13 @@ redesign. `W1-COR-03t` (a cancel interrupts a runtime that is still working) and
 application recovers its memory from the journal after an interrupted apply) become more important
 with several participants but need no change of scope.
 
+`W1-COR-03f` — commitment facts durable rather than only in memory — changes status rather than
+scope: the redesign makes it load-bearing. The kernel decides recruitment by containment over
+committed facts and performs no probing of its own (design item 9), so a fact stream held only in
+memory would mean a decision that a replayed journal could not reproduce and evidence that could
+not state which entries were permitted when. It moves from a durability improvement to a
+precondition of proposed unit P8.
+
 `W1-EVL-04a`–`04c` — the matched-budget arms, the message interventions and the reproducible POC
 decision — are unaffected in method and better served in substance, because a frozen pool and
 per-model spend are what make matched budgets comparable across arms.
@@ -228,12 +235,14 @@ bounds it.
 |---|---|---|---|
 | P1 | Product root gains catalog and provider records; engines become managed entities | `W1-APP-02e.6`, `W1-APP-02w.1` | G-05, G-06, G-19 |
 | P2 | Provider, model-catalog and policy surfaces; the interface stops constructing drivers | P1 | G-05, G-06, `W1-APP-02s` |
-| P3 | Run policy and permitted pool as a stored object, frozen by digest at authorization | P1, owner decision 1 | G-05 |
-| P4 | Derivation: goal → requirements with provenance → acceptance plan → verification strategy, with the discrimination gate applied to every check | `W1-APP-02u`, `W1-APP-02z`, `W1-APP-02z.3` | G-01, G-02, G-14, G-20 |
-| P5 | Clarification as a typed object with its own budget dimension | P4 | G-15 |
+| P2a | A provider reached through an installed engine: route override on an engine profile — endpoint class, wire protocol, account scope, authentication mode, disclosure class — with a conformance probe per pairing | P1 | brief §18 step 2 without a native runtime |
+| P3 | Run policy and permitted pool as a stored object, frozen into the journal as a fact at authorization | P1, `W1-COR-03f`, owner decision 1 | G-05 |
+| P4 | Derivation in two halves: local reading, then the funded derivation with its own allowance and disclosure class, producing requirements with provenance, the acceptance plan and the verification strategy, with the discrimination gate applied to every check | `W1-APP-02u`, `W1-APP-02z`, `W1-APP-02z.3` | G-01, G-02, G-14, G-20 |
+| P4a | The derivation allowance as policy: set at first run, enforced as its own dimensions, reported on the authorization surface | P4, owner decisions 4 and 8 | design finding on pre-authorization spend |
+| P5 | Clarification as a typed object with its own budget dimension, and the divergence classifier with its operator resolution and acceptance-path hold | P4 | G-15 |
 | P6 | Run authorization restated as a spend decision; the coverage map moves to diagnostics | P3, P4, P5 | G-07 |
 | P7 | The run launcher: origin participant registered and started; processes follow committed facts | P6 | G-03 |
-| P8 | `request_participant` names a catalog entry; two mechanical refusals; pool membership checked | P3, P7 | G-12 |
+| P8 | `request_participant` names a catalog entry; admission measures liveness and commits availability facts; the kernel checks containment only | P3, P7, `W1-COR-03f` | G-12 |
 | P9 | The participant tool projection extended to the accepted families | P7, `W1-COR-03c` | G-10 |
 | P10 | Concurrency ceiling from policy; the single-attempt constant retires | P7, `W1-COR-03d` | G-13 |
 | P11 | Agents, tasks, activity surfaces | P7, P9, `W1-COR-03c`, `W1-COR-03e` | G-11 |
@@ -242,8 +251,10 @@ bounds it.
 | P14 | The *attempt sandbox* rename across documents and internal identifiers | owner decision 9 | G-08 |
 | P15 | The end-to-end scenario of brief §18 driven on the built product | P1–P13 | criterion 17.16 |
 
-P1–P7 are the minimal path to the brief's central sentence with one participant. P8–P11 are what
-make it a collective. P12–P14 are the product finish. P15 is the acceptance of the whole.
+P1–P7 (with P2a and P4a) are the minimal path to the brief's central sentence with one
+participant. P8–P11 are what make it a collective. P12–P14 are the product finish. P15 is the
+acceptance of the whole. Three already-open nodes are preconditions rather than neighbours:
+`W1-COR-03f` for P3 and P8, `W1-APP-02w.1` for P1 and P12, and `W1-COR-03c` for P9.
 
 ## 6. What the migration must not do
 
@@ -258,5 +269,6 @@ Repeated from the gap analysis because it is easiest to violate while executing 
 4. Every created participant, attempt, invocation, offer and obligation still consumes a reserved
    dimension of a finite vector.
 5. The five terminals stay distinct and quiescence is never acceptance.
-6. The kernel gains exactly one new check — set membership — and no ordering, ranking or preference
-   over that set beyond the declared order used once at bootstrap.
+6. The kernel gains one new refusal and one new kind of check — containment against committed
+   facts — and no ordering, ranking or preference over that set beyond the declared order used once
+   at bootstrap. Liveness stays outside `ymp-domain`, which performs no input or output.
