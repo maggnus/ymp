@@ -102,7 +102,7 @@ line ready. Nothing blocks: probes run in the background and the operator may ty
 
 | Action | Effect |
 |---|---|
-| type a goal | Opens S08. Nothing is spent. |
+| type a goal | Opens S08. The workspace is read locally at once, which costs nothing; deriving what *done* means draws on the derivation allowance and is stated as it happens. |
 | `/providers` | Opens S03. |
 | `/workspace` | Opens S07. |
 | `/history` | Opens S28. |
@@ -126,7 +126,7 @@ set anything up, and it asks for exactly one thing.
     to start, connect one provider:
       anthropic   not configured   the Claude Code engine reaches it
       openai      not configured   the Codex engine reaches it
-      nvidia      not configured   reached directly
+      nvidia      not configured   reached through Claude Code, Messages endpoint
 
     > /providers
 
@@ -135,10 +135,26 @@ set anything up, and it asks for exactly one thing.
 | Action | Effect |
 |---|---|
 | `/providers` | Opens S03. |
-| type a goal anyway | Accepted and held. The goal is derived as far as it can be without a provider; authorization (S10) states that no provider is ready and offers S03. Nothing is spent and nothing is lost. |
+| type a goal anyway | Accepted and held. The workspace is read locally and the facts are shown; the derivation that needs a model does not run, because no provider is connected and nothing may leave the host. Authorization (S10) states that, and offers S03. Nothing is spent, nothing is disclosed, and nothing is lost. |
+
+**After the first provider connects**, this surface asks its one policy question and then never
+appears again for this workspace:
+
+    before ymp can turn a goal into checkable requirements it sends bounded excerpts of this
+    workspace to one provider. that happens before you authorize a run.
+      disclose to        anthropic          [change]
+      derivation budget  $0.10 per goal     [change]
+    [accept]  these stay visible under /policy and can be changed there.
+
+`accept` records the disclosure class and the derivation allowance for the workspace; `change`
+opens the corresponding row of S06. Declining is possible and honest: the product states that
+without a derivation allowance it can read the workspace but cannot derive what *done* means, and
+the operator would have to state the acceptance condition themselves — which is the one path the
+design otherwise removes.
 
 **Notes.** No contract, verifier, model or team is mentioned on this surface. An empty catalog is a
-state, not an error.
+state, not an error. This is the only setup question the product asks, and it exists because the
+alternative is disclosing without saying so.
 
 ## S03 · Providers
 
@@ -149,12 +165,13 @@ disclosure sentence.
     NAME        STATE                 REACHED BY          MODELS   LAST PROBE
     anthropic   ready                 claude-code 2.1     4        12s ago
     openai      ready                 codex 0.147         5        12s ago
-    nvidia      needs authentication  direct              —        12s ago
+    nvidia      needs authentication  claude-code · Messages —      12s ago
       ↳ fix: no credential found; connect to authenticate
-    local       unavailable           direct              —        12s ago
+    local       unavailable           codex · Responses      —      12s ago
       ↳ endpoint http://localhost:8000 did not answer
 
-    enabling a provider permits repository content to be sent to it.
+    every provider is reached through an installed engine. enabling one permits repository
+    content to be sent to it, including during derivation, before a run is authorized.
     Enter describe · c connect · e enable/disable · r re-probe · Esc back
 
 **Actions.**
@@ -162,7 +179,7 @@ disclosure sentence.
 | Action | Effect |
 |---|---|
 | `Enter` | Opens S04 for that provider. |
-| `c` connect | Where an engine owns the credential, launches that engine's own authentication in a child process and re-probes when it returns. Where the provider is reached directly, asks where the credential is read from and records the location — never the credential itself. |
+| `c` connect | Where the engine owns the credential, launches that engine's own authentication in a child process and re-probes when it returns. Where the provider is reached by a route override on an engine, asks where the credential is read from and against which endpoint, records both — never the credential itself — and runs the pairing's conformance probe before the entries become admissible. |
 | `e` enable / disable | Flips the enabled flag on the provider's catalog records. A disabled provider's entries leave every pool; running participants are unaffected, and the surface says so. |
 | `r` re-probe | Re-runs the probe. Measured properties and model lists are replaced by what the probe returned. |
 | `Esc` | Returns to the conversation. |
@@ -201,8 +218,8 @@ This is the level that answers "what could be used", never "what is running".
     anthropic  claude-code  claude-opus-5      admissible   reasoning
     anthropic  claude-code  claude-haiku-4-5   admissible   fast, cheap
     openai     codex        gpt-5.6-sol        admissible   reasoning
-    nvidia     direct       nemotron-…         unavailable  —
-      ↳ provider needs authentication
+    nvidia     claude-code  nemotron-…         unavailable  reasoning
+      ↳ provider needs authentication · route: Messages endpoint, pairing probed separately
 
     nothing here is an agent. a participant exists only when one is recruited and paid for.
     Enter describe · p add/remove from pool · Esc back
@@ -226,6 +243,8 @@ named.
 
     policy · workspace ymp ───────────────────────────────────────────────────
     pool                9 entries · every enabled, ready, conformant entry
+    derivation budget   $0.10 per goal · spent before authorization    set at first run
+    derivation provider anthropic · claude-code · claude-haiku-4-5     set at first run
     spend ceiling       $5.00                                      default
     wall clock          2h                                          default
     participants        up to 6                                     default
@@ -244,7 +263,11 @@ named.
 | `p` | Opens S05 to change pool membership. |
 | `Esc` | Back. |
 
-**Notes.** This surface is never a prerequisite: every field has a default and a run may be
+**Notes.** The two derivation rows are the exception to the sentence below: they are set once at
+first run (S02) rather than defaulted silently, because they govern spend and disclosure that
+happen *before* an authorization exists. Everything else on this surface has a default.
+
+This surface is otherwise never a prerequisite: every field has a default and a run may be
 authorized without opening it. The policy declares *what may be used and how much*; it contains no
 field that says which model suits which task, and none may be added — that sentence has no
 representation in the kernel and criterion 17.7 depends on it.
@@ -267,12 +290,18 @@ the *attempt sandbox* and appears only in S34.
 
 ## S08 · Goal entry
 
-**Sees.** The input line, and after the goal is typed, ymp's restatement of it together with what it
-read from the repository. Nothing is spent and nothing has started.
+**Sees.** The input line, then two visibly different stages: the local reading, which is free, and
+the derivation, which spends the workspace's derivation allowance and names the provider it
+discloses to while it does. The run's own budget is untouched throughout.
 
     > Implement feature X in this repository.
 
     ymp  reading the workspace… 1 812 files · rust · cargo · 214 tests
+         (local · nothing left this host)
+
+         deriving what "done" means… sending bounded excerpts to anthropic
+         $0.03 of the $0.10 derivation budget
+
          the goal, as I read it:
            add feature X so that <observable statement> …
          checkable from the repository: the existing test suite, the build, the public API
@@ -282,12 +311,17 @@ read from the repository. Nothing is spent and nothing has started.
 
 | Action | Effect |
 |---|---|
-| type another line | Amends the goal and re-derives. The previous derivation is discarded; nothing was spent. |
+| type another line | Amends the goal and re-derives, drawing on the same derivation budget; the remaining amount is restated. The previous derivation is discarded. The run's budget is still untouched. |
 | `/authorize` or `Enter` on the authorization prompt | Opens S10. |
-| `/policy` | Opens S06 to narrow boundaries before authorizing. |
-| `Esc` | Discards the derivation. The typed goal stays in the transcript. |
+| `/policy` | Opens S06 to narrow boundaries, or to change the derivation budget and its provider, before authorizing. |
+| `Esc` | Discards the derivation. The typed goal stays in the transcript. What derivation already spent is not returned, and the surface says so rather than implying a free retry. |
 
-**Notes.** The operator is never asked here for a verifier, a negative control, a source path, a
+**Notes.** The two stages are drawn apart because they differ in what they cost and what they
+disclose, and an operator who reads only one line should read the true one. A derivation budget
+that runs out stops the derivation with what it has and states it here and on S10; it never
+produces a thinner plan silently.
+
+The operator is never asked here for a verifier, a negative control, a source path, a
 task breakdown, a team or a model. The advanced amendment grammar that exists today
 ([`draft.rs`](https://github.com/maggnus/ymp/blob/dfdac03dede6fa6d50298b07d6d1cd8c6d6687bf/ymp-rust/crates/ymp-tui/src/draft.rs#L67-L88))
 survives as an override for an operator who wants one, and is never required, offered or implied.
@@ -326,15 +360,43 @@ the `ClarificationRequests` dimension, so asking more is not a way to avoid deci
 **The mid-run form.** The same surface appears during a run when a participant meets a material
 ambiguity and spends a clarification unit. It differs in one stated way: the answer reaches the
 collective as attributed collaboration data and does not change what the candidate is judged
-against, because the run is bound to one contract. Where the answer genuinely changes what *done*
-means, the surface says so and offers `Continue` with the amended goal, which is a new run
-([`COLLECTIVE-DESIGN.md`](COLLECTIVE-DESIGN.md) item 16). A solicited answer does not mark the run
+against, because the run is bound to one contract. A solicited answer does not mark the run
 intervened and is recorded as solicited.
+
+**The divergence state.** When the classifier of
+[`COLLECTIVE-DESIGN.md`](COLLECTIVE-DESIGN.md) item 16 reads a mid-run answer as contradicting a
+recorded requirement — or cannot classify it, which is treated the same way — this surface returns
+with the divergence rather than letting the run continue quietly.
+
+    your answer changes something this run is already being judged against
+
+      R2 (from your goal)  the token endpoint uses Authorization Code
+      your answer          it must be Client Credentials
+
+    this run is judged against R2. until you choose, no verification query is spent.
+
+    [1] it does not change what "done" means — continue this run, answer stays advisory
+    [2] it does change what "done" means — end this run and continue with the amended goal
+
+**Actions in that state.**
+
+| Action | Effect |
+|---|---|
+| `[1]` | The answer stays inert collaboration data, the run continues, the acceptance path is released, and the operator's judgement is recorded beside the divergence fact. |
+| `[2]` | The run stops and records `cancelled`, which is the honest terminal for an operator decision. `Continue` opens a new run against the amended goal, with the candidates, journal and findings of this one still readable and available as a base. |
+| leave it | The run continues working, but no verification query may be spent against the diverged requirement set, and the status line states which choice it is waiting for. |
+
+**Notes.** The hold on the acceptance path is the mechanism, not the wording: a run cannot reach
+`accepted` against a definition the operator has contradicted, because it cannot spend the query
+that would produce the verdict until the contradiction is resolved. An unclassifiable answer is
+treated as divergent, so the classifier fails towards asking (item 22, tests 27 and 28).
 
 ## S10 · Run authorization
 
-The single confirmation that stands between a goal and the first unit of money. It is a spend
-decision, not a review of an oracle.
+The single confirmation that stands between a goal and the **run's** budget. It is a spend
+decision, not a review of an oracle. It is not the first money the product ever spends — deriving
+what *done* means came first, from a separate allowance — and the `already` row states that rather
+than letting the screen imply otherwise.
 
 **Sees.**
 
@@ -343,6 +405,7 @@ decision, not a review of an oracle.
     done means  6 observable requirements
                   4 from your goal, 2 from the repository, 1 assumption
                 1 part of the goal is not mechanically checkable and is named as yours
+    already     deriving this cost $0.03 and sent bounded excerpts to anthropic
     spend       up to $5.00 · 2h · 6 participants · 4 verification queries
     models      9 entries across anthropic, openai
     disclosure  repository content will be sent to anthropic, openai
@@ -356,11 +419,11 @@ decision, not a review of an oracle.
 
 | Action | Effect |
 |---|---|
-| type the run id, confirm | Stores the internal contract, creates the run bound to it, freezes the pool by digest, and hands control to bootstrap (S11). This is the first irreversible act and the first spend. |
+| type the run id, confirm | Stores the internal contract, creates the run bound to it, commits the pool-freeze fact — every permitted entry with its identity, disclosure class, assurance profile and measured readiness, plus the entry the run will ignite on — and hands control to bootstrap (S11). This is the first irreversible act and the first charge against the run's own budget. |
 | `Enter` on "done means" | Expands the requirements in plain sentences with their provenance marks. Reading is optional; nothing here is an item to approve. |
 | `p` | Opens S06. Returning re-derives against the narrowed boundaries and restates this surface. |
 | `d` | Opens S34, where the requirement-to-evidence coverage map, the generated checks and their digests are available in full. |
-| `Esc` | Discards. Nothing was stored and nothing was spent. |
+| `Esc` | Discards. No contract was stored and the run's budget was never touched. What derivation already spent and disclosed stands, and the `already` row is what said so before the decision. |
 
 **Notes.** The typed-identifier ceremony applies to the first authorization in a workspace; an
 unchanged re-authorization is one confirmation, as already accepted in node `W1-APP-02v`. Blocking

@@ -36,13 +36,14 @@ weakening a mechanism.
 **Move 1 — derivation owns the contract.** The internal contract, its observable requirements and
 its acceptance plan are derived from the goal, the repository and the run policy, inside the
 product. The mechanisms — public requirements, protected cases, negative controls, digest pinning,
-query budgets — survive unchanged; only their author changes. Closes G-01, G-02, G-14, G-20, G-21.
+query budgets — survive unchanged; only their author changes. Derivation is itself funded and
+disclosed, which item 16 states rather than hides. Closes G-01, G-02, G-14, G-20, G-21.
 
 **Move 2 — authorization is a spend decision, not an authoring step.** One confirmation stands
-between a goal and the first unit of money. It shows the restated goal, what *done* will be judged
-by, the boundaries and the disclosure. It never asks the operator to write, choose or fix a check.
-The requirement-to-evidence coverage map survives in full as diagnostics. Closes G-07 and preserves
-constitutional constraint 1 of
+between a goal and the **run's** budget. It shows the restated goal, what *done* will be judged by,
+the boundaries, the disclosure and what derivation already cost. It never asks the operator to
+write, choose or fix a check. The requirement-to-evidence coverage map survives in full as
+diagnostics. Closes G-07 and preserves constitutional constraint 1 of
 [`CONCEPT.md`](https://github.com/maggnus/ymp/blob/dfdac03dede6fa6d50298b07d6d1cd8c6d6687bf/ymp-docs/CONCEPT.md#L163-L171).
 
 **Move 3 — the system bootstraps the collective.** On authorization a mechanical run launcher
@@ -51,14 +52,17 @@ It follows committed facts and takes no semantic decision. Every further partici
 a participant asked for one. Closes G-03, G-13.
 
 **Move 4 — provider, catalog, pool, participants.** Providers are connected at the provider level;
-each engine's models are measured into a catalog; a run's policy declares the permitted pool; a
-participant names a catalog entry when it recruits and the kernel checks set membership. One
-hundred catalog entries create no participants at all. Closes G-04, G-05, G-06, G-12, G-19.
+the models each engine can reach are measured into a catalog; a run's policy declares the permitted
+pool, frozen into the journal as a fact at authorization; a participant names a catalog entry when
+it recruits and the kernel checks containment over that recorded fact. One hundred catalog entries
+create no participants at all. Closes G-04, G-05, G-06, G-12, G-19.
 
 Nothing else in the architecture moves. The board (`W1-COR-03c`), candidate ancestry
-(`W1-COR-03d`), the commitment surfaces (`W1-COR-03e`), the engine registry (`W1-APP-02e.6`), the
-product root (`W1-APP-02w.1`) and the generated check (`W1-APP-02z.3`) are already-accepted work
-this design consumes rather than replaces.
+(`W1-COR-03d`), the commitment surfaces (`W1-COR-03e`), durable commitment facts (`W1-COR-03f`),
+the engine registry (`W1-APP-02e.6`), the product root (`W1-APP-02w.1`) and the generated check
+(`W1-APP-02z.3`) are already-accepted or already-opened work this design consumes rather than
+replaces. `W1-COR-03f` is load-bearing rather than incidental: the kernel decides recruitment from
+committed facts, so those facts must be durable rather than held in memory (item 9).
 
 ---
 
@@ -95,9 +99,11 @@ rule it names is unchanged.
     ymp
       └─ startup: product root, catalog, provider readiness, workspace           [S01 S02 S03 S31]
       └─ goal, in ordinary prose                                                 [S08]
-           └─ derivation: repository read, requirements, acceptance plan, policy  (internal)
+           └─ reading: repository facts, locally, free, nothing disclosed        [S08]
+           └─ derivation: requirements, acceptance plan, policy                  (internal)
+                — spends the derivation allowance and discloses to one provider  [S06 S08]
                 └─ clarification, only for material ambiguity                    [S09]
-           └─ authorization: one confirmation, spend and disclosure              [S10]
+           └─ authorization: one confirmation, the run's spend and disclosure    [S10]
                 └─ bootstrap: origin participant registered, funded, started     [S11]
                      └─ collective: analysis, recruitment, delegation,
                         disagreement, implementation, review                     [S12 S13 S14 S15 S16]
@@ -115,9 +121,17 @@ when ymp genuinely cannot determine intent**, and **whether to deliver**. Pause,
 intervention are authority the operator holds but does not have to use. Everything else is
 observation.
 
-The lifecycle is interrupted in exactly two places: authorization (once, before money) and a
-clarification question (only when a material assumption cannot be resolved safely). Both interrupts
-are bounded and both are recorded.
+The lifecycle is interrupted in exactly two places: authorization (once, before the run's budget is
+committed) and a clarification question (only when a material assumption cannot be resolved
+safely). Both interrupts are bounded and both are recorded.
+
+One thing happens before the first interrupt and is stated rather than implied: **derivation
+spends**. Turning prose into observable requirements needs a model, so the stage between the goal
+and the authorization screen is not free and is not silent. It draws on a separate, small
+**derivation allowance** with its own disclosure class, set once when the first provider is
+connected and visible thereafter as a policy row (surface S06). Item 16 states the mechanism, the
+split between the free local half and the funded half, and why the alternative — deriving without a
+model — would return authorship to the operator.
 
 ## 3. Complete TUI information architecture
 
@@ -170,11 +184,26 @@ Three levels, exactly as brief §4 states them, and the product owns only the fi
 
 **Provider level.** A provider is an account with an authentication state: Anthropic, OpenAI,
 NVIDIA, a local endpoint. `/providers` shows each as `ready`, `not configured`,
-`needs authentication` or `unavailable`, with the measured reason. Connecting a provider means one
-of two things, and the surface says which: the engine that reaches it owns the credential, in which
-case ymp launches that engine's own authentication and re-probes; or the provider is reached
-directly, in which case ymp records where the credential is read from and never copies it into its
-own store.
+`needs authentication` or `unavailable`, with the measured reason.
+
+**Every provider is reached through an installed engine.** This is not a simplification, it is the
+accepted architecture: NVIDIA Nemotron is a *model route*, not an agent runtime, and the route may
+be paired with Claude Code through an Anthropic-compatible Messages endpoint or with Codex through
+an OpenAI Responses-compatible endpoint
+([`ARCHITECTURE.md`](https://github.com/maggnus/ymp/blob/dfdac03dede6fa6d50298b07d6d1cd8c6d6687bf/ymp-docs/ARCHITECTURE.md#L495-L500),
+[`PROTOCOL.md`](https://github.com/maggnus/ymp/blob/dfdac03dede6fa6d50298b07d6d1cd8c6d6687bf/ymp-docs/PROTOCOL.md#L62-L67)).
+A provider row therefore names the engine that reaches it and the wire protocol it is reached by. A
+native runtime that speaks to a provider without an engine is a future `ymp` worker mode
+([`ARCHITECTURE.md`](https://github.com/maggnus/ymp/blob/dfdac03dede6fa6d50298b07d6d1cd8c6d6687bf/ymp-docs/ARCHITECTURE.md#L260-L265));
+this design neither requires it nor pretends it exists, and no surface offers a provider that has
+no engine able to reach it.
+
+The consequence for configuration is small and exact: connecting a provider whose credential the
+engine owns launches that engine's own authentication and re-probes; connecting one reached by a
+route override records where the credential is read from and the endpoint it is used against, and
+never copies the credential into ymp's own store. Each engine–route pairing carries its own
+conformance probe, because nominal API compatibility does not establish identical tool calling,
+cancellation or usage accounting.
 
 ymp does not become a credential store. What it adds over today (G-19) is that the operator learns
 what is ready, what is missing and what to do about it inside the product instead of guessing from
@@ -194,10 +223,15 @@ catalog. One record per engine under the product root, holding: enabled flag, me
 models that engine can serve**, filled by probe.
 
 A **catalog entry** is one usable triple: provider, engine, model. It carries the properties the
-kernel checks and the evidence the run records — engine version and digest, wire protocol,
-account or quota scope, disclosure class, and whether the pairing passed its conformance probes.
-A pairing that has not passed its probes is present and marked, never silently offered
+kernel checks and the evidence the run records — engine version and digest, wire protocol, endpoint
+class, account or quota scope, disclosure class, and whether the pairing passed its conformance
+probes. A pairing that has not passed its probes is present and marked, never silently offered
 ([`ARCHITECTURE.md`](https://github.com/maggnus/ymp/blob/dfdac03dede6fa6d50298b07d6d1cd8c6d6687bf/ymp-docs/ARCHITECTURE.md#L494-L500)).
+
+The provider of an entry need not be the engine's own vendor. `(nvidia, claude-code, nemotron-…)`
+is an ordinary entry: the NVIDIA route reached through Claude Code's Anthropic-compatible endpoint,
+probed as its own pairing. This is what lets the operator connect three providers on a host with
+two installed engines, and it is why the design adds no engine crate to serve a third provider.
 
 Three properties are load-bearing:
 
@@ -254,10 +288,15 @@ kernel command that can be refused:
 
 1. Create the run and bind it to the derived internal contract — the path that exists today
    ([`contract.rs`](https://github.com/maggnus/ymp/blob/dfdac03dede6fa6d50298b07d6d1cd8c6d6687bf/ymp-rust/crates/ymp-application/src/contract.rs#L294-L318)).
-2. Register the **origin participant**, endowing it with the root budget vector, on the **entry
-   catalog entry**: the first entry of the permitted pool, in declared order, that is ready now.
-3. Create the root obligation for the goal.
-4. Start one invocation for that participant, delivering the internal contract, its own budget, the
+2. Freeze the pool: commit `PoolFrozen`, recording every permitted entry with its identity,
+   disclosure class, assurance profile, conformance result and readiness as admission measured it,
+   plus the digest of the set. Every later kernel decision about recruitment reads this fact.
+3. Register the **origin participant**, endowing it with the root budget vector, on the **entry
+   catalog entry**: the first entry of the frozen pool, in declared order, that admission finds
+   live. The chosen entry is part of the `PoolFrozen` fact, so which entry ignited the run is
+   recorded rather than reconstructed.
+4. Create the root obligation for the goal.
+5. Start one invocation for that participant, delivering the internal contract, its own budget, the
    tool set its contract allows, and an event cursor.
 
 Then the launcher stops deciding anything for the rest of the run. From that point it only reacts:
@@ -265,7 +304,7 @@ a `ParticipantRegistered` fact makes it start a process for the new participant;
 `InvocationResumed` fact makes it resume one; a terminal fact makes it wind processes down. It
 never picks a participant, never picks work and never picks a model.
 
-Two properties of step 2 deserve to be stated rather than assumed:
+Two properties of step 3 deserve to be stated rather than assumed:
 
 - **Order, not preference.** "First ready entry in declared order" is a mechanical rule over a list
   the operator's configuration produced, of the same kind as the per-principal round robin that
@@ -284,26 +323,56 @@ Who declares the order, and whether the operator may set a default entry, is
 Recruitment already has its primitives in the ledger. What it lacks is a subject for the checks
 brief §3 lists (G-12) and a projection to the participant (G-10).
 
-    participant A                kernel                          launcher
-    ─────────────────────────────────────────────────────────────────────────
-    request_participant ──────►  check: entry ∈ pool
-      names a catalog entry      check: provider ready, conformant
-      funds a proposal           check: disclosure class ⊆ policy
-      allowance from its own     check: ParticipantStarts ≥ 1 in A's account
-      account                    check: concurrency headroom
-                                 check: assurance profile satisfied
-                                 ├─ refuse: named mechanical reason, nothing created
-                                 └─ commit ParticipantRegistered ──────► start invocation for B
-    advertise ────────────────►  reserve escrow, create funded offer
-                                 (B sees the offer as a fact after its cursor)
-    B: bid / decline ─────────►  record consent, or nothing
-    A: award ─────────────────►  form task contract + obligation + lease, atomically
-                                 ──────────────────────────────────────► B works in its own sandbox
+    participant A            admission (supervisor)         kernel (ymp-domain)      launcher
+    ──────────────────────────────────────────────────────────────────────────────────────────
+    request_participant ──►  is the entry live now?
+      names a catalog        probes / watches the engine
+      entry, funds a         └─ not live → refuse here, and
+      proposal allowance        commit EntryUnavailable{entry, reason}
+      from its own account   └─ live → forward the command ──►  check: entry ∈ frozen pool
+                                                                check: no live EntryUnavailable
+                                                                check: disclosure class ⊆ policy
+                                                                check: assurance ≥ required
+                                                                check: ParticipantStarts ≥ 1
+                                                                check: concurrency headroom
+                                                                ├─ refuse EntryNotPermitted
+                                                                └─ commit ParticipantRegistered ──► start B
+    advertise ─────────────────────────────────────────────►  reserve escrow, create funded offer
+                                                              (B sees the offer after its cursor)
+    B: bid / decline ──────────────────────────────────────►  record consent, or nothing
+    A: award ─────────────────────────────────────────────►   contract + obligation + lease, atomically
+                                                              ─────────────────────────────► B works
 
-Every check in that column is a comparison of identifiers, sets and integers. None of them reads
-the goal, the offer text, the bid text or any property that could stand in for quality. The offer's
-intent and the bid's rationale travel as inert board messages and reach the kernel only as digests
+The split in that diagram is the point, and it is what makes the claim "the kernel gains one new
+kind of check" true rather than convenient (a claim an earlier revision of this design made too
+loosely).
+
+**Liveness is measured outside the kernel and enters it as a fact.** Whether an engine answers,
+whether a credential is still valid, whether a version still matches — all of it is I/O, and
+`ymp-domain` performs none. The catalog watcher in the supervisor measures it and commits
+`EntryUnavailable { entry, reason }` and `EntryAvailable { entry }` facts. There is consequently no
+`EntryNotReady` refusal in the kernel: an entry that is not live is refused at admission, before
+the command is issued, and the refusal is itself recorded so the operator and the collective can
+both see why.
+
+**The kernel decides only by containment over committed facts.** Its inputs are the pool snapshot
+committed at authorization — each entry with its identity, disclosure class, assurance profile and
+conformance result — the availability facts committed since, the contract's policy, and the
+requester's account. Every one of the six checks above is therefore a comparison of identifiers,
+sets and integers over data already in the ledger. None of them reads the goal, the offer text, the
+bid text, or any property that could stand in for quality; the offer's intent and the bid's
+rationale reach the kernel only as digests
 ([`protocol.rs`](https://github.com/maggnus/ymp/blob/dfdac03dede6fa6d50298b07d6d1cd8c6d6687bf/ymp-rust/crates/ymp-domain/src/commitment/protocol.rs#L1-L6)).
+
+**Reproducibility follows from the same arrangement.** A decision taken from committed facts is a
+pure function of the journal, so replay reaches the same decision without re-probing anything, and
+a run's evidence states exactly which entries were permitted and which had been marked unavailable
+when. This is why node `W1-COR-03f` — commitment facts durable rather than only in memory — is a
+dependency of this design and not a nicety.
+
+The precise claim, then: **the kernel gains one new refusal (`EntryNotPermitted`) and one new kind
+of check (containment over committed facts), instantiated for pool membership, availability,
+disclosure class and assurance profile.** Nothing in it orders, ranks or prefers.
 
 The economics the brief asks to preserve (§5) are already built and stay: a proposal allowance so a
 new participant can read an offer and decline; an execution escrow transferred only when a contract
@@ -444,15 +513,57 @@ contains no protected oracle material and no capability material.
 This is the item the whole brief turns on, so it is stated as a pipeline with an owner per stage.
 
     goal (A)
-      └─► repository reading ───────────────────────────► facts (B)
-      └─► observable requirements ──────────────────────► requirements (A, B, C)
+      └─► repository reading ───────────────────────────► facts (B)     local · free
+      └─► observable requirements ──────────────────────► requirements (A, B, C)   funded
             └─ material assumption that cannot be resolved
                  └─► question ──► operator answer ──────► requirement (E)
       └─► internal task contract  (requirements + policy + environment + budget)
-            └─► acceptance plan ──────────────────────────► checks (D)
+            └─► acceptance plan ──────────────────────────► checks (D)              funded
                   └─ validation: negative control, substituted entry points,
                      mutation controls — a plan that does not discriminate is refused
       └─► verification strategy (which checks are protected, query budget, disclosure)
+
+### What derivation costs, and why it is not free
+
+The stage marked *funded* needs a model: turning "implement feature X so that it works properly"
+into observable requirements is a reading of intent, and no amount of local analysis performs it.
+Three honest options existed and two were rejected.
+
+- *Derive locally, without a model.* Requirements would come from pattern matching over the
+  repository, which brief §16 forbids — "do not invent details to fill gaps" — or the operator
+  would have to supply them, which is the authorship the brief removes. Rejected.
+- *Derive after authorization.* The authorization surface could then show only the goal and a
+  ceiling, never what *done* will mean, which removes the one thing that makes the spend decision
+  informed. Rejected.
+- *Fund derivation separately, and say so.* Chosen. It is also the accepted position rather than a
+  new concession: drafting is already specified as a run under a built-in package approved once,
+  with its own budget, audience and capabilities
+  ([`VISUAL_CONCEPT.md`](https://github.com/maggnus/ymp/blob/dfdac03dede6fa6d50298b07d6d1cd8c6d6687bf/ymp-docs/VISUAL_CONCEPT.md#L126-L141)).
+
+Derivation therefore has two halves with different costs:
+
+| Half | Does | Costs | Discloses |
+|---|---|---|---|
+| **Reading** | walks the workspace: files, languages, build entry points, test entry points, version-control state, documentation paths | nothing; it is local file reading | nothing leaves the host |
+| **Deriving** | goal → observable requirements → acceptance plan → verification strategy | the **derivation allowance**: a small ceiling in money, tokens and wall clock, separate from the run's budget | repository excerpts and the goal reach exactly one provider — the one the allowance names |
+
+The allowance is a policy, set once when the first provider is connected (surface S02), shown on
+the policy surface (S06) and enforced by the same dimensions as any budget. It is charged per goal,
+not per keystroke: amending a goal re-derives and draws on the same allowance, and the remaining
+allowance is visible while it does. Exhausting it stops derivation with what it has and says so on
+the authorization surface, rather than silently producing a thinner plan.
+
+The authorization surface reports what derivation already spent and to whom it disclosed, because
+by the time the operator reads it the disclosure has happened. Whether that pre-authorization
+disclosure needs its own consent, and how large the allowance should be, are
+[owner decision 4](COLLECTIVE-OWNER-DECISIONS.md#d4--the-disclosure-default) and
+[owner decision 8](COLLECTIVE-OWNER-DECISIONS.md#d8--default-ceilings).
+
+One consequence is stated plainly because it is the price of the choice: a goal typed in a
+workspace the operator does not want disclosed will have disclosed a bounded part of it before any
+run is authorized. The mitigations are real but partial — the disclosure class is per workspace
+(decision 4), the allowance is small, the excerpts are bounded, and the operator sees the provider
+named on S08 while derivation runs and on S10 afterwards.
 
 **Provenance classes** travel with every requirement and every check, from derivation to verdict:
 
@@ -478,10 +589,8 @@ answered or the operator explicitly proceeds under the stated assumption. Its an
 class E requirement, and the contract that is then bound already contains it.
 
 **During the run**, a participant that meets a material ambiguity publishes it and may spend a
-clarification unit to raise it to the operator. The answer is delivered as attributed, inert
-collaboration data of class E: the collective may use it to choose a method, and it does **not**
-alter the requirement set. This is deliberate. A run names exactly one contract, the kernel refuses
-a second binding
+clarification unit to raise it to the operator. The answer is delivered as attributed collaboration
+data of class E. A run names exactly one contract, the kernel refuses a second binding
 ([`lib.rs`](https://github.com/maggnus/ymp/blob/dfdac03dede6fa6d50298b07d6d1cd8c6d6687bf/ymp-rust/crates/ymp-domain/src/lib.rs#L283-L288)),
 and INV-5 requires acceptance to name one approved package — so a mid-run answer that genuinely
 changes what *done* means is a new definition of done. The product says so and offers `Continue`
@@ -490,10 +599,58 @@ amendment rule
 ([`PROJECT-CONTRACT.md`](https://github.com/maggnus/ymp/blob/dfdac03dede6fa6d50298b07d6d1cd8c6d6687bf/ymp-docs/PROJECT-CONTRACT.md#L53-L62)),
 kept rather than bent.
 
+### Who decides that an answer changed the definition
+
+"Inert" and "changes what *done* means" cannot be left as a distinction the design asserts and
+nobody makes. There are two deciders, in this order, and the second one is authoritative.
+
+**Derivation classifies, mechanically and conservatively.** It is the component that already holds
+the requirement set, so it is the one that can compare an answer against it. On every mid-run
+answer it emits a typed verdict over the *recorded* requirements — not over the goal prose — with
+the identifiers it names:
+
+| Verdict | Observable trigger | Effect |
+|---|---|---|
+| `method_only` | the answer names no recorded requirement, negates none, and adds no observable statement | delivered as inert collaboration data; the run continues unchanged |
+| `divergent` | the answer contradicts the observable statement of a recorded requirement, or states an observable condition no recorded requirement covers | a divergence fact is committed, naming the requirements, and surface S09 states it to the operator |
+| `undecided` | the classification is not clearly one of the above | **treated as `divergent`** |
+
+The threshold is that third row, and it is the whole of the safety argument: the classifier fails
+towards telling the operator. A run may be interrupted by a divergence that was really only a
+method note; a run may not quietly continue against a definition the operator has contradicted.
+
+**The operator decides, in one act.** The divergence surface offers exactly two:
+
+- *"this does not change what done means"* — the answer stays inert, the run continues, and the
+  operator's judgement is recorded beside the divergence fact.
+- *"this changes what done means"* — the run stops. It records `cancelled`, which is the honest
+  terminal for an operator decision
+  ([`VISUAL_CONCEPT.md`](https://github.com/maggnus/ymp/blob/dfdac03dede6fa6d50298b07d6d1cd8c6d6687bf/ymp-docs/VISUAL_CONCEPT.md#L248-L260)),
+  and `Continue` opens a new run against the amended goal. Nothing about the work is lost: the
+  candidates, the journal and the participants' findings stay readable and the new run may take an
+  accepted candidate as its base.
+
+**The enforcement path.** A run must not reach `accepted` against a definition the operator has
+contradicted, so the guarantee is placed where it cannot be drawn around rather than in the
+presentation layer. Once the operator takes the second option, the divergence is an operator act
+and the run is stopped by the same command an operator cancellation uses — before any further
+verification query can be spent. A verdict that arrives for a candidate submitted earlier is
+recorded as evidence and does not resurrect the run. Where the operator has not yet answered the
+divergence, the run continues but the acceptance path is held: no verification query may be spent
+against the diverged requirement set until the operator has taken one of the two options, and the
+surface says which one it is waiting for.
+
+**The negative half.** The check that proves this is not decoration: an answer that plainly negates
+a recorded requirement — R2 says the token endpoint uses Authorization Code, the operator answers
+"no, it must be Client Credentials" — must be classified `divergent`, must hold the acceptance
+path, and must be capable of ending the run as `cancelled`. A build in which that answer is
+classified `method_only`, or in which a verification query is spent after it, fails tests 27 and 28
+of item 22.
+
 The practical consequence is a design constraint on derivation rather than a limitation the
-operator feels: a question that would change the requirement set must be found *before*
-authorization, which is why the derivation reads the repository first and why the clarification
-budget is spent mostly there.
+operator feels: a question that would change the requirement set should be found *before*
+authorization, which is why the reading half runs first and why the clarification budget is spent
+mostly there.
 
 **What does not change.** Protected checks may instantiate only public requirements and may never
 add secret ones; negative controls must discriminate or the run ends as `infrastructure_error`
@@ -525,6 +682,7 @@ The distinctions the brief asks to preserve and make explicit (§3), each with w
 | **Model** | a capability source named by identifier or snapshot | an agent | catalog entry field |
 | **Engine (agent runtime)** | a harness that owns a reasoning and tool loop | a model | catalog record, node `W1-APP-02e.6` |
 | **Runtime driver** | the compiled ymp implementation that supervises one engine protocol | a user-level role | `ymp-runtime-*` crates, internal |
+| **Model route** | the provider, endpoint class, wire protocol, account scope, model identifier, authentication mode and disclosure class an engine reaches a model by | an engine, and not a role | engine profile's route override; one conformance profile per pairing |
 | **Catalog entry** | one admissible provider · engine · model triple with measured properties | a role, a rank or a team slot | catalog |
 | **Participant** | an actual autonomous member of the collective, with a principal, a budget account and a lifecycle | a model | ledger `ParticipantRecord` |
 | **Attempt** | one bounded period in which a participant works on a task from a base | a participant | ledger |
@@ -549,8 +707,9 @@ two as if they were the same list.
 - **Instantiation** is requested: only `request_participant` creates a participant, only a
   participant issues it, and it costs a `ParticipantStarts` unit from the requester's own account.
 
-The kernel's whole involvement is `entry ∈ pool` plus the resource and capability checks it already
-performs. It holds no preference order over the pool beyond the declared one, no notion that one
+The kernel's whole involvement is containment over committed facts — pool membership, availability,
+disclosure class, assurance profile — plus the resource and capability checks it already performs.
+Whether an entry is live is measured outside it and arrives as a fact (item 9). It holds no preference order over the pool beyond the declared one, no notion that one
 entry suits one task, and no fallback that silently substitutes another entry. A refusal names the
 mechanical reason and creates nothing.
 
@@ -577,7 +736,8 @@ participant's message.
 
 **Kernel may**: authenticate and validate transitions; reserve, transfer and consume budget;
 form contracts atomically; issue leases and fencing tokens; track obligations; enforce isolation;
-check catalog-entry membership, capabilities, disclosure classes and the assurance profile; admit
+check catalog-entry containment against committed facts, capabilities, disclosure classes and the
+assurance profile; admit
 by per-principal round robin; record candidates, verdicts and terminals.
 **Kernel must never**: choose an agent or a model; assign a role; decompose; rank or score a bid, a
 participant or a candidate; synthesize an answer; read natural language as a command; judge
@@ -603,26 +763,33 @@ actionable in one keypress; present a terminal state as another; hide the path t
 | D4 | New stored object: catalog record per engine (enabled, measured properties, model list) | G-05 | node `W1-APP-02e.6` |
 | D5 | New typed object: `Clarification { id, question, options, answer, asked_at }`, and budget dimension `ClarificationRequests` | G-15 | answers become class E |
 | D6 | `RegisterParticipant` gains `requested_entry: CatalogEntryRef` | G-12 | the subject the brief's §3 checks need |
-| D7 | New refusal `EntryNotPermitted { participant_id, entry }` and `EntryNotReady { entry, reason }` | G-12 | mechanical, names the reason, creates nothing |
+| D7 | New kernel refusal `EntryNotPermitted { participant_id, entry, reason }` | G-12 | containment only; creates nothing. `EntryNotReady` is **not** a kernel refusal: liveness is measured in admission (item 9) |
+| D7a | New facts `PoolFrozen { entries, digest }`, `EntryUnavailable { entry, reason }`, `EntryAvailable { entry }` | G-12 | committed by admission and the catalog watcher, so the kernel decides without I/O and replay reproduces the decision |
+| D7b | New fact `RequirementsDiverged { answer, requirements }` and its operator resolution | item 16 | holds the acceptance path until the operator resolves it |
 | D8 | `RunState.budget` becomes a projection of the root participant's `BudgetVector`; the two-dimension `Budget` retires | G-09 | one accounting; enforcement unchanged |
 | D9 | The single-active-attempt refusal becomes a policy ceiling checked from the vector and the concurrency limit | G-13 | the isolation rule it protected is unchanged |
 | D10 | A project holds many runs addressed by sequence; a session opens, creates and lists them | G-16 | layout accepted in `W1-APP-02w` |
 | D11 | Provider record with authentication state and disclosure class | G-19 | ymp records where a credential is read from, never the credential |
 | D12 | Participant tool projection extended to the accepted families: observe, communicate, contract, lifecycle, artifact, verification | G-10 | schemas already in [`PROTOCOL.md`](https://github.com/maggnus/ymp/blob/dfdac03dede6fa6d50298b07d6d1cd8c6d6687bf/ymp-docs/PROTOCOL.md#L280-L292) |
 
-No change removes a precondition, a reservation, a digest or a refusal. D6 and D7 are the only
-kernel additions, and both are set operations.
+Two more state changes follow from item 16: a **derivation allowance** as a policy field with its
+own disclosure class and its own ceilings, and the divergence fact D7b with its operator
+resolution.
+
+No change removes a precondition, a reservation, a digest or a refusal. D6, D7 and D7a are the only
+kernel-facing additions; D7 is a containment refusal and D7a is the fact stream that lets it decide
+without input or output. `ymp-domain` performs no I/O before or after this design.
 
 ## 21. Required Rust module and crate changes
 
 | Crate | Change |
 |---|---|
-| `ymp-domain` | D1–D3, D5–D9: contract document, provenance, clarification object, catalog entry reference, new refusals, budget projection |
-| `ymp-application` | derivation module (goal → requirements → plan → policy); `prepare_contract` stops requiring an operator acceptance condition and starts consuming the derivation; clarification service; run listing under a project |
-| **`ymp-catalog`** *(new)* | catalog records under the product root: read, probe, enable/disable, model lists; no process starting |
-| **`ymp-conduct`** *(new, composition)* | the run launcher: registers the origin participant, starts and resumes invocations by following committed facts. Depends on `ymp-application` and `ymp-runtime-supervisor`; nothing depends on it but `ymp-cli` |
-| `ymp-runtime-api` | catalog entry as the profile's model source; the pinned model becomes a property of an entry rather than a constant the profile refuses to deviate from |
-| `ymp-runtime-supervisor` | the one-attempt constant becomes a policy ceiling; invocation start accepts the entry the ledger recorded |
+| `ymp-domain` | D1–D3, D5–D9: contract document, provenance, clarification object, catalog entry reference, the containment refusal, the pool-snapshot, availability and divergence facts, budget projection. No file, network or process access is added: every new decision reads committed facts |
+| `ymp-application` | derivation module in two halves — local reading, then the funded derivation with its allowance; `prepare_contract` stops requiring an operator acceptance condition and starts consuming the derivation; the divergence classifier of item 16; clarification service; run listing under a project |
+| **`ymp-catalog`** *(new)* | catalog records under the product root: read, probe, enable/disable, model lists, engine–route pairings and their conformance results; no process starting |
+| **`ymp-conduct`** *(new, composition)* | the run launcher and the catalog watcher: registers the origin participant, freezes the pool, commits availability facts, starts and resumes invocations by following committed facts. Depends on `ymp-application` and `ymp-runtime-supervisor`; nothing depends on it but `ymp-cli` |
+| `ymp-runtime-api` | catalog entry as the profile's model source; the pinned model becomes a property of an entry rather than a constant the profile refuses to deviate from; a **route override** on an engine profile — endpoint class, wire protocol, account scope, authentication mode, disclosure class — so a provider is reached through an installed engine without a new engine crate |
+| `ymp-runtime-supervisor` | the one-attempt constant becomes a policy ceiling; invocation start accepts the entry the ledger recorded; admission measures entry liveness and refuses before the recruitment command is issued |
 | `ymp-agent-api`, `ymp-agent-mcp` | D12: the extended tool projection, one tool per accepted domain command, gated by the invocation's contract |
 | `ymp-tui` | new surfaces (providers, models, pool, agents, tasks, activity, result, evidence, export, history, archive, questions); authorization restated as a spend decision; drops `ymp-runtime-fake`, `ymp-runtime-claude`, `ymp-runtime-codex` and reads the catalog through the application port |
 | `ymp-cli` | injects the launcher into the session; mirrors every new interface action as a command; the internal engine argument stops being the only way to start a run |
@@ -703,9 +870,44 @@ check that cannot fail proves nothing.
 23. An operator answer to a question does not mark the run intervened; an unsolicited message does.
     *Negative half:* either mark applied to the other act.
 
+**Derivation cost and disclosure**
+
+24. Nothing leaves the host before a provider is connected and its disclosure class is set: the
+    reading half runs entirely on local files and opens no network connection. *Negative half:* a
+    build in which a goal typed at first run reaches a provider.
+25. Derivation charges the derivation allowance and never the run's budget, the two are enforced
+    separately, and exhausting the allowance stops derivation with a stated result rather than a
+    thinner plan. *Negative half:* derivation drawing on the run's ceiling, or continuing past it.
+26. The authorization surface states what derivation spent and which provider it disclosed to, and
+    the figures match the recorded charges. *Negative half:* a surface claiming nothing was spent.
+
+**The divergence judge**
+
+27. An answer that negates a recorded requirement is classified `divergent`, holds the acceptance
+    path, and can end the run as `cancelled` on the operator's act. *Negative half:* the same answer
+    classified `method_only`, or a verification query spent while the divergence is unresolved.
+28. An unclassifiable answer is treated as `divergent`. *Negative half:* an `undecided` verdict that
+    lets the run continue silently.
+
+**The kernel decides from facts alone**
+
+29. `ymp-domain` opens no file, socket or process: the recruitment decision is a pure function of
+    committed facts, and replaying a journal reproduces every admission and refusal without
+    re-probing. *Negative half:* a domain path that measures liveness, or a replay that diverges.
+30. An entry that went unavailable after the pool was frozen is refused at admission with the
+    reason recorded as a fact, and the kernel's refusal names containment rather than readiness.
+    *Negative half:* a kernel refusal that required a live probe.
+
+**Providers and routes**
+
+31. Three providers are configurable on a host with two installed engines, because a provider is
+    reached through an engine route; each pairing carries its own conformance result. *Negative
+    half:* a provider offered with no engine able to reach it, or a pairing admitted without its
+    own probe.
+
 **End to end**
 
-24. The scenario of brief §18, driven on the built product, with no operator-authored machinery.
+32. The scenario of brief §18, driven on the built product, with no operator-authored machinery.
     *Negative half:* any step that requires the operator to supply a contract, oracle, verifier,
     team, role, model assignment or decomposition.
 
@@ -765,7 +967,7 @@ Ten decisions that genuinely need the owner, each with options and consequences,
 | 17.13 | Failed verification does not auto-terminate | Item 14; test 16 |
 | 17.14 | Four terminals stay distinct | Item 14; test 17 |
 | 17.15 | Kernel trust boundaries intact | Item 19; gap analysis §5; tests 9–11, 15, 18 |
-| 17.16 | "Give the collective a goal, get a verified result" | Items 1, 2; the §18 walk below |
+| 17.16 | "Give the collective a goal, get a verified result" | Items 1, 2; test 32; the §18 walk below |
 
 Three criteria carry an owner decision that this design names rather than settles: 17.1 depends on
 [decision 3](COLLECTIVE-OWNER-DECISIONS.md#d3--whether-the-single-authorization-stays-mandatory)
@@ -778,37 +980,47 @@ remainder blocks acceptance).
 ## The final design test of brief §18
 
 Driven through the designed surfaces. Each step names the layer that performs it. The operator's
-acts are marked ▶; there are five, and none of them is authorship.
+acts are marked ▶: six before the result and one optional act after it, and none of them is
+authorship. One of the six is the one-time workspace setup that fixes the disclosure class and the
+derivation allowance, which the design states rather than hides.
 
 | # | Step | Layer | Surface |
 |---|---|---|---|
 | 1 | ▶ `$ ymp` | — | S01 startup: root opened, catalog read, providers probing, workspace identified |
-| 2 | ▶ connect Anthropic, OpenAI, NVIDIA | TUI → provider records | S03/S04: each provider reaches `ready`; disclosure class stated |
-| 3 | catalog fills from probes | catalog | S05: e.g. 3 providers · 2 engines · 11 models; pool defaults to all enabled, ready, conformant entries |
-| 4 | ▶ "Implement feature X in this repository." | TUI → application | S08 goal entry; nothing is spent |
-| 5 | repository read; observable requirements derived (A, B); acceptance plan generated and validated against the negative control and substituted entry points (D) | derivation | internal; visible only in diagnostics |
-| 6 | one material assumption cannot be resolved | derivation | S09: a question with concrete options — the brief's "Authorization Code or Client Credentials?" shape |
-| 7 | ▶ answer | operator | recorded as class E; the run is **not** marked intervened |
-| 8 | ▶ authorize the spend | operator | S10: restated goal, what *done* means, ceiling, pool, disclosure, assurance with its limit; one confirmation |
-| 9 | origin participant registered on the first ready pool entry, endowed from the root vector, root obligation created, one invocation started | run launcher | S11 collective startup, then S12 live view |
-| 10 | participant A analyses the repository in its own attempt sandbox | collective | S12 activity; S13 shows one participant |
-| 11 | A determines more expertise is useful and issues `request_participant` naming a catalog entry, funding a proposal allowance from its own account | collective | S16 activity records the request |
-| 12 | kernel checks entry ∈ pool, provider ready, disclosure class, `ParticipantStarts`, concurrency, assurance — and admits | kernel | S13 shows the admission and the reason it was permitted |
-| 13 | a suitable model becomes participant B; its process starts | run launcher | S13 now shows two participants with their catalog entries |
-| 14 | A advertises a scoped offer; B bids; A awards; a task contract, obligation and lease form atomically | collective + kernel | S15 tasks |
-| 15 | they investigate, publish findings, disagree, challenge, and resolve on the board | collective | S16 activity, attributed and labelled untrusted |
-| 16 | one implements in its sandbox and submits; the integrator builds an immutable candidate | collective + kernel | S17 candidates |
-| 17 | the other reviews as a separate blinded assessment | collective | S16, S18 |
-| 18 | a participant spends a verification query on the exact candidate digest | collective + verification | S19: `verifying cd-1 · query 1 of 4` |
-| 19 | verification fails | verification | S19 shows the verdict, the failure class and the bounded diagnostic the policy allows; the run stays alive, the obligation stays open |
-| 20 | the collective sees the same bounded diagnostic and revises | collective | S12, S16, S20 |
-| 21 | a new candidate is submitted and verified; it passes | collective + verification | S19, then S25 |
-| 22 | ▶ the operator reads *completed · verified* and inspects, or exports | operator | S25 result, S26 evidence, S27 export |
+| 2 | ▶ connect Anthropic, OpenAI, NVIDIA | TUI → provider records | S03/S04. Two engines are installed. Anthropic is reached by Claude Code and OpenAI by Codex, each authenticating through its own engine; NVIDIA is reached as a model route through Claude Code's Anthropic-compatible endpoint, and its pairing is probed for conformance in its own right. Each provider reaches `ready` with its disclosure class stated |
+| 3 | ▶ set the disclosure class and the derivation allowance for this workspace | operator | S02/S06: one setup decision, taken once; it states that repository excerpts will reach one named provider before any run is authorized |
+| 4 | catalog fills from probes | catalog | S05: 3 providers · 2 engines · 11 entries, the NVIDIA ones marked with their pairing; the pool defaults to every enabled, ready, conformant entry |
+| 5 | ▶ "Implement feature X in this repository." | TUI → application | S08 goal entry; the run's budget is untouched |
+| 6 | the workspace is read locally: files, languages, build and test entry points, version-control state | derivation, reading half | S08 states the facts it found; nothing left the host |
+| 7 | observable requirements derived (A, B); acceptance plan generated (D) and validated against the negative control and the substituted entry points | derivation, funded half | S08 states the provider it is disclosing to and the allowance it is drawing on; the plan itself is visible in diagnostics |
+| 8 | one material assumption cannot be resolved | derivation | S09: a question with concrete options — the brief's "Authorization Code or Client Credentials?" shape |
+| 9 | ▶ answer | operator | recorded as class E; the run is **not** marked intervened |
+| 10 | ▶ authorize the spend | operator | S10: restated goal, what *done* means, ceiling, pool, disclosure, assurance with its limit; one confirmation |
+| 11 | origin participant registered on the first ready pool entry, endowed from the root vector, root obligation created, one invocation started | run launcher | S11 collective startup, then S12 live view |
+| 12 | participant A analyses the repository in its own attempt sandbox | collective | S12 activity; S13 shows one participant |
+| 13 | A determines more expertise is useful and issues `request_participant` naming a catalog entry, funding a proposal allowance from its own account | collective | S16 activity records the request |
+| 14 | admission finds the entry live and forwards; the kernel checks containment against the frozen pool, the availability facts, the disclosure class, the assurance profile, `ParticipantStarts` and concurrency — and admits | admission + kernel | S13 shows the admission and the mechanical reason it was permitted |
+| 15 | a suitable model becomes participant B; its process starts | run launcher | S13 now shows two participants with their catalog entries |
+| 16 | A advertises a scoped offer; B bids; A awards; a task contract, obligation and lease form atomically | collective + kernel | S15 tasks |
+| 17 | they investigate, publish findings, disagree, challenge, and resolve on the board | collective | S16 activity, attributed and labelled untrusted |
+| 18 | one implements in its sandbox and submits; the integrator builds an immutable candidate | collective + kernel | S17 candidates |
+| 19 | the other reviews as a separate blinded assessment | collective | S16, S18 |
+| 20 | a participant spends a verification query on the exact candidate digest | collective + verification | S19: `verifying cd-1 · query 1 of 4` |
+| 21 | verification fails | verification | S19 shows the verdict, the failure class and the bounded diagnostic the policy allows; the run stays alive, the obligation stays open |
+| 22 | the collective sees the same bounded diagnostic and revises | collective | S12, S16, S20 |
+| 23 | a new candidate is submitted and verified; it passes | collective + verification | S19, then S25 |
+| 24 | ▶ the operator reads *completed · verified* and inspects, or exports | operator | S25 result, S26 evidence, S27 export |
 
-Operator acts: start the program, connect providers, state the goal, answer one question, authorize
-the spend — plus the optional inspection and export at the end. No contract, oracle, verifier,
-team, role, model assignment or decomposition was created by the operator, which is the test brief
-§18 sets.
+Operator acts: start the program, connect providers, set the workspace's disclosure class and
+derivation allowance once, state the goal, answer one question, authorize the spend — plus the
+optional inspection and export at the end. No contract, oracle, verifier, team, role, model
+assignment or decomposition was created by the operator, which is the test brief §18 sets.
+
+Two things this walk states that an earlier revision of it did not. Step 3 is a real decision and
+appears as one: repository excerpts reach a provider between the goal and the authorization, and
+the operator learns that before it happens rather than after. And step 2 is honest about the host:
+three providers are configured on two installed engines, because NVIDIA enters as a model route
+through an existing engine rather than through a native runtime this design does not build.
 
 ## Required updates to the documents of record
 
@@ -867,8 +1079,8 @@ changes only where the name comes from: derived from the declared pool instead o
 operator. Test 9 and test 11 of item 22 exist to kill a build in which the rule starts reading
 anything else.
 
-**Did the kernel become a model router?** The kernel gained one operation: whether a requested
-catalog entry is in the run's permitted set. It holds the pool as a set plus a declared order, and
+**Did the kernel become a model router?** The kernel gained one refusal and one kind of operation:
+containment of a requested catalog entry against facts already committed. It holds the pool as a set plus a declared order, and
 the declared order is used in exactly one place — the entry participant at bootstrap — where some
 mechanical rule is unavoidable and where the alternative is asking the operator, which the brief
 forbids. No kernel path reads any property of the goal, the task or the entry other than

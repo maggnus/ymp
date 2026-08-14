@@ -55,16 +55,25 @@ product decision.
 | **a** | First ready entry of the pool in declared (registry) order | No new concept; the order is whatever enabling produced, which may surprise an operator who did not think of enabling as ranking |
 | **b** | The operator sets a default entry per workspace, defaulting to **a** | Explicit and predictable; introduces one setting that looks like a model assignment even though it only names the ignition point |
 | **c** | Ask once at first run and remember | Honest, but the first thing a new operator meets is a model question — precisely the shape brief §1 rules out |
-| **d** | Round robin across ready entries | Balances usage across providers and makes repeated runs incomparable, which conflicts with `W1-EVL-04a` |
+| **d** | Round robin across ready entries | Balances usage across providers and varies the ignition entry between otherwise identical runs, which is a comparability question for the study design rather than a reproducibility one — see below |
+
+**Whichever rule is chosen, the entry that ignited the run is recorded.** It is part of the
+pool-freeze fact committed at authorization ([`COLLECTIVE-DESIGN.md`](COLLECTIVE-DESIGN.md) item 8),
+so a run's evidence always names what it started on and a replayed journal reaches the same
+participant. That record removes the *reproducibility* objection to option **d**: a round-robin run
+is reproducible from its own journal. What it does not remove is the *comparability* cost — two
+runs of a matched-budget arm would ignite on different entries unless the arm pins the rule — so
+option **d** remains a choice about how `W1-EVL-04a` is designed rather than a free one.
 
 **What the design assumes.** Option **a**, with the rule stated on the bootstrap surface so it is
-never mistaken for a judgement about the goal. Option **b** is a small addition if the surprise in
-**a** turns out to be real.
+never mistaken for a judgement about the goal, and the chosen entry recorded either way. Option
+**b** is a small addition if the surprise in **a** turns out to be real.
 
 ## D3 · Whether the single authorization stays mandatory
 
-**Question.** The design keeps exactly one confirmation between a goal and the first unit of money.
-Does that confirmation stay mandatory for every run?
+**Question.** The design keeps exactly one confirmation between a goal and the **run's** budget.
+Does that confirmation stay mandatory for every run? (Derivation spends earlier, from its own
+allowance; that is decision 4 and decision 8, not this one.)
 
 **Why the owner.** It is the point where two of the owner's own rules meet. Constitutional
 constraint 1 in
@@ -104,9 +113,24 @@ reach an external provider without a deliberate act.
 | **b** | Per workspace: enabling a provider is global, permitting disclosure is per project | One extra decision per project, at the moment the project is first used; matches how an engineer thinks about "may this code leave" |
 | **c** | Per run: the authorization surface lists providers and requires acknowledgement | Most explicit; makes every run carry a decision the operator has already taken |
 
-**What the design assumes.** Option **b**, with the provider list repeated on the authorization
-surface as a statement rather than a question. Surface S03 states the consequence at the point of
-enabling either way.
+**The pre-authorization half of the same question.** Deriving what *done* means needs a model, so
+bounded excerpts of the workspace reach one provider *before* any run is authorized
+([`COLLECTIVE-DESIGN.md`](COLLECTIVE-DESIGN.md) item 16). That is a disclosure the operator cannot
+consent to per run, because it happens before the per-run decision exists. The design therefore
+asks once, at the moment the first provider is connected, and records the answer as workspace
+policy: which provider derivation may disclose to, or none.
+
+| | Rule | Consequence |
+|---|---|---|
+| **i** | One question at first run, recorded as workspace policy, restated on the authorization surface as an accomplished fact | Consent precedes the disclosure and is asked once; the operator meets one setup question they did not ask for |
+| **ii** | Derivation may disclose to any enabled provider without a separate answer | No setup question at all; repository content leaves the host on the strength of a decision the operator took about running agents, not about deriving requirements |
+| **iii** | Derivation discloses nothing and requires the operator to state the acceptance condition | No pre-authorization disclosure; returns exactly the authorship the brief removes, so it is not a real option unless the owner accepts that trade |
+
+**What the design assumes.** Option **b** for the run, and option **i** for derivation: one setup
+question at first run (surface S02), the provider list repeated on the authorization surface as a
+statement rather than a question, and the `already` row stating what derivation spent and disclosed
+before the operator decided. Surface S03 states the consequence at the point of enabling either
+way.
 
 ## D5 · The semantic remainder
 
@@ -177,14 +201,23 @@ and question ceilings for a run with no operator narrowing?
 **Why the owner.** They decide what an unattended run costs and how hard the host is worked, and
 they cannot be derived from the code — no measurement of a multi-participant run exists yet.
 
-**Options.** Not enumerated; the decision is a set of numbers. The consequences that matter:
-concurrency multiplies host load and sandbox disk; participant starts multiply cost without
-bounding it; a verification-query budget that is too small ends runs as `exhausted` with an
-unverified candidate in hand, which reads as failure and is not.
+**Options.** Three coherent settings rather than an open field of numbers, because the dimensions
+interact and choosing them one at a time produces a policy nobody intended.
 
-**What the design assumes.** The placeholders shown on surface S06 — $5.00, two hours, six
-participants, three concurrent attempts, four verification queries, three questions — stated as
-placeholders in the design and not as measured recommendations.
+| | Setting | Consequence |
+|---|---|---|
+| **a** *cautious* | $2 · 1h · 3 participants · 1 concurrent attempt · 2 queries · 2 questions · $0.05 derivation | Cheapest to be wrong with, and the likeliest to end as `exhausted` holding an unverified candidate — which reads as failure and is not. One attempt at a time also removes the competing-branch behaviour the POC hypothesis is about |
+| **b** *working* | $5 · 2h · 6 participants · 3 concurrent attempts · 4 queries · 3 questions · $0.10 derivation | Enough headroom for the §18 scenario to complete, including one failed verification and a revision; three concurrent attempts is three sandboxes and three engine processes on the host |
+| **c** *generous* | $20 · 6h · 12 participants · 6 concurrent attempts · 8 queries · 5 questions · $0.25 derivation | Room for competing branches and several verification cycles; multiplies host load and disk, and an unattended run can spend twenty dollars against a goal that was ambiguous |
+
+Two consequences hold across all three. Participant starts multiply cost without bounding it, so
+the money ceiling and not the participant ceiling is what actually stops a run. And a
+verification-query budget that is too small converts a nearly-finished run into `exhausted`, which
+is honest but wastes everything spent before it.
+
+**What the design assumes.** Setting **b**, which is what surface S06 draws. These are placeholders
+chosen for coherence, not measurements: no multi-participant run has been observed yet, and the
+first evaluation (`W1-EVL-04a`) is what should replace them.
 
 ## D9 · Naming: *workspace* and *attempt sandbox*
 
@@ -232,13 +265,13 @@ accepted.
 | # | Decision | Design assumes | Blocks |
 |---|---|---|---|
 | D1 | Where the pool is declared | frozen per run, over the registry | node `W1-EVL-04d`; proposed unit P3 |
-| D2 | Entry rule at bootstrap | first ready entry in declared order | proposed unit P7 |
-| D3 | Authorization mandatory per run | yes, one confirmation | surface S10; criterion 17.1 |
-| D4 | Disclosure default | per workspace | surface S03; proposed unit P2 |
+| D2 | Entry rule at bootstrap | first ready entry in declared order, recorded in the pool-freeze fact | proposed unit P7 |
+| D3 | Authorization mandatory per run | yes, one confirmation, before the run's budget | surface S10; criterion 17.1 |
+| D4 | Disclosure default, including before authorization | per workspace; one setup question for derivation | surfaces S02, S03; proposed units P2, P4a |
 | D5 | Semantic remainder | `accepted` covers the observed part, remainder named | criterion 17.12; surfaces S19, S25 |
 | D6 | Clarification bound | proceed under stated assumptions, three questions | proposed unit P5 |
 | D7 | Diagnostic disclosure | one conservative default | surface S19 |
-| D8 | Default ceilings | placeholders on S06 | proposed unit P3 |
+| D8 | Default ceilings, including the derivation allowance | setting **b** | proposed units P3, P4a |
 | D9 | Naming | *attempt sandbox* | proposed unit P14 |
 | D10 | `Continue` re-authorizes | one confirmation | surface S25 |
 
