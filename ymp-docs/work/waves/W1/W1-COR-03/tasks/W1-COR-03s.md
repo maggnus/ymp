@@ -3,19 +3,19 @@ id: W1-COR-03s
 kind: task
 wave: W1
 card: W1-COR-03
-state: active
+state: accepted
 risk: significant
 maturity: BUILD
 relation: required
 depends_on: [W1-COR-03q]
 blocks: []
 created_at: 2026-08-15T01:04:05+08:00
-updated_at: 2026-08-15T01:04:32+08:00
+updated_at: 2026-08-15T01:55:01+08:00
 started_at: 2026-08-15T01:04:32+08:00
-accepted_at:
-candidate_commit:
-closure_commit:
-evidence:
+accepted_at: 2026-08-15T01:55:01+08:00
+candidate_commit: https://github.com/maggnus/ymp/commit/1ef0796
+closure_commit: https://github.com/maggnus/ymp/commit/ddd250c
+evidence: reviewer fault-injection sweep (8 runs) green on the candidate and refusing at round zero with the defect returned; release_control_and_join proved on join and Drop of one handle; new findings recorded as W1-COR-03t and W1-COR-03u
 duration_minutes: 0
 blocker:
 pause_reason:
