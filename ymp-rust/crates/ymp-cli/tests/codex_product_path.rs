@@ -174,7 +174,7 @@ fi
         profile["profile"]["probe"]["detail"]
             .as_str()
             .expect("probe detail")
-            .contains("model=gpt-5.6-sol, api_origin=https://api.openai.com/v1")
+            .contains("model=gpt-5.6-terra, api_origin=https://api.openai.com/v1")
     );
     assert_eq!(
         profile["profile"]["environment_policy"],
