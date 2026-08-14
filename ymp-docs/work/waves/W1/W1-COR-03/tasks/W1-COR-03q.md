@@ -3,19 +3,19 @@ id: W1-COR-03q
 kind: task
 wave: W1
 card: W1-COR-03
-state: active
+state: accepted
 risk: routine
 maturity: BUILD
 relation: required
 depends_on: [W1-COR-03o]
 blocks: []
 created_at: 2026-08-15T00:34:25+08:00
-updated_at: 2026-08-15T00:34:43+08:00
+updated_at: 2026-08-15T01:04:05+08:00
 started_at: 2026-08-15T00:34:43+08:00
-accepted_at:
-candidate_commit:
-closure_commit:
-evidence:
+accepted_at: 2026-08-15T01:04:05+08:00
+candidate_commit: https://github.com/maggnus/ymp/commit/b427ad0
+closure_commit: https://github.com/maggnus/ymp/commit/40c1095
+evidence: whole-fact append before in-memory apply survives a poisoned lock; a repeated interrupted command is refused by sequence, no double write (verified in sources by the second look)
 duration_minutes: 0
 blocker:
 pause_reason:
