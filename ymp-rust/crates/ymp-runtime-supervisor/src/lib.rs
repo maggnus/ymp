@@ -1049,10 +1049,21 @@ fn start_candidate(
                     // the run as cancelled. The two records would then name different terminals
                     // for one run, and the kernel's would name a fault where an operator had
                     // merely stopped the work.
+                    //
+                    // A limit the slice ran out of is the one thing a cancellation does not absorb.
+                    // It is not a failure the interruption produced but a measure of what the run
+                    // consumed, and a cancellation arriving afterwards neither caused it nor gives
+                    // the run the budget back. The run is still stopped as cancelled, in both
+                    // records, and the slice closes on the limit so that the overrun is accounted
+                    // for rather than lost to whichever ending arrived last.
                     let terminal = take_terminal(&worker_terminal);
                     let cancelled = worker_cancellation.is_cancelled();
                     worker_kernel.terminated(if cancelled {
-                        ManagedTermination::Cancelled
+                        if terminal_failure == Some("managed_runtime_timed_out") {
+                            ManagedTermination::CancelledPastLimit
+                        } else {
+                            ManagedTermination::Cancelled
+                        }
                     } else {
                         match terminal_failure {
                             Some("managed_runtime_timed_out") => {
@@ -1604,14 +1615,22 @@ fn runtime_error_diagnostic(error: &RuntimeError) -> Option<DiagnosticSummary> {
     }
 }
 
+/// Record in the journal that this run failed for reasons of its supervision.
+///
+/// The journal lock is taken poisoned, for the reason the terminal guard is: a panic under it
+/// leaves no half-written datum behind, because every fact of the run is appended to the journal
+/// whole before it is applied in memory, and a command whose application a panic interrupted is
+/// refused on the sequence it would repeat rather than written twice. Abandoning the record here
+/// left the worse state of the two — the kernel closed the slice on the infrastructure error while
+/// the journal, which is the record an operator reads, went on reporting the run as running.
 fn record_infrastructure_failure(
     application: &Arc<Mutex<Application>>,
     attempt_id: &str,
     detail: &str,
 ) {
-    let Ok(mut application) = application.lock() else {
-        return;
-    };
+    let mut application = application
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
     if application.state().status != RunStatus::Running {
         return;
     }
