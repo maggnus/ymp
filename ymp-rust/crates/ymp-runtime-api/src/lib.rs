@@ -919,8 +919,10 @@ impl Usage {
     /// Whether the recorded cost is backed by the models that produced it. A record with no cost
     /// has nothing to attribute and counts as attributed; a recorded cost whose named shares are
     /// missing or do not add up to it is unverified. Each share is rounded to whole microdollars
-    /// before it is summed, so the sum may trail the total by less than one microdollar per named
-    /// model and by nothing else.
+    /// before it is summed, so the sum may only trail the total — by less than one microdollar per
+    /// named model — and never exceed it: an overshoot is not rounding and reads as unverified.
+    /// The bound is per model, not per accounted turn, so a many-turn run can trail further and
+    /// read conservatively as unverified; the record carries no turn count to widen it honestly.
     pub fn cost_is_attributed(&self) -> bool {
         let Some(total) = self.cost_microusd else {
             return true;
@@ -931,7 +933,8 @@ impl Usage {
         if self.cost_by_model.is_empty() {
             return false;
         }
-        self.attributed_cost_microusd().abs_diff(total) <= self.cost_by_model.len() as u64
+        let attributed = self.attributed_cost_microusd();
+        attributed <= total && total - attributed <= self.cost_by_model.len() as u64
     }
 }
 

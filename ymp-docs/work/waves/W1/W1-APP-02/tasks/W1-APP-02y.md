@@ -3,23 +3,23 @@ id: W1-APP-02y
 kind: task
 wave: W1
 card: W1-APP-02
-state: active
+state: accepted
 risk: routine
 maturity: BUILD
 relation: supporting
 depends_on: [W1-APP-02l]
 blocks: []
 created_at: 2026-08-14T02:46:00+08:00
-updated_at: 2026-08-14T05:19:32+08:00
+updated_at: 2026-08-14T22:59:14+08:00
 started_at: 2026-08-14T05:19:32+08:00
-accepted_at:
-candidate_commit:
-closure_commit:
-evidence:
+accepted_at: 2026-08-14T22:59:14+08:00
+candidate_commit: https://github.com/maggnus/ymp/commit/f74ae15
+closure_commit: https://github.com/maggnus/ymp/commit/c63130c
+evidence: both drivers fill the field from runtime data only, proved by reviewer defect injections into product code; disclosed CTO fix made the rounding tolerance one-sided (an overshoot reads unverified); the per-model bound stays conservative for many-turn runs
 duration_minutes: 0
 blocker:
 pause_reason:
-return_trigger:
+return_trigger: a real many-turn run whose record reads unverified only because the rounding bound is per model, not per accounted turn
 deliberate_partial: false
 ---
 
