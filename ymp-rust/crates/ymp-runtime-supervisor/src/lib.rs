@@ -7,6 +7,7 @@ use std::collections::HashSet;
 use std::ffi::OsStr;
 use std::fs::{self, File, OpenOptions};
 use std::io::Write;
+use std::panic::AssertUnwindSafe;
 use std::path::{Component, Path, PathBuf};
 use std::process::Command as ProcessCommand;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -365,7 +366,11 @@ pub struct ManagedRunHandle {
     runtime_kind: RuntimeKind,
     cancellation: CancellationToken,
     application: Arc<Mutex<Application>>,
-    receiver: Receiver<ManagedRunEvent>,
+    /// Read under a lock, so that one handle may be held by more than one thread. The endings this
+    /// handle offers are serialized against each other because two of them may be issued at once,
+    /// and a handle no two threads could hold would put that serialization out of reach of anything
+    /// but the worker.
+    receiver: Mutex<Receiver<ManagedRunEvent>>,
     control_sender: Sender<ManagedControl>,
     /// The committed record of this run's process slice. Whether the slice may resume is decided
     /// here and nowhere else, so the live run and a modelled one answer that question the same way.
@@ -409,7 +414,11 @@ impl ManagedRunHandle {
     }
 
     pub fn try_next(&self) -> Option<ManagedRunEvent> {
-        self.receiver.try_recv().ok()
+        let receiver = self
+            .receiver
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        receiver.try_recv().ok()
     }
 
     pub fn is_finished(&self) -> bool {
@@ -869,206 +878,249 @@ fn start_candidate(
         .name(format!("ymp-runtime-{worker_attempt}"))
         .spawn(move || {
             let _rpc_server = rpc_server;
-            let result = (|| -> anyhow::Result<()> {
-                let mut completed = false;
-                let mut predecessor_digest = None;
-                let mut runtime_progress = RuntimeProgress::new(&worker_invocation);
-                let mut expected_session = None;
-                let mut saw_launch = !requires_launch_attestation(runtime_kind);
-                let mut pending_error = None;
-                let mut terminal_failure = None;
-                let mut application_cursor = controller_cursor;
-                let mut yield_cursor = 0;
-                loop {
-                    let mut event = match pending_error.take().map_or_else(
-                        || session.next_event(),
-                        Err::<Option<RuntimeEvent>, RuntimeError>,
-                    ) {
-                        Ok(Some(event)) => event,
-                        Ok(None) => {
-                            if worker_cancellation.is_cancelled() {
-                                break;
-                            }
-                            bail!("runtime ended without a terminal event");
-                        }
-                        Err(error) => RuntimeEvent {
-                            sequence: runtime_progress.next_sequence()?,
-                            event_id: format!(
-                                "{}.event-{}",
-                                worker_invocation,
-                                runtime_progress.next_sequence()?
-                            ),
-                            invocation_id: worker_invocation.clone(),
-                            event: RuntimeEventKind::Failed {
-                                kind: runtime_error_kind(&error),
-                                usage: session.usage(),
-                                diagnostic: runtime_error_diagnostic(&error),
-                            },
-                        },
-                    };
-                    if matches!(
-                        &event.event,
-                        RuntimeEventKind::Completed { .. } | RuntimeEventKind::Yielded { .. }
-                    ) {
-                        event.event = authoritative_lifecycle_event(
-                            LifecycleAuthority {
-                                application: &worker_application,
-                                attempt_id: &worker_attempt,
-                                invocation_id: &worker_invocation,
-                                invocation_control: &invocation_control,
-                                application_cursor: &mut application_cursor,
-                                yield_cursor: &mut yield_cursor,
-                            },
-                            &event.event,
-                            session.usage(),
-                        )?;
-                    }
-                    if !saw_launch && !matches!(&event.event, RuntimeEventKind::Launch { .. }) {
-                        bail!("{runtime_kind:?} emitted an event before launch attestation");
-                    }
-                    runtime_progress.validate(&event)?;
-                    match &event.event {
-                        RuntimeEventKind::Launch { descriptor } => {
-                            validate_runtime_launch(
-                                runtime_kind,
-                                initial_launch_descriptor.as_ref(),
-                                descriptor,
-                                saw_launch,
-                                expected_session.as_deref(),
-                            )?;
-                            saw_launch = true;
-                        }
-                        RuntimeEventKind::Started { opaque_session_id } => {
-                            if let Some(expected) = &expected_session {
-                                if expected != opaque_session_id {
-                                    bail!("runtime session identifier changed across resume");
-                                }
-                            } else {
-                                expected_session = Some(opaque_session_id.clone());
-                            }
-                        }
-                        _ => {}
-                    }
-                    predecessor_digest = Some(append_runtime_evidence(
-                        &mut evidence_file,
-                        &run_id,
-                        &worker_attempt,
-                        runtime_kind,
-                        &contract_id,
-                        &contract_digest,
-                        &profile_digest,
-                        &predecessor_digest,
-                        &event,
-                    )?);
-                    let yielded = matches!(&event.event, RuntimeEventKind::Yielded { .. });
-                    let terminal = matches!(
-                        &event.event,
-                        RuntimeEventKind::Completed { .. }
-                            | RuntimeEventKind::Failed { .. }
-                            | RuntimeEventKind::TimedOut { .. }
-                            | RuntimeEventKind::Cancelled { .. }
-                            | RuntimeEventKind::Interrupted
-                    );
-                    completed = matches!(&event.event, RuntimeEventKind::Completed { .. });
-                    terminal_failure = match &event.event {
-                        RuntimeEventKind::Failed { .. } => Some("managed_runtime_failed"),
-                        RuntimeEventKind::TimedOut { .. } => Some("managed_runtime_timed_out"),
-                        _ => None,
-                    };
-                    // The yield is committed before it is announced, so a controller acting on the
-                    // announcement cannot reach the kernel before the record it decides against.
-                    if let RuntimeEventKind::Yielded { cursor } = &event.event {
-                        worker_kernel.yielded(cursor)?;
-                    }
-                    let _ = sender.send(ManagedRunEvent::Runtime(event));
-                    if terminal {
-                        break;
-                    }
-                    if yielded {
-                        loop {
-                            if worker_cancellation.is_cancelled() {
-                                if let Err(error) = session.interrupt() {
-                                    pending_error = Some(error);
-                                }
-                                break;
-                            }
-                            match control_receiver
-                                .recv_timeout(std::time::Duration::from_millis(10))
-                            {
-                                Ok(ManagedControl::Wake { input }) => {
-                                    if let Err(error) = session.resume(input) {
-                                        pending_error = Some(error);
-                                    }
+            // A worker that dies of a panic owes the kernel the terminal a worker that returns an
+            // error owes it. Left to unwind, the thread takes the ending of the run with it: the
+            // slice stays open, the run reaches no terminal at all, and a cancellation issued
+            // afterwards moves the journal alone and reports success for stopping a run the kernel
+            // still holds running. Supervision that died is an infrastructure failure, so it is
+            // caught here and recorded as one on the way out.
+            let outcome = std::panic::catch_unwind(AssertUnwindSafe(|| {
+                let result = (|| -> anyhow::Result<()> {
+                    let mut completed = false;
+                    let mut predecessor_digest = None;
+                    let mut runtime_progress = RuntimeProgress::new(&worker_invocation);
+                    let mut expected_session = None;
+                    let mut saw_launch = !requires_launch_attestation(runtime_kind);
+                    let mut pending_error = None;
+                    let mut terminal_failure = None;
+                    let mut application_cursor = controller_cursor;
+                    let mut yield_cursor = 0;
+                    loop {
+                        let mut event = match pending_error.take().map_or_else(
+                            || session.next_event(),
+                            Err::<Option<RuntimeEvent>, RuntimeError>,
+                        ) {
+                            Ok(Some(event)) => event,
+                            Ok(None) => {
+                                if worker_cancellation.is_cancelled() {
                                     break;
                                 }
-                                Err(RecvTimeoutError::Timeout) => {}
-                                Err(RecvTimeoutError::Disconnected) => {
+                                bail!("runtime ended without a terminal event");
+                            }
+                            Err(error) => RuntimeEvent {
+                                sequence: runtime_progress.next_sequence()?,
+                                event_id: format!(
+                                    "{}.event-{}",
+                                    worker_invocation,
+                                    runtime_progress.next_sequence()?
+                                ),
+                                invocation_id: worker_invocation.clone(),
+                                event: RuntimeEventKind::Failed {
+                                    kind: runtime_error_kind(&error),
+                                    usage: session.usage(),
+                                    diagnostic: runtime_error_diagnostic(&error),
+                                },
+                            },
+                        };
+                        if matches!(
+                            &event.event,
+                            RuntimeEventKind::Completed { .. } | RuntimeEventKind::Yielded { .. }
+                        ) {
+                            event.event = authoritative_lifecycle_event(
+                                LifecycleAuthority {
+                                    application: &worker_application,
+                                    attempt_id: &worker_attempt,
+                                    invocation_id: &worker_invocation,
+                                    invocation_control: &invocation_control,
+                                    application_cursor: &mut application_cursor,
+                                    yield_cursor: &mut yield_cursor,
+                                },
+                                &event.event,
+                                session.usage(),
+                            )?;
+                        }
+                        if !saw_launch && !matches!(&event.event, RuntimeEventKind::Launch { .. }) {
+                            bail!("{runtime_kind:?} emitted an event before launch attestation");
+                        }
+                        runtime_progress.validate(&event)?;
+                        match &event.event {
+                            RuntimeEventKind::Launch { descriptor } => {
+                                validate_runtime_launch(
+                                    runtime_kind,
+                                    initial_launch_descriptor.as_ref(),
+                                    descriptor,
+                                    saw_launch,
+                                    expected_session.as_deref(),
+                                )?;
+                                saw_launch = true;
+                            }
+                            RuntimeEventKind::Started { opaque_session_id } => {
+                                if let Some(expected) = &expected_session {
+                                    if expected != opaque_session_id {
+                                        bail!("runtime session identifier changed across resume");
+                                    }
+                                } else {
+                                    expected_session = Some(opaque_session_id.clone());
+                                }
+                            }
+                            _ => {}
+                        }
+                        predecessor_digest = Some(append_runtime_evidence(
+                            &mut evidence_file,
+                            &run_id,
+                            &worker_attempt,
+                            runtime_kind,
+                            &contract_id,
+                            &contract_digest,
+                            &profile_digest,
+                            &predecessor_digest,
+                            &event,
+                        )?);
+                        let yielded = matches!(&event.event, RuntimeEventKind::Yielded { .. });
+                        let terminal = matches!(
+                            &event.event,
+                            RuntimeEventKind::Completed { .. }
+                                | RuntimeEventKind::Failed { .. }
+                                | RuntimeEventKind::TimedOut { .. }
+                                | RuntimeEventKind::Cancelled { .. }
+                                | RuntimeEventKind::Interrupted
+                        );
+                        completed = matches!(&event.event, RuntimeEventKind::Completed { .. });
+                        terminal_failure = match &event.event {
+                            RuntimeEventKind::Failed { .. } => Some("managed_runtime_failed"),
+                            RuntimeEventKind::TimedOut { .. } => Some("managed_runtime_timed_out"),
+                            _ => None,
+                        };
+                        // The yield is committed before it is announced, so a controller acting
+                        // on the announcement cannot reach the kernel before the record it
+                        // decides against.
+                        if let RuntimeEventKind::Yielded { cursor } = &event.event {
+                            worker_kernel.yielded(cursor)?;
+                        }
+                        let _ = sender.send(ManagedRunEvent::Runtime(event));
+                        if terminal {
+                            break;
+                        }
+                        if yielded {
+                            loop {
+                                if worker_cancellation.is_cancelled() {
                                     if let Err(error) = session.interrupt() {
                                         pending_error = Some(error);
                                     }
                                     break;
                                 }
+                                match control_receiver
+                                    .recv_timeout(std::time::Duration::from_millis(10))
+                                {
+                                    Ok(ManagedControl::Wake { input }) => {
+                                        if let Err(error) = session.resume(input) {
+                                            pending_error = Some(error);
+                                        }
+                                        break;
+                                    }
+                                    Err(RecvTimeoutError::Timeout) => {}
+                                    Err(RecvTimeoutError::Disconnected) => {
+                                        if let Err(error) = session.interrupt() {
+                                            pending_error = Some(error);
+                                        }
+                                        break;
+                                    }
+                                }
                             }
                         }
                     }
-                }
-                // How this slice ended is recorded in the kernel before anything else is reported,
-                // in the terminal vocabulary the run is accountable in. A slice that completed
-                // leaves its work obligation open, because whether its candidate is accepted is
-                // decided by a protected query this controller does not perform.
-                //
-                // The guard covers the reading of the cancellation and the candidate that follows
-                // it, so an operator's cancellation either is already visible here and is the
-                // terminal recorded, or finds the slice closed and takes the kernel transition
-                // itself. It cannot land between the two and stop the run under the submission.
-                let terminal = take_terminal(&worker_terminal);
-                worker_kernel.terminated(match terminal_failure {
-                    Some("managed_runtime_timed_out") => {
-                        ManagedTermination::Failed(InvocationClosure::LimitExceeded)
-                    }
-                    Some(_) => ManagedTermination::Failed(InvocationClosure::RuntimeError),
-                    None if worker_cancellation.is_cancelled() => ManagedTermination::Cancelled,
-                    None if completed => ManagedTermination::Completed,
-                    None => ManagedTermination::Failed(InvocationClosure::RuntimeError),
-                })?;
-                if let Some(failure) = terminal_failure {
-                    bail!(failure);
-                }
-                if worker_cancellation.is_cancelled() {
-                    return Ok(());
-                }
-                if !completed {
-                    bail!("runtime ended without a completed event");
-                }
-                let candidate_digest = {
-                    let application = worker_application
-                        .lock()
-                        .map_err(|_| anyhow::anyhow!("application lock was poisoned"))?;
-                    if application.state().status != RunStatus::Running {
+                    // How this slice ended is recorded in the kernel before anything else is
+                    // reported, in the terminal vocabulary the run is accountable in. A slice that
+                    // completed leaves its work obligation open, because whether its candidate is
+                    // accepted is decided by a protected query this controller does not perform.
+                    //
+                    // The guard covers the reading of the cancellation and the candidate that
+                    // follows it, so an operator's cancellation either is already visible here and
+                    // is the terminal recorded, or finds the slice closed and takes the kernel
+                    // transition itself. It cannot land between the two and stop the run under the
+                    // submission.
+                    //
+                    // A cancellation the guard makes visible here is what this slice ended of,
+                    // whatever the runtime reported on its way out. Interrupting a runtime is how
+                    // a cancellation reaches one that is working, and the tool call the
+                    // interruption lands in the middle of fails: classified by that failure the
+                    // slice would close as a runtime failure, which the kernel accounts as an
+                    // infrastructure error, while the journal the same cancellation moved reports
+                    // the run as cancelled. The two records would then name different terminals
+                    // for one run, and the kernel's would name a fault where an operator had
+                    // merely stopped the work.
+                    let terminal = take_terminal(&worker_terminal);
+                    let cancelled = worker_cancellation.is_cancelled();
+                    worker_kernel.terminated(if cancelled {
+                        ManagedTermination::Cancelled
+                    } else {
+                        match terminal_failure {
+                            Some("managed_runtime_timed_out") => {
+                                ManagedTermination::Failed(InvocationClosure::LimitExceeded)
+                            }
+                            Some(_) => ManagedTermination::Failed(InvocationClosure::RuntimeError),
+                            None if completed => ManagedTermination::Completed,
+                            None => ManagedTermination::Failed(InvocationClosure::RuntimeError),
+                        }
+                    })?;
+                    // A cancelled run reports no failure of its own: what the runtime reported is
+                    // how the cancellation reached it, and recording that as a supervision failure
+                    // would move the journal off the cancellation it already holds.
+                    if cancelled {
                         return Ok(());
                     }
-                    application
-                        .state()
-                        .candidate_digest
-                        .clone()
-                        .context("completed runtime has no controller-committed candidate")?
-                };
-                // The work the run is accountable for now carries the exact candidate a protected
-                // query would be spent on.
-                worker_kernel.submitted(&candidate_digest)?;
-                drop(terminal);
-                let _ = sender.send(ManagedRunEvent::CandidateAvailable {
-                    candidate_digest,
-                    change_count: None,
-                });
-                Ok(())
-            })();
-            // The runtime session terminates its process tree when it is dropped, so it is dropped
-            // here rather than at the end of the thread. Without this the controller could observe
-            // a terminal outcome while the managed processes were still being signalled, and a
-            // reading of the process table taken at that moment would be racing the supervisor
-            // instead of measuring it.
-            drop(session);
+                    if let Some(failure) = terminal_failure {
+                        bail!(failure);
+                    }
+                    if !completed {
+                        bail!("runtime ended without a completed event");
+                    }
+                    let candidate_digest =
+                        {
+                            let application = worker_application
+                                .lock()
+                                .map_err(|_| anyhow::anyhow!("application lock was poisoned"))?;
+                            if application.state().status != RunStatus::Running {
+                                return Ok(());
+                            }
+                            application.state().candidate_digest.clone().context(
+                                "completed runtime has no controller-committed candidate",
+                            )?
+                        };
+                    // The work the run is accountable for now carries the exact candidate a
+                    // protected query would be spent on.
+                    worker_kernel.submitted(&candidate_digest)?;
+                    drop(terminal);
+                    let _ = sender.send(ManagedRunEvent::CandidateAvailable {
+                        candidate_digest,
+                        change_count: None,
+                    });
+                    Ok(())
+                })();
+                // The runtime session terminates its process tree when it is dropped, so it is
+                // dropped here rather than at the end of the thread. Without this the controller
+                // could observe a terminal outcome while the managed processes were still being
+                // signalled, and a reading of the process table taken at that moment would be
+                // racing the supervisor instead of measuring it. A panic drops it here too, while
+                // the stack unwinds out of the closure that owns it, so the process tree is ended
+                // either way.
+                drop(session);
+                result
+            }));
+            // Whichever way supervision ended, it is named in one vocabulary from here on. A
+            // panic is not a diagnosis the run can report anything further about, so what is kept
+            // of it is that supervision died rather than the payload it died with.
+            let supervision = match outcome {
+                Ok(Ok(())) => None,
+                Ok(Err(error)) => {
+                    let _ = error;
+                    Some("managed_runtime_supervision_failed")
+                }
+                Err(panic) => {
+                    let _ = panic;
+                    Some("managed_runtime_worker_panicked")
+                }
+            };
             // The places that end the process tree while they are already reporting a cancellation,
             // a time limit or a runtime failure — and the session being dropped, which reports to
             // nobody — keep what they could not establish. It is read here, because a run may
@@ -1080,13 +1132,12 @@ fn start_candidate(
                     unestablished.join("; ")
                 )
             });
-            let detail = match (result, kept) {
-                (Err(error), kept) => {
-                    let _ = error;
-                    let supervision = "managed_runtime_supervision_failed".to_owned();
-                    Some(kept.map_or(supervision.clone(), |kept| format!("{supervision}; {kept}")))
-                }
-                (Ok(()), kept) => kept,
+            let detail = match (supervision, kept) {
+                (Some(supervision), kept) => Some(kept.map_or_else(
+                    || supervision.to_owned(),
+                    |kept| format!("{supervision}; {kept}"),
+                )),
+                (None, kept) => kept,
             };
             if let Some(detail) = detail {
                 record_infrastructure_failure(&worker_application, &worker_attempt, &detail);
@@ -1111,7 +1162,7 @@ fn start_candidate(
         runtime_kind,
         cancellation,
         application,
-        receiver,
+        receiver: Mutex::new(receiver),
         control_sender,
         kernel,
         terminal,
