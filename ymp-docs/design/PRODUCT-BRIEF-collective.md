@@ -227,3 +227,33 @@ get a verified result", not "build and manage a workflow".
 If the scenario still requires manual contract/verifier/agent/role/model/decomposition work, the
 design is not complete. The implementation may be sophisticated internally; the product
 experience must remain simple.
+
+## Addendum (owner clarification, 2026-08-15)
+
+The brief is the product-level source of truth. Do not redesign it from scratch and never return
+responsibility to the operator.
+
+Walk the existing repository and correct the design/implementation around the core UX:
+
+    operator -> goal -> autonomous agent collective -> verified result
+
+Specifically check ownership leaks: wherever the operator currently must create a contract,
+oracle, verifier, task, team, roles, or assign models — move that responsibility inside
+ymp/the collective. Do not remove the necessary mechanisms: they stay internal and are created
+and managed by the system automatically.
+
+Bootstrap, explicitly: after the goal is entered, the first participant is also created by the
+system; the operator never assembles the team manually.
+
+    Provider -> model catalog -> permitted pool -> dynamically recruited participants.
+
+100 available models never mean 100 running agents. No hard-coded model roles; the kernel is not
+a semantic router.
+
+Produce a gap analysis of the existing code and design: what already conforms to the brief, what
+contradicts it, and which ownership/state/API/TUI changes are necessary. Then propose the
+MINIMAL coherent design that brings the current implementation to this UX while preserving the
+existing trust boundaries, accounting, isolation and verification guarantees.
+
+Do not add new user-facing entities or mandatory workflow steps without necessity. If the system
+needs internal complexity, hide it behind the product boundary.
