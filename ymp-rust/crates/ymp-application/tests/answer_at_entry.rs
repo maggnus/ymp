@@ -14,8 +14,9 @@ use std::time::{Duration, Instant};
 
 use tempfile::TempDir;
 use ymp_application::answer::{
-    AnswerError, demonstrates_within, discriminates, discriminates_within,
-    negative_control_directory, source_directory, verifier_program,
+    AnswerError, SubstitutionControl, discriminates, discriminates_within,
+    negative_control_directory, refuses_a_substituted_entry_point_within, source_directory,
+    verifier_program,
 };
 use ymp_application::{AcceptanceCondition, RunRequest, prepare_contract};
 use ymp_domain::contract::default_wall_time_ms;
@@ -113,50 +114,62 @@ fn a_program_that_rejects_the_negative_control_is_taken() {
         .expect_err("a directory the program accepts cannot serve as a negative control");
 }
 
-/// The absorbed finding of this card's review: a program that only ever rejects passes a check
-/// that asks it to reject.
+/// A program that only ever rejects passes every check the product can put to it, and this is
+/// where that is measured rather than assumed.
 ///
-/// Such a program is not a verifier — it can never accept the work, so the run it judges is
-/// exhausted whatever the agents produce, and the budget is spent on a verdict that was fixed
-/// before it started. The demonstration therefore asks for both decisions: reject the control,
-/// accept a sample built to satisfy it. The first half alone is measured here to be insufficient.
+/// An earlier card closed this by asking the program to accept a sample the product built. That
+/// sample could only ever be built by replacing the file a proposed verifier delegates to, which is
+/// the substitution the product now refuses, so the sample was a forgery and the half that used it
+/// is gone. What replaced it asks for more rejections, and a program that rejects everything
+/// answers all of them.
+///
+/// Nothing in the product claims otherwise: a draft states what the verifier accepts as
+/// undemonstrated, and the first candidate that satisfies the project's own tests is where
+/// acceptance is first shown. This test fails if that boundary moves, which is when the statement
+/// has to move with it.
 #[test]
-fn a_program_that_rejects_every_candidate_passes_the_first_half_and_is_refused_by_the_second() {
+fn a_program_that_rejects_every_candidate_answers_every_rejection_the_product_can_ask_for() {
     let workspace = workspace();
     let rejects_everything = workspace.program("reject.sh", "exit 1");
     let limit = Duration::from_millis(default_wall_time_ms());
+    let controls = [SubstitutionControl {
+        path: workspace.source.clone(),
+        stated: "a candidate that had replaced its test entry point".to_owned(),
+    }];
 
-    // The half that asks only for a rejection takes it.
     discriminates(&rejects_everything, &workspace.negative_control)
         .expect("a program that rejects everything rejects the negative control too");
-
-    // The half that also asks for an acceptance refuses it, and names why.
-    let refusal = demonstrates_within(
+    refuses_a_substituted_entry_point_within(
         &rejects_everything,
         &workspace.negative_control,
-        &workspace.source,
+        &controls,
         limit,
     )
-    .expect_err("a program that rejects every candidate cannot decide a run");
+    .expect("a program that rejects everything rejects the substitution controls too");
+
+    // What the check does separate is a program that accepts one of those candidates: the same
+    // call refuses it and names what that candidate did.
+    let accepts_the_control = workspace.program("verify.sh", DISCRIMINATES);
+    let refusal = refuses_a_substituted_entry_point_within(
+        &accepts_the_control,
+        &workspace.negative_control,
+        &controls,
+        limit,
+    )
+    .expect_err("a program that accepts a candidate holding no work was carried into a contract");
     assert!(
-        matches!(refusal, AnswerError::VerifierRejectsPositiveSample { .. }),
+        matches!(
+            refusal,
+            AnswerError::VerifierAcceptsSubstitutedEntryPoint { .. }
+        ),
         "{refusal}"
     );
     assert!(
-        refusal.to_string().contains("rejects every candidate"),
-        "the refusal does not name the reason: {refusal}"
+        refusal
+            .to_string()
+            .contains("had replaced its test entry point"),
+        "the refusal does not name what the candidate did: {refusal}"
     );
-
-    // A program that decides both ways passes both halves, so the refusal above is a decision
-    // about the program and not a demonstration that refuses everything.
-    let verifier = workspace.program("verify.sh", DISCRIMINATES);
-    demonstrates_within(
-        &verifier,
-        &workspace.negative_control,
-        &workspace.source,
-        limit,
-    )
-    .expect("a program that rejects the control and accepts the sample decides both ways");
 }
 
 /// A program that never decides is a refusal, not a wait without end.
