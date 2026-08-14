@@ -39,7 +39,7 @@
 | `[x]` | [`W1-APP-02w`](waves/W1/W1-APP-02/tasks/W1-APP-02w.md) | Product state lives under one .ymp root that supports many projects | [`9996944`](https://github.com/maggnus/ymp/commit/9996944) | 14/08 02:13 | 14/08 03:06 (53m) |
 | `[x]` | [`W1-APP-02x`](waves/W1/W1-APP-02/tasks/W1-APP-02x.md) | Entry validation cannot hold the interface | [`7e98831`](https://github.com/maggnus/ymp/commit/7e98831) | 14/08 02:19 | 14/08 04:08 (0m) |
 | `[x]` | [`W1-APP-02y`](waves/W1/W1-APP-02/tasks/W1-APP-02y.md) | The run record itself carries the per-model spend | [`c63130c`](https://github.com/maggnus/ymp/commit/c63130c) | 14/08 05:19 | 14/08 22:59 (0m) |
-| `[~]` | [`W1-APP-02z`](waves/W1/W1-APP-02/tasks/W1-APP-02z.md) | A verifier cannot be rewritten by the candidate it judges | — | 14/08 05:07 | 14/08 05:07 (0m) |
+| `[~]` | [`W1-APP-02z`](waves/W1/W1-APP-02/tasks/W1-APP-02z.md) | A verifier cannot be rewritten by the candidate it judges | — | 14/08 05:07 | 14/08 23:42 (0m) |
 | `[ ]` | [`W1-COR-03`](waves/W1/W1-COR-03/CARD.md) | Bounded local commitments self-organize and terminate | — | — | — |
 | `[x]` | [`W1-COR-03a`](waves/W1/W1-COR-03/tasks/W1-COR-03a.md) | Local commitments conserve budgets and close obligations | [`58524264`](https://github.com/maggnus/ymp/commit/585242645d405ff1f76d6015a1141144eac4207b) | 13/08 15:10 | 13/08 16:27 (1h25m) |
 | `[x]` | [`W1-COR-03b`](waves/W1/W1-COR-03/tasks/W1-COR-03b.md) | Yielded participants resume finitely and runs terminate honestly | [`ca52994`](https://github.com/maggnus/ymp/commit/ca52994) | — | 14/08 04:06 (0m) |
@@ -54,7 +54,9 @@
 | `[x]` | [`W1-COR-03k`](waves/W1/W1-COR-03/tasks/W1-COR-03k.md) | The live controller drives the kernel lifecycle, not its own | [`05cec14`](https://github.com/maggnus/ymp/commit/05cec14) | 14/08 04:07 | 14/08 05:19 (0m) |
 | `[x]` | [`W1-COR-03l`](waves/W1/W1-COR-03/tasks/W1-COR-03l.md) | A stopped run sheds its yielded slices, and an attempt runs one slice | [`a74c4d2`](https://github.com/maggnus/ymp/commit/a74c4d2) | 14/08 04:07 | 14/08 05:22 (0m) |
 | `[x]` | [`W1-COR-03m`](waves/W1/W1-COR-03/tasks/W1-COR-03m.md) | Candidate verification is a kernel fact, and a finished run reaches its terminal | [`7fd1769`](https://github.com/maggnus/ymp/commit/7fd1769) | 14/08 05:22 | 14/08 23:29 (0m) |
-| `[~]` | [`W1-COR-03n`](waves/W1/W1-COR-03/tasks/W1-COR-03n.md) | Cancelling a finished run reaches the kernel, and the two accountings agree | — | 14/08 23:29 | 14/08 23:29 (0m) |
+| `[x]` | [`W1-COR-03n`](waves/W1/W1-COR-03/tasks/W1-COR-03n.md) | Cancelling a finished run reaches the kernel, and the two accountings agree | [`b5a691b`](https://github.com/maggnus/ymp/commit/b5a691b) | 14/08 23:29 | 15/08 00:03 (0m) |
+| `[ ]` | [`W1-COR-03o`](waves/W1/W1-COR-03/tasks/W1-COR-03o.md) | Cancel during a running tool call terminates as cancelled, not as infrastructure error | — | — | — |
+| `[ ]` | [`W1-COR-03p`](waves/W1/W1-COR-03/tasks/W1-COR-03p.md) | A worker death by panic still drives the kernel to a terminal | — | — | — |
 | `[ ]` | [`W1-EVL-04`](waves/W1/W1-EVL-04/CARD.md) | Controlled evidence decides both POC hypotheses | — | — | — |
 | `[?]` | [`W1-EVL-04a`](waves/W1/W1-EVL-04/tasks/W1-EVL-04a.md) | Matched-budget arms produce comparable acceptance evidence | — | — | — |
 | `[ ]` | [`W1-EVL-04b`](waves/W1/W1-EVL-04/tasks/W1-EVL-04b.md) | Message interventions separate appearance from causal use | — | — | — |

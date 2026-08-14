@@ -3,19 +3,19 @@ id: W1-COR-03n
 kind: task
 wave: W1
 card: W1-COR-03
-state: active
+state: accepted
 risk: significant
 maturity: BUILD
 relation: required
 depends_on: [W1-COR-03m]
 blocks: []
 created_at: 2026-08-14T23:29:02+08:00
-updated_at: 2026-08-14T23:29:49+08:00
+updated_at: 2026-08-15T00:03:05+08:00
 started_at: 2026-08-14T23:29:49+08:00
-accepted_at:
-candidate_commit:
-closure_commit:
-evidence:
+accepted_at: 2026-08-15T00:03:05+08:00
+candidate_commit: https://github.com/maggnus/ymp/commit/bcfddbc2956c6bc8cdeffd19a9939518c776881c
+closure_commit: https://github.com/maggnus/ymp/commit/b5a691b
+evidence: reviewer 48-run cancellation sweep (0-188 ms offsets): both accountings agree in every landing order, no deadlock, repeated cancels idempotent; negative half measured on the base by the same sweep (43/48 divergences); two pre-existing defects recorded as W1-COR-03o and W1-COR-03p
 duration_minutes: 0
 blocker:
 pause_reason:
