@@ -366,7 +366,11 @@ pub struct ManagedRunHandle {
     runtime_kind: RuntimeKind,
     cancellation: CancellationToken,
     application: Arc<Mutex<Application>>,
-    receiver: Receiver<ManagedRunEvent>,
+    /// Read under a lock, so that one handle may be held by more than one thread. The endings this
+    /// handle offers are serialized against each other because two of them may be issued at once,
+    /// and a handle no two threads could hold would put that serialization out of reach of anything
+    /// but the worker.
+    receiver: Mutex<Receiver<ManagedRunEvent>>,
     control_sender: Sender<ManagedControl>,
     /// The committed record of this run's process slice. Whether the slice may resume is decided
     /// here and nowhere else, so the live run and a modelled one answer that question the same way.
@@ -410,7 +414,11 @@ impl ManagedRunHandle {
     }
 
     pub fn try_next(&self) -> Option<ManagedRunEvent> {
-        self.receiver.try_recv().ok()
+        let receiver = self
+            .receiver
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        receiver.try_recv().ok()
     }
 
     pub fn is_finished(&self) -> bool {
@@ -1031,21 +1039,38 @@ fn start_candidate(
                     // is the terminal recorded, or finds the slice closed and takes the kernel
                     // transition itself. It cannot land between the two and stop the run under the
                     // submission.
+                    //
+                    // A cancellation the guard makes visible here is what this slice ended of,
+                    // whatever the runtime reported on its way out. Interrupting a runtime is how
+                    // a cancellation reaches one that is working, and the tool call the
+                    // interruption lands in the middle of fails: classified by that failure the
+                    // slice would close as a runtime failure, which the kernel accounts as an
+                    // infrastructure error, while the journal the same cancellation moved reports
+                    // the run as cancelled. The two records would then name different terminals
+                    // for one run, and the kernel's would name a fault where an operator had
+                    // merely stopped the work.
                     let terminal = take_terminal(&worker_terminal);
-                    worker_kernel.terminated(match terminal_failure {
-                        Some("managed_runtime_timed_out") => {
-                            ManagedTermination::Failed(InvocationClosure::LimitExceeded)
+                    let cancelled = worker_cancellation.is_cancelled();
+                    worker_kernel.terminated(if cancelled {
+                        ManagedTermination::Cancelled
+                    } else {
+                        match terminal_failure {
+                            Some("managed_runtime_timed_out") => {
+                                ManagedTermination::Failed(InvocationClosure::LimitExceeded)
+                            }
+                            Some(_) => ManagedTermination::Failed(InvocationClosure::RuntimeError),
+                            None if completed => ManagedTermination::Completed,
+                            None => ManagedTermination::Failed(InvocationClosure::RuntimeError),
                         }
-                        Some(_) => ManagedTermination::Failed(InvocationClosure::RuntimeError),
-                        None if worker_cancellation.is_cancelled() => ManagedTermination::Cancelled,
-                        None if completed => ManagedTermination::Completed,
-                        None => ManagedTermination::Failed(InvocationClosure::RuntimeError),
                     })?;
+                    // A cancelled run reports no failure of its own: what the runtime reported is
+                    // how the cancellation reached it, and recording that as a supervision failure
+                    // would move the journal off the cancellation it already holds.
+                    if cancelled {
+                        return Ok(());
+                    }
                     if let Some(failure) = terminal_failure {
                         bail!(failure);
-                    }
-                    if worker_cancellation.is_cancelled() {
-                        return Ok(());
                     }
                     if !completed {
                         bail!("runtime ended without a completed event");
@@ -1137,7 +1162,7 @@ fn start_candidate(
         runtime_kind,
         cancellation,
         application,
-        receiver,
+        receiver: Mutex::new(receiver),
         control_sender,
         kernel,
         terminal,
