@@ -16,6 +16,12 @@
 //! The negative half is `a_verifier_that_runs_whatever_the_candidate_keeps_there`: the shape the
 //! product wrote before, handed to the same command, which reports it accepting the candidate that
 //! holds no work at all.
+//!
+//! A project runs its tests through a script or through make, and both are proposed from. One that
+//! runs them through npm is refused by name and reason instead, because the program npm runs each
+//! script with comes from files the candidate carries — and a refusal that named nothing would
+//! leave the operator with no way to see that stating a verifier of their own is what is left to
+//! them.
 
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -217,6 +223,50 @@ fn the_proposed_verifier_rejects_a_candidate_that_rewrote_its_own_test_entry_poi
         project.accepts(&proposed, &project.satisfying()),
         "a candidate carrying the project's own test entry point and the work it asks for was \
          rejected, so the verifier can never accept anything"
+    );
+}
+
+/// The half of this card that is a refusal rather than a program.
+///
+/// A project that runs its tests through npm is recognised and not proposed from. Fixing the bytes
+/// of `package.json` would fix the text of a script and not the program that runs it — npm takes
+/// that from `.npmrc`, a file of the candidate's — and a verifier here runs with a path holding no
+/// npm, so the program would reject every candidate including one that did the work. The product
+/// says which file stands in the way instead of reporting a project that plainly runs tests as
+/// running none, because the operator's way out is to state a verifier of their own.
+#[test]
+fn a_project_running_its_tests_through_npm_is_refused_by_name_and_reason() {
+    let project = bare_project();
+    fs::write(
+        project.directory.join("package.json"),
+        b"{\"scripts\":{\"test\":\"test -f result.txt\"}}\n",
+    )
+    .expect("a project that runs its tests through npm");
+
+    let refused = project.run(&["request", PROMPT]);
+    assert!(
+        !refused.status.success(),
+        "a verifier was proposed from a file that does not decide what runs:\n{}",
+        String::from_utf8_lossy(&refused.stdout)
+    );
+    let stated = String::from_utf8_lossy(&refused.stderr).into_owned();
+    for named in [
+        "package.json",
+        "files the candidate carries",
+        "state a verifier of your own",
+    ] {
+        assert!(
+            stated.contains(named),
+            "the refusal does not name {named}:\n{stated}"
+        );
+    }
+    assert!(
+        !stated.contains("no test entry point"),
+        "a project that plainly runs tests is reported as running none:\n{stated}"
+    );
+    assert!(
+        !project.data_root.join("events.jsonl").exists(),
+        "a refused draft started a run"
     );
 }
 

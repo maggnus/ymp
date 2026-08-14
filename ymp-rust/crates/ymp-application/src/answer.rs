@@ -20,6 +20,13 @@
 //! already covers them, and a proposal whose bytes are edited afterwards no longer matches the
 //! contract that approved it.
 //!
+//! Fixing bytes is only worth anything where the file it fixes is what decides the run. A project
+//! runs its tests through a script or through make, and both are proposed from; a project that runs
+//! them through npm is recognised and refused by name, because npm takes the program that runs each
+//! script from files the candidate carries. The refusal names the file and the reason: an operator
+//! told their project runs no tests has no way to see that stating a verifier of their own is what
+//! is left to them.
+//!
 //! Assembly keeps its own validation in [`crate::contract::prepare_contract`]: a contract also
 //! arrives from a package that nobody typed, and what is stored is judged there.
 
@@ -84,6 +91,12 @@ pub enum AnswerError {
          already runs its tests, and this directory names none it can run"
     )]
     NoTestEntryPoint(PathBuf),
+    #[error(
+        "this project runs its tests through {path}, and ymp does not propose a verifier from it: \
+         {reason}. A proposal it could not hold the candidate to would be one the candidate \
+         decides, so nothing is proposed — state a verifier of your own instead"
+    )]
+    TestEntryPointNotSupported { path: PathBuf, reason: String },
     #[error(
         "the test entry point {path} could not be fixed into a proposed verifier: {reason}. A \
          verifier that runs a file inside the candidate is proposed only when the bytes of that \
@@ -266,6 +279,14 @@ pub struct TestEntryPoint {
 /// One way a project can be recognised as running its tests.
 struct Candidate {
     relative: &'static str,
+    /// What the product would propose from this, or why it will not. A way of running tests it
+    /// will not propose from is still recognised, because a project that runs its tests that way
+    /// is owed the name of what stands in the way rather than being told it runs no tests at all.
+    proposal: Result<Proposal, &'static str>,
+}
+
+/// What a proposed verifier would run, and what it must refuse before running it.
+struct Proposal {
     /// The command, written so it reads the fixed file and not whichever file the command would
     /// otherwise pick. `make -f Makefile test` is that: `make test` alone reads a name the
     /// candidate can add.
@@ -275,18 +296,37 @@ struct Candidate {
     shadowed_by: &'static [&'static str],
 }
 
-/// The entry points ymp proposes a verifier from, in the order it looks for them.
+/// What this project runs its tests through, and whether the product will propose a verifier
+/// from it.
+#[derive(Clone, Debug)]
+pub enum TestEntry {
+    /// A file whose bytes can be fixed into a program, run by a command that reads that file and
+    /// no other.
+    Supported(TestEntryPoint),
+    /// A way of running tests the product recognises and does not propose from. Naming it is the
+    /// whole point: the operator learns which file stands in the way and can state a verifier of
+    /// their own, rather than being told this project runs no tests.
+    Unsupported {
+        relative_path: PathBuf,
+        reason: String,
+    },
+}
+
+/// The ways of running tests ymp recognises, in the order it looks for them.
 ///
-/// Each one is a file whose content decides what the command does, which is why the proposed
-/// verifier fixes those bytes and why the product can build the candidate that replaces them.
+/// A proposed one is a file whose content decides what the command does, which is why the proposed
+/// verifier fixes those bytes and why the product can build the candidate that replaces them. The
+/// rest are recognised so they can be refused by name.
 fn candidates() -> Vec<Candidate> {
     const SCRIPT_SUBSTITUTION: &str = "#!/bin/sh\nexit 0\n";
     let script = |relative, command| Candidate {
         relative,
-        command,
-        substitution: SCRIPT_SUBSTITUTION,
-        executable: true,
-        shadowed_by: &[],
+        proposal: Ok(Proposal {
+            command,
+            substitution: SCRIPT_SUBSTITUTION,
+            executable: true,
+            shadowed_by: &[],
+        }),
     };
     vec![
         script("scripts/test.sh", "./scripts/test.sh"),
@@ -295,23 +335,33 @@ fn candidates() -> Vec<Candidate> {
         script("verify.sh", "./verify.sh"),
         Candidate {
             relative: "Makefile",
-            command: "make -f Makefile test",
-            substitution: "test:\n\ttrue\n",
-            executable: false,
-            shadowed_by: &["GNUmakefile", "makefile"],
+            proposal: Ok(Proposal {
+                command: "make -f Makefile test",
+                substitution: "test:\n\ttrue\n",
+                executable: false,
+                shadowed_by: &["GNUmakefile", "makefile"],
+            }),
         },
         Candidate {
             relative: "package.json",
-            command: "npm test --silent",
-            substitution: "{\"scripts\":{\"test\":\"exit 0\"}}\n",
-            executable: false,
-            shadowed_by: &[],
+            // Fixing these bytes would fix the text of a script and not the program that runs it:
+            // npm takes the shell each script runs in from `.npmrc`, a file of the candidate's, so
+            // a candidate carrying `script-shell` chooses what decides it while package.json
+            // stands untouched. Beyond that, a verifier here runs with a path holding no npm, so
+            // the program would reject every candidate including one that did the work — and a
+            // demonstration that asks only for rejections would carry it into a contract anyway.
+            // Holding npm to a contract is its own problem and is not solved by writing a command
+            // here.
+            proposal: Err(
+                "npm takes the program that runs each script from files the candidate carries, so \
+                 fixing this file does not fix what decides a candidate",
+            ),
         },
     ]
 }
 
 /// The way this project runs its tests, when ymp recognises one.
-pub fn detect_test_entry_point(source: &Path) -> Option<TestEntryPoint> {
+pub fn detect_test_entry_point(source: &Path) -> Option<TestEntry> {
     for candidate in candidates() {
         let path = source.join(candidate.relative);
         if !path.is_file() {
@@ -323,26 +373,39 @@ pub fn detect_test_entry_point(source: &Path) -> Option<TestEntryPoint> {
         if candidate.relative == "package.json" && !names_a_script(&path, "test") {
             continue;
         }
-        if candidate.executable && !is_executable(&path).unwrap_or(false) {
+        let unsupported = |reason: String| {
+            Some(TestEntry::Unsupported {
+                relative_path: PathBuf::from(candidate.relative),
+                reason,
+            })
+        };
+        let proposal = match candidate.proposal {
+            Ok(proposal) => proposal,
+            Err(reason) => return unsupported(reason.to_owned()),
+        };
+        if proposal.executable && !is_executable(&path).unwrap_or(false) {
             continue;
         }
         // A project that already carries a name this command reads first is not proposed from this
-        // file. A verifier fixed to bytes the command never reads would reject every candidate,
-        // including one that did the work, and would say nothing about it.
-        if candidate
+        // file either. A verifier fixed to bytes the command never reads would reject every
+        // candidate, including one that did the work, and would say nothing about why.
+        if let Some(read_first) = proposal
             .shadowed_by
             .iter()
-            .any(|name| names_an_entry(path.parent().unwrap_or(source), name))
+            .find(|name| names_an_entry(path.parent().unwrap_or(source), name))
         {
-            continue;
+            return unsupported(format!(
+                "this project also carries {read_first}, which the command reads in preference to \
+                 it, so fixing this file would fix one the tests never run"
+            ));
         }
-        return Some(TestEntryPoint {
+        return Some(TestEntry::Supported(TestEntryPoint {
             relative_path: PathBuf::from(candidate.relative),
-            command: candidate.command.to_owned(),
-            substitution: candidate.substitution.to_owned(),
-            substitution_is_executable: candidate.executable,
-            shadowed_by: candidate.shadowed_by,
-        });
+            command: proposal.command.to_owned(),
+            substitution: proposal.substitution.to_owned(),
+            substitution_is_executable: proposal.executable,
+            shadowed_by: proposal.shadowed_by,
+        }));
     }
     None
 }
@@ -429,8 +492,19 @@ const NOT_COPIED: [&str; 5] = [".git", "target", "node_modules", ".ymp-data", ".
 /// durably; [`refuses_a_substituted_entry_point_within`] decides whether what was assembled can
 /// judge anything, and the operator decides whether it may.
 pub fn assemble(source: &Path, workspace: &Path) -> Result<Assembled, AnswerError> {
-    let entry_point = detect_test_entry_point(source)
-        .ok_or_else(|| AnswerError::NoTestEntryPoint(source.into()))?;
+    let entry_point = match detect_test_entry_point(source) {
+        Some(TestEntry::Supported(entry_point)) => entry_point,
+        Some(TestEntry::Unsupported {
+            relative_path,
+            reason,
+        }) => {
+            return Err(AnswerError::TestEntryPointNotSupported {
+                path: source.join(relative_path),
+                reason,
+            });
+        }
+        None => return Err(AnswerError::NoTestEntryPoint(source.into())),
+    };
     let failed = |reason: String| AnswerError::Workspace {
         path: workspace.to_path_buf(),
         reason,

@@ -21,6 +21,11 @@
 //! candidate that keeps the entry point byte for byte and rewrites the script it sources is
 //! accepted. The draft states that boundary rather than claiming the acceptance condition is
 //! altogether beyond the candidate's reach.
+//!
+//! Two ways of running tests are recognised and not proposed from: a makefile the command would
+//! not read, and npm, whose scripts are run by a program the candidate chooses. Both are refused by
+//! name and reason, because an operator told their project runs no tests has no way to see that
+//! stating a verifier of their own is what is left to them.
 
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -63,11 +68,21 @@ fn project() -> Project {
 /// A project that runs its tests through make, which is where the name a command reads first is a
 /// second way into acceptance.
 fn makefile_project() -> Project {
+    let project = bare_project();
+    fs::write(
+        project.directory.join("Makefile"),
+        b"test:\n\ttest -f result.txt\n",
+    )
+    .expect("project file");
+    project
+}
+
+/// A directory with nothing in it yet, so a test can put in exactly what it is about.
+fn bare_project() -> Project {
     let root = TempDir::new().expect("temporary root");
     let directory = root.path().canonicalize().expect("resolve root");
     let source = directory.join("project");
     fs::create_dir_all(&source).expect("project directory");
-    fs::write(source.join("Makefile"), b"test:\n\ttest -f result.txt\n").expect("project file");
     Project {
         _root: root,
         workspace: directory.join("draft"),
@@ -324,15 +339,72 @@ fn a_candidate_that_added_a_file_the_command_reads_first_is_rejected() {
     );
 }
 
-/// A project that already carries a name the command reads first is not proposed a verifier fixed
-/// to a file that command never reads. Such a verifier would reject every candidate, including one
-/// that did the work, and would say nothing about why.
+/// A project that runs its tests in a way the product does not fix is told which file stands in
+/// the way, not told it runs no tests.
+///
+/// The operator can then state a verifier of their own, which they cannot do if the product
+/// reports the project as running nothing. Two ways of running tests reach this: a makefile the
+/// command would not read, and npm, whose scripts are run by a program the candidate chooses.
 #[test]
-fn a_project_whose_command_would_read_another_file_first_is_not_proposed_this_one() {
-    let project = makefile_project();
-    fs::write(project.directory.join("GNUmakefile"), b"test:\n\ttrue\n").expect("a second file");
-    let refusal = assemble(&project.directory, &project.workspace)
+fn a_way_of_running_tests_the_product_does_not_fix_is_refused_by_name_and_reason() {
+    let makefile = makefile_project();
+    fs::write(makefile.directory.join("GNUmakefile"), b"test:\n\ttrue\n").expect("a second file");
+    let refusal = assemble(&makefile.directory, &makefile.workspace)
         .expect_err("a verifier was proposed from a file the command would not read");
+    assert!(
+        matches!(refusal, AnswerError::TestEntryPointNotSupported { .. }),
+        "{refusal}"
+    );
+    let refusal = refusal.to_string();
+    for named in [
+        "Makefile",
+        "GNUmakefile",
+        "reads in preference",
+        "state a verifier of your own",
+    ] {
+        assert!(
+            refusal.contains(named),
+            "the refusal does not name {named}: {refusal}"
+        );
+    }
+
+    let npm = bare_project();
+    fs::write(
+        npm.directory.join("package.json"),
+        b"{\"scripts\":{\"test\":\"test -f result.txt\"}}\n",
+    )
+    .expect("a project that runs its tests through npm");
+    let refusal = assemble(&npm.directory, &npm.workspace)
+        .expect_err("a verifier was proposed from a file that does not decide what runs");
+    assert!(
+        matches!(refusal, AnswerError::TestEntryPointNotSupported { .. }),
+        "{refusal}"
+    );
+    let refusal = refusal.to_string();
+    for named in [
+        "package.json",
+        "files the candidate carries",
+        "state a verifier of your own",
+    ] {
+        assert!(
+            refusal.contains(named),
+            "the refusal does not name {named}: {refusal}"
+        );
+    }
+    assert!(
+        !refusal.contains("no test entry point"),
+        "a project that plainly runs tests is reported as running none: {refusal}"
+    );
+}
+
+/// A project that runs no tests this product recognises is still told exactly that, so the refusal
+/// above is about the way tests are run and not about every project.
+#[test]
+fn a_project_that_runs_no_tests_this_product_recognises_is_told_so() {
+    let project = bare_project();
+    fs::write(project.directory.join("README.md"), b"a project\n").expect("project file");
+    let refusal = assemble(&project.directory, &project.workspace)
+        .expect_err("nothing can be proposed from a project that runs no tests");
     assert!(
         matches!(refusal, AnswerError::NoTestEntryPoint(_)),
         "{refusal}"
