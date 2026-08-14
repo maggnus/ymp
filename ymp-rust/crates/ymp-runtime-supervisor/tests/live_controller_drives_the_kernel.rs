@@ -31,6 +31,17 @@ use ymp_runtime_supervisor::{
     start_unattested_managed_candidate,
 };
 
+/// How the scripted runtime behaves at the two points a supervised run can end badly at: the
+/// interruption a cancellation reaches it through, and the resumption a wake drives.
+#[derive(Clone, Copy, Eq, PartialEq)]
+enum Disposition {
+    /// The runtime answers an interruption with an interruption, which is what the fixture runtime
+    /// does on its own.
+    Orderly,
+    /// Supervision of this run dies of a panic while it drives the runtime.
+    PanicsWhenResumed,
+}
+
 /// A runtime that yields through the coordination tool the way a supervised participant does. It
 /// yields once for each step of its script and submits its candidate when it has no yields left.
 struct YieldingRuntime {
@@ -39,6 +50,7 @@ struct YieldingRuntime {
     /// the runtime down after it has recorded the terminal of the slice and before it reports
     /// itself finished, so holding it there is what puts a controller inside that window.
     teardown: Option<Arc<AtomicBool>>,
+    disposition: Disposition,
 }
 
 impl RuntimeDriver for YieldingRuntime {
@@ -80,6 +92,7 @@ impl RuntimeDriver for YieldingRuntime {
             taken,
             yields: self.yields,
             teardown: self.teardown.clone(),
+            disposition: self.disposition,
         }))
     }
 }
@@ -90,6 +103,7 @@ struct YieldingSession {
     taken: AtomicU32,
     yields: u32,
     teardown: Option<Arc<AtomicBool>>,
+    disposition: Disposition,
 }
 
 /// Winding the runtime down is where the worker spends the time between recording the terminal of
@@ -116,6 +130,10 @@ impl RuntimeSession for YieldingSession {
     /// recorded through the coordination tool, which is what the controller classifies the slice
     /// by.
     fn resume(&mut self, input: String) -> Result<(), RuntimeError> {
+        assert!(
+            self.disposition != Disposition::PanicsWhenResumed,
+            "the supervision of this run died while it drove the runtime"
+        );
         self.inner.resume(input)?;
         let taken = self.taken.fetch_add(1, Ordering::Relaxed);
         let call = if taken < self.yields {
@@ -149,10 +167,10 @@ struct Fixture {
 }
 
 fn start(yields: u32) -> Fixture {
-    start_with(yields, None)
+    start_with(yields, None, Disposition::Orderly)
 }
 
-fn start_with(yields: u32, teardown: Option<Arc<AtomicBool>>) -> Fixture {
+fn start_with(yields: u32, teardown: Option<Arc<AtomicBool>>, disposition: Disposition) -> Fixture {
     let temporary = tempfile::tempdir().expect("temporary directory");
     let source = temporary.path().join("source");
     std::fs::create_dir(&source).expect("source directory");
@@ -163,7 +181,11 @@ fn start_with(yields: u32, teardown: Option<Arc<AtomicBool>>) -> Fixture {
     ));
     let handle = start_unattested_managed_candidate(
         Arc::clone(&application),
-        Box::new(YieldingRuntime { yields, teardown }),
+        Box::new(YieldingRuntime {
+            yields,
+            teardown,
+            disposition,
+        }),
         ManagedCandidateRequest {
             contract: ManagedContract {
                 contract_id: "contract-yield".to_owned(),
@@ -221,12 +243,27 @@ fn wait_for_candidate(handle: &ManagedRunHandle) -> String {
 }
 
 fn drain_until_finished(handle: &ManagedRunHandle) {
+    let _ = failures_until_finished(handle);
+}
+
+/// Drain the run to its end and answer with what it reported as failing. It is what the run says
+/// about itself, next to what the two records of its terminal say.
+fn failures_until_finished(handle: &ManagedRunHandle) -> Vec<String> {
     let deadline = Instant::now() + Duration::from_secs(10);
+    let mut failures = Vec::new();
+    let take = |handle: &ManagedRunHandle, failures: &mut Vec<String>| {
+        while let Some(event) = handle.try_next() {
+            if let ManagedRunEvent::Failed { detail } = event {
+                failures.push(detail);
+            }
+        }
+    };
     while Instant::now() < deadline && !handle.is_finished() {
-        while handle.try_next().is_some() {}
+        take(handle, &mut failures);
         std::thread::sleep(Duration::from_millis(5));
     }
-    while handle.try_next().is_some() {}
+    take(handle, &mut failures);
+    failures
 }
 
 /// One live resumption, read out of the committed facts rather than out of the controller.
@@ -577,7 +614,7 @@ fn cancelling_a_finished_run_reaches_the_kernel_and_refuses_a_later_verdict() {
 #[test]
 fn a_cancellation_inside_the_teardown_window_reaches_the_kernel() {
     let teardown = Arc::new(AtomicBool::new(false));
-    let fixture = start_with(1, Some(Arc::clone(&teardown)));
+    let fixture = start_with(1, Some(Arc::clone(&teardown)), Disposition::Orderly);
     let handle = &fixture.handle;
     wait_until_yielded(handle);
     handle.wake("wake-1", "continue once").expect("the wake");
@@ -801,5 +838,75 @@ fn a_cancelled_live_run_reaches_the_same_terminal_in_both_records() {
             .state()
             .status,
         RunStatus::Cancelled
+    );
+}
+
+/// A worker that dies of a panic still drives the run to a kernel terminal.
+///
+/// A panic used to take the ending of the run with it: the thread unwound, the slice stayed open,
+/// the run reached no terminal at all, and a cancellation issued afterwards moved the journal alone
+/// and reported success for stopping a run the kernel still held running. Supervision that dies is
+/// an infrastructure failure, and it is recorded as one before the worker leaves.
+#[test]
+fn a_worker_that_dies_of_a_panic_still_reaches_a_kernel_terminal() {
+    let fixture = start_with(1, None, Disposition::PanicsWhenResumed);
+    let handle = &fixture.handle;
+    wait_until_yielded(handle);
+    handle.wake("wake-1", "continue once").expect("the wake");
+    let failures = failures_until_finished(handle);
+
+    assert!(
+        handle.is_finished(),
+        "the worker died without reporting the run finished"
+    );
+    assert!(
+        failures
+            .iter()
+            .any(|detail| detail.contains("managed_runtime_worker_panicked")),
+        "the run reported nothing about the supervision that died: {failures:?}"
+    );
+    assert_eq!(
+        handle.kernel().root_terminal().expect("the terminal"),
+        Some(RootTerminal::InfrastructureError),
+        "the run whose supervision died holds no kernel terminal"
+    );
+    assert_eq!(
+        fixture
+            .application
+            .lock()
+            .expect("application")
+            .state()
+            .status,
+        RunStatus::InfrastructureError,
+        "the journal reports a run the kernel ended as still open"
+    );
+
+    // The run is over, and neither of the two commands that end one moves it any further.
+    assert!(
+        handle
+            .verified(
+                &digest_bytes(b"a bundle nothing committed"),
+                Verdict::Passed
+            )
+            .is_err(),
+        "the kernel judged a run whose supervision died"
+    );
+    handle
+        .cancel("stopped after the supervision died")
+        .expect("cancel");
+    assert_eq!(
+        handle.kernel().root_terminal().expect("the terminal"),
+        Some(RootTerminal::InfrastructureError),
+        "a later cancellation renamed the terminal the kernel already held"
+    );
+    assert_eq!(
+        fixture
+            .application
+            .lock()
+            .expect("application")
+            .state()
+            .status,
+        RunStatus::InfrastructureError,
+        "a later cancellation renamed the terminal the journal already held"
     );
 }
