@@ -1049,10 +1049,21 @@ fn start_candidate(
                     // the run as cancelled. The two records would then name different terminals
                     // for one run, and the kernel's would name a fault where an operator had
                     // merely stopped the work.
+                    //
+                    // A limit the slice ran out of is the one thing a cancellation does not absorb.
+                    // It is not a failure the interruption produced but a measure of what the run
+                    // consumed, and a cancellation arriving afterwards neither caused it nor gives
+                    // the run the budget back. The run is still stopped as cancelled, in both
+                    // records, and the slice closes on the limit so that the overrun is accounted
+                    // for rather than lost to whichever ending arrived last.
                     let terminal = take_terminal(&worker_terminal);
                     let cancelled = worker_cancellation.is_cancelled();
                     worker_kernel.terminated(if cancelled {
-                        ManagedTermination::Cancelled
+                        if terminal_failure == Some("managed_runtime_timed_out") {
+                            ManagedTermination::CancelledPastLimit
+                        } else {
+                            ManagedTermination::Cancelled
+                        }
                     } else {
                         match terminal_failure {
                             Some("managed_runtime_timed_out") => {

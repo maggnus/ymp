@@ -17,13 +17,13 @@ use ymp_agent_api::{AgentToolCall, AgentToolHandler, SubmitArguments, YieldArgum
 use ymp_agent_rpc::SocketToolHandler;
 use ymp_application::Application;
 use ymp_domain::commitment::{
-    CommitmentEvent, CommitmentLedger, InvocationState, ObligationState, OpenAuthority,
-    RootTerminal, Verdict, WakeCondition,
+    CommitmentEvent, CommitmentLedger, InvocationClosure, InvocationState, ObligationState,
+    OpenAuthority, RootTerminal, Verdict, WakeCondition,
 };
 use ymp_domain::{Budget, RunStatus, digest_bytes};
 use ymp_runtime_api::{
-    InvocationRequest, ProbeReport, RuntimeDriver, RuntimeError, RuntimeEvent, RuntimeKind,
-    RuntimeSession, Usage,
+    InvocationRequest, ProbeReport, RuntimeDriver, RuntimeError, RuntimeEvent, RuntimeEventKind,
+    RuntimeKind, RuntimeSession, Usage,
 };
 use ymp_runtime_fake::{FakeRuntime, ScriptStep};
 use ymp_runtime_supervisor::{
@@ -42,6 +42,10 @@ enum Disposition {
     /// of it, and the runtime reports that failure instead of an interruption. This is how a
     /// cancellation reaches a runtime that is working rather than waiting.
     FailsWhenInterrupted,
+    /// The wall-time limit of this runtime had already run out when the interruption reached it,
+    /// so what it reports on its way out is the limit it exceeded and not the interruption. This
+    /// is how an expired limit and an operator's cancellation land in the same window.
+    ExceedsItsLimitWhenInterrupted,
     /// Supervision of this run dies of a panic while it drives the runtime.
     PanicsWhenResumed,
 }
@@ -90,6 +94,7 @@ impl RuntimeDriver for YieldingRuntime {
                 command_id: "agent.yield.0".to_owned(),
             }))
             .map_err(|error| RuntimeError::RuntimeReportedFailure(error.to_string()))?;
+        let invocation_id = request.invocation_id.clone();
         Ok(Box::new(YieldingSession {
             inner: FakeRuntime::with_script(script).start(request)?,
             controller,
@@ -98,6 +103,9 @@ impl RuntimeDriver for YieldingRuntime {
             teardown: self.teardown.clone(),
             disposition: self.disposition,
             interrupted: false,
+            invocation_id,
+            last_sequence: 0,
+            limit_reported: false,
         }))
     }
 }
@@ -110,6 +118,11 @@ struct YieldingSession {
     teardown: Option<Arc<AtomicBool>>,
     disposition: Disposition,
     interrupted: bool,
+    /// The identity and the ordering of the events this session has passed on, so that an event it
+    /// reports on its own continues the same numbered progression the controller validates.
+    invocation_id: String,
+    last_sequence: u64,
+    limit_reported: bool,
 }
 
 /// Winding the runtime down is where the worker spends the time between recording the terminal of
@@ -136,7 +149,29 @@ impl RuntimeSession for YieldingSession {
                 "the tool call in flight failed when the interruption reached it".to_owned(),
             ));
         }
-        self.inner.next_event()
+        // The wall-time limit ran out while the runtime worked, and the interruption reached it
+        // afterwards. What it has to report is therefore the limit and not the interruption.
+        if self.interrupted && self.disposition == Disposition::ExceedsItsLimitWhenInterrupted {
+            if self.limit_reported {
+                return Ok(None);
+            }
+            self.limit_reported = true;
+            self.last_sequence += 1;
+            return Ok(Some(RuntimeEvent {
+                sequence: self.last_sequence,
+                event_id: format!("{}.event-timed-out", self.invocation_id),
+                invocation_id: self.invocation_id.clone(),
+                event: RuntimeEventKind::TimedOut {
+                    limit_ms: 1,
+                    usage: Usage::default(),
+                },
+            }));
+        }
+        let event = self.inner.next_event()?;
+        if let Some(event) = &event {
+            self.last_sequence = event.sequence;
+        }
+        Ok(event)
     }
 
     /// A resumed participant either asks to be paused again or finishes its work. Both are
@@ -848,6 +883,20 @@ fn a_cancelled_live_run_reaches_the_same_terminal_in_both_records() {
         handle.kernel().root_terminal().expect("the terminal"),
         Some(RootTerminal::Cancelled)
     );
+    // A slice that ran nothing out closed of the cancellation and of nothing else. Stated here so
+    // that the closure a stopped run records cannot drift into the vocabulary reserved for a run
+    // that exceeded something.
+    assert_eq!(
+        handle
+            .kernel()
+            .snapshot()
+            .expect("the ledger")
+            .invocations()
+            .get(handle.invocation_id())
+            .expect("the recorded slice")
+            .closure,
+        Some(InvocationClosure::Cancelled)
+    );
     assert_eq!(
         handle
             .kernel()
@@ -1033,6 +1082,55 @@ fn a_poisoned_journal_still_records_the_terminal_of_the_run() {
         journal_status(&fixture),
         RunStatus::InfrastructureError,
         "the journal reports as running a run the kernel has ended"
+    );
+}
+
+/// A limit that ran out is accounted for even when a cancellation lands in the same window.
+///
+/// A cancellation is what a run ends of whenever it arrives, and both records name it: that is what
+/// keeps an operator's stop from being reported as a fault. An exhausted limit is not something the
+/// cancellation caused, though, and it is a fact about what the run consumed rather than a competing
+/// account of who ended it. Classifying the ending by the cancellation alone dropped it: the slice
+/// closed as cancelled and the exceeded limit appeared nowhere. The run is therefore stopped as
+/// cancelled, in both records, while the slice closes on the limit it ran out of.
+#[test]
+fn a_limit_that_expired_survives_a_cancellation_in_the_same_window() {
+    let fixture = start_with(1, None, Disposition::ExceedsItsLimitWhenInterrupted);
+    let handle = &fixture.handle;
+    wait_until_yielded(handle);
+    handle.cancel("stopped by the operator").expect("cancel");
+    drain_until_finished(handle);
+
+    let closure = handle
+        .kernel()
+        .snapshot()
+        .expect("the ledger")
+        .invocations()
+        .get(handle.invocation_id())
+        .expect("the recorded slice")
+        .closure;
+    assert_eq!(
+        closure,
+        Some(InvocationClosure::LimitExceeded),
+        "the limit the run exceeded is absent from the accounting of the slice"
+    );
+    assert_eq!(
+        handle.kernel().root_terminal().expect("the terminal"),
+        Some(RootTerminal::Cancelled),
+        "the run an operator stopped holds another terminal"
+    );
+    assert_eq!(
+        journal_status(&fixture),
+        RunStatus::Cancelled,
+        "the journal records a terminal the kernel does not hold"
+    );
+    assert_eq!(
+        handle
+            .kernel()
+            .open_authority()
+            .expect("the open authority"),
+        None,
+        "a stopped run is still held open"
     );
 }
 
