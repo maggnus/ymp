@@ -122,9 +122,14 @@ fn a_request_alone_reaches_a_drafted_contract() {
     assert!(
         transcript.contains(
             "rejected the negative control, and rejected a candidate that had \
-             replaced this project's test entry point"
+             replaced scripts/test.sh with a program accepting everything"
         ),
         "the draft does not state both halves of what was demonstrated:\n{transcript}"
+    );
+    // And it bounds what it demonstrated to the one file it fixed.
+    assert!(
+        transcript.contains("what that file runs in turn"),
+        "the draft states no boundary for what it fixed:\n{transcript}"
     );
 
     // One statement, not a sequence of questions.

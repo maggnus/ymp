@@ -7,10 +7,20 @@
 //! that one file is where a candidate can decide its own run: replace `scripts/test.sh` with
 //! `exit 0` and every candidate is accepted, including one that holds no work at all.
 //!
-//! The negative half is kept here as a program: `delegating_without_fixed_bytes` is the shape this
-//! product wrote before, and it accepts exactly that candidate. The proposed verifier carries the
-//! bytes of the entry point instead, so the same candidate is rejected before its tests are run,
-//! while a candidate that left the entry point alone and did the work is still accepted.
+//! Choosing that file has two ways in, and each has its negative half kept here as a program.
+//! `delegating_without_fixed_bytes` is the shape this product wrote first: it runs whatever the
+//! candidate keeps at that path, and accepts a candidate that wrote `exit 0` there.
+//! `fixing_bytes_but_not_the_name` is the shape that followed: it fixes what the file holds but
+//! lets `make test` pick which file to read, and accepts a candidate that kept the fixed `Makefile`
+//! byte for byte and added a `GNUmakefile`. The proposed verifier settles both, so both candidates
+//! are rejected before any tests run, while a candidate that left the file alone and did the work
+//! is still accepted.
+//!
+//! One file is fixed and no more.
+//! `what_the_fixed_entry_point_runs_in_turn_stays_the_candidates_own` measures where that ends: a
+//! candidate that keeps the entry point byte for byte and rewrites the script it sources is
+//! accepted. The draft states that boundary rather than claiming the acceptance condition is
+//! altogether beyond the candidate's reach.
 
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -50,6 +60,22 @@ fn project() -> Project {
     }
 }
 
+/// A project that runs its tests through make, which is where the name a command reads first is a
+/// second way into acceptance.
+fn makefile_project() -> Project {
+    let root = TempDir::new().expect("temporary root");
+    let directory = root.path().canonicalize().expect("resolve root");
+    let source = directory.join("project");
+    fs::create_dir_all(&source).expect("project directory");
+    fs::write(source.join("Makefile"), b"test:\n\ttest -f result.txt\n").expect("project file");
+    Project {
+        _root: root,
+        workspace: directory.join("draft"),
+        root: directory,
+        directory: source,
+    }
+}
+
 impl Project {
     fn assembled(&self) -> Assembled {
         assemble(&self.directory, &self.workspace).expect("the project names a test entry point")
@@ -78,6 +104,20 @@ impl Project {
         );
         fs::write(candidate.join("result.txt"), b"done\n").expect("the work");
         candidate
+    }
+
+    /// The verifier this product wrote when it fixed the bytes of a makefile but still let `make`
+    /// choose which file to read.
+    fn fixing_bytes_but_not_the_name(&self) -> PathBuf {
+        let program = self.root.join("named-by-make.sh");
+        executable(
+            &program,
+            "#!/bin/sh\ncd \"$1\" || exit 1\nentry='Makefile'\napproved=$(cat <<'FIXED'\n\
+             test:\n\ttest -f result.txt\nFIXED\n)\npresent=$(cat -- \"$entry\" 2>/dev/null) || \
+             present=\nif [ \"$approved\" != \"$present\" ]; then exit 1; fi\nmake test\n\
+             if [ $? -eq 0 ]; then exit 0; fi\nexit 1\n",
+        );
+        program
     }
 
     /// The verifier this product wrote before the entry point's bytes were fixed into it: it runs
@@ -138,7 +178,7 @@ fn a_verifier_that_runs_whatever_the_candidate_keeps_there_accepts_a_candidate_h
     let refusal = refuses_a_substituted_entry_point_within(
         &delegating,
         &assembled.negative_control,
-        &assembled.substitution_control,
+        &assembled.substitution_controls,
         limit(),
     )
     .expect_err("a verifier the candidate can rewrite was carried into a contract");
@@ -208,18 +248,133 @@ fn a_candidate_that_left_the_entry_point_alone_and_did_the_work_is_accepted() {
     );
 }
 
-/// Both halves the draft demonstrates before it is shown, in one call through the run's executor.
+/// Every rejection the draft demonstrates before it is shown, through the run's own executor.
 #[test]
-fn the_assembled_draft_demonstrates_both_rejections() {
+fn the_assembled_draft_demonstrates_every_rejection_it_states() {
     let project = project();
     let assembled = project.assembled();
     refuses_a_substituted_entry_point_within(
         &assembled.program,
         &assembled.negative_control,
-        &assembled.substitution_control,
+        &assembled.substitution_controls,
         limit(),
     )
     .expect("the proposed verifier rejects the copy holding no result and the rewritten candidate");
+}
+
+/// Fixing what a file holds says nothing about which file is read. `make` reads `GNUmakefile`
+/// before `makefile` before `Makefile`, so a candidate that keeps the fixed `Makefile` byte for
+/// byte and adds a `GNUmakefile` whose `test` target succeeds has still chosen what decides it.
+#[test]
+fn a_candidate_that_added_a_file_the_command_reads_first_is_rejected() {
+    let project = makefile_project();
+    let assembled = project.assembled();
+
+    // The candidate the review measured accepted: the fixed file untouched, the work not done, and
+    // a name make reads in preference to it.
+    let shadowed = project.root.join("shadowed");
+    fs::create_dir_all(&shadowed).expect("candidate directory");
+    fs::copy(
+        project.directory.join("Makefile"),
+        shadowed.join("Makefile"),
+    )
+    .expect("the fixed file");
+    fs::write(shadowed.join("GNUmakefile"), b"test:\n\ttrue\n").expect("the file make reads first");
+
+    // The half that fails without the fix, kept as a program: bytes fixed, `make test` left to
+    // choose its own file, and the candidate above accepted on the strength of that choice.
+    assert!(
+        accepts(&project.fixing_bytes_but_not_the_name(), &shadowed),
+        "the shape this product wrote before no longer accepts the candidate the review measured \
+         it accepting, so the half this rework must fix is not being measured"
+    );
+
+    assert!(
+        !accepts(&assembled.program, &shadowed),
+        "a candidate that added GNUmakefile beside the fixed Makefile was accepted"
+    );
+
+    // Both controls of the same measurement: without that file the same candidate is rejected for
+    // holding no work, and with the work done it is accepted.
+    let plain = project.root.join("plain");
+    fs::create_dir_all(&plain).expect("candidate directory");
+    fs::copy(project.directory.join("Makefile"), plain.join("Makefile")).expect("the fixed file");
+    assert!(
+        !accepts(&assembled.program, &plain),
+        "a candidate holding no work was accepted"
+    );
+    fs::write(plain.join("result.txt"), b"done\n").expect("the work");
+    assert!(
+        accepts(&assembled.program, &plain),
+        "a candidate that did the work and touched nothing else was rejected"
+    );
+
+    // And the draft demonstrates it rather than only claiming it.
+    refuses_a_substituted_entry_point_within(
+        &assembled.program,
+        &assembled.negative_control,
+        &assembled.substitution_controls,
+        limit(),
+    )
+    .expect("the proposed verifier rejects every candidate the product builds for it");
+    assert_eq!(
+        assembled.substitution_controls.len(),
+        3,
+        "the demonstration does not cover both the rewrite and each name read in preference"
+    );
+}
+
+/// A project that already carries a name the command reads first is not proposed a verifier fixed
+/// to a file that command never reads. Such a verifier would reject every candidate, including one
+/// that did the work, and would say nothing about why.
+#[test]
+fn a_project_whose_command_would_read_another_file_first_is_not_proposed_this_one() {
+    let project = makefile_project();
+    fs::write(project.directory.join("GNUmakefile"), b"test:\n\ttrue\n").expect("a second file");
+    let refusal = assemble(&project.directory, &project.workspace)
+        .expect_err("a verifier was proposed from a file the command would not read");
+    assert!(
+        matches!(refusal, AnswerError::NoTestEntryPoint(_)),
+        "{refusal}"
+    );
+}
+
+/// The boundary the draft states, measured: one file is fixed, and what that file runs in turn is
+/// the candidate's own. A candidate that keeps the entry point byte for byte, rewrites the script
+/// it sources and does no work is accepted — which is why the draft says so instead of claiming
+/// the acceptance condition is beyond the candidate's reach.
+#[test]
+fn what_the_fixed_entry_point_runs_in_turn_stays_the_candidates_own() {
+    let project = project();
+    executable(
+        &project.directory.join("scripts/test.sh"),
+        "#!/bin/sh\n. ./scripts/lib.sh\ncheck\n",
+    );
+    fs::write(
+        project.directory.join("scripts/lib.sh"),
+        b"check() { test -f result.txt; }\n",
+    )
+    .expect("the file the entry point sources");
+    let assembled = project.assembled();
+
+    let second = project.root.join("second-file");
+    fs::create_dir_all(second.join("scripts")).expect("candidate directory");
+    fs::copy(
+        project.directory.join("scripts/test.sh"),
+        second.join("scripts/test.sh"),
+    )
+    .expect("the entry point, byte for byte");
+    executable(
+        &second.join("scripts/test.sh"),
+        "#!/bin/sh\n. ./scripts/lib.sh\ncheck\n",
+    );
+    fs::write(second.join("scripts/lib.sh"), b"check() { true; }\n").expect("the second file");
+
+    assert!(
+        accepts(&assembled.program, &second),
+        "a candidate that rewrote the file its test entry point sources was rejected, so the \
+         boundary the draft states is narrower than the program's and the statement is wrong"
+    );
 }
 
 /// An entry point is carried as data. A script that spells shell out of its own body, or names the

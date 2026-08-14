@@ -7,11 +7,16 @@
 //! and none of it starts anything.
 //!
 //! What the product supplies, it demonstrates. The proposed verifier has to reject the copy that
-//! holds no result, and reject a candidate that holds no result either and differs only in having
-//! replaced the project's test entry point with a program that accepts everything; a program that
-//! fails either half decides nothing and never reaches a draft. Assembling and demonstrating
-//! starts programs and waits for them, so this module hands that work back to the caller as a
-//! [`DraftJob`] rather than doing it where it was asked for.
+//! holds no result, and reject every candidate the product can build that holds no result either
+//! and reached acceptance through the file the verifier delegates to — one that rewrote it, one
+//! per name the command would read in preference to it. A program that fails any of those decides
+//! nothing and never reaches a draft. Assembling and demonstrating starts programs and waits for
+//! them, so this module hands that work back to the caller as a [`DraftJob`] rather than doing it
+//! where it was asked for.
+//!
+//! What the draft states is bounded by what was demonstrated. One file is fixed; what that file
+//! runs in turn stays the candidate's, and the statement says so rather than leaving the operator
+//! to read more into it than the program does.
 //!
 //! While the draft is unauthorized, the next typed line amends it — a different verifier, source,
 //! negative control or budget — and the amended draft is assembled again and restated. A line
@@ -262,7 +267,7 @@ impl DraftJob {
 
     fn assemble(self) -> Result<Assembly, String> {
         let mut stated = Vec::new();
-        let (program, negative_control, substitution_control) = match &self.program {
+        let (program, negative_control, substitution_controls) = match &self.program {
             // A verifier the operator named is theirs; the product supplies the control it must
             // reject and states that it has no sample of its own that this program must accept.
             Some(program) => {
@@ -278,8 +283,11 @@ impl DraftJob {
                 let assembled: Assembled = answer::assemble(&self.source, &self.workspace)
                     .map_err(|refusal| refusal.to_string())?;
                 stated.push(format!(
-                    "verifier {} — proposed from {}, which this project runs as `{}`, and it \
-                     carries the bytes that file has here, so a candidate cannot supply its own",
+                    "verifier {} — proposed from {}, which this project runs as `{}`. It carries \
+                     the bytes of that one file and runs no other by that name, so a candidate \
+                     cannot supply its own · what that file runs in turn — a script it sources, a \
+                     program a recipe calls — is the candidate's own, and changing one of those \
+                     changes what these tests do",
                     assembled.program.display(),
                     assembled.entry_point.relative_path.display(),
                     assembled.entry_point.command
@@ -291,7 +299,7 @@ impl DraftJob {
                 (
                     assembled.program,
                     control,
-                    Some(assembled.substitution_control),
+                    Some(assembled.substitution_controls),
                 )
             }
         };
@@ -307,23 +315,21 @@ impl DraftJob {
             ),
         });
 
-        match &substitution_control {
-            Some(substituted) => {
+        match &substitution_controls {
+            Some(controls) => {
                 answer::refuses_a_substituted_entry_point_within(
                     &program,
                     &negative_control,
-                    substituted,
+                    controls,
                     self.wall_limit,
                 )
                 .map_err(|refusal| refusal.to_string())?;
-                stated.push(
-                    "demonstrated: the verifier rejected the negative control, and rejected a \
-                     candidate that had replaced this project's test entry point with a program \
-                     accepting everything, so the condition is not the candidate's to rewrite · \
+                stated.push(format!(
+                    "demonstrated: the verifier rejected the negative control, and rejected {} · \
                      what it accepts is undemonstrated until a candidate satisfies the project's \
-                     own tests"
-                        .to_owned(),
-                );
+                     own tests",
+                    joined(controls.iter().map(|control| control.stated.as_str()))
+                ));
             }
             None => {
                 answer::discriminates_within(&program, &negative_control, self.wall_limit)
@@ -348,6 +354,17 @@ impl DraftJob {
             },
             stated,
         })
+    }
+}
+
+/// Several statements read as one sentence, so a draft states what it demonstrated rather than
+/// listing it.
+fn joined<'a>(parts: impl Iterator<Item = &'a str>) -> String {
+    let parts = parts.collect::<Vec<_>>();
+    match parts.split_last() {
+        None => String::new(),
+        Some((last, [])) => (*last).to_owned(),
+        Some((last, rest)) => format!("{}, and {last}", rest.join(", ")),
     }
 }
 
@@ -444,10 +461,41 @@ mod tests {
             assembly
                 .stated
                 .iter()
-                .any(|line| line.contains("replaced this project's test entry point")),
+                .any(|line| line.contains("replaced scripts/test.sh with a program accepting")),
             "the draft does not state what it demonstrated about the entry point: {:?}",
             assembly.stated
         );
+    }
+
+    /// What the draft promises is what the program does, no more.
+    ///
+    /// The operator authorizes on this statement, so it names the one file that is fixed and says
+    /// plainly that whatever that file runs in turn is still the candidate's. A candidate that
+    /// keeps the entry point byte for byte and rewrites the script it sources is accepted, and
+    /// `what_the_fixed_entry_point_runs_in_turn_stays_the_candidates_own` in `ymp-application`
+    /// measures that. A statement that claimed more would be read as covering it.
+    #[test]
+    fn the_draft_states_the_boundary_the_program_actually_holds() {
+        let project = project();
+        let mut draft = Draft::new("keep the replay path idempotent");
+        let assembly = draft
+            .job(&project.directory, &project.data_root.join("draft"), 1)
+            .run()
+            .expect("the project names a test entry point");
+        let stated = assembly.stated.join(" · ");
+
+        for promise in [
+            "carries the bytes of that one file",
+            "runs no other by that name",
+            "what that file runs in turn",
+            "is the candidate's own",
+            "what it accepts is undemonstrated",
+        ] {
+            assert!(
+                stated.contains(promise),
+                "the draft does not state `{promise}`: {stated}"
+            );
+        }
     }
 
     /// A project whose test entry point is not text this host can carry inside a shell program is

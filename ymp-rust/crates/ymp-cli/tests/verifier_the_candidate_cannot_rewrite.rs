@@ -35,15 +35,32 @@ struct Project {
     data_root: PathBuf,
 }
 
+/// What a project's makefile holds while the work is not done.
+const MAKEFILE: &str = "test:\n\ttest -f result.txt\n";
+
 /// A project as an operator has one: it runs its tests through a script of its own, and that
 /// script fails while the work is not done.
 fn project() -> Project {
+    let project = bare_project();
+    fs::write(project.directory.join("README.md"), b"a project\n").expect("project file");
+    fs::create_dir_all(project.directory.join("scripts")).expect("project directory");
+    executable(&project.directory.join("scripts/test.sh"), ENTRY_POINT);
+    project
+}
+
+/// A project that runs its tests through make, where the name a command reads first is a second
+/// way into acceptance and the fixed bytes alone say nothing about it.
+fn makefile_project() -> Project {
+    let project = bare_project();
+    fs::write(project.directory.join("Makefile"), MAKEFILE).expect("project file");
+    project
+}
+
+fn bare_project() -> Project {
     let holder = TempDir::new().expect("temporary root");
     let root = holder.path().canonicalize().expect("resolve root");
     let directory = root.join("work");
-    fs::create_dir_all(directory.join("scripts")).expect("project directory");
-    fs::write(directory.join("README.md"), b"a project\n").expect("project file");
-    executable(&directory.join("scripts/test.sh"), ENTRY_POINT);
+    fs::create_dir_all(&directory).expect("project directory");
     Project {
         _root: holder,
         data_root: root.join("data"),
@@ -128,6 +145,21 @@ impl Project {
         program
     }
 
+    /// A candidate of a make project: the fixed makefile byte for byte, whatever else is named,
+    /// and the work done or not.
+    fn make_candidate(&self, name: &str, beside: Option<(&str, &str)>, worked: bool) -> PathBuf {
+        let candidate = self.root.join(name);
+        fs::create_dir_all(&candidate).expect("candidate directory");
+        fs::write(candidate.join("Makefile"), MAKEFILE).expect("the fixed file, byte for byte");
+        if let Some((named, contents)) = beside {
+            fs::write(candidate.join(named), contents).expect("the file named beside it");
+        }
+        if worked {
+            fs::write(candidate.join("result.txt"), b"done\n").expect("the work");
+        }
+        candidate
+    }
+
     /// Whether the named program accepted the named directory, as the product reports it.
     fn accepts(&self, program: &Path, candidate: &Path) -> bool {
         let output = self.run(&[
@@ -185,5 +217,35 @@ fn the_proposed_verifier_rejects_a_candidate_that_rewrote_its_own_test_entry_poi
         project.accepts(&proposed, &project.satisfying()),
         "a candidate carrying the project's own test entry point and the work it asks for was \
          rejected, so the verifier can never accept anything"
+    );
+}
+
+/// The review's measurement: fixing what a file holds settles nothing about which file is read.
+///
+/// `make` reads `GNUmakefile` before `Makefile`, so a candidate that keeps the fixed makefile byte
+/// for byte, adds a `GNUmakefile` whose `test` target succeeds and does no work was accepted. Both
+/// controls are here so the rejection is the shadow being refused and not the project being
+/// undecidable: without that file the same candidate is rejected for holding no work, and with the
+/// work done it is accepted.
+#[test]
+fn the_proposed_verifier_rejects_a_candidate_that_named_a_file_the_command_reads_first() {
+    let project = makefile_project();
+    let proposed = project.proposed_verifier();
+
+    assert!(
+        !project.accepts(
+            &proposed,
+            &project.make_candidate("shadowed", Some(("GNUmakefile", "test:\n\ttrue\n")), false)
+        ),
+        "a candidate that kept the fixed Makefile and added a GNUmakefile make reads first was \
+         accepted"
+    );
+    assert!(
+        !project.accepts(&proposed, &project.make_candidate("plain", None, false)),
+        "a candidate holding no work was accepted"
+    );
+    assert!(
+        project.accepts(&proposed, &project.make_candidate("worked", None, true)),
+        "a candidate that did the work and touched nothing else was rejected"
     );
 }

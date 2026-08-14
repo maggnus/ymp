@@ -114,9 +114,10 @@ fn a_typed_request_becomes_a_contract_and_starts_a_run_the_journal_records() {
         .join(" ");
     assert!(stated.contains("scripts/test.sh"), "{stated}");
     assert!(
-        stated.contains("replaced this project's test entry point"),
+        stated.contains("replaced scripts/test.sh with a program accepting everything"),
         "{stated}"
     );
+    assert!(stated.contains("what that file runs in turn"), "{stated}");
 
     // The contract is drafted, nothing is started, and the coverage map offers the run.
     assert!(app.data.run.is_none(), "a run started before authorization");
