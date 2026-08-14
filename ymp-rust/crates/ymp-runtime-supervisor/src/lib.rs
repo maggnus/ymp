@@ -371,7 +371,11 @@ pub struct ManagedRunHandle {
     /// and a handle no two threads could hold would put that serialization out of reach of anything
     /// but the worker.
     receiver: Mutex<Receiver<ManagedRunEvent>>,
-    control_sender: Sender<ManagedControl>,
+    /// The sending end of the channel a yielded slice waits on. It is released before the worker is
+    /// waited for, so it is held in an option rather than outright: a handle that is winding the run
+    /// down is the only thing that could still send a wake, and holding the channel open while
+    /// waiting would be waiting for a wake nobody can send.
+    control_sender: Option<Sender<ManagedControl>>,
     /// The committed record of this run's process slice. Whether the slice may resume is decided
     /// here and nowhere else, so the live run and a modelled one answer that question the same way.
     kernel: Arc<ManagedKernel>,
@@ -438,27 +442,39 @@ impl ManagedRunHandle {
     ///
     /// A run the kernel has already ended is not cancelled at all. Renaming a committed terminal is
     /// what this path exists to prevent, so the cancellation is refused and neither record moves.
+    ///
+    /// Nothing about the state of the journal may leave this command unable to stop the run. The
+    /// journal lock is taken poisoned, for the reason `take_terminal` takes the terminal guard
+    /// poisoned, and a journal that refuses the command is reported only after the token has been
+    /// set and the kernel transition taken. Refusing at the lock left the worst state this command
+    /// has: the token the runtime watches was never set, so the run went on working, both records
+    /// went on calling it running, and the controller that then waited for the worker waited for a
+    /// run nothing had asked to stop.
     pub fn cancel(&self, reason: impl Into<String>) -> anyhow::Result<()> {
         let reason = reason.into();
         let _terminal = take_terminal(&self.terminal);
         let ended = self.kernel.root_terminal()?;
-        {
+        let refused = {
             let mut application = self
                 .application
                 .lock()
-                .map_err(|_| anyhow::anyhow!("application lock was poisoned"))?;
+                .unwrap_or_else(|poisoned| poisoned.into_inner());
             if application.state().status == RunStatus::Running {
                 if let Some(terminal) =
                     ended.filter(|terminal| *terminal != RootTerminal::Cancelled)
                 {
                     bail!("the kernel has already ended this run as {terminal:?}");
                 }
-                application.execute(
-                    format!("{}.cancel", self.attempt_id),
-                    Command::Cancel { reason },
-                )?;
+                application
+                    .execute(
+                        format!("{}.cancel", self.attempt_id),
+                        Command::Cancel { reason },
+                    )
+                    .err()
+            } else {
+                None
             }
-        }
+        };
         self.cancellation.cancel();
         // Which of the two records the kernel transition is decided by the committed state of the
         // slice, not by whether the worker thread has been observed to finish: the worker records
@@ -466,6 +482,13 @@ impl ManagedRunHandle {
         // between would otherwise reach a kernel nobody was going to close.
         if ended.is_none() && self.kernel.invocation_state()? == InvocationState::Closed {
             self.kernel.terminated(ManagedTermination::Cancelled)?;
+        }
+        // The run is stopped either way; what the journal would not take is reported rather than
+        // passed over, because the record an operator reads then still calls the run running.
+        if let Some(error) = refused {
+            return Err(
+                anyhow::Error::new(error).context("the journal did not record the cancellation")
+            );
         }
         Ok(())
     }
@@ -502,11 +525,10 @@ impl ManagedRunHandle {
         if !self.kernel.admit_wake(&command_id, &input)? {
             return Ok(());
         }
-        if self
-            .control_sender
-            .send(ManagedControl::Wake { input })
-            .is_err()
-        {
+        let Some(control) = self.control_sender.as_ref() else {
+            bail!("managed runtime control channel is closed");
+        };
+        if control.send(ManagedControl::Wake { input }).is_err() {
             bail!("managed runtime control channel is closed");
         }
         Ok(())
@@ -527,11 +549,23 @@ impl ManagedRunHandle {
         self.kernel.verified(candidate_digest, verdict)
     }
 
+    /// Release the control channel and wait for the worker, in that order.
+    ///
+    /// A yielded slice waits for one of two things: the cancellation token, or a wake arriving over
+    /// the control channel. Waiting for the worker while the sending end of that channel is still
+    /// held waits for a wake that can no longer be sent — this handle is the only sender, and it is
+    /// on its way out — so a cancellation that did not reach the token left the wait unbounded.
+    /// Released first, the closed channel is what the worker reads as the end of its wakes: it
+    /// interrupts the runtime, records the terminal of its slice and leaves, whatever became of the
+    /// cancellation.
+    fn release_control_and_join(&mut self) -> Option<thread::Result<()>> {
+        self.control_sender = None;
+        self.worker.take().map(JoinHandle::join)
+    }
+
     pub fn join(mut self) -> anyhow::Result<()> {
-        if let Some(worker) = self.worker.take() {
-            worker
-                .join()
-                .map_err(|_| anyhow::anyhow!("managed runtime worker panicked"))?;
+        if let Some(Err(_)) = self.release_control_and_join() {
+            bail!("managed runtime worker panicked");
         }
         Ok(())
     }
@@ -542,9 +576,7 @@ impl Drop for ManagedRunHandle {
         if !self.is_finished() {
             let _ = self.cancel("managed runtime controller closed");
         }
-        if let Some(worker) = self.worker.take() {
-            let _ = worker.join();
-        }
+        let _ = self.release_control_and_join();
     }
 }
 
@@ -686,8 +718,8 @@ fn start_candidate(
     ) {
         Ok(kernel) => Arc::new(kernel),
         Err(error) => {
-            record_infrastructure_failure(&application, &attempt_id, &error.to_string());
-            return Err(error);
+            let detail = error.to_string();
+            return Err(failed_start(&application, &attempt_id, &detail, error));
         }
     };
 
@@ -707,8 +739,13 @@ fn start_candidate(
     ) {
         Ok(server) => server,
         Err(error) => {
-            record_infrastructure_failure(&application, &attempt_id, &error.to_string());
-            return Err(error.into());
+            let detail = error.to_string();
+            return Err(failed_start(
+                &application,
+                &attempt_id,
+                &detail,
+                error.into(),
+            ));
         }
     };
     let invocation_control = rpc_server
@@ -730,17 +767,22 @@ fn start_candidate(
     let launch_descriptor = match driver.prepare_launch(&invocation_request) {
         Ok(descriptor) => descriptor,
         Err(error) => {
-            record_infrastructure_failure(&application, &attempt_id, runtime_error_code(&error));
-            return Err(error.into());
+            let detail = runtime_error_code(&error).to_owned();
+            return Err(failed_start(
+                &application,
+                &attempt_id,
+                &detail,
+                error.into(),
+            ));
         }
     };
     if requires_launch_attestation(runtime_kind) && launch_descriptor.is_none() {
-        record_infrastructure_failure(
+        return Err(failed_start(
             &application,
             &attempt_id,
             "runtime_launch_descriptor_missing",
-        );
-        bail!("{runtime_kind:?} did not provide a launch descriptor");
+            anyhow::anyhow!("{runtime_kind:?} did not provide a launch descriptor"),
+        ));
     }
     if let Some(descriptor) = &launch_descriptor {
         validate_launch_descriptor(descriptor, &attempt_id, &invocation_id, &workspace)?;
@@ -758,15 +800,15 @@ fn start_candidate(
                 .iter()
                 .all(|program| program.identity == ProgramIdentity::SystemPath);
             if !admits_shell || !bound_by_location {
-                record_infrastructure_failure(
+                return Err(failed_start(
                     &application,
                     &attempt_id,
                     "runtime_launch_chain_missing",
-                );
-                bail!(
-                    "{runtime_kind:?} did not admit the programs its launch chain enters at a \
-                     location this account cannot write"
-                );
+                    anyhow::anyhow!(
+                        "{runtime_kind:?} did not admit the programs its launch chain enters at a \
+                         location this account cannot write"
+                    ),
+                ));
             }
         }
     }
@@ -785,8 +827,13 @@ fn start_candidate(
         .unwrap_or(bridge_executable_digest);
     let evidence_directory = data_root.join("runtime-evidence").join(&attempt_id);
     if let Err(error) = fs::create_dir_all(&evidence_directory) {
-        record_infrastructure_failure(&application, &attempt_id, &error.to_string());
-        return Err(error.into());
+        let detail = error.to_string();
+        return Err(failed_start(
+            &application,
+            &attempt_id,
+            &detail,
+            error.into(),
+        ));
     }
     let mut evidence_file = match OpenOptions::new()
         .create_new(true)
@@ -795,8 +842,13 @@ fn start_candidate(
     {
         Ok(file) => file,
         Err(error) => {
-            record_infrastructure_failure(&application, &attempt_id, &error.to_string());
-            return Err(error.into());
+            let detail = error.to_string();
+            return Err(failed_start(
+                &application,
+                &attempt_id,
+                &detail,
+                error.into(),
+            ));
         }
     };
     let profile_digest = match write_runtime_profile_evidence(
@@ -832,15 +884,15 @@ fn start_candidate(
     ) {
         Ok(digest) => digest,
         Err(error) => {
-            record_infrastructure_failure(&application, &attempt_id, &error.to_string());
-            return Err(error);
+            let detail = error.to_string();
+            return Err(failed_start(&application, &attempt_id, &detail, error));
         }
     };
     // The slice is admitted before the process exists, so a runtime is never running under a slice
     // the kernel never funded.
     if let Err(error) = kernel.start_invocation() {
-        record_infrastructure_failure(&application, &attempt_id, &error.to_string());
-        return Err(error);
+        let detail = error.to_string();
+        return Err(failed_start(&application, &attempt_id, &detail, error));
     }
     let mut session = match driver.start_prepared(invocation_request, launch_descriptor.as_ref()) {
         Ok(session) => session,
@@ -855,11 +907,11 @@ fn start_candidate(
                     unestablished.join("; ")
                 ));
             }
-            record_infrastructure_failure(&application, &attempt_id, &detail);
+            let failure = failed_start(&application, &attempt_id, &detail, error.into());
             let _ = kernel.terminated(ManagedTermination::Failed(
                 InvocationClosure::InfrastructureError,
             ));
-            return Err(error.into());
+            return Err(failure);
         }
     };
     let (sender, receiver) = channel();
@@ -1151,7 +1203,15 @@ fn start_candidate(
                 (None, kept) => kept,
             };
             if let Some(detail) = detail {
-                record_infrastructure_failure(&worker_application, &worker_attempt, &detail);
+                // A journal that would not take the failure is reported with it: the run is what
+                // carries that news to whoever is watching, because the record they would otherwise
+                // read still calls the run running.
+                let unrecorded =
+                    record_infrastructure_failure(&worker_application, &worker_attempt, &detail);
+                let detail = match unrecorded {
+                    Some(unrecorded) => format!("{detail}; {unrecorded}"),
+                    None => detail,
+                };
                 // Supervision that failed on its way out still owes the kernel a terminal: a slice
                 // left open would hold the run open on capacity nothing is running under. It is one
                 // more ending, so it is recorded under the same guard as the others.
@@ -1174,7 +1234,7 @@ fn start_candidate(
         cancellation,
         application,
         receiver: Mutex::new(receiver),
-        control_sender,
+        control_sender: Some(control_sender),
         kernel,
         terminal,
         finished,
@@ -1623,22 +1683,49 @@ fn runtime_error_diagnostic(error: &RuntimeError) -> Option<DiagnosticSummary> {
 /// refused on the sequence it would repeat rather than written twice. Abandoning the record here
 /// left the worse state of the two — the kernel closed the slice on the infrastructure error while
 /// the journal, which is the record an operator reads, went on reporting the run as running.
+///
+/// The command may still be refused where the journal itself cannot take it: a full or unwritable
+/// journal refuses the append, and a journal whose sequence a panic left behind the memory that
+/// keeps it refuses the record it would repeat. That refusal is answered here rather than dropped,
+/// because a run whose failure the journal declined leaves that record naming a run still in
+/// progress, and nothing else in this process would ever say so.
+#[must_use = "a failure the journal refused is reported with the run"]
 fn record_infrastructure_failure(
     application: &Arc<Mutex<Application>>,
     attempt_id: &str,
     detail: &str,
-) {
+) -> Option<String> {
     let mut application = application
         .lock()
         .unwrap_or_else(|poisoned| poisoned.into_inner());
     if application.state().status != RunStatus::Running {
-        return;
+        return None;
     }
     let reason = bounded_reason(detail);
-    let _ = application.execute(
-        format!("{attempt_id}.runtime-failed"),
-        Command::FailInfrastructure { reason },
-    );
+    application
+        .execute(
+            format!("{attempt_id}.runtime-failed"),
+            Command::FailInfrastructure { reason },
+        )
+        .err()
+        .map(|error| format!("managed_runtime_failure_unrecorded: {error}"))
+}
+
+/// The failure one start reports, carrying what the journal would not record beside it.
+///
+/// Every start that fails records the failure in the journal and then reports it to its caller.
+/// Where the journal declined the record, the caller is the last place that can still say so, so
+/// the refusal travels out with the failure it belongs to.
+fn failed_start(
+    application: &Arc<Mutex<Application>>,
+    attempt_id: &str,
+    detail: &str,
+    failure: anyhow::Error,
+) -> anyhow::Error {
+    match record_infrastructure_failure(application, attempt_id, detail) {
+        Some(unrecorded) => failure.context(unrecorded),
+        None => failure,
+    }
 }
 
 fn bounded_reason(detail: &str) -> String {
