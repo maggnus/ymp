@@ -546,6 +546,39 @@ esac
             terminal["event"]["usage"]["in_flight_excess"]["model_requests"].as_u64(),
             Some(usage.in_flight_excess.model_requests)
         );
+        // The record names the models that produced the cost, so attribution survives in the
+        // record as data instead of existing only while the admission rule runs.
+        let recorded: Vec<(String, u64)> = terminal["event"]["usage"]["cost_by_model"]
+            .as_array()
+            .expect("the record carries a per-model breakdown")
+            .iter()
+            .map(|spend| {
+                (
+                    spend["model"].as_str().expect("model name").to_owned(),
+                    spend["cost_microusd"].as_u64().expect("model spend"),
+                )
+            })
+            .collect();
+        if outcome == "success" || outcome == "budget" {
+            assert_eq!(
+                recorded,
+                vec![("claude-opus-5".to_owned(), 31_000)],
+                "{outcome} per-model spend"
+            );
+            assert_eq!(
+                recorded.iter().map(|(_, cost)| cost).sum::<u64>(),
+                terminal["event"]["usage"]["cost_microusd"]
+                    .as_u64()
+                    .expect("recorded total"),
+                "{outcome} named spend does not add up to the recorded total"
+            );
+        } else {
+            assert!(
+                recorded.is_empty(),
+                "{outcome} named a spend for a run that reported no cost"
+            );
+        }
+        assert!(usage.cost_is_attributed(), "{outcome} attribution");
         handle.join().expect("join worker");
     }
 }

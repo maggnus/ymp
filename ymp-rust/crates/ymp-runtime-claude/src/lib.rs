@@ -13,11 +13,11 @@ use std::time::{Duration, Instant};
 use ymp_runtime_api::{
     AdmittedProgram, BoundedOutputLine, CancellationToken, DiagnosticSummary, InFlightExcess,
     InvocationRequest, LaunchChain, LaunchDescriptor, LaunchEnvironmentVariable, McpBinding,
-    ProbeReport, ProgramRequirement, ProgramRole, Readiness, RuntimeDriver, RuntimeError,
-    RuntimeEvent, RuntimeEventKind, RuntimeFailureKind, RuntimeKind, RuntimeSession, Usage,
-    configure_process_group, create_launch_marker, end_process_tree_or_keep, evidence_digest,
-    managed_launch_command, read_bounded_lines, register_launch_marker, terminate_process_tree,
-    verify_admitted_programs,
+    ModelSpend, ProbeReport, ProgramRequirement, ProgramRole, Readiness, RuntimeDriver,
+    RuntimeError, RuntimeEvent, RuntimeEventKind, RuntimeFailureKind, RuntimeKind, RuntimeSession,
+    Usage, configure_process_group, create_launch_marker, end_process_tree_or_keep,
+    evidence_digest, managed_launch_command, read_bounded_lines, register_launch_marker,
+    terminate_process_tree, verify_admitted_programs,
 };
 
 pub const PINNED_CLAUDE_VERSION: &str = "2.1.227 (Claude Code)";
@@ -1256,13 +1256,14 @@ impl ClaudeSession {
                 .get("total_cost_usd")
                 .and_then(Value::as_f64)
                 .map(usd_to_microusd),
+            cost_by_model: model_breakdown(event)?,
             wall_time_ms: 0,
             protected_queries: 0,
             in_flight_excess: InFlightExcess::default(),
         };
         self.admit_cost_attribution(
             observed.cost_microusd.unwrap_or_default(),
-            &model_breakdown(event)?,
+            &observed.cost_by_model,
         )?;
         add_usage(&mut self.usage, &observed);
         self.accounted_requests = self.observed_requests.len() as u64;
@@ -1930,13 +1931,6 @@ fn optional_u64_field(value: &Value, field: &str) -> u64 {
     value.get(field).and_then(Value::as_u64).unwrap_or(0)
 }
 
-/// One model's share of a turn's reported consumption, as Claude Code reports it in `modelUsage`.
-#[derive(Clone, Debug, Eq, PartialEq)]
-struct ModelSpend {
-    model: String,
-    cost_microusd: u64,
-}
-
 /// Reads the per-model breakdown of a terminal result. A missing breakdown is reported as an empty
 /// one rather than assigned to the admitted model, so the attribution rule refuses the cost instead
 /// of inventing evidence the runtime did not report.
@@ -1990,6 +1984,7 @@ fn add_usage(total: &mut Usage, increment: &Usage) {
     if let Some(cost) = increment.cost_microusd {
         total.cost_microusd = Some(total.cost_microusd.unwrap_or_default().saturating_add(cost));
     }
+    total.absorb_model_spend(&increment.cost_by_model);
     total.protected_queries = total
         .protected_queries
         .saturating_add(increment.protected_queries);

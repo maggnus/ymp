@@ -862,6 +862,14 @@ pub struct InFlightExcess {
     pub cost_microusd: u64,
 }
 
+/// One model's named share of a run's monetary consumption, as the runtime reported it.
+#[derive(Clone, Debug, Default, Deserialize, Eq, Ord, PartialEq, PartialOrd, Serialize)]
+#[serde(default)]
+pub struct ModelSpend {
+    pub model: String,
+    pub cost_microusd: u64,
+}
+
 #[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(default)]
 pub struct Usage {
@@ -870,9 +878,61 @@ pub struct Usage {
     pub output_tokens: u64,
     pub reasoning_output_tokens: u64,
     pub cost_microusd: Option<u64>,
+    /// The models that produced the recorded cost and what each of them spent, sorted by model
+    /// name. An empty breakdown beside a recorded cost states that the cost reached the record
+    /// unattributed; it is never filled in from the admitted profile, because a name the runtime
+    /// did not report is not evidence of the route that spent the money.
+    pub cost_by_model: Vec<ModelSpend>,
     pub wall_time_ms: u64,
     pub protected_queries: u64,
     pub in_flight_excess: InFlightExcess,
+}
+
+impl Usage {
+    /// Folds one turn's per-model shares into the record, keeping a single entry per model and a
+    /// stable order by model name.
+    pub fn absorb_model_spend(&mut self, spends: &[ModelSpend]) {
+        for spend in spends {
+            match self
+                .cost_by_model
+                .iter_mut()
+                .find(|recorded| recorded.model == spend.model)
+            {
+                Some(recorded) => {
+                    recorded.cost_microusd =
+                        recorded.cost_microusd.saturating_add(spend.cost_microusd);
+                }
+                None => self.cost_by_model.push(spend.clone()),
+            }
+        }
+        self.cost_by_model.sort();
+    }
+
+    /// The sum of the named shares.
+    pub fn attributed_cost_microusd(&self) -> u64 {
+        self.cost_by_model
+            .iter()
+            .map(|spend| spend.cost_microusd)
+            .fold(0_u64, u64::saturating_add)
+    }
+
+    /// Whether the recorded cost is backed by the models that produced it. A record with no cost
+    /// has nothing to attribute and counts as attributed; a recorded cost whose named shares are
+    /// missing or do not add up to it is unverified. Each share is rounded to whole microdollars
+    /// before it is summed, so the sum may trail the total by less than one microdollar per named
+    /// model and by nothing else.
+    pub fn cost_is_attributed(&self) -> bool {
+        let Some(total) = self.cost_microusd else {
+            return true;
+        };
+        if total == 0 {
+            return true;
+        }
+        if self.cost_by_model.is_empty() {
+            return false;
+        }
+        self.attributed_cost_microusd().abs_diff(total) <= self.cost_by_model.len() as u64
+    }
 }
 
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]

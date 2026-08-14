@@ -273,6 +273,17 @@ model are typed protocol failures rather than recorded costs, because a matched-
 reads the recorded number as evidence of one model route and an unattributed number is not that
 evidence. A turn that reports no cost has nothing to attribute and is recorded as before.
 
+The attribution is carried by the record and not only by the rule that admits it. Every terminal
+record states, beside the total, the models that produced the cost and what each of them spent,
+sorted by model name and holding one entry per model across all of a run's turns. A reader tells an
+attributed cost from an unverified one from the record alone: a recorded cost whose named shares add
+up to it — allowing only the rounding of each share to whole microdollars — is attributed, and a
+recorded cost with no named share is not. The breakdown is filled only from what the runtime
+reported. It is never completed from the admitted profile, because a model name the runtime did not
+state is not evidence of the route that spent the money, so a runtime that reports a total without
+naming a model produces a record that states the total and names nothing. A record written before
+this field reads back as naming nothing, which is what such evidence in fact does.
+
 Failures contain a typed safe failure kind and, when available, only a bounded diagnostic digest,
 byte count, and truncation marker. Raw child standard error and diagnostic text are never written
 to runtime evidence or the control journal.
