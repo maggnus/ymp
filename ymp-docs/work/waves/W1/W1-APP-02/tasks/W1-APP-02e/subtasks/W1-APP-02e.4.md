@@ -3,24 +3,24 @@ id: W1-APP-02e.4
 kind: subtask
 wave: W1
 card: W1-APP-02
-state: active
+state: accepted
 risk: significant
 maturity: BUILD
 relation: required
 depends_on: []
 blocks: []
 created_at: 2026-08-15T01:30:15+08:00
-updated_at: 2026-08-15T01:30:15+08:00
+updated_at: 2026-08-15T02:30:35+08:00
 started_at: 2026-08-15T01:30:15+08:00
-accepted_at:
-candidate_commit:
-closure_commit:
-evidence:
+accepted_at: 2026-08-15T02:30:35+08:00
+candidate_commit: https://github.com/maggnus/ymp/commit/07cbf69
+closure_commit: https://github.com/maggnus/ymp/commit/f74d211
+evidence: measured-floor admission proved by the reviewer on the real binary across six boundary builds plus a probe-vs-init disagreement; the live Claude run reproduced (73575 microusd); the codex route measured accepted with the quota as the only stop; calibration docs aligned by a disclosed CTO fix
 duration_minutes: 0
 blocker:
 pause_reason:
-return_trigger:
-deliberate_partial: false
+return_trigger: the codex account quota resets on 2026-09-12 or another account becomes available — the live codex managed run then closes the second half of the acceptance
+deliberate_partial: true
 ---
 
 # W1-APP-02e.4 — The pinned runtime profiles admit the owner's host

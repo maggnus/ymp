@@ -10,7 +10,7 @@ relation: required
 depends_on: [W1-APP-02e]
 blocks: []
 created_at: 2026-08-15T01:52:53+08:00
-updated_at: 2026-08-15T02:18:54+08:00
+updated_at: 2026-08-15T02:30:35+08:00
 started_at:
 accepted_at:
 candidate_commit:
@@ -50,6 +50,14 @@ disable state is its first live use. Experiments run on the Claude engine with t
 claude-haiku / claude-sonnet routes in the permitted pool; the measured model catalog of the
 installed claude build must therefore include them, and the permitted-pool selection applies to
 live smokes and experiments so cost stays bounded.
+
+## Absorbed review findings (02e.4, 2026-08-15)
+
+- The executable-resolution branch reading the configuration directory never fires on the owner's
+  host and adds a second selection channel; registry properties should own executable discovery.
+- The unparsable-version refusal claims the release is older than the floor instead of naming the
+  parse failure.
+- The minimum_version is the one pin not checked against its constant.
 
 ## Current state
 
