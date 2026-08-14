@@ -68,7 +68,13 @@ pub enum Command {
 pub fn run(cli: Cli) -> anyhow::Result<()> {
     let store = store(&cli)?;
     match cli.command {
-        None => ymp_tui::run_with_contracts(store, load_contracts(&cli.contract)?),
+        // The interface is given the root as well as the store. A store holds one run, so the
+        // second run an operator authorizes in one session is addressed under the root rather
+        // than refused; an invocation that named one exact store named what it acts on.
+        None => match root_of(&cli) {
+            Some(root) => ymp_tui::run_under_root(root, store, load_contracts(&cli.contract)?),
+            None => ymp_tui::run_with_contracts(store, load_contracts(&cli.contract)?),
+        },
         Some(Command::Public(command)) => {
             surface::run(store, load_contracts(&cli.contract)?, command)
         }
@@ -81,6 +87,14 @@ pub fn run(cli: Cli) -> anyhow::Result<()> {
 /// Everything below the interface and the commands still receives a store directory, exactly as
 /// before. What changed is who chooses it: the operator no longer invents a directory per run,
 /// because the root addresses a project and a run for them.
+/// The root this invocation addresses stores under, when it addresses one rather than naming an
+/// exact store.
+fn root_of(cli: &Cli) -> Option<PathBuf> {
+    cli.data_root
+        .is_none()
+        .then(|| cli.root.clone().unwrap_or_else(default_root))
+}
+
 fn store(cli: &Cli) -> anyhow::Result<PathBuf> {
     if let Some(store) = &cli.data_root {
         return Ok(store.clone());

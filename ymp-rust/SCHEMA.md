@@ -55,7 +55,8 @@ durable state. The coordination socket, the generated runtime home and the priva
 admitted executables live in the operating system's temporary directory: they exist only while one
 process does, they are removed with it, and a unix socket path is length-limited in a way a
 project-relative path cannot honour. An evidence export is written where the operator names it,
-because an export exists to leave the root.
+and beside the project under the run's own name when they name none, because an export exists to
+leave the root.
 
 ## Event journal version 1
 

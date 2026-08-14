@@ -13,7 +13,7 @@ use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 use uuid::Uuid;
-use ymp_application::{Application, PreparedContract};
+use ymp_application::{Application, PreparedContract, VerificationOutcome};
 use ymp_domain::Command as DomainCommand;
 use ymp_runtime_api::{
     CancellationToken, InvocationRequest, McpBinding, Readiness, RuntimeDriver,
@@ -415,37 +415,31 @@ pub fn run_managed_verification(request: ManagedVerificationRequest) -> anyhow::
     }
     let (_, candidate) = materialize_controller_candidate(&application, &data_root)?;
     let command_id = format!("managed.verify.{}", Uuid::new_v4());
-    let evidence = match verifier.verify_candidate(&candidate, &negative_control, &candidate_digest)
-    {
-        Ok(evidence) => evidence,
-        Err(error) => {
-            let outcome = application.execute(
-                command_id,
-                DomainCommand::FailInfrastructure {
-                    reason: format!("verifier failed: {error}")
-                        .chars()
-                        .take(ymp_domain::MAX_REASON_BYTES)
-                        .collect(),
+    // What a verdict and a verifier that did not decide each become in the journal is decided in
+    // one place, which the terminal interface reaches through the same call: a verifier that
+    // failed is an infrastructure condition there as it is here, and never a rejected candidate.
+    let (evidence, error, decided) =
+        match verifier.verify_candidate(&candidate, &negative_control, &candidate_digest) {
+            Ok(evidence) => (
+                Some(serde_json::to_value(&evidence)?),
+                None,
+                VerificationOutcome::Judged(Box::new(evidence)),
+            ),
+            Err(failure) => (
+                None,
+                Some(failure.to_string()),
+                VerificationOutcome::Undecided {
+                    reason: format!("the verifier failed: {failure}"),
                 },
-            )?;
-            println!(
-                "{}",
-                serde_json::to_string(&serde_json::json!({
-                    "type": "managed_verification_result",
-                    "error": error.to_string(),
-                    "outcome": outcome,
-                    "state": application.state()
-                }))?
-            );
-            return Ok(());
-        }
-    };
-    let outcome = application.record_verification(command_id, &evidence)?;
+            ),
+        };
+    let outcome = application.record_verification_outcome(command_id, decided)?;
     println!(
         "{}",
         serde_json::to_string(&serde_json::json!({
             "type": "managed_verification_result",
             "evidence": evidence,
+            "error": error,
             "outcome": outcome,
             "state": application.state()
         }))?

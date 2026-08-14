@@ -60,7 +60,9 @@ const CORRESPONDENCE: &[(&str, &[&str])] = &[
         "start-run",
         &["ymp", "start", "contract-1", "--confirm", "contract-1"],
     ),
+    ("attempt", &["ymp", "attempt", "--confirm", "run-1"]),
     ("cancel-run", &["ymp", "cancel", "--confirm", "run-1"]),
+    ("export", &["ymp", "export"]),
     ("page:runtimes", &["ymp", "show", "runtimes"]),
     ("page:candidates", &["ymp", "show", "candidates"]),
     ("page:events", &["ymp", "show", "events"]),
@@ -106,7 +108,9 @@ fn palette_action(command: InterfaceCommand) -> String {
     match command {
         InterfaceCommand::OpenPage(kind) => page_action(kind),
         InterfaceCommand::Authorize(_) => "authorize".to_owned(),
+        InterfaceCommand::StartAttempt => "attempt".to_owned(),
         InterfaceCommand::CancelRun => "cancel-run".to_owned(),
+        InterfaceCommand::Export => "export".to_owned(),
         InterfaceCommand::Quit => "quit".to_owned(),
     }
 }
@@ -115,6 +119,7 @@ fn palette_action(command: InterfaceCommand) -> String {
 fn confirmed_action(action: &ConfirmAction) -> String {
     match action {
         ConfirmAction::StartRun { .. } => "start-run".to_owned(),
+        ConfirmAction::StartAttempt { .. } => "attempt".to_owned(),
         ConfirmAction::CancelRun { .. } => "cancel-run".to_owned(),
     }
 }
@@ -125,6 +130,8 @@ fn performed_action(action: &Action) -> String {
     match action {
         Action::CancelRun => "cancel-run".to_owned(),
         Action::StartRun(_) => "start-run".to_owned(),
+        Action::StartAttempt => "attempt".to_owned(),
+        Action::ExportEvidence(_) => "export".to_owned(),
         Action::LocalTurn(_) => "request".to_owned(),
         Action::CancelCheck => "cancel-check".to_owned(),
         // The interface rebuilds its projection when a candidate is opened; the surface that
@@ -154,7 +161,13 @@ fn interface_actions(root: &Path) -> BTreeSet<String> {
     }
 
     // The two typed confirmations, built by the interface's own decision surfaces.
-    let authorize = decisions::authorize(&drafted_facts(), model.environment(), None, None);
+    let authorize = decisions::authorize(
+        &drafted_facts(),
+        model.environment(),
+        None,
+        None,
+        decisions::RouteFacts::unknown(),
+    );
     let start = decisions::start_run(&authorize.action.expect("a startable contract"));
     let cancel = decisions::cancel_run(
         &model
@@ -162,7 +175,14 @@ fn interface_actions(root: &Path) -> BTreeSet<String> {
             .run
             .expect("the scenario carries a run"),
     );
-    for confirm in [start, cancel] {
+    let attempt = decisions::start_attempt(
+        &model
+            .projection(None)
+            .run
+            .expect("the scenario carries a run"),
+        "codex",
+    );
+    for confirm in [start, cancel, attempt] {
         actions.insert(confirmed_action(&confirm.action));
     }
 
@@ -171,6 +191,8 @@ fn interface_actions(root: &Path) -> BTreeSet<String> {
         Action::CancelRun,
         Action::StartRun("contract-1".to_owned()),
         Action::LocalTurn("keep the replay path idempotent".to_owned()),
+        Action::StartAttempt,
+        Action::ExportEvidence(None),
         Action::CancelCheck,
         Action::Rebuild,
     ] {
@@ -211,7 +233,9 @@ fn command_action(command: &PublicCommand) -> String {
         PublicCommand::Request { .. } => "request".to_owned(),
         PublicCommand::Authorize { .. } => "authorize".to_owned(),
         PublicCommand::Start { .. } => "start-run".to_owned(),
+        PublicCommand::Attempt { .. } => "attempt".to_owned(),
         PublicCommand::Cancel { .. } => "cancel-run".to_owned(),
+        PublicCommand::Export { .. } => "export".to_owned(),
         PublicCommand::Show { page, .. } => page_action(page.kind()),
     }
 }
