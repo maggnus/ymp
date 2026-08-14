@@ -10,7 +10,7 @@ relation: required
 depends_on: [W1-APP-02e]
 blocks: []
 created_at: 2026-08-15T01:52:53+08:00
-updated_at: 2026-08-15T01:52:53+08:00
+updated_at: 2026-08-15T02:18:54+08:00
 started_at:
 accepted_at:
 candidate_commit:
@@ -42,6 +42,14 @@ Engines live in a registry under the product root (runtimes/<engine>.json): enab
 ## Acceptance
 
 - [ ] Engines live in a registry under the product root (runtimes/<engine>.json): enabled flag, measured properties (executable, version, credential origin, budget bounds) and the list of models the engine can serve, filled by probe. A disabled engine is not admitted and not offered. Enable/disable from /runtimes and the mirrored command. Admission semantics (tools, permission mode, no delegation, budget ceilings) stay hard-coded; WHICH models may be used stays undecided until the W1-EVL-04d research lands.
+
+## Absorbed owner decision (2026-08-15)
+
+The Codex provider is unavailable for now (account usage limit until 2026-09-12) — the registry's
+disable state is its first live use. Experiments run on the Claude engine with the cheaper
+claude-haiku / claude-sonnet routes in the permitted pool; the measured model catalog of the
+installed claude build must therefore include them, and the permitted-pool selection applies to
+live smokes and experiments so cost stays bounded.
 
 ## Current state
 
