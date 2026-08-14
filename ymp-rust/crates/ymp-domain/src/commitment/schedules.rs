@@ -1039,8 +1039,11 @@ pub(crate) enum Violation {
     /// its contract actually hangs. Producing one needs a task contract below root scope that a
     /// passing query is recorded against, and neither the lifecycle cast nor the reachability
     /// alphabet holds such a contract — both open exactly one contract, directly under the root
-    /// obligation. Until one of them does, this check is evaluated in every reachable state and
-    /// provoked in none.
+    /// obligation, so in those two spaces this check is evaluated everywhere and provoked nowhere.
+    /// The composition in [`nested_scope_run`] holds one: a contractor delegates part of its work
+    /// and the one protected query the run spends passes against the delegated contract. Read
+    /// honestly, that run is not accepted; with the scope the fact states overstated, the kernel
+    /// reports acceptance and this check is what says the evidence is not there.
     AcceptedWithoutVerification,
     /// The run reached a terminal state its scenario does not describe.
     DishonestTerminal {
@@ -2643,6 +2646,139 @@ pub(crate) fn life_wind_down() -> Vec<CommitmentCommand> {
             sponsor: ROOT_PARTICIPANT.to_owned(),
         }),
     ]
+}
+
+pub(crate) const NESTED_OFFER: &str = "offer-nested";
+pub(crate) const NESTED_BID: &str = "bid-nested";
+pub(crate) const NESTED_CONTRACT: &str = "contract-nested";
+pub(crate) const NESTED_OBLIGATION: &str = "obligation-nested";
+pub(crate) const NESTED_ATTEMPT: &str = "attempt-nested";
+
+/// What one award of the delegated offer funds. It buys the one protected query the composition
+/// spends and the attempt that produces the candidate that query is spent on.
+fn nested_execution_escrow() -> BudgetVector {
+    BudgetVector::ZERO
+        .with(Dimension::MoneyMicros, 4_000)
+        .with(Dimension::ModelTokens, 4_000)
+        .with(Dimension::WallTimeMs, 4_000)
+        .with(Dimension::VerificationQueries, 1)
+        .with(Dimension::AttemptStarts, 1)
+}
+
+/// A run whose passing protected query was spent one level below the root.
+///
+/// The contractor of the root-scope contract delegates part of its work: it hangs a second offer
+/// under its own obligation, awards it, and the participant that takes it submits a candidate and
+/// has that candidate verified. The verdict therefore passes against a task contract that does not
+/// hang directly under the root obligation, which is the one shape that can separate the scope a
+/// verification fact states from the scope its contract actually has.
+///
+/// Everything is issued in causal order and every command must be accepted: what this composition
+/// exists to vary is not the ordering but the honesty of the scope the kernel stamps on the fact.
+pub(crate) fn nested_scope_run(altered: AlteredFacts) -> CommitmentLedger {
+    let tokens = Tokens::variant("life");
+    let candidate = digest("candidate-nested");
+    let mut ledger = new_ledger();
+    ledger.alter_facts(altered);
+    let commands = life_setup(&tokens).into_iter().chain([
+        // The contractor of the root-scope work delegates part of it. The offer hangs under the
+        // obligation that work carries, and is paid for out of the contractor's own balance, so
+        // the two relations stay independent as everywhere else.
+        CommitmentCommand::Advertise(Advertise {
+            offer_id: NESTED_OFFER.to_owned(),
+            sponsor: ALPHA.to_owned(),
+            parent_obligation: LIFE_OBLIGATION.to_owned(),
+            funding_source: FundingSource::Participant,
+            task_scope: tokens.task_scope.clone(),
+            base_digest: tokens.base_digest.clone(),
+            intent_digest: tokens.intent_digest.clone(),
+            artifact_class: tokens.artifact_class.clone(),
+            dependencies: vec![tokens.dependency.clone()],
+            capability_scope: vec![tokens.capability.clone()],
+            execution_escrow: nested_execution_escrow(),
+            policy: OfferPolicy::Negotiated,
+            bid_deadline: DEADLINE,
+            offer_deadline: DEADLINE,
+            max_awards: 1,
+        }),
+        CommitmentCommand::RecordBid(RecordBid {
+            bid_id: NESTED_BID.to_owned(),
+            offer_id: NESTED_OFFER.to_owned(),
+            bidder: BETA.to_owned(),
+            requested_escrow: nested_execution_escrow(),
+            artifact_class: tokens.artifact_class.clone(),
+            proposal_digest: Some(tokens.proposal(BETA)),
+            expires_at: DEADLINE,
+        }),
+        CommitmentCommand::Award(Award {
+            contract_id: NESTED_CONTRACT.to_owned(),
+            obligation_id: NESTED_OBLIGATION.to_owned(),
+            lease_id: "lease-nested".to_owned(),
+            offer_id: NESTED_OFFER.to_owned(),
+            bid_id: NESTED_BID.to_owned(),
+            sponsor: ALPHA.to_owned(),
+            lease_ms: DEADLINE,
+        }),
+        CommitmentCommand::StartAttempt(StartAttempt {
+            attempt_id: NESTED_ATTEMPT.to_owned(),
+            contract_id: NESTED_CONTRACT.to_owned(),
+            participant: BETA.to_owned(),
+            generation: 1,
+        }),
+        CommitmentCommand::SubmitResult(SubmitResult {
+            contract_id: NESTED_CONTRACT.to_owned(),
+            attempt_id: NESTED_ATTEMPT.to_owned(),
+            participant: BETA.to_owned(),
+            generation: 1,
+            candidate_digest: candidate.clone(),
+        }),
+        // The only protected query this composition spends, and it is spent below the root.
+        CommitmentCommand::RecordVerification(RecordVerification {
+            contract_id: NESTED_CONTRACT.to_owned(),
+            participant: BETA.to_owned(),
+            generation: 1,
+            candidate_digest: candidate.clone(),
+            verdict: Verdict::Passed,
+        }),
+        // Winding down from the leaves inward: the delegated work closes and its reservation
+        // comes home before the work above it may close at all.
+        CommitmentCommand::ReturnObligation(ReturnObligation {
+            contract_id: NESTED_CONTRACT.to_owned(),
+            participant: BETA.to_owned(),
+            generation: 1,
+            outcome: Outcome::Result {
+                candidate_digest: candidate,
+            },
+        }),
+        CommitmentCommand::WithdrawOffer(WithdrawOffer {
+            offer_id: NESTED_OFFER.to_owned(),
+            sponsor: ALPHA.to_owned(),
+        }),
+        CommitmentCommand::SettleOffer(SettleOffer {
+            offer_id: NESTED_OFFER.to_owned(),
+            sponsor: ALPHA.to_owned(),
+        }),
+        CommitmentCommand::ReturnObligation(ReturnObligation {
+            contract_id: LIFE_CONTRACT.to_owned(),
+            participant: ALPHA.to_owned(),
+            generation: 1,
+            outcome: Outcome::Exhausted,
+        }),
+        CommitmentCommand::WithdrawOffer(WithdrawOffer {
+            offer_id: LIFE_OFFER.to_owned(),
+            sponsor: ROOT_PARTICIPANT.to_owned(),
+        }),
+        CommitmentCommand::SettleOffer(SettleOffer {
+            offer_id: LIFE_OFFER.to_owned(),
+            sponsor: ROOT_PARTICIPANT.to_owned(),
+        }),
+    ]);
+    for command in commands {
+        ledger
+            .execute(&command)
+            .unwrap_or_else(|error| panic!("the nested composition must be accepted: {error}"));
+    }
+    ledger
 }
 
 /// The resumption a yielded slice holds its wake for, as its own participant would issue it.

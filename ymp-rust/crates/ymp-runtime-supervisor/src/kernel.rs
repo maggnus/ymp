@@ -29,9 +29,9 @@ use ymp_domain::commitment::{
     AdvanceClock, Advertise, Award, BudgetVector, CloseInvocation, CommitmentCommand,
     CommitmentError, CommitmentLedger, ContractState, Dimension, FundingSource, InvocationClosure,
     InvocationState, MAX_LEASE_MS, OfferPolicy, OfferState, OpenAuthority, Outcome, RecordBid,
-    RegisterParticipant, ResumeInvocation, ReturnObligation, RootTerminal, SettleOffer,
-    StartAttempt, StartInvocation, StopReason, StopRun, SubmitResult, WakeCondition, WithdrawOffer,
-    YieldInvocation,
+    RecordVerification, RegisterParticipant, ResumeInvocation, ReturnObligation, RootTerminal,
+    SettleOffer, StartAttempt, StartInvocation, StopReason, StopRun, SubmitResult, Verdict,
+    WakeCondition, WithdrawOffer, YieldInvocation,
 };
 use ymp_domain::digest_bytes;
 
@@ -309,32 +309,62 @@ impl ManagedKernel {
         // Whether this wake has already been served is read out of the committed consent, not out
         // of a list the controller keeps: a repeated delivery is one whose instruction is the
         // content the recorded consent already carries.
-        if let Some(recorded) = self.snapshot()?.bids().get(&consent_id) {
-            if recorded.proposal_digest.as_deref() == Some(instruction_digest.as_str()) {
-                return Ok(false);
-            }
+        let recorded = self.snapshot()?.bids().get(&consent_id).cloned();
+        if let Some(recorded) = &recorded
+            && recorded.proposal_digest.as_deref() != Some(instruction_digest.as_str())
+        {
             bail!("wake command identifier was reused with different input");
         }
-        let offer_id = self
+        let open = self
             .open_wake_offer
             .lock()
             .map_err(|_| anyhow::anyhow!("the managed kernel lock was poisoned"))?
             .clone();
-        let Some(offer_id) = offer_id else {
+        let Some(offer_id) = open else {
+            // Nothing is registered for a wake to answer. A delivery whose consent is already
+            // committed is a repeat of a wake that was served, and it resumes nothing a second
+            // time; anything else is a wake for a run that is not yielded at all.
+            if recorded.is_some() {
+                return Ok(false);
+            }
             bail!("managed runtime is not yielded");
         };
-        self.service.execute(
-            &consent_id,
-            &CommitmentCommand::RecordBid(RecordBid {
-                bid_id: consent_id.clone(),
-                offer_id: offer_id.clone(),
-                bidder: self.sponsor.clone(),
-                requested_escrow: wake_escrow(),
-                artifact_class: ARTIFACT_CLASS.to_owned(),
-                proposal_digest: Some(instruction_digest),
-                expires_at: self.lease_expires_at,
-            }),
-        )?;
+        // Consent recorded against an offer some earlier yield registered is likewise a repeat: the
+        // resumption it authorized is committed, and the yield now open registered a different
+        // offer of its own.
+        if recorded
+            .as_ref()
+            .is_some_and(|recorded| recorded.offer_id != offer_id)
+        {
+            return Ok(false);
+        }
+        if recorded.is_none() {
+            self.service.execute(
+                &consent_id,
+                &CommitmentCommand::RecordBid(RecordBid {
+                    bid_id: consent_id.clone(),
+                    offer_id: offer_id.clone(),
+                    bidder: self.sponsor.clone(),
+                    requested_escrow: wake_escrow(),
+                    artifact_class: ARTIFACT_CLASS.to_owned(),
+                    proposal_digest: Some(instruction_digest),
+                    expires_at: self.lease_expires_at,
+                }),
+            )?;
+        }
+        // Admission order is the whole of the fairness rule, so a controller that resumed a slice
+        // the kernel did not put first would be scheduling on its own authority. The order is read
+        // here rather than before the consent, because a yielded slice enters the queue only once a
+        // committed fact answers the condition it registered: read any earlier, the queue is empty
+        // whatever else is waiting, and the comparison can refuse nothing. The consent stays
+        // committed when this refuses, so the same wake may be delivered again once the slices
+        // ahead of it have been admitted.
+        let admissible = self.admission_order()?;
+        if let Some(first) = admissible.first()
+            && first != &self.invocation_id
+        {
+            bail!("the kernel admits invocation {first} before this one");
+        }
         self.service.execute(
             &format!("{wake_id}.resume"),
             &CommitmentCommand::ResumeInvocation(ResumeInvocation {
@@ -361,6 +391,65 @@ impl ManagedKernel {
                 candidate_digest: candidate_digest.to_owned(),
             }),
         )?;
+        Ok(())
+    }
+
+    /// Record what a protected query decided about the candidate this run committed, and close the
+    /// accounting that decision settles.
+    ///
+    /// The decision enters the kernel as a committed fact rather than staying a report the
+    /// controller holds, because the terminal state of the run is derived from it and from nothing
+    /// else: a run whose candidate passed the approved oracle at root scope reaches `Accepted`, and
+    /// one whose candidate was rejected reaches `Exhausted` — quiet, a spent budget and a
+    /// contractor's own result reach neither. The verdict is attached to the exact bundle the work
+    /// recorded, since the kernel compares the digest and refuses a verdict aimed at any other.
+    ///
+    /// The work obligation is then returned and the offer settled, so a run that has been answered
+    /// stops holding itself open on work nothing is doing. It is called after the process slice has
+    /// ended: a slice still running is itself what the run waits for, and no verdict shortens that.
+    pub fn verified(&self, candidate_digest: &str, verdict: Verdict) -> anyhow::Result<()> {
+        self.advance_clock()?;
+        self.commit(
+            "verification",
+            &CommitmentCommand::RecordVerification(RecordVerification {
+                contract_id: self.contract_id.clone(),
+                participant: self.participant.clone(),
+                generation: self.generation,
+                candidate_digest: candidate_digest.to_owned(),
+                verdict,
+            }),
+        )?;
+        let ledger = self.snapshot()?;
+        if ledger
+            .contracts()
+            .get(&self.contract_id)
+            .is_some_and(|contract| contract.state == ContractState::Active)
+        {
+            self.commit(
+                "verified-return",
+                &CommitmentCommand::ReturnObligation(ReturnObligation {
+                    contract_id: self.contract_id.clone(),
+                    participant: self.participant.clone(),
+                    generation: self.generation,
+                    outcome: Outcome::Result {
+                        candidate_digest: candidate_digest.to_owned(),
+                    },
+                }),
+            )?;
+        }
+        if ledger
+            .offers()
+            .get(&self.offer_id)
+            .is_some_and(|offer| offer.state != OfferState::Settled)
+        {
+            self.commit(
+                "verified-settle",
+                &CommitmentCommand::SettleOffer(SettleOffer {
+                    offer_id: self.offer_id.clone(),
+                    sponsor: self.sponsor.clone(),
+                }),
+            )?;
+        }
         Ok(())
     }
 
@@ -538,5 +627,180 @@ impl ManagedKernel {
         self.service
             .execute(&format!("{}.{step}", self.attempt_id), command)?;
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use ymp_domain::commitment::{CommitmentEvent, InvocationState};
+
+    use super::{
+        CloseInvocation, CommitmentCommand, InvocationClosure, ManagedKernel, StartInvocation,
+        WakeCondition, YieldInvocation, digest_bytes,
+    };
+
+    /// A second yielded slice of the same attempt, waiting on the submission this run commits.
+    /// Whether it is admitted before or after the controller's own slice is decided by which of the
+    /// two yields the facts recorded first, which is what these tests vary.
+    const OTHER_SLICE: &str = "invocation-other";
+
+    fn prepared() -> ManagedKernel {
+        ManagedKernel::prepare(
+            "attempt-order",
+            "invocation-order",
+            "scope-order",
+            &digest_bytes(b"base"),
+            &digest_bytes(b"intent"),
+        )
+        .expect("the managed run ledger")
+    }
+
+    /// Begin and yield a second slice of this attempt, waiting on the submission of its work.
+    fn yield_other_slice(kernel: &ManagedKernel, step: &str) {
+        kernel
+            .commit(
+                &format!("{step}-start"),
+                &CommitmentCommand::StartInvocation(StartInvocation {
+                    invocation_id: OTHER_SLICE.to_owned(),
+                    attempt_id: kernel.attempt_id.clone(),
+                    contract_id: kernel.contract_id.clone(),
+                    participant: kernel.participant.clone(),
+                    generation: kernel.generation,
+                    cursor: 0,
+                }),
+            )
+            .expect("a slice of this attempt begins");
+        kernel
+            .commit(
+                &format!("{step}-yield"),
+                &CommitmentCommand::YieldInvocation(YieldInvocation {
+                    invocation_id: OTHER_SLICE.to_owned(),
+                    participant: kernel.participant.clone(),
+                    generation: kernel.generation,
+                    cursor: 0,
+                    conditions: vec![WakeCondition::SubmissionRecorded {
+                        contract_id: kernel.contract_id.clone(),
+                    }],
+                    wake_deadline: kernel.lease_expires_at,
+                }),
+            )
+            .expect("that slice registers what would be worth resuming it for");
+    }
+
+    /// The controller refuses to resume its own slice while the kernel puts another one first.
+    ///
+    /// Two slices of this run wait on the same committed fact, and the queue is ordered by the
+    /// record: the one whose yield was recorded first is admitted first. Here the other slice
+    /// yielded first, so the controller asks for its own and is told which slice the kernel admits
+    /// instead — the instruction never reaches the runtime and the slice stays where it was.
+    #[test]
+    fn a_wake_out_of_the_kernel_order_is_refused_and_resumes_nothing() {
+        let kernel = prepared();
+        yield_other_slice(&kernel, "other");
+        kernel.start_invocation().expect("the controller's slice");
+        // The fact the other slice waits on. From here the kernel has something to admit it for.
+        kernel
+            .submitted(&digest_bytes(b"candidate"))
+            .expect("the candidate");
+        kernel.yielded("cursor-0").expect("the controller's yield");
+        assert_eq!(
+            kernel.admission_order().expect("the admission order"),
+            vec![OTHER_SLICE.to_owned()],
+            "the slice that yielded first is not the one the kernel admits first"
+        );
+
+        let refusal = kernel
+            .admit_wake("wake-1", "continue")
+            .expect_err("the controller admitted a slice out of the kernel order");
+        assert!(
+            refusal
+                .to_string()
+                .contains(&format!("admits invocation {OTHER_SLICE} before this one")),
+            "unexpected refusal: {refusal}"
+        );
+        let ledger = kernel.snapshot().expect("the ledger");
+        assert_eq!(
+            ledger.invocations()[&kernel.invocation_id].state,
+            InvocationState::Yielded,
+            "a refused wake left the slice running"
+        );
+        assert!(
+            !ledger
+                .facts()
+                .iter()
+                .any(|fact| matches!(fact, CommitmentEvent::InvocationResumed { .. })),
+            "a refused wake resumed a slice anyway"
+        );
+    }
+
+    /// The same two slices in the other order, which is what the placement of the check decides.
+    ///
+    /// The controller's own slice yielded first, so the kernel admits it first — but only once the
+    /// agreement its wake carries is a committed fact, because until then that slice is not in the
+    /// queue at all and the only identifier the order offers is the other slice's. An order read
+    /// before the agreement therefore refuses the very wake the kernel would put first, which is
+    /// the half this placement is measured against.
+    #[test]
+    fn a_wake_the_kernel_puts_first_is_admitted_although_another_slice_is_waiting() {
+        let kernel = prepared();
+        kernel.start_invocation().expect("the controller's slice");
+        kernel.yielded("cursor-0").expect("the controller's yield");
+        yield_other_slice(&kernel, "other");
+        kernel
+            .submitted(&digest_bytes(b"candidate"))
+            .expect("the candidate");
+        assert_eq!(
+            kernel.admission_order().expect("the admission order"),
+            vec![OTHER_SLICE.to_owned()],
+            "a slice whose wake nothing has answered is already in the queue"
+        );
+
+        assert!(
+            kernel
+                .admit_wake("wake-1", "continue")
+                .expect("the wake the kernel admits first was refused"),
+            "the wake resumed nothing"
+        );
+        assert_eq!(
+            kernel.invocation_state().expect("the slice record"),
+            InvocationState::Running
+        );
+    }
+
+    /// The agreement a refused wake carried stays committed, so the same instruction is delivered
+    /// again — under the same identifier and without being taken for a repeat — once the slice
+    /// ahead of it has left the queue.
+    #[test]
+    fn a_wake_refused_for_its_turn_is_admitted_once_the_queue_clears() {
+        let kernel = prepared();
+        yield_other_slice(&kernel, "other");
+        kernel.start_invocation().expect("the controller's slice");
+        kernel
+            .submitted(&digest_bytes(b"candidate"))
+            .expect("the candidate");
+        kernel.yielded("cursor-0").expect("the controller's yield");
+        assert!(kernel.admit_wake("wake-1", "continue").is_err());
+
+        // The slice ahead is closed for good, which is what takes it out of the queue.
+        kernel
+            .commit(
+                "other-close",
+                &CommitmentCommand::CloseInvocation(CloseInvocation {
+                    invocation_id: OTHER_SLICE.to_owned(),
+                    closer: kernel.participant.clone(),
+                    reason: InvocationClosure::Completed,
+                }),
+            )
+            .expect("the other slice ends");
+        assert!(
+            kernel
+                .admit_wake("wake-1", "continue")
+                .expect("the wake is now the one the kernel admits"),
+            "the re-delivered wake was taken for a repeat and resumed nothing"
+        );
+        assert_eq!(
+            kernel.invocation_state().expect("the slice record"),
+            InvocationState::Running
+        );
     }
 }

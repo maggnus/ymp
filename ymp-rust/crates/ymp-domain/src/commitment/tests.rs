@@ -39,10 +39,11 @@ use super::records::{
 use super::schedules::{
     self, ALPHA, BETA, CROSS_OFFER, DEADLINE, FactAccounts, GAMMA, LEASE_MS, LIFE_ATTEMPT,
     LIFE_CONTRACT, LIFE_INVOCATION, LIFE_LEASE_MS, LIFE_OBLIGATION, LIFE_OFFER, LIFE_WAKE_DEADLINE,
-    MAIN_MAX_AWARDS, MAIN_OFFER, ROOT_OBLIGATION, ROOT_PARTICIPANT, SECOND_OFFER,
-    SOLO_FUNDING_CONTRACT, Scenario, Tokens, Violation, advertise_main, award_main, digest,
-    life_setup, new_ledger, requested_escrow, run_altered_schedule, run_lifecycle, run_schedule,
-    setup, state_violations,
+    MAIN_MAX_AWARDS, MAIN_OFFER, NESTED_CONTRACT, NESTED_OBLIGATION, ROOT_OBLIGATION,
+    ROOT_PARTICIPANT, SECOND_OFFER, SOLO_FUNDING_CONTRACT, Scenario, Tokens, Violation,
+    advertise_main, award_main, digest, life_setup, nested_scope_run, new_ledger, requested_escrow,
+    run_altered_schedule, run_lifecycle, run_schedule, setup, state_violations,
+    terminal_violations,
 };
 
 /// How many generated schedules the property suite replays. Every seed is a different total order
@@ -2673,6 +2674,73 @@ fn quiescence_a_spent_budget_and_an_unverified_result_are_not_acceptance() {
     assert_eq!(
         run_lifecycle(0, Scenario::NoSolution, DisabledChecks::default()).terminal,
         Some(RootTerminal::Exhausted)
+    );
+}
+
+/// A protected query that passed one level below the root is evidence for the work that delegated
+/// it, and it is not acceptance of the run.
+///
+/// The composition is the one shape that can tell the two apart: a contractor delegates part of its
+/// work, and the single passing query the run spends is spent against the delegated contract. The
+/// kernel decides that contract's scope while it commits the fact, so the run is not accepted, and
+/// the check that recomputes scope from the obligation tree has nothing to report.
+#[test]
+fn a_query_that_passed_below_the_root_is_not_acceptance_of_the_run() {
+    let ledger = nested_scope_run(AlteredFacts::default());
+    assert_eq!(
+        ledger.obligations()[NESTED_OBLIGATION].parent.as_deref(),
+        Some(LIFE_OBLIGATION),
+        "the delegated work does not hang below the root-scope work"
+    );
+    let verification = ledger
+        .verifications()
+        .iter()
+        .find(|record| record.contract_id == NESTED_CONTRACT)
+        .expect("the composition spends one protected query");
+    assert_eq!(verification.verdict, Verdict::Passed);
+    assert!(
+        !verification.root_scope,
+        "the kernel stated root scope for a contract that hangs below it"
+    );
+    let terminal = ledger.root_terminal();
+    assert_eq!(ledger.open_authority(), None);
+    assert_eq!(terminal, Some(RootTerminal::Exhausted));
+    assert!(
+        terminal_violations(&ledger, terminal).is_empty(),
+        "an honest run below the root was reported as accepted without evidence"
+    );
+}
+
+/// The negative half of the same check, measured over the same composition: with the scope the
+/// verification fact states overstated, the kernel reports acceptance on a query that passed below
+/// the root, and the check that rebuilds the obligation tree from the facts is what catches it.
+///
+/// Only the scope the fact claims is corrupted. The verdict, the candidate it names and the
+/// reservation it spends are exactly what the command asked for, so every record the kernel keeps
+/// agrees with the fact and nothing but this check separates the two runs.
+#[test]
+fn overstating_the_scope_of_a_verdict_produces_acceptance_without_evidence() {
+    let ledger = nested_scope_run(AlteredFacts {
+        overstated_verification_scope: true,
+        ..AlteredFacts::default()
+    });
+    let verification = ledger
+        .verifications()
+        .iter()
+        .find(|record| record.contract_id == NESTED_CONTRACT)
+        .expect("the composition spends one protected query");
+    assert!(verification.root_scope);
+    let terminal = ledger.root_terminal();
+    assert_eq!(
+        terminal,
+        Some(RootTerminal::Accepted),
+        "the overstated scope did not reach the terminal state it is read for"
+    );
+    assert!(
+        terminal_violations(&ledger, terminal)
+            .iter()
+            .any(|violation| matches!(violation, Violation::AcceptedWithoutVerification)),
+        "acceptance rested on a query that passed below the root and nothing said so"
     );
 }
 
