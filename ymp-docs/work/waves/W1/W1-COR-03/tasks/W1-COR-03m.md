@@ -3,19 +3,19 @@ id: W1-COR-03m
 kind: task
 wave: W1
 card: W1-COR-03
-state: active
+state: accepted
 risk: significant
 maturity: BUILD
 relation: required
 depends_on: [W1-COR-03k, W1-COR-03l]
 blocks: []
 created_at: 2026-08-14T05:19:05+08:00
-updated_at: 2026-08-14T05:22:38+08:00
+updated_at: 2026-08-14T23:29:02+08:00
 started_at: 2026-08-14T05:22:38+08:00
-accepted_at:
-candidate_commit:
-closure_commit:
-evidence:
+accepted_at: 2026-08-14T23:29:02+08:00
+candidate_commit: https://github.com/maggnus/ymp/commit/a2ddeb2c359ee2854218b21abb73792c344ea49a
+closure_commit: https://github.com/maggnus/ymp/commit/7fd1769
+evidence: verification enters the kernel against the exact work snapshot; hostile-sequence falsifiers (conflicting second verdict, verdict before submission, wake after verdict) all refused; sweep unchanged at 31158 states with zero violations; the survivable-restart inheritance kept all six files
 duration_minutes: 0
 blocker:
 pause_reason:
