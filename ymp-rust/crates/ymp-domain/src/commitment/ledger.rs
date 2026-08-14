@@ -112,6 +112,11 @@ pub(crate) struct AlteredFacts {
     /// instead of to the account that funded the offer it was awarded from. The contract is emptied
     /// either way, so nothing but the destination account of the fact is wrong.
     pub misdirected_settlement: bool,
+    /// State that the task contract a verdict was recorded against hangs directly under the root
+    /// obligation, wherever it actually hangs. The verdict, the candidate and the reservation it
+    /// spends stay exactly as decided, so nothing but the scope the fact claims is wrong — and the
+    /// terminal state a run reports is derived from that claim.
+    pub overstated_verification_scope: bool,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
@@ -643,6 +648,19 @@ impl CommitmentLedger {
     #[cfg(not(test))]
     #[allow(clippy::unused_self)]
     fn returned_to(&self, decided: AccountRef, _holder: &str) -> AccountRef {
+        decided
+    }
+
+    /// The scope a verification fact states its task contract hangs at. It is the scope that was
+    /// decided, unless a test build asked for a contract below the root to claim the root.
+    #[cfg(test)]
+    const fn scoped(&self, decided: bool) -> bool {
+        self.altered.overstated_verification_scope || decided
+    }
+
+    #[cfg(not(test))]
+    #[allow(clippy::unused_self)]
+    const fn scoped(&self, decided: bool) -> bool {
         decided
     }
 
@@ -1750,7 +1768,7 @@ impl CommitmentLedger {
                 contract_id: contract.contract_id.clone(),
                 candidate_digest: command.candidate_digest.clone(),
                 verdict: command.verdict,
-                root_scope: self.is_root_scope(&contract.contract_id),
+                root_scope: self.scoped(self.is_root_scope(&contract.contract_id)),
             },
             // An infrastructure error consumes the reservation like any other verdict. Nothing was
             // learned about the candidate, and the query was spent all the same.
