@@ -87,6 +87,8 @@ fn submit(app: &mut App, session: &mut Session, text: &str) {
         Some(Action::StartRun(contract_id)) => session.start_run(&contract_id),
         Some(Action::CancelRun) => session.cancel_run(),
         Some(Action::CancelCheck) => session.cancel_check(),
+        Some(Action::StartAttempt) => session.start_attempt(),
+        Some(Action::ExportEvidence(destination)) => session.export_evidence(destination),
         Some(Action::Rebuild) | None => {}
     }
     app.adopt(session.projection(None));

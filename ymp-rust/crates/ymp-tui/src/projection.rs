@@ -340,6 +340,11 @@ pub struct Projection {
     pub commands: Vec<PaletteItem>,
     /// The probe of the shipped runtime drivers, once it has returned.
     pub runtimes: Option<crate::runtimes::Report>,
+    /// The runtime profile this run's work would be done by, when exactly one is settled.
+    pub route: Option<String>,
+    /// What is true about that routing, in the words the operator is shown: the profile that
+    /// would do the work, or why none would.
+    pub route_note: String,
     /// The answer the interface is waiting for while a request is being drafted. It is what
     /// makes an empty Enter meaningful: it accepts what the question offers.
     pub awaiting: Option<String>,

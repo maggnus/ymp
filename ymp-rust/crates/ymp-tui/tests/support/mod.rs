@@ -12,7 +12,7 @@ use ratatui::backend::TestBackend;
 use ymp_runtime_api::Readiness;
 use ymp_tui::app::{self, Action};
 use ymp_tui::journal::Model;
-use ymp_tui::projection::{ContractFacts, Environment, VerifierFacts};
+use ymp_tui::projection::{ContractFacts, Environment, Projection, VerifierFacts};
 use ymp_tui::runtimes::{ProfileFacts, Report};
 use ymp_tui::scenario::{self, Run};
 use ymp_tui::state::{App, PageKind};
@@ -82,26 +82,43 @@ pub fn report() -> Report {
                 readiness: Readiness::NotInstalled,
                 detail: "executable not found".into(),
             },
+            // Exactly one managed profile is ready, which is the host on which a run has one
+            // route and no choice to make. The other is unusable, so the same report is also the
+            // mixed-readiness state the contract names.
+            ProfileFacts {
+                name: "claude-code".into(),
+                runtime: "claude-code".into(),
+                model_route: Some("test/claude-route".into()),
+                executable: "/nonexistent/claude".into(),
+                version: Some("0.0.0".into()),
+                readiness: Readiness::Ready,
+                detail: "fixture profile".into(),
+            },
         ],
     }
 }
 
-/// Build the interface over a run, with the runtime report already delivered.
-pub fn app_for(run: Option<&Run>, contracts: Vec<ContractFacts>) -> App {
-    let mut model = Model::cold(environment(), contracts);
-    if let Some(run) = run {
-        model.absorb(&run.state, &run.events);
-    }
-    App::new(model.projection(Some(&report())))
-}
-
-/// Rebuild the projection the way the event loop does, so a describe selection survives.
-pub fn rebuild(app: &mut App, run: Option<&Run>, contracts: Vec<ContractFacts>) {
+/// The projection the interface would build over this run, with the routing the session settles.
+fn projection_of(run: Option<&Run>, contracts: Vec<ContractFacts>) -> (Model, Projection) {
     let mut model = Model::cold(environment(), contracts);
     if let Some(run) = run {
         model.absorb(&run.state, &run.events);
     }
     let mut projection = model.projection(Some(&report()));
+    let (route, note) = ymp_tui::attempt::routing_facts(None, Some(&report()));
+    projection.route = route;
+    projection.route_note = note;
+    (model, projection)
+}
+
+/// Build the interface over a run, with the runtime report already delivered.
+pub fn app_for(run: Option<&Run>, contracts: Vec<ContractFacts>) -> App {
+    App::new(projection_of(run, contracts).1)
+}
+
+/// Rebuild the projection the way the event loop does, so a describe selection survives.
+pub fn rebuild(app: &mut App, run: Option<&Run>, contracts: Vec<ContractFacts>) {
+    let (model, mut projection) = projection_of(run, contracts);
     if let Some(index) = app.describe_index
         && let Some(page) = model.describe_candidate(index)
     {

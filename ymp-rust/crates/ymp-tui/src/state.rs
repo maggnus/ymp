@@ -67,7 +67,11 @@ pub enum Command {
     OpenPage(PageKind),
     /// Review the coverage of the contract at this position in the projection.
     Authorize(usize),
+    /// Launch the managed attempt of the open run — the action that starts the agent.
+    StartAttempt,
     CancelRun,
+    /// Write the run's candidate and the evidence that judged it out of the store.
+    Export,
     Quit,
 }
 
@@ -129,6 +133,9 @@ pub enum ConfirmAction {
     CancelRun { run_id: String },
     /// Store the named contract and start the run it names, through the application.
     StartRun { contract_id: String, run_id: String },
+    /// Launch the managed attempt of the named run on the named profile. This is where the
+    /// agent starts and where spending against the operator's own account begins.
+    StartAttempt { run_id: String, profile: String },
 }
 
 impl Confirm {
@@ -299,6 +306,10 @@ impl App {
             environment,
             self.data.runtimes.as_ref(),
             self.data.run.as_ref(),
+            crate::decisions::RouteFacts {
+                profile: self.data.route.as_deref(),
+                note: &self.data.route_note,
+            },
         ));
     }
 
@@ -309,6 +320,21 @@ impl App {
         };
         self.prompt.suspended = Some("decision open — input suspended".into());
         self.modal = Modal::Confirm(crate::decisions::cancel_run(run));
+    }
+
+    /// Open the typed confirmation that launches the attempt of the live run.
+    ///
+    /// It opens only where a profile is settled: a confirmation that could not name who would do
+    /// the work would be asking the operator to approve a spend nobody could make.
+    pub fn open_attempt_confirm(&mut self) {
+        let (Some(run), Some(profile)) = (
+            self.data.run.as_ref().filter(|run| run.is_live()),
+            self.data.route.as_deref(),
+        ) else {
+            return;
+        };
+        self.prompt.suspended = Some("decision open — input suspended".into());
+        self.modal = Modal::Confirm(crate::decisions::start_attempt(run, profile));
     }
 
     /// The palette over the commands the current state actually offers. Quit is always there,

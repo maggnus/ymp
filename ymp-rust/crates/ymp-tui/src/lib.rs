@@ -18,6 +18,18 @@
 //! product cannot propose, it says it cannot propose, and it never invents an acceptance
 //! condition, so the interface and the equivalent command refuse identically.
 //!
+//! # From a started run to exported evidence
+//!
+//! Starting the run and starting the agent grant different things and are authorized separately.
+//! [`attempt`] settles which runtime profile does the work — the one the operator named, or the
+//! only one this host can start — and a profile that is not ready stops the attempt rather than
+//! being replaced by another. A second confirmation launches it through `ymp-runtime-supervisor`,
+//! which holds the private workspace, the runtime evidence and the kernel record of the process
+//! slice; the interface holds that attempt, which is what makes both records of how a run ended
+//! reachable from here. The candidate the agent commits is judged by the verifier the stored
+//! contract names, the verdict and the terminal reach the journal, and an export writes the exact
+//! candidate and the evidence that judged it out of the store.
+//!
 //! # Layers
 //!
 //! * [`projection`], [`journal`], [`runtimes`], [`decisions`] read the application, the domain
@@ -40,6 +52,7 @@ use std::path::Path;
 use ymp_application::PreparedContract;
 
 pub mod app;
+pub mod attempt;
 pub mod decisions;
 pub mod draft;
 pub mod frame;
@@ -76,5 +89,19 @@ pub fn run_with_contracts(
     contracts: Vec<PreparedContract>,
 ) -> anyhow::Result<()> {
     let session = Session::open(data_root.as_ref(), &contracts);
+    app::run(session, theme::Markers::detect())
+}
+
+/// Start the interface over a store addressed under a root.
+///
+/// A store holds one run. Knowing the root is what lets the second run an operator authorizes in
+/// one session be addressed rather than refused: the product chooses the next store, and the run
+/// the session was reading is left exactly as it stands.
+pub fn run_under_root(
+    root: impl AsRef<Path>,
+    data_root: impl AsRef<Path>,
+    contracts: Vec<PreparedContract>,
+) -> anyhow::Result<()> {
+    let session = Session::open_under_root(root.as_ref(), data_root.as_ref(), &contracts);
     app::run(session, theme::Markers::detect())
 }
