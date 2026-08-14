@@ -17,7 +17,8 @@ use ymp_agent_api::{AgentToolCall, AgentToolHandler, SubmitArguments, YieldArgum
 use ymp_agent_rpc::SocketToolHandler;
 use ymp_application::Application;
 use ymp_domain::commitment::{
-    CommitmentEvent, InvocationState, OpenAuthority, RootTerminal, WakeCondition,
+    CommitmentEvent, CommitmentLedger, InvocationState, ObligationState, OpenAuthority,
+    RootTerminal, Verdict, WakeCondition,
 };
 use ymp_domain::{Budget, RunStatus, digest_bytes};
 use ymp_runtime_api::{
@@ -309,6 +310,138 @@ fn a_live_run_resumes_through_the_kernel_transitions() {
             .state()
             .status,
         RunStatus::Running
+    );
+}
+
+/// Drive one live run to the point where its candidate is committed and nothing has judged it, then
+/// record the verdict of a protected query against that exact candidate.
+///
+/// The state in between is the one this whole build used to end in: the slice is closed, the work
+/// carries a candidate, and the run reports no terminal at all. What moves it off that state is the
+/// verdict entering the kernel as a fact.
+fn verified_run(verdict: Verdict) -> (Fixture, CommitmentLedger) {
+    let fixture = start(1);
+    let handle = &fixture.handle;
+    wait_until_yielded(handle);
+    handle.wake("wake-1", "continue once").expect("the wake");
+    drain_until_finished(handle);
+
+    assert_eq!(
+        handle.kernel().root_terminal().expect("the terminal"),
+        None,
+        "the run reached a terminal before anything judged its candidate"
+    );
+    let candidate = handle.kernel().snapshot().expect("the ledger").contracts()
+        [handle.kernel().contract_id()]
+    .candidate_digest
+    .clone()
+    .expect("the committed candidate");
+    handle
+        .verified(&candidate, verdict)
+        .expect("the recorded verdict");
+    let ledger = handle.kernel().snapshot().expect("the ledger");
+    (fixture, ledger)
+}
+
+/// The work obligation of a run whose verdict has been recorded, wherever that verdict points.
+fn work_obligation(ledger: &CommitmentLedger, contract_id: &str) -> ObligationState {
+    let obligation_id = &ledger.contracts()[contract_id].obligation_id;
+    ledger.obligations()[obligation_id].state
+}
+
+/// A live run whose candidate passed the protected query closes its obligation and reaches the one
+/// terminal state acceptance can be claimed from.
+///
+/// The verdict is what does it. Every earlier step of the same run — the slice completing, the
+/// candidate being committed, the wake offers settling — leaves the work open on purpose, because
+/// the controller performs no query and a run that closed its own accounting on quiet would be
+/// claiming an answer nobody produced.
+#[test]
+fn a_live_run_whose_candidate_passed_reaches_acceptance_with_a_closed_obligation() {
+    let (fixture, ledger) = verified_run(Verdict::Passed);
+    let contract_id = fixture.handle.kernel().contract_id();
+
+    let verification = ledger
+        .verifications()
+        .iter()
+        .find(|record| record.contract_id == contract_id)
+        .expect("the run records the verdict it was given");
+    assert_eq!(verification.verdict, Verdict::Passed);
+    assert!(
+        verification.root_scope,
+        "the work of a managed run does not hang directly under the obligation it is accountable for"
+    );
+    assert_eq!(
+        work_obligation(&ledger, contract_id),
+        ObligationState::Terminal,
+        "a judged run left its work obligation open"
+    );
+    assert_eq!(
+        fixture
+            .handle
+            .kernel()
+            .open_authority()
+            .expect("the open authority"),
+        None
+    );
+    assert_eq!(
+        fixture
+            .handle
+            .kernel()
+            .root_terminal()
+            .expect("the terminal"),
+        Some(RootTerminal::Accepted)
+    );
+}
+
+/// The same run with the same candidate, rejected. Its obligation closes exactly as it does on a
+/// pass, and the run reaches a terminal state that is not acceptance: what separates the two is the
+/// verdict and nothing else about how the run went.
+#[test]
+fn a_live_run_whose_candidate_was_rejected_closes_without_acceptance() {
+    let (fixture, ledger) = verified_run(Verdict::Failed);
+    let contract_id = fixture.handle.kernel().contract_id();
+
+    assert_eq!(
+        work_obligation(&ledger, contract_id),
+        ObligationState::Terminal
+    );
+    assert_eq!(
+        fixture
+            .handle
+            .kernel()
+            .root_terminal()
+            .expect("the terminal"),
+        Some(RootTerminal::Exhausted)
+    );
+}
+
+/// A verdict aimed at a bundle this run never committed changes nothing: the kernel compares the
+/// digest, so a candidate cannot be judged by a query that was spent on something else.
+#[test]
+fn a_verdict_naming_another_bundle_is_refused_and_leaves_the_run_open() {
+    let fixture = start(1);
+    let handle = &fixture.handle;
+    wait_until_yielded(handle);
+    handle.wake("wake-1", "continue once").expect("the wake");
+    drain_until_finished(handle);
+
+    let refusal = handle
+        .verified(&digest_bytes(b"another bundle"), Verdict::Passed)
+        .expect_err("the kernel accepted a verdict on a bundle it never recorded");
+    assert!(
+        refusal.to_string().contains("is not the candidate"),
+        "unexpected refusal: {refusal}"
+    );
+    assert_eq!(handle.kernel().root_terminal().expect("the terminal"), None);
+    assert!(
+        handle
+            .kernel()
+            .snapshot()
+            .expect("the ledger")
+            .verifications()
+            .is_empty(),
+        "a refused verdict was recorded anyway"
     );
 }
 

@@ -16,7 +16,7 @@ use std::thread::{self, JoinHandle};
 use uuid::Uuid;
 use ymp_application::Application;
 use ymp_application::WorkspaceSubmission;
-use ymp_domain::commitment::InvocationClosure;
+use ymp_domain::commitment::{InvocationClosure, Verdict};
 use ymp_domain::{Command, EventKind, MAX_IDENTIFIER_CHARS, RunStatus, digest_bytes};
 use ymp_runtime_api::{
     AdmittedProgram, CancellationToken, DiagnosticSummary, InvocationRequest, LaunchDescriptor,
@@ -444,14 +444,6 @@ impl ManagedRunHandle {
         if input.is_empty() || input.len() > MAX_PROMPT_BYTES {
             bail!("wake input must contain between 1 and {MAX_PROMPT_BYTES} bytes");
         }
-        // Admission order is the whole of the fairness rule, so a controller that resumed a slice
-        // the kernel did not put first would be scheduling on its own authority.
-        let admissible = self.kernel.admission_order()?;
-        if let Some(first) = admissible.first()
-            && first != &self.invocation_id
-        {
-            bail!("the kernel admits invocation {first} before this one");
-        }
         if !self.kernel.admit_wake(&command_id, &input)? {
             return Ok(());
         }
@@ -463,6 +455,16 @@ impl ManagedRunHandle {
             bail!("managed runtime control channel is closed");
         }
         Ok(())
+    }
+
+    /// Record in the kernel what a protected query decided about the candidate this run committed.
+    ///
+    /// The controller does not perform the query and takes no part in the decision: what reaches
+    /// the kernel here is a verdict somebody else produced against an exact bundle. Recording it is
+    /// what closes the work obligation and lets the run reach a terminal state, so a candidate
+    /// nobody verified leaves the run open rather than passing for accepted.
+    pub fn verified(&self, candidate_digest: &str, verdict: Verdict) -> anyhow::Result<()> {
+        self.kernel.verified(candidate_digest, verdict)
     }
 
     pub fn join(mut self) -> anyhow::Result<()> {
