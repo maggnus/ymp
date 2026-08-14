@@ -3,24 +3,24 @@ id: W1-PRD-05a
 kind: task
 wave: W1
 card: W1-PRD-05
-state: active
+state: accepted
 risk: critical
 maturity: DESIGN
 relation: required
 depends_on: []
 blocks: []
 created_at: 2026-08-15T02:07:10+08:00
-updated_at: 2026-08-15T02:07:10+08:00
+updated_at: 2026-08-15T07:47:03+08:00
 started_at: 2026-08-15T02:07:10+08:00
-accepted_at:
-candidate_commit:
-closure_commit:
-evidence:
+accepted_at: 2026-08-15T07:47:03+08:00
+candidate_commit: https://github.com/maggnus/ymp/commit/0897ecf9c7392e29af359fdcfd5c38cfc86713d1
+closure_commit: https://github.com/maggnus/ymp/commit/decd7ea
+evidence: one return round; the re-review walked the 24-step final test without operator machinery, verified the retraction of the nothing-spent claim in every place, the kernel purity via admission facts, the NVIDIA model-route reading against ARCHITECTURE.md and PROTOCOL.md, and adversarial answer-classification probes
 duration_minutes: 0
 blocker:
 pause_reason:
-return_trigger:
-deliberate_partial: false
+return_trigger: implementing P4a, P5 or P8 returns the four recorded residuals (the unresolved-divergence terminal, the policy-table fields, the bootstrap step circularity wording, the divergent-set ambiguity)
+deliberate_partial: true
 ---
 
 # W1-PRD-05a — The collective design deliverable
@@ -76,7 +76,13 @@ Not accepted.
 
 ### Residuals
 
-None recorded.
+Four re-review findings, all passing the reversibility and detection tests, carried into
+implementation: (1) major — an unresolved divergence has no deadline, default or terminal of its
+own, so an unattended run drifts to exhausted with the wrong named cause; the design must gain an
+abstained-with-published-divergence terminal or a default resolution (also raised to the owner as
+an eleventh decision); (2) the policy table of item 7 misses the derivation-permission fields and
+still says set membership with a contract-frozen pool; (3) bootstrap steps 2-3 are circular as
+worded; (4) "no verification query against a diverged requirement set" reads two ways.
 
 ### Evidence
 

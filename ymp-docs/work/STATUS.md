@@ -83,4 +83,4 @@
 | `[x]` | [`W1-EXP-01d.1`](waves/W1/W1-EXP-01/tasks/W1-EXP-01d/subtasks/W1-EXP-01d.1.md) | Codex profile satisfies the primary-comparison runtime contract | [`66f075a0`](https://github.com/maggnus/ymp/commit/66f075a0e778bcd36a2e1974ba10b96d75837389) | 12/08 20:42 | 12/08 22:04 (1h22m) |
 | `[x]` | [`W1-EXP-01d.2`](waves/W1/W1-EXP-01/tasks/W1-EXP-01d/subtasks/W1-EXP-01d.2.md) | Claude Code profile satisfies the primary-comparison runtime contract | [`ca221c9a`](https://github.com/maggnus/ymp/commit/ca221c9a4b81775bf158cf915d0d7613e9daae92) | 12/08 21:18 | 12/08 22:44 (1h26m) |
 | `[~]` | [`W1-PRD-05`](waves/W1/W1-PRD-05/CARD.md) | The product is experienced as an autonomous collective | — | 15/08 02:07 | 15/08 02:07 (0m) |
-| `[~]` | [`W1-PRD-05a`](waves/W1/W1-PRD-05/tasks/W1-PRD-05a.md) | The collective design deliverable | — | 15/08 02:07 | 15/08 02:07 (0m) |
+| `[x]` | [`W1-PRD-05a`](waves/W1/W1-PRD-05/tasks/W1-PRD-05a.md) | The collective design deliverable | [`decd7ea`](https://github.com/maggnus/ymp/commit/decd7ea) | 15/08 02:07 | 15/08 07:47 (0m) |
