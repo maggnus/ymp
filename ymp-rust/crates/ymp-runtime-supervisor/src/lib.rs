@@ -16,7 +16,7 @@ use std::thread::{self, JoinHandle};
 use uuid::Uuid;
 use ymp_application::Application;
 use ymp_application::WorkspaceSubmission;
-use ymp_domain::commitment::{InvocationClosure, Verdict};
+use ymp_domain::commitment::{InvocationClosure, InvocationState, RootTerminal, Verdict};
 use ymp_domain::{Command, EventKind, MAX_IDENTIFIER_CHARS, RunStatus, digest_bytes};
 use ymp_runtime_api::{
     AdmittedProgram, CancellationToken, DiagnosticSummary, InvocationRequest, LaunchDescriptor,
@@ -370,12 +370,29 @@ pub struct ManagedRunHandle {
     /// The committed record of this run's process slice. Whether the slice may resume is decided
     /// here and nowhere else, so the live run and a modelled one answer that question the same way.
     kernel: Arc<ManagedKernel>,
+    /// Held by everything that may end this run: the worker on its way out, an operator's
+    /// cancellation, and the verdict of a protected query. The terminal of a run is decided once,
+    /// and it is decided against the committed facts, so the reading of those facts and the
+    /// transition taken from it cannot be split by another ending arriving in between.
+    terminal: Arc<Mutex<()>>,
     finished: Arc<AtomicBool>,
     worker: Option<JoinHandle<()>>,
 }
 
 enum ManagedControl {
     Wake { input: String },
+}
+
+/// Take the guard that serializes every ending of one managed run.
+///
+/// A poisoned guard is taken all the same. What it holds is an order of operations and not a datum
+/// whose invariant a panic could leave half-written — the committed facts are the state of the run,
+/// and each of them is committed whole — so refusing here would leave a run nobody could stop and
+/// nothing safer than what stopping it does.
+fn take_terminal(terminal: &Mutex<()>) -> std::sync::MutexGuard<'_, ()> {
+    terminal
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner())
 }
 
 impl ManagedRunHandle {
@@ -399,19 +416,48 @@ impl ManagedRunHandle {
         self.finished.load(Ordering::Acquire)
     }
 
+    /// Stop this run, in both records that state how it ended.
+    ///
+    /// A cancellation used to move the journal and set the token the runtime watches, and that was
+    /// the whole of it. Where the runtime had already finished, nothing was watching the token any
+    /// more: the journal called the run cancelled while the kernel still held it open on an
+    /// unjudged candidate, and the verdict of a query issued afterwards drove that same run to
+    /// acceptance. The kernel transition is therefore taken here whenever the slice is already
+    /// closed, because a slice that closed has had its terminal recorded and will record no second
+    /// one. While the slice is still open the worker records it, and the token this sets is what
+    /// the worker reads to record a cancellation rather than whatever the runtime did last.
+    ///
+    /// A run the kernel has already ended is not cancelled at all. Renaming a committed terminal is
+    /// what this path exists to prevent, so the cancellation is refused and neither record moves.
     pub fn cancel(&self, reason: impl Into<String>) -> anyhow::Result<()> {
         let reason = reason.into();
-        let mut application = self
-            .application
-            .lock()
-            .map_err(|_| anyhow::anyhow!("application lock was poisoned"))?;
-        if application.state().status == RunStatus::Running {
-            application.execute(
-                format!("{}.cancel", self.attempt_id),
-                Command::Cancel { reason },
-            )?;
+        let _terminal = take_terminal(&self.terminal);
+        let ended = self.kernel.root_terminal()?;
+        {
+            let mut application = self
+                .application
+                .lock()
+                .map_err(|_| anyhow::anyhow!("application lock was poisoned"))?;
+            if application.state().status == RunStatus::Running {
+                if let Some(terminal) =
+                    ended.filter(|terminal| *terminal != RootTerminal::Cancelled)
+                {
+                    bail!("the kernel has already ended this run as {terminal:?}");
+                }
+                application.execute(
+                    format!("{}.cancel", self.attempt_id),
+                    Command::Cancel { reason },
+                )?;
+            }
         }
         self.cancellation.cancel();
+        // Which of the two records the kernel transition is decided by the committed state of the
+        // slice, not by whether the worker thread has been observed to finish: the worker records
+        // its terminal well before it reports itself finished, and a cancellation arriving in
+        // between would otherwise reach a kernel nobody was going to close.
+        if ended.is_none() && self.kernel.invocation_state()? == InvocationState::Closed {
+            self.kernel.terminated(ManagedTermination::Cancelled)?;
+        }
         Ok(())
     }
 
@@ -463,7 +509,12 @@ impl ManagedRunHandle {
     /// the kernel here is a verdict somebody else produced against an exact bundle. Recording it is
     /// what closes the work obligation and lets the run reach a terminal state, so a candidate
     /// nobody verified leaves the run open rather than passing for accepted.
+    ///
+    /// It is one of the endings this run may reach, so it is taken under the same guard as a
+    /// cancellation: a verdict recorded first leaves the cancellation nothing to rename, and a
+    /// cancellation recorded first stops the run, whereupon the kernel refuses the verdict.
     pub fn verified(&self, candidate_digest: &str, verdict: Verdict) -> anyhow::Result<()> {
+        let _terminal = take_terminal(&self.terminal);
         self.kernel.verified(candidate_digest, verdict)
     }
 
@@ -805,6 +856,8 @@ fn start_candidate(
     let (sender, receiver) = channel();
     let (control_sender, control_receiver) = channel();
     let worker_kernel = Arc::clone(&kernel);
+    let terminal = Arc::new(Mutex::new(()));
+    let worker_terminal = Arc::clone(&terminal);
     let finished = Arc::new(AtomicBool::new(false));
     let worker_finished = Arc::clone(&finished);
     let worker_application = Arc::clone(&application);
@@ -963,6 +1016,12 @@ fn start_candidate(
                 // in the terminal vocabulary the run is accountable in. A slice that completed
                 // leaves its work obligation open, because whether its candidate is accepted is
                 // decided by a protected query this controller does not perform.
+                //
+                // The guard covers the reading of the cancellation and the candidate that follows
+                // it, so an operator's cancellation either is already visible here and is the
+                // terminal recorded, or finds the slice closed and takes the kernel transition
+                // itself. It cannot land between the two and stop the run under the submission.
+                let terminal = take_terminal(&worker_terminal);
                 worker_kernel.terminated(match terminal_failure {
                     Some("managed_runtime_timed_out") => {
                         ManagedTermination::Failed(InvocationClosure::LimitExceeded)
@@ -997,6 +1056,7 @@ fn start_candidate(
                 // The work the run is accountable for now carries the exact candidate a protected
                 // query would be spent on.
                 worker_kernel.submitted(&candidate_digest)?;
+                drop(terminal);
                 let _ = sender.send(ManagedRunEvent::CandidateAvailable {
                     candidate_digest,
                     change_count: None,
@@ -1031,10 +1091,14 @@ fn start_candidate(
             if let Some(detail) = detail {
                 record_infrastructure_failure(&worker_application, &worker_attempt, &detail);
                 // Supervision that failed on its way out still owes the kernel a terminal: a slice
-                // left open would hold the run open on capacity nothing is running under.
-                let _ = worker_kernel.terminated(ManagedTermination::Failed(
-                    InvocationClosure::InfrastructureError,
-                ));
+                // left open would hold the run open on capacity nothing is running under. It is one
+                // more ending, so it is recorded under the same guard as the others.
+                {
+                    let _terminal = take_terminal(&worker_terminal);
+                    let _ = worker_kernel.terminated(ManagedTermination::Failed(
+                        InvocationClosure::InfrastructureError,
+                    ));
+                }
                 let _ = sender.send(ManagedRunEvent::Failed { detail });
             }
             let _ = sender.send(ManagedRunEvent::Finished);
@@ -1050,6 +1114,7 @@ fn start_candidate(
         receiver,
         control_sender,
         kernel,
+        terminal,
         finished,
         worker: Some(worker),
     })

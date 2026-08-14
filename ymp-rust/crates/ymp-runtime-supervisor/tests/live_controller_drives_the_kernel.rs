@@ -9,7 +9,7 @@
 //! answer: every resumption and every terminal it reaches is a committed kernel transition.
 
 use std::path::Path;
-use std::sync::atomic::{AtomicU32, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
@@ -27,13 +27,18 @@ use ymp_runtime_api::{
 };
 use ymp_runtime_fake::{FakeRuntime, ScriptStep};
 use ymp_runtime_supervisor::{
-    ManagedCandidateRequest, ManagedContract, ManagedRunHandle, start_unattested_managed_candidate,
+    ManagedCandidateRequest, ManagedContract, ManagedRunEvent, ManagedRunHandle,
+    start_unattested_managed_candidate,
 };
 
 /// A runtime that yields through the coordination tool the way a supervised participant does. It
 /// yields once for each step of its script and submits its candidate when it has no yields left.
 struct YieldingRuntime {
     yields: u32,
+    /// When it is set, the session holds its teardown open until this is opened. The worker winds
+    /// the runtime down after it has recorded the terminal of the slice and before it reports
+    /// itself finished, so holding it there is what puts a controller inside that window.
+    teardown: Option<Arc<AtomicBool>>,
 }
 
 impl RuntimeDriver for YieldingRuntime {
@@ -74,6 +79,7 @@ impl RuntimeDriver for YieldingRuntime {
             controller,
             taken,
             yields: self.yields,
+            teardown: self.teardown.clone(),
         }))
     }
 }
@@ -83,6 +89,22 @@ struct YieldingSession {
     controller: SocketToolHandler,
     taken: AtomicU32,
     yields: u32,
+    teardown: Option<Arc<AtomicBool>>,
+}
+
+/// Winding the runtime down is where the worker spends the time between recording the terminal of
+/// its slice and reporting itself finished. A session that waits here holds the worker in that
+/// window for as long as the check needs it.
+impl Drop for YieldingSession {
+    fn drop(&mut self) {
+        let Some(teardown) = &self.teardown else {
+            return;
+        };
+        let deadline = Instant::now() + Duration::from_secs(10);
+        while !teardown.load(Ordering::Acquire) && Instant::now() < deadline {
+            std::thread::sleep(Duration::from_millis(1));
+        }
+    }
 }
 
 impl RuntimeSession for YieldingSession {
@@ -127,6 +149,10 @@ struct Fixture {
 }
 
 fn start(yields: u32) -> Fixture {
+    start_with(yields, None)
+}
+
+fn start_with(yields: u32, teardown: Option<Arc<AtomicBool>>) -> Fixture {
     let temporary = tempfile::tempdir().expect("temporary directory");
     let source = temporary.path().join("source");
     std::fs::create_dir(&source).expect("source directory");
@@ -137,7 +163,7 @@ fn start(yields: u32) -> Fixture {
     ));
     let handle = start_unattested_managed_candidate(
         Arc::clone(&application),
-        Box::new(YieldingRuntime { yields }),
+        Box::new(YieldingRuntime { yields, teardown }),
         ManagedCandidateRequest {
             contract: ManagedContract {
                 contract_id: "contract-yield".to_owned(),
@@ -175,6 +201,23 @@ fn wait_until_yielded(handle: &ManagedRunHandle) {
         std::thread::sleep(Duration::from_millis(5));
     }
     panic!("the managed runtime did not yield");
+}
+
+/// Wait until the run announces the candidate it committed, and answer with its digest.
+fn wait_for_candidate(handle: &ManagedRunHandle) -> String {
+    let deadline = Instant::now() + Duration::from_secs(10);
+    while Instant::now() < deadline {
+        while let Some(event) = handle.try_next() {
+            if let ManagedRunEvent::CandidateAvailable {
+                candidate_digest, ..
+            } = event
+            {
+                return candidate_digest;
+            }
+        }
+        std::thread::sleep(Duration::from_millis(5));
+    }
+    panic!("the managed run announced no candidate");
 }
 
 fn drain_until_finished(handle: &ManagedRunHandle) {
@@ -320,27 +363,41 @@ fn a_live_run_resumes_through_the_kernel_transitions() {
 /// carries a candidate, and the run reports no terminal at all. What moves it off that state is the
 /// verdict entering the kernel as a fact.
 fn verified_run(verdict: Verdict) -> (Fixture, CommitmentLedger) {
-    let fixture = start(1);
-    let handle = &fixture.handle;
-    wait_until_yielded(handle);
-    handle.wake("wake-1", "continue once").expect("the wake");
-    drain_until_finished(handle);
+    let (fixture, candidate) = finished_run();
+    fixture
+        .handle
+        .verified(&candidate, verdict)
+        .expect("the recorded verdict");
+    let ledger = fixture.handle.kernel().snapshot().expect("the ledger");
+    (fixture, ledger)
+}
 
-    assert_eq!(
-        handle.kernel().root_terminal().expect("the terminal"),
-        None,
-        "the run reached a terminal before anything judged its candidate"
-    );
-    let candidate = handle.kernel().snapshot().expect("the ledger").contracts()
-        [handle.kernel().contract_id()]
+/// Drive one live run to the state every verdict and every late cancellation is issued against: the
+/// runtime has finished, the candidate it produced is committed, and nothing has judged it, so the
+/// run holds no terminal in either accounting.
+fn finished_run() -> (Fixture, String) {
+    let fixture = start(1);
+    {
+        let handle = &fixture.handle;
+        wait_until_yielded(handle);
+        handle.wake("wake-1", "continue once").expect("the wake");
+        drain_until_finished(handle);
+        assert_eq!(
+            handle.kernel().root_terminal().expect("the terminal"),
+            None,
+            "the run reached a terminal before anything judged its candidate"
+        );
+    }
+    let candidate = fixture
+        .handle
+        .kernel()
+        .snapshot()
+        .expect("the ledger")
+        .contracts()[fixture.handle.kernel().contract_id()]
     .candidate_digest
     .clone()
     .expect("the committed candidate");
-    handle
-        .verified(&candidate, verdict)
-        .expect("the recorded verdict");
-    let ledger = handle.kernel().snapshot().expect("the ledger");
-    (fixture, ledger)
+    (fixture, candidate)
 }
 
 /// The work obligation of a run whose verdict has been recorded, wherever that verdict points.
@@ -442,6 +499,224 @@ fn a_verdict_naming_another_bundle_is_refused_and_leaves_the_run_open() {
         "unexpected refusal: {refusal}"
     );
     assert_eq!(handle.kernel().root_terminal().expect("the terminal"), None);
+    assert!(
+        handle
+            .kernel()
+            .snapshot()
+            .expect("the ledger")
+            .verifications()
+            .is_empty(),
+        "a refused verdict was recorded anyway"
+    );
+}
+
+/// A cancellation issued after the runtime has finished reaches the kernel, so the terminal the
+/// journal records is the terminal the kernel holds.
+///
+/// The state this is issued against is the one a completed run rests in: the slice is closed, the
+/// candidate is committed and nothing has judged it. A cancellation that moved only the journal
+/// would leave the kernel open on that candidate, and the verdict of a query issued afterwards
+/// would drive the very run the journal calls cancelled to acceptance.
+#[test]
+fn cancelling_a_finished_run_reaches_the_kernel_and_refuses_a_later_verdict() {
+    let (fixture, candidate) = finished_run();
+    let handle = &fixture.handle;
+
+    handle
+        .cancel("stopped after the runtime finished")
+        .expect("cancel");
+
+    assert_eq!(
+        fixture
+            .application
+            .lock()
+            .expect("application")
+            .state()
+            .status,
+        RunStatus::Cancelled
+    );
+    assert_eq!(
+        handle.kernel().root_terminal().expect("the terminal"),
+        Some(RootTerminal::Cancelled),
+        "the journal records a cancelled run the kernel has not stopped"
+    );
+
+    // The run is over, and a verdict produced against its candidate no longer moves it: the kernel
+    // refuses the fact rather than recording one that would name a second terminal.
+    let refusal = handle
+        .verified(&candidate, Verdict::Passed)
+        .expect_err("the kernel accepted a verdict for a cancelled run");
+    assert!(
+        refusal.to_string().contains("the run was stopped"),
+        "unexpected refusal: {refusal}"
+    );
+    assert_eq!(
+        handle.kernel().root_terminal().expect("the terminal"),
+        Some(RootTerminal::Cancelled),
+        "a verdict drove a cancelled run to another terminal"
+    );
+    assert!(
+        handle
+            .kernel()
+            .snapshot()
+            .expect("the ledger")
+            .verifications()
+            .is_empty(),
+        "a refused verdict was recorded anyway"
+    );
+}
+
+/// The same cancellation, issued in the window where the worker has recorded the terminal of its
+/// slice but has not yet reported itself finished.
+///
+/// The window is real: the runtime is wound down between those two points, and ending a process
+/// tree takes as long as it takes. What decides whether the cancellation reaches the kernel is
+/// therefore the committed state of the slice and not the flag the worker sets on its way out — a
+/// controller that read the flag would leave exactly this run's two records naming different
+/// terminals.
+#[test]
+fn a_cancellation_inside_the_teardown_window_reaches_the_kernel() {
+    let teardown = Arc::new(AtomicBool::new(false));
+    let fixture = start_with(1, Some(Arc::clone(&teardown)));
+    let handle = &fixture.handle;
+    wait_until_yielded(handle);
+    handle.wake("wake-1", "continue once").expect("the wake");
+
+    // The candidate being announced places the worker past the terminal of its slice and past the
+    // submission, and the held teardown keeps it there.
+    let candidate = wait_for_candidate(handle);
+    assert!(
+        !handle.is_finished(),
+        "the worker reported itself finished while its teardown was held"
+    );
+    assert_eq!(
+        handle
+            .kernel()
+            .invocation_state()
+            .expect("the slice record"),
+        InvocationState::Closed
+    );
+
+    handle
+        .cancel("stopped while the runtime was being wound down")
+        .expect("cancel");
+    assert_eq!(
+        handle.kernel().root_terminal().expect("the terminal"),
+        Some(RootTerminal::Cancelled),
+        "a cancellation issued before the worker finished never reached the kernel"
+    );
+
+    teardown.store(true, Ordering::Release);
+    drain_until_finished(handle);
+
+    assert_eq!(
+        fixture
+            .application
+            .lock()
+            .expect("application")
+            .state()
+            .status,
+        RunStatus::Cancelled
+    );
+    assert_eq!(
+        handle.kernel().root_terminal().expect("the terminal"),
+        Some(RootTerminal::Cancelled)
+    );
+    assert!(
+        handle.verified(&candidate, Verdict::Passed).is_err(),
+        "the kernel accepted a verdict for a cancelled run"
+    );
+}
+
+/// The same two commands in the other order. A verdict is recorded first, and the cancellation that
+/// follows is refused rather than renaming the terminal the kernel already holds.
+///
+/// Which of the two wins is decided by which was committed first, and the loser changes neither
+/// record. The journal of a judged run carries no terminal of its own here — the decision of a
+/// protected query is entered there by the caller that performed it — so what this measures is that
+/// the cancellation writes no terminal the kernel does not hold.
+#[test]
+fn a_cancellation_after_a_recorded_verdict_is_refused_and_renames_no_terminal() {
+    let (fixture, _) = verified_run(Verdict::Passed);
+    let handle = &fixture.handle;
+
+    let refusal = handle
+        .cancel("stopped after the query answered")
+        .expect_err("a run the kernel had already ended was cancelled");
+    assert!(
+        refusal.to_string().contains("Accepted"),
+        "unexpected refusal: {refusal}"
+    );
+    assert_eq!(
+        handle.kernel().root_terminal().expect("the terminal"),
+        Some(RootTerminal::Accepted),
+        "the cancellation renamed the terminal the verdict had committed"
+    );
+    assert_eq!(
+        fixture
+            .application
+            .lock()
+            .expect("application")
+            .state()
+            .status,
+        RunStatus::Running,
+        "the journal recorded a terminal the kernel does not hold"
+    );
+}
+
+/// A verdict issued while the runtime is still working is refused on either side of a cancellation,
+/// so the cancellation is what ends such a run in both records.
+///
+/// A verdict names the exact bundle the work committed, and a run that is still working has
+/// committed none: the kernel has nothing to attach the decision to. After the cancellation the
+/// same verdict is refused again — for the candidate it never recorded, or for the run being
+/// stopped, depending on where the worker had got to — and the run ends cancelled in both records.
+#[test]
+fn a_verdict_while_the_runtime_works_is_refused_and_the_cancellation_ends_the_run() {
+    let fixture = start(1);
+    let handle = &fixture.handle;
+    wait_until_yielded(handle);
+
+    let before = handle
+        .verified(
+            &digest_bytes(b"a bundle nothing committed"),
+            Verdict::Passed,
+        )
+        .expect_err("the kernel judged a run that had submitted nothing");
+    assert!(
+        before
+            .to_string()
+            .contains("carries no candidate to verify"),
+        "unexpected refusal: {before}"
+    );
+
+    handle
+        .cancel("stopped while the runtime was working")
+        .expect("cancel");
+    assert!(
+        handle
+            .verified(
+                &digest_bytes(b"a bundle nothing committed"),
+                Verdict::Passed
+            )
+            .is_err(),
+        "a cancelled run was judged"
+    );
+    drain_until_finished(handle);
+
+    assert_eq!(
+        handle.kernel().root_terminal().expect("the terminal"),
+        Some(RootTerminal::Cancelled)
+    );
+    assert_eq!(
+        fixture
+            .application
+            .lock()
+            .expect("application")
+            .state()
+            .status,
+        RunStatus::Cancelled
+    );
     assert!(
         handle
             .kernel()
