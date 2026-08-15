@@ -356,7 +356,12 @@ pub const KEY_GROUPS: &[(&str, &[(&str, &str)])] = &[
     ),
 ];
 
+/// The narrowest the key map is drawn.
 const KEYS_WIDTH: u16 = 64;
+
+/// The cells the key column occupies. A description starts here, and a description too long for
+/// one row continues here, so the column reads as one block whether or not it wrapped.
+pub const KEY_COLUMN: usize = 16;
 
 /// How much room the key map spends on anything other than the keys themselves.
 ///
@@ -397,7 +402,29 @@ const KEYS_SPACINGS: [KeysSpacing; 4] = [
     },
 ];
 
+/// How wide the map is drawn on this terminal.
+///
+/// Wrapping a description costs a row, and rows are what the spacing ladder is short of, so the
+/// map first spends the width it has: it widens up to the longest description before it wraps
+/// anything. Below that it stays at [`KEYS_WIDTH`], or at whatever the terminal leaves.
+fn keys_width(area: Rect) -> u16 {
+    let longest = KEY_GROUPS
+        .iter()
+        .flat_map(|(_, keys)| keys.iter())
+        .map(|(_, label)| KEY_COLUMN + text::width(label))
+        .max()
+        .unwrap_or(0);
+    let wanted = (longest as u16).saturating_add(2).max(KEYS_WIDTH);
+    // The frame layer centres the surface with a column of margin on each side.
+    match area.width.saturating_sub(4) {
+        0 => KEYS_WIDTH,
+        room => wanted.min(room),
+    }
+}
+
 fn keys_spec(app: &App, area: Rect) -> ModalSpec {
+    let width = keys_width(area);
+    let inner = width.saturating_sub(2) as usize;
     // What a floating surface may fill: the frame layer keeps one row of margin above and below
     // the centred surface, and two more rows go to its own border. The badge stays on that
     // border at every supported width — below 80x24 the size guard replaces the interface — so
@@ -405,7 +432,7 @@ fn keys_spec(app: &App, area: Rect) -> ModalSpec {
     let room = area.height.saturating_sub(4) as usize;
     let spacing = KEYS_SPACINGS
         .iter()
-        .find(|spacing| keys_body(app, **spacing).len() <= room)
+        .find(|spacing| keys_body(app, **spacing, inner).len() <= room)
         .copied()
         .unwrap_or(KEYS_SPACINGS[KEYS_SPACINGS.len() - 1]);
 
@@ -413,21 +440,18 @@ fn keys_spec(app: &App, area: Rect) -> ModalSpec {
         title: "keys".into(),
         badge: "? or Esc to close".into(),
         role: ModalRole::Reference,
-        width: KEYS_WIDTH,
-        body: keys_body(app, spacing),
+        width,
+        body: keys_body(app, spacing, inner),
     }
 }
 
-fn keys_body(app: &App, spacing: KeysSpacing) -> Vec<Line<'static>> {
+fn keys_body(app: &App, spacing: KeysSpacing, inner: usize) -> Vec<Line<'static>> {
     let mut body: Vec<Line<'static>> = Vec::new();
 
     // The transcript states the assurance profile once, as a glyph in the header. The sentence
     // it stands for is stated here in full, at the top, where a short terminal cannot clip it.
     if let Some(environment) = &app.data.environment {
-        for piece in text::wrap(
-            &crate::journal::assurance_sentence(environment),
-            KEYS_WIDTH as usize - 2,
-        ) {
+        for piece in text::wrap(&crate::journal::assurance_sentence(environment), inner) {
             body.push(Line::from(Span::styled(piece, theme::amber())));
         }
         if spacing.padding {
@@ -448,14 +472,28 @@ fn keys_body(app: &App, spacing: KeysSpacing) -> Vec<Line<'static>> {
             // groups, so the keys under it are indented to read as belonging to it. The label
             // column does not move: the indent is taken out of the key column.
             let key = if spacing.groups {
-                pad(key, 16)
+                pad(key, KEY_COLUMN)
             } else {
-                format!("  {}", pad(key, 14))
+                format!("  {}", pad(key, KEY_COLUMN - 2))
             };
-            body.push(Line::from(vec![
-                Span::styled(key, theme::accent()),
-                Span::styled((*label).to_owned(), theme::dim()),
-            ]));
+            // A description wider than what is left of the row continues underneath itself
+            // rather than being cut: a hint the operator can only half-read is a hint they have
+            // to guess at. The continuation hangs under the description column, so the key
+            // column stays the only thing on the left.
+            let room = inner.saturating_sub(KEY_COLUMN).max(1);
+            for (index, piece) in text::wrap(label, room).into_iter().enumerate() {
+                body.push(Line::from(vec![
+                    Span::styled(
+                        if index == 0 {
+                            key.clone()
+                        } else {
+                            " ".repeat(KEY_COLUMN)
+                        },
+                        theme::accent(),
+                    ),
+                    Span::styled(piece, theme::dim()),
+                ]));
+            }
         }
     }
     if spacing.note {
