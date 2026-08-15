@@ -46,8 +46,13 @@ previous composition tried to serve with one dashboard.
 ## The main screen is a conversation
 
 A single scrolling transcript fills the screen, with an input line at the bottom, a thin context
-header, and a status line. Data views — runtimes, agents, candidates, events, budgets, object
-detail — are full-screen pages opened on demand through a `/` command line and closed with `Esc`.
+header, and a status line. Data views — runtimes, providers, provider properties, pools, agents,
+candidates, events, budgets, object detail — are full-screen pages opened on demand through a `/`
+command line and closed with `Esc`.
+
+The opening screen is a three-line banner: a one-line logo carrying version, project and store, the
+invitation to state a goal, and a line naming the two doors out (`/providers` with its state
+counters, and the key map). A five-line logo was considered and rejected.
 
 The three stages are one continuous transcript, not three screens. The transcript is interrupted
 exactly once, by contract authorization, because that decision is irreversible and begins spending
@@ -61,6 +66,20 @@ by structure, and arrive without reshaping the transcript.
 
 This also answers what the operator does during a two-hour run. Reading an event table is not an
 activity; reading a conversation and intervening when the collective goes astray is.
+
+### One turn, one reply
+
+One operator turn produces exactly one application reply. The interface may not stack several
+replies that narrate its own machinery — pool state, contract assembly, verifier derivation —
+around a single question that asked for none of it.
+
+A refusal is bound by the same discipline. It occupies at most two lines, its first line opens with
+the verb of the operator's next action, and the reason follows after a dash on that same line. The
+mechanics of the decision live behind `/describe refusal`, not in the transcript.
+
+Entry text starts in a fixed column that does not depend on the content — column 20 for a run
+event, column 8 for a reply — and a wrapped line resumes exactly under that column. A digest is
+shown as six characters without an algorithm prefix; the full form appears only in `describe`.
 
 ### Reference points
 
@@ -82,7 +101,65 @@ decision modals behave differently and must not look alike.
 Board messages are inert data. Nothing in the transcript is executable in one keypress: acting on
 a suggestion always requires a separate command issued under the operator's own authority. This is
 INV-4 expressed as layout, and it is the reason a suggestion from a participant can never become a
-button.
+button. The same rule reaches into the tables: the `↳` line under an untrusted collaboration-plane
+row carries no action key and stays data.
+
+## Action classes
+
+Three classes of action are distinguished, and the affordance follows the class rather than the
+screen.
+
+- **Reversible** — a single key, no confirmation, because the same key undoes the result:
+  `d disable`, `r measure again`, `F follow`, `/ filter`.
+- **Consent** — a modal in which the consequence is stated on the line directly above the key that
+  takes the decision.
+- **Irreversible** — a modal with a preview of the consequences and a typed confirmation of the
+  exact identifier: authorizing a contract, cancelling a run.
+
+A key never takes a decision whose consequence is not stated on screen, and a modal never stands
+where one key already undoes the action.
+
+Enabling a provider has exactly one form. It is the consent to disclose repository content, so it
+is reached only through the provider's own properties page: list, `Enter`, properties, `e`. No
+enable key exists in the list. The consent modal states, once and in one place, that enabling
+permits repository content of any workspace on this host to reach that provider — asked once, never
+per project and never per run — and it carries the pool selection alongside, since that choice is
+reversible.
+
+## State vocabulary
+
+One vocabulary of entity states — `off`, `ready`, `measuring`, `error` — applies identically to a
+provider, a pool and a run. `off` means the operator never enabled it and nothing is measured or
+spent. `ready` means the measurement succeeded and the age of the last measurement is named.
+`measuring` means the measurement is running now, and the cell is never left empty. `error` means
+the measurement happened and failed, with the reason and the next action on the `↳` line.
+
+*Enabled* is therefore not a state: enabling is an operator action, and what follows it is `ready`,
+`measuring` or `error`. A header counts in that one vocabulary, and the counters sum to the number
+of rows.
+
+A run that has finished leaves this vocabulary: its state is `ended`, and which end it was is named
+by exactly one of the five terminal outcomes. A run whose state is `error` failed to start; that
+word never stands in for `infrastructure_error`, which terminates a run that had already begun.
+
+Surface state — `loading`, `empty`, `stale`, `degraded`, `error` — is a separate axis from entity
+state. Both markers may appear on one screen, they mean different things, and neither substitutes
+for the other. Every such marker is textual and survives the absence of colour.
+
+## Table discipline
+
+A data page is drawn by fixed rules rather than per-screen judgement. A column is as wide as the
+larger of its header and its longest value plus two, up to its own cap; the leftover width goes to
+the last text column instead of being spread across all of them. A truncated value is cut with an
+ellipsis inside its own cell, and at least one space always remains before the next column.
+
+Numbers are aligned to the right by digit position. An em dash marks a quantity that was not
+measured, and never a measured quantity equal to zero.
+
+A reason that is the same for every row stands once in the header, not repeated under each row. A
+note under a table is at most one line; everything longer lives behind `?`. Key hints occupy a
+single line at the right of the status line. Filtering is `/` across all columns, or `/state:ready`
+against one, and the header names the active filter together with the way back.
 
 ## Contract authorization
 
@@ -101,7 +178,8 @@ instead of presenting a generated document as finished.
 ## Naming model
 
 The interface borrows the navigation model of k9s: a `/` command line instead of numbered screens,
-`Enter` to descend, `Esc` to return, `/` to filter, and a thin header.
+`Enter` to descend, `Esc` to return, `/` to filter, and a thin header. The provider and pool screens
+follow the product's list, select, properties, action path.
 
 | Kubernetes | ymp | Note |
 |---|---|---|
@@ -180,12 +258,23 @@ dimensions rather than a rehearsal of the full vector.
 ## Relation to the design artifacts
 
 `design/ymp_chat_tui.dc.html` draws this composition, while `design/ymp_chat_tui.pdf` is its primary
-fixed-layout review version: seven transcript states, six full-screen data pages, two decision
-modals, a key overlay and a size guard, at 80×24, 120×40 and 180×50, with a state-kind matrix,
-deterministic fixtures sharing one set of identifiers, and a handoff naming the reusable structures
-(`AppFrame`, `TranscriptEntry`, `FieldRow`, `DataPage`, `DescribeGroups`, `DecisionModal`,
-`TypedConfirm`, `HelpOverlay`, `SizeGuard`, `StateKind`). Implementation follows those names and
-metrics rather than inventing its own.
+fixed-layout review version: seven transcript states, nine full-screen data pages — runtimes,
+candidates, events, budgets, describe, agents, providers, provider properties, pools — two decision
+modals, one consent picker modal, a key overlay and a size guard, at 80×24, 120×40 and 180×50, with
+a state-kind matrix, deterministic fixtures sharing one set of identifiers, and a handoff naming the
+reusable structures (`AppFrame`, `TranscriptEntry`, `FieldRow`, `DataPage`, `DescribeGroups`,
+`DecisionModal`, `TypedConfirm`, `PickerModal`, `SelectColumn`, `ColumnWidths`, `FooterHints`,
+`ActionClass`, `RefusalReply`, `HelpOverlay`, `SizeGuard`, `StateKind`, `EntityState`).
+Implementation follows those names and metrics rather than inventing its own.
+
+Revision 1 of the artifact answers five recorded interface failures taken from a running build and
+reproduced verbatim in
+[`work/backlog/TUI-OWNER-FIXTURES-20260816.md`](work/backlog/TUI-OWNER-FIXTURES-20260816.md):
+transcript density, the shape of a refusal, table rules, the state vocabulary, and the separation of
+providers from pools. It introduces the provider, provider-properties and pool screens, and for each
+theme it names the rejected form beside the adopted one, because the rejected form is what explains
+the adopted one. The `/runtimes` page stays separate from `/providers` — an engine is the CLI
+installed on this host, a provider is the account whose models are measured.
 
 The earlier artifact `ymp_k9s_tui.dc.html` has been removed from the working tree. Its dashboard
 composition and numbered destinations are superseded. Every retained template family, projection,
@@ -238,9 +327,10 @@ containment property the profile does not provide.
 
 Wherever the profile appears with room for prose it is followed by its limit — that it provides
 no hostile-code containment and that agents run with the operator's own permissions. The header
-glyph is the compact form; the full sentence lives in the key map and on /runtimes (owner
-decision 2026-08-15: the opening transcript carries only the logo, one line of basics and the
-invitation).
+glyph is the compact form; the full sentence lives in the key map and on `/runtimes`. This follows
+the owner decision of 2026-08-15 that the opening transcript stays a three-line banner: the
+one-line logo already carries the profile with its glyph, and the remaining two lines are the
+invitation and the doors out.
 
 Shown by: the opening transcript, the wide context header, and the `assurance` row of the contract
 authorization surface.
