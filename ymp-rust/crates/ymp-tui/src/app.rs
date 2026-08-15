@@ -456,7 +456,17 @@ impl Session {
     /// It names the pool the operator never created, because an automatic record that appeared
     /// without being announced is a record nobody knows to look at. A root whose catalog offers
     /// nothing holds no pool, and that is stated as the state it is rather than as a failure.
+    ///
+    /// A pool that exists and cannot be read is neither of those, and it is stated as itself. The
+    /// reading answers a failure with no pools, so a reply that read that emptiness as a state
+    /// would tell an operator whose catalog offers two models that there is nothing to draw from —
+    /// which is the very contradiction the `/pools` page avoids by naming the failure.
     fn pools_after_the_change(&self) -> String {
+        if let Some(error) = &self.pools.error {
+            return format!(
+                "the pools could not be read in full, so what they now hold is not stated — {error}"
+            );
+        }
         match self.pools.pools.as_slice() {
             [] => "no pool stands under this root: the catalog offers no entry to draw from"
                 .to_owned(),
@@ -2316,8 +2326,9 @@ fn perform(session: &mut Session, app: &mut App, action: Action, tx: &Sender<App
             entry,
             permitted,
         } => {
-            session.set_pool_entry_permitted(pool, entry, permitted);
+            session.set_pool_entry_permitted(pool.clone(), entry.clone(), permitted);
             adopt(session, app);
+            follow_the_toggled_entry(app, &pool, &entry);
         }
         Action::SetPoolCapacity {
             pool,
@@ -2368,6 +2379,28 @@ fn perform(session: &mut Session, app: &mut App, action: Action, tx: &Sender<App
             adopt(session, app);
         }
         Action::Rebuild => adopt(session, app),
+    }
+}
+
+/// Put the cursor back on the entry a toggle acted on.
+///
+/// Permitting an entry or taking one out moves its row: the entries a pool permits stand first, in
+/// its declared order, and the rest of the catalog follows them. The cursor is kept by position, so
+/// without this the operator would be left standing on whatever row took the place of the one they
+/// acted on — and the next press would act on an entry they never chose. It is called after the
+/// projection is rebuilt, because the row it looks for exists only in the rebuilt one.
+pub fn follow_the_toggled_entry(app: &mut App, pool: &PoolName, entry: &PoolEntry) {
+    let Some(report) = app.data.pools.as_ref() else {
+        return;
+    };
+    let Some(facts) = report.named(pool) else {
+        return;
+    };
+    let moved = pools::rows(facts, &report.entries)
+        .iter()
+        .position(|row| matches!(row, pools::PoolRow::Entry(row) if row.entry == *entry));
+    if let Some(index) = moved {
+        app.select_row(PageKind::Pool, index);
     }
 }
 

@@ -117,6 +117,10 @@ impl Root {
             .expect("resolve the pools");
     }
 
+    fn pool_path(&self) -> PathBuf {
+        self.root.join("pools").join("default.json")
+    }
+
     fn pool_record(&self) -> ymp_runtime_registry::PoolRecord {
         self.address()
             .pools()
@@ -322,7 +326,7 @@ fn taking_an_entry_out_turns_tracking_into_the_list_the_operator_left() {
     assert_eq!(entry.model, "claude-opus-5");
     assert!(!permitted, "Enter on a permitted entry did not take it out");
     assert!(
-        session.set_pool_entry_permitted(pool, entry, permitted),
+        session.set_pool_entry_permitted(pool.clone(), entry.clone(), permitted),
         "the edit was refused"
     );
 
@@ -348,6 +352,31 @@ fn taking_an_entry_out_turns_tracking_into_the_list_the_operator_left() {
     );
     assert!(shown.contains("claude-opus-5"), "{shown}");
     assert!(shown.contains("not permitted"), "{shown}");
+
+    // The cursor stays on the entry the act moved. Taking one out puts its row below the entries
+    // that are still permitted, so the position it was standing on now belongs to another entry —
+    // that drift is asserted first, so what follows is shown to be doing the work rather than
+    // assumed to. The event loop takes this step after the rebuild; the check drives the same
+    // call, as it drives every other act here.
+    let rows_at = |app: &App| {
+        let report = app.data.pools.clone().expect("the pool level was read");
+        let rows = pools::rows(report.pool_at(0).expect("the pool"), &report.entries);
+        rows.get(app.selection_of(PageKind::Pool))
+            .cloned()
+            .expect("the cursor stands on a row")
+    };
+    let drifted = rows_at(&app);
+    assert!(
+        matches!(&drifted, PoolRow::Entry(row) if row.entry != entry),
+        "the position the act was taken on still belongs to that entry, so this check would pass \
+         without keeping the cursor on it: {drifted:?}"
+    );
+    ymp_tui::app::follow_the_toggled_entry(&mut app, &pool, &entry);
+    let standing = rows_at(&app);
+    assert!(
+        matches!(&standing, PoolRow::Entry(row) if row.entry == entry && !row.permitted),
+        "the cursor left the entry the act moved and stands on {standing:?}"
+    );
 
     // Nothing was confirmed, nothing was typed, and no participant was created.
     assert!(matches!(app.modal, ymp_tui::state::Modal::None));
@@ -516,6 +545,61 @@ fn holding_an_account_back_takes_back_the_readiness_this_session_measured() {
                 .is_ok_and(|record| !record.contains("2.1.227")),
         "holding an account back measured an engine"
     );
+}
+
+/// A pool that exists and cannot be read is stated as that, and never as a root that holds no
+/// pool.
+///
+/// The reading answers a failure with no pools, so a reply that read that emptiness as a state
+/// would tell an operator whose catalog offers two models that there is nothing to draw from.
+///
+/// The check that must fail: read the empty list without consulting the failure beside it, and an
+/// observation on a root with a damaged record replies `the catalog offers no entry to draw from`
+/// while the catalog offers two.
+#[test]
+fn a_pool_that_cannot_be_read_is_never_reported_as_a_root_without_one() {
+    let root = Root::new();
+    root.measured(&["claude-opus-5", "claude-sonnet-5"]);
+    root.resolved();
+    fs::write(root.pool_path(), b"{ not a record").expect("damage the record");
+
+    // An observation of the account nobody enabled: it changes the records this root holds and
+    // starts nothing, which is what makes it the cheapest way to reach the reply.
+    let mut session = root.session();
+    session.set_provider_enabled(
+        ProviderFamily::OpenAi,
+        false,
+        Some("kept out for this check".to_owned()),
+    );
+
+    let stated = session
+        .projection(None)
+        .entries
+        .iter()
+        .map(|entry| format!("{entry:?}"))
+        .collect::<Vec<_>>()
+        .join("\n");
+    assert!(
+        stated.contains("could not be read in full"),
+        "the reply does not state that the pools could not be read:\n{stated}"
+    );
+    assert!(
+        !stated.contains("the catalog offers no entry"),
+        "a damaged record was reported as a root with nothing to draw from, while its catalog \
+         offers two entries:\n{stated}"
+    );
+    // The damaged record is left exactly as it stands: nothing writes a fresh pool over a record
+    // it could not read.
+    assert_eq!(
+        fs::read_to_string(root.pool_path()).expect("the record is still there"),
+        "{ not a record"
+    );
+
+    // The page states the same failure, and states it as a failure.
+    let mut app = App::new(session.projection(None));
+    open(&mut app, "pools", 40);
+    let shown = screen(&app, 120, 40);
+    assert!(shown.contains("could not be read in full"), "{shown}");
 }
 
 /// A goal stated where this host offers models and holds no pool is held, and the reply names that

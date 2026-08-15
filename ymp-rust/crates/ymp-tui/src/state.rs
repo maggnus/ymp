@@ -330,6 +330,19 @@ impl App {
         }
     }
 
+    /// Put the cursor on one row of a page, and keep it there across later rebuilds.
+    ///
+    /// It exists for the act that moves the row it acted on: the cursor is kept by position, so a
+    /// row that changed places would leave the operator standing on a different subject without
+    /// having pressed anything. A position past the end of the page is taken as its last row.
+    pub fn select_row(&mut self, kind: PageKind, index: usize) {
+        if let Some(page) = self.data.page_mut(kind) {
+            page.selected = index.min(page.rows_len().saturating_sub(1));
+            let selected = page.selected;
+            self.selection.insert(kind, selected);
+        }
+    }
+
     /// Open the coverage map for the first contract the projection carries.
     pub fn open_authorize(&mut self) {
         self.open_authorize_at(0);

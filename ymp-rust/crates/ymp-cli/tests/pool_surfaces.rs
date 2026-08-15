@@ -430,7 +430,7 @@ fn a_row_that_selects_nothing_is_refused_rather_than_resolved() {
         stated(&unknown_pool)
     );
 
-    let unknown_model = host.ymp(&["pool", "exclude", "default", "gpt-5.6-sol"]);
+    let unknown_model = host.ymp(&["pool", "exclude", "default", "nemotron-ultra"]);
     assert!(
         !unknown_model.status.success(),
         "{}",
