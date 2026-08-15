@@ -231,31 +231,41 @@ so within. It is a capability boundary and never a team: it names entries, not p
 nothing is instantiated by standing in a pool.
 
 The record has two halves with two owners, and the layout keeps them apart because the ownership is
-the point. `spec` is the operator's: `models`, which is either the selector `all_admissible` or an
-explicit ordered list of provider–engine–model triples; `capacity`, which carries `max_agents` and
-`max_concurrent_attempts`; and `resource_limits`, the per-participant bounds, each absent until an
-operator states one. `status` is the reconciler's: the resolved entries in the pool's declared order
-with each one's admissibility and the reason it is not offered, how many are offered, the digest of
-the resolved ordered set, whether the pool still tracks the catalog, what the resolution was read
-from, and the conditions that state all of it in words.
+the point. **`declared`** is the operator's: `models`, which is either the whole-catalog form
+`all_admissible` or an explicit ordered list of provider–engine–model triples; `capacity`, which
+carries `max_agents` and `max_concurrent_attempts`; and `resource_limits`, the per-participant
+bounds, each absent until an operator states one. **`resolved`** is the controller's: the resolved
+entries in the pool's declared order with each one's admissibility and the reason it is not offered,
+how many are offered, the digest of the resolved ordered set, whether the pool still tracks the
+catalog, what the resolution was read from, and the `states` the pool is in, each with the sentence
+that explains it.
 
-`capacity` carries no floor. There is no `min_agents`, no `desired` and no replica count, and no
-role or rank anywhere in the record. A floor would be the only field here with no reconciler —
+Those are the product's own words for its own record (owner decision D12), and this paragraph is
+the only place the correspondence is written down: the declared half is what a Kubernetes CRD would
+carry as `spec` and the resolved half what it would carry as `status`. The mapping belongs to a
+future control plane at its own boundary, not to this domain, so no other document, record or type
+in this repository spells those two words as field names.
+
+`capacity` carries no floor. There is no `min_agents`, no desired count and no replica count, and no
+role or rank anywhere in the record. A floor would be the only field here with nothing behind it —
 recorded and ignored, or satisfied by something creating participants nobody asked for — and a rank
 over capabilities would be a team assignment under another name.
 
-**The `default` pool is created and never seeded.** The reconciler creates one record named
-`default`, with the selector and the ceilings the product's default setting states, the first time
-the catalog offers an admissible entry — which is the first time a provider is observed ready with
-a model an admitted engine can serve. A root whose catalog offers nothing therefore holds no pool
-record and no `pools/` directory at all. Creating that one record is the only `spec` the reconciler
-ever writes: an existing record's `spec` is carried forward byte for byte, and the operator's own
-write carries the stored `status` forward the same way.
+**The `default` pool is created and never seeded.** The controller creates one record named
+`default`, with the whole-catalog form and the ceilings the product's default setting states, the
+first time the catalog offers an admissible entry — which is the first time a provider is observed
+ready with a model an admitted engine can serve. A root whose catalog offers nothing therefore holds
+no pool record and no `pools/` directory at all. Creating that one record is the only `declared` the
+controller ever writes: an existing record's `declared` is carried forward byte for byte, and the
+operator's own write carries the stored `resolved` forward the same way.
 
-**An edit replaces the selector rather than adding to it.** Writing an explicit list is the
-operator's statement of which entries this pool permits, so the pool stops following the catalog and
-the record says so — `status.tracking` is false and the `explicit` condition carries the sentence. A
-model discovered afterwards joins the catalog and not the pool.
+**An edit replaces the whole-catalog form rather than adding to it.** Writing an explicit list is
+the operator's statement of which entries this pool permits, so the pool stops following the catalog
+and the record says so — `resolved.tracking` is false and the `explicit` state carries the sentence.
+A model discovered afterwards joins the catalog and not the pool. An edit resolves before it writes
+and writes both halves at once, so no record is ever left holding a list in one half and *this pool
+follows the catalog* in the other; a catalog that cannot be read refuses the edit and leaves the
+record as it stood.
 
 **Entries are referenced weakly and are never dropped.** An entry an explicit list names that the
 catalog no longer holds, and an entry the catalog holds but no longer offers, both stay in the
@@ -264,14 +274,21 @@ a pool whose boundary was narrowed. A catalog that cannot be read fails the whol
 same reason, and the record is left as it stood.
 
 The `digest` is computed over the resolved ordered set and over nothing else: each entry's provider,
-engine and model, whether it is offered and the reason it is not, in declared order, each field
-terminated. It therefore follows the catalog and the declared order, and a ceiling raised or a
-resource bound stated leaves it exactly as it was. This is the value a run freezes.
+engine and model, whether it is offered and the reason it is not, in declared order, with every
+field terminated and every entry terminated after it. Both terminators carry meaning. Without the
+field terminator, two different permitted sets whose fields concatenate to the same bytes would
+share one digest; without the order, a reordered pool would — and the order is what later decides
+which entry a run ignites on. The digest therefore follows the catalog and the declared order, and a
+ceiling raised or a resource bound stated leaves it exactly as it was. This is the value a run
+freezes.
 
-No resolution timestamp is written, because nothing at this level reads a clock. What the resolution
-was taken from is stated instead: the provider records it was read through with the state each one
-stated, and the digest of the whole catalog reading it resolved against. For a pool that tracks the
-catalog that digest equals the pool's own by construction, which is what tracking means.
+No resolution timestamp is written, because nothing in the crate that writes this record reads a
+clock. What the resolution was taken from is stated instead: the provider records it was read
+through with the state each one stated, and the digest of the whole catalog reading it resolved
+against. A reader holding the catalog compares that digest and sees whether the resolution is the
+one the catalog would produce now, which is the question a timestamp would have been consulted for.
+For a pool that tracks the catalog the two digests are equal by construction, which is what tracking
+means.
 
 The record states its own `schema_version`. A record of any other version is refused when it is
 read, and no command migrates a record. A record standing under another pool's name is refused

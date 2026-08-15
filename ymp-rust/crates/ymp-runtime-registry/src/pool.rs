@@ -8,33 +8,41 @@
 //!
 //! ```text
 //! .ymp/
-//!   pools/default.json              the selector or the explicit list, the ceilings, what it resolves to
+//!   pools/default.json              what the operator declared, and what it resolves to
 //!   providers/anthropic.json        the accounts the entries are attributed to
 //!   runtimes/claude-code.json       the engine records the model names are measured into
 //! ```
 //!
-//! **The record has two halves with two owners.** `spec` is the operator's: which entries the pool
-//! permits and the ceilings a run using it is held to. `status` is the reconciler's: what that spec
-//! resolves to against the catalog as it stands now, the digest of the resolved ordered set, and
-//! the conditions that state it in words. The two writers are separate functions and neither can
-//! reach the other's half — [`Pools::write_spec`] carries the stored status forward untouched, and
-//! [`Pools::reconcile`] carries the stored spec forward untouched.
+//! **The record has two halves with two owners.** The **declaration** is the operator's: which
+//! entries the pool permits and the ceilings a run using it is held to. The **resolution** is the
+//! controller's: what that declaration resolves to against the catalog as it stands now, the digest
+//! of the resolved ordered set, and the states the pool is in, each with the sentence that explains
+//! it. Neither writer can reach the other's half — [`Pools::write_declaration`] carries the stored
+//! resolution forward untouched, [`Pools::reconcile`] carries the stored declaration forward
+//! untouched, and [`resolve`] takes the declaration by immutable borrow, so it cannot write one.
 //!
-//! **The `default` pool is created rather than seeded.** The reconciler creates one pool named
+//! The two halves are the product's own words for its own record, and they are not the Kubernetes
+//! `spec` and `status` spelled in this crate (owner decision D12). The correspondence exists and is
+//! stated once, in `ymp-rust/SCHEMA.md`, because mapping a record onto a CRD is a concern of a
+//! future control plane rather than of this domain.
+//!
+//! **The `default` pool is created rather than seeded.** The controller creates one pool named
 //! `default`, tracking the catalog, the first time the catalog holds an admissible entry — which is
 //! the first time a provider is observed ready with a model an admitted engine can serve. A root
 //! that has observed nothing therefore holds no pool at all, so the product's first-run state is
 //! *enable a provider* rather than *no pool is configured*
-//! (`ymp-docs/design/COLLECTIVE-DESIGN.md`, §7). Creating that one record is the only spec write
-//! the reconciler ever performs.
+//! (`ymp-docs/design/COLLECTIVE-DESIGN.md`, §7). Creating that one record is the only declaration
+//! the controller ever writes.
 //!
 //! **Editing a pool stops it tracking, and the record says so.** An explicit list is the operator's
-//! statement of which entries this pool permits, so the selector is replaced rather than merged
-//! with, and a model discovered afterwards does not rejoin the pool. `status.tracking` and the
-//! `explicit` condition state that on the record, because a tracking pool that ignored an edit and
-//! an edited pool that silently followed the catalog are both dishonest.
+//! statement of which entries this pool permits, so the whole-catalog form is replaced rather than
+//! added to, and a model discovered afterwards does not rejoin the pool. `resolved.tracking` and
+//! the `explicit` state say so on the record, because a tracking pool that ignored an edit and an
+//! edited pool that silently followed the catalog are both dishonest. An edit resolves before it
+//! writes and writes both halves at once, so a record never stands with a list in one half and the
+//! sentence *this pool follows the catalog* in the other.
 //!
-//! **The reconciler is mechanical in the strict sense.** Its inputs are a spec and a catalog
+//! **The controller is mechanical in the strict sense.** Its inputs are a declaration and a catalog
 //! reading. It reads no goal, no task and no run; it ranks nothing, because the resolved order is
 //! the declared order — the catalog's for a tracking pool, the operator's for an edited one — and
 //! it starts nothing. That is the whole of what the controllers table permits the pool reconciler
@@ -44,20 +52,20 @@
 //! Four things are deliberately absent from the record, and each absence is a decision rather than
 //! an omission.
 //!
-//! * **No `minAgents`, no `desired`, no `replicas`.** `capacity` carries a ceiling on participants
+//! * **No floor, no desired count, no replica count.** `capacity` carries a ceiling on participants
 //!   and a ceiling on concurrent attempts and nothing else. A floor would be the only field in the
-//!   resource model with no reconciler: either recorded and ignored, or satisfied by something
-//!   creating participants nobody asked for
-//!   ([decision D11](../../../../ymp-docs/design/COLLECTIVE-OWNER-DECISIONS.md)).
+//!   resource model with no controller behind it: either recorded and ignored, or satisfied by
+//!   something creating participants nobody asked for (decision D11).
 //! * **No role and no rank.** An entry is a capability, and a list of capabilities with a rank on it
 //!   would be a team assignment under another name.
 //! * **No disclosure class, assurance profile or external-action allowance.** They are ceilings of a
 //!   run's policy, enforced where a run is created and a recruitment is admitted; nothing in this
 //!   build reads them, and a field recorded here now would be recorded and ignored.
-//! * **No resolution timestamp.** Nothing at this level reads a clock, exactly as nothing at the
-//!   provider level does. What a resolution was taken from is stated instead, as the observation
-//!   this crate can actually name: the provider records it was read through and the digest of the
-//!   catalog reading it resolved against.
+//! * **No resolution timestamp.** Nothing in this crate reads a clock. What a resolution was taken
+//!   from is stated instead, as the observation it can actually name: the provider records it was
+//!   read through and the digest of the catalog reading it resolved against. A reader comparing
+//!   that digest with the catalog sees whether the resolution is the one the catalog would produce
+//!   now, which is the question a timestamp would have been consulted for.
 //!
 //! Nothing here instantiates a participant, spends anything or opens a process. Resolving a pool
 //! reads records under one root and writes one record back.
@@ -82,7 +90,7 @@ pub const POOLS_DIRECTORY: &str = "pools";
 /// The record layout this build writes and reads. A record is not migrated.
 pub const POOL_SCHEMA_VERSION: u32 = 1;
 
-/// The name of the pool the reconciler creates, and the only pool this build holds.
+/// The name of the pool the controller creates, and the only pool this build holds.
 pub const DEFAULT_POOL: &str = "default";
 
 /// The name of one pool, which is also the file the record stands in.
@@ -94,7 +102,7 @@ pub const DEFAULT_POOL: &str = "default";
 pub struct PoolName(String);
 
 impl PoolName {
-    /// The pool the reconciler creates on the first admissible entry.
+    /// The pool the controller creates on the first admissible entry.
     pub fn default_pool() -> Self {
         Self(DEFAULT_POOL.to_owned())
     }
@@ -163,7 +171,8 @@ impl PoolEntry {
 /// Which entries a pool permits.
 ///
 /// The two forms are exclusive by construction, which is what makes an edit a decision rather than
-/// an addition: writing a list replaces the selector, and the pool stops following the catalog.
+/// an addition: writing a list replaces the whole-catalog form, and the pool stops following the
+/// catalog.
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(tag = "selection", rename_all = "snake_case")]
 pub enum PoolModels {
@@ -229,18 +238,18 @@ pub struct PoolResourceLimits {
     pub max_verification_queries: Option<u32>,
 }
 
-/// What the operator configured. Every field here is theirs; nothing measured is written into it.
+/// What the operator declared. Every field here is theirs; nothing measured is written into it.
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
-pub struct PoolSpec {
+pub struct PoolDeclaration {
     pub models: PoolModels,
     pub capacity: PoolCapacity,
     #[serde(default)]
     pub resource_limits: PoolResourceLimits,
 }
 
-impl PoolSpec {
-    /// The spec the automatic `default` pool is created with: the selector, and the ceilings
-    /// decision D8 set.
+impl PoolDeclaration {
+    /// The declaration the automatic `default` pool is created with: the whole catalog, and the
+    /// ceilings decision D8 set.
     pub fn tracking_the_catalog() -> Self {
         Self {
             models: PoolModels::AllAdmissible,
@@ -309,7 +318,7 @@ pub struct ObservedProvider {
 
 /// What a resolution was taken from.
 ///
-/// This is the reference that stands where a resolution timestamp would: nothing at this level
+/// This is the reference that stands where a resolution timestamp would: nothing in this crate
 /// reads a clock, and a record that stated a time it had not measured would be worse than one that
 /// names its source. A reader that holds the catalog can compare `catalog_digest` and see whether
 /// the resolution is the one the catalog would produce now.
@@ -320,7 +329,8 @@ pub struct PoolObservation {
     /// here, exactly as it contributes no catalog entry.
     pub providers: Vec<ObservedProvider>,
     /// The digest of the whole catalog reading, computed over every entry it held. For a pool that
-    /// tracks the catalog it equals `status.digest` by construction, which is what tracking means.
+    /// tracks the catalog it equals the pool's own digest by construction, which is what tracking
+    /// means.
     pub catalog_digest: String,
 }
 
@@ -342,11 +352,11 @@ impl PoolObservation {
     }
 }
 
-/// What a resolution states about the pool as a whole.
+/// A state a resolution found the pool in.
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "snake_case")]
-pub enum PoolConditionKind {
-    /// The spec was resolved against a catalog reading.
+pub enum PoolStateKind {
+    /// The declaration was resolved against a catalog reading.
     Resolved,
     /// The pool follows the catalog: an entry discovered later joins it.
     Tracking,
@@ -360,7 +370,7 @@ pub enum PoolConditionKind {
     Empty,
 }
 
-impl PoolConditionKind {
+impl PoolStateKind {
     pub const fn label(self) -> &'static str {
         match self {
             Self::Resolved => "resolved",
@@ -373,25 +383,25 @@ impl PoolConditionKind {
     }
 }
 
-/// One condition, with the sentence a surface shows for it.
+/// One state, with the sentence a surface shows for it.
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
-pub struct PoolCondition {
-    pub condition: PoolConditionKind,
+pub struct PoolState {
+    pub state: PoolStateKind,
     pub reason: String,
 }
 
-impl PoolCondition {
-    fn new(condition: PoolConditionKind, reason: impl Into<String>) -> Self {
+impl PoolState {
+    fn new(state: PoolStateKind, reason: impl Into<String>) -> Self {
         Self {
-            condition,
+            state,
             reason: reason.into(),
         }
     }
 }
 
-/// What the reconciler observed. Nothing an operator writes appears here.
+/// What the controller resolved and observed. Nothing an operator writes appears here.
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
-pub struct PoolStatus {
+pub struct PoolResolution {
     /// The resolved entries, in the pool's declared order.
     pub entries: Vec<ResolvedEntry>,
     /// How many of them are offered now.
@@ -401,22 +411,20 @@ pub struct PoolStatus {
     /// Whether this pool still follows the catalog.
     pub tracking: bool,
     pub observation: PoolObservation,
-    pub conditions: Vec<PoolCondition>,
+    pub states: Vec<PoolState>,
 }
 
-impl PoolStatus {
-    /// Whether a condition of this kind was written by the last resolution.
-    pub fn holds(&self, condition: PoolConditionKind) -> bool {
-        self.conditions
-            .iter()
-            .any(|held| held.condition == condition)
+impl PoolResolution {
+    /// Whether a state of this kind was written by the last resolution.
+    pub fn holds(&self, state: PoolStateKind) -> bool {
+        self.states.iter().any(|held| held.state == state)
     }
 
-    /// The sentence one condition carries, when it is held.
-    pub fn reason_for(&self, condition: PoolConditionKind) -> Option<&str> {
-        self.conditions
+    /// The sentence one state carries, when it is held.
+    pub fn reason_for(&self, state: PoolStateKind) -> Option<&str> {
+        self.states
             .iter()
-            .find(|held| held.condition == condition)
+            .find(|held| held.state == state)
             .map(|held| held.reason.as_str())
     }
 }
@@ -428,8 +436,10 @@ pub struct PoolRecord {
     /// The record's own name, which is the file it stands in. A record found under another pool's
     /// name is refused rather than read as that pool's.
     pub pool: String,
-    pub spec: PoolSpec,
-    pub status: PoolStatus,
+    /// What the operator declared.
+    pub declared: PoolDeclaration,
+    /// What the controller resolved it to.
+    pub resolved: PoolResolution,
 }
 
 /// The catalog reading as a resolution sees it: every entry, in catalog order.
@@ -437,14 +447,18 @@ fn resolved_catalog(catalog: &Catalog) -> Vec<ResolvedEntry> {
     catalog.entries().iter().map(ResolvedEntry::of).collect()
 }
 
-/// Resolve one spec against one catalog reading.
+/// Resolve one declaration against one catalog reading.
 ///
-/// This is the whole of the reconciler's decision, and it is a pure function of a spec and a
-/// catalog: it takes an immutable borrow of the spec, so it cannot write one, and it holds nothing
-/// else — no goal, no task, no run, no preference over entries. The resolved order is the declared
-/// order in both forms, so an entry is never moved by any property of itself.
-fn resolve(spec: &PoolSpec, catalog: &Catalog, observation: &PoolObservation) -> PoolStatus {
-    let entries = match &spec.models {
+/// This is the whole of the controller's decision, and it is a pure function of a declaration and a
+/// catalog: it takes the declaration by immutable borrow, so it cannot write one, and it holds
+/// nothing else — no goal, no task, no run, no preference over entries. The resolved order is the
+/// declared order in both forms, so an entry is never moved by any property of itself.
+fn resolve(
+    declared: &PoolDeclaration,
+    catalog: &Catalog,
+    observation: &PoolObservation,
+) -> PoolResolution {
+    let entries = match &declared.models {
         PoolModels::AllAdmissible => resolved_catalog(catalog),
         PoolModels::Explicit { entries } => entries
             .iter()
@@ -458,10 +472,10 @@ fn resolve(spec: &PoolSpec, catalog: &Catalog, observation: &PoolObservation) ->
             .collect(),
     };
     let admissible = entries.iter().filter(|entry| entry.admissible).count();
-    let tracking = spec.models.is_tracking();
-    let mut conditions = vec![
-        PoolCondition::new(
-            PoolConditionKind::Resolved,
+    let tracking = declared.models.is_tracking();
+    let mut states = vec![
+        PoolState::new(
+            PoolStateKind::Resolved,
             format!(
                 "{} of {} permitted {} offered by the catalog as it was read",
                 admissible,
@@ -473,25 +487,25 @@ fn resolve(spec: &PoolSpec, catalog: &Catalog, observation: &PoolObservation) ->
             ),
         ),
         match tracking {
-            true => PoolCondition::new(
-                PoolConditionKind::Tracking,
+            true => PoolState::new(
+                PoolStateKind::Tracking,
                 "this pool follows the catalog: an entry discovered later joins it",
             ),
-            false => PoolCondition::new(
-                PoolConditionKind::Explicit,
+            false => PoolState::new(
+                PoolStateKind::Explicit,
                 "this pool holds the list it was edited to and no longer follows the catalog: an \
                  entry discovered later does not join it",
             ),
         },
     ];
-    conditions.push(match (admissible, entries.len()) {
-        (0, _) => PoolCondition::new(PoolConditionKind::Empty, empty_reason(&entries)),
-        (offered, total) if offered == total => PoolCondition::new(
-            PoolConditionKind::Ready,
+    states.push(match (admissible, entries.len()) {
+        (0, _) => PoolState::new(PoolStateKind::Empty, empty_reason(&entries)),
+        (offered, total) if offered == total => PoolState::new(
+            PoolStateKind::Ready,
             "every entry this pool permits is offered",
         ),
-        (offered, total) => PoolCondition::new(
-            PoolConditionKind::Degraded,
+        (offered, total) => PoolState::new(
+            PoolStateKind::Degraded,
             format!(
                 "{} of {total} entries are not offered — {}",
                 total - offered,
@@ -499,13 +513,13 @@ fn resolve(spec: &PoolSpec, catalog: &Catalog, observation: &PoolObservation) ->
             ),
         ),
     });
-    PoolStatus {
+    PoolResolution {
         digest: digest_of(&entries),
         entries,
         admissible,
         tracking,
         observation: observation.clone(),
-        conditions,
+        states,
     }
 }
 
@@ -534,9 +548,13 @@ fn stated_reasons(entries: &[ResolvedEntry]) -> String {
 ///
 /// The input is stated here rather than left to a serializer: each entry contributes its provider,
 /// engine and model, whether it is offered and the reason it is not, in the pool's declared order,
-/// with every field terminated so that no two different sets produce the same bytes. What the
-/// digest therefore follows is the catalog and the declared order, and nothing else about a pool:
-/// raising a ceiling leaves it exactly as it was.
+/// with every field terminated and every entry terminated after it. Both terminators carry meaning
+/// and both are checked. Without the field terminator two different lists whose fields concatenate
+/// to the same bytes would share a digest; without the order, a reordered list would — and the
+/// order is what later decides which entry a run ignites on.
+///
+/// What the digest therefore follows is the catalog and the declared order, and nothing else about
+/// a pool: a ceiling raised or a resource bound stated leaves it exactly as it was.
 fn digest_of(entries: &[ResolvedEntry]) -> String {
     let mut hasher = Sha256::new();
     for entry in entries {
@@ -565,7 +583,7 @@ pub enum PoolError {
          is never a path"
     )]
     UnacceptableName { name: String },
-    #[error("this root holds no pool named {name}; nothing but the reconciler creates one")]
+    #[error("this root holds no pool named {name}; nothing but the controller creates one")]
     UnknownPool { name: String },
     /// The catalog this level resolves against could not be read. Resolution fails rather than
     /// answering with the part of the catalog that was readable, because a pool resolved against a
@@ -705,44 +723,54 @@ impl Pools {
 
     /// Write the operator's half of a record and nothing else.
     ///
-    /// The status stored is the one the reconciler last wrote, carried forward exactly: this path
-    /// resolves nothing, computes no digest and states no condition. A record whose spec has moved
-    /// ahead of its status is what a pending reconciliation looks like, and [`Pools::edit`] is the
-    /// operator path that performs both writes in order.
-    pub fn write_spec(&self, name: &PoolName, spec: PoolSpec) -> Result<PoolRecord, PoolError> {
+    /// The resolution stored is the one the controller last wrote, carried forward exactly: this
+    /// path resolves nothing, computes no digest and states no state. A record whose declaration
+    /// has moved ahead of its resolution is what a pending reconciliation looks like, and
+    /// [`Pools::edit`] is the operator path that never leaves one behind.
+    pub fn write_declaration(
+        &self,
+        name: &PoolName,
+        declared: PoolDeclaration,
+    ) -> Result<PoolRecord, PoolError> {
         let record = self.require(name)?;
-        self.store(name, &spec, &record.status)
+        self.store(name, &declared, &record.resolved)
     }
 
-    /// Amend one pool's spec and state what it now resolves to.
+    /// Amend one pool's declaration and record what it now resolves to.
     ///
-    /// This is the operator's edit: the closure receives the spec alone, so an edit cannot reach
-    /// the status, and the resolution that follows is the reconciler's own. Writing an explicit
-    /// list therefore leaves a record that both holds the list and says it has stopped tracking.
+    /// This is the operator's edit: the closure receives the declaration alone, so an edit cannot
+    /// reach the resolution, and the resolution that follows is the controller's own. Writing an
+    /// explicit list therefore leaves a record that both holds the list and says it has stopped
+    /// tracking.
     ///
-    /// A pool this root does not hold is refused rather than created. Nothing but the reconciler
+    /// **The catalog is read before anything is written.** The two halves reach the disk in one
+    /// write, so a catalog that cannot be read leaves the record exactly as it stood rather than
+    /// leaving the operator's list beside a resolution that still says the pool follows the
+    /// catalog. An edit either lands whole or does not land.
+    ///
+    /// A pool this root does not hold is refused rather than created. Nothing but the controller
     /// creates a pool in this build, and it creates exactly one.
     pub fn edit(
         &self,
         name: &PoolName,
         providers: &Providers,
         registry: &Registry,
-        amend: impl FnOnce(&mut PoolSpec),
+        amend: impl FnOnce(&mut PoolDeclaration),
     ) -> Result<PoolRecord, PoolError> {
-        let mut spec = self.require(name)?.spec;
-        amend(&mut spec);
-        self.write_spec(name, spec)?;
+        let mut declared = self.require(name)?.declared;
+        amend(&mut declared);
         let catalog = Catalog::read(providers, registry)?;
         let observation = PoolObservation::taken(providers, &catalog)?;
-        self.resolve_one(name, &catalog, &observation)
+        let resolved = resolve(&declared, &catalog, &observation);
+        self.store(name, &declared, &resolved)
     }
 
     /// Resolve every pool this root holds against the catalog, and create the automatic `default`
     /// where the catalog offers an entry and no `default` exists.
     ///
-    /// This is the pool reconciler. It writes `status` and, once, the `spec` of the record it
-    /// creates. It reads no goal, ranks nothing and starts nothing: a pool of three entries after
-    /// this call is three entries and zero participants.
+    /// This is the pool controller. It writes the resolution and, once, the declaration of the
+    /// record it creates. It reads no goal, ranks nothing and starts nothing: a pool of three
+    /// entries after this call is three entries and zero participants.
     pub fn reconcile(
         &self,
         providers: &Providers,
@@ -760,10 +788,10 @@ impl Pools {
 
     /// Create the `default` pool, tracking the catalog, the first time the catalog offers an entry.
     ///
-    /// This is the one spec the reconciler writes, and it writes it once: a `default` that exists is
-    /// left exactly as it stands, whether the operator has edited it or not. A root whose catalog
-    /// offers nothing holds no pool at all, which is what makes *enable a provider* the first-run
-    /// state instead of *no pool is configured*.
+    /// This is the one declaration the controller writes, and it writes it once: a `default` that
+    /// exists is left exactly as it stands, whether the operator has edited it or not. A root whose
+    /// catalog offers nothing holds no pool at all, which is what makes *enable a provider* the
+    /// first-run state instead of *no pool is configured*.
     fn create_default(
         &self,
         catalog: &Catalog,
@@ -773,13 +801,13 @@ impl Pools {
         if self.read(&name)?.is_some() || catalog.admissible().next().is_none() {
             return Ok(None);
         }
-        let spec = PoolSpec::tracking_the_catalog();
-        let status = resolve(&spec, catalog, observation);
-        self.store(&name, &spec, &status).map(Some)
+        let declared = PoolDeclaration::tracking_the_catalog();
+        let resolved = resolve(&declared, catalog, observation);
+        self.store(&name, &declared, &resolved).map(Some)
     }
 
-    /// Resolve one pool: the spec is read from the record and carried forward untouched, and only
-    /// the status this resolution computed is written.
+    /// Resolve one pool: the declaration is read from the record and carried forward untouched, and
+    /// only the resolution this reading computed is written.
     fn resolve_one(
         &self,
         name: &PoolName,
@@ -787,8 +815,8 @@ impl Pools {
         observation: &PoolObservation,
     ) -> Result<PoolRecord, PoolError> {
         let record = self.require(name)?;
-        let status = resolve(&record.spec, catalog, observation);
-        self.store(name, &record.spec, &status)
+        let resolved = resolve(&record.declared, catalog, observation);
+        self.store(name, &record.declared, &resolved)
     }
 
     fn require(&self, name: &PoolName) -> Result<PoolRecord, PoolError> {
@@ -801,19 +829,19 @@ impl Pools {
     /// over it, so a reader sees the record before this write or the record after it.
     ///
     /// The two halves arrive as separate arguments and neither is derived from the other here, so
-    /// which caller owns which half is decided by what it passes: the reconciler passes the stored
-    /// spec, the operator's write passes the stored status.
+    /// which caller owns which half is decided by what it passes: the controller passes the stored
+    /// declaration, the operator's write passes the stored resolution.
     fn store(
         &self,
         name: &PoolName,
-        spec: &PoolSpec,
-        status: &PoolStatus,
+        declared: &PoolDeclaration,
+        resolved: &PoolResolution,
     ) -> Result<PoolRecord, PoolError> {
         let record = PoolRecord {
             schema_version: POOL_SCHEMA_VERSION,
             pool: name.as_str().to_owned(),
-            spec: spec.clone(),
-            status: status.clone(),
+            declared: declared.clone(),
+            resolved: resolved.clone(),
         };
         let path = self.path_of(name);
         fs::create_dir_all(&self.directory).map_err(|source| PoolError::Io {
@@ -894,7 +922,7 @@ mod tests {
     /// The triples one pool resolved to, in order.
     fn triples(record: &PoolRecord) -> Vec<(String, String, String, bool)> {
         record
-            .status
+            .resolved
             .entries
             .iter()
             .map(|entry| {
@@ -979,7 +1007,7 @@ mod tests {
         let reconciled = pools.reconcile(&providers, &registry).expect("reconcile");
         assert_eq!(reconciled.len(), 1);
         assert_eq!(reconciled[0].pool, DEFAULT_POOL);
-        assert!(reconciled[0].status.tracking);
+        assert!(reconciled[0].resolved.tracking);
     }
 
     /// The `default` pool tracks the catalog: its resolved entries are the catalog's entries in
@@ -1021,23 +1049,26 @@ mod tests {
                 ))
                 .collect::<Vec<_>>()
         );
-        assert_eq!(record.status.admissible, 3);
-        assert_eq!(record.spec.models, PoolModels::AllAdmissible);
-        assert_eq!(record.spec.capacity, PoolCapacity::DEFAULT);
-        assert_eq!(record.spec.resource_limits, PoolResourceLimits::default());
-        assert!(record.status.holds(PoolConditionKind::Ready));
-        assert!(record.status.holds(PoolConditionKind::Tracking));
-        assert!(record.status.holds(PoolConditionKind::Resolved));
-        assert!(!record.status.holds(PoolConditionKind::Explicit));
+        assert_eq!(record.resolved.admissible, 3);
+        assert_eq!(record.declared.models, PoolModels::AllAdmissible);
+        assert_eq!(record.declared.capacity, PoolCapacity::DEFAULT);
+        assert_eq!(
+            record.declared.resource_limits,
+            PoolResourceLimits::default()
+        );
+        assert!(record.resolved.holds(PoolStateKind::Ready));
+        assert!(record.resolved.holds(PoolStateKind::Tracking));
+        assert!(record.resolved.holds(PoolStateKind::Resolved));
+        assert!(!record.resolved.holds(PoolStateKind::Explicit));
         // A pool that tracks the catalog resolves to the catalog, so the two digests are the same
         // value. That equality is what tracking means, stated where it can be read.
         assert_eq!(
-            record.status.digest,
-            record.status.observation.catalog_digest
+            record.resolved.digest,
+            record.resolved.observation.catalog_digest
         );
         assert_eq!(
             record
-                .status
+                .resolved
                 .observation
                 .providers
                 .iter()
@@ -1066,21 +1097,24 @@ mod tests {
             &["claude-opus-5"],
         );
         pools.reconcile(&providers, &registry).expect("reconcile");
-        let first = default_record(&pools).status.digest;
+        let first = default_record(&pools).resolved.digest;
 
         // Reconciling again over an unchanged catalog reaches the same digest.
         pools.reconcile(&providers, &registry).expect("reconcile");
-        assert_eq!(default_record(&pools).status.digest, first);
+        assert_eq!(default_record(&pools).resolved.digest, first);
 
         // A ceiling is not a catalog fact, so raising one leaves the digest where it stands.
         pools
-            .edit(&PoolName::default_pool(), &providers, &registry, |spec| {
-                spec.capacity.max_agents = 12
-            })
+            .edit(
+                &PoolName::default_pool(),
+                &providers,
+                &registry,
+                |declared| declared.capacity.max_agents = 12,
+            )
             .expect("raise the ceiling");
         let raised = default_record(&pools);
-        assert_eq!(raised.spec.capacity.max_agents, 12);
-        assert_eq!(raised.status.digest, first);
+        assert_eq!(raised.declared.capacity.max_agents, 12);
+        assert_eq!(raised.resolved.digest, first);
 
         // A model discovered is.
         measure(
@@ -1091,9 +1125,9 @@ mod tests {
             &["claude-opus-5", "claude-sonnet-5"],
         );
         pools.reconcile(&providers, &registry).expect("reconcile");
-        let widened = default_record(&pools).status.digest;
+        let widened = default_record(&pools).resolved.digest;
         assert_ne!(widened, first);
-        assert_eq!(default_record(&pools).status.entries.len(), 2);
+        assert_eq!(default_record(&pools).resolved.entries.len(), 2);
 
         // And so is an entry that stopped being offered, which leaves the pool degraded rather
         // than shorter.
@@ -1102,17 +1136,17 @@ mod tests {
             .expect("disable claude");
         pools.reconcile(&providers, &registry).expect("reconcile");
         let degraded = default_record(&pools);
-        assert_ne!(degraded.status.digest, widened);
-        assert_eq!(degraded.status.entries.len(), 2, "an entry was dropped");
-        assert_eq!(degraded.status.admissible, 0);
-        assert!(degraded.status.holds(PoolConditionKind::Empty));
+        assert_ne!(degraded.resolved.digest, widened);
+        assert_eq!(degraded.resolved.entries.len(), 2, "an entry was dropped");
+        assert_eq!(degraded.resolved.admissible, 0);
+        assert!(degraded.resolved.holds(PoolStateKind::Empty));
         assert!(
             degraded
-                .status
-                .reason_for(PoolConditionKind::Empty)
+                .resolved
+                .reason_for(PoolStateKind::Empty)
                 .is_some_and(|reason| reason.contains("held back")),
             "{:?}",
-            degraded.status.conditions
+            degraded.resolved.states
         );
     }
 
@@ -1131,7 +1165,7 @@ mod tests {
             &["claude-opus-5", "claude-haiku-4-5"],
         );
         pools.reconcile(&providers, &registry).expect("reconcile");
-        assert_eq!(default_record(&pools).status.entries.len(), 2);
+        assert_eq!(default_record(&pools).resolved.entries.len(), 2);
 
         let kept = PoolEntry {
             provider: "anthropic".to_owned(),
@@ -1139,20 +1173,25 @@ mod tests {
             model: "claude-haiku-4-5".to_owned(),
         };
         let edited = pools
-            .edit(&PoolName::default_pool(), &providers, &registry, |spec| {
-                spec.models = PoolModels::explicit([kept.clone()]);
-            })
+            .edit(
+                &PoolName::default_pool(),
+                &providers,
+                &registry,
+                |declared| {
+                    declared.models = PoolModels::explicit([kept.clone()]);
+                },
+            )
             .expect("edit the default pool");
-        assert!(!edited.status.tracking);
-        assert!(edited.status.holds(PoolConditionKind::Explicit));
-        assert!(!edited.status.holds(PoolConditionKind::Tracking));
+        assert!(!edited.resolved.tracking);
+        assert!(edited.resolved.holds(PoolStateKind::Explicit));
+        assert!(!edited.resolved.holds(PoolStateKind::Tracking));
         assert!(
             edited
-                .status
-                .reason_for(PoolConditionKind::Explicit)
+                .resolved
+                .reason_for(PoolStateKind::Explicit)
                 .is_some_and(|reason| reason.contains("no longer follows the catalog")),
             "{:?}",
-            edited.status.conditions
+            edited.resolved.states
         );
         assert_eq!(
             triples(&edited),
@@ -1163,7 +1202,7 @@ mod tests {
                 true
             )]
         );
-        let after_edit = edited.status.digest.clone();
+        let after_edit = edited.resolved.digest.clone();
 
         // A second provider observed afterwards joins the catalog and not this pool.
         measure(
@@ -1176,12 +1215,12 @@ mod tests {
         pools.reconcile(&providers, &registry).expect("reconcile");
         let after_discovery = default_record(&pools);
         assert_eq!(triples(&after_discovery), triples(&edited));
-        assert_eq!(after_discovery.status.digest, after_edit);
-        assert!(!after_discovery.status.tracking);
+        assert_eq!(after_discovery.resolved.digest, after_edit);
+        assert!(!after_discovery.resolved.tracking);
         // The catalog moved even though the pool did not, and the observation says so.
         assert_ne!(
-            after_discovery.status.observation.catalog_digest,
-            after_discovery.status.digest
+            after_discovery.resolved.observation.catalog_digest,
+            after_discovery.resolved.digest
         );
         assert_eq!(
             Catalog::read(&providers, &registry)
@@ -1202,25 +1241,25 @@ mod tests {
         );
         pools.reconcile(&providers, &registry).expect("reconcile");
         let withdrawn = default_record(&pools);
-        assert_eq!(withdrawn.status.entries.len(), 1);
-        assert_eq!(withdrawn.status.admissible, 0);
+        assert_eq!(withdrawn.resolved.entries.len(), 1);
+        assert_eq!(withdrawn.resolved.admissible, 0);
         assert!(
-            withdrawn.status.entries[0]
+            withdrawn.resolved.entries[0]
                 .reason
                 .as_deref()
                 .is_some_and(|reason| reason.contains("claude-haiku-4-5")),
             "{:?}",
-            withdrawn.status.entries
+            withdrawn.resolved.entries
         );
     }
 
-    /// Ownership, first half: the reconciler writes no `spec` but the one it creates.
+    /// Ownership, first half: the controller writes no declaration but the one it creates.
     ///
-    /// The stored spec is captured as bytes and compared after every reconciliation across a
-    /// catalog that widens, narrows and goes dark. A reconciler that adjusted a ceiling, pinned the
-    /// resolved list into `spec.models` or dropped a withdrawn entry from it fails here.
+    /// The stored declaration is captured as bytes and compared after every reconciliation across a
+    /// catalog that widens, narrows and goes dark. A controller that adjusted a ceiling, pinned the
+    /// resolved list into `declared.models` or dropped a withdrawn entry from it fails here.
     #[test]
-    fn the_reconciler_writes_no_spec_beyond_the_default_it_creates() {
+    fn the_reconciler_writes_no_declaration_beyond_the_default_it_creates() {
         let (_directory, registry, providers, pools) = root();
         measure(
             &registry,
@@ -1232,12 +1271,13 @@ mod tests {
         pools.reconcile(&providers, &registry).expect("reconcile");
 
         let path = pools.path_of(&PoolName::default_pool());
-        let stored_spec = |label: &str| -> String {
+        let stored_declaration = |label: &str| -> String {
             let value: Value =
                 serde_json::from_slice(&fs::read(&path).expect("stored record")).expect("json");
-            serde_json::to_string(&value["spec"]).unwrap_or_else(|_| panic!("spec at {label}"))
+            serde_json::to_string(&value["declared"])
+                .unwrap_or_else(|_| panic!("declared at {label}"))
         };
-        let created = stored_spec("creation");
+        let created = stored_declaration("creation");
         assert!(created.contains("all_admissible"), "{created}");
 
         for names in [
@@ -1254,36 +1294,42 @@ mod tests {
             );
             pools.reconcile(&providers, &registry).expect("reconcile");
             assert_eq!(
-                stored_spec("reconciliation"),
+                stored_declaration("reconciliation"),
                 created,
-                "the reconciler wrote a spec"
+                "the controller wrote a declaration"
             );
         }
 
-        // The operator's own edit moves the spec, and the reconciliations that follow it leave the
-        // moved spec exactly as they found it.
+        // The operator's own edit moves the declaration, and the reconciliations that follow it
+        // leave the moved declaration exactly as they found it.
         pools
-            .edit(&PoolName::default_pool(), &providers, &registry, |spec| {
-                spec.capacity.max_concurrent_attempts = 1;
-                spec.resource_limits.max_money_micros = Some(5_000_000);
-            })
+            .edit(
+                &PoolName::default_pool(),
+                &providers,
+                &registry,
+                |declared| {
+                    declared.capacity.max_concurrent_attempts = 1;
+                    declared.resource_limits.max_money_micros = Some(5_000_000);
+                },
+            )
             .expect("edit");
-        let narrowed = stored_spec("edit");
+        let narrowed = stored_declaration("edit");
         assert_ne!(narrowed, created);
         pools.reconcile(&providers, &registry).expect("reconcile");
-        assert_eq!(stored_spec("after the edit"), narrowed);
+        assert_eq!(stored_declaration("after the edit"), narrowed);
     }
 
-    /// Ownership, second half: a spec write states no status of its own.
+    /// Ownership, second half: writing a declaration states no resolution of its own.
     ///
-    /// The spec written is the one that moves every field of the status a leak would reach: it
-    /// replaces the selector with a list, which decides `tracking`, and it is written against a
-    /// catalog that has moved since the last resolution, which decides the entries and the digest.
-    /// The stored status must nevertheless still be the one the last reconciliation wrote — stale,
-    /// and owned by the controller that owns it. A spec path that recomputed a status, cleared one
-    /// or merely copied `tracking` out of the spec fails here.
+    /// The declaration written is the one that moves every field of the resolution a leak would
+    /// reach: it replaces the whole-catalog form with a list, which decides `tracking`, and it is
+    /// written against a catalog that has moved since the last resolution, which decides the
+    /// entries and the digest. The stored resolution must nevertheless still be the one the last
+    /// reconciliation wrote — stale, and owned by the controller that owns it. A declaration path
+    /// that recomputed a resolution, cleared one or merely copied `tracking` out of the declaration
+    /// fails here.
     #[test]
-    fn a_spec_write_states_no_status_of_its_own() {
+    fn a_declaration_write_states_no_resolution_of_its_own() {
         let (_directory, registry, providers, pools) = root();
         measure(
             &registry,
@@ -1293,7 +1339,7 @@ mod tests {
             &["claude-opus-5"],
         );
         pools.reconcile(&providers, &registry).expect("reconcile");
-        let resolved = default_record(&pools).status;
+        let resolved = default_record(&pools).resolved;
         assert!(resolved.tracking);
         assert_eq!(resolved.entries.len(), 1);
 
@@ -1305,9 +1351,9 @@ mod tests {
             &["claude-opus-5", "claude-sonnet-5"],
         );
         let written = pools
-            .write_spec(&PoolName::default_pool(), {
-                let mut spec = PoolSpec::tracking_the_catalog();
-                spec.models = PoolModels::explicit([
+            .write_declaration(&PoolName::default_pool(), {
+                let mut declared = PoolDeclaration::tracking_the_catalog();
+                declared.models = PoolModels::explicit([
                     PoolEntry {
                         provider: "anthropic".to_owned(),
                         engine: "claude-code".to_owned(),
@@ -1319,25 +1365,25 @@ mod tests {
                         model: "claude-sonnet-5".to_owned(),
                     },
                 ]);
-                spec.capacity.max_agents = 2;
-                spec
+                declared.capacity.max_agents = 2;
+                declared
             })
-            .expect("write the spec");
-        assert_eq!(written.spec.capacity.max_agents, 2);
-        assert!(!written.spec.models.is_tracking());
+            .expect("write the declaration");
+        assert_eq!(written.declared.capacity.max_agents, 2);
+        assert!(!written.declared.models.is_tracking());
         assert_eq!(
-            written.status, resolved,
-            "the spec write path wrote a status of its own"
+            written.resolved, resolved,
+            "the declaration write path wrote a resolution of its own"
         );
-        assert_eq!(default_record(&pools).status, resolved);
+        assert_eq!(default_record(&pools).resolved, resolved);
 
-        // The reconciler is what moves it, and it moves nothing else.
+        // The controller is what moves it, and it moves nothing else.
         pools.reconcile(&providers, &registry).expect("reconcile");
         let reconciled = default_record(&pools);
-        assert_ne!(reconciled.status, resolved);
-        assert!(!reconciled.status.tracking);
-        assert_eq!(reconciled.status.entries.len(), 2);
-        assert_eq!(reconciled.spec.capacity.max_agents, 2);
+        assert_ne!(reconciled.resolved, resolved);
+        assert!(!reconciled.resolved.tracking);
+        assert_eq!(reconciled.resolved.entries.len(), 2);
+        assert_eq!(reconciled.declared.capacity.max_agents, 2);
     }
 
     /// Every field the record can carry, as it is actually serialized.
@@ -1347,6 +1393,10 @@ mod tests {
     /// argued. It is asserted over a fully populated record — an explicit list, every resource
     /// bound stated, and an entry that is not offered — so no key is missing merely because its
     /// value was absent.
+    ///
+    /// The list is also where decision D12 is enforced: the halves of the record are `declared` and
+    /// `resolved`, and neither `spec`, `status` nor `conditions` may reappear as a key without this
+    /// assertion changing.
     #[test]
     fn the_pool_record_carries_only_mechanical_fields() {
         let (_directory, registry, providers, pools) = root();
@@ -1359,26 +1409,31 @@ mod tests {
         );
         pools.reconcile(&providers, &registry).expect("reconcile");
         pools
-            .edit(&PoolName::default_pool(), &providers, &registry, |spec| {
-                spec.models = PoolModels::explicit([
-                    PoolEntry {
-                        provider: "anthropic".to_owned(),
-                        engine: "claude-code".to_owned(),
-                        model: "claude-opus-5".to_owned(),
-                    },
-                    PoolEntry {
-                        provider: "anthropic".to_owned(),
-                        engine: "claude-code".to_owned(),
-                        model: "claude-sonnet-5".to_owned(),
-                    },
-                ]);
-                spec.resource_limits = PoolResourceLimits {
-                    max_money_micros: Some(5_000_000),
-                    max_wall_time_ms: Some(7_200_000),
-                    max_attempt_starts: Some(3),
-                    max_verification_queries: Some(4),
-                };
-            })
+            .edit(
+                &PoolName::default_pool(),
+                &providers,
+                &registry,
+                |declared| {
+                    declared.models = PoolModels::explicit([
+                        PoolEntry {
+                            provider: "anthropic".to_owned(),
+                            engine: "claude-code".to_owned(),
+                            model: "claude-opus-5".to_owned(),
+                        },
+                        PoolEntry {
+                            provider: "anthropic".to_owned(),
+                            engine: "claude-code".to_owned(),
+                            model: "claude-sonnet-5".to_owned(),
+                        },
+                    ]);
+                    declared.resource_limits = PoolResourceLimits {
+                        max_money_micros: Some(5_000_000),
+                        max_wall_time_ms: Some(7_200_000),
+                        max_attempt_starts: Some(3),
+                        max_verification_queries: Some(4),
+                    };
+                },
+            )
             .expect("edit");
 
         let stored: Value = serde_json::from_slice(
@@ -1393,8 +1448,7 @@ mod tests {
                 "admissible",
                 "capacity",
                 "catalog_digest",
-                "condition",
-                "conditions",
+                "declared",
                 "digest",
                 "engine",
                 "entries",
@@ -1411,12 +1465,12 @@ mod tests {
                 "provider",
                 "providers",
                 "reason",
+                "resolved",
                 "resource_limits",
                 "schema_version",
                 "selection",
-                "spec",
                 "state",
-                "status",
+                "states",
                 "tracking",
             ]
         );
@@ -1464,8 +1518,8 @@ mod tests {
         pools.reconcile(&providers, &registry).expect("reconcile");
 
         let record = default_record(&pools);
-        assert_eq!(record.status.entries.len(), 3);
-        assert_eq!(record.spec.capacity.max_agents, 6);
+        assert_eq!(record.resolved.entries.len(), 3);
+        assert_eq!(record.declared.capacity.max_agents, 6);
 
         let mut held: Vec<String> = fs::read_dir(directory.path())
             .expect("the root")
@@ -1534,7 +1588,7 @@ mod tests {
         let record = default_record(&pools);
         assert_eq!(
             record
-                .status
+                .resolved
                 .entries
                 .iter()
                 .map(|entry| (entry.model.as_str(), entry.admissible))
@@ -1545,15 +1599,15 @@ mod tests {
                 ("gpt-5-codex", true),
             ]
         );
-        assert_eq!(record.status.admissible, 1);
-        assert!(record.status.holds(PoolConditionKind::Degraded));
+        assert_eq!(record.resolved.admissible, 1);
+        assert!(record.resolved.holds(PoolStateKind::Degraded));
         assert!(
             record
-                .status
-                .reason_for(PoolConditionKind::Degraded)
+                .resolved
+                .reason_for(PoolStateKind::Degraded)
                 .is_some_and(|reason| reason.contains("held back")),
             "{:?}",
-            record.status.conditions
+            record.resolved.states
         );
     }
 
@@ -1607,9 +1661,14 @@ mod tests {
     fn nothing_but_the_reconciler_creates_a_pool() {
         let (_directory, registry, providers, pools) = root();
         let error = pools
-            .edit(&PoolName::default_pool(), &providers, &registry, |spec| {
-                spec.capacity.max_agents = 99;
-            })
+            .edit(
+                &PoolName::default_pool(),
+                &providers,
+                &registry,
+                |declared| {
+                    declared.capacity.max_agents = 99;
+                },
+            )
             .expect_err("an edit created a pool");
         assert!(matches!(error, PoolError::UnknownPool { .. }), "{error:?}");
         assert!(!pools.directory().exists());
@@ -1694,14 +1753,161 @@ mod tests {
         let before = read_all();
         pools.reconcile(&providers, &registry).expect("reconcile");
         pools
-            .edit(&PoolName::default_pool(), &providers, &registry, |spec| {
-                spec.capacity.max_agents = 4;
-            })
+            .edit(
+                &PoolName::default_pool(),
+                &providers,
+                &registry,
+                |declared| {
+                    declared.capacity.max_agents = 4;
+                },
+            )
             .expect("edit");
         assert_eq!(
             before,
             read_all(),
             "a record beneath the pool was rewritten"
+        );
+    }
+
+    /// An edit that cannot be resolved leaves the record exactly as it stood.
+    ///
+    /// The catalog is broken between the operator's decision and the write, which is the one moment
+    /// the two halves of a record could disagree: the list the operator left would stand beside a
+    /// resolution still saying *this pool follows the catalog*, and the digest would belong to the
+    /// entries of a pool that no longer exists. Reading the catalog before writing anything is what
+    /// makes that impossible, so an edit either lands whole or does not land at all.
+    #[test]
+    fn an_edit_that_cannot_be_resolved_leaves_the_record_as_it_stood() {
+        let (_directory, registry, providers, pools) = root();
+        measure(
+            &registry,
+            &providers,
+            Engine::ClaudeCode,
+            Some("delegated_host_keychain_credential"),
+            &["claude-opus-5"],
+        );
+        measure(
+            &registry,
+            &providers,
+            Engine::Codex,
+            Some("delegated_home_credential"),
+            &["gpt-5-codex"],
+        );
+        pools.reconcile(&providers, &registry).expect("reconcile");
+        let path = pools.path_of(&PoolName::default_pool());
+        let before = fs::read(&path).expect("the stored record");
+
+        fs::write(registry.path_of(Engine::Codex), b"{ not json").expect("corrupt the record");
+        let error = pools
+            .edit(
+                &PoolName::default_pool(),
+                &providers,
+                &registry,
+                |declared| {
+                    declared.models = PoolModels::explicit([PoolEntry {
+                        provider: "anthropic".to_owned(),
+                        engine: "claude-code".to_owned(),
+                        model: "claude-opus-5".to_owned(),
+                    }]);
+                },
+            )
+            .expect_err("an edit was written against a catalog that could not be read");
+        assert!(matches!(error, PoolError::Catalog { .. }), "{error:?}");
+
+        assert_eq!(
+            fs::read(&path).expect("the stored record"),
+            before,
+            "a refused edit wrote a record"
+        );
+        // Stated as the property rather than only as bytes: whatever is on disk, the two halves
+        // agree with each other.
+        let record = default_record(&pools);
+        assert!(record.declared.models.is_tracking());
+        assert!(record.resolved.tracking);
+        assert!(record.resolved.holds(PoolStateKind::Tracking));
+        assert!(!record.resolved.holds(PoolStateKind::Explicit));
+    }
+
+    /// The digest follows the order the pool declares.
+    ///
+    /// The same two entries in the opposite order are a different permitted set, because the order
+    /// is what later decides which entry a run ignites on. A digest computed over a sorted copy of
+    /// the entries would answer with one value for both, and two runs frozen against it could not
+    /// be told apart by the value they froze.
+    #[test]
+    fn the_digest_follows_the_order_the_pool_declares() {
+        let (_directory, registry, providers, pools) = root();
+        measure(
+            &registry,
+            &providers,
+            Engine::ClaudeCode,
+            Some("delegated_host_keychain_credential"),
+            &["claude-opus-5", "claude-haiku-4-5"],
+        );
+        pools.reconcile(&providers, &registry).expect("reconcile");
+        let entry = |model: &str| PoolEntry {
+            provider: "anthropic".to_owned(),
+            engine: "claude-code".to_owned(),
+            model: model.to_owned(),
+        };
+        let ordered = |first: &str, second: &str| -> PoolRecord {
+            pools
+                .edit(
+                    &PoolName::default_pool(),
+                    &providers,
+                    &registry,
+                    |declared| {
+                        declared.models = PoolModels::explicit([entry(first), entry(second)]);
+                    },
+                )
+                .expect("edit")
+        };
+
+        let forward = ordered("claude-opus-5", "claude-haiku-4-5");
+        let reversed = ordered("claude-haiku-4-5", "claude-opus-5");
+        assert_ne!(
+            forward.resolved.digest, reversed.resolved.digest,
+            "a reordered pool froze under the same digest"
+        );
+        // The two hold the same entries, so nothing but the order can have moved the digest.
+        let held = |record: &PoolRecord| -> BTreeSet<String> {
+            record
+                .resolved
+                .entries
+                .iter()
+                .map(|entry| entry.model.clone())
+                .collect()
+        };
+        assert_eq!(held(&forward), held(&reversed));
+        assert_eq!(forward.resolved.admissible, 2);
+    }
+
+    /// The digest keeps the fields it hashes apart.
+    ///
+    /// The two lists below carry the same bytes in the same order and split them between the
+    /// provider and the engine in different places. A digest that ran the fields together without
+    /// terminating each one would answer with a single value for both, so two different permitted
+    /// sets would freeze under one digest and evidence naming it could not say which was meant.
+    #[test]
+    fn the_digest_keeps_the_fields_it_hashes_apart() {
+        let entry = |provider: &str, engine: &str| ResolvedEntry {
+            provider: provider.to_owned(),
+            engine: engine.to_owned(),
+            model: "model".to_owned(),
+            admissible: true,
+            reason: None,
+        };
+        let one = [entry("ab", "c")];
+        let other = [entry("a", "bc")];
+        assert_eq!(
+            format!("{}{}", one[0].provider, one[0].engine),
+            format!("{}{}", other[0].provider, other[0].engine),
+            "the two lists do not carry the same bytes, so they test nothing"
+        );
+        assert_ne!(
+            digest_of(&one),
+            digest_of(&other),
+            "two different permitted sets share one digest"
         );
     }
 }

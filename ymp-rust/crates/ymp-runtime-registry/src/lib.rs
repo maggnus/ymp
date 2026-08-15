@@ -48,8 +48,8 @@ pub mod provider;
 pub use catalog::{Availability, Catalog, CatalogEntry};
 pub use pool::{
     DEFAULT_POOL, ObservedProvider, POOL_SCHEMA_VERSION, POOLS_DIRECTORY, PoolCapacity,
-    PoolCondition, PoolConditionKind, PoolEntry, PoolError, PoolModels, PoolName, PoolObservation,
-    PoolRecord, PoolResourceLimits, PoolSpec, PoolStatus, Pools, ResolvedEntry,
+    PoolDeclaration, PoolEntry, PoolError, PoolModels, PoolName, PoolObservation, PoolRecord,
+    PoolResolution, PoolResourceLimits, PoolState, PoolStateKind, Pools, ResolvedEntry,
 };
 pub use provider::{
     PROVIDER_SCHEMA_VERSION, PROVIDERS_DIRECTORY, ProviderError, ProviderFamily, ProviderRecord,
