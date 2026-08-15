@@ -53,6 +53,14 @@ travels as the product's own instruction to the runtime.
 
 Ready. Recorded from the W1-APP-02e live scenario.
 
+## Next action
+
+None recorded.
+
+## Guardrails
+
+None recorded.
+
 ## Findings
 
 None yet.

@@ -47,6 +47,14 @@ A run whose limit expired records that violation even when a cancel lands in the
 
 Ready. Cancellation took precedence over budget expiry (lib.rs:1054-1064 at 3ee3942): a cancel landing together with an expired limit writes Cancelled and the limit violation vanishes from accounting.
 
+## Next action
+
+None recorded.
+
+## Guardrails
+
+None recorded.
+
 ## Findings
 
 None yet.

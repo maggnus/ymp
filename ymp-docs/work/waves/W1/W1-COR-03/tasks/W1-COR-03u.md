@@ -47,6 +47,14 @@ After an interrupted apply, the application replays the journal and subsequent c
 
 Ready.
 
+## Next action
+
+None recorded.
+
+## Guardrails
+
+None recorded.
+
 ## Findings
 
 None yet.

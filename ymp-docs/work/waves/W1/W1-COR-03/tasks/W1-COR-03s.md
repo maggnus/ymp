@@ -56,6 +56,14 @@ path leaves the controller hanging indefinitely.
 
 Ready. Recorded from the 03q+03r second look (major independent defect).
 
+## Next action
+
+None recorded.
+
+## Guardrails
+
+None recorded.
+
 ## Findings
 
 None yet.

@@ -52,6 +52,14 @@ pinned in W1-APP-02w.1.
 
 Ready. From the W1-APP-02w.1 review finding and the owner's recorded expectation.
 
+## Next action
+
+None recorded.
+
+## Guardrails
+
+None recorded.
+
 ## Findings
 
 None yet.

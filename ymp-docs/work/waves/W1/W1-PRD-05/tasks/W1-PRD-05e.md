@@ -21,7 +21,7 @@ blocker:
 pause_reason:
 return_trigger:
 deliberate_partial: false
-
+---
 
 # W1-PRD-05e — The AgentPool resource, its reconciler and the automatic `default` (P3)
 
@@ -63,6 +63,14 @@ says so. Nothing here instantiates a participant.
 
 Accepted 2026-08-15 (candidate ffde816 after a rename + residue pass; review ACCEPT; merged at 411ea6f).
 
+## Next action
+
+None recorded.
+
+## Guardrails
+
+None recorded.
+
 ## Findings
 
 - Record `pools/<name>.json` with `declared` (operator) and `resolved` (reconciler) halves — names
@@ -75,3 +83,19 @@ Accepted 2026-08-15 (candidate ffde816 after a rename + residue pass; review ACC
 - Inherited, not this task's: Registry/Providers/pool stores share one staging-file name — concurrent
   writers fail with ENOENT (no torn record); worth a crate-level unit.
 - `Pools::reconcile` has no product caller yet — P4 wires it to the enable transition after P2.
+
+## Closure
+
+Filled when the task is accepted.
+
+### Accepted outcome
+
+None recorded.
+
+### Residuals
+
+None recorded.
+
+### Evidence
+
+None recorded.

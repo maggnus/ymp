@@ -58,6 +58,14 @@ appears in the launch directory. An old ./.ymp or ./.ymp-data is read only via a
 Ready. From the owner decision of 2026-08-15: nothing is stored in the launch directory;
 neighbouring systems (~/.claude 1.0G, ~/.codex 2.3G) keep all state at home.
 
+## Next action
+
+None recorded.
+
+## Guardrails
+
+None recorded.
+
 ## Findings
 
 None yet.

@@ -47,6 +47,14 @@ After a panic that poisons the journal lock, the journal still reaches its termi
 
 Ready. A panic under the held journal lock poisons it, record_infrastructure_failure silently exits, and the journal stays Running while the kernel holds InfrastructureError — measured by the 03o+03p review fault injection. Recovery must align with the take_terminal decision.
 
+## Next action
+
+None recorded.
+
+## Guardrails
+
+None recorded.
+
 ## Findings
 
 None yet.

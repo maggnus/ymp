@@ -56,6 +56,14 @@ and one attempt cannot hold two running slices at once.
 
 Ready. Recorded from the W1-COR-03b critical review falsifier.
 
+## Next action
+
+None recorded.
+
+## Guardrails
+
+None recorded.
+
 ## Findings
 
 None yet.

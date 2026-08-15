@@ -50,6 +50,14 @@ that already finished and committed its candidate — a finished run keeps its t
 
 Ready. Recorded from the W1-COR-03t re-review (two minor findings).
 
+## Next action
+
+None recorded.
+
+## Guardrails
+
+None recorded.
+
 ## Findings
 
 None yet.

@@ -21,7 +21,7 @@ blocker:
 pause_reason:
 return_trigger: a live-session disable that leaves the just-disabled account routable (in-session staleness) reaching a run start; the frozen interface during measurement reaching an operator-facing release
 deliberate_partial: false
-
+---
 
 # W1-PRD-05d — Provider and model surfaces; probing gated on Enable (P2)
 
@@ -68,6 +68,14 @@ models rather than shortening the catalog silently.
 
 Accepted 2026-08-15 (candidate 72b288b after one RETURN pass; review ACCEPT WITH RESIDUE; merged at b25420d).
 
+## Next action
+
+None recorded.
+
+## Guardrails
+
+None recorded.
+
 ## Findings
 
 - Product measures nothing before Enable: TUI start, `show providers|models|provider|runtimes` → 0
@@ -81,3 +89,19 @@ Accepted 2026-08-15 (candidate 72b288b after one RETURN pass; review ACCEPT WITH
   re-measure, so a live session may still route to a just-disabled account (one line; P4 takes it);
   ~29–42 s frozen interface with no repaint/cancel during measurement (own node: worker thread);
   the ↳ reason line is clipped at 80 columns; provider→engine binding at run start is P5.
+
+## Closure
+
+Filled when the task is accepted.
+
+### Accepted outcome
+
+None recorded.
+
+### Residuals
+
+None recorded.
+
+### Evidence
+
+None recorded.

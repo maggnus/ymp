@@ -69,15 +69,6 @@ validation (02u, 02x, 02z). What remains is the end-to-end wiring the owner's li
 measured missing: after authorization the public surface stops at the recorded run, and the
 attempt, verification and export had to be driven by internal commands.
 
-## Absorbed findings
-
-- The W1-COR-03n review: the interface cancel writes Command::Cancel into the journal directly
-  (ymp-rust/crates/ymp-tui/src/app.rs:224) while the kernel lives in the supervising process, so
-  the node must give the interface reachability of the kernel record, not merely forbid the
-  bypass.
-- The W1-APP-02w closure trigger: the interface refusal of a second run must address a fresh store
-  under the single .ymp root instead of refusing outright.
-
 ## Next action
 
 Wire the managed attempt, verification, terminal states and evidence export into the TUI and the
@@ -92,7 +83,14 @@ mirrored commands over the accepted application and supervisor surfaces.
 
 ## Findings
 
-None.
+### Absorbed findings
+
+- The W1-COR-03n review: the interface cancel writes Command::Cancel into the journal directly
+  (ymp-rust/crates/ymp-tui/src/app.rs:224) while the kernel lives in the supervising process, so
+  the node must give the interface reachability of the kernel record, not merely forbid the
+  bypass.
+- The W1-APP-02w closure trigger: the interface refusal of a second run must address a fresh store
+  under the single .ymp root instead of refusing outright.
 
 ## Closure
 

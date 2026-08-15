@@ -48,6 +48,14 @@ The transcript opens with the logo, one line of basic facts (current directory, 
 
 Ready. Owner decision 2026-08-15: logo stays with basic info; the rest of the startup text is noise.
 
+## Next action
+
+None recorded.
+
+## Guardrails
+
+None recorded.
+
 ## Findings
 
 None yet.

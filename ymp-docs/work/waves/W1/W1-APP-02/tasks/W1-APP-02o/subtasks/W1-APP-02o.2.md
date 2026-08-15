@@ -50,6 +50,14 @@ pass of a post-marker module naming FakeRuntime beside a start.
 
 Ready. Recorded from the W1-APP-02o.1 second look.
 
+## Next action
+
+None recorded.
+
+## Guardrails
+
+None recorded.
+
 ## Findings
 
 None yet.

@@ -47,6 +47,14 @@ A run whose worker dies by panic reaches a kernel terminal (infrastructure_error
 
 Ready. A panicking worker thread leaves the layer Running, the kernel without a terminal, the journal Cancelled, and cancel returning Ok — measured by the review; threatens INV-7 (honest termination).
 
+## Next action
+
+None recorded.
+
+## Guardrails
+
+None recorded.
+
 ## Findings
 
 None yet.

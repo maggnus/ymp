@@ -51,6 +51,14 @@ KEYS_WIDTH = 64 (overlay.rs:359), identical at both accepted sizes.
 
 Ready.
 
+## Next action
+
+None recorded.
+
+## Guardrails
+
+None recorded.
+
 ## Findings
 
 None yet.

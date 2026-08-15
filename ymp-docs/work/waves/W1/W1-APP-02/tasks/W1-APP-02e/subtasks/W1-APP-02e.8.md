@@ -51,6 +51,14 @@ out (W1-APP-02e.5 second look).
 
 Ready.
 
+## Next action
+
+None recorded.
+
+## Guardrails
+
+None recorded.
+
 ## Findings
 
 None yet.

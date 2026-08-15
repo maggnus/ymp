@@ -48,6 +48,14 @@ A proposed npm verifier pins the interpreter and its environment so candidate fi
 
 Ready. Split from W1-APP-02z round 2: the candidate chooses the program that runs package.json scripts (.npmrc script-shell — a measured silent false accept), and under the executor PATH the generated npm verifier accepted nothing. Until the interpreter choice itself is pinned, npm projects receive the honest TestEntryPointNotSupported refusal.
 
+## Next action
+
+None recorded.
+
+## Guardrails
+
+None recorded.
+
 ## Findings
 
 None yet.

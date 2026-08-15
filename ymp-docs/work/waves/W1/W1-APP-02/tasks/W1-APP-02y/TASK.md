@@ -52,6 +52,14 @@ rule. The shared Usage type in ymp-runtime-api gains the field; both runtime dri
 Ready. Recorded from the W1-APP-02l review (round 2, finding 3): attribution is enforced at
 admission but the record does not distinguish an attributed cost from an unverified one.
 
+## Next action
+
+None recorded.
+
+## Guardrails
+
+None recorded.
+
 ## Findings
 
 None yet.

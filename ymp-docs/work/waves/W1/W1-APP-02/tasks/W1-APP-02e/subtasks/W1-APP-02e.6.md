@@ -44,7 +44,21 @@ Engines live in a registry under the product root (runtimes/<engine>.json): enab
 
 - [ ] Engines live in a registry under the product root (runtimes/<engine>.json): enabled flag, measured properties (executable, version, credential origin, budget bounds) and the list of models the engine can serve, filled by probe. A disabled engine is not admitted and not offered. Enable/disable from /runtimes and the mirrored command. Admission semantics (tools, permission mode, no delegation, budget ceilings) stay hard-coded; WHICH models may be used stays undecided until the W1-EVL-04d research lands.
 
-## Absorbed owner decision (2026-08-15)
+## Current state
+
+Ready. Owner decision 2026-08-15: manage runtime engines like Paseo does — switchable, with properties and at least the model list they provide.
+
+## Next action
+
+None recorded.
+
+## Guardrails
+
+None recorded.
+
+## Findings
+
+### Absorbed owner decision (2026-08-15)
 
 The Codex provider is unavailable for now (account usage limit until 2026-09-12) — the registry's
 disable state is its first live use. Experiments run on the Claude engine with the cheaper
@@ -52,7 +66,7 @@ claude-haiku / claude-sonnet routes in the permitted pool; the measured model ca
 installed claude build must therefore include them, and the permitted-pool selection applies to
 live smokes and experiments so cost stays bounded.
 
-## Absorbed review findings (02e.4, 2026-08-15)
+### Absorbed review findings (02e.4, 2026-08-15)
 
 - The executable-resolution branch reading the configuration directory never fires on the owner's
   host and adds a second selection channel; registry properties should own executable discovery.
@@ -60,11 +74,11 @@ live smokes and experiments so cost stays bounded.
   parse failure.
 - The minimum_version is the one pin not checked against its constant.
 
-## Rounds
+### Rounds
 
 2
 
-## Convergence
+### Convergence
 
 A third bounded round was authorized under the gate's blocker exception: the round-two finding —
 a nested root is never recognized as its own, so a disable lands in a foreign root and a disabled
@@ -72,14 +86,6 @@ engine silently launches — fails the detection test (a silent authority bypass
 precisely named by the review (stop the root search at a path carrying root.json; never re-derive
 an explicit --root through the store). The digest-guarantee wording is corrected in the same
 round.
-
-## Current state
-
-Ready. Owner decision 2026-08-15: manage runtime engines like Paseo does — switchable, with properties and at least the model list they provide.
-
-## Findings
-
-None yet.
 
 ## Closure
 

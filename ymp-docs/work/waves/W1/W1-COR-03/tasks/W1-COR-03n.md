@@ -52,6 +52,14 @@ be driven to Accepted by a verdict, and no state exists where the two accounting
 
 Ready. Recorded from the W1-COR-03m review (major independent defect).
 
+## Next action
+
+None recorded.
+
+## Guardrails
+
+None recorded.
+
 ## Findings
 
 None yet.

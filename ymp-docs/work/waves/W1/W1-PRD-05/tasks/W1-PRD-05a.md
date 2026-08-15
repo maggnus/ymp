@@ -62,6 +62,14 @@ preserved; ownership moved instead of mechanisms removed.
 
 Active. The brief is recorded verbatim at design/PRODUCT-BRIEF-collective.md (23f76f9).
 
+## Next action
+
+None recorded.
+
+## Guardrails
+
+None recorded.
+
 ## Findings
 
 None yet.

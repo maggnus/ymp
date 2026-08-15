@@ -48,6 +48,14 @@ A non-executable entry point is named as the obstacle with its permission proble
 
 Ready. From the final W1-APP-02z review: a scripts/test.sh present but not executable is silently skipped, and the refusal names the next recognized file (package.json) instead of the real obstacle.
 
+## Next action
+
+None recorded.
+
+## Guardrails
+
+None recorded.
+
 ## Findings
 
 None yet.

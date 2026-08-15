@@ -52,6 +52,14 @@ live run and a modelled run cannot disagree about what resumes and what terminat
 Ready. Recorded from the W1-COR-03b builder return: the supervisor keeps its own cursors and wakes
 beside the kernel, outside that card's write zone.
 
+## Next action
+
+None recorded.
+
+## Guardrails
+
+None recorded.
+
 ## Findings
 
 None yet.

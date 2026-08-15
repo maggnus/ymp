@@ -50,27 +50,33 @@ script with "exit 0" is rejected, not accepted.
       rejected by the pinned oracle; the negative half is the current build, where such a
       candidate was measured accepted (exit 0).
 
-## Rounds
-
-2
-
-## Convergence
-
-Split. The script and make entry points are proved by two independent shields and land; the
-package.json entry point is removed from the proposal and becomes its own node, because the
-candidate chooses the program that runs the pinned file (.npmrc script-shell — a measured silent
-false accept) and because under the executor environment the generated npm verifier accepts
-nothing. A silent false accept fails the detection test, so residue was not available.
-
 ## Current state
 
 Ready. Recorded from the W1-APP-02v review: the proposed verifier ran the candidate's own
 ./scripts/test.sh, so an empty candidate carrying "exit 0" as its test script was accepted.
 Threatens INV-5 (only the verifier creates acceptance evidence).
 
+## Next action
+
+None recorded.
+
+## Guardrails
+
+None recorded.
+
 ## Findings
 
-None yet.
+### Rounds
+
+2
+
+### Convergence
+
+Split. The script and make entry points are proved by two independent shields and land; the
+package.json entry point is removed from the proposal and becomes its own node, because the
+candidate chooses the program that runs the pinned file (.npmrc script-shell — a measured silent
+false accept) and because under the executor environment the generated npm verifier accepts
+nothing. A silent false accept fails the detection test, so residue was not available.
 
 ## Closure
 

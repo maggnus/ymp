@@ -53,13 +53,6 @@ that simply declined to act.
 - [ ] The live check fails for a product defect and reports a distinct, non-failing outcome when the
       model declines to act, so a red result always means the product.
 
-## Absorbed finding
-
-The W1-APP-02i review measured that SCHEMA.md's claim "the request count is the only
-product-derived counter" is inexact for the Claude runtime, where the monetary excess is computed
-by the product by subtracting the ceiling (crates/ymp-runtime-claude/src/lib.rs:1187) rather than
-reported by the runtime. The schema statement must name the Claude-side derived counters too.
-
 ## Current state
 
 Ready. The independent review of the Claude Code profile found that only the total cost is read
@@ -78,7 +71,12 @@ Parse the per-model breakdown, narrow the environment, then make the live check 
 
 ## Findings
 
-None yet.
+### Absorbed finding
+
+The W1-APP-02i review measured that SCHEMA.md's claim "the request count is the only
+product-derived counter" is inexact for the Claude runtime, where the monetary excess is computed
+by the product by subtracting the ceiling (crates/ymp-runtime-claude/src/lib.rs:1187) rather than
+reported by the runtime. The schema statement must name the Claude-side derived counters too.
 
 ## Closure
 

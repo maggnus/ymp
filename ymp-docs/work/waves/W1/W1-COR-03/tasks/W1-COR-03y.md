@@ -21,7 +21,7 @@ blocker:
 pause_reason:
 return_trigger: a caller of submitted() lands that carries parents forward without the pre-check extended to the effective change set
 deliberate_partial: false
-
+---
 
 # W1-COR-03y — The live controller submits bundles; the durable path guards its terminal
 
@@ -65,6 +65,14 @@ production caller) is retired and its two protocol suites (`tests/commitments.rs
 
 Accepted 2026-08-15 (candidate acdf9f8 after two residue passes; review ACCEPT WITH RESIDUE; merged at 1d2ae00).
 
+## Next action
+
+None recorded.
+
+## Guardrails
+
+None recorded.
+
 ## Findings
 
 - Live path records object_recorded / bundle_recorded / candidate_formed with real digests; the
@@ -78,3 +86,19 @@ Accepted 2026-08-15 (candidate acdf9f8 after two residue passes; review ACCEPT W
 - CommitmentService retired; both protocol suites on the durable path; 03d identity-triple test added.
 - Residue: pre-check exhaustive only while submitted() carries no parents; a cancel between
   submitted() and the provenance note yields a supervision-failed report (records still agree).
+
+## Closure
+
+Filled when the task is accepted.
+
+### Accepted outcome
+
+None recorded.
+
+### Residuals
+
+None recorded.
+
+### Evidence
+
+None recorded.

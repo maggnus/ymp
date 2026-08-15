@@ -52,6 +52,14 @@ boundary wording in the new guard is tightened to what is measured.
 
 Ready. Recorded from the W1-APP-02o reviews.
 
+## Next action
+
+None recorded.
+
+## Guardrails
+
+None recorded.
+
 ## Findings
 
 None yet.

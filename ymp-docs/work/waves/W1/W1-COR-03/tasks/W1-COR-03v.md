@@ -51,6 +51,14 @@ sentence.
 
 Ready. Recorded from the W1-COR-03t review.
 
+## Next action
+
+None recorded.
+
+## Guardrails
+
+None recorded.
+
 ## Findings
 
 None yet.

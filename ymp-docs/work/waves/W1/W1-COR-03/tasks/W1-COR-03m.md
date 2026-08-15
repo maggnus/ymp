@@ -56,6 +56,14 @@ is removed, so it can actually refuse.
 
 Ready. Recorded from the W1-COR-03k review (two minor findings and the supported child).
 
+## Next action
+
+None recorded.
+
+## Guardrails
+
+None recorded.
+
 ## Findings
 
 None yet.

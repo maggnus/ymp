@@ -56,6 +56,14 @@ Ready. From the owner decision of 2026-08-15: engines are probed for everything 
 but what may be USED must be declared somewhere — possibly in the contract at first request — and
 depends on pool formation.
 
+## Next action
+
+None recorded.
+
+## Guardrails
+
+None recorded.
+
 ## Findings
 
 None yet.

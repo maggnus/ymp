@@ -47,6 +47,14 @@ A cancel that causes a tool-call failure yields Cancelled in both accountings; t
 
 Ready. The worker classifies the terminal by the tool failure before reading the cancellation flag (lib.rs:1020-1027 at bcfddbc), so a cancel that makes a tool call fail records InfrastructureError in the kernel while the journal says Cancelled — measured 2/48 in the review sweep, identically on the base.
 
+## Next action
+
+None recorded.
+
+## Guardrails
+
+None recorded.
+
 ## Findings
 
 None yet.

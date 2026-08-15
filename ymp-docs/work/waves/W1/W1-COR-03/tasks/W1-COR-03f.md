@@ -21,7 +21,7 @@ blocker:
 pause_reason:
 return_trigger: W1-COR-03 reaching closure without the child that moves the supervisor ledger onto Application::execute_commitment, or that child landing while a product-started run still shows no commitments page
 deliberate_partial: false
-
+---
 
 # W1-COR-03f — Commitment facts are durable and visible, not only in memory
 
@@ -56,6 +56,14 @@ audited from the record rather than from a live process.
 
 Accepted 2026-08-15 (candidate 8f5b815, review ACCEPT WITH RESIDUE, merged into main at 3f9e604).
 
+## Next action
+
+None recorded.
+
+## Guardrails
+
+None recorded.
+
 ## Findings
 
 - R1 (residue): the durable path (`open_commitment_kernel`, `execute_commitment`) has no production
@@ -71,3 +79,19 @@ Accepted 2026-08-15 (candidate 8f5b815, review ACCEPT WITH RESIDUE, merged into 
   an existing `~/.ymp` store needs a new data root.
 - Pre-existing, environmental: `engine_registry::the_mirrored_command_disables_and_enables_an_engine_durably`
   fails on baseline (seeded codex disabled → 0 ready where the test expects 1).
+
+## Closure
+
+Filled when the task is accepted.
+
+### Accepted outcome
+
+None recorded.
+
+### Residuals
+
+None recorded.
+
+### Evidence
+
+None recorded.

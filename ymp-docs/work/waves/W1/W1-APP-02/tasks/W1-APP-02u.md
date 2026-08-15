@@ -82,7 +82,7 @@ Validate each answer where it is entered, then run the negative control before s
 - Builder (child, held by the CTO): the `--contract` package path still admits a non-discriminating
   verifier; entry-equivalent validation there is future work.
 
-## Prior findings
+### Prior findings
 
 - Measured on the built product: `mkdir ~/Code/test` was accepted as the verifier answer, and the
   refusal for a non-existent source arrived at assembly with an exact message and no record written.

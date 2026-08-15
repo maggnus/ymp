@@ -21,7 +21,7 @@ blocker:
 pause_reason:
 return_trigger:
 deliberate_partial: false
-
+---
 
 # W1-PRD-05b — The product root carries provider and catalog records (P1)
 
@@ -59,6 +59,14 @@ decisions D1–D11: it stores what exists, not what may be used.
 
 Accepted 2026-08-15 (candidate 09fc9c4, review ACCEPT WITH RESIDUE, merged fast-forward into main).
 
+## Next action
+
+None recorded.
+
+## Guardrails
+
+None recorded.
+
 ## Findings
 
 - Review residue 1: `Catalog::read` re-reads engine records but takes admissibility from the stored
@@ -71,8 +79,6 @@ Accepted 2026-08-15 (candidate 09fc9c4, review ACCEPT WITH RESIDUE, merged fast-
   asserts `1 ready · 2 unusable`, unreachable since the fixture profile left the page (74cf451 →
   later); fails on baseline. `lib.rs:309` links a removed `Registry::addressing` (doc warning).
   Both left for the next editor of those files.
-
-## Findings
 
 None yet.
 

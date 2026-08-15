@@ -21,7 +21,7 @@ blocker:
 pause_reason:
 return_trigger:
 deliberate_partial: false
-
+---
 
 # W1-PRD-05c — Design correction under product brief v2 (TUI ownership + CRD resource model)
 
@@ -73,6 +73,14 @@ closed on the branch; merged into main at 2a3531c). D11 decided in the same pass
 floor). Design set: COLLECTIVE-RESOURCES.md (new), GAP-ANALYSIS (16 leaks), DESIGN, TUI (37
 surfaces), MIGRATION (P1–P17), OWNER-DECISIONS (D1–D11 decided).
 
+## Next action
+
+None recorded.
+
+## Guardrails
+
+None recorded.
+
 ## Findings
 
 - Review walked §22 surface by surface: operator acts are launch, Enable on provider rows, one
@@ -80,3 +88,19 @@ surfaces), MIGRATION (P1–P17), OWNER-DECISIONS (D1–D11 decided).
 - file:line citations into sources were sampled (35), one wrong location corrected
   (`protocol.rs:627-633`); the remaining citations were not re-verified line by line — the next
   edit of those sources should re-check them.
+
+## Closure
+
+Filled when the task is accepted.
+
+### Accepted outcome
+
+None recorded.
+
+### Residuals
+
+None recorded.
+
+### Evidence
+
+None recorded.

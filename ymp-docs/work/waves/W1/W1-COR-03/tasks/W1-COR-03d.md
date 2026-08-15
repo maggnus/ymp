@@ -21,7 +21,7 @@ blocker:
 pause_reason:
 return_trigger: a test separating two constructions differing in exactly one of participant/contract_id/generation fails when that field leaves CandidateRecord::identify; verification coverage in the generated pool back to ≥4 of 192 seeds
 deliberate_partial: false
-
+---
 
 # W1-COR-03d — Competing submissions preserve immutable candidate ancestry
 

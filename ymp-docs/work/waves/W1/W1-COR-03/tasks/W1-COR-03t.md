@@ -47,6 +47,14 @@ A cancel reaches a working runtime: the interrupt is delivered outside the wake 
 
 Ready.
 
+## Next action
+
+None recorded.
+
+## Guardrails
+
+None recorded.
+
 ## Findings
 
 None yet.

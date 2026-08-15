@@ -53,6 +53,14 @@ run-fb7950580423 (W1-APP-02e re-review finding).
 
 Ready.
 
+## Next action
+
+None recorded.
+
+## Guardrails
+
+None recorded.
+
 ## Findings
 
 None yet.

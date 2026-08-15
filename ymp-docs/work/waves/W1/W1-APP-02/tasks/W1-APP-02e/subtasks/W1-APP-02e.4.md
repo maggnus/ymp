@@ -58,6 +58,14 @@ Active. Recorded from the W1-APP-02e live runs: every end-to-end test is green w
 machine cannot run either profile — the acceptance criterion of the whole surface is the owner's
 scenario, so this mismatch outranks every remaining hardening node.
 
+## Next action
+
+None recorded.
+
+## Guardrails
+
+None recorded.
+
 ## Findings
 
 None yet.
