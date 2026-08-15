@@ -25,7 +25,9 @@
 //! Two ways of running tests are recognised and not proposed from: a makefile the command would
 //! not read, and npm, whose scripts are run by a program the candidate chooses. Both are refused by
 //! name and reason, because an operator told their project runs no tests has no way to see that
-//! stating a verifier of their own is what is left to them.
+//! stating a verifier of their own is what is left to them. A test script this host would not run
+//! is refused the same way, by its own name and the permission it lacks, rather than by the name
+//! of whatever recognised file happens to come next.
 
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -394,6 +396,53 @@ fn a_way_of_running_tests_the_product_does_not_fix_is_refused_by_name_and_reason
     assert!(
         !refusal.contains("no test entry point"),
         "a project that plainly runs tests is reported as running none: {refusal}"
+    );
+}
+
+/// A test script this host would not run is itself named as the obstacle, with the permission it
+/// lacks.
+///
+/// This is the measurement the card was opened on, kept as the half that fails without the fix.
+/// Before it, a `scripts/test.sh` without execute permission was passed over in silence and the
+/// refusal named the next recognised file — a `package.json` the operator did not write their
+/// tests into — which sends them to fix a file that was never the obstacle.
+#[cfg(unix)]
+#[test]
+fn a_test_script_that_cannot_be_executed_is_named_with_the_permission_it_lacks() {
+    let project = bare_project();
+    fs::create_dir_all(project.directory.join("scripts")).expect("project directory");
+    fs::write(
+        project.directory.join("scripts/test.sh"),
+        b"#!/bin/sh\ntest -f result.txt\n",
+    )
+    .expect("a test script nobody made executable");
+    fs::write(
+        project.directory.join("package.json"),
+        b"{\"scripts\":{\"test\":\"test -f result.txt\"}}\n",
+    )
+    .expect("a second recognised file, further down the order");
+
+    let refusal = assemble(&project.directory, &project.workspace)
+        .expect_err("a verifier was proposed from a file this host will not run");
+    assert!(
+        matches!(refusal, AnswerError::TestEntryPointNotExecutable { .. }),
+        "{refusal}"
+    );
+    let refusal = refusal.to_string();
+    for named in [
+        "scripts/test.sh",
+        "./scripts/test.sh",
+        "permission to be executed",
+        "execute permission",
+    ] {
+        assert!(
+            refusal.contains(named),
+            "the refusal does not name {named}: {refusal}"
+        );
+    }
+    assert!(
+        !refusal.contains("package.json"),
+        "the refusal names a file the operator did not write their tests into: {refusal}"
     );
 }
 
