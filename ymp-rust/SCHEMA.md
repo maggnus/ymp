@@ -12,6 +12,7 @@ invocation — and it is addressed rather than named per run:
 ```text
 ~/.ymp/
   root.json                     layout marker and version
+  pools/<pool>.json             one agent pool: the entries it permits, its ceilings, what it resolves to
   providers/<provider>.json     one account: family, observed state, the engines that reach it
   runtimes/<engine>.json        one runtime engine: admission, properties, model list
   projects/<project>/
@@ -45,10 +46,15 @@ The provider records stand beside the engine records and are reached the same wa
 accounts a host can send work to is the same kind of decision as which engines it admits: one per
 root, read by every run under it. They are described under *Provider records version 1* below.
 
-The provider directory is additive and the layout version is not raised for it. A root written by
-an earlier build carries no `providers/` directory, and that is the state a root is in before
-anything has been observed, not a version this build cannot read; a root written by this build
-carries a directory an earlier build never looks at. Nothing is migrated either way.
+The pool records stand beside them and are reached the same way, because which of the catalog's
+entries a run may recruit from is again one decision per root. They are described under *Agent pool
+records version 1* below.
+
+The provider and pool directories are additive and the layout version is not raised for either. A
+root written by an earlier build carries no `providers/` and no `pools/` directory, and that is the
+state a root is in before anything has been observed, not a version this build cannot read; a root
+written by this build carries directories an earlier build never looks at. Nothing is migrated
+either way.
 
 An invocation that commits a run start is given a store holding no run; every other invocation is
 given the store the project is already on. A store addressed but never started into holds no
@@ -215,6 +221,67 @@ This level decides nothing. Which engines are admitted is still answered by the 
 `enabled` flag alone, so a provider observed unavailable does not hold back an engine the operator
 enabled and an observed provider does not admit one they disabled. Nothing is instantiated by being
 recorded here, and which of the catalog's entries a run may use is not decided under this root.
+
+## Agent pool records version 1
+
+One record per agent pool lives at `<root>/pools/<pool>.json`, where `<pool>` is the pool's own
+name: lower-case letters, digits, `-` and `_`, and never a path. An agent pool is the set of
+catalog entries a run may create participants from, together with the mechanical ceilings it may do
+so within. It is a capability boundary and never a team: it names entries, not participants, and
+nothing is instantiated by standing in a pool.
+
+The record has two halves with two owners, and the layout keeps them apart because the ownership is
+the point. `spec` is the operator's: `models`, which is either the selector `all_admissible` or an
+explicit ordered list of provider–engine–model triples; `capacity`, which carries `max_agents` and
+`max_concurrent_attempts`; and `resource_limits`, the per-participant bounds, each absent until an
+operator states one. `status` is the reconciler's: the resolved entries in the pool's declared order
+with each one's admissibility and the reason it is not offered, how many are offered, the digest of
+the resolved ordered set, whether the pool still tracks the catalog, what the resolution was read
+from, and the conditions that state all of it in words.
+
+`capacity` carries no floor. There is no `min_agents`, no `desired` and no replica count, and no
+role or rank anywhere in the record. A floor would be the only field here with no reconciler —
+recorded and ignored, or satisfied by something creating participants nobody asked for — and a rank
+over capabilities would be a team assignment under another name.
+
+**The `default` pool is created and never seeded.** The reconciler creates one record named
+`default`, with the selector and the ceilings the product's default setting states, the first time
+the catalog offers an admissible entry — which is the first time a provider is observed ready with
+a model an admitted engine can serve. A root whose catalog offers nothing therefore holds no pool
+record and no `pools/` directory at all. Creating that one record is the only `spec` the reconciler
+ever writes: an existing record's `spec` is carried forward byte for byte, and the operator's own
+write carries the stored `status` forward the same way.
+
+**An edit replaces the selector rather than adding to it.** Writing an explicit list is the
+operator's statement of which entries this pool permits, so the pool stops following the catalog and
+the record says so — `status.tracking` is false and the `explicit` condition carries the sentence. A
+model discovered afterwards joins the catalog and not the pool.
+
+**Entries are referenced weakly and are never dropped.** An entry an explicit list names that the
+catalog no longer holds, and an entry the catalog holds but no longer offers, both stay in the
+resolved list carrying the measured reason. A pool that grew shorter would be indistinguishable from
+a pool whose boundary was narrowed. A catalog that cannot be read fails the whole resolution for the
+same reason, and the record is left as it stood.
+
+The `digest` is computed over the resolved ordered set and over nothing else: each entry's provider,
+engine and model, whether it is offered and the reason it is not, in declared order, each field
+terminated. It therefore follows the catalog and the declared order, and a ceiling raised or a
+resource bound stated leaves it exactly as it was. This is the value a run freezes.
+
+No resolution timestamp is written, because nothing at this level reads a clock. What the resolution
+was taken from is stated instead: the provider records it was read through with the state each one
+stated, and the digest of the whole catalog reading it resolved against. For a pool that tracks the
+catalog that digest equals the pool's own by construction, which is what tracking means.
+
+The record states its own `schema_version`. A record of any other version is refused when it is
+read, and no command migrates a record. A record standing under another pool's name is refused
+rather than read as that pool's, and neither refusal is answered by creating a fresh `default` over
+it.
+
+This level decides which entries are permitted and nothing else. It creates no participant, opens no
+process and spends nothing; it never reads a goal, a task or a run; and it holds no preference over
+entries, because the resolved order is the declared order — the catalog's for a tracking pool, the
+operator's for an edited one.
 
 ## Event journal version 1
 

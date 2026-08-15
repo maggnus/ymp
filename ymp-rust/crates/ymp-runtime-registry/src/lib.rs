@@ -7,6 +7,7 @@
 //!
 //! ```text
 //! .ymp/
+//!   pools/default.json              which of the catalog's entries a run may recruit from
 //!   providers/anthropic.json        the account, its observed state and the engines that reach it
 //!   providers/openai.json
 //!   runtimes/claude-code.json       enabled flag, measured properties, measured model list
@@ -32,14 +33,24 @@
 //! The engine records are the measured half of the level the collective design calls the model
 //! catalog (`ymp-docs/design/COLLECTIVE-DESIGN.md`, §6). The other half is the account those
 //! models are served by: [`provider`] holds the provider records, and [`catalog`] joins the two
-//! into the triples the design calls catalog entries. All three levels deliberately stop short of
-//! the pool: they record what exists and whether an engine is admitted, and decide nothing about
-//! which of those models a run may use.
+//! into the triples the design calls catalog entries. All three levels record what exists and
+//! whether an engine is admitted, and none of them decides which of those models a run may use.
+//!
+//! Which of them a run may use is the level above, and it is stated as its own record: [`pool`]
+//! holds the agent pools, each naming the catalog entries it permits and the ceilings a run using
+//! it is held to. That level decides which entries are permitted and nothing else — it instantiates
+//! nothing, ranks nothing and starts nothing, exactly as the three beneath it do not.
 
 pub mod catalog;
+pub mod pool;
 pub mod provider;
 
 pub use catalog::{Availability, Catalog, CatalogEntry};
+pub use pool::{
+    DEFAULT_POOL, ObservedProvider, POOL_SCHEMA_VERSION, POOLS_DIRECTORY, PoolCapacity,
+    PoolCondition, PoolConditionKind, PoolEntry, PoolError, PoolModels, PoolName, PoolObservation,
+    PoolRecord, PoolResourceLimits, PoolSpec, PoolStatus, Pools, ResolvedEntry,
+};
 pub use provider::{
     PROVIDER_SCHEMA_VERSION, PROVIDERS_DIRECTORY, ProviderError, ProviderFamily, ProviderRecord,
     ProviderRoute, ProviderState, Providers,
@@ -517,6 +528,13 @@ impl RegistryAddress {
     /// governs it rather than a set of its own.
     pub fn providers(&self) -> Providers {
         Providers::under(self.root())
+    }
+
+    /// The pool records this address reaches. They stand under the same root, for the same reason:
+    /// which entries a run may recruit from is one decision per root, and a run addressed by its
+    /// store reads the pools of the root that governs it.
+    pub fn pools(&self) -> Pools {
+        Pools::under(self.root())
     }
 }
 
