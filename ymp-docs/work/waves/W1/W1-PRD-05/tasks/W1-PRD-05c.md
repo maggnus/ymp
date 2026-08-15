@@ -27,11 +27,11 @@ deliberate_partial: false
 
 ## Outcome
 
-The collective design deliverable (`ymp-docs/design/COLLECTIVE-GAP-ANALYSIS.md`,
-`ymp-docs/design/COLLECTIVE-DESIGN.md`, `ymp-docs/design/COLLECTIVE-TUI.md`,
-`ymp-docs/design/COLLECTIVE-MIGRATION.md`,
-`ymp-docs/design/COLLECTIVE-OWNER-DECISIONS.md`) is corrected against
-`ymp-docs/design/PRODUCT-BRIEF-collective-v2.md`, delivering the
+The collective design deliverable ([COLLECTIVE-GAP-ANALYSIS.md](https://github.com/maggnus/ymp/blob/ffde816625bc6a98536e486c2f5ccc0f6445b6d5/ymp-docs/design/COLLECTIVE-GAP-ANALYSIS.md),
+[COLLECTIVE-DESIGN.md](https://github.com/maggnus/ymp/blob/ffde816625bc6a98536e486c2f5ccc0f6445b6d5/ymp-docs/design/COLLECTIVE-DESIGN.md), [COLLECTIVE-TUI.md](https://github.com/maggnus/ymp/blob/d6b8d0929828c696bfe85eec8fc377e03e620ed8/ymp-docs/design/COLLECTIVE-TUI.md),
+[COLLECTIVE-MIGRATION.md](https://github.com/maggnus/ymp/blob/ffde816625bc6a98536e486c2f5ccc0f6445b6d5/ymp-docs/design/COLLECTIVE-MIGRATION.md),
+[COLLECTIVE-OWNER-DECISIONS.md](https://github.com/maggnus/ymp/blob/ffde816625bc6a98536e486c2f5ccc0f6445b6d5/ymp-docs/design/COLLECTIVE-OWNER-DECISIONS.md)) is corrected against
+[PRODUCT-BRIEF-collective-v2.md](https://github.com/maggnus/ymp/blob/d9c0b4a9f8e70f8d9631ec1d760054c293923e49/ymp-docs/design/PRODUCT-BRIEF-collective-v2.md), delivering the
 sixteen items of Part A §24 and the per-resource `spec`/`status`/ownership/lifecycle/reconciliation
 definitions of Part B — without removing contract, oracle, verification, budget, isolation or any
 other protective mechanism, and without introducing a hidden central semantic orchestrator.

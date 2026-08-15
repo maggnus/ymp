@@ -27,7 +27,7 @@ deliberate_partial: false
 
 ## Outcome
 
-Migration unit P1 of `ymp-docs/design/COLLECTIVE-MIGRATION.md`: the
+Migration unit P1 of [COLLECTIVE-MIGRATION.md](https://github.com/maggnus/ymp/blob/ffde816625bc6a98536e486c2f5ccc0f6445b6d5/ymp-docs/design/COLLECTIVE-MIGRATION.md): the
 product root gains provider records and a model catalog as first-class stored objects, and engines
 become managed entities beneath providers — the registry accepted in W1-APP-02e.6 is the seed of
 this level, not a parallel one. No participant is created from a catalog entry by this unit; it

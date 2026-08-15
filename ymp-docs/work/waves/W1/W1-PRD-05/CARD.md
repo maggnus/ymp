@@ -29,7 +29,7 @@ An operator gives ymp a natural-language goal and receives a verified result wit
 without authoring contracts, oracles, verifiers, teams, roles, model assignments or
 decomposition plans. The collective is the intelligence; the kernel enforces mechanics; the
 verification system proves the result; the TUI stays simple. Source of truth:
-`ymp-docs/design/PRODUCT-BRIEF-collective.md`.
+[PRODUCT-BRIEF-collective.md](https://github.com/maggnus/ymp/blob/7f3730f65171fe2290194f814bddeac0d7f9f3a8/ymp-docs/design/PRODUCT-BRIEF-collective.md).
 
 ## Invariants
 
