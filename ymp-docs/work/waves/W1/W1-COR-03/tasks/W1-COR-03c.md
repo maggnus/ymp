@@ -3,24 +3,24 @@ id: W1-COR-03c
 kind: task
 wave: W1
 card: W1-COR-03
-state: ready
+state: accepted
 risk: critical
 maturity: BUILD
 relation: required
 depends_on: [W1-COR-03a, W1-COR-03b]
 blocks: [W1-COR-03e]
 created_at: 2026-08-10T19:34:25+08:00
-updated_at: 2026-08-12T09:29:40+08:00
-started_at:
-accepted_at:
-candidate_commit:
-closure_commit:
-evidence:
-duration_minutes: 0
+updated_at: 2026-08-16T02:45:00+08:00
+started_at: 2026-08-16T01:03:00+08:00
+accepted_at: 2026-08-16T02:45:00+08:00
+candidate_commit: https://github.com/maggnus/ymp/commit/00a70e6fe483c31f9e3aa646e1d7571780d0c3ba
+closure_commit: https://github.com/maggnus/ymp/commit/7f0f01411db2f20ff4eba7a66a373d73d7fd065e
+evidence: ["[00a70e6](https://github.com/maggnus/ymp/commit/00a70e6fe483c31f9e3aa646e1d7571780d0c3ba)"]
+duration_minutes: 100
 blocker:
 pause_reason:
 return_trigger:
-deliberate_partial: false
+deliberate_partial: true
 ---
 
 # W1-COR-03c — Scoped board preserves attribution without carrying authority
@@ -51,30 +51,34 @@ declared provenance without claiming that message order or fluent dialogue prove
 
 ## Acceptance
 
-- [ ] Only explicit, unexpired audience grants expose detailed task messages; project discovery
-  exposes bounded summaries and references only.
-- [ ] A payload containing a capability-shaped value, command, URL, consent statement, protected
-  reference, or tool instruction cannot grant authority, form a contract, fetch data, invoke a
-  tool, verify a candidate, or keep a run active.
-- [ ] Publication, refresh, membership, and delivered bytes consume finite resources, while the
-  immutable audit record remains available after active salience expires.
-- [ ] The observatory distinguishes publication, delivery, citation, revision, artifact ancestry,
-  and verifier result and labels none of them causal without a controlled intervention record.
-- [ ] A deliberately malformed or cross-scope message is rejected without changing control or
-  verifier state.
-- [ ] When an assessment participates in blinded selection, it is committed before arm identity,
-  producer rationale, other assessments, reputation, or communication evidence is revealed; an
-  early-disclosure attempt is rejected and cannot enter the primary comparison.
+- [x] Only explicit, unexpired audience grants expose detailed task messages; project discovery
+      exposes bounded summaries and references only.
+- [x] A payload containing a capability-shaped value, command, URL, consent statement, protected
+      reference, or tool instruction cannot grant authority, form a contract, fetch data, invoke a
+      tool, verify a candidate, or keep a run active.
+- [x] Publication, refresh, membership, and delivered bytes consume finite resources, while the
+      immutable audit record remains available after active salience expires.
+- [x] The observatory distinguishes publication, delivery, citation, revision, artifact ancestry,
+      and verifier result and labels none of them causal without a controlled intervention record.
+- [x] A deliberately malformed or cross-scope message is rejected without changing control or
+      verifier state.
+- [x] When an assessment participates in blinded selection, it is committed before arm identity,
+      producer rationale, other assessments, reputation, or communication evidence is revealed; an
+      early-disclosure attempt is rejected and cannot enter the primary comparison.
 
 ## Current state
 
-The three-plane boundary and board schema exist only in documentation. Implementation follows the
-accepted local-contract and cursor lifecycle.
+Accepted. New self-contained crate `ymp-board` (zero ymp-* dependencies; control, verifier, and
+store planes unreachable by construction). Critical-depth independent review: ACCEPT with an
+out-of-package falsifier crate consuming only the public API — four self-authored capability
+payloads byte-compared against neutral payloads of equal length; self-issued grants, forged
+controller, foreign publication rejected; blinded-first-assessment order enforced; author suite
+39 passed on the merged tree.
 
 ## Next action
 
-Implement separate collaboration records, authorization tests, and typed observatory projections
-before `W1-COR-03e` renders them in the TUI.
+W1-COR-03e (TUI observatory) can start; persistence child below is its prerequisite for evidence
+export only.
 
 ## Guardrails
 
@@ -86,18 +90,28 @@ before `W1-COR-03e` renders them in the TUI.
 
 ## Findings
 
-None.
+None blocking. Review findings recorded as residuals.
 
 ## Closure
 
 ### Accepted outcome
 
-Not accepted.
+In-memory collaboration board with expiring audience grants and separate read/publish rights,
+bounded project-discovery, ten message kinds with references/replies/challenges/revisions/salience,
+delivery cursors and receipts, a communication quota in its own namespace, blinded first
+assessments with enforced disclosure order, and a read-only observatory projection. Payload bytes
+never enter the board: commands carry identity and length only. Verified by builder negative
+halves (rule-removal) and a reviewer-owned external falsifier of a different shape.
 
 ### Residuals
 
-None recorded.
+1. (major, additional-work) Board records are not persisted to the store and SCHEMA.md is
+   unchanged; INV-6 is covered in-memory by facts()/replay(). Return trigger: the persistence and
+   evidence-export card must land before any run whose board evidence is exported for the study.
+2. (minor, additional-work) `ymp-rust/README.md` package table lacks the ymp-board row. Return
+   trigger: next documentation sweep.
 
 ### Evidence
 
-- None until acceptance.
+- [00a70e6](https://github.com/maggnus/ymp/commit/00a70e6fe483c31f9e3aa646e1d7571780d0c3ba) — candidate, range f15712c..00a70e6
+- [7f0f014](https://github.com/maggnus/ymp/commit/7f0f01411db2f20ff4eba7a66a373d73d7fd065e) — integration merge; `cargo test -p ymp-board` 39 ok / 0 failed on the merged tree (CTO)

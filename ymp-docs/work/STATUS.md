@@ -58,7 +58,7 @@
 | `[ ]` | [`W1-COR-03`](waves/W1/W1-COR-03/CARD.md) | Bounded local commitments self-organize and terminate | — | — | — |
 | `[x]` | [`W1-COR-03a`](waves/W1/W1-COR-03/tasks/W1-COR-03a.md) | Local commitments conserve budgets and close obligations | [`58524264`](https://github.com/maggnus/ymp/commit/585242645d405ff1f76d6015a1141144eac4207b) | 13/08 15:10 | 13/08 16:27 (1h25m) |
 | `[x]` | [`W1-COR-03b`](waves/W1/W1-COR-03/tasks/W1-COR-03b.md) | Yielded participants resume finitely and runs terminate honestly | [`ca52994`](https://github.com/maggnus/ymp/commit/ca52994) | — | 14/08 04:06 (0m) |
-| `[ ]` | [`W1-COR-03c`](waves/W1/W1-COR-03/tasks/W1-COR-03c.md) | Scoped board preserves attribution without carrying authority | — | — | — |
+| `[x]` | [`W1-COR-03c`](waves/W1/W1-COR-03/tasks/W1-COR-03c.md) | Scoped board preserves attribution without carrying authority | [`7f0f0141`](https://github.com/maggnus/ymp/commit/7f0f01411db2f20ff4eba7a66a373d73d7fd065e) | 16/08 01:03 | 16/08 02:45 (1h40m) |
 | `[x]` | [`W1-COR-03d`](waves/W1/W1-COR-03/tasks/W1-COR-03d.md) | Competing submissions preserve immutable candidate ancestry | [`f4e9fbf`](f4e9fbf) | 15/08 16:45 | 15/08 18:40 (0m) |
 | `[ ]` | [`W1-COR-03e`](waves/W1/W1-COR-03/tasks/W1-COR-03e.md) | TUI exposes local commitments and communication evidence | — | — | — |
 | `[x]` | [`W1-COR-03f`](waves/W1/W1-COR-03/tasks/W1-COR-03f.md) | Commitment facts are durable and visible, not only in memory | [`8f5b815`](8f5b815) | 15/08 15:07 | 15/08 16:40 (0m) |
