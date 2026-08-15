@@ -11,11 +11,11 @@
 //! the rule reads position and measured readiness alone, and it lives with the value it produces
 //! (owner decision D2).
 //!
-//! **A root that cannot offer a run anything refuses one, in plain words.** A root with no pool, or
-//! with a pool nothing in is live, is not an error condition of the machinery: it is the ordinary
-//! first state of the product, and what an operator reads names the one thing that is missing and
-//! the command that supplies it (product brief v2, Part A §6). The technical reason is carried
-//! beside those words rather than instead of them.
+//! **A root that cannot offer a run anything refuses one, in plain words.** A root holding no pool,
+//! or holding one in which nothing is live, is not an error condition of the machinery: it is the
+//! ordinary first state of the product, and what an operator reads names the one thing that is
+//! missing and the command that supplies it (product brief v2, Part A §6). The technical reason is
+//! carried beside those words rather than instead of them.
 
 use std::path::Path;
 
@@ -39,7 +39,7 @@ pub enum PoolFreezeRefused {
     )]
     NoPool,
     #[error(
-        "your goal is held · none of the models this root permits is available right now — \
+        "your goal is held · none of the models the {pool} pool permits is available right now — \
          /providers is where a provider is enabled or measured again · {reason} · nothing has \
          started and nothing has left this host"
     )]
