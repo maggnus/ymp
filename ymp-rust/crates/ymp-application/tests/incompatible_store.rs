@@ -8,6 +8,23 @@
 use std::fs;
 
 use ymp_application::{Application, ApplicationError};
+use ymp_domain::pool::{FrozenEntry, FrozenPool};
+
+/// The capability boundary a run would be created under, had the store been readable. It is
+/// supplied because no path creates a run without one; what this check is about is that the store
+/// is refused before the boundary, the contract or anything else is written.
+fn frozen_pool() -> FrozenPool {
+    FrozenPool::freeze(
+        "default",
+        vec![FrozenEntry::admissible(
+            "anthropic",
+            "claude-code",
+            "claude-opus-5",
+        )],
+        "a".repeat(64),
+    )
+    .expect("the fixture pool freezes")
+}
 
 /// A store written by a binary of the previous schema version: a running run, one active
 /// attempt, and a projection that says so.
@@ -47,7 +64,7 @@ fn a_store_of_another_schema_version_is_refused_and_left_byte_for_byte_as_found(
             error,
             ApplicationError::IncompatibleStore {
                 actual: 1,
-                expected: 5
+                expected: 6
             }
         ),
         "{reported}"
@@ -85,10 +102,11 @@ fn a_store_of_another_schema_version_is_refused_and_left_byte_for_byte_as_found(
 /// Every version between the first and this one is refused exactly as the first one is. They are
 /// stated separately because those stores are the ones an operator is most likely to still have:
 /// they were written by earlier builds of this product, and journalling the commitment facts, then
-/// the ancestry of a result, then what the kernel could not state of one, superseded them in turn.
+/// the ancestry of a result, then what the kernel could not state of one, then the pool a run is
+/// frozen to, superseded them in turn.
 #[test]
 fn the_versions_this_binary_superseded_are_refused_too() {
-    for version in [2, 3, 4] {
+    for version in [2, 3, 4, 5] {
         let root = tempfile::tempdir().expect("temporary root");
         let data_root = root.path().join("data");
         fs::create_dir_all(&data_root).expect("data root");
@@ -105,7 +123,7 @@ fn the_versions_this_binary_superseded_are_refused_too() {
                 error,
                 ApplicationError::IncompatibleStore {
                     actual,
-                    expected: 5
+                    expected: 6
                 } if actual == version
             ),
             "{error}"
@@ -156,7 +174,8 @@ fn starting_a_run_over_an_incompatible_store_is_refused_without_a_write() {
     })
     .expect("prepared contract");
 
-    let Err(error) = Application::create_with_contract(&data_root, &prepared) else {
+    let Err(error) = Application::create_with_contract(&data_root, &prepared, &frozen_pool())
+    else {
         panic!("a run must not start over a store of another schema version");
     };
     assert!(

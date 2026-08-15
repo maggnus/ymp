@@ -217,6 +217,14 @@ fn attempt_through_the_product(fixture: &Fixture, store: &Path) {
         "the codex engine was not admitted: {}",
         reported(&admitted)
     );
+    // A run is created against the pool it may draw its models from, so this store's root is put
+    // into the state one measured account leaves behind — on the engine the attempt routes
+    // through, so that resolving the pool enables no second profile beside the fixture.
+    ymp_testkit::ready_root::measured_engine(
+        store,
+        ymp_runtime_registry::Engine::Codex,
+        &["gpt-5-codex"],
+    );
     let contract_id = fixture.contract_id();
     let mut arguments = fixture.request_arguments();
     arguments.insert(0, "start".to_owned());

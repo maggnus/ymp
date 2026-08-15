@@ -13,7 +13,7 @@ use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 use uuid::Uuid;
-use ymp_application::{Application, PreparedContract, VerificationOutcome};
+use ymp_application::{Application, PreparedContract, VerificationOutcome, freeze_under};
 use ymp_domain::Command as DomainCommand;
 use ymp_runtime_api::{
     CancellationToken, InvocationRequest, McpBinding, Readiness, RuntimeDriver,
@@ -238,7 +238,11 @@ fn run_managed_runtime_smoke(
 ) -> anyhow::Result<()> {
     let attempt_id = format!("attempt-{}", Uuid::new_v4());
     let prompt = contract.document.prompt.clone();
-    let (mut application, _) = Application::create_with_contract(&data_root, &contract)?;
+    // What the run may create participants from is fixed before it exists, out of the pools of the
+    // root that governs this store. A root that offers the run nothing states so and starts
+    // nothing, exactly as the interface does.
+    let frozen = freeze_under(&registry.root(), None)?;
+    let (mut application, _) = Application::create_with_contract(&data_root, &contract, &frozen)?;
     application.execute(
         format!("{attempt_id}.start"),
         DomainCommand::StartAttempt {
@@ -311,7 +315,8 @@ fn run_managed_candidate_smoke(
         .map(String::as_str)
         .collect();
     let attempt_id = format!("attempt-{}", Uuid::new_v4());
-    let (mut application, _) = Application::create_with_contract(&data_root, &contract)?;
+    let frozen = freeze_under(&registry.root(), None)?;
+    let (mut application, _) = Application::create_with_contract(&data_root, &contract, &frozen)?;
     let artifacts = application.artifact_store();
     let base = artifacts.capture_source(&source)?;
     let workspace = data_root.join("workspaces").join(&attempt_id);

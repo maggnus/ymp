@@ -18,6 +18,7 @@ use std::path::Path;
 use std::time::{Duration, Instant};
 
 use ymp_domain::RunStatus;
+use ymp_runtime_registry::Engine;
 use ymp_tui::runtimes::{Measure, probe_all};
 use ymp_tui::{Session, projection};
 
@@ -86,6 +87,9 @@ fn cancelling_a_run_the_machinery_already_ended_reports_what_the_record_holds() 
     // that decision the way an operator does — through the interface's own line.
     session.local_turn("runtime enable codex".to_owned());
     session.set_runtimes(probe_all(session.registry_address(), Measure::Recorded));
+    // A run is created against the pool it may draw models from, so this root is put into the
+    // state one measured account leaves behind — on the engine this check routes through.
+    ymp_testkit::ready_root::measured_engine(&store, Engine::Codex, &["gpt-5-codex"]);
     session.start_run(&contract_id);
     session.start_attempt();
     assert!(session.attempt_is_live(), "no attempt was launched");

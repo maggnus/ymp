@@ -16,6 +16,25 @@ use ymp_application::{
 };
 use ymp_domain::EventKind;
 use ymp_domain::contract::{CONTRACT_SCHEMA_VERSION, ContractDocument};
+use ymp_domain::pool::{FrozenEntry, FrozenPool};
+
+/// The capability boundary these runs are created under.
+///
+/// Every path that creates a run states one, so a check about run identity or about the contract
+/// states the simplest boundary there is: one entry, live. What the freeze itself establishes is
+/// checked where it belongs, in `pool_freeze.rs`.
+fn frozen_pool() -> FrozenPool {
+    FrozenPool::freeze(
+        "default",
+        vec![FrozenEntry::admissible(
+            "anthropic",
+            "claude-code",
+            "claude-opus-5",
+        )],
+        "a".repeat(64),
+    )
+    .expect("the fixture pool freezes")
+}
 
 struct Fixture {
     _root: TempDir,
@@ -85,7 +104,8 @@ fn a_typed_request_becomes_a_stored_contract_and_a_started_run() {
     );
 
     let (application, outcome) =
-        Application::create_with_contract(&fixture.data_root, &prepared).expect("started run");
+        Application::create_with_contract(&fixture.data_root, &prepared, &frozen_pool())
+            .expect("started run");
     assert!(!outcome.replayed);
 
     let events = application.events_after(0).expect("committed events");

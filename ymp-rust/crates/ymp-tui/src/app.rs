@@ -23,7 +23,7 @@ use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind, KeyModifier
 use ymp_application::root::{StoreIntent, store_under};
 use ymp_application::{
     Application, ApplicationError, PreparedContract, VerificationJob, VerificationOutcome,
-    prepare_contract,
+    freeze_under, prepare_contract,
 };
 use ymp_domain::Command as DomainCommand;
 use ymp_domain::commitment::Verdict;
@@ -1334,6 +1334,18 @@ impl Session {
             self.model.error(format!("no run was started — {reason}"));
             return;
         }
+        // What this run may create participants from is fixed before it exists, and read from the
+        // pool records of the root that governs this store. A root that can offer the run nothing
+        // stops it here, before a store is addressed and before anything is written: the goal is
+        // held, and what the operator reads is that state in plain words with the command that
+        // supplies what is missing (product brief v2, Part A §6).
+        let frozen = match freeze_under(&self.registry.root(), None) {
+            Ok(frozen) => frozen,
+            Err(refusal) => {
+                self.model.reply(refusal.to_string());
+                return;
+            }
+        };
         if self.application.is_some() && !self.move_to_a_store_of_its_own() {
             return;
         }
@@ -1342,7 +1354,7 @@ impl Session {
         // authorization is recorded before the attempt and a second one asks for one
         // confirmation rather than for the same identifier again.
         self.authorized.insert(authorization_key(&prepared));
-        match Application::create_with_contract(&self.data_root, &prepared) {
+        match Application::create_with_contract(&self.data_root, &prepared, &frozen) {
             Ok((application, outcome)) => {
                 self.application = Some(Arc::new(Mutex::new(application)));
                 self.draft = None;

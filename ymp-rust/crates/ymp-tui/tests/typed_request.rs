@@ -49,6 +49,10 @@ fn workspace() -> Workspace {
     make_executable(&entry_point);
     fs::write(&program, b"#!/bin/sh\ntest -f \"$1/result.txt\"\n").expect("verifier program");
     make_executable(&program);
+    // A run is created against the pool it may draw its models from, so the root this store stands
+    // under is put into the state one measured account leaves behind. The store is its own root
+    // here, since this fixture names a store directly rather than addressing one under a layout.
+    ymp_testkit::ready_root::measured(&data_root);
     Workspace {
         data_root,
         source,
@@ -333,6 +337,10 @@ fn a_request_that_opens_with_the_word_runtime_still_becomes_a_contract() {
 fn a_second_authorization_starts_its_run_in_a_store_of_its_own() {
     let workspace = workspace();
     let root = workspace.data_root.join("root");
+    // This check addresses a root of its own rather than the one the fixture prepared, so that
+    // root is the one put into the state a measured account leaves behind: a run is created
+    // against the pool it may draw its models from.
+    ymp_testkit::ready_root::measured(&root);
     let first_store =
         store_under(&root, StoreIntent::New).expect("the layout addresses the first store");
     let mut session = Session::open_under_root(&root, &first_store, &[]);

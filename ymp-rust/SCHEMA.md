@@ -349,6 +349,11 @@ process and spends nothing; it never reads a goal, a task or a run; and it holds
 entries, because the resolved order is the declared order — the catalog's for a tracking pool, the
 operator's for an edited one.
 
+A run reads this record exactly once, when it is created: the resolved entries and their digest are
+copied into the run's own journal as `pool_frozen` (*Event journal version 6*), and every decision
+that run takes afterwards reads that copy. Editing a pool or changing a provider therefore moves
+this record and no run already created from it.
+
 ## Event journal version 1
 
 Every line in `events.jsonl` is one UTF-8 JSON `EventEnvelope` followed by `\n`. Version 1 fixes the
@@ -481,12 +486,45 @@ as it did under version 4. The version is raised rather than treated as an exten
 version 4 was: a version-4 reader given this tag fails on an unknown record rather than on a stated
 version.
 
+## Event journal version 6
+
+Version 6 keeps every envelope field, ordering rule, digest input and limit of version 5, and every
+commitment fact and run record the versions before it added. What it adds is one record of the run
+itself, written once, when the run is created:
+
+- `pool_frozen`, carrying `pool`, `entries`, `origin` and `digest` — the capability boundary the run
+  was created under, held by value. `pool` is the name the snapshot was taken from and is provenance
+  only. `entries` is every entry that pool permitted, in its declared order, each carrying
+  `provider`, `engine`, `model`, `admissible` and, where it is not admissible, the `reason` the
+  catalog stated. `origin` is the triple the run ignites on. `digest` is the digest of the resolved
+  ordered set, which is the pool record's own digest, carried across rather than recomputed.
+
+The record is the run's own capability boundary and every later decision about recruitment reads it
+rather than the pool record under the product root. A pool edited, a provider disabled or a model
+discovered after this record was written belongs to the next run and changes nothing about this one.
+
+`origin` is not a field a writer chooses. It is the first entry of `entries`, in the order the
+record states them, whose `admissible` is true — position and measured readiness, and nothing about
+the goal, the task or the entry beyond those two (owner decision D2). A record whose `origin` is not
+the entry that rule reaches is refused where it is read, so an ignition entry cannot enter the
+journal from anywhere but the rule.
+
+A run is never created without this record: the pool is frozen before the run is reported created,
+and a pool permitting no entry that admission found live freezes nothing, so no run stands over a
+boundary it could recruit nobody from. The order of the three creation records is fixed —
+`run_started`, `contract_approved`, `pool_frozen` — and the freeze is written once. A second
+`pool_frozen` is refused with the digest the run already stands on.
+
+The version is raised rather than treated as an extension for the reason versions 4 and 5 were: a
+version-5 reader given this tag fails on an unknown record rather than on a stated version, which is
+the failure this policy exists to prevent.
+
 ## Compatibility and migration
 
-Schema version 1 is immutable, and versions 2, 3, 4 and 5 are new versions rather than extensions of
-what came before. A change that alters field meaning, digest input, event tags, required fields,
+Schema version 1 is immutable, and versions 2, 3, 4, 5 and 6 are new versions rather than extensions
+of what came before. A change that alters field meaning, digest input, event tags, required fields,
 ordering rules, or replay behavior requires a new schema version. The current binary reads and
-writes only version 5 and fails closed on every other version, versions 1 to 4 included.
+writes only version 6 and fails closed on every other version, versions 1 to 5 included.
 
 The migration consequence is stated rather than worked around: a journal written by an earlier
 binary is rejected at open with an unsupported-schema error, and no command migrates it, because

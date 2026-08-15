@@ -1091,6 +1091,7 @@ dependencies = [
  "ymp-domain",
  "ymp-kernel",
  "ymp-runtime-api",
+ "ymp-runtime-registry",
  "ymp-storage",
  "ymp-verifier",
 ]
@@ -1281,6 +1282,7 @@ dependencies = [
  "ymp-domain",
  "ymp-runtime-api",
  "ymp-runtime-fake",
+ "ymp-runtime-registry",
  "ymp-verifier",
 ]
 
@@ -1301,6 +1303,7 @@ dependencies = [
  "ymp-runtime-codex",
  "ymp-runtime-registry",
  "ymp-runtime-supervisor",
+ "ymp-testkit",
 ]
 
 [[package]]

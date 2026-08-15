@@ -19,6 +19,7 @@ use ymp_domain::contract::{
     ContractDocument, ContractError, MissingPart, VerifierRecord, default_output_limit_bytes,
     default_wall_time_ms,
 };
+use ymp_domain::pool::FrozenPool;
 use ymp_domain::{Budget, Command, ContractBinding, digest_bytes};
 
 use crate::{Application, ApplicationError, CommandOutcome};
@@ -26,6 +27,11 @@ use crate::{Application, ApplicationError, CommandOutcome};
 /// The budget a run starts with when the request states none: one attempt to produce a candidate
 /// and one verification query to judge it. Both dimensions are enforced by the domain.
 pub const DEFAULT_RUN_BUDGET: Budget = Budget::new(1, 1);
+
+/// The identifier the freeze of a run is committed under. One run freezes one pool, so the
+/// identifier names the act rather than the value: a repeated delivery of the same creation is
+/// answered from the record instead of freezing a second boundary.
+const POOL_FREEZE_COMMAND_ID: &str = "ymp.pool.freeze";
 
 /// How many hexadecimal characters of the request digest identify a drafted contract.
 const DERIVED_IDENTIFIER_CHARS: usize = 12;
@@ -313,17 +319,28 @@ pub fn load_contract_package(
 }
 
 impl Application {
-    /// Start a run against a prepared contract.
+    /// Start a run against a prepared contract and the pool it may create participants from.
     ///
-    /// The contract bytes become an immutable object, and the journal records the run start
-    /// followed by the approval that binds the run to that exact contract and oracle. A store
-    /// that already holds a run is not reused: `create` refuses it.
+    /// The contract bytes become an immutable object, and the journal records the run start, the
+    /// approval that binds the run to that exact contract and oracle, and the freeze that fixes
+    /// its capability boundary. A store that already holds a run is not reused: `create` refuses
+    /// it.
+    ///
+    /// **The pool is an argument rather than something found here.** A run created against a
+    /// boundary nobody stated would be a run nothing could hold a recruitment to, so there is no
+    /// path that creates one: whoever starts a run has already read a pool and frozen it
+    /// ([`crate::pool::freeze_under`] is that reading for a product root). This is the same rule
+    /// the contract follows, and it is enforced the same way — by the signature, not by a check.
+    ///
+    /// All three records are written before this returns, so a run is never reported created while
+    /// its boundary is still open: a store holding a run start holds the freeze that governs it.
     ///
     /// The run is identified by its contract and by this store together, so a second
     /// authorization of the same contract into a second store is a run this one can be told from.
     pub fn create_with_contract(
         data_root: impl AsRef<Path>,
         contract: &PreparedContract,
+        pool: &FrozenPool,
     ) -> Result<(Self, CommandOutcome), ApplicationError> {
         let store = data_root.as_ref();
         let mut application =
@@ -340,12 +357,30 @@ impl Application {
                 oracle_digest: contract.oracle_digest().to_owned(),
             },
         )?;
+        // The freeze follows the binding, which is the order the bootstrap sequence states: the run
+        // exists and is bound to what judges it, and only then is what it may draw on fixed.
+        application.execute(
+            POOL_FREEZE_COMMAND_ID,
+            Command::FreezePool {
+                pool: pool.pool.clone(),
+                entries: pool.entries.clone(),
+                digest: pool.digest.clone(),
+            },
+        )?;
         Ok((application, outcome))
     }
 
     /// The contract this run is judged against, once one has been approved for it.
     pub fn contract(&self) -> Option<&ContractBinding> {
         self.state.contract.as_ref()
+    }
+
+    /// The pool this run may create participants from, as the journal froze it.
+    ///
+    /// It is read out of the run's own projection, which is a reading of the journal, so what a
+    /// caller is given is what the record states and never the pool the product root holds now.
+    pub fn frozen_pool(&self) -> Option<&FrozenPool> {
+        self.state.frozen_pool.as_ref()
     }
 
     /// The stored bytes of the approved contract, read back from the immutable store.

@@ -6,14 +6,18 @@ use thiserror::Error;
 
 pub mod commitment;
 pub mod contract;
+pub mod pool;
 
 use commitment::{BudgetVector, CommitmentEvent};
+use pool::{FrozenEntry, FrozenPool, PoolFreezeError};
 
-/// Journal schema version 5 adds the record a run writes when the construction of its result is
-/// more than the commitment kernel can state. Version 4 added the four commitment facts that carry
-/// a result's ancestry, version 3 added the two commitment tags, version 2 added
-/// `contract_approved`, and version 1 had none of them; see `ymp-rust/SCHEMA.md`.
-pub const EVENT_SCHEMA_VERSION: u32 = 5;
+/// Journal schema version 6 adds the record a run writes when its pool is frozen: which entries it
+/// may create participants from, which of them it ignites on, and the digest of the ordered set.
+/// Version 5 added the record a run writes when the construction of its result is more than the
+/// commitment kernel can state, version 4 added the four commitment facts that carry a result's
+/// ancestry, version 3 added the two commitment tags, version 2 added `contract_approved`, and
+/// version 1 had none of them; see `ymp-rust/SCHEMA.md`.
+pub const EVENT_SCHEMA_VERSION: u32 = 6;
 pub const MAX_IDENTIFIER_CHARS: usize = 128;
 pub const MAX_REASON_BYTES: usize = 1024;
 
@@ -58,6 +62,17 @@ pub enum Command {
         contract_id: String,
         contract_digest: String,
         oracle_digest: String,
+    },
+    /// Freeze the pool this run may create participants from.
+    ///
+    /// The command carries what the product root resolved — the pool's name, its entries in
+    /// declared order and its own digest — and nothing about which entry the run should ignite on.
+    /// That is decided from the entries themselves, by position and measured readiness alone, so
+    /// no caller can name an ignition entry the rule would not have reached.
+    FreezePool {
+        pool: String,
+        entries: Vec<FrozenEntry>,
+        digest: String,
     },
     StartAttempt {
         attempt_id: String,
@@ -139,6 +154,13 @@ pub enum EventKind {
         contract_digest: String,
         oracle_digest: String,
     },
+    /// The pool this run may create participants from, held by value.
+    ///
+    /// It is written once, when the run is created, and every later decision about recruitment
+    /// reads it rather than the record under the product root. A pool edited, a provider disabled
+    /// or a model discovered after this record was written changes the next run and not this one
+    /// (`ymp-docs/design/COLLECTIVE-DESIGN.md` §7).
+    PoolFrozen(FrozenPool),
     AttemptStarted {
         attempt_id: String,
     },
@@ -288,6 +310,11 @@ pub struct RunState {
     /// The contract this run is judged against, once one has been approved for it.
     #[serde(default)]
     pub contract: Option<ContractBinding>,
+    /// The pool this run may create participants from, once it has been frozen for it. It is the
+    /// value every later recruitment decision is held to, and never a reference to the record the
+    /// product root holds now.
+    #[serde(default)]
+    pub frozen_pool: Option<FrozenPool>,
     pub active_attempts: Vec<String>,
     pub candidate_digest: Option<String>,
     pub last_sequence: u64,
@@ -304,6 +331,10 @@ pub enum TransitionError {
     CandidateMismatch,
     #[error("the run is already bound to contract {0}")]
     ContractAlreadyBound(String),
+    #[error("the pool of this run is already frozen at {0}")]
+    PoolAlreadyFrozen(String),
+    #[error("{0}")]
+    PoolFreeze(#[from] PoolFreezeError),
     #[error("{kind} must contain between 1 and {MAX_IDENTIFIER_CHARS} characters")]
     InvalidIdentifier { kind: &'static str },
     #[error("{kind} is not a canonical lowercase SHA-256 digest")]
@@ -322,6 +353,7 @@ impl RunState {
             status: RunStatus::Running,
             budget: budget.clone(),
             contract: None,
+            frozen_pool: None,
             active_attempts: Vec::new(),
             candidate_digest: None,
             last_sequence: event.sequence,
@@ -353,6 +385,23 @@ impl RunState {
                     contract_digest: contract_digest.clone(),
                     oracle_digest: oracle_digest.clone(),
                 })
+            }
+            Command::FreezePool {
+                pool,
+                entries,
+                digest,
+            } => {
+                // One run, one freeze. A second one would state a different capability boundary for
+                // a run that has already been created under the first, and every decision taken
+                // since then was taken against the boundary this run actually carries.
+                if let Some(frozen) = &self.frozen_pool {
+                    return Err(TransitionError::PoolAlreadyFrozen(frozen.digest.clone()));
+                }
+                Ok(EventKind::PoolFrozen(FrozenPool::freeze(
+                    pool.clone(),
+                    entries.clone(),
+                    digest.clone(),
+                )?))
             }
             Command::StartAttempt { attempt_id } => {
                 validate_identifier("attempt_id", attempt_id)?;
@@ -449,6 +498,12 @@ impl RunState {
                     contract_digest: contract_digest.clone(),
                     oracle_digest: oracle_digest.clone(),
                 });
+            }
+            // The freeze is a value set once. A record that arrives over one already held is read
+            // as the record of the freeze this run carries, never as a second boundary replacing
+            // it, which is the same rule the contract binding follows.
+            EventKind::PoolFrozen(frozen) => {
+                self.frozen_pool.get_or_insert_with(|| frozen.clone());
             }
             EventKind::AttemptStarted { attempt_id } => {
                 self.budget.attempts_remaining = self.budget.attempts_remaining.saturating_sub(1);
@@ -573,6 +628,115 @@ mod tests {
             Err(TransitionError::ContractAlreadyBound(
                 "contract-000000000000".to_owned()
             ))
+        );
+    }
+
+    /// The freeze is committed once and carries the whole snapshot. A second one is refused with
+    /// the digest the run already stands on, so the reader is told which boundary is in force
+    /// rather than which command was rejected.
+    #[test]
+    fn freezing_the_pool_records_the_snapshot_once_and_refuses_a_second_freeze() {
+        use crate::pool::{EntryIdentity, FrozenEntry};
+
+        let mut state = running_state();
+        assert!(state.frozen_pool.is_none());
+        let command = Command::FreezePool {
+            pool: "default".to_owned(),
+            entries: vec![
+                FrozenEntry::unavailable(
+                    "openai",
+                    "codex",
+                    "gpt-5",
+                    "the account states no credential",
+                ),
+                FrozenEntry::admissible("anthropic", "claude-code", "claude-opus-5"),
+            ],
+            digest: "b".repeat(64),
+        };
+        let event = state.decide(&command).expect("the first freeze");
+        let envelope = EventEnvelope::new("run-1", 2, "freeze", "0".repeat(64), None, event)
+            .expect("freeze envelope");
+        state.apply(&envelope);
+
+        let frozen = state.frozen_pool.as_ref().expect("the run is frozen");
+        assert_eq!(frozen.pool, "default");
+        assert_eq!(frozen.digest, "b".repeat(64));
+        assert_eq!(frozen.entries.len(), 2);
+        assert_eq!(
+            frozen.origin,
+            EntryIdentity::new("anthropic", "claude-code", "claude-opus-5")
+        );
+        assert!(frozen.permits(&EntryIdentity::new(
+            "anthropic",
+            "claude-code",
+            "claude-opus-5"
+        )));
+        assert!(!frozen.permits(&EntryIdentity::new("openai", "codex", "gpt-5")));
+
+        assert_eq!(
+            state.decide(&Command::FreezePool {
+                pool: "default".to_owned(),
+                entries: vec![FrozenEntry::admissible("openai", "codex", "gpt-5")],
+                digest: "c".repeat(64),
+            }),
+            Err(TransitionError::PoolAlreadyFrozen("b".repeat(64)))
+        );
+    }
+
+    /// A run whose pool permits nothing live is never frozen, so the refusal is the domain's and
+    /// not a surface's reading of an empty list.
+    #[test]
+    fn a_pool_with_no_live_entry_freezes_nothing() {
+        use crate::pool::{FrozenEntry, PoolFreezeError};
+
+        let state = running_state();
+        assert_eq!(
+            state.decide(&Command::FreezePool {
+                pool: "default".to_owned(),
+                entries: vec![FrozenEntry::unavailable(
+                    "anthropic",
+                    "claude-code",
+                    "claude-opus-5",
+                    "the account is not enabled",
+                )],
+                digest: "b".repeat(64),
+            }),
+            Err(TransitionError::PoolFreeze(
+                PoolFreezeError::NoAdmissibleEntry {
+                    pool: "default".to_owned(),
+                    permitted: 1,
+                }
+            ))
+        );
+    }
+
+    /// The record carries the snapshot beside its own tag, so a reader of the journal reads the
+    /// entries, the ignition entry and the digest without opening a nested object.
+    #[test]
+    fn the_frozen_record_states_the_snapshot_beside_its_tag() {
+        use crate::pool::FrozenEntry;
+
+        let event = EventKind::PoolFrozen(
+            crate::pool::FrozenPool::freeze(
+                "default",
+                vec![FrozenEntry::admissible(
+                    "anthropic",
+                    "claude-code",
+                    "claude-opus-5",
+                )],
+                "b".repeat(64),
+            )
+            .expect("the pool freezes"),
+        );
+        let json = serde_json::to_value(&event).expect("the record serializes");
+        assert_eq!(json["type"], "pool_frozen");
+        assert_eq!(json["pool"], "default");
+        assert_eq!(json["digest"], "b".repeat(64));
+        assert_eq!(json["origin"]["model"], "claude-opus-5");
+        assert_eq!(json["entries"][0]["admissible"], true);
+        assert_eq!(
+            serde_json::from_value::<EventKind>(json).expect("the record reads back"),
+            event
         );
     }
 

@@ -17,7 +17,26 @@ use std::path::{Path, PathBuf};
 use tempfile::TempDir;
 use ymp_application::root::{DataRoot, StoreIntent};
 use ymp_application::{AcceptanceCondition, Application, RunRequest, prepare_contract, run_stem};
+use ymp_domain::pool::{FrozenEntry, FrozenPool};
 use ymp_domain::{EventEnvelope, EventKind, RunState};
+
+/// The capability boundary these runs are created under.
+///
+/// Every path that creates a run states one, so a check about run identity or about the contract
+/// states the simplest boundary there is: one entry, live. What the freeze itself establishes is
+/// checked where it belongs, in `pool_freeze.rs`.
+fn frozen_pool() -> FrozenPool {
+    FrozenPool::freeze(
+        "default",
+        vec![FrozenEntry::admissible(
+            "anthropic",
+            "claude-code",
+            "claude-opus-5",
+        )],
+        "a".repeat(64),
+    )
+    .expect("the fixture pool freezes")
+}
 
 struct Fixture {
     _root: TempDir,
@@ -120,14 +139,14 @@ fn two_authorizations_of_one_contract_are_two_distinguishable_runs() {
 
     // Two authorizations of this one contract, each into the store the layout addresses for it.
     let first_store = next_store(&fixture);
-    let (first, _) =
-        Application::create_with_contract(&first_store, &prepared).expect("the first run starts");
+    let (first, _) = Application::create_with_contract(&first_store, &prepared, &frozen_pool())
+        .expect("the first run starts");
     let first_run = first.state().run_id.clone();
     drop(first);
 
     let second_store = next_store(&fixture);
-    let (second, _) =
-        Application::create_with_contract(&second_store, &prepared).expect("the second run starts");
+    let (second, _) = Application::create_with_contract(&second_store, &prepared, &frozen_pool())
+        .expect("the second run starts");
     let second_run = second.state().run_id.clone();
     drop(second);
 

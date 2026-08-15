@@ -30,6 +30,7 @@ use ymp_verifier::{
 
 pub mod answer;
 pub mod contract;
+pub mod pool;
 pub mod root;
 pub mod verification;
 
@@ -38,6 +39,7 @@ pub use contract::{
     AcceptanceCondition, ContractRequestError, DEFAULT_RUN_BUDGET, PreparedContract, RunRequest,
     load_contract_package, prepare_contract, run_stem,
 };
+pub use pool::{PoolFreezeRefused, freeze_record, freeze_under};
 pub use verification::{VerificationJob, VerificationOutcome};
 
 const BOOTSTRAP_COMMAND_ID: &str = "ymp.bootstrap";

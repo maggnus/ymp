@@ -7,6 +7,8 @@ use ymp_artifacts::{ArtifactError, CandidateRef, SnapshotRef, SubmissionRef};
 use ymp_domain::{Budget, Command, RunState};
 use ymp_verifier::{ExactDigestVerifier, VerifierError};
 
+pub mod ready_root;
+
 #[derive(Clone, Debug, Serialize)]
 pub struct DemoReport {
     pub state: RunState,

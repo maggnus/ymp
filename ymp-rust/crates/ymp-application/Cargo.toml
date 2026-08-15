@@ -15,6 +15,7 @@ ymp-artifacts.workspace = true
 ymp-domain.workspace = true
 ymp-kernel.workspace = true
 ymp-runtime-api.workspace = true
+ymp-runtime-registry.workspace = true
 ymp-storage.workspace = true
 ymp-verifier.workspace = true
 

@@ -3,7 +3,7 @@ id: W1-PRD-05h
 kind: task
 wave: W1
 card: W1-PRD-05
-state: active
+state: review
 risk: critical
 maturity: BUILD
 relation: required
@@ -56,14 +56,30 @@ The operator never creates the snapshot and never sees it unless they open the e
 
 ## Acceptance
 
-- [ ] Creating a run on a root with a ready provider commits `PoolFrozen` with entries == the pool's
+- [x] Creating a run on a root with a ready provider commits `PoolFrozen` with entries == the pool's
       resolved entries in order, digest == the pool's digest, origin == first admissible; the
       negative half: on the current tree run creation commits no such fact.
-- [ ] After creation, disabling the provider / editing the pool changes the live pool's digest but
+- [x] After creation, disabling the provider / editing the pool changes the live pool's digest but
       NOT the run's frozen fact (re-read from the journal); a second run created afterwards freezes
       the new digest.
-- [ ] A root whose pools have no admissible entry refuses run creation with the plain-words state.
+- [x] A root whose pools have no admissible entry refuses run creation with the plain-words state.
+- [x] The same path driven on the built executable.
 
 ## Current state
 
-Active. Built on the P4 candidate branch (23f5710) since it reads the pool the P4 wiring creates.
+Built; in review.
+
+The fact is a **run-journal record** rather than a commitment-ledger fact, and the reason is the
+zone of this unit. A ledger fact can only be committed into a ledger, and this build opens a run's
+commitment kernel when its first attempt starts — opening one at creation means naming the root
+participant and the root obligation, which is P9. The journal is the durable record that exists when
+a run is created, and it is the record a ledger fact would have been written into in any case: a
+commitment command reaches disk as one journal record. What P10 needs is therefore carried without
+being decided twice — `FrozenPool` is a domain value with the containment predicate on it, so when
+P9 moves the kernel genesis to run creation the ledger adopts that same value and the containment
+check reads it there, with no second source and no re-decision.
+
+The record spells the ignition entry `origin` rather than `entry_model`: it names a
+provider · engine · model triple rather than a model, and `Run.declared.entryModel` of
+`COLLECTIVE-RESOURCES.md` is a field of the Run resource rather than of this fact. A rename is one
+line if the owner prefers the resource's word.

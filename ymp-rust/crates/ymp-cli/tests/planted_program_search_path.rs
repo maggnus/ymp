@@ -67,6 +67,11 @@ fn a_program_planted_in_the_search_path_never_builds_a_managed_workspace() {
         ),
     );
 
+    // A run is created against the pool it may draw its models from, so this store's root offers
+    // one before the invocation. What this check is about stands after the creation: the workspace
+    // program the run would build its private history with.
+    ymp_testkit::ready_root::measured(&root.path().join("data"));
+
     let outcome = Command::new(env!("CARGO_BIN_EXE_ymp"))
         .args(["--data-root"])
         .arg(root.path().join("data"))

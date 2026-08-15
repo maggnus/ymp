@@ -178,6 +178,12 @@ fn authorizing_the_assembled_contract_costs_the_contract_id() {
         );
     }
 
+    // A run is created against the pool it may draw models from, so the root this store stands
+    // under is put into the state one measured account leaves behind. Without it the authorization
+    // is answered with the state that names /providers, which is what
+    // `a_run_is_not_created_over_a_root_that_offers_it_nothing` establishes.
+    ymp_testkit::ready_root::measured(&project.data_root);
+
     let started = project.run(&[
         "start",
         "--prompt=keep the replay path idempotent",
@@ -191,5 +197,39 @@ fn authorizing_the_assembled_contract_costs_the_contract_id() {
     assert!(
         project.data_root.join("events.jsonl").exists(),
         "the authorized contract recorded no journal"
+    );
+}
+
+/// A root that offers a run nothing creates none, whatever the operator typed: the contract id was
+/// exact, the draft was assembled, and the answer is still the state that names the command which
+/// supplies what is missing.
+#[test]
+fn a_run_is_not_created_over_a_root_that_offers_it_nothing() {
+    let project = project();
+    let drafted = project.run(&["request", "--prompt=keep the replay path idempotent"]);
+    assert!(drafted.status.success());
+    let identifier = contract_id(&flattened(&drafted));
+
+    let refused = project.run(&[
+        "start",
+        "--prompt=keep the replay path idempotent",
+        &format!("--confirm={identifier}"),
+    ]);
+    let transcript = flattened(&refused);
+    assert!(
+        !refused.status.success(),
+        "a run was created on a root with no enabled provider:\n{transcript}"
+    );
+    assert!(
+        transcript.contains("/providers"),
+        "the answer does not name where a provider is enabled:\n{transcript}"
+    );
+    assert!(
+        transcript.contains("your goal is held"),
+        "the answer is not the held state the brief states:\n{transcript}"
+    );
+    assert!(
+        !project.data_root.join("events.jsonl").exists(),
+        "a refused creation wrote a journal"
     );
 }
