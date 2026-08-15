@@ -675,32 +675,66 @@ impl ManagedRunHandle {
         ShutdownRecord::Recorded((!unrecorded.is_empty()).then(|| unrecorded.join("; ")))
     }
 
-    pub fn join(mut self) -> anyhow::Result<()> {
+    /// Close the controller and state what became of the runtime it supervised.
+    ///
+    /// The wait is bounded, so a close can end while the worker still holds the runtime session and
+    /// the process tree of that session. A caller that reports the close to an operator has to be
+    /// able to tell those two endings apart, which a failure alone does not say: it is read here,
+    /// and [`Self::join`] is the same close for callers that only need whether it succeeded.
+    pub fn close(mut self) -> ManagedShutdown {
         let limit = CONTROLLER_SHUTDOWN_LIMIT.as_millis();
         match self.release_control_and_join() {
-            WorkerShutdown::Ended(Err(_)) => bail!("managed runtime worker panicked"),
+            WorkerShutdown::Ended(Err(_)) => ManagedShutdown::WorkerPanicked,
             WorkerShutdown::Unbounded(ShutdownRecord::Recorded(unrecorded)) => {
                 let report = format!(
                     "managed runtime supervision did not end within {limit} ms; the run was \
                      stopped in both records and its worker was left running"
                 );
-                match unrecorded {
-                    Some(unrecorded) => bail!("{report}; {unrecorded}"),
-                    None => bail!("{report}"),
-                }
+                ManagedShutdown::WorkerLeftRunning(match unrecorded {
+                    Some(unrecorded) => format!("{report}; {unrecorded}"),
+                    None => report,
+                })
             }
-            WorkerShutdown::Unbounded(ShutdownRecord::AlreadyCommitted) => bail!(
-                "managed runtime supervision did not report itself finished within {limit} ms; it \
-                 had already recorded the terminal of its slice, so nothing was recorded here and \
-                 the worker was left winding the runtime down"
-            ),
-            WorkerShutdown::Unbounded(ShutdownRecord::Unread(error)) => bail!(
-                "managed runtime supervision did not end within {limit} ms; the committed state of \
-                 its slice could not be read, so nothing was recorded here: {error}"
-            ),
-            WorkerShutdown::Ended(Ok(())) | WorkerShutdown::AlreadyReleased => Ok(()),
+            WorkerShutdown::Unbounded(ShutdownRecord::AlreadyCommitted) => {
+                ManagedShutdown::WorkerLeftRunning(format!(
+                    "managed runtime supervision did not report itself finished within {limit} \
+                     ms; it had already recorded the terminal of its slice, so nothing was \
+                     recorded here and the worker was left winding the runtime down"
+                ))
+            }
+            WorkerShutdown::Unbounded(ShutdownRecord::Unread(error)) => {
+                ManagedShutdown::WorkerLeftRunning(format!(
+                    "managed runtime supervision did not end within {limit} ms; the committed \
+                     state of its slice could not be read, so nothing was recorded here: {error}"
+                ))
+            }
+            WorkerShutdown::Ended(Ok(())) | WorkerShutdown::AlreadyReleased => {
+                ManagedShutdown::Ended
+            }
         }
     }
+
+    pub fn join(self) -> anyhow::Result<()> {
+        match self.close() {
+            ManagedShutdown::Ended => Ok(()),
+            ManagedShutdown::WorkerPanicked => bail!("managed runtime worker panicked"),
+            ManagedShutdown::WorkerLeftRunning(report) => bail!("{report}"),
+        }
+    }
+}
+
+/// What a closed controller left behind, in the terms its caller can report.
+#[derive(Debug)]
+pub enum ManagedShutdown {
+    /// The worker ended, so the runtime session it owned was dropped and the process tree of that
+    /// session with it.
+    Ended,
+    /// The worker died of a panic. Its session is dropped as the stack unwinds out of the closure
+    /// that owns it, so the process tree is ended there as well.
+    WorkerPanicked,
+    /// The wait ran out. The worker was left holding its runtime session and the process tree of
+    /// that session, and what the controller found the run owed is stated here.
+    WorkerLeftRunning(String),
 }
 
 /// What became of supervision when the controller stopped waiting for it.
