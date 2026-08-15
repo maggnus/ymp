@@ -149,7 +149,7 @@ pub fn with_a_frozen_pool() -> Run {
                 FrozenEntry::unavailable(
                     "openai",
                     "codex",
-                    "gpt-5",
+                    "gpt-5-codex",
                     "the account states no credential",
                 ),
                 FrozenEntry::admissible("anthropic", "claude-code", "claude-opus-5"),
