@@ -5,17 +5,22 @@ compatibility contract, not a promise that every later feature fits schema versi
 
 ## Product state layout version 1
 
-Everything the product writes on a host lives under one root. The root is `.ymp` in the directory
-the product was started in, and it is addressed rather than named per run:
+Everything the product writes on a host lives under one root. The root is `.ymp` in the operator's
+home directory — `YMP_HOME` names another one for a whole environment, and `--root` for a single
+invocation — and it is addressed rather than named per run:
 
 ```text
-.ymp/
+~/.ymp/
   root.json                     layout marker and version
   projects/<project>/
     project.json                the directory this project addresses
     runs/0001/                  one store: one run, its objects and its evidence
     runs/0002/
 ```
+
+The directory the product was started in receives nothing. It is the project the state is filed
+under, not a place the state is kept, and the project segment is what keeps one project's runs
+apart from another's under the one root they share.
 
 The project segment is derived from the canonical launch directory: its own name, reduced to
 characters every filesystem accepts, followed by the first twelve hexadecimal characters of the
@@ -45,10 +50,12 @@ and no command migrates a root. A directory holding a journal is refused as a ro
 a store.
 
 `--data-root` addresses one exact store instead of one under a root. That is how a store written
-before this layout is read where it stands. When the default root would begin beside a `.ymp-data`
-store written by an earlier build, the invocation is refused and names both ways to proceed:
-reading that store where it stands, or declaring the new root and leaving it untouched. Nothing is
-copied out of it and nothing is written into it.
+before this layout is read where it stands. When state an earlier build left beside the project
+stands in the launch directory — a `.ymp` root, or a `.ymp-data` store older still — the default
+is refused and names both ways to proceed: reading that directory where it stands with `--root` or
+`--data-root`, or declaring the root this build addresses and leaving it untouched. Nothing is
+copied out of it and nothing is written into it. A root named on the command line answers that
+question itself and is not asked again.
 
 Three kinds of path are deliberately outside the root, each for a reason that does not apply to
 durable state. The coordination socket, the generated runtime home and the private copies of

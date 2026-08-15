@@ -8,7 +8,7 @@
 //! Here the footprint is a root, and a store is addressed inside it:
 //!
 //! ```text
-//! .ymp/
+//! ~/.ymp/
 //!   root.json                       the layout marker and its version
 //!   projects/<project>/
 //!     project.json                  the directory this project addresses
@@ -22,24 +22,41 @@
 //!
 //! What the layout separates, and what it leaves to the writer lock, is stated on [`StoreIntent`].
 //!
-//! The root carries a project level even though today's default root sits inside the project it
-//! serves. That is deliberate: moving the default to a shared location later is then a change of
-//! one path rather than a change of the layout, and two projects sharing a root already keep
-//! disjoint state.
+//! The root stands at the operator's home directory rather than beside the project, so the
+//! directory the product was started in receives nothing at all: the project level of the layout
+//! is what keeps one project's state apart from another's, and it did that already while the root
+//! still sat inside a project. [`YMP_HOME`] names a different root for a whole environment, and
+//! `--root` names one for a single invocation.
+//!
+//! A directory an earlier build wrote beside the project — a `.ymp` root or a `.ymp-data` store —
+//! is neither moved nor copied nor read as if the default had found it. It is read where it stands
+//! when the invocation says so, and otherwise the default refuses and names both ways out; see
+//! [`DataRoot::refuse_earlier_layout_beside`].
 
 use serde_json::Value;
 use sha2::{Digest, Sha256};
+use std::env;
+use std::ffi::OsString;
 use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
 use thiserror::Error;
 
-/// The root the product keeps every durable path under when the operator names none.
-pub const DEFAULT_ROOT: &str = ".ymp";
+/// The directory name the root carries under the home directory it stands in.
+pub const ROOT_DIRECTORY: &str = ".ymp";
 
-/// The store directory earlier builds defaulted to. This layout never writes into it and never
-/// copies out of it; it is read where it stands or refused with the reason named.
+/// The variable that names the root for a whole environment. What it names is the root itself,
+/// exactly as `--root` names one, rather than a directory the root is then placed inside.
+pub const YMP_HOME: &str = "YMP_HOME";
+
+/// The store directory the earliest builds defaulted to. This layout never writes into it and
+/// never copies out of it; it is read where it stands or refused with the reason named.
 pub const LEGACY_STORE: &str = ".ymp-data";
+
+/// What an earlier build left beside a project: the root the previous default wrote there, and
+/// the store the default before that wrote there. Both are refused by the default and read only
+/// when the invocation names them.
+const EARLIER_LAYOUT: [&str; 2] = [ROOT_DIRECTORY, LEGACY_STORE];
 
 /// The layout version this build writes and reads. A root is not migrated.
 pub const LAYOUT_VERSION: u64 = 1;
@@ -91,6 +108,20 @@ pub enum RootError {
     )]
     LegacyStore { legacy: PathBuf, root: PathBuf },
     #[error(
+        "a root written by an earlier build stands at {}, and nothing was copied out of it. Read \
+         it where it stands with --root {}, or name this build's root with --root {} to leave it \
+         untouched.",
+        earlier.display(),
+        earlier.display(),
+        root.display()
+    )]
+    EarlierRoot { earlier: PathBuf, root: PathBuf },
+    #[error(
+        "no root could be addressed: neither {YMP_HOME} nor a home directory names one. Set \
+         {YMP_HOME}, or name the root of this invocation with --root <DIR>."
+    )]
+    HomeUnknown,
+    #[error(
         "{} already holds {limit} runs; no further run can be addressed under it",
         project.display()
     )]
@@ -129,27 +160,58 @@ pub struct DataRoot {
 }
 
 impl DataRoot {
-    /// The root path used when the operator names none.
-    pub fn default_path() -> PathBuf {
-        PathBuf::from(DEFAULT_ROOT)
+    /// The root path used when the operator names none: what [`YMP_HOME`] states, and otherwise
+    /// [`ROOT_DIRECTORY`] in the home directory.
+    ///
+    /// The launch directory takes no part in this. Whatever the product was started in, the state
+    /// it writes belongs to the operator's home, and the project level of the layout is what keeps
+    /// one project apart from another.
+    pub fn default_path() -> Result<PathBuf, RootError> {
+        Self::default_path_from(env::var_os(YMP_HOME), env::home_dir())
     }
 
-    /// Refuse to begin beside a store written by the earlier layout.
+    /// The same resolution over stated values, so what the environment decides can be checked
+    /// without a process whose environment has been changed underneath it.
+    fn default_path_from(
+        stated: Option<OsString>,
+        home: Option<PathBuf>,
+    ) -> Result<PathBuf, RootError> {
+        if let Some(stated) = stated.filter(|value| !value.is_empty()) {
+            return Ok(PathBuf::from(stated));
+        }
+        home.filter(|home| !home.as_os_str().is_empty())
+            .map(|home| home.join(ROOT_DIRECTORY))
+            .ok_or(RootError::HomeUnknown)
+    }
+
+    /// Refuse to begin beside state an earlier build wrote into the launch directory.
     ///
-    /// The old store is neither moved nor copied nor read as if it were a root: the refusal names
-    /// it, names the invocation that reads it where it stands, and names the invocation that
-    /// declares the new root and leaves it alone. This guards the default root only — an operator
-    /// who named a root has already answered the question this asks.
-    pub fn refuse_legacy_neighbour(root: &Path) -> Result<(), RootError> {
-        let legacy = match root.parent() {
-            Some(parent) if !parent.as_os_str().is_empty() => parent.join(LEGACY_STORE),
-            _ => PathBuf::from(LEGACY_STORE),
-        };
-        if legacy.join(JOURNAL).is_file() && !root.join(ROOT_MARKER).is_file() {
-            return Err(RootError::LegacyStore {
-                legacy,
-                root: root.to_path_buf(),
-            });
+    /// Such a directory is neither moved nor copied nor read as if the default had found it: the
+    /// refusal names it, names the invocation that reads it where it stands, and names the
+    /// invocation that declares this build's root and leaves it alone. This guards the default
+    /// root only — an operator who named a root has already answered the question this asks.
+    ///
+    /// The one directory this cannot be about is the root now being addressed. An environment that
+    /// points [`YMP_HOME`] back at the launch directory names that root deliberately, and a root
+    /// does not refuse itself.
+    pub fn refuse_earlier_layout_beside(project: &Path, root: &Path) -> Result<(), RootError> {
+        for name in EARLIER_LAYOUT {
+            let earlier = project.join(name);
+            if same_directory(&earlier, root) {
+                continue;
+            }
+            if earlier.join(JOURNAL).is_file() {
+                return Err(RootError::LegacyStore {
+                    legacy: earlier,
+                    root: root.to_path_buf(),
+                });
+            }
+            if earlier.join(ROOT_MARKER).is_file() {
+                return Err(RootError::EarlierRoot {
+                    earlier,
+                    root: root.to_path_buf(),
+                });
+            }
         }
         Ok(())
     }
@@ -390,6 +452,13 @@ fn highest_run(runs: &Path) -> Result<Option<(u32, PathBuf)>, RootError> {
     Ok(highest)
 }
 
+/// Whether two paths name one directory. Neither has to exist: a path that cannot be resolved is
+/// compared as it was written, which is what an operator reading the refusal would compare.
+fn same_directory(one: &Path, other: &Path) -> bool {
+    let resolve = |path: &Path| fs::canonicalize(path).unwrap_or_else(|_| path.to_path_buf());
+    one == other || resolve(one) == resolve(other)
+}
+
 fn create_dir_all(path: &Path) -> Result<(), RootError> {
     fs::create_dir_all(path).map_err(|source| RootError::Io {
         path: path.to_path_buf(),
@@ -414,8 +483,42 @@ fn write_json(path: &Path, value: &Value) -> Result<(), RootError> {
 
 #[cfg(test)]
 mod tests {
-    use super::{PROJECT_DIGEST_CHARS, project_segment, readable_name, run_segment};
-    use std::path::Path;
+    use super::{
+        DataRoot, PROJECT_DIGEST_CHARS, ROOT_DIRECTORY, RootError, project_segment, readable_name,
+        run_segment,
+    };
+    use std::path::{Path, PathBuf};
+
+    /// The default root is the operator's, not the project's: it is stated by the environment or
+    /// taken from the home directory, and the launch directory has no say in it.
+    #[test]
+    fn the_default_root_is_stated_by_the_environment_or_taken_from_the_home_directory() {
+        assert_eq!(
+            PathBuf::from("/home/operator").join(ROOT_DIRECTORY),
+            DataRoot::default_path_from(None, Some(PathBuf::from("/home/operator")))
+                .expect("a home directory addresses a root")
+        );
+        assert_eq!(
+            PathBuf::from("/srv/state/ymp"),
+            DataRoot::default_path_from(
+                Some("/srv/state/ymp".into()),
+                Some(PathBuf::from("/home/operator"))
+            )
+            .expect("the stated root")
+        );
+
+        // The negative half: an empty statement states nothing, and a host that names no home
+        // directory at all is told so rather than given a directory beside the project.
+        assert_eq!(
+            PathBuf::from("/home/operator").join(ROOT_DIRECTORY),
+            DataRoot::default_path_from(Some("".into()), Some(PathBuf::from("/home/operator")))
+                .expect("an empty statement names no root")
+        );
+        assert!(matches!(
+            DataRoot::default_path_from(None, None),
+            Err(RootError::HomeUnknown)
+        ));
+    }
 
     #[test]
     fn a_project_segment_states_the_directory_name_and_separates_equal_names() {
