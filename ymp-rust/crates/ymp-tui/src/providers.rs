@@ -7,6 +7,9 @@
 //! root — so opening the table on a host where nothing is enabled discloses nothing and measures
 //! nothing. Measuring is an act of its own, taken when a provider is enabled and when the operator
 //! asks for the models to be refreshed, and both are keys on the provider's own properties view.
+//! That act starts programs of this host and waits for them, so the interface runs it on a worker
+//! and keeps drawing: while it runs, [`Measuring`] is what these surfaces state about the rows it
+//! covers, and a second ask is folded into it rather than starting a second measurement.
 //!
 //! * `/providers` lists the **full supported list**, whether or not anything is configured, so the
 //!   operator sees the whole space rather than the part they have touched;
@@ -52,6 +55,72 @@ pub fn index_of(family: ProviderFamily) -> Option<usize> {
 use crate::pages::{Body, Cell, Column, DescribeGroup, Page, Row};
 use crate::style;
 use crate::theme;
+
+/// What the operator did to ask for a measurement.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum Act {
+    /// They enabled the account, which is the act that first permits it to be reached.
+    Enable,
+    /// They asked for an enabled account to be measured again.
+    Refresh,
+}
+
+/// A measurement running away from the thread that draws, as every surface states it.
+///
+/// It is one act on one account — enabling it, or asking for its models again — and it starts the
+/// engines of every account that is enabled. While it runs, the rows it covers state that they are
+/// being measured rather than stating a measurement that is about to be replaced, and a second ask
+/// is folded into it rather than starting a second probe.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct Measuring {
+    /// The account whose Enable or Refresh asked for this measurement.
+    pub asked_by: ProviderFamily,
+    /// What the operator did to ask for it.
+    pub act: Act,
+    /// Every account this measurement covers: those enabled at the moment it began. An account
+    /// enabled while it runs is not one of them, because the engines that reach it were never
+    /// started for it.
+    pub families: Vec<ProviderFamily>,
+    /// How many further asks arrived while it ran and were answered by this one.
+    pub folded: usize,
+}
+
+impl Measuring {
+    /// What a row of a covered account states in place of its state.
+    pub const STATE: &'static str = "measuring…";
+
+    /// Whether this measurement started the engines that reach one account.
+    pub fn covers(&self, family: ProviderFamily) -> bool {
+        self.families.contains(&family)
+    }
+
+    /// What is running, in one sentence, for the row that states the wait.
+    pub fn notice(&self) -> String {
+        let name = self.asked_by.name();
+        match self.act {
+            Act::Enable => {
+                format!("measuring {name} — the engines that reach it are being started")
+            }
+            Act::Refresh => {
+                format!("measuring {name} again — the engines that reach it are being started")
+            }
+        }
+    }
+
+    /// What the surfaces say about the asks that arrived while this measurement was running.
+    ///
+    /// They are folded into it rather than queued behind it: pressing the key twice starts one
+    /// measurement, and the row says which one answered both.
+    pub fn folded_note(&self) -> Option<String> {
+        (self.folded > 0).then(|| {
+            format!(
+                "{} further ask(s) arrived while this measurement was running and were folded \
+                 into it — nothing further was started, and this one answers them",
+                self.folded
+            )
+        })
+    }
+}
 
 /// What one engine beneath a provider holds, read from the records and never from a process.
 #[derive(Clone, Debug)]
@@ -332,7 +401,12 @@ fn reached_by_text(provider: &ProviderFacts) -> String {
 }
 
 /// The `/providers` page: the fixed supported list, whatever this root has touched.
-pub fn providers_page(report: &Report, status: String) -> Page {
+///
+/// `measuring` is the measurement running away from the thread that draws, while one is. A row it
+/// covers states that it is being measured: the value beside it is the one that is being replaced,
+/// so stating it as the current one would be stating a measurement that has already been asked to
+/// change.
+pub fn providers_page(report: &Report, status: String, measuring: Option<&Measuring>) -> Page {
     let columns = vec![
         Column {
             title: "PROVIDER",
@@ -359,51 +433,74 @@ pub fn providers_page(report: &Report, status: String) -> Page {
     let rows = report
         .providers
         .iter()
-        .map(|provider| Row {
-            cells: vec![
-                Cell::new(provider.name().to_owned(), theme::bold()),
-                Cell::new(
-                    provider.record.display_state(),
-                    match provider.record.display_state() {
-                        "ready" => theme::green(),
-                        _ => theme::red(),
+        .map(|provider| {
+            let being_measured = measuring.is_some_and(|running| running.covers(provider.family));
+            Row {
+                cells: vec![
+                    Cell::new(provider.name().to_owned(), theme::bold()),
+                    match being_measured {
+                        true => Cell::new(Measuring::STATE, theme::amber()),
+                        false => Cell::new(
+                            provider.record.display_state(),
+                            match provider.record.display_state() {
+                                "ready" => theme::green(),
+                                _ => theme::red(),
+                            },
+                        ),
                     },
-                ),
-                Cell::new(reached_by_text(provider), theme::muted()),
-                Cell::new(provider.models_text(), theme::muted()),
-                Cell::new(provider.observed_text(), theme::muted()),
-            ],
-            fix: (provider.record.display_state() != "ready").then(|| {
-                style::spans(
-                    &format!("↳ {}", provider.record.display_reason()),
-                    theme::muted(),
-                )
-            }),
-            dim: false,
+                    Cell::new(reached_by_text(provider), theme::muted()),
+                    Cell::new(provider.models_text(), theme::muted()),
+                    Cell::new(provider.observed_text(), theme::muted()),
+                ],
+                fix: (!being_measured && provider.record.display_state() != "ready").then(|| {
+                    style::spans(
+                        &format!("↳ {}", provider.record.display_reason()),
+                        theme::muted(),
+                    )
+                }),
+                dim: false,
+            }
         })
         .collect::<Vec<_>>();
+
+    let mut notes = vec![
+        "this is the whole supported list, whether or not anything is configured".to_owned(),
+        "nothing about a provider is measured before it is enabled: opening this table starts no \
+         process and reaches no network"
+            .to_owned(),
+        "Enter opens a provider, where what enabling permits is stated above the key that takes \
+         the decision"
+            .to_owned(),
+    ];
+    if let Some(running) = measuring {
+        notes.insert(
+            0,
+            format!(
+                "{} · the values beside it are the ones it is replacing, and they are re-read \
+                 when it lands",
+                running.notice()
+            ),
+        );
+        notes.extend(running.folded_note());
+    }
 
     Page {
         breadcrumb: vec![
             "transcript".into(),
             format!(
-                "providers(all)[{}] · {} enabled · {} ready",
+                "providers(all)[{}] · {} enabled · {} ready{}",
                 report.providers.len(),
                 report.enabled_count(),
-                report.ready_count()
+                report.ready_count(),
+                match measuring {
+                    Some(_) => format!(" · {}", Measuring::STATE),
+                    None => String::new(),
+                }
             ),
         ],
         summary: Vec::new(),
         body: Body::Table { columns, rows },
-        notes: vec![
-            "this is the whole supported list, whether or not anything is configured".to_owned(),
-            "nothing about a provider is measured before it is enabled: opening this table starts \
-             no process and reaches no network"
-                .to_owned(),
-            "Enter opens a provider, where what enabling permits is stated above the key that \
-             takes the decision"
-                .to_owned(),
-        ],
+        notes,
         footer: style::spans(&status, theme::muted()),
         keys: vec![("Enter", "properties"), ("Esc", "back")],
         selected: 0,
@@ -418,19 +515,30 @@ pub fn providers_page(report: &Report, status: String) -> Page {
 ///
 /// The keys are the whole reason this view exists rather than a row: what each of them does is
 /// stated here, above them, and nothing is confirmed after one is pressed.
-pub fn provider_page(provider: &ProviderFacts, status: String) -> Page {
+///
+/// `measuring` is the measurement running away from the thread that draws, while one is. Where it
+/// covers this account the card states that, above everything the measurement is replacing.
+pub fn provider_page(
+    provider: &ProviderFacts,
+    status: String,
+    measuring: Option<&Measuring>,
+) -> Page {
+    let being_measured = measuring.is_some_and(|running| running.covers(provider.family));
     let mut fields: Vec<(String, Vec<ratatui::text::Span<'static>>)> = Vec::new();
     let value = |text: String| style::spans(&text, theme::text());
 
     fields.push((
         "status".to_owned(),
-        style::spans(
-            provider.record.display_state(),
-            match provider.record.display_state() {
-                "ready" => theme::green(),
-                _ => theme::red(),
-            },
-        ),
+        match being_measured {
+            true => style::spans(Measuring::STATE, theme::amber()),
+            false => style::spans(
+                provider.record.display_state(),
+                match provider.record.display_state() {
+                    "ready" => theme::green(),
+                    _ => theme::red(),
+                },
+            ),
+        },
     ));
     fields.push(("reason".to_owned(), value(provider.record.display_reason())));
     fields.push(("authentication".to_owned(), value(authentication(provider))));
@@ -451,6 +559,13 @@ pub fn provider_page(provider: &ProviderFacts, status: String) -> Page {
     // the product supports. This is what replaces the confirmation dialogue — it is read before
     // the act, not acknowledged after it.
     let mut notes = Vec::new();
+    // What is running comes first, because every field under it is a value this measurement is
+    // about to replace. A card that opened with the old value and mentioned the measurement
+    // afterwards would be read as the state of the account.
+    if let Some(running) = measuring.filter(|_| being_measured) {
+        notes.push(running.notice());
+        notes.extend(running.folded_note());
+    }
     if provider.enabled() {
         notes.push(format!(
             "e disables {}: its models leave the offered catalog and every later pool, and \
@@ -769,7 +884,7 @@ mod tests {
             assert_eq!(provider.models_text(), "—");
         }
 
-        let page = providers_page(&report, "idle".into());
+        let page = providers_page(&report, "idle".into(), None);
         let shown = rendered(&page, 120, 40);
         for family in ProviderFamily::ALL {
             assert!(shown.contains(family.name()), "{shown}");
@@ -791,7 +906,7 @@ mod tests {
         let provider = report
             .provider(ProviderFamily::Anthropic)
             .expect("anthropic is supported");
-        let page = provider_page(provider, "idle".into());
+        let page = provider_page(provider, "idle".into(), None);
 
         assert_eq!(page.keys, vec![("e", "enable"), ("Esc", "back")]);
         let consequence = page
@@ -838,7 +953,7 @@ mod tests {
         assert_eq!(provider.offered, 1);
         assert_eq!(provider.last_refresh(), "1m ago");
 
-        let page = provider_page(provider, "idle".into());
+        let page = provider_page(provider, "idle".into(), None);
         assert_eq!(
             page.keys,
             vec![("e", "disable"), ("r", "refresh models"), ("Esc", "back")]
@@ -930,7 +1045,7 @@ mod tests {
         assert_eq!(provider.last_refresh(), "4m ago");
         assert_eq!(provider.models_text(), "2");
 
-        let page = provider_page(provider, "idle".into());
+        let page = provider_page(provider, "idle".into(), None);
         let shown = rendered(&page, 120, 40);
         assert!(
             !shown.contains("nothing has been measured"),

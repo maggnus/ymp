@@ -818,7 +818,12 @@ fn run_show(
         // provider nobody enabled is read from its record and nothing about it is started, so
         // looking at this page on a root with nothing enabled starts no process at all. The
         // provider pages measure nothing either: reading which accounts exist is not reaching one.
-        session.measure_enabled_providers();
+        //
+        // A command's process is the wait, so it settles the measurement here rather than handing
+        // it to a worker: this page is what the invocation was for, and there is nothing else for
+        // this process to do while the engines answer.
+        let pending = session.measure_enabled_providers();
+        session.settle_measurement(pending);
     }
     let describe = (kind == PageKind::Describe).then(|| candidate.unwrap_or(0));
     // A properties view is opened from a selected row in the interface. A command has no
@@ -930,12 +935,20 @@ fn perform(session: &mut Session, action: Action) {
             enabled,
             reason,
         } => session.set_engine_enabled(engine, enabled, reason),
+        // The interface takes the decision and hands the measurement it asks for to a worker; a
+        // command has no screen to keep drawing, so its own process is the wait.
         Action::SetProviderEnabled {
             family,
             enabled,
             reason,
-        } => session.set_provider_enabled(family, enabled, reason),
-        Action::RefreshProviderModels { family } => session.refresh_provider_models(family),
+        } => {
+            let pending = session.set_provider_enabled(family, enabled, reason);
+            session.settle_measurement(pending);
+        }
+        Action::RefreshProviderModels { family } => {
+            let pending = session.refresh_provider_models(family);
+            session.settle_measurement(pending);
+        }
         Action::SetPoolEntryPermitted {
             pool,
             entry,

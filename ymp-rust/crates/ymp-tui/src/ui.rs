@@ -41,7 +41,7 @@ pub fn surface_spec(app: &App, area: Rect, markers: &Markers) -> SurfaceSpec {
     match app.surface {
         Surface::Transcript => transcript_spec(app, body_area, markers),
         Surface::Page(kind) => match app.page(kind) {
-            Some(page) => page_spec(app, page, body_area),
+            Some(page) => page_spec(app, page, body_area, markers),
             None => missing_page_spec(kind),
         },
     }
@@ -202,27 +202,40 @@ fn dashed_marker(label: &str, width: usize) -> Line<'static> {
 /// waiting one cannot look alike.
 const WORKING_MARKS: [&str; 4] = ["·", "‥", "…", "‥"];
 
+/// The row that states what runs away from the thread that draws, while something does.
+///
+/// It is the same row on every surface: work asked for on a page keeps running while the operator
+/// stands on that page, and a page that stated nothing would leave them watching a screen that
+/// never changes.
+fn working_row(app: &App, markers: &Markers) -> Option<Vec<Span<'static>>> {
+    let notice = app.data.working.as_ref()?;
+    // The way out comes before the account of what is being waited for. The notice names a path
+    // and is as long as that path; the row is as wide as the terminal, so whatever is last is what
+    // a narrow row loses, and losing the way out is what must not happen. A wait Esc does not end
+    // offers no key: the mark still advances on every heartbeat, which is what tells a wait from a
+    // freeze, and no key is named that would change nothing.
+    let mut spans = vec![
+        Span::styled(format!("{} ", markers.prompt), theme::amber()),
+        Span::styled(
+            WORKING_MARKS[app.working_ticks % WORKING_MARKS.len()].to_owned(),
+            theme::accent(),
+        ),
+    ];
+    if app.data.working_ends_on_esc {
+        spans.push(Span::styled(" Esc cancels".to_owned(), theme::accent()));
+    }
+    spans.push(Span::styled(format!(" · {notice}"), theme::muted()));
+    Some(spans)
+}
+
 fn input_left(app: &App, markers: &Markers) -> Vec<Span<'static>> {
-    // While nothing is being typed, the row states what is running away from this thread and how
-    // to end it. A line being typed outranks that notice: it supersedes the run when it is sent.
-    if let Some(notice) = app
-        .data
-        .working
-        .as_ref()
-        .filter(|_| app.prompt.buffer.is_empty() && app.prompt.suspended.is_none())
+    // While nothing is being typed, the row states what is running away from this thread. A line
+    // being typed outranks that notice: it supersedes the run when it is sent.
+    if app.prompt.buffer.is_empty()
+        && app.prompt.suspended.is_none()
+        && let Some(spans) = working_row(app, markers)
     {
-        // The way out comes before the account of what is being waited for. The notice names a
-        // path and is as long as that path; the row is as wide as the terminal, so whatever is
-        // last is what a narrow row loses, and losing the way out is what must not happen.
-        return vec![
-            Span::styled(format!("{} ", markers.prompt), theme::amber()),
-            Span::styled(
-                WORKING_MARKS[app.working_ticks % WORKING_MARKS.len()].to_owned(),
-                theme::accent(),
-            ),
-            Span::styled(" Esc cancels".to_owned(), theme::accent()),
-            Span::styled(format!(" · {notice}"), theme::muted()),
-        ];
+        return spans;
     }
     match &app.prompt.suspended {
         Some(reason) => vec![
@@ -270,7 +283,7 @@ fn input_right(app: &App, markers: &Markers) -> Vec<Span<'static>> {
 // Data pages
 // ---------------------------------------------------------------------------
 
-fn page_spec(app: &App, page: &crate::pages::Page, body: Rect) -> SurfaceSpec {
+fn page_spec(app: &App, page: &crate::pages::Page, body: Rect, markers: &Markers) -> SurfaceSpec {
     let mut header_left: Vec<Span<'static>> = Vec::new();
     for (index, segment) in page.breadcrumb.iter().enumerate() {
         let last = index + 1 == page.breadcrumb.len();
@@ -288,12 +301,13 @@ fn page_spec(app: &App, page: &crate::pages::Page, body: Rect) -> SurfaceSpec {
     }
     header_left.extend(page.summary.iter().cloned());
 
-    let _ = app;
     SurfaceSpec {
         header_left,
         header_right: frame::key_hints(&[("Esc", "back")]),
         body: page.layout(body.width, body.height),
-        input_left: Vec::new(),
+        // A page is where the acts that start work are taken — enabling an account is one — so it
+        // states what is running under it and advances the same mark the conversation does.
+        input_left: working_row(app, markers).unwrap_or_default(),
         input_right: Vec::new(),
         status_left: page.footer.clone(),
         status_right: frame::key_hints(&page.keys),
