@@ -33,6 +33,11 @@ const DEFAULT_OUTPUT_LIMIT_BYTES: usize = 16 * 1024 * 1024;
 const DEFAULT_WALL_TIME_LIMIT_MS: u64 = 10 * 60 * 1000;
 const LAUNCH_DESCRIPTOR_SCHEMA_VERSION: u32 = 1;
 const HARNESS_INSTRUCTIONS: &str = "Execution policy: work without delegation or subagents. Do not send progress reports. Batch independent file reads and batch the final formatting, tests, lint, and diff checks. Use only the files and tools needed for the requested outcome. Do not commit. Stop immediately after a concise final report.";
+/// How a managed attempt publishes what it produced. The operator's request is delivered word for
+/// word and is not required to describe the product's own submission path, so the requirement
+/// travels here instead: an attempt that only writes files leaves nothing the run can accept, and
+/// the budget it spent buys no candidate.
+const PUBLICATION_INSTRUCTIONS: &str = "Publication policy: the work of this attempt becomes a candidate only when it is published with the submit tool of the ymp MCP server. Files left in the workspace are not a result, and no report replaces that call. Call submit once, as soon as the requested outcome is reached, whether or not the request above mentions publishing.";
 const DISABLED_AMBIENT_FEATURES: [&str; 35] = [
     "apps",
     "auth_elicitation",
@@ -495,6 +500,16 @@ impl CodexLaunch {
         Ok(arguments)
     }
 
+    /// What the product tells the managed runtime after the operator's request. The publication
+    /// requirement is added only for a launch that carries the coordination bridge, because an
+    /// invocation without it has no submission tool to name.
+    fn managed_instructions(&self) -> String {
+        match self.mcp {
+            Some(_) => format!("{PUBLICATION_INSTRUCTIONS} {HARNESS_INSTRUCTIONS}"),
+            None => HARNESS_INSTRUCTIONS.to_owned(),
+        }
+    }
+
     fn spawn(
         &self,
         descriptor: &LaunchDescriptor,
@@ -584,9 +599,11 @@ impl CodexLaunch {
             .stdin
             .take()
             .ok_or_else(|| RuntimeError::MalformedEvent("Codex stdin was not piped".to_owned()))?;
+        // The operator's request goes first and unchanged; what the product requires of every
+        // managed attempt follows it as the product's own instruction.
         stdin.write_all(prompt.as_bytes())?;
         stdin.write_all(b"\n\n")?;
-        stdin.write_all(HARNESS_INSTRUCTIONS.as_bytes())?;
+        stdin.write_all(self.managed_instructions().as_bytes())?;
         stdin.flush()?;
         drop(stdin);
         let stdout = child
@@ -1749,6 +1766,91 @@ fi
             violations.is_empty(),
             "managed child was not isolated:\n{}",
             violations.join("\n")
+        );
+    }
+
+    /// The requirement to publish through the submission tool reaches the managed runtime as the
+    /// product's own instruction, so a request that never mentions publishing still carries it.
+    /// The request itself is delivered word for word, and an invocation without the coordination
+    /// bridge is told nothing about a tool it does not have.
+    #[test]
+    fn the_product_tells_a_coordinated_runtime_how_a_candidate_is_published() {
+        const REQUEST: &str = "Replace the content of input.txt with the single line: after.";
+        assert!(
+            !REQUEST.contains("submit"),
+            "the measured request already names publication itself"
+        );
+
+        let directory = tempfile::tempdir().expect("temporary directory");
+        let executable = directory.path().join("codex-delivery-fixture");
+        fs::write(
+            &executable,
+            r##"#!/bin/sh
+if [ "$1" = "--version" ]; then
+  printf '%s\n' 'codex-cli 0.147.0'
+elif [ "$1" = "login" ]; then
+  exit 0
+else
+  cat > delivered.stdin
+  printf '%s\n' '{"type":"thread.started","thread_id":"thread-delivery"}'
+  printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":1,"output_tokens":1}}'
+fi
+"##,
+        )
+        .expect("write fixture");
+        let mut permissions = fs::metadata(&executable).expect("metadata").permissions();
+        permissions.set_mode(0o700);
+        fs::set_permissions(&executable, permissions).expect("make executable");
+
+        let mut delivered = Vec::new();
+        for (name, mcp) in [
+            (
+                "coordinated",
+                Some(ymp_runtime_api::McpBinding {
+                    executable: executable.clone(),
+                    socket_path: directory.path().join("agent.sock"),
+                    token: "fixture-token".to_owned(),
+                }),
+            ),
+            ("plain", None),
+        ] {
+            let workspace = directory.path().join(name);
+            fs::create_dir(&workspace).expect("workspace directory");
+            let mut session = CodexRuntime::new(&executable)
+                .start(InvocationRequest {
+                    invocation_id: format!("invocation-delivery-{name}"),
+                    attempt_id: format!("attempt-delivery-{name}"),
+                    workspace: workspace.clone(),
+                    mcp,
+                    prompt: REQUEST.to_owned(),
+                    cancellation: Default::default(),
+                })
+                .expect("start fixture");
+            while session.next_event().expect("delivery event").is_some() {}
+            delivered.push(
+                fs::read_to_string(workspace.join("delivered.stdin")).expect("delivered input"),
+            );
+        }
+        let [coordinated, plain] = <[String; 2]>::try_from(delivered).expect("two deliveries");
+
+        for (label, text) in [("coordinated", &coordinated), ("uncoordinated", &plain)] {
+            assert!(
+                text.starts_with(&format!("{REQUEST}\n\n")),
+                "the {label} invocation did not receive the request word for word: {text}"
+            );
+            assert!(
+                text.contains("Execution policy:"),
+                "the {label} invocation received no execution policy: {text}"
+            );
+        }
+        assert!(
+            coordinated.contains("Publication policy:"),
+            "a coordinated invocation was not told how a candidate is published: {coordinated}"
+        );
+        assert!(
+            !plain.contains("Publication policy:"),
+            "an invocation without the coordination bridge was told to call a tool it does not \
+             have: {plain}"
         );
     }
 

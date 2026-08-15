@@ -6,7 +6,7 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 use ymp_application::Application;
-use ymp_domain::{Budget, EventKind};
+use ymp_domain::{Budget, EventKind, RunStatus};
 use ymp_runtime_api::RuntimeEventKind;
 use ymp_runtime_claude::{ClaudeProfile, ClaudeRuntime};
 use ymp_runtime_supervisor::{
@@ -834,6 +834,181 @@ fi
         session_id.expect("managed session identifier"),
     ]);
     assert_eq!(resumed.arguments, expected_arguments);
+    handle.join().expect("join worker");
+}
+
+/// The request measured by both halves below. It describes the work and says nothing about how a
+/// result is published, which is what an operator writes when the product has not asked them to
+/// know its submission path.
+const REQUEST_WITHOUT_PUBLICATION: &str =
+    "Replace the whole content of input.txt with the single line: after. Then stop.";
+
+/// The cost the first live attempt of W1-APP-02e reported before it ended without a candidate.
+const MEASURED_SPEND_MICROUSD: u64 = 46_442;
+
+/// The positive half. The stand-in acts the way a model does: it carries out the request and
+/// publishes only when what it was told names the submission tool. The request names nothing of the
+/// sort, so the candidate this run commits exists because the product's own instruction reached the
+/// managed runtime and for no other reason.
+#[test]
+fn a_request_that_never_mentions_publication_still_commits_a_candidate() {
+    assert!(!REQUEST_WITHOUT_PUBLICATION.contains("submit"));
+    let temporary = tempfile::tempdir().expect("temporary directory");
+    let source = managed_source(temporary.path(), "source-untold");
+    let executable = fixture(
+        &temporary.path().join("claude-untold-fixture"),
+        &format!(
+            r##"cat > delivered.stdin
+printf '%s\n' 'after' > input.txt
+printf '%s\n' '{COORDINATED_INIT}'
+if grep -q 'mcp__ymp__submit' delivered.stdin; then
+  {{
+    printf '%s\n' '{{"jsonrpc":"2.0","id":1,"method":"initialize","params":{{"protocolVersion":"2025-11-25"}}}}'
+    printf '%s\n' '{{"jsonrpc":"2.0","method":"notifications/initialized"}}'
+    printf '%s\n' '{{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{{"name":"submit","arguments":{{"command_id":"agent.submit.untold"}}}}}}'
+  }} | "$bridge" internal agent-mcp > mcp.responses
+  grep -q '"snapshot_digest"' mcp.responses || exit 39
+  printf '%s\n' '{{"type":"assistant","request_id":"req_1","parent_tool_use_id":null,"message":{{"content":[{{"type":"tool_use","id":"toolu_1","name":"mcp__ymp__submit","input":{{"command_id":"agent.submit.untold"}}}}]}}}}'
+  printf '%s\n' '{{"type":"user","message":{{"content":[{{"type":"tool_result","tool_use_id":"toolu_1","content":[{{"type":"text","text":"committed"}}]}}]}}}}'
+fi
+printf '%s\n' '{{"type":"result","subtype":"success","is_error":false,"terminal_reason":"completed","total_cost_usd":0.017,"modelUsage":{{"claude-opus-5":{{"costUSD":0.017}}}},"usage":{{"input_tokens":17,"cache_creation_input_tokens":40,"cache_read_input_tokens":5,"output_tokens":3,"output_tokens_details":{{"thinking_tokens":1}}}}}}'
+"##
+        ),
+    );
+
+    let data_root = temporary.path().join("data-untold");
+    let application = Arc::new(Mutex::new(
+        Application::create(&data_root, "run-claude-untold", Budget::new(1, 1))
+            .expect("create application"),
+    ));
+    let handle = start_managed_candidate(
+        Arc::clone(&application),
+        Box::new(ClaudeRuntime::new(&executable).without_delegated_credential()),
+        ManagedCandidateRequest {
+            contract: contract(
+                "claude-untold-contract",
+                source,
+                REQUEST_WITHOUT_PUBLICATION,
+            ),
+            bridge_executable: env!("CARGO_BIN_EXE_ymp").into(),
+        },
+    )
+    .expect("start managed candidate");
+    let attempt_id = handle.attempt_id().to_owned();
+    let observed = drain(&handle, 30);
+    assert!(handle.is_finished(), "the managed attempt did not finish");
+    assert_eq!(observed.failure, None);
+    assert!(
+        observed.candidate.is_some(),
+        "a request without publication wording produced no candidate"
+    );
+    assert_eq!(
+        observed.candidate.as_deref(),
+        application
+            .lock()
+            .expect("application lock")
+            .state()
+            .candidate_digest
+            .as_deref()
+    );
+
+    // The operator's request reached the managed runtime word for word, and what named the
+    // submission tool was the product's instruction that follows it.
+    let delivered = fs::read_to_string(
+        data_root
+            .join("workspaces")
+            .join(&attempt_id)
+            .join("delivered.stdin"),
+    )
+    .expect("delivered input");
+    assert!(delivered.starts_with(&format!("{REQUEST_WITHOUT_PUBLICATION}\n\n")));
+    assert!(
+        !delivered
+            .lines()
+            .next()
+            .expect("request line")
+            .contains("mcp__ymp__submit")
+    );
+    assert!(delivered.contains("mcp__ymp__submit"));
+    handle.join().expect("join worker");
+}
+
+/// The negative half, which is the first live attempt of W1-APP-02e: the attempt spent 46442
+/// microusd, wrote the files it was asked for, published nothing, and left the run with no
+/// candidate and an infrastructure error. This stand-in reproduces that attempt against the same
+/// product path — it does the work and calls nothing — so what the product records for a run that
+/// never published is pinned rather than remembered. The product does not invent a candidate out of
+/// a workspace, and it does not lose the spend that bought nothing.
+#[test]
+fn an_attempt_that_publishes_nothing_keeps_its_spend_and_leaves_no_candidate() {
+    let temporary = tempfile::tempdir().expect("temporary directory");
+    let source = managed_source(temporary.path(), "source-unpublished");
+    let executable = fixture(
+        &temporary.path().join("claude-unpublished-fixture"),
+        &format!(
+            r##"cat >/dev/null
+printf '%s\n' 'after' > input.txt
+printf '%s\n' '{COORDINATED_INIT}'
+printf '%s\n' '{{"type":"assistant","request_id":"req_1","message":{{"content":[{{"type":"text","text":"the file was rewritten"}}]}}}}'
+printf '%s\n' '{{"type":"result","subtype":"success","is_error":false,"terminal_reason":"completed","total_cost_usd":0.046442,"modelUsage":{{"claude-opus-5":{{"costUSD":0.046442}}}},"usage":{{"input_tokens":17,"cache_creation_input_tokens":40,"cache_read_input_tokens":5,"output_tokens":3,"output_tokens_details":{{"thinking_tokens":1}}}}}}'
+"##
+        ),
+    );
+
+    let data_root = temporary.path().join("data-unpublished");
+    let application = Arc::new(Mutex::new(
+        Application::create(&data_root, "run-claude-unpublished", Budget::new(1, 1))
+            .expect("create application"),
+    ));
+    let handle = start_managed_candidate(
+        Arc::clone(&application),
+        Box::new(ClaudeRuntime::new(&executable).without_delegated_credential()),
+        ManagedCandidateRequest {
+            contract: contract(
+                "claude-unpublished-contract",
+                source,
+                REQUEST_WITHOUT_PUBLICATION,
+            ),
+            bridge_executable: env!("CARGO_BIN_EXE_ymp").into(),
+        },
+    )
+    .expect("start managed candidate");
+    let attempt_id = handle.attempt_id().to_owned();
+    let observed = drain(&handle, 30);
+    assert!(handle.is_finished(), "the managed attempt did not finish");
+    assert_eq!(
+        observed.failure.as_deref(),
+        Some("managed_runtime_supervision_failed")
+    );
+    let state = application
+        .lock()
+        .expect("application lock")
+        .state()
+        .clone();
+    assert_eq!(state.status, RunStatus::InfrastructureError);
+    assert_eq!(state.candidate_digest, None);
+    // The workspace holds the work the attempt did, and none of it is a result.
+    assert_eq!(
+        fs::read_to_string(
+            data_root
+                .join("workspaces")
+                .join(&attempt_id)
+                .join("input.txt")
+        )
+        .expect("workspace file"),
+        "after\n"
+    );
+    let evidence = fs::read_to_string(
+        data_root
+            .join("runtime-evidence")
+            .join(&attempt_id)
+            .join("events.jsonl"),
+    )
+    .expect("runtime evidence");
+    assert!(
+        evidence.contains(&format!("\"cost_microusd\":{MEASURED_SPEND_MICROUSD}")),
+        "the run that bought no candidate lost its accounted spend"
+    );
     handle.join().expect("join worker");
 }
 
