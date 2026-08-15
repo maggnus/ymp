@@ -1140,6 +1140,7 @@ dependencies = [
  "ymp-runtime-codex",
  "ymp-runtime-fake",
  "ymp-runtime-supervisor",
+ "ymp-storage",
  "ymp-testkit",
  "ymp-tui",
  "ymp-verifier",

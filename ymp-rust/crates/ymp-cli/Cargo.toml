@@ -36,4 +36,5 @@ ymp-verifier.workspace = true
 crossterm.workspace = true
 tempfile.workspace = true
 ymp-runtime-fake.workspace = true
+ymp-storage.workspace = true
 ymp-testkit.workspace = true
