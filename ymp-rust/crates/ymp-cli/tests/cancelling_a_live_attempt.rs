@@ -20,7 +20,7 @@ use std::path::Path;
 use std::time::{Duration, Instant};
 
 use ymp_domain::RunStatus;
-use ymp_tui::runtimes::probe_all;
+use ymp_tui::runtimes::{Measure, probe_all};
 use ymp_tui::{Session, app::AttemptProgress};
 
 /// A Codex build that launches, says it started and then waits to be stopped. It never submits,
@@ -84,7 +84,11 @@ fn cancelling_a_working_attempt_ends_it_in_both_records_that_state_how_a_run_end
         .expect("the request produced a contract")
         .contract_id
         .clone();
-    session.set_runtimes(probe_all());
+    // The registry decides which engines this host admits, and Codex is held back where no
+    // operator states otherwise. This check runs against a Codex fixture of its own, so it states
+    // that decision the way an operator does — through the interface's own line.
+    session.local_turn("runtime enable codex".to_owned());
+    session.set_runtimes(probe_all(session.registry_root(), Measure::Recorded));
     assert_eq!(
         session.projection(None).route.as_deref(),
         Some("codex"),

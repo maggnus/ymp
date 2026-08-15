@@ -76,21 +76,37 @@ pub fn run(cli: Cli) -> anyhow::Result<()> {
         command: internal::InternalCommand::AgentMcp,
     }) = &cli.command
     {
-        return internal::run(PathBuf::new(), &[], internal::InternalCommand::AgentMcp);
+        return internal::run(
+            PathBuf::new(),
+            PathBuf::new(),
+            &[],
+            internal::InternalCommand::AgentMcp,
+        );
     }
     let store = store(&cli)?;
+    // The root this invocation addressed, read before the command is taken out of it.
+    let root = root_of(&cli);
     match cli.command {
         // The interface is given the root as well as the store. A store holds one run, so the
         // second run an operator authorizes in one session is addressed under the root rather
         // than refused; an invocation that named one exact store named what it acts on.
-        None => match root_of(&cli) {
+        None => match root.clone() {
             Some(root) => ymp_tui::run_under_root(root, store, load_contracts(&cli.contract)?),
             None => ymp_tui::run_with_contracts(store, load_contracts(&cli.contract)?),
         },
+        // The engines this host admits are addressed under the root, not inside the store: one
+        // decision about an engine is read by every run of the project, and by the interface and
+        // the commands alike.
         Some(Command::Public(command)) => {
-            surface::run(store, load_contracts(&cli.contract)?, command)
+            surface::run(store, root, load_contracts(&cli.contract)?, command)
         }
-        Some(Command::Internal { command }) => internal::run(store, &cli.contract, command),
+        // The machinery reads the same engine registry the operator's surfaces read. Under a root
+        // it stands there; an invocation that named one exact store keeps it beside that store,
+        // exactly as the interface's session does.
+        Some(Command::Internal { command }) => {
+            let registry_root = root.unwrap_or_else(|| store.clone());
+            internal::run(store, registry_root, &cli.contract, command)
+        }
     }
 }
 

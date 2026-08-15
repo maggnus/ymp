@@ -187,7 +187,30 @@ fn status(store: &Path) -> RunStatus {
 }
 
 /// Start the run this fixture describes, without launching anything.
+/// State the decision the engine registry holds, the way an operator states it.
+///
+/// The Codex engine is held back where no operator says otherwise, and every check here drives a
+/// Codex fixture of its own rather than the owner's account. The decision is therefore stated
+/// through the same command an operator uses, so what these checks exercise is the product with an
+/// admitted engine and not a product that ignores the registry.
+fn admit_codex(fixture: &Fixture, store: &Path) {
+    let admitted = fixture.command(
+        store,
+        &[
+            "runtime".to_owned(),
+            "enable".to_owned(),
+            "codex".to_owned(),
+        ],
+    );
+    assert!(
+        admitted.status.success(),
+        "the codex engine was not admitted: {}",
+        reported(&admitted)
+    );
+}
+
 fn start(fixture: &Fixture, store: &Path, contract_id: &str) {
+    admit_codex(fixture, store);
     let mut arguments = fixture.request_arguments();
     arguments.insert(0, "start".to_owned());
     arguments.push(format!("--confirm={contract_id}"));

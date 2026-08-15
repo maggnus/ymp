@@ -49,7 +49,7 @@ const WRITER: [&str; 5] = [
 
 /// Crates that own durable state, run agents or judge candidates. The command surface reaches
 /// all of it through the interface's session or not at all.
-const KERNEL_CRATES: [&str; 12] = [
+const KERNEL_CRATES: [&str; 13] = [
     "ymp_storage",
     "ymp_artifacts",
     "ymp_kernel",
@@ -60,6 +60,7 @@ const KERNEL_CRATES: [&str; 12] = [
     "ymp_runtime_claude",
     "ymp_runtime_codex",
     "ymp_runtime_fake",
+    "ymp_runtime_registry",
     "ymp_runtime_supervisor",
     "ymp_testkit",
 ];
