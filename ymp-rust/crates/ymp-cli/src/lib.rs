@@ -78,7 +78,7 @@ pub fn run(cli: Cli) -> anyhow::Result<()> {
     {
         return internal::run(
             PathBuf::new(),
-            PathBuf::new(),
+            None,
             &[],
             internal::InternalCommand::AgentMcp,
         );
@@ -105,10 +105,7 @@ pub fn run(cli: Cli) -> anyhow::Result<()> {
         // it stands there; an invocation that named one exact store derives that root from the
         // store, so an engine held back under a root cannot be started by addressing a store
         // inside it.
-        Some(Command::Internal { command }) => {
-            let registry_root = root.unwrap_or_else(|| store.clone());
-            internal::run(store, registry_root, &cli.contract, command)
-        }
+        Some(Command::Internal { command }) => internal::run(store, root, &cli.contract, command),
     }
 }
 

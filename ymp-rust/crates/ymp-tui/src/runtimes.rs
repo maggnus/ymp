@@ -16,14 +16,12 @@
 //! subject ([`Measure::Catalog`]) and only while the recorded list is not the one this build
 //! serves. Everywhere else the recorded list is read.
 
-use std::path::Path;
-
 use ymp_runtime_api::{Readiness, RuntimeDriver, RuntimeKind};
 use ymp_runtime_claude::ClaudeRuntime;
 use ymp_runtime_codex::CodexRuntime;
 use ymp_runtime_fake::FakeRuntime;
 use ymp_runtime_registry::{
-    Engine, EngineProperties, EngineRecord, ModelCatalog, ModelSource, Registry,
+    Engine, EngineProperties, EngineRecord, ModelCatalog, ModelSource, Registry, RegistryAddress,
 };
 
 use crate::pages::{Body, Cell, Column, Page, Row};
@@ -142,11 +140,10 @@ impl Report {
 /// Read the registry and probe every engine it admits. Runs subprocesses; call it off the drawing
 /// thread.
 ///
-/// `root` is the root or the store the invocation addressed. Which registry that reaches is
-/// derived from the path itself: a store standing under a root reads the registry that root holds,
-/// whichever way the invocation named it.
-pub fn probe_all(root: &Path, measure: Measure) -> Report {
-    let registry = Registry::addressing(root);
+/// `address` states whether the invocation named a root or a store. A root is taken as stated; a
+/// store reads the registry of the root it stands under, so both reach one decision per engine.
+pub fn probe_all(address: &RegistryAddress, measure: Measure) -> Report {
+    let registry = address.registry();
     let mut profiles = vec![fixture_facts()];
     for engine in Engine::ALL {
         profiles.push(engine_facts(&registry, engine, measure));

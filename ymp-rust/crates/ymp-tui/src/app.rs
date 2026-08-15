@@ -43,7 +43,7 @@ use crate::state::{App, COMMAND_PREFIX, Command, ConfirmAction, Modal, PageKind,
 use crate::terminal::TerminalGuard;
 use crate::theme::Markers;
 use crate::ui;
-use ymp_runtime_registry::{Engine, Registry};
+use ymp_runtime_registry::{Engine, RegistryAddress};
 
 /// How long the input thread waits before checking whether it should stop.
 const INPUT_TICK: Duration = Duration::from_millis(50);
@@ -74,11 +74,10 @@ pub struct Session {
     /// second run of a project is addressed here rather than refused.
     root: Option<PathBuf>,
     data_root: PathBuf,
-    /// The root or the store this session addresses the engine registry from. Which registry that
-    /// reaches is derived from the path: a store standing under a root reads the registry that root
-    /// holds, so naming the store instead of the root never reaches a different decision about an
-    /// engine. A store standing under no root has no root decision to honour and keeps its own.
-    registry_root: PathBuf,
+    /// How this session addresses the engine registry. A root an invocation named is taken as
+    /// stated; a store it named resolves to the root that store stands under, so naming the store
+    /// instead of the root never reaches a different decision about an engine.
+    registry: RegistryAddress,
     model: Model,
     runtimes: Option<Report>,
     /// The request being assembled from what the operator typed, while one is.
@@ -188,7 +187,7 @@ impl Session {
     pub fn open_under_root(root: &Path, data_root: &Path, contracts: &[PreparedContract]) -> Self {
         let mut session = Self::open(data_root, contracts);
         session.root = Some(root.to_path_buf());
-        session.registry_root = root.to_path_buf();
+        session.registry = RegistryAddress::Root(root.to_path_buf());
         session
     }
 
@@ -202,7 +201,7 @@ impl Session {
             application: application.map(|application| Arc::new(Mutex::new(application))),
             root: None,
             data_root: data_root.to_path_buf(),
-            registry_root: data_root.to_path_buf(),
+            registry: RegistryAddress::Store(data_root.to_path_buf()),
             model,
             runtimes: None,
             draft: None,
@@ -268,16 +267,16 @@ impl Session {
     ///
     /// A command is handed one store and acts on that store. The engines are not part of a store:
     /// which of them this host admits is one decision, and every run under a root reads it. This
-    /// states the root an invocation named; an invocation that named none derives it from the
-    /// store, so both routes reach the same registry.
+    /// states the root an invocation named, which is taken as stated; an invocation that named
+    /// none keeps the store it was given and resolves the root from it.
     pub fn with_registry_root(mut self, root: &Path) -> Self {
-        self.registry_root = root.to_path_buf();
+        self.registry = RegistryAddress::Root(root.to_path_buf());
         self
     }
 
-    /// The root this session's engine registry lives under.
-    pub fn registry_root(&self) -> &Path {
-        &self.registry_root
+    /// How this session addresses the engine registry.
+    pub fn registry_address(&self) -> &RegistryAddress {
+        &self.registry
     }
 
     /// Enable or disable one engine, and say what changed.
@@ -286,13 +285,14 @@ impl Session {
     /// store under this root — reads it. What this call does not do is re-probe: the held reading
     /// carries the new flag, and readiness is measured again when the page next asks for it.
     pub fn set_engine_enabled(&mut self, engine: Engine, enabled: bool, reason: Option<String>) {
-        let registry = Registry::addressing(&self.registry_root);
+        let registry = self.registry.registry();
         match registry.set_enabled(engine, enabled, reason.as_deref()) {
             Err(error) => self.model.error(format!(
                 "the {} engine was not changed — {error}",
                 engine.name()
             )),
             Ok(record) => {
+                let recorded_at = registry.path_of(engine).display().to_string();
                 if let Some(report) = self.runtimes.as_mut()
                     && let Some(profile) = report
                         .profiles
@@ -316,15 +316,18 @@ impl Session {
                 if self.route.is_some_and(|route| route.engine() == engine) && !record.enabled {
                     self.route = None;
                 }
+                // The record is named, because which file holds a decision is the difference
+                // between a decision that governs the next run and one written where nothing
+                // reads it.
                 self.model.reply(match record.enabled {
                     true => format!(
-                        "the {} engine is enabled · it can be routed to once its probe reports it \
-                         ready",
+                        "the {} engine is enabled · recorded in {recorded_at} · it can be routed \
+                         to once its probe reports it ready",
                         engine.name()
                     ),
                     false => format!(
-                        "the {} engine is disabled — {} · it is not probed, not offered and not \
-                         routed to",
+                        "the {} engine is disabled — {} · recorded in {recorded_at} · it is not \
+                         probed, not offered and not routed to",
                         engine.name(),
                         record.refusal_reason()
                     ),
@@ -903,7 +906,7 @@ impl Session {
                 .error("no attempt was launched — this store holds no run to attempt");
             return;
         };
-        match attempt::start(application, route, &self.registry_root) {
+        match attempt::start(application, route, &self.registry) {
             Ok(handle) => {
                 self.model.reply(format!(
                     "attempt {} launched on the {} profile · the workspace is a private copy of \
@@ -1495,7 +1498,7 @@ fn event_loop(
     let (tx, rx) = mpsc::channel();
     let stop = Arc::new(AtomicBool::new(false));
     let input = spawn_input_thread(tx.clone(), Arc::clone(&stop));
-    spawn_probe_thread(tx.clone(), session.registry_root().to_path_buf());
+    spawn_probe_thread(tx.clone(), session.registry_address().clone());
     if let Some(receiver) = session.subscribe() {
         spawn_journal_thread(tx.clone(), receiver);
     }
@@ -1960,9 +1963,9 @@ fn spawn_verification_thread(tx: Sender<AppEvent>, pending: PendingVerification)
 /// off the drawing thread. The interface is where an operator looks at the engines, so this pass
 /// measures the model catalog of an engine whose recorded list is not the one its installed build
 /// serves.
-fn spawn_probe_thread(tx: Sender<AppEvent>, registry_root: PathBuf) {
+fn spawn_probe_thread(tx: Sender<AppEvent>, registry: RegistryAddress) {
     thread::spawn(move || {
-        let report = crate::runtimes::probe_all(&registry_root, crate::runtimes::Measure::Catalog);
+        let report = crate::runtimes::probe_all(&registry, crate::runtimes::Measure::Catalog);
         let _ = tx.send(AppEvent::Runtimes(Box::new(report)));
     });
 }

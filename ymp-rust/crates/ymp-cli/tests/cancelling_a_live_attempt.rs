@@ -88,7 +88,7 @@ fn cancelling_a_working_attempt_ends_it_in_both_records_that_state_how_a_run_end
     // operator states otherwise. This check runs against a Codex fixture of its own, so it states
     // that decision the way an operator does — through the interface's own line.
     session.local_turn("runtime enable codex".to_owned());
-    session.set_runtimes(probe_all(session.registry_root(), Measure::Recorded));
+    session.set_runtimes(probe_all(session.registry_address(), Measure::Recorded));
     assert_eq!(
         session.projection(None).route.as_deref(),
         Some("codex"),

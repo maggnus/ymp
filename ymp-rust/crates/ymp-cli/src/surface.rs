@@ -350,7 +350,7 @@ fn run_authorize(
     // probes them where the interface does — and only once there is a review to state, since
     // probing starts subprocesses and a refused request has nothing to route.
     session.set_runtimes(ymp_tui::runtimes::probe_all(
-        session.registry_root(),
+        session.registry_address(),
         ymp_tui::runtimes::Measure::Recorded,
     ));
     app.adopt(session.projection(None));
@@ -378,7 +378,7 @@ fn run_attempt(
     // it: a confirmation that could not name the profile would be asking for a spend nobody
     // could make.
     session.set_runtimes(ymp_tui::runtimes::probe_all(
-        session.registry_root(),
+        session.registry_address(),
         ymp_tui::runtimes::Measure::Recorded,
     ));
     app.adopt(session.projection(None));
@@ -515,7 +515,7 @@ fn run_show(
         // This page is where the engines are looked at, so it is where a model list nobody has
         // measured against the installed build is measured.
         session.set_runtimes(ymp_tui::runtimes::probe_all(
-            session.registry_root(),
+            session.registry_address(),
             ymp_tui::runtimes::Measure::Catalog,
         ));
     }

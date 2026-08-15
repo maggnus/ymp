@@ -21,7 +21,7 @@ use ymp_runtime_api::{
 };
 use ymp_runtime_claude::ClaudeRuntime;
 use ymp_runtime_codex::CodexRuntime;
-use ymp_runtime_registry::{Engine, Registry};
+use ymp_runtime_registry::{Engine, RegistryAddress};
 use ymp_runtime_supervisor::{
     admit_runtime_start, admit_workspace_program, initialize_private_git,
 };
@@ -81,6 +81,19 @@ pub enum RuntimeChoice {
     Claude,
 }
 
+/// How this invocation addresses the engine registry.
+///
+/// A root the operator named is the registry and is taken as stated: `--root <dir>` records and
+/// reads under `<dir>`, whatever root stands above it. An invocation that named one exact store
+/// carries the store, and the root it stands under is resolved from it, so a decision recorded
+/// under that root governs it too.
+fn registry_address(root: Option<PathBuf>, store: &std::path::Path) -> RegistryAddress {
+    match root {
+        Some(root) => RegistryAddress::Root(root),
+        None => RegistryAddress::Store(store.to_path_buf()),
+    }
+}
+
 impl RuntimeChoice {
     /// The registry entity this choice starts, so the enabled flag is reachable from here too.
     const fn engine(self) -> Engine {
@@ -95,27 +108,28 @@ impl RuntimeChoice {
 /// named.
 pub fn run(
     data_root: PathBuf,
-    registry_root: PathBuf,
+    root: Option<PathBuf>,
     contracts: &[PathBuf],
     command: InternalCommand,
 ) -> anyhow::Result<()> {
+    let registry = registry_address(root, &data_root);
     match command {
         InternalCommand::AgentMcp => run_agent_mcp(),
         InternalCommand::RuntimeSmoke {
             runtime,
             workspace,
             prompt,
-        } => run_runtime_smoke(registry_root, runtime, workspace, prompt),
+        } => run_runtime_smoke(registry, runtime, workspace, prompt),
         InternalCommand::ManagedRuntimeSmoke { runtime, workspace } => run_managed_runtime_smoke(
             data_root,
-            registry_root,
+            registry,
             runtime,
             workspace,
             crate::one_contract(contracts)?,
         ),
         InternalCommand::ManagedCandidateSmoke { runtime } => run_managed_candidate_smoke(
             data_root,
-            registry_root,
+            registry,
             runtime,
             crate::one_contract(contracts)?,
         ),
@@ -160,10 +174,10 @@ pub fn run(
 /// controller's gate then answers whether the driver attests the programs its launch enters and
 /// whether the utilities the run ends its processes with are admitted.
 fn runtime_driver(
-    registry_root: &std::path::Path,
+    registry: &RegistryAddress,
     runtime: RuntimeChoice,
 ) -> anyhow::Result<Box<dyn RuntimeDriver>> {
-    Registry::addressing(registry_root).admit(runtime.engine())?;
+    registry.registry().admit(runtime.engine())?;
     let driver: Box<dyn RuntimeDriver> = match runtime {
         RuntimeChoice::Codex => Box::new(CodexRuntime::default()),
         RuntimeChoice::Claude => Box::new(ClaudeRuntime::default()),
@@ -188,12 +202,12 @@ fn require_established_termination() -> anyhow::Result<()> {
 }
 
 fn run_runtime_smoke(
-    registry_root: PathBuf,
+    registry: RegistryAddress,
     runtime: RuntimeChoice,
     workspace: PathBuf,
     prompt: String,
 ) -> anyhow::Result<()> {
-    let driver = runtime_driver(&registry_root, runtime)?;
+    let driver = runtime_driver(&registry, runtime)?;
     let probe = driver.probe()?;
     println!("{}", serde_json::to_string(&probe)?);
     if probe.readiness != Readiness::Ready {
@@ -217,7 +231,7 @@ fn run_runtime_smoke(
 
 fn run_managed_runtime_smoke(
     data_root: PathBuf,
-    registry_root: PathBuf,
+    registry: RegistryAddress,
     runtime: RuntimeChoice,
     workspace: PathBuf,
     contract: PreparedContract,
@@ -244,7 +258,7 @@ fn run_managed_runtime_smoke(
         .context("resolve current ymp executable")?
         .canonicalize()
         .context("canonicalize current ymp executable")?;
-    let driver = runtime_driver(&registry_root, runtime)?;
+    let driver = runtime_driver(&registry, runtime)?;
     let probe = driver.probe()?;
     println!("{}", serde_json::to_string(&probe)?);
     if probe.readiness != Readiness::Ready {
@@ -282,7 +296,7 @@ fn run_managed_runtime_smoke(
 
 fn run_managed_candidate_smoke(
     data_root: PathBuf,
-    registry_root: PathBuf,
+    registry: RegistryAddress,
     runtime: RuntimeChoice,
     contract: PreparedContract,
 ) -> anyhow::Result<()> {
@@ -323,7 +337,7 @@ fn run_managed_candidate_smoke(
         .context("resolve current ymp executable")?
         .canonicalize()
         .context("canonicalize current ymp executable")?;
-    let driver = runtime_driver(&registry_root, runtime)?;
+    let driver = runtime_driver(&registry, runtime)?;
     let probe = driver.probe()?;
     println!("{}", serde_json::to_string(&probe)?);
     if probe.readiness != Readiness::Ready {

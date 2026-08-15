@@ -85,7 +85,7 @@ fn cancelling_a_run_the_machinery_already_ended_reports_what_the_record_holds() 
     // operator states otherwise. This check runs against a Codex fixture of its own, so it states
     // that decision the way an operator does — through the interface's own line.
     session.local_turn("runtime enable codex".to_owned());
-    session.set_runtimes(probe_all(session.registry_root(), Measure::Recorded));
+    session.set_runtimes(probe_all(session.registry_address(), Measure::Recorded));
     session.start_run(&contract_id);
     session.start_attempt();
     assert!(session.attempt_is_live(), "no attempt was launched");

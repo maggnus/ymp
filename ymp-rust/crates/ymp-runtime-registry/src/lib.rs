@@ -156,10 +156,16 @@ pub struct ModelCatalog {
     /// reader; it decides nothing, because a record states it and a record can say anything.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub measured_for_version: Option<String>,
-    /// The digest of the executable the list was measured against. This is what decides whether a
-    /// recorded list is current: it is computed from the installed file at every reading, so a
-    /// record that names another build — or names this one falsely — is measured again rather
-    /// than believed.
+    /// The digest of the executable the list was measured against.
+    ///
+    /// This decides one thing and it is worth naming exactly: whether the list belongs to the
+    /// build that is installed now. It is computed from the installed file at every reading, so a
+    /// record carrying another build's digest is measured again instead of being read as current.
+    ///
+    /// It says nothing about whether the names are the ones that build actually served. A record
+    /// whose digest is honest and whose list was rewritten by hand is read as current, because the
+    /// digest is of the executable and not of the measurement. Detecting that would need the
+    /// record to be authenticated, which nothing here does.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub measured_for_digest: Option<String>,
     /// Why the list is empty or partial, when it is.
@@ -170,12 +176,18 @@ pub struct ModelCatalog {
 }
 
 impl ModelCatalog {
-    /// Whether this list still describes the installed executable.
+    /// Whether this list was measured against the executable that is installed now.
     ///
-    /// The question is answered against the digest of that executable and nothing else. The
-    /// version a record names is what the record says, and a record that named the installed
-    /// release while holding another build's list would otherwise suppress its own re-measurement
-    /// — which is exactly what a forged record would do.
+    /// The question is answered against the digest of that executable and nothing else, because
+    /// the version a record names is only what the record says. What this establishes is that a
+    /// list belongs to the installed build; it does not establish that the names in it are the
+    /// ones that build served. An edited list under an honest digest is read as current, and
+    /// nothing here would notice.
+    ///
+    /// That limit is bounded by what the list is allowed to decide. Admission does not read the
+    /// catalog: whether an engine may be started is answered by the enabled flag alone, so a
+    /// rewritten list cannot admit an engine the operator held back, and it cannot widen what a
+    /// run may start. Which models a run may use is not decided in this crate at all.
     pub fn current_for(&self, executable_digest: &str) -> bool {
         self.source != ModelSource::Unmeasured
             && self.measured_for_digest.as_deref() == Some(executable_digest)
@@ -289,15 +301,14 @@ impl Registry {
         }
     }
 
-    /// The registry a path addresses: the root it names, or the root the store it names stands
-    /// under.
+    /// The registry an address reaches.
     ///
     /// Every path that reads or writes a decision about an engine arrives here, so no caller can
-    /// reach a registry the root does not hold by naming a store inside it. That is one function
-    /// rather than a rule each caller applies, because a caller that forgot the rule would reopen
-    /// exactly the hole it closes.
-    pub fn addressing(path: impl AsRef<Path>) -> Self {
-        Self::under(root_of_store(path.as_ref()))
+    /// reach a registry the root does not hold by naming a store inside it, and none can be moved
+    /// off a root its operator named. That is one function rather than a rule each caller applies,
+    /// because a caller that forgot the rule would reopen exactly the hole it closes.
+    pub fn addressing(address: &RegistryAddress) -> Self {
+        address.registry()
     }
 
     pub fn directory(&self) -> &Path {
@@ -443,24 +454,60 @@ impl Registry {
 ///
 /// Which engines a host admits is one decision, and it is recorded under the root. An invocation
 /// that names one exact store must therefore read that same decision, so the root is derived from
-/// the store rather than taken from the command line: a store addressed with `--data-root` reaches
-/// the registry its root holds, and an engine the operator held back stays held back on every path
-/// that could start one.
+/// the store: a store addressed with `--data-root` reaches the registry its root holds, and an
+/// engine the operator held back stays held back on every path that could start one.
 ///
-/// The search walks up to the first ancestor that carries the layout marker and addresses this
-/// store under its projects. A store standing under no such root — one an earlier layout wrote, or
-/// one an operator keeps apart on purpose — has no root decision to honour, and its registry stands
-/// beside it.
+/// The search begins at the path itself and stops at the first step that is a root. A path that
+/// carries the layout marker **is** a root and nothing above it is asked about — a root nested
+/// inside another root's projects, which is what an agent workspace holds, keeps its own decision
+/// rather than inheriting the outer one. Above the zero step, a root is an ancestor that carries
+/// the marker and addresses this store under its projects. A store standing under no such root —
+/// one an earlier layout wrote, or one an operator keeps apart on purpose — has no root decision to
+/// honour, and its registry stands beside it.
+///
+/// This derives a root from a **store**. A path an operator named as the root is a root already;
+/// passing it through here would answer with a decision they did not make, so callers state which
+/// of the two they hold through [`RegistryAddress`].
 pub fn root_of_store(store: &Path) -> PathBuf {
     let store = store.canonicalize().unwrap_or_else(|_| store.to_path_buf());
-    for ancestor in store.ancestors().skip(1) {
-        if ancestor.join(LAYOUT_MARKER).is_file()
-            && store.starts_with(ancestor.join(PROJECTS_DIRECTORY))
-        {
+    for ancestor in store.ancestors() {
+        if !ancestor.join(LAYOUT_MARKER).is_file() {
+            continue;
+        }
+        if ancestor == store || store.starts_with(ancestor.join(PROJECTS_DIRECTORY)) {
             return ancestor.to_path_buf();
         }
     }
     store
+}
+
+/// How an invocation addresses the engine registry.
+///
+/// The two are not interchangeable, and reading one as the other is how a decision goes missing.
+/// A root an operator named is the registry: it is taken as stated, so `--root <dir>` records and
+/// reads under `<dir>` whatever stands above it. A store is where a run's state lives, and the
+/// decision that governs it belongs to the root it stands under, so that root is derived.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum RegistryAddress {
+    /// A root the invocation named, taken exactly as stated.
+    Root(PathBuf),
+    /// A store the invocation named. The root it stands under is derived.
+    Store(PathBuf),
+}
+
+impl RegistryAddress {
+    /// The root this address resolves to.
+    pub fn root(&self) -> PathBuf {
+        match self {
+            Self::Root(root) => root.clone(),
+            Self::Store(store) => root_of_store(store),
+        }
+    }
+
+    /// The registry this address reaches.
+    pub fn registry(&self) -> Registry {
+        Registry::under(self.root())
+    }
 }
 
 /// Where an engine's executable stands on this host.
@@ -619,6 +666,73 @@ mod tests {
         assert_eq!(
             root_of_store(&beside),
             beside.canonicalize().expect("beside")
+        );
+    }
+
+    /// A path that carries the layout marker is a root, and the search stops there.
+    ///
+    /// Both halves matter. A root nested inside another root's projects — which is what an agent
+    /// workspace under a store holds — keeps its own decision instead of inheriting the outer
+    /// one; and a path that is a root is never walked past, so a decision recorded at it is the
+    /// one that is read back.
+    #[test]
+    fn a_path_that_is_itself_a_root_is_where_the_search_stops() {
+        let directory = tempfile::tempdir().expect("temporary directory");
+        let outer = directory.path().join("outer");
+        let workspace = outer
+            .join("projects")
+            .join("project-1")
+            .join("runs/0001/workspaces/w");
+        let inner = workspace.join("inner");
+        let inner_store = inner.join("projects").join("project-2").join("runs/0001");
+        fs::create_dir_all(&inner_store).expect("nested store directories");
+        fs::write(outer.join("root.json"), br#"{"schema_version":1}"#).expect("outer marker");
+        fs::write(inner.join("root.json"), br#"{"schema_version":1}"#).expect("inner marker");
+
+        let inner = inner.canonicalize().expect("inner root");
+        assert_eq!(
+            root_of_store(&inner),
+            inner,
+            "a path carrying the layout marker was walked past as if it were a store"
+        );
+        assert_eq!(
+            root_of_store(&inner_store),
+            inner,
+            "a store under a nested root inherited the outer root's decision"
+        );
+
+        // The workspace itself carries no marker, so it belongs to the root above it.
+        assert_eq!(
+            root_of_store(&workspace),
+            outer.canonicalize().expect("outer root")
+        );
+    }
+
+    /// A root an operator named is the registry. Deriving another one from it would record and
+    /// read a decision they did not make — and a decision written where nothing reads it is a
+    /// disabled engine that still starts.
+    #[test]
+    fn a_named_root_is_taken_as_stated_and_a_named_store_resolves_its_root() {
+        let directory = tempfile::tempdir().expect("temporary directory");
+        let outer = directory.path().join("outer");
+        let inner = outer.join("projects").join("project-1").join("inner");
+        let store = outer.join("projects").join("project-1").join("runs/0001");
+        fs::create_dir_all(&inner).expect("inner directories");
+        fs::create_dir_all(&store).expect("store directories");
+        fs::write(outer.join("root.json"), br#"{"schema_version":1}"#).expect("outer marker");
+
+        let named = RegistryAddress::Root(inner.clone());
+        assert_eq!(named.root(), inner, "a named root was resolved to another");
+        assert_eq!(
+            named.registry().path_of(Engine::ClaudeCode),
+            inner.join("runtimes").join("claude-code.json")
+        );
+
+        // A store is the other case, and it does resolve: the decision that governs a run belongs
+        // to the root its store stands under.
+        assert_eq!(
+            RegistryAddress::Store(store).root(),
+            outer.canonicalize().expect("outer root")
         );
     }
 

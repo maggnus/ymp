@@ -105,6 +105,79 @@ fn the_registry_seeds_the_held_back_engine_as_disabled_with_its_reason() {
     assert_eq!(record(&root, "claude-code")["models"]["note"], Value::Null);
 }
 
+/// A root the operator named is where the decision is recorded and where it is read back.
+///
+/// This is the second scenario the review measured. A root nested inside another root's projects —
+/// which is what an agent workspace under a store holds — was walked past on both sides: the
+/// decision was written to the outer root without saying so, and the record standing at the named
+/// root was then ignored, so a disabled engine started with a zero exit. Both halves are checked
+/// here, and the reply names the file it wrote.
+#[test]
+fn a_root_named_inside_another_root_records_and_reads_its_own_decision() {
+    let (_directory, outer) = root();
+    // Materialise the outer root and its projects, so the nested root really does stand inside
+    // them rather than in an empty directory that only looks like it.
+    let seeded = ymp(&outer, &["runtime", "enable", "claude-code"]);
+    assert!(seeded.status.success(), "{}", stated(&seeded));
+    let inner = only_store(&outer)
+        .join("workspaces")
+        .join("w")
+        .join("inner");
+    std::fs::create_dir_all(&inner).expect("nested root directory");
+
+    let disabled = ymp(
+        &inner,
+        &[
+            "runtime",
+            "disable",
+            "claude-code",
+            "--reason",
+            "held back at the nested root",
+        ],
+    );
+    assert!(disabled.status.success(), "{}", stated(&disabled));
+
+    // The reply names the file it wrote, and that file is under the root that was named. The
+    // transcript lays a long path out to the width it has, so what is compared is the tail that
+    // identifies the record rather than the whole absolute path.
+    let said = stated(&disabled);
+    let written = inner.join("runtimes").join("claude-code.json");
+    assert!(
+        said.contains("recorded in") && said.contains("inner/runtimes/claude-code.json"),
+        "the reply does not name the record it wrote:\n{said}"
+    );
+    assert!(written.is_file(), "no record stands at the named root");
+    assert_eq!(
+        record(&outer, "claude-code")["enabled"],
+        Value::Bool(true),
+        "the decision was written to the outer root instead of the one that was named"
+    );
+
+    // The record standing at the named root is read back, so the engine does not start.
+    let workspace = inner.parent().expect("workspace").join("smoke");
+    std::fs::create_dir_all(&workspace).expect("smoke workspace");
+    let smoke = ymp(
+        &inner,
+        &[
+            "internal",
+            "runtime-smoke",
+            "--runtime=claude",
+            &format!("--workspace={}", workspace.display()),
+            "--prompt=say done",
+        ],
+    );
+    assert!(
+        !smoke.status.success(),
+        "a disabled engine started from the root that held it back:\n{}",
+        stated(&smoke)
+    );
+    assert!(
+        stated(&smoke).contains("held back at the nested root"),
+        "the refusal does not name the decision that caused it:\n{}",
+        stated(&smoke)
+    );
+}
+
 /// A record decides nothing about whether its own list is current.
 ///
 /// The hostile record here is the one a forger would write: it names the installed release, so a

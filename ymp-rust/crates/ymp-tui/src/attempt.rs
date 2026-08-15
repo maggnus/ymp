@@ -23,7 +23,7 @@ use ymp_domain::contract::ContractDocument;
 use ymp_runtime_api::{RuntimeDriver, RuntimeKind};
 use ymp_runtime_claude::ClaudeRuntime;
 use ymp_runtime_codex::CodexRuntime;
-use ymp_runtime_registry::{Engine, Registry};
+use ymp_runtime_registry::{Engine, RegistryAddress};
 use ymp_runtime_supervisor::{
     ManagedCandidateRequest, ManagedContract, ManagedRunHandle, ManagedVerifier,
     admit_runtime_start, start_managed_candidate,
@@ -193,7 +193,7 @@ fn state_of(route: Route, report: &Report) -> Option<(bool, String)> {
 pub fn start(
     application: Arc<Mutex<Application>>,
     route: Route,
-    registry_root: &std::path::Path,
+    registry: &RegistryAddress,
 ) -> anyhow::Result<ManagedRunHandle> {
     let contract = {
         let application = application
@@ -204,7 +204,7 @@ pub fn start(
             .context("read the contract this run was approved against")?;
         managed_contract(&binding, &document)
     };
-    let driver = driver(route, registry_root)?;
+    let driver = driver(route, registry)?;
     let bridge_executable =
         std::env::current_exe().context("resolve the running ymp executable")?;
     start_managed_candidate(
@@ -225,8 +225,8 @@ pub fn start(
 /// the reason the operator recorded — before the driver is built, so a disabled engine starts no
 /// process even where the routing that led here was stale. [`admit_runtime_start`] then answers
 /// whether the driver attests what it launches.
-fn driver(route: Route, registry_root: &std::path::Path) -> anyhow::Result<Box<dyn RuntimeDriver>> {
-    Registry::addressing(registry_root).admit(route.engine())?;
+fn driver(route: Route, registry: &RegistryAddress) -> anyhow::Result<Box<dyn RuntimeDriver>> {
+    registry.registry().admit(route.engine())?;
     let driver: Box<dyn RuntimeDriver> = match route {
         Route::Codex => Box::new(CodexRuntime::default()),
         Route::ClaudeCode => Box::new(ClaudeRuntime::default()),
@@ -262,10 +262,11 @@ pub fn verification_inputs(data_root: &std::path::Path) -> PathBuf {
 
 #[cfg(test)]
 mod tests {
-    use super::{Engine, Registry, Route, Routing, driver, resolve};
+    use super::{Engine, RegistryAddress, Route, Routing, driver, resolve};
     use crate::runtimes::{EngineFacts, ProfileFacts, Report};
     use ymp_runtime_api::Readiness;
     use ymp_runtime_registry::ModelCatalog;
+    use ymp_runtime_registry::Registry;
 
     fn profile(name: &str, readiness: Readiness) -> ProfileFacts {
         ProfileFacts {
@@ -394,11 +395,12 @@ mod tests {
     #[test]
     fn an_attempt_on_a_disabled_engine_is_refused_at_the_driver_with_the_registry_reason() {
         let root = tempfile::tempdir().expect("temporary root");
+        let address = RegistryAddress::Root(root.path().to_path_buf());
         let registry = Registry::under(root.path());
         registry
             .set_enabled(Engine::ClaudeCode, false, Some("held back for this check"))
             .expect("disable the engine");
-        let Err(error) = driver(Route::ClaudeCode, root.path()) else {
+        let Err(error) = driver(Route::ClaudeCode, &address) else {
             panic!("a disabled engine built a driver");
         };
         let stated = error.to_string();
@@ -410,7 +412,7 @@ mod tests {
         registry
             .set_enabled(Engine::ClaudeCode, true, None)
             .expect("enable the engine");
-        let refused_again = match driver(Route::ClaudeCode, root.path()) {
+        let refused_again = match driver(Route::ClaudeCode, &address) {
             Ok(_) => None,
             Err(error) => Some(error.to_string()),
         };
