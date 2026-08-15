@@ -22,3 +22,4 @@ ymp-runtime-supervisor.workspace = true
 [dev-dependencies]
 tempfile.workspace = true
 ymp-runtime-registry.workspace = true
+ymp-testkit.workspace = true

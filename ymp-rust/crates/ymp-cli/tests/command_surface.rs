@@ -751,8 +751,16 @@ impl Fixture {
         }
     }
 
+    /// One store of this fixture's own, under a root put into the state one measured account
+    /// leaves behind.
+    ///
+    /// A run is created against the pool it may draw its models from, so every store a run is
+    /// started in stands under a root that offers one. The store is its own root here, since this
+    /// fixture names stores directly rather than addressing them under a layout.
     fn data_root(&self, name: &str) -> PathBuf {
-        self._root.path().join(name)
+        let store = self._root.path().join(name);
+        ymp_testkit::ready_root::measured(&store);
+        store
     }
 
     /// The request, as the lines an operator types: the work, then the amendments that name what

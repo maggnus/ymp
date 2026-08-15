@@ -49,6 +49,11 @@ pub struct Model {
     /// What the commitment kernel could not state about a result this run committed. It is a note
     /// about the record and not about the work: the result was sealed and judged like any other.
     provenance_unrecorded: Vec<String>,
+    /// The capability boundary this run was created under, as its own record froze it. It is
+    /// stated where the run's kernel is read and nowhere else: the operator never creates the
+    /// snapshot and meets it only in the evidence of the run
+    /// (`ymp-docs/design/COLLECTIVE-DESIGN.md` §7).
+    frozen_pool: Option<String>,
     /// The answer the interface is waiting for, while a request is being drafted.
     awaiting: Option<String>,
     /// What is running away from the thread that draws, while something is.
@@ -75,6 +80,7 @@ impl Model {
             commitments: None,
             commitments_refused: None,
             provenance_unrecorded: Vec::new(),
+            frozen_pool: None,
             awaiting: None,
             working: None,
             refused: false,
@@ -279,6 +285,21 @@ impl Model {
                         return;
                     }
                 }
+            }
+            EventKind::PoolFrozen(frozen) => {
+                self.frozen_pool = Some(format!(
+                    "this run draws on {} of the {} entr{} the {} pool permitted, frozen at {} ·                      it ignited on {} · a pool edited or a provider changed since then belongs to                      the next run and not to this one",
+                    frozen.admissible(),
+                    frozen.entries.len(),
+                    if frozen.entries.len() == 1 {
+                        "y"
+                    } else {
+                        "ies"
+                    },
+                    frozen.pool,
+                    projection::short_digest(&frozen.digest),
+                    frozen.origin,
+                ));
             }
             EventKind::CandidateProvenanceUnrecorded {
                 candidate_digest,
@@ -677,12 +698,21 @@ impl Model {
                 ],
                 rows,
             },
-            notes: vec![
-                "the journal is durable and append-only; plane labels never mix: ctrl control · \
-                 verif protected verifier. the collaboration plane arrives with POC-2 and has no \
-                 events today"
-                    .into(),
-            ],
+            notes: {
+                let mut notes = vec![
+                    "the journal is durable and append-only; plane labels never mix: ctrl control \
+                     · verif protected verifier. the collaboration plane arrives with POC-2 and \
+                     has no events today"
+                        .to_owned(),
+                ];
+                // The capability boundary a run was created under is a run-level fact rather than
+                // a row to be found among the records, so it is stated here as well. This page
+                // exists for every run that was created, which the commitments page does not: a
+                // run that has opened no kernel would otherwise carry the freeze nowhere an
+                // operator reads it.
+                notes.extend(self.frozen_pool.iter().cloned());
+                notes
+            },
             footer: style::spans(&self.status_line(), theme::muted()),
             keys: vec![("Esc", "back")],
             selected: count.saturating_sub(1),
@@ -836,6 +866,7 @@ impl Model {
              rebuilds this page from them and from no live state"
                 .to_owned(),
         ];
+        notes.extend(self.frozen_pool.iter().cloned());
         notes.extend(self.provenance_unrecorded.iter().cloned());
         if let Some(refusal) = &self.commitments_refused {
             notes.push(format!(
@@ -1258,6 +1289,17 @@ fn describe_event(envelope: &EventEnvelope) -> (Plane, &'static str, String) {
                     .join(" · ")
             ),
         ),
+        EventKind::PoolFrozen(frozen) => (
+            Plane::Control,
+            "pool.frozen",
+            format!(
+                "the pool this run draws on is frozen at {} · {} of {} entries live · it ignites                  on {}",
+                projection::short_digest(&frozen.digest),
+                frozen.admissible(),
+                frozen.entries.len(),
+                frozen.origin
+            ),
+        ),
         EventKind::CandidateProvenanceUnrecorded {
             candidate_digest,
             reason,
@@ -1331,6 +1373,7 @@ mod tests {
             status,
             budget: Budget::new(2, 1),
             contract: None,
+            frozen_pool: None,
             active_attempts: Vec::new(),
             candidate_digest: None,
             last_sequence,

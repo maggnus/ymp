@@ -86,6 +86,9 @@ fn a_root_stated_by_the_environment_is_the_one_addressed() {
     let project = host.project("stated-root");
     let stated = host.host.path().join("state-of-this-environment");
 
+    // The root this environment states is the one the run is created under, so it is the one put
+    // into the state a measured account leaves behind.
+    host.offers_models(&stated);
     let mut invocation = host.invocation(&project, &host.start_arguments(&[], "first"));
     invocation.env("YMP_HOME", &stated);
     let started = Run {
@@ -329,6 +332,30 @@ impl Host {
         self.home.join(".ymp")
     }
 
+    /// Put a root into the state one measured account leaves behind, so a run can be created under
+    /// it at all: the pool a run draws its models from is frozen when the run is created, and a
+    /// root that offers nothing creates nothing.
+    fn offers_models(&self, root: &Path) {
+        ymp_testkit::ready_root::measured(root);
+    }
+
+    /// The root an invocation with these leading arguments reads its pools under: the root it
+    /// names, taken relative to the project as the command line takes it, or the default root.
+    fn addressed(&self, project: &Path, before: &[String]) -> PathBuf {
+        before
+            .iter()
+            .position(|argument| argument == "--root")
+            .and_then(|index| before.get(index + 1))
+            .map(|value| {
+                let path = PathBuf::from(value);
+                match path.is_absolute() {
+                    true => path,
+                    false => project.join(path),
+                }
+            })
+            .unwrap_or_else(|| self.root())
+    }
+
     /// The directory the root holds one project's runs under.
     fn runs_directory(&self, project: &Path) -> PathBuf {
         DataRoot::open_for_project(&self.root(), project)
@@ -389,7 +416,10 @@ impl Host {
     }
 
     /// Start one run of one contract, through the confirmation the interface requires.
+    /// Start one run. The root this invocation addresses offers models first, since a run is
+    /// created against the pool it may draw them from.
     fn start(&self, project: &Path, before: &[String], prompt: &str) -> Run {
+        self.offers_models(&self.addressed(project, before));
         let arguments = self.start_arguments(before, prompt);
         self.command(project, &arguments)
     }

@@ -20,6 +20,7 @@ use std::path::Path;
 use std::time::{Duration, Instant};
 
 use ymp_domain::RunStatus;
+use ymp_runtime_registry::Engine;
 use ymp_tui::runtimes::{Measure, probe_all};
 use ymp_tui::{Session, app::AttemptProgress};
 
@@ -95,6 +96,10 @@ fn cancelling_a_working_attempt_ends_it_in_both_records_that_state_how_a_run_end
         "the fixture profile is not the one this host would use: {}",
         session.projection(None).route_note
     );
+    // A run is created against the pool it may draw models from, so this root is put into the
+    // state one measured account leaves behind — on the very engine this check routes through, so
+    // that resolving the pool enables no second profile beside the fixture.
+    ymp_testkit::ready_root::measured_engine(&store, Engine::Codex, &["gpt-5-codex"]);
     session.start_run(&contract_id);
     session.start_attempt();
     assert!(

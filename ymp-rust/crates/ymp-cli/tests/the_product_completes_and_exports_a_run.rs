@@ -241,6 +241,14 @@ fn admit_codex(fixture: &Fixture, store: &Path) {
 /// Start the run and return the identifier the store gives it.
 fn start(fixture: &Fixture, store: &Path, contract_id: &str) -> String {
     admit_codex(fixture, store);
+    // A run is created against the pool it may draw its models from, so this store's root is put
+    // into the state one measured account leaves behind — on the engine the attempt routes
+    // through, so that resolving the pool enables no second profile beside the fixture.
+    ymp_testkit::ready_root::measured_engine(
+        store,
+        ymp_runtime_registry::Engine::Codex,
+        &["gpt-5-codex"],
+    );
     let mut arguments = fixture.request_arguments();
     arguments.insert(0, "start".to_owned());
     arguments.push(format!("--confirm={contract_id}"));

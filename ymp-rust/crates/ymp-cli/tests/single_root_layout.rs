@@ -107,6 +107,10 @@ fn concurrent_starts_over_an_empty_store_never_commit_two_runs_into_one() {
     let host = Host::new();
     let project = host.project("concurrent-start");
 
+    // The root offers models before any process exists, for the same reason the packages do: a run
+    // is created against the pool it may draw on, and resolving that pool while three starts are
+    // already racing would put the fixture into the race this check is about.
+    host.offers_models(&host.root());
     // Every package is written before any process exists, so the processes overlap on the store
     // rather than on the fixture.
     let invocations: Vec<Vec<String>> = (0..STARTS)
@@ -399,6 +403,35 @@ impl Host {
         self.home.join(".ymp")
     }
 
+    /// Put a root into the state one measured account leaves behind, so a run can be created under
+    /// it at all: the pool a run draws its models from is frozen when the run is created, and a
+    /// root that offers nothing creates nothing.
+    fn offers_models(&self, root: &Path) {
+        ymp_testkit::ready_root::measured(root);
+    }
+
+    /// The root an invocation with these leading arguments reads its pools under: the store it
+    /// names, taken as the root that governs it where the store stands outside any layout, the
+    /// root it names, or the default root.
+    fn addressed(&self, project: &Path, before: &[String]) -> PathBuf {
+        let stated = |flag: &str| {
+            before
+                .iter()
+                .position(|argument| argument == flag)
+                .and_then(|index| before.get(index + 1))
+                .map(|value| {
+                    let path = PathBuf::from(value);
+                    match path.is_absolute() {
+                        true => path,
+                        false => project.join(path),
+                    }
+                })
+        };
+        stated("--data-root")
+            .or_else(|| stated("--root"))
+            .unwrap_or_else(|| self.root())
+    }
+
     /// An empty directory an operator would start the product in.
     fn project(&self, name: &str) -> PathBuf {
         let path = self.host.path().join("projects").join(name);
@@ -452,7 +485,11 @@ impl Host {
     }
 
     /// Start one run of one contract, through the confirmation the interface requires.
+    ///
+    /// The root this invocation addresses is put into the state a measured account leaves behind
+    /// first, since a run is created against the pool it may draw its models from.
     fn start(&self, project: &Path, before: &[String], prompt: &str) -> Run {
+        self.offers_models(&self.addressed(project, before));
         let arguments = self.start_arguments(before, prompt);
         self.command(project, &arguments)
     }

@@ -49,6 +49,10 @@ fn workspace() -> Workspace {
     make_executable(&entry_point);
     fs::write(&program, b"#!/bin/sh\ntest -f \"$1/result.txt\"\n").expect("verifier program");
     make_executable(&program);
+    // A run is created against the pool it may draw its models from, so the root this store stands
+    // under is put into the state one measured account leaves behind. The store is its own root
+    // here, since this fixture names a store directly rather than addressing one under a layout.
+    ymp_testkit::ready_root::measured(&data_root);
     Workspace {
         data_root,
         source,

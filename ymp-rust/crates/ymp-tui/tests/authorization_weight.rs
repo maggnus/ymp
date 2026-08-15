@@ -58,6 +58,11 @@ fn workspace() -> Workspace {
     fs::create_dir_all(&negative_control).expect("negative control directory");
     #[cfg(unix)]
     set_mode(&program, 0o700);
+    // A run is created against the pool it may draw its models from, so the root this store stands
+    // under offers one before anything is authorized. It is written while the store is still
+    // writable: what the checks below take away is the store's ability to record a run, not this
+    // root's ability to state which models it permits.
+    ymp_testkit::ready_root::measured(&data_root);
     Workspace {
         _root: root,
         data_root,
