@@ -188,6 +188,11 @@ fn a_root_named_inside_another_root_records_and_reads_its_own_decision() {
 #[test]
 fn a_forged_record_is_measured_again_instead_of_believed() {
     let (_directory, root) = root();
+    // The engines beneath a provider nobody enabled are not measured at all, so the account this
+    // engine reaches is enabled first: what is under test here is what a measurement does with a
+    // forged record, not when a measurement is taken.
+    let enabled = ymp(&root, &["provider", "enable", "anthropic"]);
+    assert!(enabled.status.success(), "{}", stated(&enabled));
     let first = ymp(&root, &["show", "runtimes"]);
     assert!(first.status.success(), "{}", stated(&first));
     let measured = record(&root, "claude-code");

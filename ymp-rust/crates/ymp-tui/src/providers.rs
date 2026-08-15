@@ -24,8 +24,8 @@
 use std::time::{Duration, SystemTime};
 
 use ymp_runtime_registry::{
-    Availability, Catalog, CatalogEntry, Engine, ProviderRecord, ProviderRoute, Registry,
-    RegistryAddress,
+    Availability, Catalog, CatalogEntry, Engine, Observation, ProviderRecord, ProviderRoute,
+    Registry, RegistryAddress,
 };
 
 /// The account an entry of the supported list stands for.
@@ -78,8 +78,8 @@ pub struct RouteFacts {
 pub struct ProviderFacts {
     pub family: ProviderFamily,
     pub record: ProviderRecord,
-    /// How old the observation is, at the moment this reading was taken.
-    pub age: Option<Duration>,
+    /// What the record can say about when it was observed, at the moment this reading was taken.
+    pub observation: Observation,
     pub models: usize,
     pub offered: usize,
     pub routes: Vec<RouteFacts>,
@@ -94,26 +94,51 @@ impl ProviderFacts {
         self.record.enabled
     }
 
+    /// Whether this root holds a measurement of this provider at all.
+    ///
+    /// It is not the same question as whether the provider is enabled, and every field of the
+    /// properties view branches on this one rather than on that one: disabling keeps every
+    /// measurement the record holds, so a card that read `disabled` as `unmeasured` would state
+    /// that nothing has been measured while drawing the measurement beside it.
+    pub fn measured(&self) -> bool {
+        self.record.has_observation()
+    }
+
     /// The models cell of a row: a count, or the dash of a provider nothing has measured.
     pub fn models_text(&self) -> String {
-        match (self.record.enabled, self.record.observed_at_ms) {
-            (false, _) | (_, None) => "—".to_owned(),
-            _ => format!("{}", self.models),
+        match self.measured() {
+            false => "—".to_owned(),
+            true => format!("{}", self.models),
+        }
+    }
+
+    /// The observed cell of a row: an age, or what stands in place of one.
+    pub fn observed_text(&self) -> String {
+        match self.observation {
+            Observation::Never => "—".to_owned(),
+            Observation::Undated => "undated".to_owned(),
+            Observation::Ahead => "not datable".to_owned(),
+            Observation::Age(age) => age_text(age),
         }
     }
 
     /// When this provider was last measured, in the words the properties view states.
     pub fn last_refresh(&self) -> String {
-        match (self.record.observed_at_ms, self.age) {
-            (None, _) => {
+        match self.observation {
+            Observation::Never => {
                 "never — nothing about this provider has been measured on this host".to_owned()
             }
-            (Some(_), None) => {
-                "at a moment this record does not state — it was written before the observation \
-                 was timed"
+            Observation::Undated => {
+                "measured, at a moment this record does not state — it was written before an \
+                 observation carried one"
                     .to_owned()
             }
-            (Some(_), Some(age)) => age_text(age),
+            Observation::Ahead => {
+                "measured, at a moment this record cannot date — it states a moment this host has \
+                 not reached"
+                    .to_owned()
+            }
+            Observation::Age(age) => age_text(age),
         }
     }
 
@@ -203,7 +228,7 @@ pub fn read(address: &RegistryAddress, now: SystemTime) -> Report {
                 .map(|engine| route_facts(&registry, &catalog, &record, *engine))
                 .collect();
             ProviderFacts {
-                age: record.observation_age(now),
+                observation: record.observation(now),
                 models: catalog.of(family).count(),
                 offered: catalog
                     .of(family)
@@ -287,19 +312,46 @@ pub fn age_text(age: Duration) -> String {
 // `/providers` — the supported list
 // ---------------------------------------------------------------------------
 
+/// The engines one row is reached through, short enough for a column.
+///
+/// A provider nothing has measured is reached by nothing this host has established, and the cell
+/// says so with a dash rather than naming an engine that was never started.
+fn reached_by_text(provider: &ProviderFacts) -> String {
+    if !provider.measured() {
+        return "—".to_owned();
+    }
+    provider
+        .routes
+        .iter()
+        .map(|route| match &route.version {
+            Some(version) => format!("{} {version}", route.engine.name()),
+            None => route.engine.name().to_owned(),
+        })
+        .collect::<Vec<_>>()
+        .join(" · ")
+}
+
 /// The `/providers` page: the fixed supported list, whatever this root has touched.
 pub fn providers_page(report: &Report, status: String) -> Page {
     let columns = vec![
         Column {
             title: "PROVIDER",
+            width: 12,
+        },
+        Column {
+            title: "STATE",
             width: 16,
         },
         Column {
-            title: "STATUS",
-            width: 18,
+            title: "REACHED BY",
+            width: 24,
         },
         Column {
             title: "MODELS",
+            width: 8,
+        },
+        Column {
+            title: "OBSERVED",
             width: 0,
         },
     ];
@@ -317,7 +369,9 @@ pub fn providers_page(report: &Report, status: String) -> Page {
                         _ => theme::red(),
                     },
                 ),
+                Cell::new(reached_by_text(provider), theme::muted()),
                 Cell::new(provider.models_text(), theme::muted()),
+                Cell::new(provider.observed_text(), theme::muted()),
             ],
             fix: (provider.record.display_state() != "ready").then(|| {
                 style::spans(
@@ -419,11 +473,17 @@ pub fn provider_page(provider: &ProviderFacts, status: String) -> Page {
             provider.name(),
             provider.disclosure()
         ));
-        notes.push(
-            "enabling is what measures the provider: until it is pressed, nothing about this \
-             account is started and nothing leaves this host"
+        notes.push(match provider.measured() {
+            // Everything on this card was measured while the account was enabled. Saying that
+            // nothing has been measured would contradict the rows above it.
+            true => "what is stated here was measured while this account was enabled · nothing \
+                     about it is started while it is disabled, and enabling it measures it again"
                 .to_owned(),
-        );
+            false => "enabling is what measures this account: until it is pressed, no surface of \
+                      the provider level starts an engine of it and nothing of this host is sent \
+                      to it"
+                .to_owned(),
+        });
     }
 
     Page {
@@ -449,8 +509,12 @@ pub fn provider_page(provider: &ProviderFacts, status: String) -> Page {
 /// The credential is named and never carried, and a state no measurement produced is never
 /// claimed: this build authenticates against no provider, so an account that answered nothing is
 /// said to be unmeasured rather than said to need authentication.
+///
+/// It branches on whether a measurement exists and never on the operator's decision. A provider
+/// that was measured and then disabled still states where its credential was read from, because
+/// that is what this root holds about it.
 fn authentication(provider: &ProviderFacts) -> String {
-    if !provider.enabled() {
+    if !provider.measured() {
         return "not measured — a provider is not reached before it is enabled".to_owned();
     }
     match provider
@@ -463,11 +527,20 @@ fn authentication(provider: &ProviderFacts) -> String {
     }
 }
 
+/// How many models this account serves, and how many of them are offered.
+///
+/// The two numbers are different questions and a disabled provider is where they part: everything
+/// it measured is still stated, and none of it is offered while the operator holds the account
+/// back. Reporting the measurement as absent would take the answer to "why is this model not
+/// offered" away with it.
 fn models_field(provider: &ProviderFacts) -> String {
-    if !provider.enabled() {
+    if !provider.measured() {
         return "— · nothing has been measured".to_owned();
     }
     let mut stated = format!("{} · {} offered", provider.models, provider.offered);
+    if !provider.enabled() {
+        stated.push_str(" · none while the account is disabled");
+    }
     for route in &provider.routes {
         if let Some(reason) = &route.without_models {
             stated.push_str(&format!(" · {} serves none: {reason}", route.engine.name()));
@@ -522,8 +595,9 @@ pub fn models_page(report: &Report, status: String) -> Page {
             title: "PROVIDER",
             width: 12,
         },
+        // Every table of this interface names this column STATE, so this one does too.
         Column {
-            title: "STATUS",
+            title: "STATE",
             width: 0,
         },
     ];
@@ -811,6 +885,163 @@ mod tests {
         assert!(
             shown.contains("no record of the claude-code engine"),
             "{shown}"
+        );
+    }
+
+    /// A provider that was measured and then disabled states everything it measured, beside the
+    /// operator's own reason for holding it back.
+    ///
+    /// The two questions are different — whether an account is enabled, and whether this root has
+    /// measured it — and the card used to answer the second with the first: an account with 55
+    /// measured models read "nothing has been measured" next to an observation four minutes old.
+    ///
+    /// The check that must fail: branch these fields on the operator's decision again, and the
+    /// card states that nothing was measured while drawing the measurement above it.
+    #[test]
+    fn a_provider_that_was_measured_and_then_disabled_still_states_what_it_measured() {
+        let (_directory, address) = root();
+        measured(
+            &address,
+            Engine::ClaudeCode,
+            &["claude-opus-5", "claude-sonnet-5"],
+        );
+        let providers = address.providers();
+        providers
+            .set_enabled(ProviderFamily::Anthropic, true, None)
+            .expect("enable anthropic");
+        let observed = UNIX_EPOCH + Duration::from_secs(1_000);
+        providers
+            .observe_family(ProviderFamily::Anthropic, &address.registry(), observed)
+            .expect("observe anthropic");
+        providers
+            .set_enabled(ProviderFamily::Anthropic, false, Some("kept out for now"))
+            .expect("disable anthropic");
+
+        let report = read(&address, observed + Duration::from_secs(240));
+        let provider = report
+            .provider(ProviderFamily::Anthropic)
+            .expect("anthropic");
+        assert!(
+            provider.measured(),
+            "the measurement left with the decision"
+        );
+        assert_eq!(provider.record.display_state(), "disabled");
+        assert_eq!(provider.record.display_reason(), "kept out for now");
+        assert_eq!(provider.last_refresh(), "4m ago");
+        assert_eq!(provider.models_text(), "2");
+
+        let page = provider_page(provider, "idle".into());
+        let shown = rendered(&page, 120, 40);
+        assert!(
+            !shown.contains("nothing has been measured"),
+            "the card states that nothing was measured while drawing the measurement:\n{shown}"
+        );
+        assert!(
+            shown.contains("delegated_host_keychain_credential"),
+            "{shown}"
+        );
+        assert!(shown.contains("2 · 0 offered"), "{shown}");
+        assert!(shown.contains("4m ago"), "{shown}");
+        assert!(shown.contains("kept out for now"), "{shown}");
+        // The closing sentence is about what a disabled account does, not about a measurement it
+        // is holding.
+        assert!(
+            shown.contains("measured while this account was enabled"),
+            "{shown}"
+        );
+    }
+
+    /// A record written before observations were timed states that it was measured and that the
+    /// moment is unknown — never that nothing has been measured.
+    ///
+    /// The check that must fail: read an absent moment as an absent measurement, and a record
+    /// holding two measured models reads "never — nothing about this provider has been measured".
+    #[test]
+    fn a_measured_record_with_no_recorded_moment_states_the_moment_and_not_the_measurement() {
+        let (_directory, address) = root();
+        measured(
+            &address,
+            Engine::ClaudeCode,
+            &["claude-opus-5", "claude-sonnet-5"],
+        );
+        let providers = address.providers();
+        providers
+            .set_enabled(ProviderFamily::Anthropic, true, None)
+            .expect("enable anthropic");
+        providers
+            .observe_family(ProviderFamily::Anthropic, &address.registry(), UNIX_EPOCH)
+            .expect("observe anthropic");
+        providers
+            .set_enabled(ProviderFamily::Anthropic, false, Some("kept out for now"))
+            .expect("disable anthropic");
+
+        // The record as the accepted P1 build wrote one: measured, and carrying no moment. The
+        // field stands on a line of its own in a written record and is followed by the routes, so
+        // dropping that line leaves the record every earlier build wrote.
+        let path = address.providers().path_of(ProviderFamily::Anthropic);
+        let stored = std::fs::read_to_string(&path).expect("stored record");
+        let earlier: String = stored
+            .lines()
+            .filter(|line| !line.contains("observed_at_ms"))
+            .map(|line| format!("{line}\n"))
+            .collect();
+        assert_ne!(earlier, stored, "the record carried no moment to drop");
+        std::fs::write(&path, earlier).expect("write the earlier record");
+
+        let report = read(&address, UNIX_EPOCH + Duration::from_secs(60));
+        let provider = report
+            .provider(ProviderFamily::Anthropic)
+            .expect("anthropic");
+        assert!(provider.measured());
+        assert_eq!(provider.observed_text(), "undated");
+        let stated = provider.last_refresh();
+        assert!(stated.starts_with("measured,"), "{stated}");
+        assert!(
+            !stated.contains("nothing about this provider has been measured"),
+            "{stated}"
+        );
+        assert_eq!(provider.models_text(), "2");
+
+        // A record stating a moment this host has not reached is not an observation taken now.
+        let ahead = read(&address, UNIX_EPOCH);
+        let provider = ahead
+            .provider(ProviderFamily::OpenAi)
+            .expect("openai is supported");
+        assert_eq!(
+            provider.observed_text(),
+            "—",
+            "an unobserved account was dated"
+        );
+    }
+
+    /// An observation dated after the moment it is read at cannot be aged, and says so rather
+    /// than reading as one taken a moment ago.
+    #[test]
+    fn an_observation_this_host_has_not_reached_is_not_read_as_a_fresh_one() {
+        let (_directory, address) = root();
+        measured(&address, Engine::ClaudeCode, &["claude-opus-5"]);
+        let providers = address.providers();
+        providers
+            .set_enabled(ProviderFamily::Anthropic, true, None)
+            .expect("enable anthropic");
+        let observed = UNIX_EPOCH + Duration::from_secs(1_000);
+        providers
+            .observe_family(ProviderFamily::Anthropic, &address.registry(), observed)
+            .expect("observe anthropic");
+
+        let report = read(&address, observed - Duration::from_secs(30));
+        let provider = report
+            .provider(ProviderFamily::Anthropic)
+            .expect("anthropic");
+        assert_eq!(provider.observed_text(), "not datable");
+        assert!(
+            provider.last_refresh().contains("cannot date"),
+            "{}",
+            provider.last_refresh()
+        );
+        assert!(
+            !provider.last_refresh().contains("0s ago"),
+            "an observation ahead of this host was read as one taken a moment ago"
         );
     }
 

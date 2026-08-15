@@ -203,6 +203,46 @@ fn reading_the_supported_list_and_the_catalog_measures_nothing() {
     );
 }
 
+/// The engines page measures nothing while no provider is enabled either.
+///
+/// It is the level beneath the providers, and it used to measure every engine the registry admits
+/// whenever it was read: on a fresh root, where Claude Code is admitted by its seeded record and no
+/// account has been enabled, looking at the page started that engine. Nothing had consented to it.
+///
+/// The check that must fail: measure every admitted engine when this page is read, and the
+/// invocation log carries `claude --version` before any provider was enabled.
+#[test]
+fn reading_the_engines_page_measures_nothing_until_a_provider_is_enabled() {
+    let host = Host::new();
+
+    let page = host.ymp(&["show", "runtimes"]);
+    assert!(page.status.success(), "{}", stated(&page));
+    assert!(
+        host.started_nothing(),
+        "the engines page started an engine before any provider was enabled: {:?}",
+        host.started()
+    );
+    let shown = stated(&page);
+    assert!(shown.contains("claude-code"), "{shown}");
+    assert!(
+        shown.contains("nothing was measured here"),
+        "the page does not say that it measured nothing:\n{shown}"
+    );
+
+    // Enabling is what measures, and it measures once.
+    let enabled = host.ymp(&["provider", "enable", "anthropic"]);
+    assert!(enabled.status.success(), "{}", stated(&enabled));
+    assert_eq!(
+        host.started()
+            .iter()
+            .filter(|line| line.starts_with("claude --version"))
+            .count(),
+        1,
+        "enabling measured the engine other than once: {:?}",
+        host.started()
+    );
+}
+
 /// A command that states no provider shows nothing and says which value it needs.
 #[test]
 fn the_properties_page_states_which_provider_it_shows() {
@@ -350,6 +390,23 @@ fn disabling_a_provider_keeps_its_measurements_and_offers_nothing() {
     );
     assert!(shown.contains("not offered"), "{shown}");
     assert!(shown.contains("kept out for this check"), "{shown}");
+
+    // The card of that provider states the measurement it holds, beside the reason it is held
+    // back. Reading the operator's decision as an absence of measurement would answer their own
+    // record with silence.
+    let card = host.ymp(&["show", "provider", "--provider", "anthropic"]);
+    assert!(card.status.success(), "{}", stated(&card));
+    let shown = stated(&card);
+    assert!(
+        !shown.contains("nothing has been measured"),
+        "the card of a measured account states that nothing was measured:\n{shown}"
+    );
+    assert!(shown.contains("kept out for this check"), "{shown}");
+    assert!(shown.contains("2 · 0 offered"), "{shown}");
+    assert!(
+        shown.contains("last refresh") && !shown.contains("last refresh:   never"),
+        "the card lost the moment of its observation:\n{shown}"
+    );
 }
 
 /// The engine the owner held back stays held back when its provider is enabled, and its recorded

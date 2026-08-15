@@ -182,9 +182,16 @@ decision is taken from the engine record, never from the copy.
 
 `enabled`, `disabled_reason` and `observed_at_ms` were added to the layout after it was first
 written, as optional fields with defaults, and the version is **not** raised for them: a record an
-earlier build wrote reads back as a provider nobody has enabled and nothing has timed, which is
-what it is, and a record this build writes is read by an earlier one as the record it already
-understood. An addition no reader has to understand is not a new layout.
+earlier build wrote reads back as a provider nobody has enabled whose observation carries no
+moment, which is what it is, and a record this build writes is read by an earlier one as the record
+it already understood. An addition no reader has to understand is not a new layout.
+
+An absent moment is not an absent measurement, and the two are answered apart. A record holds an
+observation when it holds routes, because an observation is what writes them, so a record an
+earlier build wrote states that it was measured and that the moment is unknown rather than that
+nothing has been measured. The same distinction holds for the operator's decision: **disabling
+keeps every measurement the record holds**, so a surface reads what was measured from the
+observation and reads whether it is offered from `enabled`, never one from the other.
 
 `enabled` is the operator's decision and the only field of this record nothing measures. **A
 provider is not measured before it is true**: no engine that reaches it is started, no network is
@@ -196,8 +203,10 @@ offered".
 
 `observed_at_ms` is the moment the observation was taken, in milliseconds since the Unix epoch, so
 a surface states the age of what it shows instead of presenting a measurement of any age as
-current. It is the moment the engine records were read, which is also the moment they were
-measured, because measuring the engines and observing the providers are one act. An engine measured
+current. A record stating a moment the reading host has not reached is stated as one that cannot
+be dated rather than as one taken a moment ago, because an age errs towards staleness and never
+towards freshness. It is the moment the engine records were read, which is also the moment they
+were measured, because measuring the engines and observing the providers are one act. An engine measured
 again afterwards by another surface makes the provider observation older than the measurement it
 states, never newer: the age errs towards staleness and never towards freshness.
 

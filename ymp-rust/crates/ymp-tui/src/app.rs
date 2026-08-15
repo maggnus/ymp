@@ -384,12 +384,15 @@ impl Session {
     /// waits for the measurement they asked for — the same shape a cancellation already has. That
     /// is the cost of measuring nowhere else: nothing measures in the background, so the one act
     /// that does is the one the operator is standing on.
-    fn measure_enabled_providers(&mut self) {
+    ///
+    /// It is public because the engines page measures through it too: that page is the level
+    /// beneath the providers, and measuring it on a root where nothing is enabled would start the
+    /// very engines the provider level exists to hold back.
+    pub fn measure_enabled_providers(&mut self) {
+        // The reading is taken whether or not anything is measured by it: with no provider
+        // enabled it holds one row per engine, read from the records alone, so a surface states
+        // what this root knows instead of reporting a measurement that is not running.
         let engines = self.engines_of_enabled_providers();
-        if engines.is_empty() {
-            self.read_providers();
-            return;
-        }
         self.runtimes = Some(crate::runtimes::probe_engines(
             &self.registry,
             crate::runtimes::Measure::Catalog,

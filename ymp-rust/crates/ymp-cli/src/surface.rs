@@ -677,13 +677,12 @@ fn run_show(
 ) -> Result<()> {
     let kind = page.kind();
     if kind == PageKind::Runtimes {
-        // This page is where the engines are looked at, so it is where a model list nobody has
-        // measured against the installed build is measured. The provider pages measure nothing:
-        // reading which accounts exist is not reaching one.
-        session.set_runtimes(ymp_tui::runtimes::probe_all(
-            session.registry_address(),
-            ymp_tui::runtimes::Measure::Catalog,
-        ));
+        // The engines page is where a model list nobody has measured against the installed build
+        // is measured — but only for the accounts the operator enabled. An engine beneath a
+        // provider nobody enabled is read from its record and nothing about it is started, so
+        // looking at this page on a root with nothing enabled starts no process at all. The
+        // provider pages measure nothing either: reading which accounts exist is not reaching one.
+        session.measure_enabled_providers();
     }
     let describe = (kind == PageKind::Describe).then(|| candidate.unwrap_or(0));
     // The properties view of a provider is opened from a selected row in the interface. A command

@@ -263,6 +263,24 @@ impl ProviderRoute {
     }
 }
 
+/// What a record can say about when it was observed.
+///
+/// The four answers are kept apart because three of them are true in different ways and one of
+/// them is the absence of an observation altogether. A surface that collapsed them would state
+/// that nothing has been measured about a provider whose measurements it is drawing.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum Observation {
+    /// Nothing has ever been observed about this provider.
+    Never,
+    /// It was observed, and the record does not state when: it was written before an observation
+    /// carried its moment.
+    Undated,
+    /// It states a moment this clock has not reached, so its age cannot be stated.
+    Ahead,
+    /// It was observed this long ago.
+    Age(Duration),
+}
+
 /// One provider as the product root holds it.
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct ProviderRecord {
@@ -334,14 +352,33 @@ impl ProviderRecord {
         }
     }
 
-    /// How old the observation this record states is, at the moment the caller names.
+    /// Whether anything has ever been observed about this provider.
     ///
-    /// `None` where nothing has been observed, or where the observation predates the field that
-    /// records the moment. A clock moved backwards yields a zero age rather than a negative one.
-    pub fn observation_age(&self, now: SystemTime) -> Option<Duration> {
-        let observed = self.observed_at_ms?;
+    /// It is read from the routes, because an observation is what writes them: a record with a
+    /// route was written by one, whether or not that observation was timed. Telling this from the
+    /// operator's decision is the whole point — a provider that was measured and then disabled
+    /// still holds everything it measured, and a surface that read `disabled` as `unmeasured`
+    /// would answer the operator's own record with silence.
+    pub fn has_observation(&self) -> bool {
+        !self.routes.is_empty() || self.observed_at_ms.is_some()
+    }
+
+    /// What this record can say about when it was observed, at the moment the caller names.
+    pub fn observation(&self, now: SystemTime) -> Observation {
+        let Some(observed) = self.observed_at_ms else {
+            return match self.has_observation() {
+                true => Observation::Undated,
+                false => Observation::Never,
+            };
+        };
         let now = unix_ms(now);
-        Some(Duration::from_millis(now.saturating_sub(observed)))
+        match observed > now {
+            // A record stating a moment this clock has not reached is not an observation taken a
+            // moment ago: reading it as `0s ago` would be the one error the age must not make,
+            // because an age errs towards staleness and never towards freshness.
+            true => Observation::Ahead,
+            false => Observation::Age(Duration::from_millis(now - observed)),
+        }
     }
 
     /// The record a provider takes from what its engines measured.
@@ -956,13 +993,14 @@ mod tests {
             "the observation did not record when it was taken"
         );
         assert_eq!(
-            record.observation_age(taken + Duration::from_secs(90)),
-            Some(Duration::from_secs(90))
+            record.observation(taken + Duration::from_secs(90)),
+            Observation::Age(Duration::from_secs(90))
         );
-        // A clock that moved backwards states no age of its own rather than a negative one.
+        // A moment this host has not reached is not an observation taken a moment ago: an age
+        // errs towards staleness, so it is stated as one that cannot be dated.
         assert_eq!(
-            record.observation_age(taken - Duration::from_secs(5)),
-            Some(Duration::ZERO)
+            record.observation(taken - Duration::from_secs(5)),
+            Observation::Ahead
         );
 
         // A record written before the field existed carries none, and says so rather than reading
@@ -984,8 +1022,16 @@ mod tests {
             .expect("read")
             .expect("observed");
         assert_eq!(earlier.observed_at_ms, None);
-        assert_eq!(earlier.observation_age(taken), None);
+        // It was measured and the moment is unknown, which is not the same fact as never having
+        // been measured: the routes the observation wrote are still in it.
+        assert!(earlier.has_observation());
+        assert_eq!(earlier.observation(taken), Observation::Undated);
         assert_eq!(earlier.state, record.state, "the record no longer reads");
+
+        // A provider nothing has ever observed says exactly that.
+        let never = ProviderRecord::unobserved(ProviderFamily::OpenAi);
+        assert!(!never.has_observation());
+        assert_eq!(never.observation(taken), Observation::Never);
     }
 
     /// The operator's decision is the one field of this record nothing measures, and observing

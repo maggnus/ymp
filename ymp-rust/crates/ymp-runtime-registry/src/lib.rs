@@ -41,7 +41,7 @@ pub mod provider;
 
 pub use catalog::{Availability, Catalog, CatalogEntry, CatalogRoute};
 pub use provider::{
-    NOT_ENABLED_REASON, PROVIDER_SCHEMA_VERSION, PROVIDERS_DIRECTORY, ProviderError,
+    NOT_ENABLED_REASON, Observation, PROVIDER_SCHEMA_VERSION, PROVIDERS_DIRECTORY, ProviderError,
     ProviderFamily, ProviderRecord, ProviderRoute, ProviderState, Providers,
 };
 

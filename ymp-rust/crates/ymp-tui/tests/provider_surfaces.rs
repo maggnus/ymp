@@ -155,9 +155,13 @@ fn the_supported_list_is_drawn_in_full_and_nothing_is_measured_by_looking_at_it(
                 family.name()
             );
         }
-        assert!(rendered.contains("PROVIDER"), "{rendered}");
-        assert!(rendered.contains("STATUS"), "{rendered}");
-        assert!(rendered.contains("MODELS"), "{rendered}");
+        // The columns of surface S03, in its order.
+        for column in ["PROVIDER", "STATE", "REACHED BY", "MODELS", "OBSERVED"] {
+            assert!(
+                rendered.contains(column),
+                "the table dropped the {column} column at {width}x{height}:\n{rendered}"
+            );
+        }
         assert!(rendered.contains("disabled"), "{rendered}");
 
         assert!(
@@ -332,7 +336,7 @@ fn the_model_catalog_states_its_ages_and_a_route_that_serves_nothing() {
         let shown = screen(&app, width, height);
         assert!(shown.contains("MODEL"), "{shown}");
         assert!(shown.contains("PROVIDER"), "{shown}");
-        assert!(shown.contains("STATUS"), "{shown}");
+        assert!(shown.contains("STATE"), "{shown}");
         assert!(shown.contains("claude-opus-5"), "{shown}");
         assert!(shown.contains("offered"), "{shown}");
         assert!(
