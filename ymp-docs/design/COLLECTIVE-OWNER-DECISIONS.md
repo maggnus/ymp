@@ -75,6 +75,15 @@ mechanism described in [`COLLECTIVE-DESIGN.md`](COLLECTIVE-DESIGN.md) item 7, no
 
 ## D2 · The entry rule for the origin participant
 
+> **DECIDED 2026-08-15 — option (a).** Resolved by the CTO under the owner's instruction of the same
+> day ("resolve as many as possible by the application's logic; the last CLI release was a
+> nightmare of identifier entry and confirmations") and brief v2 Part A §9/§22 ("Collective starts
+> one participant"). The origin participant runs on the first ready entry of the run's frozen
+> AgentPool in the pool's declared order (for the automatic `default` pool: catalog order of the
+> enabled providers). The kernel reads nothing about the goal; the ignition entry is recorded in the
+> pool-freeze fact. No operator setting, no question. Option (b) is reserved for a later `/pools`
+> edit if the surprise turns out to be real.
+
 **Question.** Bootstrap starts exactly one participant. Something must decide which catalog entry
 it runs on, at a moment when no collective exists to decide it. What is that rule?
 
@@ -106,6 +115,13 @@ never mistaken for a judgement about the goal, and the chosen entry recorded eit
 
 ## D3 · Whether the single authorization stays mandatory
 
+> **DECIDED 2026-08-15 — option (b).** A standing ceiling per workspace (defaults from D8, editable
+> on `/budget`) is the human-approved bound; the goal statement itself is the approval of *what*.
+> A goal starts immediately — "Task created · Collective starting…" — with no confirmation screen,
+> no identifier to type, nothing to acknowledge. Re-authorization is asked only when the standing
+> ceiling is reached (terminal BUDGET EXHAUSTED offers "raise ceiling and Continue"). Rationale:
+> brief v2 Part A §6/§9/§23 and the owner's explicit rejection of confirmation-heavy CLI flows.
+
 **Question.** The design keeps exactly one confirmation between a goal and the **run's** budget.
 Does that confirmation stay mandatory for every run? (Derivation spends earlier, from its own
 allowance; that is decision 4 and decision 8, not this one.)
@@ -131,6 +147,15 @@ the owner prefers **b**, the surface changes and no mechanism does: the ceiling 
 to the workspace and the goal statement carries the approval.
 
 ## D4 · The disclosure default
+
+> **DECIDED 2026-08-15 — option (a) for the run and (ii) for derivation, with the consequence
+> stated at the point of enabling.** Enabling a provider is the operator's one deliberate act
+> (brief v2 Part A §7: no autodetect before explicit Enable); the provider detail view states, before
+> the Enable action, that enabling permits repository content of any workspace to be sent to that
+> provider, including bounded excerpts used to derive what "done" means before a run starts. No
+> per-workspace and no per-run question. Optional narrowing stays available as an explicit policy
+> (Part A: "при необходимости явные ограничения/policy") — a workspace may exclude a provider — but
+> it is never asked. Flagged to the owner as the one decision with a confidentiality consequence.
 
 **Question.** Enabling a provider permits repository content to be sent to it. Is that permission
 given once at the provider level, per workspace, or confirmed per run?
@@ -169,6 +194,10 @@ way.
 
 ## D5 · The semantic remainder
 
+> **DECIDED 2026-08-15 — option (a).** `VERIFIED` covers the mechanically observed requirements;
+> the unobserved remainder is named on the same result line and in the evidence, never as a footnote
+> and never as a question to the operator. No sign-off step (option c) — that would be a confirmation.
+
 **Question.** Part of a goal is often not mechanically checkable — "clean", "idiomatic",
 "beautiful". May a run be reported as `accepted` when the mechanically observable part passed and a
 named part was never observed?
@@ -191,6 +220,13 @@ verification count, never in a footnote. Surface S19 and S25 are drawn that way.
 
 ## D6 · The clarification budget and what happens when it runs out
 
+> **DECIDED 2026-08-15 — option (a) with the brief's terminal.** The collective proceeds under
+> stated assumptions (class C, shown) wherever an assumption is safe; it asks only about genuine
+> intent ambiguity (brief v2 Part A §10), at most three questions per run by default. If an
+> essential question stays unanswered (unattended run), the run ends NEEDS CLARIFICATION (Part A
+> §15), never `abstained`, and `Continue` resumes it once answered. Never "create an oracle"-type
+> questions; never identifiers.
+
 **Question.** A run may ask a bounded number of questions. What happens at the bound?
 
 **Why the owner.** The three answers are three different products: one that guesses, one that stops,
@@ -209,6 +245,9 @@ the burden on ymp to determine intent from the request, the repository, the docu
 policy and discovery, and treats asking as the exception.
 
 ## D7 · Who sets the diagnostic-disclosure policy for a derived contract
+
+> **DECIDED 2026-08-15 — option (a).** One conservative default for every derived contract: failure
+> class plus which requirements were not observed, never protected inputs. Not an operator setting.
 
 **Question.** A failed verification discloses pass/fail, a failure class, or bounded diagnostics.
 When the contract is derived rather than written, who decides which?
@@ -229,6 +268,11 @@ With a derived plan there is no author to make the call.
 **What the design assumes.** Option **a**. Surface S19 draws exactly that disclosure.
 
 ## D8 · Default ceilings
+
+> **DECIDED 2026-08-15 — setting (b) *working* as the placeholder standing ceiling of a workspace
+> (D3), replaced by measurement in `W1-EVL-04a`.** $5 · 2h · 6 participants · 3 concurrent
+> attempts · 4 verification queries · 3 questions · $0.10 derivation. Visible and editable on
+> `/budget`; never asked. Flagged to the owner as the one decision that spends money unattended.
 
 **Question.** What are the default spend, wall clock, participant, concurrency, verification-query
 and question ceilings for a run with no operator narrowing?
@@ -256,6 +300,9 @@ first evaluation (`W1-EVL-04a`) is what should replace them.
 
 ## D9 · Naming: *workspace* and *attempt sandbox*
 
+> **DECIDED 2026-08-15 — option (a).** *workspace* is the operator's project; the private writable
+> copy of one attempt is the *attempt sandbox* (unit P14).
+
 **Question.** Brief §6 and §13 make *workspace* the operator's word for the project. Today it names
 the private writable copy of one attempt, and
 [`VISUAL_CONCEPT.md`](https://github.com/maggnus/ymp/blob/dfdac03dede6fa6d50298b07d6d1cd8c6d6687bf/ymp-docs/VISUAL_CONCEPT.md#L112-L117)
@@ -275,6 +322,9 @@ is small and entirely in one direction; the decision is whose word wins.
 [`COLLECTIVE-MIGRATION.md`](COLLECTIVE-MIGRATION.md).
 
 ## D10 · Whether `Continue` re-authorizes
+
+> **DECIDED 2026-08-15 — option (c), following D3(b).** `Continue` starts the next run at once
+> while the standing ceiling has headroom; the only prompt is the exhausted case.
 
 **Question.** `Continue` opens a new run in the same workspace with the accepted candidate as its
 base. Does it require a fresh authorization?
@@ -310,7 +360,12 @@ accepted.
 | D9 | Naming | *attempt sandbox* | proposed unit P14 |
 | D10 | `Continue` re-authorizes | one confirmation | surface S25 |
 
-None of the ten blocks the start of implementation. D1 and D2 must be answered before proposed unit
+**All ten are decided as of 2026-08-15** (D1 by the owner; D2–D10 by the CTO under the owner's
+delegation "resolve the maximum by the application's logic", each marked in its block; the owner may
+overturn any of them). Common thread: no confirmation screens, no identifiers to type, no setup
+wizard — the operator's deliberate acts are enabling a provider and stating a goal.
+
+Historical note — none of the ten blocked the start of implementation. D1 and D2 must be answered before proposed unit
 P8 — recruitment against a pool — can be accepted, because a pool whose declaration is undecided
 cannot be checked against, and an entry rule that is undecided cannot be proved not to be a
 semantic router.
