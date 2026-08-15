@@ -1109,6 +1109,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "ymp-board"
+version = "1.0.1"
+dependencies = [
+ "hex",
+ "serde",
+ "serde_json",
+ "sha2",
+ "thiserror",
+]
+
+[[package]]
 name = "ymp-calibration"
 version = "1.0.4"
 dependencies = [

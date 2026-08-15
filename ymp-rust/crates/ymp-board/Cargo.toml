@@ -1,0 +1,17 @@
+[package]
+name = "ymp-board"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+# The collaboration plane depends on serialization, hashing and error types, and on no ymp package
+# at all. That absence is the plane boundary in its enforceable form: a board record cannot reach a
+# control writer, a verifier or a store, because none of them is in scope here. A dependency added
+# to this list would make that reachable, so the list itself is checked by the suite.
+[dependencies]
+hex.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+sha2.workspace = true
+thiserror.workspace = true
