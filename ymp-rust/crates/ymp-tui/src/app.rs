@@ -583,7 +583,8 @@ impl Session {
                 self.model.reply(
                     "request recorded locally — nothing has started and nothing is spent. \
                      Assembling a contract from this project: a copy of it as the negative \
-                     control, and a verifier proposed from the way it runs its tests.",
+                     control, and a verifier proposed from the way it runs its tests or, when \
+                     it runs none, derived from the request itself.",
                 );
             }
             // While a draft is unauthorized the next line amends it. A line that names something

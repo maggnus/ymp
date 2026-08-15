@@ -51,8 +51,8 @@
 | `[x]` | [`W1-APP-02y.1`](waves/W1/W1-APP-02/tasks/W1-APP-02y.1.md) | The accounting assertion states what accounting guarantees | [`1e5a03e`](https://github.com/maggnus/ymp/commit/1e5a03e) | 15/08 10:35 | 15/08 11:13 (0m) |
 | `[x]` | [`W1-APP-02z`](waves/W1/W1-APP-02/tasks/W1-APP-02z/TASK.md) | A verifier cannot be rewritten by the candidate it judges | [`c364e30`](https://github.com/maggnus/ymp/commit/c364e30) | 14/08 05:07 | 15/08 00:05 (0m) |
 | `[ ]` | [`W1-APP-02z.1`](waves/W1/W1-APP-02/tasks/W1-APP-02z/subtasks/W1-APP-02z.1.md) | The npm entry point is pinned to its interpreter choice, or stays refused | — | — | — |
-| `[~]` | [`W1-APP-02z.2`](waves/W1/W1-APP-02/tasks/W1-APP-02z/subtasks/W1-APP-02z.2.md) | The refusal names the actual obstacle | — | 15/08 12:18 | 15/08 12:18 (0m) |
-| `[~]` | [`W1-APP-02z.3`](waves/W1/W1-APP-02/tasks/W1-APP-02z/subtasks/W1-APP-02z.3.md) | A testless project receives a generated verifier proposal for approval | — | 15/08 11:26 | 15/08 11:26 (0m) |
+| `[x]` | [`W1-APP-02z.2`](waves/W1/W1-APP-02/tasks/W1-APP-02z/subtasks/W1-APP-02z.2.md) | The refusal names the actual obstacle | [`163a7a0`](https://github.com/maggnus/ymp/commit/163a7a0) | 15/08 12:18 | 15/08 12:33 (0m) |
+| `[x]` | [`W1-APP-02z.3`](waves/W1/W1-APP-02/tasks/W1-APP-02z/subtasks/W1-APP-02z.3.md) | A testless project receives a generated verifier proposal for approval | [`163a7a0`](https://github.com/maggnus/ymp/commit/163a7a0) | 15/08 11:26 | 15/08 12:33 (0m) |
 | `[ ]` | [`W1-COR-03`](waves/W1/W1-COR-03/CARD.md) | Bounded local commitments self-organize and terminate | — | — | — |
 | `[x]` | [`W1-COR-03a`](waves/W1/W1-COR-03/tasks/W1-COR-03a.md) | Local commitments conserve budgets and close obligations | [`58524264`](https://github.com/maggnus/ymp/commit/585242645d405ff1f76d6015a1141144eac4207b) | 13/08 15:10 | 13/08 16:27 (1h25m) |
 | `[x]` | [`W1-COR-03b`](waves/W1/W1-COR-03/tasks/W1-COR-03b.md) | Yielded participants resume finitely and runs terminate honestly | [`ca52994`](https://github.com/maggnus/ymp/commit/ca52994) | — | 14/08 04:06 (0m) |

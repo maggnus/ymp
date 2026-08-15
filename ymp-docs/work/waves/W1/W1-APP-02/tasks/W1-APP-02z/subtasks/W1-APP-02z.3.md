@@ -3,24 +3,24 @@ id: W1-APP-02z.3
 kind: subtask
 wave: W1
 card: W1-APP-02
-state: active
+state: accepted
 risk: significant
 maturity: BUILD
 relation: required
 depends_on: [W1-APP-02z]
 blocks: []
 created_at: 2026-08-15T01:25:33+08:00
-updated_at: 2026-08-15T11:26:50+08:00
+updated_at: 2026-08-15T12:33:57+08:00
 started_at: 2026-08-15T11:26:50+08:00
-accepted_at:
-candidate_commit:
-closure_commit:
-evidence:
+accepted_at: 2026-08-15T12:33:57+08:00
+candidate_commit: https://github.com/maggnus/ymp/commit/dc93fcfa832a1d94d9d9e3dc961940f45315ad5a
+closure_commit: https://github.com/maggnus/ymp/commit/163a7a0
+evidence: the owner scenario reaches a one-statement draft in an empty directory: generated program shown in full, digest equal to the oracle, fresh copy rejected and the html candidate accepted; image checks decode png/gif/jpeg and refuse garbage and truncations; the invitation prints once; reviewer fault injections refused both degenerate programs; three minor review findings carried as residuals
 duration_minutes: 0
 blocker:
 pause_reason:
-return_trigger:
-deliberate_partial: false
+return_trigger: the derivation stays a fixed rule over the request words — a model-backed derivation under a disclosure budget waits on owner decision D4; a production verb anywhere in the request (delete the generated png files) and two named artifacts pick a rule the review flagged
+deliberate_partial: true
 ---
 
 # W1-APP-02z.3 — A testless project receives a generated verifier proposal for approval
