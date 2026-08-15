@@ -6,7 +6,7 @@ use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 use ymp_application::Application;
 use ymp_domain::{Budget, EventKind};
-use ymp_runtime_api::RuntimeEventKind;
+use ymp_runtime_api::{InFlightExcess, RuntimeEventKind};
 use ymp_runtime_codex::{CodexProfile, CodexRuntime};
 use ymp_runtime_supervisor::{
     ManagedCandidateRequest, ManagedContract, ManagedRunEvent, start_managed_candidate,
@@ -439,8 +439,27 @@ fi
         .expect("start managed outcome");
         let attempt_id = handle.attempt_id().to_owned();
         let deadline = Instant::now() + Duration::from_secs(10);
-        let mut terminal_usage = None;
+        let mut terminal = None;
+        let mut stated_accounting = false;
         let mut cancel_sent = false;
+        // The fixture prints its agent message after the turn's accounting, so an observed
+        // `accounting-ready` output states that the runtime had already reported a started turn
+        // when the run ended. The event stream is ordered, so nothing observed here arrives after
+        // the terminal event.
+        let observe = |event: RuntimeEventKind,
+                       stated_accounting: &mut bool,
+                       terminal: &mut Option<(&'static str, _)>| {
+            match event {
+                RuntimeEventKind::Output { text } if text == "accounting-ready" => {
+                    *stated_accounting = true;
+                }
+                RuntimeEventKind::Completed { usage } => *terminal = Some(("completed", usage)),
+                RuntimeEventKind::Failed { usage, .. } => *terminal = Some(("failed", usage)),
+                RuntimeEventKind::TimedOut { usage, .. } => *terminal = Some(("timed_out", usage)),
+                RuntimeEventKind::Cancelled { usage } => *terminal = Some(("cancelled", usage)),
+                _ => {}
+            }
+        };
         while Instant::now() < deadline && !handle.is_finished() {
             while let Some(event) = handle.try_next() {
                 if let ManagedRunEvent::Runtime(event) = event {
@@ -455,40 +474,73 @@ fi
                         handle.cancel("fixture cancellation").expect("cancel run");
                         cancel_sent = true;
                     }
-                    terminal_usage = match event.event {
-                        RuntimeEventKind::Completed { usage }
-                        | RuntimeEventKind::Failed { usage, .. }
-                        | RuntimeEventKind::TimedOut { usage, .. }
-                        | RuntimeEventKind::Cancelled { usage } => Some(usage),
-                        _ => terminal_usage,
-                    };
+                    observe(event.event, &mut stated_accounting, &mut terminal);
                 }
             }
             std::thread::sleep(Duration::from_millis(5));
         }
         while let Some(event) = handle.try_next() {
             if let ManagedRunEvent::Runtime(event) = event {
-                terminal_usage = match event.event {
-                    RuntimeEventKind::Completed { usage }
-                    | RuntimeEventKind::Failed { usage, .. }
-                    | RuntimeEventKind::TimedOut { usage, .. }
-                    | RuntimeEventKind::Cancelled { usage } => Some(usage),
-                    _ => terminal_usage,
-                };
+                observe(event.event, &mut stated_accounting, &mut terminal);
             }
         }
         assert!(handle.is_finished(), "{outcome} did not finish");
-        let usage = terminal_usage.expect("terminal usage");
-        assert!(usage.input_tokens > 0, "{outcome} input tokens");
-        assert!(usage.output_tokens > 0, "{outcome} output tokens");
-        assert!(usage.cost_microusd.is_some(), "{outcome} cost");
-        assert!(usage.protected_queries > 0, "{outcome} protected queries");
-        if outcome == "success" {
-            assert_eq!(usage.in_flight_excess.model_requests, 2);
-            assert_eq!(usage.in_flight_excess.cost_microusd, 3);
+        let (terminal_kind, usage) = terminal.expect("terminal usage");
+        // How far a run gets before its wall clock stops it is a matter of scheduling, so each
+        // outcome admits its own terminal kind or a wall-clock cut-off, and the accounting is
+        // judged against the last statement the runtime made rather than against a fixed count.
+        let intended_kind = match outcome {
+            "success" => "completed",
+            "error" => "failed",
+            "cancel" => "cancelled",
+            "timeout" => "timed_out",
+            _ => unreachable!(),
+        };
+        assert!(
+            terminal_kind == intended_kind || terminal_kind == "timed_out",
+            "{outcome} ended as {terminal_kind}"
+        );
+        if stated_accounting {
+            assert!(usage.input_tokens > 0, "{outcome} input tokens");
+            assert!(usage.output_tokens > 0, "{outcome} output tokens");
+            assert!(usage.cost_microusd.is_some(), "{outcome} cost");
+            assert!(usage.protected_queries > 0, "{outcome} protected queries");
+            if terminal_kind == "completed" {
+                // The turn's own accounting record settles the excess, so the counters it states
+                // replace the single request the product counted while the turn ran.
+                assert_eq!(
+                    usage.in_flight_excess.model_requests, 2,
+                    "{outcome} kept the counted request instead of the settled record"
+                );
+                assert_eq!(
+                    usage.in_flight_excess.cost_microusd, 3,
+                    "{outcome} kept the counted overshoot instead of the settled record"
+                );
+            } else {
+                // No record settled the started turn, so the request it holds stays unaccounted.
+                assert!(
+                    usage.in_flight_excess.model_requests > 0,
+                    "{outcome} lost the request the started turn left unaccounted"
+                );
+                assert!(
+                    usage.in_flight_excess.cost_microusd > 0,
+                    "{outcome} lost the overshoot the started turn left unaccounted"
+                );
+            }
         } else {
-            assert!(usage.in_flight_excess.model_requests > 0);
-            assert!(usage.in_flight_excess.cost_microusd > 0);
+            // The run ended before the runtime stated any accounting, and none is invented for it.
+            assert_eq!(usage.input_tokens, 0, "{outcome} invented input tokens");
+            assert_eq!(usage.output_tokens, 0, "{outcome} invented output tokens");
+            assert_eq!(usage.cost_microusd, None, "{outcome} invented a cost");
+            assert_eq!(
+                usage.protected_queries, 0,
+                "{outcome} invented protected queries"
+            );
+            assert_eq!(
+                usage.in_flight_excess,
+                InFlightExcess::default(),
+                "{outcome} invented an unaccounted request"
+            );
         }
         let evidence = fs::read_to_string(
             data_root
@@ -497,17 +549,10 @@ fi
                 .join("events.jsonl"),
         )
         .expect("durable runtime evidence");
-        let expected_type = match outcome {
-            "success" => "completed",
-            "error" => "failed",
-            "cancel" => "cancelled",
-            "timeout" => "timed_out",
-            _ => unreachable!(),
-        };
         let terminal = evidence
             .lines()
             .map(|line| serde_json::from_str::<serde_json::Value>(line).expect("evidence record"))
-            .find(|record| record["event"]["type"] == expected_type)
+            .find(|record| record["event"]["type"] == terminal_kind)
             .expect("durable terminal record");
         assert_eq!(
             terminal["event"]["usage"]["cost_microusd"].as_u64(),
@@ -529,13 +574,22 @@ fi
                 .collect::<Vec<_>>(),
             "{outcome} record and event disagree on the per-model spend"
         );
-        if outcome == "error" {
+        if terminal_kind == "failed" || !stated_accounting {
+            // The failure record states a cost without naming a model, and a run that stated no
+            // accounting names nothing at all; neither may be read as an attributed spend.
             assert!(
-                recorded.is_empty() && !usage.cost_is_attributed(),
-                "{outcome} recorded a cost its runtime never attributed as an attributed one"
+                recorded.is_empty(),
+                "{outcome} named a spend its runtime never attributed"
+            );
+            assert_eq!(
+                usage.cost_is_attributed(),
+                usage.cost_microusd.is_none(),
+                "{outcome} treated an unattributed cost as attributed"
             );
         } else {
-            let expected = if outcome == "success" { 31 } else { 23 };
+            // A settled turn is recorded with the completion record's total, an unsettled one with
+            // the total the started turn stated.
+            let expected = if terminal_kind == "completed" { 31 } else { 23 };
             assert_eq!(
                 recorded,
                 vec![("gpt-5-codex".to_owned(), expected)],

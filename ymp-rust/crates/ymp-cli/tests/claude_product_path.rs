@@ -473,6 +473,11 @@ esac
         let deadline = Instant::now() + Duration::from_secs(40);
         let mut terminal_usage = None;
         let mut cancel_sent = false;
+        // The fixture's first assistant message carries the request identifier the runtime counts,
+        // so an observed `accounting-ready` output states that the run reached a model request
+        // before it ended. The event stream is ordered, so nothing observed here arrives after the
+        // terminal event.
+        let mut request_observed = false;
         let collect = |event: RuntimeEventKind, terminal_usage: &mut Option<_>| {
             *terminal_usage = match event {
                 RuntimeEventKind::Completed { usage }
@@ -485,12 +490,13 @@ esac
         while Instant::now() < deadline && !handle.is_finished() {
             while let Some(event) = handle.try_next() {
                 if let ManagedRunEvent::Runtime(event) = event {
-                    if outcome == "cancel"
-                        && !cancel_sent
-                        && matches!(&event.event, RuntimeEventKind::Output { text } if text == "accounting-ready")
+                    if matches!(&event.event, RuntimeEventKind::Output { text } if text == "accounting-ready")
                     {
-                        handle.cancel("fixture cancellation").expect("cancel run");
-                        cancel_sent = true;
+                        request_observed = true;
+                        if outcome == "cancel" && !cancel_sent {
+                            handle.cancel("fixture cancellation").expect("cancel run");
+                            cancel_sent = true;
+                        }
                     }
                     collect(event.event, &mut terminal_usage);
                 }
@@ -517,9 +523,13 @@ esac
             assert_eq!(usage.in_flight_excess.model_requests, 0, "{outcome} excess");
         } else {
             assert_eq!(usage.cost_microusd, None, "{outcome} reported no cost");
-            assert!(
-                usage.in_flight_excess.model_requests > 0,
-                "{outcome} lost an unaccounted model request"
+            // No accounting record covered this run, so the excess counts exactly the model
+            // requests its transcript showed: every observed request stays unaccounted, and a run
+            // that ended before its first request has none invented for it.
+            assert_eq!(
+                usage.in_flight_excess.model_requests,
+                u64::from(request_observed),
+                "{outcome} excess does not match the model requests the transcript showed"
             );
         }
 
