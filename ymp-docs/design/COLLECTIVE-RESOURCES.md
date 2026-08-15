@@ -19,9 +19,11 @@ Every resource below is stated in the same seven parts, in the order Part B list
 6. **reconciliation responsibility** — which controller writes `status`, and what it may not do;
 7. **events and conditions**.
 
-Where this design does not decide something, the part says **open** and names the decision in
-[`COLLECTIVE-OWNER-DECISIONS.md`](COLLECTIVE-OWNER-DECISIONS.md). Nothing is filled in for the sake
-of a complete table (Part A §24, closing rule).
+Where this design does not decide something, the part says **open** and names what is missing.
+Nothing is filled in for the sake of a complete table (Part A §24, closing rule). Every decision
+[`COLLECTIVE-OWNER-DECISIONS.md`](COLLECTIVE-OWNER-DECISIONS.md) carried is now settled, so the
+`open` marks that remain are **measurement gaps rather than undecided questions**: a state no code
+in this build measures, named as unmeasured instead of asserted.
 
 Source links are pinned to the current head
 [f0376be](https://github.com/maggnus/ymp/commit/f0376be).
@@ -240,12 +242,13 @@ agents running", and Part A §22 fixes bootstrap at exactly one participant. A d
 be a mechanical actor deciding how large the collective should be, which is the semantic decision
 Part A §11 reserves for the collective.
 
-**`minAgents` is the one open question.** Part B mentions minimum, maximum, desired and autoscaling bounds; Part A
-§2 says min/max are constraints rather than replica targets, and §22 starts one participant. A
-floor above one therefore has no reconciler in this design and would have to be either ignored or
-enforced by something starting participants nobody asked for. Whether the resource carries a floor
-at all is the one question this design set leaves open —
-[decision D11](COLLECTIVE-OWNER-DECISIONS.md#d11--does-agentpool-carry-a-floor).
+**And no `minAgents`.** Part B mentions minimum, maximum, desired and autoscaling bounds; Part A §2
+says min and max are constraints rather than replica targets, and §22 starts one participant. A
+floor above one therefore has no reconciler and would have to be either recorded and ignored or
+satisfied by something starting participants nobody asked for.
+[Decision D11](COLLECTIVE-OWNER-DECISIONS.md#d11--does-agentpool-carry-a-floor) settles it: bounds
+without a floor. The absence is a decision, not an omission, and it is the only place this document
+departs from Part B's list of fields.
 
 **status**
 
@@ -638,8 +641,8 @@ archiving a run leaves its candidates readable.
 **mutable and immutable fields**
 
 Immutable in full. There is no operation that edits a candidate, and a verifier that finds a
-candidate other than the recorded one refuses rather than judges
-([`protocol.rs`](https://github.com/maggnus/ymp/blob/f0376be/ymp-rust/crates/ymp-domain/src/commitment/protocol.rs#L590-L598)).
+candidate other than the recorded one refuses rather than judges — `CandidateMismatch`
+([`protocol.rs:627-633`](https://github.com/maggnus/ymp/blob/f0376be/ymp-rust/crates/ymp-domain/src/commitment/protocol.rs#L627-L633)).
 
 **lifecycle and terminal states**
 

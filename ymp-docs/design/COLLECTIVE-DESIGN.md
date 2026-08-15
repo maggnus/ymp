@@ -371,9 +371,10 @@ conditions — is in [`COLLECTIVE-RESOURCES.md`](COLLECTIVE-RESOURCES.md).
 collective may use those three; whether it runs one participant, or one of each, or two of one and
 three of another, is the collective's decision inside `capacity` (§1, §2). There is no `replicas`
 field and no `AgentAutoscaler`: a desired participant count would be a mechanical component deciding
-how large a collective should be, which §11 reserves for the collective. Whether the resource should
-carry a floor at all is the one question this design set leaves open —
-[decision D11](COLLECTIVE-OWNER-DECISIONS.md#d11--does-agentpool-carry-a-floor).
+how large a collective should be, which §11 reserves for the collective. There is no floor either:
+[decision D11](COLLECTIVE-OWNER-DECISIONS.md#d11--does-agentpool-carry-a-floor) settles that
+`capacity` carries `maxAgents` and the concurrency limit and nothing else, because a `minAgents`
+would be the only field in the resource model with no reconciler.
 
 ### The `default` pool appears by itself
 
@@ -678,10 +679,12 @@ Failed verification is **not** a terminal while budget and policy allow: the col
 work obligation open and reacts (§9, §15). The interface says so explicitly, so a red verdict is not
 read as the end.
 
-Two honesty rules from the accepted composition survive verbatim: a run the operator ends is
-recorded as `cancelled` and never as `infrastructure_error`, and the cancel confirmation states
-beforehand what is interrupted and that consumed budget does not return
-([`VISUAL_CONCEPT.md`](https://github.com/maggnus/ymp/blob/dfdac03dede6fa6d50298b07d6d1cd8c6d6687bf/ymp-docs/VISUAL_CONCEPT.md#L248-L260)).
+Two honesty rules from the accepted composition survive, one of them in a new place. A run the
+operator ends is recorded as `cancelled` and never as `infrastructure_error`, unchanged. And the
+operator still learns beforehand what a cancellation interrupts and that consumed budget does not
+return — but on the run's own row, above the key that ends it, rather than in the typed confirmation
+[`VISUAL_CONCEPT.md`](../VISUAL_CONCEPT.md) required. The sentence survives; the ceremony does not
+(decision D3, leak L-16, surface S23).
 
 ## 15. Result and export flow
 
@@ -1121,7 +1124,7 @@ check that cannot fail proves nothing.
 
 16. A failed verification with budget remaining leaves the run running, the obligation open and the
     candidate immutable. *Negative half:* automatic termination.
-17. Each of the five terminals is reachable and is reported with its own text; `exhausted` is never
+17. Each of the six terminals is reachable and is reported with its own text; `exhausted` is never
     reported as a result. *Negative half:* substitution of one terminal for another.
 18. Verifier infrastructure failure is recorded as such and is not a rejection. *Negative half:*
     counted as a failed candidate.
@@ -1262,11 +1265,12 @@ changes owner, what closes, and what the correction proposes as new work. Summar
 
 ## 24. Decisions that genuinely need the owner
 
-Item 16 of §24, and the list is short by design. The owner's instruction of 2026-08-15 — *resolve as
-many questions as possible by the application's logic* — was applied to the ten decisions this
-design set carried, and all ten are now settled in
-[`COLLECTIVE-OWNER-DECISIONS.md`](COLLECTIVE-OWNER-DECISIONS.md). This design is written against
-them as inputs, not as assumptions.
+Item 16 of §24, and the honest answer is: **none, as of 2026-08-15.** The owner's instruction —
+*resolve as many questions as possible by the application's logic* — was applied to every decision
+this design set carried, and all eleven are settled in
+[`COLLECTIVE-OWNER-DECISIONS.md`](COLLECTIVE-OWNER-DECISIONS.md), where the reasoning behind each
+stays readable and the owner may overturn any of them. This design is written against them as
+inputs, not as assumptions.
 
 | # | Decision | State |
 |---|---|---|
@@ -1280,17 +1284,15 @@ them as inputs, not as assumptions.
 | D8 | Default ceilings | **decided** — setting *working* as the standing ceiling placeholder, editable on `/budget` |
 | D9 | Naming | **decided** — *workspace* is the project, *attempt sandbox* the private copy |
 | D10 | Whether `Continue` re-authorizes | **decided** — no: it starts at once while the ceiling has headroom |
+| D11 | Does `AgentPool` carry a floor? | **decided** — no: `maxAgents` and concurrency only, because a `minAgents` would be the only field with no reconciler |
 
-**What genuinely remains open** is one question, and it is open because brief v2 states two things
-about it that do not compose:
+**Nothing on that page is outstanding.** The eleventh entry was the last one open — Part B lists
+minimum, desired and autoscaling bounds while Part A §2 makes min and max constraints rather than
+targets and §22 fixes bootstrap at one participant — and it is settled the way the other ten were,
+by asking what the application could actually reconcile.
 
-| # | Open decision |
-|---|---|
-| D11 | Does `AgentPool` carry a floor (`minAgents`), and if so what reconciles it? Part B lists minimum, desired and autoscaling bounds; Part A §2 says min/max are constraints rather than replica targets; Part A §22 fixes bootstrap at one participant. A floor above one therefore has no reconciler in this design, and the alternative — something starting participants nobody asked for — is the mechanical size decision §11 forbids. |
-
-Two questions that would otherwise have been open are resolved here by application logic rather than
-referred, in the spirit of the same instruction, and are recorded as design decisions rather than as
-questions for the owner:
+Two further questions are resolved here by application logic rather than referred, in the spirit of
+the same instruction, and are recorded as design decisions rather than as questions for the owner:
 
 - **`NEEDS CLARIFICATION` becomes a sixth kernel terminal.** D6 requires the outcome and states it is
   never `abstained`; five terminals cannot express six distinct outcomes, and folding it into

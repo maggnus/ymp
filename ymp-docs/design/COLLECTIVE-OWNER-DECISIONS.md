@@ -5,14 +5,14 @@ decisions the design does not take on its own, because each trades one thing the
 against another and no evidence in the repository settles it. Every entry states the question, why
 it cannot be decided from the brief or the code, and the options with their consequences.
 
-**Ten of the eleven are now settled.** D1 was taken by the owner; D2–D10 were resolved by the CTO on
+**All eleven are settled.** D1 was taken by the owner; D2–D11 were resolved by the CTO on
 2026-08-15 under the owner's instruction — *resolve as many questions as possible by the
 application's logic; the last CLI release was a nightmare of identifier entry and confirmations* —
 and each carries its decision block. The rest of the design set reads them as inputs, not as
 assumptions. The owner may overturn any of them.
 
-**One remains open**, D11, and it is open because brief v2 states two things about it that do not
-compose. It is the last entry.
+Where a pre-decision paragraph below recommends something the decision above it overturned, it is
+marked **superseded** rather than deleted, so the reasoning that was weighed stays readable.
 
 Source links are pinned to
 [f0376be](https://github.com/maggnus/ymp/commit/f0376be); older links to
@@ -149,10 +149,8 @@ that shows a restated goal and a spend ceiling is not authorship — but it is s
 | **b** | One authorization per workspace establishes a standing ceiling; goals start immediately until it is reached, then re-authorize | Closest to "state a goal and get a result"; the human-approved definition of done becomes the goal statement itself, with the ceiling approved earlier |
 | **c** | Threshold: below a stated estimated spend, start without confirmation | Reads well and depends on an estimate the product cannot make honestly before a run exists |
 
-**What the design assumes.** Option **a**, because it is the only one that keeps the approval and
-the spend in the same act and because it is what the accepted composition already implements. If
-the owner prefers **b**, the surface changes and no mechanism does: the ceiling moves from the run
-to the workspace and the goal statement carries the approval.
+**Superseded by the DECIDED block above.** This paragraph recommended option **a**; the decision is
+option **b**, and the design set carries no authorization surface.
 
 ## D4 · The disclosure default
 
@@ -194,11 +192,10 @@ policy: which provider derivation may disclose to, or none.
 | **ii** | Derivation may disclose to any enabled provider without a separate answer | No setup question at all; repository content leaves the host on the strength of a decision the operator took about running agents, not about deriving requirements |
 | **iii** | Derivation discloses nothing and requires the operator to state the acceptance condition | No pre-authorization disclosure; returns exactly the authorship the brief removes, so it is not a real option unless the owner accepts that trade |
 
-**What the design assumes.** Option **b** for the run, and option **i** for derivation: one setup
-question at first run (surface S02), the provider list repeated on the authorization surface as a
-statement rather than a question, and the `already` row stating what derivation spent and disclosed
-before the operator decided. Surface S03 states the consequence at the point of enabling either
-way.
+**Superseded by the DECIDED block above.** This paragraph recommended a per-workspace rule with a
+setup question on a first-run surface; the decision is that enabling a provider **is** the consent,
+stated on its properties view above the enable key, and neither that question nor that surface
+exists.
 
 ## D5 · The semantic remainder
 
@@ -348,13 +345,20 @@ momentum and least likely to reread a ceiling.
 | **b** | One confirmation, since the workspace policy and pool are unchanged | Matches the accepted rule that an unchanged re-authorization is one confirmation (node `W1-APP-02v`) |
 | **c** | No confirmation while the standing ceiling has headroom | Only coherent if D3 resolves to option **b** |
 
-**What the design assumes.** Option **b**, consistent with the re-authorization weight already
-accepted.
+**Superseded by the DECIDED block above.** This paragraph recommended option **b**, one
+confirmation; the decision is option **c**, and there is no confirmation to give.
 
 ## D11 · Does `AgentPool` carry a floor?
 
-> **OPEN.** The one question brief v2 does not settle, and the only entry on this page still waiting
-> for the owner.
+> **DECIDED 2026-08-15 — option (a): bounds without a floor.** `AgentPool.spec.capacity` carries
+> `maxAgents` and the concurrency limit and nothing else: no `minAgents`, no `desired`, no
+> autoscaling policy. Resolved by the CTO under the owner's delegation to settle what application
+> logic can settle. Brief v2 Part A §2 makes min and max *constraints* rather than replica targets
+> and warns against introducing scaling machinery before something needs it; §22 fixes bootstrap at
+> exactly one participant; and a floor would be the only field in the resource model with no
+> reconciler — recorded and ignored, or satisfied by a mechanical component deciding how large a
+> collective should be, which §11 reserves for the collective. Adding a floor later is additive;
+> removing one operators have configured is not.
 
 **Question.** `AgentPool` carries `capacity.maxAgents` and `capacity.maxConcurrentAttempts`, which
 are ceilings the kernel enforces. Should it also carry a **floor** — `minAgents`, or a desired
@@ -381,16 +385,14 @@ product is willing to promise.
 | **b** | A floor exists as a **bound the kernel will not refuse below** — it never causes a participant to be created, it only guarantees the collective may reach that many | Honest and enforceable, but the word "minimum" then means something no operator would guess from it, and the surface has to explain that it starts nothing |
 | **c** | A floor the launcher satisfies at bootstrap: start `minAgents` participants instead of one | The only reading under which "minimum" means what it says. It contradicts §22's "Collective starts one participant" and makes a mechanical component decide the initial size of a collective |
 
-**Recommendation: option (a).** It is the only one that leaves no field without a reconciler, it is
-what §2 asks for when it says not to introduce scaling machinery prematurely, and it costs nothing
-to revisit: adding a floor later is additive, while removing one that operators have configured is
-not. If the owner wants Part B's vocabulary preserved for the future CRD, option (b) is the
-compromise — but then the field's documentation, not its name, is what carries the meaning.
+**Why (a) and not (b).** Option (b) preserves Part B's vocabulary at the cost of a word meaning the
+opposite of what an operator would read into it: a "minimum" that starts nothing. If a future
+Kubernetes CRD wants the field, it can add it together with the reconciler that gives it meaning —
+which is the point at which the question becomes answerable rather than definitional.
 
-**What the design does while this is open.** `AgentPool.spec` carries ceilings and no floor, and
-[`COLLECTIVE-RESOURCES.md`](COLLECTIVE-RESOURCES.md) marks the omission as this decision rather than
-as an oversight. Nothing in the migration plan is blocked either way: a floor is an added field on a
-resource that unit P3 builds.
+**Consequence for the design set.** `AgentPool.spec.capacity` carries `maxAgents` and
+`maxConcurrentAttempts`; [`COLLECTIVE-RESOURCES.md`](COLLECTIVE-RESOURCES.md) records the absent
+floor as this decision rather than as an omission, and unit P3 builds the resource without one.
 
 ---
 
@@ -414,7 +416,7 @@ because the decision they record has not changed.
 | D8 | Default ceilings | setting **b** as the workspace's standing ceiling placeholder | units P6a, P8; surface S06 |
 | D9 | Naming | *workspace* is the project; *attempt sandbox* the private copy | unit P16 |
 | D10 | `Continue` re-authorizes | **no** — it starts at once while the ceiling has headroom | surface S25 |
-| **D11** | **Does `AgentPool` carry a floor?** | **open** — recommendation: no floor | unit P3 |
+| D11 | Does `AgentPool` carry a floor? | **no** — `maxAgents` and concurrency only; a floor would be the one field with no reconciler | unit P3 |
 
 **The common thread of D2–D10** is the owner's ruling of 2026-08-15: no confirmation screens, no
 identifiers typed by the operator, no acknowledgement steps, no setup wizard. The operator's
@@ -429,6 +431,7 @@ the same instruction, and are recorded as design decisions in
 terminal (D6 requires the outcome and forbids reusing `abstained`), and an edited pool stops tracking
 the catalog (the alternative silently overwrites an operator's edit).
 
-**Nothing blocks implementation.** D11 is additive to a resource unit P3 builds, and every other
-decision is settled. The historical note that D1 and D2 gated recruitment no longer applies: both
-are answered.
+**Nothing blocks implementation, and nothing on this page is outstanding.** The historical note that
+D1 and D2 gated recruitment no longer applies: both are answered. Should the owner overturn D11, a
+floor is an added field on a resource unit P3 already builds, plus the reconciler that would give it
+meaning.

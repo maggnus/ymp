@@ -203,7 +203,7 @@ it. Units are kept small enough to be accepted independently.
 | P13 | Agents, tasks, activity and recruitment surfaces | P9, P11, `W1-COR-03c`, `W1-COR-03e` | L-10 | proposed |
 | P14 | Result, evidence and export surfaces with the outcome vocabulary of §15; runs addressed by sequence | P9, `W1-APP-02w.1` | L-06 | proposed |
 | P15 | One accounting: the run budget becomes a projection of the root account | P9 | — | proposed |
-| P16 | The *attempt sandbox* rename across documents and internal identifiers | D11 | — | proposed |
+| P16 | The *attempt sandbox* rename across documents and internal identifiers | D9 | — | proposed |
 | P17 | The end-to-end scenario of §22 driven on the built product | P1–P15 | test 45 | proposed |
 
 **What changed in the rebase.** P3 is new in substance: it was "run policy and permitted pool,

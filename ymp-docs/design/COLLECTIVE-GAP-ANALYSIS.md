@@ -65,7 +65,8 @@ Accepted by nodes `W1-COR-03a`, `03b`, `03g`–`03s`.
 ### 1.2 Verification is already independent, exact and honest
 
 - A verdict is bound to one exact candidate digest; a candidate that is not the recorded one is
-  refused rather than judged ([`protocol.rs:590-598`](../../ymp-rust/crates/ymp-domain/src/commitment/protocol.rs)).
+  refused rather than judged — `CandidateMismatch`
+  ([`protocol.rs:627-633`](../../ymp-rust/crates/ymp-domain/src/commitment/protocol.rs)).
 - Acceptance evidence names contract, candidate, environment and oracle digests together
   ([`lib.rs:84-92`](../../ymp-rust/crates/ymp-domain/src/lib.rs)).
 - A program that accepts a deliberately wrong candidate cannot enter a contract; the negative
@@ -74,7 +75,10 @@ Accepted by nodes `W1-COR-03a`, `03b`, `03g`–`03s`.
 - A verifier that delegates to a file inside the candidate is pinned to the approved bytes
   ([`answer.rs:15-21`](../../ymp-rust/crates/ymp-application/src/answer.rs), node `W1-APP-02z`).
 - Five terminal states exist and quiescence is never acceptance
-  ([`lib.rs:31-46`](../../ymp-rust/crates/ymp-domain/src/lib.rs)).
+  ([`lib.rs:31-46`](../../ymp-rust/crates/ymp-domain/src/lib.rs)). A sixth,
+  `needs_clarification`, is added by change C15 because decision D6 requires the outcome and
+  forbids reusing `abstained`; the property that terminals are distinct and never substituted is
+  what the addition preserves.
 
 Brief v2 §10 lists exactly these as the mechanisms to preserve. They need a different author, not a
 different design.
@@ -142,8 +146,10 @@ against a restated goal. The interview disappears; the analysis does not.
 `acceptance_plan[]`; the package is stored as an internal object and referenced by digest from
 `Run.spec.contractDigest` ([`COLLECTIVE-RESOURCES.md`](COLLECTIVE-RESOURCES.md), Run).
 
-**Interface.** No surface asks for a package. Authorization shows the restated goal, what *done*
-means in plain sentences, the ceiling and the disclosure; the eleven contents live in diagnostics.
+**Interface.** No surface asks for a package. The block that starts the run states the restated
+goal, what *done* means in plain sentences, the ceiling it spends from and the disclosure; the eleven
+contents live in diagnostics. It is information appended to the transcript, not a gate — decision D3
+and leak L-16.
 
 **Tests.** Design tests 1, 3, 12, 15: a contract complete without operator input, every requirement
 classified, every check discriminating.
@@ -200,8 +206,8 @@ artifact to author.
 **Transition.** `answer::generate` stops being a special case and becomes one generator among
 several inside derivation; its refusals become statements of what the plan does not observe.
 
-**Interface.** A project with no tests reaches authorization with a derived plan and a named
-remainder, not a refusal.
+**Interface.** A goal stated in a project with no tests starts a run against a derived plan, with
+the remainder named in the transcript — not a refusal.
 
 **Tests.** Design test 1 with its negative half — today's refusal demanding a hand-written verifier —
 and test 15.
@@ -263,8 +269,9 @@ process creation. The interface reads records through an application port and co
 composition crate; `ymp-tui` drops its runtime dependencies.
 
 **Interface.** `/providers`, `/models` and `/pools` are configuration surfaces and create nothing;
-`/agents` is a runtime surface and configures nothing. Authorization is never blocked by a *profile*
-— it is blocked by an empty pool, which is a different sentence with a different fix.
+`/agents` is a runtime surface and configures nothing. A goal is never refused because of a
+*profile* — it is refused by an empty pool, which is a different sentence with a different fix, and
+which names `/providers` rather than a runtime.
 
 **Tests.** Design test 22 extended: the shipped interface links no runtime crate and offers no
 profile it cannot start.
@@ -287,11 +294,12 @@ about a derived plan — and the rule that a plan nothing could reject cannot st
 **Owner.** The product decides plan quality and refuses on its own account; the operator decides a
 spend.
 
-**Transition.** `Authorize` carries the restated goal, the ceiling, the pool, the disclosure and the
-assurance profile; `requirements[]` moves to the diagnostics projection.
+**Transition.** The `Authorize` modal retires entirely (decision D3). The restated goal, the
+ceiling, the pool, the disclosure and the assurance profile are carried by the run-start block in the
+transcript; `requirements[]` moves to the diagnostics projection.
 
-**Interface.** One confirmation, a spend decision. The map is one keystroke away and is never the
-gate.
+**Interface.** No screen stands between the goal and the collective. The map is one keystroke away
+under diagnostics and is never a gate — and, per L-16, there is nothing to confirm.
 
 **Tests.** Design test 2 and the reachability check that the map is still complete.
 
@@ -313,11 +321,11 @@ capacity, which is a boundary and not a team.
 **Transition.** No domain change — the ceiling already exists as `ParticipantStarts`. The document
 of record's sentence is replaced; the design records the required wording change.
 
-**Interface.** No roster surface exists at any point before authorization. `/agents` shows what the
-collective made.
+**Interface.** No roster surface exists at any point between the goal and the collective.
+`/agents` shows what the collective made.
 
-**Tests.** Design test 4 — authorization starts exactly one participant, and its negative half is
-any build in which a number is asked for.
+**Tests.** Design test 4 — a goal that starts a run starts exactly one participant, and its negative
+half is any build in which a number is asked for.
 
 ### L-08 · The permitted model set is asked for at request time
 
@@ -328,10 +336,11 @@ the operator is not made to build that snapshot.
 **Now — in the current design set, not in the code.** Owner decision D1 as recorded states that "for
 a task the operator names the permitted set of concrete models/agents … and, when needed, their
 count/limit" and that "the per-task permitted list is operator input at request time"
-([`COLLECTIVE-OWNER-DECISIONS.md:22-24`](COLLECTIVE-OWNER-DECISIONS.md),
-[`:40-41`](COLLECTIVE-OWNER-DECISIONS.md)). The design carries it into the run policy as a field the
-operator may narrow ([`COLLECTIVE-DESIGN.md:255-278`](COLLECTIVE-DESIGN.md)) and the interface
-draws it as a policy row before a run ([`COLLECTIVE-TUI.md:239-273`](COLLECTIVE-TUI.md)).
+([`COLLECTIVE-OWNER-DECISIONS.md:22-24` at f0376be](https://github.com/maggnus/ymp/blob/f0376be/ymp-docs/design/COLLECTIVE-OWNER-DECISIONS.md#L22-L24),
+[`:40-41`](https://github.com/maggnus/ymp/blob/f0376be/ymp-docs/design/COLLECTIVE-OWNER-DECISIONS.md#L40-L41)). The design carried it into the run policy as a
+field the operator may narrow ([`COLLECTIVE-DESIGN.md:255-278`](https://github.com/maggnus/ymp/blob/f0376be/ymp-docs/design/COLLECTIVE-DESIGN.md#L255-L278))
+and the interface drew it as a policy row before a run
+([`COLLECTIVE-TUI.md:239-273`](https://github.com/maggnus/ymp/blob/f0376be/ymp-docs/design/COLLECTIVE-TUI.md#L239-L273)).
 
 **Stays.** The freeze, the digest, the reproducibility of a matched-budget comparison, and the fact
 that a run states exactly what it could have used.
@@ -344,30 +353,30 @@ already annotated on the decision.
 **Transition.** `AgentPool` as a stored resource with `spec.models` (selector or explicit ordered
 list) and `spec.capacity`; `Run.spec.poolSnapshot` as the frozen value; `PoolFrozen` as the fact.
 
-**Interface.** Nothing about models appears between the goal and the authorization. `/pools` exists
+**Interface.** Nothing about models appears between the goal and the collective. `/pools` exists
 for the advanced operator and is never a prerequisite.
 
-**Tests.** A new design test: after enabling one provider, a goal typed immediately reaches
-authorization with a non-empty pool and no question about models. Negative half: `No AgentPool
-configured`, or any prompt for a permitted set.
+**Tests.** Design tests 32 and 33: after enabling one provider, a goal typed immediately starts a run
+against a non-empty pool with no question about models. Negative half: `No AgentPool configured`, or
+any prompt for a permitted set.
 
 ### L-09 · No participant is started, and starting one is a second operator act
 
 **Brief.** §9 and §22: after the goal, `Task created · Collective starting…`, and the operator never
 creates an agent.
 
-**Now.** Authorization stores the contract and stops: "nothing is being done yet · `/attempt
+**Now.** Storing the contract is where the path stops: "nothing is being done yet · `/attempt
 {run_id}` starts the {profile} profile on this run, which is where spending against your own account
 begins" ([`app.rs:800-820`](../../ymp-rust/crates/ymp-tui/src/app.rs)). Starting work is a separate
-public command with its own confirmation
+public command with its own typed confirmation
 ([`surface.rs:88-96`](../../ymp-rust/crates/ymp-cli/src/surface.rs)).
 
-**Stays.** The separation of authorities the two-step shape was protecting — authorizing a run and
-spending against a provider account are different grants — expressed as two facts in one
-authorization rather than as two operator acts.
+**Stays.** The separation of authorities the two-step shape was protecting — creating a run and
+spending against a provider account are different grants — expressed as two facts committed in one
+sequence rather than as two operator acts.
 
-**Owner.** The run launcher: on authorization it freezes the pool, registers the origin participant,
-funds it and starts one invocation, following committed facts and deciding nothing.
+**Owner.** The run launcher: as soon as the run exists it freezes the pool, registers the origin
+participant, funds it and starts one invocation, following committed facts and deciding nothing.
 
 **Transition.** A composition-level launcher above the application core and the supervisor; the
 `Attempt` command becomes an internal consequence rather than a public step.
@@ -454,8 +463,9 @@ declared order fails; two requests differing only in goal text decide identicall
 supported list is shown with every provider `disabled` until the operator enables one.
 
 **Now — design and code.** The design has startup "probes provider readiness in the background"
-([`COLLECTIVE-DESIGN.md:164-168`](COLLECTIVE-DESIGN.md)) and the startup surface draws
-`providers probing… (3 configured)` ([`COLLECTIVE-TUI.md:92-97`](COLLECTIVE-TUI.md)). In the code the
+([`COLLECTIVE-DESIGN.md:164-168` at f0376be](https://github.com/maggnus/ymp/blob/f0376be/ymp-docs/design/COLLECTIVE-DESIGN.md#L164-L168)) and the startup
+surface drew `providers probing… (3 configured)`
+([`COLLECTIVE-TUI.md:92-97`](https://github.com/maggnus/ymp/blob/f0376be/ymp-docs/design/COLLECTIVE-TUI.md#L92-L97)). In the code the
 engine probe runs the engine executable on a worker thread as a matter of course
 ([`runtimes.rs:13-17`](../../ymp-rust/crates/ymp-tui/src/runtimes.rs)).
 
@@ -481,7 +491,8 @@ connection. Negative half: a probe that runs on launch.
 §6: no conversational setup wizard.
 
 **Now.** The design's startup draws four lines including the full assurance sentence
-([`COLLECTIVE-TUI.md:92-99`](COLLECTIVE-TUI.md)), while node `W1-APP-02e.5` is accepted with exactly
+([`COLLECTIVE-TUI.md:92-99` at f0376be](https://github.com/maggnus/ymp/blob/f0376be/ymp-docs/design/COLLECTIVE-TUI.md#L92-L99)), while node `W1-APP-02e.5` is
+accepted with exactly
 the logo, one line of basics (current directory, application version) and the request invitation,
 the full assurance text living in `?` and `/runtimes`.
 
@@ -508,11 +519,13 @@ candidates exist and each is named rather than waved past:
 
 1. **Derivation as a product module.** The current design puts the reading of the goal, the
    production of observable requirements and the generation of the acceptance plan in an
-   application module ([`COLLECTIVE-DESIGN.md:511-560`](COLLECTIVE-DESIGN.md),
-   [`:786-790`](COLLECTIVE-DESIGN.md)). That is a semantic decision taken by the product rather
+   application module ([`COLLECTIVE-DESIGN.md:511-560` at f0376be](https://github.com/maggnus/ymp/blob/f0376be/ymp-docs/design/COLLECTIVE-DESIGN.md#L511-L560),
+   [`:786-790`](https://github.com/maggnus/ymp/blob/f0376be/ymp-docs/design/COLLECTIVE-DESIGN.md#L786-L790)). That is a semantic decision taken by the product
+   rather
    than by the collective, which §11 reserves.
 2. **The divergence classifier.** The same design has derivation judge whether an operator's answer
-   contradicts a recorded requirement ([`COLLECTIVE-DESIGN.md:602-620`](COLLECTIVE-DESIGN.md)) —
+   contradicts a recorded requirement
+   ([`COLLECTIVE-DESIGN.md:602-620` at f0376be](https://github.com/maggnus/ymp/blob/f0376be/ymp-docs/design/COLLECTIVE-DESIGN.md#L602-L620)) —
    again a semantic judgement in a product component.
 3. **The generated check's fixed rule.** `answer::generate` reads a production verb and the artifact
    it names out of the request's own words
@@ -628,7 +641,7 @@ check), `W1-EVL-04d` (closed by owner decision D1).
 | Operator authors the acceptance condition and the verifier | A derivation run of the collective, funded and disclosed | L-01, L-02, L-03 |
 | Operator names which agent does the work | The collective names a catalog entry; the kernel checks membership | L-04 |
 | Operator configures a profile and thereby chooses the worker | Provider and pool configuration; a separate launcher creates participants | L-05 |
-| Operator reviews a coverage map to authorize | Operator authorizes a spend against a restated goal | L-06 |
+| Operator reviews a coverage map to authorize | Nothing: the step retires. The goal sentence states what is wanted and the workspace's standing ceiling bounds it | L-06, L-16 |
 | Operator sets the roster and the permitted set | An automatic `default` AgentPool; the collective decides its own size within capacity | L-07, L-08 |
 | Operator issues a second command to start work | The launcher bootstraps as soon as the run exists | L-09 |
 | Configuration names the origin participant | A mechanical rule over the frozen pool | L-12 |
@@ -675,7 +688,7 @@ Each mechanism is named with where its ownership now sits.
 | Mechanism | Kept as | Owned by |
 |---|---|---|
 | An approved definition of done | The internal contract, bound once per run | derivation run; approved as a spend by the operator |
-| Discrimination gate | A plan that accepts the negative control or a substituted entry point cannot decide a run | derivation run, before authorization |
+| Discrimination gate | A plan that accepts the negative control or a substituted entry point cannot decide a run | derivation run, before the run is created |
 | Exact digests | Contract, candidate, environment, oracle named together in every acceptance claim | kernel |
 | Protected material | Never enters the collaboration plane; the producing attempt never writes verifier state | kernel and verifier boundary |
 | Finite resources | Every participant, attempt, invocation, offer and obligation reserves a dimension | kernel |
@@ -685,4 +698,4 @@ Each mechanism is named with where its ownership now sits.
 | Candidate immutability | A candidate is a fact; a verdict binds one exact digest | kernel |
 | `infrastructure_error` ≠ rejection | Its own state, never counted against a candidate | verifier controller |
 | Bounded verification budget | `VerificationQueries` reserved per query | kernel |
-| Five distinct terminals | Quiescence is never acceptance; `exhausted` is never drawn as success | kernel and every surface |
+| Six distinct terminals | Quiescence is never acceptance; `exhausted` is never drawn as success; `needs_clarification` is its own word and never `abstained` | kernel and every surface |
