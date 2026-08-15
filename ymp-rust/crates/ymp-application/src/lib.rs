@@ -1,7 +1,7 @@
 #![forbid(unsafe_code)]
 
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::fs::{self, File, OpenOptions};
 use std::io::Write;
 use std::path::{Component, Path, PathBuf};
@@ -12,8 +12,11 @@ use ymp_agent_api::{
     AgentToolCall, AgentToolError, AgentToolHandler, MAX_EVENT_PAGE, ReadEventsArguments,
     SubmitArguments,
 };
-use ymp_artifacts::{ArtifactError, ArtifactStore, CandidateRef, SubmissionRef};
-use ymp_domain::commitment::{BudgetVector, CommitmentCommand, CommitmentError, CommitmentLedger};
+use ymp_artifacts::{ArtifactError, ArtifactStore, CandidateRef, FileEntry, SubmissionRef};
+use ymp_domain::commitment::{
+    BudgetVector, BundleChange, CommitmentCommand, CommitmentError, CommitmentEvent,
+    CommitmentLedger, PathChange,
+};
 use ymp_domain::{
     Budget, Command, EventEnvelope, EventKind, MAX_IDENTIFIER_CHARS, RunState, RunStatus,
     TransitionError, VerificationRecord,
@@ -26,13 +29,11 @@ use ymp_verifier::{
 };
 
 pub mod answer;
-pub mod commitment;
 pub mod contract;
 pub mod root;
 pub mod verification;
 
 pub use answer::AnswerError;
-pub use commitment::{CommitmentOutcome, CommitmentService, CommitmentServiceError, RecordedFact};
 pub use contract::{
     AcceptanceCondition, ContractRequestError, DEFAULT_RUN_BUDGET, PreparedContract, RunRequest,
     load_contract_package, prepare_contract, run_stem,
@@ -156,6 +157,34 @@ pub struct WorkspaceCandidateOutcome {
     pub submission: SubmissionRef,
     pub candidate: CandidateRef,
     pub command: CommandOutcome,
+}
+
+/// What one commitment command committed, and where in the run's ledger it stands.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+pub struct CommitmentOutcome {
+    /// The sequence of the first fact this command committed.
+    pub first_sequence: u64,
+    pub events: Vec<CommitmentEvent>,
+    /// Whether this is the recorded result of an earlier delivery of the same command.
+    pub replayed: bool,
+}
+
+/// The construction of the result a run committed: the base it was built from and the exact object
+/// standing at every path it changed.
+///
+/// It is read out of the two snapshots the run's own record names — the base its attempt started
+/// from and the result its submission produced — so what it states is what the store holds, and not
+/// what a process happened to remember. Stated in the vocabulary the commitment kernel forms
+/// candidates in, it is what carries a result's ancestry from the journal into the ledger.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+pub struct CandidateConstruction {
+    pub base_digest: String,
+    /// The identifier the run's journal carries for this result: the digest of the snapshot the
+    /// candidate is materialized from. The kernel names the same result by the digest of the whole
+    /// construction, which is computed from these facts and not from this field.
+    pub candidate_digest: String,
+    /// One entry per path the result changed relative to its base, in path order.
+    pub changes: Vec<BundleChange>,
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -605,6 +634,18 @@ impl Application {
     /// path exists to prevent. Nothing recorded here moves the run's own status: a commitment
     /// record commits no transition of the run, so the terminal the journal states stands
     /// unchanged.
+    ///
+    /// What such a run no longer does is begin anything. A command that offers work, records
+    /// consent, forms a contract, starts an attempt or a process slice, resumes one or buys more
+    /// lease is refused from the moment the journal states an ending, whether or not the ledger has
+    /// been stopped as well. The two records reach their endings at different moments — an operator
+    /// cancels the run, and the kernel is stopped when the slice that was running has been wound
+    /// down — and everything created in between was created for a run that had already ended: a
+    /// wake offer advertised then draws on an account nothing will spend, and a resumption admitted
+    /// then puts a runtime back to work on a cancelled run. The accounting of the ending is not
+    /// creation and still lands: the run is stopped, its work returned, its offers withdrawn and
+    /// settled, its slice closed, and the verdict a protected query produced is recorded, since
+    /// that verdict is what the ending of a finished run is derived from.
     pub fn execute_commitment(
         &mut self,
         command_id: impl Into<String>,
@@ -614,8 +655,14 @@ impl Application {
         validate_identifier("command_id", &command_id)?;
         let command_digest = command.digest()?;
         self.recover_projection()?;
+        // A repeated delivery is answered before the guard: what it returns is the result the first
+        // delivery committed while the run was live, and refusing it would report an ending for a
+        // command that had already been decided.
         if let Some(outcome) = self.replay_commitment(&command_id, &command_digest)? {
             return Ok(outcome);
+        }
+        if self.state.status.is_terminal() && creates(command) {
+            return Err(TransitionError::Terminal(self.state.status).into());
         }
         let ledger = self
             .commitments
@@ -931,6 +978,48 @@ impl Application {
             candidate,
             command,
         })
+    }
+
+    /// The construction of the candidate this run committed, or `None` while it has committed none.
+    ///
+    /// The change set is the difference between two snapshots the run's own record names: the base
+    /// its attempt was started from, and the result its submission produced. A path both snapshots
+    /// state identically is not a change and is left out; a path the result states differently, or
+    /// states and the base does not, is the exact object the result puts there; a path the base
+    /// states and the result does not is a deletion, which is a stated value like any other.
+    ///
+    /// Nothing here reads what any change means. Bytes are named by digest and compared by digest,
+    /// and the objects themselves are the ones the store already holds.
+    pub fn candidate_construction(
+        &self,
+    ) -> Result<Option<CandidateConstruction>, ApplicationError> {
+        let Some(identity) = &self.candidate_identity else {
+            return Ok(None);
+        };
+        let artifacts = self.artifact_store();
+        let base = entries(artifacts.load_snapshot(&identity.base_digest)?.files);
+        let result = entries(artifacts.load_snapshot(&identity.object_digest)?.files);
+        let mut changes = Vec::new();
+        for path in base.keys().chain(result.keys()).collect::<BTreeSet<_>>() {
+            let change = match (base.get(path), result.get(path)) {
+                (Some(before), Some(after)) if before == after => continue,
+                (_, Some(after)) => PathChange::Upsert {
+                    object_digest: after.object_digest.clone(),
+                    executable: after.executable,
+                },
+                (Some(_), None) => PathChange::Delete,
+                (None, None) => continue,
+            };
+            changes.push(BundleChange {
+                path: (*path).clone(),
+                change,
+            });
+        }
+        Ok(Some(CandidateConstruction {
+            base_digest: identity.base_digest.clone(),
+            candidate_digest: identity.object_digest.clone(),
+            changes,
+        }))
     }
 
     pub fn export_evidence(
@@ -1543,6 +1632,60 @@ fn ledger_from(event: &EventKind) -> Result<CommitmentLedger, ApplicationError> 
         root_obligation,
         *budget,
     )?)
+}
+
+/// Whether a commitment command begins something new in the run.
+///
+/// The distinction is what the run's ending means: after it, what already exists is wound down and
+/// nothing further is begun, extended or bought. Creating is therefore read as authority — offering
+/// work, consenting to it, forming a contract or an obligation under it, starting an attempt or a
+/// process slice, admitting one back, and buying more lease for either.
+///
+/// Everything else is the accounting of what was already there. Withdrawing and settling an offer,
+/// returning or cancelling a task contract, closing a slice, moving the clock and stopping the run
+/// close what exists rather than open anything. Recording a result belongs here too: the result is
+/// the work the run already did, and its bytes are in the run's record before any of this is
+/// stated. So does a verdict: a protected query judges a result that exists, and the ending of a
+/// finished run is derived from that verdict, so refusing it would leave the run with no ending to
+/// derive at all.
+///
+/// The match names every command, so a command added to the protocol is classified here rather than
+/// admitted by a wildcard.
+const fn creates(command: &CommitmentCommand) -> bool {
+    match command {
+        CommitmentCommand::RegisterParticipant(_)
+        | CommitmentCommand::Advertise(_)
+        | CommitmentCommand::RecordBid(_)
+        | CommitmentCommand::Award(_)
+        | CommitmentCommand::AcceptOpen(_)
+        | CommitmentCommand::StartAttempt(_)
+        | CommitmentCommand::RenewLease(_)
+        | CommitmentCommand::Reassign(_)
+        | CommitmentCommand::StartInvocation(_)
+        | CommitmentCommand::ResumeInvocation(_) => true,
+        CommitmentCommand::WithdrawBid(_)
+        | CommitmentCommand::WithdrawOffer(_)
+        | CommitmentCommand::SettleOffer(_)
+        | CommitmentCommand::SubmitResult(_)
+        | CommitmentCommand::RecordObject(_)
+        | CommitmentCommand::SubmitBundle(_)
+        | CommitmentCommand::RecordConflict(_)
+        | CommitmentCommand::ReturnObligation(_)
+        | CommitmentCommand::CancelContract(_)
+        | CommitmentCommand::AdvanceClock(_)
+        | CommitmentCommand::YieldInvocation(_)
+        | CommitmentCommand::CloseInvocation(_)
+        | CommitmentCommand::RecordVerification(_)
+        | CommitmentCommand::StopRun(_) => false,
+    }
+}
+
+/// A snapshot's files keyed by path, which is the form the two snapshots are compared in.
+fn entries(files: Vec<FileEntry>) -> BTreeMap<String, FileEntry> {
+    files
+        .into_iter()
+        .map(|entry| (entry.path.clone(), entry))
+        .collect()
 }
 
 fn journal_open_error(error: JournalError) -> ApplicationError {

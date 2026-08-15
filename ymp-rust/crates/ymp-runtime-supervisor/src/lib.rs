@@ -1417,21 +1417,25 @@ fn start_candidate(
                     if !completed {
                         bail!("runtime ended without a completed event");
                     }
-                    let candidate_digest =
-                        {
-                            let application = worker_application
-                                .lock()
-                                .map_err(|_| anyhow::anyhow!("application lock was poisoned"))?;
-                            if application.state().status != RunStatus::Running {
-                                return Ok(());
-                            }
-                            application.state().candidate_digest.clone().context(
-                                "completed runtime has no controller-committed candidate",
-                            )?
-                        };
+                    // What the work produced is read out of the run's own record: the base its
+                    // attempt started from and the exact object standing at every path the result
+                    // changed. The kernel is given that construction rather than a digest, so the
+                    // ancestry of the result reaches the journal with it.
+                    let construction = {
+                        let application = worker_application
+                            .lock()
+                            .map_err(|_| anyhow::anyhow!("application lock was poisoned"))?;
+                        if application.state().status != RunStatus::Running {
+                            return Ok(());
+                        }
+                        application
+                            .candidate_construction()?
+                            .context("completed runtime has no controller-committed candidate")?
+                    };
                     // The work the run is accountable for now carries the exact candidate a
                     // protected query would be spent on.
-                    worker_kernel.submitted(&candidate_digest)?;
+                    worker_kernel.submitted(&construction)?;
+                    let candidate_digest = construction.candidate_digest;
                     drop(terminal);
                     let _ = sender.send(ManagedRunEvent::CandidateAvailable {
                         candidate_digest,
