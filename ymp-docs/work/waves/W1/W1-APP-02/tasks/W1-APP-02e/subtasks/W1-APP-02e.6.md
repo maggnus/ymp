@@ -6,11 +6,11 @@ card: W1-APP-02
 state: ready
 risk: significant
 maturity: BUILD
-relation: required
+relation: supporting
 depends_on: [W1-APP-02e]
 blocks: []
 created_at: 2026-08-15T01:52:53+08:00
-updated_at: 2026-08-15T02:30:35+08:00
+updated_at: 2026-08-15T08:05:36+08:00
 started_at:
 accepted_at:
 candidate_commit:

@@ -3,19 +3,19 @@ id: W1-APP-02e
 kind: task
 wave: W1
 card: W1-APP-02
-state: active
+state: accepted
 risk: significant
 maturity: BUILD
 relation: required
 depends_on: [W0-UX-01c, W1-APP-02b, W1-APP-02c, W1-APP-02d]
 blocks: [W1-COR-03a]
 created_at: 2026-08-10T19:34:25+08:00
-updated_at: 2026-08-15T00:06:07+08:00
+updated_at: 2026-08-15T08:05:36+08:00
 started_at: 2026-08-15T00:06:07+08:00
-accepted_at:
-candidate_commit:
-closure_commit:
-evidence:
+accepted_at: 2026-08-15T08:05:36+08:00
+candidate_commit: https://github.com/maggnus/ymp/commit/fd7723120c31432ae1856d80aa76a53e9ce2cb2d
+closure_commit: https://github.com/maggnus/ymp/commit/d5ccf10
+evidence: the owner scenario ran live through the public surface (authorize, attempt on real Claude, verification, export without .ymp in the candidate); the reviewer live falsifier confirmed all five acceptance items and the second-run transition to runs/0002 with a byte-identical first journal; one return round
 duration_minutes: 59
 blocker: W1-APP-02c and W1-APP-02d are incomplete, and the new chat-first contract requires W1-APP-02e.2 review before implementation
 pause_reason:

@@ -15,7 +15,7 @@
 | `[x]` | [`W1-APP-02b`](waves/W1/W1-APP-02/tasks/W1-APP-02b.md) | Private attempt produces independently verified immutable candidate | [`5571a07f`](https://github.com/maggnus/ymp/commit/5571a07f5ca8f1ffcf515a73fc24401dce361ecd) | 12/08 16:14 | 12/08 19:02 (2h48m) |
 | `[x]` | [`W1-APP-02c`](waves/W1/W1-APP-02/tasks/W1-APP-02c.md) | Codex profile completes one managed candidate attempt | [`d56b199e`](https://github.com/maggnus/ymp/commit/d56b199ed1c8c7e13f479cfcac9647fa4f5abd0b) | 12/08 22:06 | 13/08 09:17 (11h10m) |
 | `[x]` | [`W1-APP-02d`](waves/W1/W1-APP-02/tasks/W1-APP-02d.md) | Claude Code profile completes one managed candidate attempt | [`00e25cb9`](https://github.com/maggnus/ymp/commit/00e25cb95d65bba6056380d7b3fa51536999e5d5) | 12/08 22:44 | 13/08 12:11 (13h15m) |
-| `[~]` | [`W1-APP-02e`](waves/W1/W1-APP-02/tasks/W1-APP-02e/TASK.md) | TUI completes and exports a single-participant run | — | 15/08 00:06 | 15/08 00:06 (59m) |
+| `[x]` | [`W1-APP-02e`](waves/W1/W1-APP-02/tasks/W1-APP-02e/TASK.md) | TUI completes and exports a single-participant run | [`d5ccf10`](https://github.com/maggnus/ymp/commit/d5ccf10) | 15/08 00:06 | 15/08 08:05 (59m) |
 | `[x]` | [`W1-APP-02e.1`](waves/W1/W1-APP-02/tasks/W1-APP-02e/subtasks/W1-APP-02e.1.md) | Deterministic TUI buffers enforce the accepted screen contract | [`bdccf008`](https://github.com/maggnus/ymp/commit/bdccf00825b6a93ff25ab10f34719e645bc8f8f9) | 12/08 16:19 | 12/08 17:38 (59m) |
 | `[x]` | [`W1-APP-02e.2`](waves/W1/W1-APP-02/tasks/W1-APP-02e/subtasks/W1-APP-02e.2.md) | Chat-first visual contract is independently accepted | [`b57ec9d0`](https://github.com/maggnus/ymp/commit/b57ec9d0e04b47f0848fba4e7d1b9b2d7cf68336) | 13/08 01:32 | 13/08 09:46 (8h14m) |
 | `[x]` | [`W1-APP-02e.3`](waves/W1/W1-APP-02/tasks/W1-APP-02e/subtasks/W1-APP-02e.3.md) | Ratatui implements the accepted chat-first contract | [`d9029e0d`](https://github.com/maggnus/ymp/commit/d9029e0d8761f8d662ca4c38a2cf7f4bfdba1a3f) | 13/08 09:50 | 13/08 12:28 (2h25m) |
@@ -42,8 +42,10 @@
 | `[x]` | [`W1-APP-02v`](waves/W1/W1-APP-02/tasks/W1-APP-02v.md) | The dialogue experience converges on the Claude Code interface | [`7e98831`](https://github.com/maggnus/ymp/commit/7e98831) | 14/08 02:19 | 14/08 04:08 (0m) |
 | `[x]` | [`W1-APP-02w`](waves/W1/W1-APP-02/tasks/W1-APP-02w/TASK.md) | Product state lives under one .ymp root that supports many projects | [`9996944`](https://github.com/maggnus/ymp/commit/9996944) | 14/08 02:13 | 14/08 03:06 (53m) |
 | `[ ]` | [`W1-APP-02w.1`](waves/W1/W1-APP-02/tasks/W1-APP-02w/subtasks/W1-APP-02w.1.md) | Product state lives under ~/.ymp; the launch directory stays untouched | — | — | — |
+| `[ ]` | [`W1-APP-02w.2`](waves/W1/W1-APP-02/tasks/W1-APP-02w/subtasks/W1-APP-02w.2.md) | A run identifier names the run, not only its contract | — | — | — |
 | `[x]` | [`W1-APP-02x`](waves/W1/W1-APP-02/tasks/W1-APP-02x.md) | Entry validation cannot hold the interface | [`7e98831`](https://github.com/maggnus/ymp/commit/7e98831) | 14/08 02:19 | 14/08 04:08 (0m) |
 | `[x]` | [`W1-APP-02y`](waves/W1/W1-APP-02/tasks/W1-APP-02y.md) | The run record itself carries the per-model spend | [`c63130c`](https://github.com/maggnus/ymp/commit/c63130c) | 14/08 05:19 | 14/08 22:59 (0m) |
+| `[ ]` | [`W1-APP-02y.1`](waves/W1/W1-APP-02/tasks/W1-APP-02y.1.md) | The accounting assertion states what accounting guarantees | — | — | — |
 | `[x]` | [`W1-APP-02z`](waves/W1/W1-APP-02/tasks/W1-APP-02z/TASK.md) | A verifier cannot be rewritten by the candidate it judges | [`c364e30`](https://github.com/maggnus/ymp/commit/c364e30) | 14/08 05:07 | 15/08 00:05 (0m) |
 | `[ ]` | [`W1-APP-02z.1`](waves/W1/W1-APP-02/tasks/W1-APP-02z/subtasks/W1-APP-02z.1.md) | The npm entry point is pinned to its interpreter choice, or stays refused | — | — | — |
 | `[ ]` | [`W1-APP-02z.2`](waves/W1/W1-APP-02/tasks/W1-APP-02z/subtasks/W1-APP-02z.2.md) | The refusal names the actual obstacle | — | — | — |
