@@ -252,6 +252,14 @@ impl Journal {
         &self.path
     }
 
+    /// The sequence of the last record this journal holds.
+    ///
+    /// A reader that keeps its own projection of the journal compares it against this number to
+    /// learn, without reading the file again, whether the record has moved past what it applied.
+    pub fn last_sequence(&self) -> u64 {
+        self.last_sequence
+    }
+
     pub fn read_committed(&self) -> Result<Vec<EventEnvelope>, JournalError> {
         Self::read_all_with_limits(&self.path, self.limits)
     }
