@@ -29,7 +29,7 @@ use ymp_runtime_api::{
 
 mod kernel;
 
-pub use kernel::{ManagedKernel, ManagedTermination};
+pub use kernel::{ManagedKernel, ManagedTermination, Submission};
 
 const CONTRACT_SCHEMA_VERSION: u32 = 1;
 const MAX_CONTRACT_BYTES: usize = 1024 * 1024;
@@ -1417,21 +1417,54 @@ fn start_candidate(
                     if !completed {
                         bail!("runtime ended without a completed event");
                     }
-                    let candidate_digest =
-                        {
-                            let application = worker_application
-                                .lock()
-                                .map_err(|_| anyhow::anyhow!("application lock was poisoned"))?;
-                            if application.state().status != RunStatus::Running {
-                                return Ok(());
-                            }
-                            application.state().candidate_digest.clone().context(
-                                "completed runtime has no controller-committed candidate",
-                            )?
-                        };
+                    // What the work produced is read out of the run's own record: the base its
+                    // attempt started from and the exact object standing at every path the result
+                    // changed. The kernel is given that construction rather than a digest, so the
+                    // ancestry of the result reaches the journal with it.
+                    let construction = {
+                        let application = worker_application
+                            .lock()
+                            .map_err(|_| anyhow::anyhow!("application lock was poisoned"))?;
+                        if application.state().status != RunStatus::Running {
+                            return Ok(());
+                        }
+                        application
+                            .candidate_construction()?
+                            .context("completed runtime has no controller-committed candidate")?
+                    };
                     // The work the run is accountable for now carries the exact candidate a
                     // protected query would be spent on.
-                    worker_kernel.submitted(&candidate_digest)?;
+                    //
+                    // Where the kernel cannot state what the work produced, the run says which
+                    // bound it exceeded and ends. Sealing the digest alone would leave a record an
+                    // operator cannot tell from a run whose construction was never journalled at
+                    // all, and announcing the candidate would send a result for judgement while its
+                    // own accounting states nothing about where it came from. Both records are
+                    // moved to the same ending: the journal carries the reason, and the kernel is
+                    // stopped as the infrastructure condition it is.
+                    // A result whose construction the kernel cannot state is still a result: the
+                    // work is sealed with it, the run goes on to the verdict, and what the record
+                    // would otherwise be silent about — that its ancestry is missing, and which
+                    // bound stopped it — is written into the run's own journal instead. Reading
+                    // that record, an operator can tell this run from one whose construction was
+                    // never journalled at all, which a seal on its own does not allow.
+                    if let Submission::ProvenanceUnrecorded {
+                        reason,
+                        protocol_rule,
+                    } = worker_kernel.submitted(&construction)?
+                    {
+                        worker_application
+                            .lock()
+                            .map_err(|_| anyhow::anyhow!("application lock was poisoned"))?
+                            .record_candidate_provenance_unrecorded(
+                                format!("{worker_attempt}.provenance"),
+                                &worker_attempt,
+                                &construction.candidate_digest,
+                                reason,
+                                protocol_rule,
+                            )?;
+                    }
+                    let candidate_digest = construction.candidate_digest;
                     drop(terminal);
                     let _ = sender.send(ManagedRunEvent::CandidateAvailable {
                         candidate_digest,

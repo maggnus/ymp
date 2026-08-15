@@ -407,12 +407,37 @@ tags fails on an unknown fact rather than on a stated version, which is the fail
 exists to prevent. A run that opens no commitment kernel writes none of them and reads back exactly
 as it did under version 3.
 
+## Event journal version 5
+
+Version 5 keeps every envelope field, ordering rule, digest input and limit of version 4, and every
+commitment fact it added. What it adds is one record type of the run itself:
+
+- `candidate_provenance_unrecorded`, carrying `attempt_id`, `candidate_digest`, `reason` and
+  `protocol_rule` — a result whose construction the commitment kernel could not state, and the bound
+  that stopped it. The reason is tagged: `too_many_changes`, carrying the number of paths the result
+  changed, or `unacceptable_path`, carrying the path the protocol does not admit. The rule is the
+  kernel's own words for the bound it applied.
+
+The kernel keeps the facts of one submission inside a single durable record, so a bundle states at
+most 32 path changes and a path at most 256 bytes in a shape the protocol admits. A result past
+those bounds is committed, sealed and judged exactly as any other — what a run produced is its work,
+and a bound on how much one submission states at once takes no verdict away from it — but its
+ancestry is not in the ledger. Without this record the ledger of such a run cannot be told from the
+ledger of a run written before an ancestry was journalled at all, which is the reading this record
+exists to prevent. It commits no transition and moves no accounting: the run's status, its budget
+and its immutable candidate are exactly what they would be without it.
+
+A run whose every result the kernel could state writes none of these records and reads back exactly
+as it did under version 4. The version is raised rather than treated as an extension for the reason
+version 4 was: a version-4 reader given this tag fails on an unknown record rather than on a stated
+version.
+
 ## Compatibility and migration
 
-Schema version 1 is immutable, and versions 2, 3 and 4 are new versions rather than extensions of
+Schema version 1 is immutable, and versions 2, 3, 4 and 5 are new versions rather than extensions of
 what came before. A change that alters field meaning, digest input, event tags, required fields,
 ordering rules, or replay behavior requires a new schema version. The current binary reads and
-writes only version 4 and fails closed on every other version, versions 1 to 3 included.
+writes only version 5 and fails closed on every other version, versions 1 to 4 included.
 
 The migration consequence is stated rather than worked around: a journal written by an earlier
 binary is rejected at open with an unsupported-schema error, and no command migrates it, because

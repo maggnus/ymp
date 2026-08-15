@@ -5,16 +5,23 @@
 //! that a notification channel carries no state anybody depends on, that a reader which received
 //! every notification and one which received none reach the same conclusion, and that the same
 //! command delivered twice inside one controller interval has one effect and one sequence.
+//!
+//! Everything here goes through the boundary a run has: [`Application::execute_commitment`], which
+//! decides against the ledger folded out of the run's own journal and records what it commits there
+//! before answering. What a reader recovers is therefore read back out of that journal, in a
+//! temporary store of the test's own.
 
 use std::sync::mpsc::TryRecvError;
 
-use ymp_application::{CommitmentService, CommitmentServiceError};
+use tempfile::TempDir;
+use ymp_application::{Application, ApplicationError, CommitmentOutcome};
 use ymp_domain::commitment::{
-    Advertise, Award, BudgetVector, CloseInvocation, CommitmentCommand, CommitmentEvent,
-    CommitmentLedger, Dimension, FundingSource, InvocationClosure, OfferPolicy, RecordBid,
-    RegisterParticipant, ResumeInvocation, RootTerminal, SettleOffer, StartAttempt,
-    StartInvocation, SubmitResult, WakeCondition, WithdrawOffer, YieldInvocation,
+    Advertise, Award, BudgetVector, CloseInvocation, CommitmentCommand, CommitmentEvent, Dimension,
+    FundingSource, InvocationClosure, OfferPolicy, RecordBid, RegisterParticipant,
+    ResumeInvocation, RootTerminal, SettleOffer, StartAttempt, StartInvocation, SubmitResult,
+    WakeCondition, WithdrawOffer, YieldInvocation,
 };
+use ymp_domain::{Budget, EventKind};
 
 const ROOT: &str = "sponsor-root";
 const ROOT_PRINCIPAL: &str = "principal-root";
@@ -58,12 +65,24 @@ fn escrow() -> BudgetVector {
         .with(Dimension::InvocationStarts, 8)
 }
 
-/// A service holding one participant under one task contract with one attempt open on it.
-fn prepared() -> CommitmentService {
-    let service = CommitmentService::new(
-        CommitmentLedger::new(ROOT, ROOT_PRINCIPAL, ROOT_OBLIGATION, root_budget())
-            .expect("root ledger"),
-    );
+/// One run whose kernel holds one participant under one task contract with one attempt open on it.
+///
+/// The directory is returned with the run: the journal is a file in it, and a store dropped while
+/// the run is still in use would take the record with it.
+fn prepared() -> (TempDir, Application) {
+    let temporary = tempfile::tempdir().expect("temporary directory");
+    let mut application =
+        Application::create(temporary.path().join("data"), "run-1", Budget::new(1, 1))
+            .expect("create the run");
+    application
+        .open_commitment_kernel(
+            "kernel",
+            ROOT,
+            ROOT_PRINCIPAL,
+            ROOT_OBLIGATION,
+            root_budget(),
+        )
+        .expect("the run's ledger");
     let commands = [
         CommitmentCommand::RegisterParticipant(RegisterParticipant {
             participant_id: ALPHA.to_owned(),
@@ -114,11 +133,57 @@ fn prepared() -> CommitmentService {
         }),
     ];
     for (index, command) in commands.iter().enumerate() {
-        service
-            .execute(&format!("prefix-{index}"), command)
+        application
+            .execute_commitment(format!("prefix-{index}"), command)
             .expect("the prefix is well formed");
     }
-    service
+    (temporary, application)
+}
+
+/// One committed fact in the order it was committed, read back out of the run's journal.
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct RecordedFact {
+    sequence: u64,
+    event: CommitmentEvent,
+}
+
+/// The facts the run committed after a cursor, which is how a lagging reader recovers rather than
+/// assuming it saw every notification.
+fn facts_after(application: &Application, cursor: u64) -> Vec<RecordedFact> {
+    let mut facts = Vec::new();
+    for envelope in application
+        .events_after(0)
+        .expect("read the committed records")
+    {
+        let EventKind::CommitmentFactsRecorded { facts: committed } = envelope.event else {
+            continue;
+        };
+        for event in committed {
+            facts.push(RecordedFact {
+                sequence: facts.len() as u64 + 1,
+                event,
+            });
+        }
+    }
+    facts.retain(|fact| fact.sequence > cursor);
+    facts
+}
+
+fn committed_facts(application: &Application) -> u64 {
+    application
+        .commitments()
+        .expect("the run carries a kernel")
+        .sequence()
+}
+
+fn admission_order(application: &Application) -> Vec<String> {
+    application
+        .commitments()
+        .expect("the run carries a kernel")
+        .admission_order()
+        .into_iter()
+        .map(|invocation| invocation.invocation_id.clone())
+        .collect()
 }
 
 fn start_slice(cursor: u64) -> CommitmentCommand {
@@ -159,19 +224,21 @@ fn submit(tag: &str) -> CommitmentCommand {
 /// recovers exactly the facts it missed.
 #[test]
 fn a_reader_that_lost_every_notification_recovers_from_its_cursor() {
-    let service = prepared();
+    let (_store, mut application) = prepared();
     // One slot, and nobody drains it: after the first number every later one is dropped. That is
     // what coalescing and loss look like from the inside.
-    let deaf = service.subscribe(1).expect("channel");
-    let attentive = service.subscribe(64).expect("channel");
+    let deaf = application.subscribe(1).expect("channel");
+    let attentive = application.subscribe(64).expect("channel");
 
-    service.execute("start", &start_slice(0)).expect("slice");
-    let cursor = service.committed_facts().expect("log") as u64;
-    service
-        .execute("yield", &yield_slice(cursor))
+    application
+        .execute_commitment("start", &start_slice(0))
+        .expect("slice");
+    let cursor = committed_facts(&application);
+    application
+        .execute_commitment("yield", &yield_slice(cursor))
         .expect("yield");
     assert!(
-        service.admission_order().expect("order").is_empty(),
+        admission_order(&application).is_empty(),
         "nothing the yield asked about has happened yet"
     );
 
@@ -179,8 +246,8 @@ fn a_reader_that_lost_every_notification_recovers_from_its_cursor() {
     // rather than three different ones: a retry after a lost answer is exactly how one command
     // reaches the committed stream more than once.
     for index in 0..3 {
-        service
-            .execute(&format!("submit-{index}"), &submit("first"))
+        application
+            .execute_commitment(format!("submit-{index}"), &submit("first"))
             .expect("submission");
     }
 
@@ -194,11 +261,11 @@ fn a_reader_that_lost_every_notification_recovers_from_its_cursor() {
 
     // Both readers ask the same question of the committed stream and are told the same thing.
     assert_eq!(
-        service.admission_order().expect("order"),
+        admission_order(&application),
         vec![INVOCATION.to_owned()],
         "several matching facts are one answer, and losing the notifications did not change it"
     );
-    let missed = service.facts_after(cursor).expect("facts");
+    let missed = facts_after(&application, cursor);
     assert_eq!(
         missed
             .iter()
@@ -209,11 +276,11 @@ fn a_reader_that_lost_every_notification_recovers_from_its_cursor() {
     );
     assert!(missed.iter().all(|fact| fact.sequence > cursor));
 
-    service
-        .execute("resume", &resume())
+    application
+        .execute_commitment("resume", &resume())
         .expect("one admission for however many facts matched");
     assert!(
-        service.admission_order().expect("order").is_empty(),
+        admission_order(&application).is_empty(),
         "a running slice is not waiting for anything"
     );
 }
@@ -230,33 +297,37 @@ fn resume() -> CommitmentCommand {
 /// one set of facts. A different command under the same identifier is refused outright.
 #[test]
 fn a_repeated_delivery_of_one_command_has_one_effect() {
-    let service = prepared();
-    service.execute("start", &start_slice(0)).expect("slice");
-    let cursor = service.committed_facts().expect("log") as u64;
-    service
-        .execute("yield", &yield_slice(cursor))
+    let (_store, mut application) = prepared();
+    application
+        .execute_commitment("start", &start_slice(0))
+        .expect("slice");
+    let cursor = committed_facts(&application);
+    application
+        .execute_commitment("yield", &yield_slice(cursor))
         .expect("yield");
-    service
-        .execute("submit", &submit("one"))
+    application
+        .execute_commitment("submit", &submit("one"))
         .expect("submission");
 
-    let first = service.execute("wake", &resume()).expect("admission");
+    let first: CommitmentOutcome = application
+        .execute_commitment("wake", &resume())
+        .expect("admission");
     assert!(!first.replayed);
-    let committed = service.committed_facts().expect("log");
-    let again = service
-        .execute("wake", &resume())
+    let committed = committed_facts(&application);
+    let again = application
+        .execute_commitment("wake", &resume())
         .expect("repeated delivery");
     assert!(again.replayed);
     assert_eq!(again.first_sequence, first.first_sequence);
     assert_eq!(again.events, first.events);
     assert_eq!(
-        service.committed_facts().expect("log"),
+        committed_facts(&application),
         committed,
         "a repeated delivery commits no second fact"
     );
 
     assert!(matches!(
-        service.execute(
+        application.execute_commitment(
             "wake",
             &CommitmentCommand::CloseInvocation(CloseInvocation {
                 invocation_id: INVOCATION.to_owned(),
@@ -264,7 +335,7 @@ fn a_repeated_delivery_of_one_command_has_one_effect() {
                 reason: InvocationClosure::Completed,
             })
         ),
-        Err(CommitmentServiceError::IdempotencyConflict { .. })
+        Err(ApplicationError::IdempotencyConflict { .. })
     ));
 }
 
@@ -272,10 +343,15 @@ fn a_repeated_delivery_of_one_command_has_one_effect() {
 /// stream, and the two accounts of that stream agree fact for fact.
 #[test]
 fn recorded_sequences_are_positions_in_the_committed_stream() {
-    let service = prepared();
-    service.execute("start", &start_slice(0)).expect("slice");
-    let facts = service.facts_after(0).expect("facts");
-    let ledger = service.snapshot().expect("snapshot");
+    let (_store, mut application) = prepared();
+    application
+        .execute_commitment("start", &start_slice(0))
+        .expect("slice");
+    let facts = facts_after(&application, 0);
+    let ledger = application
+        .commitments()
+        .expect("the run carries a kernel")
+        .clone();
     assert_eq!(facts.len(), ledger.facts().len());
     for fact in &facts {
         assert_eq!(
@@ -291,13 +367,21 @@ fn recorded_sequences_are_positions_in_the_committed_stream() {
 /// A run that nobody wakes still stops, and stops as something other than acceptance.
 #[test]
 fn a_run_nobody_wakes_still_reaches_an_honest_terminal_state() {
-    let service = prepared();
-    service.execute("start", &start_slice(0)).expect("slice");
-    let cursor = service.committed_facts().expect("log") as u64;
-    service
-        .execute("yield", &yield_slice(cursor))
+    let (_store, mut application) = prepared();
+    application
+        .execute_commitment("start", &start_slice(0))
+        .expect("slice");
+    let cursor = committed_facts(&application);
+    application
+        .execute_commitment("yield", &yield_slice(cursor))
         .expect("yield");
-    assert_eq!(service.root_terminal().expect("terminal"), None);
+    assert_eq!(
+        application
+            .commitments()
+            .expect("the run carries a kernel")
+            .root_terminal(),
+        None
+    );
 
     // The sponsor records the loss, takes the contract back and settles the reservation. No state
     // is repaired by hand at any point.
@@ -321,13 +405,17 @@ fn a_run_nobody_wakes_still_reaches_an_honest_terminal_state() {
         }),
     ];
     for (index, command) in wind_down.iter().enumerate() {
-        service
-            .execute(&format!("wind-{index}"), command)
+        application
+            .execute_commitment(format!("wind-{index}"), command)
             .expect("winding a run down needs only the commands the protocol already has");
     }
-    assert_eq!(service.open_authority().expect("authority"), None);
+    let ledger = application
+        .commitments()
+        .expect("the run carries a kernel")
+        .clone();
+    assert_eq!(ledger.open_authority(), None);
     assert_eq!(
-        service.root_terminal().expect("terminal"),
+        ledger.root_terminal(),
         Some(RootTerminal::Exhausted),
         "quiet is not acceptance"
     );

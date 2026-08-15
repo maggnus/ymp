@@ -236,3 +236,109 @@ fn digest_of<T: Serialize>(value: &T) -> String {
         &serde_json::to_vec(value).expect("candidate ancestry is representable as committed data"),
     )
 }
+
+#[cfg(test)]
+mod tests {
+    use super::{BundleChange, CandidateRecord, Contribution, PathChange};
+
+    const CONTRACT: &str = "work-1";
+    const OBLIGATION: &str = "obligation-1";
+    const PARTICIPANT: &str = "runtime-1";
+    const GENERATION: u64 = 1;
+
+    fn digest(tag: &str) -> String {
+        crate::digest_bytes(tag.as_bytes())
+    }
+
+    /// One construction, stated whole: the same bytes, from the same base, published as the same
+    /// bundle, carrying the same contribution forward. What each case below varies is one field of
+    /// the triple that says whose work it is.
+    fn construction(contract_id: &str, participant: &str, generation: u64) -> CandidateRecord {
+        let changes = vec![BundleChange {
+            path: "result.txt".to_owned(),
+            change: PathChange::Upsert {
+                object_digest: digest("result"),
+                executable: false,
+            },
+        }];
+        let contributions = vec![Contribution {
+            candidate_digest: digest("parent"),
+            obligation_id: "obligation-parent".to_owned(),
+            participant: "runtime-parent".to_owned(),
+            bundle_digest: digest("parent-bundle"),
+        }];
+        let base_digest = digest("base");
+        let bundle_digest = digest("bundle");
+        let content_digest = CandidateRecord::identify_content(&base_digest, &changes);
+        let candidate_digest = CandidateRecord::identify(
+            &content_digest,
+            contract_id,
+            OBLIGATION,
+            participant,
+            generation,
+            &bundle_digest,
+            &contributions,
+        );
+        CandidateRecord {
+            candidate_digest,
+            content_digest,
+            contract_id: contract_id.to_owned(),
+            obligation_id: OBLIGATION.to_owned(),
+            participant: participant.to_owned(),
+            generation,
+            base_digest,
+            bundle_digest,
+            contributions,
+            changes,
+        }
+    }
+
+    /// Two constructions differing in exactly one of participant, task contract and fencing
+    /// generation are two results, and never one.
+    ///
+    /// The triple is what states whose work a result is and under what authority it was performed.
+    /// The same bytes reached from the same base by two participants are two constructions; so are
+    /// the same bytes submitted under two task contracts; and so are the same bytes resubmitted
+    /// under a fencing token that has moved on, which is the case a stale holder produces. Each of
+    /// the three is separated on its own here, because a triple that is only correct as a whole is
+    /// a triple any one of whose parts could be dropped unnoticed: with a field out of the identity,
+    /// the pair it separates collapses to one identifier, and one of the two records then states a
+    /// construction it never performed while reproducing its own digest perfectly.
+    #[test]
+    fn a_construction_is_not_another_that_differs_in_participant_contract_or_generation() {
+        let stated = construction(CONTRACT, PARTICIPANT, GENERATION);
+        assert!(
+            stated.states_its_own_identity(),
+            "the construction under test does not reproduce its own digests"
+        );
+        for (field, other) in [
+            (
+                "participant",
+                construction(CONTRACT, "runtime-2", GENERATION),
+            ),
+            (
+                "contract_id",
+                construction("work-2", PARTICIPANT, GENERATION),
+            ),
+            (
+                "generation",
+                construction(CONTRACT, PARTICIPANT, GENERATION + 1),
+            ),
+        ] {
+            assert!(
+                other.states_its_own_identity(),
+                "the construction differing in {field} does not reproduce its own digests"
+            );
+            assert_eq!(
+                other.content_digest, stated.content_digest,
+                "the two constructions differing in {field} reached different results, so the \
+                 identity is being separated by the bytes rather than by {field}"
+            );
+            assert_ne!(
+                other.candidate_digest, stated.candidate_digest,
+                "two constructions differing in exactly {field} carry one identifier, so {field} \
+                 is not part of what identifies a result"
+            );
+        }
+    }
+}

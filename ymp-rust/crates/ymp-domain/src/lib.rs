@@ -9,10 +9,11 @@ pub mod contract;
 
 use commitment::{BudgetVector, CommitmentEvent};
 
-/// Journal schema version 4 adds the four commitment facts that carry a result's ancestry. Version
-/// 3 added the two commitment tags, version 2 added `contract_approved`, and version 1 had none of
-/// them; see `ymp-rust/SCHEMA.md`.
-pub const EVENT_SCHEMA_VERSION: u32 = 4;
+/// Journal schema version 5 adds the record a run writes when the construction of its result is
+/// more than the commitment kernel can state. Version 4 added the four commitment facts that carry
+/// a result's ancestry, version 3 added the two commitment tags, version 2 added
+/// `contract_approved`, and version 1 had none of them; see `ymp-rust/SCHEMA.md`.
+pub const EVENT_SCHEMA_VERSION: u32 = 5;
 pub const MAX_IDENTIFIER_CHARS: usize = 128;
 pub const MAX_REASON_BYTES: usize = 1024;
 
@@ -104,6 +105,29 @@ pub struct ContractBinding {
     pub oracle_digest: String,
 }
 
+/// Which bound stopped the commitment kernel from stating the construction of a result.
+///
+/// Both are bounds on what one submission states at once and not on how large a tree may be. Both
+/// are about the shape of the change set alone: nothing here reads what a change means, and neither
+/// bound is a judgement about the work.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(tag = "reason", rename_all = "snake_case")]
+pub enum ProvenanceLimit {
+    /// The result changes more paths than one bundle may carry.
+    TooManyChanges { changes: u64 },
+    /// One path is in a shape the protocol does not admit.
+    UnacceptablePath { path: String },
+}
+
+impl std::fmt::Display for ProvenanceLimit {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::TooManyChanges { changes } => write!(formatter, "too_many_changes({changes})"),
+            Self::UnacceptablePath { path } => write!(formatter, "unacceptable_path({path})"),
+        }
+    }
+}
+
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum EventKind {
@@ -147,6 +171,24 @@ pub enum EventKind {
     /// record at all, so no recovery can rebuild a ledger holding half an award.
     CommitmentFactsRecorded {
         facts: Vec<CommitmentEvent>,
+    },
+    /// A result whose construction the commitment kernel could not state, and the rule that stopped
+    /// it.
+    ///
+    /// The kernel keeps the facts of one submission inside a single durable record, so a bundle
+    /// states a bounded number of paths and a path a bounded number of bytes. A result past those
+    /// bounds is committed and judged like any other — the work it produced is ordinary work — but
+    /// its ancestry is not in the ledger, and nothing in the ledger would say why. This record is
+    /// where the run says it: which result it was about, which bound it exceeded, and the kernel's
+    /// own words for that bound. It commits no transition and moves no accounting.
+    CandidateProvenanceUnrecorded {
+        attempt_id: String,
+        /// The result the run committed, named as its own journal names it.
+        candidate_digest: String,
+        reason: ProvenanceLimit,
+        /// The rule the kernel applied, in the kernel's words, so an operator reads the bound and
+        /// not a paraphrase of it.
+        protocol_rule: String,
     },
     RunExhausted {
         reason: String,
@@ -427,9 +469,12 @@ impl RunState {
             }
             // The commitment kernel keeps its own accounting, and this projection carries none of
             // it: the run status, the attempt budget and the immutable candidate are decided by
-            // the run's own transitions and by nothing a commitment records.
+            // the run's own transitions and by nothing a commitment records. What the kernel could
+            // not state about a result is likewise a note about the record and not a transition of
+            // the run: the result stands, and the verdict it is waiting for is unaffected.
             EventKind::CommitmentKernelOpened { .. }
-            | EventKind::CommitmentFactsRecorded { .. } => {}
+            | EventKind::CommitmentFactsRecorded { .. }
+            | EventKind::CandidateProvenanceUnrecorded { .. } => {}
             EventKind::RunExhausted { .. } => {
                 self.status = RunStatus::Exhausted;
                 self.active_attempts.clear();

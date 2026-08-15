@@ -34,21 +34,22 @@
 //! that lock changing hands. A lock of this kernel's own would order these commands against each
 //! other but not against the run's other writers, and the order has to hold in the journal.
 
+use std::collections::BTreeSet;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex, MutexGuard};
 use std::time::Instant;
 
 use anyhow::{Context, bail};
-use ymp_application::{Application, ApplicationError};
+use ymp_application::{Application, ApplicationError, CandidateConstruction};
 use ymp_domain::commitment::{
     AdvanceClock, Advertise, Award, BudgetVector, CloseInvocation, CommitmentCommand,
     CommitmentError, CommitmentLedger, ContractState, Dimension, FundingSource, InvocationClosure,
-    InvocationState, MAX_LEASE_MS, OfferPolicy, OfferState, OpenAuthority, Outcome, RecordBid,
-    RecordVerification, RegisterParticipant, ResumeInvocation, ReturnObligation, RootTerminal,
-    SettleOffer, StartAttempt, StartInvocation, StopReason, StopRun, SubmitResult, Verdict,
-    WakeCondition, WithdrawOffer, YieldInvocation,
+    InvocationState, MAX_LEASE_MS, OfferPolicy, OfferState, OpenAuthority, Outcome, PathChange,
+    RecordBid, RecordObject, RecordVerification, RegisterParticipant, ResumeInvocation,
+    ReturnObligation, RootTerminal, SettleOffer, StartAttempt, StartInvocation, StopReason,
+    StopRun, SubmitBundle, SubmitResult, Verdict, WakeCondition, WithdrawOffer, YieldInvocation,
 };
-use ymp_domain::digest_bytes;
+use ymp_domain::{ProvenanceLimit, TransitionError, digest_bytes};
 
 /// The principal the controller acts as. It is supplied by the trusted controller from the
 /// authenticated connection, never chosen by a participant.
@@ -76,6 +77,23 @@ pub enum ManagedTermination {
     CancelledPastLimit,
     /// The runtime, the model route or the supervision around them failed.
     Failed(InvocationClosure),
+}
+
+/// What the kernel recorded of one submission.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum Submission {
+    /// The construction is in the record: every object the result puts at a path, the bundle those
+    /// changes were published as, and the result they form, which is what the work is sealed with.
+    Recorded,
+    /// The kernel could not state the construction, so the work is sealed with the result the run's
+    /// own journal names and with nothing about how it was built. The result is a result like any
+    /// other and reaches the verdict it is waiting for; what the caller is given here is the bound
+    /// that stopped the construction, to be recorded where an operator reads it.
+    ProvenanceUnrecorded {
+        reason: ProvenanceLimit,
+        /// The kernel's own words for the bound it applied.
+        protocol_rule: String,
+    },
 }
 
 /// The budget one managed run is funded with. Every dimension is enforced on its own, so what is
@@ -281,12 +299,18 @@ impl ManagedKernel {
 
     /// Record that the slice stopped running without returning its task contract, and register the
     /// one fact that would be worth resuming it for.
+    ///
+    /// A run whose journal has ended registers nothing. The offer this yield would advertise exists
+    /// to be woken against, and there is no wake coming for a run an operator has stopped: what
+    /// follows a yield on such a run is the slice being closed and the accounting wound down. The
+    /// record states that ending rather than one more request nobody will answer, and the slice
+    /// stays where the facts left it until the terminal closes it.
     pub fn yielded(&self, yield_command_id: &str) -> anyhow::Result<()> {
         self.advance_clock()?;
         let sequence = self.commands.fetch_add(1, Ordering::Relaxed);
         let wake_offer = format!("wake-{sequence}-{}", self.attempt_id);
-        self.commit(
-            &format!("wake-offer-{sequence}"),
+        match self.execute(
+            &format!("{}.wake-offer-{sequence}", self.attempt_id),
             &CommitmentCommand::Advertise(Advertise {
                 offer_id: wake_offer.clone(),
                 // The slice asks; the controller answers. The parent obligation is the work this
@@ -309,7 +333,11 @@ impl ManagedKernel {
                 offer_deadline: self.lease_expires_at,
                 max_awards: 1,
             }),
-        )?;
+        ) {
+            Ok(()) => {}
+            Err(error) if run_has_ended(&error) => return Ok(()),
+            Err(error) => return Err(error.into()),
+        }
         let cursor = self.cursor()?;
         self.commit(
             &format!("yield-{sequence}"),
@@ -415,21 +443,90 @@ impl ManagedKernel {
         Ok(true)
     }
 
-    /// Record the candidate the controller committed for this attempt, so the work the run is
-    /// accountable for carries the exact result a protected query would be spent on.
-    pub fn submitted(&self, candidate_digest: &str) -> anyhow::Result<()> {
+    /// Record the construction of the result this attempt produced, so the work the run is
+    /// accountable for carries the ancestry of the exact result a protected query would be spent
+    /// on, and not only a digest.
+    ///
+    /// Each object the result puts at a path is stated first, as an object stored whole. The bytes
+    /// were written into the run's store and are named by digest before any of this is committed,
+    /// and a result naming an object nothing recorded is refused rather than formed over bytes that
+    /// may never arrive. The bundle is then published against the exact base the work was awarded
+    /// from, and the kernel computes the identity of the result from those facts alone. What the
+    /// ledger seals is therefore a construction a reader can follow back to the base and the
+    /// objects it was built from, on any host and after this process is gone.
+    ///
+    /// Whether the bundle may be published is settled before the first object is recorded, and it
+    /// is settled by the kernel: the command is put to the ledger for a decision that commits
+    /// nothing. An object recorded for a bundle that is then refused for its shape would stay in
+    /// the record with nothing naming it, so no such fact is written. The one refusal that is
+    /// expected here is that the objects are not yet stored whole, which is exactly what the next
+    /// step records.
+    ///
+    /// One construction the kernel cannot state is the one that exceeds what a single record holds:
+    /// a bundle carries at most [`ymp_domain::commitment::MAX_BUNDLE_CHANGES`] path changes, and a
+    /// path at most [`ymp_domain::commitment::MAX_PATH_BYTES`] bytes in a shape the protocol
+    /// admits. The work is then sealed with the result the run's own journal names, so the result
+    /// is judged exactly as any other and a bound on how much one submission states at once takes
+    /// no verdict away from ordinary work. No object of that construction is recorded, because
+    /// there is no bundle to name them; what the caller is given instead is the bound that stopped
+    /// it, to be stated in the run's record where an operator reads it.
+    pub fn submitted(&self, construction: &CandidateConstruction) -> anyhow::Result<Submission> {
         self.advance_clock()?;
-        self.commit(
-            "submission",
-            &CommitmentCommand::SubmitResult(SubmitResult {
-                contract_id: self.contract_id.clone(),
-                attempt_id: self.attempt_id.clone(),
-                participant: self.participant.clone(),
-                generation: self.generation,
-                candidate_digest: candidate_digest.to_owned(),
-            }),
-        )?;
-        Ok(())
+        let bundle = CommitmentCommand::SubmitBundle(SubmitBundle {
+            contract_id: self.contract_id.clone(),
+            attempt_id: self.attempt_id.clone(),
+            participant: self.participant.clone(),
+            generation: self.generation,
+            base_digest: construction.base_digest.clone(),
+            // A first attempt carries no result forward: this run has one participant and one
+            // attempt, and a rebase or a synthesis is somebody else's submission.
+            parents: Vec::new(),
+            changes: construction.changes.clone(),
+        });
+        match self.snapshot()?.decide(&bundle) {
+            // Admitted as it stands, or admitted once the objects it names are recorded.
+            Ok(_) | Err(CommitmentError::ObjectIncomplete { .. }) => {}
+            Err(error) => match provenance_limit(&error, construction) {
+                Some(reason) => {
+                    self.commit(
+                        "submission",
+                        &CommitmentCommand::SubmitResult(SubmitResult {
+                            contract_id: self.contract_id.clone(),
+                            attempt_id: self.attempt_id.clone(),
+                            participant: self.participant.clone(),
+                            generation: self.generation,
+                            candidate_digest: construction.candidate_digest.clone(),
+                        }),
+                    )?;
+                    return Ok(Submission::ProvenanceUnrecorded {
+                        reason,
+                        protocol_rule: error.to_string(),
+                    });
+                }
+                None => return Err(ApplicationError::Commitment(error).into()),
+            },
+        }
+        let objects: BTreeSet<&str> = construction
+            .changes
+            .iter()
+            .filter_map(|change| match &change.change {
+                PathChange::Upsert { object_digest, .. } => Some(object_digest.as_str()),
+                PathChange::Delete => None,
+            })
+            .collect();
+        for (index, object_digest) in objects.into_iter().enumerate() {
+            self.commit(
+                &format!("object-{index}"),
+                &CommitmentCommand::RecordObject(RecordObject {
+                    contract_id: self.contract_id.clone(),
+                    participant: self.participant.clone(),
+                    generation: self.generation,
+                    object_digest: object_digest.to_owned(),
+                }),
+            )?;
+        }
+        self.commit("bundle", &bundle)?;
+        Ok(Submission::Recorded)
     }
 
     /// Record what a protected query decided about the candidate this run committed, and close the
@@ -445,8 +542,18 @@ impl ManagedKernel {
     /// The work obligation is then returned and the offer settled, so a run that has been answered
     /// stops holding itself open on work nothing is doing. It is called after the process slice has
     /// ended: a slice still running is itself what the run waits for, and no verdict shortens that.
+    ///
+    /// One result is named twice in this store, and a verdict has to be recorded against the name
+    /// the kernel sealed. The run's journal names the result by the snapshot a candidate is
+    /// materialized from, which is what a protected query is run against and what its verdict is
+    /// therefore issued for; the kernel names it by the digest of the construction that produced it,
+    /// which is what its own facts formed. Where the run's record says the two are one result, the
+    /// verdict is recorded against the sealed construction. A digest neither record states is
+    /// carried to the kernel as it stands and refused there, so what a verdict may be attached to is
+    /// still decided by the kernel and not here.
     pub fn verified(&self, candidate_digest: &str, verdict: Verdict) -> anyhow::Result<()> {
         self.advance_clock()?;
+        let candidate_digest = &self.sealed_result(candidate_digest)?;
         self.commit(
             "verification",
             &CommitmentCommand::RecordVerification(RecordVerification {
@@ -626,6 +733,23 @@ impl ManagedKernel {
         self.read(Clone::clone)
     }
 
+    /// The identifier the ledger sealed for the result the caller names, where the run's own record
+    /// states that the two name one result, and the caller's identifier otherwise.
+    ///
+    /// Both readings come out of the one store: the journal's candidate is what the run committed,
+    /// and the ledger's is what the work sealed for it. Nothing is remembered between them.
+    fn sealed_result(&self, candidate_digest: &str) -> anyhow::Result<String> {
+        let mut application = self.application();
+        if application.state().candidate_digest.as_deref() != Some(candidate_digest) {
+            return Ok(candidate_digest.to_owned());
+        }
+        let sealed = application
+            .recovered_commitments()?
+            .and_then(|ledger| ledger.contracts().get(&self.contract_id))
+            .and_then(|contract| contract.candidate_digest.clone());
+        Ok(sealed.unwrap_or_else(|| candidate_digest.to_owned()))
+    }
+
     /// Close one wake offer and return what it held. An offer nobody settles keeps the run open,
     /// so the request a resumption answered is wound down where it was answered.
     fn settle_wake_offer(&self, offer_id: &str) -> anyhow::Result<()> {
@@ -711,19 +835,55 @@ impl ManagedKernel {
     }
 }
 
+/// Whether a refusal is the run's own record stating that the run has ended.
+///
+/// It is the answer to "may anything more be created here", and it is the journal's answer rather
+/// than the ledger's: the two records reach their endings at different moments, and what a
+/// controller must not do between them is create work for a run an operator has already stopped.
+fn run_has_ended(error: &ApplicationError) -> bool {
+    matches!(
+        error,
+        ApplicationError::Transition(TransitionError::Terminal(_))
+    )
+}
+
+/// Which bound a refused bundle exceeded, where the refusal is about what one submission may state
+/// at once rather than about whether this participant may submit at all.
+///
+/// A refusal of any other kind is not a bound on the record: it says this submission is not
+/// admissible, and it is carried out as the refusal it is.
+fn provenance_limit(
+    error: &CommitmentError,
+    construction: &CandidateConstruction,
+) -> Option<ProvenanceLimit> {
+    match error {
+        CommitmentError::InvalidBundleSize | CommitmentError::TooManyEntries { .. } => {
+            Some(ProvenanceLimit::TooManyChanges {
+                changes: construction.changes.len() as u64,
+            })
+        }
+        CommitmentError::InvalidPath { path } => {
+            Some(ProvenanceLimit::UnacceptablePath { path: path.clone() })
+        }
+        _ => None,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::sync::{Arc, Mutex};
 
     use tempfile::TempDir;
-    use ymp_application::Application;
-    use ymp_domain::commitment::{CommitmentEvent, InvocationState};
-    use ymp_domain::{Budget, EventKind};
+    use ymp_application::{Application, CandidateConstruction};
+    use ymp_domain::commitment::{BundleChange, CommitmentEvent, InvocationState, PathChange};
+    use ymp_domain::{Budget, Command, EventKind};
 
     use super::{
-        CloseInvocation, CommitmentCommand, InvocationClosure, ManagedKernel, StartInvocation,
-        WakeCondition, YieldInvocation, digest_bytes,
+        CloseInvocation, CommitmentCommand, InvocationClosure, ManagedKernel, ManagedTermination,
+        RootTerminal, StartInvocation, Submission, WakeCondition, YieldInvocation, digest_bytes,
     };
+    use ymp_domain::ProvenanceLimit;
+    use ymp_domain::commitment::{MAX_ATTEMPT_WAKES, MAX_BUNDLE_CHANGES};
 
     /// A second yielded slice of the same attempt, waiting on the submission this run commits.
     /// Whether it is admitted before or after the controller's own slice is decided by which of the
@@ -740,6 +900,22 @@ mod tests {
             Application::create(temporary.path().join("data"), "run-1", Budget::new(1, 1))
                 .expect("create the run");
         (temporary, Arc::new(Mutex::new(application)))
+    }
+
+    /// The construction of one result, stated as a run's own record states it: the base the work
+    /// was awarded from, and the exact object standing at the one path the result changed.
+    fn construction(tag: &[u8]) -> CandidateConstruction {
+        CandidateConstruction {
+            base_digest: digest_bytes(b"base"),
+            candidate_digest: digest_bytes(tag),
+            changes: vec![BundleChange {
+                path: "result.txt".to_owned(),
+                change: PathChange::Upsert {
+                    object_digest: digest_bytes(tag),
+                    executable: false,
+                },
+            }],
+        }
     }
 
     fn prepared() -> (TempDir, ManagedKernel) {
@@ -801,7 +977,7 @@ mod tests {
         kernel.start_invocation().expect("the controller's slice");
         // The fact the other slice waits on. From here the kernel has something to admit it for.
         kernel
-            .submitted(&digest_bytes(b"candidate"))
+            .submitted(&construction(b"candidate"))
             .expect("the candidate");
         kernel.yielded("cursor-0").expect("the controller's yield");
         assert_eq!(
@@ -848,7 +1024,7 @@ mod tests {
         kernel.yielded("cursor-0").expect("the controller's yield");
         yield_other_slice(&kernel, "other");
         kernel
-            .submitted(&digest_bytes(b"candidate"))
+            .submitted(&construction(b"candidate"))
             .expect("the candidate");
         assert_eq!(
             kernel.admission_order().expect("the admission order"),
@@ -877,7 +1053,7 @@ mod tests {
         yield_other_slice(&kernel, "other");
         kernel.start_invocation().expect("the controller's slice");
         kernel
-            .submitted(&digest_bytes(b"candidate"))
+            .submitted(&construction(b"candidate"))
             .expect("the candidate");
         kernel.yielded("cursor-0").expect("the controller's yield");
         assert!(kernel.admit_wake("wake-1", "continue").is_err());
@@ -905,6 +1081,271 @@ mod tests {
         );
     }
 
+    /// Stop the run the way an operator does: in the run's own journal, which is the record that
+    /// states whether anything may still be created and is moved well before the kernel is stopped.
+    fn cancel(kernel: &ManagedKernel) {
+        kernel
+            .application()
+            .execute(
+                format!("{}.cancel", kernel.attempt_id),
+                Command::Cancel {
+                    reason: "stopped by the operator".to_owned(),
+                },
+            )
+            .expect("the journal records the cancellation");
+    }
+
+    /// A run whose journal has ended offers no more work, and its ending is still recorded.
+    ///
+    /// This is the sequence an operator produces: a slice is running, the operator stops the run,
+    /// and the slice then yields. The yield would advertise the offer its wake is recorded against
+    /// — authority for work on a run that has ended, funded out of the run's own accounts — and it
+    /// is refused before the ledger is asked. The offers the run holds are therefore the ones it
+    /// held when the operator stopped it, and the slice is left where the facts put it rather than
+    /// registered for a wake nothing can answer. Everything the ending itself needs still lands:
+    /// the slice closes, the run stops, the work returns and the offer settles.
+    #[test]
+    fn a_cancelled_run_advertises_no_wake_offer_and_still_records_its_ending() {
+        let (_store, kernel) = prepared();
+        kernel.start_invocation().expect("the controller's slice");
+        let before = kernel.snapshot().expect("the ledger").offers().len();
+
+        cancel(&kernel);
+        kernel
+            .yielded("cursor-0")
+            .expect("a yield on a run that has ended registers nothing and reports no failure");
+
+        let ledger = kernel.snapshot().expect("the ledger");
+        assert_eq!(
+            ledger.offers().len(),
+            before,
+            "a run that had already ended advertised work anyway"
+        );
+        assert_eq!(
+            kernel.invocation_state().expect("the slice record"),
+            InvocationState::Running,
+            "the slice was registered for a wake that can never be answered"
+        );
+
+        kernel
+            .terminated(ManagedTermination::Cancelled)
+            .expect("the ending of a run is recorded after the journal states it");
+        let ended = kernel.snapshot().expect("the ledger");
+        assert_eq!(
+            kernel.root_terminal().expect("the terminal"),
+            Some(RootTerminal::Cancelled)
+        );
+        assert_eq!(
+            ended.invocations()[&kernel.invocation_id].closure,
+            Some(InvocationClosure::Cancelled)
+        );
+        assert_eq!(
+            kernel.open_authority().expect("the open authority"),
+            None,
+            "a stopped run is still held open"
+        );
+    }
+
+    /// A wake delivered after the run's journal has ended resumes nothing, and it is refused before
+    /// the ledger has been stopped.
+    ///
+    /// The window between the two records is what this closes. The operator's cancellation moves
+    /// the journal at once; the kernel is stopped only when the slice that was running has been
+    /// wound down, and a wake arriving in between used to record consent, admit the resumption and
+    /// put the runtime back to work on a run that had ended.
+    #[test]
+    fn a_wake_after_the_run_has_ended_resumes_nothing() {
+        let (_store, kernel) = prepared();
+        kernel.start_invocation().expect("the controller's slice");
+        kernel.yielded("cursor-0").expect("the controller's yield");
+        cancel(&kernel);
+        assert!(
+            kernel.snapshot().expect("the ledger").stopped().is_none(),
+            "the kernel was stopped before the wake, which is not the window under test"
+        );
+
+        let refusal = kernel
+            .admit_wake("wake-1", "continue")
+            .expect_err("a run that has ended admitted a wake");
+        assert!(
+            refusal.to_string().contains("run is already terminal"),
+            "unexpected refusal: {refusal}"
+        );
+        assert_eq!(
+            kernel.invocation_state().expect("the slice record"),
+            InvocationState::Yielded,
+            "a refused wake resumed the slice"
+        );
+        assert_eq!(resumptions(&kernel), 0);
+    }
+
+    /// A submission records the objects the result names and the construction they form, and the
+    /// work is sealed with the identity the kernel computed from those facts.
+    #[test]
+    fn a_submission_records_its_objects_its_bundle_and_the_result_they_form() {
+        let (_store, kernel) = prepared();
+        kernel.start_invocation().expect("the controller's slice");
+        let construction = construction(b"candidate");
+        assert_eq!(
+            kernel.submitted(&construction).expect("the submission"),
+            Submission::Recorded
+        );
+
+        let ledger = kernel.snapshot().expect("the ledger");
+        let object = match &construction.changes[0].change {
+            PathChange::Upsert { object_digest, .. } => object_digest.clone(),
+            PathChange::Delete => panic!("the fixture states an object"),
+        };
+        assert!(
+            ledger.facts().iter().any(|fact| matches!(
+                fact,
+                CommitmentEvent::ObjectRecorded { object_digest } if *object_digest == object
+            )),
+            "the object the result puts at its path was never recorded whole"
+        );
+        let bundle = ledger
+            .facts()
+            .iter()
+            .find_map(|fact| match fact {
+                CommitmentEvent::BundleRecorded {
+                    bundle_digest,
+                    base_digest,
+                    changes,
+                    ..
+                } => Some((bundle_digest.clone(), base_digest.clone(), changes.clone())),
+                _ => None,
+            })
+            .expect("the bundle the result was published as");
+        assert_eq!(bundle.1, construction.base_digest, "another base");
+        assert_eq!(bundle.2, construction.changes, "other changes");
+        let candidate = ledger
+            .facts()
+            .iter()
+            .find_map(|fact| match fact {
+                CommitmentEvent::CandidateFormed {
+                    candidate_digest,
+                    bundle_digest,
+                    base_digest,
+                    ..
+                } => Some((
+                    candidate_digest.clone(),
+                    bundle_digest.clone(),
+                    base_digest.clone(),
+                )),
+                _ => None,
+            })
+            .expect("the result the bundle constructs");
+        assert_eq!(candidate.1, bundle.0, "the result names another bundle");
+        assert_eq!(candidate.2, construction.base_digest);
+        assert_eq!(
+            ledger.contracts()[&kernel.contract_id].candidate_digest,
+            Some(candidate.0),
+            "the work was sealed with something other than the result it formed"
+        );
+    }
+
+    /// How many facts of the record are about the construction of the result: the objects it names,
+    /// the bundle it was published as, and the result formed from it. The seal is not one of them,
+    /// because a result is sealed whether or not its construction could be stated.
+    fn construction_facts(kernel: &ManagedKernel) -> usize {
+        kernel
+            .snapshot()
+            .expect("the ledger")
+            .facts()
+            .iter()
+            .filter(|fact| {
+                matches!(
+                    fact,
+                    CommitmentEvent::ObjectRecorded { .. }
+                        | CommitmentEvent::BundleRecorded { .. }
+                        | CommitmentEvent::CandidateFormed { .. }
+                )
+            })
+            .count()
+    }
+
+    /// A result the kernel cannot state is sealed all the same, and nothing of its construction is
+    /// recorded.
+    ///
+    /// The work is what the run produced, and a bound on how much one submission states at once is
+    /// no reason to take its verdict away: the seal names the result the run's own journal names,
+    /// and that result is judged like any other. What is not written is the construction, and no
+    /// part of it — the objects are recorded for the bundle that names them, and a bundle refused
+    /// for its shape after they had been written would leave facts behind that nothing refers to.
+    /// Whether the bundle may be published is therefore settled first.
+    #[test]
+    fn a_result_of_more_changes_than_one_bundle_carries_is_sealed_without_its_construction() {
+        let (_store, kernel) = prepared();
+        kernel.start_invocation().expect("the controller's slice");
+        let mut construction = construction(b"candidate");
+        construction.changes = (0..=MAX_BUNDLE_CHANGES)
+            .map(|index| BundleChange {
+                path: format!("file-{index}.txt"),
+                change: PathChange::Upsert {
+                    object_digest: digest_bytes(format!("object-{index}").as_bytes()),
+                    executable: false,
+                },
+            })
+            .collect();
+
+        match kernel.submitted(&construction).expect("the submission") {
+            Submission::ProvenanceUnrecorded {
+                reason: ProvenanceLimit::TooManyChanges { changes },
+                protocol_rule,
+            } => {
+                assert_eq!(changes, MAX_BUNDLE_CHANGES as u64 + 1);
+                assert!(
+                    protocol_rule.contains(&MAX_BUNDLE_CHANGES.to_string()),
+                    "the rule does not state the bound it applied: {protocol_rule}"
+                );
+            }
+            other => {
+                panic!("a construction of {MAX_BUNDLE_CHANGES} + 1 changes was stated: {other:?}")
+            }
+        }
+        assert_eq!(
+            construction_facts(&kernel),
+            0,
+            "a construction the kernel cannot state left facts about itself behind"
+        );
+        assert_eq!(
+            kernel.snapshot().expect("the ledger").contracts()[&kernel.contract_id]
+                .candidate_digest,
+            Some(construction.candidate_digest.clone()),
+            "the work carries no result, so a protected query has nothing to be spent on"
+        );
+    }
+
+    /// The same, for a path the protocol does not admit. Here the count is well within the bound,
+    /// so nothing but the shape of one path stops the bundle — and the objects would already have
+    /// been recorded if the bundle were put to the kernel only after them.
+    #[test]
+    fn a_result_naming_a_path_the_protocol_refuses_is_sealed_without_its_construction() {
+        let (_store, kernel) = prepared();
+        kernel.start_invocation().expect("the controller's slice");
+        let mut construction = construction(b"candidate");
+        construction.changes[0].path = "dir\\result.txt".to_owned();
+
+        match kernel.submitted(&construction).expect("the submission") {
+            Submission::ProvenanceUnrecorded {
+                reason: ProvenanceLimit::UnacceptablePath { path },
+                ..
+            } => assert_eq!(path, "dir\\result.txt"),
+            other => panic!("a path the protocol refuses was stated: {other:?}"),
+        }
+        assert_eq!(
+            construction_facts(&kernel),
+            0,
+            "the objects of a bundle that was never published stayed in the record"
+        );
+        assert_eq!(
+            kernel.snapshot().expect("the ledger").contracts()[&kernel.contract_id]
+                .candidate_digest,
+            Some(construction.candidate_digest.clone()),
+            "the work carries no result, so a protected query has nothing to be spent on"
+        );
+    }
+
     /// Every commitment record of this store, in journal order.
     fn journalled(application: &Arc<Mutex<Application>>) -> Vec<(String, Vec<CommitmentEvent>)> {
         application
@@ -920,21 +1361,60 @@ mod tests {
             .collect()
     }
 
-    /// Two participants commit at once, and the record holds each command once and whole.
+    /// How many participants ask for the same slice at once.
+    const CONTENDERS: usize = 8;
+    /// How many times the run is brought back to the state where they can. It is the number of
+    /// resumptions one attempt is funded for, which is the most contention this run can be put
+    /// through without inventing authority it was never given.
+    const ROUNDS: u32 = MAX_ATTEMPT_WAKES;
+
+    /// How many resumptions the record holds.
+    fn resumptions(kernel: &ManagedKernel) -> usize {
+        kernel
+            .snapshot()
+            .expect("the ledger")
+            .facts()
+            .iter()
+            .filter(|fact| matches!(fact, CommitmentEvent::InvocationResumed { .. }))
+            .count()
+    }
+
+    /// Participants contending for one slice commit through one order, and the record holds each
+    /// command once and whole.
     ///
-    /// The worker of a run records what its slice did while another participant records what the
-    /// work produced, and both reach the kernel through the same journal. Three things are required
-    /// of the record afterwards. Each command wrote exactly one record, so no fact was committed
+    /// They contend on one aggregate on purpose. Commands that touch different things can be
+    /// decided against each other's stale readings and still commit facts that contradict nothing,
+    /// which is why two participants doing unrelated work prove little about the order they were
+    /// serialized into. Here every participant asks for the same process slice, and the slice is
+    /// what each of them reads before deciding: whether it may be resumed is true for exactly one
+    /// of them, and it stops being true the moment that one commits.
+    ///
+    /// Four things are required of the record. Exactly one participant per round is told the slice
+    /// resumed, and the record holds exactly that many resumptions, so no reading that had been
+    /// overtaken was acted on. Each command wrote exactly one record, so no fact was committed
     /// twice and none was lost. The ledger the run holds is that record read in order, fact for
-    /// fact, so the two commands were decided in the order they were written in rather than
-    /// interleaved into one another. And a restart rebuilds the same ledger from the record alone.
+    /// fact. And a restart rebuilds the same ledger from the record alone.
     ///
     /// The check that must fail: decide a command outside the lock the journal is written under —
-    /// read the ledger, release the lock, and append afterwards — and the two commands are decided
-    /// against the same state, so the ledger a restart rebuilds no longer matches the one the run
-    /// answered from.
+    /// read the ledger, release the lock, and append afterwards — and two participants decide the
+    /// same resumption against the same reading. Both are told the slice resumed and the record
+    /// holds two resumptions of one slice, which the counts here state directly.
+    ///
+    /// What that failure depends on is measured rather than assumed, and the measurements do not
+    /// agree with each other. The review of this build measured 26 runs in 30 with a scheduling
+    /// point between the decision and the append, and 0 in 30 with the two back to back. Measured
+    /// here against a mutation whose decision goes through the journal-backed read the durable path
+    /// itself uses — the projection is caught up with, the ledger is cloned, the lock is released —
+    /// it is 30 in 30 either way, because that reading is itself wide enough for another
+    /// participant to be scheduled inside it.
+    ///
+    /// What follows is the bound of the claim rather than its strength: how often an unlocked
+    /// decision is caught depends on how much work sits between the decision and the append, and a
+    /// window narrow enough can hide from a check of any shape. What this check establishes is that
+    /// the failure is a difference in the record — two resumptions of one slice — and not something
+    /// a caller has to be watching for at the right moment.
     #[test]
-    fn two_participants_committing_at_once_leave_every_fact_once_and_in_one_order() {
+    fn participants_contending_for_one_slice_leave_every_fact_once_and_in_one_order() {
         let (temporary, application) = store();
         let root = temporary.path().join("data");
         let kernel = Arc::new(
@@ -951,38 +1431,46 @@ mod tests {
         kernel.start_invocation().expect("the controller's slice");
         let before = journalled(&application).len();
 
-        let yielding = Arc::clone(&kernel);
-        let submitting = Arc::clone(&kernel);
-        let start = Arc::new(std::sync::Barrier::new(2));
-        let yield_start = Arc::clone(&start);
-        let submit_start = Arc::clone(&start);
-        let candidate = digest_bytes(b"candidate");
-        let first = std::thread::Builder::new()
-            .spawn(move || {
-                yield_start.wait();
-                yielding.yielded("cursor-0")
-            })
-            .expect("the participant that yields");
-        let second = std::thread::Builder::new()
-            .spawn(move || {
-                submit_start.wait();
-                submitting.submitted(&candidate)
-            })
-            .expect("the participant that submits");
-        first
-            .join()
-            .expect("the yielding participant")
-            .expect("the yield");
-        second
-            .join()
-            .expect("the submitting participant")
-            .expect("the submission");
+        for round in 0..ROUNDS {
+            kernel
+                .yielded(&format!("cursor-{round}"))
+                .expect("the slice yields");
+            let start = Arc::new(std::sync::Barrier::new(CONTENDERS));
+            let asking: Vec<_> = (0..CONTENDERS)
+                .map(|contender| {
+                    let kernel = Arc::clone(&kernel);
+                    let start = Arc::clone(&start);
+                    std::thread::Builder::new()
+                        .spawn(move || {
+                            start.wait();
+                            kernel.admit_wake(&format!("wake-{round}-{contender}"), "continue")
+                        })
+                        .expect("a participant asking for the slice")
+                })
+                .collect();
+            let admitted = asking
+                .into_iter()
+                .map(|handle| handle.join().expect("a participant asking for the slice"))
+                .filter(|answer| matches!(answer, Ok(true)))
+                .count();
+            assert_eq!(
+                admitted, 1,
+                "round {round}: {CONTENDERS} participants asked for one slice and it resumed \
+                 {admitted} times"
+            );
+            assert_eq!(
+                resumptions(&kernel),
+                round as usize + 1,
+                "round {round}: the record holds a resumption for a participant that was refused"
+            );
+            assert_eq!(
+                kernel.invocation_state().expect("the slice record"),
+                InvocationState::Running
+            );
+        }
 
         let records = journalled(&application);
-        assert!(
-            records.len() > before,
-            "neither participant reached the record"
-        );
+        assert!(records.len() > before, "no participant reached the record");
         let identifiers: std::collections::BTreeSet<&String> =
             records.iter().map(|(command_id, _)| command_id).collect();
         assert_eq!(
