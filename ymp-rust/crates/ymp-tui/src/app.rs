@@ -1253,6 +1253,11 @@ impl Session {
                     report.applied_paths.join(", ")
                 ));
             }
+            // An application that stopped part-way carries what it already wrote, and the
+            // operator is told that rather than being told nothing happened.
+            Err(error @ ApplicationError::ApplyInterrupted { .. }) => {
+                self.model.error(error.to_string());
+            }
             Err(error) => self.model.error(format!("nothing was applied — {error}")),
         }
     }

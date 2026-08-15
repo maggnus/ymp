@@ -12,6 +12,15 @@
 //!   is refused by the run's own status, and the project directory stays empty.
 //! * A file the project already holds is named and nothing at all is written; the same call with
 //!   the replacement stated writes the candidate over it and reports what it replaced.
+//! * The path a candidate file is reached through is examined too, not only the file at its end:
+//!   a project file standing where the candidate needs a directory, a directory standing where it
+//!   names a file, and a symbolic link on the way each block the application before it begins,
+//!   and the project directory is unchanged afterwards. The negative half of the first of these
+//!   is the condition measured before it: the application began, moved part of the candidate and
+//!   only then failed on the directory it could not enter.
+//! * A condition no examination can see beforehand — a directory the operator may not write into
+//!   — stops the moves after some have happened, and what is reported then is the files that are
+//!   already in the project, not that nothing was written.
 
 use std::fs;
 use std::path::Path;
@@ -209,4 +218,156 @@ fn a_file_the_project_holds_is_named_and_replaced_only_when_the_operator_states_
         tree(&project),
         vec!["result.txt".to_owned(), "src/lib.rs".to_owned()]
     );
+}
+
+/// The condition measured on the reviewed candidate: the project holds a file named `src`, and
+/// the candidate needs `src` to be a directory. Examined only at the end of the path, this is
+/// indistinguishable from a path that does not exist yet, so the application would begin, move
+/// what it could and fail on the rest.
+#[test]
+fn a_file_where_the_candidate_needs_a_directory_stops_the_application_before_it_begins() {
+    let temporary = tempdir().expect("temporary directory");
+    let run = accepted_run(temporary.path());
+    let project = temporary.path().join("project");
+    fs::create_dir_all(&project).expect("create project");
+    fs::write(project.join("src"), b"the operator's own work\n").expect("project file");
+
+    let refusal = run.application.apply_candidate(&project, false);
+    assert!(
+        matches!(
+            &refusal,
+            Err(ApplicationError::ApplyBlocked(reasons))
+                if reasons.len() == 1
+                    && reasons[0].starts_with("src:")
+                    && reasons[0].contains("needs a directory")
+        ),
+        "the blocking path was not named: {refusal:?}"
+    );
+    assert_eq!(
+        tree(&project),
+        vec!["src".to_owned()],
+        "an application that could not finish still wrote part of the candidate"
+    );
+    assert_eq!(
+        fs::read_to_string(project.join("src")).expect("project file"),
+        "the operator's own work\n"
+    );
+
+    // Stating the replacement does not turn this into a replacement: the candidate needs the
+    // path to be a directory, which is not a file the operator asked to have replaced.
+    assert!(
+        matches!(
+            run.application.apply_candidate(&project, true),
+            Err(ApplicationError::ApplyBlocked(_))
+        ),
+        "a stated replacement was taken as permission to remove a directory in the way"
+    );
+    assert_eq!(tree(&project), vec!["src".to_owned()]);
+}
+
+#[test]
+fn a_directory_where_the_candidate_names_a_file_stops_the_application_before_it_begins() {
+    let temporary = tempdir().expect("temporary directory");
+    let run = accepted_run(temporary.path());
+    let project = temporary.path().join("project");
+    fs::create_dir_all(project.join("result.txt/kept")).expect("create project directory");
+
+    for overwrite in [false, true] {
+        let refusal = run.application.apply_candidate(&project, overwrite);
+        assert!(
+            matches!(
+                &refusal,
+                Err(ApplicationError::ApplyBlocked(reasons))
+                    if reasons.len() == 1
+                        && reasons[0].starts_with("result.txt:")
+                        && reasons[0].contains("a directory stands")
+            ),
+            "the directory in the way was not named (overwrite: {overwrite}): {refusal:?}"
+        );
+        assert_eq!(
+            tree(&project),
+            Vec::<String>::new(),
+            "an application that could not finish still wrote part of the candidate"
+        );
+    }
+}
+
+#[cfg(unix)]
+#[test]
+fn a_symbolic_link_on_the_way_stops_the_application_and_nothing_leaves_the_project() {
+    let temporary = tempdir().expect("temporary directory");
+    let run = accepted_run(temporary.path());
+    let project = temporary.path().join("project");
+    let outside = temporary.path().join("outside");
+    fs::create_dir_all(&project).expect("create project");
+    fs::create_dir_all(&outside).expect("create the directory outside the project");
+    std::os::unix::fs::symlink(&outside, project.join("src")).expect("link out of the project");
+
+    let refusal = run.application.apply_candidate(&project, true);
+    assert!(
+        matches!(
+            &refusal,
+            Err(ApplicationError::ApplyBlocked(reasons))
+                if reasons.len() == 1
+                    && reasons[0].starts_with("src:")
+                    && reasons[0].contains("symbolic link")
+        ),
+        "the link on the way was not named: {refusal:?}"
+    );
+    assert_eq!(
+        tree(&outside),
+        Vec::<String>::new(),
+        "the application wrote through the link, outside the directory it was given"
+    );
+    assert_eq!(
+        tree(&project),
+        Vec::<String>::new(),
+        "the application wrote part of the candidate into the project"
+    );
+}
+
+/// Not every condition can be seen before the first move. A directory the operator may not write
+/// into stops the application part-way, and what is reported is what the project now holds.
+#[cfg(unix)]
+#[test]
+fn an_application_stopped_part_way_names_the_files_it_already_wrote() {
+    use std::os::unix::fs::PermissionsExt;
+
+    let temporary = tempdir().expect("temporary directory");
+    let run = accepted_run(temporary.path());
+    let project = temporary.path().join("project");
+    fs::create_dir_all(project.join("src")).expect("create project");
+    let mut permissions = fs::metadata(project.join("src"))
+        .expect("project subdirectory")
+        .permissions();
+    permissions.set_mode(0o500);
+    fs::set_permissions(project.join("src"), permissions).expect("close the subdirectory");
+
+    let interrupted = run.application.apply_candidate(&project, false);
+    let message = match &interrupted {
+        Err(error @ ApplicationError::ApplyInterrupted { applied, .. }) => {
+            assert_eq!(
+                applied,
+                &vec!["result.txt".to_owned()],
+                "the files already in the project were not named"
+            );
+            error.to_string()
+        }
+        other => panic!("an interrupted application was not reported as one: {other:?}"),
+    };
+    assert!(
+        message.contains("result.txt") && !message.contains("nothing"),
+        "the report denies what the project now holds: {message}"
+    );
+    assert_eq!(
+        tree(&project),
+        vec!["result.txt".to_owned()],
+        "the project holds something other than the file the report names"
+    );
+
+    let mut permissions = fs::metadata(project.join("src"))
+        .expect("project subdirectory")
+        .permissions();
+    permissions.set_mode(0o700);
+    fs::set_permissions(project.join("src"), permissions).expect("reopen the subdirectory");
 }

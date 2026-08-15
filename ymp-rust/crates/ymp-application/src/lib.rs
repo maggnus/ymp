@@ -103,10 +103,22 @@ pub enum ApplicationError {
     )]
     ApplyWouldOverwrite(Vec<String>),
     #[error(
-        "a directory stands where the candidate names a file, and nothing was written: {}",
-        .0.join(", ")
+        "the project directory cannot receive the candidate as it stands, and nothing was \
+         written: {}",
+        .0.join("; ")
     )]
-    ApplyBlockedByDirectory(Vec<String>),
+    ApplyBlocked(Vec<String>),
+    #[error(
+        "the application stopped after writing {} file(s) into the project directory, which now \
+         holds {}: {source}",
+        .applied.len(),
+        .applied.join(", ")
+    )]
+    ApplyInterrupted {
+        applied: Vec<String>,
+        #[source]
+        source: Box<ApplicationError>,
+    },
 }
 
 #[derive(Debug, Error, Eq, PartialEq)]
@@ -802,10 +814,18 @@ impl Application {
     ///
     /// A file the project already holds is a refusal, not a silent replacement: every conflicting
     /// path is named and nothing at all is written, unless `overwrite` states that replacing them
-    /// is intended. The files are first materialized into one staging directory beside them and
-    /// then renamed into place, so a file that appears in the project is complete and carries the
-    /// candidate's own permissions; a failure part-way leaves the staging directory removed and
-    /// the files not yet renamed absent, rather than half-written.
+    /// is intended. The whole tree is examined before the first file moves, and every path the
+    /// candidate must pass through is examined too, not only the file at its end: a project file
+    /// standing where the candidate needs a directory, or a directory standing where it names a
+    /// file, or a symbolic link on the way, blocks the application before it begins rather than
+    /// stopping it half-way.
+    ///
+    /// The files are materialized into one staging directory and renamed into place, so a file
+    /// that appears in the project is complete and carries the candidate's own permissions. A
+    /// condition the examination cannot see beforehand — a directory the operator may not write
+    /// into, a filesystem that fills — can still stop the moves after some have happened, and
+    /// [`ApplicationError::ApplyInterrupted`] then names the files that are already in the
+    /// project rather than reporting that nothing was written.
     pub fn apply_candidate(
         &self,
         destination: impl AsRef<Path>,
@@ -830,26 +850,29 @@ impl Application {
         }
         fs::create_dir_all(&destination)?;
 
-        // What is already there decides whether anything is written at all. The whole set is
-        // examined before the first file moves, so a refusal names every conflict at once and
-        // leaves the directory exactly as it was.
+        // What is already there decides whether anything is written at all. Every target and
+        // every directory a target is reached through is examined before the first file moves,
+        // so a refusal names every conflict at once and leaves the directory exactly as it was.
         let mut occupied = Vec::new();
-        let mut directories = Vec::new();
+        let mut blocked = Vec::new();
         for (path, relative) in &targets {
-            reject_symlinked_ancestor(&destination, relative)?;
+            blocked.extend(blocking_ancestors(&destination, relative));
             let Ok(metadata) = fs::symlink_metadata(destination.join(relative)) else {
                 continue;
             };
             if metadata.is_dir() {
-                directories.push(path.clone());
+                blocked.push(format!(
+                    "{path}: a directory stands where the candidate names a file"
+                ));
             } else {
                 occupied.push(path.clone());
             }
         }
-        directories.sort();
+        blocked.sort();
+        blocked.dedup();
         occupied.sort();
-        if !directories.is_empty() {
-            return Err(ApplicationError::ApplyBlockedByDirectory(directories));
+        if !blocked.is_empty() {
+            return Err(ApplicationError::ApplyBlocked(blocked));
         }
         if !occupied.is_empty() && !overwrite {
             return Err(ApplicationError::ApplyWouldOverwrite(occupied));
@@ -858,21 +881,31 @@ impl Application {
         let staging = destination.join(format!(".ymp-apply-{}", Uuid::new_v4()));
         self.artifact_store()
             .materialize(&candidate_digest, &staging)?;
+        let mut moved: Vec<String> = Vec::new();
         let result = (|| -> Result<(), ApplicationError> {
-            for (_, relative) in &targets {
+            for (path, relative) in &targets {
                 let target = destination.join(relative);
                 if let Some(parent) = target.parent() {
                     fs::create_dir_all(parent)?;
                 }
                 fs::rename(staging.join(relative), &target)?;
+                moved.push(path.clone());
             }
             File::open(&destination)?.sync_all()?;
             Ok(())
         })();
         let _ = fs::remove_dir_all(&staging);
-        result?;
+        if let Err(error) = result {
+            // Some of the candidate may already be in the project. Saying that nothing was
+            // written would be false, so what is there is named instead.
+            moved.sort();
+            return Err(ApplicationError::ApplyInterrupted {
+                applied: moved,
+                source: Box::new(error),
+            });
+        }
 
-        let mut applied_paths: Vec<_> = targets.into_iter().map(|(path, _)| path).collect();
+        let mut applied_paths = moved;
         applied_paths.sort();
         Ok(CandidateApplyReport {
             destination,
@@ -1139,31 +1172,39 @@ fn checked_candidate_path(path: &str) -> Result<PathBuf, ApplicationError> {
     Ok(value.to_path_buf())
 }
 
-/// Refuse a path whose directories inside the project are reached through a symbolic link.
+/// Everything on the way to a candidate file that stops it from being written there.
 ///
-/// A relative path is checked, but the directories it passes through are not the candidate's: a
-/// link already in the project would carry a write outside the directory the operator named.
-fn reject_symlinked_ancestor(destination: &Path, relative: &Path) -> Result<(), ApplicationError> {
+/// The candidate's path is relative and checked, but the directories it passes through belong to
+/// the project. A file standing where the candidate needs a directory makes the write impossible,
+/// and a symbolic link would carry it outside the directory the operator named; a path examined
+/// only at its end sees neither, because the operating system reports the same condition for a
+/// path that does not exist yet and for one whose parent is not a directory.
+fn blocking_ancestors(destination: &Path, relative: &Path) -> Vec<String> {
+    let mut blocking = Vec::new();
     let mut walked = destination.to_path_buf();
+    let mut inside = PathBuf::new();
     let mut components: Vec<_> = relative.components().collect();
     components.pop();
     for component in components {
         walked.push(component);
+        inside.push(component);
         let Ok(metadata) = fs::symlink_metadata(&walked) else {
-            return Ok(());
+            // Nothing exists here yet, so nothing below it can exist either: the application
+            // creates the rest of the path itself.
+            break;
         };
+        let reached = inside.display();
         if metadata.file_type().is_symlink() {
-            return Err(ApplicationError::Io(std::io::Error::new(
-                std::io::ErrorKind::InvalidData,
-                format!(
-                    "the project directory reaches {} through a symbolic link, and nothing was \
-                     written",
-                    walked.display()
-                ),
-            )));
+            blocking.push(format!(
+                "{reached}: the project reaches this path through a symbolic link"
+            ));
+        } else if !metadata.is_dir() {
+            blocking.push(format!(
+                "{reached}: the project holds a file where the candidate needs a directory"
+            ));
         }
     }
-    Ok(())
+    blocking
 }
 
 fn copy_export_tree(source: &Path, destination: &Path) -> Result<(), ApplicationError> {
