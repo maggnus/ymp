@@ -39,6 +39,15 @@ Source links are pinned to
 > (P1) supply what exists; the per-task permitted list is operator input at request time and is
 > frozen into the internal contract by digest at authorization (P3); the deferred W1-EVL-04d is
 > closed by this decision.
+>
+> **Refined by product brief v2, 2026-08-15** ([PRODUCT-BRIEF-collective-v2.md](PRODUCT-BRIEF-collective-v2.md),
+> Part A §1, §4, §16–18 and Part B): the permitted set is now the `AgentPool` resource — a
+> capability/resource boundary (allowed models, limits, min/max bounds), never a team or a role
+> assignment. A useful `default` pool is created automatically once a provider is enabled and its
+> models discovered, so the operator is never asked to create a pool before working; an advanced
+> operator may edit `default` or add pools later via `/pools`. The run-scoped freeze stays an
+> internal snapshot/digest in run provenance. The sentence "no separate operator-facing model pool
+> entity" above is superseded to this extent; the rest of D1 stands.
 
 
 **Question.** A run may recruit only from a permitted pool. Where is that pool declared: in the
