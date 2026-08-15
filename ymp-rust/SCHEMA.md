@@ -12,6 +12,7 @@ invocation — and it is addressed rather than named per run:
 ```text
 ~/.ymp/
   root.json                     layout marker and version
+  providers/<provider>.json     one account: family, observed state, the engines that reach it
   runtimes/<engine>.json        one runtime engine: admission, properties, model list
   projects/<project>/
     project.json                the directory this project addresses
@@ -39,6 +40,15 @@ store is walked up to the first ancestor carrying `root.json` that addresses tha
 projects, so `--data-root` on a store inside a root reads that root's registry. A store standing
 under no such root has no root decision to honour and keeps its registry beside it. The registry is
 described under *Runtime engine registry version 1* below.
+
+The provider records stand beside the engine records and are reached the same way, because which
+accounts a host can send work to is the same kind of decision as which engines it admits: one per
+root, read by every run under it. They are described under *Provider records version 1* below.
+
+The provider directory is additive and the layout version is not raised for it. A root written by
+an earlier build carries no `providers/` directory, and that is the state a root is in before
+anything has been observed, not a version this build cannot read; a root written by this build
+carries a directory an earlier build never looks at. Nothing is migrated either way.
 
 An invocation that commits a run start is given a store holding no run; every other invocation is
 given the store the project is already on. A store addressed but never started into holds no
@@ -151,6 +161,60 @@ must never admit it.
 The registry holds no run's state and no credential, and it decides nothing about which models a
 run may use. Which of an engine's models are permitted is a separate question this layout does not
 answer.
+
+## Provider records version 1
+
+One record per provider lives at `<root>/providers/<provider>.json`, where `<provider>` is the
+account's family as a record and a command spell it: `anthropic` or `openai`. A provider is an
+account with an authentication state that exposes models; it is not a runtime and not a model, and
+every provider is reached through an installed engine. The record therefore states the account, and
+the engines that reach it stand beneath it as its `routes`.
+
+The record holds its own name and `family`, the observed `state` with the `reason` that state was
+observed from, and one route per engine. A route names the engine, its admission decision, the
+executable and release measured for it, the digest of that executable, and where its credential is
+read from — named, never the credential itself. Those fields are copies of what the engine record
+held when the observation was made, and they are held for one purpose: they say which engine build
+the provider state was observed from, so an observation older than the installed build is visible
+as older rather than standing for it. Every decision is taken from the engine record, never from
+the copy.
+
+A provider record is observed and never seeded. It is written by one operation, which reads the
+engine records under the same root and writes what they state; it starts nothing, spends nothing
+and reaches no network. A root that has observed nothing therefore holds no provider record at all,
+and a read answers that the record is absent rather than inventing a state for it. An engine record
+is seeded because its enabled flag is an operator decision with a product default; a provider's
+state is measured throughout and has no default.
+
+The state is the first of these that applies, in the order an operator can act in: `unavailable`
+when no engine that reaches the provider is both admitted and installed here — including when an
+engine record could not be read at all, which is recorded as that route's reason and never as a
+working route; `not configured` when an admitted engine reported a release and nothing states where
+a credential would be read from; and `ready` when an admitted engine reported a release and states
+its credential origin. The design's fourth row state, `needs authentication`, is not written by
+this build: nothing here authenticates against a provider, so no measurement separates a credential
+the account rejects from one it accepts, and a record claiming that state would state the result of
+a check no code performs.
+
+`ready` means that a spend could reach the account, not that the account accepted anything. The
+record states where a credential is read from and never whether the provider honours it.
+
+The model catalog — the triples of provider, engine and model the design calls catalog entries — is
+derived and is not a fourth stored object. The model names live in the engine records and the
+attribution lives in the provider records, and the two are joined when the catalog is read; a
+stored union would be a copy of both, and a copy is what goes stale while reading as current. An
+entry that is not admissible is present and carries the measured reason rather than being dropped.
+An engine record that cannot be read fails the whole reading, because a catalog silently missing
+one engine's models is indistinguishable from a complete one.
+
+The record states its own `schema_version`. A record of any other version is refused when it is
+read, and no command migrates a record. A record standing under another provider's name is refused
+rather than read as that provider's.
+
+This level decides nothing. Which engines are admitted is still answered by the engine record's
+`enabled` flag alone, so a provider observed unavailable does not hold back an engine the operator
+enabled and an observed provider does not admit one they disabled. Nothing is instantiated by being
+recorded here, and which of the catalog's entries a run may use is not decided under this root.
 
 ## Event journal version 1
 

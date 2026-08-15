@@ -2,11 +2,13 @@
 
 //! The engine registry: which runtime engines this host admits, and what was measured about them.
 //!
-//! An engine is a managed entity rather than a compiled-in constant. One record per engine lives
-//! under the product root:
+//! An engine is a managed entity rather than a compiled-in constant, and it stands beneath the
+//! provider it reaches. One record per engine and one per provider live under the product root:
 //!
 //! ```text
 //! .ymp/
+//!   providers/anthropic.json        the account, its observed state and the engines that reach it
+//!   providers/openai.json
 //!   runtimes/claude-code.json       enabled flag, measured properties, measured model list
 //!   runtimes/codex.json
 //! ```
@@ -27,10 +29,21 @@
 //! resolved its own executable from configuration would add a second selection channel that no
 //! record states, so the registry owns the one channel and the record names its result.
 //!
-//! The registry is the level the collective design calls the model catalog
-//! (`ymp-docs/design/COLLECTIVE-DESIGN.md`, §6). It deliberately stops short of the pool: it
-//! records what an engine offers and whether the engine is admitted, and it decides nothing about
+//! The engine records are the measured half of the level the collective design calls the model
+//! catalog (`ymp-docs/design/COLLECTIVE-DESIGN.md`, §6). The other half is the account those
+//! models are served by: [`provider`] holds the provider records, and [`catalog`] joins the two
+//! into the triples the design calls catalog entries. All three levels deliberately stop short of
+//! the pool: they record what exists and whether an engine is admitted, and decide nothing about
 //! which of those models a run may use.
+
+pub mod catalog;
+pub mod provider;
+
+pub use catalog::{Availability, Catalog, CatalogEntry};
+pub use provider::{
+    PROVIDER_SCHEMA_VERSION, PROVIDERS_DIRECTORY, ProviderError, ProviderFamily, ProviderRecord,
+    ProviderRoute, ProviderState, Providers,
+};
 
 use std::fs;
 use std::io;
@@ -497,6 +510,13 @@ impl RegistryAddress {
     /// The registry this address reaches.
     pub fn registry(&self) -> Registry {
         Registry::under(self.root())
+    }
+
+    /// The provider records this address reaches. They stand under the same root the engine
+    /// records do, so an invocation that names a store reads the accounts of the root that
+    /// governs it rather than a set of its own.
+    pub fn providers(&self) -> Providers {
+        Providers::under(self.root())
     }
 }
 
