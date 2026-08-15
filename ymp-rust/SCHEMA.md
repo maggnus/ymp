@@ -95,11 +95,20 @@ nothing has been measured. Which candidates are asked about is not decided by an
 names: every identifier the executable carries is put to the build, and the build refuses what it
 does not serve.
 
-Whether a recorded list is still current is decided by `measured_for_digest` against the digest of
-the installed executable, computed at every reading. `measured_for_version` states the release that
-build reported and decides nothing, because a record states it and a record can say anything: a
-forged record naming the installed release would otherwise suppress the re-measurement that
-replaces it.
+Whether a recorded list belongs to the build that is installed now is decided by
+`measured_for_digest` against the digest of that executable, computed at every reading.
+`measured_for_version` states the release the build reported and decides nothing, because a record
+states it and a record can say anything: a record naming the installed release while holding
+another build's list would otherwise suppress the re-measurement that replaces it.
+
+The guarantee is that and no more. The digest is of the executable, not of the measurement, so a
+record whose digest is honest and whose names were rewritten by hand is read as current and no
+check here notices. Nothing authenticates a record.
+
+That limit is bounded by what a model list is allowed to decide, which is nothing about admission.
+Whether an engine may be started is answered by `enabled` alone, so a rewritten list cannot admit
+an engine the operator held back and cannot widen what a run may start. Which of an engine's models
+a run may use is not decided by this layout at all.
 
 The record states its own `schema_version`. A record of any other version is refused when it is
 read, and no command migrates a record. A record that exists and cannot be read refuses the engine
