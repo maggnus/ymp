@@ -189,18 +189,48 @@ is judged against one contract and no other. The `run.json` projection gains the
 `contract` field carrying the same three values; a projection written without it reads back as an
 unbound run rather than failing.
 
+## Event journal version 3
+
+Version 3 keeps every envelope field, ordering rule, digest input and limit of version 2 and adds
+two event tags, which are what makes the facts of the commitment kernel durable:
+
+- `commitment_kernel_opened`, carrying `root_participant`, `root_principal`, `root_obligation` and
+  `budget` — the state a ledger is built from. None of it is derivable from the facts that follow,
+  so a ledger without this record could not be rebuilt at all;
+- `commitment_facts_recorded`, carrying `facts`: every fact one commitment command committed, in
+  the order the kernel committed them.
+
+One command is one record. A commitment command commits all of its facts or none of them, and a
+record holding the whole command is what keeps that true across a restart: a reader either has the
+command entire or does not have the record, so no recovery rebuilds a ledger holding half an award.
+The record is written before the command's result is returned, so a caller told that escrow moved,
+that a contract was formed or that an obligation was returned is holding something the journal
+already states.
+
+A ledger is reconstructed from these records and from nothing else. The genesis record builds it
+and each `commitment_facts_recorded` record is replayed into it in journal order, by the same fold
+the live run uses, so the ledger a restart reaches and the ledger the run held are the same reading
+of the same records. No live state is carried across, and no projection beside the journal is
+consulted. A fact that cannot be replayed refuses the recovery rather than producing a ledger the
+record does not support.
+
+The facts themselves are the commitment kernel's own, unchanged: identifiers it compares, integer
+quantities it subtracts, deadlines it compares against its clock, and digests of inert content it
+stores without opening. Nothing in the record states what work means or who deserves it. A run that
+opens no kernel writes neither tag and reads back exactly as it did under version 2.
+
 ## Compatibility and migration
 
-Schema version 1 is immutable, and version 2 is a new version rather than an extension of it. A
-change that alters field meaning, digest input, event tags, required fields, ordering rules, or
-replay behavior requires a new schema version. The current binary reads and writes only version 2
-and fails closed on every other version, version 1 included.
+Schema version 1 is immutable, and versions 2 and 3 are new versions rather than extensions of what
+came before. A change that alters field meaning, digest input, event tags, required fields,
+ordering rules, or replay behavior requires a new schema version. The current binary reads and
+writes only version 3 and fails closed on every other version, versions 1 and 2 included.
 
 The migration consequence is stated rather than worked around: a journal written by an earlier
 binary is rejected at open with an unsupported-schema error, and no command migrates it, because
 no migration tool exists. Such a store remains inspectable as raw evidence and cannot be resumed,
 extended or exported by this binary; a new run needs a new data root. Evidence exported from a
-version-1 store keeps its own bytes and is not rewritten.
+store of an earlier version keeps its own bytes and is not rewritten.
 
 Refusing such a store changes nothing in it. The version is read from the first journal record
 before the store is opened for writing, so no writer lock is taken, the `run.json` projection is
