@@ -163,7 +163,7 @@ fn runtime_driver(
     registry_root: &std::path::Path,
     runtime: RuntimeChoice,
 ) -> anyhow::Result<Box<dyn RuntimeDriver>> {
-    Registry::under(registry_root).admit(runtime.engine())?;
+    Registry::addressing(registry_root).admit(runtime.engine())?;
     let driver: Box<dyn RuntimeDriver> = match runtime {
         RuntimeChoice::Codex => Box::new(CodexRuntime::default()),
         RuntimeChoice::Claude => Box::new(ClaudeRuntime::default()),

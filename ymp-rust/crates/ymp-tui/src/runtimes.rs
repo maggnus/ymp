@@ -142,10 +142,11 @@ impl Report {
 /// Read the registry and probe every engine it admits. Runs subprocesses; call it off the drawing
 /// thread.
 ///
-/// `root` is the product root the invocation addressed. It is a parameter and is never computed
-/// here: which root an invocation acts under is decided where the invocation is read.
+/// `root` is the root or the store the invocation addressed. Which registry that reaches is
+/// derived from the path itself: a store standing under a root reads the registry that root holds,
+/// whichever way the invocation named it.
 pub fn probe_all(root: &Path, measure: Measure) -> Report {
-    let registry = Registry::under(root);
+    let registry = Registry::addressing(root);
     let mut profiles = vec![fixture_facts()];
     for engine in Engine::ALL {
         profiles.push(engine_facts(&registry, engine, measure));
@@ -227,32 +228,45 @@ fn claude_facts(registry: &Registry, mut record: EngineRecord, measure: Measure)
         &runtime,
         Some(profile.model.clone()),
     );
+    // The digest is computed from the installed file, so it is what says whether a recorded list
+    // still describes what is installed. A record's own account of the release it measured decides
+    // nothing: a forged one would otherwise suppress the re-measurement that would expose it.
+    let digest = runtime.executable_digest().ok();
     record.properties = EngineProperties {
         executable: Some(facts.executable.clone()),
         version: facts.version.clone(),
+        executable_digest: digest.clone(),
         credential_origin: runtime.credential_origin().map(str::to_owned),
         max_budget_microusd: Some(profile.max_budget_microusd),
         max_in_flight_overshoot_microusd: Some(profile.max_in_flight_overshoot_microusd),
         wall_time_limit_ms: Some(profile.wall_time_limit_ms),
         output_limit_bytes: Some(profile.output_limit_bytes as u64),
     };
-    let measured_build = facts.version.clone();
-    let refresh = measure == Measure::Catalog
-        && facts.readiness == Readiness::Ready
-        && !measured_build
-            .as_ref()
-            .is_some_and(|version| record.models.current_for(version));
-    if refresh {
+    let current = digest
+        .as_deref()
+        .is_some_and(|digest| record.models.current_for(digest));
+    if measure == Measure::Catalog && facts.readiness == Readiness::Ready && !current {
         record.models = match runtime.measure_model_catalog() {
-            Ok(names) => ModelCatalog {
-                source: ModelSource::Measured,
-                measured_for_version: measured_build,
-                note: None,
-                names,
+            Ok(measured) => ModelCatalog {
+                source: match measured.unasked {
+                    0 => ModelSource::Measured,
+                    _ => ModelSource::Filtered,
+                },
+                measured_for_version: facts.version.clone(),
+                measured_for_digest: digest,
+                note: (measured.unasked > 0).then(|| {
+                    format!(
+                        "{} candidates this build carries were not put to it, so this list is \
+                         part of what it serves rather than all of it",
+                        measured.unasked
+                    )
+                }),
+                names: measured.served,
             },
             Err(error) => ModelCatalog {
                 source: ModelSource::Unmeasured,
                 measured_for_version: None,
+                measured_for_digest: None,
                 note: Some(format!("the model catalog was not measured: {error}")),
                 names: Vec::new(),
             },
@@ -275,6 +289,7 @@ fn codex_facts(registry: &Registry, mut record: EngineRecord) -> ProfileFacts {
     record.properties = EngineProperties {
         executable: Some(facts.executable.clone()),
         version: facts.version.clone(),
+        executable_digest: runtime.executable_digest().ok(),
         credential_origin: runtime.credential_origin().map(str::to_owned),
         max_budget_microusd: None,
         max_in_flight_overshoot_microusd: None,
@@ -289,6 +304,7 @@ fn codex_facts(registry: &Registry, mut record: EngineRecord) -> ProfileFacts {
         true => ModelCatalog {
             source: ModelSource::Pinned,
             measured_for_version: facts.version.clone(),
+            measured_for_digest: None,
             note: Some(
                 "this build lists no catalog; the route the managed profile pins is recorded \
                  instead"
@@ -299,6 +315,7 @@ fn codex_facts(registry: &Registry, mut record: EngineRecord) -> ProfileFacts {
         false => ModelCatalog {
             source: ModelSource::Unmeasured,
             measured_for_version: None,
+            measured_for_digest: None,
             note: Some(format!(
                 "no route was recorded — the probe did not reach the engine: {}",
                 facts.detail
@@ -490,10 +507,12 @@ fn catalog_note(profile: &ProfileFacts) -> Option<String> {
     let registry = profile.registry.as_ref()?;
     let models = &registry.models;
     if models.names.is_empty() {
-        let reason = models
-            .note
+        // A disabled engine says why it is held back. That is what an operator reading an empty
+        // catalog needs, and a note about how the list was recorded would stand in its place.
+        let reason = registry
+            .disabled_reason
             .clone()
-            .or_else(|| registry.disabled_reason.clone())
+            .or_else(|| models.note.clone())
             .unwrap_or_else(|| "the engine has not been measured on this host".to_owned());
         return Some(format!("{} · no model list — {reason}", profile.name));
     }
@@ -608,6 +627,7 @@ mod tests {
             models: ModelCatalog {
                 source: ModelSource::Measured,
                 measured_for_version: Some("2.1.233 (Claude Code)".into()),
+                measured_for_digest: Some("build-digest".into()),
                 note: None,
                 names: vec!["claude-haiku-4-5".into(), "claude-sonnet-5".into()],
             },

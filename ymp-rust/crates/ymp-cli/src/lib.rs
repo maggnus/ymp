@@ -96,13 +96,15 @@ pub fn run(cli: Cli) -> anyhow::Result<()> {
         },
         // The engines this host admits are addressed under the root, not inside the store: one
         // decision about an engine is read by every run of the project, and by the interface and
-        // the commands alike.
+        // the commands alike. An invocation that named one exact store reaches that same registry,
+        // because the root is derived from the store it named.
         Some(Command::Public(command)) => {
             surface::run(store, root, load_contracts(&cli.contract)?, command)
         }
         // The machinery reads the same engine registry the operator's surfaces read. Under a root
-        // it stands there; an invocation that named one exact store keeps it beside that store,
-        // exactly as the interface's session does.
+        // it stands there; an invocation that named one exact store derives that root from the
+        // store, so an engine held back under a root cannot be started by addressing a store
+        // inside it.
         Some(Command::Internal { command }) => {
             let registry_root = root.unwrap_or_else(|| store.clone());
             internal::run(store, registry_root, &cli.contract, command)

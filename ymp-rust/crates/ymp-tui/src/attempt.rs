@@ -226,7 +226,7 @@ pub fn start(
 /// process even where the routing that led here was stale. [`admit_runtime_start`] then answers
 /// whether the driver attests what it launches.
 fn driver(route: Route, registry_root: &std::path::Path) -> anyhow::Result<Box<dyn RuntimeDriver>> {
-    Registry::under(registry_root).admit(route.engine())?;
+    Registry::addressing(registry_root).admit(route.engine())?;
     let driver: Box<dyn RuntimeDriver> = match route {
         Route::Codex => Box::new(CodexRuntime::default()),
         Route::ClaudeCode => Box::new(ClaudeRuntime::default()),

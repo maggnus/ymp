@@ -42,6 +42,16 @@ use thiserror::Error;
 /// The directory the registry keeps its records in, under the product root.
 pub const REGISTRY_DIRECTORY: &str = "runtimes";
 
+/// The file a product root carries, and the directory it addresses its projects under.
+///
+/// These mirror the layout `ymp-storage` writes. They are repeated here rather than shared,
+/// because the registry must find a root by reading and `ymp-storage` materialises one by opening
+/// it; a search that created what it was looking for would write a root under every path it walked
+/// past. `crates/ymp-cli/tests/engine_registry.rs` drives the built product, so a layout that moved
+/// would be caught there rather than here.
+const LAYOUT_MARKER: &str = "root.json";
+const PROJECTS_DIRECTORY: &str = "projects";
+
 /// The record layout this build writes and reads. A record is not migrated.
 pub const SCHEMA_VERSION: u32 = 1;
 
@@ -121,6 +131,10 @@ pub enum ModelSource {
     Measured,
     /// The installed build lists no catalog, so the list is the route the managed profile pins.
     Pinned,
+    /// The build answered for every candidate it was asked about, but not every candidate the
+    /// installed executable carries was asked. A list this incomplete is never read as the whole
+    /// catalog, so the source says so instead of claiming a measurement of everything.
+    Filtered,
 }
 
 impl ModelSource {
@@ -129,6 +143,7 @@ impl ModelSource {
             Self::Unmeasured => "unmeasured",
             Self::Measured => "measured",
             Self::Pinned => "pinned",
+            Self::Filtered => "filtered",
         }
     }
 }
@@ -137,10 +152,16 @@ impl ModelSource {
 #[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
 pub struct ModelCatalog {
     pub source: ModelSource,
-    /// The release the list was measured against. A list measured against another build is stale
-    /// and is refreshed rather than believed.
+    /// The release the list was measured against, as that build reported it. It is stated for a
+    /// reader; it decides nothing, because a record states it and a record can say anything.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub measured_for_version: Option<String>,
+    /// The digest of the executable the list was measured against. This is what decides whether a
+    /// recorded list is current: it is computed from the installed file at every reading, so a
+    /// record that names another build — or names this one falsely — is measured again rather
+    /// than believed.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub measured_for_digest: Option<String>,
     /// Why the list is empty or partial, when it is.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub note: Option<String>,
@@ -149,10 +170,15 @@ pub struct ModelCatalog {
 }
 
 impl ModelCatalog {
-    /// Whether this list was measured against the release named.
-    pub fn current_for(&self, version: &str) -> bool {
+    /// Whether this list still describes the installed executable.
+    ///
+    /// The question is answered against the digest of that executable and nothing else. The
+    /// version a record names is what the record says, and a record that named the installed
+    /// release while holding another build's list would otherwise suppress its own re-measurement
+    /// — which is exactly what a forged record would do.
+    pub fn current_for(&self, executable_digest: &str) -> bool {
         self.source != ModelSource::Unmeasured
-            && self.measured_for_version.as_deref() == Some(version)
+            && self.measured_for_digest.as_deref() == Some(executable_digest)
     }
 }
 
@@ -163,6 +189,10 @@ pub struct EngineProperties {
     pub executable: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub version: Option<String>,
+    /// The digest of the executable these properties were measured from, computed from the file
+    /// rather than reported by it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub executable_digest: Option<String>,
     /// Where the managed invocation's authentication material comes from, named rather than
     /// carried: the record states the origin and never the credential.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -249,12 +279,25 @@ pub struct Registry {
 }
 
 impl Registry {
-    /// The registry under a root. The root is a parameter and is never computed here: which root
-    /// an invocation addresses is decided where the invocation is read.
+    /// The registry under a root, taken literally.
+    ///
+    /// Callers that hold a path an invocation addressed want [`Registry::addressing`] instead: a
+    /// path may be a store, and a store reads the registry of the root it stands under.
     pub fn under(root: impl AsRef<Path>) -> Self {
         Self {
             directory: root.as_ref().join(REGISTRY_DIRECTORY),
         }
+    }
+
+    /// The registry a path addresses: the root it names, or the root the store it names stands
+    /// under.
+    ///
+    /// Every path that reads or writes a decision about an engine arrives here, so no caller can
+    /// reach a registry the root does not hold by naming a store inside it. That is one function
+    /// rather than a rule each caller applies, because a caller that forgot the rule would reopen
+    /// exactly the hole it closes.
+    pub fn addressing(path: impl AsRef<Path>) -> Self {
+        Self::under(root_of_store(path.as_ref()))
     }
 
     pub fn directory(&self) -> &Path {
@@ -370,9 +413,11 @@ impl Registry {
                     _ => "disabled by the operator".to_owned(),
                 })
             };
-            if !enabled {
-                // A list measured while the engine was admitted says nothing about an engine that
-                // is not. It is kept but marked, so re-enabling measures it again.
+            // A list measured while the engine was admitted says nothing about an engine that is
+            // not, so it is kept and marked. A list that was never measured carries no such
+            // history, and saying it has one would put that sentence where the reason the engine
+            // is held back belongs.
+            if !enabled && !record.models.names.is_empty() {
                 record.models.note = Some("recorded while the engine was enabled".to_owned());
             }
         })
@@ -392,6 +437,30 @@ impl Registry {
         }
         Ok(record)
     }
+}
+
+/// The product root a store stands under, or the store itself when it stands under none.
+///
+/// Which engines a host admits is one decision, and it is recorded under the root. An invocation
+/// that names one exact store must therefore read that same decision, so the root is derived from
+/// the store rather than taken from the command line: a store addressed with `--data-root` reaches
+/// the registry its root holds, and an engine the operator held back stays held back on every path
+/// that could start one.
+///
+/// The search walks up to the first ancestor that carries the layout marker and addresses this
+/// store under its projects. A store standing under no such root — one an earlier layout wrote, or
+/// one an operator keeps apart on purpose — has no root decision to honour, and its registry stands
+/// beside it.
+pub fn root_of_store(store: &Path) -> PathBuf {
+    let store = store.canonicalize().unwrap_or_else(|_| store.to_path_buf());
+    for ancestor in store.ancestors().skip(1) {
+        if ancestor.join(LAYOUT_MARKER).is_file()
+            && store.starts_with(ancestor.join(PROJECTS_DIRECTORY))
+        {
+            return ancestor.to_path_buf();
+        }
+    }
+    store
 }
 
 /// Where an engine's executable stands on this host.
@@ -524,6 +593,85 @@ mod tests {
         );
     }
 
+    /// The registry a store reaches is the one its root holds, whichever way the store was
+    /// addressed. This is the property that keeps an engine the operator held back held back on
+    /// every path: naming the store instead of the root no longer reaches a different registry.
+    #[test]
+    fn a_store_under_a_root_addresses_the_registry_that_root_holds() {
+        let directory = tempfile::tempdir().expect("temporary directory");
+        let root = directory.path().join("root");
+        let store = root.join("projects").join("project-1").join("runs/0001");
+        fs::create_dir_all(&store).expect("store directories");
+        fs::write(root.join("root.json"), br#"{"schema_version":1}"#).expect("layout marker");
+        assert_eq!(
+            root_of_store(&store),
+            root.canonicalize().expect("root"),
+            "a store under a root addressed a registry of its own"
+        );
+
+        // A store standing under no root has no root decision to honour, and its registry stands
+        // beside it. A marker that does not address this store under its projects is not its root.
+        let apart = directory.path().join("apart");
+        fs::create_dir_all(&apart).expect("store apart");
+        assert_eq!(root_of_store(&apart), apart.canonicalize().expect("apart"));
+        let beside = root.join("beside");
+        fs::create_dir_all(&beside).expect("store beside the projects");
+        assert_eq!(
+            root_of_store(&beside),
+            beside.canonicalize().expect("beside")
+        );
+    }
+
+    /// Disabling an engine nothing was measured for records no history it does not have, so the
+    /// page has the reason to show rather than a sentence about a list that never existed.
+    #[test]
+    fn disabling_an_unmeasured_engine_records_no_history_of_a_list() {
+        let (_root, registry) = registry();
+        let record = registry
+            .set_enabled(Engine::ClaudeCode, false, Some("held back"))
+            .expect("disable claude");
+        assert!(record.models.names.is_empty());
+        assert_eq!(record.models.note, None, "{:?}", record.models);
+
+        // A list that was measured keeps its history, because it was true when it was written.
+        registry
+            .update(Engine::ClaudeCode, |record| {
+                record.models.source = ModelSource::Measured;
+                record.models.names = vec!["claude-haiku-4-5".to_owned()];
+            })
+            .expect("record a measurement");
+        let record = registry
+            .set_enabled(Engine::ClaudeCode, false, Some("held back"))
+            .expect("disable claude again");
+        assert_eq!(
+            record.models.note.as_deref(),
+            Some("recorded while the engine was enabled")
+        );
+    }
+
+    /// A record decides nothing about whether its own list is current. The digest is computed from
+    /// the installed executable at every reading, so a record naming the installed release while
+    /// holding another build's list is measured again instead of suppressing its re-measurement.
+    #[test]
+    fn a_recorded_version_cannot_declare_a_stale_list_current() {
+        let forged = ModelCatalog {
+            source: ModelSource::Measured,
+            measured_for_version: Some("2.1.233 (Claude Code)".to_owned()),
+            measured_for_digest: Some("a-digest-of-some-other-build".to_owned()),
+            note: None,
+            names: vec!["claude-from-another-build".to_owned()],
+        };
+        assert!(
+            !forged.current_for("the-digest-of-the-installed-build"),
+            "a record declared its own stale list current"
+        );
+        let honest = ModelCatalog {
+            measured_for_digest: Some("the-digest-of-the-installed-build".to_owned()),
+            ..forged
+        };
+        assert!(honest.current_for("the-digest-of-the-installed-build"));
+    }
+
     #[test]
     fn measured_properties_and_a_model_list_survive_a_write_and_a_read() {
         let (_root, registry) = registry();
@@ -532,6 +680,7 @@ mod tests {
                 record.properties = EngineProperties {
                     executable: Some("/usr/local/bin/claude".to_owned()),
                     version: Some("2.1.233 (Claude Code)".to_owned()),
+                    executable_digest: Some("build-digest".to_owned()),
                     credential_origin: Some("delegated_host_keychain_credential".to_owned()),
                     max_budget_microusd: Some(1_000_000),
                     max_in_flight_overshoot_microusd: Some(50_000),
@@ -541,6 +690,7 @@ mod tests {
                 record.models = ModelCatalog {
                     source: ModelSource::Measured,
                     measured_for_version: Some("2.1.233 (Claude Code)".to_owned()),
+                    measured_for_digest: Some("build-digest".to_owned()),
                     note: None,
                     names: vec!["claude-haiku-4-5".to_owned(), "claude-sonnet-5".to_owned()],
                 };
@@ -551,8 +701,8 @@ mod tests {
             record.properties.version.as_deref(),
             Some("2.1.233 (Claude Code)")
         );
-        assert!(record.models.current_for("2.1.233 (Claude Code)"));
-        assert!(!record.models.current_for("2.1.234 (Claude Code)"));
+        assert!(record.models.current_for("build-digest"));
+        assert!(!record.models.current_for("another-build-digest"));
         assert_eq!(record.models.names.len(), 2);
     }
 

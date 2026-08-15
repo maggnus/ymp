@@ -41,6 +41,31 @@ fn record(root: &Path, engine: &str) -> Value {
     serde_json::from_slice(&bytes).expect("the record is readable JSON")
 }
 
+fn ymp_at_store(store: &Path, arguments: &[&str]) -> Output {
+    Process::new(env!("CARGO_BIN_EXE_ymp"))
+        .arg("--data-root")
+        .arg(store)
+        .args(arguments)
+        .output()
+        .expect("run the ymp executable")
+}
+
+/// The one store the product addressed under this root.
+fn only_store(root: &Path) -> PathBuf {
+    let projects = std::fs::read_dir(root.join("projects"))
+        .expect("the root addresses a project")
+        .flatten()
+        .map(|entry| entry.path())
+        .next()
+        .expect("one project");
+    std::fs::read_dir(projects.join("runs"))
+        .expect("the project addresses a store")
+        .flatten()
+        .map(|entry| entry.path())
+        .next()
+        .expect("one store")
+}
+
 fn root() -> (TempDir, PathBuf) {
     let directory = TempDir::new().expect("temporary directory");
     let root = directory.path().join("root");
@@ -66,9 +91,88 @@ fn the_registry_seeds_the_held_back_engine_as_disabled_with_its_reason() {
     assert!(shown.contains("usage limit until 2026-09-12"), "{shown}");
     assert!(shown.contains("kept out"), "{shown}");
 
+    // An engine nothing was measured for carries no history of a list, so the page has the reason
+    // to show where a sentence about how the list was recorded would otherwise stand.
+    assert!(
+        !shown.contains("recorded while the engine was enabled"),
+        "an engine with no measured list claimed a history of one:\n{shown}"
+    );
+
     let codex = record(&root, "codex");
     assert_eq!(codex["enabled"], Value::Bool(false));
     assert_eq!(codex["disabled_reason"], "usage limit until 2026-09-12");
+    assert_eq!(codex["models"]["note"], Value::Null);
+    assert_eq!(record(&root, "claude-code")["models"]["note"], Value::Null);
+}
+
+/// A record decides nothing about whether its own list is current.
+///
+/// The hostile record here is the one a forger would write: it names the installed release, so a
+/// rule that trusted the recorded version would read a foreign list as this build's catalog. What
+/// decides instead is the digest of the installed executable, computed at every reading, so the
+/// forged list is measured again and replaced. The record is forged in a sandbox root of this
+/// check's own; nothing outside it is touched.
+#[test]
+fn a_forged_record_is_measured_again_instead_of_believed() {
+    let (_directory, root) = root();
+    let first = ymp(&root, &["show", "runtimes"]);
+    assert!(first.status.success(), "{}", stated(&first));
+    let measured = record(&root, "claude-code");
+    let digest = measured["models"]["measured_for_digest"]
+        .as_str()
+        .expect("the measurement recorded the digest of the executable it read")
+        .to_owned();
+    assert!(
+        measured["models"]["names"]
+            .as_array()
+            .expect("a measured list")
+            .iter()
+            .any(|name| name == "claude-sonnet-5"),
+        "the first measurement recorded no sonnet route: {measured}"
+    );
+
+    // Forged: the release the record names is the installed one, and the list is another build's.
+    forge(
+        &root,
+        "a-digest-of-some-other-build",
+        "claude-from-another-build",
+    );
+    let refreshed = ymp(&root, &["show", "runtimes"]);
+    let shown = stated(&refreshed);
+    assert!(
+        !shown.contains("claude-from-another-build"),
+        "a forged record suppressed its own re-measurement:\n{shown}"
+    );
+    assert_eq!(
+        record(&root, "claude-code")["models"]["measured_for_digest"],
+        Value::String(digest.clone()),
+        "the re-measurement did not record the digest of the installed executable"
+    );
+
+    // Positive half: with the digest left as the executable's own, the recorded list is read and
+    // not measured again. That is what makes the refusal above the digest's answer rather than an
+    // unconditional re-measurement that would have replaced any list at all.
+    forge(&root, &digest, "claude-from-this-build");
+    let reread = ymp(&root, &["show", "runtimes"]);
+    assert!(
+        stated(&reread).contains("claude-from-this-build"),
+        "a record whose digest is the installed executable's was measured again:\n{}",
+        stated(&reread)
+    );
+}
+
+/// Write a record naming the installed release and holding one stated model.
+fn forge(root: &Path, digest: &str, name: &str) {
+    let path = root.join("runtimes").join("claude-code.json");
+    let mut stored: Value =
+        serde_json::from_slice(&std::fs::read(&path).expect("record bytes")).expect("record");
+    stored["models"]["measured_for_digest"] = Value::String(digest.to_owned());
+    stored["models"]["names"] = Value::Array(vec![Value::String(name.to_owned())]);
+    std::fs::write(
+        &path,
+        serde_json::to_vec_pretty(&stored).expect("record bytes"),
+    )
+    .expect("write the forged record");
 }
 
 /// The mirrored command reaches the registry the interface reads, and the decision it takes is
@@ -109,6 +213,73 @@ fn the_mirrored_command_disables_and_enables_an_engine_durably() {
     let stored = record(&root, "claude-code");
     assert_eq!(stored["enabled"], Value::Bool(true));
     assert_eq!(stored.get("disabled_reason"), None);
+}
+
+/// The decision holds however the invocation addresses the state.
+///
+/// This is the scenario the review measured: an engine disabled under a root, then reached by
+/// naming the store inside that root. The registry a store reaches is derived from the store, so
+/// both the operator's commands and the product's own machinery read the one decision the root
+/// holds, and neither starts a process the operator held back.
+#[test]
+fn addressing_the_store_instead_of_the_root_reaches_the_same_decision() {
+    let (_directory, root) = root();
+    let disabled = ymp(
+        &root,
+        &[
+            "runtime",
+            "disable",
+            "claude-code",
+            "--reason",
+            "held back under the root",
+        ],
+    );
+    assert!(disabled.status.success(), "{}", stated(&disabled));
+
+    let store = only_store(&root);
+    let workspace = root.parent().expect("the root has a parent").join("work");
+    std::fs::create_dir_all(&workspace).expect("smoke workspace");
+    let smoke_arguments = [
+        "internal".to_owned(),
+        "runtime-smoke".to_owned(),
+        "--runtime=claude".to_owned(),
+        format!("--workspace={}", workspace.display()),
+        "--prompt=say done".to_owned(),
+    ];
+    let smoke_arguments: Vec<&str> = smoke_arguments.iter().map(String::as_str).collect();
+    for arguments in [smoke_arguments.clone(), vec!["show", "runtimes"]] {
+        let named_store = ymp_at_store(&store, &arguments);
+        let said = stated(&named_store);
+        assert!(
+            said.contains("held back under the root"),
+            "`{}` addressed a registry the root does not hold:\n{said}",
+            arguments.join(" ")
+        );
+    }
+    // The machinery refuses rather than starting the engine, and it says why.
+    let smoke = ymp_at_store(&store, &smoke_arguments);
+    assert!(
+        !smoke.status.success(),
+        "a held-back engine was started by addressing the store:\n{}",
+        stated(&smoke)
+    );
+    assert!(
+        !store.join("runtimes").exists(),
+        "addressing the store wrote a registry of its own beside it"
+    );
+
+    // Positive half: admitting the engine under the root admits it for the store too, so what the
+    // refusal above answered was the decision and not the way the invocation was written. This is
+    // read rather than started — the point is which registry the store reaches, and starting an
+    // engine to learn that would spend the operator's budget to answer a question about a file.
+    let enabled = ymp(&root, &["runtime", "enable", "claude-code"]);
+    assert!(enabled.status.success(), "{}", stated(&enabled));
+    let page = ymp_at_store(&store, &["show", "runtimes"]);
+    let shown = stated(&page);
+    assert!(
+        !shown.contains("held back under the root"),
+        "an admitted engine was still held back for the store:\n{shown}"
+    );
 }
 
 /// A name that selects no engine changes nothing and exits non-zero. The command refuses it rather

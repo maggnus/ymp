@@ -74,10 +74,10 @@ pub struct Session {
     /// second run of a project is addressed here rather than refused.
     root: Option<PathBuf>,
     data_root: PathBuf,
-    /// The root the engine registry lives under. An invocation that addressed a root keeps its
-    /// registry there, so every store under that root reads one decision about every engine; an
-    /// invocation that named one exact store keeps the registry beside that store, because it
-    /// named what it acts on and nothing else may be written for it.
+    /// The root or the store this session addresses the engine registry from. Which registry that
+    /// reaches is derived from the path: a store standing under a root reads the registry that root
+    /// holds, so naming the store instead of the root never reaches a different decision about an
+    /// engine. A store standing under no root has no root decision to honour and keeps its own.
     registry_root: PathBuf,
     model: Model,
     runtimes: Option<Report>,
@@ -264,13 +264,12 @@ impl Session {
         self.runtimes = Some(report);
     }
 
-    /// Address the engine registry under a root this session does not otherwise act under.
+    /// Address the engine registry from a root this session does not otherwise act under.
     ///
     /// A command is handed one store and acts on that store. The engines are not part of a store:
-    /// which of them this host admits is one decision, and every run under a root reads it. An
-    /// invocation given a store therefore still addresses the registry under the root it was
-    /// started with, so a command and the interface can never read different decisions about the
-    /// same engine.
+    /// which of them this host admits is one decision, and every run under a root reads it. This
+    /// states the root an invocation named; an invocation that named none derives it from the
+    /// store, so both routes reach the same registry.
     pub fn with_registry_root(mut self, root: &Path) -> Self {
         self.registry_root = root.to_path_buf();
         self
@@ -287,7 +286,7 @@ impl Session {
     /// store under this root — reads it. What this call does not do is re-probe: the held reading
     /// carries the new flag, and readiness is measured again when the page next asks for it.
     pub fn set_engine_enabled(&mut self, engine: Engine, enabled: bool, reason: Option<String>) {
-        let registry = Registry::under(&self.registry_root);
+        let registry = Registry::addressing(&self.registry_root);
         match registry.set_enabled(engine, enabled, reason.as_deref()) {
             Err(error) => self.model.error(format!(
                 "the {} engine was not changed — {error}",
