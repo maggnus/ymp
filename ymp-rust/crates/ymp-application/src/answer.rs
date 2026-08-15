@@ -41,6 +41,11 @@
 //! request to a supplier under a disclosure budget, is a product decision that has not been taken;
 //! until it is, this rule is the whole of what generation does, and the draft says so.
 //!
+//! The same holds for a script this host would not run. A test script carrying no execute
+//! permission is the obstacle, and the search stops there rather than passing on to whatever file
+//! comes next in the order: a refusal naming a file the operator did not write their tests into
+//! sends them to fix something that was never wrong.
+//!
 //! Assembly keeps its own validation in [`crate::contract::prepare_contract`]: a contract also
 //! arrives from a package that nobody typed, and what is stored is judged there.
 
@@ -111,6 +116,13 @@ pub enum AnswerError {
          decides, so nothing is proposed — state a verifier of your own instead"
     )]
     TestEntryPointNotSupported { path: PathBuf, reason: String },
+    #[error(
+        "this project runs its tests through {path}, and this host will not run it: the command \
+         would be {command}, and the file carries no permission to be executed. The file is the \
+         obstacle and nothing further was looked for — grant it execute permission, or state a \
+         verifier of your own instead"
+    )]
+    TestEntryPointNotExecutable { path: PathBuf, command: String },
     #[error(
         "the test entry point {path} could not be fixed into a proposed verifier: {reason}. A \
          verifier that runs a file inside the candidate is proposed only when the bytes of that \
@@ -350,6 +362,14 @@ pub enum TestEntry {
         relative_path: PathBuf,
         reason: String,
     },
+    /// A file the product would propose from, which this host would not run: the command is the
+    /// file itself, and the file carries no permission to be executed. Looking past it would leave
+    /// the operator a refusal naming some other file, while the one they wrote their tests into
+    /// stands unmentioned and one `chmod` away from working.
+    NotExecutable {
+        relative_path: PathBuf,
+        command: String,
+    },
 }
 
 /// The ways of running tests ymp recognises, in the order it looks for them.
@@ -423,8 +443,15 @@ pub fn detect_test_entry_point(source: &Path) -> Option<TestEntry> {
             Ok(proposal) => proposal,
             Err(reason) => return unsupported(reason.to_owned()),
         };
+        // A script this host would refuse to run is where the search stops. The project runs its
+        // tests through this file, and the thing standing in the way is one permission bit on it;
+        // carrying on to the next recognised file would answer a question nobody asked and name a
+        // file that is not the obstacle.
         if proposal.executable && !is_executable(&path).unwrap_or(false) {
-            continue;
+            return Some(TestEntry::NotExecutable {
+                relative_path: PathBuf::from(candidate.relative),
+                command: proposal.command.to_owned(),
+            });
         }
         // A project that already carries a name this command reads first is not proposed from this
         // file either. A verifier fixed to bytes the command never reads would reject every
@@ -541,6 +568,15 @@ pub fn assemble(source: &Path, workspace: &Path) -> Result<Assembled, AnswerErro
             return Err(AnswerError::TestEntryPointNotSupported {
                 path: source.join(relative_path),
                 reason,
+            });
+        }
+        Some(TestEntry::NotExecutable {
+            relative_path,
+            command,
+        }) => {
+            return Err(AnswerError::TestEntryPointNotExecutable {
+                path: source.join(relative_path),
+                command,
             });
         }
         None => return Err(AnswerError::NoTestEntryPoint(source.into())),
