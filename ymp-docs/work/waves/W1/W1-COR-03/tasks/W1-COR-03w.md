@@ -3,24 +3,24 @@ id: W1-COR-03w
 kind: task
 wave: W1
 card: W1-COR-03
-state: active
+state: accepted
 risk: routine
 maturity: BUILD
 relation: supporting
 depends_on: [W1-COR-03t]
 blocks: []
 created_at: 2026-08-15T13:43:07+08:00
-updated_at: 2026-08-15T13:44:25+08:00
+updated_at: 2026-08-15T14:14:47+08:00
 started_at: 2026-08-15T13:44:25+08:00
-accepted_at:
-candidate_commit:
-closure_commit:
-evidence:
+accepted_at: 2026-08-15T14:14:47+08:00
+candidate_commit: https://github.com/maggnus/ymp/commit/6aa404b1011a554ecaaa16887e74c408e0ff2dfe
+closure_commit: https://github.com/maggnus/ymp/commit/904cac0
+evidence: both edges pinned and mutation-sensitive; product-path suites (descendant_termination, lifecycle_admission_refusal) green; the poisoned-lock cause is unreachable from outside so the branch, not the cause, is measured — stated honestly
 duration_minutes: 0
 blocker:
 pause_reason:
-return_trigger:
-deliberate_partial: false
+return_trigger: cancel_run returns on root_terminal()? before cancellation.cancel(), so a poisoned ledger lock leaves the runtime uninterrupted — reorder when a poisoned lock becomes reachable in a live path
+deliberate_partial: true
 ---
 
 # W1-COR-03w — Shutdown edge cases keep the journal and the finished run honest

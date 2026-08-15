@@ -1603,8 +1603,9 @@ fn closing_a_controller_whose_runtime_stopped_answering_is_bounded() {
 /// that flag therefore found a run whose accounting was finished, recorded an infrastructure fault
 /// over both records, and took from the submitted candidate the verdict it was waiting for — while
 /// reporting that the worker had been left working, which it had not been. What the run owes is
-/// read out of the committed state of the slice, the way a cancellation reads it, so a worker held
-/// in that window is recognised as one that has already answered.
+/// read out of the committed state of the slice, and the controller that closes behind the wait
+/// reads it there too, so a worker held in that window is recognised as one that has already
+/// answered and both records keep what it committed.
 ///
 /// The check that must fail: decide the same question by the flag. The run is then stopped as an
 /// infrastructure fault in both records although its slice is closed and its candidate submitted.
@@ -1649,17 +1650,18 @@ fn a_controller_that_stopped_waiting_writes_nothing_over_a_committed_terminal() 
         report.contains("had already recorded the terminal of its slice"),
         "the controller reported something other than what it found: {report}"
     );
-    // Giving up the wait wrote nothing. What both records hold is the ending a closed controller
-    // issues on its way out, and not the fault a limit deciding by the finished flag recorded.
+    // Giving up the wait wrote nothing, and neither did the controller closing behind it: the run
+    // had finished and committed its candidate, so both records still hold the completed slice and
+    // the candidate still awaits the query that judges it.
     assert_eq!(
         record.root_terminal().expect("the terminal"),
-        Some(RootTerminal::Cancelled),
+        None,
         "the controller wrote a terminal of its own over a slice its worker had closed"
     );
     assert_eq!(
         application.lock().expect("application").state().status,
-        RunStatus::Cancelled,
-        "the journal was moved off the ending a closed controller issues"
+        RunStatus::Running,
+        "the journal was moved off a run that had finished and committed its candidate"
     );
 
     teardown.store(true, Ordering::Release);
@@ -1720,4 +1722,136 @@ fn a_failure_the_journal_would_not_record_is_reported_with_the_run() {
     // The permissions the journal was created with, restored so that the temporary tree the check
     // ran in is removed as any other is.
     std::fs::set_permissions(&journal, writable).expect("reopen the journal for cleanup");
+}
+
+/// Closing a controller in the window where the run has finished keeps the terminal that run
+/// recorded, and keeps the candidate it committed judgeable.
+///
+/// A close is not an operator stopping the work. The worker records the terminal of its slice,
+/// submits its candidate and only then winds the runtime down, and a controller closing in that
+/// window used to find its finished flag unset and stop the run: both records were moved to
+/// cancelled over a completed slice, and the committed candidate lost the verdict it was waiting
+/// for — a run that had done everything asked of it, ended by the controller going away a moment
+/// too early. Whether the run is still working is therefore read out of the committed state of its
+/// slice, and read under the guard every ending of the run is taken under, so the worker either has
+/// not recorded its terminal yet or has recorded it together with its submission.
+///
+/// The check that must fail: close by the finished flag. The run is then cancelled in both records
+/// and the verdict below is refused.
+#[test]
+fn closing_a_controller_in_the_completion_window_keeps_the_finished_run_judgeable() {
+    let teardown = Arc::new(AtomicBool::new(false));
+    let Fixture {
+        handle,
+        application,
+        temporary,
+    } = start_with(1, Some(Arc::clone(&teardown)), Disposition::Orderly);
+    wait_until_yielded(&handle);
+    handle.wake("wake-1", "continue once").expect("the wake");
+
+    // The candidate being announced places the worker past the terminal of its slice and past the
+    // submission, and the held teardown keeps it there without its finished flag being set.
+    let candidate = wait_for_candidate(&handle);
+    assert!(
+        !handle.is_finished(),
+        "the worker reported itself finished while its teardown was held"
+    );
+    assert_eq!(
+        handle
+            .kernel()
+            .invocation_state()
+            .expect("the slice record"),
+        InvocationState::Closed
+    );
+    let record = handle.kernel_record();
+
+    // Closing the controller waits for a worker the held teardown keeps inside its wind-down, so it
+    // is performed on a thread of its own and given the limit that wait states.
+    let (closed, reported) = std::sync::mpsc::channel();
+    std::thread::spawn(move || {
+        drop(handle);
+        let _ = closed.send(());
+    });
+    reported
+        .recv_timeout(CONTROLLER_SHUTDOWN_LIMIT + Duration::from_secs(10))
+        .expect("closing the controller of a finished run never ended");
+
+    assert_eq!(
+        record.root_terminal().expect("the terminal"),
+        None,
+        "closing the controller stopped a run that had already finished and committed its candidate"
+    );
+    assert_eq!(
+        application.lock().expect("application").state().status,
+        RunStatus::Running,
+        "the journal calls a run cancelled that finished before the controller closed"
+    );
+
+    // What the run was waiting for still reaches it: the candidate is judged and the run reaches
+    // acceptance, which a cancelled run could not.
+    record
+        .verified(&candidate, Verdict::Passed)
+        .expect("the verdict the finished run was waiting for");
+    assert_eq!(
+        record.root_terminal().expect("the terminal"),
+        Some(RootTerminal::Accepted)
+    );
+
+    teardown.store(true, Ordering::Release);
+    std::thread::sleep(Duration::from_millis(500));
+    drop(temporary);
+}
+
+/// Closing a controller still stops a run that is working, in both records.
+///
+/// A close leaves alone what the run has already committed, and that must not become leaving alone
+/// a run that has committed nothing: a runtime working under a controller nobody holds any more
+/// would go on spending the run's budget with no one to receive what it produced. The runtime here
+/// reads no cancellation token of its own, so what ends it is the close reaching it through the
+/// interruption supervision delivers.
+///
+/// The check that must fail: leave every close to the wait behind it and cancel nothing. The
+/// runtime is then never told, keeps working, and neither record reaches a terminal.
+#[test]
+fn closing_a_controller_stops_a_run_that_is_still_working() {
+    let interrupted = Arc::new(AtomicBool::new(false));
+    let Fixture {
+        handle,
+        application,
+        temporary,
+    } = start_working(Arc::clone(&interrupted));
+    wait_until_working(&handle);
+    assert_eq!(
+        handle
+            .kernel()
+            .invocation_state()
+            .expect("the slice record"),
+        InvocationState::Running
+    );
+    let record = handle.kernel_record();
+
+    let (closed, reported) = std::sync::mpsc::channel();
+    std::thread::spawn(move || {
+        drop(handle);
+        let _ = closed.send(());
+    });
+    reported
+        .recv_timeout(CONTROLLER_SHUTDOWN_LIMIT + Duration::from_secs(10))
+        .expect("closing the controller of a working run never ended");
+
+    assert!(
+        interrupted.load(Ordering::Acquire),
+        "the runtime was never told that the controller had closed"
+    );
+    assert_eq!(
+        record.root_terminal().expect("the terminal"),
+        Some(RootTerminal::Cancelled),
+        "a run left working by a controller that closed holds no terminal"
+    );
+    assert_eq!(
+        application.lock().expect("application").state().status,
+        RunStatus::Cancelled,
+        "the journal calls a run running that its controller stopped on the way out"
+    );
+    drop(temporary);
 }

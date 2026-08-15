@@ -76,7 +76,7 @@
 | `[x]` | [`W1-COR-03t`](waves/W1/W1-COR-03/tasks/W1-COR-03t.md) | A cancel interrupts a runtime that is still working | [`6996998`](https://github.com/maggnus/ymp/commit/6996998) | 15/08 12:38 | 15/08 13:43 (0m) |
 | `[~]` | [`W1-COR-03u`](waves/W1/W1-COR-03/tasks/W1-COR-03u.md) | The application recovers its memory from the journal after an interrupted apply | — | 15/08 14:08 | 15/08 14:08 (0m) |
 | `[x]` | [`W1-COR-03v`](waves/W1/W1-COR-03/tasks/W1-COR-03v.md) | The interface states what a bounded shutdown actually ended | [`3978c25`](https://github.com/maggnus/ymp/commit/3978c25) | 15/08 13:49 | 15/08 14:07 (0m) |
-| `[~]` | [`W1-COR-03w`](waves/W1/W1-COR-03/tasks/W1-COR-03w.md) | Shutdown edge cases keep the journal and the finished run honest | — | 15/08 13:44 | 15/08 13:44 (0m) |
+| `[x]` | [`W1-COR-03w`](waves/W1/W1-COR-03/tasks/W1-COR-03w.md) | Shutdown edge cases keep the journal and the finished run honest | [`904cac0`](https://github.com/maggnus/ymp/commit/904cac0) | 15/08 13:44 | 15/08 14:14 (0m) |
 | `[ ]` | [`W1-EVL-04`](waves/W1/W1-EVL-04/CARD.md) | Controlled evidence decides both POC hypotheses | — | — | — |
 | `[?]` | [`W1-EVL-04a`](waves/W1/W1-EVL-04/tasks/W1-EVL-04a.md) | Matched-budget arms produce comparable acceptance evidence | — | — | — |
 | `[ ]` | [`W1-EVL-04b`](waves/W1/W1-EVL-04/tasks/W1-EVL-04b.md) | Message interventions separate appearance from causal use | — | — | — |
