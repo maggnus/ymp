@@ -36,10 +36,10 @@ use std::time::SystemTime;
 use clap::{CommandFactory, Parser};
 use crossterm::event::{Event, KeyCode, KeyEvent, KeyModifiers};
 use tempfile::TempDir;
-use ymp_cli::surface::{PageName, ProviderCommand, PublicCommand, RuntimeCommand};
+use ymp_cli::surface::{PageName, PoolCommand, ProviderCommand, PublicCommand, RuntimeCommand};
 use ymp_cli::{Cli, Command};
 use ymp_domain::RunStatus;
-use ymp_runtime_registry::{Engine, ProviderFamily, RegistryAddress};
+use ymp_runtime_registry::{Engine, PoolEntry, PoolName, ProviderFamily, RegistryAddress};
 use ymp_tui::app::Action;
 use ymp_tui::journal::Model;
 use ymp_tui::projection::{ContractFacts, Environment};
@@ -102,12 +102,33 @@ const CORRESPONDENCE: &[(&str, &[&str])] = &[
         "provider-refresh",
         &["ymp", "provider", "refresh", "anthropic"],
     ),
+    (
+        "pool-permit",
+        &["ymp", "pool", "permit", "default", "claude-opus-5"],
+    ),
+    (
+        "pool-exclude",
+        &["ymp", "pool", "exclude", "default", "claude-opus-5"],
+    ),
+    (
+        "pool-set-capacity",
+        &[
+            "ymp",
+            "pool",
+            "set-capacity",
+            "default",
+            "--participants",
+            "6",
+        ],
+    ),
     ("page:providers", &["ymp", "show", "providers"]),
     (
         "page:provider",
         &["ymp", "show", "provider", "--provider", "anthropic"],
     ),
     ("page:models", &["ymp", "show", "models"]),
+    ("page:pools", &["ymp", "show", "pools"]),
+    ("page:pool", &["ymp", "show", "pool", "--pool", "default"]),
     ("page:runtimes", &["ymp", "show", "runtimes"]),
     ("page:candidates", &["ymp", "show", "candidates"]),
     ("page:events", &["ymp", "show", "events"]),
@@ -185,6 +206,13 @@ fn performed_action(action: &Action) -> String {
         Action::SetProviderEnabled { enabled: true, .. } => "provider-enable".to_owned(),
         Action::SetProviderEnabled { enabled: false, .. } => "provider-disable".to_owned(),
         Action::RefreshProviderModels { .. } => "provider-refresh".to_owned(),
+        Action::SetPoolEntryPermitted {
+            permitted: true, ..
+        } => "pool-permit".to_owned(),
+        Action::SetPoolEntryPermitted {
+            permitted: false, ..
+        } => "pool-exclude".to_owned(),
+        Action::SetPoolCapacity { .. } => "pool-set-capacity".to_owned(),
         Action::CancelCheck => "cancel-check".to_owned(),
         // The interface rebuilds its projection when a candidate is opened; the surface that
         // opens is the describe page.
@@ -273,12 +301,79 @@ fn interface_actions(root: &Path) -> BTreeSet<String> {
         Action::RefreshProviderModels {
             family: ProviderFamily::Anthropic,
         },
+        Action::SetPoolEntryPermitted {
+            pool: PoolName::default_pool(),
+            entry: pool_entry(),
+            permitted: true,
+        },
+        Action::SetPoolEntryPermitted {
+            pool: PoolName::default_pool(),
+            entry: pool_entry(),
+            permitted: false,
+        },
+        Action::SetPoolCapacity {
+            pool: PoolName::default_pool(),
+            max_agents: Some(6),
+            max_concurrent_attempts: None,
+        },
         Action::Rebuild,
     ] {
         actions.insert(performed_action(&action));
     }
 
     actions
+}
+
+/// A root the controller has resolved a pool under: one engine measured, one account enabled and
+/// observed, and the pools resolved against what that leaves in the catalog.
+///
+/// It is the state the first observation of a provider leaves behind, built here from the records
+/// rather than by starting anything: what this check drives is the keyboard, and an engine started
+/// to produce a pool would make it a measurement test instead.
+fn measured_root(address: &RegistryAddress) {
+    address
+        .registry()
+        .update(Engine::ClaudeCode, |record| {
+            record.enabled = true;
+            record.disabled_reason = None;
+            record.properties.executable = Some("/usr/local/bin/claude".to_owned());
+            record.properties.version = Some("2.1.227".to_owned());
+            record.properties.executable_digest = Some("engine-digest".to_owned());
+            record.properties.credential_origin =
+                Some("delegated_host_keychain_credential".to_owned());
+            record.models = ymp_runtime_registry::ModelCatalog {
+                source: ymp_runtime_registry::ModelSource::Measured,
+                measured_for_version: Some("2.1.227".to_owned()),
+                measured_for_digest: Some("engine-digest".to_owned()),
+                note: None,
+                names: vec!["claude-opus-5".to_owned()],
+            };
+        })
+        .expect("record the measurement");
+    let providers = address.providers();
+    providers
+        .set_enabled(ProviderFamily::Anthropic, true, None)
+        .expect("enable the account");
+    providers
+        .observe_family(
+            ProviderFamily::Anthropic,
+            &address.registry(),
+            SystemTime::now(),
+        )
+        .expect("observe the account");
+    address
+        .pools()
+        .reconcile(&providers, &address.registry())
+        .expect("resolve the pools");
+}
+
+/// One catalog entry, as a pool names it.
+fn pool_entry() -> PoolEntry {
+    PoolEntry {
+        provider: "anthropic".to_owned(),
+        engine: "claude-code".to_owned(),
+        model: "claude-opus-5".to_owned(),
+    }
 }
 
 /// A drafted contract, as the projection carries one before anything is spent.
@@ -326,6 +421,11 @@ fn command_action(command: &PublicCommand) -> String {
             ProviderCommand::Enable { .. } => "provider-enable".to_owned(),
             ProviderCommand::Disable { .. } => "provider-disable".to_owned(),
             ProviderCommand::Refresh { .. } => "provider-refresh".to_owned(),
+        },
+        PublicCommand::Pool { command } => match command {
+            PoolCommand::Permit { .. } => "pool-permit".to_owned(),
+            PoolCommand::Exclude { .. } => "pool-exclude".to_owned(),
+            PoolCommand::SetCapacity { .. } => "pool-set-capacity".to_owned(),
         },
         PublicCommand::Show { page, .. } => page_action(page.kind()),
     }
@@ -413,6 +513,8 @@ fn every_interface_action_is_a_command_and_neither_side_holds_a_surplus() {
         PageName::Providers,
         PageName::Provider,
         PageName::Models,
+        PageName::Pools,
+        PageName::Pool,
         PageName::Runtimes,
         PageName::Candidates,
         PageName::Events,
@@ -470,6 +572,36 @@ fn keyboard_states(root: &Path) -> Vec<App> {
     provider.provider_index = Some(0);
     provider.surface = Surface::Page(PageKind::Provider);
     states.push(provider);
+
+    // The pool properties view with a pool selected, and the cursor on each kind of row its keys
+    // act on: an entry, a ceiling, and a row that carries no act. Without them every key of that
+    // surface would be driven over a view holding no pool and would return nothing whatever it
+    // was bound to.
+    let address = RegistryAddress::Root(root.to_path_buf());
+    measured_root(&address);
+    let report = ymp_tui::pools::read(&address);
+    let rows = ymp_tui::pools::rows(
+        report.pool_at(0).expect("the pool the controller created"),
+        &report.entries,
+    );
+    for row in 0..rows.len() {
+        let mut pool = base.clone();
+        pool.data.pools = Some(report.clone());
+        pool.pool_index = Some(0);
+        pool.surface = Surface::Page(PageKind::Pool);
+        pool.data.pages.push((
+            PageKind::Pool,
+            ymp_tui::pools::pool_page(
+                report.pool_at(0).expect("the pool"),
+                &report.entries,
+                "idle".to_owned(),
+            ),
+        ));
+        for _ in 0..row {
+            pool.select_next(PageKind::Pool);
+        }
+        states.push(pool);
+    }
 
     // Everything that floats above a surface.
     let mut palette = base.clone();

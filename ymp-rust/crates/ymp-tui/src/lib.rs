@@ -59,6 +59,7 @@ pub mod frame;
 pub mod journal;
 pub mod overlay;
 pub mod pages;
+pub mod pools;
 pub mod projection;
 pub mod providers;
 pub mod runtimes;
