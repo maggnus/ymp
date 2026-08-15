@@ -20,8 +20,8 @@
 | `[x]` | [`W1-APP-02e.2`](waves/W1/W1-APP-02/tasks/W1-APP-02e/subtasks/W1-APP-02e.2.md) | Chat-first visual contract is independently accepted | [`b57ec9d0`](https://github.com/maggnus/ymp/commit/b57ec9d0e04b47f0848fba4e7d1b9b2d7cf68336) | 13/08 01:32 | 13/08 09:46 (8h14m) |
 | `[x]` | [`W1-APP-02e.3`](waves/W1/W1-APP-02/tasks/W1-APP-02e/subtasks/W1-APP-02e.3.md) | Ratatui implements the accepted chat-first contract | [`d9029e0d`](https://github.com/maggnus/ymp/commit/d9029e0d8761f8d662ca4c38a2cf7f4bfdba1a3f) | 13/08 09:50 | 13/08 12:28 (2h25m) |
 | `[x]` | [`W1-APP-02e.4`](waves/W1/W1-APP-02/tasks/W1-APP-02e/subtasks/W1-APP-02e.4.md) | The pinned runtime profiles admit the owner's host | [`f74d211`](https://github.com/maggnus/ymp/commit/f74d211) | 15/08 01:30 | 15/08 02:30 (0m) |
-| `[ ]` | [`W1-APP-02e.5`](waves/W1/W1-APP-02/tasks/W1-APP-02e/subtasks/W1-APP-02e.5.md) | The start screen carries the logo and one line of basics | — | — | — |
-| `[ ]` | [`W1-APP-02e.6`](waves/W1/W1-APP-02/tasks/W1-APP-02e/subtasks/W1-APP-02e.6.md) | Runtime engines are managed entities with properties and model lists | — | — | — |
+| `[~]` | [`W1-APP-02e.5`](waves/W1/W1-APP-02/tasks/W1-APP-02e/subtasks/W1-APP-02e.5.md) | The start screen carries the logo and one line of basics | — | 15/08 08:15 | 15/08 08:15 (0m) |
+| `[~]` | [`W1-APP-02e.6`](waves/W1/W1-APP-02/tasks/W1-APP-02e/subtasks/W1-APP-02e.6.md) | Runtime engines are managed entities with properties and model lists | — | 15/08 08:15 | 15/08 08:15 (0m) |
 | `[ ]` | [`W1-APP-02e.7`](waves/W1/W1-APP-02/tasks/W1-APP-02e/subtasks/W1-APP-02e.7.md) | The product itself tells the runtime how a candidate is published | — | — | — |
 | `[x]` | [`W1-APP-02f`](waves/W1/W1-APP-02/tasks/W1-APP-02f.md) | Duplicate or out-of-order runtime events terminate without a candidate | [`4145a442`](https://github.com/maggnus/ymp/commit/4145a442b476afedca8d091de3a30b1eb1ad9b84) | 12/08 09:40 | 12/08 10:03 (23m) |
 | `[x]` | [`W1-APP-02g`](waves/W1/W1-APP-02/tasks/W1-APP-02g.md) | Verification evidence binds the exact runtime environment | [`973a6e33`](https://github.com/maggnus/ymp/commit/973a6e331f4577a894ab95ee325efa4a03005510) | 12/08 10:28 | 12/08 11:18 (50m) |
@@ -41,7 +41,7 @@
 | `[x]` | [`W1-APP-02u`](waves/W1/W1-APP-02/tasks/W1-APP-02u.md) | A verifier answer is an executable that demonstrably discriminates | [`c1db6db`](https://github.com/maggnus/ymp/commit/c1db6db) | 14/08 01:40 | 14/08 02:19 (38m) |
 | `[x]` | [`W1-APP-02v`](waves/W1/W1-APP-02/tasks/W1-APP-02v.md) | The dialogue experience converges on the Claude Code interface | [`7e98831`](https://github.com/maggnus/ymp/commit/7e98831) | 14/08 02:19 | 14/08 04:08 (0m) |
 | `[x]` | [`W1-APP-02w`](waves/W1/W1-APP-02/tasks/W1-APP-02w/TASK.md) | Product state lives under one .ymp root that supports many projects | [`9996944`](https://github.com/maggnus/ymp/commit/9996944) | 14/08 02:13 | 14/08 03:06 (53m) |
-| `[ ]` | [`W1-APP-02w.1`](waves/W1/W1-APP-02/tasks/W1-APP-02w/subtasks/W1-APP-02w.1.md) | Product state lives under ~/.ymp; the launch directory stays untouched | — | — | — |
+| `[~]` | [`W1-APP-02w.1`](waves/W1/W1-APP-02/tasks/W1-APP-02w/subtasks/W1-APP-02w.1.md) | Product state lives under ~/.ymp; the launch directory stays untouched | — | 15/08 08:15 | 15/08 08:15 (0m) |
 | `[ ]` | [`W1-APP-02w.2`](waves/W1/W1-APP-02/tasks/W1-APP-02w/subtasks/W1-APP-02w.2.md) | A run identifier names the run, not only its contract | — | — | — |
 | `[x]` | [`W1-APP-02x`](waves/W1/W1-APP-02/tasks/W1-APP-02x.md) | Entry validation cannot hold the interface | [`7e98831`](https://github.com/maggnus/ymp/commit/7e98831) | 14/08 02:19 | 14/08 04:08 (0m) |
 | `[x]` | [`W1-APP-02y`](waves/W1/W1-APP-02/tasks/W1-APP-02y.md) | The run record itself carries the per-model spend | [`c63130c`](https://github.com/maggnus/ymp/commit/c63130c) | 14/08 05:19 | 14/08 22:59 (0m) |

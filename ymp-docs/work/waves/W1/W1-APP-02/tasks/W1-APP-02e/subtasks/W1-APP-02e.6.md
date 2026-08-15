@@ -3,15 +3,15 @@ id: W1-APP-02e.6
 kind: subtask
 wave: W1
 card: W1-APP-02
-state: ready
+state: active
 risk: significant
 maturity: BUILD
 relation: supporting
 depends_on: [W1-APP-02e]
 blocks: []
 created_at: 2026-08-15T01:52:53+08:00
-updated_at: 2026-08-15T08:05:36+08:00
-started_at:
+updated_at: 2026-08-15T08:15:17+08:00
+started_at: 2026-08-15T08:15:17+08:00
 accepted_at:
 candidate_commit:
 closure_commit:
