@@ -21,8 +21,8 @@
 | `[x]` | [`W1-APP-02e.3`](waves/W1/W1-APP-02/tasks/W1-APP-02e/subtasks/W1-APP-02e.3.md) | Ratatui implements the accepted chat-first contract | [`d9029e0d`](https://github.com/maggnus/ymp/commit/d9029e0d8761f8d662ca4c38a2cf7f4bfdba1a3f) | 13/08 09:50 | 13/08 12:28 (2h25m) |
 | `[x]` | [`W1-APP-02e.4`](waves/W1/W1-APP-02/tasks/W1-APP-02e/subtasks/W1-APP-02e.4.md) | The pinned runtime profiles admit the owner's host | [`f74d211`](https://github.com/maggnus/ymp/commit/f74d211) | 15/08 01:30 | 15/08 02:30 (0m) |
 | `[x]` | [`W1-APP-02e.5`](waves/W1/W1-APP-02/tasks/W1-APP-02e/subtasks/W1-APP-02e.5.md) | The start screen carries the logo and one line of basics | [`b0a14a7`](https://github.com/maggnus/ymp/commit/b0a14a7) | 15/08 08:15 | 15/08 08:36 (0m) |
-| `[~]` | [`W1-APP-02e.6`](waves/W1/W1-APP-02/tasks/W1-APP-02e/subtasks/W1-APP-02e.6.md) | Runtime engines are managed entities with properties and model lists | — | 15/08 08:15 | 15/08 08:15 (0m) |
-| `[ ]` | [`W1-APP-02e.7`](waves/W1/W1-APP-02/tasks/W1-APP-02e/subtasks/W1-APP-02e.7.md) | The product itself tells the runtime how a candidate is published | — | — | — |
+| `[~]` | [`W1-APP-02e.6`](waves/W1/W1-APP-02/tasks/W1-APP-02e/subtasks/W1-APP-02e.6.md) | Runtime engines are managed entities with properties and model lists | — | 15/08 08:15 | 15/08 11:03 (0m) |
+| `[~]` | [`W1-APP-02e.7`](waves/W1/W1-APP-02/tasks/W1-APP-02e/subtasks/W1-APP-02e.7.md) | The product itself tells the runtime how a candidate is published | — | 15/08 11:26 | 15/08 11:26 (0m) |
 | `[x]` | [`W1-APP-02e.8`](waves/W1/W1-APP-02/tasks/W1-APP-02e/subtasks/W1-APP-02e.8.md) | The key map fits the screen or scrolls | [`025b221`](https://github.com/maggnus/ymp/commit/025b221) | 15/08 10:35 | 15/08 10:50 (0m) |
 | `[ ]` | [`W1-APP-02e.9`](waves/W1/W1-APP-02/tasks/W1-APP-02e/subtasks/W1-APP-02e.9.md) | Key descriptions wrap instead of truncating | — | — | — |
 | `[x]` | [`W1-APP-02f`](waves/W1/W1-APP-02/tasks/W1-APP-02f.md) | Duplicate or out-of-order runtime events terminate without a candidate | [`4145a442`](https://github.com/maggnus/ymp/commit/4145a442b476afedca8d091de3a30b1eb1ad9b84) | 12/08 09:40 | 12/08 10:03 (23m) |
@@ -48,11 +48,11 @@
 | `[ ]` | [`W1-APP-02w.3`](waves/W1/W1-APP-02/tasks/W1-APP-02w/subtasks/W1-APP-02w.3.md) | Export can apply the accepted candidate in place | — | — | — |
 | `[x]` | [`W1-APP-02x`](waves/W1/W1-APP-02/tasks/W1-APP-02x.md) | Entry validation cannot hold the interface | [`7e98831`](https://github.com/maggnus/ymp/commit/7e98831) | 14/08 02:19 | 14/08 04:08 (0m) |
 | `[x]` | [`W1-APP-02y`](waves/W1/W1-APP-02/tasks/W1-APP-02y.md) | The run record itself carries the per-model spend | [`c63130c`](https://github.com/maggnus/ymp/commit/c63130c) | 14/08 05:19 | 14/08 22:59 (0m) |
-| `[~]` | [`W1-APP-02y.1`](waves/W1/W1-APP-02/tasks/W1-APP-02y.1.md) | The accounting assertion states what accounting guarantees | — | 15/08 10:35 | 15/08 10:35 (0m) |
+| `[x]` | [`W1-APP-02y.1`](waves/W1/W1-APP-02/tasks/W1-APP-02y.1.md) | The accounting assertion states what accounting guarantees | [`1e5a03e`](https://github.com/maggnus/ymp/commit/1e5a03e) | 15/08 10:35 | 15/08 11:13 (0m) |
 | `[x]` | [`W1-APP-02z`](waves/W1/W1-APP-02/tasks/W1-APP-02z/TASK.md) | A verifier cannot be rewritten by the candidate it judges | [`c364e30`](https://github.com/maggnus/ymp/commit/c364e30) | 14/08 05:07 | 15/08 00:05 (0m) |
 | `[ ]` | [`W1-APP-02z.1`](waves/W1/W1-APP-02/tasks/W1-APP-02z/subtasks/W1-APP-02z.1.md) | The npm entry point is pinned to its interpreter choice, or stays refused | — | — | — |
 | `[ ]` | [`W1-APP-02z.2`](waves/W1/W1-APP-02/tasks/W1-APP-02z/subtasks/W1-APP-02z.2.md) | The refusal names the actual obstacle | — | — | — |
-| `[ ]` | [`W1-APP-02z.3`](waves/W1/W1-APP-02/tasks/W1-APP-02z/subtasks/W1-APP-02z.3.md) | A testless project receives a generated verifier proposal for approval | — | — | — |
+| `[~]` | [`W1-APP-02z.3`](waves/W1/W1-APP-02/tasks/W1-APP-02z/subtasks/W1-APP-02z.3.md) | A testless project receives a generated verifier proposal for approval | — | 15/08 11:26 | 15/08 11:26 (0m) |
 | `[ ]` | [`W1-COR-03`](waves/W1/W1-COR-03/CARD.md) | Bounded local commitments self-organize and terminate | — | — | — |
 | `[x]` | [`W1-COR-03a`](waves/W1/W1-COR-03/tasks/W1-COR-03a.md) | Local commitments conserve budgets and close obligations | [`58524264`](https://github.com/maggnus/ymp/commit/585242645d405ff1f76d6015a1141144eac4207b) | 13/08 15:10 | 13/08 16:27 (1h25m) |
 | `[x]` | [`W1-COR-03b`](waves/W1/W1-COR-03/tasks/W1-COR-03b.md) | Yielded participants resume finitely and runs terminate honestly | [`ca52994`](https://github.com/maggnus/ymp/commit/ca52994) | — | 14/08 04:06 (0m) |
