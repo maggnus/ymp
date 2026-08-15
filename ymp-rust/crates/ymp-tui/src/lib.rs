@@ -55,6 +55,7 @@ pub mod app;
 pub mod attempt;
 pub mod decisions;
 pub mod draft;
+pub mod engines;
 pub mod frame;
 pub mod journal;
 pub mod overlay;

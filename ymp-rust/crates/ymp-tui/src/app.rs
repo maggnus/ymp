@@ -38,6 +38,7 @@ use ymp_runtime_supervisor::{
 use crate::attempt::{self, Route, Routing};
 use crate::decisions;
 use crate::draft::{Amendment, Assembly, Draft, DraftJob};
+use crate::engines;
 use crate::journal::Model;
 use crate::pages::Page;
 use crate::pools::{self, PoolCapacity, PoolEntry, PoolName};
@@ -66,6 +67,18 @@ const ATTEMPT_TICK: Duration = Duration::from_millis(50);
 /// slice in the kernel. A cancellation is that wait; past this the interface says what it could
 /// not establish rather than claiming an ending it never read.
 const TERMINATION_WAIT: Duration = Duration::from_secs(30);
+/// How long a quit waits for the measurement worker to come back out of the engines it started,
+/// once those engines have been ended. The driver returns as soon as the process it is reading is
+/// gone, so this is the time the worker needs to notice, not the time an engine needs to answer.
+const WORKER_RETURN_LIMIT: Duration = Duration::from_secs(1);
+/// What a quit during a provider measurement is bounded by: the wait for the worker to finish of
+/// its own accord, the request to the engines to end, the ending of what did not, and the wait for
+/// the worker to return from them. Every part is enforced by a deadline of its own, so the sum is a
+/// bound and not an expectation.
+pub const MEASUREMENT_SHUTDOWN_LIMIT: Duration = CONTROLLER_SHUTDOWN_LIMIT
+    .saturating_add(engines::REQUEST_LIMIT)
+    .saturating_add(engines::ENFORCEMENT_LIMIT)
+    .saturating_add(WORKER_RETURN_LIMIT);
 /// Where under the data root the product writes what it supplies for a draft: the verifier it
 /// proposes, the copy it takes as the negative control, and the sample that verifier must accept.
 const DRAFT_DIRECTORY: &str = "draft";
@@ -280,11 +293,15 @@ impl RunningMeasurement {
         Self { ended, worker }
     }
 
-    /// Wait for the worker, bounded by the limit a managed run's shutdown carries.
+    /// Wait for the worker, and end what it is inside where that wait runs out.
     ///
     /// The worker is inside the engines it started, so waiting for it is waiting for those
-    /// processes. Past the bound nothing is claimed: the engines are still running and the report
-    /// says so, rather than stating an ending that was never established.
+    /// processes. An engine that answers inside the limit a managed run's shutdown carries is
+    /// waited out and the worker is joined. One that answers later than that cannot be waited out
+    /// without leaving the shutdown unbounded, and returning at the limit would end the interface
+    /// while a process it started kept running — so past the limit the engines are ended and their
+    /// absence is read from the operating system. Nothing is claimed that was not established:
+    /// where the ending could not be observed, the report says what is still running.
     fn end(self) -> MeasurementShutdown {
         match self.ended.recv_timeout(CONTROLLER_SHUTDOWN_LIMIT) {
             Ok(nothing) => match nothing {},
@@ -292,10 +309,48 @@ impl RunningMeasurement {
                 let _ = self.worker.join();
                 MeasurementShutdown::Ended
             }
-            Err(RecvTimeoutError::Timeout) => MeasurementShutdown::LeftRunning(format!(
-                "the provider measurement did not end within {} ms; the engines it started are \
-                 still running and were left to end on their own",
-                CONTROLLER_SHUTDOWN_LIMIT.as_millis()
+            Err(RecvTimeoutError::Timeout) => self.terminate(),
+        }
+    }
+
+    /// End the engines the worker is still inside, then wait for that worker to come back out.
+    ///
+    /// The worker returns as soon as the engines it was reading are gone, and joining it is what
+    /// says nothing of this measurement is still moving. A worker that does not return leaves this
+    /// interface unable to state what it is inside, so that is reported rather than passed over,
+    /// even where the processes themselves were established to be gone.
+    fn terminate(self) -> MeasurementShutdown {
+        let Self { ended, worker } = self;
+        let termination = engines::end_measurement_processes();
+        let returned = matches!(
+            ended.recv_timeout(WORKER_RETURN_LIMIT),
+            Err(RecvTimeoutError::Disconnected)
+        );
+        if returned {
+            let _ = worker.join();
+        }
+        let waited = CONTROLLER_SHUTDOWN_LIMIT.as_millis();
+        match (termination, returned) {
+            (engines::Termination::NothingRunning, true) => MeasurementShutdown::Ended,
+            (engines::Termination::Ended(processes), true) => {
+                MeasurementShutdown::Terminated(format!(
+                    "the provider measurement did not end within {waited} ms; the {} engine \
+                     process(es) it started were ended and the process table was read back with \
+                     none of them left",
+                    processes.len()
+                ))
+            }
+            (engines::Termination::Unestablished(reason), _) => {
+                MeasurementShutdown::LeftRunning(format!(
+                    "the provider measurement did not end within {waited} ms and the engines it \
+                     started were not established to be gone: {reason}"
+                ))
+            }
+            (_, false) => MeasurementShutdown::LeftRunning(format!(
+                "the provider measurement did not end within {waited} ms; the engines it started \
+                 were ended, and its worker had still not returned from them {} ms later, so what \
+                 it is inside is not established",
+                WORKER_RETURN_LIMIT.as_millis()
             )),
         }
     }
@@ -308,7 +363,12 @@ pub enum MeasurementShutdown {
     Nothing,
     /// The worker ended and was joined, so no engine this session started is still running.
     Ended,
-    /// The worker had not ended when the bound ran out, and what it started is still running.
+    /// The worker had not ended when the wait for it ran out, so the engines it was inside were
+    /// ended and read back as gone. Nothing this session started is still running; the report says
+    /// what the quit had to end, because the measurement it cut short produced no observation.
+    Terminated(String),
+    /// The worker had not ended when the bound ran out, and what it started was not established to
+    /// be gone.
     LeftRunning(String),
 }
 
@@ -814,9 +874,11 @@ impl Session {
     /// End a running measurement before this session goes away.
     ///
     /// The worker is waiting on the engines it started, so waiting for the worker is waiting for
-    /// those processes to end — which is what keeps a quit from leaving one behind. The wait is
-    /// bounded by the limit a managed run's shutdown carries, and a bound that runs out is stated
-    /// rather than reported as an ending nobody established.
+    /// those processes to end — which is what keeps a quit from leaving one behind. That wait is
+    /// bounded by the limit a managed run's shutdown carries; an engine that answers later than
+    /// the limit is ended instead, so the whole act is bounded by [`MEASUREMENT_SHUTDOWN_LIMIT`]
+    /// and leaves nothing running either way. What could not be established is stated rather than
+    /// reported as an ending nobody observed.
     pub fn end_measurement(&mut self) -> MeasurementShutdown {
         self.measuring = None;
         match self.probe.take() {
@@ -2489,12 +2551,16 @@ pub fn run(mut session: Session, markers: Markers) -> anyhow::Result<()> {
     let mut guard = TerminalGuard::enter()?;
     let result = event_loop(&mut guard, &mut session, &mut app, markers);
     drop(guard);
-    // A measurement the quit could not wait out left engine processes behind. The screen is gone
-    // by now, so what supervision could not establish is said on the error stream rather than
-    // dropped: the operator learns it from the product and not from their process list.
+    // A measurement the quit could not wait out was cut short, and what that cost is said on the
+    // error stream rather than dropped: the screen is gone by now, so the operator learns from the
+    // product either that their measurement was ended or that something it started was left
+    // running, and not from their process list.
     let ending = result?;
-    if let MeasurementShutdown::LeftRunning(report) = ending {
-        eprintln!("{report}");
+    match ending {
+        MeasurementShutdown::Terminated(report) | MeasurementShutdown::LeftRunning(report) => {
+            eprintln!("{report}");
+        }
+        MeasurementShutdown::Nothing | MeasurementShutdown::Ended => {}
     }
     Ok(())
 }
