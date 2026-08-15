@@ -196,9 +196,11 @@ fn a_typed_request_becomes_a_contract_and_starts_a_run_the_journal_records() {
     assert_eq!(parsed.document.verifier.oracle_digest.len(), 64);
 }
 
-/// The negative half of the assembled draft: a project the product recognises nothing in is told
-/// so, in one refusal, and nothing is recorded. It is not asked for a path it has no way to know
-/// — a verifier is taken when the operator offers one, and only then.
+/// The negative half of the assembled draft: a project with no tests, and a request stating no
+/// result this host could look for, is told so in one refusal, and nothing is recorded. It is not
+/// asked for a path it has no way to know — a verifier is taken when the operator offers one, and
+/// only then. A request that does name an artifact reaches a generated check instead, which
+/// `a_testless_project_reaches_a_generated_check_it_can_authorize` measures on the built product.
 #[test]
 fn a_project_with_no_test_entry_point_starts_nothing_and_says_what_it_could_not_propose() {
     let workspace = workspace();
@@ -212,7 +214,10 @@ fn a_project_with_no_test_entry_point_starts_nothing_and_says_what_it_could_not_
 
     let rendered = screen(&app, 120, 40);
     let flattened = rendered.split_whitespace().collect::<Vec<_>>().join(" ");
-    assert!(flattened.contains("no test entry point"), "{rendered}");
+    assert!(
+        flattened.contains("state a verifier of your own"),
+        "{rendered}"
+    );
     assert!(
         app.data.run.is_none() && app.data.contracts.is_empty(),
         "a project nothing could be proposed from produced a contract"

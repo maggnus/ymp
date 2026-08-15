@@ -6,13 +6,24 @@
 //! already runs its tests. None of it is an acceptance condition until the operator approves it,
 //! and none of it starts anything.
 //!
+//! A project that runs no tests is drafted for as well. There the check is generated from the
+//! request itself: a self-contained program that decides the one mechanical claim the request can
+//! be read as making — that a named file was produced, that a picture decodes — and decides
+//! nothing about what that file means. The draft states what that program leaves to the operator,
+//! gives the digest the contract pins it by, and shows its text — whole where it fits on a screen,
+//! and to a stated bound with the path to the rest where it does not. Approval is what turns the
+//! program into an acceptance condition, and approval of an unread program would be approval of
+//! nothing.
+//!
 //! What the product supplies, it demonstrates. The proposed verifier has to reject the copy that
 //! holds no result, and reject every candidate the product can build that holds no result either
 //! and reached acceptance through the file the verifier delegates to — one that rewrote it, one
-//! per name the command would read in preference to it. A program that fails any of those decides
-//! nothing and never reaches a draft. Assembling and demonstrating starts programs and waits for
-//! them, so this module hands that work back to the caller as a [`DraftJob`] rather than doing it
-//! where it was asked for.
+//! per name the command would read in preference to it. A generated check is shown both halves
+//! instead: it has to reject the project as it stands and accept that project carrying the
+//! artifact, because a check that rejects everything decides as little as one that accepts
+//! everything. A program that fails any of those decides nothing and never reaches a draft.
+//! Assembling and demonstrating starts programs and waits for them, so this module hands that work
+//! back to the caller as a [`DraftJob`] rather than doing it where it was asked for.
 //!
 //! What the draft states is bounded by what was demonstrated. One file is fixed; what that file
 //! runs in turn stays the candidate's, and the statement says so rather than leaving the operator
@@ -25,8 +36,8 @@
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
-use ymp_application::answer::Assembled;
-use ymp_application::{AcceptanceCondition, RunRequest, answer};
+use ymp_application::answer::{Generated, SubstitutionControl};
+use ymp_application::{AcceptanceCondition, AnswerError, RunRequest, answer};
 use ymp_domain::Budget;
 use ymp_domain::contract::default_wall_time_ms;
 
@@ -267,7 +278,7 @@ impl DraftJob {
 
     fn assemble(self) -> Result<Assembly, String> {
         let mut stated = Vec::new();
-        let (program, negative_control, substitution_controls) = match &self.program {
+        let (program, negative_control, supplied) = match &self.program {
             // A verifier the operator named is theirs; the product supplies the control it must
             // reject and states that it has no sample of its own that this program must accept.
             Some(program) => {
@@ -277,31 +288,66 @@ impl DraftJob {
                         .map_err(|refusal| refusal.to_string())?,
                 };
                 stated.push(format!("verifier {} — stated by you", program.display()));
-                (program.clone(), control, None)
+                (program.clone(), control, Supplied::Stated)
             }
-            None => {
-                let assembled: Assembled = answer::assemble(&self.source, &self.workspace)
-                    .map_err(|refusal| refusal.to_string())?;
-                stated.push(format!(
-                    "verifier {} — proposed from {}, which this project runs as `{}`. It carries \
-                     the bytes of that one file and runs no other by that name, so a candidate \
-                     cannot supply its own · what that file runs in turn — a script it sources, a \
-                     program a recipe calls — is the candidate's own, and changing one of those \
-                     changes what these tests do",
-                    assembled.program.display(),
-                    assembled.entry_point.relative_path.display(),
-                    assembled.entry_point.command
-                ));
-                let control = self
-                    .negative_control
-                    .clone()
-                    .unwrap_or_else(|| assembled.negative_control.clone());
-                (
-                    assembled.program,
-                    control,
-                    Some(assembled.substitution_controls),
-                )
-            }
+            None => match answer::assemble(&self.source, &self.workspace) {
+                Ok(assembled) => {
+                    stated.push(format!(
+                        "verifier {} — proposed from {}, which this project runs as `{}`. It \
+                         carries the bytes of that one file and runs no other by that name, so a \
+                         candidate cannot supply its own · what that file runs in turn — a script \
+                         it sources, a program a recipe calls — is the candidate's own, and \
+                         changing one of those changes what these tests do",
+                        assembled.program.display(),
+                        assembled.entry_point.relative_path.display(),
+                        assembled.entry_point.command
+                    ));
+                    let control = self
+                        .negative_control
+                        .clone()
+                        .unwrap_or_else(|| assembled.negative_control.clone());
+                    (
+                        assembled.program,
+                        control,
+                        Supplied::Proposed(assembled.substitution_controls),
+                    )
+                }
+                // A project that runs no tests is not out of reach: there is nothing to propose a
+                // verifier from, so the check is generated from the request instead. It is weaker
+                // than a project's own tests by construction, which is why the draft shows it in
+                // full and names what it does not decide.
+                Err(AnswerError::NoTestEntryPoint(_)) => {
+                    let generated = answer::generate(&self.prompt, &self.source, &self.workspace)
+                        .map_err(|refusal| refusal.to_string())?;
+                    stated.push(format!(
+                        "verifier {} — generated by ymp from your request, because this project \
+                         names no way of running its tests to propose one from. It decides one \
+                         mechanical claim: {} · {}",
+                        generated.program.display(),
+                        generated.claim,
+                        generated.remainder
+                    ));
+                    stated.push(
+                        "derived by a fixed rule over the words of your request — the word that \
+                         asks for something to be produced, and the artifact it names. No model \
+                         was asked to write it, so neither your request nor this project left \
+                         this host, and a request naming no artifact is refused rather than \
+                         guessed at"
+                            .to_owned(),
+                    );
+                    stated.push(stated_program(&generated));
+                    let control = self
+                        .negative_control
+                        .clone()
+                        .unwrap_or_else(|| generated.negative_control.clone());
+                    (
+                        generated.program.clone(),
+                        control,
+                        Supplied::Generated(Box::new(generated)),
+                    )
+                }
+                Err(refusal) => return Err(refusal.to_string()),
+            },
         };
 
         stated.push(match &self.negative_control {
@@ -315,8 +361,8 @@ impl DraftJob {
             ),
         });
 
-        match &substitution_controls {
-            Some(controls) => {
+        match &supplied {
+            Supplied::Proposed(controls) => {
                 answer::refuses_a_substituted_entry_point_within(
                     &program,
                     &negative_control,
@@ -331,7 +377,24 @@ impl DraftJob {
                     joined(controls.iter().map(|control| control.stated.as_str()))
                 ));
             }
-            None => {
+            // Here both halves can be shown, because the product can build what a generated check
+            // looks for. Showing the acceptance is the point: it is how little a candidate has to
+            // do to satisfy this check, and the operator authorizes knowing it.
+            Supplied::Generated(generated) => {
+                answer::decides_the_generated_check_within(
+                    generated,
+                    &negative_control,
+                    self.wall_limit,
+                )
+                .map_err(|refusal| refusal.to_string())?;
+                stated.push(format!(
+                    "demonstrated: the generated verifier rejected the negative control, and \
+                     accepted a copy of the project carrying {} · that is the whole of what it \
+                     decides, and the rest of the work is judged by you",
+                    generated.stated_positive_control
+                ));
+            }
+            Supplied::Stated => {
                 answer::discriminates_within(&program, &negative_control, self.wall_limit)
                     .map_err(|refusal| refusal.to_string())?;
                 stated.push(
@@ -355,6 +418,50 @@ impl DraftJob {
             stated,
         })
     }
+}
+
+/// Where the verifier in a draft came from, and therefore what has to be demonstrated about it.
+enum Supplied {
+    /// A verifier the operator named. The product has no candidate of its own to offer it.
+    Stated,
+    /// A verifier proposed from the project's own tests, with every candidate that would have
+    /// reached acceptance through the file it delegates to.
+    Proposed(Vec<SubstitutionControl>),
+    /// A check generated from the request, with the copy carrying the artifact it must accept.
+    Generated(Box<Generated>),
+}
+
+/// How many lines of a generated program the draft states in the transcript.
+///
+/// A longer program is stated to this bound and the rest addressed by the path holding it. A
+/// statement that fills the screen pushes the claim, the digest and the line that authorizes off
+/// the top of it, and an operator who can no longer see what they are approving is not better
+/// informed for having been shown more of it. The digest covers the whole program either way.
+const PROGRAM_LINES_STATED: usize = 24;
+
+/// The generated program as the draft states it: its text, with each line break marked rather
+/// than dropped, and the digest the contract pins it by.
+///
+/// The transcript keeps no control characters, so a program written into it would otherwise
+/// arrive with its lines run together. The operator is being asked to approve this text, so the
+/// breaks are shown as a mark they can read.
+fn stated_program(generated: &Generated) -> String {
+    let lines: Vec<&str> = generated.program_text.lines().map(str::trim_end).collect();
+    let digest = crate::projection::short_digest(&generated.oracle_digest);
+    if lines.len() <= PROGRAM_LINES_STATED {
+        return format!(
+            "the program in full, which the contract pins by digest {digest} — ⏎ marks each line \
+             break: {}",
+            lines.join(" ⏎ ")
+        );
+    }
+    format!(
+        "the program's first {PROGRAM_LINES_STATED} lines of {}, all of which the contract pins by \
+         digest {digest} and {} holds — ⏎ marks each line break: {}",
+        lines.len(),
+        generated.program.display(),
+        lines[..PROGRAM_LINES_STATED].join(" ⏎ ")
+    )
 }
 
 /// Several statements read as one sentence, so a draft states what it demonstrated rather than
@@ -513,16 +620,68 @@ mod tests {
         assert!(refusal.contains("could not be fixed into"), "{refusal}");
     }
 
+    /// A project that runs no tests still reaches a draft, and what the operator is asked to
+    /// approve is a program they can read: its text, what it decides, what it does not, and the
+    /// digest the contract pins it by.
     #[test]
-    fn a_project_with_no_test_entry_point_is_told_so_rather_than_asked_for_a_path() {
+    fn a_project_with_no_test_entry_point_draws_the_check_from_the_request_itself() {
+        let project = project();
+        fs::remove_file(project.directory.join("scripts/test.sh")).expect("remove entry point");
+        let mut draft = Draft::new("create an empty html file");
+        let assembly = draft
+            .job(&project.directory, &project.data_root.join("draft"), 1)
+            .run()
+            .expect("a request naming an artifact reaches a generated check");
+        let stated = assembly.stated.join(" · ");
+
+        for promise in [
+            "generated by ymp from your request",
+            "a file named *.html was produced",
+            "stays yours to judge",
+            "No model was asked to write it",
+            "the program in full",
+            "#!/bin/sh",
+            "rejected the negative control, and accepted a copy of the project carrying an empty \
+             file named sample.html",
+        ] {
+            assert!(
+                stated.contains(promise),
+                "the draft does not state `{promise}`: {stated}"
+            );
+        }
+
+        // The digest shown is the digest of the program on this host, which is the digest the
+        // contract records for the oracle. An operator comparing the two compares the same thing.
+        let program = assembly
+            .request
+            .acceptance
+            .as_ref()
+            .expect("the assembled draft carries an acceptance condition")
+            .program
+            .clone();
+        let digest = ymp_domain::digest_bytes(&fs::read(&program).expect("read the program"));
+        assert!(
+            stated.contains(&crate::projection::short_digest(&digest)),
+            "the draft states no digest for the program it shows: {stated}"
+        );
+    }
+
+    /// Generation stops where honesty does. A request that states no result this host can look
+    /// for is refused, and the refusal names what is left to the operator instead of inventing a
+    /// condition for them.
+    #[test]
+    fn a_request_stating_no_artifact_is_refused_in_a_project_that_runs_no_tests() {
         let project = project();
         fs::remove_file(project.directory.join("scripts/test.sh")).expect("remove entry point");
         let mut draft = Draft::new("keep the replay path idempotent");
         let refusal = draft
             .job(&project.directory, &project.data_root.join("draft"), 1)
             .run()
-            .expect_err("nothing can be proposed from a project that runs no tests");
-        assert!(refusal.contains("no test entry point"), "{refusal}");
+            .expect_err("a check was invented for a request that states no result");
+        assert!(
+            refusal.contains("state a verifier of your own"),
+            "{refusal}"
+        );
     }
 
     #[test]
