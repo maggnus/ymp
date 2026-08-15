@@ -532,6 +532,19 @@ impl Application {
         self.commitments.as_ref()
     }
 
+    /// The same kernel, read after the projection has been brought back to the journal.
+    ///
+    /// Each fact is appended to the journal whole and only then applied in memory, so a process
+    /// step interrupted between the two ends with the record complete and the ledger one command
+    /// short of it. A caller deciding what a run still owes — whether its process slice is closed,
+    /// which slice the kernel admits next, whether the run has ended — would decide that against a
+    /// ledger the record has already moved past. This is the reading such a caller takes: the
+    /// journal is caught up with first, exactly as it is before every command.
+    pub fn recovered_commitments(&mut self) -> Result<Option<&CommitmentLedger>, ApplicationError> {
+        self.recover_projection()?;
+        Ok(self.commitments.as_ref())
+    }
+
     /// Record the state the commitment kernel of this run starts from.
     ///
     /// A ledger is the root participant, the principal it acts as, the obligation the run is
@@ -582,6 +595,16 @@ impl Application {
     /// been told a contract was formed, escrow moved or an obligation returned is therefore
     /// holding something the record already states, and a restart at any point returns a ledger
     /// that either has the whole command or has never heard of it.
+    ///
+    /// A run that has already ended still records what its commitments settle. Stopping the run,
+    /// returning its work obligation and settling its offer are the accounting of the ending the
+    /// journal states, and they are committed after that ending: an operator's cancellation moves
+    /// the journal while the process slice is still open, and what closes that slice is recorded
+    /// afterwards. Refused here, the two records of one run would disagree — the journal ended
+    /// while the ledger held the slice open on an unjudged candidate — which is the state this
+    /// path exists to prevent. Nothing recorded here moves the run's own status: a commitment
+    /// record commits no transition of the run, so the terminal the journal states stands
+    /// unchanged.
     pub fn execute_commitment(
         &mut self,
         command_id: impl Into<String>,
@@ -593,9 +616,6 @@ impl Application {
         self.recover_projection()?;
         if let Some(outcome) = self.replay_commitment(&command_id, &command_digest)? {
             return Ok(outcome);
-        }
-        if self.state.status.is_terminal() {
-            return Err(TransitionError::Terminal(self.state.status).into());
         }
         let ledger = self
             .commitments
@@ -653,9 +673,19 @@ impl Application {
     fn fold_commitment(&mut self, envelope: &EventEnvelope) -> Result<(), ApplicationError> {
         match &envelope.event {
             EventKind::CommitmentKernelOpened { .. } => {
-                if self.commitments.is_none() {
-                    self.commitments = Some(ledger_from(&envelope.event)?);
+                // One run, one kernel. The genesis states what a ledger is built from, and a
+                // second one states a different starting point for the same run: the facts that
+                // follow it were decided against one of the two ledgers and cannot be replayed
+                // into both. Passing it over rebuilt the run from whichever record came first and
+                // read the other as if it had never been written, so a store holding two of them
+                // is refused here instead — on the recovery path, which is where such a store
+                // arrives, and on the commit path alike.
+                if let Some(ledger) = &self.commitments {
+                    return Err(ApplicationError::CommitmentKernelAlreadyOpen {
+                        root_obligation: ledger.root_obligation().to_owned(),
+                    });
                 }
+                self.commitments = Some(ledger_from(&envelope.event)?);
             }
             EventKind::CommitmentFactsRecorded { facts } => {
                 let ledger = self
@@ -1199,6 +1229,13 @@ impl Application {
     }
 
     fn fail_commit(&mut self, error: JournalError) -> Result<CommandOutcome, ApplicationError> {
+        // A run that has already ended keeps the ending it recorded. The reserve exists for the
+        // one terminal a live run still owes, and a record the journal would not take from a run
+        // that has ended is not a reason to write a second terminal over the first or to set one
+        // in this projection. What the journal declined is reported instead.
+        if self.state.status.is_terminal() {
+            return Err(ApplicationError::Journal(error));
+        }
         if matches!(
             &error,
             JournalError::CapacityExhausted { .. } | JournalError::EventTooLarge { .. }

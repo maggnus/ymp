@@ -251,7 +251,7 @@ fn start(fixture: &Fixture, store: &Path, contract_id: &str) -> String {
         reported(&started)
     );
     assert!(
-        !journal(store).contains("attempt_started"),
+        !journal(store).contains("\"type\":\"attempt_started\""),
         "starting the run started an agent, which is a separate authorization"
     );
     run_id(store)
@@ -287,7 +287,8 @@ fn a_profile_that_cannot_do_the_work_stops_the_attempt_and_is_not_replaced() {
     );
     let journal = journal(&store);
     assert!(
-        !journal.contains("attempt_started") && !journal.contains("candidate_submitted"),
+        !journal.contains("\"type\":\"attempt_started\"")
+            && !journal.contains("\"type\":\"candidate_submitted\""),
         "a refused attempt reached the journal: {journal}"
     );
     assert_eq!(status(&store), RunStatus::Running);
@@ -316,11 +317,16 @@ fn the_attempt_is_done_judged_and_exported_through_the_product_alone() {
 
     // The journal is what the run is: the attempt, the candidate the agent submitted through the
     // product's own bridge, and the verdict of the verifier the contract names.
+    //
+    // Each is named in the form the run's own events take. The same journal also carries the facts
+    // of the run's commitment kernel, and two of those facts — the attempt the kernel starts and
+    // the verdict it records — carry the same names under a tag of their own, so a check that read
+    // the name alone would no longer say which of the two records it found.
     let journal = journal(&store);
     for fact in [
-        "attempt_started",
-        "candidate_submitted",
-        "verification_recorded",
+        "\"type\":\"attempt_started\"",
+        "\"type\":\"candidate_submitted\"",
+        "\"type\":\"verification_recorded\"",
     ] {
         assert!(
             journal.contains(fact),
@@ -497,11 +503,14 @@ fn a_verifier_that_cannot_decide_is_an_infrastructure_condition_and_not_a_reject
     );
     let journal = journal(&store);
     assert!(
-        journal.contains("candidate_submitted"),
+        journal.contains("\"type\":\"candidate_submitted\""),
         "the agent's candidate was not committed: {journal}"
     );
+    // The run's own verdict, in the form the run's events take. What the kernel records under the
+    // same name is a fact of the commitment ledger, and it states the condition rather than a
+    // decision about the candidate: the verifier answered nothing, and the ledger says so.
     assert!(
-        !journal.contains("verification_recorded"),
+        !journal.contains("\"type\":\"verification_recorded\""),
         "a verdict was recorded by a verifier that never answered: {journal}"
     );
     assert_eq!(status(&store), RunStatus::InfrastructureError);

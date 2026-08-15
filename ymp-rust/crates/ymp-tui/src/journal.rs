@@ -235,6 +235,11 @@ impl Model {
                 root_obligation,
                 budget,
             } => {
+                // A fold that has already stopped stays stopped, so a later record cannot build a
+                // ledger over a refusal the page is still stating.
+                if self.commitments_refused.is_some() {
+                    return;
+                }
                 match CommitmentLedger::new(
                     root_participant,
                     root_principal,
@@ -246,6 +251,15 @@ impl Model {
                 }
             }
             EventKind::CommitmentFactsRecorded { facts } => {
+                // The fold stops at the first record it cannot take, and what it states is that
+                // first reason. The records after it are read against a ledger that is no longer
+                // being built, so each of them would find no kernel and say so — replacing what
+                // actually stopped the fold with a consequence of it, and telling an operator that
+                // the run opened no kernel when what happened is that one of its facts could not be
+                // replayed.
+                if self.commitments_refused.is_some() {
+                    return;
+                }
                 // The ledger is rebuilt by replaying the record, exactly as the application
                 // rebuilds its own. A fact that cannot be replayed stops the fold and is stated,
                 // because a page drawn past it would show a ledger the journal does not state.

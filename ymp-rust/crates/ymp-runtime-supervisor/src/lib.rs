@@ -960,8 +960,11 @@ fn start_candidate(
 
     // The committed record this run's process slice lives in. It is prepared before anything is
     // executed, because the authority to run a slice is spent out of the work's own account and a
-    // slice the kernel would not fund is one this controller must not start.
+    // slice the kernel would not fund is one this controller must not start. The record it is
+    // prepared in is the run's own journal, so what the kernel decides is readable after this
+    // process is gone.
     let kernel = match ManagedKernel::prepare(
+        Arc::clone(&application),
         &attempt_id,
         &invocation_id,
         &contract_id,
@@ -1491,12 +1494,24 @@ fn start_candidate(
                 // Supervision that failed on its way out still owes the kernel a terminal: a slice
                 // left open would hold the run open on capacity nothing is running under. It is one
                 // more ending, so it is recorded under the same guard as the others.
-                {
+                //
+                // What the kernel would not take is carried out with the failure, for the reason
+                // the journal's refusal is carried out with it: both records are written to the
+                // same journal, so a journal that stopped taking records leaves the run without
+                // either ending, and the run itself is the only thing that can still say so.
+                let unrecorded_terminal = {
                     let _terminal = take_terminal(&worker_terminal);
-                    let _ = worker_kernel.terminated(ManagedTermination::Failed(
-                        InvocationClosure::InfrastructureError,
-                    ));
-                }
+                    worker_kernel
+                        .terminated(ManagedTermination::Failed(
+                            InvocationClosure::InfrastructureError,
+                        ))
+                        .err()
+                        .map(|error| format!("managed_runtime_terminal_unrecorded: {error}"))
+                };
+                let detail = match unrecorded_terminal {
+                    Some(unrecorded) => format!("{detail}; {unrecorded}"),
+                    None => detail,
+                };
                 let _ = sender.send(ManagedRunEvent::Failed { detail });
             }
             let _ = sender.send(ManagedRunEvent::Finished);
@@ -3104,6 +3119,7 @@ mod tests {
                 .expect("create application"),
         ));
         let kernel = ManagedKernel::prepare(
+            Arc::clone(&application),
             "attempt-unread",
             "invocation-unread",
             "scope-unread",
