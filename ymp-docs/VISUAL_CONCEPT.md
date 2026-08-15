@@ -236,9 +236,11 @@ actually applies: each attempt runs in a separate process against a private copy
 owns; using it as the profile name would name the wrong thing and, worse, would suggest a
 containment property the profile does not provide.
 
-Wherever the profile appears it is followed by its limit — that it provides no hostile-code
-containment and that agents run with the operator's own permissions. The name is never shown
-alone.
+Wherever the profile appears with room for prose it is followed by its limit — that it provides
+no hostile-code containment and that agents run with the operator's own permissions. The header
+glyph is the compact form; the full sentence lives in the key map and on /runtimes (owner
+decision 2026-08-15: the opening transcript carries only the logo, one line of basics and the
+invitation).
 
 Shown by: the opening transcript, the wide context header, and the `assurance` row of the contract
 authorization surface.
