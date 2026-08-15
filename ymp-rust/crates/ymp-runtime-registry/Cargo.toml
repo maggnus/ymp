@@ -1,12 +1,14 @@
 [package]
-name = "ymp-runtime-claude"
+name = "ymp-runtime-registry"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 
 [dependencies]
+serde.workspace = true
 serde_json.workspace = true
+thiserror.workspace = true
+
+[dev-dependencies]
 tempfile.workspace = true
-ymp-runtime-api.workspace = true
-ymp-runtime-registry.workspace = true

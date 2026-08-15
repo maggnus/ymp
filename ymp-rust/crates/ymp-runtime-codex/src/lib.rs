@@ -170,14 +170,18 @@ pub struct CodexRuntime {
 }
 
 impl Default for CodexRuntime {
+    /// The installed engine, as the registry discovers it. Discovery belongs to the registry and
+    /// to nothing else, so an engine is selected through one channel whose result a record states.
     fn default() -> Self {
-        Self::new("codex")
+        Self::new(ymp_runtime_registry::discover(
+            ymp_runtime_registry::Engine::Codex.program(),
+        ))
     }
 }
 
 impl CodexRuntime {
     pub fn new(executable: impl Into<PathBuf>) -> Self {
-        let executable = resolve_executable(executable.into());
+        let executable = ymp_runtime_registry::resolve(executable.into());
         Self {
             executable,
             verified_executable: Arc::new(Mutex::new(None)),
@@ -207,6 +211,31 @@ impl CodexRuntime {
 
     pub fn profile(&self) -> &CodexProfile {
         &self.profile
+    }
+
+    /// Where the managed invocation's authentication material comes from, named rather than read.
+    /// The registry records the origin so an operator can see which account a spend would reach;
+    /// the credential itself never leaves the launch.
+    pub fn credential_origin(&self) -> Option<&'static str> {
+        self.auth_source
+            .as_ref()
+            .map(|_| "delegated_home_credential")
+    }
+
+    /// The digest of the installed executable, computed from its bytes rather than reported by it.
+    pub fn executable_digest(&self) -> Result<String, RuntimeError> {
+        Ok(self.admitted_executable()?.digest)
+    }
+
+    /// The routes this engine can serve.
+    ///
+    /// The installed build publishes no catalog and lists no routes of its own: which models the
+    /// account may reach is answered by the provider at request time, and asking would spend the
+    /// operator's budget. What the registry can record without spending is the route the managed
+    /// profile pins, and it records it as pinned rather than as measured, so a reader is never told
+    /// that a list nobody measured was measured.
+    pub fn model_catalog(&self) -> Vec<String> {
+        vec![self.profile.model.clone()]
     }
 
     fn isolated_environment(&self) -> Result<CodexEnvironment, RuntimeError> {
@@ -1248,20 +1277,6 @@ impl Drop for CodexSession {
             end_process_tree_or_keep(&mut self.child);
         }
     }
-}
-
-fn resolve_executable(executable: PathBuf) -> PathBuf {
-    if executable.is_absolute() || executable.components().count() > 1 {
-        return executable.canonicalize().unwrap_or(executable);
-    }
-    let Some(path) = std::env::var_os("PATH") else {
-        return executable;
-    };
-    std::env::split_paths(&path)
-        .map(|directory| directory.join(&executable))
-        .find(|candidate| candidate.is_file())
-        .and_then(|candidate| candidate.canonicalize().ok())
-        .unwrap_or(executable)
 }
 
 fn discover_auth_source() -> Option<PathBuf> {

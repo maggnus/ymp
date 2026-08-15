@@ -18,7 +18,7 @@ use std::path::Path;
 use std::time::{Duration, Instant};
 
 use ymp_domain::RunStatus;
-use ymp_tui::runtimes::probe_all;
+use ymp_tui::runtimes::{Measure, probe_all};
 use ymp_tui::{Session, projection};
 
 /// A Codex build that launches and then dies without a terminal event of its own. The controller
@@ -81,7 +81,11 @@ fn cancelling_a_run_the_machinery_already_ended_reports_what_the_record_holds() 
         .expect("the request produced a contract")
         .contract_id
         .clone();
-    session.set_runtimes(probe_all());
+    // The registry decides which engines this host admits, and Codex is held back where no
+    // operator states otherwise. This check runs against a Codex fixture of its own, so it states
+    // that decision the way an operator does — through the interface's own line.
+    session.local_turn("runtime enable codex".to_owned());
+    session.set_runtimes(probe_all(session.registry_address(), Measure::Recorded));
     session.start_run(&contract_id);
     session.start_attempt();
     assert!(session.attempt_is_live(), "no attempt was launched");

@@ -23,6 +23,7 @@ use ymp_domain::contract::ContractDocument;
 use ymp_runtime_api::{RuntimeDriver, RuntimeKind};
 use ymp_runtime_claude::ClaudeRuntime;
 use ymp_runtime_codex::CodexRuntime;
+use ymp_runtime_registry::{Engine, RegistryAddress};
 use ymp_runtime_supervisor::{
     ManagedCandidateRequest, ManagedContract, ManagedRunHandle, ManagedVerifier,
     admit_runtime_start, start_managed_candidate,
@@ -57,6 +58,15 @@ impl Route {
         match self {
             Self::Codex => RuntimeKind::Codex,
             Self::ClaudeCode => RuntimeKind::ClaudeCode,
+        }
+    }
+
+    /// The registry entity this route starts. Every route is an engine, which is what makes the
+    /// registry's enabled flag reachable from every path that would start one.
+    pub const fn engine(self) -> Engine {
+        match self {
+            Self::Codex => Engine::Codex,
+            Self::ClaudeCode => Engine::ClaudeCode,
         }
     }
 
@@ -183,6 +193,7 @@ fn state_of(route: Route, report: &Report) -> Option<(bool, String)> {
 pub fn start(
     application: Arc<Mutex<Application>>,
     route: Route,
+    registry: &RegistryAddress,
 ) -> anyhow::Result<ManagedRunHandle> {
     let contract = {
         let application = application
@@ -193,7 +204,7 @@ pub fn start(
             .context("read the contract this run was approved against")?;
         managed_contract(&binding, &document)
     };
-    let driver = driver(route)?;
+    let driver = driver(route, registry)?;
     let bridge_executable =
         std::env::current_exe().context("resolve the running ymp executable")?;
     start_managed_candidate(
@@ -207,8 +218,15 @@ pub fn start(
 }
 
 /// The only place this crate builds a runtime driver, and therefore the only place a runtime can
-/// be started from. Every driver passes [`admit_runtime_start`] before it is returned.
-fn driver(route: Route) -> anyhow::Result<Box<dyn RuntimeDriver>> {
+/// be started from.
+///
+/// Two admissions stand in front of every driver, and they answer different questions. The
+/// registry answers whether this host admits the engine at all, and refuses a disabled one with
+/// the reason the operator recorded — before the driver is built, so a disabled engine starts no
+/// process even where the routing that led here was stale. [`admit_runtime_start`] then answers
+/// whether the driver attests what it launches.
+fn driver(route: Route, registry: &RegistryAddress) -> anyhow::Result<Box<dyn RuntimeDriver>> {
+    registry.registry().admit(route.engine())?;
     let driver: Box<dyn RuntimeDriver> = match route {
         Route::Codex => Box::new(CodexRuntime::default()),
         Route::ClaudeCode => Box::new(ClaudeRuntime::default()),
@@ -244,9 +262,11 @@ pub fn verification_inputs(data_root: &std::path::Path) -> PathBuf {
 
 #[cfg(test)]
 mod tests {
-    use super::{Route, Routing, resolve};
-    use crate::runtimes::{ProfileFacts, Report};
+    use super::{Engine, RegistryAddress, Route, Routing, driver, resolve};
+    use crate::runtimes::{EngineFacts, ProfileFacts, Report};
     use ymp_runtime_api::Readiness;
+    use ymp_runtime_registry::ModelCatalog;
+    use ymp_runtime_registry::Registry;
 
     fn profile(name: &str, readiness: Readiness) -> ProfileFacts {
         ProfileFacts {
@@ -257,6 +277,12 @@ mod tests {
             version: None,
             readiness,
             detail: format!("{name} probe detail"),
+            registry: Route::parse(name).map(|route| EngineFacts {
+                engine: route.engine(),
+                enabled: true,
+                disabled_reason: None,
+                models: ModelCatalog::default(),
+            }),
         }
     }
 
@@ -333,5 +359,68 @@ mod tests {
     #[test]
     fn nothing_is_known_before_the_probe_returns() {
         assert_eq!(resolve(Some(Route::Codex), None), Routing::Probing);
+    }
+
+    /// A disabled engine is not offered: whatever its probe would have reported, the profile is
+    /// not ready and the refusal repeats the reason the registry records.
+    #[test]
+    fn a_disabled_engine_is_never_offered_as_a_route() {
+        let mut report = report(Readiness::Ready, Readiness::Ready);
+        for profile in &mut report.profiles {
+            if profile.name == Route::Codex.name()
+                && let Some(registry) = profile.registry.as_mut()
+            {
+                registry.enabled = false;
+                registry.disabled_reason = Some("usage limit until 2026-09-12".to_owned());
+                profile.detail =
+                    "disabled in the registry — usage limit until 2026-09-12".to_owned();
+            }
+        }
+        // With one engine disabled the other is the only route there is, so nothing has to be
+        // named for a run to be routed.
+        assert_eq!(
+            resolve(None, Some(&report)),
+            Routing::Ready(Route::ClaudeCode)
+        );
+
+        let Routing::Refused(reason) = resolve(Some(Route::Codex), Some(&report)) else {
+            panic!("a disabled engine was routed to");
+        };
+        assert!(reason.contains("usage limit until 2026-09-12"), "{reason}");
+    }
+
+    /// The load-bearing half: an attempt that reaches the driver for a disabled engine is refused
+    /// there, with the registry's reason, before any process is built or started. The routing above
+    /// can be stale; this gate cannot be bypassed by a caller that did not look.
+    #[test]
+    fn an_attempt_on_a_disabled_engine_is_refused_at_the_driver_with_the_registry_reason() {
+        let root = tempfile::tempdir().expect("temporary root");
+        let address = RegistryAddress::Root(root.path().to_path_buf());
+        let registry = Registry::under(root.path());
+        registry
+            .set_enabled(Engine::ClaudeCode, false, Some("held back for this check"))
+            .expect("disable the engine");
+        let Err(error) = driver(Route::ClaudeCode, &address) else {
+            panic!("a disabled engine built a driver");
+        };
+        let stated = error.to_string();
+        assert!(stated.contains("held back for this check"), "{stated}");
+        assert!(stated.contains("claude-code"), "{stated}");
+
+        // Positive half: the same engine, enabled, passes the registry gate and is refused by
+        // nothing the registry decides.
+        registry
+            .set_enabled(Engine::ClaudeCode, true, None)
+            .expect("enable the engine");
+        let refused_again = match driver(Route::ClaudeCode, &address) {
+            Ok(_) => None,
+            Err(error) => Some(error.to_string()),
+        };
+        assert!(
+            !refused_again
+                .as_deref()
+                .is_some_and(|stated| stated.contains("is disabled in the registry")),
+            "the enabled engine was still refused by the registry: {refused_again:?}"
+        );
     }
 }

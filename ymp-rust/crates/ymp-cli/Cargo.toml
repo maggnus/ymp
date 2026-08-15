@@ -26,6 +26,7 @@ ymp-domain.workspace = true
 ymp-runtime-api.workspace = true
 ymp-runtime-claude.workspace = true
 ymp-runtime-codex.workspace = true
+ymp-runtime-registry.workspace = true
 ymp-runtime-supervisor.workspace = true
 ymp-tui.workspace = true
 ymp-verifier.workspace = true

@@ -16,7 +16,7 @@ use ymp_runtime_api::{
     RuntimeEventKind, RuntimeFailureKind, RuntimeKind, Usage,
 };
 use ymp_runtime_claude::{
-    APPROVED_SEARCH_PATH, ClaudeProfile, ClaudeRuntime, MINIMUM_CLAUDE_VERSION,
+    APPROVED_SEARCH_PATH, ClaudeProfile, ClaudeRuntime, MINIMUM_CLAUDE_VERSION, PINNED_CLAUDE_MODEL,
 };
 use ymp_runtime_supervisor::{
     ManagedCandidateRequest, ManagedContract, ManagedRunEvent, start_managed_candidate,
@@ -115,6 +115,59 @@ fn every_installed_build_is_admitted_and_the_session_names_the_build_that_was_pr
         attempt.observed.session.is_some(),
         "the live attempt reported no session"
     );
+}
+
+/// The model list the registry records for the Claude engine is measured from the installed build,
+/// and the cheaper routes the owner permits for experiments are in it.
+///
+/// The measurement starts the real build once per candidate and reaches no provider: the build
+/// names an unrecognised model and then refuses the missing input, so nothing is spent. Both
+/// halves are checked here — the list names models the build serves, and it does not name a model
+/// no build serves, which is what would happen if the measurement had stopped discriminating and
+/// were reporting every candidate as served.
+#[test]
+#[ignore = "starts the real installed Claude Code build once per model candidate"]
+fn the_measured_model_catalog_names_the_routes_the_installed_build_serves() {
+    let runtime = ClaudeRuntime::default();
+    let measured = runtime
+        .measure_model_catalog()
+        .expect("measure the model catalog of the installed build");
+    let catalog = &measured.served;
+    println!("catalog ({} served): {catalog:?}", catalog.len());
+    assert_eq!(
+        measured.unasked, 0,
+        "the measurement left candidates unasked, so this list is not the whole catalog"
+    );
+    assert!(
+        !catalog.is_empty(),
+        "the installed build served no model at all"
+    );
+    for permitted in ["haiku", "sonnet"] {
+        assert!(
+            catalog.iter().any(|model| model.contains(permitted)),
+            "the measured catalog names no {permitted} route: {catalog:?}"
+        );
+    }
+    assert!(
+        catalog.iter().any(|model| model == PINNED_CLAUDE_MODEL),
+        "the measured catalog does not name the pinned route {PINNED_CLAUDE_MODEL}: {catalog:?}"
+    );
+    // A family whose first segment is a number is served by this build, and a candidate filter of
+    // this code's own would have thrown it away before the build was ever asked.
+    assert!(
+        catalog
+            .iter()
+            .any(|model| model.starts_with("claude-3-5-haiku")),
+        "the measured catalog names no claude-3-5 route the build serves: {catalog:?}"
+    );
+    // Negative half: a name the build refuses never enters the list. A measurement that had lost
+    // its negative answer would carry every candidate the executable carries straight through.
+    for refused in ["claude-instant", "claude-code-", "claude-desktop"] {
+        assert!(
+            !catalog.iter().any(|model| model.starts_with(refused)),
+            "the measured catalog names {refused}…, which no installed build serves: {catalog:?}"
+        );
+    }
 }
 
 /// Reads a `--version` line against the profile floor, comparing the build ordinals as numbers.

@@ -12,6 +12,7 @@ invocation — and it is addressed rather than named per run:
 ```text
 ~/.ymp/
   root.json                     layout marker and version
+  runtimes/<engine>.json        one runtime engine: admission, properties, model list
   projects/<project>/
     project.json                the directory this project addresses
     runs/0001/                  one store: one run, its objects and its evidence
@@ -30,6 +31,14 @@ segment. The run segment is a four-digit ordinal. Neither segment is supplied by
 A store is what every earlier rule in this document describes, unchanged: one run, one journal,
 one content-addressed object store, and the recovery and refusal behaviour stated below. What the
 layout adds is that a second run and a second project are addressed, not named.
+
+The engine registry stands beside the projects rather than inside a store, because which engines
+this host admits is one decision and every run under the root reads it. Which registry an
+invocation reaches is derived from the path it addresses rather than from the way it named it: a
+store is walked up to the first ancestor carrying `root.json` that addresses that store under its
+projects, so `--data-root` on a store inside a root reads that root's registry. A store standing
+under no such root has no root decision to honour and keeps its registry beside it. The registry is
+described under *Runtime engine registry version 1* below.
 
 An invocation that commits a run start is given a store holding no run; every other invocation is
 given the store the project is already on. A store addressed but never started into holds no
@@ -64,6 +73,58 @@ process does, they are removed with it, and a unix socket path is length-limited
 project-relative path cannot honour. An evidence export is written where the operator names it,
 and beside the project under the run's own name when they name none, because an export exists to
 leave the root.
+
+## Runtime engine registry version 1
+
+One record per runtime engine lives at `<root>/runtimes/<engine>.json`, where `<engine>` is the
+name the runtimes page spells: `claude-code` or `codex`. The record states three separable things.
+
+The **admission decision** is the operator's: `enabled`, and `disabled_reason` when it is false. A
+disabled engine is refused before anything is started, and the refusal repeats the recorded reason.
+It is also not probed, not offered as a route and not counted ready, so nothing about it is
+measured while it is held back. Where the registry holds no record for an engine, the engine takes
+its seeded state; the Codex engine is seeded disabled, because the account this build authenticates
+with is over its usage limit until 2026-09-12.
+
+The **measured properties** are written from measurements of this host and never from a
+declaration: the executable discovery resolved, the release that executable reported, the digest of
+that executable computed from its bytes, the origin of the credential a managed invocation would
+carry — named, never the credential itself — and the bounds that invocation is held to. Discovery
+has one channel and the record names its result, so an engine cannot be selected by a path no
+record states.
+
+The **model list** is what the engine can serve, with the provenance of the list. `source` is
+`measured` when the installed build was asked about every candidate its own executable carries and
+named the ones it serves, `filtered` when some candidate was not put to it and the list is
+therefore part of what it serves rather than all of it, `pinned` when the build publishes no
+catalog and the record states the route the managed profile pins instead, and `unmeasured` when
+nothing has been measured. Which candidates are asked about is not decided by any rule over model
+names: every identifier the executable carries is put to the build, and the build refuses what it
+does not serve.
+
+Whether a recorded list belongs to the build that is installed now is decided by
+`measured_for_digest` against the digest of that executable, computed at every reading.
+`measured_for_version` states the release the build reported and decides nothing, because a record
+states it and a record can say anything: a record naming the installed release while holding
+another build's list would otherwise suppress the re-measurement that replaces it.
+
+The guarantee is that and no more. The digest is of the executable, not of the measurement, so a
+record whose digest is honest and whose names were rewritten by hand is read as current and no
+check here notices. Nothing authenticates a record.
+
+That limit is bounded by what a model list is allowed to decide, which is nothing about admission.
+Whether an engine may be started is answered by `enabled` alone, so a rewritten list cannot admit
+an engine the operator held back and cannot widen what a run may start. Which of an engine's models
+a run may use is not decided by this layout at all.
+
+The record states its own `schema_version`. A record of any other version is refused when it is
+read, and no command migrates a record. A record that exists and cannot be read refuses the engine
+rather than falling back to the seeded state, because an unreadable record of a disabled engine
+must never admit it.
+
+The registry holds no run's state and no credential, and it decides nothing about which models a
+run may use. Which of an engine's models are permitted is a separate question this layout does not
+answer.
 
 ## Event journal version 1
 

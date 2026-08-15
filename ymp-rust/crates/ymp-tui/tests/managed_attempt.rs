@@ -14,8 +14,9 @@ use support::{SIZES, environment, screen};
 use ymp_application::Application;
 use ymp_domain::Budget;
 use ymp_runtime_api::Readiness;
+use ymp_runtime_registry::ModelCatalog;
 use ymp_tui::journal::Model;
-use ymp_tui::runtimes::{ProfileFacts, Report};
+use ymp_tui::runtimes::{EngineFacts, ProfileFacts, Report};
 use ymp_tui::state::{App, Modal};
 use ymp_tui::{Session, scenario};
 
@@ -28,6 +29,12 @@ fn profile(name: &str, readiness: Readiness, detail: &str) -> ProfileFacts {
         version: None,
         readiness,
         detail: detail.to_owned(),
+        registry: ymp_tui::attempt::Route::parse(name).map(|route| EngineFacts {
+            engine: route.engine(),
+            enabled: true,
+            disabled_reason: None,
+            models: ModelCatalog::default(),
+        }),
     }
 }
 

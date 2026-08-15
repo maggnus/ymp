@@ -1139,6 +1139,7 @@ dependencies = [
  "ymp-runtime-claude",
  "ymp-runtime-codex",
  "ymp-runtime-fake",
+ "ymp-runtime-registry",
  "ymp-runtime-supervisor",
  "ymp-storage",
  "ymp-testkit",
@@ -1204,6 +1205,7 @@ dependencies = [
  "serde_json",
  "tempfile",
  "ymp-runtime-api",
+ "ymp-runtime-registry",
 ]
 
 [[package]]
@@ -1213,6 +1215,7 @@ dependencies = [
  "serde_json",
  "tempfile",
  "ymp-runtime-api",
+ "ymp-runtime-registry",
 ]
 
 [[package]]
@@ -1221,6 +1224,16 @@ version = "0.1.0"
 dependencies = [
  "ymp-domain",
  "ymp-runtime-api",
+]
+
+[[package]]
+name = "ymp-runtime-registry"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "tempfile",
+ "thiserror",
 ]
 
 [[package]]
@@ -1285,6 +1298,7 @@ dependencies = [
  "ymp-runtime-claude",
  "ymp-runtime-codex",
  "ymp-runtime-fake",
+ "ymp-runtime-registry",
  "ymp-runtime-supervisor",
 ]
 

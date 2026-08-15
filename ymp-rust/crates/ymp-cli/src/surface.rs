@@ -106,6 +106,12 @@ pub enum PublicCommand {
         #[arg(long = "to", value_name = "DIR")]
         destination: Option<PathBuf>,
     },
+    /// Admit a runtime engine, or stop admitting it. The decision is durable and is read by every
+    /// run under this root; nothing about an open run changes here.
+    Runtime {
+        #[command(subcommand)]
+        command: RuntimeCommand,
+    },
     /// Print one data page, exactly as the interface lays it out.
     Show {
         /// Which page to print.
@@ -114,6 +120,42 @@ pub enum PublicCommand {
         #[arg(long, value_name = "INDEX")]
         candidate: Option<usize>,
     },
+}
+
+/// What a command states about a runtime engine.
+#[derive(Clone, Debug, Subcommand)]
+pub enum RuntimeCommand {
+    /// Admit this engine again. It can be routed to once its probe reports it ready.
+    Enable {
+        /// The engine, spelled as the runtimes page spells it.
+        engine: String,
+    },
+    /// Stop admitting this engine. It is not probed, not offered and not routed to.
+    Disable {
+        /// The engine, spelled as the runtimes page spells it.
+        engine: String,
+        /// Why it is held back. A refusal repeats this, so an operator is told what to change.
+        #[arg(long, value_name = "TEXT")]
+        reason: Option<String>,
+    },
+}
+
+impl RuntimeCommand {
+    /// The line the interface reads this decision from. The value is a value: it is handed to the
+    /// session exactly as a typed line, and a name that selects no engine is refused there.
+    fn line(&self) -> String {
+        match self {
+            Self::Enable { engine } => format!("runtime enable {engine}"),
+            Self::Disable {
+                engine,
+                reason: None,
+            } => format!("runtime disable {engine}"),
+            Self::Disable {
+                engine,
+                reason: Some(reason),
+            } => format!("runtime disable {engine} {reason}"),
+        }
+    }
 }
 
 /// The request a command states.
@@ -201,13 +243,21 @@ impl PageName {
 }
 
 /// Run one command of the public surface.
+///
+/// `root` is the product root this invocation addressed, when it addressed one rather than naming
+/// an exact store. The engines live under it, so a command reads the same decision about them that
+/// the interface reads.
 pub fn run(
     data_root: PathBuf,
+    root: Option<PathBuf>,
     contracts: Vec<PreparedContract>,
     command: PublicCommand,
 ) -> Result<()> {
     let markers = Markers::detect();
     let mut session = Session::open(&data_root, &contracts);
+    if let Some(root) = &root {
+        session = session.with_registry_root(root);
+    }
     let mut app = App::new(session.projection(None));
 
     match command {
@@ -236,6 +286,9 @@ pub fn run(
         PublicCommand::Cancel { confirm } => run_cancel(&mut session, &mut app, &markers, confirm),
         PublicCommand::Export { destination } => {
             run_export(&mut session, &mut app, &markers, destination)
+        }
+        PublicCommand::Runtime { command } => {
+            run_runtime(&mut session, &mut app, &markers, command)
         }
         PublicCommand::Show { page, candidate } => {
             run_show(&mut session, &mut app, &markers, page, candidate)
@@ -296,7 +349,10 @@ fn run_authorize(
     // The review surface names the runtime profiles a run would be routed to, so the command
     // probes them where the interface does — and only once there is a review to state, since
     // probing starts subprocesses and a refused request has nothing to route.
-    session.set_runtimes(ymp_tui::runtimes::probe_all());
+    session.set_runtimes(ymp_tui::runtimes::probe_all(
+        session.registry_address(),
+        ymp_tui::runtimes::Measure::Recorded,
+    ));
     app.adopt(session.projection(None));
     app.open_authorize_at(index);
     print_modal(app, markers)?;
@@ -321,7 +377,10 @@ fn run_attempt(
     // Which profile would do the work is read from this host, exactly where the interface reads
     // it: a confirmation that could not name the profile would be asking for a spend nobody
     // could make.
-    session.set_runtimes(ymp_tui::runtimes::probe_all());
+    session.set_runtimes(ymp_tui::runtimes::probe_all(
+        session.registry_address(),
+        ymp_tui::runtimes::Measure::Recorded,
+    ));
     app.adopt(session.projection(None));
     app.open_attempt_confirm();
     if matches!(app.modal, Modal::None) {
@@ -424,6 +483,25 @@ fn run_cancel(
     }
 }
 
+/// Admit an engine or stop admitting it, as the interface's own line does.
+///
+/// Nothing is probed: the decision is about whether an engine may be started at all, and probing
+/// to record a decision that forbids probing would be starting the very engine being held back.
+/// A name that selects no engine is refused by the session and is a non-zero exit here.
+fn run_runtime(
+    session: &mut Session,
+    app: &mut App,
+    markers: &Markers,
+    command: RuntimeCommand,
+) -> Result<()> {
+    let errors = known_errors(&app.data.entries);
+    session.local_turn(command.line());
+    app.adopt(session.projection(None));
+    print_transcript(app, markers);
+    reject_new_errors(app, &errors)?;
+    Ok(())
+}
+
 /// Print one data page.
 fn run_show(
     session: &mut Session,
@@ -434,7 +512,12 @@ fn run_show(
 ) -> Result<()> {
     let kind = page.kind();
     if kind == PageKind::Runtimes {
-        session.set_runtimes(ymp_tui::runtimes::probe_all());
+        // This page is where the engines are looked at, so it is where a model list nobody has
+        // measured against the installed build is measured.
+        session.set_runtimes(ymp_tui::runtimes::probe_all(
+            session.registry_address(),
+            ymp_tui::runtimes::Measure::Catalog,
+        ));
     }
     let describe = (kind == PageKind::Describe).then(|| candidate.unwrap_or(0));
     app.adopt(session.projection(describe));
@@ -506,6 +589,11 @@ fn perform(session: &mut Session, action: Action) {
         Action::StartAttempt => session.start_attempt(),
         Action::ExportEvidence(destination) => session.export_evidence(destination),
         Action::LocalTurn(text) => session.local_turn(text),
+        Action::SetEngineEnabled {
+            engine,
+            enabled,
+            reason,
+        } => session.set_engine_enabled(engine, enabled, reason),
         // A command has no second thread to wait on: its own process is the check, and it has
         // already finished by the time anything could ask for it to be abandoned.
         Action::CancelCheck => session.cancel_check(),

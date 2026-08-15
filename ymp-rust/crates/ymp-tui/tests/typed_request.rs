@@ -90,6 +90,11 @@ fn submit(app: &mut App, session: &mut Session, text: &str) {
         Some(Action::CancelCheck) => session.cancel_check(),
         Some(Action::StartAttempt) => session.start_attempt(),
         Some(Action::ExportEvidence(destination)) => session.export_evidence(destination),
+        Some(Action::SetEngineEnabled {
+            engine,
+            enabled,
+            reason,
+        }) => session.set_engine_enabled(engine, enabled, reason),
         Some(Action::Rebuild) | None => {}
     }
     app.adopt(session.projection(None));

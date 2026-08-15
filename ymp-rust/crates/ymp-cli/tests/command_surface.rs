@@ -33,9 +33,10 @@ use std::process::{Command as Process, Output};
 use clap::{CommandFactory, Parser};
 use crossterm::event::{Event, KeyCode, KeyEvent, KeyModifiers};
 use tempfile::TempDir;
-use ymp_cli::surface::{PageName, PublicCommand};
+use ymp_cli::surface::{PageName, PublicCommand, RuntimeCommand};
 use ymp_cli::{Cli, Command};
 use ymp_domain::RunStatus;
+use ymp_runtime_registry::Engine;
 use ymp_tui::app::Action;
 use ymp_tui::journal::Model;
 use ymp_tui::projection::{ContractFacts, Environment};
@@ -63,6 +64,21 @@ const CORRESPONDENCE: &[(&str, &[&str])] = &[
     ("attempt", &["ymp", "attempt", "--confirm", "run-1"]),
     ("cancel-run", &["ymp", "cancel", "--confirm", "run-1"]),
     ("export", &["ymp", "export"]),
+    (
+        "runtime-enable",
+        &["ymp", "runtime", "enable", "claude-code"],
+    ),
+    (
+        "runtime-disable",
+        &[
+            "ymp",
+            "runtime",
+            "disable",
+            "codex",
+            "--reason",
+            "usage limit until 2026-09-12",
+        ],
+    ),
     ("page:runtimes", &["ymp", "show", "runtimes"]),
     ("page:candidates", &["ymp", "show", "candidates"]),
     ("page:events", &["ymp", "show", "events"]),
@@ -133,6 +149,8 @@ fn performed_action(action: &Action) -> String {
         Action::StartAttempt => "attempt".to_owned(),
         Action::ExportEvidence(_) => "export".to_owned(),
         Action::LocalTurn(_) => "request".to_owned(),
+        Action::SetEngineEnabled { enabled: true, .. } => "runtime-enable".to_owned(),
+        Action::SetEngineEnabled { enabled: false, .. } => "runtime-disable".to_owned(),
         Action::CancelCheck => "cancel-check".to_owned(),
         // The interface rebuilds its projection when a candidate is opened; the surface that
         // opens is the describe page.
@@ -194,6 +212,16 @@ fn interface_actions(root: &Path) -> BTreeSet<String> {
         Action::StartAttempt,
         Action::ExportEvidence(None),
         Action::CancelCheck,
+        Action::SetEngineEnabled {
+            engine: Engine::ClaudeCode,
+            enabled: true,
+            reason: None,
+        },
+        Action::SetEngineEnabled {
+            engine: Engine::Codex,
+            enabled: false,
+            reason: Some("usage limit until 2026-09-12".to_owned()),
+        },
         Action::Rebuild,
     ] {
         actions.insert(performed_action(&action));
@@ -236,6 +264,10 @@ fn command_action(command: &PublicCommand) -> String {
         PublicCommand::Attempt { .. } => "attempt".to_owned(),
         PublicCommand::Cancel { .. } => "cancel-run".to_owned(),
         PublicCommand::Export { .. } => "export".to_owned(),
+        PublicCommand::Runtime { command } => match command {
+            RuntimeCommand::Enable { .. } => "runtime-enable".to_owned(),
+            RuntimeCommand::Disable { .. } => "runtime-disable".to_owned(),
+        },
         PublicCommand::Show { page, .. } => page_action(page.kind()),
     }
 }
