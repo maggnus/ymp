@@ -20,7 +20,7 @@ use ymp_domain::commitment::{
     CommitmentEvent, CommitmentLedger, InvocationClosure, InvocationState, MAX_BUNDLE_CHANGES,
     ObligationState, OpenAuthority, RootTerminal, Verdict, WakeCondition,
 };
-use ymp_domain::{Budget, RunStatus, digest_bytes};
+use ymp_domain::{Budget, EventKind, ProvenanceLimit, RunStatus, digest_bytes};
 use ymp_runtime_api::{
     InvocationRequest, ProbeReport, RuntimeDriver, RuntimeError, RuntimeEvent, RuntimeEventKind,
     RuntimeKind, RuntimeSession, Usage,
@@ -761,9 +761,8 @@ fn work_obligation(ledger: &CommitmentLedger, contract_id: &str) -> ObligationSt
     ledger.obligations()[obligation_id].state
 }
 
-/// The reason the run's own journal states for the ending it reached, or nothing while it is
-/// running. It is what an operator reads in the terminal block of the run.
-fn journal_reason(fixture: &Fixture) -> Option<String> {
+/// What the run's own journal states about a construction its kernel could not record.
+fn provenance_notes(fixture: &Fixture) -> Vec<(String, ProvenanceLimit, String)> {
     fixture
         .application
         .lock()
@@ -771,18 +770,22 @@ fn journal_reason(fixture: &Fixture) -> Option<String> {
         .events_after(0)
         .expect("the committed records")
         .into_iter()
-        .find_map(|envelope| match envelope.event {
-            ymp_domain::EventKind::RunFailed { reason }
-            | ymp_domain::EventKind::RunExhausted { reason }
-            | ymp_domain::EventKind::RunAbstained { reason }
-            | ymp_domain::EventKind::RunCancelled { reason } => Some(reason),
+        .filter_map(|envelope| match envelope.event {
+            EventKind::CandidateProvenanceUnrecorded {
+                candidate_digest,
+                reason,
+                protocol_rule,
+                ..
+            } => Some((candidate_digest, reason, protocol_rule)),
             _ => None,
         })
+        .collect()
 }
 
-/// How many facts of the kernel are about the result of the work: the objects it names, the bundle
-/// it was published as, the result formed from it, and the seal of the work.
-fn provenance_facts(handle: &ManagedRunHandle) -> usize {
+/// How many facts of the kernel are about the construction of the result: the objects it names, the
+/// bundle it was published as, and the result formed from it. The seal is not one of them, because
+/// a result is sealed whether or not its construction could be stated.
+fn construction_facts(handle: &ManagedRunHandle) -> usize {
     handle
         .kernel()
         .snapshot()
@@ -795,14 +798,14 @@ fn provenance_facts(handle: &ManagedRunHandle) -> usize {
                 CommitmentEvent::ObjectRecorded { .. }
                     | CommitmentEvent::BundleRecorded { .. }
                     | CommitmentEvent::CandidateFormed { .. }
-                    | CommitmentEvent::SubmissionRecorded { .. }
             )
         })
         .count()
 }
 
-/// Drive one live run whose result the kernel cannot state, and answer with what it reported.
-fn a_run_whose_result_cannot_be_stated(writes: Vec<String>) -> (Fixture, Vec<String>) {
+/// Drive one live run whose result the kernel cannot state to the point where its candidate is
+/// committed and nothing has judged it.
+fn a_run_whose_construction_cannot_be_stated(writes: Vec<String>) -> (Fixture, String) {
     let fixture = start_writing(writes);
     wait_until_yielded(&fixture.handle);
     fixture
@@ -810,27 +813,31 @@ fn a_run_whose_result_cannot_be_stated(writes: Vec<String>) -> (Fixture, Vec<Str
         .wake("wake-1", "continue once")
         .expect("the wake");
     let failures = failures_until_finished(&fixture.handle);
-    (fixture, failures)
+    assert!(
+        failures.is_empty(),
+        "a bound on what one submission states at once was reported as a failure of the run: \
+         {failures:?}"
+    );
+    let candidate = fixture
+        .application
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner())
+        .state()
+        .candidate_digest
+        .clone()
+        .expect("the run committed no candidate");
+    (fixture, candidate)
 }
 
 /// What is required of a run whose construction the kernel could not state, whichever bound it
-/// exceeded: the reason is in the run's own journal, no fact about the result is in the kernel, and
-/// both records hold the same ending.
-fn assert_provenance_unrecorded(fixture: &Fixture, failures: &[String], stated: &str) {
-    let reason = journal_reason(fixture).expect("the run recorded no ending of its own");
-    assert!(
-        reason.contains("managed_runtime_provenance_unrecorded") && reason.contains(stated),
-        "the journal does not state why the construction was not recorded: {reason}"
-    );
-    assert!(
-        failures.iter().any(|detail| detail.contains(stated)),
-        "the run reported nothing about the construction it could not record: {failures:?}"
-    );
-    assert_eq!(
-        provenance_facts(&fixture.handle),
-        0,
-        "a construction the kernel could not state left facts about the result behind"
-    );
+/// exceeded: the work is sealed with the result the journal names, no fact about the construction
+/// is in the kernel, the run's own record says which bound stopped it, and the result still reaches
+/// the verdict of a protected query.
+fn assert_sealed_without_its_construction(
+    fixture: &Fixture,
+    candidate: &str,
+    expected: &ProvenanceLimit,
+) {
     assert_eq!(
         fixture
             .handle
@@ -838,49 +845,87 @@ fn assert_provenance_unrecorded(fixture: &Fixture, failures: &[String], stated: 
             .snapshot()
             .expect("the ledger")
             .contracts()[fixture.handle.kernel().contract_id()]
-        .candidate_digest,
-        None,
-        "the work was sealed with a result whose construction the record does not hold"
+        .candidate_digest
+        .as_deref(),
+        Some(candidate),
+        "the work carries no result, so a protected query has nothing to be spent on"
     );
-    assert_eq!(journal_status(fixture), RunStatus::InfrastructureError);
+    assert_eq!(
+        construction_facts(&fixture.handle),
+        0,
+        "a construction the kernel could not state left facts about itself behind"
+    );
+    let notes = provenance_notes(fixture);
+    assert_eq!(
+        notes.len(),
+        1,
+        "the run states its unrecorded construction once, and this run states it {} times",
+        notes.len()
+    );
+    assert_eq!(notes[0].0, candidate, "the note names another result");
+    assert_eq!(&notes[0].1, expected, "the note states another bound");
+    assert!(
+        !notes[0].2.is_empty(),
+        "the note carries no rule for the bound it states"
+    );
+    assert_eq!(
+        journal_status(fixture),
+        RunStatus::Running,
+        "a bound on what one submission states at once ended the run"
+    );
+
+    // The result is judged exactly as any other, which is the whole of what this bound must not
+    // take away.
+    fixture
+        .handle
+        .verified(candidate, Verdict::Passed)
+        .expect("the recorded verdict");
     assert_eq!(
         fixture
             .handle
             .kernel()
             .root_terminal()
             .expect("the terminal"),
-        Some(RootTerminal::InfrastructureError),
-        "the two records of one run name different endings"
+        Some(RootTerminal::Accepted),
+        "a result whose construction could not be stated never reached its verdict"
     );
 }
 
-/// A run whose result changes more paths than one bundle may state records no construction at all,
-/// and its journal says which bound it exceeded.
+/// A run whose result changes more paths than one bundle may state is sealed and judged like any
+/// other, and its own journal says which bound left the construction out of the kernel.
 ///
-/// The alternative this replaces is the one an operator cannot see: the work sealed with the digest
-/// of the result and nothing about how it was built, which reads exactly like a run from before a
-/// construction was journalled at all. What the run does instead is state the bound in the record
-/// an operator reads and end, in both accounts, as the infrastructure condition it is.
+/// The work is ordinary work: a bound on how much one submission states at once is a limit of the
+/// record and not a fault of the run, so the result reaches the protected query it was produced
+/// for. What must not happen is silence — a seal that reads exactly like a run from before a
+/// construction was ever journalled — and the record an operator reads is where that is answered.
 #[test]
-fn a_result_larger_than_one_bundle_may_state_records_no_provenance_and_says_so() {
+fn a_result_larger_than_one_bundle_may_state_is_judged_and_says_what_is_missing() {
     let writes: Vec<String> = (0..=MAX_BUNDLE_CHANGES)
         .map(|index| format!("file-{index}.txt"))
         .collect();
-    let (fixture, failures) = a_run_whose_result_cannot_be_stated(writes);
-    assert_provenance_unrecorded(
+    let (fixture, candidate) = a_run_whose_construction_cannot_be_stated(writes);
+    assert_sealed_without_its_construction(
         &fixture,
-        &failures,
-        &format!("too_many_changes({})", MAX_BUNDLE_CHANGES + 1),
+        &candidate,
+        &ProvenanceLimit::TooManyChanges {
+            changes: MAX_BUNDLE_CHANGES as u64 + 1,
+        },
     );
 }
 
 /// The same for a result naming one path the protocol does not admit, where the count is well
 /// inside the bound and nothing but the shape of that path stops the bundle.
 #[test]
-fn a_result_naming_a_path_the_protocol_refuses_records_no_provenance_and_says_so() {
-    let (fixture, failures) =
-        a_run_whose_result_cannot_be_stated(vec!["dir\\result.txt".to_owned()]);
-    assert_provenance_unrecorded(&fixture, &failures, "unacceptable_path(dir\\result.txt)");
+fn a_result_naming_a_path_the_protocol_refuses_is_judged_and_says_what_is_missing() {
+    let (fixture, candidate) =
+        a_run_whose_construction_cannot_be_stated(vec!["dir\\result.txt".to_owned()]);
+    assert_sealed_without_its_construction(
+        &fixture,
+        &candidate,
+        &ProvenanceLimit::UnacceptablePath {
+            path: "dir\\result.txt".to_owned(),
+        },
+    );
 }
 
 /// A live run whose candidate passed the protected query closes its obligation and reaches the one

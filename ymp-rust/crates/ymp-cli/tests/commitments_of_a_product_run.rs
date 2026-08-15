@@ -28,8 +28,8 @@ use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
 
 use tempfile::TempDir;
-use ymp_domain::commitment::{BundleChange, CommitmentEvent, PathChange};
-use ymp_domain::{EventEnvelope, EventKind};
+use ymp_domain::commitment::{BundleChange, CommitmentEvent, MAX_BUNDLE_CHANGES, PathChange};
+use ymp_domain::{EventEnvelope, EventKind, ProvenanceLimit};
 use ymp_tui::Session;
 
 /// What the runtime fixture writes into its workspace, and where. The kernel's record of the
@@ -49,6 +49,12 @@ struct Fixture {
 
 impl Fixture {
     fn new() -> Self {
+        Self::writing(0)
+    }
+
+    /// The same fixture whose runtime writes `extra` further files into its workspace beside the
+    /// result, so that what the run produces changes that many paths more.
+    fn writing(extra: usize) -> Self {
         let root = TempDir::new().expect("temporary root");
         let base = root.path();
         let source = base.join("source");
@@ -61,7 +67,7 @@ impl Fixture {
         fs::write(source.join("input.txt"), b"before\n").expect("source file");
         let verifier = base.join("verify.sh");
         executable(&verifier, "#!/bin/sh\ntest -f \"$1/result.txt\"\n");
-        executable(&search_path.join("codex"), &codex_fixture());
+        executable(&search_path.join("codex"), &codex_fixture(extra));
 
         Self {
             root,
@@ -402,11 +408,101 @@ fn a_run_carried_out_through_the_product_journals_its_commitments_and_shows_them
     );
 }
 
+/// A run through the product whose result the commitment kernel cannot state is judged like any
+/// other, and the page an operator reads says what is missing from it.
+///
+/// The runtime writes more files than one bundle may carry, which is ordinary work: a bound on how
+/// much one submission states at once belongs to the record and not to the task. So the run reaches
+/// its verdict exactly as the run above does, its work is sealed with the result its journal names,
+/// and no fact about a construction is in the kernel. What the record adds is the one thing a seal
+/// on its own cannot say — that the construction is missing and which bound left it out — and
+/// `ymp show commitments` states it where an operator reads the run's commitments.
+#[test]
+fn a_run_whose_construction_the_kernel_cannot_state_is_still_judged_and_says_so() {
+    let fixture = Fixture::writing(MAX_BUNDLE_CHANGES);
+    let store = fixture.store("bounded");
+    attempt_through_the_product(&fixture, &store);
+
+    let facts = commitment_facts(&store);
+    let (_, candidate) = submitted_candidate(&store);
+    assert!(
+        !facts.iter().any(|fact| matches!(
+            fact,
+            CommitmentEvent::ObjectRecorded { .. }
+                | CommitmentEvent::BundleRecorded { .. }
+                | CommitmentEvent::CandidateFormed { .. }
+        )),
+        "a construction the kernel could not state left facts about itself behind: {facts:?}"
+    );
+    assert!(
+        facts.iter().any(|fact| matches!(
+            fact,
+            CommitmentEvent::SubmissionRecorded { candidate_digest, .. }
+                if *candidate_digest == candidate
+        )),
+        "the work carries no result, so a protected query had nothing to be spent on: {facts:?}"
+    );
+    assert!(
+        facts.iter().any(|fact| matches!(
+            fact,
+            CommitmentEvent::VerificationRecorded { candidate_digest, .. }
+                if *candidate_digest == candidate
+        )),
+        "the result was never judged: {facts:?}"
+    );
+
+    // The run says what its kernel could not state, once, naming the result and the bound.
+    let notes: Vec<_> = records(&store)
+        .into_iter()
+        .filter_map(|envelope| match envelope.event {
+            EventKind::CandidateProvenanceUnrecorded {
+                candidate_digest,
+                reason,
+                protocol_rule,
+                ..
+            } => Some((candidate_digest, reason, protocol_rule)),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(notes.len(), 1, "the run states it {} times", notes.len());
+    assert_eq!(notes[0].0, candidate, "the note names another result");
+    assert!(
+        matches!(notes[0].1, ProvenanceLimit::TooManyChanges { changes } if changes > MAX_BUNDLE_CHANGES as u64),
+        "the note states another bound: {:?}",
+        notes[0].1
+    );
+    assert!(
+        notes[0].2.contains(&MAX_BUNDLE_CHANGES.to_string()),
+        "the note carries no rule for the bound it states: {}",
+        notes[0].2
+    );
+
+    // And an operator reads it off that store, on the page the run's commitments are shown on.
+    let shown = fixture.command(&store, &["show".to_owned(), "commitments".to_owned()]);
+    let page = reported(&shown);
+    assert!(
+        shown.status.success(),
+        "the commitments of a finished run could not be shown: {page}"
+    );
+    assert!(
+        page.contains("1 task contract"),
+        "the page states no task contract for a run that formed one: {page}"
+    );
+    assert!(
+        page.contains("is not in this kernel") && page.contains("too_many_changes"),
+        "the page of a run whose construction was not recorded does not say so: {page}"
+    );
+}
+
 /// A Codex build that does the work of this fixture: it writes the result into its workspace and
 /// submits it through the product's own bridge, which is the only way a candidate reaches the
 /// journal. It answers the version the shipped profile is pinned to, read from the profile itself
 /// so that a change to the pin cannot leave this fixture silently refused.
-fn codex_fixture() -> String {
+fn codex_fixture(extra: usize) -> String {
+    let further = (0..extra)
+        .map(|index| format!("  printf '%s\\n' 'done' > \"$workspace/file-{index}.txt\""))
+        .collect::<Vec<_>>()
+        .join("\n");
     format!(
         r##"#!/bin/sh
 if [ "$1" = "--version" ]; then
@@ -434,6 +530,7 @@ else
   test -n "$workspace" || exit 32
   cat >/dev/null
   printf '%s\n' 'done' > "$workspace/result.txt"
+{further}
   {{
     printf '%s\n' '{{"jsonrpc":"2.0","id":1,"method":"initialize","params":{{"protocolVersion":"2025-11-25"}}}}'
     printf '%s\n' '{{"jsonrpc":"2.0","method":"notifications/initialized"}}'
@@ -446,6 +543,7 @@ else
   printf '%s\n' '{{"type":"turn.completed","usage":{{"input_tokens":11,"cached_input_tokens":4,"output_tokens":5,"reasoning_output_tokens":1}}}}'
 fi
 "##,
-        pinned = ymp_runtime_codex::PINNED_CODEX_VERSION
+        pinned = ymp_runtime_codex::PINNED_CODEX_VERSION,
+        further = further
     )
 }

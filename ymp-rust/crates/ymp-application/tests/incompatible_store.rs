@@ -47,7 +47,7 @@ fn a_store_of_another_schema_version_is_refused_and_left_byte_for_byte_as_found(
             error,
             ApplicationError::IncompatibleStore {
                 actual: 1,
-                expected: 4
+                expected: 5
             }
         ),
         "{reported}"
@@ -84,11 +84,11 @@ fn a_store_of_another_schema_version_is_refused_and_left_byte_for_byte_as_found(
 
 /// Every version between the first and this one is refused exactly as the first one is. They are
 /// stated separately because those stores are the ones an operator is most likely to still have:
-/// they were written by earlier builds of this product, and journalling the commitment facts and
-/// then the ancestry of a result is what superseded them in turn.
+/// they were written by earlier builds of this product, and journalling the commitment facts, then
+/// the ancestry of a result, then what the kernel could not state of one, superseded them in turn.
 #[test]
 fn the_versions_this_binary_superseded_are_refused_too() {
-    for version in [2, 3] {
+    for version in [2, 3, 4] {
         let root = tempfile::tempdir().expect("temporary root");
         let data_root = root.path().join("data");
         fs::create_dir_all(&data_root).expect("data root");
@@ -105,7 +105,7 @@ fn the_versions_this_binary_superseded_are_refused_too() {
                 error,
                 ApplicationError::IncompatibleStore {
                     actual,
-                    expected: 4
+                    expected: 5
                 } if actual == version
             ),
             "{error}"

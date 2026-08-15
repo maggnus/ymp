@@ -46,6 +46,9 @@ pub struct Model {
     /// Why the kernel stopped being folded, when a record could not be applied to it. The page
     /// states it instead of drawing a ledger that the journal no longer supports.
     commitments_refused: Option<String>,
+    /// What the commitment kernel could not state about a result this run committed. It is a note
+    /// about the record and not about the work: the result was sealed and judged like any other.
+    provenance_unrecorded: Vec<String>,
     /// The answer the interface is waiting for, while a request is being drafted.
     awaiting: Option<String>,
     /// What is running away from the thread that draws, while something is.
@@ -71,6 +74,7 @@ impl Model {
             events: Vec::new(),
             commitments: None,
             commitments_refused: None,
+            provenance_unrecorded: Vec::new(),
             awaiting: None,
             working: None,
             refused: false,
@@ -275,6 +279,17 @@ impl Model {
                         return;
                     }
                 }
+            }
+            EventKind::CandidateProvenanceUnrecorded {
+                candidate_digest,
+                reason,
+                protocol_rule,
+                ..
+            } => {
+                self.provenance_unrecorded.push(format!(
+                    "the construction of candidate {} is not in this kernel — {reason} ·                      {protocol_rule}",
+                    projection::short_digest(candidate_digest)
+                ));
             }
             EventKind::RunExhausted { reason }
             | EventKind::RunAbstained { reason }
@@ -817,6 +832,7 @@ impl Model {
              rebuilds this page from them and from no live state"
                 .to_owned(),
         ];
+        notes.extend(self.provenance_unrecorded.iter().cloned());
         if let Some(refusal) = &self.commitments_refused {
             notes.push(format!(
                 "the commitment record could not be replayed and the fold stopped there: {refusal}"
@@ -1231,6 +1247,18 @@ fn describe_event(envelope: &EventEnvelope) -> (Plane, &'static str, String) {
                     .map(|fact| fact.name())
                     .collect::<Vec<_>>()
                     .join(" · ")
+            ),
+        ),
+        EventKind::CandidateProvenanceUnrecorded {
+            candidate_digest,
+            reason,
+            ..
+        } => (
+            Plane::Control,
+            "candidate.provenance_unrecorded",
+            format!(
+                "candidate {} is sealed without its construction · {reason}",
+                projection::short_digest(candidate_digest)
             ),
         ),
         EventKind::RunExhausted { reason } => (

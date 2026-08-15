@@ -47,9 +47,9 @@ use ymp_domain::commitment::{
     InvocationState, MAX_LEASE_MS, OfferPolicy, OfferState, OpenAuthority, Outcome, PathChange,
     RecordBid, RecordObject, RecordVerification, RegisterParticipant, ResumeInvocation,
     ReturnObligation, RootTerminal, SettleOffer, StartAttempt, StartInvocation, StopReason,
-    StopRun, SubmitBundle, Verdict, WakeCondition, WithdrawOffer, YieldInvocation,
+    StopRun, SubmitBundle, SubmitResult, Verdict, WakeCondition, WithdrawOffer, YieldInvocation,
 };
-use ymp_domain::{TransitionError, digest_bytes};
+use ymp_domain::{ProvenanceLimit, TransitionError, digest_bytes};
 
 /// The principal the controller acts as. It is supplied by the trusted controller from the
 /// authenticated connection, never chosen by a participant.
@@ -85,42 +85,15 @@ pub enum Submission {
     /// The construction is in the record: every object the result puts at a path, the bundle those
     /// changes were published as, and the result they form, which is what the work is sealed with.
     Recorded,
-    /// The kernel cannot state this construction, so nothing about the result was recorded and the
-    /// work carries none. A run that reaches this has produced something its own record cannot
-    /// describe, and the reason says which bound it exceeded.
-    ProvenanceUnrecorded(UnrecordedProvenance),
-}
-
-/// Why the construction of a result could not be recorded.
-///
-/// Both cases are bounds the protocol sets on what one submission states at once, so that a bundle
-/// and the result formed from it are committed together in a single durable record. Neither is a
-/// judgement about the work: what the runtime produced is in the run's store either way, and what
-/// is missing is the kernel's account of how it was built.
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub enum UnrecordedProvenance {
-    /// The result changes more paths than one bundle may carry.
-    TooManyChanges {
-        changes: usize,
-        /// The kernel's own words for the refusal, so what an operator reads is the bound the
-        /// protocol states and not a paraphrase of it.
-        refusal: String,
+    /// The kernel could not state the construction, so the work is sealed with the result the run's
+    /// own journal names and with nothing about how it was built. The result is a result like any
+    /// other and reaches the verdict it is waiting for; what the caller is given here is the bound
+    /// that stopped the construction, to be recorded where an operator reads it.
+    ProvenanceUnrecorded {
+        reason: ProvenanceLimit,
+        /// The kernel's own words for the bound it applied.
+        protocol_rule: String,
     },
-    /// One path is in a shape the protocol does not admit.
-    UnacceptablePath { path: String, refusal: String },
-}
-
-impl std::fmt::Display for UnrecordedProvenance {
-    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::TooManyChanges { changes, refusal } => {
-                write!(formatter, "too_many_changes({changes}): {refusal}")
-            }
-            Self::UnacceptablePath { path, refusal } => {
-                write!(formatter, "unacceptable_path({path}): {refusal}")
-            }
-        }
-    }
 }
 
 /// The budget one managed run is funded with. Every dimension is enforced on its own, so what is
@@ -492,10 +465,11 @@ impl ManagedKernel {
     /// One construction the kernel cannot state is the one that exceeds what a single record holds:
     /// a bundle carries at most [`ymp_domain::commitment::MAX_BUNDLE_CHANGES`] path changes, and a
     /// path at most [`ymp_domain::commitment::MAX_PATH_BYTES`] bytes in a shape the protocol
-    /// admits. Nothing about such a result is
-    /// recorded — not the objects, not a seal — and the caller is told which bound was exceeded, so
-    /// that the run states it where an operator reads it rather than sealing a digest that reads
-    /// like a run from before a construction was ever journalled.
+    /// admits. The work is then sealed with the result the run's own journal names, so the result
+    /// is judged exactly as any other and a bound on how much one submission states at once takes
+    /// no verdict away from ordinary work. No object of that construction is recorded, because
+    /// there is no bundle to name them; what the caller is given instead is the bound that stopped
+    /// it, to be stated in the run's record where an operator reads it.
     pub fn submitted(&self, construction: &CandidateConstruction) -> anyhow::Result<Submission> {
         self.advance_clock()?;
         let bundle = CommitmentCommand::SubmitBundle(SubmitBundle {
@@ -512,12 +486,25 @@ impl ManagedKernel {
         match self.snapshot()?.decide(&bundle) {
             // Admitted as it stands, or admitted once the objects it names are recorded.
             Ok(_) | Err(CommitmentError::ObjectIncomplete { .. }) => {}
-            Err(error) => {
-                return match unrecorded_provenance(&error, construction) {
-                    Some(reason) => Ok(Submission::ProvenanceUnrecorded(reason)),
-                    None => Err(ApplicationError::Commitment(error).into()),
-                };
-            }
+            Err(error) => match provenance_limit(&error, construction) {
+                Some(reason) => {
+                    self.commit(
+                        "submission",
+                        &CommitmentCommand::SubmitResult(SubmitResult {
+                            contract_id: self.contract_id.clone(),
+                            attempt_id: self.attempt_id.clone(),
+                            participant: self.participant.clone(),
+                            generation: self.generation,
+                            candidate_digest: construction.candidate_digest.clone(),
+                        }),
+                    )?;
+                    return Ok(Submission::ProvenanceUnrecorded {
+                        reason,
+                        protocol_rule: error.to_string(),
+                    });
+                }
+                None => return Err(ApplicationError::Commitment(error).into()),
+            },
         }
         let objects: BTreeSet<&str> = construction
             .changes
@@ -863,23 +850,21 @@ fn run_has_ended(error: &ApplicationError) -> bool {
 /// Which bound a refused bundle exceeded, where the refusal is about what one submission may state
 /// at once rather than about whether this participant may submit at all.
 ///
-/// The bounds are the protocol's own, and its words for them are carried through: an operator reads
-/// the rule the kernel applied, together with the number or the path it was applied to.
-fn unrecorded_provenance(
+/// A refusal of any other kind is not a bound on the record: it says this submission is not
+/// admissible, and it is carried out as the refusal it is.
+fn provenance_limit(
     error: &CommitmentError,
     construction: &CandidateConstruction,
-) -> Option<UnrecordedProvenance> {
+) -> Option<ProvenanceLimit> {
     match error {
         CommitmentError::InvalidBundleSize | CommitmentError::TooManyEntries { .. } => {
-            Some(UnrecordedProvenance::TooManyChanges {
-                changes: construction.changes.len(),
-                refusal: error.to_string(),
+            Some(ProvenanceLimit::TooManyChanges {
+                changes: construction.changes.len() as u64,
             })
         }
-        CommitmentError::InvalidPath { path } => Some(UnrecordedProvenance::UnacceptablePath {
-            path: path.clone(),
-            refusal: error.to_string(),
-        }),
+        CommitmentError::InvalidPath { path } => {
+            Some(ProvenanceLimit::UnacceptablePath { path: path.clone() })
+        }
         _ => None,
     }
 }
@@ -895,9 +880,9 @@ mod tests {
 
     use super::{
         CloseInvocation, CommitmentCommand, InvocationClosure, ManagedKernel, ManagedTermination,
-        RootTerminal, StartInvocation, Submission, UnrecordedProvenance, WakeCondition,
-        YieldInvocation, digest_bytes,
+        RootTerminal, StartInvocation, Submission, WakeCondition, YieldInvocation, digest_bytes,
     };
+    use ymp_domain::ProvenanceLimit;
     use ymp_domain::commitment::{MAX_ATTEMPT_WAKES, MAX_BUNDLE_CHANGES};
 
     /// A second yielded slice of the same attempt, waiting on the submission this run commits.
@@ -1259,9 +1244,10 @@ mod tests {
         );
     }
 
-    /// How many facts of the record are about the result of this work: the objects it names, the
-    /// bundle it was published as, the result formed from it, and the seal of the work.
-    fn provenance_facts(kernel: &ManagedKernel) -> usize {
+    /// How many facts of the record are about the construction of the result: the objects it names,
+    /// the bundle it was published as, and the result formed from it. The seal is not one of them,
+    /// because a result is sealed whether or not its construction could be stated.
+    fn construction_facts(kernel: &ManagedKernel) -> usize {
         kernel
             .snapshot()
             .expect("the ledger")
@@ -1273,22 +1259,22 @@ mod tests {
                     CommitmentEvent::ObjectRecorded { .. }
                         | CommitmentEvent::BundleRecorded { .. }
                         | CommitmentEvent::CandidateFormed { .. }
-                        | CommitmentEvent::SubmissionRecorded { .. }
                 )
             })
             .count()
     }
 
-    /// A result the kernel cannot state leaves nothing in the record, and the reason names the
-    /// bound it exceeded.
+    /// A result the kernel cannot state is sealed all the same, and nothing of its construction is
+    /// recorded.
     ///
-    /// The objects are recorded before the bundle that names them, so a bundle refused for its
-    /// shape after they had been written would leave facts behind that nothing refers to. Whether
-    /// the bundle may be published is therefore settled first, and a construction that may not be
-    /// leaves the work unsealed rather than sealed with a digest whose construction the record
-    /// does not hold.
+    /// The work is what the run produced, and a bound on how much one submission states at once is
+    /// no reason to take its verdict away: the seal names the result the run's own journal names,
+    /// and that result is judged like any other. What is not written is the construction, and no
+    /// part of it — the objects are recorded for the bundle that names them, and a bundle refused
+    /// for its shape after they had been written would leave facts behind that nothing refers to.
+    /// Whether the bundle may be published is therefore settled first.
     #[test]
-    fn a_result_of_more_changes_than_one_bundle_carries_records_nothing() {
+    fn a_result_of_more_changes_than_one_bundle_carries_is_sealed_without_its_construction() {
         let (_store, kernel) = prepared();
         kernel.start_invocation().expect("the controller's slice");
         let mut construction = construction(b"candidate");
@@ -1303,54 +1289,60 @@ mod tests {
             .collect();
 
         match kernel.submitted(&construction).expect("the submission") {
-            Submission::ProvenanceUnrecorded(UnrecordedProvenance::TooManyChanges {
-                changes,
-                refusal,
-            }) => {
-                assert_eq!(changes, MAX_BUNDLE_CHANGES + 1);
+            Submission::ProvenanceUnrecorded {
+                reason: ProvenanceLimit::TooManyChanges { changes },
+                protocol_rule,
+            } => {
+                assert_eq!(changes, MAX_BUNDLE_CHANGES as u64 + 1);
                 assert!(
-                    refusal.contains(&MAX_BUNDLE_CHANGES.to_string()),
-                    "the reason does not state the bound it exceeded: {refusal}"
+                    protocol_rule.contains(&MAX_BUNDLE_CHANGES.to_string()),
+                    "the rule does not state the bound it applied: {protocol_rule}"
                 );
             }
             other => {
-                panic!("a construction of {MAX_BUNDLE_CHANGES} + 1 changes was taken: {other:?}")
+                panic!("a construction of {MAX_BUNDLE_CHANGES} + 1 changes was stated: {other:?}")
             }
         }
         assert_eq!(
-            provenance_facts(&kernel),
+            construction_facts(&kernel),
             0,
-            "a construction the kernel cannot state left facts about the result behind"
+            "a construction the kernel cannot state left facts about itself behind"
         );
         assert_eq!(
             kernel.snapshot().expect("the ledger").contracts()[&kernel.contract_id]
                 .candidate_digest,
-            None,
-            "the work was sealed with a result whose construction the record does not hold"
+            Some(construction.candidate_digest.clone()),
+            "the work carries no result, so a protected query has nothing to be spent on"
         );
     }
 
-    /// The same, for a path the protocol does not admit. Here the count is within the bound, so
-    /// nothing but the shape of one path stops the bundle — and the objects would already have been
-    /// recorded if the bundle were put to the kernel only after them.
+    /// The same, for a path the protocol does not admit. Here the count is well within the bound,
+    /// so nothing but the shape of one path stops the bundle — and the objects would already have
+    /// been recorded if the bundle were put to the kernel only after them.
     #[test]
-    fn a_result_naming_a_path_the_protocol_refuses_records_nothing() {
+    fn a_result_naming_a_path_the_protocol_refuses_is_sealed_without_its_construction() {
         let (_store, kernel) = prepared();
         kernel.start_invocation().expect("the controller's slice");
         let mut construction = construction(b"candidate");
         construction.changes[0].path = "dir\\result.txt".to_owned();
 
         match kernel.submitted(&construction).expect("the submission") {
-            Submission::ProvenanceUnrecorded(UnrecordedProvenance::UnacceptablePath {
-                path,
+            Submission::ProvenanceUnrecorded {
+                reason: ProvenanceLimit::UnacceptablePath { path },
                 ..
-            }) => assert_eq!(path, "dir\\result.txt"),
-            other => panic!("a path the protocol refuses was taken: {other:?}"),
+            } => assert_eq!(path, "dir\\result.txt"),
+            other => panic!("a path the protocol refuses was stated: {other:?}"),
         }
         assert_eq!(
-            provenance_facts(&kernel),
+            construction_facts(&kernel),
             0,
             "the objects of a bundle that was never published stayed in the record"
+        );
+        assert_eq!(
+            kernel.snapshot().expect("the ledger").contracts()[&kernel.contract_id]
+                .candidate_digest,
+            Some(construction.candidate_digest.clone()),
+            "the work carries no result, so a protected query has nothing to be spent on"
         );
     }
 

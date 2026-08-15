@@ -29,7 +29,7 @@ use ymp_runtime_api::{
 
 mod kernel;
 
-pub use kernel::{ManagedKernel, ManagedTermination, Submission, UnrecordedProvenance};
+pub use kernel::{ManagedKernel, ManagedTermination, Submission};
 
 const CONTRACT_SCHEMA_VERSION: u32 = 1;
 const MAX_CONTRACT_BYTES: usize = 1024 * 1024;
@@ -1442,31 +1442,27 @@ fn start_candidate(
                     // own accounting states nothing about where it came from. Both records are
                     // moved to the same ending: the journal carries the reason, and the kernel is
                     // stopped as the infrastructure condition it is.
-                    if let Submission::ProvenanceUnrecorded(reason) =
-                        worker_kernel.submitted(&construction)?
+                    // A result whose construction the kernel cannot state is still a result: the
+                    // work is sealed with it, the run goes on to the verdict, and what the record
+                    // would otherwise be silent about — that its ancestry is missing, and which
+                    // bound stopped it — is written into the run's own journal instead. Reading
+                    // that record, an operator can tell this run from one whose construction was
+                    // never journalled at all, which a seal on its own does not allow.
+                    if let Submission::ProvenanceUnrecorded {
+                        reason,
+                        protocol_rule,
+                    } = worker_kernel.submitted(&construction)?
                     {
-                        let detail = format!("managed_runtime_provenance_unrecorded: {reason}");
-                        let unrecorded = record_infrastructure_failure(
-                            &worker_application,
-                            &worker_attempt,
-                            &detail,
-                        );
-                        // The guard over the endings of this run is the one taken above and held
-                        // here, so this ending is recorded under it rather than behind it.
-                        let unrecorded_terminal = worker_kernel
-                            .terminated(ManagedTermination::Failed(
-                                InvocationClosure::InfrastructureError,
-                            ))
-                            .err()
-                            .map(|error| format!("managed_runtime_terminal_unrecorded: {error}"));
-                        drop(terminal);
-                        let detail = [Some(detail), unrecorded, unrecorded_terminal]
-                            .into_iter()
-                            .flatten()
-                            .collect::<Vec<_>>()
-                            .join("; ");
-                        let _ = sender.send(ManagedRunEvent::Failed { detail });
-                        return Ok(());
+                        worker_application
+                            .lock()
+                            .map_err(|_| anyhow::anyhow!("application lock was poisoned"))?
+                            .record_candidate_provenance_unrecorded(
+                                format!("{worker_attempt}.provenance"),
+                                &worker_attempt,
+                                &construction.candidate_digest,
+                                reason,
+                                protocol_rule,
+                            )?;
                     }
                     let candidate_digest = construction.candidate_digest;
                     drop(terminal);

@@ -18,8 +18,8 @@ use ymp_domain::commitment::{
     CommitmentLedger, PathChange,
 };
 use ymp_domain::{
-    Budget, Command, EventEnvelope, EventKind, MAX_IDENTIFIER_CHARS, RunState, RunStatus,
-    TransitionError, VerificationRecord,
+    Budget, Command, EventEnvelope, EventKind, MAX_IDENTIFIER_CHARS, MAX_REASON_BYTES,
+    ProvenanceLimit, RunState, RunStatus, TransitionError, VerificationRecord,
 };
 use ymp_storage::{
     DataRootLock, Journal, JournalError, JournalLimits, ObjectStore, ObjectStoreError,
@@ -614,6 +614,48 @@ impl Application {
         // A genesis no ledger can be built from — an identifier of the wrong length, say — is
         // refused here rather than written and discovered by the recovery that has to rebuild it.
         ledger_from(&event)?;
+        self.commit(command_id, command_digest, event)
+    }
+
+    /// Record that the construction of a committed result is more than the commitment kernel can
+    /// state, and which bound stopped it.
+    ///
+    /// The result itself is committed and judged exactly as any other: what the runtime produced is
+    /// ordinary work, and a bound on how much one submission may state at once is no reason to take
+    /// its verdict away. What would be dishonest is a ledger that seals the result and says nothing
+    /// about why its ancestry is missing, because that record cannot be told from one written
+    /// before a construction was ever journalled. So the run states it here, once, naming the
+    /// result it is about.
+    pub fn record_candidate_provenance_unrecorded(
+        &mut self,
+        command_id: impl Into<String>,
+        attempt_id: impl Into<String>,
+        candidate_digest: impl Into<String>,
+        reason: ProvenanceLimit,
+        protocol_rule: impl Into<String>,
+    ) -> Result<CommandOutcome, ApplicationError> {
+        let command_id = command_id.into();
+        let attempt_id = attempt_id.into();
+        validate_identifier("command_id", &command_id)?;
+        validate_identifier("attempt_id", &attempt_id)?;
+        let event = EventKind::CandidateProvenanceUnrecorded {
+            attempt_id,
+            candidate_digest: candidate_digest.into(),
+            reason,
+            protocol_rule: protocol_rule
+                .into()
+                .chars()
+                .take(MAX_REASON_BYTES)
+                .collect(),
+        };
+        let command_digest = ymp_domain::digest_bytes(&serde_json::to_vec(&event)?);
+        self.recover_projection()?;
+        if let Some(outcome) = self.replay(&command_id, &command_digest)? {
+            return Ok(outcome);
+        }
+        if self.state.status.is_terminal() {
+            return Err(TransitionError::Terminal(self.state.status).into());
+        }
         self.commit(command_id, command_digest, event)
     }
 
