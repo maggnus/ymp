@@ -13,6 +13,7 @@ use ymp_agent_api::{
     SubmitArguments,
 };
 use ymp_artifacts::{ArtifactError, ArtifactStore, CandidateRef, SubmissionRef};
+use ymp_domain::commitment::{BudgetVector, CommitmentCommand, CommitmentError, CommitmentLedger};
 use ymp_domain::{
     Budget, Command, EventEnvelope, EventKind, MAX_IDENTIFIER_CHARS, RunState, RunStatus,
     TransitionError, VerificationRecord,
@@ -52,6 +53,12 @@ pub enum ApplicationError {
     Artifact(#[from] ArtifactError),
     #[error(transparent)]
     Transition(#[from] TransitionError),
+    #[error(transparent)]
+    Commitment(#[from] CommitmentError),
+    #[error("this run has no commitment kernel; nothing has opened one")]
+    NoCommitmentKernel,
+    #[error("this run already carries a commitment kernel accountable for {root_obligation}")]
+    CommitmentKernelAlreadyOpen { root_obligation: String },
     #[error("data root is already initialized")]
     AlreadyInitialized,
     #[error(
@@ -187,6 +194,13 @@ pub struct Application {
     command_results: HashMap<String, RecordedCommandResult>,
     candidate_identity: Option<CandidateIdentity>,
     recorded_verifications: HashMap<VerificationIdentity, EventEnvelope>,
+    /// The commitment kernel of this run, once a record opened one. It is never carried across a
+    /// restart: every ledger this field holds was folded out of the journal by
+    /// [`Application::fold_commitment`].
+    commitments: Option<CommitmentLedger>,
+    /// What each commitment command committed, so a repeated delivery is answered with the facts
+    /// and the run sequence of the first one rather than with a second effect.
+    commitment_results: HashMap<String, CommitmentOutcome>,
     notification_senders: Vec<SyncSender<u64>>,
 }
 
@@ -297,6 +311,8 @@ impl Application {
             command_results,
             candidate_identity: None,
             recorded_verifications: HashMap::new(),
+            commitments: None,
+            commitment_results: HashMap::new(),
             notification_senders: Vec::new(),
         };
         app.write_metadata()?;
@@ -358,6 +374,8 @@ impl Application {
             command_results,
             candidate_identity: None,
             recorded_verifications: HashMap::new(),
+            commitments: None,
+            commitment_results: HashMap::new(),
             notification_senders: Vec::new(),
         };
         for event in events.iter().skip(1) {
@@ -423,6 +441,10 @@ impl Application {
                         environment_digest: environment_digest.to_owned(),
                     })
                     .or_insert_with(|| event.clone());
+            }
+            EventKind::CommitmentKernelOpened { .. }
+            | EventKind::CommitmentFactsRecorded { .. } => {
+                self.fold_commitment(event)?;
             }
             _ => {}
         }
@@ -499,6 +521,162 @@ impl Application {
 
         let event = self.state.decide(&command)?;
         self.commit(command_id, command_digest, event)
+    }
+
+    /// The commitment kernel of this run, or `None` while no record has opened one.
+    ///
+    /// What it answers is a reading of the journal and never an accumulation beside it, so a
+    /// reader is given the same ledger whether this application has been running since the run
+    /// started or opened the store a moment ago.
+    pub fn commitments(&self) -> Option<&CommitmentLedger> {
+        self.commitments.as_ref()
+    }
+
+    /// Record the state the commitment kernel of this run starts from.
+    ///
+    /// A ledger is the root participant, the principal it acts as, the obligation the run is
+    /// accountable for and the budget that participant opens with, and none of those is derivable
+    /// from the facts that follow. They are therefore committed as a record of their own: the
+    /// journal states what the ledger was built from, and a restart builds the same one instead of
+    /// being handed a starting point that only the process that opened it knew.
+    pub fn open_commitment_kernel(
+        &mut self,
+        command_id: impl Into<String>,
+        root_participant: impl Into<String>,
+        root_principal: impl Into<String>,
+        root_obligation: impl Into<String>,
+        budget: BudgetVector,
+    ) -> Result<CommandOutcome, ApplicationError> {
+        let command_id = command_id.into();
+        validate_identifier("command_id", &command_id)?;
+        let event = EventKind::CommitmentKernelOpened {
+            root_participant: root_participant.into(),
+            root_principal: root_principal.into(),
+            root_obligation: root_obligation.into(),
+            budget,
+        };
+        let command_digest = ymp_domain::digest_bytes(&serde_json::to_vec(&event)?);
+        self.recover_projection()?;
+        if let Some(outcome) = self.replay(&command_id, &command_digest)? {
+            self.write_metadata()?;
+            return Ok(outcome);
+        }
+        if self.state.status.is_terminal() {
+            return Err(TransitionError::Terminal(self.state.status).into());
+        }
+        if let Some(ledger) = &self.commitments {
+            return Err(ApplicationError::CommitmentKernelAlreadyOpen {
+                root_obligation: ledger.root_obligation().to_owned(),
+            });
+        }
+        // A genesis no ledger can be built from — an identifier of the wrong length, say — is
+        // refused here rather than written and discovered by the recovery that has to rebuild it.
+        ledger_from(&event)?;
+        self.commit(command_id, command_digest, event)
+    }
+
+    /// Decide one commitment command and record every fact it commits before answering.
+    ///
+    /// The order is the whole guarantee: the ledger is asked what the command commits, the facts
+    /// reach the journal as one record, and only then is the result returned. A caller that has
+    /// been told a contract was formed, escrow moved or an obligation returned is therefore
+    /// holding something the record already states, and a restart at any point returns a ledger
+    /// that either has the whole command or has never heard of it.
+    pub fn execute_commitment(
+        &mut self,
+        command_id: impl Into<String>,
+        command: &CommitmentCommand,
+    ) -> Result<CommitmentOutcome, ApplicationError> {
+        let command_id = command_id.into();
+        validate_identifier("command_id", &command_id)?;
+        let command_digest = command.digest()?;
+        self.recover_projection()?;
+        if let Some(outcome) = self.replay_commitment(&command_id, &command_digest)? {
+            return Ok(outcome);
+        }
+        if self.state.status.is_terminal() {
+            return Err(TransitionError::Terminal(self.state.status).into());
+        }
+        let ledger = self
+            .commitments
+            .as_ref()
+            .ok_or(ApplicationError::NoCommitmentKernel)?;
+        // Decided against a copy, so a refusal — and a decided fact the accounts turn out not to
+        // honour — leaves the journal, the ledger and the command identifier exactly as they were.
+        let first_sequence = ledger.sequence() + 1;
+        let facts = ledger.clone().execute(command)?;
+        self.commit(
+            command_id,
+            command_digest,
+            EventKind::CommitmentFactsRecorded {
+                facts: facts.clone(),
+            },
+        )?;
+        Ok(CommitmentOutcome {
+            first_sequence,
+            events: facts,
+            replayed: false,
+        })
+    }
+
+    fn replay_commitment(
+        &self,
+        command_id: &str,
+        command_digest: &str,
+    ) -> Result<Option<CommitmentOutcome>, ApplicationError> {
+        let Some(result) = self.command_results.get(command_id) else {
+            return Ok(None);
+        };
+        let conflict = || ApplicationError::IdempotencyConflict {
+            command_id: command_id.to_owned(),
+        };
+        if result.event.command_digest != command_digest {
+            return Err(conflict());
+        }
+        // The identifier belongs to a command of the run rather than to a commitment. Answering
+        // it from here would report facts that command never committed.
+        let recorded = self
+            .commitment_results
+            .get(command_id)
+            .ok_or_else(conflict)?;
+        Ok(Some(CommitmentOutcome {
+            first_sequence: recorded.first_sequence,
+            events: recorded.events.clone(),
+            replayed: true,
+        }))
+    }
+
+    /// Fold one commitment record into the kernel this application holds.
+    ///
+    /// The commit path and the recovery path both come through here, so the ledger a live run
+    /// carries and the ledger a restart rebuilds are the same reading of the same records.
+    fn fold_commitment(&mut self, envelope: &EventEnvelope) -> Result<(), ApplicationError> {
+        match &envelope.event {
+            EventKind::CommitmentKernelOpened { .. } => {
+                if self.commitments.is_none() {
+                    self.commitments = Some(ledger_from(&envelope.event)?);
+                }
+            }
+            EventKind::CommitmentFactsRecorded { facts } => {
+                let ledger = self
+                    .commitments
+                    .as_mut()
+                    .ok_or(ApplicationError::NoCommitmentKernel)?;
+                let first_sequence = ledger.sequence() + 1;
+                for fact in facts {
+                    ledger.replay(fact)?;
+                }
+                self.commitment_results
+                    .entry(envelope.command_id.clone())
+                    .or_insert_with(|| CommitmentOutcome {
+                        first_sequence,
+                        events: facts.clone(),
+                        replayed: false,
+                    });
+            }
+            _ => {}
+        }
+        Ok(())
     }
 
     /// Records evidence issued directly by a verifier.
@@ -1002,6 +1180,7 @@ impl Application {
                 object_digest: object_digest.clone(),
             });
         }
+        self.fold_commitment(&envelope)?;
         self.state.apply(&envelope);
         self.command_results.insert(
             command_id,
@@ -1308,6 +1487,25 @@ fn store_compatibility(data_root: &Path) -> Result<(), ApplicationError> {
         actual: record.schema_version,
         expected: ymp_domain::EVENT_SCHEMA_VERSION,
     })
+}
+
+/// The ledger a genesis record states, built from that record and from nothing else.
+fn ledger_from(event: &EventKind) -> Result<CommitmentLedger, ApplicationError> {
+    let EventKind::CommitmentKernelOpened {
+        root_participant,
+        root_principal,
+        root_obligation,
+        budget,
+    } = event
+    else {
+        return Err(ApplicationError::NoCommitmentKernel);
+    };
+    Ok(CommitmentLedger::new(
+        root_participant,
+        root_principal,
+        root_obligation,
+        *budget,
+    )?)
 }
 
 fn journal_open_error(error: JournalError) -> ApplicationError {
