@@ -3,15 +3,15 @@ id: W1-COR-03d
 kind: task
 wave: W1
 card: W1-COR-03
-state: ready
+state: active
 risk: critical
 maturity: BUILD
 relation: required
 depends_on: [W1-COR-03a, W1-COR-03b, W1-APP-02b]
 blocks: [W1-EVL-04a]
 created_at: 2026-08-10T19:34:25+08:00
-updated_at: 2026-08-10T19:34:25+08:00
-started_at:
+updated_at: 2026-08-15T16:45:00+08:00
+started_at: 2026-08-15T16:45:00+08:00
 accepted_at:
 candidate_commit:
 closure_commit:
