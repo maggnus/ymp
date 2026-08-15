@@ -24,3 +24,4 @@ hex.workspace = true
 sha2.workspace = true
 tempfile.workspace = true
 ymp-agent-mcp.workspace = true
+ymp-testkit.workspace = true

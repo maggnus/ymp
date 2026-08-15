@@ -1093,6 +1093,7 @@ dependencies = [
  "ymp-runtime-api",
  "ymp-runtime-registry",
  "ymp-storage",
+ "ymp-testkit",
  "ymp-verifier",
 ]
 
@@ -1110,7 +1111,7 @@ dependencies = [
 
 [[package]]
 name = "ymp-board"
-version = "1.0.1"
+version = "1.0.4"
 dependencies = [
  "hex",
  "serde",

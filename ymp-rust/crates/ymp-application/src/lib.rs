@@ -17,6 +17,10 @@ use ymp_domain::commitment::{
     BudgetVector, BundleChange, CommitmentCommand, CommitmentError, CommitmentEvent,
     CommitmentLedger, PathChange,
 };
+use ymp_domain::recruitment::{
+    AdmittedParticipant, ParticipantStartFailed, ParticipantStartPath, Recruitment,
+    RecruitmentPolicy, RecruitmentRefusal, RequestParticipant, RuntimeAdmission,
+};
 use ymp_domain::{
     Budget, Command, EventEnvelope, EventKind, MAX_IDENTIFIER_CHARS, MAX_REASON_BYTES,
     ProvenanceLimit, RunState, RunStatus, TransitionError, VerificationRecord,
@@ -58,6 +62,10 @@ pub enum ApplicationError {
     Transition(#[from] TransitionError),
     #[error(transparent)]
     Commitment(#[from] CommitmentError),
+    /// A recruitment request the mechanical gate refused. Nothing was written and nothing moved:
+    /// the run is exactly as it was, and the constraint that stopped the request is what this says.
+    #[error(transparent)]
+    RecruitmentRefused(#[from] RecruitmentRefusal),
     #[error("this run has no commitment kernel; nothing has opened one")]
     NoCommitmentKernel,
     #[error("this run already carries a commitment kernel accountable for {root_obligation}")]
@@ -211,9 +219,31 @@ pub struct CandidateApplyReport {
     pub replaced_paths: Vec<String>,
 }
 
+/// What one admission committed: the participant, the facts that paid for it, the record it was
+/// written as, and what the managed start path answered.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+pub struct ParticipantAdmission {
+    pub admitted: AdmittedParticipant,
+    /// The commitment facts of the charge, in the order the kernel committed them.
+    pub facts: Vec<CommitmentEvent>,
+    pub command: CommandOutcome,
+    /// Why the managed start path could not start this participant, when it could not.
+    ///
+    /// A start that failed does not take the admission back. The authority to start a participant
+    /// is creation authority: spending it is irreversible, and it was spent when the run granted
+    /// the permission the fact records. What a caller holds here is therefore a participant that
+    /// was admitted and paid for and has no process — a state the record states plainly rather than
+    /// one the accounting hides by pretending the request was refused.
+    pub start_failure: Option<ParticipantStartFailed>,
+}
+
 #[derive(Clone, Copy, Debug, Default)]
 pub struct ApplicationConfig {
     pub journal_limits: JournalLimits,
+    /// The ceilings this run recruits under. It is a declared boundary of the run rather than
+    /// something read from the host, so a run recruits under the ceiling it was created with even
+    /// when the ceilings of the product root move afterwards.
+    pub recruitment: RecruitmentPolicy,
 }
 
 pub struct Application {
@@ -232,6 +262,9 @@ pub struct Application {
     /// What each commitment command committed, so a repeated delivery is answered with the facts
     /// and the run sequence of the first one rather than with a second effect.
     commitment_results: HashMap<String, CommitmentOutcome>,
+    /// The mechanical gate a recruitment request passes. It holds the run's ceilings and no state:
+    /// what every gate reads is the run's own record.
+    recruitment: Recruitment,
     notification_senders: Vec<SyncSender<u64>>,
 }
 
@@ -344,6 +377,7 @@ impl Application {
             recorded_verifications: HashMap::new(),
             commitments: None,
             commitment_results: HashMap::new(),
+            recruitment: Recruitment::new(config.recruitment),
             notification_senders: Vec::new(),
         };
         app.write_metadata()?;
@@ -407,6 +441,7 @@ impl Application {
             recorded_verifications: HashMap::new(),
             commitments: None,
             commitment_results: HashMap::new(),
+            recruitment: Recruitment::new(config.recruitment),
             notification_senders: Vec::new(),
         };
         for event in events.iter().skip(1) {
@@ -474,7 +509,8 @@ impl Application {
                     .or_insert_with(|| event.clone());
             }
             EventKind::CommitmentKernelOpened { .. }
-            | EventKind::CommitmentFactsRecorded { .. } => {
+            | EventKind::CommitmentFactsRecorded { .. }
+            | EventKind::ParticipantAdmitted { .. } => {
                 self.fold_commitment(event)?;
             }
             _ => {}
@@ -778,7 +814,12 @@ impl Application {
                 }
                 self.commitments = Some(ledger_from(&envelope.event)?);
             }
-            EventKind::CommitmentFactsRecorded { facts } => {
+            // An admission and the charge that paid for it are one record, so they are folded
+            // together and by the same code the charge of any other command is folded by. A
+            // restart therefore rebuilds a ledger in which the admitted participant exists and the
+            // authority it cost has been spent, or one in which neither happened.
+            EventKind::CommitmentFactsRecorded { facts }
+            | EventKind::ParticipantAdmitted { facts, .. } => {
                 let ledger = self
                     .commitments
                     .as_mut()
@@ -798,6 +839,66 @@ impl Application {
             _ => {}
         }
         Ok(())
+    }
+
+    /// Decide one recruitment request, record the admission it grants, and hand it to the managed
+    /// start path.
+    ///
+    /// The order is the whole guarantee, and it is the same order every other command of this run
+    /// follows. The gate decides against the run's own committed record; the admission and the
+    /// facts that pay for it reach the journal as one record; and only then is a process asked for.
+    /// A refusal therefore leaves the journal byte for byte as it was — no participant, no charge,
+    /// no process — and an admission a caller has been told about is one the record already states.
+    ///
+    /// Competing requests are serialized because this is the run's single writer: a second request
+    /// is decided against a record that already carries the first, so the last participant-start,
+    /// the last place under the ceiling and the last entry are each taken once. A repeat of one
+    /// request is refused as a duplicate rather than admitting a second participant.
+    ///
+    /// Which participant is worth recruiting is not decided here and is not decidable from anything
+    /// this method reads: the entry is the one the proposer named, and no ordering over the frozen
+    /// pool is consulted.
+    pub fn request_participant(
+        &mut self,
+        request: &RequestParticipant,
+        runtime: &dyn RuntimeAdmission,
+        start: &mut dyn ParticipantStartPath,
+    ) -> Result<ParticipantAdmission, ApplicationError> {
+        self.recover_projection()?;
+        let ledger = self
+            .commitments
+            .as_ref()
+            .ok_or(ApplicationError::NoCommitmentKernel)?;
+        let admission = self
+            .recruitment
+            .admit(request, &self.state, ledger, runtime)?;
+        // Decided against a copy, so a charge the accounts turn out not to honour leaves the
+        // journal, the ledger and the run exactly as they were.
+        let facts = ledger.clone().execute(&admission.charge)?;
+        let command_id = format!("ymp.participant.request.{}", request.request_id);
+        let command_digest = ymp_domain::digest_bytes(&serde_json::to_vec(request)?);
+        let command = self.commit(
+            command_id,
+            command_digest,
+            EventKind::ParticipantAdmitted {
+                admitted: admission.participant.clone(),
+                facts: facts.clone(),
+            },
+        )?;
+        // The participant is admitted and paid for before anything is started, so a start that
+        // fails leaves a record naming exactly what was granted rather than an unaccounted process.
+        let start_failure = start.start(&admission.participant).err();
+        Ok(ParticipantAdmission {
+            admitted: admission.participant,
+            facts,
+            command,
+            start_failure,
+        })
+    }
+
+    /// Every participant this run has admitted, in the order its journal recorded them.
+    pub fn admissions(&self) -> &[AdmittedParticipant] {
+        &self.state.admissions
     }
 
     /// Records evidence issued directly by a verifier.

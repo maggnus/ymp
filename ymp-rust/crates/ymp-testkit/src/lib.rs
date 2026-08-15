@@ -8,6 +8,7 @@ use ymp_domain::{Budget, Command, RunState};
 use ymp_verifier::{ExactDigestVerifier, VerifierError};
 
 pub mod ready_root;
+pub mod recruitment;
 
 #[derive(Clone, Debug, Serialize)]
 pub struct DemoReport {
