@@ -7,9 +7,9 @@
 //! not probed at all: nothing about it is started, so it can be neither offered nor routed to,
 //! and the row states the registry's reason rather than a readiness nobody measured.
 //!
-//! The drivers the workspace actually ships are the only profiles listed: the fake in-process
-//! runtime, Codex and Claude Code. The fixture is not an engine — it has no executable, no
-//! credential and no models — so it carries no registry row and is never routed to.
+//! Only engines the product can actually start are listed: Codex and Claude Code. The fixture
+//! runtime exists for the checks alone; the shipped binary does not link it, so it is neither
+//! probed nor shown here, and no test double is offered as a capability of the product.
 //!
 //! Probing runs the engine executable, so it happens once on a worker thread. Measuring the model
 //! catalog starts that executable once per candidate, so it happens only where the catalog is the
@@ -19,7 +19,6 @@
 use ymp_runtime_api::{Readiness, RuntimeDriver, RuntimeKind};
 use ymp_runtime_claude::ClaudeRuntime;
 use ymp_runtime_codex::CodexRuntime;
-use ymp_runtime_fake::FakeRuntime;
 use ymp_runtime_registry::{
     Engine, EngineProperties, EngineRecord, ModelCatalog, ModelSource, Registry, RegistryAddress,
 };
@@ -58,13 +57,15 @@ pub struct ProfileFacts {
     pub version: Option<String>,
     pub readiness: Readiness,
     pub detail: String,
-    /// The registry row of this profile. The fixture runtime is not an engine and carries none.
+    /// The registry row of this profile. Every profile this page lists is an engine and carries
+    /// one; the field is empty only while a reading is still being assembled.
     pub registry: Option<EngineFacts>,
 }
 
 impl ProfileFacts {
-    /// Whether the registry admits this profile. A profile with no registry row — the fixture — is
-    /// admitted by nothing and refused by nothing; it is simply not an engine.
+    /// Whether the registry admits this profile. A profile carrying no registry row is not an
+    /// engine at all: nothing admits it and nothing refuses it, and the routing declines it on
+    /// that ground rather than on a readiness.
     pub fn admitted(&self) -> bool {
         self.registry
             .as_ref()
@@ -144,18 +145,11 @@ impl Report {
 /// store reads the registry of the root it stands under, so both reach one decision per engine.
 pub fn probe_all(address: &RegistryAddress, measure: Measure) -> Report {
     let registry = address.registry();
-    let mut profiles = vec![fixture_facts()];
-    for engine in Engine::ALL {
-        profiles.push(engine_facts(&registry, engine, measure));
-    }
+    let profiles = Engine::ALL
+        .into_iter()
+        .map(|engine| engine_facts(&registry, engine, measure))
+        .collect();
     Report { profiles }
-}
-
-fn fixture_facts() -> ProfileFacts {
-    let fake = FakeRuntime::default();
-    let mut facts = facts("fake", &fake, None);
-    facts.registry = None;
-    facts
 }
 
 /// One engine: what the registry holds, and — only where it admits the engine — what its probe
@@ -534,27 +528,29 @@ fn catalog_note(profile: &ProfileFacts) -> Option<String> {
 mod tests {
     use super::*;
 
-    fn engine(enabled: bool, reason: Option<&str>) -> EngineFacts {
+    fn engine(engine: Engine, enabled: bool, reason: Option<&str>) -> EngineFacts {
         EngineFacts {
-            engine: Engine::Codex,
+            engine,
             enabled,
             disabled_reason: reason.map(str::to_owned),
             models: ModelCatalog::default(),
         }
     }
 
+    /// The two engines the page lists, one reachable and one not. No fixture appears here because
+    /// none is probed: the page offers only what the product can actually start.
     fn report() -> Report {
         Report {
             profiles: vec![
                 ProfileFacts {
-                    name: "fake".into(),
-                    runtime: "in-process".into(),
-                    model_route: None,
-                    executable: "ymp-internal-fake".into(),
-                    version: Some("0.1.0".into()),
+                    name: "claude-code".into(),
+                    runtime: "claude-code".into(),
+                    model_route: Some("anthropic/claude".into()),
+                    executable: "/usr/bin/claude".into(),
+                    version: Some("2.1.233".into()),
                     readiness: Readiness::Ready,
-                    detail: "deterministic in-process runtime".into(),
-                    registry: None,
+                    detail: "authenticated".into(),
+                    registry: Some(engine(Engine::ClaudeCode, true, None)),
                 },
                 ProfileFacts {
                     name: "codex".into(),
@@ -564,7 +560,7 @@ mod tests {
                     version: None,
                     readiness: Readiness::NotInstalled,
                     detail: "executable not found".into(),
-                    registry: Some(engine(true, None)),
+                    registry: Some(engine(Engine::Codex, true, None)),
                 },
             ],
         }
@@ -598,7 +594,11 @@ mod tests {
     fn a_disabled_engine_is_not_ready_and_states_the_registry_reason() {
         let mut report = report();
         report.profiles[1].readiness = Readiness::Ready;
-        report.profiles[1].registry = Some(engine(false, Some("usage limit until 2026-09-12")));
+        report.profiles[1].registry = Some(engine(
+            Engine::Codex,
+            false,
+            Some("usage limit until 2026-09-12"),
+        ));
         report.profiles[1].detail =
             "disabled in the registry — usage limit until 2026-09-12".to_owned();
         assert!(!report.profiles[1].ready());
@@ -637,11 +637,30 @@ mod tests {
         assert!(stated.contains("2.1.233 (Claude Code)"), "{stated}");
     }
 
+    /// Every row of the page is an engine, so the decision an operator takes on a row reaches the
+    /// registry record that row states. A row beyond the table names nothing.
     #[test]
-    fn the_row_of_an_engine_names_the_engine_and_the_fixture_row_names_none() {
+    fn every_row_of_the_page_names_the_engine_the_decision_would_reach() {
         let report = report();
-        assert_eq!(report.engine_at(0), None);
+        assert_eq!(report.engine_at(0), Some(Engine::ClaudeCode));
         assert_eq!(report.engine_at(1), Some(Engine::Codex));
         assert_eq!(report.engine_at(9), None);
+    }
+
+    /// What is probed is what the registry holds and nothing else, so the profiles an operator is
+    /// offered are exactly the engines the product can start. A fixture runtime is not an engine
+    /// and has no way onto this list. The check that must fail: push any further profile into
+    /// `probe_all`, and the listed names no longer match the engines.
+    #[test]
+    fn the_probe_list_holds_one_profile_for_each_engine_and_nothing_besides() {
+        let root = tempfile::tempdir().expect("temporary root");
+        let address = RegistryAddress::Root(root.path().to_path_buf());
+        let report = probe_all(&address, Measure::Recorded);
+        let listed: Vec<&str> = report
+            .profiles
+            .iter()
+            .map(|profile| profile.name.as_str())
+            .collect();
+        assert_eq!(listed, Engine::ALL.map(Engine::name).to_vec());
     }
 }

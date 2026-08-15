@@ -84,18 +84,8 @@ fn engine(engine: Engine, names: Vec<String>) -> EngineFacts {
 pub fn report() -> Report {
     Report {
         profiles: vec![
-            ProfileFacts {
-                name: "fake".into(),
-                runtime: "in-process".into(),
-                model_route: None,
-                executable: "ymp-internal-fake".into(),
-                version: Some("0.1.0".into()),
-                readiness: Readiness::Ready,
-                detail: "deterministic in-process runtime".into(),
-                // The fixture runtime is not an engine: it has no executable, no credential and
-                // no models, so the registry holds no row for it.
-                registry: None,
-            },
+            // The engines the registry holds are the whole list. The fixture runtime is not
+            // probed and not offered, so no row stands for it here either.
             ProfileFacts {
                 name: "codex".into(),
                 runtime: "codex".into(),
