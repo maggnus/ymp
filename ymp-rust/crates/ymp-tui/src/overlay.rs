@@ -347,6 +347,12 @@ pub const KEY_GROUPS: &[(&str, &[(&str, &str)])] = &[
             ("Enter", "describe the selection"),
         ],
     ),
+    // The keys of one surface are not listed here. The map is one page and it is full at the
+    // narrowest size the product supports: a group added to it pushes the group below it off the
+    // screen, and every group of this map has to be readable in full at 80x24. The keys a surface
+    // adds — `e` and `r` on a provider — are stated in that surface's own footer, beside the
+    // sentence saying what each of them would do. A per-surface overlay is what would carry them
+    // here, and it is not this unit's work.
     (
         "modals",
         &[

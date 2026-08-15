@@ -99,6 +99,12 @@ fn submit(app: &mut App, session: &mut Session, text: &str) {
             enabled,
             reason,
         }) => session.set_engine_enabled(engine, enabled, reason),
+        Some(Action::SetProviderEnabled {
+            family,
+            enabled,
+            reason,
+        }) => session.set_provider_enabled(family, enabled, reason),
+        Some(Action::RefreshProviderModels { family }) => session.refresh_provider_models(family),
         Some(Action::Rebuild) | None => {}
     }
     app.adopt(session.projection(None));

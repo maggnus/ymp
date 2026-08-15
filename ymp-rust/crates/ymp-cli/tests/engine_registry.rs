@@ -188,6 +188,11 @@ fn a_root_named_inside_another_root_records_and_reads_its_own_decision() {
 #[test]
 fn a_forged_record_is_measured_again_instead_of_believed() {
     let (_directory, root) = root();
+    // The engines beneath a provider nobody enabled are not measured at all, so the account this
+    // engine reaches is enabled first: what is under test here is what a measurement does with a
+    // forged record, not when a measurement is taken.
+    let enabled = ymp(&root, &["provider", "enable", "anthropic"]);
+    assert!(enabled.status.success(), "{}", stated(&enabled));
     let first = ymp(&root, &["show", "runtimes"]);
     assert!(first.status.success(), "{}", stated(&first));
     let measured = record(&root, "claude-code");
@@ -273,11 +278,16 @@ fn the_mirrored_command_disables_and_enables_an_engine_durably() {
 
     // A disabled engine is not offered: the page states it as disabled rather than as ready, and
     // no managed engine is left for a run to be routed to.
+    //
+    // The count is host-independent because both engines are held back here: Codex is seeded
+    // disabled and Claude Code was just disabled above, so nothing is measured and nothing can be
+    // ready, whatever this host has installed. The earlier count of one ready profile named the
+    // in-process fixture, which is no longer offered as a capability of the product.
     let page = ymp(&root, &["show", "runtimes"]);
     let shown = stated(&page);
     assert!(shown.contains("disabled"), "{shown}");
     assert!(
-        shown.contains("· 1 ready · 2 unusable"),
+        shown.contains("· 0 ready · 2 unusable"),
         "a disabled engine was still counted as usable:\n{shown}"
     );
 

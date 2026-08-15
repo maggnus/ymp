@@ -448,6 +448,9 @@ impl Model {
             commands: self.commands(&pages),
             pages,
             runtimes: runtimes.cloned(),
+            // The provider level is the product root's own configuration and is not in the
+            // journal, so the session adds it to the projection it builds from this one.
+            providers: None,
             // Where the work would go, and which store the next run belongs in, are the session's
             // to settle: it holds the profile the operator named and knows the root this store was
             // addressed under, and the journal records neither.
@@ -1126,8 +1129,11 @@ fn plane_style(plane: Plane) -> ratatui::style::Style {
     }
 }
 
-fn page_description(kind: PageKind) -> &'static str {
+pub fn page_description(kind: PageKind) -> &'static str {
     match kind {
+        PageKind::Providers => "the supported providers, and which of them are enabled",
+        PageKind::Provider => "one provider's properties, and what enabling it permits",
+        PageKind::Models => "the models the enabled providers serve",
         PageKind::Runtimes => "which runtime profiles this host can start",
         PageKind::Candidates => "immutable candidates of the current run",
         PageKind::Events => "the durable journal — head and planes",

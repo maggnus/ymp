@@ -31,14 +31,15 @@ use std::collections::BTreeSet;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::{Command as Process, Output};
+use std::time::SystemTime;
 
 use clap::{CommandFactory, Parser};
 use crossterm::event::{Event, KeyCode, KeyEvent, KeyModifiers};
 use tempfile::TempDir;
-use ymp_cli::surface::{PageName, PublicCommand, RuntimeCommand};
+use ymp_cli::surface::{PageName, ProviderCommand, PublicCommand, RuntimeCommand};
 use ymp_cli::{Cli, Command};
 use ymp_domain::RunStatus;
-use ymp_runtime_registry::Engine;
+use ymp_runtime_registry::{Engine, ProviderFamily, RegistryAddress};
 use ymp_tui::app::Action;
 use ymp_tui::journal::Model;
 use ymp_tui::projection::{ContractFacts, Environment};
@@ -82,6 +83,31 @@ const CORRESPONDENCE: &[(&str, &[&str])] = &[
             "usage limit until 2026-09-12",
         ],
     ),
+    (
+        "provider-enable",
+        &["ymp", "provider", "enable", "anthropic"],
+    ),
+    (
+        "provider-disable",
+        &[
+            "ymp",
+            "provider",
+            "disable",
+            "openai",
+            "--reason",
+            "kept out of this experiment",
+        ],
+    ),
+    (
+        "provider-refresh",
+        &["ymp", "provider", "refresh", "anthropic"],
+    ),
+    ("page:providers", &["ymp", "show", "providers"]),
+    (
+        "page:provider",
+        &["ymp", "show", "provider", "--provider", "anthropic"],
+    ),
+    ("page:models", &["ymp", "show", "models"]),
     ("page:runtimes", &["ymp", "show", "runtimes"]),
     ("page:candidates", &["ymp", "show", "candidates"]),
     ("page:events", &["ymp", "show", "events"]),
@@ -156,6 +182,9 @@ fn performed_action(action: &Action) -> String {
         Action::LocalTurn(_) => "request".to_owned(),
         Action::SetEngineEnabled { enabled: true, .. } => "runtime-enable".to_owned(),
         Action::SetEngineEnabled { enabled: false, .. } => "runtime-disable".to_owned(),
+        Action::SetProviderEnabled { enabled: true, .. } => "provider-enable".to_owned(),
+        Action::SetProviderEnabled { enabled: false, .. } => "provider-disable".to_owned(),
+        Action::RefreshProviderModels { .. } => "provider-refresh".to_owned(),
         Action::CancelCheck => "cancel-check".to_owned(),
         // The interface rebuilds its projection when a candidate is opened; the surface that
         // opens is the describe page.
@@ -231,6 +260,19 @@ fn interface_actions(root: &Path) -> BTreeSet<String> {
             enabled: false,
             reason: Some("usage limit until 2026-09-12".to_owned()),
         },
+        Action::SetProviderEnabled {
+            family: ProviderFamily::Anthropic,
+            enabled: true,
+            reason: None,
+        },
+        Action::SetProviderEnabled {
+            family: ProviderFamily::OpenAi,
+            enabled: false,
+            reason: Some("kept out of this experiment".to_owned()),
+        },
+        Action::RefreshProviderModels {
+            family: ProviderFamily::Anthropic,
+        },
         Action::Rebuild,
     ] {
         actions.insert(performed_action(&action));
@@ -279,6 +321,11 @@ fn command_action(command: &PublicCommand) -> String {
         PublicCommand::Runtime { command } => match command {
             RuntimeCommand::Enable { .. } => "runtime-enable".to_owned(),
             RuntimeCommand::Disable { .. } => "runtime-disable".to_owned(),
+        },
+        PublicCommand::Provider { command } => match command {
+            ProviderCommand::Enable { .. } => "provider-enable".to_owned(),
+            ProviderCommand::Disable { .. } => "provider-disable".to_owned(),
+            ProviderCommand::Refresh { .. } => "provider-refresh".to_owned(),
         },
         PublicCommand::Show { page, .. } => page_action(page.kind()),
     }
@@ -363,6 +410,9 @@ fn every_interface_action_is_a_command_and_neither_side_holds_a_surplus() {
     // Every page the command surface can name is in the correspondence too, so a page cannot be
     // added to the command surface without an interface page behind it.
     for page in [
+        PageName::Providers,
+        PageName::Provider,
+        PageName::Models,
         PageName::Runtimes,
         PageName::Candidates,
         PageName::Events,
@@ -408,6 +458,18 @@ fn keyboard_states(root: &Path) -> Vec<App> {
         page.surface = Surface::Page(kind);
         states.push(page);
     }
+
+    // The provider properties view with a provider selected, which is the state its keys act in.
+    // Without it the keys of that surface would be driven over a view holding no provider, and
+    // every one of them would return nothing whatever it was bound to.
+    let mut provider = base.clone();
+    provider.data.providers = Some(ymp_tui::providers::read(
+        &RegistryAddress::Root(root.to_path_buf()),
+        SystemTime::now(),
+    ));
+    provider.provider_index = Some(0);
+    provider.surface = Surface::Page(PageKind::Provider);
+    states.push(provider);
 
     // Everything that floats above a surface.
     let mut palette = base.clone();

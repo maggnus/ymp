@@ -78,6 +78,13 @@ pub enum Command {
 /// The full-screen data pages. Each one is populated from a projection or stated as empty.
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub enum PageKind {
+    /// The fixed supported list of providers, whatever this root has touched.
+    Providers,
+    /// One provider's properties, and the acts that can be taken on it. It exists only while a
+    /// provider is selected, because a property view of nothing has nothing to state.
+    Provider,
+    /// The model catalog, derived from the provider and engine records when it is read.
+    Models,
     Runtimes,
     Candidates,
     Events,
@@ -93,7 +100,10 @@ pub enum PageKind {
 
 impl PageKind {
     /// Every page the interface supports, in palette order.
-    pub const ALL: [Self; 7] = [
+    pub const ALL: [Self; 10] = [
+        Self::Providers,
+        Self::Provider,
+        Self::Models,
         Self::Runtimes,
         Self::Candidates,
         Self::Events,
@@ -105,6 +115,9 @@ impl PageKind {
 
     pub fn command_name(self) -> &'static str {
         match self {
+            Self::Providers => "providers",
+            Self::Provider => "provider",
+            Self::Models => "models",
             Self::Runtimes => "runtimes",
             Self::Candidates => "candidates",
             Self::Events => "events",
@@ -238,6 +251,8 @@ pub struct App {
     pub viewing_around: Option<String>,
     /// Which candidate the describe surface is showing.
     pub describe_index: Option<usize>,
+    /// Which row of the provider table the properties surface is showing.
+    pub provider_index: Option<usize>,
     /// How many heartbeats have been drawn while something runs away from the drawing thread.
     /// The input row reads it, so a redraw during a wait is visible on screen.
     pub working_ticks: usize,
@@ -257,6 +272,7 @@ impl App {
             should_quit: false,
             viewing_around: None,
             describe_index: None,
+            provider_index: None,
             working_ticks: 0,
             selection: HashMap::new(),
         };

@@ -45,15 +45,15 @@ pub mod catalog;
 pub mod pool;
 pub mod provider;
 
-pub use catalog::{Availability, Catalog, CatalogEntry};
+pub use catalog::{Availability, Catalog, CatalogEntry, CatalogRoute};
 pub use pool::{
     DEFAULT_POOL, ObservedProvider, POOL_SCHEMA_VERSION, POOLS_DIRECTORY, PoolCapacity,
     PoolDeclaration, PoolEntry, PoolError, PoolModels, PoolName, PoolObservation, PoolRecord,
     PoolResolution, PoolResourceLimits, PoolState, PoolStateKind, Pools, ResolvedEntry,
 };
 pub use provider::{
-    PROVIDER_SCHEMA_VERSION, PROVIDERS_DIRECTORY, ProviderError, ProviderFamily, ProviderRecord,
-    ProviderRoute, ProviderState, Providers,
+    NOT_ENABLED_REASON, Observation, PROVIDER_SCHEMA_VERSION, PROVIDERS_DIRECTORY, ProviderError,
+    ProviderFamily, ProviderRecord, ProviderRoute, ProviderState, Providers,
 };
 
 use std::fs;
@@ -331,6 +331,17 @@ impl Registry {
 
     pub fn path_of(&self, engine: Engine) -> PathBuf {
         self.directory.join(format!("{}.json", engine.name()))
+    }
+
+    /// Whether this root holds a record of its own for one engine.
+    ///
+    /// [`Registry::read`] answers the seeded record where none stands, which is what makes an
+    /// engine usable before anything has been written about it. A caller that has to tell "nothing
+    /// has been measured here" from "this is what was measured" asks this first: a record that was
+    /// removed and a record that was never written are the same answer from `read`, and a surface
+    /// that could not tell them apart would state a measured absence where there is none.
+    pub fn has_record(&self, engine: Engine) -> bool {
+        self.path_of(engine).is_file()
     }
 
     /// The record of one engine: what the registry holds, or the seeded record of an engine it

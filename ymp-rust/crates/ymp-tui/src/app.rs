@@ -17,7 +17,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::{self, RecvTimeoutError, Sender};
 use std::sync::{Arc, Mutex, MutexGuard};
 use std::thread;
-use std::time::{Duration, Instant};
+use std::time::{Duration, Instant, SystemTime};
 
 use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
 use ymp_application::root::{StoreIntent, store_under};
@@ -38,12 +38,15 @@ use crate::draft::{Amendment, Assembly, Draft, DraftJob};
 use crate::journal::Model;
 use crate::pages::Page;
 use crate::projection::{ContractFacts, Environment, Projection};
+use crate::providers;
 use crate::runtimes::Report;
-use crate::state::{App, COMMAND_PREFIX, Command, ConfirmAction, Modal, PageKind, Surface};
+use crate::state::{
+    App, COMMAND_PREFIX, Command, ConfirmAction, Modal, PageKind, PaletteItem, Surface,
+};
 use crate::terminal::TerminalGuard;
 use crate::theme::Markers;
 use crate::ui;
-use ymp_runtime_registry::{Engine, RegistryAddress};
+use ymp_runtime_registry::{Engine, ProviderFamily, RegistryAddress};
 
 /// How long the input thread waits before checking whether it should stop.
 const INPUT_TICK: Duration = Duration::from_millis(50);
@@ -62,6 +65,13 @@ const TERMINATION_WAIT: Duration = Duration::from_secs(30);
 /// Where under the data root the product writes what it supplies for a draft: the verifier it
 /// proposes, the copy it takes as the negative control, and the sample that verifier must accept.
 const DRAFT_DIRECTORY: &str = "draft";
+/// The state a goal is answered with while no provider is enabled.
+///
+/// It is the plain-words state of the product brief (Part A §6) and not a technical refusal: the
+/// goal is taken and held, the one thing that is missing is named, and the command that supplies it
+/// is named with it. The sentence `no providers configured` is what this replaces.
+const A_GOAL_NEEDS_A_PROVIDER: &str = "your goal is held · running it needs at least one enabled AI provider — /providers is where \
+     one is enabled · nothing has started and nothing has left this host";
 /// What an export directory is called when the operator names none. The run identifier follows it.
 const EXPORT_PREFIX: &str = "ymp-evidence-";
 
@@ -80,6 +90,9 @@ pub struct Session {
     registry: RegistryAddress,
     model: Model,
     runtimes: Option<Report>,
+    /// The provider level as this root holds it. It is read from the records — never probed — so
+    /// holding it costs nothing and opening the table measures nothing.
+    providers: providers::Report,
     /// The request being assembled from what the operator typed, while one is.
     draft: Option<Draft>,
     /// Every contract this session can start a run from, whatever supplied it: a package the
@@ -190,6 +203,7 @@ impl Session {
         let mut session = Self::open(data_root, contracts);
         session.root = Some(root.to_path_buf());
         session.registry = RegistryAddress::Root(root.to_path_buf());
+        session.read_providers();
         session
     }
 
@@ -199,13 +213,16 @@ impl Session {
         model: Model,
         contracts: &[PreparedContract],
     ) -> Self {
+        let registry = RegistryAddress::Store(data_root.to_path_buf());
+        let providers = providers::read(&registry, SystemTime::now());
         Self {
             application: application.map(|application| Arc::new(Mutex::new(application))),
             root: None,
             data_root: data_root.to_path_buf(),
-            registry: RegistryAddress::Store(data_root.to_path_buf()),
+            registry,
             model,
             runtimes: None,
+            providers,
             draft: None,
             contracts: contracts.to_vec(),
             checking: 0,
@@ -273,7 +290,157 @@ impl Session {
     /// none keeps the store it was given and resolves the root from it.
     pub fn with_registry_root(mut self, root: &Path) -> Self {
         self.registry = RegistryAddress::Root(root.to_path_buf());
+        self.read_providers();
         self
+    }
+
+    /// Re-read the provider level from the records. Starts nothing and writes nothing.
+    pub fn read_providers(&mut self) {
+        self.providers = providers::read(&self.registry, SystemTime::now());
+    }
+
+    /// The engines this session may measure without being asked to: those of the providers the
+    /// operator has enabled, and no others.
+    pub fn engines_of_enabled_providers(&self) -> Vec<Engine> {
+        self.providers.engines_of_enabled_providers()
+    }
+
+    /// Take the operator's decision about one provider.
+    ///
+    /// Enabling is the act that permits this provider to be measured at all, and the consequence
+    /// of it was stated on the properties view above the key. It is therefore also the act that
+    /// measures: the engines that reach the provider are started here, the catalog they serve is
+    /// recorded, and the observation is stamped with the moment it was taken. Disabling starts
+    /// nothing and erases nothing: the record and its measurements stay readable, and its models
+    /// leave the offered catalog.
+    pub fn set_provider_enabled(
+        &mut self,
+        family: ProviderFamily,
+        enabled: bool,
+        reason: Option<String>,
+    ) {
+        let providers = self.registry.providers();
+        let recorded_at = providers.path_of(family).display().to_string();
+        match providers.set_enabled(family, enabled, reason.as_deref()) {
+            Err(error) => self.model.error(format!(
+                "the {} provider was not changed — {error}",
+                family.name()
+            )),
+            Ok(record) if record.enabled => {
+                self.read_providers();
+                self.measure_enabled_providers();
+                self.model.reply(format!(
+                    "the {} provider is enabled · recorded in {recorded_at} · repository content \
+                     of any workspace may now be sent to it · {}",
+                    family.name(),
+                    self.measurement_of(family)
+                ));
+            }
+            Ok(record) => {
+                self.read_providers();
+                self.model.reply(format!(
+                    "the {} provider is disabled — {} · recorded in {recorded_at} · its models are \
+                     not offered and reach no later pool · nothing it measured was erased",
+                    family.name(),
+                    record.display_reason()
+                ));
+            }
+        }
+    }
+
+    /// Measure one provider again at the operator's word.
+    ///
+    /// A provider that is not enabled is not measured, and asking for it is answered with that
+    /// rather than with a measurement: the enable transition is where a provider is first reached,
+    /// and refusing here is what keeps it the only place.
+    pub fn refresh_provider_models(&mut self, family: ProviderFamily) {
+        let enabled = self
+            .providers
+            .provider(family)
+            .is_some_and(|provider| provider.enabled());
+        if !enabled {
+            self.model.error(format!(
+                "nothing was measured — the {} provider is not enabled, and nothing about a \
+                 provider is measured before it is enabled",
+                family.name()
+            ));
+            return;
+        }
+        self.measure_enabled_providers();
+        self.model.reply(format!(
+            "the {} provider was measured again · {}",
+            family.name(),
+            self.measurement_of(family)
+        ));
+    }
+
+    /// Start the engines of every enabled provider, record what they serve, and observe the
+    /// providers from what was recorded.
+    ///
+    /// The engines of a provider nobody enabled are not started: they are read from their records,
+    /// which is what makes the enable transition the only moment this host reaches an account.
+    ///
+    /// It runs on the thread that asked for it, so the interface does not redraw while an operator
+    /// waits for the measurement they asked for — the same shape a cancellation already has. That
+    /// is the cost of measuring nowhere else: nothing measures in the background, so the one act
+    /// that does is the one the operator is standing on.
+    ///
+    /// It is public because the engines page measures through it too: that page is the level
+    /// beneath the providers, and measuring it on a root where nothing is enabled would start the
+    /// very engines the provider level exists to hold back.
+    pub fn measure_enabled_providers(&mut self) {
+        // The reading is taken whether or not anything is measured by it: with no provider
+        // enabled it holds one row per engine, read from the records alone, so a surface states
+        // what this root knows instead of reporting a measurement that is not running.
+        let engines = self.engines_of_enabled_providers();
+        self.runtimes = Some(crate::runtimes::probe_engines(
+            &self.registry,
+            crate::runtimes::Measure::Catalog,
+            &engines,
+        ));
+        let providers = self.registry.providers();
+        let registry = self.registry.registry();
+        let at = SystemTime::now();
+        let enabled: Vec<ProviderFamily> = self
+            .providers
+            .providers
+            .iter()
+            .filter(|provider| provider.enabled())
+            .map(|provider| provider.family)
+            .collect();
+        for family in enabled {
+            if let Err(error) = providers.observe_family(family, &registry, at) {
+                self.model.error(format!(
+                    "the {} provider was measured and the observation was not recorded — {error}",
+                    family.name()
+                ));
+            }
+        }
+        self.read_providers();
+    }
+
+    /// What the last measurement of one provider found, in one clause.
+    fn measurement_of(&self, family: ProviderFamily) -> String {
+        match self.providers.provider(family) {
+            None => "nothing was measured about it".to_owned(),
+            Some(provider) => {
+                let mut stated = format!(
+                    "{} · {} model(s) · {} offered",
+                    provider.record.display_state(),
+                    provider.models,
+                    provider.offered
+                );
+                for route in &provider.routes {
+                    if let Some(reason) = &route.without_models {
+                        stated.push_str(&format!(
+                            " · the {} route serves none: {reason}",
+                            route.engine.name()
+                        ));
+                    }
+                }
+                stated
+            }
+        }
     }
 
     /// How this session addresses the engine registry.
@@ -475,7 +642,17 @@ impl Session {
 
     /// The full projection for the given describe selection.
     pub fn projection(&self, describe: Option<usize>) -> Projection {
+        self.projection_for(describe, None)
+    }
+
+    /// The full projection for the given describe and provider selections.
+    ///
+    /// Both are positions the operator is standing on rather than values: the properties view of a
+    /// provider exists while a row of the table is selected and not otherwise, exactly as the
+    /// describe view of a candidate does.
+    pub fn projection_for(&self, describe: Option<usize>, provider: Option<usize>) -> Projection {
         let mut projection = self.model.projection(self.runtimes.as_ref());
+        self.push_provider_pages(&mut projection, provider);
         let (route, note) = attempt::routing_facts(self.route, self.runtimes.as_ref());
         projection.route = route;
         projection.route_note = note;
@@ -498,6 +675,40 @@ impl Session {
             projection.pages.push((PageKind::Describe, page));
         }
         projection
+    }
+
+    /// Add the three provider surfaces to a projection, with the palette entries that open them.
+    ///
+    /// They are added here rather than in the read model because the provider level is not in the
+    /// journal: it is the product root's own configuration, read by this session from the records
+    /// under the root it addresses.
+    fn push_provider_pages(&self, projection: &mut Projection, provider: Option<usize>) {
+        let status = self.model.status_line();
+        projection.providers = Some(self.providers.clone());
+        let mut pages = vec![
+            (
+                PageKind::Providers,
+                providers::providers_page(&self.providers, status.clone()),
+            ),
+            (
+                PageKind::Models,
+                providers::models_page(&self.providers, status.clone()),
+            ),
+        ];
+        if let Some(selected) = provider.and_then(|index| self.providers.providers.get(index)) {
+            pages.push((
+                PageKind::Provider,
+                providers::provider_page(selected, status),
+            ));
+        }
+        for (kind, page) in pages {
+            projection.commands.push(PaletteItem {
+                name: kind.command_name().to_owned(),
+                description: crate::journal::page_description(kind).to_owned(),
+                command: Command::OpenPage(kind),
+            });
+            projection.pages.push((kind, page));
+        }
     }
 
     pub fn describe_page(&self, index: usize) -> Option<Page> {
@@ -584,6 +795,13 @@ impl Session {
         }
         if text.trim().is_empty() {
             return None;
+        }
+        // A goal stated while nothing is enabled is taken and held: the workspace is read locally
+        // and nothing leaves this host, because the one thing that is missing is a provider. What
+        // the operator is told is that state in plain words, with the command that supplies it —
+        // never a technical refusal (product brief, Part A §6).
+        if self.providers.enabled_count() == 0 {
+            self.model.reply(A_GOAL_NEEDS_A_PROVIDER);
         }
         match self.draft.as_mut() {
             None => {
@@ -1565,6 +1783,18 @@ pub enum Action {
         enabled: bool,
         reason: Option<String>,
     },
+    /// Enable a provider, or disable it with a stated reason. Enabling is the operator's consent to
+    /// the disclosure stated above the key, and it is what measures the provider for the first
+    /// time; disabling starts nothing and erases nothing.
+    SetProviderEnabled {
+        family: ProviderFamily,
+        enabled: bool,
+        reason: Option<String>,
+    },
+    /// Measure an enabled provider again and record what its engines serve.
+    RefreshProviderModels {
+        family: ProviderFamily,
+    },
     /// Abandon the demonstration a typed answer started. It acts on this interface's own
     /// scheduling: nothing durable is written and nothing spent, so there is nothing for a
     /// command to mirror — a command's process is its own check.
@@ -1584,7 +1814,6 @@ pub fn run(mut session: Session, markers: Markers) -> anyhow::Result<()> {
 enum AppEvent {
     Terminal(Event),
     Journal,
-    Runtimes(Box<Report>),
     /// A demonstration this session asked for has decided.
     Checked(Box<CheckOutcome>),
     /// A verification this session asked for has decided.
@@ -1601,7 +1830,13 @@ fn event_loop(
     let (tx, rx) = mpsc::channel();
     let stop = Arc::new(AtomicBool::new(false));
     let input = spawn_input_thread(tx.clone(), Arc::clone(&stop));
-    spawn_probe_thread(tx.clone(), session.registry_address().clone());
+    // **Starting the product measures nothing.** Launching ymp opens no process and reaches no
+    // network: the surfaces are composed from the records under the root, and each one states how
+    // old the measurement it shows is. Measuring happens where the operator asks for it — on the
+    // enable transition and on an explicit refresh — and at no other moment, which is what makes
+    // enabling the one act that lets this host reach an account.
+    session.set_runtimes(crate::runtimes::read_all(session.registry_address()));
+    adopt(session, app);
     if let Some(receiver) = session.subscribe() {
         spawn_journal_thread(tx.clone(), receiver);
     }
@@ -1649,10 +1884,6 @@ fn event_loop(
                         }
                         AppEvent::Journal => {
                             session.refresh();
-                            adopt(session, app);
-                        }
-                        AppEvent::Runtimes(report) => {
-                            session.set_runtimes(*report);
                             adopt(session, app);
                         }
                         AppEvent::Checked(outcome) => {
@@ -1725,6 +1956,18 @@ fn perform(session: &mut Session, app: &mut App, action: Action, tx: &Sender<App
             session.set_engine_enabled(engine, enabled, reason);
             adopt(session, app);
         }
+        Action::SetProviderEnabled {
+            family,
+            enabled,
+            reason,
+        } => {
+            session.set_provider_enabled(family, enabled, reason);
+            adopt(session, app);
+        }
+        Action::RefreshProviderModels { family } => {
+            session.refresh_provider_models(family);
+            adopt(session, app);
+        }
         Action::StartAttempt => {
             session.start_attempt();
             adopt(session, app);
@@ -1771,7 +2014,7 @@ fn perform(session: &mut Session, app: &mut App, action: Action, tx: &Sender<App
 
 /// Replace the projection and re-apply the operator's position within it.
 fn adopt(session: &Session, app: &mut App) {
-    app.adopt(session.projection(app.describe_index));
+    app.adopt(session.projection_for(app.describe_index, app.provider_index));
 }
 
 // ---------------------------------------------------------------------------
@@ -1865,10 +2108,12 @@ fn transcript_key(app: &mut App, key: KeyEvent, height: u16) -> Option<Action> {
 fn page_key(app: &mut App, kind: PageKind, key: KeyEvent) -> Option<Action> {
     match key.code {
         KeyCode::Esc => {
-            app.surface = if kind == PageKind::Describe {
-                Surface::Page(PageKind::Candidates)
-            } else {
-                Surface::Transcript
+            app.surface = match kind {
+                PageKind::Describe => Surface::Page(PageKind::Candidates),
+                // A provider's properties were opened from the list, so leaving them returns to
+                // the list rather than to the conversation.
+                PageKind::Provider => Surface::Page(PageKind::Providers),
+                _ => Surface::Transcript,
             };
             app.prompt.suspended = None;
         }
@@ -1888,6 +2133,27 @@ fn page_key(app: &mut App, kind: PageKind, key: KeyEvent) -> Option<Action> {
             app.describe_index = Some(app.selection_of(kind));
             app.surface = Surface::Page(PageKind::Describe);
             return Some(Action::Rebuild);
+        }
+        // The provider table is a list of accounts and nothing is decided on it: the row is
+        // opened, and what each act would do is stated there, above the key that takes it.
+        KeyCode::Enter if kind == PageKind::Providers => {
+            app.provider_index = Some(app.selection_of(kind));
+            app.surface = Surface::Page(PageKind::Provider);
+            return Some(Action::Rebuild);
+        }
+        // The two acts an operator takes on one provider. Both are keys on the open row, both
+        // state their consequence above themselves, and neither is confirmed afterwards.
+        KeyCode::Char('e') if kind == PageKind::Provider => {
+            let (family, enabled) = focused_provider(app)?;
+            return Some(Action::SetProviderEnabled {
+                family,
+                enabled: !enabled,
+                reason: enabled.then(|| "disabled from the provider view".to_owned()),
+            });
+        }
+        KeyCode::Char('r') if kind == PageKind::Provider => {
+            let (family, _) = focused_provider(app)?;
+            return Some(Action::RefreshProviderModels { family });
         }
         // The runtimes page is where an engine is admitted or held back, so the decision is taken
         // on the row that states it. Disabling from here records no reason of its own; the reason
@@ -1912,6 +2178,16 @@ fn page_key(app: &mut App, kind: PageKind, key: KeyEvent) -> Option<Action> {
         _ => {}
     }
     None
+}
+
+/// The provider whose properties are open, and whether it is enabled.
+///
+/// It is resolved from the view state alone, so a key press decides nothing the operator could not
+/// read on the surface they are standing on.
+fn focused_provider(app: &App) -> Option<(ProviderFamily, bool)> {
+    let report = app.data.providers.as_ref()?;
+    let provider = report.providers.get(app.provider_index?)?;
+    Some((provider.family, provider.enabled()))
 }
 
 fn open_palette(app: &mut App) {
@@ -2066,17 +2342,6 @@ fn spawn_verification_thread(tx: Sender<AppEvent>, pending: PendingVerification)
     thread::spawn(move || {
         let report = pending.run();
         let _ = tx.send(AppEvent::Verified(Box::new(report)));
-    });
-}
-
-/// Reading the registry and probing the engines it admits starts subprocesses, so it happens once,
-/// off the drawing thread. The interface is where an operator looks at the engines, so this pass
-/// measures the model catalog of an engine whose recorded list is not the one its installed build
-/// serves.
-fn spawn_probe_thread(tx: Sender<AppEvent>, registry: RegistryAddress) {
-    thread::spawn(move || {
-        let report = crate::runtimes::probe_all(&registry, crate::runtimes::Measure::Catalog);
-        let _ = tx.send(AppEvent::Runtimes(Box::new(report)));
     });
 }
 
