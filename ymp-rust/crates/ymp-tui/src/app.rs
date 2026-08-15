@@ -734,6 +734,16 @@ impl Session {
             }
         }
         self.read_providers();
+        // A decision the operator took while the engines were answering outranks what they
+        // answered. This report was read before that decision, so applying it whole would put
+        // back the readiness of an account that has since been held back — and the routing reads
+        // that readiness, so the next run could be sent to the very account whose permission to
+        // receive repository content was withdrawn. The engines of an account whose permission
+        // moved under the measurement are therefore re-read from the records here, exactly as
+        // holding one back does when nothing is running.
+        for family in self.withdrawn_during(&outcome.families) {
+            self.withdraw_routing_of(family);
+        }
         // The observation is what the catalog is derived from, so the pools are resolved against
         // it here rather than at the next surface that happens to read them: a pool is what a run
         // may recruit from, and it must state the catalog this host has now. This is the one place
@@ -813,6 +823,24 @@ impl Session {
             None => MeasurementShutdown::Nothing,
             Some(probe) => probe.end(),
         }
+    }
+
+    /// Which accounts a measurement covered and the operator has held back since it began.
+    ///
+    /// A measurement carries the accounts that were enabled when it was asked for. One that is no
+    /// longer enabled was withdrawn while the engines were answering, and what those engines
+    /// reported about it is a reading of an account this host is no longer permitted to reach.
+    fn withdrawn_during(&self, measured: &[ProviderFamily]) -> Vec<ProviderFamily> {
+        measured
+            .iter()
+            .copied()
+            .filter(|family| {
+                !self
+                    .providers
+                    .provider(*family)
+                    .is_some_and(|provider| provider.enabled())
+            })
+            .collect()
     }
 
     /// Which accounts are enabled now and were not part of the measurement that has just landed.
