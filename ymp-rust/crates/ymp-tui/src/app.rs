@@ -43,6 +43,7 @@ use crate::state::{App, COMMAND_PREFIX, Command, ConfirmAction, Modal, PageKind,
 use crate::terminal::TerminalGuard;
 use crate::theme::Markers;
 use crate::ui;
+use ymp_runtime_registry::{Engine, Registry};
 
 /// How long the input thread waits before checking whether it should stop.
 const INPUT_TICK: Duration = Duration::from_millis(50);
@@ -73,6 +74,11 @@ pub struct Session {
     /// second run of a project is addressed here rather than refused.
     root: Option<PathBuf>,
     data_root: PathBuf,
+    /// The root the engine registry lives under. An invocation that addressed a root keeps its
+    /// registry there, so every store under that root reads one decision about every engine; an
+    /// invocation that named one exact store keeps the registry beside that store, because it
+    /// named what it acts on and nothing else may be written for it.
+    registry_root: PathBuf,
     model: Model,
     runtimes: Option<Report>,
     /// The request being assembled from what the operator typed, while one is.
@@ -182,6 +188,7 @@ impl Session {
     pub fn open_under_root(root: &Path, data_root: &Path, contracts: &[PreparedContract]) -> Self {
         let mut session = Self::open(data_root, contracts);
         session.root = Some(root.to_path_buf());
+        session.registry_root = root.to_path_buf();
         session
     }
 
@@ -195,6 +202,7 @@ impl Session {
             application: application.map(|application| Arc::new(Mutex::new(application))),
             root: None,
             data_root: data_root.to_path_buf(),
+            registry_root: data_root.to_path_buf(),
             model,
             runtimes: None,
             draft: None,
@@ -254,6 +262,76 @@ impl Session {
 
     pub fn set_runtimes(&mut self, report: Report) {
         self.runtimes = Some(report);
+    }
+
+    /// Address the engine registry under a root this session does not otherwise act under.
+    ///
+    /// A command is handed one store and acts on that store. The engines are not part of a store:
+    /// which of them this host admits is one decision, and every run under a root reads it. An
+    /// invocation given a store therefore still addresses the registry under the root it was
+    /// started with, so a command and the interface can never read different decisions about the
+    /// same engine.
+    pub fn with_registry_root(mut self, root: &Path) -> Self {
+        self.registry_root = root.to_path_buf();
+        self
+    }
+
+    /// The root this session's engine registry lives under.
+    pub fn registry_root(&self) -> &Path {
+        &self.registry_root
+    }
+
+    /// Enable or disable one engine, and say what changed.
+    ///
+    /// The decision is durable: it is written to the registry, so the next invocation — and every
+    /// store under this root — reads it. What this call does not do is re-probe: the held reading
+    /// carries the new flag, and readiness is measured again when the page next asks for it.
+    pub fn set_engine_enabled(&mut self, engine: Engine, enabled: bool, reason: Option<String>) {
+        let registry = Registry::under(&self.registry_root);
+        match registry.set_enabled(engine, enabled, reason.as_deref()) {
+            Err(error) => self.model.error(format!(
+                "the {} engine was not changed — {error}",
+                engine.name()
+            )),
+            Ok(record) => {
+                if let Some(report) = self.runtimes.as_mut()
+                    && let Some(profile) = report
+                        .profiles
+                        .iter_mut()
+                        .find(|profile| profile.name == engine.name())
+                    && let Some(state) = profile.registry.as_mut()
+                {
+                    state.enabled = record.enabled;
+                    state.disabled_reason = record.disabled_reason.clone();
+                    profile.detail = match record.enabled {
+                        true => "enabled in the registry — readiness is measured again when the \
+                                 runtimes page next asks for it"
+                            .to_owned(),
+                        false => format!(
+                            "disabled in the registry — {}. Nothing was probed and nothing is \
+                             offered.",
+                            record.refusal_reason()
+                        ),
+                    };
+                }
+                if self.route.is_some_and(|route| route.engine() == engine) && !record.enabled {
+                    self.route = None;
+                }
+                self.model.reply(match record.enabled {
+                    true => format!(
+                        "the {} engine is enabled · it can be routed to once its probe reports it \
+                         ready",
+                        engine.name()
+                    ),
+                    false => format!(
+                        "the {} engine is disabled — {} · it is not probed, not offered and not \
+                         routed to",
+                        engine.name(),
+                        record.refusal_reason()
+                    ),
+                });
+            }
+        }
     }
 
     pub fn runtimes(&self) -> Option<&Report> {
@@ -444,20 +522,37 @@ impl Session {
         if !text.trim().is_empty() {
             self.model.human(text.clone());
         }
-        // A line naming a runtime profile chooses which agent does the work. It is not part of
-        // the contract — the same contract can be done by either profile — so it amends nothing
-        // and starts no assembly. It is read before anything else a line can be, because the run
-        // it routes may already exist: an attempt is launched into a run this session did not
-        // start as readily as into one it did. Only the word and a profile this product ships is
-        // that choice; anything else opening with the word is a line like any other.
-        if let Some(route) = runtime_line(&text) {
-            self.route = Some(route);
-            self.model.reply(format!(
-                "the work would be done by the {} profile · nothing has started and nothing is \
-                 spent",
-                route.name()
-            ));
-            return None;
+        // A line opening with `runtime` states one of two things about the engines: which of them
+        // does the work of this run, or whether one of them is admitted at all. Neither is part of
+        // the contract — the same contract can be done by either engine — so neither amends the
+        // draft nor starts an assembly. Both are read before anything else a line can be, because
+        // the run they speak about may already exist: an attempt is launched into a run this
+        // session did not start as readily as into one it did. Only the word and something this
+        // product manages is that choice; anything else opening with the word is a line like any
+        // other.
+        match runtime_line(&text) {
+            Some(RuntimeLine::Route(route)) => {
+                self.route = Some(route);
+                self.model.reply(format!(
+                    "the work would be done by the {} profile · nothing has started and nothing is \
+                     spent",
+                    route.name()
+                ));
+                return None;
+            }
+            Some(RuntimeLine::Enabled {
+                engine,
+                enabled,
+                reason,
+            }) => {
+                self.set_engine_enabled(engine, enabled, reason);
+                return None;
+            }
+            Some(RuntimeLine::UnknownEngine(refusal)) => {
+                self.model.error(format!("nothing was changed — {refusal}"));
+                return None;
+            }
+            None => {}
         }
         // A store that holds a finished run, under a root that can address the next one, is
         // ready for the next request: the line is a request again, and authorizing what it drafts
@@ -809,7 +904,7 @@ impl Session {
                 .error("no attempt was launched — this store holds no run to attempt");
             return;
         };
-        match attempt::start(application, route) {
+        match attempt::start(application, route, &self.registry_root) {
             Ok(handle) => {
                 self.model.reply(format!(
                     "attempt {} launched on the {} profile · the workspace is a private copy of \
@@ -1217,18 +1312,61 @@ fn runtime_note(event: &RuntimeEventKind) -> Option<String> {
     }
 }
 
-/// A line that names the runtime profile this run would use.
+/// What a line opening with `runtime` states about the engines.
+#[derive(Clone, Debug, Eq, PartialEq)]
+enum RuntimeLine {
+    /// Which engine does the work of this run.
+    Route(Route),
+    /// Whether an engine is admitted at all, and why it is not.
+    Enabled {
+        engine: Engine,
+        enabled: bool,
+        reason: Option<String>,
+    },
+    /// A line that speaks about admitting an engine but names none this build manages. It is a
+    /// refusal rather than prose: the operator asked for a decision about an engine, so the name
+    /// that selects none is named back instead of being answered as a sentence.
+    UnknownEngine(String),
+}
+
+/// A line that names the runtime profile this run would use, or changes what the registry admits.
 ///
-/// It is the word `runtime` and the name of a profile this product ships, and nothing else. A line
-/// that merely opens with the word is a line: `runtime overhead in the parser must be reduced` is
-/// work somebody is asking for, and taking it as a failed choice of agent would lose the request
-/// and answer a question nobody asked.
-fn runtime_line(text: &str) -> Option<Route> {
+/// A choice of profile is the word `runtime` and the name of a profile this product ships, and
+/// nothing else. A line that merely opens with the word is a line: `runtime overhead in the parser
+/// must be reduced` is work somebody is asking for, and taking it as a failed choice of agent
+/// would lose the request and answer a question nobody asked.
+///
+/// A decision about admission is read more firmly, because `runtime enable` and `runtime disable`
+/// name an action on an engine rather than a profile. A name after either verb that selects no
+/// engine is refused with the engines this build manages, instead of falling back to prose. The
+/// cost is stated: a request whose first three words are `runtime disable <word>` is refused where
+/// it would once have been drafted, and the operator is told exactly which names exist. The gain
+/// is that a command mirroring these lines exits non-zero on a name that changes nothing, which a
+/// line silently taken as prose could never do.
+fn runtime_line(text: &str) -> Option<RuntimeLine> {
     let rest = text.trim().strip_prefix("runtime")?;
     if !rest.starts_with([':', '=', ' ']) {
         return None;
     }
-    Route::parse(rest.trim_start_matches([':', '=', ' ']).trim())
+    let rest = rest.trim_start_matches([':', '=', ' ']).trim();
+    for (word, enabled) in [("enable", true), ("disable", false)] {
+        let Some(tail) = rest.strip_prefix(word).filter(|tail| tail.starts_with(' ')) else {
+            continue;
+        };
+        let tail = tail.trim();
+        let (name, reason) = tail.split_once(char::is_whitespace).unwrap_or((tail, ""));
+        let engine = match Engine::parse(name) {
+            Ok(engine) => engine,
+            Err(error) => return Some(RuntimeLine::UnknownEngine(error.to_string())),
+        };
+        let reason = reason.trim();
+        return Some(RuntimeLine::Enabled {
+            engine,
+            enabled,
+            reason: (!reason.is_empty()).then(|| reason.to_owned()),
+        });
+    }
+    Route::parse(rest).map(RuntimeLine::Route)
 }
 
 /// The contract a started run is bound to, read back from the store it was approved into.
@@ -1315,6 +1453,13 @@ pub enum Action {
     /// The operator typed prose. It is shown as a local turn and answered honestly: no
     /// participant can receive it until the domain carries messages.
     LocalTurn(String),
+    /// Admit an engine, or stop admitting it with a stated reason. The decision is the registry's
+    /// and is durable; nothing about a run changes here.
+    SetEngineEnabled {
+        engine: Engine,
+        enabled: bool,
+        reason: Option<String>,
+    },
     /// Abandon the demonstration a typed answer started. It acts on this interface's own
     /// scheduling: nothing durable is written and nothing spent, so there is nothing for a
     /// command to mirror — a command's process is its own check.
@@ -1351,7 +1496,7 @@ fn event_loop(
     let (tx, rx) = mpsc::channel();
     let stop = Arc::new(AtomicBool::new(false));
     let input = spawn_input_thread(tx.clone(), Arc::clone(&stop));
-    spawn_probe_thread(tx.clone());
+    spawn_probe_thread(tx.clone(), session.registry_root().to_path_buf());
     if let Some(receiver) = session.subscribe() {
         spawn_journal_thread(tx.clone(), receiver);
     }
@@ -1465,6 +1610,14 @@ fn perform(session: &mut Session, app: &mut App, action: Action, tx: &Sender<App
     match action {
         Action::CancelRun => {
             session.cancel_run();
+            adopt(session, app);
+        }
+        Action::SetEngineEnabled {
+            engine,
+            enabled,
+            reason,
+        } => {
+            session.set_engine_enabled(engine, enabled, reason);
             adopt(session, app);
         }
         Action::StartAttempt => {
@@ -1623,6 +1776,23 @@ fn page_key(app: &mut App, kind: PageKind, key: KeyEvent) -> Option<Action> {
             app.describe_index = Some(app.selection_of(kind));
             app.surface = Surface::Page(PageKind::Describe);
             return Some(Action::Rebuild);
+        }
+        // The runtimes page is where an engine is admitted or held back, so the decision is taken
+        // on the row that states it. Disabling from here records no reason of its own; the reason
+        // an operator wants recorded is stated on the `runtime disable <engine> <reason>` line.
+        KeyCode::Enter if kind == PageKind::Runtimes => {
+            let report = app.data.runtimes.as_ref()?;
+            let row = app.selection_of(kind);
+            let engine = report.engine_at(row)?;
+            let enabled = report
+                .profiles
+                .get(row)
+                .is_some_and(|profile| profile.admitted());
+            return Some(Action::SetEngineEnabled {
+                engine,
+                enabled: !enabled,
+                reason: enabled.then(|| "disabled from the runtimes page".to_owned()),
+            });
         }
         KeyCode::Char('?') => app.modal = Modal::Keys,
         KeyCode::Char('q') => app.should_quit = true,
@@ -1787,10 +1957,13 @@ fn spawn_verification_thread(tx: Sender<AppEvent>, pending: PendingVerification)
     });
 }
 
-/// Probing starts subprocesses, so it happens once, off the drawing thread.
-fn spawn_probe_thread(tx: Sender<AppEvent>) {
+/// Reading the registry and probing the engines it admits starts subprocesses, so it happens once,
+/// off the drawing thread. The interface is where an operator looks at the engines, so this pass
+/// measures the model catalog of an engine whose recorded list is not the one its installed build
+/// serves.
+fn spawn_probe_thread(tx: Sender<AppEvent>, registry_root: PathBuf) {
     thread::spawn(move || {
-        let report = crate::runtimes::probe_all();
+        let report = crate::runtimes::probe_all(&registry_root, crate::runtimes::Measure::Catalog);
         let _ = tx.send(AppEvent::Runtimes(Box::new(report)));
     });
 }

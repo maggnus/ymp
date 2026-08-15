@@ -10,10 +10,11 @@ use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use ratatui::Terminal;
 use ratatui::backend::TestBackend;
 use ymp_runtime_api::Readiness;
+use ymp_runtime_registry::{Engine, ModelCatalog, ModelSource};
 use ymp_tui::app::{self, Action};
 use ymp_tui::journal::Model;
 use ymp_tui::projection::{ContractFacts, Environment, Projection, VerifierFacts};
-use ymp_tui::runtimes::{ProfileFacts, Report};
+use ymp_tui::runtimes::{EngineFacts, ProfileFacts, Report};
 use ymp_tui::scenario::{self, Run};
 use ymp_tui::state::{App, PageKind};
 use ymp_tui::{theme, ui};
@@ -61,6 +62,24 @@ pub fn contract(verified: bool) -> ContractFacts {
     }
 }
 
+/// An engine the registry admits, with the model list a measurement of it would have recorded.
+fn engine(engine: Engine, names: Vec<String>) -> EngineFacts {
+    EngineFacts {
+        engine,
+        enabled: true,
+        disabled_reason: None,
+        models: ModelCatalog {
+            source: match names.is_empty() {
+                true => ModelSource::Unmeasured,
+                false => ModelSource::Measured,
+            },
+            measured_for_version: (!names.is_empty()).then(|| "0.0.0".to_owned()),
+            note: None,
+            names,
+        },
+    }
+}
+
 pub fn report() -> Report {
     Report {
         profiles: vec![
@@ -72,6 +91,9 @@ pub fn report() -> Report {
                 version: Some("0.1.0".into()),
                 readiness: Readiness::Ready,
                 detail: "deterministic in-process runtime".into(),
+                // The fixture runtime is not an engine: it has no executable, no credential and
+                // no models, so the registry holds no row for it.
+                registry: None,
             },
             ProfileFacts {
                 name: "codex".into(),
@@ -81,6 +103,7 @@ pub fn report() -> Report {
                 version: None,
                 readiness: Readiness::NotInstalled,
                 detail: "executable not found".into(),
+                registry: Some(engine(Engine::Codex, Vec::new())),
             },
             // Exactly one managed profile is ready, which is the host on which a run has one
             // route and no choice to make. The other is unusable, so the same report is also the
@@ -93,6 +116,10 @@ pub fn report() -> Report {
                 version: Some("0.0.0".into()),
                 readiness: Readiness::Ready,
                 detail: "fixture profile".into(),
+                registry: Some(engine(
+                    Engine::ClaudeCode,
+                    vec!["test/claude-route".to_owned()],
+                )),
             },
         ],
     }
