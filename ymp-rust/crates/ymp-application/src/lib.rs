@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs::{self, File, OpenOptions};
 use std::io::Write;
-use std::path::{Path, PathBuf};
+use std::path::{Component, Path, PathBuf};
 use std::sync::mpsc::{Receiver, SyncSender, TrySendError, sync_channel};
 use thiserror::Error;
 use uuid::Uuid;
@@ -91,6 +91,34 @@ pub enum ApplicationError {
     ExportAlreadyExists(PathBuf),
     #[error("a candidate must be submitted before evidence can be exported")]
     NoCandidateForExport,
+    #[error(
+        "only an accepted candidate is applied into a project directory; this run stands at \
+         {actual:?}"
+    )]
+    CandidateNotAccepted { actual: RunStatus },
+    #[error(
+        "the project directory already holds file(s) the candidate names, and nothing was \
+         written: {}",
+        .0.join(", ")
+    )]
+    ApplyWouldOverwrite(Vec<String>),
+    #[error(
+        "the project directory cannot receive the candidate as it stands, and nothing was \
+         written: {}",
+        .0.join("; ")
+    )]
+    ApplyBlocked(Vec<String>),
+    #[error(
+        "the application stopped after writing {} file(s) into the project directory, which now \
+         holds {}: {source}",
+        .applied.len(),
+        .applied.join(", ")
+    )]
+    ApplyInterrupted {
+        applied: Vec<String>,
+        #[source]
+        source: Box<ApplicationError>,
+    },
 }
 
 #[derive(Debug, Error, Eq, PartialEq)]
@@ -130,6 +158,19 @@ pub struct EvidenceExportReport {
     pub evidence_digests: Vec<String>,
     pub environment_digests: Vec<String>,
     pub event_count: usize,
+}
+
+/// What an in-place application of the accepted candidate put into a project directory.
+///
+/// The paths are the candidate's own, relative to the directory they were applied to, so a
+/// report states exactly which files an operator now has and which of them replaced a file that
+/// was already there.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+pub struct CandidateApplyReport {
+    pub destination: PathBuf,
+    pub candidate_digest: String,
+    pub applied_paths: Vec<String>,
+    pub replaced_paths: Vec<String>,
 }
 
 #[derive(Clone, Copy, Debug, Default)]
@@ -759,6 +800,121 @@ impl Application {
         })
     }
 
+    /// Apply the accepted candidate's files into a project directory, and write nothing else.
+    ///
+    /// This is delivery rather than storage: what lands in the directory is the candidate tree
+    /// exactly as the store holds it — no journal, no verifier evidence, no manifest — because a
+    /// directory an operator works in is not a place to keep a record of the run. The evidence
+    /// bundle of [`Application::export_evidence`] remains the default form of an export and keeps
+    /// that record; this mode is chosen explicitly.
+    ///
+    /// Only an accepted candidate is applied. A rejected or unjudged candidate is refused by its
+    /// run status, so an operator cannot put work into a project directory that nothing has
+    /// approved.
+    ///
+    /// A file the project already holds is a refusal, not a silent replacement: every conflicting
+    /// path is named and nothing at all is written, unless `overwrite` states that replacing them
+    /// is intended. The whole tree is examined before the first file moves, and every path the
+    /// candidate must pass through is examined too, not only the file at its end: a project file
+    /// standing where the candidate needs a directory, or a directory standing where it names a
+    /// file, or a symbolic link on the way, blocks the application before it begins rather than
+    /// stopping it half-way.
+    ///
+    /// The files are materialized into one staging directory and renamed into place, so a file
+    /// that appears in the project is complete and carries the candidate's own permissions. A
+    /// condition the examination cannot see beforehand — a directory the operator may not write
+    /// into, a filesystem that fills — can still stop the moves after some have happened, and
+    /// [`ApplicationError::ApplyInterrupted`] then names the files that are already in the
+    /// project rather than reporting that nothing was written.
+    pub fn apply_candidate(
+        &self,
+        destination: impl AsRef<Path>,
+        overwrite: bool,
+    ) -> Result<CandidateApplyReport, ApplicationError> {
+        let destination = destination.as_ref().to_path_buf();
+        let candidate_digest = self
+            .state
+            .candidate_digest
+            .clone()
+            .ok_or(ApplicationError::NoCandidateForExport)?;
+        if self.state.status != RunStatus::Accepted {
+            return Err(ApplicationError::CandidateNotAccepted {
+                actual: self.state.status,
+            });
+        }
+        let manifest = self.artifact_store().load_snapshot(&candidate_digest)?;
+        let mut targets = Vec::new();
+        for entry in &manifest.files {
+            let relative = checked_candidate_path(&entry.path)?;
+            targets.push((entry.path.clone(), relative));
+        }
+        fs::create_dir_all(&destination)?;
+
+        // What is already there decides whether anything is written at all. Every target and
+        // every directory a target is reached through is examined before the first file moves,
+        // so a refusal names every conflict at once and leaves the directory exactly as it was.
+        let mut occupied = Vec::new();
+        let mut blocked = Vec::new();
+        for (path, relative) in &targets {
+            blocked.extend(blocking_ancestors(&destination, relative));
+            let Ok(metadata) = fs::symlink_metadata(destination.join(relative)) else {
+                continue;
+            };
+            if metadata.is_dir() {
+                blocked.push(format!(
+                    "{path}: a directory stands where the candidate names a file"
+                ));
+            } else {
+                occupied.push(path.clone());
+            }
+        }
+        blocked.sort();
+        blocked.dedup();
+        occupied.sort();
+        if !blocked.is_empty() {
+            return Err(ApplicationError::ApplyBlocked(blocked));
+        }
+        if !occupied.is_empty() && !overwrite {
+            return Err(ApplicationError::ApplyWouldOverwrite(occupied));
+        }
+
+        let staging = destination.join(format!(".ymp-apply-{}", Uuid::new_v4()));
+        self.artifact_store()
+            .materialize(&candidate_digest, &staging)?;
+        let mut moved: Vec<String> = Vec::new();
+        let result = (|| -> Result<(), ApplicationError> {
+            for (path, relative) in &targets {
+                let target = destination.join(relative);
+                if let Some(parent) = target.parent() {
+                    fs::create_dir_all(parent)?;
+                }
+                fs::rename(staging.join(relative), &target)?;
+                moved.push(path.clone());
+            }
+            File::open(&destination)?.sync_all()?;
+            Ok(())
+        })();
+        let _ = fs::remove_dir_all(&staging);
+        if let Err(error) = result {
+            // Some of the candidate may already be in the project. Saying that nothing was
+            // written would be false, so what is there is named instead.
+            moved.sort();
+            return Err(ApplicationError::ApplyInterrupted {
+                applied: moved,
+                source: Box::new(error),
+            });
+        }
+
+        let mut applied_paths = moved;
+        applied_paths.sort();
+        Ok(CandidateApplyReport {
+            destination,
+            candidate_digest,
+            applied_paths,
+            replaced_paths: occupied,
+        })
+    }
+
     fn replay(
         &self,
         command_id: &str,
@@ -996,6 +1152,59 @@ impl AgentSession<'_> {
         serde_json::to_value(outcome)
             .map_err(|_| AgentToolError::internal("command outcome serialization failed"))
     }
+}
+
+/// A candidate path as it may be joined to a project directory: relative, and made of ordinary
+/// names only, so nothing a manifest carries can address a file outside the directory applied to.
+fn checked_candidate_path(path: &str) -> Result<PathBuf, ApplicationError> {
+    let value = Path::new(path);
+    if path.is_empty()
+        || value.is_absolute()
+        || value
+            .components()
+            .any(|component| !matches!(component, Component::Normal(_)))
+    {
+        return Err(ApplicationError::Io(std::io::Error::new(
+            std::io::ErrorKind::InvalidData,
+            format!("the candidate names a path that cannot be applied: {path}"),
+        )));
+    }
+    Ok(value.to_path_buf())
+}
+
+/// Everything on the way to a candidate file that stops it from being written there.
+///
+/// The candidate's path is relative and checked, but the directories it passes through belong to
+/// the project. A file standing where the candidate needs a directory makes the write impossible,
+/// and a symbolic link would carry it outside the directory the operator named; a path examined
+/// only at its end sees neither, because the operating system reports the same condition for a
+/// path that does not exist yet and for one whose parent is not a directory.
+fn blocking_ancestors(destination: &Path, relative: &Path) -> Vec<String> {
+    let mut blocking = Vec::new();
+    let mut walked = destination.to_path_buf();
+    let mut inside = PathBuf::new();
+    let mut components: Vec<_> = relative.components().collect();
+    components.pop();
+    for component in components {
+        walked.push(component);
+        inside.push(component);
+        let Ok(metadata) = fs::symlink_metadata(&walked) else {
+            // Nothing exists here yet, so nothing below it can exist either: the application
+            // creates the rest of the path itself.
+            break;
+        };
+        let reached = inside.display();
+        if metadata.file_type().is_symlink() {
+            blocking.push(format!(
+                "{reached}: the project reaches this path through a symbolic link"
+            ));
+        } else if !metadata.is_dir() {
+            blocking.push(format!(
+                "{reached}: the project holds a file where the candidate needs a directory"
+            ));
+        }
+    }
+    blocking
 }
 
 fn copy_export_tree(source: &Path, destination: &Path) -> Result<(), ApplicationError> {

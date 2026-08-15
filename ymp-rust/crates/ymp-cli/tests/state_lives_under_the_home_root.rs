@@ -205,6 +205,67 @@ fn an_export_delivers_the_accepted_candidate_into_the_launch_directory_and_nothi
     }
 }
 
+/// The delivery the owner asked for: the result stands where the operator works, as files, with
+/// no directory of the product's own around it.
+///
+/// The negative half is the export as it is delivered by default, driven against the same run in
+/// the check above: a directory named after the run, carrying the journal and the manifests
+/// beside the candidate.
+#[test]
+fn an_applied_export_puts_the_candidate_into_the_launch_directory_itself() {
+    let host = Host::new();
+    let project = host.project("in-place");
+
+    let store = DataRoot::open_for_project(&host.root(), &project)
+        .expect("the home root")
+        .store(StoreIntent::New)
+        .expect("the project's first store");
+    ymp_testkit::run_accepted_demo(&store).expect("an accepted run");
+    assert!(
+        entries(&project).is_empty(),
+        "an accepted run left state in the launch directory: {:?}",
+        relative_paths(&project)
+    );
+
+    let applied = host.command(&project, &["export".to_owned(), "--apply".to_owned()]);
+    applied.assert_succeeded();
+
+    assert_eq!(
+        vec![
+            "EVIDENCE.txt".to_owned(),
+            "README.md".to_owned(),
+            "src".to_owned(),
+            "src/lib.rs".to_owned()
+        ],
+        relative_paths(&project),
+        "the launch directory holds something other than the candidate's files"
+    );
+    assert_eq!(
+        "pub fn answer() -> u8 { 42 }\n",
+        fs::read_to_string(project.join("src/lib.rs")).expect("the applied candidate"),
+        "what was applied is not the accepted candidate"
+    );
+
+    // Applying again over the operator's own file is refused by name, and the file stands.
+    fs::write(project.join("src/lib.rs"), b"the operator's own work\n").expect("project file");
+    let refused = host.command(&project, &["export".to_owned(), "--apply".to_owned()]);
+    assert!(
+        !refused.output.status.success(),
+        "applying over a project file was not refused: {}",
+        refused.text()
+    );
+    assert!(
+        refused.text().contains("src/lib.rs"),
+        "the refusal does not name the file that stopped it: {}",
+        refused.text()
+    );
+    assert_eq!(
+        "the operator's own work\n",
+        fs::read_to_string(project.join("src/lib.rs")).expect("project file"),
+        "a refused application changed a project file"
+    );
+}
+
 // ---------------------------------------------------------------------------
 // The fixture
 // ---------------------------------------------------------------------------
