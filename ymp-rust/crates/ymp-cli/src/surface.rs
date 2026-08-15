@@ -222,6 +222,7 @@ pub enum PageName {
     Events,
     Budgets,
     Attempts,
+    Commitments,
     Describe,
 }
 
@@ -233,6 +234,7 @@ impl PageName {
             Self::Events => PageKind::Events,
             Self::Budgets => PageKind::Budgets,
             Self::Attempts => PageKind::Attempts,
+            Self::Commitments => PageKind::Commitments,
             Self::Describe => PageKind::Describe,
         }
     }
@@ -246,6 +248,7 @@ impl PageName {
             PageKind::Events => Self::Events,
             PageKind::Budgets => Self::Budgets,
             PageKind::Attempts => Self::Attempts,
+            PageKind::Commitments => Self::Commitments,
             PageKind::Describe => Self::Describe,
         }
     }

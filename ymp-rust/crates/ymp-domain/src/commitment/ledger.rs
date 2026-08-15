@@ -684,6 +684,19 @@ impl CommitmentLedger {
         Ok(events)
     }
 
+    /// Commit one fact that was decided and recorded earlier, which is how a ledger is rebuilt
+    /// from a durable record.
+    ///
+    /// This is the recovery path and the only way a fact enters a ledger without being decided
+    /// here first. What it takes must therefore come from a record the kernel itself committed:
+    /// nothing in this method re-checks the authority, the deadlines or the funding that
+    /// [`Self::decide`] established, because a committed fact is not a request. A fact the
+    /// accounts cannot honour is reported rather than dropped, so a record that does not rebuild
+    /// refuses the whole recovery instead of producing a ledger that quietly differs from it.
+    pub fn replay(&mut self, fact: &CommitmentEvent) -> Result<(), CommitmentError> {
+        self.apply(fact)
+    }
+
     /// The facts a command would commit, or the reason it may not.
     pub fn decide(
         &self,

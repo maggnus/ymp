@@ -9,6 +9,10 @@
 //! The identifiers are deliberately generic. A scenario is a shape of run, not a re-enactment
 //! of the design artifact's illustration.
 
+use ymp_domain::commitment::{
+    Advertise, Award, BudgetVector, CommitmentCommand, CommitmentLedger, Dimension, FundingSource,
+    OfferPolicy, RecordBid, RegisterParticipant,
+};
 use ymp_domain::{
     Budget, Command, EventEnvelope, EventKind, RunState, VerificationDecision, VerificationRecord,
 };
@@ -199,6 +203,122 @@ pub fn infrastructure_error() -> Run {
             reason: "the verifier environment object could not be read".to_owned(),
         })
         .finish()
+}
+
+/// A live run whose commitment kernel formed one task contract.
+///
+/// The facts are not written by hand: a real ledger is asked to decide each command, and what it
+/// commits is what the journal records carry — exactly as the application commits them. A screen
+/// built over this run is therefore evidence about the binding and not about a fixture.
+pub fn with_commitments() -> Run {
+    committed_run(escrow_units())
+}
+
+/// The same run with a different escrow, so a screen bound to the ledger cannot draw the same
+/// values for both.
+pub fn with_commitments_of(units: u64) -> Run {
+    committed_run(units)
+}
+
+/// What one award moves into the task contract it forms, in every dimension the work spends.
+const fn escrow_units() -> u64 {
+    2_000
+}
+
+fn committed_run(units: u64) -> Run {
+    const SPONSOR: &str = "sponsor-root";
+    const SPONSOR_PRINCIPAL: &str = "principal-root";
+    const ROOT_OBLIGATION: &str = "obligation-root";
+    const CONTRACTOR: &str = "participant-one";
+    const OFFER: &str = "offer-one";
+    const BID: &str = "bid-one";
+    const CLASS: &str = "class-one";
+
+    // The three dimensions the work itself spends. The authorities to start, offer and create are
+    // added where each account needs them, so no account carries capacity it never uses.
+    let capacity = |units: u64| {
+        BudgetVector::ZERO
+            .with(Dimension::MoneyMicros, units)
+            .with(Dimension::ModelTokens, units)
+            .with(Dimension::WallTimeMs, units)
+    };
+    let root_budget = capacity(1_000_000)
+        .with(Dimension::VerificationQueries, 8)
+        .with(Dimension::ParticipantStarts, 8)
+        .with(Dimension::AttemptStarts, 16)
+        .with(Dimension::InvocationStarts, 16)
+        .with(Dimension::OfferCreations, 8)
+        .with(Dimension::ObligationCreations, 8);
+    let endowment = capacity(50_000)
+        .with(Dimension::AttemptStarts, 4)
+        .with(Dimension::InvocationStarts, 4)
+        .with(Dimension::OfferCreations, 2)
+        .with(Dimension::ObligationCreations, 2);
+    let escrow = |units: u64| {
+        capacity(units)
+            .with(Dimension::AttemptStarts, 2)
+            .with(Dimension::InvocationStarts, 2)
+    };
+
+    let mut ledger =
+        CommitmentLedger::new(SPONSOR, SPONSOR_PRINCIPAL, ROOT_OBLIGATION, root_budget)
+            .expect("the root ledger of the scenario");
+    let mut builder = Builder::start("demo-run", Budget::new(3, 2));
+    builder = builder.commit(EventKind::CommitmentKernelOpened {
+        root_participant: SPONSOR.to_owned(),
+        root_principal: SPONSOR_PRINCIPAL.to_owned(),
+        root_obligation: ROOT_OBLIGATION.to_owned(),
+        budget: root_budget,
+    });
+
+    let commands = vec![
+        CommitmentCommand::RegisterParticipant(RegisterParticipant {
+            participant_id: CONTRACTOR.to_owned(),
+            principal_id: "principal-one".to_owned(),
+            sponsor: SPONSOR.to_owned(),
+            endowment,
+        }),
+        CommitmentCommand::Advertise(Advertise {
+            offer_id: OFFER.to_owned(),
+            sponsor: SPONSOR.to_owned(),
+            parent_obligation: ROOT_OBLIGATION.to_owned(),
+            funding_source: FundingSource::Participant,
+            task_scope: "scope-one".to_owned(),
+            base_digest: digest(0xba),
+            intent_digest: digest(0x1e),
+            artifact_class: CLASS.to_owned(),
+            dependencies: Vec::new(),
+            capability_scope: Vec::new(),
+            execution_escrow: escrow(units),
+            policy: OfferPolicy::Negotiated,
+            bid_deadline: 100_000,
+            offer_deadline: 100_000,
+            max_awards: 1,
+        }),
+        CommitmentCommand::RecordBid(RecordBid {
+            bid_id: BID.to_owned(),
+            offer_id: OFFER.to_owned(),
+            bidder: CONTRACTOR.to_owned(),
+            requested_escrow: escrow(units),
+            artifact_class: CLASS.to_owned(),
+            proposal_digest: Some(digest(0x9a)),
+            expires_at: 100_000,
+        }),
+        CommitmentCommand::Award(Award {
+            contract_id: "contract-one".to_owned(),
+            obligation_id: "obligation-one".to_owned(),
+            lease_id: "lease-one".to_owned(),
+            offer_id: OFFER.to_owned(),
+            bid_id: BID.to_owned(),
+            sponsor: SPONSOR.to_owned(),
+            lease_ms: units,
+        }),
+    ];
+    for command in &commands {
+        let facts = ledger.execute(command).expect("a legal commitment command");
+        builder = builder.commit(EventKind::CommitmentFactsRecorded { facts });
+    }
+    attempt(builder, "attempt-1").finish()
 }
 
 /// A long run: many candidates, so a page has to window its rows.

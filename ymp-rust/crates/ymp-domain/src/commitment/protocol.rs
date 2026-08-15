@@ -421,6 +421,41 @@ pub enum CommitmentEvent {
     },
 }
 
+impl CommitmentEvent {
+    /// The name this fact is recorded under, which is the tag its serialized form carries.
+    ///
+    /// A reader that shows a fact states this name rather than one of its own, so what an
+    /// operator reads on a screen and what the journal holds cannot drift apart.
+    pub const fn name(&self) -> &'static str {
+        match self {
+            Self::ClockAdvanced { .. } => "clock_advanced",
+            Self::ParticipantRegistered { .. } => "participant_registered",
+            Self::BudgetTransferred { .. } => "budget_transferred",
+            Self::BudgetConsumed { .. } => "budget_consumed",
+            Self::OfferAdvertised { .. } => "offer_advertised",
+            Self::OfferWithdrawn { .. } => "offer_withdrawn",
+            Self::OfferSettled { .. } => "offer_settled",
+            Self::BidRecorded { .. } => "bid_recorded",
+            Self::BidWithdrawn { .. } => "bid_withdrawn",
+            Self::TaskContractFormed { .. } => "task_contract_formed",
+            Self::ObligationCreated { .. } => "obligation_created",
+            Self::LeaseIssued { .. } => "lease_issued",
+            Self::LeaseRenewed { .. } => "lease_renewed",
+            Self::ContractReassigned { .. } => "contract_reassigned",
+            Self::AttemptStarted { .. } => "attempt_started",
+            Self::SubmissionRecorded { .. } => "submission_recorded",
+            Self::ObligationReturned { .. } => "obligation_returned",
+            Self::ContractCancelled { .. } => "contract_cancelled",
+            Self::InvocationStarted { .. } => "invocation_started",
+            Self::InvocationYielded { .. } => "invocation_yielded",
+            Self::InvocationResumed { .. } => "invocation_resumed",
+            Self::InvocationClosed { .. } => "invocation_closed",
+            Self::VerificationRecorded { .. } => "verification_recorded",
+            Self::RunStopped { .. } => "run_stopped",
+        }
+    }
+}
+
 #[derive(Clone, Debug, Error, Eq, PartialEq)]
 pub enum CommitmentError {
     #[error("{kind} must contain between 1 and {MAX_IDENTIFIER_CHARS} characters")]

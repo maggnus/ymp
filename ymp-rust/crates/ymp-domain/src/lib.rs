@@ -7,9 +7,12 @@ use thiserror::Error;
 pub mod commitment;
 pub mod contract;
 
-/// Journal schema version 2 adds the `contract_approved` event tag, which binds a run to the
-/// contract it is judged against. Version 1 had no such tag; see `ymp-rust/SCHEMA.md`.
-pub const EVENT_SCHEMA_VERSION: u32 = 2;
+use commitment::{BudgetVector, CommitmentEvent};
+
+/// Journal schema version 3 adds the two commitment tags, which carry the facts of the commitment
+/// kernel into the durable record. Version 2 added `contract_approved` and version 1 had neither;
+/// see `ymp-rust/SCHEMA.md`.
+pub const EVENT_SCHEMA_VERSION: u32 = 3;
 pub const MAX_IDENTIFIER_CHARS: usize = 128;
 pub const MAX_REASON_BYTES: usize = 1024;
 
@@ -126,6 +129,24 @@ pub enum EventKind {
         oracle_digest: String,
         evidence_digest: String,
         accepted: bool,
+    },
+    /// The state a commitment kernel starts from: the participant the whole run is accountable
+    /// through, the principal it acts as, the obligation that work hangs under, and the budget
+    /// that participant opens with. A ledger is rebuilt from this record and the facts that
+    /// follow it, so nothing about its starting point has to be carried across a restart.
+    CommitmentKernelOpened {
+        root_participant: String,
+        root_principal: String,
+        root_obligation: String,
+        budget: BudgetVector,
+    },
+    /// Every fact one commitment command committed, in the order the kernel committed them.
+    ///
+    /// A command commits all of its facts or none of them, and one journal record is what keeps
+    /// that true across a restart: a reader either has the whole command or does not have the
+    /// record at all, so no recovery can rebuild a ledger holding half an award.
+    CommitmentFactsRecorded {
+        facts: Vec<CommitmentEvent>,
     },
     RunExhausted {
         reason: String,
@@ -404,6 +425,11 @@ impl RunState {
                     self.active_attempts.clear();
                 }
             }
+            // The commitment kernel keeps its own accounting, and this projection carries none of
+            // it: the run status, the attempt budget and the immutable candidate are decided by
+            // the run's own transitions and by nothing a commitment records.
+            EventKind::CommitmentKernelOpened { .. }
+            | EventKind::CommitmentFactsRecorded { .. } => {}
             EventKind::RunExhausted { .. } => {
                 self.status = RunStatus::Exhausted;
                 self.active_attempts.clear();

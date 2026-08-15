@@ -15,6 +15,10 @@
 use std::path::{Path, PathBuf};
 
 use ymp_application::PreparedContract;
+use ymp_domain::commitment::{
+    BudgetVector, ContractState, DIMENSIONS, ObligationRecord, ObligationState, Outcome,
+    TaskContractRecord,
+};
 use ymp_domain::contract::ContractDocument;
 use ymp_domain::{Budget, RunState, RunStatus};
 
@@ -329,6 +333,105 @@ pub struct AttemptFacts {
     pub started_at_sequence: u64,
     pub active: bool,
     pub candidates: usize,
+}
+
+/// The state of a task contract, named exactly as the commitment kernel records it.
+pub fn contract_state(state: ContractState) -> &'static str {
+    match state {
+        ContractState::Active => "active",
+        ContractState::Returned => "returned",
+        ContractState::Cancelled => "cancelled",
+    }
+}
+
+/// The state of a work obligation, named exactly as the commitment kernel records it.
+pub fn obligation_state(state: ObligationState) -> &'static str {
+    match state {
+        ObligationState::Active => "active",
+        ObligationState::Terminal => "terminal",
+    }
+}
+
+/// How outstanding work ended. A returned obligation names one of these and never "done": a
+/// dead end, a decline and an exhausted budget are outcomes of their own, not failures of the
+/// same kind.
+pub fn commitment_outcome(outcome: &Outcome) -> &'static str {
+    match outcome {
+        Outcome::Result { .. } => "result",
+        Outcome::DeadEnd => "dead_end",
+        Outcome::Declined => "declined",
+        Outcome::Exhausted => "exhausted",
+        Outcome::Cancelled => "cancelled",
+        Outcome::InfrastructureError => "infrastructure_error",
+    }
+}
+
+/// One task contract of the run's commitment kernel, as the journal's facts left it.
+#[derive(Clone, Debug)]
+pub struct CommitmentFacts {
+    pub contract_id: String,
+    pub sponsor: String,
+    pub contractor: String,
+    pub obligation_id: String,
+    pub state: &'static str,
+    /// Whether the contract can still be advanced. A returned or cancelled one cannot.
+    pub active: bool,
+    /// The fencing generation of the lease, which every state-changing command must repeat.
+    pub generation: u64,
+    /// What the contract still holds, dimension by dimension. Only the dimensions that hold
+    /// something appear; a dimension at zero is not stated, because it authorizes nothing.
+    pub escrow: Vec<(&'static str, u64)>,
+    pub candidate_digest: Option<String>,
+}
+
+impl CommitmentFacts {
+    pub fn from_record(record: &TaskContractRecord) -> Self {
+        Self {
+            contract_id: record.contract_id.clone(),
+            sponsor: record.sponsor.clone(),
+            contractor: record.contractor.clone(),
+            obligation_id: record.obligation_id.clone(),
+            state: contract_state(record.state),
+            active: record.state == ContractState::Active,
+            generation: record.lease.generation,
+            escrow: held(&record.escrow),
+            candidate_digest: record.candidate_digest.clone(),
+        }
+    }
+}
+
+/// One work obligation of the run's commitment kernel.
+#[derive(Clone, Debug)]
+pub struct ObligationFacts {
+    pub obligation_id: String,
+    pub owner: String,
+    /// The obligation this one hangs under. The root of the run hangs under nothing.
+    pub parent: Option<String>,
+    pub state: &'static str,
+    pub outcome: Option<&'static str>,
+}
+
+impl ObligationFacts {
+    pub fn from_record(record: &ObligationRecord) -> Self {
+        Self {
+            obligation_id: record.obligation_id.clone(),
+            owner: record.owner.clone(),
+            parent: record.parent.clone(),
+            state: obligation_state(record.state),
+            outcome: record.outcome.as_ref().map(commitment_outcome),
+        }
+    }
+}
+
+/// The dimensions a vector actually holds, named by the domain and never by this layer.
+fn held(escrow: &BudgetVector) -> Vec<(&'static str, u64)> {
+    DIMENSIONS
+        .into_iter()
+        .filter_map(|dimension| {
+            let units = escrow.get(dimension);
+            (units > 0).then_some((dimension.as_str(), units))
+        })
+        .collect()
 }
 
 /// One journal event, reduced to what a dense row shows.
