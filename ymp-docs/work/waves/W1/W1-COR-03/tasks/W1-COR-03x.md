@@ -3,23 +3,23 @@ id: W1-COR-03x
 kind: task
 wave: W1
 card: W1-COR-03
-state: active
+state: accepted
 risk: significant
 maturity: BUILD
 relation: required
 depends_on: [W1-COR-03f]
 blocks: []
 created_at: 2026-08-15T16:45:00+08:00
-updated_at: 2026-08-15T16:45:00+08:00
+updated_at: 2026-08-15T19:30:00+08:00
 started_at: 2026-08-15T16:45:00+08:00
-accepted_at:
-candidate_commit:
+accepted_at: 2026-08-15T19:30:00+08:00
+candidate_commit: eb0fdd3
 closure_commit:
 evidence:
 duration_minutes: 0
 blocker:
 pause_reason:
-return_trigger:
+return_trigger: the kernel serialisation changed again without a mutation that fails the race test; or a second production caller of execute_commitment lands without a terminal guard independent of StopRun
 deliberate_partial: false
 ---
 
@@ -53,12 +53,27 @@ store shows the ledger. Closes residue R1 of W1-COR-03f.
 
 ## Acceptance
 
-- [ ] A product-started run journals its commitment facts and shows them on `/commitments`; the
+- [x] A product-started run journals its commitment facts and shows them on `/commitments`; the
       negative half (current tree) leaves no records and refuses the page.
-- [ ] Concurrent commands from two participants are serialised without lost or reordered facts
+- [x] Concurrent commands from two participants are serialised without lost or reordered facts
       (race test), and restart equivalence still holds.
-- [ ] R2 and R3 closed with a test each.
+- [x] R2 and R3 closed with a test each.
 
 ## Current state
 
-Active.
+Accepted 2026-08-15 (candidate eb0fdd3, review ACCEPT WITH RESIDUE, merged at 9cd989f).
+
+## Findings
+
+- The run's kernel now journals through `Application::execute_commitment` under the run journal's
+  own lock; product-path test proves records + run facts + non-empty `/commitments`; fails on
+  baseline. Lock discipline verified: no inversion, no await, bounded shutdown intact.
+- Behaviour change (a) measured: a cancelled run's ledger can still take a wake offer with an
+  escrow draw until `StopRun` — bounded (no surface total moves, escrow settles back), not a
+  regression versus the in-memory ledger.
+- R1 (residue): the race test's stated falsifier does not fire at a microsecond window (0/30);
+  it fires at 5 ms (27/30). Stronger shape without new API: contend N threads on one aggregate.
+- R2 (residue): `execute_commitment` has no terminal guard above the ledger's `stopped` flag; the
+  first non-kernel production caller (e.g. `submit_bundle` from 03d's child) must add one.
+- Child: retire `CommitmentService` (no production caller) — sequence after the 03d merge since
+  both touch `invocation_wakes.rs`.
