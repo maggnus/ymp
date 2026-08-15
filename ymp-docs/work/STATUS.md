@@ -44,7 +44,7 @@
 | `[x]` | [`W1-APP-02v`](waves/W1/W1-APP-02/tasks/W1-APP-02v.md) | The dialogue experience converges on the Claude Code interface | [`7e98831`](https://github.com/maggnus/ymp/commit/7e98831) | 14/08 02:19 | 14/08 04:08 (0m) |
 | `[x]` | [`W1-APP-02w`](waves/W1/W1-APP-02/tasks/W1-APP-02w/TASK.md) | Product state lives under one .ymp root that supports many projects | [`9996944`](https://github.com/maggnus/ymp/commit/9996944) | 14/08 02:13 | 14/08 03:06 (53m) |
 | `[x]` | [`W1-APP-02w.1`](waves/W1/W1-APP-02/tasks/W1-APP-02w/subtasks/W1-APP-02w.1.md) | Product state lives under ~/.ymp; the launch directory stays untouched | [`d457519`](https://github.com/maggnus/ymp/commit/d457519) | 15/08 08:15 | 15/08 08:55 (0m) |
-| `[ ]` | [`W1-APP-02w.2`](waves/W1/W1-APP-02/tasks/W1-APP-02w/subtasks/W1-APP-02w.2.md) | A run identifier names the run, not only its contract | — | — | — |
+| `[~]` | [`W1-APP-02w.2`](waves/W1/W1-APP-02/tasks/W1-APP-02w/subtasks/W1-APP-02w.2.md) | A run identifier names the run, not only its contract | — | 15/08 12:38 | 15/08 12:38 (0m) |
 | `[~]` | [`W1-APP-02w.3`](waves/W1/W1-APP-02/tasks/W1-APP-02w/subtasks/W1-APP-02w.3.md) | Export can apply the accepted candidate in place | — | 15/08 12:18 | 15/08 12:18 (0m) |
 | `[x]` | [`W1-APP-02x`](waves/W1/W1-APP-02/tasks/W1-APP-02x.md) | Entry validation cannot hold the interface | [`7e98831`](https://github.com/maggnus/ymp/commit/7e98831) | 14/08 02:19 | 14/08 04:08 (0m) |
 | `[x]` | [`W1-APP-02y`](waves/W1/W1-APP-02/tasks/W1-APP-02y.md) | The run record itself carries the per-model spend | [`c63130c`](https://github.com/maggnus/ymp/commit/c63130c) | 14/08 05:19 | 14/08 22:59 (0m) |
@@ -73,7 +73,7 @@
 | `[x]` | [`W1-COR-03q`](waves/W1/W1-COR-03/tasks/W1-COR-03q.md) | A poisoned journal lock still lets the run record its terminal | [`40c1095`](https://github.com/maggnus/ymp/commit/40c1095) | 15/08 00:34 | 15/08 01:04 (0m) |
 | `[x]` | [`W1-COR-03r`](waves/W1/W1-COR-03/tasks/W1-COR-03r.md) | A limit expiry is not silenced by a simultaneous cancel | [`40c1095`](https://github.com/maggnus/ymp/commit/40c1095) | 15/08 00:34 | 15/08 01:04 (0m) |
 | `[x]` | [`W1-COR-03s`](waves/W1/W1-COR-03/tasks/W1-COR-03s.md) | An operator cancel survives a poisoned lock, and Drop never hangs | [`ddd250c`](https://github.com/maggnus/ymp/commit/ddd250c) | 15/08 01:04 | 15/08 01:55 (0m) |
-| `[ ]` | [`W1-COR-03t`](waves/W1/W1-COR-03/tasks/W1-COR-03t.md) | A cancel interrupts a runtime that is still working | — | — | — |
+| `[~]` | [`W1-COR-03t`](waves/W1/W1-COR-03/tasks/W1-COR-03t.md) | A cancel interrupts a runtime that is still working | — | 15/08 12:38 | 15/08 12:38 (0m) |
 | `[ ]` | [`W1-COR-03u`](waves/W1/W1-COR-03/tasks/W1-COR-03u.md) | The application recovers its memory from the journal after an interrupted apply | — | — | — |
 | `[ ]` | [`W1-EVL-04`](waves/W1/W1-EVL-04/CARD.md) | Controlled evidence decides both POC hypotheses | — | — | — |
 | `[?]` | [`W1-EVL-04a`](waves/W1/W1-EVL-04/tasks/W1-EVL-04a.md) | Matched-budget arms produce comparable acceptance evidence | — | — | — |
