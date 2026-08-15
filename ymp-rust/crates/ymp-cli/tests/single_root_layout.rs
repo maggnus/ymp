@@ -1,17 +1,19 @@
-//! Acceptance: everything the product writes in the directory it was started from lives under one
-//! `.ymp` root, and that root carries many projects and many runs without a directory name the
-//! operator had to invent.
+//! Acceptance: everything the product writes lives under one root, and that root carries many
+//! projects and many runs without a directory name the operator had to invent.
+//!
+//! The root itself stands at the operator's home rather than beside the project;
+//! `state_lives_under_the_home_root.rs` owns that outcome and the launch directory it leaves
+//! empty. What is checked here is the layout inside the root, whichever directory it stands in.
 //!
 //! Every check here drives the built executable from a project directory, exactly as an operator
 //! does, and states its negative half against the same executable:
 //!
 //! * two runs of one project land in two stores under one root — against one named store, where
 //!   the second run is refused;
-//! * two projects keep disjoint state — proved by driving both and diffing what each tree records;
-//! * nothing is written beside the root in the launch directory — against a named store, which is
-//!   the sibling directory this layout removes;
-//! * a store written by the earlier layout is read where it stands or refused with the reason
-//!   named, and never copied.
+//! * two projects keep disjoint state under the one root they share — proved by driving both and
+//!   diffing what each tree records;
+//! * state an earlier build wrote beside the project is read where it stands or refused with the
+//!   reason named, and never copied.
 
 use std::collections::BTreeSet;
 use std::fs;
@@ -37,7 +39,7 @@ fn two_runs_of_one_project_land_in_two_stores_under_one_root() {
         2,
         stores.len(),
         "two runs did not produce two stores; the root holds {:?}",
-        relative_paths(&project.join(".ymp"))
+        relative_paths(&host.root())
     );
     assert_eq!(
         vec!["0001", "0002"],
@@ -165,7 +167,7 @@ fn a_read_leaves_no_project_directory_without_its_marker() {
 
     host.command(&project, &["show".to_owned(), "events".to_owned()]);
 
-    let written = relative_paths(&project);
+    let written = relative_paths(&host.root());
     let markers: Vec<&String> = written
         .iter()
         .filter(|path| path.ends_with("/project.json"))
@@ -207,15 +209,9 @@ fn two_projects_on_one_host_keep_disjoint_state() {
     assert!(first_tree.contains(&first_id) && !first_tree.contains(&second_id));
     assert!(second_tree.contains(&second_id) && !second_tree.contains(&first_id));
 
-    // Each project addressed its own root here. The same two projects under one shared root are
-    // held apart by the project segment, which is derived from the directory rather than stated.
-    let shared = host.host.path().join("shared-root");
-    let named = |root: &Path| ["--root".to_owned(), root.display().to_string()];
-    host.start(&first, &named(&shared), "shared-first")
-        .assert_started();
-    host.start(&second, &named(&shared), "shared-second")
-        .assert_started();
-    let segments = relative_paths(&shared.join("projects"))
+    // Both projects addressed the one root the host carries, and are held apart inside it by the
+    // project segment, which is derived from the directory rather than stated.
+    let segments = relative_paths(&host.root().join("projects"))
         .into_iter()
         .filter(|path| !path.contains('/'))
         .collect::<BTreeSet<_>>();
@@ -224,53 +220,28 @@ fn two_projects_on_one_host_keep_disjoint_state() {
         segments.len(),
         "one root filed two projects under {segments:?}"
     );
-}
 
-// ---------------------------------------------------------------------------
-// Nothing beside the root
-// ---------------------------------------------------------------------------
-
-#[test]
-fn nothing_is_written_beside_the_root_in_the_launch_directory() {
-    let host = Host::new();
-    let project = host.project("clean-launch");
-
-    host.start(&project, &[], "first").assert_started();
-    host.start(&project, &[], "second").assert_started();
-    host.command(&project, &["show".to_owned(), "events".to_owned()]);
-
-    let written = relative_paths(&project);
-    assert!(!written.is_empty(), "the runs wrote nothing at all");
-    let outside: Vec<&String> = written
-        .iter()
-        .filter(|path| *path != ".ymp" && !path.starts_with(".ymp/"))
-        .collect();
-    assert!(
-        outside.is_empty(),
-        "the product wrote outside the root: {outside:?}"
-    );
-
-    // The negative half: a named store is the sibling directory this layout removes, and today's
-    // default named exactly one such sibling.
-    let sibling = host.project("named-sibling");
+    // The negative half: a root named per project keeps them apart by standing apart, which is
+    // what made an operator name a directory in the first place.
+    let apart = host.host.path().join("root-of-its-own");
     host.start(
-        &sibling,
-        &["--data-root".to_owned(), ".ymp-data".to_owned()],
-        "first",
+        &first,
+        &["--root".to_owned(), apart.display().to_string()],
+        "apart",
     )
     .assert_started();
-    let beside = relative_paths(&sibling)
-        .into_iter()
-        .filter(|path| !path.starts_with(".ymp/") && path != ".ymp")
-        .collect::<Vec<_>>();
-    assert!(
-        beside.iter().any(|path| path.starts_with(".ymp-data")),
-        "the named store did not write beside the root: {beside:?}"
+    assert_eq!(
+        1,
+        relative_paths(&apart.join("projects"))
+            .into_iter()
+            .filter(|path| !path.contains('/'))
+            .count(),
+        "a root named for one project holds another project's state"
     );
 }
 
 // ---------------------------------------------------------------------------
-// A store written by the earlier layout
+// State an earlier build wrote beside the project
 // ---------------------------------------------------------------------------
 
 #[test]
@@ -300,7 +271,7 @@ fn a_store_of_the_earlier_layout_is_read_where_it_stands_and_never_copied() {
     );
     assert!(
         !project.join(".ymp").exists(),
-        "the refusal created the root it refused to begin"
+        "the refusal created a root beside the store it refused to begin"
     );
 
     // Read where it stands: the earlier store answers, unchanged.
@@ -324,8 +295,8 @@ fn a_store_of_the_earlier_layout_is_read_where_it_stands_and_never_copied() {
         read.text()
     );
 
-    // Naming the new root proceeds and leaves the earlier store alone; nothing was copied into
-    // the new root, which holds no run until one is started there.
+    // Naming a root proceeds and leaves the earlier store alone; nothing was copied into it, and
+    // it holds no run until one is started there.
     let named = host.command(
         &project,
         &[
@@ -341,7 +312,7 @@ fn a_store_of_the_earlier_layout_is_read_where_it_stands_and_never_copied() {
     );
     assert!(
         journals(&project.join(".ymp")).is_empty(),
-        "the earlier store was copied into the new root"
+        "the earlier store was copied into the named root"
     );
     assert_eq!(
         before,
@@ -349,11 +320,12 @@ fn a_store_of_the_earlier_layout_is_read_where_it_stands_and_never_copied() {
         "the earlier store was written into"
     );
 
-    // Once the root is declared, the default invocation no longer asks the question again.
+    // The root that invocation named is itself state beside the project, so the default keeps
+    // refusing rather than adopting it — and names it, not only the store, as the thing it found.
     let again = host.command(&project, &["show".to_owned(), "events".to_owned()]);
     assert!(
-        !again.text().contains("earlier layout"),
-        "the declared root still refuses to begin: {}",
+        !again.output.status.success() && again.text().contains(".ymp"),
+        "the default adopted state standing beside the project: {}",
         again.text()
     );
 }
@@ -364,6 +336,9 @@ fn a_store_of_the_earlier_layout_is_read_where_it_stands_and_never_copied() {
 
 struct Host {
     host: TempDir,
+    /// The home directory every invocation of this fixture sees. The default root stands in it, so
+    /// the check drives the default the operator has without reaching the home this test runs in.
+    home: PathBuf,
     source: PathBuf,
     verifier: PathBuf,
     negative_control: PathBuf,
@@ -394,9 +369,11 @@ impl Run {
 impl Host {
     fn new() -> Self {
         let host = TempDir::new().expect("temporary host");
+        let home = host.path().join("home");
         let source = host.path().join("source");
         let negative_control = host.path().join("negative-control");
         let verifier = host.path().join("verify.sh");
+        fs::create_dir_all(&home).expect("home directory");
         fs::create_dir_all(&source).expect("source directory");
         fs::create_dir_all(&negative_control).expect("negative control directory");
         fs::write(source.join("input.txt"), b"before\n").expect("source file");
@@ -410,10 +387,16 @@ impl Host {
         }
         Self {
             host,
+            home,
             source,
             verifier,
             negative_control,
         }
+    }
+
+    /// The root the default addresses for every invocation of this fixture.
+    fn root(&self) -> PathBuf {
+        self.home.join(".ymp")
     }
 
     /// An empty directory an operator would start the product in.
@@ -448,14 +431,24 @@ impl Host {
         path
     }
 
-    /// The executable, started in a project directory as an operator starts it.
+    /// The executable, started in a project directory as an operator starts it, with a home
+    /// directory of the fixture's own.
     fn command(&self, project: &Path, arguments: &[String]) -> Run {
-        let output = Command::new(env!("CARGO_BIN_EXE_ymp"))
-            .current_dir(project)
-            .args(arguments)
+        let output = self
+            .invocation(project, arguments)
             .output()
             .expect("run the ymp executable");
         Run { output }
+    }
+
+    fn invocation(&self, project: &Path, arguments: &[String]) -> Command {
+        let mut command = Command::new(env!("CARGO_BIN_EXE_ymp"));
+        command
+            .current_dir(project)
+            .env("HOME", &self.home)
+            .env_remove("YMP_HOME")
+            .args(arguments);
+        command
     }
 
     /// Start one run of one contract, through the confirmation the interface requires.
@@ -481,9 +474,7 @@ impl Host {
 
     /// The executable, left running so several invocations overlap.
     fn spawn(&self, project: &Path, arguments: &[String]) -> Child {
-        Command::new(env!("CARGO_BIN_EXE_ymp"))
-            .current_dir(project)
-            .args(arguments)
+        self.invocation(project, arguments)
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
             .spawn()
@@ -491,11 +482,38 @@ impl Host {
     }
 
     /// Every store the root holds for this project, in the order they were claimed.
+    ///
+    /// The root carries every project of this host, so the stores are selected by the marker each
+    /// project directory carries — the same statement an operator reads the tree by.
     fn stores(&self, project: &Path) -> Vec<PathBuf> {
-        let mut stores = journals(&project.join(".ymp"));
+        let mut stores = journals(&project_directory(&self.root(), project));
         stores.sort();
         stores
     }
+}
+
+/// The directory this root holds one project's runs under, found by the marker that names it.
+fn project_directory(root: &Path, project: &Path) -> PathBuf {
+    let projects = root.join("projects");
+    let stated = project.to_string_lossy().into_owned();
+    let Ok(entries) = fs::read_dir(&projects) else {
+        return projects.join("no-project-directory");
+    };
+    for entry in entries.flatten() {
+        let marker = entry.path().join("project.json");
+        let Ok(bytes) = fs::read(&marker) else {
+            continue;
+        };
+        let value: serde_json::Value = serde_json::from_slice(&bytes).expect("a readable marker");
+        if value
+            .get("project_path")
+            .and_then(serde_json::Value::as_str)
+            == Some(stated.as_str())
+        {
+            return entry.path();
+        }
+    }
+    projects.join("no-project-directory")
 }
 
 fn one_store(host: &Host, project: &Path) -> PathBuf {

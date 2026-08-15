@@ -24,12 +24,14 @@ pub mod surface;
 )]
 pub struct Cli {
     /// The one root every durable path lives under. A project and a run are addressed inside it,
-    /// so a second project and a second run need no name from you.
+    /// so a second project and a second run need no name from you. Named nowhere, it is your
+    /// `$YMP_HOME`, and failing that `~/.ymp`: the directory you start the product in is yours,
+    /// and nothing of the product's is written into it.
     #[arg(
         long,
         global = true,
         value_name = "DIR",
-        help = "The root every durable path lives under [default: .ymp]"
+        help = "The root every durable path lives under [default: $YMP_HOME, else ~/.ymp]"
     )]
     pub root: Option<PathBuf>,
     /// One exact store, addressed by hand rather than under a root: a store an earlier build
@@ -78,14 +80,22 @@ pub fn run(cli: Cli) -> anyhow::Result<()> {
     {
         return internal::run(PathBuf::new(), &[], internal::InternalCommand::AgentMcp);
     }
-    let store = store(&cli)?;
+    let addressed = addressed(&cli)?;
+    let store = match &addressed {
+        Addressed::Store(store) => store.clone(),
+        Addressed::Root(root) => store_under(root, intent(cli.command.as_ref()))?,
+    };
     match cli.command {
         // The interface is given the root as well as the store. A store holds one run, so the
         // second run an operator authorizes in one session is addressed under the root rather
         // than refused; an invocation that named one exact store named what it acts on.
-        None => match root_of(&cli) {
-            Some(root) => ymp_tui::run_under_root(root, store, load_contracts(&cli.contract)?),
-            None => ymp_tui::run_with_contracts(store, load_contracts(&cli.contract)?),
+        None => match addressed {
+            Addressed::Root(root) => {
+                ymp_tui::run_under_root(root, store, load_contracts(&cli.contract)?)
+            }
+            Addressed::Store(_) => {
+                ymp_tui::run_with_contracts(store, load_contracts(&cli.contract)?)
+            }
         },
         Some(Command::Public(command)) => {
             surface::run(store, load_contracts(&cli.contract)?, command)
@@ -94,30 +104,29 @@ pub fn run(cli: Cli) -> anyhow::Result<()> {
     }
 }
 
-/// The one store this invocation acts on.
+/// What this invocation acts on: a root it addresses a store under, or one exact store it was
+/// given by name.
 ///
 /// Everything below the interface and the commands still receives a store directory, exactly as
 /// before. What changed is who chooses it: the operator no longer invents a directory per run,
 /// because the root addresses a project and a run for them.
-/// The root this invocation addresses stores under, when it addresses one rather than naming an
-/// exact store.
-fn root_of(cli: &Cli) -> Option<PathBuf> {
-    cli.data_root
-        .is_none()
-        .then(|| cli.root.clone().unwrap_or_else(default_root))
+enum Addressed {
+    Root(PathBuf),
+    Store(PathBuf),
 }
 
-fn store(cli: &Cli) -> anyhow::Result<PathBuf> {
+fn addressed(cli: &Cli) -> anyhow::Result<Addressed> {
     if let Some(store) = &cli.data_root {
-        return Ok(store.clone());
+        return Ok(Addressed::Store(store.clone()));
     }
-    let root = cli.root.clone().unwrap_or_else(default_root);
-    if cli.root.is_none() {
-        // Only the default root asks this question. An operator who named a root has answered
-        // it, and an operator who named a store is already reading one where it stands.
-        refuse_earlier_layout(&root)?;
+    if let Some(root) = &cli.root {
+        return Ok(Addressed::Root(root.clone()));
     }
-    Ok(store_under(&root, intent(cli.command.as_ref()))?)
+    let root = default_root()?;
+    // Only the default root asks this question. An operator who named a root has answered it,
+    // and an operator who named a store is already reading one where it stands.
+    refuse_earlier_layout(&root)?;
+    Ok(Addressed::Root(root))
 }
 
 /// Whether this invocation acts on the project's current store or starts a run in a fresh one.
