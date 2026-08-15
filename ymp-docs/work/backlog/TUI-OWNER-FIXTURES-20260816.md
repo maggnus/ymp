@@ -1,8 +1,13 @@
 # Owner-reported interface failures (2026-08-16, verbatim transcripts)
 
 Recorded by the CTO from the owner's live session on `ymp 1.0.4`, host `/Users/maggnus/Downloads/_ymp`.
-These are acceptance fixtures for the planned TUI-interaction design revision; they are reproduced
-verbatim so the revision argues against what the owner actually saw, not a paraphrase.
+These are acceptance fixtures for the TUI-interaction design revision; they are reproduced verbatim
+so the revision argues against what the owner actually saw, not a paraphrase.
+
+Design revision 1 (2026-08-16) is recorded in
+[`design/ymp_chat_tui.dc.html`](../../design/ymp_chat_tui.dc.html), section «Ревизия 1». Every
+screen form quoted here is marked below as **rejected**, with one line of why; the rejected form is
+part of the contract, because it explains why the accepted form looks the way it does.
 
 ## Session A — the "ping" draft path
 
@@ -47,27 +52,107 @@ transcript › providers(all)[2] · 1 enabled · 1 ready
 
 Owner verdict: «/providers - тоже хрень какая-то».
 
-## CTO reading (diagnosis, not yet the fix)
+## Session C — /models and /runtimes (screen captures, same session)
 
-A. **Transcript verbosity**: one operator turn produced three separate application replies, each
-   restating internal machinery (pools, contract assembly, verifier derivation). The operator's
-   question was `ping`; the product answered with its architecture. Expected shape: one short
-   reply, or none.
+`design/Screenshot 2026-08-16 at 12.38.57 AM.png` — every one of 56 model rows carries the same
+`↳ anthropic is not enabled — disabled from the provider view`, and `claude-3-5-sonnet-20241022-…`
+runs into `anthropic` with no gap. `design/Screenshot 2026-08-16 at 12.39.42 AM.png` — the fix line
+is cut off at the right edge mid-word, and the note block spells out all 55 model names over ten
+lines.
 
-B. **The refusal wall**: the ✗ message is ~70 words of causal reasoning for a case whose fix is
-   one clause — "say what `ping` should leave behind". Refusals must lead with the operator's
-   next action, not the system's epistemology.
+## Resolution — what was rejected and what replaces it
 
-C. **Table density**: `/providers` spends four lines on notes that are static documentation, not
-   state; `REACHED BY` truncates mid-word `(Cl…55`; a `MODELS` count of 1 sits beside an empty
-   `MODELS` cell for the disabled row; `1h 46m` staleness is noise for a disabled provider. The
-   four-line note block should be one line or moved behind `?`.
+### A · Transcript verbosity
 
-D. **Contradiction to investigate**: reply 1 claims "holds no pool to draw them from — a state it
-   should never reach", while `/providers` shows openai `ready` with 1 model. If a ready provider
-   exists but no pool was reconciled, the reconcile wiring (W1-PRD-05f, under review when this
-   session ran) is the suspected missing piece — a functional bug, not only a wording problem.
+One operator turn produced three application replies, each restating internal machinery. The cold
+start spent five lines on an ASCII logo and eleven more on mechanics.
 
-E. **State vocabulary**: `disabled` appears both as STATE and as a `↳` fix line; `1 enabled ·
-   1 ready` in the breadcrumb double-counts against a 2-row table (enabled≠ready distinction is
-   unclear to the operator).
+- **Rejected — three replies to one turn.** The operator asked one thing and was answered three
+  times, twice about machinery that was not asked about.
+- **Rejected — the five-line ASCII logo and the eleven-line opening block.** The first screen has
+  to state where you are and what to type; everything else belongs behind `?`. The logotype
+  itself is required by brief v2 Part A §5 and stays, on one line.
+- **Rejected — event continuation lines indented two columns past the text column.** A wrapped line
+  that does not sit under the line it continues reads as a separate record.
+- **Rejected — `sha256:9c41f2…` in tables and in the transcript.** Seven characters of algorithm
+  prefix and a 26-column cell carry six significant characters.
+- **Accepted:** banner of exactly three lines — one-line logotype, invitation, two destinations
+  ([`#1a`](../../design/ymp_chat_tui.dc.html#1a), [`#2b`](../../design/ymp_chat_tui.dc.html#2b)); one
+  operator turn, one reply; text starts in a fixed column — after a 19-character prefix for events
+  and a 7-character one for replies — and wrapped lines sit under it; digests are six characters,
+  the full form only in `describe`.
+
+### B · The refusal wall
+
+Roughly seventy words of causal reasoning for a case whose fix is one clause.
+
+- **Rejected — the four-line ✗ message quoted in Session A.** It explains the system's epistemology
+  before it names what the operator should do, and the action arrives in the last sentence.
+- **Accepted** ([`#2a`](../../design/ymp_chat_tui.dc.html#2a)): a ✗ reply is at most two lines, the
+  first begins with the operator's action, and the mechanics live behind `:describe refusal`.
+
+### C · Table density
+
+Four lines of static documentation under a two-row table; `REACHED BY` truncated into the next
+column; a repeated per-row `↳` that states the same thing for every row.
+
+- **Rejected — the four-line note block under the table.** It is documentation, not state, and it
+  is re-read on every visit.
+- **Rejected — `(Cl…55`.** Truncation that ends flush against the next column produces a value that
+  cannot be read as either field.
+- **Rejected — the same `↳` line under every row.** A reason shared by all rows is a fact about the
+  table, and belongs in its header once.
+- **Rejected — left-aligned quantities in a numeric column.** Digits that do not line up cannot
+  be compared down the column. This is rejected wherever it appears, not only on the new pages:
+  the counts `55` and `1` on `/providers`, and `TOTAL`, `RESERVED`, `USED` and `REMAINING` on
+  `:budgets`, where `2h00m`, `3`, `412` and `1.9M` were drawn flush left.
+- **Accepted** ([`#2g`](../../design/ymp_chat_tui.dc.html#2g),
+  [`#2c`](../../design/ymp_chat_tui.dc.html#2c)): widths derive from content up to a per-column cap;
+  a truncated value keeps at least one space before the next column; numbers are right-aligned;
+  `/state:ready` filters one column; the note under a table is at most one line; key hints sit in
+  the status line as `d disable · Enter properties · / filter · ? more`.
+- **Rejected — an enable key on the list.** It would take a disclosure decision without the
+  operator ever opening the provider, and it bypasses `list → select → properties → action`
+  (brief v2 Part A §8).
+- **Accepted:** enabling is a consent action reachable only from the properties view, which
+  opens one modal stating the consequence on the line directly above the deciding key
+  (decision D4, [`#2d`](../../design/ymp_chat_tui.dc.html#2d),
+  [`#2e`](../../design/ymp_chat_tui.dc.html#2e)); reversible actions stay single keys and
+  irreversible ones keep the typed confirmation
+  ([`#2h`](../../design/ymp_chat_tui.dc.html#2h)).
+
+### D · Pool state contradicted the provider table
+
+Reply 1 claimed "this host holds no pool to draw them from — a state it should never reach", while
+`/providers` showed openai `ready` with one model.
+
+- **Rejected — «this host holds no pool» while a provider reads `ready`.** The sentence is only
+  true when every provider is `off`; anywhere else it contradicts the table the operator can open.
+- **Accepted** ([`#2f`](../../design/ymp_chat_tui.dc.html#2f),
+  [`#2i`](../../design/ymp_chat_tui.dc.html#2i)): a pool is `measuring` or `ready` as long as any
+  provider is `ready`, `/pools` states which providers each pool draws from, and the transcript
+  reply reads that same state rather than restating it.
+- **Still open, and not a wording defect:** whether the reconciler actually produces a pool from a
+  ready provider is functional wiring (`W1-PRD-05f`) and is not decided by this revision.
+
+### E · State vocabulary
+
+`disabled` appeared both as a STATE value and inside a `↳` fix line, and the breadcrumb
+`1 enabled · 1 ready` counted two words against two rows.
+
+- **Rejected — `enabled` as a state.** Enabling is an operator action; what follows it is
+  `ready`, `measuring` or `error`.
+- **Rejected — a breadcrumb that mixes two vocabularies.** `1 enabled · 1 ready` cannot be checked
+  against a two-row table, because a row can be counted twice or not at all.
+- **Rejected — `disabled` repeated as a `↳` line under a `disabled` row.** The fix line repeats the
+  state instead of naming an action.
+- **Accepted** ([`#2i`](../../design/ymp_chat_tui.dc.html#2i)): one vocabulary — `off`, `ready`,
+  `measuring`, `error` — for providers, pools and runs; the header counts in that vocabulary only,
+  and the counters sum to the number of rows (`providers(all)[5] · 2 ready · 1 measuring · 1 error ·
+  1 off`). A run that ended leaves the vocabulary: its state is `ended` and one of
+  `accepted`, `exhausted`, `abstained`, `cancelled`, `infrastructure_error` names which end it
+  reached, so `error` in the vocabulary means only that the run could not start.
+- **Rejected — reading a run's `error` state as `infrastructure_error`.** That substitutes a
+  readiness word for a terminal outcome and would let a run appear to have ended when it never
+  began. The surface-state markers (`loading`, `empty`, `stale`, `degraded`, `error`) remain a
+  third, separate axis.
