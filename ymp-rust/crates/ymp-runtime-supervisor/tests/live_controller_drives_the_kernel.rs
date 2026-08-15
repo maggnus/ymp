@@ -1595,6 +1595,78 @@ fn closing_a_controller_whose_runtime_stopped_answering_is_bounded() {
     drop(temporary);
 }
 
+/// A controller that stopped waiting writes nothing over a terminal its worker had already
+/// committed.
+///
+/// The worker records the terminal of its slice, submits its candidate and only then winds the
+/// runtime down, and the flag it sets on its way out comes after all three. A limit that decided by
+/// that flag therefore found a run whose accounting was finished, recorded an infrastructure fault
+/// over both records, and took from the submitted candidate the verdict it was waiting for — while
+/// reporting that the worker had been left working, which it had not been. What the run owes is
+/// read out of the committed state of the slice, the way a cancellation reads it, so a worker held
+/// in that window is recognised as one that has already answered.
+///
+/// The check that must fail: decide the same question by the flag. The run is then stopped as an
+/// infrastructure fault in both records although its slice is closed and its candidate submitted.
+#[test]
+fn a_controller_that_stopped_waiting_writes_nothing_over_a_committed_terminal() {
+    let teardown = Arc::new(AtomicBool::new(false));
+    let Fixture {
+        handle,
+        application,
+        temporary,
+    } = start_with(1, Some(Arc::clone(&teardown)), Disposition::Orderly);
+    wait_until_yielded(&handle);
+    handle.wake("wake-1", "continue once").expect("the wake");
+
+    // The candidate being announced places the worker past the terminal of its slice and past the
+    // submission, and the held teardown keeps it there without its finished flag being set.
+    let _candidate = wait_for_candidate(&handle);
+    assert!(
+        !handle.is_finished(),
+        "the worker reported itself finished while its teardown was held"
+    );
+    assert_eq!(
+        handle
+            .kernel()
+            .invocation_state()
+            .expect("the slice record"),
+        InvocationState::Closed
+    );
+    let record = handle.kernel_record();
+
+    let (closed, reported) = std::sync::mpsc::channel();
+    std::thread::spawn(move || {
+        let _ = closed.send(handle.join().map_err(|error| error.to_string()));
+    });
+    let outcome = reported
+        .recv_timeout(CONTROLLER_SHUTDOWN_LIMIT + Duration::from_secs(10))
+        .expect("the controller never stopped waiting for a worker held in its teardown");
+
+    let report =
+        outcome.expect_err("closing a controller whose worker never ended reported success");
+    assert!(
+        report.contains("had already recorded the terminal of its slice"),
+        "the controller reported something other than what it found: {report}"
+    );
+    // Giving up the wait wrote nothing. What both records hold is the ending a closed controller
+    // issues on its way out, and not the fault a limit deciding by the finished flag recorded.
+    assert_eq!(
+        record.root_terminal().expect("the terminal"),
+        Some(RootTerminal::Cancelled),
+        "the controller wrote a terminal of its own over a slice its worker had closed"
+    );
+    assert_eq!(
+        application.lock().expect("application").state().status,
+        RunStatus::Cancelled,
+        "the journal was moved off the ending a closed controller issues"
+    );
+
+    teardown.store(true, Ordering::Release);
+    std::thread::sleep(Duration::from_millis(500));
+    drop(temporary);
+}
+
 /// A failure the journal would not record is reported with the run rather than passed over.
 ///
 /// The journal refuses an append it cannot write, and it refuses a record whose sequence it has
