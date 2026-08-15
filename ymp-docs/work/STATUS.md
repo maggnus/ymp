@@ -79,7 +79,8 @@
 | `[x]` | [`W1-COR-03u`](waves/W1/W1-COR-03/tasks/W1-COR-03u.md) | The application recovers its memory from the journal after an interrupted apply | [`2916b21`](https://github.com/maggnus/ymp/commit/2916b21) | 15/08 14:08 | 15/08 14:38 (0m) |
 | `[x]` | [`W1-COR-03v`](waves/W1/W1-COR-03/tasks/W1-COR-03v.md) | The interface states what a bounded shutdown actually ended | [`3978c25`](https://github.com/maggnus/ymp/commit/3978c25) | 15/08 13:49 | 15/08 14:07 (0m) |
 | `[x]` | [`W1-COR-03w`](waves/W1/W1-COR-03/tasks/W1-COR-03w.md) | Shutdown edge cases keep the journal and the finished run honest | [`904cac0`](https://github.com/maggnus/ymp/commit/904cac0) | 15/08 13:44 | 15/08 14:14 (0m) |
-| `[~]` | [`W1-COR-03x`](waves/W1/W1-COR-03/tasks/W1-COR-03x.md) | The run's commitment kernel journals through the durable path | — | 15/08 16:45 | 15/08 16:45 (0m) |
+| `[x]` | [`W1-COR-03x`](waves/W1/W1-COR-03/tasks/W1-COR-03x.md) | The run's commitment kernel journals through the durable path | [`eb0fdd3`](eb0fdd3) | 15/08 16:45 | 15/08 19:30 (0m) |
+| `[x]` | [`W1-COR-03y`](waves/W1/W1-COR-03/tasks/W1-COR-03y.md) | The live controller submits bundles; the durable path guards its terminal | [`acdf9f8`](acdf9f8) | 15/08 19:35 | 15/08 23:00 (0m) |
 | `[ ]` | [`W1-EVL-04`](waves/W1/W1-EVL-04/CARD.md) | Controlled evidence decides both POC hypotheses | — | — | — |
 | `[?]` | [`W1-EVL-04a`](waves/W1/W1-EVL-04/tasks/W1-EVL-04a.md) | Matched-budget arms produce comparable acceptance evidence | — | — | — |
 | `[ ]` | [`W1-EVL-04b`](waves/W1/W1-EVL-04/tasks/W1-EVL-04b.md) | Message interventions separate appearance from causal use | — | — | — |
@@ -97,4 +98,5 @@
 | `[x]` | [`W1-PRD-05b`](waves/W1/W1-PRD-05/tasks/W1-PRD-05b.md) | The product root carries provider and catalog records (P1) | [`09fc9c4`](09fc9c4) | 15/08 15:07 | 15/08 16:12 (0m) |
 | `[x]` | [`W1-PRD-05c`](waves/W1/W1-PRD-05/tasks/W1-PRD-05c.md) | Design correction under product brief v2 (TUI ownership + CRD resource model) | [`6dec28e`](6dec28e) | 15/08 16:12 | 15/08 18:55 (0m) |
 | `[~]` | [`W1-PRD-05d`](waves/W1/W1-PRD-05/tasks/W1-PRD-05d.md) | Provider and model surfaces; probing gated on Enable (P2) | — | 15/08 18:55 | 15/08 18:55 (0m) |
-| `[~]` | [`W1-PRD-05e`](waves/W1/W1-PRD-05/tasks/W1-PRD-05e.md) | The AgentPool resource, its reconciler and the automatic `default` (P3) | — | 15/08 18:55 | 15/08 18:55 (0m) |
+| `[x]` | [`W1-PRD-05e`](waves/W1/W1-PRD-05/tasks/W1-PRD-05e.md) | The AgentPool resource, its reconciler and the automatic `default` (P3) | [`ffde816`](ffde816) | 15/08 18:55 | 15/08 22:30 (0m) |
+| `[~]` | [`W1-PRD-05f`](waves/W1/W1-PRD-05/tasks/W1-PRD-05f.md) | /pools surfaces and the reconciler wired to the enable transition (P4) | — | 15/08 23:05 | 15/08 23:05 (0m) |

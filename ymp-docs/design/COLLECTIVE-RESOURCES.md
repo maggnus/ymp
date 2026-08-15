@@ -1,23 +1,35 @@
 # The resource model
 
 Part B of [`PRODUCT-BRIEF-collective-v2.md`](PRODUCT-BRIEF-collective-v2.md): the product domain
-stated as a declarative resource model with `spec` and `status`, so that the local `ymp` executable
-is the *first* controller of that model and a future Kubernetes control plane is another
-implementation of the same semantics rather than a different product.
+stated as a declarative resource model in which every resource separates what its owner **declared**
+from what a controller **observed**, so that the local `ymp` executable is the *first* controller of
+that model and a future Kubernetes control plane is another implementation of the same semantics
+rather than a different product.
 
 Read [`COLLECTIVE-DESIGN.md`](COLLECTIVE-DESIGN.md) first. This document is the per-resource
 definition that item 6 of Part A §24 and the whole of Part B ask for; the design document states
 the boundaries and the mechanisms these resources carry.
 
+**The names are the product's own**
+([decision D12](COLLECTIVE-OWNER-DECISIONS.md#d12--naming-inside-the-code-no-literal-kubernetes-vocabulary)),
+and this paragraph is the only place the Kubernetes correspondence is written down: the declared
+half of a resource is what a CRD would carry as `spec`, and the observed half what it would carry as
+`status`. Everything the brief's Part B asks of that split holds unchanged — one owner per half,
+ownership enforced by tests, and a model that maps onto CRDs later without redesign. The mapping
+itself is a boundary concern of that future control plane rather than of this domain, so no record,
+type, field or section anywhere else in this repository spells those two words.
+
 Every resource below is stated in the same seven parts, in the order Part B lists them:
 
-1. **spec** — desired or configured state;
-2. **status** — observed state;
+1. **declared** — what its owner stated: configuration for the three resources an operator owns,
+   and the fields set once at creation for the runtime objects it does not;
+2. **observed** — what a controller measured, resolved or counted afterwards;
 3. **references and ownership** — what points at what, and what owns whose lifetime;
 4. **mutable and immutable fields**;
 5. **lifecycle and terminal states**;
-6. **reconciliation responsibility** — which controller writes `status`, and what it may not do;
-7. **events and conditions**.
+6. **reconciliation responsibility** — which controller writes the observed half, and what it may
+   not do;
+7. **events and states**.
 
 Where this design does not decide something, the part says **open** and names what is missing.
 Nothing is filled in for the sake of a complete table (Part A §24, closing rule). Every decision
@@ -37,12 +49,12 @@ is stored.
 | Tier | Resources | Created by | May the operator create one? |
 |---|---|---|---|
 | **Operator configuration** | Provider, AgentPool, Task | the operator, or a mechanical reconciler on their behalf | yes — and only Provider and Task are ever necessary |
-| **Derived catalog** | Model | joined on read from provider and engine records; stored nowhere | no; it has no spec at all |
+| **Derived catalog** | Model | joined on read from provider and engine records; stored nowhere | no; it declares nothing at all |
 | **Runtime objects** | Run, Collective, Agent, Candidate, Verification, Result | the kernel and the local controller, from committed facts | **no** — Part B forbids it for Agent, Candidate and Verification, and this design extends the rule to Run, Collective and Result |
 | **Trusted kernel state** | the internal contract, obligations, leases, escrow, offers, budget vectors, the journal | the kernel alone | no; reachable only as evidence and diagnostics |
 
 The internal contract is deliberately *not* a resource of this model. It is trusted kernel state
-referenced by digest from `Run.spec`, exactly as an approved package is today
+referenced by digest from `Run.declared`, exactly as an approved package is today
 ([`ymp-domain/src/contract.rs`](https://github.com/maggnus/ymp/blob/f0376be/ymp-rust/crates/ymp-domain/src/contract.rs)).
 Promoting it to a resource would put the definition of *done* in a place an operator is expected to
 edit, which is the ownership leak the whole brief is about.
@@ -86,7 +98,7 @@ participant asked for one and paid for it, and the kernel admitted the request.
 An external account that exposes models, together with how this host reaches it. Operator
 configuration.
 
-**spec**
+**declared**
 
 | Field | Meaning |
 |---|---|
@@ -95,7 +107,7 @@ configuration.
 | `credentialOrigin` | where the credential is read from, named and never carried. Where the engine owns the credential this is the engine's own store |
 | `routes[]` *(optional)* | route overrides for reaching this provider through an engine of another family: endpoint class, wire protocol, account scope, authentication mode, disclosure class |
 
-**status**
+**observed**
 
 | Field | Meaning |
 |---|---|
@@ -123,9 +135,9 @@ and its reason survive, because the reason is the answer to "why is this model n
 **mutable and immutable fields**
 
 `family` and the record layout version are immutable; a record is not migrated in place. Everything
-else in `spec` is mutable at any time. Every `status` field is written only by observation.
+else in `declared` is mutable at any time. Every `observed` field is written only by observation.
 
-Changing `spec` never affects a Run already started: a Run holds a frozen pool snapshot, and
+Changing `declared` never affects a Run already started: a Run holds a frozen pool snapshot, and
 disabling a provider mid-run removes its entries from **later** pools only (Part A §18).
 
 **lifecycle and terminal states**
@@ -144,15 +156,15 @@ The **provider observer**, a mechanical local controller in the registry crate. 
 records under the root and states what they measured; it opens no process and reaches no network of
 its own
 ([`provider.rs`](https://github.com/maggnus/ymp/blob/f0376be/ymp-rust/crates/ymp-runtime-registry/src/provider.rs#L23-L32)).
-It probes only providers whose `spec.enabled` is true. It never creates an Agent, never spends a
+It probes only providers whose `declared.enabled` is true. It never creates an Agent, never spends a
 run's budget, and never decides which models a run may use.
 
-**events and conditions**
+**events and states**
 
 Events: `ProviderEnabled`, `ProviderDisabled`, `ProviderProbed`, `ProviderProbeFailed`,
 `CredentialOriginRecorded`, `RouteConformanceProbed`.
 
-Conditions: `Ready` (an engine reaches it and answered), `Authenticated` (**open** — no measurement
+States: `Ready` (an engine reaches it and answered), `Authenticated` (**open** — no measurement
 writes it in this build), `Conformant` (per engine–provider pairing; absent while every pairing is
 an engine reaching its own vendor).
 
@@ -163,15 +175,15 @@ an engine reaching its own vendor).
 One discovered capability of one provider, reached through one engine. This is the level Part A §1
 insists must not be confused with an Agent.
 
-**spec**
+**declared**
 
 **None.** A Model has no desired state and no operator field. It is a derived catalog record, joined
 on read from the provider records and the engine records rather than stored a third time
 ([`catalog.rs`](https://github.com/maggnus/ymp/blob/f0376be/ymp-rust/crates/ymp-runtime-registry/src/catalog.rs#L10-L14)).
-Saying so plainly is part of the model: a resource with no spec cannot be misread as something the
-operator configures, and a stored copy is what goes stale while reading as current.
+Saying so plainly is part of the model: a resource that declares nothing cannot be misread as
+something the operator configures, and a stored copy is what goes stale while reading as current.
 
-**status**
+**observed**
 
 | Field | Meaning |
 |---|---|
@@ -210,11 +222,11 @@ each engine's model list. The **catalog watcher** in the supervisor measures liv
 and commits `EntryAvailable` / `EntryUnavailable` facts, which is how the kernel decides without
 performing any input or output of its own.
 
-**events and conditions**
+**events and states**
 
 Events: `ModelDiscovered`, `ModelWithdrawn`, `EntryAvailable`, `EntryUnavailable`.
 
-Conditions: `Admissible` (its provider is enabled and ready, its engine is enabled and ready, and
+States: `Admissible` (its provider is enabled and ready, its engine is enabled and ready, and
 its pairing has passed whatever conformance probe applies).
 
 ---
@@ -225,17 +237,25 @@ The set of capabilities the collective is permitted to create participants from,
 mechanical limits it may do so within. **It is a capability boundary and never a team**
 (Part A §16, Part B), and owner decision D1 as refined by brief v2.
 
-**spec**
+**declared**
 
-| Field | Meaning |
-|---|---|
-| `models` | either `selector: allAdmissible` — the form the automatic `default` pool is created in — or an explicit **ordered** list of catalog entries |
-| `capacity.maxAgents` | the ceiling on participants a run using this pool may create |
-| `capacity.maxConcurrentAttempts` | the ceiling on attempts running at once |
-| `resourceLimits` | the per-participant budget bounds a recruit is endowed within |
-| `disclosureClasses` | which disclosure classes entries of this pool may carry |
-| `assuranceProfile` | the execution assurance profile a run using this pool requires, named with its limit |
-| `externalActions` | permitted external effects; zero by default |
+| Field | Meaning | Built |
+|---|---|---|
+| `models` | either the whole-catalog form `allAdmissible` — the form the automatic `default` pool is created in — or an explicit **ordered** list of catalog entries | P3 |
+| `capacity.maxAgents` | the ceiling on participants a run using this pool may create | P3 |
+| `capacity.maxConcurrentAttempts` | the ceiling on attempts running at once | P3 |
+| `resourceLimits` | the per-participant budget bounds a recruit is endowed within; every bound absent until an operator states one | P3 |
+| `disclosureClasses` | which disclosure classes entries of this pool may carry | **deferred** |
+| `assuranceProfile` | the execution assurance profile a run using this pool requires, named with its limit | **deferred** |
+| `externalActions` | permitted external effects; zero by default | **deferred** |
+
+**The three deferred fields are not in the record P3 built**, and the record does not carry them at
+all rather than carrying them unread. They are ceilings of a run's policy, enforced where a run is
+created (P5) and where a recruitment is admitted (P10); until those units exist nothing would read
+them, and a field recorded and ignored is worse than a field named as absent — which is the same
+rule decision D11 applied to a floor. They are listed here because the boundary they describe is
+part of the design; the *Built* column is what the layout in
+[`ymp-rust/SCHEMA.md`](../../ymp-rust/SCHEMA.md) actually holds.
 
 **No `replicas` and no `desired` field.** Part A §2 is explicit that replicas must not mean "keep N
 agents running", and Part A §22 fixes bootstrap at exactly one participant. A desired count would
@@ -250,35 +270,44 @@ satisfied by something starting participants nobody asked for.
 without a floor. The absence is a decision, not an omission, and it is the only place this document
 departs from Part B's list of fields.
 
-**status**
+**observed**
 
 | Field | Meaning |
 |---|---|
 | `entries[]` | the resolved, ordered entries with each one's admissibility and the reason for it |
 | `admissible` | how many of them are admissible now |
 | `digest` | the digest of the resolved ordered set, which is what a run freezes |
-| `resolvedAt` | when the resolution was computed |
-| `tracking` | whether this pool still follows the catalog (`selector`) or holds an explicit list |
+| `observation` | what the resolution was read from: the provider records it was read through with the state each stated, and the digest of the whole catalog reading |
+| `tracking` | whether this pool still follows the catalog or holds an explicit list |
+| `states[]` | the states below, each with the sentence that explains it |
+
+**There is no `resolvedAt`, and the observation stands in its place.** Nothing that writes this
+record reads a clock, so a time on it would be a claim nothing measured. The question a timestamp
+would be consulted for — is this resolution the one the catalog would produce now — is answered
+exactly by comparing the recorded catalog digest with the catalog, and that comparison is a fact
+rather than an inference from an age. Provider records are a different case: their observation time
+is a measurement of when a probe ran, and P2 adds it there.
 
 **references and ownership**
 
 References catalog entries weakly: an entry that becomes unavailable makes the pool degraded, never
-deleted. Referenced by `Task.spec.agentPool` and, by value, by `Run.spec.poolSnapshot`. A pool
-referenced by a live Run may be edited freely — the Run holds the snapshot, not the pool — and a
-pool named by no Task may be deleted.
+deleted. Referenced by `Task.declared.agentPool` and, by value, by
+`Run.declared.poolSnapshot`. A pool referenced by a live Run may be edited freely — the Run holds
+the snapshot, not the pool — and a pool named by no Task may be deleted.
 
-**The automatic `default` pool.** The pool reconciler creates one pool named `default`, with
-`selector: allAdmissible`, the first time any Provider reaches `ready` with at least one admissible
+**The automatic `default` pool.** The pool reconciler creates one pool named `default`, in the
+whole-catalog form, the first time any Provider reaches `ready` with at least one admissible
 entry. It is created rather than seeded, so a root that has observed nothing holds no pool and the
 product's first-run state says *enable a provider*, never `No AgentPool configured` (Part A §4).
-Editing `default` replaces the selector with the explicit list the operator left behind, and the
-pool stops tracking newly discovered models; the surface states that at the moment of the edit,
+Editing `default` replaces the whole-catalog form with the explicit list the operator left behind,
+and the pool stops tracking newly discovered models; the record and the surface both state that at
+the moment of the edit,
 because a tracking pool that silently ignored an edit and an edited pool that silently ignored a new
 provider are both dishonest.
 
 **mutable and immutable fields**
 
-`metadata.name` is immutable. Every `spec` field is mutable. `status` is written only by the
+The pool's own name is immutable. Every declared field is mutable. `observed` is written only by the
 reconciler. Nothing about a pool is immutable for the sake of reproducibility — reproducibility is
 carried by the Run's frozen snapshot instead, which is what lets the operator edit pools without
 disturbing running work (Part A §18).
@@ -293,19 +322,20 @@ state which provider would restore it.
 
 **reconciliation responsibility**
 
-The **pool reconciler**, mechanical. It resolves the selector or the explicit list against the
-catalog, recomputes admissibility, orders the result and writes the digest. It creates the automatic
-`default`.
+The **pool reconciler**, mechanical. It resolves the whole-catalog form or the explicit list against
+the catalog, recomputes admissibility, keeps the declared order and writes the digest. It creates
+the automatic `default`. It resolves before it writes and writes both halves of a record at once, so
+a record never holds a list in one half and *this pool follows the catalog* in the other.
 
 It does **not** create an Agent, and there is no `AgentAutoscaler`. Part A §2 rules one out until
 something needs it; in this model scaling is the collective's semantic decision inside
 `capacity`.
 
-**events and conditions**
+**events and states**
 
 Events: `PoolCreated`, `PoolResolved`, `PoolEdited`, `EntryAdmitted`, `EntryWithdrawn`, `PoolEmpty`.
 
-Conditions: `Ready`, `Tracking`, `Degraded`, `Empty`.
+States: `Resolved`, then `Tracking` or `Explicit`, then one of `Ready`, `Degraded` and `Empty`.
 
 ---
 
@@ -314,7 +344,7 @@ Conditions: `Ready`, `Tracking`, `Degraded`, `Empty`.
 The operator's requested work: one goal, in ordinary prose, against one workspace. This is the only
 resource the operator has to create, and creating it is typing a sentence.
 
-**spec**
+**declared**
 
 | Field | Meaning |
 |---|---|
@@ -331,7 +361,7 @@ There is no `acceptance`, no `verifier`, no `negativeControl`, no `roles`, no `p
 and the command line asks for two more
 ([`surface.rs`](https://github.com/maggnus/ymp/blob/f0376be/ymp-rust/crates/ymp-cli/src/surface.rs#L185-L193)).
 
-**status**
+**observed**
 
 | Field | Meaning |
 |---|---|
@@ -351,7 +381,7 @@ not silently repointed at `default`.
 
 **mutable and immutable fields**
 
-Before the first Run is created, every `spec` field is mutable: amending the goal re-derives and
+Before the first Run is created, every `declared` field is mutable: amending the goal re-derives and
 draws on the same allowance. **Once a Run exists, `goal`, `workspace`, `agentPool` and `basedOn` are
 immutable**, because a Run is bound to one contract derived from exactly those fields. An amended
 goal is a new Task lineage, which is what `Continue` opens, and it is the accepted amendment rule
@@ -387,13 +417,13 @@ capabilities, which is the two-run boundary already accepted in
 This placement is what keeps the product free of a central semantic component
 ([`COLLECTIVE-DESIGN.md`](COLLECTIVE-DESIGN.md) item 16).
 
-**events and conditions**
+**events and states**
 
 Events: `TaskCreated`, `WorkspaceRead`, `DerivationStarted`, `DerivationCompleted`,
 `DerivationExhausted`, `ClarificationRequested`, `ClarificationAnswered`, `RunCreated`,
 `TaskArchived`.
 
-Conditions: `Derived`, `Discriminating` (the derived plan rejected the negative control and every
+States: `Derived`, `Discriminating` (the derived plan rejected the negative control and every
 substituted entry point), `Started`, `Blocked` (with the obstacle named).
 
 ---
@@ -405,7 +435,7 @@ a Run comes into existence because a goal was stated and a plan was derived, and
 composes none of it. There is no authorization act (decision D3): the workspace's standing ceiling
 bounds it and the goal sentence states what it is for.
 
-**spec** — every field is set once, when the Run is created, and never changes.
+**declared** — every field is set once, when the Run is created, and never changes.
 
 | Field | Meaning |
 |---|---|
@@ -416,7 +446,7 @@ bounds it and the goal sentence states what it is for.
 | `budget` | the budget vector drawn from the workspace's standing ceiling at creation |
 | `policy` | disclosure classes, assurance profile, verification-query budget, clarification budget, external actions |
 
-**status**
+**observed**
 
 | Field | Meaning |
 |---|---|
@@ -433,16 +463,16 @@ bounds it and the goal sentence states what it is for.
 
 Owned by the Task. Owns the Collective, the Agents, the Candidates, the Verifications and the
 Result. References the AgentPool by name for provenance only: every decision reads
-`spec.poolSnapshot`, never the live pool. That indirection is the whole of the run-scoped freeze
+`declared.poolSnapshot`, never the live pool. That indirection is the whole of the run-scoped freeze
 (Part A §18): changing a pool cannot change what a running run may do, and the next run gets the
 updated pool.
 
 **mutable and immutable fields**
 
-The entire `spec` is immutable after creation. Narrowing a boundary mid-run is not an edit of
-`spec`: it is an operator command that commits a fact and lowers an enforced ceiling, recorded in
-`status`. Raising the workspace's standing ceiling does not widen a Run already created; the wider
-ceiling applies to the next one, and to a `Continue` after an exhausted terminal.
+The entire declared half is immutable after creation. Narrowing a boundary mid-run is not an edit
+of it: it is an operator command that commits a fact and lowers an enforced ceiling, recorded in the
+observed half. Raising the workspace's standing ceiling does not widen a Run already created; the
+wider ceiling applies to the next one, and to a `Continue` after an exhausted terminal.
 
 **lifecycle and terminal states**
 
@@ -463,12 +493,12 @@ creates the root obligation and starts one invocation. After that it only reacts
 a registration fact starts a process, a resume fact resumes one, a terminal fact winds processes
 down. It selects no participant, holds no plan, reads no goal and ranks nothing.
 
-**events and conditions**
+**events and states**
 
 Events: `RunCreated`, `PoolFrozen`, `OriginParticipantRegistered`, `RunPaused`, `RunResumed`,
 `RunCancelled`, `RunTerminal`, `BoundaryNarrowed`.
 
-Conditions: `Bootstrapped`, `AcceptancePathHeld`, `Verified`, `Intervened`.
+States: `Bootstrapped`, `AcceptancePathHeld`, `Verified`, `Intervened`.
 
 ---
 
@@ -477,14 +507,15 @@ Conditions: `Bootstrapped`, `AcceptancePathHeld`, `Verified`, `Intervened`.
 The self-organizing group of participants working on one Run. Part A §2 calls it the semantic
 controller, and that is exactly what it is: the component that decides, and the only one.
 
-**spec**
+**declared**
 
 **None the operator writes.** A Collective's boundaries are its Run's: the frozen pool, the
 capacity from the pool, the budget vector and the policy. The resource exists so that the model has
-a place to attach collective-level status and so that a future control plane has an object to
+a place to attach what is observed of a collective and so that a future control plane has an
+object to
 reconcile — not so that anyone configures a collective.
 
-**status**
+**observed**
 
 | Field | Meaning |
 |---|---|
@@ -524,13 +555,13 @@ that is admitted or refused mechanically.
 The local controller's only involvement is starting a process for a registration fact the kernel
 already committed.
 
-**events and conditions**
+**events and states**
 
 Events: `CollectiveFormed`, `ParticipantRecruited`, `ParticipantReturned`, `OfferAdvertised`,
 `BidRecorded`, `Awarded`, `FindingPublished`, `ChallengeRaised`, `CandidatePublished`,
 `RevisionStarted`, `StoppingPublished`.
 
-Conditions: `AtCapacity` (a mechanical fact about `ParticipantStarts` and concurrency),
+States: `AtCapacity` (a mechanical fact about `ParticipantStarts` and concurrency),
 `Quiescent` (nothing is running — and never a synonym for accepted).
 
 ---
@@ -540,18 +571,18 @@ Conditions: `AtCapacity` (a mechanical fact about `ParticipantStarts` and concur
 One actual participant. Part B's Pod analogy holds here and nowhere else: an Agent is a running
 thing with an identity, an account and a lifecycle, created dynamically because something needed it.
 
-**spec** — set at admission, never edited.
+**declared** — set at admission, never edited.
 
 | Field | Meaning |
 |---|---|
 | `runRef`, `collectiveRef` | what it belongs to |
-| `catalogEntry` | provider · engine · model, checked for membership in `Run.spec.poolSnapshot` |
+| `catalogEntry` | provider · engine · model, checked for membership in `Run.declared.poolSnapshot` |
 | `principal` | the identity its commands are authenticated as |
 | `endowment` | the budget vector it was funded with, from its recruiter's own account |
 | `recruitedBy` | the participant that requested it; empty only for the origin participant |
 | `purposeDigest` | the digest of the intent it was recruited under. Stored and compared, never read ([`protocol.rs`](https://github.com/maggnus/ymp/blob/f0376be/ymp-rust/crates/ymp-domain/src/commitment/protocol.rs#L1-L6)) |
 
-**status**
+**observed**
 
 | Field | Meaning |
 |---|---|
@@ -565,7 +596,7 @@ thing with an identity, an account and a lifecycle, created dynamically because 
 | `recruited[]` | whom it recruited in turn |
 | `lastActivityAt` | the raw mechanical column the agents table sorts by |
 
-Never in `status`, and never stored anywhere: private chain-of-thought (Part A §14). What the
+Never in `observed`, and never stored anywhere: private chain-of-thought (Part A §14). What the
 operator sees is published messages and externally visible actions.
 
 **references and ownership**
@@ -575,7 +606,7 @@ An Agent is never re-parented and never migrated between Runs.
 
 **mutable and immutable fields**
 
-Everything in `spec` is immutable. An Agent that would run a different model is a different Agent:
+Everything declared is immutable. An Agent that would run a different model is a different Agent:
 `Reassign` moves work, it does not re-model a participant. This is what makes per-model spend
 attributable
 ([`W1-APP-02y`](https://github.com/maggnus/ymp/blob/f0376be/ymp-docs/work/waves/W1/W1-APP-02/tasks/W1-APP-02y.md)).
@@ -599,13 +630,13 @@ entry ∈ frozen pool, no live `EntryUnavailable`, disclosure class ⊆ policy, 
 
 No controller assigns an Agent its work.
 
-**events and conditions**
+**events and states**
 
 Events: `ParticipantRegistered`, `EntryNotPermitted` (a refusal, recorded), `InvocationStarted`,
 `InvocationResumed`, `InvocationEnded`, `Yielded`, `ObligationTaken`, `ObligationReturned`,
 `Submitted`, `Recruited`, `Cancelled`, `Expired`.
 
-Conditions: `Live`, `Funded`, `EntryAvailable`.
+States: `Live`, `Funded`, `EntryAvailable`.
 
 ---
 
@@ -614,7 +645,7 @@ Conditions: `Live`, `Funded`, `EntryAvailable`.
 An immutable result of one branch of work. Part A §3 and the accepted architecture agree on the one
 property that matters: it does not change after it exists.
 
-**spec** — the whole resource, and immutable in full.
+**declared** — the whole resource, and immutable in full.
 
 | Field | Meaning |
 |---|---|
@@ -624,7 +655,7 @@ property that matters: it does not change after it exists.
 | `digest` | the exact digest a verdict is bound to |
 | `manifest` | paths and sizes, with a path to the full difference |
 
-**status**
+**observed**
 
 | Field | Meaning |
 |---|---|
@@ -655,11 +686,11 @@ Verification, so that one candidate may carry several verdicts without any of th
 
 The kernel records it; the integrator builds it from a submission. Nothing reconciles it afterwards.
 
-**events and conditions**
+**events and states**
 
 Events: `CandidateSubmitted`, `CandidateIntegrated`, `IntegrationConflict`, `CandidateExported`.
 
-Conditions: `Immutable` (stated permanently, because it is the property everything else rests on),
+States: `Immutable` (stated permanently, because it is the property everything else rests on),
 `Verified` (an exact-digest verdict of `passed` exists).
 
 ---
@@ -669,7 +700,7 @@ Conditions: `Immutable` (stated permanently, because it is the property everythi
 One independent check of one exact candidate against the approved plan. The operator never creates
 one (Part A §3, §20).
 
-**spec** — immutable in full.
+**declared** — immutable in full.
 
 | Field | Meaning |
 |---|---|
@@ -681,7 +712,7 @@ one (Part A §3, §20).
 | `disclosurePolicy` | what a failure may disclose |
 | `environmentDigest` | the environment the check runs in |
 
-**status**
+**observed**
 
 | Field | Meaning |
 |---|---|
@@ -698,8 +729,8 @@ the participant that requested it, which is what independence means structurally
 
 **mutable and immutable fields**
 
-`spec` is immutable. `status` is written once per transition by the verifier controller and never
-by a participant.
+The declared half is immutable. The observed half is written once per transition by the verifier
+controller and never by a participant.
 
 **lifecycle and terminal states**
 
@@ -718,12 +749,12 @@ as a kernel fact and discloses only what the policy allows. It does not consult 
 conversation before committing its independent verdict, and no participant writes verification
 state.
 
-**events and conditions**
+**events and states**
 
 Events: `VerificationReserved`, `VerificationStarted`, `VerdictCommitted`,
 `VerifierInfrastructureFailure`, `QueryBudgetExhausted`.
 
-Conditions: `Independent`, `Discriminating` (the plan rejected the negative control and every
+States: `Independent`, `Discriminating` (the plan rejected the negative control and every
 substituted entry point before it could decide anything), `BudgetRemaining`.
 
 ---
@@ -732,12 +763,12 @@ substituted entry point before it could decide anything), `BudgetRemaining`.
 
 What the operator came for. A projection, not a thing anyone composes.
 
-**spec**
+**declared**
 
-**None.** Result is status-only, derived from committed facts about one Run. Giving it a spec would
-invite something to be configured about an outcome.
+**None.** A Result is observed and never declared: it is derived from committed facts about one
+Run. Giving it a declared half would invite something to be configured about an outcome.
 
-**status**
+**observed**
 
 | Field | Meaning |
 |---|---|
@@ -771,11 +802,11 @@ success. `exhausted` is never drawn as success.
 A projection over the journal. No controller writes a semantic judgement into it; the summary is
 published by the collective and carried through unchanged.
 
-**events and conditions**
+**events and states**
 
 Events: `ResultPublished`, `EvidenceExported`, `CandidateExported`, `RunArchived`.
 
-Conditions: `Verified`, `Exportable`, `Continuable`.
+States: `Verified`, `Exportable`, `Continuable`.
 
 ---
 
@@ -787,13 +818,13 @@ in this design.
 
 | Controller | Reconciles | May never |
 |---|---|---|
-| provider observer | Provider `status` from engine records; probes only enabled providers | start a process for a run, spend a run budget, decide permitted models |
+| provider observer | Provider `observed` from engine records; probes only enabled providers | start a process for a run, spend a run budget, decide permitted models |
 | catalog reader | Model entries, joined on read | store a copy, create anything |
 | catalog watcher | `EntryAvailable` / `EntryUnavailable` facts during a run | refuse a command; it measures, the kernel decides |
-| pool reconciler | AgentPool `status`, the automatic `default` | create an Agent, compute a desired count, prefer an entry |
+| pool reconciler | AgentPool `observed`, the automatic `default` | create an Agent, compute a desired count, prefer an entry |
 | derivation sequencer | Task `phase` | read the goal, write a requirement, judge an answer |
 | run launcher | Run bootstrap, then processes for committed facts | pick a participant, pick work, pick a model, rank anything |
-| verifier controller | Verification `status` | consult the producers' conversation before its verdict, count infrastructure failure as rejection |
+| verifier controller | Verification `observed` | consult the producers' conversation before its verdict, count infrastructure failure as rejection |
 | kernel | every state transition, by containment and arithmetic over committed facts | choose an agent or model, assign a role, decompose, rank a bid, synthesize, read natural language |
 
 The semantic work — interpreting the goal, deriving observable requirements, deciding the shape of
@@ -816,7 +847,7 @@ this way rather than as a set of Kubernetes objects:
 1. **No controller acquires semantic authority by being a controller.** A Kubernetes operator that
    decided how many Agents a Collective needs would be the central planner Part A §11 and Part B
    both forbid, whatever its name.
-2. **The freeze is a value, not a reference.** `Run.spec.poolSnapshot` holds entries, not a pointer
-   to an AgentPool, so editing a pool cannot change a running run in either implementation.
+2. **The freeze is a value, not a reference.** `Run.declared.poolSnapshot` holds entries, not a
+   pointer to an AgentPool, so editing a pool cannot change a running run in either implementation.
 3. **The trusted kernel state stays kernel state.** Obligations, leases, escrow and the internal
    contract do not become CRDs an operator can edit; they remain the ledger, reachable as evidence.

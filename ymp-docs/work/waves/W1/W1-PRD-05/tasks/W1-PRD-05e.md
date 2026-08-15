@@ -3,17 +3,17 @@ id: W1-PRD-05e
 kind: task
 wave: W1
 card: W1-PRD-05
-state: active
+state: accepted
 risk: critical
 maturity: BUILD
 relation: required
 depends_on: [W1-PRD-05b, W1-PRD-05c]
 blocks: []
 created_at: 2026-08-15T18:55:00+08:00
-updated_at: 2026-08-15T18:55:00+08:00
+updated_at: 2026-08-15T22:30:00+08:00
 started_at: 2026-08-15T18:55:00+08:00
-accepted_at:
-candidate_commit:
+accepted_at: 2026-08-15T22:30:00+08:00
+candidate_commit: ffde816
 closure_commit:
 evidence:
 duration_minutes: 0
@@ -51,14 +51,27 @@ says so. Nothing here instantiates a participant.
 
 ## Acceptance
 
-- [ ] A root with one enabled, ready provider holds a `default` pool whose resolved entries equal
+- [x] A root with one enabled, ready provider holds a `default` pool whose resolved entries equal
       the catalog and whose digest changes when the catalog changes; a root with no ready provider
       holds no pool (negative half); no participant is created.
-- [ ] `spec` fields are operator-owned and `status` fields controller-owned; a mutation that lets
+- [x] `spec` fields are operator-owned and `status` fields controller-owned; a mutation that lets
       the reconciler write `spec` (other than creating `default`) or the operator write `status`
       fails a test; there is no `minAgents`, `desired`, or role field.
-- [ ] Editing `default` records the explicit list and stops tracking, stated in `status`.
+- [x] Editing `default` records the explicit list and stops tracking, stated in `status`.
 
 ## Current state
 
-Active.
+Accepted 2026-08-15 (candidate ffde816 after a rename + residue pass; review ACCEPT; merged at 411ea6f).
+
+## Findings
+
+- Record `pools/<name>.json` with `declared` (operator) and `resolved` (reconciler) halves — names
+  per D12; types `PoolDeclaration` / `PoolResolution` / `PoolState`. 27-key exact key set guarded by
+  test; no minAgents/desired/replicas/roles/rank.
+- Reconciler creates only `default`; ownership in both directions killed by mutation; no ranking;
+  determinism across roots; D2 origin computable from the resolved half alone.
+- Review R1 (two-write edit) and R2 (unguarded digest properties) closed on the branch with
+  kill-checked tests; R3 (RESOURCES.md AgentPool fields) marked deferred with reasons.
+- Inherited, not this task's: Registry/Providers/pool stores share one staging-file name — concurrent
+  writers fail with ENOENT (no torn record); worth a crate-level unit.
+- `Pools::reconcile` has no product caller yet — P4 wires it to the enable transition after P2.

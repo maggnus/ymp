@@ -396,6 +396,29 @@ floor as this decision rather than as an omission, and unit P3 builds the resour
 
 ---
 
+## D12 · Naming inside the code: no literal Kubernetes vocabulary
+
+> **DECIDED by the owner, 2026-08-15.** "Прямая калька с Kubernetes — это неверно." The resource
+> model of brief v2 Part B keeps its *semantics* — every resource separates what its owner declared
+> from what the controller observed/resolved, ownership of each half is enforced by tests, and the
+> model must map onto CRDs later without redesign — but the *names* in Rust types, JSON records and
+> SCHEMA.md are the product's own domain words, not `spec`/`status`/`replicas`/`conditions` copied
+> from Kubernetes. Mapping to CRD field names is a boundary concern of the future control-plane
+> implementation, not of the domain. Design documents may keep the `spec`/`status` words when they
+> explain the Kubernetes correspondence, but the record layout they describe uses the domain names.
+>
+> Applies immediately to W1-PRD-05e (P3, the AgentPool record) before merge and to every later
+> unit; the TUI never showed these words in the first place.
+>
+> **The words chosen, 2026-08-15.** A resource's two halves are **declared** and **observed**, which
+> is what the seven per-resource parts of [`COLLECTIVE-RESOURCES.md`](COLLECTIVE-RESOURCES.md) are
+> now called. In the AgentPool record P3 built, the observed half is a resolution of the declaration
+> against the catalog, so the record spells them `declared` and `resolved`, the types are
+> `PoolDeclaration` and `PoolResolution`, and what a CRD would call conditions is `states` of
+> `PoolState`. The single sentence that maps the halves onto CRD `spec` and `status` stands in the
+> introduction of `COLLECTIVE-RESOURCES.md` and in the pool section of `ymp-rust/SCHEMA.md`, and
+> nowhere else.
+
 ## Summary
 
 Unit numbers below are those of the **rebased** plan in
@@ -416,6 +439,7 @@ because the decision they record has not changed.
 | D8 | Default ceilings | setting **b** as the workspace's standing ceiling placeholder | units P6a, P8; surface S06 |
 | D9 | Naming | *workspace* is the project; *attempt sandbox* the private copy | unit P16 |
 | D10 | `Continue` re-authorizes | **no** — it starts at once while the ceiling has headroom | surface S25 |
+| D12 | Naming inside the code | domain names, no literal Kubernetes vocabulary; semantics kept | P3 record layout, RESOURCES layout tables |
 | D11 | Does `AgentPool` carry a floor? | **no** — `maxAgents` and concurrency only; a floor would be the one field with no reconciler | unit P3 |
 
 **The common thread of D2–D10** is the owner's ruling of 2026-08-15: no confirmation screens, no

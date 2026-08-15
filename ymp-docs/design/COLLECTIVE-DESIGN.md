@@ -13,7 +13,7 @@ Read in this order:
    fifteen ownership leaks, cited below as `L-nn`.
 2. This document — the coherent design behind the ownership move.
 3. [`COLLECTIVE-RESOURCES.md`](COLLECTIVE-RESOURCES.md) — Part B in full: every resource with its
-   `spec`, `status`, references, mutability, lifecycle, reconciliation, events and conditions.
+   declared, observed, references, mutability, lifecycle, reconciliation, events and states.
 4. [`COLLECTIVE-TUI.md`](COLLECTIVE-TUI.md) — the terminal architecture, designed from the lifecycle
    list of Part A §21 and walked screen by screen against §22.
 5. [`COLLECTIVE-MIGRATION.md`](COLLECTIVE-MIGRATION.md) — the migration path, unit by unit.
@@ -47,9 +47,9 @@ links remain valid for the text they support.
 | 15 | Define the end-to-end tests | item 22 below |
 | 16 | State separately the decisions that genuinely need a human | [`COLLECTIVE-OWNER-DECISIONS.md`](COLLECTIVE-OWNER-DECISIONS.md) |
 
-Part B's per-resource requirements — `spec`, `status`, references and ownership, mutable versus
-immutable fields, lifecycle and terminal states, reconciliation responsibility, events and
-conditions — are answered for all ten resources in
+Part B's per-resource requirements — the declared half, the observed half, references and
+ownership, mutable versus immutable fields, lifecycle and terminal states, reconciliation
+responsibility, events and states — are answered for all ten resources in
 [`COLLECTIVE-RESOURCES.md`](COLLECTIVE-RESOURCES.md). Where this design does not decide something it
 says **open** and names the decision, per §24's closing rule: *do not invent missing details for the
 sake of completeness.*
@@ -360,18 +360,19 @@ mechanism. **The operator is never asked which models a task may use.**
 An **AgentPool** is the set of capabilities the collective may create participants from, together
 with the mechanical limits it may do so within. It is a capability and resource boundary and never
 a team, a roster or a role assignment (§16, §17, and owner decision D1 as refined by v2). Its full
-definition — `spec`, `status`, ownership, mutability, lifecycle, reconciliation, events and
-conditions — is in [`COLLECTIVE-RESOURCES.md`](COLLECTIVE-RESOURCES.md).
+definition — declared, observed, ownership, mutability, lifecycle, reconciliation, events and
+states — is in [`COLLECTIVE-RESOURCES.md`](COLLECTIVE-RESOURCES.md).
 
-    spec.models        selector: allAdmissible  |  an explicit ordered list of catalog entries
-    spec.capacity      maxAgents · maxConcurrentAttempts
-    spec.resourceLimits, spec.disclosureClasses, spec.assuranceProfile, spec.externalActions
+    declared.models       the whole catalog  |  an explicit ordered list of catalog entries
+    declared.capacity     maxAgents · maxConcurrentAttempts
+    declared.resourceLimits                                    (deferred: disclosure classes,
+                                                                assurance profile, external actions)
 
-`spec.models` holds no count and no role. Permitting `opus-5`, `glm` and `fable` means only that the
-collective may use those three; whether it runs one participant, or one of each, or two of one and
-three of another, is the collective's decision inside `capacity` (§1, §2). There is no `replicas`
-field and no `AgentAutoscaler`: a desired participant count would be a mechanical component deciding
-how large a collective should be, which §11 reserves for the collective. There is no floor either:
+`declared.models` holds no count and no role. Permitting `opus-5`, `glm` and `fable` means only
+that the collective may use those three; whether it runs one participant, or one of each, or two
+of one and three of another, is the collective's decision inside `capacity` (§1, §2). There is no
+`replicas` field and no `AgentAutoscaler`: a desired participant count would be a mechanical
+component deciding how large a collective should be, which §11 reserves for the collective. There is no floor either:
 [decision D11](COLLECTIVE-OWNER-DECISIONS.md#d11--does-agentpool-carry-a-floor) settles that
 `capacity` carries `maxAgents` and the concurrency limit and nothing else, because a `minAgents`
 would be the only field in the resource model with no reconciler.
@@ -397,7 +398,7 @@ a new provider are both dishonest.
 
 | Field | Default | Enforced by |
 |---|---|---|
-| pool | `Task.spec.agentPool`, which defaults to `default` | kernel: containment in the frozen snapshot |
+| pool | `Task.declared.agentPool`, which defaults to `default` | kernel: containment in the frozen snapshot |
 | spend ceiling | a stated default per run | `MoneyMicros` |
 | wall clock | a stated default per run | `WallTimeMs` |
 | participants ceiling | the pool's `capacity.maxAgents` | `ParticipantStarts` |
@@ -416,8 +417,8 @@ and the whole no-semantic-kernel claim depends on it staying that way.
 
 When the run is created the pool is frozen: `PoolFrozen` records every permitted entry with its
 identity, disclosure class, assurance profile, conformance result and measured readiness, plus the
-digest of the ordered set, and `Run.spec.poolSnapshot` holds those entries **by value**. Every later
-kernel decision about recruitment reads that fact and never the live pool.
+digest of the ordered set, and `Run.declared.poolSnapshot` holds those entries **by value**. Every
+later kernel decision about recruitment reads that fact and never the live pool.
 
 Three properties follow, and they are what §18 asks for:
 
@@ -470,8 +471,8 @@ the task or the entry beyond position and readiness.
 The rule is: **the first entry of the frozen pool, in the pool's declared order, that admission found
 live.** It is defensible mechanically on four counts.
 
-- The order exists before the goal does. `spec.models` is an ordered list — for `default`, the order
-  the catalog produced; for an edited pool, the order the operator left. Nothing about a goal
+- The order exists before the goal does. `declared.models` is an ordered list — for `default`, the
+  order the catalog produced; for an edited pool, the order the operator left. Nothing about a goal
   contributes to it.
 - The rule reads two things and no more: position, and the availability facts admission committed.
   Both are already in the ledger, so the decision is a pure function of the journal and a replay
@@ -1016,9 +1017,9 @@ Numbered `C-nn` so they are never confused with the owner decisions `D-nn`.
 | C1 | `ContractDocument` gains `requirements: Vec<Requirement { id, statement, provenance, observed_by }>` | L-01 | provenance is `A|B|C|D|E` |
 | C2 | `ContractDocument` gains `acceptance_plan: Vec<Check { id, program_digest, kind, protected, observes }>`; the single `verifier` becomes one check of that plan | L-02, L-03 | validation of each check is unchanged |
 | C3 | `ContractDocument` gains `policy: RunPolicy { pool_digest, ceilings, disclosure_classes, assurance_profile }` | L-08 | the frozen pool travels with the definition of done |
-| C4 | **New stored resource `AgentPool`**: `spec.models` (selector or explicit ordered list), `spec.capacity`, limits, disclosure classes, assurance profile; `status` with resolved entries and digest | L-07, L-08 | the automatic `default` is created by its reconciler, never seeded |
+| C4 | **New stored resource `AgentPool`**: a declared half — `models` (the whole catalog or an explicit ordered list), `capacity`, resource limits — and a resolved half with the ordered entries and their digest | L-07, L-08 | the automatic `default` is created by its reconciler, never seeded |
 | C5 | `Task` as a stored resource: goal, workspace, `agentPool` (defaults to `default`), optional boundaries and base; **no acceptance, verifier, model, role or count field** | L-02, L-04, L-07 | `RunRequest.acceptance` retires with it |
-| C6 | `Run` as a stored resource whose `spec` is immutable after creation: contract digest, `poolSnapshot` by value, `entryModel`, budget, policy | L-08, L-12 | reference by value is what makes the freeze real |
+| C6 | `Run` as a stored resource whose `declared` is immutable after creation: contract digest, `poolSnapshot` by value, `entryModel`, budget, policy | L-08, L-12 | reference by value is what makes the freeze real |
 | C7 | New typed object `Clarification { id, question, options, answer, asked_at }`, and budget dimension `ClarificationRequests` | L-15 | answers become class E |
 | C8 | `RegisterParticipant` gains `requested_entry: CatalogEntryRef` | L-04, L-10 | the subject §12's mechanical checks need |
 | C9 | New kernel refusal `EntryNotPermitted { participant_id, entry, reason }` | L-04 | containment only; creates nothing. `EntryNotReady` is **not** a kernel refusal: liveness is measured in admission (item 9) |
@@ -1028,7 +1029,7 @@ Numbered `C-nn` so they are never confused with the owner decisions `D-nn`.
 | C13 | The single-active-attempt refusal becomes a policy ceiling checked from the vector and the concurrency limit | L-11 | the isolation rule it protected is unchanged |
 | C14 | Participant tool projection extended to the accepted families: observe, communicate, contract, lifecycle, artifact, verification | L-10 | schemas already in [`PROTOCOL.md`](../PROTOCOL.md) |
 | C15 | A sixth terminal `needs_clarification`, distinct from `abstained`, never success, resumable by `Continue` | item 14 | required by decision D6; INV-7's wording follows |
-| C16 | The workspace's **standing ceiling** as a stored object: the budget vector, the derivation allowance and the disclosure classes, defaulted from decision D8 and edited in place on `/budget`. `Run.spec.budget` is drawn from it at run creation | L-16 | replaces per-run authorization; the goal sentence and this ceiling are the human approval |
+| C16 | The workspace's **standing ceiling** as a stored object: the budget vector, the derivation allowance and the disclosure classes, defaulted from decision D8 and edited in place on `/budget`. `Run.declared.budget` is drawn from it at run creation | L-16 | replaces per-run authorization; the goal sentence and this ceiling are the human approval |
 | C17 | Every public command takes its subject from the open run or a named row; the `--confirm <ID>` argument retires | L-16 | node `W1-APP-02n` is restated, not weakened: parity stays, the ceremony goes |
 
 Two changes are already **built and accepted** and are consumed rather than proposed: the provider

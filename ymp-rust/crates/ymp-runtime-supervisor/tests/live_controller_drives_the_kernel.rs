@@ -17,10 +17,10 @@ use ymp_agent_api::{AgentToolCall, AgentToolHandler, SubmitArguments, YieldArgum
 use ymp_agent_rpc::SocketToolHandler;
 use ymp_application::Application;
 use ymp_domain::commitment::{
-    CommitmentEvent, CommitmentLedger, InvocationClosure, InvocationState, ObligationState,
-    OpenAuthority, RootTerminal, Verdict, WakeCondition,
+    CommitmentEvent, CommitmentLedger, InvocationClosure, InvocationState, MAX_BUNDLE_CHANGES,
+    ObligationState, OpenAuthority, RootTerminal, Verdict, WakeCondition,
 };
-use ymp_domain::{Budget, RunStatus, digest_bytes};
+use ymp_domain::{Budget, EventKind, ProvenanceLimit, RunStatus, digest_bytes};
 use ymp_runtime_api::{
     InvocationRequest, ProbeReport, RuntimeDriver, RuntimeError, RuntimeEvent, RuntimeEventKind,
     RuntimeKind, RuntimeSession, Usage,
@@ -52,6 +52,14 @@ enum Disposition {
 
 /// A runtime that yields through the coordination tool the way a supervised participant does. It
 /// yields once for each step of its script and submits its candidate when it has no yields left.
+/// The journal a scripted runtime closes to further records as its supervision dies.
+///
+/// It is filled in after the run has started, because the store the journal lives in is created
+/// with the run. Closing it from inside the runtime is what places the refusal exactly where a
+/// check needs it: the records this run wrote up to that point are in the journal, and everything
+/// supervision writes on its way out is refused.
+type Seal = Arc<Mutex<Option<std::path::PathBuf>>>;
+
 struct YieldingRuntime {
     yields: u32,
     /// When it is set, the session holds its teardown open until this is opened. The worker winds
@@ -62,7 +70,13 @@ struct YieldingRuntime {
     /// when this is opened. Supervision is then held inside the call that reads the next event,
     /// which is where neither the closed control channel nor the cancellation token is read.
     silence: Option<Arc<AtomicBool>>,
+    /// When it is set, the journal it names is closed to further records the moment this runtime
+    /// is resumed — which is the moment the supervision driving it dies.
+    seal: Option<Seal>,
     disposition: Disposition,
+    /// What this runtime writes into its workspace before it does anything else, which is what the
+    /// result of the run then states. A run that writes nothing produces a result of no changes.
+    writes: Vec<String>,
 }
 
 impl RuntimeDriver for YieldingRuntime {
@@ -82,6 +96,13 @@ impl RuntimeDriver for YieldingRuntime {
         let binding = request.mcp.as_ref().ok_or_else(|| {
             RuntimeError::InvalidProfile("test runtime requires MCP binding".to_owned())
         })?;
+        for path in &self.writes {
+            let target = request.workspace.join(path);
+            if let Some(parent) = target.parent() {
+                std::fs::create_dir_all(parent).expect("a directory of the workspace");
+            }
+            std::fs::write(&target, format!("{path}\n")).expect("a file of the workspace");
+        }
         let mut controller = SocketToolHandler::for_invocation(
             &binding.socket_path,
             &binding.token,
@@ -106,6 +127,7 @@ impl RuntimeDriver for YieldingRuntime {
             yields: self.yields,
             teardown: self.teardown.clone(),
             silence: self.silence.clone(),
+            seal: self.seal.clone(),
             disposition: self.disposition,
             interrupted: false,
             invocation_id,
@@ -122,6 +144,7 @@ struct YieldingSession {
     yields: u32,
     teardown: Option<Arc<AtomicBool>>,
     silence: Option<Arc<AtomicBool>>,
+    seal: Option<Seal>,
     disposition: Disposition,
     interrupted: bool,
     /// The identity and the ordering of the events this session has passed on, so that an event it
@@ -198,6 +221,18 @@ impl RuntimeSession for YieldingSession {
     /// recorded through the coordination tool, which is what the controller classifies the slice
     /// by.
     fn resume(&mut self, input: String) -> Result<(), RuntimeError> {
+        // The journal is closed here rather than by the check, so that the record holds everything
+        // this run wrote up to this point — the wake included — and takes nothing supervision
+        // writes after it.
+        if let Some(seal) = &self.seal
+            && let Some(journal) = seal.lock().expect("the journal to close").as_ref()
+        {
+            let mut closed = std::fs::metadata(journal)
+                .expect("the journal file")
+                .permissions();
+            closed.set_readonly(true);
+            std::fs::set_permissions(journal, closed).expect("close the journal");
+        }
         assert!(
             self.disposition != Disposition::PanicsWhenResumed,
             "the supervision of this run died while it drove the runtime"
@@ -330,7 +365,22 @@ fn start_with(yields: u32, teardown: Option<Arc<AtomicBool>>, disposition: Dispo
         yields,
         teardown,
         silence: None,
+        seal: None,
         disposition,
+        writes: Vec::new(),
+    }))
+}
+
+/// A run whose supervision dies while driving the runtime, and whose journal is closed to further
+/// records in the same moment.
+fn start_sealing(seal: Seal) -> Fixture {
+    start_driver(Box::new(YieldingRuntime {
+        yields: 1,
+        teardown: None,
+        silence: None,
+        seal: Some(seal),
+        disposition: Disposition::PanicsWhenResumed,
+        writes: Vec::new(),
     }))
 }
 
@@ -341,7 +391,22 @@ fn start_silent(silence: Arc<AtomicBool>) -> Fixture {
         yields: 1,
         teardown: None,
         silence: Some(silence),
+        seal: None,
         disposition: Disposition::Orderly,
+        writes: Vec::new(),
+    }))
+}
+
+/// A run whose runtime writes the given paths into its workspace, so that the result it submits
+/// states exactly those changes.
+fn start_writing(writes: Vec<String>) -> Fixture {
+    start_driver(Box::new(YieldingRuntime {
+        yields: 1,
+        teardown: None,
+        silence: None,
+        seal: None,
+        disposition: Disposition::Orderly,
+        writes,
     }))
 }
 
@@ -694,6 +759,173 @@ fn finished_run() -> (Fixture, String) {
 fn work_obligation(ledger: &CommitmentLedger, contract_id: &str) -> ObligationState {
     let obligation_id = &ledger.contracts()[contract_id].obligation_id;
     ledger.obligations()[obligation_id].state
+}
+
+/// What the run's own journal states about a construction its kernel could not record.
+fn provenance_notes(fixture: &Fixture) -> Vec<(String, ProvenanceLimit, String)> {
+    fixture
+        .application
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner())
+        .events_after(0)
+        .expect("the committed records")
+        .into_iter()
+        .filter_map(|envelope| match envelope.event {
+            EventKind::CandidateProvenanceUnrecorded {
+                candidate_digest,
+                reason,
+                protocol_rule,
+                ..
+            } => Some((candidate_digest, reason, protocol_rule)),
+            _ => None,
+        })
+        .collect()
+}
+
+/// How many facts of the kernel are about the construction of the result: the objects it names, the
+/// bundle it was published as, and the result formed from it. The seal is not one of them, because
+/// a result is sealed whether or not its construction could be stated.
+fn construction_facts(handle: &ManagedRunHandle) -> usize {
+    handle
+        .kernel()
+        .snapshot()
+        .expect("the ledger")
+        .facts()
+        .iter()
+        .filter(|fact| {
+            matches!(
+                fact,
+                CommitmentEvent::ObjectRecorded { .. }
+                    | CommitmentEvent::BundleRecorded { .. }
+                    | CommitmentEvent::CandidateFormed { .. }
+            )
+        })
+        .count()
+}
+
+/// Drive one live run whose result the kernel cannot state to the point where its candidate is
+/// committed and nothing has judged it.
+fn a_run_whose_construction_cannot_be_stated(writes: Vec<String>) -> (Fixture, String) {
+    let fixture = start_writing(writes);
+    wait_until_yielded(&fixture.handle);
+    fixture
+        .handle
+        .wake("wake-1", "continue once")
+        .expect("the wake");
+    let failures = failures_until_finished(&fixture.handle);
+    assert!(
+        failures.is_empty(),
+        "a bound on what one submission states at once was reported as a failure of the run: \
+         {failures:?}"
+    );
+    let candidate = fixture
+        .application
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner())
+        .state()
+        .candidate_digest
+        .clone()
+        .expect("the run committed no candidate");
+    (fixture, candidate)
+}
+
+/// What is required of a run whose construction the kernel could not state, whichever bound it
+/// exceeded: the work is sealed with the result the journal names, no fact about the construction
+/// is in the kernel, the run's own record says which bound stopped it, and the result still reaches
+/// the verdict of a protected query.
+fn assert_sealed_without_its_construction(
+    fixture: &Fixture,
+    candidate: &str,
+    expected: &ProvenanceLimit,
+) {
+    assert_eq!(
+        fixture
+            .handle
+            .kernel()
+            .snapshot()
+            .expect("the ledger")
+            .contracts()[fixture.handle.kernel().contract_id()]
+        .candidate_digest
+        .as_deref(),
+        Some(candidate),
+        "the work carries no result, so a protected query has nothing to be spent on"
+    );
+    assert_eq!(
+        construction_facts(&fixture.handle),
+        0,
+        "a construction the kernel could not state left facts about itself behind"
+    );
+    let notes = provenance_notes(fixture);
+    assert_eq!(
+        notes.len(),
+        1,
+        "the run states its unrecorded construction once, and this run states it {} times",
+        notes.len()
+    );
+    assert_eq!(notes[0].0, candidate, "the note names another result");
+    assert_eq!(&notes[0].1, expected, "the note states another bound");
+    assert!(
+        !notes[0].2.is_empty(),
+        "the note carries no rule for the bound it states"
+    );
+    assert_eq!(
+        journal_status(fixture),
+        RunStatus::Running,
+        "a bound on what one submission states at once ended the run"
+    );
+
+    // The result is judged exactly as any other, which is the whole of what this bound must not
+    // take away.
+    fixture
+        .handle
+        .verified(candidate, Verdict::Passed)
+        .expect("the recorded verdict");
+    assert_eq!(
+        fixture
+            .handle
+            .kernel()
+            .root_terminal()
+            .expect("the terminal"),
+        Some(RootTerminal::Accepted),
+        "a result whose construction could not be stated never reached its verdict"
+    );
+}
+
+/// A run whose result changes more paths than one bundle may state is sealed and judged like any
+/// other, and its own journal says which bound left the construction out of the kernel.
+///
+/// The work is ordinary work: a bound on how much one submission states at once is a limit of the
+/// record and not a fault of the run, so the result reaches the protected query it was produced
+/// for. What must not happen is silence — a seal that reads exactly like a run from before a
+/// construction was ever journalled — and the record an operator reads is where that is answered.
+#[test]
+fn a_result_larger_than_one_bundle_may_state_is_judged_and_says_what_is_missing() {
+    let writes: Vec<String> = (0..=MAX_BUNDLE_CHANGES)
+        .map(|index| format!("file-{index}.txt"))
+        .collect();
+    let (fixture, candidate) = a_run_whose_construction_cannot_be_stated(writes);
+    assert_sealed_without_its_construction(
+        &fixture,
+        &candidate,
+        &ProvenanceLimit::TooManyChanges {
+            changes: MAX_BUNDLE_CHANGES as u64 + 1,
+        },
+    );
+}
+
+/// The same for a result naming one path the protocol does not admit, where the count is well
+/// inside the bound and nothing but the shape of that path stops the bundle.
+#[test]
+fn a_result_naming_a_path_the_protocol_refuses_is_judged_and_says_what_is_missing() {
+    let (fixture, candidate) =
+        a_run_whose_construction_cannot_be_stated(vec!["dir\\result.txt".to_owned()]);
+    assert_sealed_without_its_construction(
+        &fixture,
+        &candidate,
+        &ProvenanceLimit::UnacceptablePath {
+            path: "dir\\result.txt".to_owned(),
+        },
+    );
 }
 
 /// A live run whose candidate passed the protected query closes its obligation and reaches the one
@@ -1669,27 +1901,37 @@ fn a_controller_that_stopped_waiting_writes_nothing_over_a_committed_terminal() 
     drop(temporary);
 }
 
-/// A failure the journal would not record is reported with the run rather than passed over.
+/// What a record could not take is reported with the run rather than passed over.
 ///
 /// The journal refuses an append it cannot write, and it refuses a record whose sequence it has
 /// already taken — which is what a panic between the append of a fact and its application in memory
-/// leaves behind. Discarding that refusal left nothing anywhere saying so: the kernel closed the
-/// slice, the journal went on naming a run in progress, and the two records disagreed in silence.
-/// What the journal declined is therefore carried out with the failure it belongs to.
+/// leaves behind. Discarding that refusal left nothing anywhere saying so: the run went on being
+/// named as in progress, and nothing in this process would ever have said otherwise.
+///
+/// Both endings a run owes are now written to that one journal — the failure of the run and the
+/// terminal of its process slice — so a journal that stops taking records leaves neither of them
+/// written, and the run reports both refusals rather than showing one record ahead of the other.
+/// The kernel used to hold its terminal in memory and could record it where the journal would take
+/// nothing, which read as agreement while nothing durable held it: the process that carried that
+/// terminal was the one dying.
+///
+/// The journal is closed from inside the runtime, at the moment supervision dies, so the wake that
+/// drove the resumption is in the record and everything after it is refused.
+///
+/// The check that must fail: drop what the kernel would not take instead of carrying it out. The
+/// run then reports a failure the journal refused while saying nothing about the terminal that was
+/// refused with it.
 #[test]
-fn a_failure_the_journal_would_not_record_is_reported_with_the_run() {
-    let fixture = start_with(1, None, Disposition::PanicsWhenResumed);
+fn what_the_record_would_not_take_is_reported_with_the_run() {
+    let seal: Seal = Arc::new(Mutex::new(None));
+    let fixture = start_sealing(Arc::clone(&seal));
     wait_until_yielded(&fixture.handle);
 
-    // From here the journal takes nothing further, which is what a run reaches when the record it
-    // writes to cannot be appended to.
     let journal = fixture.journal_file();
     let writable = std::fs::metadata(&journal)
         .expect("the journal file")
         .permissions();
-    let mut closed = writable.clone();
-    closed.set_readonly(true);
-    std::fs::set_permissions(&journal, closed).expect("close the journal to further records");
+    *seal.lock().expect("the journal to close") = Some(journal.clone());
 
     fixture
         .handle
@@ -1709,14 +1951,20 @@ fn a_failure_the_journal_would_not_record_is_reported_with_the_run() {
             .any(|detail| detail.contains("managed_runtime_failure_unrecorded")),
         "the run passed over a failure its journal would not take: {failures:?}"
     );
+    assert!(
+        failures
+            .iter()
+            .any(|detail| detail.contains("managed_runtime_terminal_unrecorded")),
+        "the run passed over the terminal its record would not take: {failures:?}"
+    );
     assert_eq!(
         fixture
             .handle
             .kernel()
             .root_terminal()
             .expect("the terminal"),
-        Some(RootTerminal::InfrastructureError),
-        "the run whose supervision died holds no kernel terminal"
+        None,
+        "a terminal the record never took is being reported as committed"
     );
 
     // The permissions the journal was created with, restored so that the temporary tree the check

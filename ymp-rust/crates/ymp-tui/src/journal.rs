@@ -46,6 +46,9 @@ pub struct Model {
     /// Why the kernel stopped being folded, when a record could not be applied to it. The page
     /// states it instead of drawing a ledger that the journal no longer supports.
     commitments_refused: Option<String>,
+    /// What the commitment kernel could not state about a result this run committed. It is a note
+    /// about the record and not about the work: the result was sealed and judged like any other.
+    provenance_unrecorded: Vec<String>,
     /// The answer the interface is waiting for, while a request is being drafted.
     awaiting: Option<String>,
     /// What is running away from the thread that draws, while something is.
@@ -71,6 +74,7 @@ impl Model {
             events: Vec::new(),
             commitments: None,
             commitments_refused: None,
+            provenance_unrecorded: Vec::new(),
             awaiting: None,
             working: None,
             refused: false,
@@ -235,6 +239,11 @@ impl Model {
                 root_obligation,
                 budget,
             } => {
+                // A fold that has already stopped stays stopped, so a later record cannot build a
+                // ledger over a refusal the page is still stating.
+                if self.commitments_refused.is_some() {
+                    return;
+                }
                 match CommitmentLedger::new(
                     root_participant,
                     root_principal,
@@ -246,6 +255,15 @@ impl Model {
                 }
             }
             EventKind::CommitmentFactsRecorded { facts } => {
+                // The fold stops at the first record it cannot take, and what it states is that
+                // first reason. The records after it are read against a ledger that is no longer
+                // being built, so each of them would find no kernel and say so — replacing what
+                // actually stopped the fold with a consequence of it, and telling an operator that
+                // the run opened no kernel when what happened is that one of its facts could not be
+                // replayed.
+                if self.commitments_refused.is_some() {
+                    return;
+                }
                 // The ledger is rebuilt by replaying the record, exactly as the application
                 // rebuilds its own. A fact that cannot be replayed stops the fold and is stated,
                 // because a page drawn past it would show a ledger the journal does not state.
@@ -261,6 +279,17 @@ impl Model {
                         return;
                     }
                 }
+            }
+            EventKind::CandidateProvenanceUnrecorded {
+                candidate_digest,
+                reason,
+                protocol_rule,
+                ..
+            } => {
+                self.provenance_unrecorded.push(format!(
+                    "the construction of candidate {} is not in this kernel — {reason} ·                      {protocol_rule}",
+                    projection::short_digest(candidate_digest)
+                ));
             }
             EventKind::RunExhausted { reason }
             | EventKind::RunAbstained { reason }
@@ -806,6 +835,7 @@ impl Model {
              rebuilds this page from them and from no live state"
                 .to_owned(),
         ];
+        notes.extend(self.provenance_unrecorded.iter().cloned());
         if let Some(refusal) = &self.commitments_refused {
             notes.push(format!(
                 "the commitment record could not be replayed and the fold stopped there: {refusal}"
@@ -1223,6 +1253,18 @@ fn describe_event(envelope: &EventEnvelope) -> (Plane, &'static str, String) {
                     .map(|fact| fact.name())
                     .collect::<Vec<_>>()
                     .join(" · ")
+            ),
+        ),
+        EventKind::CandidateProvenanceUnrecorded {
+            candidate_digest,
+            reason,
+            ..
+        } => (
+            Plane::Control,
+            "candidate.provenance_unrecorded",
+            format!(
+                "candidate {} is sealed without its construction · {reason}",
+                projection::short_digest(candidate_digest)
             ),
         ),
         EventKind::RunExhausted { reason } => (

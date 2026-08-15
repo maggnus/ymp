@@ -1,21 +1,31 @@
-//! Contention against the commitment service from real threads.
+//! Contention against one run's commitment kernel from real threads.
 //!
 //! The domain suite proves that no *ordering* of contending commands can overspend a reservation
 //! or duplicate an obligation. This suite proves the other half: that concurrent callers are
 //! actually reduced to one such ordering, that a repeated command identifier commits nothing a
 //! second time, and that a refusal consumes no sequence and leaves no fact.
+//!
+//! The boundary under test is the one a run has: [`Application::execute_commitment`], deciding
+//! against the ledger folded out of the run's own journal and recording what it commits there
+//! before answering. Every run in here has a store of its own in a temporary directory, and the
+//! accounts are rebuilt from the records that store holds rather than from anything a process kept
+//! beside them.
 
 use std::collections::{BTreeMap, BTreeSet};
-use std::sync::{Arc, Barrier};
+use std::sync::{Arc, Barrier, Mutex};
 
-use ymp_application::{CommitmentService, CommitmentServiceError, RecordedFact};
+use tempfile::TempDir;
+use ymp_application::{Application, ApplicationError, CommitmentOutcome};
 use ymp_domain::commitment::{
     AcceptOpen, AccountRef, Advertise, Award, BudgetVector, CommitmentCommand, CommitmentError,
-    CommitmentEvent, CommitmentLedger, DIMENSION_COUNT, DIMENSIONS, Dimension, FundingSource,
-    OfferPolicy, RecordBid, RegisterParticipant,
+    CommitmentEvent, CommitmentLedger, ContractState, DIMENSION_COUNT, DIMENSIONS, Dimension,
+    FundingSource, OfferPolicy, OfferState, Outcome, RecordBid, RegisterParticipant,
+    ReturnObligation, SettleOffer, StartAttempt, StopReason, StopRun, WithdrawOffer,
 };
+use ymp_domain::{Budget, Command, EventKind, RunStatus, TransitionError};
 
 const ROOT: &str = "sponsor-root";
+const ROOT_PRINCIPAL: &str = "principal-root";
 const ROOT_OBLIGATION: &str = "obligation-root";
 const MAIN_OFFER: &str = "offer-main";
 const OPEN_OFFER: &str = "offer-open";
@@ -95,55 +105,130 @@ fn advertise(offer_id: &str, policy: OfferPolicy, max_awards: u32) -> Commitment
     })
 }
 
-/// A service holding two offers — one negotiated with recorded consent from every contender, one
-/// open — and nothing awarded yet.
-fn prepared() -> CommitmentService {
-    let service = CommitmentService::new(
-        CommitmentLedger::new(ROOT, "principal-root", ROOT_OBLIGATION, root_budget())
-            .expect("root ledger"),
-    );
-    for index in 0..CONTENDERS {
-        service
-            .execute(
-                &format!("register-{index}"),
-                &CommitmentCommand::RegisterParticipant(RegisterParticipant {
-                    participant_id: contender(index),
-                    principal_id: format!("principal-{index}"),
-                    sponsor: ROOT.to_owned(),
-                    endowment: endowment(),
-                }),
-            )
-            .expect("registration");
-    }
-    service
-        .execute(
-            "advertise-main",
-            &advertise(MAIN_OFFER, OfferPolicy::Negotiated, MAIN_MAX_AWARDS),
+/// One run with a kernel of its own, holding two offers — one negotiated with recorded consent from
+/// every contender, one open — and nothing awarded yet.
+///
+/// The directory is returned with the run: the journal is a file in it, and a store dropped while
+/// the run is still in use would take the record with it.
+fn prepared() -> (TempDir, Arc<Mutex<Application>>) {
+    let temporary = tempfile::tempdir().expect("temporary directory");
+    let mut application =
+        Application::create(temporary.path().join("data"), "run-1", Budget::new(1, 1))
+            .expect("create the run");
+    application
+        .open_commitment_kernel(
+            "kernel",
+            ROOT,
+            ROOT_PRINCIPAL,
+            ROOT_OBLIGATION,
+            root_budget(),
         )
-        .expect("negotiated offer");
-    service
-        .execute(
-            "advertise-open",
-            &advertise(OPEN_OFFER, OfferPolicy::OpenAccept, OPEN_MAX_AWARDS),
-        )
-        .expect("open offer");
+        .expect("the run's ledger");
+    let application = Arc::new(Mutex::new(application));
     for index in 0..CONTENDERS {
-        service
-            .execute(
-                &format!("bid-{index}"),
-                &CommitmentCommand::RecordBid(RecordBid {
-                    bid_id: format!("bid-{index}"),
-                    offer_id: MAIN_OFFER.to_owned(),
-                    bidder: contender(index),
-                    requested_escrow: requested_escrow(),
-                    artifact_class: CLASS.to_owned(),
-                    proposal_digest: Some(digest(&format!("proposal-{index}"))),
-                    expires_at: DEADLINE,
-                }),
-            )
-            .expect("consent");
+        execute(
+            &application,
+            &format!("register-{index}"),
+            &CommitmentCommand::RegisterParticipant(RegisterParticipant {
+                participant_id: contender(index),
+                principal_id: format!("principal-{index}"),
+                sponsor: ROOT.to_owned(),
+                endowment: endowment(),
+            }),
+        )
+        .expect("registration");
     }
-    service
+    execute(
+        &application,
+        "advertise-main",
+        &advertise(MAIN_OFFER, OfferPolicy::Negotiated, MAIN_MAX_AWARDS),
+    )
+    .expect("negotiated offer");
+    execute(
+        &application,
+        "advertise-open",
+        &advertise(OPEN_OFFER, OfferPolicy::OpenAccept, OPEN_MAX_AWARDS),
+    )
+    .expect("open offer");
+    for index in 0..CONTENDERS {
+        execute(
+            &application,
+            &format!("bid-{index}"),
+            &CommitmentCommand::RecordBid(RecordBid {
+                bid_id: format!("bid-{index}"),
+                offer_id: MAIN_OFFER.to_owned(),
+                bidder: contender(index),
+                requested_escrow: requested_escrow(),
+                artifact_class: CLASS.to_owned(),
+                proposal_digest: Some(digest(&format!("proposal-{index}"))),
+                expires_at: DEADLINE,
+            }),
+        )
+        .expect("consent");
+    }
+    (temporary, application)
+}
+
+/// Decide and record one command against the run's ledger.
+fn execute(
+    application: &Arc<Mutex<Application>>,
+    command_id: &str,
+    command: &CommitmentCommand,
+) -> Result<CommitmentOutcome, ApplicationError> {
+    application
+        .lock()
+        .expect("the run")
+        .execute_commitment(command_id, command)
+}
+
+/// A consistent read of the run's whole ledger, taken from the journal the run writes.
+fn snapshot(application: &Arc<Mutex<Application>>) -> CommitmentLedger {
+    application
+        .lock()
+        .expect("the run")
+        .recovered_commitments()
+        .expect("the record is readable")
+        .expect("the run carries a kernel")
+        .clone()
+}
+
+/// One committed fact in the order it was committed, with the command that committed it.
+///
+/// It is read back out of the run's journal rather than out of anything held beside it: each
+/// commitment record names the command that wrote it and carries the facts that command committed,
+/// in order, so the position of a fact in the stream is where counting them puts it.
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct RecordedFact {
+    sequence: u64,
+    command_id: String,
+    event: CommitmentEvent,
+}
+
+fn facts_after(application: &Arc<Mutex<Application>>, cursor: u64) -> Vec<RecordedFact> {
+    let records = application
+        .lock()
+        .expect("the run")
+        .events_after(0)
+        .expect("read the committed records");
+    let mut facts = Vec::new();
+    for envelope in records {
+        let EventKind::CommitmentFactsRecorded { facts: committed } = envelope.event else {
+            continue;
+        };
+        for event in committed {
+            facts.push(RecordedFact {
+                sequence: facts.len() as u64 + 1,
+                command_id: envelope.command_id.clone(),
+                event,
+            });
+        }
+    }
+    facts.retain(|fact| fact.sequence > cursor);
+    facts
+}
+
+fn committed_facts(application: &Arc<Mutex<Application>>) -> usize {
+    snapshot(application).sequence() as usize
 }
 
 fn award(index: usize) -> CommitmentCommand {
@@ -173,8 +258,11 @@ fn accept_open(index: usize) -> CommitmentCommand {
     })
 }
 
-/// Run one command per thread, released together, and report which ones were committed.
-fn race<F>(service: &CommitmentService, command: F) -> Vec<Result<bool, CommitmentServiceError>>
+/// Run one command per thread, released together, and report what each of them was told.
+fn race<F>(
+    application: &Arc<Mutex<Application>>,
+    command: F,
+) -> Vec<Result<CommitmentOutcome, ApplicationError>>
 where
     F: Fn(usize) -> (String, CommitmentCommand) + Sync,
 {
@@ -187,7 +275,7 @@ where
                 scope.spawn(move || {
                     let (command_id, command) = command(index);
                     barrier.wait();
-                    service.execute(&command_id, &command).map(|_| true)
+                    execute(application, &command_id, &command)
                 })
             })
             .collect();
@@ -199,14 +287,14 @@ where
 }
 
 /// Every account of the run as the committed facts describe it, added up by this test rather than
-/// read out of the records the service keeps.
+/// read out of the ledger the run holds.
 ///
 /// Adding up those records and comparing the sum with the budget the run began with states nothing:
 /// each movement takes capacity out of one record and puts the same quantity into another, so that
 /// sum is the opening budget for any run at all, including one that lost track of what it moved.
 /// What can be false is the comparison below, because the two sides are built by different code —
 /// one by the kernel applying each fact to its records, the other here from the same facts as they
-/// were committed to the log.
+/// were committed to the journal.
 ///
 /// The one quantity read from the ledger is the opening budget, which is the premise of the run
 /// rather than something a command wrote. Balances are signed, so a movement is followed wherever
@@ -262,9 +350,8 @@ impl FactAccounts {
         }
     }
 
-    /// Where the accounts the facts describe and the accounts the service keeps have parted
-    /// company, in any dimension of any account, including the capacity that has left the accounts
-    /// for good.
+    /// Where the accounts the facts describe and the accounts the run holds have parted company, in
+    /// any dimension of any account, including the capacity that has left the accounts for good.
     fn divergence(&self, ledger: &CommitmentLedger) -> Vec<String> {
         let mut registry: BTreeMap<AccountRef, BudgetVector> = BTreeMap::new();
         for participant in ledger.participants().values() {
@@ -300,7 +387,7 @@ impl FactAccounts {
                 let recorded = i128::from(held.get(dimension));
                 if facts[dimension.index()] != recorded {
                     reported.push(format!(
-                        "{account:?} {dimension}: the facts say {} and the service holds {recorded}",
+                        "{account:?} {dimension}: the facts say {} and the run holds {recorded}",
                         facts[dimension.index()]
                     ));
                 }
@@ -310,7 +397,7 @@ impl FactAccounts {
             let recorded = i128::from(ledger.consumed().get(dimension));
             if self.consumed[dimension.index()] != recorded {
                 reported.push(format!(
-                    "consumed {dimension}: the facts say {} and the service holds {recorded}",
+                    "consumed {dimension}: the facts say {} and the run holds {recorded}",
                     self.consumed[dimension.index()]
                 ));
             }
@@ -367,26 +454,23 @@ fn oversized_offer() -> CommitmentCommand {
     })
 }
 
-/// Conservation, asserted against the facts the service committed rather than against the records
-/// it keeps.
+/// Conservation, asserted against the facts the run committed rather than against the ledger it
+/// holds.
 ///
 /// Two things have to hold, and the second is not implied by the first. The accounts rebuilt from
-/// the facts must agree with the accounts the service holds; and every movement the kernel is
-/// willing to decide must be one those accounts can pay for. A kernel that stopped establishing
-/// the capacity before deciding would keep books that add up perfectly — every fact it commits
-/// still moves capacity out of one account and into another — while committing facts that move
-/// capacity nobody ever held.
-fn assert_conserved(service: &CommitmentService) {
-    let ledger = service.snapshot().expect("snapshot");
-    let accounts = FactAccounts::rebuilt(
-        ROOT,
-        *ledger.initial_total(),
-        &service.facts_after(0).expect("facts"),
-    );
+/// the facts must agree with the accounts the run holds; and every movement the kernel is willing
+/// to decide must be one those accounts can pay for. A kernel that stopped establishing the
+/// capacity before deciding would keep books that add up perfectly — every fact it commits still
+/// moves capacity out of one account and into another — while committing facts that move capacity
+/// nobody ever held.
+fn assert_conserved(application: &Arc<Mutex<Application>>) {
+    let ledger = snapshot(application);
+    let accounts =
+        FactAccounts::rebuilt(ROOT, *ledger.initial_total(), &facts_after(application, 0));
     let divergence = accounts.divergence(&ledger);
     assert!(
         divergence.is_empty(),
-        "the accounts the facts describe and the accounts the service keeps disagree: {divergence:?}"
+        "the accounts the facts describe and the accounts the run keeps disagree: {divergence:?}"
     );
 
     match ledger.decide(&oversized_offer()) {
@@ -412,8 +496,10 @@ fn assert_conserved(service: &CommitmentService) {
 
 #[test]
 fn concurrent_awards_cannot_exceed_the_funded_award_count() {
-    let service = prepared();
-    let outcomes = race(&service, |index| (format!("award-{index}"), award(index)));
+    let (_store, application) = prepared();
+    let outcomes = race(&application, |index| {
+        (format!("award-{index}"), award(index))
+    });
     let committed = outcomes.iter().filter(|outcome| outcome.is_ok()).count();
     assert_eq!(
         committed, MAIN_MAX_AWARDS as usize,
@@ -423,7 +509,7 @@ fn concurrent_awards_cannot_exceed_the_funded_award_count() {
         assert!(
             matches!(
                 outcome,
-                Err(CommitmentServiceError::Refused(
+                Err(ApplicationError::Commitment(
                     CommitmentError::AwardsExhausted { .. }
                 ))
             ),
@@ -431,7 +517,7 @@ fn concurrent_awards_cannot_exceed_the_funded_award_count() {
         );
     }
 
-    let ledger = service.snapshot().expect("snapshot");
+    let ledger = snapshot(&application);
     assert_eq!(ledger.offers()[MAIN_OFFER].awards_made, MAIN_MAX_AWARDS);
     assert_eq!(ledger.contracts().len(), MAIN_MAX_AWARDS as usize);
     assert_eq!(
@@ -456,20 +542,20 @@ fn concurrent_awards_cannot_exceed_the_funded_award_count() {
             .escrow
             .covers(&requested_escrow())
     );
-    assert_conserved(&service);
+    assert_conserved(&application);
 }
 
 #[test]
 fn concurrent_open_acceptance_forms_exactly_one_contract() {
-    let service = prepared();
-    let outcomes = race(&service, |index| {
+    let (_store, application) = prepared();
+    let outcomes = race(&application, |index| {
         (format!("accept-{index}"), accept_open(index))
     });
     assert_eq!(
         outcomes.iter().filter(|outcome| outcome.is_ok()).count(),
         OPEN_MAX_AWARDS as usize
     );
-    let ledger = service.snapshot().expect("snapshot");
+    let ledger = snapshot(&application);
     assert_eq!(ledger.offers()[OPEN_OFFER].awards_made, OPEN_MAX_AWARDS);
     let contracts: Vec<_> = ledger
         .contracts()
@@ -478,58 +564,54 @@ fn concurrent_open_acceptance_forms_exactly_one_contract() {
         .collect();
     assert_eq!(contracts.len(), 1);
     assert_eq!(contracts[0].lease.generation, 1);
-    assert_conserved(&service);
+    assert_conserved(&application);
 }
 
 #[test]
 fn a_repeated_command_identifier_commits_nothing_a_second_time() {
-    let service = prepared();
-    let first = service
-        .execute("award-once", &award(0))
-        .expect("first award");
+    let (_store, application) = prepared();
+    let first = execute(&application, "award-once", &award(0)).expect("first award");
     assert!(!first.replayed);
-    let second = service
-        .execute("award-once", &award(0))
-        .expect("the same delivery again");
+    let second = execute(&application, "award-once", &award(0)).expect("the same delivery again");
     assert!(second.replayed);
     assert_eq!(first.events, second.events);
     assert_eq!(first.first_sequence, second.first_sequence);
 
-    let ledger = service.snapshot().expect("snapshot");
+    let ledger = snapshot(&application);
     assert_eq!(ledger.offers()[MAIN_OFFER].awards_made, 1);
     assert_eq!(ledger.contracts().len(), 1);
     assert_eq!(
-        service.committed_facts().expect("log"),
+        committed_facts(&application),
         first.first_sequence as usize + first.events.len() - 1
     );
 
     // The same identifier carrying different content is a conflict, not a replay.
     assert!(matches!(
-        service.execute("award-once", &award(1)),
-        Err(CommitmentServiceError::IdempotencyConflict { .. })
+        execute(&application, "award-once", &award(1)),
+        Err(ApplicationError::IdempotencyConflict { .. })
     ));
-    assert_conserved(&service);
+    assert_conserved(&application);
 }
 
 #[test]
 fn concurrent_retries_of_one_command_identifier_commit_one_effect() {
-    let service = prepared();
-    let outcomes = race(&service, |_| ("award-shared".to_owned(), award(0)));
+    let (_store, application) = prepared();
+    let outcomes = race(&application, |_| ("award-shared".to_owned(), award(0)));
     assert!(
         outcomes.iter().all(Result::is_ok),
         "every delivery of the same command returns the same committed result"
     );
-    let ledger = service.snapshot().expect("snapshot");
+    let ledger = snapshot(&application);
     assert_eq!(ledger.offers()[MAIN_OFFER].awards_made, 1);
     assert_eq!(ledger.contracts().len(), 1);
-    assert_conserved(&service);
+    assert_conserved(&application);
 }
 
 #[test]
 fn a_refused_command_consumes_no_sequence_and_leaves_no_fact() {
-    let service = prepared();
-    let before = service.committed_facts().expect("log");
-    let snapshot = service.snapshot().expect("snapshot");
+    let (_store, application) = prepared();
+    let before = committed_facts(&application);
+    let held = snapshot(&application);
     let stranger = CommitmentCommand::Award(Award {
         contract_id: "contract-stranger".to_owned(),
         obligation_id: "obligation-stranger".to_owned(),
@@ -540,31 +622,150 @@ fn a_refused_command_consumes_no_sequence_and_leaves_no_fact() {
         lease_ms: LEASE_MS,
     });
     assert!(matches!(
-        service.execute("award-stranger", &stranger),
-        Err(CommitmentServiceError::Refused(
+        execute(&application, "award-stranger", &stranger),
+        Err(ApplicationError::Commitment(
             CommitmentError::NotAuthorized { .. }
         ))
     ));
-    assert_eq!(service.committed_facts().expect("log"), before);
-    assert_eq!(service.snapshot().expect("snapshot"), snapshot);
+    assert_eq!(committed_facts(&application), before);
+    assert_eq!(snapshot(&application), held);
 
     // The identifier stays free: the same identifier may carry a command that is valid.
-    let outcome = service
-        .execute("award-stranger", &award(0))
+    let outcome = execute(&application, "award-stranger", &award(0))
         .expect("a valid command under the same identifier");
     assert!(!outcome.replayed);
 }
 
+/// A run whose journal has ended begins nothing further in its kernel, and still records what its
+/// commitments settle.
+///
+/// The two records of one run end at different moments. The operator's cancellation moves the
+/// journal at once, and the kernel is stopped only when what was running has been wound down;
+/// everything created in that window would be work offered, consented to and funded for a run that
+/// had already ended. So creation is refused from the journal's ending onwards, whether or not the
+/// ledger has been stopped — the ledger has not been, here — and a refusal leaves no fact and no
+/// sequence behind it. The accounting of the ending still lands, because it is the whole reason a
+/// commitment may be recorded after the run has ended at all.
+#[test]
+fn a_run_whose_journal_has_ended_creates_nothing_and_still_settles() {
+    let (_store, application) = prepared();
+    execute(&application, "award-0", &award(0)).expect("award");
+    application
+        .lock()
+        .expect("the run")
+        .execute(
+            "cancel",
+            Command::Cancel {
+                reason: "stopped by the operator".to_owned(),
+            },
+        )
+        .expect("the journal records the cancellation");
+    let before = committed_facts(&application);
+    assert!(
+        snapshot(&application).stopped().is_none(),
+        "the kernel was stopped before the window under test"
+    );
+
+    for (command_id, command) in [
+        (
+            "advertise-late",
+            advertise("offer-late", OfferPolicy::Negotiated, 1),
+        ),
+        ("award-late", award(1)),
+        (
+            "attempt-late",
+            CommitmentCommand::StartAttempt(StartAttempt {
+                attempt_id: "attempt-late".to_owned(),
+                contract_id: "contract-0".to_owned(),
+                participant: contender(0),
+                generation: 1,
+            }),
+        ),
+    ] {
+        let refusal = execute(&application, command_id, &command);
+        assert!(
+            matches!(
+                refusal,
+                Err(ApplicationError::Transition(TransitionError::Terminal(
+                    RunStatus::Cancelled
+                )))
+            ),
+            "{command_id} was admitted on a run that had ended: {refusal:?}"
+        );
+    }
+    assert_eq!(
+        committed_facts(&application),
+        before,
+        "a refused command left a fact behind"
+    );
+
+    // What the ending itself needs: the work is returned, the offer is withdrawn and settled, and
+    // the run is stopped.
+    for (command_id, command) in [
+        (
+            "return-late",
+            CommitmentCommand::ReturnObligation(ReturnObligation {
+                contract_id: "contract-0".to_owned(),
+                participant: contender(0),
+                generation: 1,
+                outcome: Outcome::Cancelled,
+            }),
+        ),
+        (
+            "withdraw-late",
+            CommitmentCommand::WithdrawOffer(WithdrawOffer {
+                offer_id: MAIN_OFFER.to_owned(),
+                sponsor: ROOT.to_owned(),
+            }),
+        ),
+        (
+            "settle-late",
+            CommitmentCommand::SettleOffer(SettleOffer {
+                offer_id: MAIN_OFFER.to_owned(),
+                sponsor: ROOT.to_owned(),
+            }),
+        ),
+    ] {
+        execute(&application, command_id, &command).unwrap_or_else(|error| {
+            panic!("{command_id} was refused after the run ended: {error}")
+        });
+    }
+    // Measured before the kernel is stopped, because the probe it uses asks the kernel to decide a
+    // reservation, and a stopped kernel refuses every reservation whatever the accounts hold.
+    assert_conserved(&application);
+    execute(
+        &application,
+        "stop-late",
+        &CommitmentCommand::StopRun(StopRun {
+            authority: ROOT.to_owned(),
+            reason: StopReason::Cancelled,
+        }),
+    )
+    .expect("stopping the run was refused after the run ended");
+    let ledger = snapshot(&application);
+    assert_eq!(
+        ledger.stopped(),
+        Some(StopReason::Cancelled),
+        "the kernel of a stopped run holds no ending"
+    );
+    assert_eq!(
+        ledger.contracts()["contract-0"].state,
+        ContractState::Returned,
+        "the work of a stopped run was left open"
+    );
+    assert_eq!(ledger.offers()[MAIN_OFFER].state, OfferState::Settled);
+}
+
 #[test]
 fn committed_facts_are_ordered_and_readable_from_a_cursor() {
-    let service = prepared();
-    service.execute("award-0", &award(0)).expect("award");
-    let all = service.facts_after(0).expect("facts");
+    let (_store, application) = prepared();
+    execute(&application, "award-0", &award(0)).expect("award");
+    let all = facts_after(&application, 0);
     assert!(!all.is_empty());
     for (position, fact) in all.iter().enumerate() {
         assert_eq!(fact.sequence, position as u64 + 1);
     }
-    let tail = service.facts_after(all.len() as u64 - 1).expect("facts");
+    let tail = facts_after(&application, all.len() as u64 - 1);
     assert_eq!(tail.len(), 1);
     assert_eq!(tail[0], all[all.len() - 1]);
     assert!(
@@ -572,10 +773,9 @@ fn committed_facts_are_ordered_and_readable_from_a_cursor() {
             .any(|fact| matches!(fact.event, CommitmentEvent::TaskContractFormed { .. })),
         "the award is visible as a committed fact"
     );
+    assert!(facts_after(&application, all.len() as u64).is_empty());
     assert!(
-        service
-            .facts_after(all.len() as u64)
-            .expect("facts")
-            .is_empty()
+        all.iter().any(|fact| fact.command_id == "award-0"),
+        "the record does not name the command that committed the award"
     );
 }
