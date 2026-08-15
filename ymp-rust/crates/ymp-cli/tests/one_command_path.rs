@@ -922,6 +922,32 @@ fn the_fixture_crate_stays_outside_the_shipped_binary() {
     );
 }
 
+/// The fixture runtime is a test double. Nothing the shipped executable links may reach it: a
+/// driver the workspace does not attest must not be buildable — and therefore not offerable — on
+/// any path a user can run. The closure is read from the manifests, so the only way to satisfy
+/// this is for every linked crate to declare the fixture as a development dependency or not at
+/// all. The check that must fail: return `ymp-runtime-fake` to the `[dependencies]` of any crate
+/// the binary links, and this reports the closure with a non-zero exit.
+#[test]
+fn the_fixture_runtime_stays_outside_the_shipped_binary() {
+    let root = workspace_root();
+    let linked = linked_by_the_shipped_binary(&root);
+    for required in LINKED_CORE {
+        assert!(
+            linked.contains(required),
+            "the dependency closure of the shipped binary was read as {linked:?}, which does not \
+             reach {required}; the check would then pass on an empty set"
+        );
+    }
+    assert!(
+        !linked.contains("ymp-runtime-fake"),
+        "the fixture runtime has entered the dependency closure of the shipped binary, so a test \
+         double is buildable — and offerable — on a path a user can run; it belongs in the \
+         development dependencies of the crates whose checks need it. The closure was read as \
+         {linked:?}"
+    );
+}
+
 #[test]
 fn the_scanner_reads_elements_rather_than_text() {
     let source = r####"
