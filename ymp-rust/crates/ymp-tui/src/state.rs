@@ -85,17 +85,21 @@ pub enum PageKind {
     /// Attempts of the current run. POC-1 has no participants, so the page names what the
     /// domain records: attempts started under the run.
     Attempts,
+    /// The task contracts and work obligations of the run's commitment kernel. It exists only
+    /// where the journal opened one, because a run without a kernel has no commitment to show.
+    Commitments,
     Describe,
 }
 
 impl PageKind {
     /// Every page the interface supports, in palette order.
-    pub const ALL: [Self; 6] = [
+    pub const ALL: [Self; 7] = [
         Self::Runtimes,
         Self::Candidates,
         Self::Events,
         Self::Budgets,
         Self::Attempts,
+        Self::Commitments,
         Self::Describe,
     ];
 
@@ -106,6 +110,7 @@ impl PageKind {
             Self::Events => "events",
             Self::Budgets => "budgets",
             Self::Attempts => "attempts",
+            Self::Commitments => "commitments",
             Self::Describe => "describe",
         }
     }

@@ -10,12 +10,13 @@
 //! budget carries two dimensions rather than five.
 
 use ratatui::text::Span;
+use ymp_domain::commitment::CommitmentLedger;
 use ymp_domain::{Budget, EventEnvelope, EventKind, RunState};
 
 use crate::pages::{Body, Cell, Column, DescribeGroup, Page, Row};
 use crate::projection::{
-    self, AttemptFacts, BudgetDimension, CandidateFacts, CandidateVerdict, ContractFacts,
-    Environment, EventFacts, Projection, RunFacts,
+    self, AttemptFacts, BudgetDimension, CandidateFacts, CandidateVerdict, CommitmentFacts,
+    ContractFacts, Environment, EventFacts, ObligationFacts, Projection, RunFacts,
 };
 use crate::state::{Command, PageKind, PaletteItem};
 use crate::style;
@@ -38,6 +39,13 @@ pub struct Model {
     candidates: Vec<CandidateFacts>,
     attempts: Vec<AttemptFacts>,
     events: Vec<EventFacts>,
+    /// The commitment kernel of this run, folded out of the journal's own commitment records.
+    /// It is absent until a record opens one, so a run without a kernel shows no page rather
+    /// than an empty one.
+    commitments: Option<CommitmentLedger>,
+    /// Why the kernel stopped being folded, when a record could not be applied to it. The page
+    /// states it instead of drawing a ledger that the journal no longer supports.
+    commitments_refused: Option<String>,
     /// The answer the interface is waiting for, while a request is being drafted.
     awaiting: Option<String>,
     /// What is running away from the thread that draws, while something is.
@@ -61,6 +69,8 @@ impl Model {
             candidates: Vec::new(),
             attempts: Vec::new(),
             events: Vec::new(),
+            commitments: None,
+            commitments_refused: None,
             awaiting: None,
             working: None,
             refused: false,
@@ -219,6 +229,39 @@ impl Model {
                     });
                 }
             }
+            EventKind::CommitmentKernelOpened {
+                root_participant,
+                root_principal,
+                root_obligation,
+                budget,
+            } => {
+                match CommitmentLedger::new(
+                    root_participant,
+                    root_principal,
+                    root_obligation,
+                    *budget,
+                ) {
+                    Ok(ledger) => self.commitments = Some(ledger),
+                    Err(refusal) => self.commitments_refused = Some(refusal.to_string()),
+                }
+            }
+            EventKind::CommitmentFactsRecorded { facts } => {
+                // The ledger is rebuilt by replaying the record, exactly as the application
+                // rebuilds its own. A fact that cannot be replayed stops the fold and is stated,
+                // because a page drawn past it would show a ledger the journal does not state.
+                let Some(ledger) = self.commitments.as_mut() else {
+                    self.commitments_refused =
+                        Some("a commitment record arrived before any kernel was opened".into());
+                    return;
+                };
+                for fact in facts {
+                    if let Err(refusal) = ledger.replay(fact) {
+                        self.commitments = None;
+                        self.commitments_refused = Some(refusal.to_string());
+                        return;
+                    }
+                }
+            }
             EventKind::RunExhausted { reason }
             | EventKind::RunAbstained { reason }
             | EventKind::RunCancelled { reason }
@@ -361,6 +404,11 @@ impl Model {
             pages.push((PageKind::Events, self.events_page(run)));
             pages.push((PageKind::Budgets, self.budgets_page(run)));
             pages.push((PageKind::Attempts, self.attempts_page(run)));
+            // A run whose journal never opened a commitment kernel has no commitment to show,
+            // so the page is absent rather than empty.
+            if self.commitments.is_some() || self.commitments_refused.is_some() {
+                pages.push((PageKind::Commitments, self.commitments_page(run)));
+            }
         }
 
         Projection {
@@ -685,6 +733,130 @@ impl Model {
         }
     }
 
+    /// The task contracts and work obligations the run's commitment kernel holds.
+    ///
+    /// Every value is folded out of the journal's commitment records through the domain's own
+    /// ledger, so the page states what a restart would rebuild and not what a live process
+    /// happens to remember. Contracts come first and their obligations follow, because a
+    /// contract is what an obligation was created for.
+    fn commitments_page(&self, run: &RunFacts) -> Page {
+        let contracts: Vec<CommitmentFacts> = self
+            .commitments
+            .iter()
+            .flat_map(|ledger| ledger.contracts().values())
+            .map(CommitmentFacts::from_record)
+            .collect();
+        let obligations: Vec<ObligationFacts> = self
+            .commitments
+            .iter()
+            .flat_map(|ledger| ledger.obligations().values())
+            .map(ObligationFacts::from_record)
+            .collect();
+
+        let mut rows: Vec<Row> = contracts
+            .iter()
+            .map(|contract| Row {
+                cells: vec![
+                    Cell::new("contract", theme::muted()),
+                    Cell::new(contract.contract_id.clone(), theme::bold()),
+                    Cell::new(contract.contractor.clone(), theme::text()),
+                    Cell::new(
+                        contract.state,
+                        if contract.active {
+                            theme::green()
+                        } else {
+                            theme::muted()
+                        },
+                    ),
+                    Cell::new(format!("g{}", contract.generation), theme::dim()),
+                    Cell::new(escrow_cell(&contract.escrow), theme::text()),
+                ],
+                fix: None,
+                dim: false,
+            })
+            .collect();
+        rows.extend(obligations.iter().map(|obligation| Row {
+            cells: vec![
+                Cell::new("obligation", theme::muted()),
+                Cell::new(obligation.obligation_id.clone(), theme::bold()),
+                Cell::new(obligation.owner.clone(), theme::text()),
+                Cell::new(obligation.state, theme::muted()),
+                Cell::new("—".to_owned(), theme::faint()),
+                Cell::new(obligation_detail(obligation), theme::muted()),
+            ],
+            fix: None,
+            dim: false,
+        }));
+
+        let count = rows.len();
+        let mut summary = vec![Span::styled(" · ".to_owned(), theme::faint())];
+        summary.extend(style::spans(
+            &format!(
+                "{} · {}",
+                counted(contracts.len(), "task contract"),
+                counted(obligations.len(), "obligation")
+            ),
+            theme::muted(),
+        ));
+        let mut notes = vec![
+            "every value here is folded out of the journal's commitment records, so a restart \
+             rebuilds this page from them and from no live state"
+                .to_owned(),
+        ];
+        if let Some(refusal) = &self.commitments_refused {
+            notes.push(format!(
+                "the commitment record could not be replayed and the fold stopped there: {refusal}"
+            ));
+        } else if count == 0 {
+            notes.push(
+                "the kernel is open and holds nothing yet — no task contract has been formed and \
+                 no obligation created under it"
+                    .to_owned(),
+            );
+        }
+
+        Page {
+            breadcrumb: vec![
+                "transcript".into(),
+                format!("commitments({})[{count}]", run.run_id),
+            ],
+            summary,
+            body: Body::Table {
+                columns: vec![
+                    Column {
+                        title: "KIND",
+                        width: 11,
+                    },
+                    Column {
+                        title: "ID",
+                        width: 20,
+                    },
+                    Column {
+                        title: "HELD BY",
+                        width: 16,
+                    },
+                    Column {
+                        title: "STATE",
+                        width: 10,
+                    },
+                    Column {
+                        title: "LEASE",
+                        width: 7,
+                    },
+                    Column {
+                        title: "ESCROW / OUTCOME",
+                        width: 0,
+                    },
+                ],
+                rows,
+            },
+            notes,
+            footer: style::spans(&self.status_line(), theme::muted()),
+            keys: vec![("Esc", "back")],
+            selected: 0,
+        }
+    }
+
     /// Field groups for one candidate, reached with Enter from the candidates page.
     pub fn describe_candidate(&self, index: usize) -> Option<Page> {
         let candidate = self.candidates.get(index)?;
@@ -880,6 +1052,37 @@ pub fn budgets_page(run_id: &str, dimensions: &[BudgetDimension], status: String
     }
 }
 
+/// A count and the thing counted, in the number the count actually calls for.
+fn counted(count: usize, noun: &str) -> String {
+    if count == 1 {
+        format!("{count} {noun}")
+    } else {
+        format!("{count} {noun}s")
+    }
+}
+
+/// What a task contract still holds, dimension by dimension. A contract holding nothing says so
+/// rather than showing a row of zeros: the escrow has gone back to whoever funded it.
+fn escrow_cell(escrow: &[(&'static str, u64)]) -> String {
+    if escrow.is_empty() {
+        return "settled — holds nothing".to_owned();
+    }
+    escrow
+        .iter()
+        .map(|(dimension, units)| format!("{dimension} {units}"))
+        .collect::<Vec<_>>()
+        .join(" · ")
+}
+
+/// What an obligation's row states beside its state: how it ended, or what it hangs under.
+fn obligation_detail(obligation: &ObligationFacts) -> String {
+    match (&obligation.outcome, &obligation.parent) {
+        (Some(outcome), _) => format!("outcome {outcome}"),
+        (None, Some(parent)) => format!("under {parent}"),
+        (None, None) => "root of the run".to_owned(),
+    }
+}
+
 /// A number the journal does not carry is shown as unknown, never as zero.
 fn unknown_or(value: Option<u32>) -> String {
     value.map_or_else(|| "—".to_owned(), |value| value.to_string())
@@ -900,6 +1103,7 @@ fn page_description(kind: PageKind) -> &'static str {
         PageKind::Events => "the durable journal — head and planes",
         PageKind::Budgets => "independent dimensions of the run budget",
         PageKind::Attempts => "attempts recorded under the current run",
+        PageKind::Commitments => "task contracts and obligations of the run's commitment kernel",
         PageKind::Describe => "full field groups of the selection",
     }
 }
@@ -987,6 +1191,32 @@ fn describe_event(envelope: &EventEnvelope) -> (Plane, &'static str, String) {
                 projection::short_digest(candidate_digest),
                 if *accepted { "accepted" } else { "rejected" },
                 projection::short_digest(evidence_digest)
+            ),
+        ),
+        EventKind::CommitmentKernelOpened {
+            root_participant,
+            root_obligation,
+            ..
+        } => (
+            Plane::Control,
+            "commitment.kernel_opened",
+            format!(
+                "commitment kernel opened · {root_participant} is accountable for \
+                 {root_obligation}"
+            ),
+        ),
+        EventKind::CommitmentFactsRecorded { facts } => (
+            Plane::Control,
+            "commitment.facts_recorded",
+            format!(
+                "{} commitment {} committed · {}",
+                facts.len(),
+                if facts.len() == 1 { "fact" } else { "facts" },
+                facts
+                    .iter()
+                    .map(|fact| fact.name())
+                    .collect::<Vec<_>>()
+                    .join(" · ")
             ),
         ),
         EventKind::RunExhausted { reason } => (

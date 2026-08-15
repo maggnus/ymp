@@ -87,6 +87,7 @@ const CORRESPONDENCE: &[(&str, &[&str])] = &[
     ("page:events", &["ymp", "show", "events"]),
     ("page:budgets", &["ymp", "show", "budgets"]),
     ("page:attempts", &["ymp", "show", "attempts"]),
+    ("page:commitments", &["ymp", "show", "commitments"]),
     (
         "page:describe",
         &["ymp", "show", "describe", "--candidate", "0"],
@@ -367,6 +368,7 @@ fn every_interface_action_is_a_command_and_neither_side_holds_a_surplus() {
         PageName::Events,
         PageName::Budgets,
         PageName::Attempts,
+        PageName::Commitments,
         PageName::Describe,
     ] {
         assert!(
