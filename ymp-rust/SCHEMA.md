@@ -28,8 +28,12 @@ one content-addressed object store, and the recovery and refusal behaviour state
 layout adds is that a second run and a second project are addressed, not named.
 
 The engine registry stands beside the projects rather than inside a store, because which engines
-this host admits is one decision and every run under the root reads it. It is described under
-*Runtime engine registry version 1* below.
+this host admits is one decision and every run under the root reads it. Which registry an
+invocation reaches is derived from the path it addresses rather than from the way it named it: a
+store is walked up to the first ancestor carrying `root.json` that addresses that store under its
+projects, so `--data-root` on a store inside a root reads that root's registry. A store standing
+under no such root has no root decision to honour and keeps its registry beside it. The registry is
+described under *Runtime engine registry version 1* below.
 
 An invocation that commits a run start is given a store holding no run; every other invocation is
 given the store the project is already on. A store addressed but never started into holds no
@@ -76,17 +80,26 @@ its seeded state; the Codex engine is seeded disabled, because the account this 
 with is over its usage limit until 2026-09-12.
 
 The **measured properties** are written from measurements of this host and never from a
-declaration: the executable discovery resolved, the release that executable reported, the origin of
-the credential a managed invocation would carry — named, never the credential itself — and the
-bounds that invocation is held to. Discovery has one channel and the record names its result, so an
-engine cannot be selected by a path no record states.
+declaration: the executable discovery resolved, the release that executable reported, the digest of
+that executable computed from its bytes, the origin of the credential a managed invocation would
+carry — named, never the credential itself — and the bounds that invocation is held to. Discovery
+has one channel and the record names its result, so an engine cannot be selected by a path no
+record states.
 
-The **model list** is what the engine can serve, with the provenance of the list and the release it
-was measured against. `source` is `measured` when the installed build named the models and refused
-every other candidate put to it, `pinned` when the build publishes no catalog and the record states
-the route the managed profile pins instead, and `unmeasured` when nothing has been measured. A list
-whose `measured_for_version` is not the installed release is stale and is measured again rather
-than read as current.
+The **model list** is what the engine can serve, with the provenance of the list. `source` is
+`measured` when the installed build was asked about every candidate its own executable carries and
+named the ones it serves, `filtered` when some candidate was not put to it and the list is
+therefore part of what it serves rather than all of it, `pinned` when the build publishes no
+catalog and the record states the route the managed profile pins instead, and `unmeasured` when
+nothing has been measured. Which candidates are asked about is not decided by any rule over model
+names: every identifier the executable carries is put to the build, and the build refuses what it
+does not serve.
+
+Whether a recorded list is still current is decided by `measured_for_digest` against the digest of
+the installed executable, computed at every reading. `measured_for_version` states the release that
+build reported and decides nothing, because a record states it and a record can say anything: a
+forged record naming the installed release would otherwise suppress the re-measurement that
+replaces it.
 
 The record states its own `schema_version`. A record of any other version is refused when it is
 read, and no command migrates a record. A record that exists and cannot be read refuses the engine

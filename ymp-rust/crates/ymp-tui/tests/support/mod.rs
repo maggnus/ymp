@@ -74,6 +74,7 @@ fn engine(engine: Engine, names: Vec<String>) -> EngineFacts {
                 false => ModelSource::Measured,
             },
             measured_for_version: (!names.is_empty()).then(|| "0.0.0".to_owned()),
+            measured_for_digest: (!names.is_empty()).then(|| "fixture-digest".to_owned()),
             note: None,
             names,
         },

@@ -129,10 +129,15 @@ fn every_installed_build_is_admitted_and_the_session_names_the_build_that_was_pr
 #[ignore = "starts the real installed Claude Code build once per model candidate"]
 fn the_measured_model_catalog_names_the_routes_the_installed_build_serves() {
     let runtime = ClaudeRuntime::default();
-    let catalog = runtime
+    let measured = runtime
         .measure_model_catalog()
         .expect("measure the model catalog of the installed build");
-    println!("catalog: {catalog:?}");
+    let catalog = &measured.served;
+    println!("catalog ({} served): {catalog:?}", catalog.len());
+    assert_eq!(
+        measured.unasked, 0,
+        "the measurement left candidates unasked, so this list is not the whole catalog"
+    );
     assert!(
         !catalog.is_empty(),
         "the installed build served no model at all"
@@ -147,14 +152,22 @@ fn the_measured_model_catalog_names_the_routes_the_installed_build_serves() {
         catalog.iter().any(|model| model == PINNED_CLAUDE_MODEL),
         "the measured catalog does not name the pinned route {PINNED_CLAUDE_MODEL}: {catalog:?}"
     );
-    // Negative half: a name shaped like a model but served by no build never enters the list. A
-    // measurement that had lost its negative answer would carry this candidate through.
+    // A family whose first segment is a number is served by this build, and a candidate filter of
+    // this code's own would have thrown it away before the build was ever asked.
     assert!(
-        !catalog
+        catalog
             .iter()
-            .any(|model| model.starts_with("claude-instant")),
-        "the measured catalog names a route no installed build serves: {catalog:?}"
+            .any(|model| model.starts_with("claude-3-5-haiku")),
+        "the measured catalog names no claude-3-5 route the build serves: {catalog:?}"
     );
+    // Negative half: a name the build refuses never enters the list. A measurement that had lost
+    // its negative answer would carry every candidate the executable carries straight through.
+    for refused in ["claude-instant", "claude-code-", "claude-desktop"] {
+        assert!(
+            !catalog.iter().any(|model| model.starts_with(refused)),
+            "the measured catalog names {refused}…, which no installed build serves: {catalog:?}"
+        );
+    }
 }
 
 /// Reads a `--version` line against the profile floor, comparing the build ordinals as numbers.

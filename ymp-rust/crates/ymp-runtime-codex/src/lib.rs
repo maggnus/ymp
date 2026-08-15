@@ -222,6 +222,11 @@ impl CodexRuntime {
             .map(|_| "delegated_home_credential")
     }
 
+    /// The digest of the installed executable, computed from its bytes rather than reported by it.
+    pub fn executable_digest(&self) -> Result<String, RuntimeError> {
+        Ok(self.admitted_executable()?.digest)
+    }
+
     /// The routes this engine can serve.
     ///
     /// The installed build publishes no catalog and lists no routes of its own: which models the

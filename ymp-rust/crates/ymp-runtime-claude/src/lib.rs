@@ -527,15 +527,15 @@ impl ClaudeRuntime {
     /// the measurement come from the build: it supplies the names and it decides which of them it
     /// serves. A list written here would be a declaration, and a declared model list is exactly
     /// what the registry exists to replace.
-    pub fn measure_model_catalog(&self) -> Result<Vec<String>, RuntimeError> {
+    pub fn measure_model_catalog(&self) -> Result<MeasuredCatalog, RuntimeError> {
         self.profile.validate()?;
         if !self.executable.is_file() {
-            return Ok(Vec::new());
+            return Ok(MeasuredCatalog::default());
         }
         let admitted = self.admitted_executable()?;
         let environment = self.isolated_environment()?;
         let values = environment.values(None, None, None)?;
-        let candidates = model_candidates(&admitted.execution_path)?;
+        let (candidates, carried) = model_candidates(&admitted.execution_path)?;
         let mut served = Vec::new();
         for chunk in candidates.chunks(MODEL_PROBE_CONCURRENCY) {
             let measured: Vec<Result<Option<String>, RuntimeError>> = thread::scope(|scope| {
@@ -569,8 +569,30 @@ impl ClaudeRuntime {
         }
         served.sort();
         served.dedup();
-        Ok(served)
+        Ok(MeasuredCatalog {
+            served,
+            unasked: carried.saturating_sub(candidates.len()),
+        })
     }
+
+    /// The digest of the installed executable, computed from its bytes.
+    ///
+    /// This is what says whether a recorded measurement still describes what is installed. The
+    /// release an executable prints is what that executable says; the digest is what it is.
+    pub fn executable_digest(&self) -> Result<String, RuntimeError> {
+        Ok(self.admitted_executable()?.digest)
+    }
+}
+
+/// What one measurement of the installed build produced.
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+pub struct MeasuredCatalog {
+    /// Every candidate the build answered for and served.
+    pub served: Vec<String>,
+    /// How many candidates the installed executable carries that this measurement did not ask
+    /// about. It is never silently zero: a list that left candidates unasked is a partial answer
+    /// and the caller records it as one.
+    pub unasked: usize,
 }
 
 /// The phrase the installed build prints for a model it does not recognise. It is the whole of the
@@ -581,8 +603,8 @@ const UNRECOGNISED_MODEL_MARKER: &str = "not a model this version of Claude Code
 
 /// How many candidates one measurement puts to the build. The installed executable is scanned for
 /// names, and a build that carried more than this many is measured up to the bound with the
-/// remainder stated rather than silently dropped.
-const MAX_MODEL_CANDIDATES: usize = 256;
+/// remainder counted and stated rather than silently dropped.
+const MAX_MODEL_CANDIDATES: usize = 512;
 
 /// How many candidate probes run at once. Each one starts the installed build, so this trades the
 /// wall time of a measurement against the memory a copy of that build occupies.
@@ -605,12 +627,14 @@ fn recognised_model(
     Ok(!answer.contains(UNRECOGNISED_MODEL_MARKER))
 }
 
-/// The model names the installed build carries, as candidates to put back to it.
+/// The candidates the installed build carries, and how many the scan found in all.
 ///
-/// The scan reads the executable in windows and keeps every identifier shaped like a model name.
-/// It is deliberately generous: a name the build does not serve is refused by the build itself, so
-/// the scan's only job is to miss nothing a later release adds.
-fn model_candidates(executable: &Path) -> Result<Vec<String>, RuntimeError> {
+/// A candidate is any identifier the executable carries that opens with this product's name. The
+/// scan applies no idea of its own about which shapes are models: `claude-3-5-haiku-latest` names
+/// a family that begins with a digit and `claude-opus-4-1` one that does not, and a rule general
+/// enough to admit both admits nearly everything anyway. What decides is the build, which refuses
+/// every candidate it does not serve. The scan's only job is to miss nothing a later release adds.
+fn model_candidates(executable: &Path) -> Result<(Vec<String>, usize), RuntimeError> {
     const PREFIX: &[u8] = b"claude-";
     const WINDOW_BYTES: usize = 1 << 20;
     /// The longest partial identifier carried into the next window. No model name approaches it.
@@ -650,10 +674,11 @@ fn model_candidates(executable: &Path) -> Result<Vec<String>, RuntimeError> {
             window.drain(..excess);
         }
     }
+    let carried = found.len();
     let mut candidates: Vec<String> = found.into_iter().collect();
     candidates.sort();
     candidates.truncate(MAX_MODEL_CANDIDATES);
-    Ok(candidates)
+    Ok((candidates, carried))
 }
 
 fn find_bytes(haystack: &[u8], needle: &[u8]) -> Option<usize> {
@@ -673,31 +698,16 @@ fn is_identifier_byte(byte: u8) -> bool {
     byte.is_ascii_lowercase() || byte.is_ascii_digit() || byte == b'-'
 }
 
-/// A model name is the product name, a family and a numbered release: `claude-haiku-4-5`. The
-/// shape rejects the build's other `claude-` strings before they cost a probe; the build rejects
-/// whatever the shape lets through.
+/// One candidate, as the scan read it out of the executable.
+///
+/// The only token rejected here is one that is not an identifier at all: the product name with
+/// nothing after it. Everything else is put to the build, because a rule about which shapes are
+/// models is a rule this code would be inventing. `claude-3-5-haiku-latest` is what such a rule
+/// costs: the build serves it, and a shape written around `claude-opus-4-1` throws it away.
 fn model_identifier(bytes: &[u8]) -> Option<String> {
     let name = std::str::from_utf8(bytes).ok()?;
-    let mut segments = name.split('-');
-    if segments.next()? != "claude" {
-        return None;
-    }
-    let family = segments.next()?;
-    if family.len() < 3
-        || !family
-            .chars()
-            .all(|character| character.is_ascii_lowercase())
-    {
-        return None;
-    }
-    let mut releases = 0;
-    for segment in segments {
-        if segment.is_empty() || !segment.chars().all(|character| character.is_ascii_digit()) {
-            return None;
-        }
-        releases += 1;
-    }
-    (releases > 0).then(|| name.to_owned())
+    let remainder = name.strip_prefix("claude-")?;
+    (!remainder.is_empty()).then(|| name.to_owned())
 }
 
 /// Authentication material for the managed invocation. Claude Code resolves its `claude.ai` OAuth
@@ -2772,31 +2782,31 @@ printf '%s\n' '{{"type":"result","subtype":"success","is_error":false,"terminal_
         );
     }
 
-    /// The shape filter rejects the build's other `claude-` strings before they cost a probe, and
-    /// keeps every release identifier a model name can take.
+    /// Every identifier the executable carries becomes a candidate, and the build decides. A rule
+    /// of this code's own about which shapes are models would throw away families the build
+    /// serves, and `claude-3-5-haiku-latest` is one of them.
     #[test]
-    fn only_identifiers_shaped_like_a_model_name_become_candidates() {
-        for served in [
+    fn every_identifier_the_build_carries_becomes_a_candidate() {
+        for carried in [
             "claude-haiku-4-5",
             "claude-sonnet-5",
             "claude-opus-4-5-20251101",
-        ] {
-            assert_eq!(
-                model_identifier(served.as_bytes()).as_deref(),
-                Some(served),
-                "{served} was not read as a model name"
-            );
-        }
-        for other in [
+            "claude-3-5-haiku-latest",
             "claude-3-5",
             "claude-code",
-            "claude-",
-            "claude-opus-",
             "claude-opus-4x",
         ] {
+            assert_eq!(
+                model_identifier(carried.as_bytes()).as_deref(),
+                Some(carried),
+                "{carried} was dropped before the build was asked about it"
+            );
+        }
+        // What is not an identifier is not a candidate: there is nothing to ask the build about.
+        for other in ["claude-", "claude", "opus-4-1"] {
             assert!(
                 model_identifier(other.as_bytes()).is_none(),
-                "{other} was read as a model name"
+                "{other} was read as an identifier"
             );
         }
     }
