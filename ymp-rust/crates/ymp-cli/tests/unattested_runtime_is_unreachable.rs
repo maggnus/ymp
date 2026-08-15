@@ -25,11 +25,24 @@
 //! that starts a runtime it built without naming the gate, and any use of the seams that exist for
 //! the checks. No file is excluded as a whole: a seam may appear only on the line that defines it,
 //! so the module defining a seam is still read for every other use of it.
+//!
+//! That half decides what a build of the product compiles with the same reading as the start guard
+//! of `one_command_path`: the source is scanned into elements, and an item is removed only where
+//! its condition cannot hold in a build of the executable. It is not cut at the first test marker,
+//! because everything a module wrote after its test module would then go unexamined — a start
+//! standing beside the fixture runtime below a test module is exactly the shape this half exists
+//! to reject. Within the lines that survive, the match is on the text of the line, which reads a
+//! call written as `.start(` as readily as one written as `start_prepared(`.
 
+use std::collections::BTreeSet;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::sync::{Arc, Mutex};
+
+mod support;
+
+use support::shipped_lines;
 
 use ymp_application::Application;
 use ymp_domain::Budget;
@@ -93,7 +106,8 @@ fn workspace_root() -> PathBuf {
         .to_path_buf()
 }
 
-/// Every shipped module of the workspace, as the source that stands before its own test module.
+/// Every module of the workspace, with its whole source. Which of its lines a build of the
+/// product compiles is decided by `code_lines`, not by cutting the text here.
 fn shipped_sources() -> Vec<(String, String)> {
     let root = workspace_root();
     let mut sources = Vec::new();
@@ -124,28 +138,53 @@ fn collect(directory: &Path, root: &Path, sources: &mut Vec<(String, String)>) {
                 .to_string_lossy()
                 .replace('\\', "/");
             let text = fs::read_to_string(&path).expect("readable source");
-            let shipped = text
-                .find("#[cfg(test)]")
-                .map_or(text.as_str(), |cut| &text[..cut])
-                .to_owned();
-            sources.push((name, shipped));
+            sources.push((name, text));
         }
     }
 }
 
-fn code_lines(source: &str) -> impl Iterator<Item = (usize, &str)> {
+/// The lines of a source that a build of the product compiles, each with its number.
+///
+/// A line is present when the shared reading found a compiled element on it, so a comment, a bare
+/// literal and an item no build of the product compiles are all absent, while a line standing
+/// after a test module is present like any other.
+fn code_lines(source: &str) -> Vec<(usize, &str)> {
+    let shipped: BTreeSet<usize> = shipped_lines(source);
     source
         .lines()
         .enumerate()
         .map(|(index, line)| (index + 1, line))
-        .filter(|(_, line)| {
-            let trimmed = line.trim_start();
-            !trimmed.starts_with("//") && !trimmed.starts_with("*") && !trimmed.starts_with("/*")
-        })
+        .filter(|(number, _)| shipped.contains(number))
+        .collect()
 }
 
 fn names(source: &str, wanted: &str) -> bool {
-    code_lines(source).any(|(_, line)| line.contains(wanted))
+    code_lines(source)
+        .into_iter()
+        .any(|(_, line)| line.contains(wanted))
+}
+
+/// Every start a module names while also naming the runtime this workspace does not attest, as the
+/// workspace-wide check reports it. `name` is the module's path from the workspace root.
+fn starts_beside_the_unattested_runtime(name: &str, source: &str) -> Vec<String> {
+    if name.starts_with(UNATTESTED_RUNTIME_CRATE) {
+        return Vec::new();
+    }
+    if !UNATTESTED_RUNTIME
+        .iter()
+        .any(|runtime| names(source, runtime))
+    {
+        return Vec::new();
+    }
+    let mut offenders = Vec::new();
+    for (number, line) in code_lines(source) {
+        for start in STARTS {
+            if line.contains(start) {
+                offenders.push(format!("{name}:{number}: {start}"));
+            }
+        }
+    }
+    offenders
 }
 
 #[test]
@@ -173,28 +212,83 @@ fn a_seam_the_checks_use_appears_only_where_it_is_defined() {
 fn no_shipped_module_names_the_unattested_runtime_beside_a_start() {
     let mut offenders = Vec::new();
     for (name, source) in shipped_sources() {
-        if name.starts_with(UNATTESTED_RUNTIME_CRATE) {
-            continue;
-        }
-        if !UNATTESTED_RUNTIME
-            .iter()
-            .any(|runtime| names(&source, runtime))
-        {
-            continue;
-        }
-        for (number, line) in code_lines(&source) {
-            for start in STARTS {
-                if line.contains(start) {
-                    offenders.push(format!("{name}:{number}: {start}"));
-                }
-            }
-        }
+        offenders.extend(starts_beside_the_unattested_runtime(&name, &source));
     }
     assert!(
         offenders.is_empty(),
         "a shipped module that names the unattested runtime also starts a run or commits what one \
          produced:\n{}",
         offenders.join("\n")
+    );
+}
+
+/// The negative half of the check above: a module that starts the fixture runtime below its own
+/// test module is reported, and the test module's own start is not.
+///
+/// This is the reading that cutting the source at the first test marker got wrong. Under that
+/// reading the fixture's shipped start stands past the cut and the whole module scans clean, so
+/// the check would report nothing and pass while the defect it exists to catch was present.
+#[test]
+fn a_start_beside_the_unattested_runtime_is_seen_below_a_test_module() {
+    let module = "crates/ymp-example/src/lib.rs";
+    let source = r####"
+use ymp_runtime_fake::FakeRuntime;
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn the_fixture_runtime_answers() {
+        let _ = FakeRuntime::default().start(request());
+    }
+}
+
+pub fn assemble(request: Request) -> Outcome {
+    let runtime = FakeRuntime::default();
+    runtime.start(request)
+}
+"####;
+    let marker = source
+        .lines()
+        .position(|line| line.contains("#[cfg(test)]"))
+        .expect("the fixture carries a test marker")
+        + 1;
+    let shipped_start = source
+        .lines()
+        .position(|line| line.contains("runtime.start(request)"))
+        .expect("the fixture carries a start below its test module")
+        + 1;
+    assert!(
+        shipped_start > marker,
+        "the fixture no longer places its shipped start below the marker"
+    );
+
+    let offenders = starts_beside_the_unattested_runtime(module, source);
+    assert_eq!(
+        offenders,
+        vec![format!("{module}:{shipped_start}: .start(")],
+        "the start below the test module was not reported as the only offence"
+    );
+
+    // The crate that defines the fixture runtime necessarily names it and is not an offender.
+    assert!(
+        starts_beside_the_unattested_runtime(
+            &format!("{UNATTESTED_RUNTIME_CRATE}src/lib.rs"),
+            source
+        )
+        .is_empty(),
+        "the crate that defines the unattested runtime was reported against itself"
+    );
+
+    // A module that names no unattested runtime is not reported for starting a runtime at all.
+    assert!(
+        starts_beside_the_unattested_runtime(
+            module,
+            "pub fn assemble(runtime: Box<dyn Runtime>) -> Outcome {\n    runtime.start(request)\n}\n"
+        )
+        .is_empty(),
+        "a start that names no unattested runtime was reported"
     );
 }
 
