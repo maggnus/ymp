@@ -505,6 +505,13 @@ esac
         }
         while let Some(event) = handle.try_next() {
             if let ManagedRunEvent::Runtime(event) = event {
+                // A request observed in the final drain still counts: the runtime saw it, so the
+                // expectation below must too, or a message landing in the last poll interval
+                // makes the excess disagree by one.
+                if matches!(&event.event, RuntimeEventKind::Output { text } if text == "accounting-ready")
+                {
+                    request_observed = true;
+                }
                 collect(event.event, &mut terminal_usage);
             }
         }

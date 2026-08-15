@@ -3,19 +3,19 @@ id: W1-APP-02y.1
 kind: subtask
 wave: W1
 card: W1-APP-02
-state: active
+state: accepted
 risk: routine
 maturity: BUILD
 relation: supporting
 depends_on: [W1-APP-02y]
 blocks: []
 created_at: 2026-08-15T08:05:36+08:00
-updated_at: 2026-08-15T10:35:25+08:00
+updated_at: 2026-08-15T11:13:20+08:00
 started_at: 2026-08-15T10:35:25+08:00
-accepted_at:
-candidate_commit:
-closure_commit:
-evidence:
+accepted_at: 2026-08-15T11:13:20+08:00
+candidate_commit: https://github.com/maggnus/ymp/commit/00ab47ec8e8484a98f28050caf38345bc940b26c
+closure_commit: https://github.com/maggnus/ymp/commit/1e5a03e
+evidence: both assertions restated from the runtime last settled statement (20/20 under load vs 20/20 base failures); mutations on both drivers still break; second-look drain gap closed by a disclosed CTO fix rerun twice (42 s each, both green); the deterministic-timeout-arm idea recorded as a low-value residual
 duration_minutes: 0
 blocker:
 pause_reason:
