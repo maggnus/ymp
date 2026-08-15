@@ -288,7 +288,9 @@ impl Model {
             }
             EventKind::PoolFrozen(frozen) => {
                 self.frozen_pool = Some(format!(
-                    "this run draws on {} of the {} entr{} the {} pool permitted, frozen at {} ·                      it ignited on {} · a pool edited or a provider changed since then belongs to                      the next run and not to this one",
+                    "this run draws on {} of the {} entr{} the {} pool permitted, frozen at {} · \
+                     it ignited on {} · a pool edited or a provider changed since then belongs to \
+                     the next run and not to this one",
                     frozen.admissible(),
                     frozen.entries.len(),
                     if frozen.entries.len() == 1 {
@@ -1293,7 +1295,8 @@ fn describe_event(envelope: &EventEnvelope) -> (Plane, &'static str, String) {
             Plane::Control,
             "pool.frozen",
             format!(
-                "the pool this run draws on is frozen at {} · {} of {} entries live · it ignites                  on {}",
+                "the pool this run draws on is frozen at {} · {} of {} entries live · it ignites \
+                 on {}",
                 projection::short_digest(&frozen.digest),
                 frozen.admissible(),
                 frozen.entries.len(),

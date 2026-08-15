@@ -13,6 +13,7 @@ use ymp_domain::commitment::{
     Advertise, Award, BudgetVector, CommitmentCommand, CommitmentLedger, Dimension, FundingSource,
     OfferPolicy, RecordBid, RegisterParticipant,
 };
+use ymp_domain::pool::FrozenEntry;
 use ymp_domain::{
     Budget, Command, EventEnvelope, EventKind, RunState, VerificationDecision, VerificationRecord,
 };
@@ -132,6 +133,30 @@ fn submit(builder: Builder, id: &str, object: &str) -> Builder {
         base_digest: digest(0xba),
         object_digest: object.to_owned(),
     })
+}
+
+/// A run created against a pool, as every run is: the freeze follows the start, and the pool it
+/// carries permits two entries of which admission found one live.
+///
+/// The unavailable entry stands first, so what the surfaces show is a run that ignited on the
+/// second entry of its own declared order — the shape a screen would get wrong if it read the
+/// first entry rather than the first live one.
+pub fn with_a_frozen_pool() -> Run {
+    Builder::start("demo-run", Budget::new(3, 2))
+        .command(&Command::FreezePool {
+            pool: "default".to_owned(),
+            entries: vec![
+                FrozenEntry::unavailable(
+                    "openai",
+                    "codex",
+                    "gpt-5",
+                    "the account states no credential",
+                ),
+                FrozenEntry::admissible("anthropic", "claude-code", "claude-opus-5"),
+            ],
+            digest: digest(0xf0),
+        })
+        .finish()
 }
 
 /// A live run: one rejected candidate, a second attempt still working.
