@@ -1,31 +1,31 @@
-//! Acceptance: one implementation starts every run, and the reader the schema document
-//! describes is the reader the product reaches.
+//! Acceptance: the reader the schema document describes is the reader the product reaches. A
+//! package is loaded at each schema version, and the version the document names must be the one
+//! the reader accepts.
 //!
-//! Two halves. The structural half walks the shipped source of every workspace crate and rejects
-//! a run started outside the contract-bound scenario: reintroduce
-//! `Application::create(&root, "run", budget)` in any product module — the terminal interface,
-//! the command line, a runtime driver — and `every_start_path_goes_through_one_scenario` reports
-//! it with a non-zero exit. The behavioural half loads a package at each schema version and
-//! requires the version the document names to be the one the reader accepts.
+//! The structural half this file used to hold — a scan for a run started outside the
+//! contract-bound scenario — is retired, and the reason is recorded here because this is where a
+//! reader looks for it. That scan cut every file at the first `#[cfg(test)]` and read nothing
+//! after it, so a start written below a test module passed it; it also dropped `ymp-testkit` from
+//! the reading because the crate was named in the scan itself, which is an exemption granted by
+//! declaration rather than a fact about the product. Its subject is now held by
+//! `no_crate_the_shipped_binary_reaches_starts_a_run_without_a_contract` in
+//! `ymp-cli/tests/one_command_path.rs`, which reads the source as elements rather than text, never
+//! cuts a file at a marker, and derives the crates it reads from the manifests instead of a list.
+//!
+//! What the retirement gives up, stated rather than implied. The retired scan also read the crates
+//! the shipped executable does not link. Of those, `ymp-testkit` is the one crate that links
+//! `ymp-application` and can therefore name the constructor at all, and
+//! `the_fixture_crate_stays_outside_the_shipped_binary` pins both its exclusion from the closure
+//! and the contractless start it holds. The remaining crates outside the closure are the tools
+//! under `tools/`, and none of them links `ymp-application`, so the constructor is out of their
+//! reach by compilation rather than by a check. That last fact is read from the manifests today
+//! and is not pinned by any test; a tool that starts linking `ymp-application` would leave it
+//! unread.
 
 use std::fs;
 use std::path::{Path, PathBuf};
 
 use ymp_domain::contract::CONTRACT_SCHEMA_VERSION;
-
-/// Ways to start a run that do not carry an approved contract.
-const UNBOUND_STARTS: [&str; 2] = ["Application::create(", "Application::create_with_config("];
-
-/// Where the one scenario lives, and the crate that defines the constructor it calls.
-const SCENARIO: [&str; 2] = [
-    "ymp-application/src/contract.rs",
-    "ymp-application/src/lib.rs",
-];
-
-/// A fixture crate, not a product path. It is a dependency of the command line and no command
-/// calls it; folding it into a development dependency is left as separate work and is reported
-/// with this card rather than hidden here.
-const FIXTURES: &str = "ymp-testkit/";
 
 fn workspace_root() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -33,72 +33,6 @@ fn workspace_root() -> PathBuf {
         .nth(2)
         .expect("workspace root")
         .to_path_buf()
-}
-
-fn shipped_sources() -> Vec<(String, String)> {
-    let root = workspace_root();
-    let mut sources = Vec::new();
-    for group in ["crates", "tools"] {
-        let Ok(entries) = fs::read_dir(root.join(group)) else {
-            continue;
-        };
-        for entry in entries.flatten() {
-            collect(&entry.path().join("src"), &root, &mut sources);
-        }
-    }
-    sources.sort();
-    sources
-}
-
-fn collect(directory: &Path, root: &Path, sources: &mut Vec<(String, String)>) {
-    let Ok(entries) = fs::read_dir(directory) else {
-        return;
-    };
-    for entry in entries.flatten() {
-        let path = entry.path();
-        if path.is_dir() {
-            collect(&path, root, sources);
-        } else if path.extension().is_some_and(|extension| extension == "rs") {
-            let name = path
-                .strip_prefix(root)
-                .unwrap_or(&path)
-                .to_string_lossy()
-                .replace('\\', "/");
-            // Only shipped code is scanned: a unit-test module compiled with the crate builds
-            // fixtures, and a fixture run is not a product start path.
-            let text = fs::read_to_string(&path).expect("readable source");
-            let shipped = text
-                .find("#[cfg(test)]")
-                .map_or(text.as_str(), |cut| &text[..cut])
-                .to_owned();
-            sources.push((name, shipped));
-        }
-    }
-}
-
-#[test]
-fn every_start_path_goes_through_one_scenario() {
-    let mut offenders = Vec::new();
-    for (name, source) in shipped_sources() {
-        if SCENARIO.iter().any(|allowed| name.ends_with(allowed)) || name.contains(FIXTURES) {
-            continue;
-        }
-        for (number, line) in source.lines().enumerate() {
-            if line.trim_start().starts_with("//") {
-                continue;
-            }
-            for start in UNBOUND_STARTS {
-                if line.contains(start) {
-                    offenders.push(format!("{name}:{}: {}", number + 1, line.trim()));
-                }
-            }
-        }
-    }
-    assert!(
-        offenders.is_empty(),
-        "these product modules start a run outside the contract-bound scenario:\n{}",
-        offenders.join("\n")
-    );
 }
 
 #[test]

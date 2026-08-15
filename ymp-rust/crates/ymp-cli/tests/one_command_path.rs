@@ -43,8 +43,11 @@
 //!
 //! * code that is generated rather than written — a macro expansion or an `include!` — because
 //!   the check reads the source as it stands, and a name a macro binds is likewise unread;
-//! * a rename that passes through a glob re-export (`pub use other::*`) without naming the type,
-//!   since the table follows names and not module paths;
+//! * a name bound where the check does not read. The table is built from the `as` renames and
+//!   `type` aliases of the sources the second half parses, so a rename written in any of them is
+//!   carried to the call wherever that call stands, including through a glob re-export. A glob
+//!   binds no new name of its own; it matters only as the carrier of a name renamed outside the
+//!   read set — in a dependency outside this workspace — which arrives without naming the type;
 //! * a writer reached through a name that is neither a forbidden crate nor a forbidden type, for
 //!   instance a future `ymp-tui` helper that writes; that is a change to the interface's own
 //!   path, which is the path this surface is required to use, and the interface's tests own it;
