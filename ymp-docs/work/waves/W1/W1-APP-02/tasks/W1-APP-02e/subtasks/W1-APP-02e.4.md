@@ -3,6 +3,7 @@ id: W1-APP-02e.4
 kind: subtask
 wave: W1
 card: W1-APP-02
+parent: W1-APP-02e
 state: accepted
 risk: significant
 maturity: BUILD
@@ -13,9 +14,9 @@ created_at: 2026-08-15T01:30:15+08:00
 updated_at: 2026-08-15T02:30:35+08:00
 started_at: 2026-08-15T01:30:15+08:00
 accepted_at: 2026-08-15T02:30:35+08:00
-candidate_commit: https://github.com/maggnus/ymp/commit/07cbf69
-closure_commit: https://github.com/maggnus/ymp/commit/f74d211
-evidence: measured-floor admission proved by the reviewer on the real binary across six boundary builds plus a probe-vs-init disagreement; the live Claude run reproduced (73575 microusd); the codex route measured accepted with the quota as the only stop; calibration docs aligned by a disclosed CTO fix
+candidate_commit: https://github.com/maggnus/ymp/commit/07cbf696b523c87b4eeac6d1753ff51950a2d99f
+closure_commit: https://github.com/maggnus/ymp/commit/f74d211afb7810d47db39ee8ea76a067206951de
+evidence: ["[f74d211](https://github.com/maggnus/ymp/commit/f74d211afb7810d47db39ee8ea76a067206951de)"]
 duration_minutes: 0
 blocker:
 pause_reason:
@@ -57,6 +58,14 @@ Active. Recorded from the W1-APP-02e live runs: every end-to-end test is green w
 machine cannot run either profile — the acceptance criterion of the whole surface is the owner's
 scenario, so this mismatch outranks every remaining hardening node.
 
+## Next action
+
+None recorded.
+
+## Guardrails
+
+None recorded.
+
 ## Findings
 
 None yet.
@@ -75,4 +84,6 @@ None recorded.
 
 ### Evidence
 
-None recorded.
+- measured-floor admission proved by the reviewer on the real binary across six boundary builds plus
+  a probe-vs-init disagreement; the live Claude run reproduced (73575 microusd); the codex route
+  measured accepted with the quota as the only stop; calibration docs aligned by a disclosed CTO fix

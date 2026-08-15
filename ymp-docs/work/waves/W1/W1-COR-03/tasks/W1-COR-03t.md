@@ -14,8 +14,8 @@ updated_at: 2026-08-15T13:43:07+08:00
 started_at: 2026-08-15T12:38:53+08:00
 accepted_at: 2026-08-15T13:43:07+08:00
 candidate_commit: https://github.com/maggnus/ymp/commit/b34ceb99d1af201c76de10f934c48fddcc66369b
-closure_commit: https://github.com/maggnus/ymp/commit/6996998
-evidence: one return round; the interrupt is delivered each loop iteration and the 5 s shutdown decides by the recorded slice state, never over a committed terminal (reviewer window-hold scenario reproduced clean); residuals: a poisoned-lock join path leaves the journal on running, and a shutdown in the completion window cancels a finished run — both recorded as W1-COR-03w
+closure_commit: https://github.com/maggnus/ymp/commit/6996998cac3822b1c49750f560a9b109315a9206
+evidence: ["[6996998](https://github.com/maggnus/ymp/commit/6996998cac3822b1c49750f560a9b109315a9206)"]
 duration_minutes: 0
 blocker:
 pause_reason:
@@ -47,6 +47,14 @@ A cancel reaches a working runtime: the interrupt is delivered outside the wake 
 
 Ready.
 
+## Next action
+
+None recorded.
+
+## Guardrails
+
+None recorded.
+
 ## Findings
 
 None yet.
@@ -65,4 +73,7 @@ None recorded.
 
 ### Evidence
 
-None recorded.
+- one return round; the interrupt is delivered each loop iteration and the 5 s shutdown decides by
+  the recorded slice state, never over a committed terminal (reviewer window-hold scenario
+  reproduced clean); residuals: a poisoned-lock join path leaves the journal on running, and a
+  shutdown in the completion window cancels a finished run — both recorded as W1-COR-03w

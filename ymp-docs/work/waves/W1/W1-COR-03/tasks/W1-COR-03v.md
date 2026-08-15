@@ -14,8 +14,8 @@ updated_at: 2026-08-15T14:07:02+08:00
 started_at: 2026-08-15T13:49:39+08:00
 accepted_at: 2026-08-15T14:07:02+08:00
 candidate_commit: https://github.com/maggnus/ymp/commit/61603f5451d3b2900ec8940742e75b527ecf3262
-closure_commit: https://github.com/maggnus/ymp/commit/3978c25
-evidence: join error texts preserved verbatim; the interface maps ManagedShutdown to an honest sentence with the supervisor report; author mutation reproduced; residual: the close-to-reply link itself is not pinned (a revert of cancel_run leaves 60 tests green)
+closure_commit: https://github.com/maggnus/ymp/commit/3978c253e6f8afed43621b5f226bd5c629ba164d
+evidence: ["[3978c25](https://github.com/maggnus/ymp/commit/3978c253e6f8afed43621b5f226bd5c629ba164d)"]
 duration_minutes: 0
 blocker:
 pause_reason:
@@ -51,6 +51,14 @@ sentence.
 
 Ready. Recorded from the W1-COR-03t review.
 
+## Next action
+
+None recorded.
+
+## Guardrails
+
+None recorded.
+
 ## Findings
 
 None yet.
@@ -69,4 +77,6 @@ None recorded.
 
 ### Evidence
 
-None recorded.
+- join error texts preserved verbatim; the interface maps ManagedShutdown to an honest sentence with
+  the supervisor report; author mutation reproduced; residual: the close-to-reply link itself is not
+  pinned (a revert of cancel_run leaves 60 tests green)

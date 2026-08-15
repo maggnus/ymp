@@ -13,7 +13,7 @@ created_at: 2026-08-15T19:35:00+08:00
 updated_at: 2026-08-15T23:00:00+08:00
 started_at: 2026-08-15T19:35:00+08:00
 accepted_at: 2026-08-15T23:00:00+08:00
-candidate_commit: acdf9f8
+candidate_commit: https://github.com/maggnus/ymp/commit/acdf9f82df02a65a7cf8d8612c17e43e5e91e804
 closure_commit:
 evidence:
 duration_minutes: 0
@@ -65,6 +65,14 @@ production caller) is retired and its two protocol suites (`tests/commitments.rs
 
 Accepted 2026-08-15 (candidate acdf9f8 after two residue passes; review ACCEPT WITH RESIDUE; merged at 1d2ae00).
 
+## Next action
+
+None recorded.
+
+## Guardrails
+
+None recorded.
+
 ## Findings
 
 - Live path records object_recorded / bundle_recorded / candidate_formed with real digests; the
@@ -78,3 +86,19 @@ Accepted 2026-08-15 (candidate acdf9f8 after two residue passes; review ACCEPT W
 - CommitmentService retired; both protocol suites on the durable path; 03d identity-triple test added.
 - Residue: pre-check exhaustive only while submitted() carries no parents; a cancel between
   submitted() and the provenance note yields a supervision-failed report (records still agree).
+
+## Closure
+
+Filled when the task is accepted.
+
+### Accepted outcome
+
+None recorded.
+
+### Residuals
+
+None recorded.
+
+### Evidence
+
+None recorded.

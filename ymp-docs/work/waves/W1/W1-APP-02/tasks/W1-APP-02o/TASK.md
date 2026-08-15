@@ -14,8 +14,8 @@ updated_at: 2026-08-15T14:21:36+08:00
 started_at: 2026-08-15T13:24:11+08:00
 accepted_at: 2026-08-15T14:21:36+08:00
 candidate_commit: https://github.com/maggnus/ymp/commit/29c86c5be8442094f3361accd0c5e137feead2dd
-closure_commit: https://github.com/maggnus/ymp/commit/96e041b
-evidence: one return round; the re-review drove twenty-two mutations — every start form, cfg shape and alias route it could construct was refused, only the stated macro/include boundaries pass; the old one_start_path guard stays for crates outside the shipped closure and its retirement is a separate node
+closure_commit: https://github.com/maggnus/ymp/commit/96e041bfcfe498b7cd98594eeafee62be5ac0006
+evidence: ["[96e041b](https://github.com/maggnus/ymp/commit/96e041bfcfe498b7cd98594eeafee62be5ac0006)"]
 duration_minutes: 200
 blocker:
 pause_reason:
@@ -91,4 +91,7 @@ None recorded.
 
 ### Evidence
 
-- None until acceptance.
+- one return round; the re-review drove twenty-two mutations — every start form, cfg shape and alias
+  route it could construct was refused, only the stated macro/include boundaries pass; the old
+  one_start_path guard stays for crates outside the shipped closure and its retirement is a separate
+  node

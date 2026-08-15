@@ -13,7 +13,7 @@ created_at: 2026-08-15T15:07:23+08:00
 updated_at: 2026-08-15T16:12:00+08:00
 started_at: 2026-08-15T15:07:23+08:00
 accepted_at: 2026-08-15T16:12:00+08:00
-candidate_commit: 09fc9c4
+candidate_commit: https://github.com/maggnus/ymp/commit/09fc9c455ced9b6572b4bbbeca778b762ba6bf83
 closure_commit:
 evidence:
 duration_minutes: 0
@@ -27,7 +27,7 @@ deliberate_partial: false
 
 ## Outcome
 
-Migration unit P1 of [COLLECTIVE-MIGRATION.md](../../../../design/COLLECTIVE-MIGRATION.md): the
+Migration unit P1 of [COLLECTIVE-MIGRATION.md](https://github.com/maggnus/ymp/blob/ffde816625bc6a98536e486c2f5ccc0f6445b6d5/ymp-docs/design/COLLECTIVE-MIGRATION.md): the
 product root gains provider records and a model catalog as first-class stored objects, and engines
 become managed entities beneath providers — the registry accepted in W1-APP-02e.6 is the seed of
 this level, not a parallel one. No participant is created from a catalog entry by this unit; it
@@ -59,6 +59,14 @@ decisions D1–D11: it stores what exists, not what may be used.
 
 Accepted 2026-08-15 (candidate 09fc9c4, review ACCEPT WITH RESIDUE, merged fast-forward into main).
 
+## Next action
+
+None recorded.
+
+## Guardrails
+
+None recorded.
+
 ## Findings
 
 - Review residue 1: `Catalog::read` re-reads engine records but takes admissibility from the stored
@@ -71,8 +79,6 @@ Accepted 2026-08-15 (candidate 09fc9c4, review ACCEPT WITH RESIDUE, merged fast-
   asserts `1 ready · 2 unusable`, unreachable since the fixture profile left the page (74cf451 →
   later); fails on baseline. `lib.rs:309` links a removed `Registry::addressing` (doc warning).
   Both left for the next editor of those files.
-
-## Findings
 
 None yet.
 

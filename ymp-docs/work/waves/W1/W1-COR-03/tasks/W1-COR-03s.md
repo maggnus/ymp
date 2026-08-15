@@ -13,9 +13,9 @@ created_at: 2026-08-15T01:04:05+08:00
 updated_at: 2026-08-15T01:55:01+08:00
 started_at: 2026-08-15T01:04:32+08:00
 accepted_at: 2026-08-15T01:55:01+08:00
-candidate_commit: https://github.com/maggnus/ymp/commit/1ef0796
-closure_commit: https://github.com/maggnus/ymp/commit/ddd250c
-evidence: reviewer fault-injection sweep (8 runs) green on the candidate and refusing at round zero with the defect returned; release_control_and_join proved on join and Drop of one handle; new findings recorded as W1-COR-03t and W1-COR-03u
+candidate_commit: https://github.com/maggnus/ymp/commit/1ef07967b88f989fb0f6c8d9aa620ba703d80ccf
+closure_commit: https://github.com/maggnus/ymp/commit/ddd250cff5f5af7e135bb79a5940a46a85b4afb9
+evidence: ["[ddd250c](https://github.com/maggnus/ymp/commit/ddd250cff5f5af7e135bb79a5940a46a85b4afb9)"]
 duration_minutes: 0
 blocker:
 pause_reason:
@@ -56,6 +56,14 @@ path leaves the controller hanging indefinitely.
 
 Ready. Recorded from the 03q+03r second look (major independent defect).
 
+## Next action
+
+None recorded.
+
+## Guardrails
+
+None recorded.
+
 ## Findings
 
 None yet.
@@ -74,4 +82,6 @@ None recorded.
 
 ### Evidence
 
-None recorded.
+- reviewer fault-injection sweep (8 runs) green on the candidate and refusing at round zero with the
+  defect returned; release_control_and_join proved on join and Drop of one handle; new findings
+  recorded as W1-COR-03t and W1-COR-03u

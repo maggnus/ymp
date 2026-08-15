@@ -13,7 +13,7 @@ created_at: 2026-08-15T18:55:00+08:00
 updated_at: 2026-08-15T22:30:00+08:00
 started_at: 2026-08-15T18:55:00+08:00
 accepted_at: 2026-08-15T22:30:00+08:00
-candidate_commit: ffde816
+candidate_commit: https://github.com/maggnus/ymp/commit/ffde816625bc6a98536e486c2f5ccc0f6445b6d5
 closure_commit:
 evidence:
 duration_minutes: 0
@@ -31,7 +31,7 @@ Migration unit P3: `AgentPool` exists as a stored resource under the product roo
 `spec` (selector or explicit ordered list of catalog entries, `maxAgents`, concurrency limit,
 resource limits — no `minAgents`, no `desired`, no roles: decisions D1, D11) and `status`
 (resolved entries, digest, conditions), per
-[COLLECTIVE-RESOURCES.md](../../../../design/COLLECTIVE-RESOURCES.md). A reconciler creates the
+[COLLECTIVE-RESOURCES.md](https://github.com/maggnus/ymp/blob/ffde816625bc6a98536e486c2f5ccc0f6445b6d5/ymp-docs/design/COLLECTIVE-RESOURCES.md). A reconciler creates the
 `default` pool automatically on the first ready provider (tracking the catalog) and keeps its
 resolved entries and digest current; editing `default` turns tracking into an explicit list and
 says so. Nothing here instantiates a participant.
@@ -63,6 +63,14 @@ says so. Nothing here instantiates a participant.
 
 Accepted 2026-08-15 (candidate ffde816 after a rename + residue pass; review ACCEPT; merged at 411ea6f).
 
+## Next action
+
+None recorded.
+
+## Guardrails
+
+None recorded.
+
 ## Findings
 
 - Record `pools/<name>.json` with `declared` (operator) and `resolved` (reconciler) halves — names
@@ -75,3 +83,19 @@ Accepted 2026-08-15 (candidate ffde816 after a rename + residue pass; review ACC
 - Inherited, not this task's: Registry/Providers/pool stores share one staging-file name — concurrent
   writers fail with ENOENT (no torn record); worth a crate-level unit.
 - `Pools::reconcile` has no product caller yet — P4 wires it to the enable transition after P2.
+
+## Closure
+
+Filled when the task is accepted.
+
+### Accepted outcome
+
+None recorded.
+
+### Residuals
+
+None recorded.
+
+### Evidence
+
+None recorded.

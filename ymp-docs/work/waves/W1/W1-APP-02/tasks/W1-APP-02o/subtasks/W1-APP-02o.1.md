@@ -3,6 +3,7 @@ id: W1-APP-02o.1
 kind: subtask
 wave: W1
 card: W1-APP-02
+parent: W1-APP-02o
 state: accepted
 risk: routine
 maturity: BUILD
@@ -13,9 +14,9 @@ created_at: 2026-08-15T14:21:36+08:00
 updated_at: 2026-08-15T14:39:47+08:00
 started_at: 2026-08-15T14:23:59+08:00
 accepted_at: 2026-08-15T14:39:47+08:00
-candidate_commit: https://github.com/maggnus/ymp/commit/2844771
-closure_commit: https://github.com/maggnus/ymp/commit/dbda61d
-evidence: the retired structural guard was measured weaker (a post-marker start passes it, the accepted guard names root.rs:47); the schema half kept verbatim; the acceptance line was wider than the scope — the remaining truncating check lives in unattested_runtime_is_unreachable.rs and is queued as W1-APP-02o.2
+candidate_commit: https://github.com/maggnus/ymp/commit/28447711fec8d73424e1435af352e1551b44f144
+closure_commit: https://github.com/maggnus/ymp/commit/dbda61da7b443d61a07b3064124f01b74a215aa6
+evidence: ["[dbda61d](https://github.com/maggnus/ymp/commit/dbda61da7b443d61a07b3064124f01b74a215aa6)"]
 duration_minutes: 0
 blocker:
 pause_reason:
@@ -51,6 +52,14 @@ boundary wording in the new guard is tightened to what is measured.
 
 Ready. Recorded from the W1-APP-02o reviews.
 
+## Next action
+
+None recorded.
+
+## Guardrails
+
+None recorded.
+
 ## Findings
 
 None yet.
@@ -69,4 +78,7 @@ None recorded.
 
 ### Evidence
 
-None recorded.
+- the retired structural guard was measured weaker (a post-marker start passes it, the accepted
+  guard names root.rs:47); the schema half kept verbatim; the acceptance line was wider than the
+  scope — the remaining truncating check lives in unattested_runtime_is_unreachable.rs and is queued
+  as W1-APP-02o.2

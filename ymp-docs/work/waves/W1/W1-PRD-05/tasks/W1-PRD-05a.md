@@ -14,8 +14,8 @@ updated_at: 2026-08-15T07:47:03+08:00
 started_at: 2026-08-15T02:07:10+08:00
 accepted_at: 2026-08-15T07:47:03+08:00
 candidate_commit: https://github.com/maggnus/ymp/commit/0897ecf9c7392e29af359fdcfd5c38cfc86713d1
-closure_commit: https://github.com/maggnus/ymp/commit/decd7ea
-evidence: one return round; the re-review walked the 24-step final test without operator machinery, verified the retraction of the nothing-spent claim in every place, the kernel purity via admission facts, the NVIDIA model-route reading against ARCHITECTURE.md and PROTOCOL.md, and adversarial answer-classification probes
+closure_commit: https://github.com/maggnus/ymp/commit/decd7ea26b4640467f6861d595a6f81a92f81100
+evidence: ["[decd7ea](https://github.com/maggnus/ymp/commit/decd7ea26b4640467f6861d595a6f81a92f81100)"]
 duration_minutes: 0
 blocker:
 pause_reason:
@@ -27,8 +27,8 @@ deliberate_partial: true
 
 ## Outcome
 
-A complete design document set in ymp-docs/design/ answering all 24 deliverable items of
-[PRODUCT-BRIEF-collective.md](../../../../design/PRODUCT-BRIEF-collective.md): product mental
+A complete design document set in `ymp-docs/design/` answering all 24 deliverable items of
+[PRODUCT-BRIEF-collective.md](https://github.com/maggnus/ymp/blob/7f3730f65171fe2290194f814bddeac0d7f9f3a8/ymp-docs/design/PRODUCT-BRIEF-collective.md): product mental
 model, operator lifecycle, full TUI information architecture (the 30 surfaces, each with what the
 operator sees, available actions and their effects), provider/catalog/pool/recruitment design,
 internal ownership of contracts/oracles/verifiers with provenance classes A-E, exact
@@ -41,7 +41,7 @@ preserved; ownership moved instead of mechanisms removed.
 
 ### In
 
-- ymp-docs/design/** (the deliverable documents); reading everything else.
+- `ymp-docs/design/**` (the deliverable documents); reading everything else.
 - Mapping every accepted W1 node that the redesign preserves, re-scopes or supersedes
   (explicitly: the contract dialogue of 02v/02u/02z becomes internal derivation; the engine
   registry 02e.6 becomes the provider/catalog level; the generated verifier 02z.3 becomes the
@@ -61,6 +61,14 @@ preserved; ownership moved instead of mechanisms removed.
 ## Current state
 
 Active. The brief is recorded verbatim at design/PRODUCT-BRIEF-collective.md (23f76f9).
+
+## Next action
+
+None recorded.
+
+## Guardrails
+
+None recorded.
 
 ## Findings
 
@@ -86,4 +94,7 @@ worded; (4) "no verification query against a diverged requirement set" reads two
 
 ### Evidence
 
-None recorded.
+- one return round; the re-review walked the 24-step final test without operator machinery, verified
+  the retraction of the nothing-spent claim in every place, the kernel purity via admission facts,
+  the NVIDIA model-route reading against ARCHITECTURE.md and PROTOCOL.md, and adversarial
+  answer-classification probes

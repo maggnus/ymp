@@ -13,7 +13,7 @@ created_at: 2026-08-15T16:12:00+08:00
 updated_at: 2026-08-15T18:55:00+08:00
 started_at: 2026-08-15T16:12:00+08:00
 accepted_at: 2026-08-15T18:55:00+08:00
-candidate_commit: 6dec28e
+candidate_commit: https://github.com/maggnus/ymp/commit/6dec28ec437abc800ee1c2411b839daf997e2767
 closure_commit:
 evidence:
 duration_minutes: 0
@@ -27,11 +27,11 @@ deliberate_partial: false
 
 ## Outcome
 
-The collective design deliverable ([COLLECTIVE-GAP-ANALYSIS](../../../../design/COLLECTIVE-GAP-ANALYSIS.md),
-[COLLECTIVE-DESIGN](../../../../design/COLLECTIVE-DESIGN.md), [COLLECTIVE-TUI](../../../../design/COLLECTIVE-TUI.md),
-[COLLECTIVE-MIGRATION](../../../../design/COLLECTIVE-MIGRATION.md),
-[COLLECTIVE-OWNER-DECISIONS](../../../../design/COLLECTIVE-OWNER-DECISIONS.md)) is corrected against
-[PRODUCT-BRIEF-collective-v2.md](../../../../design/PRODUCT-BRIEF-collective-v2.md), delivering the
+The collective design deliverable ([COLLECTIVE-GAP-ANALYSIS.md](https://github.com/maggnus/ymp/blob/ffde816625bc6a98536e486c2f5ccc0f6445b6d5/ymp-docs/design/COLLECTIVE-GAP-ANALYSIS.md),
+[COLLECTIVE-DESIGN.md](https://github.com/maggnus/ymp/blob/ffde816625bc6a98536e486c2f5ccc0f6445b6d5/ymp-docs/design/COLLECTIVE-DESIGN.md), [COLLECTIVE-TUI.md](https://github.com/maggnus/ymp/blob/d6b8d0929828c696bfe85eec8fc377e03e620ed8/ymp-docs/design/COLLECTIVE-TUI.md),
+[COLLECTIVE-MIGRATION.md](https://github.com/maggnus/ymp/blob/ffde816625bc6a98536e486c2f5ccc0f6445b6d5/ymp-docs/design/COLLECTIVE-MIGRATION.md),
+[COLLECTIVE-OWNER-DECISIONS.md](https://github.com/maggnus/ymp/blob/ffde816625bc6a98536e486c2f5ccc0f6445b6d5/ymp-docs/design/COLLECTIVE-OWNER-DECISIONS.md)) is corrected against
+[PRODUCT-BRIEF-collective-v2.md](https://github.com/maggnus/ymp/blob/d9c0b4a9f8e70f8d9631ec1d760054c293923e49/ymp-docs/design/PRODUCT-BRIEF-collective-v2.md), delivering the
 sixteen items of Part A §24 and the per-resource `spec`/`status`/ownership/lifecycle/reconciliation
 definitions of Part B — without removing contract, oracle, verification, budget, isolation or any
 other protective mechanism, and without introducing a hidden central semantic orchestrator.
@@ -73,6 +73,14 @@ closed on the branch; merged into main at 2a3531c). D11 decided in the same pass
 floor). Design set: COLLECTIVE-RESOURCES.md (new), GAP-ANALYSIS (16 leaks), DESIGN, TUI (37
 surfaces), MIGRATION (P1–P17), OWNER-DECISIONS (D1–D11 decided).
 
+## Next action
+
+None recorded.
+
+## Guardrails
+
+None recorded.
+
 ## Findings
 
 - Review walked §22 surface by surface: operator acts are launch, Enable on provider rows, one
@@ -80,3 +88,19 @@ surfaces), MIGRATION (P1–P17), OWNER-DECISIONS (D1–D11 decided).
 - file:line citations into sources were sampled (35), one wrong location corrected
   (`protocol.rs:627-633`); the remaining citations were not re-verified line by line — the next
   edit of those sources should re-check them.
+
+## Closure
+
+Filled when the task is accepted.
+
+### Accepted outcome
+
+None recorded.
+
+### Residuals
+
+None recorded.
+
+### Evidence
+
+None recorded.

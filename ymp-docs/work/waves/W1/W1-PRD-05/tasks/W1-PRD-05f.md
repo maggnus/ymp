@@ -13,7 +13,7 @@ created_at: 2026-08-15T23:05:00+08:00
 updated_at: 2026-08-16T00:40:00+08:00
 started_at: 2026-08-15T23:05:00+08:00
 accepted_at: 2026-08-16T00:40:00+08:00
-candidate_commit: 456f750
+candidate_commit: https://github.com/maggnus/ymp/commit/456f750ac613b23ad100c1b954e4d885bf4882c5
 closure_commit:
 evidence:
 duration_minutes: 0
@@ -63,6 +63,14 @@ confirmation; every key is a mirrored command.
 
 Accepted 2026-08-16 (candidate 456f750 after one RETURN pass; review ACCEPT WITH RESIDUE; merged at 4eefe05).
 
+## Next action
+
+None recorded.
+
+## Guardrails
+
+None recorded.
+
 ## Findings
 
 - Reconcile wired to every observation (enable/refresh/disable) through one Session path shared by
@@ -73,3 +81,19 @@ Accepted 2026-08-16 (candidate 456f750 after one RETURN pass; review ACCEPT WITH
 - P2 residue closed: disabling withdraws the in-session readiness of that family's engines.
 - RETURN pass: currency literal removed (state_binding), damaged-pool reply now names the read failure.
 - Residue: no `n`/`d` (create/delete a pool) — P3's record has no such path; a later unit.
+
+## Closure
+
+Filled when the task is accepted.
+
+### Accepted outcome
+
+None recorded.
+
+### Residuals
+
+None recorded.
+
+### Evidence
+
+None recorded.

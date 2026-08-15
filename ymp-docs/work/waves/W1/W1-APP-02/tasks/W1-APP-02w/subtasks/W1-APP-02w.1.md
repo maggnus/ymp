@@ -3,6 +3,7 @@ id: W1-APP-02w.1
 kind: subtask
 wave: W1
 card: W1-APP-02
+parent: W1-APP-02w
 state: accepted
 risk: significant
 maturity: BUILD
@@ -14,8 +15,8 @@ updated_at: 2026-08-15T08:55:35+08:00
 started_at: 2026-08-15T08:15:17+08:00
 accepted_at: 2026-08-15T08:55:35+08:00
 candidate_commit: https://github.com/maggnus/ymp/commit/a10ea9e10d90547a6586dac56696d55faf5c7f3d
-closure_commit: https://github.com/maggnus/ymp/commit/d457519
-evidence: sandboxed-HOME product runs left the launch directory byte-identical while the home root carried the store; both earlier-state forms refuse with named exits; the application route is forced by the surface scanner; reviewer mutation reproduced
+closure_commit: https://github.com/maggnus/ymp/commit/d457519cf888b8dd120b2ed3a241e5a827ebfac2
+evidence: ["[d457519](https://github.com/maggnus/ymp/commit/d457519cf888b8dd120b2ed3a241e5a827ebfac2)"]
 duration_minutes: 0
 blocker:
 pause_reason:
@@ -57,6 +58,14 @@ appears in the launch directory. An old ./.ymp or ./.ymp-data is read only via a
 Ready. From the owner decision of 2026-08-15: nothing is stored in the launch directory;
 neighbouring systems (~/.claude 1.0G, ~/.codex 2.3G) keep all state at home.
 
+## Next action
+
+None recorded.
+
+## Guardrails
+
+None recorded.
+
 ## Findings
 
 None yet.
@@ -75,4 +84,6 @@ None recorded.
 
 ### Evidence
 
-None recorded.
+- sandboxed-HOME product runs left the launch directory byte-identical while the home root carried
+  the store; both earlier-state forms refuse with named exits; the application route is forced by
+  the surface scanner; reviewer mutation reproduced

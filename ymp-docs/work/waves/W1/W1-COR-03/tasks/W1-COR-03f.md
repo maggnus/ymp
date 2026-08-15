@@ -13,7 +13,7 @@ created_at: 2026-08-13T16:02:47+08:00
 updated_at: 2026-08-15T16:40:00+08:00
 started_at: 2026-08-15T15:07:23+08:00
 accepted_at: 2026-08-15T16:40:00+08:00
-candidate_commit: 8f5b815
+candidate_commit: https://github.com/maggnus/ymp/commit/8f5b81551599c0ef61edf80e9379369dfd8b2120
 closure_commit:
 evidence:
 duration_minutes: 0
@@ -56,6 +56,14 @@ audited from the record rather than from a live process.
 
 Accepted 2026-08-15 (candidate 8f5b815, review ACCEPT WITH RESIDUE, merged into main at 3f9e604).
 
+## Next action
+
+None recorded.
+
+## Guardrails
+
+None recorded.
+
 ## Findings
 
 - R1 (residue): the durable path (`open_commitment_kernel`, `execute_commitment`) has no production
@@ -71,3 +79,19 @@ Accepted 2026-08-15 (candidate 8f5b815, review ACCEPT WITH RESIDUE, merged into 
   an existing `~/.ymp` store needs a new data root.
 - Pre-existing, environmental: `engine_registry::the_mirrored_command_disables_and_enables_an_engine_durably`
   fails on baseline (seeded codex disabled → 0 ready where the test expects 1).
+
+## Closure
+
+Filled when the task is accepted.
+
+### Accepted outcome
+
+None recorded.
+
+### Residuals
+
+None recorded.
+
+### Evidence
+
+None recorded.

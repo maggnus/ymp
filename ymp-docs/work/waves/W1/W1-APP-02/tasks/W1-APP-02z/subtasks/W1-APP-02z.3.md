@@ -3,6 +3,7 @@ id: W1-APP-02z.3
 kind: subtask
 wave: W1
 card: W1-APP-02
+parent: W1-APP-02z
 state: accepted
 risk: significant
 maturity: BUILD
@@ -14,8 +15,8 @@ updated_at: 2026-08-15T12:33:57+08:00
 started_at: 2026-08-15T11:26:50+08:00
 accepted_at: 2026-08-15T12:33:57+08:00
 candidate_commit: https://github.com/maggnus/ymp/commit/dc93fcfa832a1d94d9d9e3dc961940f45315ad5a
-closure_commit: https://github.com/maggnus/ymp/commit/163a7a0
-evidence: the owner scenario reaches a one-statement draft in an empty directory: generated program shown in full, digest equal to the oracle, fresh copy rejected and the html candidate accepted; image checks decode png/gif/jpeg and refuse garbage and truncations; the invitation prints once; reviewer fault injections refused both degenerate programs; three minor review findings carried as residuals
+closure_commit: https://github.com/maggnus/ymp/commit/163a7a027900b2b1ad08fed83d500aae2a1b4015
+evidence: ["[163a7a0](https://github.com/maggnus/ymp/commit/163a7a027900b2b1ad08fed83d500aae2a1b4015)"]
 duration_minutes: 0
 blocker:
 pause_reason:
@@ -65,6 +66,14 @@ source of the proposal everywhere — detected project tests are merely the stro
 and the operator's single action remains approval, never authorship. The checkable mechanical
 claim is derived from the request; the semantic remainder is named as the operator's own.
 
+## Next action
+
+None recorded.
+
+## Guardrails
+
+None recorded.
+
 ## Findings
 
 None yet.
@@ -83,4 +92,8 @@ None recorded.
 
 ### Evidence
 
-None recorded.
+- the owner scenario reaches a one-statement draft in an empty directory: generated program shown in
+  full, digest equal to the oracle, fresh copy rejected and the html candidate accepted; image
+  checks decode png/gif/jpeg and refuse garbage and truncations; the invitation prints once;
+  reviewer fault injections refused both degenerate programs; three minor review findings carried as
+  residuals

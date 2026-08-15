@@ -13,9 +13,9 @@ created_at: 2026-08-13T12:09:18+08:00
 updated_at: 2026-08-14T02:46:00+08:00
 started_at: 2026-08-14T02:04:00+08:00
 accepted_at: 2026-08-14T02:46:00+08:00
-candidate_commit: https://github.com/maggnus/ymp/commit/7565b54
-closure_commit: https://github.com/maggnus/ymp/commit/f3c3dc9
-evidence: mandatory per-model breakdown with live confirmation in both outcomes; model-declined keyed to the exact supervision detail after the literal condition proved unreachable; reviewer defect-injections each broke their negative half; one return round, divergence adjudicated for the author
+candidate_commit: https://github.com/maggnus/ymp/commit/7565b5412e9d73b1fd16ba14d7509508f92d84fa
+closure_commit: https://github.com/maggnus/ymp/commit/f3c3dc9e60939d7984d23a4cc383f2d592c0af27
+evidence: ["[f3c3dc9](https://github.com/maggnus/ymp/commit/f3c3dc9e60939d7984d23a4cc383f2d592c0af27)"]
 duration_minutes: 42
 blocker:
 pause_reason:
@@ -53,13 +53,6 @@ that simply declined to act.
 - [ ] The live check fails for a product defect and reports a distinct, non-failing outcome when the
       model declines to act, so a red result always means the product.
 
-## Absorbed finding
-
-The W1-APP-02i review measured that SCHEMA.md's claim "the request count is the only
-product-derived counter" is inexact for the Claude runtime, where the monetary excess is computed
-by the product by subtracting the ceiling (crates/ymp-runtime-claude/src/lib.rs:1187) rather than
-reported by the runtime. The schema statement must name the Claude-side derived counters too.
-
 ## Current state
 
 Ready. The independent review of the Claude Code profile found that only the total cost is read
@@ -78,7 +71,12 @@ Parse the per-model breakdown, narrow the environment, then make the live check 
 
 ## Findings
 
-None yet.
+### Absorbed finding
+
+The W1-APP-02i review measured that SCHEMA.md's claim "the request count is the only
+product-derived counter" is inexact for the Claude runtime, where the monetary excess is computed
+by the product by subtracting the ceiling (crates/ymp-runtime-claude/src/lib.rs:1187) rather than
+reported by the runtime. The schema statement must name the Claude-side derived counters too.
 
 ## Closure
 
@@ -94,4 +92,7 @@ None recorded.
 
 ### Evidence
 
-- None until acceptance.
+- mandatory per-model breakdown with live confirmation in both outcomes; model-declined keyed to the
+  exact supervision detail after the literal condition proved unreachable; reviewer
+  defect-injections each broke their negative half; one return round, divergence adjudicated for the
+  author

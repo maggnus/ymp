@@ -13,7 +13,7 @@ created_at: 2026-08-15T16:45:00+08:00
 updated_at: 2026-08-15T19:30:00+08:00
 started_at: 2026-08-15T16:45:00+08:00
 accepted_at: 2026-08-15T19:30:00+08:00
-candidate_commit: eb0fdd3
+candidate_commit: https://github.com/maggnus/ymp/commit/eb0fdd34f3564eaf05c6a2e6b02b6d9eb3cbfc65
 closure_commit:
 evidence:
 duration_minutes: 0
@@ -63,6 +63,14 @@ store shows the ledger. Closes residue R1 of W1-COR-03f.
 
 Accepted 2026-08-15 (candidate eb0fdd3, review ACCEPT WITH RESIDUE, merged at 9cd989f).
 
+## Next action
+
+None recorded.
+
+## Guardrails
+
+None recorded.
+
 ## Findings
 
 - The run's kernel now journals through `Application::execute_commitment` under the run journal's
@@ -77,3 +85,19 @@ Accepted 2026-08-15 (candidate eb0fdd3, review ACCEPT WITH RESIDUE, merged at 9c
   first non-kernel production caller (e.g. `submit_bundle` from 03d's child) must add one.
 - Child: retire `CommitmentService` (no production caller) — sequence after the 03d merge since
   both touch `invocation_wakes.rs`.
+
+## Closure
+
+Filled when the task is accepted.
+
+### Accepted outcome
+
+None recorded.
+
+### Residuals
+
+None recorded.
+
+### Evidence
+
+None recorded.

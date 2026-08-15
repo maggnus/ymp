@@ -3,6 +3,7 @@ id: W1-APP-02e.5
 kind: subtask
 wave: W1
 card: W1-APP-02
+parent: W1-APP-02e
 state: accepted
 risk: routine
 maturity: BUILD
@@ -13,9 +14,9 @@ created_at: 2026-08-15T01:52:53+08:00
 updated_at: 2026-08-15T08:36:04+08:00
 started_at: 2026-08-15T08:15:17+08:00
 accepted_at: 2026-08-15T08:36:04+08:00
-candidate_commit: https://github.com/maggnus/ymp/commit/8367a9a
-closure_commit: https://github.com/maggnus/ymp/commit/b0a14a7
-evidence: product renders at both sizes carry the logo, one basics line and the invitation with the six service lines gone; assurance shown in ? and /runtimes; reviewer mutation broke the key-map binding as expected; VISUAL_CONCEPT aligned by a disclosed CTO doc fix
+candidate_commit: https://github.com/maggnus/ymp/commit/8367a9a70451d60d22ec33fa113d85858332751f
+closure_commit: https://github.com/maggnus/ymp/commit/b0a14a7df978ac861ebe0db51c5aa69d4d416b28
+evidence: ["[b0a14a7](https://github.com/maggnus/ymp/commit/b0a14a7df978ac861ebe0db51c5aa69d4d416b28)"]
 duration_minutes: 0
 blocker:
 pause_reason:
@@ -47,6 +48,14 @@ The transcript opens with the logo, one line of basic facts (current directory, 
 
 Ready. Owner decision 2026-08-15: logo stays with basic info; the rest of the startup text is noise.
 
+## Next action
+
+None recorded.
+
+## Guardrails
+
+None recorded.
+
 ## Findings
 
 None yet.
@@ -65,4 +74,6 @@ None recorded.
 
 ### Evidence
 
-None recorded.
+- product renders at both sizes carry the logo, one basics line and the invitation with the six
+  service lines gone; assurance shown in ? and /runtimes; reviewer mutation broke the key-map
+  binding as expected; VISUAL_CONCEPT aligned by a disclosed CTO doc fix

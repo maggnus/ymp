@@ -60,12 +60,11 @@ no confirmation.
 
 ## Current state
 
-Accepted after one return round. Reviewer blocker (landing overwrote an operator revocation made
-during the probe) was accepted and fixed at fb961cf: `finish_measurement` re-applies
-`withdraw_routing_of` for families withdrawn while the probe ran (`withdrawn_during`). Lean
-re-review ACCEPT: original scenario now lands at «0 ready», reviewer's own mutation of the fix
-fails exit 101, no new races (all landing steps sequential on the drawing thread). Merged into
-main as the integration merge; `cargo test -p ymp-tui` on the merged tree: 162 tests ok, 0 failed.
+Accepted after one return round at
+[fb961cf](https://github.com/maggnus/ymp/commit/fb961cf28017c3f36689efe2619188facb9815f4): the
+reviewer blocker — landing overwrote an operator revocation made during the probe — is fixed,
+`finish_measurement` re-applying `withdraw_routing_of` for the families withdrawn while the probe
+ran. Merged into main; `cargo test -p ymp-tui` on the merged tree: 162 ok, 0 failed.
 
 ## Next action
 

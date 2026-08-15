@@ -13,7 +13,7 @@ created_at: 2026-08-15T18:55:00+08:00
 updated_at: 2026-08-15T23:30:00+08:00
 started_at: 2026-08-15T18:55:00+08:00
 accepted_at: 2026-08-15T23:30:00+08:00
-candidate_commit: 72b288b
+candidate_commit: https://github.com/maggnus/ymp/commit/72b288befe485106017be497dee424199a64d48b
 closure_commit:
 evidence:
 duration_minutes: 0
@@ -27,12 +27,12 @@ deliberate_partial: false
 
 ## Outcome
 
-Migration unit P2 of [COLLECTIVE-MIGRATION.md](../../../../design/COLLECTIVE-MIGRATION.md): the
+Migration unit P2 of [COLLECTIVE-MIGRATION.md](https://github.com/maggnus/ymp/blob/ffde816625bc6a98536e486c2f5ccc0f6445b6d5/ymp-docs/design/COLLECTIVE-MIGRATION.md): the
 operator sees the fixed list of supported providers as a table (`/providers`), opens a provider's
 properties, and enables it there; probing/autodetect happens only on the enable transition or an
 explicit refresh, never before; the model catalog is a table (`/models`) derived from the accepted
 P1 records; the interface stops constructing drivers. Surfaces per
-[COLLECTIVE-TUI.md](../../../../design/COLLECTIVE-TUI.md) (S03–S05 family) and mirrored commands.
+[COLLECTIVE-TUI.md](https://github.com/maggnus/ymp/blob/d6b8d0929828c696bfe85eec8fc377e03e620ed8/ymp-docs/design/COLLECTIVE-TUI.md) (S03–S05 family) and mirrored commands.
 
 Carries P1's two review residues: the stored provider state states the age of its observation (or
 the surface re-observes before reading), and a deleted engine record reads as a route with no
@@ -68,6 +68,14 @@ models rather than shortening the catalog silently.
 
 Accepted 2026-08-15 (candidate 72b288b after one RETURN pass; review ACCEPT WITH RESIDUE; merged at b25420d).
 
+## Next action
+
+None recorded.
+
+## Guardrails
+
+None recorded.
+
 ## Findings
 
 - Product measures nothing before Enable: TUI start, `show providers|models|provider|runtimes` → 0
@@ -81,3 +89,19 @@ Accepted 2026-08-15 (candidate 72b288b after one RETURN pass; review ACCEPT WITH
   re-measure, so a live session may still route to a just-disabled account (one line; P4 takes it);
   ~29–42 s frozen interface with no repaint/cancel during measurement (own node: worker thread);
   the ↳ reason line is clipped at 80 columns; provider→engine binding at run start is P5.
+
+## Closure
+
+Filled when the task is accepted.
+
+### Accepted outcome
+
+None recorded.
+
+### Residuals
+
+None recorded.
+
+### Evidence
+
+None recorded.

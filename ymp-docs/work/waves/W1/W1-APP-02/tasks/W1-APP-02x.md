@@ -14,8 +14,8 @@ updated_at: 2026-08-14T04:08:46+08:00
 started_at: 2026-08-14T02:19:00+08:00
 accepted_at: 2026-08-14T04:08:46+08:00
 candidate_commit: https://github.com/maggnus/ymp/commit/4e8c449ff027b0a4380dde4460ac2bf8b683c7ed
-closure_commit: https://github.com/maggnus/ymp/commit/7e98831
-evidence: hanging verifier left the interface redrawing for the full limit and Esc cancelled in 0.23 s; the negative half measured the prior 60.1 s hold on the base revision
+closure_commit: https://github.com/maggnus/ymp/commit/7e9883111e062d62e69cc4b2604345870f4bece2
+evidence: ["[7e98831](https://github.com/maggnus/ymp/commit/7e9883111e062d62e69cc4b2604345870f4bece2)"]
 duration_minutes: 0
 blocker:
 pause_reason:
@@ -53,6 +53,14 @@ cancel a hanging verifier where they typed it.
 
 Active, dispatched in one batch with W1-APP-02v: one surface, one workspace, one review.
 
+## Next action
+
+None recorded.
+
+## Guardrails
+
+None recorded.
+
 ## Findings
 
 None yet.
@@ -71,4 +79,5 @@ None recorded.
 
 ### Evidence
 
-None recorded.
+- hanging verifier left the interface redrawing for the full limit and Esc cancelled in 0.23 s; the
+  negative half measured the prior 60.1 s hold on the base revision

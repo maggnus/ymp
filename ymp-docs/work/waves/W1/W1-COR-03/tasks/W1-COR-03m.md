@@ -14,8 +14,8 @@ updated_at: 2026-08-14T23:29:02+08:00
 started_at: 2026-08-14T05:22:38+08:00
 accepted_at: 2026-08-14T23:29:02+08:00
 candidate_commit: https://github.com/maggnus/ymp/commit/a2ddeb2c359ee2854218b21abb73792c344ea49a
-closure_commit: https://github.com/maggnus/ymp/commit/7fd1769
-evidence: verification enters the kernel against the exact work snapshot; hostile-sequence falsifiers (conflicting second verdict, verdict before submission, wake after verdict) all refused; sweep unchanged at 31158 states with zero violations; the survivable-restart inheritance kept all six files
+closure_commit: https://github.com/maggnus/ymp/commit/7fd1769c5da3259d35fa2998cfb9134b16531d0e
+evidence: ["[7fd1769](https://github.com/maggnus/ymp/commit/7fd1769c5da3259d35fa2998cfb9134b16531d0e)"]
 duration_minutes: 0
 blocker:
 pause_reason:
@@ -56,6 +56,14 @@ is removed, so it can actually refuse.
 
 Ready. Recorded from the W1-COR-03k review (two minor findings and the supported child).
 
+## Next action
+
+None recorded.
+
+## Guardrails
+
+None recorded.
+
 ## Findings
 
 None yet.
@@ -74,4 +82,7 @@ None recorded.
 
 ### Evidence
 
-None recorded.
+- verification enters the kernel against the exact work snapshot; hostile-sequence falsifiers
+  (conflicting second verdict, verdict before submission, wake after verdict) all refused; sweep
+  unchanged at 31158 states with zero violations; the survivable-restart inheritance kept all six
+  files

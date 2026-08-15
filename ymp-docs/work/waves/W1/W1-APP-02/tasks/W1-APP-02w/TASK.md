@@ -14,8 +14,8 @@ updated_at: 2026-08-14T03:06:00+08:00
 started_at: 2026-08-14T02:13:00+08:00
 accepted_at: 2026-08-14T03:06:00+08:00
 candidate_commit: https://github.com/maggnus/ymp/commit/70a8d919b3d478d0600858e22d7262a8d13c1cde
-closure_commit: https://github.com/maggnus/ymp/commit/9996944
-evidence: nine concurrent-start trials up to 24 processes never committed two runs into one store; honest schema claim pinned by tests; reviewer re-review ACCEPT; disclosed CTO fix 9399844 stages the root marker after the reviewer reproduced a truncated concurrent read
+closure_commit: https://github.com/maggnus/ymp/commit/99969443e9939b7bd5b6f6f2d45cfb7f1fbe867b
+evidence: ["[9996944](https://github.com/maggnus/ymp/commit/99969443e9939b7bd5b6f6f2d45cfb7f1fbe867b)"]
 duration_minutes: 53
 blocker:
 pause_reason:
@@ -93,4 +93,6 @@ None recorded.
 
 ### Evidence
 
-None recorded.
+- nine concurrent-start trials up to 24 processes never committed two runs into one store; honest
+  schema claim pinned by tests; reviewer re-review ACCEPT; disclosed CTO fix 9399844 stages the root
+  marker after the reviewer reproduced a truncated concurrent read

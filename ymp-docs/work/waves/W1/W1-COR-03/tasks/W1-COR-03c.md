@@ -68,12 +68,11 @@ declared provenance without claiming that message order or fluent dialogue prove
 
 ## Current state
 
-Accepted. New self-contained crate `ymp-board` (zero ymp-* dependencies; control, verifier, and
-store planes unreachable by construction). Critical-depth independent review: ACCEPT with an
-out-of-package falsifier crate consuming only the public API — four self-authored capability
-payloads byte-compared against neutral payloads of equal length; self-issued grants, forged
-controller, foreign publication rejected; blinded-first-assessment order enforced; author suite
-39 passed on the merged tree.
+Accepted. Self-contained crate `ymp-board` (zero ymp-* dependencies; control, verifier and store
+planes unreachable by construction). Independent critical-depth review: ACCEPT with an
+out-of-package falsifier using only the public API — self-authored payloads byte-compared against
+neutral payloads of equal length; self-issued grants, forged controller and foreign publication
+rejected; blinded-first-assessment order enforced; author suite 39 passed on the merged tree.
 
 ## Next action
 

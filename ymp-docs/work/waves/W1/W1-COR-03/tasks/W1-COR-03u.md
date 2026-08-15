@@ -14,8 +14,8 @@ updated_at: 2026-08-15T14:38:39+08:00
 started_at: 2026-08-15T14:08:53+08:00
 accepted_at: 2026-08-15T14:38:39+08:00
 candidate_commit: https://github.com/maggnus/ymp/commit/6544e25c2f671a50c5d87ef3d741b943173fd9a5
-closure_commit: https://github.com/maggnus/ymp/commit/2916b21
-evidence: reviewer swept every interruption point including the first command and a three-fact gap: replay never re-executes, the journal stays byte-identical, in-run recovery equals a reopened store; residuals: an export during desync carries a stale manifest summary beside a complete journal, and read-only paths lag until the next command
+closure_commit: https://github.com/maggnus/ymp/commit/2916b21de0554019a7fc24aa2b6970860cc054ee
+evidence: ["[2916b21](https://github.com/maggnus/ymp/commit/2916b21de0554019a7fc24aa2b6970860cc054ee)"]
 duration_minutes: 0
 blocker:
 pause_reason:
@@ -47,6 +47,14 @@ After an interrupted apply, the application replays the journal and subsequent c
 
 Ready.
 
+## Next action
+
+None recorded.
+
+## Guardrails
+
+None recorded.
+
 ## Findings
 
 None yet.
@@ -65,4 +73,7 @@ None recorded.
 
 ### Evidence
 
-None recorded.
+- reviewer swept every interruption point including the first command and a three-fact gap: replay
+  never re-executes, the journal stays byte-identical, in-run recovery equals a reopened store;
+  residuals: an export during desync carries a stale manifest summary beside a complete journal, and
+  read-only paths lag until the next command
