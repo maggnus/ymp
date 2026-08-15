@@ -3,19 +3,19 @@ id: W1-APP-02e.8
 kind: subtask
 wave: W1
 card: W1-APP-02
-state: active
+state: accepted
 risk: routine
 maturity: BUILD
 relation: supporting
 depends_on: [W1-APP-02e.5]
 blocks: []
 created_at: 2026-08-15T08:36:04+08:00
-updated_at: 2026-08-15T10:35:25+08:00
+updated_at: 2026-08-15T10:50:41+08:00
 started_at: 2026-08-15T10:35:25+08:00
-accepted_at:
-candidate_commit:
-closure_commit:
-evidence:
+accepted_at: 2026-08-15T10:50:41+08:00
+candidate_commit: https://github.com/maggnus/ymp/commit/66670c69c6340afe032c78ba32cd8ba7fdeed70a
+closure_commit: https://github.com/maggnus/ymp/commit/025b221
+evidence: a spacing-concession ladder fits all four groups, the note and the full assurance text into 20 body rows at 80x24; the reviewer took a direct product snapshot and independently probed the row-budget boundary; negative half pinned
 duration_minutes: 0
 blocker:
 pause_reason:
