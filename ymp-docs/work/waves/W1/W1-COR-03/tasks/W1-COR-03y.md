@@ -3,23 +3,23 @@ id: W1-COR-03y
 kind: task
 wave: W1
 card: W1-COR-03
-state: active
+state: accepted
 risk: significant
 maturity: BUILD
 relation: required
 depends_on: [W1-COR-03d, W1-COR-03x]
 blocks: []
 created_at: 2026-08-15T19:35:00+08:00
-updated_at: 2026-08-15T19:35:00+08:00
+updated_at: 2026-08-15T23:00:00+08:00
 started_at: 2026-08-15T19:35:00+08:00
-accepted_at:
-candidate_commit:
+accepted_at: 2026-08-15T23:00:00+08:00
+candidate_commit: acdf9f8
 closure_commit:
 evidence:
 duration_minutes: 0
 blocker:
 pause_reason:
-return_trigger:
+return_trigger: a caller of submitted() lands that carries parents forward without the pre-check extended to the effective change set
 deliberate_partial: false
 ---
 
@@ -53,14 +53,28 @@ production caller) is retired and its two protocol suites (`tests/commitments.rs
 
 ## Acceptance
 
-- [ ] A product-started run's journal carries `bundle_recorded` and `candidate_formed` with the
+- [x] A product-started run's journal carries `bundle_recorded` and `candidate_formed` with the
       exact base and object digests; negative half: current tree carries only `submission_recorded`.
-- [ ] After the run's terminal, a creating command (advertise/wake offer) is refused before
+- [x] After the run's terminal, a creating command (advertise/wake offer) is refused before
       `StopRun` is committed; closing commands still land; the 03x probe sequence yields
       `offers after == before`.
-- [ ] `CommitmentService` is gone; the two suites pass on the durable path; the race test fails
+- [x] `CommitmentService` is gone; the two suites pass on the durable path; the race test fails
       under its documented mutation.
 
 ## Current state
 
-Active.
+Accepted 2026-08-15 (candidate acdf9f8 after two residue passes; review ACCEPT WITH RESIDUE; merged at 1d2ae00).
+
+## Findings
+
+- Live path records object_recorded / bundle_recorded / candidate_formed with real digests; the
+  bundle's publishability is decided before any object is recorded (no orphan facts).
+- Terminal guard classifies all 24 commands (compiler-enforced); creating ones refused after the
+  run journal is terminal; the 03x cancel window is closed and load-bearing (guard removal fails 3 tests).
+- A construction the protocol cannot describe (>32 changes, unacceptable path) still reaches the
+  verdict via the snapshot seal; the limitation is journaled as `candidate_provenance_unrecorded`
+  (journal v5; v4 stores refused) and stated on `/commitments`. Child: multi-bundle or raised bound.
+- Race falsifier reshaped: 26/30 with a scheduling point between decide and append, 0/30 back-to-back.
+- CommitmentService retired; both protocol suites on the durable path; 03d identity-triple test added.
+- Residue: pre-check exhaustive only while submitted() carries no parents; a cancel between
+  submitted() and the provenance note yields a supervision-failed report (records still agree).

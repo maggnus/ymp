@@ -80,7 +80,7 @@
 | `[x]` | [`W1-COR-03v`](waves/W1/W1-COR-03/tasks/W1-COR-03v.md) | The interface states what a bounded shutdown actually ended | [`3978c25`](https://github.com/maggnus/ymp/commit/3978c25) | 15/08 13:49 | 15/08 14:07 (0m) |
 | `[x]` | [`W1-COR-03w`](waves/W1/W1-COR-03/tasks/W1-COR-03w.md) | Shutdown edge cases keep the journal and the finished run honest | [`904cac0`](https://github.com/maggnus/ymp/commit/904cac0) | 15/08 13:44 | 15/08 14:14 (0m) |
 | `[x]` | [`W1-COR-03x`](waves/W1/W1-COR-03/tasks/W1-COR-03x.md) | The run's commitment kernel journals through the durable path | [`eb0fdd3`](eb0fdd3) | 15/08 16:45 | 15/08 19:30 (0m) |
-| `[~]` | [`W1-COR-03y`](waves/W1/W1-COR-03/tasks/W1-COR-03y.md) | The live controller submits bundles; the durable path guards its terminal | — | 15/08 19:35 | 15/08 19:35 (0m) |
+| `[x]` | [`W1-COR-03y`](waves/W1/W1-COR-03/tasks/W1-COR-03y.md) | The live controller submits bundles; the durable path guards its terminal | [`acdf9f8`](acdf9f8) | 15/08 19:35 | 15/08 23:00 (0m) |
 | `[ ]` | [`W1-EVL-04`](waves/W1/W1-EVL-04/CARD.md) | Controlled evidence decides both POC hypotheses | — | — | — |
 | `[?]` | [`W1-EVL-04a`](waves/W1/W1-EVL-04/tasks/W1-EVL-04a.md) | Matched-budget arms produce comparable acceptance evidence | — | — | — |
 | `[ ]` | [`W1-EVL-04b`](waves/W1/W1-EVL-04/tasks/W1-EVL-04b.md) | Message interventions separate appearance from causal use | — | — | — |
