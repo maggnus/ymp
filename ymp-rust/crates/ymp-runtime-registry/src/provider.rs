@@ -20,16 +20,30 @@
 //! [`Engine::provider`] names the provider one engine reaches on its own credential, and each
 //! [`ProviderRoute`] records what that engine measured.
 //!
-//! **A provider record is observed, never seeded.** Every field but the record's own identity is
-//! derived from the measurements the engine records already carry ([`Providers::observe`]), so a
-//! root that has observed nothing holds no provider record at all and [`Providers::read`] answers
-//! `None`. An engine record is seeded because its enabled flag is an operator decision that has a
-//! product default; a provider's state has no default, and writing one would put a declaration
-//! where the level exists to hold a measurement.
+//! **A provider record's state is observed, never seeded.** Every field but the record's own
+//! identity and the operator's decision is derived from the measurements the engine records
+//! already carry ([`Providers::observe_family`]), so a root nothing has been enabled or observed on
+//! holds no provider record at all and [`Providers::read`] answers `None`. An engine record is
+//! seeded because its enabled flag is an operator decision that has a product default; a provider's
+//! state has no default, and writing one would put a declaration where the level exists to hold a
+//! measurement.
+//!
+//! **One field is the operator's and is never measured:** [`ProviderRecord::enabled`]. A provider
+//! is not measured and not autodetected until it is true
+//! (`ymp-docs/design/PRODUCT-BRIEF-collective-v2.md`, Part A §7), and enabling it is where the
+//! disclosure consequence is consented to
+//! ([decision D4](../../../../ymp-docs/design/COLLECTIVE-OWNER-DECISIONS.md)). A record this root
+//! holds nothing for is therefore read as disabled and unobserved
+//! ([`ProviderRecord::unobserved`]) rather than as a provider nobody has looked at yet.
 //!
 //! Observation opens no process and reaches no network: it reads the records under the root it is
 //! given. What it can therefore state is bounded by what a probe wrote, and the reason on every
-//! record says which measurement it came from.
+//! record says which measurement it came from. **Every observation carries the moment it was
+//! taken** ([`ProviderRecord::observed_at_ms`]), so a surface states its age instead of presenting
+//! a measurement of any age as current. The time is that of the observation, which is the moment
+//! the engine records were read: an engine measured again afterwards by another surface makes the
+//! provider observation older than the measurement it states, never newer, so the age errs towards
+//! staleness and never towards freshness.
 //!
 //! The design names four states a provider row can show — `ready`, `not configured`,
 //! `needs authentication` and `unavailable`. This build writes three of them. Nothing here
@@ -45,6 +59,7 @@
 use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
@@ -55,7 +70,17 @@ use crate::{Engine, EngineRecord, Registry, RegistryError};
 pub const PROVIDERS_DIRECTORY: &str = "providers";
 
 /// The record layout this build writes and reads. A record is not migrated.
+///
+/// The operator's decision, the reason it carries and the moment of the observation were added to
+/// the layout after it was first written, as optional fields with defaults: a record an earlier
+/// build wrote reads back as a provider nobody has enabled and nothing has timed, which is what it
+/// is. The version is therefore not raised — an addition no reader has to understand is not a new
+/// layout.
 pub const PROVIDER_SCHEMA_VERSION: u32 = 1;
+
+/// Why a provider this root holds no record for is not measured.
+pub const NOT_ENABLED_REASON: &str = "not enabled — nothing about this provider has been measured on this host, because a provider \
+     is not measured before it is enabled";
 
 /// The provider families this host can reach.
 ///
@@ -247,15 +272,78 @@ pub struct ProviderRecord {
     pub provider: String,
     /// The vendor the account belongs to.
     pub family: ProviderFamily,
+    /// The operator's decision, and the only field of this record nothing measures. Until it is
+    /// true nothing about the provider is measured: no engine of it is started and no network is
+    /// reached.
+    #[serde(default)]
+    pub enabled: bool,
+    /// Why the operator held this provider back, when they did.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub disabled_reason: Option<String>,
     pub state: ProviderState,
     /// What was measured, in one sentence an operator can act on.
     pub reason: String,
+    /// When the observation this record states was taken, in milliseconds since the Unix epoch.
+    ///
+    /// A record written before this field existed carries none, and a surface then states that the
+    /// observation is of an unrecorded moment rather than presenting it as current.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub observed_at_ms: Option<u64>,
     /// The engines that reach this provider, in registry order.
     #[serde(default)]
     pub routes: Vec<ProviderRoute>,
 }
 
 impl ProviderRecord {
+    /// The record of a provider this root holds nothing for: the operator has not enabled it, so
+    /// nothing has been measured about it and nothing claims to have been.
+    ///
+    /// This is what a surface reads for a provider of the supported list that no record stands for,
+    /// so the full list is shown without inventing a state for the part of it nobody has touched.
+    pub fn unobserved(family: ProviderFamily) -> Self {
+        Self {
+            schema_version: PROVIDER_SCHEMA_VERSION,
+            provider: family.name().to_owned(),
+            family,
+            enabled: false,
+            disabled_reason: None,
+            state: ProviderState::Unavailable,
+            reason: NOT_ENABLED_REASON.to_owned(),
+            observed_at_ms: None,
+            routes: Vec::new(),
+        }
+    }
+
+    /// The word a row shows for this provider.
+    ///
+    /// The operator's own decision is stated ahead of any measurement, because a provider they
+    /// have not enabled is not one this host failed to reach.
+    pub fn display_state(&self) -> &'static str {
+        match self.enabled {
+            false => "disabled",
+            true => self.state.label(),
+        }
+    }
+
+    /// The sentence a row shows beneath the state.
+    pub fn display_reason(&self) -> String {
+        match (&self.enabled, &self.disabled_reason) {
+            (false, Some(reason)) => reason.clone(),
+            (false, None) => NOT_ENABLED_REASON.to_owned(),
+            (true, _) => self.reason.clone(),
+        }
+    }
+
+    /// How old the observation this record states is, at the moment the caller names.
+    ///
+    /// `None` where nothing has been observed, or where the observation predates the field that
+    /// records the moment. A clock moved backwards yields a zero age rather than a negative one.
+    pub fn observation_age(&self, now: SystemTime) -> Option<Duration> {
+        let observed = self.observed_at_ms?;
+        let now = unix_ms(now);
+        Some(Duration::from_millis(now.saturating_sub(observed)))
+    }
+
     /// The record a provider takes from what its engines measured.
     ///
     /// The order of the questions is the order an operator can act in: an engine held back is
@@ -295,8 +383,11 @@ impl ProviderRecord {
             schema_version: PROVIDER_SCHEMA_VERSION,
             provider: family.name().to_owned(),
             family,
+            enabled: false,
+            disabled_reason: None,
             state,
             reason,
+            observed_at_ms: None,
             routes,
         }
     }
@@ -425,6 +516,21 @@ impl Providers {
         Ok(Some(record))
     }
 
+    /// The record of one provider, or the unobserved record of a provider this root holds none
+    /// for.
+    ///
+    /// A surface reads providers through this: the supported list is shown in full whether or not
+    /// anything is configured, and a provider nobody has enabled reads as disabled and unmeasured
+    /// rather than as missing. A record that exists and cannot be read is still an error.
+    pub fn read_or_unobserved(
+        &self,
+        family: ProviderFamily,
+    ) -> Result<ProviderRecord, ProviderError> {
+        Ok(self
+            .read(family)?
+            .unwrap_or_else(|| ProviderRecord::unobserved(family)))
+    }
+
     /// Every provider this build reaches, in provider order, each with what this root holds for it.
     pub fn read_all(
         &self,
@@ -467,30 +573,92 @@ impl Providers {
         })
     }
 
+    /// Record the operator's decision about one provider, leaving every measurement as it stands.
+    ///
+    /// This writes nothing measured and starts nothing: enabling a provider is what permits it to
+    /// be measured, and the measurement is a separate act ([`Providers::observe_family`]).
+    /// Disabling keeps the last observation and its reason, because the reason is the answer to
+    /// "why is this model not offered" and deleting it would take that answer with it.
+    pub fn set_enabled(
+        &self,
+        family: ProviderFamily,
+        enabled: bool,
+        reason: Option<&str>,
+    ) -> Result<ProviderRecord, ProviderError> {
+        let mut record = self.read_or_unobserved(family)?;
+        record.enabled = enabled;
+        record.disabled_reason = match enabled {
+            true => None,
+            false => Some(match reason.map(str::trim) {
+                Some(reason) if !reason.is_empty() => reason.to_owned(),
+                _ => "disabled by the operator".to_owned(),
+            }),
+        };
+        self.write(family, &record)?;
+        Ok(record)
+    }
+
+    /// Observe one provider from the engine records this root holds, and write what was observed.
+    ///
+    /// It starts nothing, spends nothing and reaches no network: the measurements it states were
+    /// made when the engines were measured, and it reads them where they were recorded. The
+    /// operator's decision is carried through untouched — observation states what a host holds and
+    /// takes no decision of its own — and the moment of the observation is recorded with it.
+    /// Observing twice over unchanged engine records writes the same record but for that moment.
+    pub fn observe_family(
+        &self,
+        family: ProviderFamily,
+        registry: &Registry,
+        at: SystemTime,
+    ) -> Result<ProviderRecord, ProviderError> {
+        let decision = self.read_or_unobserved(family)?;
+        let routes = family
+            .engines()
+            .iter()
+            .map(|engine| match registry.read(*engine) {
+                Ok(record) => ProviderRoute::observed(*engine, &record),
+                Err(error) => ProviderRoute::unreadable(*engine, &error),
+            })
+            .collect();
+        let mut record = ProviderRecord::observed(family, routes);
+        record.enabled = decision.enabled;
+        record.disabled_reason = decision.disabled_reason;
+        record.observed_at_ms = Some(unix_ms(at));
+        self.write(family, &record)?;
+        Ok(record)
+    }
+
     /// Observe every provider from the engine records this root holds, and write what was
     /// observed.
     ///
-    /// This is the only writer of a provider record. It starts nothing, spends nothing and reaches
-    /// no network: the measurements it states were made when the engines were probed, and it reads
-    /// them where they were recorded. Running it twice over unchanged engine records writes the
-    /// same records.
+    /// This is the only writer of a provider record's measured half. It starts nothing, spends
+    /// nothing and reaches no network.
     pub fn observe(&self, registry: &Registry) -> Result<Vec<ProviderRecord>, ProviderError> {
-        let mut observed = Vec::with_capacity(ProviderFamily::ALL.len());
-        for family in ProviderFamily::ALL {
-            let routes = family
-                .engines()
-                .iter()
-                .map(|engine| match registry.read(*engine) {
-                    Ok(record) => ProviderRoute::observed(*engine, &record),
-                    Err(error) => ProviderRoute::unreadable(*engine, &error),
-                })
-                .collect();
-            let record = ProviderRecord::observed(family, routes);
-            self.write(family, &record)?;
-            observed.push(record);
-        }
-        Ok(observed)
+        self.observe_at(registry, SystemTime::now())
     }
+
+    /// Observe every provider as of a stated moment, so a caller that must be reproducible states
+    /// its own clock instead of reading this one.
+    pub fn observe_at(
+        &self,
+        registry: &Registry,
+        at: SystemTime,
+    ) -> Result<Vec<ProviderRecord>, ProviderError> {
+        ProviderFamily::ALL
+            .into_iter()
+            .map(|family| self.observe_family(family, registry, at))
+            .collect()
+    }
+}
+
+/// A moment as the records state it: milliseconds since the Unix epoch.
+///
+/// A moment before the epoch — a host whose clock is set that far back — is recorded as the epoch
+/// rather than refused, because a provider observation is not the place to fail on a clock.
+fn unix_ms(at: SystemTime) -> u64 {
+    at.duration_since(UNIX_EPOCH).map_or(0, |since| {
+        since.as_millis().min(u128::from(u64::MAX)) as u64
+    })
 }
 
 #[cfg(test)]
@@ -756,6 +924,131 @@ mod tests {
         );
         let error = ProviderFamily::parse("nvidia").expect_err("no provider is named nvidia");
         assert!(error.to_string().contains("anthropic"), "{error}");
+    }
+
+    /// Every observation carries the moment it was taken, so a surface can state its age instead
+    /// of presenting a measurement of any age as current.
+    ///
+    /// This is the first review residue of the accepted P1 build: the stored state said what was
+    /// measured and never when, so a record written days ago read exactly like one written a
+    /// second ago. The check that must fail: stop stamping the observation, and the age of every
+    /// record becomes unknowable while the record still reads as a current measurement.
+    #[test]
+    fn an_observation_states_the_moment_it_was_taken_and_its_age_is_read_from_it() {
+        let (_directory, registry, providers) = root();
+        measure(
+            &registry,
+            Engine::ClaudeCode,
+            Some("delegated_host_keychain_credential"),
+        );
+        let taken = UNIX_EPOCH + Duration::from_secs(1_770_000_000);
+        providers
+            .observe_family(ProviderFamily::Anthropic, &registry, taken)
+            .expect("observe anthropic");
+
+        let record = providers
+            .read(ProviderFamily::Anthropic)
+            .expect("read")
+            .expect("observed");
+        assert_eq!(
+            record.observed_at_ms,
+            Some(1_770_000_000_000),
+            "the observation did not record when it was taken"
+        );
+        assert_eq!(
+            record.observation_age(taken + Duration::from_secs(90)),
+            Some(Duration::from_secs(90))
+        );
+        // A clock that moved backwards states no age of its own rather than a negative one.
+        assert_eq!(
+            record.observation_age(taken - Duration::from_secs(5)),
+            Some(Duration::ZERO)
+        );
+
+        // A record written before the field existed carries none, and says so rather than reading
+        // as a measurement taken now.
+        let stored = fs::read_to_string(providers.path_of(ProviderFamily::Anthropic))
+            .expect("stored record");
+        let mut value: serde_json::Value = serde_json::from_str(&stored).expect("record");
+        value
+            .as_object_mut()
+            .expect("an object")
+            .remove("observed_at_ms");
+        fs::write(
+            providers.path_of(ProviderFamily::Anthropic),
+            serde_json::to_vec_pretty(&value).expect("record bytes"),
+        )
+        .expect("write the earlier record");
+        let earlier = providers
+            .read(ProviderFamily::Anthropic)
+            .expect("read")
+            .expect("observed");
+        assert_eq!(earlier.observed_at_ms, None);
+        assert_eq!(earlier.observation_age(taken), None);
+        assert_eq!(earlier.state, record.state, "the record no longer reads");
+    }
+
+    /// The operator's decision is the one field of this record nothing measures, and observing
+    /// carries it through untouched.
+    #[test]
+    fn enabling_is_the_operators_own_field_and_an_observation_never_writes_it() {
+        let (_directory, registry, providers) = root();
+        measure(
+            &registry,
+            Engine::ClaudeCode,
+            Some("delegated_host_keychain_credential"),
+        );
+
+        // A provider this root holds nothing for is disabled and unmeasured, and says so.
+        let unobserved = providers
+            .read_or_unobserved(ProviderFamily::Anthropic)
+            .expect("read");
+        assert!(!unobserved.enabled);
+        assert_eq!(unobserved.display_state(), "disabled");
+        assert!(unobserved.display_reason().contains("not enabled"));
+        assert!(unobserved.observed_at_ms.is_none());
+        assert!(
+            providers
+                .read(ProviderFamily::Anthropic)
+                .expect("read")
+                .is_none(),
+            "reading the supported list wrote a record"
+        );
+
+        providers
+            .set_enabled(ProviderFamily::Anthropic, true, None)
+            .expect("enable anthropic");
+        let at = UNIX_EPOCH + Duration::from_secs(1_770_000_100);
+        let observed = providers
+            .observe_family(ProviderFamily::Anthropic, &registry, at)
+            .expect("observe");
+        assert!(observed.enabled, "an observation took back the decision");
+        assert_eq!(observed.state, ProviderState::Ready, "{}", observed.reason);
+        assert_eq!(observed.display_state(), "ready");
+
+        // Disabling states the reason and keeps every measurement the record holds.
+        let disabled = providers
+            .set_enabled(ProviderFamily::Anthropic, false, Some("kept out for now"))
+            .expect("disable anthropic");
+        assert!(!disabled.enabled);
+        assert_eq!(disabled.display_state(), "disabled");
+        assert_eq!(disabled.display_reason(), "kept out for now");
+        assert_eq!(
+            disabled.state,
+            ProviderState::Ready,
+            "disabling erased what was measured"
+        );
+        assert_eq!(disabled.observed_at_ms, observed.observed_at_ms);
+        assert_eq!(disabled.routes, observed.routes);
+
+        // Disabling without a stated reason still states one.
+        let disabled = providers
+            .set_enabled(ProviderFamily::OpenAi, false, Some("  "))
+            .expect("disable openai");
+        assert_eq!(
+            disabled.disabled_reason.as_deref(),
+            Some("disabled by the operator")
+        );
     }
 
     /// The driver is this product's own implementation and never becomes durable state. A record

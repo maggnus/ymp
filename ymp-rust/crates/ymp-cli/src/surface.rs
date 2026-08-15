@@ -42,6 +42,7 @@ use ymp_application::PreparedContract;
 use ymp_domain::RunStatus;
 use ymp_tui::app::Action;
 use ymp_tui::projection::{ContractFacts, Projection};
+use ymp_tui::providers::ProviderFamily;
 use ymp_tui::state::{App, ConfirmAction, Modal, PageKind, Surface};
 use ymp_tui::theme::Markers;
 use ymp_tui::transcript::Entry;
@@ -121,6 +122,12 @@ pub enum PublicCommand {
         #[command(subcommand)]
         command: RuntimeCommand,
     },
+    /// Enable a provider, hold it back, or measure it again. Enabling permits repository content to
+    /// be sent to that account and is what measures it for the first time.
+    Provider {
+        #[command(subcommand)]
+        command: ProviderCommand,
+    },
     /// Print one data page, exactly as the interface lays it out.
     Show {
         /// Which page to print.
@@ -128,7 +135,72 @@ pub enum PublicCommand {
         /// Which candidate the describe page states.
         #[arg(long, value_name = "INDEX")]
         candidate: Option<usize>,
+        /// Which provider the provider page states.
+        #[arg(long, value_name = "PROVIDER")]
+        provider: Option<String>,
     },
+}
+
+/// What a command states about a provider.
+///
+/// These are the three acts the interface offers on a provider's own properties view, in the same
+/// order and with the same consequences. Enabling states its consequence on that view above the
+/// key; a command carries the same consequence in its own help, because a command is read before
+/// it is run and not after.
+#[derive(Clone, Debug, Subcommand)]
+pub enum ProviderCommand {
+    /// Enable this provider. Repository content of any workspace may then be sent to it, including
+    /// the bounded excerpts ymp reads to work out what "done" means before a run starts. Enabling
+    /// is also what measures the provider: the engines that reach it are started here.
+    Enable {
+        /// The provider, spelled as the providers page spells it.
+        provider: String,
+    },
+    /// Hold this provider back. Its models leave the offered catalog and every later pool; nothing
+    /// it measured is erased and nothing is started.
+    Disable {
+        /// The provider, spelled as the providers page spells it.
+        provider: String,
+        /// Why it is held back. A row repeats this, so an operator is told what to change.
+        #[arg(long, value_name = "TEXT")]
+        reason: Option<String>,
+    },
+    /// Measure an enabled provider again and record what its engines serve.
+    Refresh {
+        /// The provider, spelled as the providers page spells it.
+        provider: String,
+    },
+}
+
+impl ProviderCommand {
+    /// The provider this command acts on. A name that selects none is refused rather than resolved
+    /// to the nearest one, exactly as the interface refuses it.
+    fn family(&self) -> Result<ProviderFamily> {
+        let stated = match self {
+            Self::Enable { provider }
+            | Self::Disable { provider, .. }
+            | Self::Refresh { provider } => provider,
+        };
+        Ok(ProviderFamily::parse(stated)?)
+    }
+
+    /// The action of the interface this command performs.
+    fn action(&self) -> Result<Action> {
+        let family = self.family()?;
+        Ok(match self {
+            Self::Enable { .. } => Action::SetProviderEnabled {
+                family,
+                enabled: true,
+                reason: None,
+            },
+            Self::Disable { reason, .. } => Action::SetProviderEnabled {
+                family,
+                enabled: false,
+                reason: reason.clone(),
+            },
+            Self::Refresh { .. } => Action::RefreshProviderModels { family },
+        })
+    }
 }
 
 /// What a command states about a runtime engine.
@@ -217,6 +289,9 @@ impl RequestArgs {
 /// The data pages, named as the interface names them in its command palette.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, ValueEnum)]
 pub enum PageName {
+    Providers,
+    Provider,
+    Models,
     Runtimes,
     Candidates,
     Events,
@@ -229,6 +304,9 @@ pub enum PageName {
 impl PageName {
     pub fn kind(self) -> PageKind {
         match self {
+            Self::Providers => PageKind::Providers,
+            Self::Provider => PageKind::Provider,
+            Self::Models => PageKind::Models,
             Self::Runtimes => PageKind::Runtimes,
             Self::Candidates => PageKind::Candidates,
             Self::Events => PageKind::Events,
@@ -243,6 +321,9 @@ impl PageName {
     /// interface stops this crate from compiling until a command shows it.
     pub fn of(kind: PageKind) -> Self {
         match kind {
+            PageKind::Providers => Self::Providers,
+            PageKind::Provider => Self::Provider,
+            PageKind::Models => Self::Models,
             PageKind::Runtimes => Self::Runtimes,
             PageKind::Candidates => Self::Candidates,
             PageKind::Events => Self::Events,
@@ -311,9 +392,21 @@ pub fn run(
         PublicCommand::Runtime { command } => {
             run_runtime(&mut session, &mut app, &markers, command)
         }
-        PublicCommand::Show { page, candidate } => {
-            run_show(&mut session, &mut app, &markers, page, candidate)
+        PublicCommand::Provider { command } => {
+            run_provider(&mut session, &mut app, &markers, command)
         }
+        PublicCommand::Show {
+            page,
+            candidate,
+            provider,
+        } => run_show(
+            &mut session,
+            &mut app,
+            &markers,
+            page,
+            candidate,
+            provider.as_deref(),
+        ),
     }
 }
 
@@ -554,6 +647,25 @@ fn run_runtime(
     Ok(())
 }
 
+/// Enable a provider, hold it back, or measure it again — the acts of its properties view.
+///
+/// Each is performed through the interface's own session, so a command takes the decision the
+/// interface takes, records it where the interface records it, and measures exactly where the
+/// interface measures: on the enable transition and on an explicit refresh, and nowhere else.
+fn run_provider(
+    session: &mut Session,
+    app: &mut App,
+    markers: &Markers,
+    command: ProviderCommand,
+) -> Result<()> {
+    let errors = known_errors(&app.data.entries);
+    perform(session, command.action()?);
+    app.adopt(session.projection(None));
+    print_transcript(app, markers);
+    reject_new_errors(app, &errors)?;
+    Ok(())
+}
+
 /// Print one data page.
 fn run_show(
     session: &mut Session,
@@ -561,18 +673,33 @@ fn run_show(
     markers: &Markers,
     page: PageName,
     candidate: Option<usize>,
+    provider: Option<&str>,
 ) -> Result<()> {
     let kind = page.kind();
     if kind == PageKind::Runtimes {
         // This page is where the engines are looked at, so it is where a model list nobody has
-        // measured against the installed build is measured.
+        // measured against the installed build is measured. The provider pages measure nothing:
+        // reading which accounts exist is not reaching one.
         session.set_runtimes(ymp_tui::runtimes::probe_all(
             session.registry_address(),
             ymp_tui::runtimes::Measure::Catalog,
         ));
     }
     let describe = (kind == PageKind::Describe).then(|| candidate.unwrap_or(0));
-    app.adopt(session.projection(describe));
+    // The properties view of a provider is opened from a selected row in the interface. A command
+    // has no selection, so it names the account it states — a value, and never a confirmation.
+    let selected = match (kind, provider) {
+        (PageKind::Provider, Some(stated)) => {
+            ymp_tui::providers::index_of(ProviderFamily::parse(stated)?)
+        }
+        (PageKind::Provider, None) => bail!(
+            "nothing was shown — name the provider whose properties are stated, for example \
+             `--provider {}`",
+            ymp_tui::providers::supported()[0].name()
+        ),
+        _ => None,
+    };
+    app.adopt(session.projection_for(describe, selected));
     app.surface = Surface::Page(kind);
     let missing = app.page(kind).is_none();
     print_surface(app, markers, PAGE_HEIGHT);
@@ -650,6 +777,12 @@ fn perform(session: &mut Session, action: Action) {
             enabled,
             reason,
         } => session.set_engine_enabled(engine, enabled, reason),
+        Action::SetProviderEnabled {
+            family,
+            enabled,
+            reason,
+        } => session.set_provider_enabled(family, enabled, reason),
+        Action::RefreshProviderModels { family } => session.refresh_provider_models(family),
         // A command has no second thread to wait on: its own process is the check, and it has
         // already finished by the time anything could ask for it to be abandoned.
         Action::CancelCheck => session.cancel_check(),

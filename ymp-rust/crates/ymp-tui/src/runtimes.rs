@@ -144,17 +144,37 @@ impl Report {
 /// `address` states whether the invocation named a root or a store. A root is taken as stated; a
 /// store reads the registry of the root it stands under, so both reach one decision per engine.
 pub fn probe_all(address: &RegistryAddress, measure: Measure) -> Report {
+    probe_engines(address, measure, &Engine::ALL)
+}
+
+/// Read the registry, and probe only the engines the caller names.
+///
+/// The provider level decides which those are: a provider is not measured before it is enabled, so
+/// the engines beneath a provider nobody has enabled are read from their records and nothing about
+/// them is started. Every engine still holds a row — the list of profiles is the list of engines —
+/// and one nobody measured says exactly that instead of a readiness.
+pub fn probe_engines(address: &RegistryAddress, measure: Measure, probed: &[Engine]) -> Report {
     let registry = address.registry();
     let profiles = Engine::ALL
         .into_iter()
-        .map(|engine| engine_facts(&registry, engine, measure))
+        .map(|engine| engine_facts(&registry, engine, measure, probed.contains(&engine)))
         .collect();
     Report { profiles }
 }
 
-/// One engine: what the registry holds, and — only where it admits the engine — what its probe
-/// reports and what the record then records.
-fn engine_facts(registry: &Registry, engine: Engine, measure: Measure) -> ProfileFacts {
+/// Read every engine from the registry, starting nothing at all.
+pub fn read_all(address: &RegistryAddress) -> Report {
+    probe_engines(address, Measure::Recorded, &[])
+}
+
+/// One engine: what the registry holds, and — only where it admits the engine and the caller asked
+/// for it to be measured — what its probe reports and what the record then records.
+fn engine_facts(
+    registry: &Registry,
+    engine: Engine,
+    measure: Measure,
+    probe: bool,
+) -> ProfileFacts {
     let record = match registry.read(engine) {
         Ok(record) => record,
         // A record that cannot be read is not an enabled engine. Nothing is probed and nothing is
@@ -183,9 +203,41 @@ fn engine_facts(registry: &Registry, engine: Engine, measure: Measure) -> Profil
         record_engine(registry, engine, &record);
         return disabled_facts(engine, &record);
     }
+    if !probe {
+        return unmeasured_facts(engine, &record);
+    }
     match engine {
         Engine::ClaudeCode => claude_facts(registry, record, measure),
         Engine::Codex => codex_facts(registry, record),
+    }
+}
+
+/// An engine nobody asked to be measured, stated from its record alone.
+///
+/// Nothing is started and nothing is written: the record is left exactly as it stands, and the row
+/// states that nothing was measured rather than a readiness no measurement produced. What the
+/// record already holds — the release a previous measurement recorded, the models it listed — is
+/// still shown, because it is what this host knows.
+fn unmeasured_facts(engine: Engine, record: &EngineRecord) -> ProfileFacts {
+    ProfileFacts {
+        name: engine.name().to_owned(),
+        runtime: engine.name().to_owned(),
+        model_route: None,
+        executable: record.properties.executable.clone().unwrap_or_default(),
+        version: record.properties.version.clone(),
+        readiness: Readiness::Unavailable,
+        detail: format!(
+            "nothing was measured here — this reading started no engine. The {} provider this \
+             engine reaches is measured when it is enabled and when its models are refreshed, \
+             both of which are on /providers.",
+            engine.provider().name()
+        ),
+        registry: Some(EngineFacts {
+            engine,
+            enabled: true,
+            disabled_reason: None,
+            models: record.models.clone(),
+        }),
     }
 }
 

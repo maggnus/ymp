@@ -273,11 +273,16 @@ fn the_mirrored_command_disables_and_enables_an_engine_durably() {
 
     // A disabled engine is not offered: the page states it as disabled rather than as ready, and
     // no managed engine is left for a run to be routed to.
+    //
+    // The count is host-independent because both engines are held back here: Codex is seeded
+    // disabled and Claude Code was just disabled above, so nothing is measured and nothing can be
+    // ready, whatever this host has installed. The earlier count of one ready profile named the
+    // in-process fixture, which is no longer offered as a capability of the product.
     let page = ymp(&root, &["show", "runtimes"]);
     let shown = stated(&page);
     assert!(shown.contains("disabled"), "{shown}");
     assert!(
-        shown.contains("· 1 ready · 2 unusable"),
+        shown.contains("· 0 ready · 2 unusable"),
         "a disabled engine was still counted as usable:\n{shown}"
     );
 

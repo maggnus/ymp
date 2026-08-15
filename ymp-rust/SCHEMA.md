@@ -170,21 +170,44 @@ account with an authentication state that exposes models; it is not a runtime an
 every provider is reached through an installed engine. The record therefore states the account, and
 the engines that reach it stand beneath it as its `routes`.
 
-The record holds its own name and `family`, the observed `state` with the `reason` that state was
-observed from, and one route per engine. A route names the engine, its admission decision, the
-executable and release measured for it, the digest of that executable, and where its credential is
-read from — named, never the credential itself. Those fields are copies of what the engine record
-held when the observation was made, and they are held for one purpose: they say which engine build
-the provider state was observed from, so an observation older than the installed build is visible
-as older rather than standing for it. Every decision is taken from the engine record, never from
-the copy.
+The record holds its own name and `family`, the operator's `enabled` decision with the
+`disabled_reason` it carries, the observed `state` with the `reason` that state was observed from,
+the moment of that observation in `observed_at_ms`, and one route per engine. A route names the
+engine, its admission decision, the executable and release measured for it, the digest of that
+executable, and where its credential is read from — named, never the credential itself. Those
+fields are copies of what the engine record held when the observation was made, and they are held
+for one purpose: they say which engine build the provider state was observed from, so an
+observation older than the installed build is visible as older rather than standing for it. Every
+decision is taken from the engine record, never from the copy.
 
-A provider record is observed and never seeded. It is written by one operation, which reads the
-engine records under the same root and writes what they state; it starts nothing, spends nothing
-and reaches no network. A root that has observed nothing therefore holds no provider record at all,
-and a read answers that the record is absent rather than inventing a state for it. An engine record
-is seeded because its enabled flag is an operator decision with a product default; a provider's
-state is measured throughout and has no default.
+`enabled`, `disabled_reason` and `observed_at_ms` were added to the layout after it was first
+written, as optional fields with defaults, and the version is **not** raised for them: a record an
+earlier build wrote reads back as a provider nobody has enabled and nothing has timed, which is
+what it is, and a record this build writes is read by an earlier one as the record it already
+understood. An addition no reader has to understand is not a new layout.
+
+`enabled` is the operator's decision and the only field of this record nothing measures. **A
+provider is not measured before it is true**: no engine that reaches it is started, no network is
+reached, and reading the supported list or the catalog measures nothing. It is also the disclosure
+consent — enabling permits repository content of any workspace to be sent to that account — which
+is why it is stored beside the measurements rather than derived from them. Disabling keeps every
+measurement the record holds, because the measured reason is the answer to "why is this model not
+offered".
+
+`observed_at_ms` is the moment the observation was taken, in milliseconds since the Unix epoch, so
+a surface states the age of what it shows instead of presenting a measurement of any age as
+current. It is the moment the engine records were read, which is also the moment they were
+measured, because measuring the engines and observing the providers are one act. An engine measured
+again afterwards by another surface makes the provider observation older than the measurement it
+states, never newer: the age errs towards staleness and never towards freshness.
+
+A provider record's measured half is observed and never seeded. It is written by one operation,
+which reads the engine records under the same root and writes what they state; it starts nothing,
+spends nothing and reaches no network. A root on which nothing has been enabled or observed
+therefore holds no provider record at all, and a read answers that the record is absent rather than
+inventing a state for it; a surface reads such a provider as disabled and unmeasured. An engine
+record is seeded because its enabled flag is an operator decision with a product default; a
+provider's state is measured throughout and has no default.
 
 The state is the first of these that applies, in the order an operator can act in: `unavailable`
 when no engine that reaches the provider is both admitted and installed here — including when an
@@ -207,14 +230,24 @@ entry that is not admissible is present and carries the measured reason rather t
 An engine record that cannot be read fails the whole reading, because a catalog silently missing
 one engine's models is indistinguishable from a complete one.
 
+The reading also carries **one row per engine that reaches an observed provider**, whether or not
+it serves a model. An engine record that is removed from the root is answered by the registry's
+seeded record, whose model list is empty, so its entries would otherwise stop appearing and a
+caller counting them would read a catalog missing everything that engine served as a complete one.
+The route stays, states that it serves nothing and states why — no record under this root, an
+engine held back, or a list nothing has measured — and every surface draws those rows beside the
+entries.
+
 The record states its own `schema_version`. A record of any other version is refused when it is
 read, and no command migrates a record. A record standing under another provider's name is refused
 rather than read as that provider's.
 
-This level decides nothing. Which engines are admitted is still answered by the engine record's
-`enabled` flag alone, so a provider observed unavailable does not hold back an engine the operator
-enabled and an observed provider does not admit one they disabled. Nothing is instantiated by being
-recorded here, and which of the catalog's entries a run may use is not decided under this root.
+This level decides two things and no more: whether a provider may be measured at all, and whether
+its entries are offered by the catalog. Which engines are **admitted** is still answered by the
+engine record's `enabled` flag alone, so a provider observed unavailable does not hold back an
+engine the operator enabled and an observed provider does not admit one they disabled. Nothing is
+instantiated by being recorded here, and which of the catalog's entries a run may use is not
+decided under this root.
 
 ## Event journal version 1
 

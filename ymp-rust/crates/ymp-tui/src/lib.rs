@@ -60,6 +60,7 @@ pub mod journal;
 pub mod overlay;
 pub mod pages;
 pub mod projection;
+pub mod providers;
 pub mod runtimes;
 pub mod scenario;
 pub mod state;

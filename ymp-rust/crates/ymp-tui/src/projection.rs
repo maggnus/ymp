@@ -456,6 +456,10 @@ pub struct Projection {
     pub commands: Vec<PaletteItem>,
     /// The probe of the shipped runtime drivers, once it has returned.
     pub runtimes: Option<crate::runtimes::Report>,
+    /// The provider level as the session last read it from the records. It is here so a key on the
+    /// provider surfaces resolves the account it acts on from the view state alone, exactly as a
+    /// key on the runtimes page resolves its engine.
+    pub providers: Option<crate::providers::Report>,
     /// Whether a run authorized now would be given a store of its own, addressed under the root
     /// by the layout, because the store this session is reading already holds one. It is the
     /// session's fact: which stores a root holds is not something the journal records.
