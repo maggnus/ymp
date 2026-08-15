@@ -42,6 +42,11 @@ const DEFAULT_WALL_TIME_LIMIT_MS: u64 = 10 * 60 * 1000;
 const LAUNCH_DESCRIPTOR_SCHEMA_VERSION: u32 = 1;
 const MAX_CREDENTIAL_BYTES: usize = 1024 * 1024;
 const HARNESS_INSTRUCTIONS: &str = "Execution policy: work without delegation, agents, skills, or background tasks. Do not send progress reports. Batch independent file reads and batch the final formatting, tests, lint, and diff checks. Use only the files and tools needed for the requested outcome. Do not commit. Stop immediately after a concise final report.";
+/// How a managed attempt publishes what it produced. The operator's request is delivered word for
+/// word and is not required to describe the product's own submission path, so the requirement
+/// travels here instead: an attempt that only writes files leaves nothing the run can accept, and
+/// the budget it spent buys no candidate.
+const PUBLICATION_INSTRUCTIONS: &str = "Publication policy: the work of this attempt becomes a candidate only when it is published with the mcp__ymp__submit tool. Files left in the workspace are not a result, and no report replaces that call. Call mcp__ymp__submit once, as soon as the requested outcome is reached, whether or not the request above mentions publishing.";
 
 /// Built-in tools this profile admits. `Task` and every other delegation tool are absent, so the
 /// runtime cannot start a native subagent even though its agent definitions remain installed.
@@ -820,6 +825,16 @@ impl ClaudeLaunch {
         Ok(arguments)
     }
 
+    /// What the product tells the managed runtime after the operator's request. The publication
+    /// requirement is added only for a launch that carries the coordination bridge, because an
+    /// invocation without it has no submission tool to name.
+    fn managed_instructions(&self) -> String {
+        match self.mcp {
+            Some(_) => format!("{PUBLICATION_INSTRUCTIONS} {HARNESS_INSTRUCTIONS}"),
+            None => HARNESS_INSTRUCTIONS.to_owned(),
+        }
+    }
+
     fn spawn(
         &self,
         descriptor: &LaunchDescriptor,
@@ -905,10 +920,13 @@ impl ClaudeLaunch {
             .stdin
             .take()
             .ok_or_else(|| RuntimeError::MalformedEvent("Claude stdin was not piped".to_owned()))?;
+        // The operator's request goes first and unchanged; what the product requires of every
+        // managed attempt follows it as the product's own instruction.
+        let instructions = self.managed_instructions();
         let delivered = (|| -> std::io::Result<()> {
             stdin.write_all(prompt.as_bytes())?;
             stdin.write_all(b"\n\n")?;
-            stdin.write_all(HARNESS_INSTRUCTIONS.as_bytes())?;
+            stdin.write_all(instructions.as_bytes())?;
             stdin.write_all(b"\n")?;
             stdin.flush()
         })();
@@ -3159,6 +3177,103 @@ printf '%s\n' '{{"type":"result","subtype":"success","is_error":false,"total_cos
                 .expect("invocation count")
                 .trim(),
             "2"
+        );
+    }
+
+    /// The requirement to publish through the submission tool reaches the managed runtime as the
+    /// product's own instruction, so a request that never mentions publishing still carries it.
+    /// The request itself is delivered word for word, and an invocation without the coordination
+    /// bridge is told nothing about a tool it does not have.
+    #[test]
+    fn the_product_tells_a_coordinated_runtime_how_a_candidate_is_published() {
+        const REQUEST: &str = "Replace the content of input.txt with the single line: after.";
+        assert!(
+            !REQUEST.contains("submit"),
+            "the measured request already names publication itself"
+        );
+        const RESULT: &str = r#"{"type":"result","subtype":"success","is_error":false,"total_cost_usd":0.01,"modelUsage":{"claude-opus-5":{"inputTokens":1,"outputTokens":1,"costUSD":0.01}},"usage":{"input_tokens":1,"output_tokens":1}}"#;
+
+        let directory = tempfile::tempdir().expect("temporary directory");
+        let bridge = fixture(directory.path(), "claude-bridge", "exit 0");
+        let coordinated_workspace = directory.path().join("coordinated");
+        let plain_workspace = directory.path().join("plain");
+        fs::create_dir(&coordinated_workspace).expect("coordinated workspace");
+        fs::create_dir(&plain_workspace).expect("plain workspace");
+        let coordinated_executable = fixture(
+            directory.path(),
+            "claude-coordinated-delivery",
+            &format!(
+                r##"cat > delivered.stdin
+printf '%s\n' '{{"type":"system","subtype":"init","session_id":"session-delivery","claude_code_version":"2.1.227","model":"claude-opus-5","permissionMode":"acceptEdits","tools":["Bash","Edit","Glob","Grep","Read","Write","mcp__ymp__read_control","mcp__ymp__read_events","mcp__ymp__submit","mcp__ymp__yield"],"mcp_servers":[{{"name":"ymp","status":"connected"}}],"slash_commands":[],"plugins":[],"skills":[]}}'
+printf '%s\n' '{RESULT}'
+"##
+            ),
+        );
+        let plain_executable = fixture(
+            directory.path(),
+            "claude-plain-delivery",
+            &format!(
+                r##"cat > delivered.stdin
+printf '%s\n' '{{"type":"system","subtype":"init","session_id":"session-delivery","claude_code_version":"2.1.227","model":"claude-opus-5","permissionMode":"acceptEdits","tools":{INIT_TOOLS},"mcp_servers":[],"slash_commands":[],"plugins":[],"skills":[]}}'
+printf '%s\n' '{RESULT}'
+"##
+            ),
+        );
+
+        let mut delivered = Vec::new();
+        for (executable, workspace, mcp) in [
+            (
+                &coordinated_executable,
+                &coordinated_workspace,
+                Some(McpBinding {
+                    executable: bridge.clone(),
+                    socket_path: directory.path().join("agent.sock"),
+                    token: "fixture-token".to_owned(),
+                }),
+            ),
+            (&plain_executable, &plain_workspace, None),
+        ] {
+            let mut session = ClaudeRuntime::new(executable)
+                .without_delegated_credential()
+                .start(InvocationRequest {
+                    invocation_id: "invocation-delivery".to_owned(),
+                    attempt_id: "attempt-delivery".to_owned(),
+                    workspace: workspace.clone(),
+                    mcp,
+                    prompt: REQUEST.to_owned(),
+                    cancellation: Default::default(),
+                })
+                .expect("start fixture");
+            expect_launch(session.as_mut());
+            while let Some(event) = session.next_event().expect("delivery event") {
+                if matches!(event.event, RuntimeEventKind::Completed { .. }) {
+                    break;
+                }
+            }
+            delivered.push(
+                fs::read_to_string(workspace.join("delivered.stdin")).expect("delivered input"),
+            );
+        }
+        let [coordinated, plain] = <[String; 2]>::try_from(delivered).expect("two deliveries");
+
+        for (label, text) in [("coordinated", &coordinated), ("uncoordinated", &plain)] {
+            assert!(
+                text.starts_with(&format!("{REQUEST}\n\n")),
+                "the {label} invocation did not receive the request word for word: {text}"
+            );
+            assert!(
+                text.contains("Execution policy:"),
+                "the {label} invocation received no execution policy: {text}"
+            );
+        }
+        assert!(
+            coordinated.contains("mcp__ymp__submit"),
+            "a coordinated invocation was not told how a candidate is published: {coordinated}"
+        );
+        assert!(
+            !plain.contains("mcp__ymp__submit"),
+            "an invocation without the coordination bridge was told to call a tool it does not \
+             have: {plain}"
         );
     }
 

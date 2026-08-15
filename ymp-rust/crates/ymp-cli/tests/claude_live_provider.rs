@@ -247,6 +247,47 @@ fn the_pinned_build_completes_one_managed_candidate_through_the_product_path() {
     );
 }
 
+/// The product, and not the wording of the request, tells a managed attempt how its work becomes a
+/// candidate. The request below describes the work and says nothing about publishing, which is what
+/// the first live attempt of W1-APP-02e was given: it spent 46442 microusd, wrote its files and
+/// ended as an infrastructure error with no candidate. The same request now completes through the
+/// product path.
+#[test]
+#[ignore = "starts the real pinned Claude Code build and spends provider budget"]
+fn a_request_that_never_mentions_publication_completes_one_live_candidate() {
+    const REQUEST: &str = concat!(
+        "Replace the whole content of input.txt in the current directory with the ",
+        "single line: after. Then stop."
+    );
+    assert!(
+        !REQUEST.contains("submit") && !REQUEST.contains("ymp"),
+        "the measured request already names publication itself"
+    );
+
+    let attempt = live_managed_attempt(REQUEST);
+    let observed = &attempt.observed;
+    assert_eq!(
+        classify(observed),
+        LiveOutcome::ProductPathCompleted,
+        "a request without publication wording did not reach a candidate: terminal={:?}, \
+         supervision={:?}, coordination={:?}, candidate={:?}",
+        observed.terminal,
+        observed.failure,
+        observed.coordination,
+        observed.candidate
+    );
+    assert_eq!(
+        attempt
+            .application
+            .lock()
+            .expect("application lock")
+            .state()
+            .candidate_digest,
+        observed.candidate,
+        "the committed candidate is not the one the attempt reported"
+    );
+}
+
 /// A model that closes its turn without calling anything is reported as a declined turn rather than
 /// as a failure of the product. This measures the outcome the classification treats as non-failing,
 /// so the two branches of the live check are both evidence rather than one branch and one reading.
