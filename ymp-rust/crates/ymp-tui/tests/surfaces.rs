@@ -158,6 +158,61 @@ fn the_key_map_shows_every_group_at_both_sizes() {
     }
 }
 
+/// The description a key map row carries: everything to the right of the key column, which is
+/// where a continuation row of a wrapped description also starts.
+fn description_column(row: &str) -> String {
+    row.chars()
+        .skip(ymp_tui::overlay::KEY_COLUMN)
+        .collect::<String>()
+        .trim()
+        .to_owned()
+}
+
+#[test]
+fn every_key_description_is_readable_in_full_at_both_sizes() {
+    let indent = " ".repeat(ymp_tui::overlay::KEY_COLUMN);
+    for (width, height) in SIZES {
+        let mut app = app_for(Some(&scenario::running()), vec![contract(true)]);
+        press(&mut app, KeyCode::Char('?'), height);
+        let rendered = screen(&app, width, height);
+        let rows = modal_rows(&rendered);
+
+        for (group, keys) in ymp_tui::overlay::KEY_GROUPS {
+            let mut index = rows
+                .iter()
+                .position(|row| row.trim() == *group)
+                .unwrap_or_else(|| panic!("no {group:?} group at {width}x{height}:\n{rendered}"))
+                + 1;
+            for (key, label) in *keys {
+                let row = rows.get(index).unwrap_or_else(|| {
+                    panic!("{key:?} of {group:?} is missing at {width}x{height}:\n{rendered}")
+                });
+                assert!(
+                    row.trim_start().starts_with(key),
+                    "{key:?} of {group:?} does not open its row at {width}x{height}:\n{rendered}"
+                );
+                // A description too long for the column continues on the rows below it, hanging
+                // under the description column; joined back, it must be the whole description.
+                let mut description = description_column(row);
+                index += 1;
+                while rows
+                    .get(index)
+                    .is_some_and(|row| row.starts_with(&indent) && !row.trim().is_empty())
+                {
+                    description.push(' ');
+                    description.push_str(rows[index].trim());
+                    index += 1;
+                }
+                assert_eq!(
+                    description, *label,
+                    "the description of {key:?} in {group:?} is not readable in full at \
+                     {width}x{height}:\n{rendered}"
+                );
+            }
+        }
+    }
+}
+
 /// A run identifier the product actually generates: `ymp internal managed-candidate-smoke`
 /// names its run with a prefix and a UUID. A short fixture leaves the decision title well
 /// inside the frame; a real one does not, and the irreversibility marker is what must survive.
