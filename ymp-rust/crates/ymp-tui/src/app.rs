@@ -30,7 +30,7 @@ use ymp_domain::commitment::Verdict;
 use ymp_domain::contract::ContractDocument;
 use ymp_domain::{RunStatus, VerificationDecision};
 use ymp_runtime_api::{RuntimeEventKind, RuntimeKind};
-use ymp_runtime_supervisor::{ManagedRunEvent, ManagedRunHandle};
+use ymp_runtime_supervisor::{ManagedRunEvent, ManagedRunHandle, ManagedShutdown};
 
 use crate::attempt::{self, Route, Routing};
 use crate::decisions;
@@ -385,9 +385,14 @@ impl Session {
                             ),
                         }
                     });
-                    // Dropping the handle ends the runtime's process tree and waits for the
-                    // worker, so nothing this run started outlives the cancellation.
-                    self.attempt = None;
+                    // Closing the controller is what ends the runtime's process tree, and that
+                    // close is bounded: a worker that outlasts the limit keeps its session and the
+                    // processes under it. What the reply says about the process tree is therefore
+                    // read from the close rather than assumed from having issued it.
+                    let ending = self
+                        .attempt
+                        .take()
+                        .map_or(ManagedShutdown::Ended, ManagedRunHandle::close);
                     self.verifying = self.verifying.wrapping_add(1);
                     self.model.working(None);
                     self.refresh();
@@ -397,8 +402,9 @@ impl Session {
                     // the domain refuses to rename it; saying `cancelled` here would be the
                     // interface asserting an outcome the record does not hold.
                     self.model.reply(format!(
-                        "cancel recorded — {}, {kernel}, and the managed process tree was ended",
-                        self.recorded_terminal()
+                        "cancel recorded — {}, {kernel}, and {}",
+                        self.recorded_terminal(),
+                        shutdown_clause(&ending)
                     ));
                 }
                 Some(Err(error)) => self
@@ -1342,6 +1348,26 @@ pub struct VerificationReport {
     outcome: VerificationOutcome,
 }
 
+/// What a closed controller left behind, in the words the cancellation reply uses.
+///
+/// Closing a controller is bounded, so it can return while the worker still holds the runtime
+/// session and the processes under it. Reporting the process tree as ended there would state as
+/// measured the one thing supervision explicitly could not establish, and would tell an operator
+/// that nothing of this run outlived the cancellation when something does. The two endings are
+/// therefore named apart, and what the controller found the run owed is carried with the second.
+fn shutdown_clause(shutdown: &ManagedShutdown) -> String {
+    match shutdown {
+        // A worker that died of a panic dropped its runtime session as the stack unwound, which
+        // ends the process tree of that session exactly as an orderly ending does.
+        ManagedShutdown::Ended | ManagedShutdown::WorkerPanicked => {
+            "the managed process tree was ended".to_owned()
+        }
+        ManagedShutdown::WorkerLeftRunning(report) => format!(
+            "the worker was left holding its runtime session and the processes under it — {report}"
+        ),
+    }
+}
+
 /// The profile name a runtime event is attributed to.
 fn profile_label(kind: RuntimeKind) -> &'static str {
     match kind {
@@ -2064,4 +2090,56 @@ fn spawn_journal_thread(tx: Sender<AppEvent>, receiver: mpsc::Receiver<u64>) {
             }
         }
     });
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// The cancellation reply says the managed process tree was ended only where the close
+    /// established that it was.
+    ///
+    /// Closing a controller waits for the worker for a bounded time, and a worker that outlasts
+    /// that limit is left running: it keeps the runtime session it owns and the processes under
+    /// it. A reply that stated the process tree as ended in that case told the operator that
+    /// nothing of the cancelled run outlived the cancellation, while supervision had recorded the
+    /// opposite and named it in the report the close carries.
+    ///
+    /// The check that must fail: state the ending unconditionally, as the reply did before. The
+    /// left-running close is then reported as an ended process tree, and the report supervision
+    /// wrote about the worker it stopped waiting for reaches nobody.
+    #[test]
+    fn a_bounded_close_that_left_the_worker_running_is_not_reported_as_an_ended_process_tree() {
+        let left = shutdown_clause(&ManagedShutdown::WorkerLeftRunning(
+            "managed runtime supervision did not end within 5000 ms; the run was stopped in both \
+             records and its worker was left running"
+                .to_owned(),
+        ));
+        assert!(
+            !left.contains("process tree was ended"),
+            "a close that left the worker running was reported as an ended process tree: {left}"
+        );
+        assert!(
+            left.contains("the worker was left holding its runtime session"),
+            "the reply does not say what the close left behind: {left}"
+        );
+        assert!(
+            left.contains("did not end within 5000 ms"),
+            "the reply drops what supervision recorded about the run it gave up on: {left}"
+        );
+    }
+
+    /// A close that ended the worker keeps the sentence it had, because there the process tree of
+    /// the run is established to be gone. A panicking worker drops the same session as its stack
+    /// unwinds, so it is the same ending.
+    #[test]
+    fn a_close_that_ended_the_worker_states_the_process_tree_was_ended() {
+        for shutdown in [ManagedShutdown::Ended, ManagedShutdown::WorkerPanicked] {
+            assert_eq!(
+                shutdown_clause(&shutdown),
+                "the managed process tree was ended",
+                "an ended worker changed what the cancellation reply states: {shutdown:?}"
+            );
+        }
+    }
 }
