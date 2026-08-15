@@ -61,7 +61,7 @@
 | `[ ]` | [`W1-COR-03c`](waves/W1/W1-COR-03/tasks/W1-COR-03c.md) | Scoped board preserves attribution without carrying authority | — | — | — |
 | `[ ]` | [`W1-COR-03d`](waves/W1/W1-COR-03/tasks/W1-COR-03d.md) | Competing submissions preserve immutable candidate ancestry | — | — | — |
 | `[ ]` | [`W1-COR-03e`](waves/W1/W1-COR-03/tasks/W1-COR-03e.md) | TUI exposes local commitments and communication evidence | — | — | — |
-| `[ ]` | [`W1-COR-03f`](waves/W1/W1-COR-03/tasks/W1-COR-03f.md) | Commitment facts are durable and visible, not only in memory | — | — | — |
+| `[~]` | [`W1-COR-03f`](waves/W1/W1-COR-03/tasks/W1-COR-03f.md) | Commitment facts are durable and visible, not only in memory | — | 15/08 15:07 | 15/08 15:07 (0m) |
 | `[x]` | [`W1-COR-03g`](waves/W1/W1-COR-03/tasks/W1-COR-03g.md) | Settlement returns escrow only to an account that can still spend it | [`2b390922`](https://github.com/maggnus/ymp/commit/2b390922667426a48b01c9225ccee08c7d8e81f8) | 13/08 16:47 | 13/08 18:43 (1h36m) |
 | `[x]` | [`W1-COR-03h`](waves/W1/W1-COR-03/tasks/W1-COR-03h.md) | Conservation and ownership checks fail on the mutants they name | [`ce0aeecb`](https://github.com/maggnus/ymp/commit/ce0aeecbcdbf598b4badc72529873748efe3d966) | 13/08 18:52 | 13/08 20:02 (48m) |
 | `[x]` | [`W1-COR-03i`](waves/W1/W1-COR-03/tasks/W1-COR-03i.md) | Emitted facts are proved against the command that produced them | [`67fe28d2`](https://github.com/maggnus/ymp/commit/67fe28d2fa21e993d3446de5c546a46c5451a4c1) | 13/08 20:50 | 13/08 21:41 (35m) |
@@ -93,3 +93,4 @@
 | `[x]` | [`W1-EXP-01d.2`](waves/W1/W1-EXP-01/tasks/W1-EXP-01d/subtasks/W1-EXP-01d.2.md) | Claude Code profile satisfies the primary-comparison runtime contract | [`ca221c9a`](https://github.com/maggnus/ymp/commit/ca221c9a4b81775bf158cf915d0d7613e9daae92) | 12/08 21:18 | 12/08 22:44 (1h26m) |
 | `[~]` | [`W1-PRD-05`](waves/W1/W1-PRD-05/CARD.md) | The product is experienced as an autonomous collective | — | 15/08 02:07 | 15/08 02:07 (0m) |
 | `[x]` | [`W1-PRD-05a`](waves/W1/W1-PRD-05/tasks/W1-PRD-05a.md) | The collective design deliverable | [`decd7ea`](https://github.com/maggnus/ymp/commit/decd7ea) | 15/08 02:07 | 15/08 07:47 (0m) |
+| `[~]` | [`W1-PRD-05b`](waves/W1/W1-PRD-05/tasks/W1-PRD-05b.md) | The product root carries provider and catalog records (P1) | — | 15/08 15:07 | 15/08 15:07 (0m) |
