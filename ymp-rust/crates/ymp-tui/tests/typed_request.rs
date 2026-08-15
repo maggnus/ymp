@@ -99,12 +99,20 @@ fn submit(app: &mut App, session: &mut Session, text: &str) {
             enabled,
             reason,
         }) => session.set_engine_enabled(engine, enabled, reason),
+        // Nothing here has a screen to keep drawing, so the measurement an act asks for is
+        // settled on this thread, exactly as a command settles it.
         Some(Action::SetProviderEnabled {
             family,
             enabled,
             reason,
-        }) => session.set_provider_enabled(family, enabled, reason),
-        Some(Action::RefreshProviderModels { family }) => session.refresh_provider_models(family),
+        }) => {
+            let pending = session.set_provider_enabled(family, enabled, reason);
+            session.settle_measurement(pending);
+        }
+        Some(Action::RefreshProviderModels { family }) => {
+            let pending = session.refresh_provider_models(family);
+            session.settle_measurement(pending);
+        }
         Some(Action::Rebuild) | None => {}
     }
     app.adopt(session.projection(None));

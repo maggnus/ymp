@@ -422,7 +422,16 @@ fn runtime_label(kind: RuntimeKind) -> &'static str {
 }
 
 /// The `/runtimes` page. Without a report the page states that the probe is still running.
-pub fn page(report: Option<&Report>, status: String) -> Page {
+///
+/// `measuring` is the measurement running away from the thread that draws, while one is. This page
+/// is the level beneath the providers, so a measurement of an account is a measurement of the
+/// engines listed here: while one runs, the page states that the rows are being replaced rather
+/// than presenting them as what this host holds now.
+pub fn page(
+    report: Option<&Report>,
+    status: String,
+    measuring: Option<&crate::providers::Measuring>,
+) -> Page {
     let columns = vec![
         Column {
             title: "PROFILE",
@@ -527,12 +536,27 @@ pub fn page(report: Option<&Report>, status: String) -> Page {
             .to_owned(),
     ];
     notes.extend(report.profiles.iter().filter_map(catalog_note));
+    if let Some(running) = measuring {
+        notes.insert(
+            0,
+            format!(
+                "{} · every row below states what was measured before it, and they are re-read \
+                 when it lands",
+                running.notice()
+            ),
+        );
+        notes.extend(running.folded_note());
+    }
     Page {
         breadcrumb: vec![
             "transcript".into(),
             format!(
-                "runtimes(all)[{}] · {ready} ready · {unusable} unusable",
-                report.profiles.len()
+                "runtimes(all)[{}] · {ready} ready · {unusable} unusable{}",
+                report.profiles.len(),
+                match measuring {
+                    Some(_) => format!(" · {}", crate::providers::Measuring::STATE),
+                    None => String::new(),
+                }
             ),
         ],
         summary: Vec::new(),
@@ -620,7 +644,7 @@ mod tests {
 
     #[test]
     fn an_unusable_profile_carries_the_probe_detail_as_a_fix_line() {
-        let page = page(Some(&report()), "idle".into());
+        let page = page(Some(&report()), "idle".into(), None);
         let Body::Table { rows, .. } = &page.body else {
             panic!("expected a table");
         };
@@ -632,7 +656,7 @@ mod tests {
 
     #[test]
     fn a_missing_report_states_the_probe_is_running_instead_of_an_empty_table() {
-        let page = page(None, "idle".into());
+        let page = page(None, "idle".into(), None);
         assert!(
             page.breadcrumb[1].contains("probing"),
             "{:?}",
@@ -657,7 +681,7 @@ mod tests {
         assert_eq!(report.profiles[1].readiness_text(), "disabled");
         assert_eq!(report.ready_count(), 1);
 
-        let page = page(Some(&report), "idle".into());
+        let page = page(Some(&report), "idle".into(), None);
         let Body::Table { rows, .. } = &page.body else {
             panic!("expected a table");
         };
@@ -682,7 +706,7 @@ mod tests {
             },
         });
         assert_eq!(report.profiles[1].models_text(), "2 measured");
-        let page = page(Some(&report), "idle".into());
+        let page = page(Some(&report), "idle".into(), None);
         let stated = page.notes.join("\n");
         assert!(stated.contains("claude-haiku-4-5"), "{stated}");
         assert!(stated.contains("claude-sonnet-5"), "{stated}");

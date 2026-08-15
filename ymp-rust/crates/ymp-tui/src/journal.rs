@@ -53,6 +53,10 @@ pub struct Model {
     awaiting: Option<String>,
     /// What is running away from the thread that draws, while something is.
     working: Option<String>,
+    /// Whether the operator can end that wait from the keyboard. A wait nobody can end offers no
+    /// key: a key that changes nothing is worse than none, because the operator presses it and
+    /// reads the unchanged screen as a frozen one.
+    working_ends_on_esc: bool,
     /// Whether this store was refused because this binary cannot read it.
     refused: bool,
     /// The last journal position folded into this model.
@@ -77,6 +81,7 @@ impl Model {
             provenance_unrecorded: Vec::new(),
             awaiting: None,
             working: None,
+            working_ends_on_esc: false,
             refused: false,
             cursor: 0,
         };
@@ -354,8 +359,18 @@ impl Model {
     }
 
     /// State what is running away from the thread that draws, or that nothing is.
+    ///
+    /// The wait this states cannot be ended from the keyboard, so the row that carries it offers
+    /// no key to end it. [`Self::working_esc_ends`] is the other kind.
     pub fn working(&mut self, notice: Option<String>) {
         self.working = notice;
+        self.working_ends_on_esc = false;
+    }
+
+    /// State a wait the operator can end with Esc, which is the key the row then offers.
+    pub fn working_esc_ends(&mut self, notice: String) {
+        self.working = Some(notice);
+        self.working_ends_on_esc = true;
     }
 
     /// Report a refusal: what was not done, and why. Nothing here is a journal fact.
@@ -402,8 +417,21 @@ impl Model {
         &self.candidates
     }
 
-    /// Build everything the drawing layer reads.
+    /// Build everything the drawing layer reads, with nothing being measured.
     pub fn projection(&self, runtimes: Option<&crate::runtimes::Report>) -> Projection {
+        self.projection_while(runtimes, None)
+    }
+
+    /// Build everything the drawing layer reads, while a measurement runs away from this thread.
+    ///
+    /// The measurement is the session's fact and not the journal's — the provider level is the
+    /// product root's own configuration — so it is stated here rather than folded in from an
+    /// event.
+    pub fn projection_while(
+        &self,
+        runtimes: Option<&crate::runtimes::Report>,
+        measuring: Option<&crate::providers::Measuring>,
+    ) -> Projection {
         let mut entries = Vec::with_capacity(self.entries.len() + 1);
         if self.elided > 0 {
             entries.push(Entry::AppReply {
@@ -423,7 +451,7 @@ impl Model {
         // The transcript no longer spends a line on the assurance profile, so the page that
         // lists what this host can start carries the limit in full (INV-8). The header keeps the
         // glyph, and `?` states the same sentence.
-        let mut runtimes_page = crate::runtimes::page(runtimes, self.status_line());
+        let mut runtimes_page = crate::runtimes::page(runtimes, self.status_line(), measuring);
         runtimes_page
             .notes
             .push(assurance_sentence(&self.environment));
@@ -459,6 +487,7 @@ impl Model {
             route_note: String::new(),
             awaiting: self.awaiting.clone(),
             working: self.working.clone(),
+            working_ends_on_esc: self.working_ends_on_esc,
             status: self.status_line(),
         }
     }

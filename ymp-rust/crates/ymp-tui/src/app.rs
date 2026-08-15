@@ -5,8 +5,9 @@
 //! [`Action`] the loop must execute, so every keyboard transition can be driven in a test
 //! without a terminal or a store.
 //!
-//! Input is read by a dedicated thread; journal notifications, the runtime probe and the outcome
-//! of a verification arrive on the same channel. The main thread blocks until something happens.
+//! Input is read by a dedicated thread; journal notifications, the runtime probe, the outcome of a
+//! verification and the outcome of a provider measurement arrive on the same channel. The main
+//! thread blocks until something happens.
 //! The one exception is a working managed attempt, which reports through a channel of its own that
 //! wakes nothing: while one is working the loop looks for its output on a short tick, and with no
 //! attempt working it goes back to waiting.
@@ -30,7 +31,9 @@ use ymp_domain::commitment::Verdict;
 use ymp_domain::contract::ContractDocument;
 use ymp_domain::{RunStatus, VerificationDecision};
 use ymp_runtime_api::{RuntimeEventKind, RuntimeKind};
-use ymp_runtime_supervisor::{ManagedRunEvent, ManagedRunHandle, ManagedShutdown};
+use ymp_runtime_supervisor::{
+    CONTROLLER_SHUTDOWN_LIMIT, ManagedRunEvent, ManagedRunHandle, ManagedShutdown,
+};
 
 use crate::attempt::{self, Route, Routing};
 use crate::decisions;
@@ -120,6 +123,15 @@ pub struct Session {
     /// Which verification this session is waiting for, under the same rule as a draft check: an
     /// outcome from work that has been superseded decides nothing.
     verifying: u64,
+    /// The measurement running away from the thread that draws, while one is. Every surface of
+    /// the provider level reads it, so a row being measured says so.
+    measuring: Option<providers::Measuring>,
+    /// Which measurement this session is waiting for, under the same rule as a draft check.
+    measured: u64,
+    /// The worker that measurement runs on. Holding it is what makes the engines it started
+    /// reachable when this session goes away: quitting waits for it rather than leaving the
+    /// processes it is waiting on behind.
+    probe: Option<RunningMeasurement>,
 }
 
 /// A demonstration this session asked for, ready to be run wherever the caller decides.
@@ -153,6 +165,113 @@ impl PendingCheck {
 pub struct CheckOutcome {
     generation: u64,
     outcome: Result<Box<Assembly>, String>,
+}
+
+/// A measurement this session asked for, ready to be run wherever the caller decides.
+///
+/// It holds no reference to the session, so the interface can move it to another thread and hand
+/// the outcome back through [`Session::finish_measurement`]. What it does is start the engines of
+/// the accounts it names and read what they serve. Recording the observation is not part of it:
+/// that is a write against this root's records, and it belongs where the outcome is taken.
+#[derive(Clone, Debug)]
+pub struct PendingMeasurement {
+    generation: u64,
+    address: RegistryAddress,
+    /// The engines this measurement starts: those of the accounts that were enabled when it was
+    /// asked for, and no others.
+    engines: Vec<Engine>,
+    /// The accounts the observation is recorded for, which are the accounts those engines reach.
+    families: Vec<ProviderFamily>,
+}
+
+impl PendingMeasurement {
+    /// Start the engines and read what they serve, labelling the outcome with the work it belongs
+    /// to.
+    pub fn run(self) -> MeasurementOutcome {
+        let report = crate::runtimes::probe_engines(
+            &self.address,
+            crate::runtimes::Measure::Catalog,
+            &self.engines,
+        );
+        MeasurementOutcome {
+            generation: self.generation,
+            report,
+            // The moment the engines answered, which is the moment the observation records: an
+            // observation dated when the outcome was drawn would date the measurement by how
+            // busy the interface was.
+            taken_at: SystemTime::now(),
+            families: self.families,
+        }
+    }
+}
+
+/// The outcome of one measurement, with the work it belongs to.
+#[derive(Clone, Debug)]
+pub struct MeasurementOutcome {
+    generation: u64,
+    report: Report,
+    taken_at: SystemTime,
+    families: Vec<ProviderFamily>,
+}
+
+/// A measurement running on a worker of its own, from its launch until that worker ends.
+///
+/// It is reached only through the session that started it: [`Session::start_measurement`] launches
+/// one and [`Session::end_measurement`] ends it, so nothing can hold a worker this session cannot
+/// wait for on its way out.
+struct RunningMeasurement {
+    /// Closed by the worker as it leaves. Nothing is ever sent through it, so a wait on it ends
+    /// exactly when the worker does and at no other moment.
+    ended: mpsc::Receiver<std::convert::Infallible>,
+    worker: thread::JoinHandle<()>,
+}
+
+impl RunningMeasurement {
+    /// Start one measurement on a worker, and hand its outcome to `deliver` from that worker.
+    fn start(
+        pending: PendingMeasurement,
+        deliver: impl FnOnce(MeasurementOutcome) + Send + 'static,
+    ) -> Self {
+        let (open, ended) = mpsc::channel();
+        let worker = thread::spawn(move || {
+            let outcome = pending.run();
+            deliver(outcome);
+            // Closing this is what says the engines have answered and the worker is leaving.
+            drop(open);
+        });
+        Self { ended, worker }
+    }
+
+    /// Wait for the worker, bounded by the limit a managed run's shutdown carries.
+    ///
+    /// The worker is inside the engines it started, so waiting for it is waiting for those
+    /// processes. Past the bound nothing is claimed: the engines are still running and the report
+    /// says so, rather than stating an ending that was never established.
+    fn end(self) -> MeasurementShutdown {
+        match self.ended.recv_timeout(CONTROLLER_SHUTDOWN_LIMIT) {
+            Ok(nothing) => match nothing {},
+            Err(RecvTimeoutError::Disconnected) => {
+                let _ = self.worker.join();
+                MeasurementShutdown::Ended
+            }
+            Err(RecvTimeoutError::Timeout) => MeasurementShutdown::LeftRunning(format!(
+                "the provider measurement did not end within {} ms; the engines it started are \
+                 still running and were left to end on their own",
+                CONTROLLER_SHUTDOWN_LIMIT.as_millis()
+            )),
+        }
+    }
+}
+
+/// What ending a running measurement left behind.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum MeasurementShutdown {
+    /// Nothing was running.
+    Nothing,
+    /// The worker ended and was joined, so no engine this session started is still running.
+    Ended,
+    /// The worker had not ended when the bound ran out, and what it started is still running.
+    LeftRunning(String),
 }
 
 impl Session {
@@ -231,6 +350,9 @@ impl Session {
             route: None,
             attempt: None,
             verifying: 0,
+            measuring: None,
+            measured: 0,
+            probe: None,
         }
     }
 
@@ -309,32 +431,40 @@ impl Session {
     ///
     /// Enabling is the act that permits this provider to be measured at all, and the consequence
     /// of it was stated on the properties view above the key. It is therefore also the act that
-    /// measures: the engines that reach the provider are started here, the catalog they serve is
+    /// measures: the engines that reach the provider are started, the catalog they serve is
     /// recorded, and the observation is stamped with the moment it was taken. Disabling starts
     /// nothing and erases nothing: the record and its measurements stay readable, and its models
     /// leave the offered catalog.
+    ///
+    /// The decision is committed here; the measurement it asks for is returned rather than run, so
+    /// the caller decides which thread waits for the engines. The interface hands it to a worker;
+    /// a command, whose process is the wait, settles it through [`Self::settle_measurement`].
     pub fn set_provider_enabled(
         &mut self,
         family: ProviderFamily,
         enabled: bool,
         reason: Option<String>,
-    ) {
+    ) -> Option<PendingMeasurement> {
         let providers = self.registry.providers();
         let recorded_at = providers.path_of(family).display().to_string();
         match providers.set_enabled(family, enabled, reason.as_deref()) {
-            Err(error) => self.model.error(format!(
-                "the {} provider was not changed — {error}",
-                family.name()
-            )),
+            Err(error) => {
+                self.model.error(format!(
+                    "the {} provider was not changed — {error}",
+                    family.name()
+                ));
+                None
+            }
             Ok(record) if record.enabled => {
                 self.read_providers();
-                self.measure_enabled_providers();
+                let pending = self.begin_measurement(family, providers::Act::Enable);
                 self.model.reply(format!(
                     "the {} provider is enabled · recorded in {recorded_at} · repository content \
                      of any workspace may now be sent to it · {}",
                     family.name(),
-                    self.measurement_of(family)
+                    self.measuring_clause()
                 ));
+                pending
             }
             Ok(record) => {
                 self.read_providers();
@@ -344,6 +474,7 @@ impl Session {
                     family.name(),
                     record.display_reason()
                 ));
+                None
             }
         }
     }
@@ -353,7 +484,10 @@ impl Session {
     /// A provider that is not enabled is not measured, and asking for it is answered with that
     /// rather than with a measurement: the enable transition is where a provider is first reached,
     /// and refusing here is what keeps it the only place.
-    pub fn refresh_provider_models(&mut self, family: ProviderFamily) {
+    pub fn refresh_provider_models(
+        &mut self,
+        family: ProviderFamily,
+    ) -> Option<PendingMeasurement> {
         let enabled = self
             .providers
             .provider(family)
@@ -364,52 +498,87 @@ impl Session {
                  provider is measured before it is enabled",
                 family.name()
             ));
-            return;
+            return None;
         }
-        self.measure_enabled_providers();
-        self.model.reply(format!(
-            "the {} provider was measured again · {}",
-            family.name(),
-            self.measurement_of(family)
-        ));
+        let pending = self.begin_measurement(family, providers::Act::Refresh);
+        self.model.reply(self.measuring_clause());
+        pending
     }
 
-    /// Start the engines of every enabled provider, record what they serve, and observe the
-    /// providers from what was recorded.
+    /// Ask for the engines of every enabled provider to be started, and for what they serve to be
+    /// recorded.
     ///
     /// The engines of a provider nobody enabled are not started: they are read from their records,
     /// which is what makes the enable transition the only moment this host reaches an account.
     ///
-    /// It runs on the thread that asked for it, so the interface does not redraw while an operator
-    /// waits for the measurement they asked for — the same shape a cancellation already has. That
-    /// is the cost of measuring nowhere else: nothing measures in the background, so the one act
-    /// that does is the one the operator is standing on.
-    ///
     /// It is public because the engines page measures through it too: that page is the level
     /// beneath the providers, and measuring it on a root where nothing is enabled would start the
     /// very engines the provider level exists to hold back.
-    pub fn measure_enabled_providers(&mut self) {
+    ///
+    /// A second ask arriving while one is running is folded into it rather than queued behind it:
+    /// the running measurement starts the engines of every enabled account, so a second one would
+    /// start the same engines again to learn the same thing. The surfaces state that, and how many
+    /// asks the running measurement answered.
+    pub fn measure_enabled_providers(&mut self) -> Option<PendingMeasurement> {
+        if let Some(running) = self.measuring.as_mut() {
+            running.folded = running.folded.saturating_add(1);
+            return None;
+        }
         // The reading is taken whether or not anything is measured by it: with no provider
         // enabled it holds one row per engine, read from the records alone, so a surface states
         // what this root knows instead of reporting a measurement that is not running.
-        let engines = self.engines_of_enabled_providers();
-        self.runtimes = Some(crate::runtimes::probe_engines(
-            &self.registry,
-            crate::runtimes::Measure::Catalog,
-            &engines,
-        ));
-        let providers = self.registry.providers();
-        let registry = self.registry.registry();
-        let at = SystemTime::now();
-        let enabled: Vec<ProviderFamily> = self
+        let families: Vec<ProviderFamily> = self
             .providers
             .providers
             .iter()
             .filter(|provider| provider.enabled())
             .map(|provider| provider.family)
             .collect();
-        for family in enabled {
-            if let Err(error) = providers.observe_family(family, &registry, at) {
+        self.measured = self.measured.wrapping_add(1);
+        Some(PendingMeasurement {
+            generation: self.measured,
+            address: self.registry.clone(),
+            engines: self.engines_of_enabled_providers(),
+            families,
+        })
+    }
+
+    /// Take the measurement one act on one account asks for, and state it on every surface that
+    /// draws that account while it runs.
+    fn begin_measurement(
+        &mut self,
+        asked_by: ProviderFamily,
+        act: providers::Act,
+    ) -> Option<PendingMeasurement> {
+        let pending = self.measure_enabled_providers()?;
+        let measuring = providers::Measuring {
+            asked_by,
+            act,
+            families: pending.families.clone(),
+            folded: 0,
+        };
+        self.measuring = Some(measuring);
+        Some(pending)
+    }
+
+    /// Take the outcome of a measurement this session asked for.
+    ///
+    /// This is where the observation is recorded and where every surface is re-read: the engines
+    /// answered on a worker, and what this root now holds about the accounts they reach is written
+    /// and read back here, on the one thread that draws.
+    ///
+    /// An outcome from a measurement that has been superseded decides nothing, under the same rule
+    /// a draft check follows.
+    pub fn finish_measurement(&mut self, outcome: MeasurementOutcome) {
+        if outcome.generation != self.measured {
+            return;
+        }
+        let measuring = self.measuring.take();
+        self.runtimes = Some(outcome.report);
+        let providers = self.registry.providers();
+        let registry = self.registry.registry();
+        for family in &outcome.families {
+            if let Err(error) = providers.observe_family(*family, &registry, outcome.taken_at) {
                 self.model.error(format!(
                     "the {} provider was measured and the observation was not recorded — {error}",
                     family.name()
@@ -417,6 +586,104 @@ impl Session {
             }
         }
         self.read_providers();
+        let Some(measuring) = measuring else {
+            return;
+        };
+        let mut stated = format!(
+            "the {} provider was measured · {}",
+            measuring.asked_by.name(),
+            self.measurement_of(measuring.asked_by)
+        );
+        if let Some(folded) = measuring.folded_note() {
+            stated.push_str(&format!(" · {folded}"));
+        }
+        // An account enabled while the engines were already being started was never reached by
+        // them, so nothing is claimed about it: it is named, with the key that measures it.
+        for family in self.enabled_but_unmeasured(&outcome.families) {
+            stated.push_str(&format!(
+                " · the {} account was enabled while this measurement was running, so it was not \
+                 part of it — r on its card measures it",
+                family.name()
+            ));
+        }
+        self.model.reply(stated);
+    }
+
+    /// Settle a measurement on the thread that asked for it.
+    ///
+    /// A caller with nothing else to do — a command, whose process is the wait — measures here.
+    /// The interface has a screen to keep drawing, so it uses [`Self::start_measurement`] and
+    /// [`Self::finish_measurement`] instead: the same two steps, scheduled rather than run inline.
+    pub fn settle_measurement(&mut self, pending: Option<PendingMeasurement>) {
+        if let Some(pending) = pending {
+            let outcome = pending.run();
+            self.finish_measurement(outcome);
+        }
+    }
+
+    /// Start a measurement on a worker of its own and hold it until its outcome is taken.
+    ///
+    /// `deliver` hands the outcome back to whatever drives this session; the interface sends it
+    /// through the same channel every other event arrives on, so the outcome is taken by the
+    /// thread that draws and by no other.
+    pub fn start_measurement(
+        &mut self,
+        pending: PendingMeasurement,
+        deliver: impl FnOnce(MeasurementOutcome) + Send + 'static,
+    ) {
+        self.probe = Some(RunningMeasurement::start(pending, deliver));
+    }
+
+    /// Whether a measurement this session asked for is still running.
+    pub fn is_measuring(&self) -> bool {
+        self.measuring.is_some()
+    }
+
+    /// The measurement running away from the thread that draws, while one is.
+    pub fn measuring(&self) -> Option<&providers::Measuring> {
+        self.measuring.as_ref()
+    }
+
+    /// End a running measurement before this session goes away.
+    ///
+    /// The worker is waiting on the engines it started, so waiting for the worker is waiting for
+    /// those processes to end — which is what keeps a quit from leaving one behind. The wait is
+    /// bounded by the limit a managed run's shutdown carries, and a bound that runs out is stated
+    /// rather than reported as an ending nobody established.
+    pub fn end_measurement(&mut self) -> MeasurementShutdown {
+        self.measuring = None;
+        match self.probe.take() {
+            None => MeasurementShutdown::Nothing,
+            Some(probe) => probe.end(),
+        }
+    }
+
+    /// Which accounts are enabled now and were not part of the measurement that has just landed.
+    fn enabled_but_unmeasured(&self, measured: &[ProviderFamily]) -> Vec<ProviderFamily> {
+        self.providers
+            .providers
+            .iter()
+            .filter(|provider| provider.enabled())
+            .map(|provider| provider.family)
+            .filter(|family| !measured.contains(family))
+            .collect()
+    }
+
+    /// What the reply to an act says about the measurement that act asked for.
+    fn measuring_clause(&self) -> String {
+        match self.measuring.as_ref() {
+            Some(measuring) => match measuring.folded {
+                0 => measuring.notice(),
+                _ => format!(
+                    "{} · {}",
+                    measuring.notice(),
+                    measuring
+                        .folded_note()
+                        .unwrap_or_else(|| "it answers this ask too".to_owned())
+                ),
+            },
+            None => "nothing is being measured".to_owned(),
+        }
     }
 
     /// What the last measurement of one provider found, in one clause.
@@ -651,7 +918,18 @@ impl Session {
     /// provider exists while a row of the table is selected and not otherwise, exactly as the
     /// describe view of a candidate does.
     pub fn projection_for(&self, describe: Option<usize>, provider: Option<usize>) -> Projection {
-        let mut projection = self.model.projection(self.runtimes.as_ref());
+        let mut projection = self
+            .model
+            .projection_while(self.runtimes.as_ref(), self.measuring.as_ref());
+        // The row that states what runs away from this thread carries the measurement only where
+        // nothing else is already waiting there. A draft being assembled outranks it, because that
+        // wait is the one Esc ends and losing the way out of it would be losing the way out: the
+        // measurement is stated on every surface that draws the account either way.
+        if projection.working.is_none()
+            && let Some(measuring) = self.measuring.as_ref()
+        {
+            projection.working = Some(measuring.notice());
+        }
         self.push_provider_pages(&mut projection, provider);
         let (route, note) = attempt::routing_facts(self.route, self.runtimes.as_ref());
         projection.route = route;
@@ -685,10 +963,11 @@ impl Session {
     fn push_provider_pages(&self, projection: &mut Projection, provider: Option<usize>) {
         let status = self.model.status_line();
         projection.providers = Some(self.providers.clone());
+        let measuring = self.measuring.as_ref();
         let mut pages = vec![
             (
                 PageKind::Providers,
-                providers::providers_page(&self.providers, status.clone()),
+                providers::providers_page(&self.providers, status.clone(), measuring),
             ),
             (
                 PageKind::Models,
@@ -698,7 +977,7 @@ impl Session {
         if let Some(selected) = provider.and_then(|index| self.providers.providers.get(index)) {
             pages.push((
                 PageKind::Provider,
-                providers::provider_page(selected, status),
+                providers::provider_page(selected, status, measuring),
             ));
         }
         for (kind, page) in pages {
@@ -845,7 +1124,10 @@ impl Session {
                 .retain(|contract| contract.contract_id() != withdrawn);
         }
         self.model.await_answer(None);
-        self.model.working(Some(job.waiting_for()));
+        // The one wait this interface offers a key out of: Esc abandons the assembly and leaves
+        // the draft as it was. Every other wait states what is running and names no key, because
+        // no key ends it.
+        self.model.working_esc_ends(job.waiting_for());
         Some(PendingCheck {
             generation: self.checking,
             check: job,
@@ -1808,7 +2090,14 @@ pub fn run(mut session: Session, markers: Markers) -> anyhow::Result<()> {
     let mut guard = TerminalGuard::enter()?;
     let result = event_loop(&mut guard, &mut session, &mut app, markers);
     drop(guard);
-    result
+    // A measurement the quit could not wait out left engine processes behind. The screen is gone
+    // by now, so what supervision could not establish is said on the error stream rather than
+    // dropped: the operator learns it from the product and not from their process list.
+    let ending = result?;
+    if let MeasurementShutdown::LeftRunning(report) = ending {
+        eprintln!("{report}");
+    }
+    Ok(())
 }
 
 enum AppEvent {
@@ -1818,6 +2107,8 @@ enum AppEvent {
     Checked(Box<CheckOutcome>),
     /// A verification this session asked for has decided.
     Verified(Box<VerificationReport>),
+    /// A measurement this session asked for has returned from its worker.
+    Measured(Box<MeasurementOutcome>),
     InputEnded,
 }
 
@@ -1826,7 +2117,7 @@ fn event_loop(
     session: &mut Session,
     app: &mut App,
     markers: Markers,
-) -> anyhow::Result<()> {
+) -> anyhow::Result<MeasurementShutdown> {
     let (tx, rx) = mpsc::channel();
     let stop = Arc::new(AtomicBool::new(false));
     let input = spawn_input_thread(tx.clone(), Arc::clone(&stop));
@@ -1894,6 +2185,12 @@ fn event_loop(
                             session.finish_verification(*report);
                             adopt(session, app);
                         }
+                        // The engines answered. The observation is recorded and every surface is
+                        // re-read here, on the thread that draws and on no other.
+                        AppEvent::Measured(outcome) => {
+                            session.finish_measurement(*outcome);
+                            adopt(session, app);
+                        }
                         AppEvent::InputEnded => {
                             app.should_quit = true;
                         }
@@ -1903,13 +2200,13 @@ fn event_loop(
                 if app.should_quit {
                     stop.store(true, Ordering::SeqCst);
                     let _ = input.join();
-                    return Ok(());
+                    return Ok(session.end_measurement());
                 }
             }
             Err(RecvTimeoutError::Disconnected) => {
                 stop.store(true, Ordering::SeqCst);
                 let _ = input.join();
-                return Ok(());
+                return Ok(session.end_measurement());
             }
             // Nothing arrived. While work runs away from this thread the row that states it
             // advances, so the interface is visibly drawing rather than held.
@@ -1956,16 +2253,21 @@ fn perform(session: &mut Session, app: &mut App, action: Action, tx: &Sender<App
             session.set_engine_enabled(engine, enabled, reason);
             adopt(session, app);
         }
+        // The decision is taken here; the measurement it asks for is not. Starting the engines of
+        // an account waits for programs of this host, which on this thread would stop every
+        // redraw for as long as they take, so it goes to a worker and returns as an event.
         Action::SetProviderEnabled {
             family,
             enabled,
             reason,
         } => {
-            session.set_provider_enabled(family, enabled, reason);
+            let pending = session.set_provider_enabled(family, enabled, reason);
+            measure(session, app, pending, tx);
             adopt(session, app);
         }
         Action::RefreshProviderModels { family } => {
-            session.refresh_provider_models(family);
+            let pending = session.refresh_provider_models(family);
+            measure(session, app, pending, tx);
             adopt(session, app);
         }
         Action::StartAttempt => {
@@ -2010,6 +2312,25 @@ fn perform(session: &mut Session, app: &mut App, action: Action, tx: &Sender<App
         }
         Action::Rebuild => adopt(session, app),
     }
+}
+
+/// Hand a measurement to a worker, so the thread that draws keeps drawing while the engines
+/// answer. An act that started none — a disable, a refusal, an ask folded into a running
+/// measurement — starts nothing here either.
+fn measure(
+    session: &mut Session,
+    app: &mut App,
+    pending: Option<PendingMeasurement>,
+    tx: &Sender<AppEvent>,
+) {
+    let Some(pending) = pending else {
+        return;
+    };
+    app.working_ticks = 0;
+    let tx = tx.clone();
+    session.start_measurement(pending, move |outcome| {
+        let _ = tx.send(AppEvent::Measured(Box::new(outcome)));
+    });
 }
 
 /// Replace the projection and re-apply the operator's position within it.
@@ -2075,7 +2396,10 @@ fn transcript_key(app: &mut App, key: KeyEvent, height: u16) -> Option<Action> {
         KeyCode::PageUp => app.scroll_up(page),
         KeyCode::PageDown => app.scroll_down(page),
         KeyCode::End => app.resume_live(),
-        KeyCode::Esc if app.data.working.is_some() => return Some(Action::CancelCheck),
+        // Esc ends the wait the row offers it for, and only that one. While a wait no key ends is
+        // running — a measurement, an attempt, a verification — Esc is the key it always was, so
+        // pressing it does what the surface says instead of nothing at all.
+        KeyCode::Esc if app.data.working_ends_on_esc => return Some(Action::CancelCheck),
         KeyCode::Char('?') if app.prompt.buffer.is_empty() => app.modal = Modal::Keys,
         KeyCode::Char('q') if app.prompt.buffer.is_empty() => app.should_quit = true,
         KeyCode::Char(COMMAND_PREFIX) if app.prompt.buffer.is_empty() => open_palette(app),
