@@ -44,11 +44,10 @@ use ymp_application::{Application, ApplicationError, CandidateConstruction};
 use ymp_domain::commitment::{
     AdvanceClock, Advertise, Award, BudgetVector, CloseInvocation, CommitmentCommand,
     CommitmentError, CommitmentLedger, ContractState, Dimension, FundingSource, InvocationClosure,
-    InvocationState, MAX_BUNDLE_CHANGES, MAX_LEASE_MS, OfferPolicy, OfferState, OpenAuthority,
-    Outcome, PathChange, RecordBid, RecordObject, RecordVerification, RegisterParticipant,
-    ResumeInvocation, ReturnObligation, RootTerminal, SettleOffer, StartAttempt, StartInvocation,
-    StopReason, StopRun, SubmitBundle, SubmitResult, Verdict, WakeCondition, WithdrawOffer,
-    YieldInvocation,
+    InvocationState, MAX_LEASE_MS, OfferPolicy, OfferState, OpenAuthority, Outcome, PathChange,
+    RecordBid, RecordObject, RecordVerification, RegisterParticipant, ResumeInvocation,
+    ReturnObligation, RootTerminal, SettleOffer, StartAttempt, StartInvocation, StopReason,
+    StopRun, SubmitBundle, Verdict, WakeCondition, WithdrawOffer, YieldInvocation,
 };
 use ymp_domain::{TransitionError, digest_bytes};
 
@@ -78,6 +77,50 @@ pub enum ManagedTermination {
     CancelledPastLimit,
     /// The runtime, the model route or the supervision around them failed.
     Failed(InvocationClosure),
+}
+
+/// What the kernel recorded of one submission.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum Submission {
+    /// The construction is in the record: every object the result puts at a path, the bundle those
+    /// changes were published as, and the result they form, which is what the work is sealed with.
+    Recorded,
+    /// The kernel cannot state this construction, so nothing about the result was recorded and the
+    /// work carries none. A run that reaches this has produced something its own record cannot
+    /// describe, and the reason says which bound it exceeded.
+    ProvenanceUnrecorded(UnrecordedProvenance),
+}
+
+/// Why the construction of a result could not be recorded.
+///
+/// Both cases are bounds the protocol sets on what one submission states at once, so that a bundle
+/// and the result formed from it are committed together in a single durable record. Neither is a
+/// judgement about the work: what the runtime produced is in the run's store either way, and what
+/// is missing is the kernel's account of how it was built.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum UnrecordedProvenance {
+    /// The result changes more paths than one bundle may carry.
+    TooManyChanges {
+        changes: usize,
+        /// The kernel's own words for the refusal, so what an operator reads is the bound the
+        /// protocol states and not a paraphrase of it.
+        refusal: String,
+    },
+    /// One path is in a shape the protocol does not admit.
+    UnacceptablePath { path: String, refusal: String },
+}
+
+impl std::fmt::Display for UnrecordedProvenance {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::TooManyChanges { changes, refusal } => {
+                write!(formatter, "too_many_changes({changes}): {refusal}")
+            }
+            Self::UnacceptablePath { path, refusal } => {
+                write!(formatter, "unacceptable_path({path}): {refusal}")
+            }
+        }
+    }
 }
 
 /// The budget one managed run is funded with. Every dimension is enforced on its own, so what is
@@ -439,64 +482,64 @@ impl ManagedKernel {
     /// ledger seals is therefore a construction a reader can follow back to the base and the
     /// objects it was built from, on any host and after this process is gone.
     ///
-    /// One construction the kernel cannot state as a bundle is the one that exceeds what a single
-    /// record holds: a bundle carries at most [`MAX_BUNDLE_CHANGES`] path changes, and a path at
-    /// most [`MAX_PATH_BYTES`] bytes in a shape the protocol admits. A result larger than that is
-    /// recorded as the seal alone — the work still carries the exact result a query is spent on,
-    /// and what is lost is the ancestry, which is stated here rather than passed over so that a
-    /// journal without it is read as bounded and not as absent.
-    pub fn submitted(&self, construction: &CandidateConstruction) -> anyhow::Result<()> {
+    /// Whether the bundle may be published is settled before the first object is recorded, and it
+    /// is settled by the kernel: the command is put to the ledger for a decision that commits
+    /// nothing. An object recorded for a bundle that is then refused for its shape would stay in
+    /// the record with nothing naming it, so no such fact is written. The one refusal that is
+    /// expected here is that the objects are not yet stored whole, which is exactly what the next
+    /// step records.
+    ///
+    /// One construction the kernel cannot state is the one that exceeds what a single record holds:
+    /// a bundle carries at most [`ymp_domain::commitment::MAX_BUNDLE_CHANGES`] path changes, and a
+    /// path at most [`ymp_domain::commitment::MAX_PATH_BYTES`] bytes in a shape the protocol
+    /// admits. Nothing about such a result is
+    /// recorded — not the objects, not a seal — and the caller is told which bound was exceeded, so
+    /// that the run states it where an operator reads it rather than sealing a digest that reads
+    /// like a run from before a construction was ever journalled.
+    pub fn submitted(&self, construction: &CandidateConstruction) -> anyhow::Result<Submission> {
         self.advance_clock()?;
-        if construction.changes.len() <= MAX_BUNDLE_CHANGES {
-            let objects: BTreeSet<&str> = construction
-                .changes
-                .iter()
-                .filter_map(|change| match &change.change {
-                    PathChange::Upsert { object_digest, .. } => Some(object_digest.as_str()),
-                    PathChange::Delete => None,
-                })
-                .collect();
-            for (index, object_digest) in objects.into_iter().enumerate() {
-                self.commit(
-                    &format!("object-{index}"),
-                    &CommitmentCommand::RecordObject(RecordObject {
-                        contract_id: self.contract_id.clone(),
-                        participant: self.participant.clone(),
-                        generation: self.generation,
-                        object_digest: object_digest.to_owned(),
-                    }),
-                )?;
-            }
-            match self.execute(
-                &format!("{}.bundle", self.attempt_id),
-                &CommitmentCommand::SubmitBundle(SubmitBundle {
-                    contract_id: self.contract_id.clone(),
-                    attempt_id: self.attempt_id.clone(),
-                    participant: self.participant.clone(),
-                    generation: self.generation,
-                    base_digest: construction.base_digest.clone(),
-                    // A first attempt carries no result forward: this run has one participant and
-                    // one attempt, and a rebase or a synthesis is somebody else's submission.
-                    parents: Vec::new(),
-                    changes: construction.changes.clone(),
-                }),
-            ) {
-                Ok(()) => return Ok(()),
-                Err(error) if unstatable(&error) => {}
-                Err(error) => return Err(error.into()),
+        let bundle = CommitmentCommand::SubmitBundle(SubmitBundle {
+            contract_id: self.contract_id.clone(),
+            attempt_id: self.attempt_id.clone(),
+            participant: self.participant.clone(),
+            generation: self.generation,
+            base_digest: construction.base_digest.clone(),
+            // A first attempt carries no result forward: this run has one participant and one
+            // attempt, and a rebase or a synthesis is somebody else's submission.
+            parents: Vec::new(),
+            changes: construction.changes.clone(),
+        });
+        match self.snapshot()?.decide(&bundle) {
+            // Admitted as it stands, or admitted once the objects it names are recorded.
+            Ok(_) | Err(CommitmentError::ObjectIncomplete { .. }) => {}
+            Err(error) => {
+                return match unrecorded_provenance(&error, construction) {
+                    Some(reason) => Ok(Submission::ProvenanceUnrecorded(reason)),
+                    None => Err(ApplicationError::Commitment(error).into()),
+                };
             }
         }
-        self.commit(
-            "submission",
-            &CommitmentCommand::SubmitResult(SubmitResult {
-                contract_id: self.contract_id.clone(),
-                attempt_id: self.attempt_id.clone(),
-                participant: self.participant.clone(),
-                generation: self.generation,
-                candidate_digest: construction.candidate_digest.clone(),
-            }),
-        )?;
-        Ok(())
+        let objects: BTreeSet<&str> = construction
+            .changes
+            .iter()
+            .filter_map(|change| match &change.change {
+                PathChange::Upsert { object_digest, .. } => Some(object_digest.as_str()),
+                PathChange::Delete => None,
+            })
+            .collect();
+        for (index, object_digest) in objects.into_iter().enumerate() {
+            self.commit(
+                &format!("object-{index}"),
+                &CommitmentCommand::RecordObject(RecordObject {
+                    contract_id: self.contract_id.clone(),
+                    participant: self.participant.clone(),
+                    generation: self.generation,
+                    object_digest: object_digest.to_owned(),
+                }),
+            )?;
+        }
+        self.commit("bundle", &bundle)?;
+        Ok(Submission::Recorded)
     }
 
     /// Record what a protected query decided about the candidate this run committed, and close the
@@ -817,21 +860,28 @@ fn run_has_ended(error: &ApplicationError) -> bool {
     )
 }
 
-/// Whether a refusal says the construction is more than one bundle may state, rather than that the
-/// submission is inadmissible.
+/// Which bound a refused bundle exceeded, where the refusal is about what one submission may state
+/// at once rather than about whether this participant may submit at all.
 ///
-/// The bounds are the protocol's own: they keep the facts of one submission inside a single durable
-/// record. A construction that exceeds them is a result the kernel can seal but cannot describe, and
-/// it is the one case the seal is recorded on its own.
-fn unstatable(error: &ApplicationError) -> bool {
-    matches!(
-        error,
-        ApplicationError::Commitment(
-            CommitmentError::InvalidBundleSize
-                | CommitmentError::TooManyEntries { .. }
-                | CommitmentError::InvalidPath { .. }
-        )
-    )
+/// The bounds are the protocol's own, and its words for them are carried through: an operator reads
+/// the rule the kernel applied, together with the number or the path it was applied to.
+fn unrecorded_provenance(
+    error: &CommitmentError,
+    construction: &CandidateConstruction,
+) -> Option<UnrecordedProvenance> {
+    match error {
+        CommitmentError::InvalidBundleSize | CommitmentError::TooManyEntries { .. } => {
+            Some(UnrecordedProvenance::TooManyChanges {
+                changes: construction.changes.len(),
+                refusal: error.to_string(),
+            })
+        }
+        CommitmentError::InvalidPath { path } => Some(UnrecordedProvenance::UnacceptablePath {
+            path: path.clone(),
+            refusal: error.to_string(),
+        }),
+        _ => None,
+    }
 }
 
 #[cfg(test)]
@@ -845,9 +895,10 @@ mod tests {
 
     use super::{
         CloseInvocation, CommitmentCommand, InvocationClosure, ManagedKernel, ManagedTermination,
-        RootTerminal, StartInvocation, WakeCondition, YieldInvocation, digest_bytes,
+        RootTerminal, StartInvocation, Submission, UnrecordedProvenance, WakeCondition,
+        YieldInvocation, digest_bytes,
     };
-    use ymp_domain::commitment::MAX_ATTEMPT_WAKES;
+    use ymp_domain::commitment::{MAX_ATTEMPT_WAKES, MAX_BUNDLE_CHANGES};
 
     /// A second yielded slice of the same attempt, waiting on the submission this run commits.
     /// Whether it is admitted before or after the controller's own slice is decided by which of the
@@ -1150,7 +1201,10 @@ mod tests {
         let (_store, kernel) = prepared();
         kernel.start_invocation().expect("the controller's slice");
         let construction = construction(b"candidate");
-        kernel.submitted(&construction).expect("the submission");
+        assert_eq!(
+            kernel.submitted(&construction).expect("the submission"),
+            Submission::Recorded
+        );
 
         let ledger = kernel.snapshot().expect("the ledger");
         let object = match &construction.changes[0].change {
@@ -1202,6 +1256,101 @@ mod tests {
             ledger.contracts()[&kernel.contract_id].candidate_digest,
             Some(candidate.0),
             "the work was sealed with something other than the result it formed"
+        );
+    }
+
+    /// How many facts of the record are about the result of this work: the objects it names, the
+    /// bundle it was published as, the result formed from it, and the seal of the work.
+    fn provenance_facts(kernel: &ManagedKernel) -> usize {
+        kernel
+            .snapshot()
+            .expect("the ledger")
+            .facts()
+            .iter()
+            .filter(|fact| {
+                matches!(
+                    fact,
+                    CommitmentEvent::ObjectRecorded { .. }
+                        | CommitmentEvent::BundleRecorded { .. }
+                        | CommitmentEvent::CandidateFormed { .. }
+                        | CommitmentEvent::SubmissionRecorded { .. }
+                )
+            })
+            .count()
+    }
+
+    /// A result the kernel cannot state leaves nothing in the record, and the reason names the
+    /// bound it exceeded.
+    ///
+    /// The objects are recorded before the bundle that names them, so a bundle refused for its
+    /// shape after they had been written would leave facts behind that nothing refers to. Whether
+    /// the bundle may be published is therefore settled first, and a construction that may not be
+    /// leaves the work unsealed rather than sealed with a digest whose construction the record
+    /// does not hold.
+    #[test]
+    fn a_result_of_more_changes_than_one_bundle_carries_records_nothing() {
+        let (_store, kernel) = prepared();
+        kernel.start_invocation().expect("the controller's slice");
+        let mut construction = construction(b"candidate");
+        construction.changes = (0..=MAX_BUNDLE_CHANGES)
+            .map(|index| BundleChange {
+                path: format!("file-{index}.txt"),
+                change: PathChange::Upsert {
+                    object_digest: digest_bytes(format!("object-{index}").as_bytes()),
+                    executable: false,
+                },
+            })
+            .collect();
+
+        match kernel.submitted(&construction).expect("the submission") {
+            Submission::ProvenanceUnrecorded(UnrecordedProvenance::TooManyChanges {
+                changes,
+                refusal,
+            }) => {
+                assert_eq!(changes, MAX_BUNDLE_CHANGES + 1);
+                assert!(
+                    refusal.contains(&MAX_BUNDLE_CHANGES.to_string()),
+                    "the reason does not state the bound it exceeded: {refusal}"
+                );
+            }
+            other => {
+                panic!("a construction of {MAX_BUNDLE_CHANGES} + 1 changes was taken: {other:?}")
+            }
+        }
+        assert_eq!(
+            provenance_facts(&kernel),
+            0,
+            "a construction the kernel cannot state left facts about the result behind"
+        );
+        assert_eq!(
+            kernel.snapshot().expect("the ledger").contracts()[&kernel.contract_id]
+                .candidate_digest,
+            None,
+            "the work was sealed with a result whose construction the record does not hold"
+        );
+    }
+
+    /// The same, for a path the protocol does not admit. Here the count is within the bound, so
+    /// nothing but the shape of one path stops the bundle — and the objects would already have been
+    /// recorded if the bundle were put to the kernel only after them.
+    #[test]
+    fn a_result_naming_a_path_the_protocol_refuses_records_nothing() {
+        let (_store, kernel) = prepared();
+        kernel.start_invocation().expect("the controller's slice");
+        let mut construction = construction(b"candidate");
+        construction.changes[0].path = "dir\\result.txt".to_owned();
+
+        match kernel.submitted(&construction).expect("the submission") {
+            Submission::ProvenanceUnrecorded(UnrecordedProvenance::UnacceptablePath {
+                path,
+                ..
+            }) => assert_eq!(path, "dir\\result.txt"),
+            other => panic!("a path the protocol refuses was taken: {other:?}"),
+        }
+        assert_eq!(
+            provenance_facts(&kernel),
+            0,
+            "the objects of a bundle that was never published stayed in the record"
         );
     }
 
@@ -1258,6 +1407,20 @@ mod tests {
     /// read the ledger, release the lock, and append afterwards — and two participants decide the
     /// same resumption against the same reading. Both are told the slice resumed and the record
     /// holds two resumptions of one slice, which the counts here state directly.
+    ///
+    /// What that failure depends on is measured rather than assumed, and the measurements do not
+    /// agree with each other. The review of this build measured 26 runs in 30 with a scheduling
+    /// point between the decision and the append, and 0 in 30 with the two back to back. Measured
+    /// here against a mutation whose decision goes through the journal-backed read the durable path
+    /// itself uses — the projection is caught up with, the ledger is cloned, the lock is released —
+    /// it is 30 in 30 either way, because that reading is itself wide enough for another
+    /// participant to be scheduled inside it.
+    ///
+    /// What follows is the bound of the claim rather than its strength: how often an unlocked
+    /// decision is caught depends on how much work sits between the decision and the append, and a
+    /// window narrow enough can hide from a check of any shape. What this check establishes is that
+    /// the failure is a difference in the record — two resumptions of one slice — and not something
+    /// a caller has to be watching for at the right moment.
     #[test]
     fn participants_contending_for_one_slice_leave_every_fact_once_and_in_one_order() {
         let (temporary, application) = store();

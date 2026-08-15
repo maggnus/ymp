@@ -29,7 +29,7 @@ use ymp_runtime_api::{
 
 mod kernel;
 
-pub use kernel::{ManagedKernel, ManagedTermination};
+pub use kernel::{ManagedKernel, ManagedTermination, Submission, UnrecordedProvenance};
 
 const CONTRACT_SCHEMA_VERSION: u32 = 1;
 const MAX_CONTRACT_BYTES: usize = 1024 * 1024;
@@ -1434,7 +1434,40 @@ fn start_candidate(
                     };
                     // The work the run is accountable for now carries the exact candidate a
                     // protected query would be spent on.
-                    worker_kernel.submitted(&construction)?;
+                    //
+                    // Where the kernel cannot state what the work produced, the run says which
+                    // bound it exceeded and ends. Sealing the digest alone would leave a record an
+                    // operator cannot tell from a run whose construction was never journalled at
+                    // all, and announcing the candidate would send a result for judgement while its
+                    // own accounting states nothing about where it came from. Both records are
+                    // moved to the same ending: the journal carries the reason, and the kernel is
+                    // stopped as the infrastructure condition it is.
+                    if let Submission::ProvenanceUnrecorded(reason) =
+                        worker_kernel.submitted(&construction)?
+                    {
+                        let detail = format!("managed_runtime_provenance_unrecorded: {reason}");
+                        let unrecorded = record_infrastructure_failure(
+                            &worker_application,
+                            &worker_attempt,
+                            &detail,
+                        );
+                        // The guard over the endings of this run is the one taken above and held
+                        // here, so this ending is recorded under it rather than behind it.
+                        let unrecorded_terminal = worker_kernel
+                            .terminated(ManagedTermination::Failed(
+                                InvocationClosure::InfrastructureError,
+                            ))
+                            .err()
+                            .map(|error| format!("managed_runtime_terminal_unrecorded: {error}"));
+                        drop(terminal);
+                        let detail = [Some(detail), unrecorded, unrecorded_terminal]
+                            .into_iter()
+                            .flatten()
+                            .collect::<Vec<_>>()
+                            .join("; ");
+                        let _ = sender.send(ManagedRunEvent::Failed { detail });
+                        return Ok(());
+                    }
                     let candidate_digest = construction.candidate_digest;
                     drop(terminal);
                     let _ = sender.send(ManagedRunEvent::CandidateAvailable {

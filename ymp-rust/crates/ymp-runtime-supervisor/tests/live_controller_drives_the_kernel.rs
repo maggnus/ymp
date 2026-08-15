@@ -17,8 +17,8 @@ use ymp_agent_api::{AgentToolCall, AgentToolHandler, SubmitArguments, YieldArgum
 use ymp_agent_rpc::SocketToolHandler;
 use ymp_application::Application;
 use ymp_domain::commitment::{
-    CommitmentEvent, CommitmentLedger, InvocationClosure, InvocationState, ObligationState,
-    OpenAuthority, RootTerminal, Verdict, WakeCondition,
+    CommitmentEvent, CommitmentLedger, InvocationClosure, InvocationState, MAX_BUNDLE_CHANGES,
+    ObligationState, OpenAuthority, RootTerminal, Verdict, WakeCondition,
 };
 use ymp_domain::{Budget, RunStatus, digest_bytes};
 use ymp_runtime_api::{
@@ -74,6 +74,9 @@ struct YieldingRuntime {
     /// is resumed — which is the moment the supervision driving it dies.
     seal: Option<Seal>,
     disposition: Disposition,
+    /// What this runtime writes into its workspace before it does anything else, which is what the
+    /// result of the run then states. A run that writes nothing produces a result of no changes.
+    writes: Vec<String>,
 }
 
 impl RuntimeDriver for YieldingRuntime {
@@ -93,6 +96,13 @@ impl RuntimeDriver for YieldingRuntime {
         let binding = request.mcp.as_ref().ok_or_else(|| {
             RuntimeError::InvalidProfile("test runtime requires MCP binding".to_owned())
         })?;
+        for path in &self.writes {
+            let target = request.workspace.join(path);
+            if let Some(parent) = target.parent() {
+                std::fs::create_dir_all(parent).expect("a directory of the workspace");
+            }
+            std::fs::write(&target, format!("{path}\n")).expect("a file of the workspace");
+        }
         let mut controller = SocketToolHandler::for_invocation(
             &binding.socket_path,
             &binding.token,
@@ -357,6 +367,7 @@ fn start_with(yields: u32, teardown: Option<Arc<AtomicBool>>, disposition: Dispo
         silence: None,
         seal: None,
         disposition,
+        writes: Vec::new(),
     }))
 }
 
@@ -369,6 +380,7 @@ fn start_sealing(seal: Seal) -> Fixture {
         silence: None,
         seal: Some(seal),
         disposition: Disposition::PanicsWhenResumed,
+        writes: Vec::new(),
     }))
 }
 
@@ -381,6 +393,20 @@ fn start_silent(silence: Arc<AtomicBool>) -> Fixture {
         silence: Some(silence),
         seal: None,
         disposition: Disposition::Orderly,
+        writes: Vec::new(),
+    }))
+}
+
+/// A run whose runtime writes the given paths into its workspace, so that the result it submits
+/// states exactly those changes.
+fn start_writing(writes: Vec<String>) -> Fixture {
+    start_driver(Box::new(YieldingRuntime {
+        yields: 1,
+        teardown: None,
+        silence: None,
+        seal: None,
+        disposition: Disposition::Orderly,
+        writes,
     }))
 }
 
@@ -733,6 +759,128 @@ fn finished_run() -> (Fixture, String) {
 fn work_obligation(ledger: &CommitmentLedger, contract_id: &str) -> ObligationState {
     let obligation_id = &ledger.contracts()[contract_id].obligation_id;
     ledger.obligations()[obligation_id].state
+}
+
+/// The reason the run's own journal states for the ending it reached, or nothing while it is
+/// running. It is what an operator reads in the terminal block of the run.
+fn journal_reason(fixture: &Fixture) -> Option<String> {
+    fixture
+        .application
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner())
+        .events_after(0)
+        .expect("the committed records")
+        .into_iter()
+        .find_map(|envelope| match envelope.event {
+            ymp_domain::EventKind::RunFailed { reason }
+            | ymp_domain::EventKind::RunExhausted { reason }
+            | ymp_domain::EventKind::RunAbstained { reason }
+            | ymp_domain::EventKind::RunCancelled { reason } => Some(reason),
+            _ => None,
+        })
+}
+
+/// How many facts of the kernel are about the result of the work: the objects it names, the bundle
+/// it was published as, the result formed from it, and the seal of the work.
+fn provenance_facts(handle: &ManagedRunHandle) -> usize {
+    handle
+        .kernel()
+        .snapshot()
+        .expect("the ledger")
+        .facts()
+        .iter()
+        .filter(|fact| {
+            matches!(
+                fact,
+                CommitmentEvent::ObjectRecorded { .. }
+                    | CommitmentEvent::BundleRecorded { .. }
+                    | CommitmentEvent::CandidateFormed { .. }
+                    | CommitmentEvent::SubmissionRecorded { .. }
+            )
+        })
+        .count()
+}
+
+/// Drive one live run whose result the kernel cannot state, and answer with what it reported.
+fn a_run_whose_result_cannot_be_stated(writes: Vec<String>) -> (Fixture, Vec<String>) {
+    let fixture = start_writing(writes);
+    wait_until_yielded(&fixture.handle);
+    fixture
+        .handle
+        .wake("wake-1", "continue once")
+        .expect("the wake");
+    let failures = failures_until_finished(&fixture.handle);
+    (fixture, failures)
+}
+
+/// What is required of a run whose construction the kernel could not state, whichever bound it
+/// exceeded: the reason is in the run's own journal, no fact about the result is in the kernel, and
+/// both records hold the same ending.
+fn assert_provenance_unrecorded(fixture: &Fixture, failures: &[String], stated: &str) {
+    let reason = journal_reason(fixture).expect("the run recorded no ending of its own");
+    assert!(
+        reason.contains("managed_runtime_provenance_unrecorded") && reason.contains(stated),
+        "the journal does not state why the construction was not recorded: {reason}"
+    );
+    assert!(
+        failures.iter().any(|detail| detail.contains(stated)),
+        "the run reported nothing about the construction it could not record: {failures:?}"
+    );
+    assert_eq!(
+        provenance_facts(&fixture.handle),
+        0,
+        "a construction the kernel could not state left facts about the result behind"
+    );
+    assert_eq!(
+        fixture
+            .handle
+            .kernel()
+            .snapshot()
+            .expect("the ledger")
+            .contracts()[fixture.handle.kernel().contract_id()]
+        .candidate_digest,
+        None,
+        "the work was sealed with a result whose construction the record does not hold"
+    );
+    assert_eq!(journal_status(fixture), RunStatus::InfrastructureError);
+    assert_eq!(
+        fixture
+            .handle
+            .kernel()
+            .root_terminal()
+            .expect("the terminal"),
+        Some(RootTerminal::InfrastructureError),
+        "the two records of one run name different endings"
+    );
+}
+
+/// A run whose result changes more paths than one bundle may state records no construction at all,
+/// and its journal says which bound it exceeded.
+///
+/// The alternative this replaces is the one an operator cannot see: the work sealed with the digest
+/// of the result and nothing about how it was built, which reads exactly like a run from before a
+/// construction was journalled at all. What the run does instead is state the bound in the record
+/// an operator reads and end, in both accounts, as the infrastructure condition it is.
+#[test]
+fn a_result_larger_than_one_bundle_may_state_records_no_provenance_and_says_so() {
+    let writes: Vec<String> = (0..=MAX_BUNDLE_CHANGES)
+        .map(|index| format!("file-{index}.txt"))
+        .collect();
+    let (fixture, failures) = a_run_whose_result_cannot_be_stated(writes);
+    assert_provenance_unrecorded(
+        &fixture,
+        &failures,
+        &format!("too_many_changes({})", MAX_BUNDLE_CHANGES + 1),
+    );
+}
+
+/// The same for a result naming one path the protocol does not admit, where the count is well
+/// inside the bound and nothing but the shape of that path stops the bundle.
+#[test]
+fn a_result_naming_a_path_the_protocol_refuses_records_no_provenance_and_says_so() {
+    let (fixture, failures) =
+        a_run_whose_result_cannot_be_stated(vec!["dir\\result.txt".to_owned()]);
+    assert_provenance_unrecorded(&fixture, &failures, "unacceptable_path(dir\\result.txt)");
 }
 
 /// A live run whose candidate passed the protected query closes its obligation and reaches the one
