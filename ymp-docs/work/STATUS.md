@@ -98,4 +98,4 @@
 | `[x]` | [`W1-PRD-05b`](waves/W1/W1-PRD-05/tasks/W1-PRD-05b.md) | The product root carries provider and catalog records (P1) | [`09fc9c4`](09fc9c4) | 15/08 15:07 | 15/08 16:12 (0m) |
 | `[x]` | [`W1-PRD-05c`](waves/W1/W1-PRD-05/tasks/W1-PRD-05c.md) | Design correction under product brief v2 (TUI ownership + CRD resource model) | [`6dec28e`](6dec28e) | 15/08 16:12 | 15/08 18:55 (0m) |
 | `[~]` | [`W1-PRD-05d`](waves/W1/W1-PRD-05/tasks/W1-PRD-05d.md) | Provider and model surfaces; probing gated on Enable (P2) | — | 15/08 18:55 | 15/08 18:55 (0m) |
-| `[~]` | [`W1-PRD-05e`](waves/W1/W1-PRD-05/tasks/W1-PRD-05e.md) | The AgentPool resource, its reconciler and the automatic `default` (P3) | — | 15/08 18:55 | 15/08 18:55 (0m) |
+| `[x]` | [`W1-PRD-05e`](waves/W1/W1-PRD-05/tasks/W1-PRD-05e.md) | The AgentPool resource, its reconciler and the automatic `default` (P3) | [`ffde816`](ffde816) | 15/08 18:55 | 15/08 22:30 (0m) |
