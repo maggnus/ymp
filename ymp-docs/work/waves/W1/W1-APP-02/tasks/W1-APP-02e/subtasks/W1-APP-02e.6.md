@@ -10,7 +10,7 @@ relation: supporting
 depends_on: [W1-APP-02e]
 blocks: []
 created_at: 2026-08-15T01:52:53+08:00
-updated_at: 2026-08-15T08:15:17+08:00
+updated_at: 2026-08-15T11:03:22+08:00
 started_at: 2026-08-15T08:15:17+08:00
 accepted_at:
 candidate_commit:
@@ -58,6 +58,19 @@ live smokes and experiments so cost stays bounded.
 - The unparsable-version refusal claims the release is older than the floor instead of naming the
   parse failure.
 - The minimum_version is the one pin not checked against its constant.
+
+## Rounds
+
+2
+
+## Convergence
+
+A third bounded round was authorized under the gate's blocker exception: the round-two finding —
+a nested root is never recognized as its own, so a disable lands in a foreign root and a disabled
+engine silently launches — fails the detection test (a silent authority bypass), and the fix is
+precisely named by the review (stop the root search at a path carrying root.json; never re-derive
+an explicit --root through the store). The digest-guarantee wording is corrected in the same
+round.
 
 ## Current state
 
