@@ -45,13 +45,13 @@
 | `[x]` | [`W1-APP-02w`](waves/W1/W1-APP-02/tasks/W1-APP-02w/TASK.md) | Product state lives under one .ymp root that supports many projects | [`9996944`](https://github.com/maggnus/ymp/commit/9996944) | 14/08 02:13 | 14/08 03:06 (53m) |
 | `[x]` | [`W1-APP-02w.1`](waves/W1/W1-APP-02/tasks/W1-APP-02w/subtasks/W1-APP-02w.1.md) | Product state lives under ~/.ymp; the launch directory stays untouched | [`d457519`](https://github.com/maggnus/ymp/commit/d457519) | 15/08 08:15 | 15/08 08:55 (0m) |
 | `[ ]` | [`W1-APP-02w.2`](waves/W1/W1-APP-02/tasks/W1-APP-02w/subtasks/W1-APP-02w.2.md) | A run identifier names the run, not only its contract | — | — | — |
-| `[ ]` | [`W1-APP-02w.3`](waves/W1/W1-APP-02/tasks/W1-APP-02w/subtasks/W1-APP-02w.3.md) | Export can apply the accepted candidate in place | — | — | — |
+| `[~]` | [`W1-APP-02w.3`](waves/W1/W1-APP-02/tasks/W1-APP-02w/subtasks/W1-APP-02w.3.md) | Export can apply the accepted candidate in place | — | 15/08 12:18 | 15/08 12:18 (0m) |
 | `[x]` | [`W1-APP-02x`](waves/W1/W1-APP-02/tasks/W1-APP-02x.md) | Entry validation cannot hold the interface | [`7e98831`](https://github.com/maggnus/ymp/commit/7e98831) | 14/08 02:19 | 14/08 04:08 (0m) |
 | `[x]` | [`W1-APP-02y`](waves/W1/W1-APP-02/tasks/W1-APP-02y.md) | The run record itself carries the per-model spend | [`c63130c`](https://github.com/maggnus/ymp/commit/c63130c) | 14/08 05:19 | 14/08 22:59 (0m) |
 | `[x]` | [`W1-APP-02y.1`](waves/W1/W1-APP-02/tasks/W1-APP-02y.1.md) | The accounting assertion states what accounting guarantees | [`1e5a03e`](https://github.com/maggnus/ymp/commit/1e5a03e) | 15/08 10:35 | 15/08 11:13 (0m) |
 | `[x]` | [`W1-APP-02z`](waves/W1/W1-APP-02/tasks/W1-APP-02z/TASK.md) | A verifier cannot be rewritten by the candidate it judges | [`c364e30`](https://github.com/maggnus/ymp/commit/c364e30) | 14/08 05:07 | 15/08 00:05 (0m) |
 | `[ ]` | [`W1-APP-02z.1`](waves/W1/W1-APP-02/tasks/W1-APP-02z/subtasks/W1-APP-02z.1.md) | The npm entry point is pinned to its interpreter choice, or stays refused | — | — | — |
-| `[ ]` | [`W1-APP-02z.2`](waves/W1/W1-APP-02/tasks/W1-APP-02z/subtasks/W1-APP-02z.2.md) | The refusal names the actual obstacle | — | — | — |
+| `[~]` | [`W1-APP-02z.2`](waves/W1/W1-APP-02/tasks/W1-APP-02z/subtasks/W1-APP-02z.2.md) | The refusal names the actual obstacle | — | 15/08 12:18 | 15/08 12:18 (0m) |
 | `[~]` | [`W1-APP-02z.3`](waves/W1/W1-APP-02/tasks/W1-APP-02z/subtasks/W1-APP-02z.3.md) | A testless project receives a generated verifier proposal for approval | — | 15/08 11:26 | 15/08 11:26 (0m) |
 | `[ ]` | [`W1-COR-03`](waves/W1/W1-COR-03/CARD.md) | Bounded local commitments self-organize and terminate | — | — | — |
 | `[x]` | [`W1-COR-03a`](waves/W1/W1-COR-03/tasks/W1-COR-03a.md) | Local commitments conserve budgets and close obligations | [`58524264`](https://github.com/maggnus/ymp/commit/585242645d405ff1f76d6015a1141144eac4207b) | 13/08 15:10 | 13/08 16:27 (1h25m) |
