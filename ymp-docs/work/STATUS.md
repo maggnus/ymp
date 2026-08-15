@@ -103,4 +103,5 @@
 | `[x]` | [`W1-PRD-05g`](waves/W1/W1-PRD-05/tasks/W1-PRD-05g.md) | Provider measurement runs off the interface thread | [`028e7b7e`](https://github.com/maggnus/ymp/commit/028e7b7e9a8c4e739c0a20006e4cdf78af4958c2) | 15/08 23:35 | 16/08 02:05 (2h30m) |
 | `[x]` | [`W1-PRD-05h`](waves/W1/W1-PRD-05/tasks/W1-PRD-05h.md) | The run-scoped pool freeze: `PoolFrozen` committed at run creation (P5) | [`54ccbeeb`](https://github.com/maggnus/ymp/commit/54ccbeeb7d998aa387befcd010692edf7db3ee24) | 15/08 22:15 | 16/08 01:35 (3h20m) |
 | `[ ]` | [`W1-PRD-05i`](waves/W1/W1-PRD-05/tasks/W1-PRD-05i.md) | P9: the origin participant starts from the frozen pool | — | — | — |
+| `[~]` | [`W1-PRD-05j`](waves/W1/W1-PRD-05/tasks/W1-PRD-05j.md) | P10: recruitment through the kernel's mechanical gate | — | 16/08 09:45 | 16/08 09:45 (0m) |
 | `[ ]` | [`W1-APP-02aa`](waves/W1/W1-APP-02/tasks/W1-APP-02aa.md) | Quitting kills a probe that outlives the 5 s bound | — | — | — |

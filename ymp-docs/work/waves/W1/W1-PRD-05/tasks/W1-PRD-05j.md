@@ -1,0 +1,109 @@
+---
+id: W1-PRD-05j
+kind: task
+wave: W1
+card: W1-PRD-05
+state: active
+risk: critical
+maturity: BUILD
+relation: required
+depends_on: [W1-PRD-05i, W1-COR-03a, W1-COR-03b]
+blocks: [W1-EVL-04a]
+created_at: 2026-08-16T09:45:00+08:00
+updated_at: 2026-08-16T09:45:00+08:00
+started_at: 2026-08-16T09:45:00+08:00
+accepted_at:
+candidate_commit:
+closure_commit:
+evidence:
+duration_minutes: 0
+blocker:
+pause_reason:
+return_trigger:
+deliberate_partial: false
+---
+
+# W1-PRD-05j — P10: recruitment through the kernel's mechanical gate
+
+## Outcome
+
+A running participant can propose recruiting another participant from the frozen pool; the kernel
+checks ONLY mechanical constraints (frozen-entry membership, participant-starts budget,
+concurrency, runtime admission, communication charges) and either admits the start as a journaled
+fact or refuses with a plain-words reason. The semantic decision — whom to recruit, whether at
+all — belongs to the proposing participant; the kernel never ranks, scores, or assigns. This
+completes the minimum POC-2 mechanics: the coordinated arm of the study becomes constructible.
+
+## Scope
+
+### In
+
+- A typed kernel command `request_participant { proposer, entry }` carrying only identifiers; the
+  containment check against the frozen fact (EntryNotPermitted for entries outside it).
+- Mechanical gates in order: frozen membership → participant-starts budget remaining →
+  concurrency ceiling → runtime admission at this moment → offer-stage communication charge.
+  Each refusal names its limiting constraint in plain words.
+- Admission commits a `ParticipantAdmitted` journal fact (proposer, entry, profile, route,
+  workspace) and charges the start budget; the new participant starts through the same managed
+  path P9 built (shared start machinery, no second implementation).
+- Idempotency: a repeated identical request is refused as duplicate; concurrent identical
+  requests admit exactly one (serialized under the single kernel writer).
+- Refusal of a proposer that is not a live participant of this run.
+
+### Out
+
+- Board wiring (who may see whom's request — separate child), semantic selection or scoring of
+  candidates, participant replacement, ceiling negotiation, TUI surfaces (COR-03e).
+
+## Acceptance
+
+- [ ] A live participant's request for a frozen admissible entry under remaining budget admits
+      exactly one new participant, journals the fact, charges the start; the new participant runs
+      through the P9 start path.
+- [ ] Each mechanical gate refuses with its named reason: entry outside the frozen set
+      (EntryNotPermitted), participant-starts exhausted, concurrency ceiling, runtime unadmitted,
+      offer-stage charge unaffordable. Negative half: a scenario per gate on the tree without
+      that gate check shows the violation happening (budget overspent / non-frozen entry started).
+- [ ] Duplicate and concurrent identical requests admit exactly one participant; the journal
+      records one admission fact; a repeated replay of the same command id is refused.
+- [ ] A request from a non-participant (or a yielded proposer) is refused without journal side
+      effects on admission.
+- [ ] The kernel performs no semantic selection anywhere in the path: no model scoring, no
+      "best entry" choice, no priority among frozen entries beyond declared order of the entry
+      named by the proposer.
+
+## Current state
+
+Active. Builds on the P9 start path (W1-PRD-05i, in flight — integrate its accepted result
+first; the mechanical gates and command shape can be built against the testkit in parallel).
+
+## Next action
+
+Build the command and gates in ymp-domain/ymp-application against the fake runtime; wire onto
+the P9 start machinery after its acceptance.
+
+## Guardrails
+
+- The kernel checks mechanics only; any semantic wording ("better model", "top entry") in this
+  path is a defect against INV-1.
+- Every admission spends budget; no free starts, no unaccounted offers.
+- All refusals are honest and named; an exhausted budget is never presented as a participant
+  failure.
+
+## Findings
+
+None.
+
+## Closure
+
+### Accepted outcome
+
+Not accepted.
+
+### Residuals
+
+None recorded.
+
+### Evidence
+
+- None until acceptance.
