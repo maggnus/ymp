@@ -19,7 +19,13 @@
 //! describes with no state repaired by hand. What none of them may reach is acceptance without a
 //! passing protected query against the exact root candidate.
 
+use std::collections::BTreeMap;
+
 use super::budget::{BudgetVector, DIMENSIONS, Dimension, DimensionKind};
+use super::candidates::{
+    BundleChange, Contribution, MAX_BUNDLE_CHANGES, MAX_BUNDLE_PARENTS, MAX_CANDIDATE_CHANGES,
+    MAX_PATH_BYTES, PathChange,
+};
 use super::invocations::{
     InvocationClosure, InvocationState, OpenAuthority, RootTerminal, StopReason, Verdict,
     WakeCondition,
@@ -28,8 +34,9 @@ use super::ledger::{AlteredFacts, CommitmentLedger, DisabledChecks};
 use super::protocol::{
     AcceptOpen, AdvanceClock, Advertise, Award, CancelContract, CloseInvocation, CommitmentCommand,
     CommitmentError, CommitmentEvent, MAX_ATTEMPT_WAKES, MAX_WAKE_CONDITIONS, Reassign, RecordBid,
-    RecordVerification, RenewLease, ResumeInvocation, ReturnObligation, SettleOffer, StartAttempt,
-    StartInvocation, StopRun, SubmitResult, WithdrawOffer, YieldInvocation,
+    RecordConflict, RecordObject, RecordVerification, RenewLease, ResumeInvocation,
+    ReturnObligation, SettleOffer, StartAttempt, StartInvocation, StopRun, SubmitBundle,
+    SubmitResult, WithdrawOffer, YieldInvocation,
 };
 use super::reachability::{SECOND_INVOCATION, sweep};
 use super::records::{
@@ -45,6 +52,7 @@ use super::schedules::{
     run_altered_schedule, run_lifecycle, run_schedule, setup, state_violations,
     terminal_violations,
 };
+use crate::MAX_IDENTIFIER_CHARS;
 
 /// How many generated schedules the property suite replays. Every seed is a different total order
 /// over the same contended pool.
@@ -1390,6 +1398,8 @@ fn generated_schedules_conserve_budgets_consent_fencing_and_causal_accounting() 
         "start_attempt",
         "renew_lease",
         "reassign",
+        "record_object",
+        "submit_bundle",
         "settle_offer",
         "return_obligation",
         "cancel_contract",
@@ -1428,6 +1438,9 @@ fn generated_schedules_conserve_budgets_consent_fencing_and_causal_accounting() 
         "contract_reassigned",
         "attempt_started",
         "submission_recorded",
+        "object_recorded",
+        "bundle_recorded",
+        "candidate_formed",
         "obligation_returned",
         "contract_cancelled",
         "offer_settled",
@@ -1443,10 +1456,16 @@ fn generated_schedules_conserve_budgets_consent_fencing_and_causal_accounting() 
     // offered a resumption nothing had happened for, a close by a stranger, a stop by a participant
     // that owns nothing, and a verdict about a bundle that was never submitted, those rules hold by
     // never being asked.
+    // And the rules a result adds: unless some ordering actually offered a second result for a
+    // contract that already recorded one, a result built on another base, and a result naming bytes
+    // no fact ever said were stored whole, those rules hold by never being asked.
     for guard in [
         "close_non_holder",
         "stop_run_unauthorized",
         "candidate_mismatch",
+        "candidate_sealed",
+        "stale_base",
+        "object_incomplete",
     ] {
         assert!(guarded.contains(guard), "no ordering ever provoked {guard}");
     }
@@ -1748,6 +1767,7 @@ fn control_records_carry_only_mechanical_fields() {
         .chain([award_main("bid-alpha", "alpha")])
         .chain(schedules::slice_chain())
         .chain(schedules::contention_pool(&tokens))
+        .chain(schedules::result_pool(&tokens))
     {
         collect_keys(
             &serde_json::to_value(&command).expect("command serializes"),
@@ -1788,6 +1808,49 @@ fn control_records_carry_only_mechanical_fields() {
     for value in ledger.verifications() {
         collect_keys(&serde_json::to_value(value).expect("record"), &mut keys);
     }
+    // A disagreement and the result built from one are only reachable through a sequence, not
+    // through a pool of independently valid commands, so the run that reaches them contributes its
+    // own commands, facts and records to the same list.
+    let ancestry = synthesis().ledger;
+    for command in [
+        CommitmentCommand::RecordObject(RecordObject {
+            contract_id: "contract-alpha".to_owned(),
+            participant: ALPHA.to_owned(),
+            generation: 1,
+            object_digest: digest("object-alpha"),
+        }),
+        CommitmentCommand::RecordConflict(RecordConflict {
+            participant: GAMMA.to_owned(),
+            candidates: Vec::new(),
+        }),
+        submit_bundle(
+            "contract-alpha",
+            ALPHA,
+            &tokens.base_digest,
+            Vec::new(),
+            vec![schedules::upsert("src/alpha.rs", "object-alpha")],
+        ),
+    ] {
+        collect_keys(
+            &serde_json::to_value(&command).expect("command serializes"),
+            &mut keys,
+        );
+    }
+    for fact in ancestry.facts() {
+        collect_keys(
+            &serde_json::to_value(fact).expect("fact serializes"),
+            &mut keys,
+        );
+    }
+    for value in ancestry.bundles().values() {
+        collect_keys(&serde_json::to_value(value).expect("record"), &mut keys);
+    }
+    for value in ancestry.candidates().values() {
+        collect_keys(&serde_json::to_value(value).expect("record"), &mut keys);
+    }
+    for value in ancestry.conflicts().values() {
+        collect_keys(&serde_json::to_value(value).expect("record"), &mut keys);
+    }
     let ledger_value = serde_json::to_value(&ledger).expect("ledger serializes");
     let top_level: std::collections::BTreeSet<&str> = ledger_value
         .as_object()
@@ -1800,12 +1863,16 @@ fn control_records_carry_only_mechanical_fields() {
         [
             "attempts",
             "bids",
+            "bundles",
+            "candidates",
+            "conflicts",
             "consumed",
             "contracts",
             "facts",
             "initial_total",
             "invocations",
             "now",
+            "objects",
             "obligations",
             "offers",
             "participants",
@@ -1829,20 +1896,28 @@ fn control_records_carry_only_mechanical_fields() {
         "bid_deadline",
         "bid_id",
         "bidder",
+        "bundle_digest",
         "candidate_digest",
+        "candidates",
         "capability_scope",
+        "change",
+        "changes",
         "children",
         "closer",
         "closure",
         "command",
         "conditions",
+        "conflict_digest",
+        "content_digest",
         "contract_id",
         "contractor",
+        "contributions",
         "cursor",
         "dependencies",
         "endowment",
         "escrow",
         "event",
+        "executable",
         "execution_escrow",
         "expires_at",
         "from",
@@ -1857,6 +1932,7 @@ fn control_records_carry_only_mechanical_fields() {
         "lease_ms",
         "matched_sequence",
         "max_awards",
+        "object_digest",
         "obligation_id",
         "offer_deadline",
         "offer_id",
@@ -1865,8 +1941,11 @@ fn control_records_carry_only_mechanical_fields() {
         "owner",
         "parent",
         "parent_obligation",
+        "parents",
         "participant",
         "participant_id",
+        "path",
+        "paths",
         "policy",
         "previous_holder",
         "principal_id",
@@ -3061,5 +3140,1023 @@ fn without_the_single_running_slice_check_the_sweep_finds_two_running_slices() {
     assert!(
         report.states > sweep(DisabledChecks::default()).states,
         "admitting a second running slice must open states the enforced kernel does not reach"
+    );
+}
+
+// ---------------------------------------------------------------------------------------------
+// Competing results, the ancestry they keep, and the disagreements nobody here settles
+// ---------------------------------------------------------------------------------------------
+
+/// A ledger where two participants hold a task contract each, awarded from one offer and therefore
+/// from one base, with an attempt of their own open on it. It is the position two participants
+/// working at the same time are actually in.
+fn competing_attempts() -> (CommitmentLedger, Tokens) {
+    let (mut ledger, tokens) = prepared();
+    for command in [
+        award_main("bid-alpha", "alpha"),
+        award_main("bid-beta", "beta"),
+        attempt_on("attempt-alpha-1", "contract-alpha", ALPHA, 1),
+        attempt_on("attempt-beta-1", "contract-beta", BETA, 1),
+    ] {
+        ledger
+            .execute(&command)
+            .expect("the competing position forms");
+    }
+    (ledger, tokens)
+}
+
+fn attempt_on(
+    attempt_id: &str,
+    contract_id: &str,
+    participant: &str,
+    generation: u64,
+) -> CommitmentCommand {
+    CommitmentCommand::StartAttempt(StartAttempt {
+        attempt_id: attempt_id.to_owned(),
+        contract_id: contract_id.to_owned(),
+        participant: participant.to_owned(),
+        generation,
+    })
+}
+
+fn record_object(contract_id: &str, participant: &str, object: &str) -> CommitmentCommand {
+    CommitmentCommand::RecordObject(RecordObject {
+        contract_id: contract_id.to_owned(),
+        participant: participant.to_owned(),
+        generation: 1,
+        object_digest: digest(object),
+    })
+}
+
+fn submit_bundle(
+    contract_id: &str,
+    participant: &str,
+    base_digest: &str,
+    parents: Vec<String>,
+    changes: Vec<BundleChange>,
+) -> CommitmentCommand {
+    let suffix = contract_id
+        .strip_prefix("contract-")
+        .expect("the contracts of these tests are named after their participant");
+    CommitmentCommand::SubmitBundle(SubmitBundle {
+        contract_id: contract_id.to_owned(),
+        attempt_id: format!("attempt-{suffix}-1"),
+        participant: participant.to_owned(),
+        generation: 1,
+        base_digest: base_digest.to_owned(),
+        parents,
+        changes,
+    })
+}
+
+/// The result one accepted submission formed, taken from the facts it committed.
+fn formed(events: &[CommitmentEvent]) -> String {
+    events
+        .iter()
+        .find_map(|event| match event {
+            CommitmentEvent::CandidateFormed {
+                candidate_digest, ..
+            } => Some(candidate_digest.clone()),
+            _ => None,
+        })
+        .expect("an accepted bundle forms a result")
+}
+
+/// Two participants working from one base reach two results, and neither of them is touched by the
+/// other's arrival: the records stand side by side, each under its own identity, and the contract
+/// each was submitted against carries its own.
+///
+/// What this states about workspaces is only what a ledger can state — that nothing here writes
+/// into either participant's work. That the directories themselves are untouched is a question
+/// about bytes on a disk, and it is answered where those bytes are, in the artifact layer.
+#[test]
+fn two_attempts_from_one_base_form_two_results_and_change_neither() {
+    let (mut ledger, tokens) = competing_attempts();
+    ledger
+        .execute(&record_object("contract-alpha", ALPHA, "object-alpha"))
+        .expect("alpha stores its object");
+    let alpha = formed(
+        &ledger
+            .execute(&submit_bundle(
+                "contract-alpha",
+                ALPHA,
+                &tokens.base_digest,
+                Vec::new(),
+                vec![schedules::upsert("src/alpha.rs", "object-alpha")],
+            ))
+            .expect("alpha submits from the base it was awarded"),
+    );
+    let alpha_record = ledger.candidates()[&alpha].clone();
+    let alpha_bundle = ledger.bundles()[&alpha_record.bundle_digest].clone();
+
+    ledger
+        .execute(&record_object("contract-beta", BETA, "object-beta"))
+        .expect("beta stores its object");
+    let beta = formed(
+        &ledger
+            .execute(&submit_bundle(
+                "contract-beta",
+                BETA,
+                &tokens.base_digest,
+                Vec::new(),
+                vec![schedules::upsert("src/beta.rs", "object-beta")],
+            ))
+            .expect("beta submits from the same base"),
+    );
+
+    assert_ne!(alpha, beta, "two constructions, two identities");
+    assert_ne!(
+        alpha_record.content_digest,
+        ledger.candidates()[&beta].content_digest,
+        "two results that put different objects in different places are two sets of bytes"
+    );
+    assert_ne!(
+        alpha_record.bundle_digest,
+        ledger.candidates()[&beta].bundle_digest,
+        "two different change sets are two different bundles"
+    );
+    assert_eq!(
+        ledger.candidates()[&alpha],
+        alpha_record,
+        "the second submission rewrote the first result"
+    );
+    assert_eq!(
+        ledger.bundles()[&alpha_record.bundle_digest],
+        alpha_bundle,
+        "the second submission rewrote the first bundle"
+    );
+    assert_eq!(
+        ledger.contracts()["contract-alpha"]
+            .candidate_digest
+            .as_deref(),
+        Some(alpha.as_str())
+    );
+    assert_eq!(
+        ledger.contracts()["contract-beta"]
+            .candidate_digest
+            .as_deref(),
+        Some(beta.as_str())
+    );
+    for candidate in [&alpha_record, &ledger.candidates()[&beta]] {
+        assert_eq!(candidate.base_digest, tokens.base_digest);
+        assert!(
+            candidate.contributions.is_empty(),
+            "a first attempt carries nothing forward"
+        );
+        assert!(candidate.states_its_own_identity());
+    }
+    assert!(schedules::candidate_violations(ledger.facts()).is_empty());
+}
+
+/// The identity of a result is a function of the construction and of nothing beside it. The same
+/// two submissions in the other order reach the same two identities, so nothing about arriving
+/// first is carried into what a result is called.
+#[test]
+fn the_kernel_names_no_winner_between_two_results() {
+    let submissions = |first: bool| {
+        let (mut ledger, tokens) = competing_attempts();
+        let alpha = [
+            record_object("contract-alpha", ALPHA, "object-alpha"),
+            submit_bundle(
+                "contract-alpha",
+                ALPHA,
+                &tokens.base_digest,
+                Vec::new(),
+                vec![schedules::upsert("src/alpha.rs", "object-alpha")],
+            ),
+        ];
+        let beta = [
+            record_object("contract-beta", BETA, "object-beta"),
+            submit_bundle(
+                "contract-beta",
+                BETA,
+                &tokens.base_digest,
+                Vec::new(),
+                vec![schedules::upsert("src/beta.rs", "object-beta")],
+            ),
+        ];
+        let ordered: Vec<&CommitmentCommand> = if first {
+            alpha.iter().chain(beta.iter()).collect()
+        } else {
+            beta.iter().chain(alpha.iter()).collect()
+        };
+        for command in ordered {
+            ledger.execute(command).expect("both submissions are valid");
+        }
+        ledger
+    };
+    let alpha_first = submissions(true);
+    let beta_first = submissions(false);
+    assert_eq!(
+        alpha_first.candidates(),
+        beta_first.candidates(),
+        "the order two results arrived in changed what they are"
+    );
+    assert_eq!(alpha_first.bundles(), beta_first.bundles());
+    for contract in ["contract-alpha", "contract-beta"] {
+        assert_eq!(
+            alpha_first.contracts()[contract].candidate_digest,
+            beta_first.contracts()[contract].candidate_digest
+        );
+    }
+}
+
+/// Everything that must not reach a recorded result, each refused on its own terms and each leaving
+/// the ledger exactly as it was.
+#[test]
+fn a_stale_token_a_stale_base_a_half_written_object_or_a_second_result_replace_nothing() {
+    let (mut ledger, tokens) = competing_attempts();
+    for command in [
+        record_object("contract-alpha", ALPHA, "object-alpha"),
+        record_object("contract-beta", BETA, "object-beta"),
+    ] {
+        ledger.execute(&command).expect("the objects are stored");
+    }
+    let submission = submit_bundle(
+        "contract-alpha",
+        ALPHA,
+        &tokens.base_digest,
+        Vec::new(),
+        vec![schedules::upsert("src/alpha.rs", "object-alpha")],
+    );
+    let alpha = formed(&ledger.execute(&submission).expect("alpha submits"));
+    let recorded = ledger.candidates().clone();
+
+    // A second, different result for a contract that already recorded one.
+    let refusal = expect_refusal(
+        &mut ledger,
+        &submit_bundle(
+            "contract-alpha",
+            ALPHA,
+            &tokens.base_digest,
+            Vec::new(),
+            vec![schedules::upsert("src/alpha.rs", "object-beta")],
+        ),
+    );
+    assert!(
+        matches!(&refusal, CommitmentError::CandidateSealed { current, .. } if *current == alpha),
+        "{refusal}"
+    );
+
+    // The same result again is a retry and not a replacement: it states what is already there.
+    ledger
+        .execute(&submission)
+        .expect("a repeated submission of the same result is refused nothing");
+    assert_eq!(*ledger.candidates(), recorded);
+    assert_eq!(
+        ledger.contracts()["contract-alpha"]
+            .candidate_digest
+            .as_deref(),
+        Some(alpha.as_str())
+    );
+
+    // A base the contract was never awarded from.
+    let refusal = expect_refusal(
+        &mut ledger,
+        &submit_bundle(
+            "contract-beta",
+            BETA,
+            &digest("base-elsewhere"),
+            Vec::new(),
+            vec![schedules::upsert("src/beta.rs", "object-beta")],
+        ),
+    );
+    assert!(
+        matches!(refusal, CommitmentError::StaleBase { .. }),
+        "{refusal}"
+    );
+
+    // Bytes no fact ever said were stored whole, which is what a half-written object is.
+    let refusal = expect_refusal(
+        &mut ledger,
+        &submit_bundle(
+            "contract-beta",
+            BETA,
+            &tokens.base_digest,
+            Vec::new(),
+            vec![schedules::upsert("src/beta.rs", "object-half-written")],
+        ),
+    );
+    assert!(
+        matches!(refusal, CommitmentError::ObjectIncomplete { .. }),
+        "{refusal}"
+    );
+
+    // A fencing token the contract has moved past.
+    ledger
+        .execute(&CommitmentCommand::AdvanceClock(AdvanceClock { to: 400 }))
+        .expect("the lease runs out");
+    ledger
+        .execute(&CommitmentCommand::Reassign(Reassign {
+            contract_id: "contract-beta".to_owned(),
+            sponsor: ROOT_PARTICIPANT.to_owned(),
+            bid_id: "bid-gamma-spare".to_owned(),
+            lease_id: "lease-beta-2".to_owned(),
+            lease_ms: LEASE_MS,
+        }))
+        .expect("the contract changes hands");
+    // The participant now holding it, submitting from the attempt the displaced holder had
+    // opened: that attempt belongs to the generation the contract has moved past.
+    let stale_attempt = submit_bundle(
+        "contract-beta",
+        GAMMA,
+        &tokens.base_digest,
+        Vec::new(),
+        vec![schedules::upsert("src/beta.rs", "object-beta")],
+    );
+    let refusal = expect_refusal(&mut ledger, &stale_attempt);
+    assert!(
+        matches!(refusal, CommitmentError::StaleGeneration { .. }),
+        "{refusal}"
+    );
+
+    // And the same participant from an attempt of the current generation, naming the token it held
+    // before the contract changed hands. Nothing about the attempt is stale here; the token the
+    // command repeats is, and that is the whole of what refuses it.
+    ledger
+        .execute(&attempt_on("attempt-beta-2", "contract-beta", GAMMA, 2))
+        .expect("the current holder opens an attempt of its own");
+    let mut stale_token = stale_attempt;
+    if let CommitmentCommand::SubmitBundle(command) = &mut stale_token {
+        command.attempt_id = "attempt-beta-2".to_owned();
+    }
+    let refusal = expect_refusal(&mut ledger, &stale_token);
+    assert!(
+        matches!(
+            refusal,
+            CommitmentError::StaleGeneration {
+                seen: 1,
+                current: 2,
+                ..
+            }
+        ),
+        "{refusal}"
+    );
+
+    assert_eq!(*ledger.candidates(), recorded, "a refusal formed a result");
+    assert!(schedules::candidate_violations(ledger.facts()).is_empty());
+}
+
+/// An offer a participant funds out of its own capacity for work on the results already recorded,
+/// the consent that takes it up, and the attempt it is carried out under. Nothing here is special
+/// to a synthesis: it is the ordinary way work begins in this kernel, and what makes it a synthesis
+/// is only what the offer is about.
+fn sponsored_synthesis(tokens: &Tokens, intent_digest: &str) -> Vec<CommitmentCommand> {
+    vec![
+        CommitmentCommand::Advertise(Advertise {
+            offer_id: "offer-synthesis".to_owned(),
+            sponsor: ROOT_PARTICIPANT.to_owned(),
+            parent_obligation: ROOT_OBLIGATION.to_owned(),
+            funding_source: FundingSource::Participant,
+            task_scope: tokens.task_scope.clone(),
+            base_digest: tokens.base_digest.clone(),
+            intent_digest: intent_digest.to_owned(),
+            artifact_class: tokens.artifact_class.clone(),
+            dependencies: Vec::new(),
+            capability_scope: Vec::new(),
+            execution_escrow: schedules::requested_escrow(),
+            policy: OfferPolicy::Negotiated,
+            bid_deadline: DEADLINE,
+            offer_deadline: DEADLINE,
+            max_awards: 1,
+        }),
+        CommitmentCommand::RecordBid(RecordBid {
+            bid_id: "bid-synthesis".to_owned(),
+            offer_id: "offer-synthesis".to_owned(),
+            bidder: GAMMA.to_owned(),
+            requested_escrow: schedules::requested_escrow(),
+            artifact_class: tokens.artifact_class.clone(),
+            proposal_digest: None,
+            expires_at: DEADLINE,
+        }),
+        CommitmentCommand::Award(Award {
+            contract_id: "contract-synthesis".to_owned(),
+            obligation_id: "obligation-synthesis".to_owned(),
+            lease_id: "lease-synthesis".to_owned(),
+            offer_id: "offer-synthesis".to_owned(),
+            bid_id: "bid-synthesis".to_owned(),
+            sponsor: ROOT_PARTICIPANT.to_owned(),
+            lease_ms: LEASE_MS,
+        }),
+        attempt_on("attempt-synthesis-1", "contract-synthesis", GAMMA, 1),
+    ]
+}
+
+/// Two results that disagree, the evidence stating where, the offer a participant funds against
+/// that evidence, and the result a third participant builds from both.
+struct Synthesis {
+    ledger: CommitmentLedger,
+    alpha: String,
+    beta: String,
+    conflict: String,
+    synthesized: String,
+    refusal: CommitmentError,
+}
+
+/// Take a run through a disagreement from end to end.
+///
+/// The kernel appears in this sequence three times and never as a party to it: it says where the
+/// two results disagree, it refuses to form a third that passes over the disagreement in silence,
+/// and it records the one a participant produced after being funded to do the work. Which bytes
+/// end up at the disputed path is stated by that participant's bundle, and by nothing here.
+fn synthesis() -> Synthesis {
+    let (mut ledger, tokens) = competing_attempts();
+    let mut run = |command: &CommitmentCommand| {
+        ledger
+            .execute(command)
+            .unwrap_or_else(|error| panic!("the synthesis sequence is well formed: {error}"))
+    };
+    for object in ["object-alpha", "object-shared-alpha"] {
+        run(&record_object("contract-alpha", ALPHA, object));
+    }
+    let alpha = formed(&run(&submit_bundle(
+        "contract-alpha",
+        ALPHA,
+        &tokens.base_digest,
+        Vec::new(),
+        vec![
+            schedules::upsert("src/alpha.rs", "object-alpha"),
+            schedules::upsert("src/shared.rs", "object-shared-alpha"),
+        ],
+    )));
+    for object in ["object-beta", "object-shared-beta"] {
+        run(&record_object("contract-beta", BETA, object));
+    }
+    let beta = formed(&run(&submit_bundle(
+        "contract-beta",
+        BETA,
+        &tokens.base_digest,
+        Vec::new(),
+        vec![
+            schedules::upsert("src/beta.rs", "object-beta"),
+            schedules::upsert("src/shared.rs", "object-shared-beta"),
+        ],
+    )));
+
+    // Anybody in the run may state that two results disagree; the paths are the kernel's own
+    // reading of them and not the caller's claim.
+    let recorded = run(&CommitmentCommand::RecordConflict(RecordConflict {
+        participant: GAMMA.to_owned(),
+        candidates: vec![beta.clone(), alpha.clone()],
+    }));
+    let CommitmentEvent::ConflictRecorded {
+        conflict_digest, ..
+    } = &recorded[0]
+    else {
+        panic!("recording a disagreement states it");
+    };
+    let conflict = conflict_digest.clone();
+
+    // The work of settling it is advertised like any other work, funded by a participant out of
+    // its own capacity, and taken up by consent. The evidence is what the offer is about.
+    for command in sponsored_synthesis(&tokens, &conflict) {
+        run(&command);
+    }
+
+    // A result carrying both forward while saying nothing about the path they disagree on. There
+    // is no reading of it that does not decide the disagreement, so it is refused.
+    let refusal = expect_refusal(
+        &mut ledger,
+        &submit_bundle(
+            "contract-synthesis",
+            GAMMA,
+            &tokens.base_digest,
+            vec![alpha.clone(), beta.clone()],
+            Vec::new(),
+        ),
+    );
+
+    ledger
+        .execute(&record_object(
+            "contract-synthesis",
+            GAMMA,
+            "object-shared-synth",
+        ))
+        .expect("the synthesized bytes are stored");
+    let synthesized = formed(
+        &ledger
+            .execute(&submit_bundle(
+                "contract-synthesis",
+                GAMMA,
+                &tokens.base_digest,
+                vec![alpha.clone(), beta.clone()],
+                vec![schedules::upsert("src/shared.rs", "object-shared-synth")],
+            ))
+            .expect("a bundle that states the disputed path is a result like any other"),
+    );
+
+    Synthesis {
+        ledger,
+        alpha,
+        beta,
+        conflict,
+        synthesized,
+        refusal,
+    }
+}
+
+/// A disagreement is stated as evidence, is settled by a participant the collective funded, and is
+/// never settled here. The refusal names the path and takes no side; what follows it is an offer,
+/// consent and an award, which is how every other piece of work in this kernel begins.
+#[test]
+fn a_disagreement_becomes_evidence_and_work_rather_than_a_decision() {
+    let Synthesis {
+        ledger,
+        alpha,
+        beta,
+        conflict,
+        synthesized,
+        refusal,
+    } = synthesis();
+
+    assert!(
+        matches!(&refusal, CommitmentError::IntegrationConflict { paths }
+            if paths == &vec!["src/shared.rs".to_owned()]),
+        "{refusal}"
+    );
+    let evidence = &ledger.conflicts()[&conflict];
+    assert_eq!(evidence.paths, vec!["src/shared.rs".to_owned()]);
+    assert_eq!(evidence.candidates.len(), 2);
+    assert!(evidence.candidates.contains(&alpha) && evidence.candidates.contains(&beta));
+    assert_eq!(
+        ledger.offers()["offer-synthesis"].intent_digest,
+        conflict,
+        "the work the collective took up is the disagreement itself"
+    );
+    assert_eq!(ledger.offers()["offer-synthesis"].sponsor, ROOT_PARTICIPANT);
+
+    // Both results are still exactly where they were: recording a disagreement closed neither, and
+    // the third result stands beside them rather than over them.
+    assert_eq!(
+        ledger.contracts()["contract-alpha"]
+            .candidate_digest
+            .as_deref(),
+        Some(alpha.as_str())
+    );
+    assert_eq!(
+        ledger.contracts()["contract-beta"]
+            .candidate_digest
+            .as_deref(),
+        Some(beta.as_str())
+    );
+    assert_eq!(ledger.candidates().len(), 3);
+    assert!(schedules::candidate_violations(ledger.facts()).is_empty());
+    let _ = synthesized;
+}
+
+/// The record of a synthesized result carries everything its construction needs: every contributing
+/// result with the obligation and participant it came from, the bundle that stated it, the base it
+/// applies to, and the exact object standing at every path — including the paths its contributions
+/// agreed on and it never mentioned.
+#[test]
+fn a_synthesized_result_states_everything_its_construction_needed() {
+    let Synthesis {
+        ledger,
+        alpha,
+        beta,
+        synthesized,
+        ..
+    } = synthesis();
+    let record = &ledger.candidates()[&synthesized];
+
+    let contributions: BTreeMap<&str, &Contribution> = record
+        .contributions
+        .iter()
+        .map(|contribution| (contribution.candidate_digest.as_str(), contribution))
+        .collect();
+    assert_eq!(contributions.len(), 2);
+    for (candidate, obligation, participant) in [
+        (&alpha, "obligation-alpha", ALPHA),
+        (&beta, "obligation-beta", BETA),
+    ] {
+        let contribution = contributions[candidate.as_str()];
+        assert_eq!(contribution.obligation_id, obligation);
+        assert_eq!(contribution.participant, participant);
+        assert_eq!(
+            contribution.bundle_digest,
+            ledger.candidates()[candidate].bundle_digest,
+            "a contribution names the exact bundle the result it carries was built from"
+        );
+    }
+
+    assert_eq!(record.base_digest, ledger.candidates()[&alpha].base_digest);
+    assert_eq!(record.contract_id, "contract-synthesis");
+    assert_eq!(record.obligation_id, "obligation-synthesis");
+    assert_eq!(record.participant, GAMMA);
+    let stands: BTreeMap<&str, &PathChange> = record
+        .changes
+        .iter()
+        .map(|change| (change.path.as_str(), &change.change))
+        .collect();
+    assert_eq!(
+        stands.keys().copied().collect::<Vec<_>>(),
+        vec!["src/alpha.rs", "src/beta.rs", "src/shared.rs"],
+        "what one contribution changed alone is carried forward with the synthesis"
+    );
+    for (path, object) in [
+        ("src/alpha.rs", "object-alpha"),
+        ("src/beta.rs", "object-beta"),
+        ("src/shared.rs", "object-shared-synth"),
+    ] {
+        assert_eq!(
+            stands[path],
+            &PathChange::Upsert {
+                object_digest: digest(object),
+                executable: false,
+            },
+            "{path} does not hold the exact object the construction states"
+        );
+    }
+
+    // The bundle itself states only the path its author actually decided.
+    let bundle = &ledger.bundles()[&record.bundle_digest];
+    assert_eq!(
+        bundle
+            .changes
+            .iter()
+            .map(|change| change.path.as_str())
+            .collect::<Vec<_>>(),
+        vec!["src/shared.rs"]
+    );
+    assert_eq!(bundle.parents.len(), 2);
+    assert_eq!(bundle.recomputed_digest(), bundle.bundle_digest);
+    assert!(record.states_its_own_identity());
+}
+
+/// The ancestry is rebuilt from the committed facts and from nothing else, which is what makes it
+/// survive a restart. Replaying the facts of a run that reached a synthesis into an empty ledger
+/// reaches the same bundles, the same results and the same evidence, byte for byte.
+#[test]
+fn the_ancestry_is_rebuilt_from_the_committed_facts_alone() {
+    let Synthesis { ledger, .. } = synthesis();
+    let mut rebuilt = new_ledger();
+    for fact in ledger.facts() {
+        rebuilt.replay(fact).expect("every committed fact replays");
+    }
+    assert_eq!(rebuilt.objects(), ledger.objects());
+    assert_eq!(rebuilt.bundles(), ledger.bundles());
+    assert_eq!(rebuilt.candidates(), ledger.candidates());
+    assert_eq!(rebuilt.conflicts(), ledger.conflicts());
+    assert_eq!(rebuilt.contracts(), ledger.contracts());
+}
+
+/// Recording a disagreement is a reading of the results themselves. Where they put the same bytes
+/// everywhere they both speak, there is nothing to record, and the kernel says so instead of
+/// producing evidence a participant could then be funded to act on.
+#[test]
+fn results_that_agree_produce_no_evidence_of_disagreement() {
+    let (mut ledger, tokens) = competing_attempts();
+    for command in [
+        record_object("contract-alpha", ALPHA, "object-shared"),
+        record_object("contract-beta", BETA, "object-shared"),
+    ] {
+        ledger.execute(&command).expect("the object is stored once");
+    }
+    let alpha = formed(
+        &ledger
+            .execute(&submit_bundle(
+                "contract-alpha",
+                ALPHA,
+                &tokens.base_digest,
+                Vec::new(),
+                vec![schedules::upsert("src/shared.rs", "object-shared")],
+            ))
+            .expect("alpha submits"),
+    );
+    let beta = formed(
+        &ledger
+            .execute(&submit_bundle(
+                "contract-beta",
+                BETA,
+                &tokens.base_digest,
+                Vec::new(),
+                vec![schedules::upsert("src/shared.rs", "object-shared")],
+            ))
+            .expect("beta submits the same bytes"),
+    );
+    assert_ne!(alpha, beta, "one construction each, and they were two");
+    assert_eq!(
+        ledger.candidates()[&alpha].content_digest,
+        ledger.candidates()[&beta].content_digest,
+        "the same bytes from the same base are the same result"
+    );
+    let refusal = expect_refusal(
+        &mut ledger,
+        &CommitmentCommand::RecordConflict(RecordConflict {
+            participant: GAMMA.to_owned(),
+            candidates: vec![alpha, beta],
+        }),
+    );
+    assert!(matches!(refusal, CommitmentError::NoConflict), "{refusal}");
+}
+
+/// Without the seal, an ordering exists in which the second of two valid results overwrites the
+/// first, and the facts say so: one task contract states two different results.
+#[test]
+fn removing_the_result_seal_produces_a_counterexample() {
+    let (seed, violations) = first_counterexample(DisabledChecks {
+        candidate_seal: true,
+        ..DisabledChecks::default()
+    })
+    .expect("the seal on a recorded result must be load-bearing");
+    assert!(
+        violations
+            .iter()
+            .any(|violation| matches!(violation, Violation::CandidateReplaced { .. })),
+        "seed {seed} produced {violations:?}"
+    );
+}
+
+/// Without the base comparison, a result is formed on a base its task contract was never awarded
+/// from, so what the run holds is a result nothing can reproduce from the work it was ordered for.
+#[test]
+fn removing_the_base_comparison_produces_a_counterexample() {
+    let (seed, violations) = first_counterexample(DisabledChecks {
+        candidate_base: true,
+        ..DisabledChecks::default()
+    })
+    .expect("the base comparison must be load-bearing");
+    assert!(
+        violations
+            .iter()
+            .any(|violation| matches!(violation, Violation::CandidateBaseDiverged { .. })),
+        "seed {seed} produced {violations:?}"
+    );
+}
+
+/// Without the rule that a bundle states the paths its contributions disagree on, the kernel forms
+/// a result over a disagreement nobody settled, and the check that catches it reads the
+/// contributions rather than the record the kernel wrote.
+#[test]
+fn removing_the_disagreement_rule_lets_the_kernel_settle_one() {
+    let mut ledger = new_ledger();
+    ledger.disable_checks(DisabledChecks {
+        conflict_resolution: true,
+        ..DisabledChecks::default()
+    });
+    let tokens = Tokens::variant("a");
+    for command in setup(&tokens) {
+        ledger.execute(&command).expect("prefix command");
+    }
+    for command in [
+        award_main("bid-alpha", "alpha"),
+        award_main("bid-beta", "beta"),
+        attempt_on("attempt-alpha-1", "contract-alpha", ALPHA, 1),
+        attempt_on("attempt-beta-1", "contract-beta", BETA, 1),
+        record_object("contract-alpha", ALPHA, "object-shared-alpha"),
+        record_object("contract-beta", BETA, "object-shared-beta"),
+        submit_bundle(
+            "contract-alpha",
+            ALPHA,
+            &tokens.base_digest,
+            Vec::new(),
+            vec![schedules::upsert("src/shared.rs", "object-shared-alpha")],
+        ),
+        submit_bundle(
+            "contract-beta",
+            BETA,
+            &tokens.base_digest,
+            Vec::new(),
+            vec![schedules::upsert("src/shared.rs", "object-shared-beta")],
+        ),
+    ] {
+        ledger.execute(&command).expect("the two results form");
+    }
+    let carried: Vec<String> = ledger.candidates().keys().cloned().collect();
+    for command in sponsored_synthesis(&tokens, &digest("intent-unsettled")) {
+        ledger
+            .execute(&command)
+            .expect("the synthesis work is funded and taken up");
+    }
+    // With the rule in place this is the refusal of `a_disagreement_becomes_evidence_and_work_
+    // rather_than_a_decision`. Without it the kernel forms a result, and the disagreement is
+    // settled by whichever contribution it read first.
+    ledger
+        .execute(&submit_bundle(
+            "contract-synthesis",
+            GAMMA,
+            &tokens.base_digest,
+            carried,
+            Vec::new(),
+        ))
+        .expect("the weakened kernel forms a result over a disagreement");
+    let violations = schedules::candidate_violations(ledger.facts());
+    assert!(
+        violations
+            .iter()
+            .any(|violation| matches!(violation, Violation::ConflictSettledByKernel { .. })),
+        "the settled disagreement went unreported: {violations:?}"
+    );
+}
+
+/// A fact that states a result carrying no change, while keeping the identifiers computed from the
+/// changes it in fact carries, is a record that does not reach its own identity. Every record built
+/// from that fact agrees with it, so what catches it is recomputing the identity from the
+/// construction the fact states.
+#[test]
+fn a_result_that_understates_its_own_changes_fails_the_identity_it_claims() {
+    let tokens = Tokens::variant("a");
+    let counterexample = (0..SCHEDULE_SEEDS).find_map(|seed| {
+        let report = run_altered_schedule(
+            seed,
+            &tokens,
+            DisabledChecks::default(),
+            AlteredFacts {
+                unstated_changes: true,
+                ..AlteredFacts::default()
+            },
+        );
+        (!report.violations.is_empty()).then_some((seed, report.violations))
+    });
+    let (seed, violations) =
+        counterexample.expect("a result that understates its changes must be caught");
+    assert!(
+        violations
+            .iter()
+            .any(|violation| matches!(violation, Violation::CandidateMisidentified { .. })),
+        "seed {seed} produced {violations:?}"
+    );
+}
+
+/// The facts of one submission fit in one durable journal record.
+///
+/// A bundle and the result formed from it are committed together or not at all, so what has to fit
+/// is both of them at once, at the largest size the bounds admit: every change carrying the longest
+/// path, every identifier the longest identifier, and every contribution present. The limit is the
+/// journal's own — 64 KiB per record, stated in `ymp-rust/SCHEMA.md` — and it is repeated here
+/// rather than imported, because what this asserts is a property of the bounds and not of the
+/// writer.
+#[test]
+fn the_facts_of_one_submission_fit_in_one_journal_record() {
+    const MAX_EVENT_BYTES: usize = 64 * 1024;
+    // A path made of quotation marks is the worst case a path may be: every byte of it is escaped
+    // to two in the record, and every other admitted byte is written as it stands.
+    let path = |index: usize| {
+        let mut path = "\"".repeat(MAX_PATH_BYTES - 4);
+        path.push_str(&format!("{index:04}"));
+        path
+    };
+    let identifier = "i".repeat(MAX_IDENTIFIER_CHARS);
+    let change = |index: usize| BundleChange {
+        path: path(index),
+        change: PathChange::Upsert {
+            object_digest: "f".repeat(64),
+            executable: true,
+        },
+    };
+    let bundle_digest = "a".repeat(64);
+    let facts = vec![
+        CommitmentEvent::BundleRecorded {
+            bundle_digest: bundle_digest.clone(),
+            base_digest: "b".repeat(64),
+            parents: (0..MAX_BUNDLE_PARENTS).map(|_| "c".repeat(64)).collect(),
+            changes: (0..MAX_BUNDLE_CHANGES).map(change).collect(),
+        },
+        CommitmentEvent::CandidateFormed {
+            candidate_digest: "d".repeat(64),
+            content_digest: "e".repeat(64),
+            contract_id: identifier.clone(),
+            obligation_id: identifier.clone(),
+            participant: identifier.clone(),
+            generation: u64::MAX,
+            base_digest: "b".repeat(64),
+            bundle_digest,
+            contributions: (0..MAX_BUNDLE_PARENTS)
+                .map(|_| Contribution {
+                    candidate_digest: "c".repeat(64),
+                    obligation_id: identifier.clone(),
+                    participant: identifier.clone(),
+                    bundle_digest: "a".repeat(64),
+                })
+                .collect(),
+            changes: (0..MAX_CANDIDATE_CHANGES).map(change).collect(),
+        },
+        CommitmentEvent::SubmissionRecorded {
+            contract_id: identifier.clone(),
+            attempt_id: identifier,
+            generation: u64::MAX,
+            candidate_digest: "d".repeat(64),
+        },
+    ];
+    let bytes = serde_json::to_vec(&facts).expect("facts serialize").len();
+    assert!(
+        bytes < MAX_EVENT_BYTES,
+        "the largest submission these bounds admit is {bytes} bytes, and a record holds \
+         {MAX_EVENT_BYTES}"
+    );
+}
+
+/// A path that leaves the tree, holds a control character, or is longer than a record can carry is
+/// not content the kernel stores without looking at.
+#[test]
+fn a_path_that_is_not_a_place_inside_the_result_is_refused() {
+    let (mut ledger, tokens) = competing_attempts();
+    ledger
+        .execute(&record_object("contract-alpha", ALPHA, "object-alpha"))
+        .expect("the object is stored");
+    for path in [
+        "../outside.rs",
+        "/absolute.rs",
+        "src//empty.rs",
+        "src/./here.rs",
+        "src/be\u{7}ll.rs",
+        "",
+        &"x".repeat(MAX_PATH_BYTES + 1),
+    ] {
+        let refusal = expect_refusal(
+            &mut ledger,
+            &submit_bundle(
+                "contract-alpha",
+                ALPHA,
+                &tokens.base_digest,
+                Vec::new(),
+                vec![BundleChange {
+                    path: path.to_owned(),
+                    change: PathChange::Upsert {
+                        object_digest: digest("object-alpha"),
+                        executable: false,
+                    },
+                }],
+            ),
+        );
+        assert!(
+            matches!(&refusal, CommitmentError::InvalidPath { path: refused } if refused == path),
+            "{path:?} was not refused as a path: {refusal}"
+        );
+    }
+}
+
+/// The bounds a submission is held to are refusals with their own names, reached rather than
+/// merely stated: one bundle states at most so many paths, and a result carries at most so many
+/// once what its contributions agreed on is carried forward with it.
+#[test]
+fn a_submission_larger_than_one_record_holds_is_refused_by_its_own_bound() {
+    let (mut ledger, tokens) = competing_attempts();
+    let changes = |owner: &str, count: usize| {
+        (0..count)
+            .map(|index| schedules::upsert(&format!("src/{owner}-{index}.rs"), "object-shared"))
+            .collect::<Vec<_>>()
+    };
+    for command in [
+        record_object("contract-alpha", ALPHA, "object-shared"),
+        record_object("contract-beta", BETA, "object-shared"),
+    ] {
+        ledger.execute(&command).expect("the object is stored");
+    }
+
+    let refusal = expect_refusal(
+        &mut ledger,
+        &submit_bundle(
+            "contract-alpha",
+            ALPHA,
+            &tokens.base_digest,
+            Vec::new(),
+            changes("alpha", MAX_BUNDLE_CHANGES + 1),
+        ),
+    );
+    assert!(
+        matches!(refusal, CommitmentError::InvalidBundleSize),
+        "{refusal}"
+    );
+
+    // Two results that agree everywhere, carrying between them more paths than one result may.
+    let mut carried = Vec::new();
+    for (contract, participant, owner) in [
+        ("contract-alpha", ALPHA, "alpha"),
+        ("contract-beta", BETA, "beta"),
+    ] {
+        carried.push(formed(
+            &ledger
+                .execute(&submit_bundle(
+                    contract,
+                    participant,
+                    &tokens.base_digest,
+                    Vec::new(),
+                    changes(owner, MAX_BUNDLE_CHANGES),
+                ))
+                .expect("a bundle at the bound is admitted"),
+        ));
+    }
+    for command in sponsored_synthesis(&tokens, &digest("intent-too-large")) {
+        ledger.execute(&command).expect("the work is funded");
+    }
+    let refusal = expect_refusal(
+        &mut ledger,
+        &submit_bundle(
+            "contract-synthesis",
+            GAMMA,
+            &tokens.base_digest,
+            carried,
+            Vec::new(),
+        ),
+    );
+    assert!(
+        matches!(
+            refusal,
+            CommitmentError::TooManyEntries {
+                kind: "candidate changes"
+            }
+        ),
+        "{refusal}"
     );
 }

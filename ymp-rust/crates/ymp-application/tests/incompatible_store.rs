@@ -47,7 +47,7 @@ fn a_store_of_another_schema_version_is_refused_and_left_byte_for_byte_as_found(
             error,
             ApplicationError::IncompatibleStore {
                 actual: 1,
-                expected: 3
+                expected: 4
             }
         ),
         "{reported}"
@@ -82,42 +82,44 @@ fn a_store_of_another_schema_version_is_refused_and_left_byte_for_byte_as_found(
     );
 }
 
-/// The version immediately before this one is refused exactly as the first one is. It is stated
-/// separately because that store is the one an operator is most likely to still have: it was
-/// written by the previous build of this product, and journalling the commitment facts is what
-/// superseded it.
+/// Every version between the first and this one is refused exactly as the first one is. They are
+/// stated separately because those stores are the ones an operator is most likely to still have:
+/// they were written by earlier builds of this product, and journalling the commitment facts and
+/// then the ancestry of a result is what superseded them in turn.
 #[test]
-fn the_version_this_binary_superseded_is_refused_too() {
-    let root = tempfile::tempdir().expect("temporary root");
-    let data_root = root.path().join("data");
-    fs::create_dir_all(&data_root).expect("data root");
-    let events = "\
-{\"schema_version\":2,\"run_id\":\"older-run\",\"sequence\":1,\"command_id\":\"ymp.bootstrap\",\"command_digest\":\"00\",\"predecessor_digest\":null,\"event\":{\"type\":\"run_started\",\"budget\":{\"attempts_remaining\":2,\"verification_queries_remaining\":1}},\"digest\":\"11\"}
-";
-    fs::write(data_root.join("events.jsonl"), events).expect("journal");
+fn the_versions_this_binary_superseded_are_refused_too() {
+    for version in [2, 3] {
+        let root = tempfile::tempdir().expect("temporary root");
+        let data_root = root.path().join("data");
+        fs::create_dir_all(&data_root).expect("data root");
+        let events = format!(
+            "{{\"schema_version\":{version},\"run_id\":\"older-run\",\"sequence\":1,\"command_id\":\"ymp.bootstrap\",\"command_digest\":\"00\",\"predecessor_digest\":null,\"event\":{{\"type\":\"run_started\",\"budget\":{{\"attempts_remaining\":2,\"verification_queries_remaining\":1}}}},\"digest\":\"11\"}}\n"
+        );
+        fs::write(data_root.join("events.jsonl"), &events).expect("journal");
 
-    let Err(error) = Application::open(&data_root) else {
-        panic!("a store of the superseded version must be refused");
-    };
-    assert!(
-        matches!(
-            error,
-            ApplicationError::IncompatibleStore {
-                actual: 2,
-                expected: 3
-            }
-        ),
-        "{error}"
-    );
-    assert_eq!(
-        fs::read(data_root.join("events.jsonl")).expect("journal after"),
-        events.as_bytes(),
-        "the refused store had its journal rewritten"
-    );
-    assert!(
-        !data_root.join("writer.lock").exists(),
-        "a refused store was locked for writing"
-    );
+        let Err(error) = Application::open(&data_root) else {
+            panic!("a store of a superseded version must be refused");
+        };
+        assert!(
+            matches!(
+                error,
+                ApplicationError::IncompatibleStore {
+                    actual,
+                    expected: 4
+                } if actual == version
+            ),
+            "{error}"
+        );
+        assert_eq!(
+            fs::read(data_root.join("events.jsonl")).expect("journal after"),
+            events.as_bytes(),
+            "the refused store had its journal rewritten"
+        );
+        assert!(
+            !data_root.join("writer.lock").exists(),
+            "a refused store was locked for writing"
+        );
+    }
 }
 
 #[test]

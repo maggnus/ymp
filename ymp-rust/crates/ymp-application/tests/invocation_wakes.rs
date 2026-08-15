@@ -175,9 +175,12 @@ fn a_reader_that_lost_every_notification_recovers_from_its_cursor() {
         "nothing the yield asked about has happened yet"
     );
 
-    for (index, tag) in ["first", "second", "third"].into_iter().enumerate() {
+    // A task contract records one result, so what arrives three times is the same submission
+    // rather than three different ones: a retry after a lost answer is exactly how one command
+    // reaches the committed stream more than once.
+    for index in 0..3 {
         service
-            .execute(&format!("submit-{index}"), &submit(tag))
+            .execute(&format!("submit-{index}"), &submit("first"))
             .expect("submission");
     }
 

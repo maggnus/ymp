@@ -18,6 +18,7 @@
 //! that the name was honestly obtained, and nothing here should be read as if it could.
 
 mod budget;
+mod candidates;
 mod invocations;
 mod ledger;
 mod protocol;
@@ -31,6 +32,10 @@ mod schedules;
 mod tests;
 
 pub use budget::{BudgetVector, DIMENSION_COUNT, DIMENSIONS, Dimension, DimensionKind};
+pub use candidates::{
+    BundleChange, BundleRecord, CandidateRecord, ConflictRecord, Contribution, MAX_BUNDLE_CHANGES,
+    MAX_BUNDLE_PARENTS, MAX_CANDIDATE_CHANGES, MAX_PATH_BYTES, PathChange,
+};
 pub use invocations::{
     InvocationClosure, InvocationRecord, InvocationState, OpenAuthority, RootTerminal, StopReason,
     Verdict, VerificationRecord, WakeCondition, WakeRegistration,
@@ -39,9 +44,10 @@ pub use ledger::CommitmentLedger;
 pub use protocol::{
     AcceptOpen, AdvanceClock, Advertise, Award, CancelContract, CloseInvocation, CommitmentCommand,
     CommitmentError, CommitmentEvent, MAX_ATTEMPT_WAKES, MAX_AWARDS, MAX_LEASE_MS,
-    MAX_SCOPE_ENTRIES, MAX_WAKE_CONDITIONS, Reassign, RecordBid, RecordVerification,
-    RegisterParticipant, RenewLease, ResumeInvocation, ReturnObligation, SettleOffer, StartAttempt,
-    StartInvocation, StopRun, SubmitResult, WithdrawBid, WithdrawOffer, YieldInvocation,
+    MAX_SCOPE_ENTRIES, MAX_WAKE_CONDITIONS, Reassign, RecordBid, RecordConflict, RecordObject,
+    RecordVerification, RegisterParticipant, RenewLease, ResumeInvocation, ReturnObligation,
+    SettleOffer, StartAttempt, StartInvocation, StopRun, SubmitBundle, SubmitResult, WithdrawBid,
+    WithdrawOffer, YieldInvocation,
 };
 pub use records::{
     AccountRef, AttemptRecord, AttemptState, BidOrigin, BidRecord, BidState, ContractState,
