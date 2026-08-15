@@ -1,15 +1,23 @@
 # Decisions that require the owner
 
-Item 24 of the design deliverable: the decisions this design deliberately does not take, because
-each trades one thing the owner values against another and no evidence in the repository settles
-it. Every entry states the question, why it cannot be decided from the brief or the code, the
-options with their consequences, and **the assumption the design proceeds under while the answer is
-outstanding** — so that no implementation node is blocked waiting for an answer.
+Item 16 of [`PRODUCT-BRIEF-collective-v2.md`](PRODUCT-BRIEF-collective-v2.md) Part A §24: the
+decisions the design does not take on its own, because each trades one thing the owner values
+against another and no evidence in the repository settles it. Every entry states the question, why
+it cannot be decided from the brief or the code, and the options with their consequences.
 
-Decisions that would merely be work are not here. These ten change what the product is.
+**Ten of the eleven are now settled.** D1 was taken by the owner; D2–D10 were resolved by the CTO on
+2026-08-15 under the owner's instruction — *resolve as many questions as possible by the
+application's logic; the last CLI release was a nightmare of identifier entry and confirmations* —
+and each carries its decision block. The rest of the design set reads them as inputs, not as
+assumptions. The owner may overturn any of them.
+
+**One remains open**, D11, and it is open because brief v2 states two things about it that do not
+compose. It is the last entry.
 
 Source links are pinned to
-[dfdac03](https://github.com/maggnus/ymp/commit/dfdac03dede6fa6d50298b07d6d1cd8c6d6687bf).
+[f0376be](https://github.com/maggnus/ymp/commit/f0376be); older links to
+[dfdac03](https://github.com/maggnus/ymp/commit/dfdac03dede6fa6d50298b07d6d1cd8c6d6687bf) remain
+valid for the text they support.
 
 ---
 
@@ -343,29 +351,84 @@ momentum and least likely to reread a ceiling.
 **What the design assumes.** Option **b**, consistent with the re-authorization weight already
 accepted.
 
+## D11 · Does `AgentPool` carry a floor?
+
+> **OPEN.** The one question brief v2 does not settle, and the only entry on this page still waiting
+> for the owner.
+
+**Question.** `AgentPool` carries `capacity.maxAgents` and `capacity.maxConcurrentAttempts`, which
+are ceilings the kernel enforces. Should it also carry a **floor** — `minAgents`, or a desired
+count — and if so, what reconciles it?
+
+**Why the owner.** Brief v2 says three things that do not compose into an answer. Part B lists
+"minimum, maximum, desired or autoscaling bounds" among what the operator may establish. Part A §2
+says that if min and max are needed they are *constraints* and not a requirement to keep N replicas
+running, and that no separate `AgentAutoscaler` should be introduced while scaling is the
+collective's own semantic decision. Part A §22 fixes the start at exactly one participant. A floor
+above one therefore has nothing to enforce it: either it is recorded and ignored, which is worse
+than absent, or something creates participants to reach it — and a mechanical component deciding how
+many participants a collective needs is precisely what §11 reserves for the collective.
+
+This is not a question the application's logic can resolve, which is why it survives the owner's
+"resolve the maximum yourself" instruction. Every answer is coherent; they differ in what the
+product is willing to promise.
+
+**Options.**
+
+| | Rule | Consequence |
+|---|---|---|
+| **a** | No floor. `AgentPool` carries ceilings only, and Part B's "minimum/desired" is recorded as not adopted | Simplest, and the only option with no unreconciled field. A future Kubernetes CRD that wanted a floor would add one then, with a reconciler designed for it |
+| **b** | A floor exists as a **bound the kernel will not refuse below** — it never causes a participant to be created, it only guarantees the collective may reach that many | Honest and enforceable, but the word "minimum" then means something no operator would guess from it, and the surface has to explain that it starts nothing |
+| **c** | A floor the launcher satisfies at bootstrap: start `minAgents` participants instead of one | The only reading under which "minimum" means what it says. It contradicts §22's "Collective starts one participant" and makes a mechanical component decide the initial size of a collective |
+
+**Recommendation: option (a).** It is the only one that leaves no field without a reconciler, it is
+what §2 asks for when it says not to introduce scaling machinery prematurely, and it costs nothing
+to revisit: adding a floor later is additive, while removing one that operators have configured is
+not. If the owner wants Part B's vocabulary preserved for the future CRD, option (b) is the
+compromise — but then the field's documentation, not its name, is what carries the meaning.
+
+**What the design does while this is open.** `AgentPool.spec` carries ceilings and no floor, and
+[`COLLECTIVE-RESOURCES.md`](COLLECTIVE-RESOURCES.md) marks the omission as this decision rather than
+as an oversight. Nothing in the migration plan is blocked either way: a floor is an added field on a
+resource that unit P3 builds.
+
 ---
 
 ## Summary
 
-| # | Decision | Design assumes | Blocks |
+Unit numbers below are those of the **rebased** plan in
+[`COLLECTIVE-MIGRATION.md`](COLLECTIVE-MIGRATION.md) §5. Where a decision block above cites an older
+number — D1 cites P3 for the freeze, D9 cites P14 for the rename — this table is the current
+pointer: the freeze is unit P5 and the rename is unit P16. The blocks are left as they were written,
+because the decision they record has not changed.
+
+| # | Decision | Settled as | Carried by |
 |---|---|---|---|
-| D1 | Where the pool is declared | frozen per run, over the registry | node `W1-EVL-04d`; proposed unit P3 |
-| D2 | Entry rule at bootstrap | first ready entry in declared order, recorded in the pool-freeze fact | proposed unit P7 |
-| D3 | Authorization mandatory per run | yes, one confirmation, before the run's budget | surface S10; criterion 17.1 |
-| D4 | Disclosure default, including before authorization | per workspace; one setup question for derivation | surfaces S02, S03; proposed units P2, P4a |
-| D5 | Semantic remainder | `accepted` covers the observed part, remainder named | criterion 17.12; surfaces S19, S25 |
-| D6 | Clarification bound | proceed under stated assumptions, three questions | proposed unit P5 |
-| D7 | Diagnostic disclosure | one conservative default | surface S19 |
-| D8 | Default ceilings, including the derivation allowance | setting **b** | proposed units P3, P4a |
-| D9 | Naming | *attempt sandbox* | proposed unit P14 |
-| D10 | `Continue` re-authorizes | one confirmation | surface S25 |
+| D1 | Where the permitted model set is declared | the `AgentPool` resource with an automatic `default`, frozen per run | units P3, P4, P5 |
+| D2 | Entry rule at bootstrap | first ready entry of the frozen pool in declared order, recorded in the freeze | unit P9; surface S11 |
+| D3 | Authorization mandatory per run | **no** — a standing per-workspace ceiling; a goal starts a run at once | unit P8; surfaces S06, S10 |
+| D4 | Disclosure default | enabling a provider **is** the consent, stated above the enable key | units P2, P6a; surface S04 |
+| D5 | Semantic remainder | `VERIFIED` covers what was observed; the remainder is named on the same line | surfaces S19, S25 |
+| D6 | Clarification bound | assume where safe, ask only genuine ambiguity, at most three, then `NEEDS CLARIFICATION` | unit P7; surfaces S09, S25 |
+| D7 | Diagnostic disclosure | one conservative default, not a setting | surface S19 |
+| D8 | Default ceilings | setting **b** as the workspace's standing ceiling placeholder | units P6a, P8; surface S06 |
+| D9 | Naming | *workspace* is the project; *attempt sandbox* the private copy | unit P16 |
+| D10 | `Continue` re-authorizes | **no** — it starts at once while the ceiling has headroom | surface S25 |
+| **D11** | **Does `AgentPool` carry a floor?** | **open** — recommendation: no floor | unit P3 |
 
-**All ten are decided as of 2026-08-15** (D1 by the owner; D2–D10 by the CTO under the owner's
-delegation "resolve the maximum by the application's logic", each marked in its block; the owner may
-overturn any of them). Common thread: no confirmation screens, no identifiers to type, no setup
-wizard — the operator's deliberate acts are enabling a provider and stating a goal.
+**The common thread of D2–D10** is the owner's ruling of 2026-08-15: no confirmation screens, no
+identifiers typed by the operator, no acknowledgement steps, no setup wizard. The operator's
+deliberate acts are enabling a provider and stating a goal; everything else is a key on a selected
+row. The design set records the ceremony that ruling removes as ownership leak L-16 in
+[`COLLECTIVE-GAP-ANALYSIS.md`](COLLECTIVE-GAP-ANALYSIS.md), together with what each removed dialogue
+carried and where it is now said instead.
 
-Historical note — none of the ten blocked the start of implementation. D1 and D2 must be answered before proposed unit
-P8 — recruitment against a pool — can be accepted, because a pool whose declaration is undecided
-cannot be checked against, and an entry rule that is undecided cannot be proved not to be a
-semantic router.
+**Two questions were resolved by application logic rather than added to this page**, in the spirit of
+the same instruction, and are recorded as design decisions in
+[`COLLECTIVE-DESIGN.md`](COLLECTIVE-DESIGN.md) item 24: `NEEDS CLARIFICATION` becomes a sixth kernel
+terminal (D6 requires the outcome and forbids reusing `abstained`), and an edited pool stops tracking
+the catalog (the alternative silently overwrites an operator's edit).
+
+**Nothing blocks implementation.** D11 is additive to a resource unit P3 builds, and every other
+decision is settled. The historical note that D1 and D2 gated recruitment no longer applies: both
+are answered.

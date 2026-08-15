@@ -1,28 +1,71 @@
 # The operator surface
 
-Item 3 of the design deliverable: the complete terminal information architecture, designed from
-zero as brief §6 requires. Every surface is stated three ways — **what the operator sees**, **what
-actions exist**, **what each action does**. Read
-[`COLLECTIVE-DESIGN.md`](COLLECTIVE-DESIGN.md) first; the boundaries and vocabulary it fixes are
-assumed here.
+Item 5 of [`PRODUCT-BRIEF-collective-v2.md`](PRODUCT-BRIEF-collective-v2.md) Part A §24: the
+terminal information architecture, designed from the lifecycle of §21 rather than from the screens
+that exist. Every surface is stated three ways — **what the operator sees**, **what actions exist**,
+**what each action does**.
 
-Brief §6 requires at least thirty surfaces and enumerates twenty-seven items. Those twenty-seven
-expand into thirty surfaces — four of them name two surfaces each, because a list and its detail
-are different things to design — and four more are added because the design needs them. Thirty-four
-in total. Source links are pinned to
-[dfdac03](https://github.com/maggnus/ymp/commit/dfdac03dede6fa6d50298b07d6d1cd8c6d6687bf).
+Read [`COLLECTIVE-DESIGN.md`](COLLECTIVE-DESIGN.md) first; the boundaries it fixes and the resources
+of [`COLLECTIVE-RESOURCES.md`](COLLECTIVE-RESOURCES.md) are assumed here.
+
+## Method and the rules that follow from it
+
+The design starts from §21's list of lifecycle moments and gives each one a surface. §8 fixes the
+style: **tables wherever a table works, property views only where it does not, and `list → select →
+properties → action` instead of wizard chains.** §23 fixes the ceiling: this is not a Kubernetes
+administration console, and the ordinary path stays `$ ymp` → a sentence → a verified result.
+
+Thirteen rules govern every surface below. The first three are the owner's hard rule of 2026-08-15,
+taken after the previous command-line release: *no confirmation dialogs, no identifiers typed by the
+operator, no acknowledgement steps, no setup wizard.*
+
+1. **Nothing is confirmed and no identifier is ever typed.** A run identifier, a candidate digest, a
+   participant identifier and a workspace hash are never operator input. Every act is taken on a
+   **selected row**, and the consequences of that act are stated in the row's properties *before* the
+   key is pressed — not in a modal after it. What replaces confirmation is that nothing is destroyed:
+   the journal, the candidates and the evidence of a cancelled, exported or archived run all stay
+   readable.
+2. **The operator's deliberate acts are two:** enable a provider, and type a goal. Everything else —
+   pause, cancel, clarify, inspect, export, continue, archive — is optional and is a keypress on a
+   row. There is no authorization step, no acceptance step and no setup step.
+3. **Tables first.** Providers, models, pools, agents, tasks, activity, candidates, budgets,
+   failures, engines and history are tables. Property views exist for one provider, one pool, one
+   participant, one candidate and one verification, because a single object's facts do not form
+   rows.
+4. **List → select → properties → action.** No surface asks a question whose answer is another
+   question.
+5. **No conversational setup wizard** (§6). The one thing the product ever asks to be configured is
+   *enable a provider*, and it asks by naming the command.
+6. Lead with product language: collective, participant, goal, task, activity, result, verification,
+   evidence, provider, model, pool, workspace, budget. Internal words appear only inside diagnostics,
+   and never alone.
+7. Nothing a participant published is actionable in one keypress (INV-4). Rule 1 makes the
+   operator's own acts single keypresses; a participant's suggestion is still not one of them, and
+   the two are never the same key.
+8. No ranking, scoring or grading anywhere; sorting uses raw mechanical fields (INV-1).
+9. Control, collaboration and verification planes stay visually distinct where they meet.
+10. Every view holds its own cursor and recovers from the journal; lag is a visible state (INV-6).
+11. A terminal state is named exactly; `exhausted` is never drawn as success (INV-7).
+12. Budget dimensions never trade against one another on screen (INV-2).
+13. Every action here exists as a command of the same executable (node `W1-APP-02n`) — and, under
+    rule 1, that command takes its subject from a selection or from the open run, never from a typed
+    identifier used as a confirmation.
+
+Two rules are inherited from accepted decisions and are load-bearing rather than stylistic. **All
+product state lives under `~/.ymp`** (node `W1-APP-02w.1`), so no surface writes into the project
+directory except export. And **the assurance profile never appears without its limit** — which is
+why it is absent from startup and present on the block that starts a run, on `/budget` and in `?`.
 
 ## Shape
 
 One scrolling conversation fills the screen, with an always-ready input line, a thin context header
 and a status line. Data lives on full-screen pages opened from the `/` command line and closed with
-`Esc`. Decisions arrive as modals and never look like pages. This is the composition already
-accepted in
-[`VISUAL_CONCEPT.md`](https://github.com/maggnus/ymp/blob/dfdac03dede6fa6d50298b07d6d1cd8c6d6687bf/ymp-docs/VISUAL_CONCEPT.md#L46-L64)
-and implemented in `ymp-tui`; the redesign changes what the surfaces contain, not the shape they
-take.
+`Esc`. There are no decision modals left to place: the two acts that carry weight — enabling a
+provider and stating a goal — happen where the operator already is. This is the accepted composition
+([`VISUAL_CONCEPT.md`](../VISUAL_CONCEPT.md)); the redesign changes what the surfaces contain, and
+the owner's ruling removes the modals it used to carry.
 
-    ┌ ymp · workspace ymp · run 0007 · running · $0.42 of $5.00 ─────────────┐
+    ┌ ymp · minesweeper · run 0001 · running · $0.42 of $5.00 ───────────────┐
     │                                                                       │
     │   the conversation: operator turns, ymp replies, run events,          │
     │   participant messages — each attributed and typed                    │
@@ -32,68 +75,82 @@ take.
     │ 3 participants · verifying cd-2 · /help                               │
     └───────────────────────────────────────────────────────────────────────┘
 
-Nine rules govern every surface below.
+## The command set
 
-1. Lead with product language: collective, participant, goal, task, activity, result, verification,
-   evidence, provider, model, workspace, budget. Internal words appear only inside advanced views,
-   and never alone — the plain fact stands beside them.
-2. Nothing a participant published is actionable in one keypress (INV-4).
-3. No ranking, scoring or grading anywhere; sorting uses raw mechanical fields (INV-1).
-4. Control, collaboration and verification planes stay visually distinct where they meet.
-5. Every view holds its own cursor and recovers from the journal; lag is a visible state (INV-6).
-6. A terminal state is named exactly; `exhausted` is never drawn as success (INV-7).
-7. Budget dimensions never trade against one another on screen (INV-2).
-8. The assurance profile never appears without its limit.
-9. Every action here exists as a command of the same executable (node `W1-APP-02n`).
+Brief §13 names the minimum. These are the commands, and every one has a command-line twin.
 
-## Surface map
+    /providers  /models  /pools  /agents  /tasks  /activity
+    /budget     /verify  /result /history /workspace  /help
 
-| Brief §6 item | Surface |
+`/engines` and `/diagnostics` exist and are not advertised in the short help: the first is the
+engine level beneath providers, the second is where the internal vocabulary lives.
+
+## Surface map, in lifecycle order
+
+| §21 lifecycle moment | Surface |
 |---|---|
 | startup | S01 |
 | first run | S02 |
-| provider discovery / auth | S03, S04 |
+| provider discovery | S03 |
+| provider enable / authentication | S04 |
+| model discovery | S05 (`r` refresh) |
 | model catalog | S05 |
-| — (policy, added) | S06 |
-| workspace selection | S07 |
-| task creation and clarification | S08, S09 |
-| — (authorization, added) | S10 |
+| automatic default pool | S35 list · S36 detail |
+| task creation | S08 |
+| ambiguity / clarification | S09 |
+| the run starts | S10 — a transcript block, not a gate |
 | collective startup | S11 |
-| live collective view | S12 |
-| `/agents` and participant details | S13, S14 |
-| task / obligation view | S15 |
-| communication / activity view | S16 |
-| candidate view | S17, S18 |
-| verification state | S19 |
-| failures | S20 |
-| pause | S21 |
-| resume | S22 |
-| cancellation | S23 |
-| intervention | S24 |
+| live collective | S12 |
+| `/agents` | S13 list · S14 detail |
+| task / activity | S15 tasks · S16 activity |
+| recruitment | S37 |
+| candidate | S17 list · S18 detail |
+| verification | S19 |
+| revision after failure | a state of S12 and S19, drawn as one |
 | result | S25 |
 | evidence | S26 |
 | export | S27 |
+| pause | S21 |
+| resume where supported | S22 |
+| cancellation | S23 |
+| intervention | S24 |
+| budget exhaustion | S30, and S25 in its `exhausted` form |
+| infrastructure failure | S20, and S25 in its `infrastructure error` form |
 | history | S28 |
 | archive | S29 |
-| provider / model configuration | S04, S05, S31 |
-| budgets | S30 |
-| runtime readiness | S31 |
 | recovery from invalid configuration | S32 |
-| — (help, added) | S33 |
-| — (diagnostics, added) | S34 |
+| — the workspace's standing ceiling (added) | S06, the first tab of `/budget` |
+| — workspace selection (added) | S07 |
+| — engine level (added) | S31 |
+| — help and keys (added) | S33 |
+| — diagnostics (added) | S34 |
+
+Thirty-seven surfaces. Three lifecycle moments are drawn as *states* of a surface rather than as
+their own screens — revision after failure, budget exhaustion and infrastructure failure — because
+each is a state the operator arrives in rather than a place they navigate to, and each is named
+exactly where it appears.
+
+**Four surfaces the previous revision had are gone, and their disappearance is the point.** The
+setup question that followed the first provider connection, the run-authorization screen with its
+typed identifier, the typed cancel confirmation and the continue confirmation are all removed by the
+owner's decisions D3, D4 and D10 and by the hard rule above. What each of them carried is kept: the
+disclosure consequence is stated on the provider properties view before `Enable`, what *done* means
+is stated in the transcript as the run starts, and the consequences of cancelling are stated on the
+run's own row.
 
 ---
 
-## S01 · Startup and readiness
+## S01 · Startup
 
-**Sees.** Four lines appended to an empty transcript as each fact is established, then the input
-line ready. Nothing blocks: probes run in the background and the operator may type immediately.
+The accepted start screen (node `W1-APP-02e.5`) and brief §5 agree, so the design conforms to both
+rather than inventing a third.
 
-    ymp 0.1.0 · state under ~/.ymp
-    workspace  ymp · /Users/…/Code/ymp · git clean · 1 812 files
-    providers  probing… (3 configured)
-    assurance  poc_process_isolation · attempts run as separate processes with your own
-               permissions; this is not hostile-code containment
+**Sees.** The logo, one line of basics, the invitation. Shown once, and never repeated on later
+turns.
+
+                       ymp
+             /Users/…/Code/minesweeper · 0.1.0
+
     > state what you want done
     ─────────────────────────────────────────────────────────────────
     /help for commands
@@ -102,245 +159,251 @@ line ready. Nothing blocks: probes run in the background and the operator may ty
 
 | Action | Effect |
 |---|---|
-| type a goal | Opens S08. The workspace is read locally at once, which costs nothing; deriving what *done* means draws on the derivation allowance and is stated as it happens. |
+| type a goal | Opens S08. |
 | `/providers` | Opens S03. |
 | `/workspace` | Opens S07. |
 | `/history` | Opens S28. |
 | `/help` | Opens S33. |
 
-**Notes.** The provider line resolves to `3 ready · 1 needs authentication` when probes return; if
-none is ready the surface becomes S02. The assurance line is a single unit of text and the profile
-name is never shown without its limit
-([`VISUAL_CONCEPT.md`](https://github.com/maggnus/ymp/blob/dfdac03dede6fa6d50298b07d6d1cd8c6d6687bf/ymp-docs/VISUAL_CONCEPT.md#L228-L246)).
+**Notes.** No provider count, no probe result, no assurance sentence and no store path: the header
+carries the workspace and the assurance glyph, and the full assurance text lives in `?` and on the
+surfaces where a run's spend is stated. **Nothing is probed at startup**, because a provider is not
+autodetected before it is enabled (§7): with nothing enabled, launching ymp opens no process and no
+network connection.
 
 ## S02 · First run
 
-The state where nothing is configured. It is the only moment the product asks the operator to
-set anything up, and it asks for exactly one thing.
+The state where no provider is enabled. It is the only moment the product asks for anything to be
+set up, and it asks for one thing by naming a command — not by starting a dialogue (§6).
 
-**Sees.** Two sentences of what ymp is, the detected providers with their state, and one next step.
+**Sees.**
 
     ymp runs a collective of agents against a goal you state, and returns a result an
-    independent check accepted. You do not write the check, pick the models, or build a team.
+    independent check accepted. you do not write the check, pick the models, or build a team.
 
-    to start, connect one provider:
-      anthropic   not configured   the Claude Code engine reaches it
-      openai      not configured   the Codex engine reaches it
-      nvidia      not configured   reached through Claude Code, Messages endpoint
-
-    > /providers
+    to start, enable one provider:  /providers
 
 **Actions.**
 
 | Action | Effect |
 |---|---|
 | `/providers` | Opens S03. |
-| type a goal anyway | Accepted and held. The workspace is read locally and the facts are shown; the derivation that needs a model does not run, because no provider is connected and nothing may leave the host. Authorization (S10) states that, and offers S03. Nothing is spent, nothing is disclosed, and nothing is lost. |
+| type a goal anyway | Accepted and held. The workspace is read locally and the facts are shown; deriving what *done* means needs a model, so it does not run and nothing leaves the host. The reply names `/providers` and nothing is lost. |
 
-**After the first provider connects**, this surface asks its one policy question and then never
-appears again for this workspace:
-
-    before ymp can turn a goal into checkable requirements it sends bounded excerpts of this
-    workspace to one provider. that happens before you authorize a run.
-      disclose to        anthropic          [change]
-      derivation budget  $0.10 per goal     [change]
-    [accept]  these stay visible under /policy and can be changed there.
-
-`accept` records the disclosure class and the derivation allowance for the workspace; `change`
-opens the corresponding row of S06. Declining is possible and honest: the product states that
-without a derivation allowance it can read the workspace but cannot derive what *done* means, and
-the operator would have to state the acceptance condition themselves — which is the one path the
-design otherwise removes.
-
-**Notes.** No contract, verifier, model or team is mentioned on this surface. An empty catalog is a
-state, not an error. This is the only setup question the product asks, and it exists because the
-alternative is disclosing without saying so.
+**Notes.** The technical sentence `no providers configured` never appears (§6). An empty catalog is
+a state, not an error, and `No AgentPool configured` is not a sentence this product can produce (§4).
 
 ## S03 · Providers
 
-**Sees.** One row per provider: name, state, what reaches it, how many models it serves, and the
-disclosure sentence.
+Table first, k9s style (§7). The **full supported list is always shown**, whether or not anything is
+configured, so the operator sees the whole space rather than the part they have touched.
 
-    providers ─ 4 · 2 ready ─────────────────────────────────────────────────
-    NAME        STATE                 REACHED BY          MODELS   LAST PROBE
-    anthropic   ready                 claude-code 2.1     4        12s ago
-    openai      ready                 codex 0.147         5        12s ago
-    nvidia      needs authentication  claude-code · Messages —      12s ago
-      ↳ fix: no credential found; connect to authenticate
-    local       unavailable           codex · Responses      —      12s ago
-      ↳ endpoint http://localhost:8000 did not answer
+**Sees.**
 
-    every provider is reached through an installed engine. enabling one permits repository
-    content to be sent to it, including during derivation, before a run is authorized.
-    Enter describe · c connect · e enable/disable · r re-probe · Esc back
+    providers ─ 5 supported · 2 ready ────────────────────────────────────────
+    PROVIDER    STATE      REACHED BY            MODELS   OBSERVED
+    anthropic   ready      claude-code 2.1.227   4        12s ago
+    openai      ready      codex 0.147.0         5        1h ago
+    nvidia      ready      claude-code · Messages 2       3m ago
+    google      disabled   —                     —        —
+    local       disabled   —                     —        —
+
+    enabling a provider permits repository content to be sent to it.
+    Enter properties · e enable/disable · r re-probe · Esc back
 
 **Actions.**
 
 | Action | Effect |
 |---|---|
 | `Enter` | Opens S04 for that provider. |
-| `c` connect | Where the engine owns the credential, launches that engine's own authentication in a child process and re-probes when it returns. Where the provider is reached by a route override on an engine, asks where the credential is read from and against which endpoint, records both — never the credential itself — and runs the pairing's conformance probe before the entries become admissible. |
-| `e` enable / disable | Flips the enabled flag on the provider's catalog records. A disabled provider's entries leave every pool; running participants are unaffected, and the surface says so. |
-| `r` re-probe | Re-runs the probe. Measured properties and model lists are replaced by what the probe returned. |
-| `Esc` | Returns to the conversation. |
+| `e` | Enables or disables. **Enabling is what triggers autodetect**; a disabled provider is never probed. Disabling removes its entries from later pools and leaves running participants alone, and the row says so. |
+| `r` | Re-probes an enabled provider and replaces its measured properties and model list with what the probe returned. |
+| `Esc` | Back. |
 
-**Notes.** Disclosure is stated here because host allowlisting is not a confidentiality control
-([`ARCHITECTURE.md`](https://github.com/maggnus/ymp/blob/dfdac03dede6fa6d50298b07d6d1cd8c6d6687bf/ymp-docs/ARCHITECTURE.md#L562-L568)).
+**Notes.** `STATE` is one of `disabled`, `not configured`, `needs authentication`, `ready`,
+`unavailable`. The build accepted as P1 writes three of them and does not write `needs
+authentication`, because nothing in it authenticates against a provider; the surface therefore does
+not claim a state no measurement produced. `OBSERVED` is the age of the observation, which the
+accepted build does not yet record — migration unit P2 owes it, and until then the column reads
+`—` rather than `just now`.
 
-## S04 · Provider detail and connection
+## S04 · Provider properties
 
-**Sees.** Grouped facts rather than a table: identity, authentication, models served, disclosure
-class, and the last probe with its exact result.
+The one place a property view beats a table: a single account's facts.
+
+**Sees.**
 
     providers › anthropic ────────────────────────────────────────────────────
-    identity        anthropic · reached by engine claude-code
-    engine          /usr/local/bin/claude · 2.1.227 · sha256:4c1e…
-    credential      read from the engine's own store; ymp holds no copy
-    models          claude-opus-5, claude-sonnet-5, claude-haiku-4-5, …
-    disclosure      repository content sent to anthropic
-    conformance     tool calls ✓ · streaming ✓ · cancellation ✓ · usage ✓
-    last probe      12s ago · ready
+    state        ready
+    reached by   engine claude-code · /usr/local/bin/claude · 2.1.227 · sha256:4c1e…
+    credential   read from the engine's own store; ymp holds no copy
+    models       4                                        (Enter opens /models)
+    disclosure   repository content is sent to anthropic
+    conformance  own vendor account · no separate pairing probe required
+    observed     12s ago, from build 2.1.227
 
-**Actions.** `c` connect (as S03), `e` enable/disable, `r` re-probe, `Esc` back. Connect on a ready
-provider re-authenticates rather than duplicating a credential.
+    Enter models · c connect · e disable · r re-probe · Esc back
+
+**Actions.** `c` connect launches the engine's own authentication in a child process where the
+engine owns the credential, or records where the credential is read from and against which endpoint
+where the provider is reached by a route override — never copying a credential into ymp. `e`
+disables. `r` re-probes. `Enter` opens S05 filtered to this provider.
 
 **Notes.** A pairing that has not passed its conformance probes is shown with the failing capability
-named and is not admissible to a pool
-([`ARCHITECTURE.md`](https://github.com/maggnus/ymp/blob/dfdac03dede6fa6d50298b07d6d1cd8c6d6687bf/ymp-docs/ARCHITECTURE.md#L494-L500)).
+named and is not admissible to a pool. In this build every provider is an engine reaching its own
+vendor, so no entry claims a conformance result it does not have.
+
+**Enabling is the disclosure consent, and the consequence is stated above the action.** Decision D4
+places the consent here and nowhere else: there is no per-workspace question and no per-run
+acknowledgement. A provider that is not yet enabled shows the sentence in the same properties view
+that carries the `e` key, so the operator reads it before pressing and not after:
+
+    providers › nvidia ───────────────────────────────────────────────────────
+    state        disabled
+    reached by   engine claude-code · Messages endpoint · pairing probed separately
+    disclosure   enabling sends repository content from any workspace to nvidia,
+                 including the bounded excerpts ymp uses to work out what "done"
+                 means before a run starts
+    e enable · Esc back
+
+Pressing `e` enables the provider, records the disclosure class and starts the autodetect. Nothing
+is confirmed and nothing is acknowledged: the sentence above the key **is** the disclosure notice,
+which is what D4 decided and what rule 1 requires. A workspace may later exclude a provider as an
+explicit policy on S06, but it is never asked to.
 
 ## S05 · Model catalog
 
-**Sees.** Every catalog entry — a provider · engine · model triple — with its measured properties.
-This is the level that answers "what could be used", never "what is running".
+The level that answers "what could be used", never "what is running".
 
-    models ─ 11 entries · 9 admissible ───────────────────────────────────────
+**Sees.**
+
+    models ─ 11 entries · 6 admissible ───────────────────────────────────────
     PROVIDER   ENGINE       MODEL              STATE        LABELS
     anthropic  claude-code  claude-opus-5      admissible   reasoning
+    anthropic  claude-code  claude-sonnet-5    admissible   reasoning
     anthropic  claude-code  claude-haiku-4-5   admissible   fast, cheap
-    openai     codex        gpt-5.6-sol        admissible   reasoning
-    nvidia     claude-code  nemotron-…         unavailable  reasoning
-      ↳ provider needs authentication · route: Messages endpoint, pairing probed separately
+    nvidia     claude-code  nemotron-…         admissible   reasoning
+    openai     codex        gpt-5.6-sol        not offered  reasoning
+      ↳ engine codex is disabled — usage limit until 2026-09-12
 
     nothing here is an agent. a participant exists only when one is recruited and paid for.
-    Enter describe · p add/remove from pool · Esc back
+    Enter properties · p add to a pool · r refresh · Esc back
 
 **Actions.**
 
 | Action | Effect |
 |---|---|
-| `Enter` | Describes the entry: engine version and digest, wire protocol, account scope, disclosure class, conformance results, and which runs used it. |
-| `p` | Adds or removes the entry from the workspace's default pool (S06). Removing an entry a running participant occupies does not stop it; the change applies to pools frozen after it. |
-| `Esc` | Back. |
+| `Enter` | Properties of the entry: engine version and digest, wire protocol, account scope, disclosure class, conformance result, and which runs used it. |
+| `p` | Adds the entry to a pool, or removes it. Removing an entry a running participant occupies does not stop it; the change reaches pools frozen after it. |
+| `r` | Re-measures the model list of the entry's engine. |
 
-**Notes.** The line about agents is permanent, not a hint: it is criterion 17.3 said on the surface
-where it would otherwise be misread. Labels are resource groupings a participant may read; they are
-never a role and never an input to a kernel decision.
+**Notes.** The line about agents is permanent rather than a hint: it is the sentence §1 spends a page
+on, said where it would otherwise be misread. Labels are resource groupings a participant may read;
+they are never a role, and no code path turns a label into a selection (§16). An entry that is not
+offered is present and carries its measured reason — a catalog that hid it would answer "why is this
+model not available" with silence.
 
-## S06 · Permitted pool and policy
+## S06 · The workspace's standing ceiling
 
-**Sees.** The boundaries a run would start with, all with their defaults visible and their source
-named.
+The first tab of `/budget`. Decision D3 makes this the human-approved bound: a goal starts
+immediately and spends inside it, and the operator is never asked to authorize a run. Decision D8
+sets the placeholder values, so the surface is never a prerequisite — it is where an operator who
+wants a different bound goes to set one.
 
-    policy · workspace ymp ───────────────────────────────────────────────────
-    pool                9 entries · every enabled, ready, conformant entry
-    derivation budget   $0.10 per goal · spent before authorization    set at first run
-    derivation provider anthropic · claude-code · claude-haiku-4-5     set at first run
-    spend ceiling       $5.00                                      default
-    wall clock          2h                                          default
-    participants        up to 6                                     default
-    concurrent attempts up to 3                                     default
-    verification        4 queries                                   default
-    questions           up to 3                                     default
-    disclosure          anthropic, openai                        from providers
-    external actions    none                                        default
-    assurance           poc_process_isolation · no hostile-code containment
+**Sees.**
 
-**Actions.**
+    budget · workspace minesweeper ── standing ceiling │ run 0001 ────────────
+    FIELD                 VALUE                                    SOURCE
+    spend ceiling         $5.00                                    default (D8)
+    wall clock            2h                                       default
+    participants          up to 6                                  pool capacity
+    concurrent attempts   up to 3                                  pool capacity
+    verification queries  4                                        default
+    questions             up to 3                                  default
+    derivation allowance  $0.10 per goal                           default
+    pool                  default · 6 admissible entries           automatic
+    disclosure            anthropic, openai, nvidia                from enabled providers
+    external actions      none                                     default
+    assurance             poc_process_isolation · not hostile-code containment
+    spent so far          $2.18 of $5.00 · headroom for the next goal
 
-| Action | Effect |
-|---|---|
-| `Enter` on a row | Edits that boundary. A narrower value is applied immediately to the workspace default; a wider one states what it permits before it applies. |
-| `p` | Opens S05 to change pool membership. |
-| `Esc` | Back. |
+**Actions.** `Enter` edits a row in place — a narrowing applies at once, a widening states what it
+permits on the row itself; `Tab` switches to the live run's dimensions (S30); `p` opens S35;
+`Esc` back.
 
-**Notes.** The two derivation rows are the exception to the sentence below: they are set once at
-first run (S02) rather than defaulted silently, because they govern spend and disclosure that
-happen *before* an authorization exists. Everything else on this surface has a default.
+**Notes.** Editing a row is not a confirmation and asks for nothing: the new value is typed into the
+row and takes effect, and the previous value stays in the transcript. This surface contains no field
+that says which model suits which task, and none may be added: that sentence has no representation
+in the kernel.
 
-This surface is otherwise never a prerequisite: every field has a default and a run may be
-authorized without opening it. The policy declares *what may be used and how much*; it contains no
-field that says which model suits which task, and none may be added — that sentence has no
-representation in the kernel and criterion 17.7 depends on it.
+The standing ceiling is the reason there is no authorization screen. It bounds *how much*; the goal
+sentence itself states *what*. Both are the operator's own acts, and the constitutional requirement
+that a human approves the definition of done is met by the pair rather than by a modal
+([`COLLECTIVE-DESIGN.md`](COLLECTIVE-DESIGN.md) item 2).
 
-## S07 · Workspace selection
+## S07 · Workspace
 
-**Sees.** The project the goal is about, identified from the launch directory, with the other
-projects the product root already knows.
+**Sees.**
 
-    workspace ─ current: ymp ────────────────────────────────────────────────
-    NAME     PATH                          RUNS   LAST RUN
-    ymp      /Users/…/Code/ymp             7      12m ago · accepted
-    parser   /Users/…/Code/parser          2      3d ago · exhausted
+    workspace ─ current: minesweeper ─────────────────────────────────────────
+    NAME          PATH                              TASKS   LAST RESULT
+    minesweeper   /Users/…/Code/minesweeper         1       —
+    ymp           /Users/…/Code/ymp                 7       12m ago · verified
 
-**Actions.** `Enter` switches the workspace for this session and re-reads its runs and policy;
-`Esc` back. Switching never moves, copies or writes anything in either project directory.
+**Actions.** `Enter` switches the workspace for this session and re-reads its tasks and boundaries;
+`Esc` back. Switching writes nothing in either project directory.
 
-**Notes.** *Workspace* is the project, per brief §13. The private writable copy of one attempt is
-the *attempt sandbox* and appears only in S34.
+## S08 · Task creation
 
-## S08 · Goal entry
+**Sees.** Two visibly different stages: the local reading, which is free, and the derivation, which
+draws on the derivation allowance and names the provider it discloses to. The run's own budget is
+untouched throughout.
 
-**Sees.** The input line, then two visibly different stages: the local reading, which is free, and
-the derivation, which spends the workspace's derivation allowance and names the provider it
-discloses to while it does. The run's own budget is untouched throughout.
+    > Создай браузерную игру сапер
 
-    > Implement feature X in this repository.
-
-    ymp  reading the workspace… 1 812 files · rust · cargo · 214 tests
+    ymp  reading the workspace… 3 files · empty project · no tests · git clean
          (local · nothing left this host)
 
-         deriving what "done" means… sending bounded excerpts to anthropic
-         $0.03 of the $0.10 derivation budget
+         working out what "done" means… sending bounded excerpts to anthropic
+         $0.02 of the $0.10 derivation allowance
 
          the goal, as I read it:
-           add feature X so that <observable statement> …
-         checkable from the repository: the existing test suite, the build, the public API
-         one thing I could not settle — see below
+           a minesweeper game that runs in a browser, playable from a single page
+         checkable: the page loads, a grid renders, a first click never loses,
+                    flags toggle, a cleared board reports a win
+         one part is not mechanically checkable and stays yours to judge: "looks good"
+
+    Task created · Collective starting…
 
 **Actions.**
 
 | Action | Effect |
 |---|---|
-| type another line | Amends the goal and re-derives, drawing on the same derivation budget; the remaining amount is restated. The previous derivation is discarded. The run's budget is still untouched. |
-| `/authorize` or `Enter` on the authorization prompt | Opens S10. |
-| `/policy` | Opens S06 to narrow boundaries, or to change the derivation budget and its provider, before authorizing. |
-| `Esc` | Discards the derivation. The typed goal stays in the transcript. What derivation already spent is not returned, and the surface says so rather than implying a free retry. |
+| nothing | The run starts. There is no authorization step: the standing ceiling (S06) is the approved bound and the goal sentence is the statement of what is wanted (decision D3). S10 states what was created. |
+| type another line | Before the run starts, amends the goal and re-derives from the same allowance. After it starts, the line is a message to the collective (S24) and the surface says which of the two it is. |
+| `/budget` | Opens S06 to change the standing ceiling. |
+| `/cancel` | Ends the run from its row (S23). |
 
-**Notes.** The two stages are drawn apart because they differ in what they cost and what they
-disclose, and an operator who reads only one line should read the true one. A derivation budget
-that runs out stops the derivation with what it has and states it here and on S10; it never
-produces a thinner plan silently.
-
-The operator is never asked here for a verifier, a negative control, a source path, a
-task breakdown, a team or a model. The advanced amendment grammar that exists today
-([`draft.rs`](https://github.com/maggnus/ymp/blob/dfdac03dede6fa6d50298b07d6d1cd8c6d6687bf/ymp-rust/crates/ymp-tui/src/draft.rs#L67-L88))
-survives as an override for an operator who wants one, and is never required, offered or implied.
+**Notes.** The operator is never asked here for a verifier, a negative control, a task breakdown, a
+team, a model or a pool. The advanced amendment grammar survives as an override for an operator who
+wants one and is never required, offered or implied. The goal is carried in the operator's own words
+and is never translated or rewritten.
 
 ## S09 · Clarification
 
-The only interruption before authorization, and only for an assumption that materially changes the
-result and cannot be settled from the request, the repository, the documentation, the visible
-checks, the policy or discovery.
+The only thing the product ever asks the operator, and only for an assumption that materially
+changes the result and cannot be settled from the request, the repository, the documentation, the
+visible checks, the policy or discovery (§10). Decision D6 fixes the shape: assume wherever an
+assumption is safe, ask only about genuine intent ambiguity, at most three questions per run.
 
-**Sees.** One question, why it matters, and concrete options where the derivation found them.
+**Sees.**
 
-    ymp  one thing changes what "done" means and I cannot settle it from the repository:
+    ymp  one thing changes what "done" means and I cannot settle it from the project:
 
-         should the token endpoint use Authorization Code or Client Credentials?
-         both appear in the codebase; the tests cover neither path end to end.
+         should a first click be guaranteed safe, as in the classic game?
 
-         [1] Authorization Code — user-facing flow; the redirect handler is added
-         [2] Client Credentials — service-to-service; no redirect handler
+         [1] yes — the first click never uncovers a mine; the board is generated after it
+         [2] no  — the board is fixed before the first click
          [3] tell me in your own words
 
          questions used: 1 of 3
@@ -349,356 +412,361 @@ checks, the policy or discovery.
 
 | Action | Effect |
 |---|---|
-| choose an option or type an answer | Recorded as provenance class E, folded into the requirements, and the derivation reruns. The run is **not** marked intervened. |
-| `/skip` | ymp proceeds under the assumption it states, records it as class C, and shows it at authorization and in the result checklist. |
-| `Esc` | Leaves the question open. Authorization is blocked while a material question is unanswered, and the surface says which one. |
+| choose a numbered option, or type an answer in prose | Recorded as provenance class E, folded into the requirements, derivation reruns and the run starts. The run is **not** marked intervened. |
+| `/skip` | ymp proceeds under the assumption it states, records it as class C, and shows it on S10 and in the result. |
+| leave it | The run does not start while a material question is unanswered, and the line says which one it is waiting for. An unattended run that is never answered ends `NEEDS CLARIFICATION` (decision D6) with the question published; answering it later and pressing `Continue` resumes from there. |
 
-**Notes.** The question is never "please create an acceptance oracle / verifier / contract"; brief
-§1 names that as the inappropriate shape and no code path may produce it. Questions are bounded by
-the `ClarificationRequests` dimension, so asking more is not a way to avoid deciding.
+**Notes.** The question is never "create an acceptance oracle, verifier or contract"; §10 names that
+shape as the one that must not be asked, and no code path may produce it. The numbered options are a
+selection, not an identifier: choosing `[1]` is one keypress and nothing is typed back to the
+product. Questions are bounded by a budget dimension, so asking more is not a way to avoid deciding.
 
 **The mid-run form.** The same surface appears during a run when a participant meets a material
-ambiguity and spends a clarification unit. It differs in one stated way: the answer reaches the
-collective as attributed collaboration data and does not change what the candidate is judged
-against, because the run is bound to one contract. A solicited answer does not mark the run
-intervened and is recorded as solicited.
+ambiguity and spends a clarification unit. The answer reaches the collective as attributed
+collaboration data and does not change what the candidate is judged against, because a run is bound
+to one contract.
 
-**The divergence state.** When the classifier of
-[`COLLECTIVE-DESIGN.md`](COLLECTIVE-DESIGN.md) item 16 reads a mid-run answer as contradicting a
-recorded requirement — or cannot classify it, which is treated the same way — this surface returns
-with the divergence rather than letting the run continue quietly.
+**The divergence state.** When a mid-run answer contradicts a recorded requirement — or cannot be
+classified, which is treated the same way — this surface returns with the divergence instead of
+letting the run continue quietly.
 
     your answer changes something this run is already being judged against
 
-      R2 (from your goal)  the token endpoint uses Authorization Code
-      your answer          it must be Client Credentials
+      R2 (from your goal)  a first click never uncovers a mine
+      your answer          the board is fixed before the first click
 
-    this run is judged against R2. until you choose, no verification query is spent.
+    until you choose, no verification query is spent.
 
-    [1] it does not change what "done" means — continue this run, answer stays advisory
+    [1] it does not change what "done" means — continue, the answer stays advisory
     [2] it does change what "done" means — end this run and continue with the amended goal
 
-**Actions in that state.**
+Choosing `[2]` records `cancelled`, which is the honest terminal for an operator's decision, and
+`Continue` opens a new run against the amended goal with this run's candidates, journal and findings
+still readable. Leaving it unanswered holds the acceptance path: the run keeps working and no
+verification query may be spent against the diverged requirement set.
 
-| Action | Effect |
-|---|---|
-| `[1]` | The answer stays inert collaboration data, the run continues, the acceptance path is released, and the operator's judgement is recorded beside the divergence fact. |
-| `[2]` | The run stops and records `cancelled`, which is the honest terminal for an operator decision. `Continue` opens a new run against the amended goal, with the candidates, journal and findings of this one still readable and available as a base. |
-| leave it | The run continues working, but no verification query may be spent against the diverged requirement set, and the status line states which choice it is waiting for. |
+## S10 · The run starts
 
-**Notes.** The hold on the acceptance path is the mechanism, not the wording: a run cannot reach
-`accepted` against a definition the operator has contradicted, because it cannot spend the query
-that would produce the verdict until the contradiction is resolved. An unclassifiable answer is
-treated as divergent, so the classifier fails towards asking (item 22, tests 27 and 28).
+Not a gate. Decision D3 removed the authorization screen: the goal sentence states *what*, the
+standing ceiling (S06) bounds *how much*, and the run starts on the sentence. What the screen used
+to ask for is now stated — in the transcript, as information the operator reads while the collective
+is already working.
 
-## S10 · Run authorization
+**Sees.** One block appended to the conversation, immediately after the derivation lines of S08.
 
-The single confirmation that stands between a goal and the **run's** budget. It is a spend
-decision, not a review of an oracle. It is not the first money the product ever spends — deriving
-what *done* means came first, from a separate allowance — and the `already` row states that rather
-than letting the screen imply otherwise.
-
-**Sees.**
-
-    authorize run ────────────────────────────────────────────────────────────
-    goal        add feature X so that <observable statement>
-    done means  6 observable requirements
-                  4 from your goal, 2 from the repository, 1 assumption
-                1 part of the goal is not mechanically checkable and is named as yours
-    already     deriving this cost $0.03 and sent bounded excerpts to anthropic
-    spend       up to $5.00 · 2h · 6 participants · 4 verification queries
-    models      9 entries across anthropic, openai
-    disclosure  repository content will be sent to anthropic, openai
-    assurance   poc_process_isolation · no hostile-code containment
-    run         0007 in workspace ymp
-
-    type the run id to authorize:  ▁▁▁▁
-    Enter what "done" means · p boundaries · d diagnostics · Esc discard
+    ymp  run 0001 · started
+         done means   5 observable requirements · 3 from your goal, 1 from the project,
+                      1 assumption · 1 part is not mechanically checkable and stays yours
+         spends from  your standing ceiling · $2.82 of $5.00 left · 2h · 6 participants
+                      4 verification queries
+         pool         default · 6 entries · frozen sha256:2b91…
+         disclosure   repository content goes to anthropic, nvidia
+         assurance    poc_process_isolation · not hostile-code containment
+         derivation   working out what "done" means cost $0.02
 
 **Actions.**
 
 | Action | Effect |
 |---|---|
-| type the run id, confirm | Stores the internal contract, creates the run bound to it, commits the pool-freeze fact — every permitted entry with its identity, disclosure class, assurance profile and measured readiness, plus the entry the run will ignite on — and hands control to bootstrap (S11). This is the first irreversible act and the first charge against the run's own budget. |
-| `Enter` on "done means" | Expands the requirements in plain sentences with their provenance marks. Reading is optional; nothing here is an item to approve. |
-| `p` | Opens S06. Returning re-derives against the narrowed boundaries and restates this surface. |
+| `Enter` on *done means* | Expands the requirements as plain sentences with their provenance marks. Reading is optional and changes nothing; there is no item to approve. |
 | `d` | Opens S34, where the requirement-to-evidence coverage map, the generated checks and their digests are available in full. |
-| `Esc` | Discards. No contract was stored and the run's budget was never touched. What derivation already spent and disclosed stands, and the `already` row is what said so before the decision. |
+| `/budget` | Opens S06. A ceiling narrowed now applies to this run from the moment it is narrowed. |
+| `/cancel` | Ends the run (S23). This is what replaces "discard": the run exists, and ending it is an ordinary act on its row. |
 
-**Notes.** The typed-identifier ceremony applies to the first authorization in a workspace; an
-unchanged re-authorization is one confirmation, as already accepted in node `W1-APP-02v`. Blocking
-conditions are ymp's own limits, never requests for authorship: an unanswered material question, a
-derived plan that failed its negative control, no ready provider. Each states what the operator can
-do — answer, narrow the goal, connect a provider — and none asks for a check.
+**Notes.** Three refusals still stop a run from starting, and every one of them is ymp's own limit
+rather than a request for authorship: an unanswered material question (S09), a derived plan that
+failed its negative control, and an empty pool. Each states what the operator can do — answer, state
+a narrower goal, enable a provider — and none asks for a check, a model or a confirmation. **A
+refusal never names a runtime profile**, because which engine runs the work is not the operator's
+decision.
+
+The one thing this block must never become is a screen that waits. It is appended and the collective
+starts; an operator who reads none of it loses nothing except knowledge.
 
 ## S11 · Collective startup
 
-**Sees.** Four lines in the transcript, one per bootstrap step, so the operator sees a collective
-being created rather than a spinner.
+**Sees.** Four lines in the transcript, so the operator watches a collective being created rather
+than a spinner.
 
-    run 0007 started · $0.00 of $5.00
+    run 0001 started · $0.00 of $5.00
+    pool frozen · 6 entries · sha256:2b91…
     participant A · anthropic · claude-code · claude-opus-5 · started
-      the first participant is created by ymp; further participants are recruited by the
-      collective itself
+      the first participant is created by ymp from the pool's declared order;
+      every further participant is recruited by the collective itself
     A is reading the workspace
 
-**Actions.** None required. `/agents`, `/activity`, `/budget` and `/tasks` are available; `Esc`
-keeps the conversation.
+**Actions.** None required. `/agents`, `/activity`, `/tasks` and `/budget` are available.
 
-**Notes.** Exactly one participant is created here. The catalog entry is the first ready entry of
-the frozen pool in declared order — a mechanical rule that reads no property of the goal
+**Notes.** Exactly one participant is created here. The entry is the first entry of the frozen pool,
+in declared order, that admission found live — a mechanical rule that reads no property of the goal
 ([`COLLECTIVE-DESIGN.md`](COLLECTIVE-DESIGN.md) item 8).
 
-## S12 · Live collective view
+## S12 · Live collective
 
-The main surface for the duration of a run. Reading a conversation is an activity; reading an event
-table is not.
+The main surface for the duration of a run.
 
 **Sees.** One transcript carrying four kinds of entry, each distinguishable at a glance: operator
 turns, ymp replies, run events, and participant messages attributed by author and typed by kind.
-The header carries workspace, run, state and spend; the status line carries participant count and
-what verification is doing.
 
-    14:02  A  observation   the parser has no fixture for the redirect path
+    14:02  A  observation   an empty project; nothing to build on
     14:03  ⚙  recruitment   A requested a participant · admitted · B started
                             anthropic · claude-code · claude-sonnet-5
-    14:06  B  challenge     the fixture exists under tests/legacy; A's claim is stale
-    14:07  A  confirmation  agreed — taking the legacy path
+    14:06  B  challenge     a first-click guarantee needs the board generated after the click
+    14:07  A  confirmation  agreed — generating after the first reveal
     14:11  ⚙  candidate     cd-1 submitted by A
     14:12  ⚙  verification  cd-1 · query 1 of 4 · running
 
-**Actions.**
-
-| Action | Effect |
-|---|---|
-| scroll | Pauses following. The run continues; the header states that drawing is paused. |
-| `End` | Resumes following. |
-| `/agents` `/tasks` `/activity` `/candidates` `/verify` `/budget` | Open S13, S15, S16, S17, S19, S30. |
-| type a message | Opens S24, which states the intervention consequence before sending. |
-| `/pause` `/cancel` | Open S21, S23. |
+**Actions.** scroll pauses following and the header says so; `End` resumes; `/agents` `/tasks`
+`/activity` `/verify` `/budget` open their pages; typing a message opens S24; `/pause` and `/cancel`
+open S21 and S23.
 
 **Notes.** A participant's message is inert: it can be read, cited and inspected, and nothing in it
-can be executed with one key (INV-4). No entry is ranked, scored or highlighted as more important.
+executes with one key. No entry is ranked, scored or highlighted as more important.
+
+**Revision after failure** is a state of this surface and not a separate screen: a failed verdict
+appears as an event, the run keeps running, and the next line is the collective reacting.
+
+    14:31  ⚙  verification  cd-1 · failed · 2 of 5 requirements not observed
+                            the run is not over — the collective has the same diagnostic
+    14:33  B  decision      taking the flag toggle; A revises the first-click generator
 
 ## S13 · Agents
 
-**Sees.** Who is working and on what, active and finished, with mechanical columns only.
+**Sees.** Who is working and on what, with mechanical columns only.
 
     agents ─ 3 active · 1 finished ───────────────────────────────────────────
-    ID  STATE      ENTRY                                TASK            SPENT
-    A   working    anthropic·claude-code·opus-5         root goal       $0.31
-    B   working    anthropic·claude-code·sonnet-5       t-2 parser      $0.09
-    C   yielded    openai·codex·gpt-5.6-sol             t-3 review      $0.04
+    ID  STATE      ENTRY                                 TASK          SPENT
+    A   working    anthropic·claude-code·opus-5          root goal     $0.31
+    B   working    anthropic·claude-code·sonnet-5        t-2 flags     $0.09
+    C   yielded    nvidia·claude-code·nemotron-…         t-3 review    $0.04
       ↳ waiting for the verification result of cd-1
-    D   returned   openai·codex·gpt-5.6-sol             t-1 survey      $0.07
+    D   returned   anthropic·claude-code·haiku-4-5       t-1 survey    $0.07
 
-**Actions.** `Enter` opens S14; `Tab` switches active/finished; `Esc` back.
+**Actions.** `Enter` opens S14; `Tab` switches active and finished; `Esc` back.
 
 **Notes.** There is no action here that assigns work, changes a model, promotes, ranks or stops one
-participant. The operator's authority over the collective is the run, not its members: brief §10
-makes the operator the principal, not the team manager. Sorting is by identifier or by a raw
-mechanical column only (INV-1).
+participant. The operator is the principal and not the team manager (§13), and the TUI is not a
+per-agent control panel. Sorting is by identifier or by a raw mechanical column (INV-1).
 
-## S14 · Participant detail
+## S14 · Participant properties
 
-**Sees.** Grouped facts: identity and entry; who recruited it and for what; lifecycle; budget by
-dimension with what remains; the work it holds and returned; what it published; what it submitted;
-what it requested from verification; whom it recruited; and its failures, yields and cancellations.
+**Sees.** Exactly what §14 lists, and nothing more.
 
-    agents › B ──────────────────────────────────────────────────────────────
+    agents › B ───────────────────────────────────────────────────────────────
+    identity     B · principal pr-b
     entry        anthropic · claude-code · claude-sonnet-5
     recruited    by A at 14:03 · admitted: entry in pool, 4 participant starts left
     state        working · attempt 2 · slice 3 of 8
     budget       $0.41 left · 38 min left · 1 attempt start · 5 slices
-    holds        t-2 parser · taken 14:04 · not returned
+    holds        t-2 flag toggle · taken 14:04 · not returned
     published    3 observations · 1 challenge
     submitted    cd-1 at 14:11
     verification requested cd-1 · failed · diagnostic below
     recruited    nobody
+    failures     none · yields 1 · cancellations none
 
-**Actions.** `Enter` on a row opens the corresponding surface (task → S15, message → S16,
-candidate → S18, verification → S19); `d` opens S34 for the internal record; `Esc` back.
+**Actions.** `Enter` on a row opens the corresponding surface; `d` opens S34 for the internal record;
+`Esc` back.
 
 **Notes.** No private chain-of-thought is shown, requested or stored — only published summaries and
-externally visible actions
-([`CONCEPT.md`](https://github.com/maggnus/ymp/blob/dfdac03dede6fa6d50298b07d6d1cd8c6d6687bf/ymp-docs/CONCEPT.md#L74-L78)).
+externally visible actions (§14). Collaboration messages are untrusted collaboration data and the
+existing observation policy holds.
 
 ## S15 · Tasks
 
-**Sees.** The work the collective created, with recorded parentage expressed as indentation.
+**Sees.** The work the collective created.
 
-    tasks ─ 4 · 1 open ──────────────────────────────────────────────────────
+    tasks ─ 4 · 2 open ───────────────────────────────────────────────────────
     ID    WORK                        SPONSOR  HOLDER  STATE
-    root  add feature X               ymp      A       open
-      t-1 survey the parser paths     A        D       returned · result
-      t-2 implement the redirect      A        B       open
+    root  browser minesweeper         ymp      A       open
+      t-1 survey the browser target   A        D       returned · result
+      t-2 flag toggle                 A        B       open
       t-3 review cd-1                 A        C       open
 
-**Actions.** `Enter` describes a task — what it asks for, the base it works from, what funds it,
-what it depends on, and its return; `d` shows the internal obligation and escrow rows; `Esc` back.
+**Actions.** `Enter` describes a task — what it asks for, its base, what funds it, what it depends on
+and its return; `d` shows the obligation and escrow rows; `Esc` back.
 
-**Notes.** Indentation is recorded parentage, never priority or importance. The words *obligation*
-and *escrow* appear only under `d`.
+**Notes.** Indentation is recorded parentage, never priority. The words *obligation* and *escrow*
+appear only under `d`.
 
 ## S16 · Activity
 
 The collaboration plane, labelled untrusted wherever it is drawn.
 
-**Sees.** Attributed messages with kind, audience, evidence references and time. Kinds are the
-accepted set: proposal, question, hypothesis, observation, constraint, dead end, challenge,
-confirmation, decision, help request.
+**Sees.**
 
-    activity ─ 27 messages · untrusted collaboration data ────────────────────
+    activity ─ 27 messages · untrusted collaboration data ─────────────────────
     TIME   FROM  KIND          AUDIENCE   SUMMARY
-    14:06  B     challenge     t-2        the fixture exists under tests/legacy
-    14:07  A     confirmation  t-2        agreed — taking the legacy path
+    14:06  B     challenge     t-2        a first-click guarantee needs late generation
+    14:07  A     confirmation  t-2        agreed — generating after the first reveal
     14:09  C     question      cd-1 rev   which requirement does the new branch serve?
 
-**Actions.** `Enter` opens the full message with its references and delivery receipts; `f` filters
-by author, kind or task; `Esc` back.
+**Actions.** `Enter` opens the full message with its references and delivery receipts; `f` filters by
+author, kind or task; `Esc` back.
 
 **Notes.** A delivery receipt proves that bytes were made available, not that a model read or
-believed them, and the surface says so where receipts are shown. No message is a button: acting on
-a suggestion is a separate operator command under the operator's own authority.
+believed them, and the surface says so. No message is a button.
+
+## S37 · Recruitment
+
+§21 asks for recruitment to be visible as its own moment, and it is: the point where a semantic
+decision by the collective meets a mechanical check by the kernel.
+
+**Sees.**
+
+    recruitment ─ 3 requests · 2 admitted ────────────────────────────────────
+    TIME   BY  ENTRY                              DECISION   MECHANICAL REASON
+    14:03  A   anthropic·claude-code·sonnet-5     admitted   in pool · 5 starts left
+    14:18  B   openai·codex·gpt-5.6-sol           refused    entry not in the frozen pool
+    14:22  A   nvidia·claude-code·nemotron-…      admitted   in pool · 4 starts left
+
+**Actions.** `Enter` shows the request in full: the entry, the requester's own funded proposal
+allowance, the checks the kernel performed and the fact it committed; `Esc` back.
+
+**Notes.** The `MECHANICAL REASON` column is the guarantee made visible: every entry in it is a
+containment, a count or an availability fact. There is no column for why this model and not another,
+because the kernel does not have that reason — the collective does, and it publishes it on S16 as an
+ordinary message.
 
 ## S17 · Candidates
 
-**Sees.** Every immutable candidate the run produced, with its ancestry and verification state.
+**Sees.**
 
-    candidates ─ 2 ──────────────────────────────────────────────────────────
+    candidates ─ 2 ───────────────────────────────────────────────────────────
     ID    FROM  BASE   DIGEST         VERIFICATION
-    cd-1  A     S0     sha256:1a4f…   failed · 14:12
-    cd-2  B     cd-1   sha256:9f2c…   passed · 14:31
+    cd-1  A     S0     sha256:1a4f…   failed · 14:31
+    cd-2  B     cd-1   sha256:9f2c…   passed · 14:52
 
 **Actions.** `Enter` opens S18; `Esc` back.
 
-**Notes.** No candidate is presented as ready to apply to the working tree, and no candidate is
-ranked or recommended. Where several pass, the accepted set is presented and the product invents no
-tie-breaker
-([`PROJECT-CONTRACT.md`](https://github.com/maggnus/ymp/blob/dfdac03dede6fa6d50298b07d6d1cd8c6d6687bf/ymp-docs/PROJECT-CONTRACT.md#L190-L191)).
+**Notes.** No candidate is presented as ready to apply, and none is ranked or recommended. Where
+several pass, the accepted set is presented and the product invents no tie-breaker.
 
-## S18 · Candidate detail
+## S18 · Candidate properties
 
-**Sees.** What changed, against which base, by whom, and what verification said. The change is a
-summary of paths and sizes with a path to the full difference.
+**Sees.**
 
-    candidates › cd-2 ───────────────────────────────────────────────────────
-    digest      sha256:9f2c…
-    base        cd-1 · sha256:1a4f…
-    submitted   B · 14:28 · attempt 2
-    changes     4 files · +212 −38
-    verification passed · 14:31 · 6 of 6 requirements observed
-    evidence    contract sha256:… · environment sha256:… · oracle sha256:…
+    candidates › cd-2 ────────────────────────────────────────────────────────
+    digest       sha256:9f2c…
+    base         cd-1 · sha256:1a4f…
+    submitted    B · 14:48 · attempt 2
+    changes      4 files · +212 −38
+    verification passed · 14:52 · 5 of 5 requirements observed
+    evidence     contract sha256:… · environment sha256:… · oracle sha256:…
 
-**Actions.** `Enter` on `changes` shows the difference; `Enter` on `verification` opens S19;
-`e` opens S26; `Esc` back.
+**Actions.** `Enter` on `changes` shows the difference; `Enter` on `verification` opens S19; `e`
+opens S26; `Esc` back.
 
 ## S19 · Verification
 
 **Sees.** Three states, drawn differently.
 
-*Running:* `verifying cd-2 · query 2 of 4 · requested by B · started 14:29`.
+*Running:* `verifying cd-2 · query 2 of 4 · requested by B · started 14:49`.
 
 *Failed:*
 
-    verification › cd-1 · failed ────────────────────────────────────────────
-    class       behavioral check did not hold
-    diagnostic  2 of 6 requirements were not observed:
-                  R3 the redirect path returns 302 — observed 500
-                  R5 existing suite still passes — 3 failures
-    disclosure  bounded by the run's policy; protected material is not shown
+    verification › cd-1 · failed ─────────────────────────────────────────────
+    class       behavioural check did not hold
+    diagnostic  2 of 5 requirements were not observed:
+                  R2 a first click never uncovers a mine — uncovered one in 3 of 50 trials
+                  R4 a cleared board reports a win — no win state reached
+    disclosure  bounded by this run's policy; protected material is not shown
     the collective has this same diagnostic and is reacting. the run is not over.
 
 *Passed:*
 
-    verification › cd-2 · passed ────────────────────────────────────────────
-    R1  A  the endpoint accepts a valid code            observed by check k-1
-    R2  A  invalid codes are rejected                   observed by check k-1
-    R3  A  the redirect path returns 302                observed by check k-2
-    R4  B  the existing suite still passes              observed by check k-3
-    R5  B  the build succeeds from a clean base         observed by check k-4
-    R6  C  tokens are not written to logs (assumption)  observed by check k-5
-    ─   A  "clean and idiomatic" is not mechanically checkable — yours to judge
+    verification › cd-2 · passed ─────────────────────────────────────────────
+    R1  A  the page loads and renders a grid              observed by check k-1
+    R2  A  a first click never uncovers a mine            observed by check k-2
+    R3  A  flags toggle on right click                    observed by check k-3
+    R4  B  a cleared board reports a win                  observed by check k-4
+    R5  C  the page needs no network at run time (assumption)  observed by check k-5
+    ─   A  "looks good" is not mechanically checkable — yours to judge
     digests  contract sha256:… candidate sha256:… environment sha256:… oracle sha256:…
 
 **Actions.** `Enter` on a requirement shows its provenance and the check that observed it (S34 for
 the check's own bytes and digest); `Esc` back.
 
-**Notes.** Protected material never appears, and the diagnostic is exactly what the run's
-disclosure policy allows — unbounded feedback would let a candidate be fitted to a fixed check
-([`PROTOCOL.md`](https://github.com/maggnus/ymp/blob/dfdac03dede6fa6d50298b07d6d1cd8c6d6687bf/ymp-docs/PROTOCOL.md#L471-L478)).
-A verifier infrastructure failure is drawn as its own state and is never a rejection.
+**Notes.** Protected material never appears, and the diagnostic is exactly what the disclosure policy
+allows — unbounded feedback would let a candidate be fitted to a fixed check. **A verifier
+infrastructure failure is drawn as its own state and is never a rejection.**
 
 ## S20 · Failures
 
-One surface for the things that go wrong short of a terminal: a participant that failed, an
-invocation that hit a limit, an engine that stopped answering, a submission that would not
-integrate.
+Everything that goes wrong short of a terminal, including the infrastructure failures §21 asks to be
+visible.
 
 **Sees.**
 
-    failures ─ 3 ────────────────────────────────────────────────────────────
+    failures ─ 3 ─────────────────────────────────────────────────────────────
     TIME   WHAT                    DETAIL
     14:19  B · invocation ended    model route error · upstream 529 · retried
     14:22  cd-1 · integration      conflict against base cd-0 · became task t-4
-    14:26  C · limit               slice wall clock exhausted · yielded
+    14:41  verification · verifier the browser harness did not start · not a rejection
 
 **Actions.** `Enter` describes one failure with the exact recorded reason; `Esc` back.
 
-**Notes.** A model route error is not evidence that the task is unsolvable, and the surface states
-that where it appears
-([`PROTOCOL.md`](https://github.com/maggnus/ymp/blob/dfdac03dede6fa6d50298b07d6d1cd8c6d6687bf/ymp-docs/PROTOCOL.md#L398-L414)).
-A failure here is never presented as a terminal state.
+**Notes.** A model route error is not evidence that the task is unsolvable, and the surface says so
+where it appears. A failure here is never presented as a terminal state, and a verifier's own failure
+is never counted against a candidate.
 
 ## S21 · Pause
 
-**Sees.** A modal stating exactly what pausing does and does not do.
+**Sees.** The run's own row in `/history` and the live header carry the pause key, and the run's
+properties state what pausing does before the key is pressed. There is no modal.
 
-    pause run 0007
-      running slices finish; no new slice is admitted
-      leases keep running out, so a paused run can still expire
-      spend already committed is not returned
-    [pause]  Esc cancel
+    history › run 0001 · running ─────────────────────────────────────────────
+    pause (p)  running slices finish; no new slice is admitted
+               leases keep running out, so a paused run can still expire
+               spend already committed is not returned
 
-**Actions.** `Enter` pauses — the launcher stops admitting new invocations and the transcript
-records it; `Esc` closes.
+**Actions.** `p` pauses the selected run at once; `p` again resumes it (S22).
 
-**Notes.** Pause does not mark the run intervened: it is authority over resources, not content.
-The honest line about leases is required, because a pause that silently let leases expire would
-look like a stop and behave like a timeout.
+**Notes.** Pause does not mark the run intervened: it is authority over resources, not content. The
+consequences are stated above the key rather than in a dialogue after it, which is rule 1.
 
 ## S22 · Resume
 
 **Sees.** What a paused run would resume with: participants waiting, remaining budget by dimension,
-and how much wall clock was lost to the pause.
+and the wall clock lost to the pause.
 
 **Actions.** `Enter` resumes — admission restarts and each eligible yielded slice becomes eligible
-again, consuming its own `InvocationStarts` unit; `Esc` closes. If a lease expired during the
-pause, the surface names the task and states that it must be re-taken rather than resumed.
+again, consuming its own invocation-start unit; `Esc` closes. Where a lease expired during the pause
+the surface names the task and states that it must be re-taken rather than resumed, which is what
+"resume where supported" means honestly.
 
 ## S23 · Cancellation
 
-**Sees.** The typed confirmation already accepted in
-[`VISUAL_CONCEPT.md`](https://github.com/maggnus/ymp/blob/dfdac03dede6fa6d50298b07d6d1cd8c6d6687bf/ymp-docs/VISUAL_CONCEPT.md#L248-L260),
-with the run identifier required exactly.
+The act with the largest consequence, and therefore the one where rule 1 has to be argued rather
+than assumed. No identifier is typed and no dialogue appears: the run is a **selected row**, the
+consequences are stated on it, and the key ends it.
 
-    cancel run 0007
-      3 participants are interrupted; 2 attempts are lost
-      $0.42 of spend is not returned
-      the journal and every published candidate stay readable
-      the recorded outcome will be cancelled
-    type the run id:  ▁▁▁▁
+**Sees.** The properties of the selected run, with the cancel key beneath what it will do.
 
-**Actions.** Type the identifier and confirm — the cancel command reaches the kernel, processes are
-wound down and the run reaches `cancelled`; `Esc` closes.
+    history › run 0001 · running ─────────────────────────────────────────────
+    cancel (x)  3 participants are interrupted; 2 attempts are lost
+                $0.42 of spend is not returned
+                the journal and every published candidate stay readable
+                the recorded outcome will be cancelled
 
-**Notes.** `cancelled` and `infrastructure_error` are different facts and are never substituted. A
-runtime that dies while being stopped is a consequence of the decision and does not change the
-recorded outcome.
+**Actions.** `x` cancels the selected run: the cancel command reaches the kernel, processes are wound
+down and the run reaches `cancelled`.
+
+**Notes.** What makes a single keypress defensible here is that **nothing is destroyed**: the
+journal, every candidate, every published finding and the evidence survive a cancellation and stay
+readable from `/history`. The irreversible part is the spend already committed, and that is stated
+above the key. `cancelled` and `infrastructure error` are different facts and are never substituted;
+a runtime that dies while being stopped does not change the recorded outcome.
+
+An accidental `x` costs the work in flight. That is the trade the owner's rule takes deliberately
+against the cost of an identifier typed on every deliberate cancellation, and it is recorded here as
+a trade rather than as a free lunch. The mitigations that survive are real: the key is on the run's
+properties view rather than on the list, `Continue` re-opens the work from the last candidate, and
+the accepted rule that a cancelled run is recorded honestly means nothing is silently lost.
 
 ## S24 · Intervention
 
-**Sees.** The message composer, with its consequence stated before anything is sent.
+**Sees.**
 
     message the collective
       your message enters the collaboration plane as untrusted data
@@ -707,106 +775,135 @@ recorded outcome.
     to: t-2 (task audience) · all participants
     > _
 
-**Actions.** `Enter` sends — the message is attributed to the operator, delivered to the chosen
-audience and the run is marked intervened; `Esc` discards.
+**Actions.** `Enter` sends and marks the run intervened; `Esc` discards.
 
-**Notes.** An answer to a question ymp asked (S09) is *not* an intervention and does not pass
-through this surface: it is provenance class E on the designed path. The distinction is drawn on
-both surfaces so neither is mistaken for the other.
+**Notes.** An answer to a question ymp asked (S09) is *not* an intervention and does not pass through
+this surface. The distinction is drawn on both surfaces so neither is mistaken for the other.
 
 ## S25 · Result
 
-**Sees.** What the operator got, before how it was made.
+What the operator got, before how it was made. §15 fixes the headline: `✓ VERIFIED`, never
+"agents stopped".
 
-    run 0007 · completed · verified ─────────────────────────────────────────
-    <one paragraph, published by the collective, of what changed>
+**Sees.**
 
-    verification   6 of 6 requirements observed
+    run 0001 · ✓ VERIFIED ────────────────────────────────────────────────────
+    a browser minesweeper: one page, a 9×9 board with 10 mines, safe first click,
+    flag toggling, and a win state when every safe cell is uncovered.
+
+    verification   5 of 5 requirements observed
                    1 part of the goal is not mechanically checkable — yours to judge
     participants   3 · 5 attempts · 2 candidates
     time / spend   41 min · $2.18 · 214k tokens across 2 models
     candidate      cd-2 · sha256:9f2c…
-    [Inspect result] [Inspect evidence] [Export] [Continue] [Archive]
+    Enter result · e evidence · x export · c continue · a archive
 
 **Actions.**
 
-| Action | Effect |
+| Key | Effect |
 |---|---|
-| Inspect result | Opens S18 for the accepted candidate. |
-| Inspect evidence | Opens S26. |
-| Export | Opens S27. |
-| Continue | Opens S08 with the accepted candidate as the base and the previous goal as context. It is a new run with its own authorization, because it spends new money against a new definition of done. |
-| Archive | Opens S29. |
+| `Enter` | Opens S18 for the accepted candidate. |
+| `e` | Opens S26. |
+| `x` | Opens S27, the candidate's properties with the export key and the exact paths. |
+| `c` | **Starts the next run at once**, with the accepted candidate as its base and the previous goal as context, while the standing ceiling has headroom (decision D10). The input line opens for the next sentence; nothing is confirmed. |
+| `a` | Archives (S29). |
 
-**Notes.** A non-success terminal reaches this surface too, with its own sentence and its own
-actions, and is never drawn as a result: brief §12 forbids presenting `exhausted` as success, and
-the five terminals are listed in [`COLLECTIVE-DESIGN.md`](COLLECTIVE-DESIGN.md) item 14.
+**The other terminals**, each with its own sentence and its own actions, and never drawn as success:
+
+    run 0002 · BUDGET EXHAUSTED
+      the money ceiling ran out at $5.00 · 1 candidate exists and was never verified
+      Enter inspect · b raise the standing ceiling on /budget · a archive
+
+    run 0003 · INFRASTRUCTURE ERROR
+      the verifier's environment could not be established — this is a failure of the
+      machinery, not of the work
+      Enter journal · e export evidence · a archive
+
+    run 0004 · CANCELLED
+      you ended it at 14:22 · 2 attempts were interrupted · spend is not returned
+      Enter inspect · a archive
+
+    run 0005 · NEEDS CLARIFICATION
+      the collective stopped: a question about the intended scoring rule could not be
+      answered from the project and the question budget is spent
+      [1] … [2] … answer and it continues · Enter inspect · a archive
+
+`NEEDS CLARIFICATION` is the outcome §15 names and decision D6 requires — never reported as
+`abstained` and never as a success. It is the one terminal that carries a question on its face, and
+answering it resumes the work rather than starting a new lineage.
+
+`BUDGET EXHAUSTED` is the only place the product asks the operator for a decision about money, and
+even there it asks by naming `/budget` rather than by opening a dialogue: raising the standing
+ceiling is an edit on a row, and the run continues from the last candidate.
 
 ## S26 · Evidence
 
-**Sees.** Everything that supports the claim, in one place: the four digests; the
-requirement-to-observation map with provenance; the per-model spend; the participants and their
-attempts; the candidate ancestry; the journal head digest; and the assurance profile with its
-limit.
+**Sees.** Everything supporting the claim, in one place: the four digests; the
+requirement-to-observation map with provenance; the per-model spend; participants and their attempts;
+candidate ancestry; the journal head digest; the frozen pool with its digest; and the assurance
+profile with its limit.
 
 **Actions.** `Enter` descends into any row; `x` writes the evidence bundle to a path the operator
 names, outside the project directory by default; `Esc` back.
 
 **Notes.** The bundle contains no protected oracle material, no capability material and no runtime
-session capsule
-([`ARCHITECTURE.md`](https://github.com/maggnus/ymp/blob/dfdac03dede6fa6d50298b07d6d1cd8c6d6687bf/ymp-docs/ARCHITECTURE.md#L444-L458)).
+session capsule.
 
 ## S27 · Export
 
-The only surface that writes into the project directory.
+The only surface that writes into the project directory. Export is a **delivery**, not storage: the
+product's own state stays under `~/.ymp`.
 
-**Sees.** Exactly which paths will be written, with the state of the working tree stated first.
+**Sees.** The selected candidate's properties, with the exact paths and the working-tree state above
+the export key. No dialogue, and no digest typed.
 
-    export cd-2 into /Users/…/Code/ymp
-      working tree: clean
-      writes 4 files:  src/auth/redirect.rs (new) · src/auth/mod.rs · tests/…
-      nothing else in the directory is touched
-    [export]  Esc cancel
+    candidates › cd-2 ── export (x) ──────────────────────────────────────────
+    into          /Users/…/Code/minesweeper
+    working tree  clean
+    writes        4 files: index.html (new) · game.js (new) · style.css (new) · README.md
+                  nothing else in the directory is touched
 
-**Actions.** `Enter` applies the candidate and records the export as an operator act; `Esc` closes.
-A working tree with uncommitted changes is stated as such and the operator decides.
+**Actions.** `x` applies the candidate and records the export as an operator act. A working tree with
+uncommitted changes is stated on the same rows, and the operator decides by pressing or not pressing.
 
-**Notes.** Export is a delivery, not storage: the product's own state stays under the product root
-(node `W1-APP-02w.1`). No candidate is presented as ready to apply before this surface is opened
-deliberately.
+**Notes.** No candidate is presented as ready to apply before its properties are opened
+deliberately, which is what keeps the export key off a list row. Export is the only write into the
+project directory; the paths are exact and stated before the key, and the project's own version
+control is what makes the write reversible.
 
 ## S28 · History
 
-**Sees.** Runs of the current workspace, newest first, with their terminals stated exactly.
+**Sees.**
 
-    history ─ workspace ymp · 7 runs ────────────────────────────────────────
-    RUN   GOAL                       OUTCOME              SPEND   WHEN
-    0007  add feature X              accepted             $2.18   12m ago
-    0006  add feature X              exhausted · money    $5.00   2h ago
-    0005  fix the parser panic       accepted · intervened $0.94  1d ago
+    history ─ workspace minesweeper · 5 runs ─────────────────────────────────
+    RUN   GOAL                        OUTCOME                SPEND   WHEN
+    0001  Создай браузерную игру…     ✓ verified             $2.18   12m ago
+    0002  Создай браузерную игру…     budget exhausted        $5.00   2h ago
+    0003  add a timer                 cancelled · intervened  $0.94   1d ago
 
-**Actions.** `Enter` opens that run's result surface (S25) in read-only form; `Esc` back.
+**Actions.** `Enter` opens that run's result surface read-only; `f` filters, including archived runs;
+`Esc` back.
 
-**Notes.** `exhausted` names the dimension that ran out. `intervened` is shown wherever an outcome
-is reported, because it changes what the run's evidence may be used for.
+**Notes.** `budget exhausted` names the dimension that ran out. `intervened` is shown wherever an
+outcome is reported, because it changes what the run's evidence may be used for.
 
 ## S29 · Archive
 
-**Sees.** A confirmation stating that archiving removes a terminal run from default views and
-rewrites nothing.
+**Sees.** The selected terminal run's row, with one line stating what archiving does: it removes the
+run from default views and rewrites nothing.
 
-**Actions.** `Enter` archives: the run leaves the default history view and its record is marked
-archived. Nothing is deleted, rewritten or moved, and no retention policy is bypassed. `Esc`
-closes. Archived runs remain readable from S28 with a filter, and their journals and candidates are
-untouched
-([`ARCHITECTURE.md`](https://github.com/maggnus/ymp/blob/dfdac03dede6fa6d50298b07d6d1cd8c6d6687bf/ymp-docs/ARCHITECTURE.md#L90-L94)).
+**Actions.** `a` archives the selected run. Archived runs stay readable from S28 with a filter, and
+their journals, candidates and evidence are untouched. `a` again un-archives, which is why this act
+needs nothing stated beyond the line above it.
 
-## S30 · Budgets
+## S30 · The live run's budget
 
-**Sees.** Every dimension on its own line, with what was reserved, what is committed and what
-remains. No total, no percentage of "progress", no dimension expressed in terms of another.
+The second tab of `/budget`. Every dimension on its own line. No total, no percentage of "progress",
+no dimension expressed in terms of another.
 
-    budget · run 0007 ───────────────────────────────────────────────────────
+**Sees.**
+
+    budget · workspace minesweeper ── standing ceiling │ run 0001 ────────────
     DIMENSION              LIMIT      SPENT     LEFT    ENFORCED
     money                  $5.00      $2.18     $2.82   yes · route ceiling
     model tokens           —          214k      —       observed only
@@ -817,76 +914,79 @@ remains. No total, no percentage of "progress", no dimension expressed in terms 
     invocation starts      40         14        26      yes
     offer creations        20         4         16      yes
     obligation creations   20         4         16      yes
+    clarification requests 3          1         2       yes
     external actions       0          0         0       yes
 
-**Actions.** `Enter` shows where a dimension was spent, by participant; `p` opens S06 to raise a
-ceiling, which restates what raising it permits; `Esc` back.
+**Actions.** `Enter` shows where a dimension was spent, by participant; `Tab` switches back to the
+standing ceiling (S06), where a value is edited in place; `Esc` back.
 
-**Notes.** The `ENFORCED` column is not decoration: a ceiling is strict only where the driver,
-broker or provider can enforce it, and an observational dimension must say so rather than imply a
-hard limit
-([`PROTOCOL.md`](https://github.com/maggnus/ymp/blob/dfdac03dede6fa6d50298b07d6d1cd8c6d6687bf/ymp-docs/PROTOCOL.md#L450-L453)).
+**Notes.** `ENFORCED` is not decoration: a ceiling is strict only where the driver, broker or provider
+can enforce it, and an observational dimension says so rather than implying a hard limit. **Budget
+exhaustion** is reached here and reported on S25 as its own terminal, never as a result.
 
-## S31 · Runtime readiness
+## S31 · Engines
 
-The engine level of the catalog: what ymp can actually start on this host.
+The level beneath providers: what ymp can actually start on this host. Not advertised in the short
+help, because the operator's mental model is provider and model.
 
 **Sees.**
 
-    engines ─ 2 · 2 ready ───────────────────────────────────────────────────
-    ENGINE       STATE  VERSION            EXECUTABLE                 MODELS
-    claude-code  ready  2.1.227            /usr/local/bin/claude · sha256:4c1e…  4
-    codex        ready  codex-cli 0.147.0  /usr/local/bin/codex · sha256:8b0d…   5
+    engines ─ 2 · 1 ready ────────────────────────────────────────────────────
+    ENGINE       STATE     VERSION            EXECUTABLE                    MODELS
+    claude-code  ready     2.1.227            /usr/local/bin/claude · 4c1e…  4
+    codex        disabled  codex-cli 0.147.0  /usr/local/bin/codex · 8b0d…   5
+      ↳ usage limit until 2026-09-12
 
-**Actions.** `e` enables or disables an engine — a disabled engine is neither admitted nor offered,
-which is the outcome of node `W1-APP-02e.6`; `r` re-probes; `Enter` describes the measured
-properties, capability matrices and admission chain; `Esc` back.
+**Actions.** `e` enables or disables an engine; `r` re-probes; `Enter` describes measured properties,
+capability matrices and the admission chain; `Esc` back.
 
-**Notes.** The interface reads the catalog; it does not construct drivers. That is what removes the
-fake runtime from this list and from the shipped interface (node `W1-APP-02s`, finding G-06).
-Admission semantics — tool set, permission mode, no delegation, budget ceilings — stay compiled in
-and are shown here as facts, not settings.
+**Notes.** The interface reads the registry; it constructs no driver. A disabled engine is neither
+admitted nor offered, and its models are marked not offered in `/models` with this exact reason —
+which is how one recorded operator decision reaches every surface without being repeated in any of
+them.
 
 ## S32 · Recovery from invalid configuration
 
-**Sees.** The state where the product cannot proceed, with the exact obstacle and one thing to do.
-One row per obstacle; nothing is hidden behind a generic failure.
+**Sees.** One row per obstacle, with the exact obstacle and one thing to do. Nothing is hidden behind
+a generic failure.
 
     ymp cannot start a run in this workspace
-      no provider is ready              → /providers · connect one
+      no provider is enabled            → /providers · enable one
+      pool default has no admissible    → /models · every entry's engine is disabled
+      entry
       engine claude-code is 2.0.9       → the pinned profile expects 2.1.227; update or
                                           disable the engine
       the product root is not writable  → ~/.ymp is owned by another account
-      an earlier store sits beside the  → .ymp in the project directory is read only with
-      project                             an explicit --root
 
-**Actions.** Each row's `Enter` opens the surface that fixes it. `r` re-probes everything.
+**Actions.** Each row's `Enter` opens the surface that fixes it; `r` re-probes everything.
 
-**Notes.** Refusal rather than degradation is already the accepted rule for admission (node
-`W1-APP-02q`): a profile that cannot enforce what it claims is ineligible, not silently weaker. The
-surface never offers to proceed without the property.
+**Notes.** Refusal rather than degradation is the accepted rule for admission (node `W1-APP-02q`): a
+profile that cannot enforce what it claims is ineligible, not silently weaker. The surface never
+offers to proceed without the property.
 
 ## S33 · Help and keys
 
-**Sees.** The command list with one line each, and the key overlay for the current surface.
+**Sees.** The command list with one line each, and the key overlay for the current surface. The full
+assurance sentence lives here, per the accepted start screen.
 
 **Actions.** `/` opens the command line with completion; `?` toggles the key overlay; `Esc` closes.
-Every command shown here has a command-line twin of the same name, which is what node
-`W1-APP-02n` requires.
+Every command shown here has a command-line twin of the same name (node `W1-APP-02n`).
 
-## S34 · Advanced diagnostics
+## S34 · Diagnostics
 
-Where the internal vocabulary lives. Nothing here is required to use the product, and nothing here
-is hidden from an operator who asks.
+Where the internal vocabulary lives. Nothing here is required to use the product, and nothing here is
+hidden from an operator who asks.
 
 **Sees.** Grouped by plane.
 
 - **Contract** — the internal contract as stored: requirements with provenance classes, the
   acceptance plan with each check's kind, digest and the requirement it observes, the frozen pool by
   digest, the environment manifest, and the requirement-to-evidence coverage map that used to be the
-  authorization screen (finding G-07).
-- **Control** — obligations, leases and fencing generations, escrow movements, capability grants,
-  the command log with idempotency keys.
+  authorization screen.
+- **Derivation** — the derivation run itself: its participants, its budget, what it read, what it
+  disclosed and to whom, and the classifier's verdict on every mid-run answer.
+- **Control** — obligations, leases and fencing generations, escrow movements, capability grants, the
+  command log with idempotency keys.
 - **Collaboration** — audiences, membership grants and their expiry, projection lifetimes,
   communication charges.
 - **Verification** — query reservations, the disclosure policy in force, the negative-control and
@@ -895,12 +995,123 @@ is hidden from an operator who asks.
   environment each managed process was given, per-model usage evidence.
 - **Journal** — sequence, head digest, cursor and lag per view.
 
-**Actions.** `Enter` descends; `x` exports the selected record into the evidence bundle; `Esc`
-back.
+**Actions.** `Enter` descends; `x` exports the selected record into the evidence bundle; `Esc` back.
 
-**Notes.** This surface is how the design keeps two promises at once: the operator's path never
-mentions an obligation or an oracle bundle, and no fact is unreachable. A trust-critical fact must
-not be hidden — but it need not be simultaneous
-([`VISUAL_CONCEPT.md`](https://github.com/maggnus/ymp/blob/dfdac03dede6fa6d50298b07d6d1cd8c6d6687bf/ymp-docs/VISUAL_CONCEPT.md#L20-L27)).
-Protected oracle bytes, capability material and runtime session capsules are not here and are not
-anywhere the operator can reach.
+**Notes.** This is how the design keeps two promises at once: the operator's path never mentions an
+obligation or an oracle bundle, and no fact is unreachable. Protected oracle bytes, capability
+material and runtime session capsules are not here and are not anywhere the operator can reach.
+
+## S35 · Pools
+
+The advanced surface §16 asks for, and never a prerequisite.
+
+**Sees.**
+
+    pools ─ 2 ────────────────────────────────────────────────────────────────
+    NAME       MODELS                                        TRACKING  STATE
+    default    all admissible · 6 entries                    yes       ready
+    cheap      claude-haiku-4-5, claude-sonnet-5             no        ready
+
+    a pool is what the collective may use, not who works. it assigns no roles.
+    Enter properties · n new · d delete · Esc back
+
+**Actions.** `Enter` opens S36; `n` creates a pool from selected catalog entries; `d` deletes a pool
+no task names; `Esc` back.
+
+**Notes.** `default` exists because a provider was enabled and its models were discovered — it is
+never created by the operator and never absent while a provider is ready (§4). `TRACKING` states
+whether the pool still follows the catalog: `default` does until it is edited, and an edited pool
+holds the explicit list the operator left. The `cheap` pool shown here is the owner's recorded
+experiment boundary — the cheaper Claude routes — and it is a resource boundary, not a team:
+`architect-pool`, `coder-pool` and `reviewer-pool` are shapes this product does not offer (§16).
+
+## S36 · Pool properties
+
+**Sees.**
+
+    pools › default ──────────────────────────────────────────────────────────
+    models            all admissible entries · tracking the catalog
+      anthropic  claude-code  claude-opus-5      admissible
+      anthropic  claude-code  claude-sonnet-5    admissible
+      anthropic  claude-code  claude-haiku-4-5   admissible
+      nvidia     claude-code  nemotron-…         admissible
+      openai     codex        gpt-5.6-sol        not offered · engine disabled
+    capacity          up to 6 participants · up to 3 concurrent attempts
+    limits            per participant: $2.00 · 30 min
+    disclosure        anthropic, nvidia
+    assurance         poc_process_isolation · not hostile-code containment
+    digest            sha256:2b91…  (what a run freezes)
+
+**Actions.** `Enter` on a row edits it — editing the model list replaces tracking with the explicit
+list and the surface says so before it applies; `p` opens S05 to add entries; `Esc` back.
+
+**Notes.** The order of the list is the declared order, and it is the order bootstrap uses to pick
+the entry a run ignites on ([decision D2](COLLECTIVE-OWNER-DECISIONS.md#d2--the-entry-rule-for-the-origin-participant)).
+That is stated here so it is never mistaken for a preference about quality: it names an ignition
+point and nothing else, and an operator who wants a different one reorders the list rather than
+answering a question. Editing a pool never disturbs a running run, which holds its own frozen
+snapshot.
+
+---
+
+## The acceptance scenario of §22, screen by screen
+
+The end-to-end scenario, driven through these surfaces. Operator acts are marked ▶. Nowhere in it
+does the operator create a contract, an oracle, a verifier, a team, an agent, a role, a model
+assignment or a decomposition — which is the test §22 sets.
+
+| # | What happens | Surface | What the operator does |
+|---|---|---|---|
+| 1 | ▶ `$ ymp` in an empty project directory | **S01** logo, `/Users/…/Code/minesweeper · 0.1.0`, the prompt. Nothing probed, nothing disclosed | launch |
+| 2 | no provider is enabled, so the product states the one thing it needs | **S02** two sentences and `/providers` | reads |
+| 3 | ▶ `/providers` | **S03** the full supported list: anthropic, openai, nvidia, google, local — every one `disabled` | opens |
+| 4 | ▶ enable anthropic, openai, nvidia | **S03** `e` on each. Enabling is what triggers autodetect; each provider is probed as it is enabled | three keystrokes |
+| 5 | catalog fills from the probes | **S05** 11 entries · 6 admissible. The codex entries read `not offered · engine disabled — usage limit until 2026-09-12`, which is a recorded operator decision reaching a surface rather than a failure | may look |
+| 6 | the `default` pool appears | **S35** `default · all admissible · 6 entries · tracking`. The operator is never asked to create it and never sees `No AgentPool configured` | nothing |
+| 7 | ▶ `Создай браузерную игру сапер` | **S08** the local reading is shown first and costs nothing; then the derivation names anthropic and the allowance it draws on | types one sentence |
+| 8 | one assumption cannot be settled | **S09** "should a first click be guaranteed safe?" with concrete options | ▶ presses `1` — class E, not an intervention |
+| 9 | the run starts on the sentence | **S10** a transcript block: what *done* means, what it spends from, the frozen pool, the disclosure, the assurance. **No confirmation, no identifier, nothing to acknowledge** (decision D3) | nothing |
+| 10 | bootstrap | **S11** run created, pool frozen with its digest, participant A started on the first entry of the declared order, root obligation created | watches |
+| 11 | A analyses the empty project | **S12** attributed events | watches |
+| 12 | A decides more expertise is useful and requests a participant | **S37** the request, the entry it named, and the mechanical reason it was admitted | watches |
+| 13 | the kernel checks containment against the frozen pool, availability, disclosure class, assurance, participant starts and concurrency; B starts | **S13** two participants with their entries | watches |
+| 14 | A advertises a scoped offer; B bids; A awards; contract, obligation and lease form atomically | **S15** tasks | watches |
+| 15 | they investigate, publish findings, disagree and resolve | **S16** attributed, labelled untrusted | watches |
+| 16 | one implements and submits; the integrator builds an immutable candidate | **S17** cd-1 | watches |
+| 17 | the other reviews as a separate blinded assessment | **S16**, **S18** | watches |
+| 18 | a participant spends a verification query on the exact digest | **S19** `verifying cd-1 · query 1 of 4` | watches |
+| 19 | verification fails | **S19** verdict, failure class, bounded diagnostic. The run stays alive and the obligation stays open | watches |
+| 20 | the collective receives the same bounded diagnostic and revises | **S12** in its revision state | watches |
+| 21 | a new candidate is submitted and verified; it passes | **S19**, then **S25** | watches |
+| 22 | ▶ the result | **S25** `✓ VERIFIED` with the summary, verification count, participants, time, spend, candidate digest and five keys | presses `Enter`, `x` or `c` — or nothing |
+
+**Operator acts in total:** launch, enable three providers, type one sentence, press one option key
+for the clarification — then, optionally, one key to inspect, export or continue. **Five acts before
+the result, no confirmation, and not one identifier typed.** None of them is authorship.
+
+Reduced further, that is the product §23 asks for:
+
+    $ ymp
+    > Создай браузерную игру сапер
+
+    [collective works]
+
+    ✓ VERIFIED
+
+**The negative half — three of them, and one is this design's own predecessor.**
+
+- *The current build* fails at step 4, 7, 9 and 10: it asks which agent does the work
+  ([`attempt.rs:143-151`](../../ymp-rust/crates/ymp-tui/src/attempt.rs)), refuses a goal that states
+  no acceptance condition
+  ([`contract.rs:183-194`](../../ymp-rust/crates/ymp-application/src/contract.rs)), makes the
+  operator type an identifier to authorize
+  ([`surface.rs:78-84`](../../ymp-rust/crates/ymp-cli/src/surface.rs)), and then starts no
+  participant at all ([`app.rs:800-820`](../../ymp-rust/crates/ymp-tui/src/app.rs)).
+- *The design set before this correction* fails at step 7, because it asks the operator for the
+  permitted model set at request time (leak L-08).
+- *The design set before this correction* also fails at step 9, because it drew an authorization
+  surface with a typed run identifier
+  ([`COLLECTIVE-TUI.md:415` at f0376be](https://github.com/maggnus/ymp/blob/f0376be/ymp-docs/design/COLLECTIVE-TUI.md#L415))
+  and a setup question after the first provider
+  ([`:147`](https://github.com/maggnus/ymp/blob/f0376be/ymp-docs/design/COLLECTIVE-TUI.md#L147)) —
+  leak L-16.
