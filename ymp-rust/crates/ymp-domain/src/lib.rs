@@ -7,17 +7,20 @@ use thiserror::Error;
 pub mod commitment;
 pub mod contract;
 pub mod pool;
+pub mod recruitment;
 
 use commitment::{BudgetVector, CommitmentEvent};
 use pool::{FrozenEntry, FrozenPool, PoolFreezeError};
+use recruitment::AdmittedParticipant;
 
-/// Journal schema version 6 adds the record a run writes when its pool is frozen: which entries it
-/// may create participants from, which of them it ignites on, and the digest of the ordered set.
-/// Version 5 added the record a run writes when the construction of its result is more than the
-/// commitment kernel can state, version 4 added the four commitment facts that carry a result's
-/// ancestry, version 3 added the two commitment tags, version 2 added `contract_approved`, and
-/// version 1 had none of them; see `ymp-rust/SCHEMA.md`.
-pub const EVENT_SCHEMA_VERSION: u32 = 6;
+/// Journal schema version 7 adds the record a run writes when one participant admits another: who
+/// asked, which frozen entry it named, what the newcomer runs as, and the commitment facts that
+/// paid for it. Version 6 added the record a run writes when its pool is frozen, version 5 added
+/// the record a run writes when the construction of its result is more than the commitment kernel
+/// can state, version 4 added the four commitment facts that carry a result's ancestry, version 3
+/// added the two commitment tags, version 2 added `contract_approved`, and version 1 had none of
+/// them; see `ymp-rust/SCHEMA.md`.
+pub const EVENT_SCHEMA_VERSION: u32 = 7;
 pub const MAX_IDENTIFIER_CHARS: usize = 128;
 pub const MAX_REASON_BYTES: usize = 1024;
 
@@ -161,6 +164,20 @@ pub enum EventKind {
     /// or a model discovered after this record was written changes the next run and not this one
     /// (`ymp-docs/design/COLLECTIVE-DESIGN.md` §7).
     PoolFrozen(FrozenPool),
+    /// One participant admitted another into this run, and what that admission cost.
+    ///
+    /// The record is written once per request and carries both halves of one indivisible step: what
+    /// was admitted, and the commitment facts that paid for it. They share a record because they
+    /// share a fate — a reader either holds the whole admission or has never heard of it, so no
+    /// recovery can rebuild a run whose accounts were charged for a participant its journal does
+    /// not name, or whose journal names a participant nothing paid for.
+    ///
+    /// The record states what was decided and never why: the entry is the one the proposer named,
+    /// and no field of it carries a reason, a rank or a role.
+    ParticipantAdmitted {
+        admitted: AdmittedParticipant,
+        facts: Vec<CommitmentEvent>,
+    },
     AttemptStarted {
         attempt_id: String,
     },
@@ -315,6 +332,11 @@ pub struct RunState {
     /// product root holds now.
     #[serde(default)]
     pub frozen_pool: Option<FrozenPool>,
+    /// Every participant this run has admitted, in the order the journal recorded them. It is what
+    /// makes a repeated recruitment request recognizable after a restart, and what the ceiling on
+    /// the run's size is read against.
+    #[serde(default)]
+    pub admissions: Vec<AdmittedParticipant>,
     pub active_attempts: Vec<String>,
     pub candidate_digest: Option<String>,
     pub last_sequence: u64,
@@ -354,6 +376,7 @@ impl RunState {
             budget: budget.clone(),
             contract: None,
             frozen_pool: None,
+            admissions: Vec::new(),
             active_attempts: Vec::new(),
             candidate_digest: None,
             last_sequence: event.sequence,
@@ -504,6 +527,19 @@ impl RunState {
             // it, which is the same rule the contract binding follows.
             EventKind::PoolFrozen(frozen) => {
                 self.frozen_pool.get_or_insert_with(|| frozen.clone());
+            }
+            // One request admits one participant. A record of a request this projection already
+            // carries is read as the record of that admission and never as a second one, which is
+            // what makes folding the journal twice — a live run and the restart that rebuilds it —
+            // reach the same run.
+            EventKind::ParticipantAdmitted { admitted, .. } => {
+                if !self
+                    .admissions
+                    .iter()
+                    .any(|recorded| recorded.request_id == admitted.request_id)
+                {
+                    self.admissions.push(admitted.clone());
+                }
             }
             EventKind::AttemptStarted { attempt_id } => {
                 self.budget.attempts_remaining = self.budget.attempts_remaining.saturating_sub(1);

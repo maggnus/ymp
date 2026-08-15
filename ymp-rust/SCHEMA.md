@@ -519,12 +519,47 @@ The version is raised rather than treated as an extension for the reason version
 version-5 reader given this tag fails on an unknown record rather than on a stated version, which is
 the failure this policy exists to prevent.
 
+## Event journal version 7
+
+Version 7 keeps every envelope field, ordering rule, digest input and limit of version 6, and every
+commitment fact and run record the versions before it added. What it adds is one record of the run
+itself, written once for each participant one participant admits into the run:
+
+- `participant_admitted`, carrying `admitted` and `facts`. `admitted` states what the admission
+  granted: `request_id`, the identity of the request it answers; `proposer`, the participant that
+  asked; `participant_id`, the identifier the newcomer is registered under; `principal_id`, the
+  account it acts as; `entry`, the `provider` · `engine` · `model` triple it runs on; `profile` and
+  `route`, the runtime profile and model route that entry is served through; and `workspace`, the
+  private directory it works in. `facts` is the commitment facts that paid for it, in the order the
+  kernel committed them — the same shape `commitment_facts_recorded` carries.
+
+The two halves share one record because they share one fate. An admission and the charge that paid
+for it are one indivisible step, so a reader either holds both or has never heard of either: no
+recovery can rebuild a run whose accounts were charged for a participant its journal does not name,
+or whose journal names a participant nothing paid for.
+
+Neither `participant_id` nor `workspace` is a field a writer chooses. Both are derived from
+`request_id`, so one request names one participant however often it is delivered, and a repeat is
+recognized by the record the first delivery wrote rather than by the memory of a process.
+
+The record states what was decided and never why. The entry is the one the proposer named; the
+kernel checked only that it is inside the pool the run was frozen to, that the proposer still held
+the authority to start a participant, that the run had room, that the runtime behind the entry was
+admitted at that moment, and that the offer-stage allowance could be paid for. There is no field
+here — and no field on the command that produces it — carrying a reason, a rank, a role or a score.
+
+A run that admitted no participant writes none of these records and reads back exactly as it did
+under version 6. The version is raised rather than treated as an extension for the reason versions 4,
+5 and 6 were: a version-6 reader given this tag fails on an unknown record rather than on a stated
+version.
+
 ## Compatibility and migration
 
-Schema version 1 is immutable, and versions 2, 3, 4, 5 and 6 are new versions rather than extensions
-of what came before. A change that alters field meaning, digest input, event tags, required fields,
-ordering rules, or replay behavior requires a new schema version. The current binary reads and
-writes only version 6 and fails closed on every other version, versions 1 to 5 included.
+Schema version 1 is immutable, and versions 2, 3, 4, 5, 6 and 7 are new versions rather than
+extensions of what came before. A change that alters field meaning, digest input, event tags,
+required fields, ordering rules, or replay behavior requires a new schema version. The current
+binary reads and writes only version 7 and fails closed on every other version, versions 1 to 6
+included.
 
 The migration consequence is stated rather than worked around: a journal written by an earlier
 binary is rejected at open with an unsupported-schema error, and no command migrates it, because
