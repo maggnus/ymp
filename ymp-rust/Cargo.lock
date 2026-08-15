@@ -1044,7 +1044,7 @@ checksum = "589f6da84c646204747d1270a2a5661ea66ed1cced2631d546fdfb155959f9ec"
 
 [[package]]
 name = "ymp-agent-api"
-version = "0.1.0"
+version = "1.0.1"
 dependencies = [
  "serde",
  "serde_json",
@@ -1054,7 +1054,7 @@ dependencies = [
 
 [[package]]
 name = "ymp-agent-mcp"
-version = "0.1.0"
+version = "1.0.1"
 dependencies = [
  "serde",
  "serde_json",
@@ -1063,7 +1063,7 @@ dependencies = [
 
 [[package]]
 name = "ymp-agent-rpc"
-version = "0.1.0"
+version = "1.0.1"
 dependencies = [
  "serde",
  "serde_json",
@@ -1076,7 +1076,7 @@ dependencies = [
 
 [[package]]
 name = "ymp-application"
-version = "0.1.0"
+version = "1.0.1"
 dependencies = [
  "hex",
  "serde",
@@ -1097,7 +1097,7 @@ dependencies = [
 
 [[package]]
 name = "ymp-artifacts"
-version = "0.1.0"
+version = "1.0.1"
 dependencies = [
  "serde",
  "serde_json",
@@ -1109,7 +1109,7 @@ dependencies = [
 
 [[package]]
 name = "ymp-calibration"
-version = "0.1.0"
+version = "1.0.1"
 dependencies = [
  "anyhow",
  "clap",
@@ -1122,7 +1122,7 @@ dependencies = [
 
 [[package]]
 name = "ymp-cli"
-version = "0.1.0"
+version = "1.0.1"
 dependencies = [
  "anyhow",
  "clap",
@@ -1149,7 +1149,7 @@ dependencies = [
 
 [[package]]
 name = "ymp-corpus"
-version = "0.1.0"
+version = "1.0.1"
 dependencies = [
  "anyhow",
  "clap",
@@ -1162,7 +1162,7 @@ dependencies = [
 
 [[package]]
 name = "ymp-domain"
-version = "0.1.0"
+version = "1.0.1"
 dependencies = [
  "hex",
  "serde",
@@ -1173,7 +1173,7 @@ dependencies = [
 
 [[package]]
 name = "ymp-evals"
-version = "0.1.0"
+version = "1.0.1"
 dependencies = [
  "serde",
  "serde_json",
@@ -1182,7 +1182,7 @@ dependencies = [
 
 [[package]]
 name = "ymp-kernel"
-version = "0.1.0"
+version = "1.0.1"
 dependencies = [
  "thiserror",
  "ymp-domain",
@@ -1190,7 +1190,7 @@ dependencies = [
 
 [[package]]
 name = "ymp-runtime-api"
-version = "0.1.0"
+version = "1.0.1"
 dependencies = [
  "serde",
  "serde_json",
@@ -1200,7 +1200,7 @@ dependencies = [
 
 [[package]]
 name = "ymp-runtime-claude"
-version = "0.1.0"
+version = "1.0.1"
 dependencies = [
  "serde_json",
  "tempfile",
@@ -1210,7 +1210,7 @@ dependencies = [
 
 [[package]]
 name = "ymp-runtime-codex"
-version = "0.1.0"
+version = "1.0.1"
 dependencies = [
  "serde_json",
  "tempfile",
@@ -1220,7 +1220,7 @@ dependencies = [
 
 [[package]]
 name = "ymp-runtime-fake"
-version = "0.1.0"
+version = "1.0.1"
 dependencies = [
  "ymp-domain",
  "ymp-runtime-api",
@@ -1228,7 +1228,7 @@ dependencies = [
 
 [[package]]
 name = "ymp-runtime-registry"
-version = "0.1.0"
+version = "1.0.1"
 dependencies = [
  "hex",
  "serde",
@@ -1240,7 +1240,7 @@ dependencies = [
 
 [[package]]
 name = "ymp-runtime-supervisor"
-version = "0.1.0"
+version = "1.0.1"
 dependencies = [
  "anyhow",
  "serde",
@@ -1257,7 +1257,7 @@ dependencies = [
 
 [[package]]
 name = "ymp-storage"
-version = "0.1.0"
+version = "1.0.1"
 dependencies = [
  "fs2",
  "hex",
@@ -1271,7 +1271,7 @@ dependencies = [
 
 [[package]]
 name = "ymp-testkit"
-version = "0.1.0"
+version = "1.0.1"
 dependencies = [
  "serde",
  "thiserror",
@@ -1286,7 +1286,7 @@ dependencies = [
 
 [[package]]
 name = "ymp-tui"
-version = "0.1.0"
+version = "1.0.1"
 dependencies = [
  "anyhow",
  "crossterm",
@@ -1305,7 +1305,7 @@ dependencies = [
 
 [[package]]
 name = "ymp-verifier"
-version = "0.1.0"
+version = "1.0.1"
 dependencies = [
  "hex",
  "serde",
