@@ -751,11 +751,19 @@ fn counted(entries: usize) -> String {
 
 /// The per-participant bounds. Every one of them is absent until an operator states one, so a pool
 /// that carries none says that rather than showing a number nobody decided.
+///
+/// Each bound is stated in the unit the record holds it in. The spend bound is the one that would
+/// otherwise be converted: the design draws it as an amount of currency (S36), and no surface of
+/// this build may, because nothing in the domain behind these screens carries money — the run
+/// budget has attempts and verification queries and no third dimension
+/// (`tests/state_binding.rs`). Turning the recorded micros into an amount with a currency on it
+/// would put a unit on screen that no measurement and no ceiling of this build produced; the
+/// surface that owns spending states it in its own words once the domain carries it.
 fn limits_field(pool: &PoolFacts) -> String {
     let limits = pool.record.declared.resource_limits;
     let mut stated = Vec::new();
     if let Some(money) = limits.max_money_micros {
-        stated.push(format!("${:.2}", money as f64 / 1_000_000.0));
+        stated.push(format!("spend {money} micros"));
     }
     if let Some(wall) = limits.max_wall_time_ms {
         stated.push(format!("{} min", wall / 60_000));
@@ -985,7 +993,7 @@ mod tests {
                 .model,
             "claude-opus-5"
         );
-        let refused = entry_named(&report, &pool, "gpt-5.6-sol", None, None)
+        let refused = entry_named(&report, &pool, "nemotron-ultra", None, None)
             .expect_err("a model no entry names");
         assert!(refused.contains("claude-opus-5"), "{refused}");
 
