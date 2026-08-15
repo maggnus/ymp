@@ -3,24 +3,24 @@ id: W1-APP-02s
 kind: task
 wave: W1
 card: W1-APP-02
-state: active
+state: accepted
 risk: routine
 maturity: BUILD
 relation: follow_up
 depends_on: [W1-APP-02r]
 blocks: []
 created_at: 2026-08-13T21:21:27+08:00
-updated_at: 2026-08-15T14:23:59+08:00
+updated_at: 2026-08-15T14:45:38+08:00
 started_at: 2026-08-15T14:23:59+08:00
-accepted_at:
-candidate_commit:
-closure_commit:
-evidence:
+accepted_at: 2026-08-15T14:45:38+08:00
+candidate_commit: https://github.com/maggnus/ymp/commit/fa3ca2c
+closure_commit: https://github.com/maggnus/ymp/commit/69506e7
+evidence: cargo tree shows the fixture runtime reachable only from the testkit and dev sections; /runtimes renders two engines instead of three on the built product; attempt --runtime fake refuses; both mutations reproduced; the unknown-profile-name wording queued as a residual
 duration_minutes: 0
 blocker:
 pause_reason:
-return_trigger:
-deliberate_partial: false
+return_trigger: an unknown runtime name flows into contract assembly and is refused as a missing acceptance condition instead of "no such profile" (surface.rs:321) — fix when the runtime line is next touched
+deliberate_partial: true
 ---
 
 # W1-APP-02s — The fake runtime is neither linked nor offered as a profile
