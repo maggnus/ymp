@@ -105,6 +105,15 @@ pub enum PublicCommand {
         /// Where to write it. Omitted writes it beside the project, under the run's own name.
         #[arg(long = "to", value_name = "DIR")]
         destination: Option<PathBuf>,
+        /// Put the accepted candidate's files into the project directory itself and write
+        /// nothing else there. Omitted writes the evidence bundle, which is what an export is
+        /// unless this is stated.
+        #[arg(long)]
+        apply: bool,
+        /// Replace project files the candidate also names. Without it, a file that is already
+        /// there is named and nothing is written.
+        #[arg(long, requires = "apply")]
+        overwrite: bool,
     },
     /// Admit a runtime engine, or stop admitting it. The decision is durable and is read by every
     /// run under this root; nothing about an open run changes here.
@@ -284,9 +293,18 @@ pub fn run(
             run_attempt(&mut session, &mut app, &markers, confirm, runtime)
         }
         PublicCommand::Cancel { confirm } => run_cancel(&mut session, &mut app, &markers, confirm),
-        PublicCommand::Export { destination } => {
-            run_export(&mut session, &mut app, &markers, destination)
-        }
+        PublicCommand::Export {
+            destination,
+            apply,
+            overwrite,
+        } => run_export(
+            &mut session,
+            &mut app,
+            &markers,
+            destination,
+            apply,
+            overwrite,
+        ),
         PublicCommand::Runtime { command } => {
             run_runtime(&mut session, &mut app, &markers, command)
         }
@@ -407,15 +425,28 @@ fn attempt_refusal(projection: &Projection) -> String {
     }
 }
 
-/// Write the run's candidate and the evidence that judged it out of the store.
+/// Write the run's candidate and the evidence that judged it out of the store, or — when the
+/// operator states it — put the accepted candidate's files into the project directory itself.
 fn run_export(
     session: &mut Session,
     app: &mut App,
     markers: &Markers,
     destination: Option<PathBuf>,
+    apply: bool,
+    overwrite: bool,
 ) -> Result<()> {
     let errors = known_errors(&app.data.entries);
-    session.export_evidence(destination);
+    perform(
+        session,
+        if apply {
+            Action::ApplyCandidate {
+                destination,
+                overwrite,
+            }
+        } else {
+            Action::ExportEvidence(destination)
+        },
+    );
     app.adopt(session.projection(None));
     print_transcript(app, markers);
     reject_new_errors(app, &errors)?;
@@ -588,6 +619,10 @@ fn perform(session: &mut Session, action: Action) {
         Action::StartRun(contract_id) => session.start_run(&contract_id),
         Action::StartAttempt => session.start_attempt(),
         Action::ExportEvidence(destination) => session.export_evidence(destination),
+        Action::ApplyCandidate {
+            destination,
+            overwrite,
+        } => session.apply_candidate(destination, overwrite),
         Action::LocalTurn(text) => session.local_turn(text),
         Action::SetEngineEnabled {
             engine,

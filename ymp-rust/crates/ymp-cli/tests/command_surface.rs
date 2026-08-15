@@ -64,6 +64,7 @@ const CORRESPONDENCE: &[(&str, &[&str])] = &[
     ("attempt", &["ymp", "attempt", "--confirm", "run-1"]),
     ("cancel-run", &["ymp", "cancel", "--confirm", "run-1"]),
     ("export", &["ymp", "export"]),
+    ("export-apply", &["ymp", "export", "--apply"]),
     (
         "runtime-enable",
         &["ymp", "runtime", "enable", "claude-code"],
@@ -148,6 +149,7 @@ fn performed_action(action: &Action) -> String {
         Action::StartRun(_) => "start-run".to_owned(),
         Action::StartAttempt => "attempt".to_owned(),
         Action::ExportEvidence(_) => "export".to_owned(),
+        Action::ApplyCandidate { .. } => "export-apply".to_owned(),
         Action::LocalTurn(_) => "request".to_owned(),
         Action::SetEngineEnabled { enabled: true, .. } => "runtime-enable".to_owned(),
         Action::SetEngineEnabled { enabled: false, .. } => "runtime-disable".to_owned(),
@@ -211,6 +213,10 @@ fn interface_actions(root: &Path) -> BTreeSet<String> {
         Action::LocalTurn("keep the replay path idempotent".to_owned()),
         Action::StartAttempt,
         Action::ExportEvidence(None),
+        Action::ApplyCandidate {
+            destination: None,
+            overwrite: false,
+        },
         Action::CancelCheck,
         Action::SetEngineEnabled {
             engine: Engine::ClaudeCode,
@@ -263,6 +269,9 @@ fn command_action(command: &PublicCommand) -> String {
         PublicCommand::Start { .. } => "start-run".to_owned(),
         PublicCommand::Attempt { .. } => "attempt".to_owned(),
         PublicCommand::Cancel { .. } => "cancel-run".to_owned(),
+        // The same command reaches both forms an export takes, so the form is what names the
+        // action: the bundle unless the operator states that the candidate is applied in place.
+        PublicCommand::Export { apply: true, .. } => "export-apply".to_owned(),
         PublicCommand::Export { .. } => "export".to_owned(),
         PublicCommand::Runtime { command } => match command {
             RuntimeCommand::Enable { .. } => "runtime-enable".to_owned(),

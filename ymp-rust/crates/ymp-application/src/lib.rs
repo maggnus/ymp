@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs::{self, File, OpenOptions};
 use std::io::Write;
-use std::path::{Path, PathBuf};
+use std::path::{Component, Path, PathBuf};
 use std::sync::mpsc::{Receiver, SyncSender, TrySendError, sync_channel};
 use thiserror::Error;
 use uuid::Uuid;
@@ -91,6 +91,22 @@ pub enum ApplicationError {
     ExportAlreadyExists(PathBuf),
     #[error("a candidate must be submitted before evidence can be exported")]
     NoCandidateForExport,
+    #[error(
+        "only an accepted candidate is applied into a project directory; this run stands at \
+         {actual:?}"
+    )]
+    CandidateNotAccepted { actual: RunStatus },
+    #[error(
+        "the project directory already holds file(s) the candidate names, and nothing was \
+         written: {}",
+        .0.join(", ")
+    )]
+    ApplyWouldOverwrite(Vec<String>),
+    #[error(
+        "a directory stands where the candidate names a file, and nothing was written: {}",
+        .0.join(", ")
+    )]
+    ApplyBlockedByDirectory(Vec<String>),
 }
 
 #[derive(Debug, Error, Eq, PartialEq)]
@@ -130,6 +146,19 @@ pub struct EvidenceExportReport {
     pub evidence_digests: Vec<String>,
     pub environment_digests: Vec<String>,
     pub event_count: usize,
+}
+
+/// What an in-place application of the accepted candidate put into a project directory.
+///
+/// The paths are the candidate's own, relative to the directory they were applied to, so a
+/// report states exactly which files an operator now has and which of them replaced a file that
+/// was already there.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+pub struct CandidateApplyReport {
+    pub destination: PathBuf,
+    pub candidate_digest: String,
+    pub applied_paths: Vec<String>,
+    pub replaced_paths: Vec<String>,
 }
 
 #[derive(Clone, Copy, Debug, Default)]
@@ -759,6 +788,100 @@ impl Application {
         })
     }
 
+    /// Apply the accepted candidate's files into a project directory, and write nothing else.
+    ///
+    /// This is delivery rather than storage: what lands in the directory is the candidate tree
+    /// exactly as the store holds it — no journal, no verifier evidence, no manifest — because a
+    /// directory an operator works in is not a place to keep a record of the run. The evidence
+    /// bundle of [`Application::export_evidence`] remains the default form of an export and keeps
+    /// that record; this mode is chosen explicitly.
+    ///
+    /// Only an accepted candidate is applied. A rejected or unjudged candidate is refused by its
+    /// run status, so an operator cannot put work into a project directory that nothing has
+    /// approved.
+    ///
+    /// A file the project already holds is a refusal, not a silent replacement: every conflicting
+    /// path is named and nothing at all is written, unless `overwrite` states that replacing them
+    /// is intended. The files are first materialized into one staging directory beside them and
+    /// then renamed into place, so a file that appears in the project is complete and carries the
+    /// candidate's own permissions; a failure part-way leaves the staging directory removed and
+    /// the files not yet renamed absent, rather than half-written.
+    pub fn apply_candidate(
+        &self,
+        destination: impl AsRef<Path>,
+        overwrite: bool,
+    ) -> Result<CandidateApplyReport, ApplicationError> {
+        let destination = destination.as_ref().to_path_buf();
+        let candidate_digest = self
+            .state
+            .candidate_digest
+            .clone()
+            .ok_or(ApplicationError::NoCandidateForExport)?;
+        if self.state.status != RunStatus::Accepted {
+            return Err(ApplicationError::CandidateNotAccepted {
+                actual: self.state.status,
+            });
+        }
+        let manifest = self.artifact_store().load_snapshot(&candidate_digest)?;
+        let mut targets = Vec::new();
+        for entry in &manifest.files {
+            let relative = checked_candidate_path(&entry.path)?;
+            targets.push((entry.path.clone(), relative));
+        }
+        fs::create_dir_all(&destination)?;
+
+        // What is already there decides whether anything is written at all. The whole set is
+        // examined before the first file moves, so a refusal names every conflict at once and
+        // leaves the directory exactly as it was.
+        let mut occupied = Vec::new();
+        let mut directories = Vec::new();
+        for (path, relative) in &targets {
+            reject_symlinked_ancestor(&destination, relative)?;
+            let Ok(metadata) = fs::symlink_metadata(destination.join(relative)) else {
+                continue;
+            };
+            if metadata.is_dir() {
+                directories.push(path.clone());
+            } else {
+                occupied.push(path.clone());
+            }
+        }
+        directories.sort();
+        occupied.sort();
+        if !directories.is_empty() {
+            return Err(ApplicationError::ApplyBlockedByDirectory(directories));
+        }
+        if !occupied.is_empty() && !overwrite {
+            return Err(ApplicationError::ApplyWouldOverwrite(occupied));
+        }
+
+        let staging = destination.join(format!(".ymp-apply-{}", Uuid::new_v4()));
+        self.artifact_store()
+            .materialize(&candidate_digest, &staging)?;
+        let result = (|| -> Result<(), ApplicationError> {
+            for (_, relative) in &targets {
+                let target = destination.join(relative);
+                if let Some(parent) = target.parent() {
+                    fs::create_dir_all(parent)?;
+                }
+                fs::rename(staging.join(relative), &target)?;
+            }
+            File::open(&destination)?.sync_all()?;
+            Ok(())
+        })();
+        let _ = fs::remove_dir_all(&staging);
+        result?;
+
+        let mut applied_paths: Vec<_> = targets.into_iter().map(|(path, _)| path).collect();
+        applied_paths.sort();
+        Ok(CandidateApplyReport {
+            destination,
+            candidate_digest,
+            applied_paths,
+            replaced_paths: occupied,
+        })
+    }
+
     fn replay(
         &self,
         command_id: &str,
@@ -996,6 +1119,51 @@ impl AgentSession<'_> {
         serde_json::to_value(outcome)
             .map_err(|_| AgentToolError::internal("command outcome serialization failed"))
     }
+}
+
+/// A candidate path as it may be joined to a project directory: relative, and made of ordinary
+/// names only, so nothing a manifest carries can address a file outside the directory applied to.
+fn checked_candidate_path(path: &str) -> Result<PathBuf, ApplicationError> {
+    let value = Path::new(path);
+    if path.is_empty()
+        || value.is_absolute()
+        || value
+            .components()
+            .any(|component| !matches!(component, Component::Normal(_)))
+    {
+        return Err(ApplicationError::Io(std::io::Error::new(
+            std::io::ErrorKind::InvalidData,
+            format!("the candidate names a path that cannot be applied: {path}"),
+        )));
+    }
+    Ok(value.to_path_buf())
+}
+
+/// Refuse a path whose directories inside the project are reached through a symbolic link.
+///
+/// A relative path is checked, but the directories it passes through are not the candidate's: a
+/// link already in the project would carry a write outside the directory the operator named.
+fn reject_symlinked_ancestor(destination: &Path, relative: &Path) -> Result<(), ApplicationError> {
+    let mut walked = destination.to_path_buf();
+    let mut components: Vec<_> = relative.components().collect();
+    components.pop();
+    for component in components {
+        walked.push(component);
+        let Ok(metadata) = fs::symlink_metadata(&walked) else {
+            return Ok(());
+        };
+        if metadata.file_type().is_symlink() {
+            return Err(ApplicationError::Io(std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                format!(
+                    "the project directory reaches {} through a symbolic link, and nothing was \
+                     written",
+                    walked.display()
+                ),
+            )));
+        }
+    }
+    Ok(())
 }
 
 fn copy_export_tree(source: &Path, destination: &Path) -> Result<(), ApplicationError> {

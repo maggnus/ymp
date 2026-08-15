@@ -90,6 +90,10 @@ fn submit(app: &mut App, session: &mut Session, text: &str) {
         Some(Action::CancelCheck) => session.cancel_check(),
         Some(Action::StartAttempt) => session.start_attempt(),
         Some(Action::ExportEvidence(destination)) => session.export_evidence(destination),
+        Some(Action::ApplyCandidate {
+            destination,
+            overwrite,
+        }) => session.apply_candidate(destination, overwrite),
         Some(Action::SetEngineEnabled {
             engine,
             enabled,

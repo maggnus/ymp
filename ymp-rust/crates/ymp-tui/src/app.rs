@@ -1216,6 +1216,47 @@ impl Session {
         }
     }
 
+    /// Put the accepted candidate's files into the project directory itself.
+    ///
+    /// This is the other form an export takes: the operator receives the work as files where they
+    /// work, and nothing about the run is written beside them. The bundle stays the default,
+    /// because it is the form that keeps the record and takes nothing back; applying files into a
+    /// directory an operator already owns is chosen, never assumed.
+    ///
+    /// A file the project already holds is named and nothing is written, unless the operator
+    /// states that replacing it is intended.
+    pub fn apply_candidate(&mut self, destination: Option<PathBuf>, overwrite: bool) {
+        let Some(application) = self.application.clone() else {
+            self.model
+                .error("no run is open in this store — there is nothing to apply");
+            return;
+        };
+        let destination =
+            destination.unwrap_or_else(|| self.model.environment().project_path.clone());
+        let report = Self::writer(&application).apply_candidate(&destination, overwrite);
+        match report {
+            Ok(report) => {
+                let replaced = if report.replaced_paths.is_empty() {
+                    String::new()
+                } else {
+                    format!(
+                        " · {} replaced: {}",
+                        report.replaced_paths.len(),
+                        report.replaced_paths.join(", ")
+                    )
+                };
+                self.model.reply(format!(
+                    "candidate {} applied to {} · {} file(s): {}{replaced}",
+                    crate::projection::short_digest(&report.candidate_digest),
+                    report.destination.display(),
+                    report.applied_paths.len(),
+                    report.applied_paths.join(", ")
+                ));
+            }
+            Err(error) => self.model.error(format!("nothing was applied — {error}")),
+        }
+    }
+
     /// Where an export of this run is written when the operator names no directory.
     ///
     /// It is beside the project rather than under the root, because an export exists to leave the
@@ -1452,6 +1493,13 @@ pub enum Action {
     /// Write the run's candidate and the evidence that judged it out of the store, into the
     /// directory the operator named or the one the product states when they name none.
     ExportEvidence(Option<PathBuf>),
+    /// Put the accepted candidate's files into the project directory the operator named, or the
+    /// one this session stands in when they name none, and write nothing else there. `overwrite`
+    /// states that replacing a file the project already holds is intended.
+    ApplyCandidate {
+        destination: Option<PathBuf>,
+        overwrite: bool,
+    },
     /// The operator typed prose. It is shown as a local turn and answered honestly: no
     /// participant can receive it until the domain carries messages.
     LocalTurn(String),
@@ -1628,6 +1676,13 @@ fn perform(session: &mut Session, app: &mut App, action: Action, tx: &Sender<App
         }
         Action::ExportEvidence(destination) => {
             session.export_evidence(destination);
+            adopt(session, app);
+        }
+        Action::ApplyCandidate {
+            destination,
+            overwrite,
+        } => {
+            session.apply_candidate(destination, overwrite);
             adopt(session, app);
         }
         Action::StartRun(contract_id) => {

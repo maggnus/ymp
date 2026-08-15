@@ -174,6 +174,29 @@ fn reported(outcome: &Output) -> String {
     )
 }
 
+/// Every file under a directory, as paths relative to it and in a stated order.
+fn tree(root: &Path) -> Vec<String> {
+    let mut found = Vec::new();
+    let mut pending = vec![root.to_path_buf()];
+    while let Some(directory) = pending.pop() {
+        for entry in fs::read_dir(&directory).expect("read directory").flatten() {
+            let path = entry.path();
+            if path.is_dir() {
+                pending.push(path);
+                continue;
+            }
+            found.push(
+                path.strip_prefix(root)
+                    .expect("path under the root")
+                    .display()
+                    .to_string(),
+            );
+        }
+    }
+    found.sort();
+    found
+}
+
 fn journal(store: &Path) -> String {
     fs::read_to_string(store.join("events.jsonl")).expect("committed journal")
 }
@@ -359,6 +382,79 @@ fn the_attempt_is_done_judged_and_exported_through_the_product_alone() {
     assert!(
         export.join("runtime-evidence").is_dir(),
         "the export carries no record of the runtime that produced the candidate"
+    );
+
+    // The other form the same export takes: the accepted candidate applied where the operator
+    // works. What lands there is the candidate's files and nothing about the run, which is what
+    // separates this from the bundle written just above.
+    let project = fixture.store("project");
+    let applied = fixture.command(
+        &store,
+        &[
+            "export".to_owned(),
+            "--apply".to_owned(),
+            format!("--to={}", project.display()),
+        ],
+    );
+    assert!(
+        applied.status.success(),
+        "the candidate was not applied: {}",
+        reported(&applied)
+    );
+    assert_eq!(
+        fs::read_to_string(project.join("result.txt")).expect("applied candidate"),
+        "done\n"
+    );
+    assert_eq!(
+        tree(&project),
+        tree(&export.join("candidate")),
+        "the project directory holds something other than the candidate's files"
+    );
+
+    // A file the project already holds is a refusal that names it, and the file is untouched.
+    fs::write(project.join("result.txt"), b"the operator's own work\n").expect("project file");
+    let refused = fixture.command(
+        &store,
+        &[
+            "export".to_owned(),
+            "--apply".to_owned(),
+            format!("--to={}", project.display()),
+        ],
+    );
+    assert!(
+        !refused.status.success(),
+        "applying over a project file was not refused: {}",
+        reported(&refused)
+    );
+    assert!(
+        reported(&refused).contains("result.txt"),
+        "the refusal does not name the file that stopped it: {}",
+        reported(&refused)
+    );
+    assert_eq!(
+        fs::read_to_string(project.join("result.txt")).expect("project file"),
+        "the operator's own work\n",
+        "a refused application changed a project file"
+    );
+
+    // Stated, the replacement is made.
+    let replaced = fixture.command(
+        &store,
+        &[
+            "export".to_owned(),
+            "--apply".to_owned(),
+            "--overwrite".to_owned(),
+            format!("--to={}", project.display()),
+        ],
+    );
+    assert!(
+        replaced.status.success(),
+        "the stated replacement did not happen: {}",
+        reported(&replaced)
+    );
+    assert_eq!(
+        fs::read_to_string(project.join("result.txt")).expect("applied candidate"),
+        "done\n"
     );
 }
 
