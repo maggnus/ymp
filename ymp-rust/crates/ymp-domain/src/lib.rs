@@ -9,10 +9,10 @@ pub mod contract;
 
 use commitment::{BudgetVector, CommitmentEvent};
 
-/// Journal schema version 3 adds the two commitment tags, which carry the facts of the commitment
-/// kernel into the durable record. Version 2 added `contract_approved` and version 1 had neither;
-/// see `ymp-rust/SCHEMA.md`.
-pub const EVENT_SCHEMA_VERSION: u32 = 3;
+/// Journal schema version 4 adds the four commitment facts that carry a result's ancestry. Version
+/// 3 added the two commitment tags, version 2 added `contract_approved`, and version 1 had none of
+/// them; see `ymp-rust/SCHEMA.md`.
+pub const EVENT_SCHEMA_VERSION: u32 = 4;
 pub const MAX_IDENTIFIER_CHARS: usize = 128;
 pub const MAX_REASON_BYTES: usize = 1024;
 

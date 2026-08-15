@@ -11,11 +11,16 @@
 //! acceptance is whichever mechanically valid acceptance was serialized first. No transition
 //! ranks, scores, compares or interprets two participants.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 use serde::Serialize;
 
 use super::budget::{BudgetVector, Dimension};
+use super::candidates::{
+    BundleChange, BundleRecord, CandidateRecord, ConflictRecord, Contribution, MAX_BUNDLE_CHANGES,
+    MAX_BUNDLE_PARENTS, MAX_CANDIDATE_CHANGES, MAX_PATH_BYTES, PathChange, change_map,
+    merge_contributions, ordered_changes,
+};
 use super::invocations::{
     InvocationClosure, InvocationRecord, InvocationState, OpenAuthority, RootTerminal, StopReason,
     Verdict, VerificationRecord, WakeCondition, WakeRegistration,
@@ -23,9 +28,10 @@ use super::invocations::{
 use super::protocol::{
     AcceptOpen, AdvanceClock, Advertise, Award, CancelContract, CloseInvocation, CommitmentCommand,
     CommitmentError, CommitmentEvent, MAX_ATTEMPT_WAKES, MAX_AWARDS, MAX_LEASE_MS,
-    MAX_SCOPE_ENTRIES, MAX_WAKE_CONDITIONS, Reassign, RecordBid, RecordVerification,
-    RegisterParticipant, RenewLease, ResumeInvocation, ReturnObligation, SettleOffer, StartAttempt,
-    StartInvocation, StopRun, SubmitResult, WithdrawBid, WithdrawOffer, YieldInvocation,
+    MAX_SCOPE_ENTRIES, MAX_WAKE_CONDITIONS, Reassign, RecordBid, RecordConflict, RecordObject,
+    RecordVerification, RegisterParticipant, RenewLease, ResumeInvocation, ReturnObligation,
+    SettleOffer, StartAttempt, StartInvocation, StopRun, SubmitBundle, SubmitResult, WithdrawBid,
+    WithdrawOffer, YieldInvocation,
 };
 use super::records::{
     AccountRef, AttemptRecord, AttemptState, BidOrigin, BidRecord, BidState, ContractState,
@@ -73,6 +79,13 @@ pub(crate) enum Check {
     StoppedWake,
     /// One attempt runs one process slice at a time.
     SingleRunningSlice,
+    /// The result a task contract recorded is never replaced by another.
+    CandidateSeal,
+    /// A result is formed only on the exact base its task contract was awarded from.
+    CandidateBase,
+    /// Where the contributions a bundle carries forward disagree, the bundle itself states what
+    /// stands there. The kernel does not settle a disagreement in favour of either side.
+    ConflictResolution,
 }
 
 /// Checks a test build may switch off to prove that each one is load-bearing. The field does not
@@ -92,6 +105,9 @@ pub(crate) struct DisabledChecks {
     pub wake_count: bool,
     pub stopped_wake: bool,
     pub single_running_slice: bool,
+    pub candidate_seal: bool,
+    pub candidate_base: bool,
+    pub conflict_resolution: bool,
 }
 
 /// Deliberate corruptions of the facts an accepted command emits, which a test build may switch on
@@ -117,6 +133,11 @@ pub(crate) struct AlteredFacts {
     /// spends stay exactly as decided, so nothing but the scope the fact claims is wrong — and the
     /// terminal state a run reports is derived from that claim.
     pub overstated_verification_scope: bool,
+    /// State a formed result as carrying no change at all, wherever it in fact puts objects. The
+    /// identifiers the fact carries stay exactly as they were computed, so what is wrong is that
+    /// the construction the record states no longer reaches the identity it claims — and every
+    /// record built from that fact agrees with it.
+    pub unstated_changes: bool,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
@@ -135,6 +156,15 @@ pub struct CommitmentLedger {
     attempts: BTreeMap<String, AttemptRecord>,
     invocations: BTreeMap<String, InvocationRecord>,
     verifications: Vec<VerificationRecord>,
+    /// The objects this run has been told are stored whole. A bundle may name no other.
+    objects: BTreeSet<String>,
+    /// Every bundle published, by its content digest.
+    bundles: BTreeMap<String, BundleRecord>,
+    /// Every result formed, by its identity. Nothing removes an entry and nothing rewrites one:
+    /// competing results stand beside each other here, and the kernel prefers none of them.
+    candidates: BTreeMap<String, CandidateRecord>,
+    /// Every recorded disagreement between candidates, by its digest.
+    conflicts: BTreeMap<String, ConflictRecord>,
     stopped: Option<StopReason>,
     /// Every committed fact in the order it was committed. Its position, counted from one, is the
     /// run sequence a cursor names.
@@ -197,6 +227,10 @@ impl CommitmentLedger {
             attempts: BTreeMap::new(),
             invocations: BTreeMap::new(),
             verifications: Vec::new(),
+            objects: BTreeSet::new(),
+            bundles: BTreeMap::new(),
+            candidates: BTreeMap::new(),
+            conflicts: BTreeMap::new(),
             stopped: None,
             facts: Vec::new(),
             #[cfg(test)]
@@ -249,6 +283,27 @@ impl CommitmentLedger {
 
     pub fn verifications(&self) -> &[VerificationRecord] {
         &self.verifications
+    }
+
+    pub const fn objects(&self) -> &BTreeSet<String> {
+        &self.objects
+    }
+
+    pub const fn bundles(&self) -> &BTreeMap<String, BundleRecord> {
+        &self.bundles
+    }
+
+    /// Every result the run has formed, keyed by its identity.
+    ///
+    /// There is deliberately no accessor beside this one that answers which of them is best,
+    /// current, or preferred. Which result a task contract recorded is a fact about that contract;
+    /// which result a run should stand on is a question this kernel does not answer.
+    pub const fn candidates(&self) -> &BTreeMap<String, CandidateRecord> {
+        &self.candidates
+    }
+
+    pub const fn conflicts(&self) -> &BTreeMap<String, ConflictRecord> {
+        &self.conflicts
     }
 
     pub const fn stopped(&self) -> Option<StopReason> {
@@ -535,6 +590,10 @@ impl CommitmentLedger {
             attempts,
             invocations,
             verifications,
+            objects,
+            bundles,
+            candidates,
+            conflicts,
             stopped,
             facts: _,
             disabled: _,
@@ -560,6 +619,7 @@ impl CommitmentLedger {
             attempts,
             invocations,
             verifications,
+            (objects, bundles, candidates, conflicts),
             stopped,
         ))
         .expect("a registry is representable as committed data")
@@ -580,6 +640,9 @@ impl CommitmentLedger {
             Check::WakeCount => !self.disabled.wake_count,
             Check::StoppedWake => !self.disabled.stopped_wake,
             Check::SingleRunningSlice => !self.disabled.single_running_slice,
+            Check::CandidateSeal => !self.disabled.candidate_seal,
+            Check::CandidateBase => !self.disabled.candidate_base,
+            Check::ConflictResolution => !self.disabled.conflict_resolution,
         }
     }
 
@@ -664,6 +727,23 @@ impl CommitmentLedger {
         decided
     }
 
+    /// The change set a formed result states. It is the set that was decided, unless a test build
+    /// asked the fact to state none of it while keeping the identifiers it was given.
+    #[cfg(test)]
+    fn stated_changes(&self, decided: Vec<BundleChange>) -> Vec<BundleChange> {
+        if self.altered.unstated_changes {
+            Vec::new()
+        } else {
+            decided
+        }
+    }
+
+    #[cfg(not(test))]
+    #[allow(clippy::unused_self)]
+    fn stated_changes(&self, decided: Vec<BundleChange>) -> Vec<BundleChange> {
+        decided
+    }
+
     /// Decide a command without changing anything, then commit every fact it produced.
     ///
     /// The facts are committed to a copy that replaces the ledger only once every one of them has
@@ -714,6 +794,9 @@ impl CommitmentLedger {
             CommitmentCommand::StartAttempt(command) => self.decide_start_attempt(command),
             CommitmentCommand::RenewLease(command) => self.decide_renew(command),
             CommitmentCommand::SubmitResult(command) => self.decide_submit(command),
+            CommitmentCommand::RecordObject(command) => self.decide_record_object(command),
+            CommitmentCommand::SubmitBundle(command) => self.decide_submit_bundle(command),
+            CommitmentCommand::RecordConflict(command) => self.decide_record_conflict(command),
             CommitmentCommand::Reassign(command) => self.decide_reassign(command),
             CommitmentCommand::ReturnObligation(command) => self.decide_return(command),
             CommitmentCommand::CancelContract(command) => self.decide_cancel(command),
@@ -1313,16 +1396,250 @@ impl CommitmentLedger {
         ])
     }
 
+    /// Record a result whose construction the caller's own object store holds, as the exact digest
+    /// of that result and nothing more.
+    ///
+    /// It seals the task contract exactly as a bundle does. What it cannot do is state where the
+    /// result came from, which is why a submission that carries its ancestry goes through
+    /// [`Self::decide_submit_bundle`].
     fn decide_submit(
         &self,
         command: &SubmitResult,
     ) -> Result<Vec<CommitmentEvent>, CommitmentError> {
         validate_digest("candidate_digest", &command.candidate_digest)?;
+        let contract = self.submission_target(
+            &command.contract_id,
+            &command.participant,
+            command.generation,
+            &command.attempt_id,
+        )?;
+        self.ensure_unsealed(contract, &command.candidate_digest)?;
+        Ok(vec![CommitmentEvent::SubmissionRecorded {
+            contract_id: contract.contract_id.clone(),
+            attempt_id: command.attempt_id.clone(),
+            generation: command.generation,
+            candidate_digest: command.candidate_digest.clone(),
+        }])
+    }
+
+    /// State that an object is stored whole, so that a bundle may put it at a path.
+    ///
+    /// Recording the same object twice states the same fact twice and changes nothing, because the
+    /// fact is about bytes that already exist and not about a claim on them. Two participants that
+    /// produce the same bytes record the same object.
+    fn decide_record_object(
+        &self,
+        command: &RecordObject,
+    ) -> Result<Vec<CommitmentEvent>, CommitmentError> {
+        validate_digest("object_digest", &command.object_digest)?;
         let contract = self.active_contract(&command.contract_id)?;
         self.ensure_holder(contract, &command.participant)?;
         self.ensure_generation(contract, command.generation)?;
         self.ensure_lease_live(contract)?;
-        let attempt = self.attempt(&command.attempt_id)?;
+        Ok(vec![CommitmentEvent::ObjectRecorded {
+            object_digest: command.object_digest.clone(),
+        }])
+    }
+
+    /// Publish a bundle and form the immutable result it constructs.
+    ///
+    /// Everything decided here is mechanical: whether the bundle names the base its task contract
+    /// was awarded from, whether its fencing token is current, whether every object it names is
+    /// stored whole, and whether the results it carries forward disagree anywhere it says nothing
+    /// about. The identity of the result is computed from those facts rather than taken from the
+    /// command, so a caller cannot claim an identifier for a construction it did not state.
+    fn decide_submit_bundle(
+        &self,
+        command: &SubmitBundle,
+    ) -> Result<Vec<CommitmentEvent>, CommitmentError> {
+        validate_digest("base_digest", &command.base_digest)?;
+        if command.changes.len() > MAX_BUNDLE_CHANGES {
+            return Err(CommitmentError::InvalidBundleSize);
+        }
+        if command.parents.len() > MAX_BUNDLE_PARENTS {
+            return Err(CommitmentError::TooManyEntries {
+                kind: "bundle parents",
+            });
+        }
+        let mut stated = BTreeSet::new();
+        for change in &command.changes {
+            validate_path(&change.path)?;
+            if !stated.insert(change.path.as_str()) {
+                return Err(CommitmentError::DuplicateIdentifier {
+                    kind: "path",
+                    id: change.path.clone(),
+                });
+            }
+            if let PathChange::Upsert { object_digest, .. } = &change.change {
+                validate_digest("object_digest", object_digest)?;
+            }
+        }
+        let contract = self.submission_target(
+            &command.contract_id,
+            &command.participant,
+            command.generation,
+            &command.attempt_id,
+        )?;
+        if self.enforces(Check::CandidateBase) && command.base_digest != contract.base_digest {
+            return Err(CommitmentError::StaleBase {
+                contract_id: contract.contract_id.clone(),
+                expected: contract.base_digest.clone(),
+                actual: command.base_digest.clone(),
+            });
+        }
+        // A half-written object is one nothing ever recorded, so a result that names it is refused
+        // rather than formed over bytes that may never arrive.
+        for change in &command.changes {
+            if let PathChange::Upsert { object_digest, .. } = &change.change
+                && !self.objects.contains(object_digest)
+            {
+                return Err(CommitmentError::ObjectIncomplete {
+                    object_digest: object_digest.clone(),
+                });
+            }
+        }
+
+        let mut parents = command.parents.clone();
+        parents.sort();
+        parents.dedup();
+        let carried = parents
+            .iter()
+            .map(|digest| self.candidate(digest))
+            .collect::<Result<Vec<_>, _>>()?;
+        for candidate in &carried {
+            if candidate.base_digest != command.base_digest {
+                return Err(CommitmentError::DivergentBase {
+                    candidate_digest: candidate.candidate_digest.clone(),
+                    base_digest: candidate.base_digest.clone(),
+                });
+            }
+        }
+
+        let own = change_map(&command.changes);
+        let (agreed, disputed) = merge_contributions(&carried);
+        let unresolved: Vec<String> = disputed
+            .into_iter()
+            .filter(|path| !own.contains_key(path))
+            .collect();
+        if self.enforces(Check::ConflictResolution) && !unresolved.is_empty() {
+            return Err(CommitmentError::IntegrationConflict { paths: unresolved });
+        }
+        let mut effective = agreed;
+        effective.extend(own.clone());
+        if effective.len() > MAX_CANDIDATE_CHANGES {
+            return Err(CommitmentError::TooManyEntries {
+                kind: "candidate changes",
+            });
+        }
+
+        let changes = ordered_changes(own);
+        let effective = ordered_changes(effective);
+        let bundle_digest = BundleRecord::identify(&command.base_digest, &parents, &changes);
+        let contributions: Vec<Contribution> = carried
+            .iter()
+            .map(|candidate| Contribution {
+                candidate_digest: candidate.candidate_digest.clone(),
+                obligation_id: candidate.obligation_id.clone(),
+                participant: candidate.participant.clone(),
+                bundle_digest: candidate.bundle_digest.clone(),
+            })
+            .collect();
+        let content_digest = CandidateRecord::identify_content(&command.base_digest, &effective);
+        let candidate_digest = CandidateRecord::identify(
+            &content_digest,
+            &contract.contract_id,
+            &contract.obligation_id,
+            &command.participant,
+            command.generation,
+            &bundle_digest,
+            &contributions,
+        );
+        self.ensure_unsealed(contract, &candidate_digest)?;
+
+        Ok(vec![
+            CommitmentEvent::BundleRecorded {
+                bundle_digest: bundle_digest.clone(),
+                base_digest: command.base_digest.clone(),
+                parents,
+                changes,
+            },
+            CommitmentEvent::CandidateFormed {
+                candidate_digest: candidate_digest.clone(),
+                content_digest,
+                contract_id: contract.contract_id.clone(),
+                obligation_id: contract.obligation_id.clone(),
+                participant: command.participant.clone(),
+                generation: command.generation,
+                base_digest: command.base_digest.clone(),
+                bundle_digest,
+                contributions,
+                changes: self.stated_changes(effective),
+            },
+            CommitmentEvent::SubmissionRecorded {
+                contract_id: contract.contract_id.clone(),
+                attempt_id: command.attempt_id.clone(),
+                generation: command.generation,
+                candidate_digest,
+            },
+        ])
+    }
+
+    /// Record where named results put different bytes at the same path.
+    ///
+    /// The paths are derived from the candidates themselves, so the evidence states what is true of
+    /// them rather than what the caller says about them. Nothing follows from recording it: no
+    /// candidate is closed, no work is created, and no side is taken. It gives the collective an
+    /// identifier a participant may fund an offer against, and that offer is consent like any other.
+    fn decide_record_conflict(
+        &self,
+        command: &RecordConflict,
+    ) -> Result<Vec<CommitmentEvent>, CommitmentError> {
+        self.participant(&command.participant)?;
+        let mut named = command.candidates.clone();
+        named.sort();
+        named.dedup();
+        if !(2..=MAX_BUNDLE_PARENTS).contains(&named.len()) {
+            return Err(CommitmentError::InvalidConflictScope);
+        }
+        let candidates = named
+            .iter()
+            .map(|digest| self.candidate(digest))
+            .collect::<Result<Vec<_>, _>>()?;
+        let base_digest = candidates[0].base_digest.clone();
+        for candidate in &candidates {
+            if candidate.base_digest != base_digest {
+                return Err(CommitmentError::DivergentBase {
+                    candidate_digest: candidate.candidate_digest.clone(),
+                    base_digest: candidate.base_digest.clone(),
+                });
+            }
+        }
+        let (_, paths) = merge_contributions(&candidates);
+        if paths.is_empty() {
+            return Err(CommitmentError::NoConflict);
+        }
+        Ok(vec![CommitmentEvent::ConflictRecorded {
+            conflict_digest: ConflictRecord::identify(&base_digest, &named, &paths),
+            base_digest,
+            candidates: named,
+            paths,
+        }])
+    }
+
+    /// The task contract a result may be recorded against: active, held by this participant, under
+    /// the current fencing token, with a live lease and an attempt of its own.
+    fn submission_target(
+        &self,
+        contract_id: &str,
+        participant: &str,
+        generation: u64,
+        attempt_id: &str,
+    ) -> Result<&TaskContractRecord, CommitmentError> {
+        let contract = self.active_contract(contract_id)?;
+        self.ensure_holder(contract, participant)?;
+        self.ensure_generation(contract, generation)?;
+        self.ensure_lease_live(contract)?;
+        let attempt = self.attempt(attempt_id)?;
         if attempt.contract_id != contract.contract_id {
             return Err(CommitmentError::AttemptMismatch {
                 attempt_id: attempt.attempt_id.clone(),
@@ -1336,12 +1653,30 @@ impl CommitmentLedger {
                 current: contract.lease.generation,
             });
         }
-        Ok(vec![CommitmentEvent::SubmissionRecorded {
-            contract_id: contract.contract_id.clone(),
-            attempt_id: command.attempt_id.clone(),
-            generation: command.generation,
-            candidate_digest: command.candidate_digest.clone(),
-        }])
+        Ok(contract)
+    }
+
+    /// Whether a task contract may record this result.
+    ///
+    /// A contract records one result. Submitting the same one again states the same fact and is
+    /// idempotent; submitting another is refused with both identifiers named, whether it arrives
+    /// from a retry, a second attempt or a participant that took the contract over.
+    fn ensure_unsealed(
+        &self,
+        contract: &TaskContractRecord,
+        proposed: &str,
+    ) -> Result<(), CommitmentError> {
+        if let Some(current) = &contract.candidate_digest
+            && self.enforces(Check::CandidateSeal)
+            && current != proposed
+        {
+            return Err(CommitmentError::CandidateSealed {
+                contract_id: contract.contract_id.clone(),
+                current: current.clone(),
+                proposed: proposed.to_owned(),
+            });
+        }
+        Ok(())
     }
 
     /// Issue the next fencing generation for a contract whose lease has run out. The sponsor names
@@ -2109,6 +2444,15 @@ impl CommitmentLedger {
             })
     }
 
+    fn candidate(&self, candidate_digest: &str) -> Result<&CandidateRecord, CommitmentError> {
+        self.candidates
+            .get(candidate_digest)
+            .ok_or_else(|| CommitmentError::Unknown {
+                kind: "candidate",
+                id: candidate_digest.to_owned(),
+            })
+    }
+
     /// Commit one decided fact. Every precondition was checked while deciding, so a fact that
     /// cannot be recorded is a defect in that deciding rather than an ordinary refusal: it is
     /// reported instead of dropped, and the caller discards the copy it was being written to.
@@ -2362,6 +2706,68 @@ impl CommitmentLedger {
                     contract.candidate_digest = Some(candidate_digest.clone());
                 }
             }
+            CommitmentEvent::ObjectRecorded { object_digest } => {
+                self.objects.insert(object_digest.clone());
+            }
+            // Content is written once. An entry that is already here holds the same bytes, because
+            // the key is the digest of those bytes.
+            CommitmentEvent::BundleRecorded {
+                bundle_digest,
+                base_digest,
+                parents,
+                changes,
+            } => {
+                self.bundles
+                    .entry(bundle_digest.clone())
+                    .or_insert_with(|| BundleRecord {
+                        bundle_digest: bundle_digest.clone(),
+                        base_digest: base_digest.clone(),
+                        parents: parents.clone(),
+                        changes: changes.clone(),
+                    });
+            }
+            CommitmentEvent::CandidateFormed {
+                candidate_digest,
+                content_digest,
+                contract_id,
+                obligation_id,
+                participant,
+                generation,
+                base_digest,
+                bundle_digest,
+                contributions,
+                changes,
+            } => {
+                self.candidates
+                    .entry(candidate_digest.clone())
+                    .or_insert_with(|| CandidateRecord {
+                        candidate_digest: candidate_digest.clone(),
+                        content_digest: content_digest.clone(),
+                        contract_id: contract_id.clone(),
+                        obligation_id: obligation_id.clone(),
+                        participant: participant.clone(),
+                        generation: *generation,
+                        base_digest: base_digest.clone(),
+                        bundle_digest: bundle_digest.clone(),
+                        contributions: contributions.clone(),
+                        changes: changes.clone(),
+                    });
+            }
+            CommitmentEvent::ConflictRecorded {
+                conflict_digest,
+                base_digest,
+                candidates,
+                paths,
+            } => {
+                self.conflicts
+                    .entry(conflict_digest.clone())
+                    .or_insert_with(|| ConflictRecord {
+                        conflict_digest: conflict_digest.clone(),
+                        base_digest: base_digest.clone(),
+                        candidates: candidates.clone(),
+                        paths: paths.clone(),
+                    });
+            }
             CommitmentEvent::ObligationReturned {
                 obligation_id,
                 contract_id,
@@ -2614,4 +3020,29 @@ fn validate_digest(kind: &'static str, value: &str) -> Result<(), CommitmentErro
     } else {
         Err(CommitmentError::InvalidDigest { kind })
     }
+}
+
+/// A path names a place inside the result and nowhere else.
+///
+/// The kernel compares paths and never opens one, but a path that leaves the tree it belongs to is
+/// not content: it is an instruction to whatever materializes the result. Such a path is refused
+/// here rather than carried as an opaque token nobody checked. Control characters are refused with
+/// it, both because no tree path holds one and because their escaped form is six times their size
+/// in the record this path is committed in.
+fn validate_path(path: &str) -> Result<(), CommitmentError> {
+    let refused = || CommitmentError::InvalidPath {
+        path: path.to_owned(),
+    };
+    if path.is_empty() || path.len() > MAX_PATH_BYTES {
+        return Err(refused());
+    }
+    if path.contains('\\') || path.chars().any(char::is_control) {
+        return Err(refused());
+    }
+    for component in path.split('/') {
+        if matches!(component, "" | "." | "..") {
+            return Err(refused());
+        }
+    }
+    Ok(())
 }

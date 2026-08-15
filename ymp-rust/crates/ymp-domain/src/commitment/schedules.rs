@@ -27,6 +27,9 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use super::budget::{BudgetVector, DIMENSION_COUNT, DIMENSIONS, Dimension};
+use super::candidates::{
+    BundleChange, BundleRecord, CandidateRecord, PathChange, merge_contributions,
+};
 use super::invocations::{
     InvocationClosure, InvocationRecord, InvocationState, OpenAuthority, RootTerminal, StopReason,
     Verdict, WakeCondition,
@@ -34,9 +37,10 @@ use super::invocations::{
 use super::ledger::{AlteredFacts, CommitmentLedger, DisabledChecks};
 use super::protocol::{
     AcceptOpen, AdvanceClock, Advertise, Award, CancelContract, CloseInvocation, CommitmentCommand,
-    CommitmentError, CommitmentEvent, MAX_ATTEMPT_WAKES, Reassign, RecordBid, RecordVerification,
-    RegisterParticipant, RenewLease, ResumeInvocation, ReturnObligation, SettleOffer, StartAttempt,
-    StartInvocation, StopRun, SubmitResult, WithdrawBid, WithdrawOffer, YieldInvocation,
+    CommitmentError, CommitmentEvent, MAX_ATTEMPT_WAKES, Reassign, RecordBid, RecordObject,
+    RecordVerification, RegisterParticipant, RenewLease, ResumeInvocation, ReturnObligation,
+    SettleOffer, StartAttempt, StartInvocation, StopRun, SubmitBundle, SubmitResult, WithdrawBid,
+    WithdrawOffer, YieldInvocation,
 };
 use super::records::{
     AccountRef, FundingSource, ObligationState, OfferPolicy, OfferState, Outcome,
@@ -73,6 +77,13 @@ pub(crate) const UNREACHED_OFFER: &str = "offer-unreached";
 pub(crate) const MAIN_MAX_AWARDS: u32 = 2;
 pub(crate) const LEASE_MS: u64 = 100;
 pub(crate) const DEADLINE: u64 = 800;
+/// The attempt the competing results of this pool are submitted from.
+pub(crate) const BETA_ATTEMPT: &str = "attempt-beta-1";
+/// Two results one participant may submit for one task contract, differing only in what they put
+/// where. Each is valid on its own, so what decides between them is the order they arrive in and
+/// the rule that a task contract records one result.
+pub(crate) const COMPETING_RESULTS: [(&str, &str); 2] =
+    [("src/one.rs", "object-one"), ("src/two.rs", "object-two")];
 
 /// The opaque tokens the kernel may only compare for equality, gathered so that a whole schedule
 /// can be replayed under a different alphabet.
@@ -126,12 +137,76 @@ impl Tokens {
         ] {
             pairs.push((self.proposal(who), other.proposal(who)));
         }
+        pairs.extend(
+            self.derived_results()
+                .into_iter()
+                .zip(other.derived_results()),
+        );
         pairs
+    }
+
+    /// What the kernel derives from this alphabet rather than compares.
+    ///
+    /// The identity of a bundle and of the result formed from it are digests of the base that
+    /// bundle applies to, so a different alphabet reaches different values here by construction.
+    /// They are stated by the same functions the kernel computes them with, because a replay of one
+    /// alphabet as the other has to carry them across as well as the tokens they are derived from.
+    fn derived_results(&self) -> Vec<String> {
+        let mut values = Vec::new();
+        for (path, object) in COMPETING_RESULTS {
+            let changes = vec![upsert(path, object)];
+            let bundle = BundleRecord::identify(&self.base_digest, &[], &changes);
+            let content = CandidateRecord::identify_content(&self.base_digest, &changes);
+            values.push(CandidateRecord::identify(
+                &content,
+                "contract-beta",
+                "obligation-beta",
+                BETA,
+                1,
+                &bundle,
+                &[],
+            ));
+            values.push(bundle);
+            values.push(content);
+        }
+        values
+    }
+}
+
+/// One path holding the exact bytes an object digest names.
+pub(crate) fn upsert(path: &str, object: &str) -> BundleChange {
+    BundleChange {
+        path: path.to_owned(),
+        change: PathChange::Upsert {
+            object_digest: digest(object),
+            executable: false,
+        },
     }
 }
 
 pub(crate) fn digest(tag: &str) -> String {
     crate::digest_bytes(tag.as_bytes())
+}
+
+fn record_beta_object(object: &str) -> CommitmentCommand {
+    CommitmentCommand::RecordObject(RecordObject {
+        contract_id: "contract-beta".to_owned(),
+        participant: BETA.to_owned(),
+        generation: 1,
+        object_digest: digest(object),
+    })
+}
+
+fn submit_beta_bundle(base_digest: String, changes: Vec<BundleChange>) -> CommitmentCommand {
+    CommitmentCommand::SubmitBundle(SubmitBundle {
+        contract_id: "contract-beta".to_owned(),
+        attempt_id: BETA_ATTEMPT.to_owned(),
+        participant: BETA.to_owned(),
+        generation: 1,
+        base_digest,
+        parents: Vec::new(),
+        changes,
+    })
 }
 
 fn root_budget() -> BudgetVector {
@@ -914,6 +989,52 @@ pub(crate) fn interleaved(
     merged
 }
 
+/// The commands that publish results, kept apart from the contended pool so that merging them in
+/// does not move a single command of it.
+///
+/// They are shuffled among themselves and merged into the finished schedule, so the order two
+/// results for one task contract arrive in varies with the seed while every other command of that
+/// seed falls exactly where it did. What contends here is the result of one contract: each of the
+/// two is valid on its own, and which one that contract records is decided by which arrived first
+/// and by nothing about either of them.
+pub(crate) fn result_pool(tokens: &Tokens) -> Vec<CommitmentCommand> {
+    vec![
+        // A second task contract, taken through a result of its own. Its objects are recorded, and
+        // then two different results are offered for it: each is valid in isolation, so whichever
+        // ordering puts one first is the one that contract records, and the other is refused
+        // without touching it.
+        CommitmentCommand::StartAttempt(StartAttempt {
+            attempt_id: BETA_ATTEMPT.to_owned(),
+            contract_id: "contract-beta".to_owned(),
+            participant: BETA.to_owned(),
+            generation: 1,
+        }),
+        record_beta_object(COMPETING_RESULTS[0].1),
+        record_beta_object(COMPETING_RESULTS[1].1),
+        submit_beta_bundle(
+            tokens.base_digest.clone(),
+            vec![upsert(COMPETING_RESULTS[0].0, COMPETING_RESULTS[0].1)],
+        ),
+        submit_beta_bundle(
+            tokens.base_digest.clone(),
+            vec![upsert(COMPETING_RESULTS[1].0, COMPETING_RESULTS[1].1)],
+        ),
+        // A result offered on a base its task contract was never awarded from. No ordering makes
+        // that base the contract's own, so the only thing that can accept it is a kernel that
+        // stopped comparing them.
+        submit_beta_bundle(
+            digest("base-elsewhere"),
+            vec![upsert(COMPETING_RESULTS[0].0, COMPETING_RESULTS[0].1)],
+        ),
+        // A result naming bytes nothing ever recorded as stored whole, which is what an attempt
+        // that stopped part-way through writing an object leaves behind.
+        submit_beta_bundle(
+            tokens.base_digest.clone(),
+            vec![upsert("src/unwritten.rs", "object-never-stored")],
+        ),
+    ]
+}
+
 /// The whole generated schedule for one seed: the contended pool in a seeded order, with the
 /// settlement chain merged into it.
 pub(crate) fn schedule(seed: u64, tokens: &Tokens) -> Vec<CommitmentCommand> {
@@ -922,7 +1043,12 @@ pub(crate) fn schedule(seed: u64, tokens: &Tokens) -> Vec<CommitmentCommand> {
         &shuffled(seed, contention_pool(tokens)),
         &settlement_chain(tokens),
     );
-    interleaved(seed ^ 0x51ED_2701_FA13_C3A9, &background, &slice_chain())
+    let core = interleaved(seed ^ 0x51ED_2701_FA13_C3A9, &background, &slice_chain());
+    interleaved(
+        seed ^ 0x3F0B_A79C_44D2_1E85,
+        &core,
+        &shuffled(seed ^ 0x7C4D_9A21_B0E6_5F13, result_pool(tokens)),
+    )
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -981,6 +1107,27 @@ pub(crate) enum Violation {
     StrandedReservation {
         offer_id: String,
         contract_id: String,
+    },
+    /// A task contract recorded a second result over the one it already carried.
+    CandidateReplaced {
+        contract_id: String,
+        current: String,
+        proposed: String,
+    },
+    /// A formed result states an identity its own recorded construction does not reach, so the
+    /// facts and the identifier they are filed under disagree.
+    CandidateMisidentified { candidate_digest: String },
+    /// A result was formed on a base its task contract was not awarded from.
+    CandidateBaseDiverged {
+        contract_id: String,
+        expected: String,
+        stated: String,
+    },
+    /// A result was formed over contributions that put different bytes at one path while its own
+    /// bundle stated nothing about that path, so the kernel settled the disagreement itself.
+    ConflictSettledByKernel {
+        candidate_digest: String,
+        path: String,
     },
     /// A committed fact moved capacity through an account the accepted command did not name, or
     /// moved through a named account an amount other than the one it named.
@@ -1286,6 +1433,9 @@ impl CommandedAmounts {
             | CommitmentCommand::WithdrawBid(_)
             | CommitmentCommand::WithdrawOffer(_)
             | CommitmentCommand::SubmitResult(_)
+            | CommitmentCommand::RecordObject(_)
+            | CommitmentCommand::SubmitBundle(_)
+            | CommitmentCommand::RecordConflict(_)
             | CommitmentCommand::AdvanceClock(_)
             | CommitmentCommand::YieldInvocation(_)
             | CommitmentCommand::CloseInvocation(_)
@@ -1403,6 +1553,9 @@ fn command_name(command: &CommitmentCommand) -> &'static str {
         CommitmentCommand::StartAttempt(_) => "start_attempt",
         CommitmentCommand::RenewLease(_) => "renew_lease",
         CommitmentCommand::SubmitResult(_) => "submit_result",
+        CommitmentCommand::RecordObject(_) => "record_object",
+        CommitmentCommand::SubmitBundle(_) => "submit_bundle",
+        CommitmentCommand::RecordConflict(_) => "record_conflict",
         CommitmentCommand::Reassign(_) => "reassign",
         CommitmentCommand::ReturnObligation(_) => "return_obligation",
         CommitmentCommand::CancelContract(_) => "cancel_contract",
@@ -2000,6 +2153,10 @@ fn fact_name(event: &CommitmentEvent) -> &'static str {
         CommitmentEvent::ContractReassigned { .. } => "contract_reassigned",
         CommitmentEvent::AttemptStarted { .. } => "attempt_started",
         CommitmentEvent::SubmissionRecorded { .. } => "submission_recorded",
+        CommitmentEvent::ObjectRecorded { .. } => "object_recorded",
+        CommitmentEvent::BundleRecorded { .. } => "bundle_recorded",
+        CommitmentEvent::CandidateFormed { .. } => "candidate_formed",
+        CommitmentEvent::ConflictRecorded { .. } => "conflict_recorded",
         CommitmentEvent::ObligationReturned { .. } => "obligation_returned",
         CommitmentEvent::ContractCancelled { .. } => "contract_cancelled",
         CommitmentEvent::InvocationStarted { .. } => "invocation_started",
@@ -2103,6 +2260,13 @@ pub(crate) fn run_altered_schedule(
                     CommitmentError::CandidateMismatch { .. } => {
                         report.guarded.insert("candidate_mismatch")
                     }
+                    CommitmentError::CandidateSealed { .. } => {
+                        report.guarded.insert("candidate_sealed")
+                    }
+                    CommitmentError::StaleBase { .. } => report.guarded.insert("stale_base"),
+                    CommitmentError::ObjectIncomplete { .. } => {
+                        report.guarded.insert("object_incomplete")
+                    }
                     _ => false,
                 };
                 // A command the kernel decided and then could not pay for is an accounting break
@@ -2132,6 +2296,11 @@ pub(crate) fn run_altered_schedule(
     // Whether a reservation is stranded is a question about the end of the schedule: until then it
     // is only unsettled, which is ordinary.
     report.violations.extend(accounts.stranded());
+    // The committed facts are append-only, so what they say about the results this schedule formed
+    // is complete once it has run and is read once here rather than after every command.
+    report
+        .violations
+        .extend(candidate_violations(ledger.facts()));
     report.compared = commanded.compared().clone();
     report.violations.dedup();
     report
@@ -2175,6 +2344,129 @@ fn fencing_violations(ledger: &CommitmentLedger, events: &[CommitmentEvent]) -> 
         }
     }
     violations
+}
+
+/// What the committed facts say about the results a run formed, read from the facts alone.
+///
+/// Nothing here consults the registry the kernel keeps. A contract's base, the result it recorded
+/// and the construction of every result are rebuilt from the facts in the order they were
+/// committed, so a kernel that wrote a record disagreeing with its own facts is caught by the
+/// disagreement rather than by asking it twice.
+pub(crate) fn candidate_violations(facts: &[CommitmentEvent]) -> Vec<Violation> {
+    let mut violations = Vec::new();
+    let mut bases: BTreeMap<&str, &str> = BTreeMap::new();
+    let mut recorded: BTreeMap<&str, &str> = BTreeMap::new();
+    let mut bundles: BTreeMap<&str, &[BundleChange]> = BTreeMap::new();
+    let mut formed: BTreeMap<&str, CandidateRecord> = BTreeMap::new();
+    for fact in facts {
+        match fact {
+            CommitmentEvent::TaskContractFormed {
+                contract_id,
+                base_digest,
+                ..
+            } => {
+                bases.insert(contract_id, base_digest);
+            }
+            CommitmentEvent::SubmissionRecorded {
+                contract_id,
+                candidate_digest,
+                ..
+            } => match recorded.get(contract_id.as_str()) {
+                Some(current) if current != candidate_digest => {
+                    violations.push(Violation::CandidateReplaced {
+                        contract_id: contract_id.clone(),
+                        current: (*current).to_owned(),
+                        proposed: candidate_digest.clone(),
+                    });
+                }
+                _ => {
+                    recorded.insert(contract_id, candidate_digest);
+                }
+            },
+            CommitmentEvent::BundleRecorded {
+                bundle_digest,
+                changes,
+                ..
+            } => {
+                bundles.insert(bundle_digest, changes);
+            }
+            CommitmentEvent::CandidateFormed {
+                candidate_digest,
+                content_digest,
+                contract_id,
+                obligation_id,
+                participant,
+                generation,
+                base_digest,
+                bundle_digest,
+                contributions,
+                changes,
+            } => {
+                let record = CandidateRecord {
+                    candidate_digest: candidate_digest.clone(),
+                    content_digest: content_digest.clone(),
+                    contract_id: contract_id.clone(),
+                    obligation_id: obligation_id.clone(),
+                    participant: participant.clone(),
+                    generation: *generation,
+                    base_digest: base_digest.clone(),
+                    bundle_digest: bundle_digest.clone(),
+                    contributions: contributions.clone(),
+                    changes: changes.clone(),
+                };
+                if !record.states_its_own_identity() {
+                    violations.push(Violation::CandidateMisidentified {
+                        candidate_digest: candidate_digest.clone(),
+                    });
+                }
+                if bases
+                    .get(contract_id.as_str())
+                    .is_some_and(|base| base != base_digest)
+                {
+                    violations.push(Violation::CandidateBaseDiverged {
+                        contract_id: contract_id.clone(),
+                        expected: (*bases.get(contract_id.as_str()).expect("present")).to_owned(),
+                        stated: base_digest.clone(),
+                    });
+                }
+                violations.extend(settled_disagreements(&record, &formed, &bundles));
+                formed.insert(candidate_digest, record);
+            }
+            _ => {}
+        }
+    }
+    violations
+}
+
+/// Where the contributions of one result disagree, its own bundle has to say what stands there.
+/// A result formed over a disagreement its bundle passes over in silence was decided by the
+/// integrator, whichever side it came down on.
+fn settled_disagreements(
+    record: &CandidateRecord,
+    formed: &BTreeMap<&str, CandidateRecord>,
+    bundles: &BTreeMap<&str, &[BundleChange]>,
+) -> Vec<Violation> {
+    let carried: Vec<&CandidateRecord> = record
+        .contributions
+        .iter()
+        .filter_map(|contribution| formed.get(contribution.candidate_digest.as_str()))
+        .collect();
+    if carried.len() != record.contributions.len() {
+        return Vec::new();
+    }
+    let Some(own) = bundles.get(record.bundle_digest.as_str()) else {
+        return Vec::new();
+    };
+    let stated: BTreeSet<&str> = own.iter().map(|change| change.path.as_str()).collect();
+    let (_, disputed) = merge_contributions(&carried);
+    disputed
+        .into_iter()
+        .filter(|path| !stated.contains(path.as_str()))
+        .map(|path| Violation::ConflictSettledByKernel {
+            candidate_digest: record.candidate_digest.clone(),
+            path,
+        })
+        .collect()
 }
 
 /// The structural invariants that must hold of the ledger itself after every command: how many

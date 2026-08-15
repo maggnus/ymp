@@ -283,12 +283,52 @@ quantities it subtracts, deadlines it compares against its clock, and digests of
 stores without opening. Nothing in the record states what work means or who deserves it. A run that
 opens no kernel writes neither tag and reads back exactly as it did under version 2.
 
+## Event journal version 4
+
+Version 4 keeps every envelope field, ordering rule, digest input and limit of version 3. What it
+adds is inside `commitment_facts_recorded`: four further commitment facts, which are what makes the
+ancestry of a result durable.
+
+- `object_recorded`, carrying `object_digest` — an immutable object is stored whole and may be named
+  by a bundle. An attempt that stopped part-way through writing one never commits this fact, so
+  nothing half-written can enter a result;
+- `bundle_recorded`, carrying `bundle_digest`, `base_digest`, `parents` and `changes` — the
+  immutable content of one submission bundle. The identifier is the digest of that content, so the
+  same changes against the same base are one bundle whoever published them;
+- `candidate_formed`, carrying `candidate_digest`, `content_digest`, `contract_id`,
+  `obligation_id`, `participant`, `generation`, `base_digest`, `bundle_digest`, `contributions` and
+  `changes` — one immutable result and everything needed to reproduce its construction. The two
+  digests are computed by the kernel from those fields, so a record that does not reach its own
+  identifier is detectable from the record alone;
+- `conflict_recorded`, carrying `conflict_digest`, `base_digest`, `candidates` and `paths` — where
+  named results put different bytes at the same path. It is evidence and resolves nothing.
+
+A result's identity is a function of its construction and of nothing beside it: no workspace
+directory, no process, no branch name and no row in any store takes part in it. The same
+construction stated on another host reaches the same identifier.
+
+Both submission paths seal the task contract they are recorded against. A contract records one
+result; the same result submitted again states the same fact, and a different one is refused with
+both identifiers named.
+
+The record limit is unchanged and is what the kernel's own bounds are set against: one submission
+commits its bundle and its result together, so a bundle carries at most 32 path changes, a result at
+most 48, a path at most 256 bytes, and a bundle at most four contributions. The largest submission
+those bounds admit is about 56 KiB, inside the 64 KiB a record holds. They bound what one submission
+states at once and not how large a tree may be, since a tree of any size is named by the digest of
+its base.
+
+The version is raised rather than treated as an extension because a version-3 reader given these
+tags fails on an unknown fact rather than on a stated version, which is the failure this policy
+exists to prevent. A run that opens no commitment kernel writes none of them and reads back exactly
+as it did under version 3.
+
 ## Compatibility and migration
 
-Schema version 1 is immutable, and versions 2 and 3 are new versions rather than extensions of what
-came before. A change that alters field meaning, digest input, event tags, required fields,
+Schema version 1 is immutable, and versions 2, 3 and 4 are new versions rather than extensions of
+what came before. A change that alters field meaning, digest input, event tags, required fields,
 ordering rules, or replay behavior requires a new schema version. The current binary reads and
-writes only version 3 and fails closed on every other version, versions 1 and 2 included.
+writes only version 4 and fails closed on every other version, versions 1 to 3 included.
 
 The migration consequence is stated rather than worked around: a journal written by an earlier
 binary is rejected at open with an unsupported-schema error, and no command migrates it, because

@@ -9,6 +9,9 @@ use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 use super::budget::{BudgetVector, Dimension};
+use super::candidates::{
+    BundleChange, Contribution, MAX_BUNDLE_CHANGES, MAX_BUNDLE_PARENTS, MAX_PATH_BYTES,
+};
 use super::invocations::{InvocationClosure, StopReason, Verdict, WakeCondition};
 use super::records::{AccountRef, BidOrigin, FundingSource, OfferPolicy, Outcome};
 use crate::MAX_IDENTIFIER_CHARS;
@@ -134,6 +137,49 @@ pub struct SubmitResult {
     pub candidate_digest: String,
 }
 
+/// State that an immutable object is stored whole, so that a bundle may name it.
+///
+/// The bytes are written and flushed before this is issued, and the kernel never opens them. What
+/// the fact carries is that the object exists in full: an attempt that stopped part-way through
+/// writing one never issued this command, so nothing it half-wrote can enter a result.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+pub struct RecordObject {
+    pub contract_id: String,
+    pub participant: String,
+    pub generation: u64,
+    pub object_digest: String,
+}
+
+/// Publish a bundle and form the immutable result it constructs.
+///
+/// The kernel checks the base, the fencing token, the completeness of every object named, and
+/// whether the contributions this bundle carries forward disagree anywhere it says nothing about.
+/// It computes the identity of the result rather than accepting one, so no caller can claim an
+/// identifier for a construction it did not state.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+pub struct SubmitBundle {
+    pub contract_id: String,
+    pub attempt_id: String,
+    pub participant: String,
+    pub generation: u64,
+    pub base_digest: String,
+    /// The candidates this result carries forward: none for a first attempt, one for a rebase,
+    /// several for a synthesis.
+    pub parents: Vec<String>,
+    pub changes: Vec<BundleChange>,
+}
+
+/// Record where named candidates put different bytes at the same path.
+///
+/// The paths are computed by the kernel from the candidates themselves; the command only names
+/// which candidates to compare. Recording the disagreement decides nothing about it — it is the
+/// evidence a participant funds an offer against.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+pub struct RecordConflict {
+    pub participant: String,
+    pub candidates: Vec<String>,
+}
+
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct Reassign {
     pub contract_id: String,
@@ -243,6 +289,9 @@ pub enum CommitmentCommand {
     StartAttempt(StartAttempt),
     RenewLease(RenewLease),
     SubmitResult(SubmitResult),
+    RecordObject(RecordObject),
+    SubmitBundle(SubmitBundle),
+    RecordConflict(RecordConflict),
     Reassign(Reassign),
     ReturnObligation(ReturnObligation),
     CancelContract(CancelContract),
@@ -368,6 +417,41 @@ pub enum CommitmentEvent {
         generation: u64,
         candidate_digest: String,
     },
+    /// An immutable object is stored whole and may be named by a bundle.
+    ObjectRecorded {
+        object_digest: String,
+    },
+    /// The immutable content of one bundle. Publishing the same content twice states the same
+    /// fact twice and adds nothing, because a bundle is its bytes.
+    BundleRecorded {
+        bundle_digest: String,
+        base_digest: String,
+        parents: Vec<String>,
+        changes: Vec<BundleChange>,
+    },
+    /// One immutable result and everything needed to reproduce its construction: the base it was
+    /// built from, the bundle that stated it, the objects standing at every changed path, and every
+    /// candidate, obligation and participant that contributed.
+    CandidateFormed {
+        candidate_digest: String,
+        content_digest: String,
+        contract_id: String,
+        obligation_id: String,
+        participant: String,
+        generation: u64,
+        base_digest: String,
+        bundle_digest: String,
+        contributions: Vec<Contribution>,
+        changes: Vec<BundleChange>,
+    },
+    /// Where named candidates put different bytes at the same path. It is evidence, and it
+    /// resolves nothing.
+    ConflictRecorded {
+        conflict_digest: String,
+        base_digest: String,
+        candidates: Vec<String>,
+        paths: Vec<String>,
+    },
     ObligationReturned {
         obligation_id: String,
         contract_id: String,
@@ -444,6 +528,10 @@ impl CommitmentEvent {
             Self::ContractReassigned { .. } => "contract_reassigned",
             Self::AttemptStarted { .. } => "attempt_started",
             Self::SubmissionRecorded { .. } => "submission_recorded",
+            Self::ObjectRecorded { .. } => "object_recorded",
+            Self::BundleRecorded { .. } => "bundle_recorded",
+            Self::CandidateFormed { .. } => "candidate_formed",
+            Self::ConflictRecorded { .. } => "conflict_recorded",
             Self::ObligationReturned { .. } => "obligation_returned",
             Self::ContractCancelled { .. } => "contract_cancelled",
             Self::InvocationStarted { .. } => "invocation_started",
@@ -631,6 +719,45 @@ pub enum CommitmentError {
         contract_id: String,
         candidate_digest: String,
     },
+    #[error(
+        "the bundle names base {actual}, and task contract {contract_id} was awarded from base {expected}"
+    )]
+    StaleBase {
+        contract_id: String,
+        expected: String,
+        actual: String,
+    },
+    #[error(
+        "candidate {candidate_digest} was built from base {base_digest}, which is another base"
+    )]
+    DivergentBase {
+        candidate_digest: String,
+        base_digest: String,
+    },
+    #[error("object {object_digest} is not recorded as stored whole in this run")]
+    ObjectIncomplete { object_digest: String },
+    #[error(
+        "task contract {contract_id} already recorded candidate {current}, which {proposed} may not replace"
+    )]
+    CandidateSealed {
+        contract_id: String,
+        current: String,
+        proposed: String,
+    },
+    #[error(
+        "the contributing candidates disagree at {} path(s) this bundle states nothing about: {}",
+        .paths.len(),
+        .paths.join(", ")
+    )]
+    IntegrationConflict { paths: Vec<String> },
+    #[error("the named candidates put the same bytes at every path they state")]
+    NoConflict,
+    #[error("a disagreement is recorded over between 2 and {MAX_BUNDLE_PARENTS} candidates")]
+    InvalidConflictScope,
+    #[error("a bundle carries between 0 and {MAX_BUNDLE_CHANGES} path changes")]
+    InvalidBundleSize,
+    #[error("{path} is not a normalized relative path of at most {MAX_PATH_BYTES} bytes")]
+    InvalidPath { path: String },
     #[error("the run was stopped and creates nothing further")]
     RunStopped,
     #[error("the run has already been stopped")]
