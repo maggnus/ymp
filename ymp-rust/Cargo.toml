@@ -36,6 +36,7 @@ ymp-runtime-api = { path = "crates/ymp-runtime-api" }
 ymp-runtime-claude = { path = "crates/ymp-runtime-claude" }
 ymp-runtime-codex = { path = "crates/ymp-runtime-codex" }
 ymp-runtime-fake = { path = "crates/ymp-runtime-fake" }
+ymp-runtime-registry = { path = "crates/ymp-runtime-registry" }
 ymp-runtime-supervisor = { path = "crates/ymp-runtime-supervisor" }
 ymp-storage = { path = "crates/ymp-storage" }
 ymp-testkit = { path = "crates/ymp-testkit" }
