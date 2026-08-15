@@ -105,7 +105,10 @@ fn a_typed_request_becomes_a_stored_contract_and_a_started_run() {
     assert_eq!(contract_id, prepared.contract_id());
     assert_eq!(contract_digest, &prepared.contract_digest);
     assert_eq!(oracle_digest, prepared.oracle_digest());
-    assert_eq!(application.state().run_id, prepared.run_id());
+    assert_eq!(
+        application.state().run_id,
+        prepared.run_id_in(&fixture.data_root)
+    );
 
     // The stored contract is the exact bytes that were digested, and it carries the verifier
     // reference, its digest and the negative control.

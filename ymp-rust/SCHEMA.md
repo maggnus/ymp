@@ -74,6 +74,32 @@ project-relative path cannot honour. An evidence export is written where the ope
 and beside the project under the run's own name when they name none, because an export exists to
 leave the root.
 
+## Run identity version 2
+
+A run is identified by `run-<contract>-<store>`: twelve hexadecimal characters of the digest of the
+contract the run is judged against, and eight of the digest of the absolute path of the store that
+holds it. The store path is taken as the invocation states it, made absolute and rejoined from its
+components; nothing is read from the filesystem, because the store directory of a run being
+authorized does not exist yet and the identifier a decision surface shows before the start must be
+the one the start records.
+
+Version 1 derived the identifier from the contract alone. A contract names what a run is judged
+against and not which run it is, so authorizing one contract twice wrote two runs — two journals,
+two run projections, two exports — that all named themselves `run-<contract>`, and nothing reading
+one of them could say which of the two it held. Because a store holds exactly one run, the store is
+what tells them apart, and the identifier now states both.
+
+The consequence for evidence is stated rather than worked around. Two runs of one contract no
+longer commit the same bytes: the identifier is part of every envelope's digest input, so the
+digest chains of two stores differ from the first record. What remains identical is what was
+committed — the same events, in the same order, under the same command identifiers — and what
+identifies the contract, which is the contract digest each run's own approval records. A journal
+still carries one run identifier throughout, and a reader still rejects a mixed one.
+
+This is not a journal schema version: no field, ordering rule or digest input changed, and a
+journal written under version 1 identity reads unchanged. What changed is the value the field is
+derived from, for runs started by this build onwards.
+
 ## Runtime engine registry version 1
 
 One record per runtime engine lives at `<root>/runtimes/<engine>.json`, where `<engine>` is the

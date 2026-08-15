@@ -34,7 +34,7 @@ pub use answer::AnswerError;
 pub use commitment::{CommitmentOutcome, CommitmentService, CommitmentServiceError, RecordedFact};
 pub use contract::{
     AcceptanceCondition, ContractRequestError, DEFAULT_RUN_BUDGET, PreparedContract, RunRequest,
-    load_contract_package, prepare_contract,
+    load_contract_package, prepare_contract, run_stem,
 };
 pub use verification::{VerificationJob, VerificationOutcome};
 

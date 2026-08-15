@@ -30,6 +30,9 @@ pub const DEFAULT_RUN_BUDGET: Budget = Budget::new(1, 1);
 /// How many hexadecimal characters of the request digest identify a drafted contract.
 const DERIVED_IDENTIFIER_CHARS: usize = 12;
 
+/// How many hexadecimal characters of the store digest tell one run of a contract from another.
+const RUN_DISTINGUISHER_CHARS: usize = 8;
+
 /// What the operator typed, plus what the kernel could not infer and therefore had to be given.
 #[derive(Clone, Debug, Default)]
 pub struct RunRequest {
@@ -103,12 +106,30 @@ impl PreparedContract {
         &self.bytes
     }
 
-    /// The identifier the run would carry. It is derived from the contract, so the operator can
-    /// be shown it before the run exists and the same request never names two runs.
-    pub fn run_id(&self) -> String {
+    /// What every run of this contract has in common, and nothing more: it names the contract,
+    /// never one of its runs. A surface that has no store to name yet states this and says so.
+    pub fn run_stem(&self) -> String {
+        run_stem(&self.contract_digest)
+    }
+
+    /// The identifier a run of this contract carries in `store`.
+    ///
+    /// The contract is not the run. Authorizing one contract twice starts two runs, each with its
+    /// own journal, its own evidence and its own export, and an identifier derived from the
+    /// contract alone named both of them the same: two stores under one root held two records
+    /// claiming to be the same run, so nothing reading them could say which run it held. A store
+    /// holds exactly one run, so the store is what tells the second run from the first, and the
+    /// identifier states both — the contract the run is judged against, and the store its record
+    /// lives in.
+    ///
+    /// The store is read as the path states it rather than resolved on the filesystem, so the
+    /// identifier a decision surface shows before the run exists is the identifier the run then
+    /// carries, even though the store directory is created only when the run starts.
+    pub fn run_id_in(&self, store: impl AsRef<Path>) -> String {
         format!(
-            "run-{}",
-            &self.contract_digest[..DERIVED_IDENTIFIER_CHARS.min(self.contract_digest.len())]
+            "{}-{}",
+            self.run_stem(),
+            store_distinguisher(store.as_ref())
         )
     }
 
@@ -297,11 +318,16 @@ impl Application {
     /// The contract bytes become an immutable object, and the journal records the run start
     /// followed by the approval that binds the run to that exact contract and oracle. A store
     /// that already holds a run is not reused: `create` refuses it.
+    ///
+    /// The run is identified by its contract and by this store together, so a second
+    /// authorization of the same contract into a second store is a run this one can be told from.
     pub fn create_with_contract(
         data_root: impl AsRef<Path>,
         contract: &PreparedContract,
     ) -> Result<(Self, CommandOutcome), ApplicationError> {
-        let mut application = Self::create(data_root, contract.run_id(), contract.budget.clone())?;
+        let store = data_root.as_ref();
+        let mut application =
+            Self::create(store, contract.run_id_in(store), contract.budget.clone())?;
         let stored = application.object_store.put(contract.bytes())?;
         if stored != contract.contract_digest {
             return Err(ApplicationError::ContractDigestMismatch);
@@ -329,6 +355,28 @@ impl Application {
             Some(binding) => Ok(Some(self.object_store.read(&binding.contract_digest)?)),
         }
     }
+}
+
+/// The part of a run identifier every run of one contract shares: it names what the run is judged
+/// against, and by itself it does not name the run.
+pub fn run_stem(contract_digest: &str) -> String {
+    format!(
+        "run-{}",
+        &contract_digest[..DERIVED_IDENTIFIER_CHARS.min(contract_digest.len())]
+    )
+}
+
+/// The part of a run identifier that tells one run of a contract from another: the store its
+/// record lives in, which holds that run and no other.
+///
+/// The path is made absolute and its components rejoined, so a store addressed relatively is not
+/// taken for a store of the same name elsewhere. Nothing is read from the filesystem: the store
+/// directory of a run being authorized does not exist yet, and the identifier shown before the
+/// start must be the one the start records.
+fn store_distinguisher(store: &Path) -> String {
+    let absolute = std::path::absolute(store).unwrap_or_else(|_| store.to_path_buf());
+    let normalized: PathBuf = absolute.components().collect();
+    digest_bytes(normalized.as_os_str().as_encoded_bytes())[..RUN_DISTINGUISHER_CHARS].to_owned()
 }
 
 /// A contract drafted from a request is named by what it contains, so the same request always

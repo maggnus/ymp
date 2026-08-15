@@ -147,8 +147,10 @@ impl Session {
     /// the absence and offers what is possible from there.
     pub fn open(data_root: &Path, contracts: &[PreparedContract]) -> Self {
         let environment = Environment::detect(data_root);
-        let facts: Vec<ContractFacts> =
-            contracts.iter().map(ContractFacts::from_prepared).collect();
+        let facts: Vec<ContractFacts> = contracts
+            .iter()
+            .map(|contract| ContractFacts::from_prepared(contract, data_root))
+            .collect();
         let mut model = Model::cold(environment, facts);
 
         match Application::open(data_root) {
@@ -685,7 +687,7 @@ impl Session {
     fn prepare(&mut self, assembly: Assembly) {
         match prepare_contract(&assembly.request) {
             Ok(prepared) => {
-                let mut facts = ContractFacts::from_prepared(&prepared);
+                let mut facts = ContractFacts::from_prepared(&prepared, &self.data_root);
                 facts.previously_authorized =
                     self.authorized.contains(&authorization_key(&prepared));
                 let ceremony = if facts.previously_authorized {
@@ -707,12 +709,19 @@ impl Session {
                     prepared.budget.attempts_remaining,
                     prepared.budget.verification_queries_remaining
                 ));
-                statement.push(format!(
-                    "/authorize {} starts run {} — {ceremony}. Anything else you type amends this \
-                     draft first.",
-                    facts.contract_id,
-                    prepared.run_id()
-                ));
+                statement.push(match self.run_a_start_would_carry(&prepared) {
+                    Some(run_id) => format!(
+                        "/authorize {} starts run {run_id} — {ceremony}. Anything else you type \
+                         amends this draft first.",
+                        facts.contract_id
+                    ),
+                    None => format!(
+                        "/authorize {} starts a run in a store of its own, and that run is \
+                         identified once its store is addressed — {ceremony}. Anything else you \
+                         type amends this draft first.",
+                        facts.contract_id
+                    ),
+                });
                 self.model.reply(statement.join(" · "));
                 // The draft is judged as one contract, so the version an amendment replaced
                 // leaves the screen with it.
@@ -779,7 +788,7 @@ impl Session {
                 self.model.reply(format!(
                     "run {} started against contract {} · the journal records the approved \
                      contract at event #{:04}",
-                    prepared.run_id(),
+                    outcome.event.run_id,
                     prepared.contract_id(),
                     outcome.event.sequence
                 ));
@@ -788,7 +797,7 @@ impl Session {
                 // account with a runtime profile. They are separate authorizations because they
                 // grant separate things, so this states which profile would do the work and stops
                 // there.
-                let run_id = prepared.run_id();
+                let run_id = outcome.event.run_id.clone();
                 match attempt::resolve(self.route, self.runtimes.as_ref()) {
                     Routing::Ready(route) => self.model.reply(format!(
                         "nothing is being done yet · /attempt {run_id} starts the {} profile on \
@@ -807,7 +816,7 @@ impl Session {
             Err(error) => {
                 // The contract is still there and still unauthorized in the store's eyes, so it
                 // is restated with the weight its second authorization carries.
-                let mut facts = ContractFacts::from_prepared(&prepared);
+                let mut facts = ContractFacts::from_prepared(&prepared, &self.data_root);
                 facts.previously_authorized =
                     self.authorized.contains(&authorization_key(&prepared));
                 self.model.record_contract(facts);
@@ -815,6 +824,18 @@ impl Session {
                     .error(format!("the run was not started: {error}"));
             }
         }
+    }
+
+    /// The identifier a run authorized now would carry, when this session can already name the
+    /// store that would hold it.
+    ///
+    /// A run is identified by its contract and by its store together. Where the store this
+    /// session reads is free to take the run, that store names it and the identifier can be shown
+    /// before the authorization. Where the run would go to a store of its own instead, the layout
+    /// addresses that store only when the run is started, and until then there is no run to name:
+    /// the surface states the contract and says when the identifier is fixed.
+    fn run_a_start_would_carry(&self, prepared: &PreparedContract) -> Option<String> {
+        (!self.addresses_a_store_of_its_own()).then(|| prepared.run_id_in(&self.data_root))
     }
 
     /// Whether a run authorized now would be recorded in a store of its own.
@@ -854,10 +875,12 @@ impl Session {
         }
         match store_under(&root, StoreIntent::New) {
             Ok(store) => {
+                // The store is what tells this run from the one left behind, so the contracts are
+                // restated for the store they can now start into rather than for the one read.
                 let carried: Vec<ContractFacts> = self
                     .contracts
                     .iter()
-                    .map(ContractFacts::from_prepared)
+                    .map(|contract| ContractFacts::from_prepared(contract, &store))
                     .collect();
                 self.application = None;
                 self.data_root = store;

@@ -131,8 +131,15 @@ pub struct Confirm {
 pub enum ConfirmAction {
     /// Cancel the named run through the application.
     CancelRun { run_id: String },
-    /// Store the named contract and start the run it names, through the application.
-    StartRun { contract_id: String, run_id: String },
+    /// Store the named contract and start a run against it, through the application.
+    ///
+    /// The run is identified by its contract and by the store that holds it, so the identifier is
+    /// carried here only where that store is already addressed; a start into a store of its own
+    /// names its run once the layout has addressed it.
+    StartRun {
+        contract_id: String,
+        run_id: Option<String>,
+    },
     /// Launch the managed attempt of the named run on the named profile. This is where the
     /// agent starts and where spending against the operator's own account begins.
     StartAttempt { run_id: String, profile: String },
@@ -181,7 +188,9 @@ pub struct Authorize {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct AuthorizeAction {
     pub contract_id: String,
-    pub run_id: String,
+    /// The identifier the run would carry, when the store that would hold it is already
+    /// addressed. A run that would go to a store of its own is named once that store is.
+    pub run_id: Option<String>,
     /// The dimensions the run would start with, named and numbered by the projection.
     pub budget: Vec<(String, u32)>,
     pub source: String,
