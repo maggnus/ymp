@@ -723,8 +723,10 @@ fn the_command_and_the_interface_commit_the_same_journal() {
 // ---------------------------------------------------------------------------
 
 /// Nothing runs without something that would reject a wrong candidate. Where the product can
-/// propose that something it does, and where it cannot it says so; either way a command that
-/// reaches neither starts nothing and exits non-zero.
+/// propose that something it does, where it can derive one from the request it generates it, and
+/// where it can do neither it says so; either way a command that reaches nothing starts nothing
+/// and exits non-zero. This request names no artifact in a project that runs no tests, which is
+/// exactly the case where neither route is open.
 #[test]
 fn a_command_with_nothing_that_could_judge_a_candidate_starts_nothing() {
     let fixture = Fixture::new();
@@ -749,7 +751,7 @@ fn a_command_with_nothing_that_could_judge_a_candidate_starts_nothing() {
         String::from_utf8_lossy(&refused.stderr)
     );
     assert!(
-        reported.contains("no test entry point"),
+        reported.contains("state a verifier of your own"),
         "the refusal does not name what could not be proposed:\n{reported}"
     );
     assert!(
