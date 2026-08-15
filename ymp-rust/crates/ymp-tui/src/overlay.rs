@@ -21,7 +21,7 @@ pub fn modal_spec(app: &App, area: Rect, markers: &Markers) -> Option<ModalSpec>
         Modal::Palette(palette) => Some(palette_spec(palette, area)),
         Modal::Authorize(authorize) => Some(authorize_spec(authorize, area, markers)),
         Modal::Confirm(confirm) => Some(confirm_spec(confirm, markers)),
-        Modal::Keys => Some(keys_spec()),
+        Modal::Keys => Some(keys_spec(app)),
     }
 }
 
@@ -356,8 +356,23 @@ pub const KEY_GROUPS: &[(&str, &[(&str, &str)])] = &[
     ),
 ];
 
-fn keys_spec() -> ModalSpec {
+const KEYS_WIDTH: u16 = 64;
+
+fn keys_spec(app: &App) -> ModalSpec {
     let mut body: Vec<Line<'static>> = Vec::new();
+
+    // The transcript states the assurance profile once, as a glyph in the header. The sentence
+    // it stands for is stated here in full, at the top, where a short terminal cannot clip it.
+    if let Some(environment) = &app.data.environment {
+        for piece in text::wrap(
+            &crate::journal::assurance_sentence(environment),
+            KEYS_WIDTH as usize - 2,
+        ) {
+            body.push(Line::from(Span::styled(piece, theme::amber())));
+        }
+        body.push(Line::default());
+    }
+
     for (index, (group, keys)) in KEY_GROUPS.iter().enumerate() {
         if index > 0 {
             body.push(Line::default());
@@ -383,7 +398,7 @@ fn keys_spec() -> ModalSpec {
         title: "keys".into(),
         badge: "? or Esc to close".into(),
         role: ModalRole::Reference,
-        width: 64,
+        width: KEYS_WIDTH,
         body,
     }
 }

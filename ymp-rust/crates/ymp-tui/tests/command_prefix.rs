@@ -89,11 +89,12 @@ fn no_hint_names_a_command_with_a_colon() {
         }
     }
 
-    // The two hints that name a command in the cold transcript name it with the prefix.
+    // The hints that name a command on the cold screen name it with the prefix. The transcript
+    // carries only the one that changes what to do next; the palette itself is named by the
+    // status line.
     let app = cold_app(vec![contract(true)]);
     for (width, height) in SIZES {
         let rendered = screen(&app, width, height);
-        assert!(rendered.contains("/runtimes"), "{rendered}");
         assert!(rendered.contains("/authorize"), "{rendered}");
         assert!(rendered.contains("/commands"), "{rendered}");
     }

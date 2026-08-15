@@ -50,9 +50,20 @@ fn a_store_with_no_run_opens_on_the_transcript_and_states_the_absence() {
     let app = App::new(session.projection(None));
     for (width, height) in SIZES {
         let rendered = render(&app, width, height);
-        assert!(rendered.contains("no run recorded"), "{rendered}");
+        // The absence is stated once, by the status line and the header, and the transcript
+        // spends its opening on the logo, the basics and the invitation instead.
         assert!(rendered.contains("idle · no run"), "{rendered}");
+        assert!(rendered.contains("no contract · no run"), "{rendered}");
+        assert!(rendered.contains("state your request below"), "{rendered}");
         assert!(rendered.contains("/commands"), "{rendered}");
+        assert!(
+            !rendered.contains("no run recorded"),
+            "the transcript restated the absence the status line already carries:\n{rendered}"
+        );
+        assert!(
+            !rendered.contains("no contract drafted"),
+            "the transcript restated an absence with nothing to do about it:\n{rendered}"
+        );
     }
 }
 

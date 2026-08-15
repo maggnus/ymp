@@ -239,6 +239,26 @@ fn a_page_with_no_state_behind_it_is_unavailable_rather_than_populated() {
     assert!(!rendered.contains("demo-run"), "{rendered}");
 }
 
+/// A rendered surface with its padding and line wrapping collapsed into one line, so a phrase
+/// the layout broke across rows can still be asserted on.
+fn collapsed(rendered: &str) -> String {
+    rendered.split_whitespace().collect::<Vec<_>>().join(" ")
+}
+
+/// What a floating surface says, cut out of the screen it floats above: everything between the
+/// left and right frame edges of each row it occupies.
+fn modal_interior(rendered: &str) -> String {
+    rendered
+        .lines()
+        .filter_map(|line| {
+            let start = line.find('│')?;
+            let end = line.rfind('│')?;
+            (end > start).then(|| line[start + '│'.len_utf8()..end].to_owned())
+        })
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
 #[test]
 fn the_assurance_profile_on_screen_is_the_one_the_project_contract_names() {
     let app = app_for(Some(&scenario::running()), vec![contract(true)]);
@@ -247,8 +267,37 @@ fn the_assurance_profile_on_screen_is_the_one_the_project_contract_names() {
         rendered.contains(ymp_tui::projection::ASSURANCE_PROFILE),
         "{rendered}"
     );
+
+    // The transcript carries the glyph, not the sentence. The limit is stated in full on the
+    // two surfaces that have room for it, so it is one keystroke away rather than absent.
     assert!(
-        rendered.contains("no hostile-code containment"),
-        "the profile was shown without its limit:\n{rendered}"
+        !rendered.contains("no hostile-code containment"),
+        "the transcript spent a line on a sentence the reference surfaces carry:\n{rendered}"
+    );
+
+    // Both surfaces wrap the sentence, so it is looked for with the wrapping collapsed.
+    let limit = collapsed(ymp_tui::projection::ASSURANCE_LIMIT);
+
+    let mut keys = app_for(Some(&scenario::running()), vec![contract(true)]);
+    keys.modal = ymp_tui::state::Modal::Keys;
+    for (width, height) in support::SIZES {
+        let rendered = screen(&keys, width, height);
+        let stated = collapsed(&modal_interior(&rendered));
+        assert!(
+            stated.contains(&limit),
+            "the key map did not state the assurance limit at {width}x{height}:\n{rendered}"
+        );
+        assert!(
+            stated.contains(ymp_tui::projection::ASSURANCE_PROFILE),
+            "{rendered}"
+        );
+    }
+
+    let mut runtimes = app_for(Some(&scenario::running()), vec![contract(true)]);
+    open_command(&mut runtimes, PageKind::Runtimes.command_name(), 40);
+    let rendered = screen(&runtimes, 120, 40);
+    assert!(
+        collapsed(&rendered).contains(&limit),
+        "the runtimes page did not state the assurance limit:\n{rendered}"
     );
 }

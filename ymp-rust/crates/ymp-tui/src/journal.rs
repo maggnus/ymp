@@ -70,19 +70,24 @@ impl Model {
             version: model.environment.version.clone(),
         });
         model.push(Entry::Blank);
-        model.push(Entry::AppReply {
-            text: format!("store {}", model.environment.data_root.display()),
-        });
+        // One line of basics under the wordmark. Where the store lives and which assurance
+        // profile is in force are carried by the header and by `?`; repeating them here would
+        // spend the first screen on facts the operator did not ask for.
         model.push(Entry::AppReply {
             text: format!(
-                "assurance {} ▲ — {}",
-                model.environment.assurance_profile, model.environment.assurance_limit
+                "{} · ymp {}",
+                model.environment.project_path.display(),
+                model.environment.version
             ),
         });
         model
     }
 
-    /// What the interface says when the store holds no run: the absence, and the next step.
+    /// What the interface says when the store holds no run: the next step, and nothing else.
+    ///
+    /// That no run and no contract exist yet is already stated by the header and the status
+    /// line, so the transcript states it once more only where it changes what to do next — a
+    /// contract that is waiting to be authorized.
     ///
     /// A store that was refused is a different case and says so: whether it holds a run is
     /// unknown to this binary, so nothing claims it is empty and nothing is offered over it.
@@ -105,28 +110,16 @@ impl Model {
                 },
             ];
         }
-        vec![
-            Entry::Blank,
-            Entry::AppReply {
-                text: "no run recorded for this project — nothing has been started and nothing \
-                       has been spent"
-                    .into(),
-            },
-            Entry::AppReply {
-                text: contracts_hint(&self.contracts),
-            },
-            Entry::AppReply {
-                text: "state your request below in one line · ymp asks only for what it cannot \
-                       infer, and starts nothing until you authorize it"
-                    .into(),
-            },
-            Entry::AppReply {
-                text: "/runtimes  which runtime profiles this host can start".into(),
-            },
-            Entry::AppReply {
-                text: "?          key map".into(),
-            },
-        ]
+        let mut entries = vec![Entry::Blank];
+        if let Some(hint) = contracts_hint(&self.contracts) {
+            entries.push(Entry::AppReply { text: hint });
+        }
+        entries.push(Entry::AppReply {
+            text: "state your request below in one line · ymp asks only for what it cannot \
+                   infer, and starts nothing until you authorize it"
+                .into(),
+        });
+        entries
     }
 
     /// Fold committed events into the model and adopt the current run state.
@@ -341,10 +334,14 @@ impl Model {
         }
 
         let mut pages: Vec<(PageKind, Page)> = Vec::new();
-        pages.push((
-            PageKind::Runtimes,
-            crate::runtimes::page(runtimes, self.status_line()),
-        ));
+        // The transcript no longer spends a line on the assurance profile, so the page that
+        // lists what this host can start carries the limit in full (INV-8). The header keeps the
+        // glyph, and `?` states the same sentence.
+        let mut runtimes_page = crate::runtimes::page(runtimes, self.status_line());
+        runtimes_page
+            .notes
+            .push(assurance_sentence(&self.environment));
+        pages.push((PageKind::Runtimes, runtimes_page));
         if let Some(run) = &self.run {
             pages.push((PageKind::Candidates, self.candidates_page(run)));
             pages.push((PageKind::Events, self.events_page(run)));
@@ -890,17 +887,30 @@ fn page_description(kind: PageKind) -> &'static str {
     }
 }
 
-fn contracts_hint(contracts: &[ContractFacts]) -> String {
+/// The assurance profile and, in full, what it does not give the operator (INV-8).
+///
+/// The header carries the profile and the ▲ glyph in the space it has; this is the sentence
+/// itself, and the surfaces that can hold it — the key map and the runtimes page — state it.
+pub fn assurance_sentence(environment: &Environment) -> String {
+    format!(
+        "assurance {} ▲ — {}",
+        environment.assurance_profile, environment.assurance_limit
+    )
+}
+
+/// The line a drafted contract earns on the transcript. An empty draft list earns none: that a
+/// contract is drafted from the request typed below is what the invitation already says.
+fn contracts_hint(contracts: &[ContractFacts]) -> Option<String> {
     match contracts.len() {
-        0 => "no contract drafted yet · one is drafted from the request you type below".to_owned(),
-        1 => format!(
+        0 => None,
+        1 => Some(format!(
             "/authorize {} · nothing runs and nothing is spent until you authorize it",
             contracts[0].contract_id
-        ),
-        count => format!(
+        )),
+        count => Some(format!(
             "{count} managed contracts available · nothing runs and nothing is spent until you \
              authorize one"
-        ),
+        )),
     }
 }
 

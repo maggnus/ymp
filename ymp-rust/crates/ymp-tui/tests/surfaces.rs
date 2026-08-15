@@ -292,6 +292,50 @@ fn a_high_volume_page_bounds_its_rows_and_keeps_the_selection_visible() {
     }
 }
 
+/// The opening screen at both declared sizes: the wordmark, one line of basic facts and the
+/// invitation to state a request. Every other line the interface used to print on start is a
+/// fact another surface already carries, and printing it here spent the first screen on it.
+#[test]
+fn the_cold_transcript_opens_on_the_logo_one_line_of_basics_and_the_invitation() {
+    for (width, height) in SIZES {
+        let app = app_for(None, Vec::new());
+        let rendered = screen(&app, width, height);
+        let stated = flatten(&rendered);
+
+        assert!(
+            rendered.contains(r"  \__, |_| |_| |_| .__/"),
+            "the wordmark did not open the transcript at {width}x{height}:\n{rendered}"
+        );
+        assert!(
+            stated.contains("/tmp/checkout · ymp 0.1.0"),
+            "the basics line did not carry the directory and the version:\n{rendered}"
+        );
+        assert!(
+            stated.contains("state your request below in one line"),
+            "the invitation is missing:\n{rendered}"
+        );
+
+        // What left the feed, and where each fact still lives: the store and the assurance
+        // glyph on the header and the status line, the assurance sentence in `?` and on
+        // `/runtimes`, the palette in the status line's own hint.
+        for retired in [
+            "ymp store",
+            "no hostile-code containment",
+            "no run recorded",
+            "no contract drafted",
+            "/runtimes",
+            "key map",
+        ] {
+            assert!(
+                !stated.contains(retired),
+                "the opening screen still prints {retired:?} at {width}x{height}:\n{rendered}"
+            );
+        }
+        assert!(stated.contains("no contract · no run"), "{rendered}");
+        assert!(stated.contains("/commands"), "{rendered}");
+    }
+}
+
 #[test]
 fn below_the_minimum_size_the_guard_replaces_every_surface() {
     let app = app_for(Some(&scenario::running()), vec![contract(true)]);
