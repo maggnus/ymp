@@ -100,5 +100,5 @@
 | `[x]` | [`W1-PRD-05d`](waves/W1/W1-PRD-05/tasks/W1-PRD-05d.md) | Provider and model surfaces; probing gated on Enable (P2) | [`72b288b`](72b288b) | 15/08 18:55 | 15/08 23:30 (0m) |
 | `[x]` | [`W1-PRD-05e`](waves/W1/W1-PRD-05/tasks/W1-PRD-05e.md) | The AgentPool resource, its reconciler and the automatic `default` (P3) | [`ffde816`](ffde816) | 15/08 18:55 | 15/08 22:30 (0m) |
 | `[x]` | [`W1-PRD-05f`](waves/W1/W1-PRD-05/tasks/W1-PRD-05f.md) | /pools surfaces and the reconciler wired to the enable transition (P4) | [`456f750`](456f750) | 15/08 23:05 | 16/08 00:40 (0m) |
-| `[~]` | [`W1-PRD-05g`](waves/W1/W1-PRD-05/tasks/W1-PRD-05g.md) | Provider measurement runs off the interface thread | — | 15/08 23:35 | 15/08 23:35 (0m) |
+| `[x]` | [`W1-PRD-05g`](waves/W1/W1-PRD-05/tasks/W1-PRD-05g.md) | Provider measurement runs off the interface thread | [`028e7b7e`](https://github.com/maggnus/ymp/commit/028e7b7e9a8c4e739c0a20006e4cdf78af4958c2) | 15/08 23:35 | 16/08 02:05 (2h30m) |
 | `[x]` | [`W1-PRD-05h`](waves/W1/W1-PRD-05/tasks/W1-PRD-05h.md) | The run-scoped pool freeze: `PoolFrozen` committed at run creation (P5) | [`54ccbeeb`](https://github.com/maggnus/ymp/commit/54ccbeeb7d998aa387befcd010692edf7db3ee24) | 15/08 22:15 | 16/08 01:35 (3h20m) |
