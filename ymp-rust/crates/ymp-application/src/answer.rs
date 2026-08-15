@@ -27,6 +27,20 @@
 //! told their project runs no tests has no way to see that stating a verifier of their own is what
 //! is left to them.
 //!
+//! A project that runs no tests at all is not out of reach either. [`generate`] derives the check
+//! from the request instead: it reads out of the request's own words the one artifact the work is
+//! asked to leave behind, and writes a self-contained program that decides that and nothing more.
+//! A derived check is weaker than a project's own tests by construction, so what it decides and
+//! what it leaves to the operator are both stated, and it takes effect only through the same
+//! approval every other acceptance condition needs.
+//!
+//! The derivation here is a fixed rule over the words of the request — a production verb and the
+//! artifact it names — and nothing else. No model is asked to write the program, so no part of the
+//! request and no part of the project leaves this host to produce it, and a request the rule reads
+//! no artifact out of is refused rather than guessed at. A richer derivation, which would send the
+//! request to a supplier under a disclosure budget, is a product decision that has not been taken;
+//! until it is, this rule is the whole of what generation does, and the draft says so.
+//!
 //! Assembly keeps its own validation in [`crate::contract::prepare_contract`]: a contract also
 //! arrives from a package that nobody typed, and what is stored is judged there.
 
@@ -103,6 +117,32 @@ pub enum AnswerError {
          file can be fixed into it, because a candidate that may rewrite them decides its own run"
     )]
     TestEntryPointNotFixable { path: PathBuf, reason: String },
+    #[error(
+        "nothing in the request \"{prompt}\" names a result this host could check for: it asks for \
+         no artifact ymp knows how to look for, and this project runs no tests to propose a \
+         verifier from. A check invented from words that state no observable result would decide \
+         nothing, so none is offered — state a verifier of your own, or say what the work must \
+         leave behind"
+    )]
+    NoCheckDerivable { prompt: String },
+    #[error(
+        "the check generated from this request — {claim} — is already satisfied by \
+         {negative_control}, which is this project as it stands, so it says nothing about the work \
+         being asked for: state a verifier of your own instead"
+    )]
+    GeneratedCheckAlreadySatisfied {
+        claim: String,
+        negative_control: PathBuf,
+    },
+    #[error(
+        "the check generated from this request — {claim} — rejected {positive_control}, which \
+         carries exactly the artifact the request asks for, so it would reject the finished work \
+         as well and nothing is proposed from it"
+    )]
+    GeneratedCheckRejectsTheArtifact {
+        claim: String,
+        positive_control: PathBuf,
+    },
     #[error(
         "the source directory {path} was not copied: it holds more than {limit} — state a \
          negative control of your own instead"
@@ -851,6 +891,460 @@ pub fn refuses_a_substituted_entry_point_within(
         }
     }
     Ok(())
+}
+
+// ---------------------------------------------------------------------------
+// What the product generates where a project runs no tests of its own
+// ---------------------------------------------------------------------------
+
+/// The artifact a request asks the work to leave behind, as the rule reads it.
+///
+/// It is the whole of what a generated check decides. The names a candidate may satisfy it with
+/// are fixed here, and so is whether the bytes have to decode as anything: a check that read more
+/// out of a request than these two facts would be judging what the request means, which no rule
+/// over words can do.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+struct Artifact {
+    /// The file names that satisfy the request, as the program's own patterns.
+    patterns: &'static [&'static str],
+    /// The names as one English list, for the sentence the draft states.
+    stated_patterns: &'static str,
+    /// Whether the bytes must also decode as an image with non-zero width and height.
+    decodes_as_image: bool,
+    /// The file the product plants to show the check accepts something, and its bytes.
+    sample: (&'static str, &'static [u8]),
+    /// How the draft names what that planted file is.
+    stated_sample: &'static str,
+}
+
+/// A 1×1 image, which is the smallest thing that decodes with non-zero width and height. It is
+/// planted so the check can be shown accepting a candidate, and it is deliberately the least an
+/// accepted candidate can carry: what the demonstration shows is exactly how little that is.
+const SAMPLE_PNG: &[u8] = &[
+    0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00, 0x00, 0x0d, 0x49, 0x48, 0x44, 0x52,
+    0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01, 0x08, 0x06, 0x00, 0x00, 0x00, 0x1f, 0x15, 0xc4,
+    0x89, 0x00, 0x00, 0x00, 0x0d, 0x49, 0x44, 0x41, 0x54, 0x78, 0xda, 0x63, 0xfc, 0xcf, 0xc0, 0x50,
+    0x0f, 0x00, 0x04, 0x85, 0x01, 0x80, 0x84, 0xa9, 0x8c, 0x21, 0x00, 0x00, 0x00, 0x00, 0x49, 0x45,
+    0x4e, 0x44, 0xae, 0x42, 0x60, 0x82,
+];
+
+/// Any picture the generated program can read the size of. A request that names one format is
+/// checked against all of them: the program decides that an image was produced, and the format it
+/// was produced in is left to the operator with everything else it does not decide.
+const IMAGE: Artifact = Artifact {
+    patterns: &["*.png", "*.jpg", "*.jpeg", "*.gif", "*.bmp"],
+    stated_patterns: "*.png, *.jpg, *.jpeg, *.gif or *.bmp",
+    decodes_as_image: true,
+    sample: ("sample.png", SAMPLE_PNG),
+    stated_sample: "a 1×1 picture named sample.png",
+};
+
+/// The words that say a request asks for something to be produced.
+///
+/// A request that names an artifact without asking for one to be made is not a request for that
+/// artifact: "fix the html escaping" names html and asks for no file. Matching is by stem, so one
+/// entry covers "create", "creates" and "creating" without a list of inflections to maintain.
+const PRODUCTION_STEMS: [&str; 11] = [
+    "creat", "generat", "writ", "mak", "produc", "render", "draw", "emit", "export", "build", "sav",
+];
+
+/// One file the check knows only by name, with the sample the product plants for it.
+///
+/// The sample is empty, because emptiness is what such a check permits: a program that decides a
+/// name accepts a file with nothing in it, and the demonstration shows that rather than describing
+/// it.
+macro_rules! named_file {
+    ($extension:literal) => {
+        Artifact {
+            patterns: &[concat!("*.", $extension)],
+            stated_patterns: concat!("*.", $extension),
+            decodes_as_image: false,
+            sample: (concat!("sample.", $extension), b""),
+            stated_sample: concat!("an empty file named sample.", $extension),
+        }
+    };
+}
+
+/// The words a request names an artifact with, and what satisfies each.
+///
+/// A word outside this table derives nothing. That is the point: the rule reads the artifact out
+/// of the request or refuses, and it never falls back on a check it made up. A format that names a
+/// picture is read as a picture before it is read as a file, so a request for a png is checked by
+/// decoding, and one for an svg — which this host cannot decode — by name.
+const ARTIFACT_WORDS: &[(&str, Artifact)] = &[
+    ("png", IMAGE),
+    ("jpg", IMAGE),
+    ("jpeg", IMAGE),
+    ("gif", IMAGE),
+    ("bmp", IMAGE),
+    ("image", IMAGE),
+    ("images", IMAGE),
+    ("picture", IMAGE),
+    ("pictures", IMAGE),
+    ("photo", IMAGE),
+    ("photograph", IMAGE),
+    ("screenshot", IMAGE),
+    ("html", named_file!("html")),
+    ("htm", named_file!("htm")),
+    ("css", named_file!("css")),
+    ("js", named_file!("js")),
+    ("javascript", named_file!("js")),
+    ("json", named_file!("json")),
+    ("yaml", named_file!("yaml")),
+    ("yml", named_file!("yml")),
+    ("toml", named_file!("toml")),
+    ("xml", named_file!("xml")),
+    ("svg", named_file!("svg")),
+    ("csv", named_file!("csv")),
+    ("tsv", named_file!("tsv")),
+    ("md", named_file!("md")),
+    ("markdown", named_file!("md")),
+    ("txt", named_file!("txt")),
+    ("pdf", named_file!("pdf")),
+    ("sql", named_file!("sql")),
+    ("rs", named_file!("rs")),
+    ("py", named_file!("py")),
+    ("python", named_file!("py")),
+    ("sh", named_file!("sh")),
+];
+
+/// The check a request states, when the rule can read one out of it.
+#[derive(Clone, Debug)]
+pub struct DerivedCheck {
+    /// What the program decides, in the words the draft states it in.
+    pub claim: String,
+    /// What the program does not decide and the operator keeps, in the same words.
+    pub remainder: String,
+    /// The program, as the text an operator reads before approving it.
+    pub program: String,
+    artifact: Artifact,
+}
+
+/// The one machine-checkable claim this request makes, read by a fixed rule from its words.
+///
+/// The rule wants two things: a word saying something is to be produced, and a word naming what.
+/// A request carrying only one of them states no observable result this host could look for, and
+/// nothing is derived from it.
+pub fn derive_check(prompt: &str) -> Option<DerivedCheck> {
+    let words: Vec<String> = prompt
+        .split(|character: char| !character.is_ascii_alphanumeric())
+        .filter(|word| !word.is_empty())
+        .map(|word| word.to_ascii_lowercase())
+        .collect();
+    if !words
+        .iter()
+        .any(|word| PRODUCTION_STEMS.iter().any(|stem| word.starts_with(stem)))
+    {
+        return None;
+    }
+    let artifact = ARTIFACT_WORDS
+        .iter()
+        .find(|(named, _)| words.iter().any(|word| word == named))
+        .map(|(_, artifact)| *artifact)?;
+
+    let (claim, remainder) = match artifact.decodes_as_image {
+        true => (
+            format!(
+                "a file named {} was produced, and its bytes decode as an image with non-zero \
+                 width and height",
+                artifact.stated_patterns
+            ),
+            "whether the picture shows what you meant, and whether it is in the format you named, \
+             are not decided here and stay yours to judge"
+                .to_owned(),
+        ),
+        false => (
+            format!("a file named {} was produced", artifact.stated_patterns),
+            "whether that file holds what you meant — its content, and whether it holds anything \
+             at all — is not decided here and stays yours to judge"
+                .to_owned(),
+        ),
+    };
+    let program = generated_program(&artifact, &claim, &remainder);
+    Some(DerivedCheck {
+        claim,
+        remainder,
+        program,
+        artifact,
+    })
+}
+
+/// Directories a produced artifact is never looked for in: history and fetched dependencies are
+/// not what the work left behind, and a candidate that happens to carry one of them would
+/// otherwise satisfy the check with a file it never wrote.
+const NOT_SEARCHED: [&str; 4] = [".git", "node_modules", ".ymp-data", "target"];
+
+/// The generated program, as the text an operator reads before approving it.
+fn generated_program(artifact: &Artifact, claim: &str, remainder: &str) -> String {
+    /// What every generated program opens with: where it came from, what it decides, and what it
+    /// leaves to the operator. The operator approves this text, so the text says what it is.
+    const PREAMBLE: &str = r#"#!/bin/sh
+# ymp generated this program from the request itself, because this project names no way of
+# running its tests that a verifier could be proposed from. A fixed rule read out of the words
+# of the request the one artifact the work is asked to leave behind; no model wrote this, so
+# neither the request nor this project left the host to produce it.
+#
+# It decides one mechanical claim and nothing beyond it:
+#   {claim}
+# What it does not decide stays with the operator:
+#   {remainder}
+#
+# It reads the directory it is given and nothing else, and it is pinned by digest in the
+# contract, so a program edited after the draft was approved no longer decides that contract.
+cd "$1" || exit 1
+"#;
+    /// Finding the artifact by name, which is all a check of a named file does.
+    const BY_NAME: &str = r#"
+found=$(find . {pruned} -type f {matched} -print 2>/dev/null | head -n 1)
+if [ -z "$found" ]; then
+  printf 'no file named {stated_patterns} was produced\n' >&2
+  exit 1
+fi
+printf '%s was produced\n' "$found"
+exit 0
+"#;
+    /// Reading the size out of a picture's own header, so "an image was produced" is decided by
+    /// the bytes rather than by the name they were given. Each format is read where it states its
+    /// own width and height; a file that states neither is not an image this program can accept.
+    const BY_DECODING: &str = r#"
+read_bytes() {
+  od -An -v -tu1 -j "$2" -N "$3" -- "$1" 2>/dev/null | tr '\n' ' '
+}
+
+png_dimensions() {
+  set -- $(read_bytes "$1" 16 8)
+  [ $# -eq 8 ] || return 1
+  printf '%s %s\n' "$(( $1 * 16777216 + $2 * 65536 + $3 * 256 + $4 ))" \
+                   "$(( $5 * 16777216 + $6 * 65536 + $7 * 256 + $8 ))"
+}
+
+gif_dimensions() {
+  set -- $(read_bytes "$1" 6 4)
+  [ $# -eq 4 ] || return 1
+  printf '%s %s\n' "$(( $2 * 256 + $1 ))" "$(( $4 * 256 + $3 ))"
+}
+
+bmp_dimensions() {
+  set -- $(read_bytes "$1" 18 8)
+  [ $# -eq 8 ] || return 1
+  width=$(( $4 * 16777216 + $3 * 65536 + $2 * 256 + $1 ))
+  height=$(( $8 * 16777216 + $7 * 65536 + $6 * 256 + $5 ))
+  # Both are signed, and a bitmap written from the top down states a negative height.
+  [ "$width" -gt 2147483647 ] && width=$(( 4294967296 - width ))
+  [ "$height" -gt 2147483647 ] && height=$(( 4294967296 - height ))
+  printf '%s %s\n' "$width" "$height"
+}
+
+jpeg_dimensions() {
+  file=$1
+  offset=2
+  steps=0
+  # The size is in a frame header, which is reached by walking the segments before it. The walk
+  # is bounded: a file that never states a frame ends the walk rather than the program.
+  while [ "$steps" -lt 512 ]; do
+    steps=$(( steps + 1 ))
+    set -- $(read_bytes "$file" "$offset" 4)
+    [ $# -ge 2 ] || return 1
+    [ "$1" -eq 255 ] || return 1
+    case "$2" in
+      255) offset=$(( offset + 1 )); continue ;;
+      1|208|209|210|211|212|213|214|215) offset=$(( offset + 2 )); continue ;;
+      217|218) return 1 ;;
+      192|193|194|195|197|198|199|201|202|203|205|206|207)
+        set -- $(read_bytes "$file" $(( offset + 5 )) 4)
+        [ $# -eq 4 ] || return 1
+        printf '%s %s\n' "$(( $3 * 256 + $4 ))" "$(( $1 * 256 + $2 ))"
+        return 0 ;;
+    esac
+    [ $# -eq 4 ] || return 1
+    length=$(( $3 * 256 + $4 ))
+    [ "$length" -ge 2 ] || return 1
+    offset=$(( offset + 2 + length ))
+  done
+  return 1
+}
+
+decodes() {
+  file=$1
+  set -- $(read_bytes "$file" 0 4)
+  [ $# -eq 4 ] || return 1
+  if [ "$1" -eq 137 ] && [ "$2" -eq 80 ] && [ "$3" -eq 78 ] && [ "$4" -eq 71 ]; then
+    size=$(png_dimensions "$file")
+  elif [ "$1" -eq 71 ] && [ "$2" -eq 73 ] && [ "$3" -eq 70 ]; then
+    size=$(gif_dimensions "$file")
+  elif [ "$1" -eq 255 ] && [ "$2" -eq 216 ]; then
+    size=$(jpeg_dimensions "$file")
+  elif [ "$1" -eq 66 ] && [ "$2" -eq 77 ]; then
+    size=$(bmp_dimensions "$file")
+  else
+    return 1
+  fi
+  set -- $size
+  [ $# -eq 2 ] || return 1
+  [ "$1" -gt 0 ] && [ "$2" -gt 0 ]
+}
+
+separator=$(printf '\nx')
+separator=${separator%x}
+saved=$IFS
+IFS=$separator
+set -- $(find . {pruned} -type f {matched} -print 2>/dev/null)
+IFS=$saved
+for candidate in "$@"; do
+  if decodes "$candidate"; then
+    printf '%s was produced and decodes with non-zero width and height\n' "$candidate"
+    exit 0
+  fi
+done
+printf 'no file named {stated_patterns} was produced that decodes as an image with non-zero width and height\n' >&2
+exit 1
+"#;
+
+    let pruned = format!(
+        "\\( {} \\) -prune -o",
+        NOT_SEARCHED
+            .iter()
+            .map(|name| format!("-name {}", shell_word(name)))
+            .collect::<Vec<_>>()
+            .join(" -o ")
+    );
+    let matched = format!(
+        "\\( {} \\)",
+        artifact
+            .patterns
+            .iter()
+            .map(|pattern| format!("-name {}", shell_word(pattern)))
+            .collect::<Vec<_>>()
+            .join(" -o ")
+    );
+    let body = match artifact.decodes_as_image {
+        true => BY_DECODING,
+        false => BY_NAME,
+    };
+    format!("{PREAMBLE}{body}")
+        .replace("{claim}", claim)
+        .replace("{remainder}", remainder)
+        .replace("{stated_patterns}", artifact.stated_patterns)
+        .replace("{pruned}", &pruned)
+        .replace("{matched}", &matched)
+}
+
+/// A check generated for one request, written out and ready to be demonstrated.
+#[derive(Clone, Debug)]
+pub struct Generated {
+    /// The program on this host. The contract pins it by the digest of these bytes.
+    pub program: PathBuf,
+    /// The same program as text, so the draft can show what is being approved.
+    pub program_text: String,
+    /// The digest the contract will record for it, computed here so the draft can state it before
+    /// the contract exists.
+    pub oracle_digest: String,
+    /// A copy of the project as it stands, which the check must reject.
+    pub negative_control: PathBuf,
+    /// The same copy carrying the artifact the request asks for, which the check must accept. A
+    /// check that rejects everything decides as little as one that accepts everything.
+    pub positive_control: PathBuf,
+    /// What that copy carries, in the words the draft states it in.
+    pub stated_positive_control: String,
+    /// What the program decides, and what it leaves to the operator.
+    pub claim: String,
+    pub remainder: String,
+}
+
+/// Generate a check for this request, write it under `workspace`, and build both controls.
+///
+/// Nothing is run here and nothing is stored durably: [`decides_the_generated_check_within`]
+/// decides whether what was generated decides anything, and the operator decides whether it may.
+pub fn generate(prompt: &str, source: &Path, workspace: &Path) -> Result<Generated, AnswerError> {
+    let derived = derive_check(prompt).ok_or_else(|| AnswerError::NoCheckDerivable {
+        prompt: stated_request(prompt),
+    })?;
+    let failed = |reason: String| AnswerError::Workspace {
+        path: workspace.to_path_buf(),
+        reason,
+    };
+    fs::create_dir_all(workspace).map_err(|error| failed(error.to_string()))?;
+
+    let program = workspace.join("generated-verify.sh");
+    write_program(&program, &derived.program).map_err(|error| failed(error.to_string()))?;
+    let negative_control = copy_negative_control(source, workspace)?;
+
+    let positive_control = workspace.join("artifact-control");
+    if positive_control.exists() {
+        fs::remove_dir_all(&positive_control).map_err(|error| failed(error.to_string()))?;
+    }
+    copy_tree(source, &positive_control)?;
+    let (name, bytes) = derived.artifact.sample;
+    plant(&positive_control.join(name), bytes, false).map_err(|error| failed(error.to_string()))?;
+
+    Ok(Generated {
+        oracle_digest: digest_bytes(derived.program.as_bytes()),
+        program,
+        program_text: derived.program,
+        negative_control,
+        positive_control,
+        stated_positive_control: derived.artifact.stated_sample.to_owned(),
+        claim: derived.claim,
+        remainder: derived.remainder,
+    })
+}
+
+/// The request as a refusal quotes it back: one line, bounded, so a long paste does not become the
+/// whole message.
+fn stated_request(prompt: &str) -> String {
+    const QUOTED_CHARS: usize = 120;
+    let line = prompt.lines().next().unwrap_or_default().trim();
+    match line.char_indices().nth(QUOTED_CHARS) {
+        None => line.to_owned(),
+        Some((index, _)) => format!("{}…", &line[..index]),
+    }
+}
+
+/// Both decisions a generated check has to make before it is shown.
+///
+/// It must reject the project as it stands, which is the decision every verifier answers, and it
+/// must accept that same project carrying the artifact the request asks for. Unlike a verifier
+/// proposed from a project's own tests, this one can be shown both halves: the product can build
+/// the artifact a derived check looks for, because looking for it is all the check does. Showing
+/// the acceptance is also the only way an operator can see how little it takes to satisfy the
+/// check, which is what the draft asks them to judge.
+pub fn decides_the_generated_check_within(
+    generated: &Generated,
+    negative_control: &Path,
+    wall_limit: Duration,
+) -> Result<(), AnswerError> {
+    let program = generated.program.as_path();
+    let refused = |reason: String| AnswerError::VerifierNotRun {
+        program: program.to_path_buf(),
+        negative_control: negative_control.to_path_buf(),
+        reason,
+    };
+    let accepted_the_project = || AnswerError::GeneratedCheckAlreadySatisfied {
+        claim: generated.claim.clone(),
+        negative_control: negative_control.to_path_buf(),
+    };
+    let rejected_the_artifact = || AnswerError::GeneratedCheckRejectsTheArtifact {
+        claim: generated.claim.clone(),
+        positive_control: generated.positive_control.clone(),
+    };
+
+    let verifier = demonstration_verifier(program, negative_control, wall_limit)?;
+    let subject_digest = || demonstration_digest(program, negative_control);
+
+    // The executor judges the negative control before the subject, so the copy carrying the
+    // artifact is judged in the same call that requires the plain copy to be rejected.
+    match verifier.verify_candidate(
+        &generated.positive_control,
+        negative_control,
+        subject_digest(),
+    ) {
+        Ok(evidence) => match evidence.decision() {
+            VerificationDecision::Accept => Ok(()),
+            VerificationDecision::Reject => Err(rejected_the_artifact()),
+        },
+        Err(VerifierError::NegativeControlPassed) => Err(accepted_the_project()),
+        Err(error) => Err(refused(error.to_string())),
+    }
 }
 
 #[cfg(unix)]
