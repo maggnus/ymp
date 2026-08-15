@@ -80,8 +80,22 @@ impl Model {
                 model.environment.version
             ),
         });
+        model.push(Entry::Blank);
+        model.push(Entry::AppReply {
+            text: Self::INVITATION.to_owned(),
+        });
         model
     }
+
+    /// The invitation the interface opens with, written once into the transcript.
+    ///
+    /// It is not restated under every reply: an invitation that reappears below each answer reads
+    /// as the interface asking again for something already given. The standing form of the same
+    /// hint is on the status line, where it costs no transcript line and is on the screen for as
+    /// long as a request can be stated.
+    const INVITATION: &'static str = "state your request below in one line · ymp asks only for \
+                                      what it cannot infer, and starts nothing until you \
+                                      authorize it";
 
     /// What the interface says when the store holds no run: the next step, and nothing else.
     ///
@@ -110,16 +124,10 @@ impl Model {
                 },
             ];
         }
-        let mut entries = vec![Entry::Blank];
-        if let Some(hint) = contracts_hint(&self.contracts) {
-            entries.push(Entry::AppReply { text: hint });
+        match contracts_hint(&self.contracts) {
+            Some(hint) => vec![Entry::Blank, Entry::AppReply { text: hint }],
+            None => Vec::new(),
         }
-        entries.push(Entry::AppReply {
-            text: "state your request below in one line · ymp asks only for what it cannot \
-                   infer, and starts nothing until you authorize it"
-                .into(),
-        });
-        entries
     }
 
     /// Fold committed events into the model and adopt the current run state.
@@ -253,8 +261,14 @@ impl Model {
     }
 
     /// Record that this store cannot be read by this binary, so nothing is offered over it.
+    ///
+    /// The invitation the transcript opened with goes with it: no request can be drafted over a
+    /// store this binary cannot read, so an invitation to state one would be an offer the
+    /// interface cannot keep.
     pub fn refuse_store(&mut self) {
         self.refused = true;
+        self.entries
+            .retain(|entry| !matches!(entry, Entry::AppReply { text } if text == Self::INVITATION));
     }
 
     /// Whether this store was refused as unreadable.
@@ -430,8 +444,11 @@ impl Model {
             );
         }
         match &self.run {
+            // The standing form of the opening invitation. It sits here rather than in the
+            // transcript because it is true for as long as no run exists, and a fact that stays
+            // true belongs on a line that is redrawn rather than one that is appended.
             None => format!(
-                "idle · no run · store {}",
+                "idle · no run · state your request in one line · store {}",
                 self.environment.data_root.display()
             ),
             Some(run) => {
@@ -1120,6 +1137,71 @@ mod tests {
             panic!("expected the elision note first");
         };
         assert!(text.contains("earlier transcript entries"), "{text}");
+    }
+
+    /// The invitation opens the transcript and then stays where it was written.
+    ///
+    /// The negative half is what the interface did before: the invitation was added to the
+    /// projection while no run existed, so it moved below every reply and was read again after
+    /// each answer. What replaces it is one line at the start and a standing hint on the status
+    /// line, which is redrawn rather than appended.
+    #[test]
+    fn the_invitation_is_stated_once_and_never_again_under_a_reply() {
+        let invitations = |model: &Model| {
+            model
+                .projection(None)
+                .entries
+                .iter()
+                .filter(
+                    |entry| matches!(entry, Entry::AppReply { text } if text == Model::INVITATION),
+                )
+                .count()
+        };
+        let mut model = Model::cold(environment(), Vec::new());
+        assert_eq!(invitations(&model), 1, "the transcript does not open on it");
+
+        model.reply("request recorded locally — nothing has started");
+        model.reply("contract drafted · nothing is spent");
+        assert_eq!(
+            invitations(&model),
+            1,
+            "the invitation was restated under a reply"
+        );
+        let entries = model.projection(None).entries;
+        let Some(Entry::AppReply { text }) = entries.last() else {
+            panic!("the transcript does not end on the last reply");
+        };
+        assert!(
+            text.contains("contract drafted"),
+            "the invitation followed the reply instead of standing above it: {text}"
+        );
+        assert!(
+            model.status_line().contains("state your request"),
+            "the standing hint left the status line: {}",
+            model.status_line()
+        );
+    }
+
+    /// A store this binary cannot read is offered nothing, so the invitation goes with the offer.
+    #[test]
+    fn an_unreadable_store_withdraws_the_invitation_it_opened_with() {
+        let mut model = Model::cold(environment(), Vec::new());
+        model.refuse_store();
+        let stated = model
+            .projection(None)
+            .entries
+            .iter()
+            .filter_map(|entry| match entry {
+                Entry::AppReply { text } => Some(text.clone()),
+                _ => None,
+            })
+            .collect::<Vec<_>>()
+            .join(" · ");
+        assert!(!stated.contains("state your request"), "{stated}");
+        assert!(
+            stated.contains("no request can be drafted here"),
+            "{stated}"
+        );
     }
 
     #[test]
