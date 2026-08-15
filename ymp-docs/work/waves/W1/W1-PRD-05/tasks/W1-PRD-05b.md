@@ -13,7 +13,7 @@ created_at: 2026-08-15T15:07:23+08:00
 updated_at: 2026-08-15T16:12:00+08:00
 started_at: 2026-08-15T15:07:23+08:00
 accepted_at: 2026-08-15T16:12:00+08:00
-candidate_commit: 09fc9c4
+candidate_commit: https://github.com/maggnus/ymp/commit/09fc9c455ced9b6572b4bbbeca778b762ba6bf83
 closure_commit:
 evidence:
 duration_minutes: 0
@@ -21,7 +21,7 @@ blocker:
 pause_reason:
 return_trigger:
 deliberate_partial: false
----
+
 
 # W1-PRD-05b — The product root carries provider and catalog records (P1)
 

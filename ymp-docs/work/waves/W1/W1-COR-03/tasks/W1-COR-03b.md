@@ -14,8 +14,8 @@ updated_at: 2026-08-14T04:06:57+08:00
 started_at:
 accepted_at: 2026-08-14T04:06:57+08:00
 candidate_commit: https://github.com/maggnus/ymp/commit/fddecf0e11a76a516d159dfd5d62c3f411c7e867
-closure_commit: https://github.com/maggnus/ymp/commit/ca52994
-evidence: independent exhaustive reachability falsifier over 51249 ledger states found zero states without a reachable honest terminal; four contracted counterexamples plus three author mutations; reviewer ACCEPT with four minor findings recorded in W1-COR-03l
+closure_commit: https://github.com/maggnus/ymp/commit/ca5299420f40d3ebf9b83faeae4e79614ebecc4d
+evidence: ["[ca52994](https://github.com/maggnus/ymp/commit/ca5299420f40d3ebf9b83faeae4e79614ebecc4d)"]
 duration_minutes: 0
 blocker:
 pause_reason:
@@ -91,4 +91,6 @@ None recorded.
 
 ### Evidence
 
-- None until acceptance.
+- independent exhaustive reachability falsifier over 51249 ledger states found zero states without a
+  reachable honest terminal; four contracted counterexamples plus three author mutations; reviewer
+  ACCEPT with four minor findings recorded in W1-COR-03l

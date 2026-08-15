@@ -13,9 +13,9 @@ created_at: 2026-08-14T03:44:51+08:00
 updated_at: 2026-08-15T00:05:22+08:00
 started_at: 2026-08-14T05:07:51+08:00
 accepted_at: 2026-08-15T00:05:22+08:00
-candidate_commit: https://github.com/maggnus/ymp/commit/2e9570a
-closure_commit: https://github.com/maggnus/ymp/commit/c364e30
-evidence: two independent shields (explicit -f invocation and read-before names refusal) measured separately, on a case-insensitive and a case-sensitive volume; the hostile GNUmakefile and .npmrc script-shell falsifiers drove two return rounds; the npm branch left the proposal as a typed distinction and the split children carry it
+candidate_commit: https://github.com/maggnus/ymp/commit/2e9570ab0526802bac8a269cf39eddfc354a9769
+closure_commit: https://github.com/maggnus/ymp/commit/c364e3014ee3bb6248d31d80d367f6cb7b466391
+evidence: ["[c364e30](https://github.com/maggnus/ymp/commit/c364e3014ee3bb6248d31d80d367f6cb7b466391)"]
 duration_minutes: 0
 blocker:
 pause_reason:
@@ -86,4 +86,7 @@ None recorded.
 
 ### Evidence
 
-None recorded.
+- two independent shields (explicit -f invocation and read-before names refusal) measured
+  separately, on a case-insensitive and a case-sensitive volume; the hostile GNUmakefile and .npmrc
+  script-shell falsifiers drove two return rounds; the npm branch left the proposal as a typed
+  distinction and the split children carry it

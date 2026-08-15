@@ -13,7 +13,7 @@ created_at: 2026-08-15T16:45:00+08:00
 updated_at: 2026-08-15T19:30:00+08:00
 started_at: 2026-08-15T16:45:00+08:00
 accepted_at: 2026-08-15T19:30:00+08:00
-candidate_commit: eb0fdd3
+candidate_commit: https://github.com/maggnus/ymp/commit/eb0fdd34f3564eaf05c6a2e6b02b6d9eb3cbfc65
 closure_commit:
 evidence:
 duration_minutes: 0
@@ -21,7 +21,7 @@ blocker:
 pause_reason:
 return_trigger: the kernel serialisation changed again without a mutation that fails the race test; or a second production caller of execute_commitment lands without a terminal guard independent of StopRun
 deliberate_partial: false
----
+
 
 # W1-COR-03x — The run's commitment kernel journals through the durable path
 

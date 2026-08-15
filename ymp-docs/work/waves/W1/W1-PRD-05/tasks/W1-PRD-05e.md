@@ -13,7 +13,7 @@ created_at: 2026-08-15T18:55:00+08:00
 updated_at: 2026-08-15T22:30:00+08:00
 started_at: 2026-08-15T18:55:00+08:00
 accepted_at: 2026-08-15T22:30:00+08:00
-candidate_commit: ffde816
+candidate_commit: https://github.com/maggnus/ymp/commit/ffde816625bc6a98536e486c2f5ccc0f6445b6d5
 closure_commit:
 evidence:
 duration_minutes: 0
@@ -21,7 +21,7 @@ blocker:
 pause_reason:
 return_trigger:
 deliberate_partial: false
----
+
 
 # W1-PRD-05e — The AgentPool resource, its reconciler and the automatic `default` (P3)
 

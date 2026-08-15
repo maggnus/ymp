@@ -13,7 +13,7 @@ created_at: 2026-08-15T18:55:00+08:00
 updated_at: 2026-08-15T23:30:00+08:00
 started_at: 2026-08-15T18:55:00+08:00
 accepted_at: 2026-08-15T23:30:00+08:00
-candidate_commit: 72b288b
+candidate_commit: https://github.com/maggnus/ymp/commit/72b288befe485106017be497dee424199a64d48b
 closure_commit:
 evidence:
 duration_minutes: 0
@@ -21,7 +21,7 @@ blocker:
 pause_reason:
 return_trigger: a live-session disable that leaves the just-disabled account routable (in-session staleness) reaching a run start; the frozen interface during measurement reaching an operator-facing release
 deliberate_partial: false
----
+
 
 # W1-PRD-05d — Provider and model surfaces; probing gated on Enable (P2)
 

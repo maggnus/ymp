@@ -13,9 +13,9 @@ created_at: 2026-08-13T12:09:18+08:00
 updated_at: 2026-08-14T02:46:00+08:00
 started_at: 2026-08-14T02:04:00+08:00
 accepted_at: 2026-08-14T02:46:00+08:00
-candidate_commit: https://github.com/maggnus/ymp/commit/7565b54
-closure_commit: https://github.com/maggnus/ymp/commit/f3c3dc9
-evidence: mandatory per-model breakdown with live confirmation in both outcomes; model-declined keyed to the exact supervision detail after the literal condition proved unreachable; reviewer defect-injections each broke their negative half; one return round, divergence adjudicated for the author
+candidate_commit: https://github.com/maggnus/ymp/commit/7565b5412e9d73b1fd16ba14d7509508f92d84fa
+closure_commit: https://github.com/maggnus/ymp/commit/f3c3dc9e60939d7984d23a4cc383f2d592c0af27
+evidence: ["[f3c3dc9](https://github.com/maggnus/ymp/commit/f3c3dc9e60939d7984d23a4cc383f2d592c0af27)"]
 duration_minutes: 42
 blocker:
 pause_reason:
@@ -94,4 +94,7 @@ None recorded.
 
 ### Evidence
 
-- None until acceptance.
+- mandatory per-model breakdown with live confirmation in both outcomes; model-declined keyed to the
+  exact supervision detail after the literal condition proved unreachable; reviewer
+  defect-injections each broke their negative half; one return round, divergence adjudicated for the
+  author

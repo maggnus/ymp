@@ -14,8 +14,8 @@ updated_at: 2026-08-15T00:34:25+08:00
 started_at: 2026-08-15T00:03:21+08:00
 accepted_at: 2026-08-15T00:34:25+08:00
 candidate_commit: https://github.com/maggnus/ymp/commit/3ee3942beb0c231f99a6d319372a400c5d760a90
-closure_commit: https://github.com/maggnus/ymp/commit/d6ec0f7
-evidence: cancel visible under the completion mutex decides the terminal regardless of the runtime's last report; reviewer reproduced both serialization mutations (exit 101 each) and the base divergence
+closure_commit: https://github.com/maggnus/ymp/commit/d6ec0f7da4690c86c6ce9e7ec7c220d61f00046d
+evidence: ["[d6ec0f7](https://github.com/maggnus/ymp/commit/d6ec0f7da4690c86c6ce9e7ec7c220d61f00046d)"]
 duration_minutes: 0
 blocker:
 pause_reason:
@@ -65,4 +65,5 @@ None recorded.
 
 ### Evidence
 
-None recorded.
+- cancel visible under the completion mutex decides the terminal regardless of the runtime's last
+  report; reviewer reproduced both serialization mutations (exit 101 each) and the base divergence

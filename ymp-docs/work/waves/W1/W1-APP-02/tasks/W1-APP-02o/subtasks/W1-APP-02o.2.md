@@ -3,6 +3,7 @@ id: W1-APP-02o.2
 kind: subtask
 wave: W1
 card: W1-APP-02
+parent: W1-APP-02o
 state: accepted
 risk: routine
 maturity: BUILD
@@ -13,9 +14,9 @@ created_at: 2026-08-15T14:39:47+08:00
 updated_at: 2026-08-15T15:04:22+08:00
 started_at: 2026-08-15T14:41:59+08:00
 accepted_at: 2026-08-15T15:04:22+08:00
-candidate_commit: https://github.com/maggnus/ymp/commit/534a0c4
-closure_commit: https://github.com/maggnus/ymp/commit/d5e1df6
-evidence: composition with 02s merged clean; the post-marker FakeRuntime start is reported and the truncation revert makes it pass again; the start guard semantics survived the parser extraction (four prior mutations re-run); the fixture-crate closure checks live; residual: the truncation removal is pinned only through the report function, not through shipped_sources
+candidate_commit: https://github.com/maggnus/ymp/commit/534a0c4c4ea37169da859243e0ce45d311999100
+closure_commit: https://github.com/maggnus/ymp/commit/d5e1df6cde6920a2780809d56ba77aceae364f4d
+evidence: ["[d5e1df6](https://github.com/maggnus/ymp/commit/d5e1df6cde6920a2780809d56ba77aceae364f4d)"]
 duration_minutes: 0
 blocker:
 pause_reason:
@@ -67,4 +68,7 @@ None recorded.
 
 ### Evidence
 
-None recorded.
+- composition with 02s merged clean; the post-marker FakeRuntime start is reported and the
+  truncation revert makes it pass again; the start guard semantics survived the parser extraction
+  (four prior mutations re-run); the fixture-crate closure checks live; residual: the truncation
+  removal is pinned only through the report function, not through shipped_sources

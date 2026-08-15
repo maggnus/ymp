@@ -3,6 +3,7 @@ id: W1-APP-02e.6
 kind: subtask
 wave: W1
 card: W1-APP-02
+parent: W1-APP-02e
 state: accepted
 risk: significant
 maturity: BUILD
@@ -14,8 +15,8 @@ updated_at: 2026-08-15T12:08:34+08:00
 started_at: 2026-08-15T08:15:17+08:00
 accepted_at: 2026-08-15T12:08:34+08:00
 candidate_commit: https://github.com/maggnus/ymp/commit/dd7c7d36bf40a1e04ced7b5d4401a781919a5554
-closure_commit: https://github.com/maggnus/ymp/commit/60af562
-evidence: three review rounds; the final round reproduced both nested-root scenarios and the address-kind matrix on the built product, confirmed the surface scanner, and verified the honest digest guarantee line by line; catalog of 55 routes measured from the installed build at no cost; integration edit merged the home-root and registry addressing with green composition checks; codex seeded disabled with its reason
+closure_commit: https://github.com/maggnus/ymp/commit/60af562fddf16c283f5c67d10dd9882ed6d3cc20
+evidence: ["[60af562](https://github.com/maggnus/ymp/commit/60af562fddf16c283f5c67d10dd9882ed6d3cc20)"]
 duration_minutes: 0
 blocker:
 pause_reason:
@@ -94,4 +95,8 @@ None recorded.
 
 ### Evidence
 
-None recorded.
+- three review rounds; the final round reproduced both nested-root scenarios and the address-kind
+  matrix on the built product, confirmed the surface scanner, and verified the honest digest
+  guarantee line by line; catalog of 55 routes measured from the installed build at no cost;
+  integration edit merged the home-root and registry addressing with green composition checks; codex
+  seeded disabled with its reason

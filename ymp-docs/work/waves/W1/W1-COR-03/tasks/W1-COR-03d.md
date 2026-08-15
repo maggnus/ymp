@@ -13,7 +13,7 @@ created_at: 2026-08-10T19:34:25+08:00
 updated_at: 2026-08-15T18:40:00+08:00
 started_at: 2026-08-15T16:45:00+08:00
 accepted_at: 2026-08-15T18:40:00+08:00
-candidate_commit: f4e9fbf
+candidate_commit: https://github.com/maggnus/ymp/commit/f4e9fbf89e869e2505ba642784a145d598f66fd3
 closure_commit:
 evidence:
 duration_minutes: 0
@@ -21,7 +21,7 @@ blocker:
 pause_reason:
 return_trigger: a test separating two constructions differing in exactly one of participant/contract_id/generation fails when that field leaves CandidateRecord::identify; verification coverage in the generated pool back to ≥4 of 192 seeds
 deliberate_partial: false
----
+
 
 # W1-COR-03d — Competing submissions preserve immutable candidate ancestry
 

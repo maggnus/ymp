@@ -14,8 +14,8 @@ updated_at: 2026-08-15T00:34:25+08:00
 started_at: 2026-08-15T00:03:21+08:00
 accepted_at: 2026-08-15T00:34:25+08:00
 candidate_commit: https://github.com/maggnus/ymp/commit/3bb61d831eadbd0733cadf78685a8288f6ff2774
-closure_commit: https://github.com/maggnus/ymp/commit/d6ec0f7
-evidence: worker body runs under catch_unwind with its own diagnosis; reviewer's fault injection panicked under the journal lock and still reached the kernel terminal; reduced 12-run sweep clean
+closure_commit: https://github.com/maggnus/ymp/commit/d6ec0f7da4690c86c6ce9e7ec7c220d61f00046d
+evidence: ["[d6ec0f7](https://github.com/maggnus/ymp/commit/d6ec0f7da4690c86c6ce9e7ec7c220d61f00046d)"]
 duration_minutes: 0
 blocker:
 pause_reason:
@@ -65,4 +65,5 @@ None recorded.
 
 ### Evidence
 
-None recorded.
+- worker body runs under catch_unwind with its own diagnosis; reviewer's fault injection panicked
+  under the journal lock and still reached the kernel terminal; reduced 12-run sweep clean

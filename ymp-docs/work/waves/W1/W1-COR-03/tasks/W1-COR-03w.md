@@ -14,8 +14,8 @@ updated_at: 2026-08-15T14:18:49+08:00
 started_at: 2026-08-15T13:44:25+08:00
 accepted_at: 2026-08-15T14:14:47+08:00
 candidate_commit: https://github.com/maggnus/ymp/commit/6aa404b1011a554ecaaa16887e74c408e0ff2dfe
-closure_commit: https://github.com/maggnus/ymp/commit/904cac0
-evidence: both edges pinned and mutation-sensitive; product-path suites (descendant_termination, lifecycle_admission_refusal) green; the poisoned-lock cause is unreachable from outside so the branch, not the cause, is measured — stated honestly
+closure_commit: https://github.com/maggnus/ymp/commit/904cac0f27d069c7a4ad326fd60816607639e206
+evidence: ["[904cac0](https://github.com/maggnus/ymp/commit/904cac0f27d069c7a4ad326fd60816607639e206)"]
 duration_minutes: 0
 blocker:
 pause_reason:
@@ -68,4 +68,6 @@ None recorded.
 
 ### Evidence
 
-None recorded.
+- both edges pinned and mutation-sensitive; product-path suites (descendant_termination,
+  lifecycle_admission_refusal) green; the poisoned-lock cause is unreachable from outside so the
+  branch, not the cause, is measured — stated honestly

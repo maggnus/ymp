@@ -13,7 +13,7 @@ created_at: 2026-08-15T16:12:00+08:00
 updated_at: 2026-08-15T18:55:00+08:00
 started_at: 2026-08-15T16:12:00+08:00
 accepted_at: 2026-08-15T18:55:00+08:00
-candidate_commit: 6dec28e
+candidate_commit: https://github.com/maggnus/ymp/commit/6dec28ec437abc800ee1c2411b839daf997e2767
 closure_commit:
 evidence:
 duration_minutes: 0
@@ -21,7 +21,7 @@ blocker:
 pause_reason:
 return_trigger:
 deliberate_partial: false
----
+
 
 # W1-PRD-05c — Design correction under product brief v2 (TUI ownership + CRD resource model)
 

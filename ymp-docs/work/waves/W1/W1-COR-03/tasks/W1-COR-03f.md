@@ -13,7 +13,7 @@ created_at: 2026-08-13T16:02:47+08:00
 updated_at: 2026-08-15T16:40:00+08:00
 started_at: 2026-08-15T15:07:23+08:00
 accepted_at: 2026-08-15T16:40:00+08:00
-candidate_commit: 8f5b815
+candidate_commit: https://github.com/maggnus/ymp/commit/8f5b81551599c0ef61edf80e9379369dfd8b2120
 closure_commit:
 evidence:
 duration_minutes: 0
@@ -21,7 +21,7 @@ blocker:
 pause_reason:
 return_trigger: W1-COR-03 reaching closure without the child that moves the supervisor ledger onto Application::execute_commitment, or that child landing while a product-started run still shows no commitments page
 deliberate_partial: false
----
+
 
 # W1-COR-03f — Commitment facts are durable and visible, not only in memory
 

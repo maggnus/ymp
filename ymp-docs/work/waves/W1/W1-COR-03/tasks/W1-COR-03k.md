@@ -14,8 +14,8 @@ updated_at: 2026-08-14T05:19:05+08:00
 started_at: 2026-08-14T04:07:27+08:00
 accepted_at: 2026-08-14T05:19:05+08:00
 candidate_commit: https://github.com/maggnus/ymp/commit/04500164486105267f301ddfddae1b0820436c83
-closure_commit: https://github.com/maggnus/ymp/commit/05cec14
-evidence: parallel bookkeeping removed and verified absent; kernel admission and closure mutations break their tests; reviewer runtime-error scenario matched kernel terminal and journal; reviewer ACCEPT with two minor findings moved to W1-COR-03m
+closure_commit: https://github.com/maggnus/ymp/commit/05cec14fb4c53e265ffd125f8eefe0b7893d37f0
+evidence: ["[05cec14](https://github.com/maggnus/ymp/commit/05cec14fb4c53e265ffd125f8eefe0b7893d37f0)"]
 duration_minutes: 0
 blocker:
 pause_reason:
@@ -70,4 +70,6 @@ None recorded.
 
 ### Evidence
 
-None recorded.
+- parallel bookkeeping removed and verified absent; kernel admission and closure mutations break
+  their tests; reviewer runtime-error scenario matched kernel terminal and journal; reviewer ACCEPT
+  with two minor findings moved to W1-COR-03m

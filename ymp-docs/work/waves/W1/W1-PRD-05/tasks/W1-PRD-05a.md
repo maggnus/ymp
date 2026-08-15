@@ -14,8 +14,8 @@ updated_at: 2026-08-15T07:47:03+08:00
 started_at: 2026-08-15T02:07:10+08:00
 accepted_at: 2026-08-15T07:47:03+08:00
 candidate_commit: https://github.com/maggnus/ymp/commit/0897ecf9c7392e29af359fdcfd5c38cfc86713d1
-closure_commit: https://github.com/maggnus/ymp/commit/decd7ea
-evidence: one return round; the re-review walked the 24-step final test without operator machinery, verified the retraction of the nothing-spent claim in every place, the kernel purity via admission facts, the NVIDIA model-route reading against ARCHITECTURE.md and PROTOCOL.md, and adversarial answer-classification probes
+closure_commit: https://github.com/maggnus/ymp/commit/decd7ea26b4640467f6861d595a6f81a92f81100
+evidence: ["[decd7ea](https://github.com/maggnus/ymp/commit/decd7ea26b4640467f6861d595a6f81a92f81100)"]
 duration_minutes: 0
 blocker:
 pause_reason:
@@ -86,4 +86,7 @@ worded; (4) "no verification query against a diverged requirement set" reads two
 
 ### Evidence
 
-None recorded.
+- one return round; the re-review walked the 24-step final test without operator machinery, verified
+  the retraction of the nothing-spent claim in every place, the kernel purity via admission facts,
+  the NVIDIA model-route reading against ARCHITECTURE.md and PROTOCOL.md, and adversarial
+  answer-classification probes

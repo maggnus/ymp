@@ -14,8 +14,8 @@ updated_at: 2026-08-14T04:08:46+08:00
 started_at: 2026-08-14T02:19:00+08:00
 accepted_at: 2026-08-14T04:08:46+08:00
 candidate_commit: https://github.com/maggnus/ymp/commit/a21046259075e50b581184fe53ab33a66e13ce29
-closure_commit: https://github.com/maggnus/ymp/commit/7e98831
-evidence: one return round; both blockers closed and re-verified by the reviewer own scenarios (budget re-authorization, fresh copy with revocation, seven assemblies leave one directory); slash surface and one-statement draft proved on the built product
+closure_commit: https://github.com/maggnus/ymp/commit/7e9883111e062d62e69cc4b2604345870f4bece2
+evidence: ["[7e98831](https://github.com/maggnus/ymp/commit/7e9883111e062d62e69cc4b2604345870f4bece2)"]
 duration_minutes: 0
 blocker:
 pause_reason:
@@ -105,4 +105,6 @@ None recorded.
 
 ### Evidence
 
-None recorded.
+- one return round; both blockers closed and re-verified by the reviewer own scenarios (budget
+  re-authorization, fresh copy with revocation, seven assemblies leave one directory); slash surface
+  and one-statement draft proved on the built product

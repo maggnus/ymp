@@ -3,6 +3,7 @@ id: W1-APP-02z.2
 kind: subtask
 wave: W1
 card: W1-APP-02
+parent: W1-APP-02z
 state: accepted
 risk: routine
 maturity: BUILD
@@ -13,9 +14,9 @@ created_at: 2026-08-15T00:05:22+08:00
 updated_at: 2026-08-15T12:33:57+08:00
 started_at: 2026-08-15T12:18:33+08:00
 accepted_at: 2026-08-15T12:33:57+08:00
-candidate_commit: https://github.com/maggnus/ymp/commit/318016a
-closure_commit: https://github.com/maggnus/ymp/commit/163a7a0
-evidence: a non-executable test script is named as the obstacle with its missing permission; the negative half showed the old refusal naming package.json instead
+candidate_commit: https://github.com/maggnus/ymp/commit/318016a8cdca7102bb6bf18074c60c61e60467a5
+closure_commit: https://github.com/maggnus/ymp/commit/163a7a027900b2b1ad08fed83d500aae2a1b4015
+evidence: ["[163a7a0](https://github.com/maggnus/ymp/commit/163a7a027900b2b1ad08fed83d500aae2a1b4015)"]
 duration_minutes: 0
 blocker:
 pause_reason:
@@ -65,4 +66,5 @@ None recorded.
 
 ### Evidence
 
-None recorded.
+- a non-executable test script is named as the obstacle with its missing permission; the negative
+  half showed the old refusal naming package.json instead

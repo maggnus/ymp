@@ -14,8 +14,8 @@ updated_at: 2026-08-15T08:05:36+08:00
 started_at: 2026-08-15T00:06:07+08:00
 accepted_at: 2026-08-15T08:05:36+08:00
 candidate_commit: https://github.com/maggnus/ymp/commit/fd7723120c31432ae1856d80aa76a53e9ce2cb2d
-closure_commit: https://github.com/maggnus/ymp/commit/d5ccf10
-evidence: the owner scenario ran live through the public surface (authorize, attempt on real Claude, verification, export without .ymp in the candidate); the reviewer live falsifier confirmed all five acceptance items and the second-run transition to runs/0002 with a byte-identical first journal; one return round
+closure_commit: https://github.com/maggnus/ymp/commit/d5ccf1003397862067552345694bc7ac6400ff19
+evidence: ["[d5ccf10](https://github.com/maggnus/ymp/commit/d5ccf1003397862067552345694bc7ac6400ff19)"]
 duration_minutes: 59
 blocker: W1-APP-02c and W1-APP-02d are incomplete, and the new chat-first contract requires W1-APP-02e.2 review before implementation
 pause_reason:
@@ -106,4 +106,7 @@ None recorded.
 
 ### Evidence
 
-- None until acceptance.
+- the owner scenario ran live through the public surface (authorize, attempt on real Claude,
+  verification, export without .ymp in the candidate); the reviewer live falsifier confirmed all
+  five acceptance items and the second-run transition to runs/0002 with a byte-identical first
+  journal; one return round

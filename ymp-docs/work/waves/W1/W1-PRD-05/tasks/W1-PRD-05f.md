@@ -13,7 +13,7 @@ created_at: 2026-08-15T23:05:00+08:00
 updated_at: 2026-08-16T00:40:00+08:00
 started_at: 2026-08-15T23:05:00+08:00
 accepted_at: 2026-08-16T00:40:00+08:00
-candidate_commit: 456f750
+candidate_commit: https://github.com/maggnus/ymp/commit/456f750ac613b23ad100c1b954e4d885bf4882c5
 closure_commit:
 evidence:
 duration_minutes: 0
@@ -21,7 +21,7 @@ blocker:
 pause_reason:
 return_trigger:
 deliberate_partial: false
----
+
 
 # W1-PRD-05f — /pools surfaces and the reconciler wired to the enable transition (P4)
 

@@ -14,8 +14,8 @@ updated_at: 2026-08-15T01:04:05+08:00
 started_at: 2026-08-15T00:34:43+08:00
 accepted_at: 2026-08-15T01:04:05+08:00
 candidate_commit: https://github.com/maggnus/ymp/commit/6e250a6cfa6bb0b16fdb9d53a017e7eb149eb9b2
-closure_commit: https://github.com/maggnus/ymp/commit/40c1095
-evidence: CancelledPastLimit keeps the limit violation in slice accounting while the run terminal stays Cancelled; both classification mutations caught
+closure_commit: https://github.com/maggnus/ymp/commit/40c1095c3cc4b0b65868c74150cea54e610d6359
+evidence: ["[40c1095](https://github.com/maggnus/ymp/commit/40c1095c3cc4b0b65868c74150cea54e610d6359)"]
 duration_minutes: 0
 blocker:
 pause_reason:
@@ -65,4 +65,5 @@ None recorded.
 
 ### Evidence
 
-None recorded.
+- CancelledPastLimit keeps the limit violation in slice accounting while the run terminal stays
+  Cancelled; both classification mutations caught

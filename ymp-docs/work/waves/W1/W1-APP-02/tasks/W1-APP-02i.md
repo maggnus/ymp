@@ -14,8 +14,8 @@ updated_at: 2026-08-14T02:02:00+08:00
 started_at: 2026-08-14T01:40:23+08:00
 accepted_at: 2026-08-14T02:02:00+08:00
 candidate_commit: https://github.com/maggnus/ymp/commit/0f6f46ba125b0f503fcfe25262cf53a25d78111e
-closure_commit: https://github.com/maggnus/ymp/commit/e896738
-evidence: builder negative halves on the accepted base d56b199 (exit 101 before, 0 after); reviewer ACCEPT with a fault-injection falsifier of a different shape; byte-identical porcelain
+closure_commit: https://github.com/maggnus/ymp/commit/e896738e3d8d5d4b51ffed4a19beebc6896a56ff
+evidence: ["[e896738](https://github.com/maggnus/ymp/commit/e896738e3d8d5d4b51ffed4a19beebc6896a56ff)"]
 duration_minutes: 60
 blocker:
 pause_reason:
@@ -103,4 +103,5 @@ None recorded.
 
 ### Evidence
 
-- None until acceptance.
+- builder negative halves on the accepted base d56b199 (exit 101 before, 0 after); reviewer ACCEPT
+  with a fault-injection falsifier of a different shape; byte-identical porcelain

@@ -3,6 +3,7 @@ id: W1-APP-02w.3
 kind: subtask
 wave: W1
 card: W1-APP-02
+parent: W1-APP-02w
 state: accepted
 risk: routine
 maturity: BUILD
@@ -14,8 +15,8 @@ updated_at: 2026-08-15T13:00:12+08:00
 started_at: 2026-08-15T12:18:33+08:00
 accepted_at: 2026-08-15T13:00:12+08:00
 candidate_commit: https://github.com/maggnus/ymp/commit/bf28efed51a3b265c8e5dbae7bf0e5b58f33a7ad
-closure_commit: https://github.com/maggnus/ymp/commit/5d899c5
-evidence: one return round; the re-review reproduced its own partial-apply scenario as a clean ApplyBlocked with no file moved, all three path obstacles refuse without writing and ignore --overwrite, ApplyInterrupted lists exactly what moved; the ancestor walk now stops at the first obstacle by a disclosed CTO fix
+closure_commit: https://github.com/maggnus/ymp/commit/5d899c592a26f4cbb1d68b816368abbcd6753d6f
+evidence: ["[5d899c5](https://github.com/maggnus/ymp/commit/5d899c592a26f4cbb1d68b816368abbcd6753d6f)"]
 duration_minutes: 0
 blocker:
 pause_reason:
@@ -69,4 +70,7 @@ None recorded.
 
 ### Evidence
 
-None recorded.
+- one return round; the re-review reproduced its own partial-apply scenario as a clean ApplyBlocked
+  with no file moved, all three path obstacles refuse without writing and ignore --overwrite,
+  ApplyInterrupted lists exactly what moved; the ancestor walk now stops at the first obstacle by a
+  disclosed CTO fix

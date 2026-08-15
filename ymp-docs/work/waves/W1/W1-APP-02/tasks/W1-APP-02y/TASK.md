@@ -13,9 +13,9 @@ created_at: 2026-08-14T02:46:00+08:00
 updated_at: 2026-08-14T22:59:14+08:00
 started_at: 2026-08-14T05:19:32+08:00
 accepted_at: 2026-08-14T22:59:14+08:00
-candidate_commit: https://github.com/maggnus/ymp/commit/f74ae15
-closure_commit: https://github.com/maggnus/ymp/commit/c63130c
-evidence: both drivers fill the field from runtime data only, proved by reviewer defect injections into product code; disclosed CTO fix made the rounding tolerance one-sided (an overshoot reads unverified); the per-model bound stays conservative for many-turn runs
+candidate_commit: https://github.com/maggnus/ymp/commit/f74ae1549abfb47e024049283f1a86bc16ad3f55
+closure_commit: https://github.com/maggnus/ymp/commit/c63130c1a93afc4603f1f04d24e1fae465816d0d
+evidence: ["[c63130c](https://github.com/maggnus/ymp/commit/c63130c1a93afc4603f1f04d24e1fae465816d0d)"]
 duration_minutes: 0
 blocker:
 pause_reason:
@@ -70,4 +70,6 @@ None recorded.
 
 ### Evidence
 
-None recorded.
+- both drivers fill the field from runtime data only, proved by reviewer defect injections into
+  product code; disclosed CTO fix made the rounding tolerance one-sided (an overshoot reads
+  unverified); the per-model bound stays conservative for many-turn runs

@@ -13,9 +13,9 @@ created_at: 2026-08-13T21:41:30+08:00
 updated_at: 2026-08-14T02:11:00+08:00
 started_at: 2026-08-14T01:40:23+08:00
 accepted_at: 2026-08-14T02:11:00+08:00
-candidate_commit: https://github.com/maggnus/ymp/commit/bbe79c7
-closure_commit: https://github.com/maggnus/ymp/commit/2378798
-evidence: redirected award transfer caught by all 192 generated schedules (green on base, FactContradictsCommand on candidate); four excluded commands included or justified; reviewer ACCEPT with production-code movement mutations as different-shape falsifiers
+candidate_commit: https://github.com/maggnus/ymp/commit/bbe79c723e1e3f8074f306204934db32b09caea4
+closure_commit: https://github.com/maggnus/ymp/commit/2378798f812a551798388413832ce01def366d97
+evidence: ["[2378798](https://github.com/maggnus/ymp/commit/2378798f812a551798388413832ce01def366d97)"]
 duration_minutes: 95
 blocker:
 pause_reason:
@@ -84,4 +84,6 @@ None recorded.
 
 ### Evidence
 
-- None until acceptance.
+- redirected award transfer caught by all 192 generated schedules (green on base,
+  FactContradictsCommand on candidate); four excluded commands included or justified; reviewer
+  ACCEPT with production-code movement mutations as different-shape falsifiers

@@ -13,9 +13,9 @@ created_at: 2026-08-15T00:34:25+08:00
 updated_at: 2026-08-15T01:04:05+08:00
 started_at: 2026-08-15T00:34:43+08:00
 accepted_at: 2026-08-15T01:04:05+08:00
-candidate_commit: https://github.com/maggnus/ymp/commit/b427ad0
-closure_commit: https://github.com/maggnus/ymp/commit/40c1095
-evidence: whole-fact append before in-memory apply survives a poisoned lock; a repeated interrupted command is refused by sequence, no double write (verified in sources by the second look)
+candidate_commit: https://github.com/maggnus/ymp/commit/b427ad0ce24d79fdf3e0c1ba509fa92ccb47175d
+closure_commit: https://github.com/maggnus/ymp/commit/40c1095c3cc4b0b65868c74150cea54e610d6359
+evidence: ["[40c1095](https://github.com/maggnus/ymp/commit/40c1095c3cc4b0b65868c74150cea54e610d6359)"]
 duration_minutes: 0
 blocker:
 pause_reason:
@@ -65,4 +65,5 @@ None recorded.
 
 ### Evidence
 
-None recorded.
+- whole-fact append before in-memory apply survives a poisoned lock; a repeated interrupted command
+  is refused by sequence, no double write (verified in sources by the second look)

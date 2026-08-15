@@ -14,8 +14,8 @@ updated_at: 2026-08-14T02:19:00+08:00
 started_at: 2026-08-14T01:40:23+08:00
 accepted_at: 2026-08-14T02:19:00+08:00
 candidate_commit: https://github.com/maggnus/ymp/commit/e0d1bd7e719908a5e66ce40ab92bbd2579b70d68
-closure_commit: https://github.com/maggnus/ymp/commit/c1db6db
-evidence: entry refusal proved on the built product for all three acceptance items; reviewer ACCEPT with ten filesystem-edge falsifiers, including a hanging verifier cut at the 60s limit; byte-identical porcelain
+closure_commit: https://github.com/maggnus/ymp/commit/c1db6dbf17c66d106ee5ad32133f80c98bcfc770
+evidence: ["[c1db6db](https://github.com/maggnus/ymp/commit/c1db6dbf17c66d106ee5ad32133f80c98bcfc770)"]
 duration_minutes: 38
 blocker:
 pause_reason:
@@ -101,4 +101,6 @@ None recorded.
 
 ### Evidence
 
-- None until acceptance.
+- entry refusal proved on the built product for all three acceptance items; reviewer ACCEPT with ten
+  filesystem-edge falsifiers, including a hanging verifier cut at the 60s limit; byte-identical
+  porcelain

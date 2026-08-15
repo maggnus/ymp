@@ -3,6 +3,7 @@ id: W1-APP-02z.1
 kind: subtask
 wave: W1
 card: W1-APP-02
+parent: W1-APP-02z
 state: ready
 risk: significant
 maturity: BUILD

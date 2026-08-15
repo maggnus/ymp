@@ -3,6 +3,7 @@ id: W1-APP-02e.7
 kind: subtask
 wave: W1
 card: W1-APP-02
+parent: W1-APP-02e
 state: accepted
 risk: significant
 maturity: BUILD
@@ -14,8 +15,8 @@ updated_at: 2026-08-15T12:14:44+08:00
 started_at: 2026-08-15T11:26:50+08:00
 accepted_at: 2026-08-15T12:14:44+08:00
 candidate_commit: https://github.com/maggnus/ymp/commit/8467ec00303c322cf96272d42d591011fc23fae4
-closure_commit: https://github.com/maggnus/ymp/commit/2c91f16
-evidence: the request stays verbatim and the publication instruction follows as the product's own line only when the bridge is attached; contract bytes and intent digest untouched; live Claude run with no publication mention published a candidate (118783 microusd, recorded in CALIBRATION.md); reviewer fault injections reproduced the historic no-candidate outcome; prompt-policy pins bumped to v2 by a disclosed CTO fix with the boundary recorded
+closure_commit: https://github.com/maggnus/ymp/commit/2c91f16bebe8abbda8d746b92b25f5e324a01fbc
+evidence: ["[2c91f16](https://github.com/maggnus/ymp/commit/2c91f16bebe8abbda8d746b92b25f5e324a01fbc)"]
 duration_minutes: 0
 blocker:
 pause_reason:
@@ -70,4 +71,8 @@ None recorded.
 
 ### Evidence
 
-None recorded.
+- the request stays verbatim and the publication instruction follows as the product's own line only
+  when the bridge is attached; contract bytes and intent digest untouched; live Claude run with no
+  publication mention published a candidate (118783 microusd, recorded in CALIBRATION.md); reviewer
+  fault injections reproduced the historic no-candidate outcome; prompt-policy pins bumped to v2 by
+  a disclosed CTO fix with the boundary recorded

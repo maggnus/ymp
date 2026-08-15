@@ -13,7 +13,7 @@ created_at: 2026-08-15T19:35:00+08:00
 updated_at: 2026-08-15T23:00:00+08:00
 started_at: 2026-08-15T19:35:00+08:00
 accepted_at: 2026-08-15T23:00:00+08:00
-candidate_commit: acdf9f8
+candidate_commit: https://github.com/maggnus/ymp/commit/acdf9f82df02a65a7cf8d8612c17e43e5e91e804
 closure_commit:
 evidence:
 duration_minutes: 0
@@ -21,7 +21,7 @@ blocker:
 pause_reason:
 return_trigger: a caller of submitted() lands that carries parents forward without the pre-check extended to the effective change set
 deliberate_partial: false
----
+
 
 # W1-COR-03y — The live controller submits bundles; the durable path guards its terminal
 

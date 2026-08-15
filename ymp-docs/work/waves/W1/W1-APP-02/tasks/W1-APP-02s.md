@@ -13,9 +13,9 @@ created_at: 2026-08-13T21:21:27+08:00
 updated_at: 2026-08-15T14:45:38+08:00
 started_at: 2026-08-15T14:23:59+08:00
 accepted_at: 2026-08-15T14:45:38+08:00
-candidate_commit: https://github.com/maggnus/ymp/commit/fa3ca2c
-closure_commit: https://github.com/maggnus/ymp/commit/69506e7
-evidence: cargo tree shows the fixture runtime reachable only from the testkit and dev sections; /runtimes renders two engines instead of three on the built product; attempt --runtime fake refuses; both mutations reproduced; the unknown-profile-name wording queued as a residual
+candidate_commit: https://github.com/maggnus/ymp/commit/fa3ca2c7575b46d6b53c5ecb437f107eefc3385e
+closure_commit: https://github.com/maggnus/ymp/commit/69506e74db422fbd7eca2a82881bf3fcd80e0c5b
+evidence: ["[69506e7](https://github.com/maggnus/ymp/commit/69506e74db422fbd7eca2a82881bf3fcd80e0c5b)"]
 duration_minutes: 0
 blocker:
 pause_reason:
@@ -80,4 +80,6 @@ None recorded.
 
 ### Evidence
 
-- None until acceptance.
+- cargo tree shows the fixture runtime reachable only from the testkit and dev sections; /runtimes
+  renders two engines instead of three on the built product; attempt --runtime fake refuses; both
+  mutations reproduced; the unknown-profile-name wording queued as a residual
