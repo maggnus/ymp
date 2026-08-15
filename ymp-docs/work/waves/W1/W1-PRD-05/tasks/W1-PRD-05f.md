@@ -3,17 +3,17 @@ id: W1-PRD-05f
 kind: task
 wave: W1
 card: W1-PRD-05
-state: active
+state: accepted
 risk: significant
 maturity: BUILD
 relation: required
 depends_on: [W1-PRD-05d, W1-PRD-05e]
 blocks: []
 created_at: 2026-08-15T23:05:00+08:00
-updated_at: 2026-08-15T23:05:00+08:00
+updated_at: 2026-08-16T00:40:00+08:00
 started_at: 2026-08-15T23:05:00+08:00
-accepted_at:
-candidate_commit:
+accepted_at: 2026-08-16T00:40:00+08:00
+candidate_commit: 456f750
 closure_commit:
 evidence:
 duration_minutes: 0
@@ -52,13 +52,24 @@ confirmation; every key is a mirrored command.
 
 ## Acceptance
 
-- [ ] On a fresh root: `provider enable` → `pools/default.json` exists with resolved entries equal
+- [x] On a fresh root: `provider enable` → `pools/default.json` exists with resolved entries equal
       to the catalog; `provider disable` of the only provider → default degraded/empty, never deleted;
       negative half: without the wiring the root has no pool after enable (test fails on the current tree).
-- [ ] `/pools` and the pool properties view render deterministically at both sizes; toggling an
+- [x] `/pools` and the pool properties view render deterministically at both sizes; toggling an
       entry off in the properties view turns tracking into an explicit list and the record says so.
-- [ ] Every key is a command (command_surface correspondence test passes).
+- [x] Every key is a command (command_surface correspondence test passes).
 
 ## Current state
 
-Active. Built on the P2 candidate branch (72b288b) since both touch the observation path.
+Accepted 2026-08-16 (candidate 456f750 after one RETURN pass; review ACCEPT WITH RESIDUE; merged at 4eefe05).
+
+## Findings
+
+- Reconcile wired to every observation (enable/refresh/disable) through one Session path shared by
+  TUI and CLI; product path measured: enable → one probe + default created; refresh → byte-identical
+  record; disable → default kept, empty, reasons on entries, zero engine starts.
+- `/pools` and pool properties as row tables; Enter toggles the selected entry (cursor follows it),
+  `+`/`-` on the ceiling row; `ymp pool permit|exclude|set-capacity`; no typed names, no confirmation.
+- P2 residue closed: disabling withdraws the in-session readiness of that family's engines.
+- RETURN pass: currency literal removed (state_binding), damaged-pool reply now names the read failure.
+- Residue: no `n`/`d` (create/delete a pool) — P3's record has no such path; a later unit.
