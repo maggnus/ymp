@@ -75,6 +75,7 @@
 | `[x]` | [`W1-COR-03s`](waves/W1/W1-COR-03/tasks/W1-COR-03s.md) | An operator cancel survives a poisoned lock, and Drop never hangs | [`ddd250c`](https://github.com/maggnus/ymp/commit/ddd250c) | 15/08 01:04 | 15/08 01:55 (0m) |
 | `[~]` | [`W1-COR-03t`](waves/W1/W1-COR-03/tasks/W1-COR-03t.md) | A cancel interrupts a runtime that is still working | — | 15/08 12:38 | 15/08 12:38 (0m) |
 | `[ ]` | [`W1-COR-03u`](waves/W1/W1-COR-03/tasks/W1-COR-03u.md) | The application recovers its memory from the journal after an interrupted apply | — | — | — |
+| `[ ]` | [`W1-COR-03v`](waves/W1/W1-COR-03/tasks/W1-COR-03v.md) | The interface states what a bounded shutdown actually ended | — | — | — |
 | `[ ]` | [`W1-EVL-04`](waves/W1/W1-EVL-04/CARD.md) | Controlled evidence decides both POC hypotheses | — | — | — |
 | `[?]` | [`W1-EVL-04a`](waves/W1/W1-EVL-04/tasks/W1-EVL-04a.md) | Matched-budget arms produce comparable acceptance evidence | — | — | — |
 | `[ ]` | [`W1-EVL-04b`](waves/W1/W1-EVL-04/tasks/W1-EVL-04b.md) | Message interventions separate appearance from causal use | — | — | — |
