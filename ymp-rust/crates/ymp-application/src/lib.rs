@@ -1198,10 +1198,14 @@ fn blocking_ancestors(destination: &Path, relative: &Path) -> Vec<String> {
             blocking.push(format!(
                 "{reached}: the project reaches this path through a symbolic link"
             ));
+            // Everything below a link stands outside the project; walking on would read
+            // metadata beyond it and could name paths the project does not hold.
+            break;
         } else if !metadata.is_dir() {
             blocking.push(format!(
                 "{reached}: the project holds a file where the candidate needs a directory"
             ));
+            break;
         }
     }
     blocking

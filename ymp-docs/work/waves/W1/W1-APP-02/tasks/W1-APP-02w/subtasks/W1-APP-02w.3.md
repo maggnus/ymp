@@ -3,24 +3,24 @@ id: W1-APP-02w.3
 kind: subtask
 wave: W1
 card: W1-APP-02
-state: active
+state: accepted
 risk: routine
 maturity: BUILD
 relation: supporting
 depends_on: [W1-APP-02w.1]
 blocks: []
 created_at: 2026-08-15T08:55:35+08:00
-updated_at: 2026-08-15T12:18:33+08:00
+updated_at: 2026-08-15T13:00:12+08:00
 started_at: 2026-08-15T12:18:33+08:00
-accepted_at:
-candidate_commit:
-closure_commit:
-evidence:
+accepted_at: 2026-08-15T13:00:12+08:00
+candidate_commit: https://github.com/maggnus/ymp/commit/bf28efed51a3b265c8e5dbae7bf0e5b58f33a7ad
+closure_commit: https://github.com/maggnus/ymp/commit/5d899c5
+evidence: one return round; the re-review reproduced its own partial-apply scenario as a clean ApplyBlocked with no file moved, all three path obstacles refuse without writing and ignore --overwrite, ApplyInterrupted lists exactly what moved; the ancestor walk now stops at the first obstacle by a disclosed CTO fix
 duration_minutes: 0
 blocker:
 pause_reason:
-return_trigger:
-deliberate_partial: false
+return_trigger: the check-then-rename window (a process with write access to the project directory could swap an inspected subdirectory for a symlink during materialization) closes only with descriptor-relative operations (openat/renameat with O_NOFOLLOW); return when the product stops declaring poc_process_isolation or in-place apply is offered where another process writes beside the operator
+deliberate_partial: true
 ---
 
 # W1-APP-02w.3 — Export can apply the accepted candidate in place
