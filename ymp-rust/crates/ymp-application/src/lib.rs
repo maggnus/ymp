@@ -340,95 +340,131 @@ impl Application {
             Journal::open_with_limits(data_root.join("events.jsonl"), config.journal_limits)
                 .map_err(journal_open_error)?;
         let first = events.first().ok_or(ApplicationError::NotInitialized)?;
-        let mut state = RunState::from_start(first).ok_or(ApplicationError::InvalidFirstEvent)?;
+        let state = RunState::from_start(first).ok_or(ApplicationError::InvalidFirstEvent)?;
         let object_store = ObjectStore::open(data_root.join("objects/sha256"))?;
-        let mut command_results = HashMap::new();
-        command_results.insert(
+        let command_results = HashMap::from([(
             first.command_id.clone(),
             RecordedCommandResult {
                 event: first.clone(),
                 status: state.status,
             },
-        );
-        let mut candidate_identity = None;
-        let mut recorded_verifications = HashMap::new();
-
-        for event in events.iter().skip(1) {
-            if let Some(result) = command_results.get(&event.command_id)
-                && result.event.command_digest != event.command_digest
-            {
-                return Err(ApplicationError::IdempotencyConflict {
-                    command_id: event.command_id.clone(),
-                });
-            }
-            match &event.event {
-                EventKind::CandidateSubmitted {
-                    base_digest,
-                    object_digest,
-                    ..
-                } => {
-                    object_store.verify(object_digest)?;
-                    let proposed = CandidateIdentity {
-                        base_digest: base_digest.clone(),
-                        object_digest: object_digest.clone(),
-                    };
-                    ensure_candidate_identity(candidate_identity.as_ref(), &proposed)?;
-                    candidate_identity = Some(proposed);
-                }
-                EventKind::VerificationRecorded {
-                    candidate_digest,
-                    contract_digest,
-                    oracle_digest,
-                    evidence_digest,
-                    accepted,
-                } => {
-                    let bytes = object_store.read(evidence_digest)?;
-                    let evidence =
-                        StoredVerificationEvidence::from_object_bytes(&bytes, evidence_digest)
-                            .map_err(verification_evidence_error)?;
-                    let environment_digest = evidence
-                        .environment_digest()
-                        .ok_or(VerificationInfrastructureError::MissingEnvironmentBinding)?;
-                    verify_environment_object(&object_store, environment_digest)?;
-                    if evidence.candidate_digest() != candidate_digest
-                        || evidence.contract_digest() != contract_digest
-                        || evidence.oracle_digest() != oracle_digest
-                        || (evidence.decision() == ymp_domain::VerificationDecision::Accept)
-                            != *accepted
-                    {
-                        return Err(VerificationInfrastructureError::EvidenceRecordMismatch.into());
-                    }
-                    recorded_verifications
-                        .entry(VerificationIdentity {
-                            candidate_digest: candidate_digest.clone(),
-                            contract_digest: contract_digest.clone(),
-                            oracle_digest: oracle_digest.clone(),
-                            environment_digest: environment_digest.to_owned(),
-                        })
-                        .or_insert_with(|| event.clone());
-                }
-                _ => {}
-            }
-            state.apply(event);
-            command_results
-                .entry(event.command_id.clone())
-                .or_insert_with(|| RecordedCommandResult {
-                    event: event.clone(),
-                    status: state.status,
-                });
-        }
-
-        Ok(Self {
+        )]);
+        let mut application = Self {
             data_root,
             _lock: lock,
             journal,
             object_store,
             state,
             command_results,
-            candidate_identity,
-            recorded_verifications,
+            candidate_identity: None,
+            recorded_verifications: HashMap::new(),
             notification_senders: Vec::new(),
-        })
+        };
+        for event in events.iter().skip(1) {
+            application.absorb_committed(event)?;
+        }
+        Ok(application)
+    }
+
+    /// Fold one committed fact of the journal into the in-memory projection.
+    ///
+    /// Every journal record reaches memory through here, so the projection a restart builds and
+    /// the projection a mid-run recovery repairs are the same reading of the same records.
+    fn absorb_committed(&mut self, event: &EventEnvelope) -> Result<(), ApplicationError> {
+        if let Some(result) = self.command_results.get(&event.command_id)
+            && result.event.command_digest != event.command_digest
+        {
+            return Err(ApplicationError::IdempotencyConflict {
+                command_id: event.command_id.clone(),
+            });
+        }
+        match &event.event {
+            EventKind::CandidateSubmitted {
+                base_digest,
+                object_digest,
+                ..
+            } => {
+                self.object_store.verify(object_digest)?;
+                let proposed = CandidateIdentity {
+                    base_digest: base_digest.clone(),
+                    object_digest: object_digest.clone(),
+                };
+                ensure_candidate_identity(self.candidate_identity.as_ref(), &proposed)?;
+                self.candidate_identity = Some(proposed);
+            }
+            EventKind::VerificationRecorded {
+                candidate_digest,
+                contract_digest,
+                oracle_digest,
+                evidence_digest,
+                accepted,
+            } => {
+                let bytes = self.object_store.read(evidence_digest)?;
+                let evidence =
+                    StoredVerificationEvidence::from_object_bytes(&bytes, evidence_digest)
+                        .map_err(verification_evidence_error)?;
+                let environment_digest = evidence
+                    .environment_digest()
+                    .ok_or(VerificationInfrastructureError::MissingEnvironmentBinding)?;
+                verify_environment_object(&self.object_store, environment_digest)?;
+                if evidence.candidate_digest() != candidate_digest
+                    || evidence.contract_digest() != contract_digest
+                    || evidence.oracle_digest() != oracle_digest
+                    || (evidence.decision() == ymp_domain::VerificationDecision::Accept)
+                        != *accepted
+                {
+                    return Err(VerificationInfrastructureError::EvidenceRecordMismatch.into());
+                }
+                self.recorded_verifications
+                    .entry(VerificationIdentity {
+                        candidate_digest: candidate_digest.clone(),
+                        contract_digest: contract_digest.clone(),
+                        oracle_digest: oracle_digest.clone(),
+                        environment_digest: environment_digest.to_owned(),
+                    })
+                    .or_insert_with(|| event.clone());
+            }
+            _ => {}
+        }
+        self.state.apply(event);
+        let status = self.state.status;
+        self.command_results
+            .entry(event.command_id.clone())
+            .or_insert_with(|| RecordedCommandResult {
+                event: event.clone(),
+                status,
+            });
+        Ok(())
+    }
+
+    /// Bring the projection back to the journal before a command is judged against it.
+    ///
+    /// Each fact is written to the journal whole and only then applied in memory, so an
+    /// interruption between the two — a panic under the lock the controller reads through — ends
+    /// the process step with the record complete and memory one fact short of it. Memory is a
+    /// reading of the journal and never the other way round, so the facts memory has not seen are
+    /// read back and folded in. Nothing is written to the journal here, and no command is carried
+    /// out a second time: the interrupted command's own result is now the recorded one, and a
+    /// repeat of it is answered from the record.
+    ///
+    /// Costing this is a comparison of two numbers while the projection is in step, which is
+    /// every command of an uninterrupted run; the journal is read again only when it is not.
+    fn recover_projection(&mut self) -> Result<(), ApplicationError> {
+        let applied = self.state.last_sequence;
+        if self.journal.last_sequence() <= applied {
+            return Ok(());
+        }
+        let missing: Vec<EventEnvelope> = self
+            .journal
+            .read_committed()?
+            .into_iter()
+            .filter(|event| event.sequence > applied)
+            .collect();
+        for event in missing {
+            self.absorb_committed(&event)?;
+            self.notify_subscribers(event.sequence);
+        }
+        self.write_metadata()
     }
 
     pub fn execute(
@@ -439,6 +475,7 @@ impl Application {
         let command_id = command_id.into();
         validate_identifier("command_id", &command_id)?;
         let command_digest = command.digest()?;
+        self.recover_projection()?;
         if let Some(outcome) = self.replay(&command_id, &command_digest)? {
             self.write_metadata()?;
             return Ok(outcome);
@@ -549,6 +586,7 @@ impl Application {
     ) -> Result<CommandOutcome, ApplicationError> {
         validate_identifier("command_id", &command_id)?;
         let command_digest = evidence.evidence_digest().to_owned();
+        self.recover_projection()?;
         if let Some(outcome) = self.replay(&command_id, &command_digest)? {
             self.write_metadata()?;
             return Ok(outcome);
@@ -624,6 +662,7 @@ impl Application {
     ) -> Result<CommandOutcome, ApplicationError> {
         validate_identifier("command_id", &command_id)?;
         let command_digest = ymp_domain::digest_bytes(command_digest_source.as_bytes());
+        self.recover_projection()?;
         if let Some(outcome) = self.replay(&command_id, &command_digest)? {
             return Ok(outcome);
         }
@@ -1380,4 +1419,169 @@ fn write_state_metadata(data_root: &Path, state: &RunState) -> Result<(), Applic
         let _ = fs::remove_file(temporary);
     }
     result
+}
+
+/// What an application does with a fact its journal holds and its memory never saw.
+///
+/// The state under test is the one a panic leaves behind when it lands between the whole-fact
+/// append and the in-memory apply, and only the crate itself can put an application there: the
+/// window is inside a single method, and no caller can be interrupted in the middle of it. The
+/// interruption is therefore reproduced from the same pieces the commit uses, stopping where the
+/// panic stopped — the record complete, memory untouched.
+#[cfg(test)]
+mod interrupted_commit {
+    use super::*;
+    use tempfile::tempdir;
+
+    /// Commit a command as far as the journal and no further, and answer with the fact the
+    /// journal now holds.
+    fn interrupt_after_append(
+        application: &mut Application,
+        command_id: &str,
+        command: &Command,
+    ) -> EventEnvelope {
+        let event = application
+            .state
+            .decide(command)
+            .expect("decide the interrupted command");
+        let envelope = EventEnvelope::new(
+            &application.state.run_id,
+            application.state.last_sequence + 1,
+            command_id,
+            command.digest().expect("digest the interrupted command"),
+            Some(application.state.last_event_digest.clone()),
+            event,
+        )
+        .expect("build the interrupted event");
+        application
+            .journal
+            .append(&envelope)
+            .expect("append the interrupted fact");
+        envelope
+    }
+
+    #[test]
+    fn an_interrupted_apply_is_recovered_and_the_command_after_it_is_committed() {
+        let temporary = tempdir().expect("temporary directory");
+        let mut application = Application::create(temporary.path(), "run-1", Budget::new(2, 1))
+            .expect("create application");
+        let interrupted = interrupt_after_append(
+            &mut application,
+            "start-1",
+            &Command::StartAttempt {
+                attempt_id: "attempt-1".to_owned(),
+            },
+        );
+        assert_eq!(application.state().last_sequence, 1);
+        assert_eq!(application.state().budget.attempts_remaining, 2);
+
+        let next = application
+            .execute(
+                "start-2",
+                Command::StartAttempt {
+                    attempt_id: "attempt-2".to_owned(),
+                },
+            )
+            .expect("commit the command that follows the interrupted one");
+
+        assert!(!next.replayed);
+        assert_eq!(next.event.sequence, 3);
+        assert_eq!(application.state().last_sequence, 3);
+        // One attempt for the recovered fact and one for the command that followed it: an
+        // application that carried the recovered command out again would have spent more.
+        assert_eq!(application.state().budget.attempts_remaining, 0);
+        assert_eq!(
+            application.state().active_attempts,
+            vec!["attempt-1".to_owned(), "attempt-2".to_owned()]
+        );
+
+        let repeat = application
+            .execute(
+                "start-1",
+                Command::StartAttempt {
+                    attempt_id: "attempt-1".to_owned(),
+                },
+            )
+            .expect("answer the repeated interrupted command");
+        assert!(repeat.replayed);
+        assert_eq!(repeat.event, interrupted);
+
+        // The recovery read the journal and wrote nothing to it.
+        let committed = application
+            .journal
+            .read_committed()
+            .expect("read the committed facts");
+        assert_eq!(committed.len(), 3);
+        assert_eq!(committed[1], interrupted);
+
+        let recovered = application.state().clone();
+        drop(application);
+        let reopened = Application::open(temporary.path()).expect("reopen the data root");
+        assert_eq!(reopened.state(), &recovered);
+    }
+
+    #[test]
+    fn a_recovered_projection_holds_the_candidate_its_journal_records() {
+        let temporary = tempdir().expect("temporary directory");
+        let mut application = Application::create(temporary.path(), "run-1", Budget::new(1, 1))
+            .expect("create application");
+        let candidate = application
+            .object_store()
+            .put(b"candidate bytes")
+            .expect("store the candidate");
+        application
+            .execute(
+                "start",
+                Command::StartAttempt {
+                    attempt_id: "attempt-1".to_owned(),
+                },
+            )
+            .expect("start the attempt");
+        let interrupted = interrupt_after_append(
+            &mut application,
+            "submit",
+            &Command::SubmitCandidate {
+                attempt_id: "attempt-1".to_owned(),
+                base_digest: "0".repeat(64),
+                object_digest: candidate.clone(),
+            },
+        );
+        assert!(application.state().candidate_digest.is_none());
+
+        // The recovery restores the whole projection and not the sequence alone: the candidate
+        // the journal records is immutable, so a different one is refused rather than accepted
+        // over it.
+        let other = application
+            .object_store()
+            .put(b"a different candidate")
+            .expect("store the second candidate");
+        assert!(matches!(
+            application.execute(
+                "submit-other",
+                Command::SubmitCandidate {
+                    attempt_id: "attempt-1".to_owned(),
+                    base_digest: "0".repeat(64),
+                    object_digest: other,
+                }
+            ),
+            Err(ApplicationError::CandidateConflict { .. })
+        ));
+        assert_eq!(
+            application.state().candidate_digest.as_deref(),
+            Some(candidate.as_str())
+        );
+        assert_eq!(
+            application.state().last_sequence,
+            interrupted.sequence,
+            "the refused command left the recovered projection where the journal stands"
+        );
+        assert_eq!(
+            application
+                .journal
+                .read_committed()
+                .expect("read the committed facts")
+                .len(),
+            3
+        );
+    }
 }
