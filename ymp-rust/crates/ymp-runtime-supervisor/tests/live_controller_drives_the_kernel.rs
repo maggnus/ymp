@@ -27,8 +27,8 @@ use ymp_runtime_api::{
 };
 use ymp_runtime_fake::{FakeRuntime, ScriptStep};
 use ymp_runtime_supervisor::{
-    ManagedCandidateRequest, ManagedContract, ManagedRunEvent, ManagedRunHandle,
-    ManagedTermination, start_unattested_managed_candidate,
+    CONTROLLER_SHUTDOWN_LIMIT, ManagedCandidateRequest, ManagedContract, ManagedRunEvent,
+    ManagedRunHandle, ManagedTermination, start_unattested_managed_candidate,
 };
 
 /// How the scripted runtime behaves at the two points a supervised run can end badly at: the
@@ -58,6 +58,10 @@ struct YieldingRuntime {
     /// the runtime down after it has recorded the terminal of the slice and before it reports
     /// itself finished, so holding it there is what puts a controller inside that window.
     teardown: Option<Arc<AtomicBool>>,
+    /// When it is set, the session stops answering once it has been resumed and answers again only
+    /// when this is opened. Supervision is then held inside the call that reads the next event,
+    /// which is where neither the closed control channel nor the cancellation token is read.
+    silence: Option<Arc<AtomicBool>>,
     disposition: Disposition,
 }
 
@@ -101,6 +105,7 @@ impl RuntimeDriver for YieldingRuntime {
             taken,
             yields: self.yields,
             teardown: self.teardown.clone(),
+            silence: self.silence.clone(),
             disposition: self.disposition,
             interrupted: false,
             invocation_id,
@@ -116,6 +121,7 @@ struct YieldingSession {
     taken: AtomicU32,
     yields: u32,
     teardown: Option<Arc<AtomicBool>>,
+    silence: Option<Arc<AtomicBool>>,
     disposition: Disposition,
     interrupted: bool,
     /// The identity and the ordering of the events this session has passed on, so that an event it
@@ -142,6 +148,20 @@ impl Drop for YieldingSession {
 
 impl RuntimeSession for YieldingSession {
     fn next_event(&mut self) -> Result<Option<RuntimeEvent>, RuntimeError> {
+        // A runtime that stopped answering after it was resumed. Nothing here reads the
+        // cancellation token or the control channel, because a runtime that has gone silent reads
+        // nothing at all: supervision stays in this call until the check lets it out. The deadline
+        // is a safeguard for the check itself, well beyond the limit a controller waits for, so a
+        // measurement that failed reports rather than holding the process for good.
+        if let Some(silence) = &self.silence
+            && self.taken.load(Ordering::Acquire) > 1
+        {
+            let deadline = Instant::now() + Duration::from_secs(120);
+            while !silence.load(Ordering::Acquire) && Instant::now() < deadline {
+                std::thread::sleep(Duration::from_millis(5));
+            }
+            return Ok(None);
+        }
         // The work the interruption landed in the middle of is what fails, so the failure is what
         // the runtime reports next.
         if self.interrupted && self.disposition == Disposition::FailsWhenInterrupted {
@@ -209,6 +229,84 @@ impl RuntimeSession for YieldingSession {
     }
 }
 
+/// A runtime that is working rather than waiting, and that does not watch the cancellation token.
+///
+/// It reports an event whenever it is asked for one and stops only where it is interrupted, so what
+/// ends a run of it is supervision delivering the interruption and nothing the runtime read for
+/// itself. A runtime that watched the token would end a cancelled run whatever supervision did, and
+/// a check written on one could not tell the two apart.
+struct WorkingRuntime {
+    interrupted: Arc<AtomicBool>,
+}
+
+impl RuntimeDriver for WorkingRuntime {
+    fn kind(&self) -> RuntimeKind {
+        RuntimeKind::Fake
+    }
+
+    fn executable(&self) -> &Path {
+        Path::new("ymp-internal-fake")
+    }
+
+    fn probe(&self) -> Result<ProbeReport, RuntimeError> {
+        FakeRuntime::default().probe()
+    }
+
+    fn start(&self, request: InvocationRequest) -> Result<Box<dyn RuntimeSession>, RuntimeError> {
+        Ok(Box::new(WorkingSession {
+            invocation_id: request.invocation_id,
+            opaque_session_id: format!("{}.session", request.attempt_id),
+            sequence: 0,
+            started: false,
+            interrupted: Arc::clone(&self.interrupted),
+        }))
+    }
+}
+
+struct WorkingSession {
+    invocation_id: String,
+    opaque_session_id: String,
+    sequence: u64,
+    started: bool,
+    interrupted: Arc<AtomicBool>,
+}
+
+impl RuntimeSession for WorkingSession {
+    fn next_event(&mut self) -> Result<Option<RuntimeEvent>, RuntimeError> {
+        if self.interrupted.load(Ordering::Acquire) {
+            return Ok(None);
+        }
+        self.sequence += 1;
+        let event = if self.started {
+            // The work of one turn, which this runtime never runs out of.
+            std::thread::sleep(Duration::from_millis(5));
+            RuntimeEventKind::Output {
+                text: format!("working {}", self.sequence),
+            }
+        } else {
+            self.started = true;
+            RuntimeEventKind::Started {
+                opaque_session_id: self.opaque_session_id.clone(),
+            }
+        };
+        Ok(Some(RuntimeEvent {
+            sequence: self.sequence,
+            event_id: format!("{}.event-{}", self.invocation_id, self.sequence),
+            invocation_id: self.invocation_id.clone(),
+            event,
+        }))
+    }
+
+    fn resume(&mut self, _input: String) -> Result<(), RuntimeError> {
+        Err(RuntimeError::NotYielded)
+    }
+
+    fn interrupt(&mut self) -> Result<(), RuntimeError> {
+        self.interrupted.store(true, Ordering::Release);
+        Ok(())
+    }
+}
+
 struct Fixture {
     handle: ManagedRunHandle,
     application: Arc<Mutex<Application>>,
@@ -228,6 +326,31 @@ fn start(yields: u32) -> Fixture {
 }
 
 fn start_with(yields: u32, teardown: Option<Arc<AtomicBool>>, disposition: Disposition) -> Fixture {
+    start_driver(Box::new(YieldingRuntime {
+        yields,
+        teardown,
+        silence: None,
+        disposition,
+    }))
+}
+
+/// A run whose runtime stops answering once it has been resumed, and answers again only when the
+/// given flag is opened.
+fn start_silent(silence: Arc<AtomicBool>) -> Fixture {
+    start_driver(Box::new(YieldingRuntime {
+        yields: 1,
+        teardown: None,
+        silence: Some(silence),
+        disposition: Disposition::Orderly,
+    }))
+}
+
+/// A run whose runtime works rather than waits, and which reports whether it was interrupted.
+fn start_working(interrupted: Arc<AtomicBool>) -> Fixture {
+    start_driver(Box::new(WorkingRuntime { interrupted }))
+}
+
+fn start_driver(driver: Box<dyn RuntimeDriver>) -> Fixture {
     let temporary = tempfile::tempdir().expect("temporary directory");
     let source = temporary.path().join("source");
     std::fs::create_dir(&source).expect("source directory");
@@ -238,11 +361,7 @@ fn start_with(yields: u32, teardown: Option<Arc<AtomicBool>>, disposition: Dispo
     ));
     let handle = start_unattested_managed_candidate(
         Arc::clone(&application),
-        Box::new(YieldingRuntime {
-            yields,
-            teardown,
-            disposition,
-        }),
+        driver,
         ManagedCandidateRequest {
             contract: ManagedContract {
                 contract_id: "contract-yield".to_owned(),
@@ -309,6 +428,42 @@ fn wait_until_yielded(handle: &ManagedRunHandle) {
         std::thread::sleep(Duration::from_millis(5));
     }
     panic!("the managed runtime did not yield");
+}
+
+/// Wait until the run has reported work of its own, so what follows reaches a runtime that is
+/// working rather than one waiting for a wake.
+fn wait_until_working(handle: &ManagedRunHandle) {
+    let deadline = Instant::now() + Duration::from_secs(10);
+    while Instant::now() < deadline {
+        while let Some(event) = handle.try_next() {
+            if let ManagedRunEvent::Runtime(event) = event
+                && matches!(event.event, RuntimeEventKind::Output { .. })
+            {
+                return;
+            }
+        }
+        std::thread::sleep(Duration::from_millis(5));
+    }
+    panic!("the managed runtime reported no work of its own");
+}
+
+/// Wait until the resumed runtime has committed its candidate through the coordination tool, which
+/// is the last thing it does before it stops answering.
+fn wait_until_submitted(application: &Arc<Mutex<Application>>) {
+    let deadline = Instant::now() + Duration::from_secs(10);
+    while Instant::now() < deadline {
+        if application
+            .lock()
+            .expect("application")
+            .state()
+            .candidate_digest
+            .is_some()
+        {
+            return;
+        }
+        std::thread::sleep(Duration::from_millis(5));
+    }
+    panic!("the resumed runtime committed no candidate");
 }
 
 /// Wait until the run announces the candidate it committed, and answer with its digest.
@@ -1321,6 +1476,195 @@ fn closing_a_controller_never_waits_behind_the_control_channel_it_holds() {
         closed_within(fixture, Duration::from_secs(30)),
         "the controller waited for a worker it was itself holding open"
     );
+}
+
+/// A cancellation reaches a runtime that is working, not only one that is waiting for a wake.
+///
+/// The interruption used to be delivered in the wake wait alone. A runtime that watched the
+/// cancellation token stopped itself there, and one that did not read it went on working until it
+/// finished of its own accord: the operator's command moved both records while the runtime kept
+/// spending the run's budget, and supervision never told it anything. The runtime here reports work
+/// whenever it is asked for it and reads no token of its own, so what ends this run is supervision
+/// delivering the interruption between two events and nothing the runtime decided for itself.
+///
+/// The check that must fail: deliver the interruption only where a yielded slice waits for a wake.
+/// This runtime is then never told, keeps reporting work, and the run reaches no terminal at all.
+#[test]
+fn a_cancellation_reaches_a_runtime_that_is_working_rather_than_waiting() {
+    let interrupted = Arc::new(AtomicBool::new(false));
+    let fixture = start_working(Arc::clone(&interrupted));
+    let handle = &fixture.handle;
+    wait_until_working(handle);
+    assert_eq!(
+        handle
+            .kernel()
+            .invocation_state()
+            .expect("the slice record"),
+        InvocationState::Running,
+        "the runtime was waiting for a wake rather than working"
+    );
+
+    handle
+        .cancel("stopped while the runtime was working")
+        .expect("cancel");
+    drain_until_finished(handle);
+
+    assert!(
+        interrupted.load(Ordering::Acquire),
+        "the cancellation never reached the runtime that was working"
+    );
+    assert!(
+        handle.is_finished(),
+        "the run went on after the runtime was interrupted"
+    );
+    assert_eq!(
+        handle.kernel().root_terminal().expect("the terminal"),
+        Some(RootTerminal::Cancelled)
+    );
+    assert_eq!(
+        fixture
+            .application
+            .lock()
+            .expect("application")
+            .state()
+            .status,
+        RunStatus::Cancelled
+    );
+}
+
+/// Closing a controller ends within a stated limit even where the runtime stopped answering, and
+/// the run it gives up on is stopped in both records rather than left open.
+///
+/// A runtime that goes silent after a resume holds supervision inside the call that reads its next
+/// event. Neither the closed control channel nor the cancellation token is read there, so a
+/// controller that waited for that worker waited for as long as the runtime stayed silent — the
+/// unbounded wait this measures, previously observable only as a check that never returned. The
+/// wait now has a limit: the worker that outlasts it is left running, and the controller records
+/// the terminal the worker owed, so no run is left whose records still call it running.
+///
+/// The check that must fail: wait for the worker without a limit. Nothing then comes back from the
+/// close, and the deadline below is what reports it.
+#[test]
+fn closing_a_controller_whose_runtime_stopped_answering_is_bounded() {
+    let silence = Arc::new(AtomicBool::new(false));
+    let Fixture {
+        handle,
+        application,
+        temporary,
+    } = start_silent(Arc::clone(&silence));
+    wait_until_yielded(&handle);
+    handle.wake("wake-1", "continue once").expect("the wake");
+    wait_until_submitted(&application);
+    let record = handle.kernel_record();
+
+    let closing = Instant::now();
+    let (closed, reported) = std::sync::mpsc::channel();
+    std::thread::spawn(move || {
+        let _ = closed.send(handle.join().map_err(|error| error.to_string()));
+    });
+    let outcome = reported
+        .recv_timeout(CONTROLLER_SHUTDOWN_LIMIT + Duration::from_secs(10))
+        .expect("the controller never stopped waiting for a runtime that had stopped answering");
+    let waited = closing.elapsed();
+
+    let report =
+        outcome.expect_err("closing a controller whose worker never ended reported success");
+    assert!(
+        report.contains("did not end within"),
+        "unexpected report: {report}"
+    );
+    assert!(
+        waited >= CONTROLLER_SHUTDOWN_LIMIT,
+        "the controller stopped waiting after {waited:?}, before the limit it states"
+    );
+    assert_eq!(
+        record.root_terminal().expect("the terminal"),
+        Some(RootTerminal::InfrastructureError),
+        "a controller that stopped waiting left the run open in the kernel"
+    );
+    assert_eq!(
+        application.lock().expect("application").state().status,
+        RunStatus::InfrastructureError,
+        "a controller that stopped waiting left the journal calling the run running"
+    );
+
+    // The runtime answers again, so the worker left behind ends before the tree this check ran in
+    // is removed.
+    silence.store(true, Ordering::Release);
+    std::thread::sleep(Duration::from_millis(500));
+    drop(temporary);
+}
+
+/// A controller that stopped waiting writes nothing over a terminal its worker had already
+/// committed.
+///
+/// The worker records the terminal of its slice, submits its candidate and only then winds the
+/// runtime down, and the flag it sets on its way out comes after all three. A limit that decided by
+/// that flag therefore found a run whose accounting was finished, recorded an infrastructure fault
+/// over both records, and took from the submitted candidate the verdict it was waiting for — while
+/// reporting that the worker had been left working, which it had not been. What the run owes is
+/// read out of the committed state of the slice, the way a cancellation reads it, so a worker held
+/// in that window is recognised as one that has already answered.
+///
+/// The check that must fail: decide the same question by the flag. The run is then stopped as an
+/// infrastructure fault in both records although its slice is closed and its candidate submitted.
+#[test]
+fn a_controller_that_stopped_waiting_writes_nothing_over_a_committed_terminal() {
+    let teardown = Arc::new(AtomicBool::new(false));
+    let Fixture {
+        handle,
+        application,
+        temporary,
+    } = start_with(1, Some(Arc::clone(&teardown)), Disposition::Orderly);
+    wait_until_yielded(&handle);
+    handle.wake("wake-1", "continue once").expect("the wake");
+
+    // The candidate being announced places the worker past the terminal of its slice and past the
+    // submission, and the held teardown keeps it there without its finished flag being set.
+    let _candidate = wait_for_candidate(&handle);
+    assert!(
+        !handle.is_finished(),
+        "the worker reported itself finished while its teardown was held"
+    );
+    assert_eq!(
+        handle
+            .kernel()
+            .invocation_state()
+            .expect("the slice record"),
+        InvocationState::Closed
+    );
+    let record = handle.kernel_record();
+
+    let (closed, reported) = std::sync::mpsc::channel();
+    std::thread::spawn(move || {
+        let _ = closed.send(handle.join().map_err(|error| error.to_string()));
+    });
+    let outcome = reported
+        .recv_timeout(CONTROLLER_SHUTDOWN_LIMIT + Duration::from_secs(10))
+        .expect("the controller never stopped waiting for a worker held in its teardown");
+
+    let report =
+        outcome.expect_err("closing a controller whose worker never ended reported success");
+    assert!(
+        report.contains("had already recorded the terminal of its slice"),
+        "the controller reported something other than what it found: {report}"
+    );
+    // Giving up the wait wrote nothing. What both records hold is the ending a closed controller
+    // issues on its way out, and not the fault a limit deciding by the finished flag recorded.
+    assert_eq!(
+        record.root_terminal().expect("the terminal"),
+        Some(RootTerminal::Cancelled),
+        "the controller wrote a terminal of its own over a slice its worker had closed"
+    );
+    assert_eq!(
+        application.lock().expect("application").state().status,
+        RunStatus::Cancelled,
+        "the journal was moved off the ending a closed controller issues"
+    );
+
+    teardown.store(true, Ordering::Release);
+    std::thread::sleep(Duration::from_millis(500));
+    drop(temporary);
 }
 
 /// A failure the journal would not record is reported with the run rather than passed over.

@@ -14,6 +14,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::{Receiver, RecvTimeoutError, Sender, channel};
 use std::sync::{Arc, Mutex};
 use std::thread::{self, JoinHandle};
+use std::time::{Duration, Instant};
 use uuid::Uuid;
 use ymp_application::Application;
 use ymp_application::WorkspaceSubmission;
@@ -35,6 +36,22 @@ const MAX_CONTRACT_BYTES: usize = 1024 * 1024;
 const MAX_PROMPT_BYTES: usize = 64 * 1024;
 const MAX_RUNTIME_EVIDENCE_BYTES: u64 = 4 * 1024 * 1024;
 const RUNTIME_EVIDENCE_SCHEMA_VERSION: u32 = 3;
+
+/// How long a controller waits for its worker to end before it stops waiting.
+///
+/// The wait exists because supervision owns the runtime session and ends its process tree on the
+/// way out, and that teardown takes as long as the operating system needs: a signalled process tree
+/// is given roughly a fifth of a second to leave and about a second more after the second signal.
+/// The limit is set well above that, so an orderly ending is never cut short, and it is a limit all
+/// the same, because a runtime that stopped answering after a resume would otherwise hold the
+/// controller for as long as it stayed silent — which is unbounded.
+pub const CONTROLLER_SHUTDOWN_LIMIT: Duration = Duration::from_secs(5);
+
+/// How often the closing controller reads whether its worker has finished.
+const CONTROLLER_SHUTDOWN_POLL: Duration = Duration::from_millis(2);
+
+/// How long a yielded slice waits for a wake before it reads the cancellation token again.
+const WAKE_WAIT_POLL: Duration = Duration::from_millis(10);
 
 #[derive(Clone, Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -498,6 +515,16 @@ impl ManagedRunHandle {
         &self.kernel
     }
 
+    /// The same record, as a handle that outlives this one.
+    ///
+    /// A controller that stopped waiting for a worker it could not end records the terminal of the
+    /// run itself and is then closed, and closing it consumes this handle. Whoever closed it is
+    /// exactly who needs to read that terminal afterwards, so the record is obtainable on its own
+    /// rather than only through a handle that is about to be given up.
+    pub fn kernel_record(&self) -> Arc<ManagedKernel> {
+        Arc::clone(&self.kernel)
+    }
+
     /// Ask the kernel to admit one resumption of the yielded slice, and resume the runtime with
     /// this instruction only if it does.
     ///
@@ -549,7 +576,8 @@ impl ManagedRunHandle {
         self.kernel.verified(candidate_digest, verdict)
     }
 
-    /// Release the control channel and wait for the worker, in that order.
+    /// Release the control channel and wait for the worker, in that order, for as long as
+    /// [`CONTROLLER_SHUTDOWN_LIMIT`] allows.
     ///
     /// A yielded slice waits for one of two things: the cancellation token, or a wake arriving over
     /// the control channel. Waiting for the worker while the sending end of that channel is still
@@ -558,17 +586,144 @@ impl ManagedRunHandle {
     /// Released first, the closed channel is what the worker reads as the end of its wakes: it
     /// interrupts the runtime, records the terminal of its slice and leaves, whatever became of the
     /// cancellation.
-    fn release_control_and_join(&mut self) -> Option<thread::Result<()>> {
+    ///
+    /// Releasing the channel bounds the wait only where the worker is watching it. A runtime that
+    /// stopped answering holds supervision inside the call that reads its next event, where neither
+    /// the closed channel nor the cancellation token is read, and a controller that waited there
+    /// waited for as long as that runtime stayed silent. The wait is therefore given a limit: the
+    /// worker that has not finished by then is left running, and a run that still owes a terminal
+    /// is stopped in both records here instead, so a controller that stopped waiting does not leave
+    /// a run whose records still call it running. What the run owes is read out of the committed
+    /// state of its slice rather than out of the flag this wait watches — the flag is set after the
+    /// terminal is recorded and after the runtime has been wound down, so a worker held in that
+    /// window has finished its accounting and is owed nothing.
+    fn release_control_and_join(&mut self) -> WorkerShutdown {
         self.control_sender = None;
-        self.worker.take().map(JoinHandle::join)
+        let Some(worker) = self.worker.take() else {
+            return WorkerShutdown::AlreadyReleased;
+        };
+        let deadline = Instant::now() + CONTROLLER_SHUTDOWN_LIMIT;
+        while !self.is_finished() {
+            if Instant::now() >= deadline {
+                // The worker is not waited for, because what it is waiting for may have no bound. It
+                // keeps the runtime session it owns and ends that session's process tree if it ever
+                // returns; what this controller can still do is read what the run owes and say what
+                // it found.
+                drop(worker);
+                return WorkerShutdown::Unbounded(self.record_unbounded_shutdown());
+            }
+            thread::sleep(CONTROLLER_SHUTDOWN_POLL);
+        }
+        WorkerShutdown::Ended(worker.join())
+    }
+
+    /// Stop a run whose supervision did not end within the limit, where a terminal is still owed.
+    ///
+    /// Whether one is owed is decided by the committed state of the slice, exactly as a
+    /// cancellation decides it, and never by the flag the worker sets on its way out. The worker
+    /// records the terminal of its slice, submits its candidate and only then winds the runtime
+    /// down, and ending a process tree takes as long as it takes: a controller that read the flag
+    /// would find a run whose terminal is committed and whose candidate is submitted, and would
+    /// record an infrastructure fault over both — naming a fault where supervision had in fact
+    /// finished its accounting, and taking from the candidate the verdict it was waiting for. A
+    /// slice the record already calls closed is therefore left alone, and what the controller has
+    /// to say about the worker it stopped waiting for is said in the report and nowhere else.
+    ///
+    /// Which terminal is honest for a slice that is still open is decided by what actually stopped
+    /// the run. An operator's cancellation is what a token already set says happened, and the
+    /// journal holds that terminal from the moment the cancellation was issued, so the kernel is
+    /// given the same one; naming an infrastructure fault there would leave the two records
+    /// disagreeing about one run. Where nothing cancelled the run, supervision that could not be
+    /// ended is itself the fault, and both records are given it, together with the detail that the
+    /// runtime's processes were never established to have ended.
+    ///
+    /// A record that would not take what it was given is answered with, because this controller is
+    /// the last place that can say so: the channel a run reports its failures over belongs to the
+    /// worker that is being left behind, and nothing else is going to reach the operator.
+    fn record_unbounded_shutdown(&self) -> ShutdownRecord {
+        let cancelled = self.cancellation.is_cancelled();
+        let _terminal = take_terminal(&self.terminal);
+        match self.kernel.invocation_state() {
+            Ok(InvocationState::Closed) => return ShutdownRecord::AlreadyCommitted,
+            Ok(_) => {}
+            // A state that cannot be read is not the state "still open". Recording a terminal on it
+            // is what could rename one the worker has already committed, so nothing is recorded and
+            // the reading that failed is carried out instead.
+            Err(error) => return ShutdownRecord::Unread(error.to_string()),
+        }
+        let mut unrecorded = Vec::new();
+        if !cancelled {
+            let detail = format!(
+                "managed_runtime_supervision_did_not_end: supervision was still running {} ms \
+                 after the controller released its control channel, so nothing was established \
+                 about the processes of this run",
+                CONTROLLER_SHUTDOWN_LIMIT.as_millis()
+            );
+            if let Some(refused) =
+                record_infrastructure_failure(&self.application, &self.attempt_id, &detail)
+            {
+                unrecorded.push(refused);
+            }
+        }
+        if let Err(error) = self.kernel.terminated(if cancelled {
+            ManagedTermination::Cancelled
+        } else {
+            ManagedTermination::Failed(InvocationClosure::InfrastructureError)
+        }) {
+            unrecorded.push(format!("managed_runtime_terminal_unrecorded: {error}"));
+        }
+        ShutdownRecord::Recorded((!unrecorded.is_empty()).then(|| unrecorded.join("; ")))
     }
 
     pub fn join(mut self) -> anyhow::Result<()> {
-        if let Some(Err(_)) = self.release_control_and_join() {
-            bail!("managed runtime worker panicked");
+        let limit = CONTROLLER_SHUTDOWN_LIMIT.as_millis();
+        match self.release_control_and_join() {
+            WorkerShutdown::Ended(Err(_)) => bail!("managed runtime worker panicked"),
+            WorkerShutdown::Unbounded(ShutdownRecord::Recorded(unrecorded)) => {
+                let report = format!(
+                    "managed runtime supervision did not end within {limit} ms; the run was \
+                     stopped in both records and its worker was left running"
+                );
+                match unrecorded {
+                    Some(unrecorded) => bail!("{report}; {unrecorded}"),
+                    None => bail!("{report}"),
+                }
+            }
+            WorkerShutdown::Unbounded(ShutdownRecord::AlreadyCommitted) => bail!(
+                "managed runtime supervision did not report itself finished within {limit} ms; it \
+                 had already recorded the terminal of its slice, so nothing was recorded here and \
+                 the worker was left winding the runtime down"
+            ),
+            WorkerShutdown::Unbounded(ShutdownRecord::Unread(error)) => bail!(
+                "managed runtime supervision did not end within {limit} ms; the committed state of \
+                 its slice could not be read, so nothing was recorded here: {error}"
+            ),
+            WorkerShutdown::Ended(Ok(())) | WorkerShutdown::AlreadyReleased => Ok(()),
         }
-        Ok(())
     }
+}
+
+/// What became of supervision when the controller stopped waiting for it.
+enum WorkerShutdown {
+    /// An earlier close of this handle had already released the worker.
+    AlreadyReleased,
+    /// The worker ended, either normally or by dying of a panic.
+    Ended(thread::Result<()>),
+    /// The worker had not ended when [`CONTROLLER_SHUTDOWN_LIMIT`] ran out. It was left running,
+    /// and what the controller found the run owed is stated here.
+    Unbounded(ShutdownRecord),
+}
+
+/// What the controller found when its wait ran out, and what it therefore wrote.
+enum ShutdownRecord {
+    /// The slice was still open, so the terminal the worker owed was recorded here, carrying
+    /// whatever the two records declined to take.
+    Recorded(Option<String>),
+    /// The worker had already committed the terminal of its slice — it was winding the runtime down
+    /// rather than working — so neither record was written to.
+    AlreadyCommitted,
+    /// The committed state of the slice could not be read, so neither record was written to.
+    Unread(String),
 }
 
 impl Drop for ManagedRunHandle {
@@ -576,6 +731,8 @@ impl Drop for ManagedRunHandle {
         if !self.is_finished() {
             let _ = self.cancel("managed runtime controller closed");
         }
+        // A wait that ran out records the terminal of the run itself, so a dropped controller
+        // leaves no run whose records still call it running, and it leaves in bounded time.
         let _ = self.release_control_and_join();
     }
 }
@@ -947,7 +1104,31 @@ fn start_candidate(
                     let mut terminal_failure = None;
                     let mut application_cursor = controller_cursor;
                     let mut yield_cursor = 0;
+                    // Whether the runtime has already been told that the run is over. The
+                    // interruption is delivered once; every runtime treats a second one as the
+                    // terminal it already reached, and delivering it again would be supervision
+                    // acting on a decision it has already carried out.
+                    let mut interrupt_delivered = false;
                     loop {
+                        // A cancellation reaches the runtime here, at the first moment supervision
+                        // holds the session again, and not only where a yielded slice waits for a
+                        // wake. A runtime that is working is between two events rather than waiting
+                        // for one, and the interruption used to be delivered only in that wait: a
+                        // runtime that watched the token stopped itself, and one that did not went
+                        // on working until it finished of its own accord, whatever an operator had
+                        // asked for. Delivery no longer depends on the runtime reading the token —
+                        // supervision reads it and interrupts the session, wherever the run stands.
+                        //
+                        // What this cannot reach is a runtime that has stopped answering inside the
+                        // call that reads its next event: supervision is held in that call and
+                        // holds the session while it is there. That wait is bounded by the
+                        // controller instead, at `CONTROLLER_SHUTDOWN_LIMIT`.
+                        if !interrupt_delivered && worker_cancellation.is_cancelled() {
+                            interrupt_delivered = true;
+                            if let Err(error) = session.interrupt() {
+                                pending_error = Some(error);
+                            }
+                        }
                         let mut event = match pending_error.take().map_or_else(
                             || session.next_event(),
                             Err::<Option<RuntimeEvent>, RuntimeError>,
@@ -1056,14 +1237,13 @@ fn start_candidate(
                         if yielded {
                             loop {
                                 if worker_cancellation.is_cancelled() {
+                                    interrupt_delivered = true;
                                     if let Err(error) = session.interrupt() {
                                         pending_error = Some(error);
                                     }
                                     break;
                                 }
-                                match control_receiver
-                                    .recv_timeout(std::time::Duration::from_millis(10))
-                                {
+                                match control_receiver.recv_timeout(WAKE_WAIT_POLL) {
                                     Ok(ManagedControl::Wake { input }) => {
                                         if let Err(error) = session.resume(input) {
                                             pending_error = Some(error);
@@ -1072,6 +1252,7 @@ fn start_candidate(
                                     }
                                     Err(RecvTimeoutError::Timeout) => {}
                                     Err(RecvTimeoutError::Disconnected) => {
+                                        interrupt_delivered = true;
                                         if let Err(error) = session.interrupt() {
                                             pending_error = Some(error);
                                         }
