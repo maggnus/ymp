@@ -23,7 +23,7 @@ use support::{SIZES, buffer, open_command, press, screen};
 use tempfile::TempDir;
 use ymp_runtime_registry::{ProviderFamily, RegistryAddress};
 use ymp_tui::Session;
-use ymp_tui::app::{Action, PendingMeasurement};
+use ymp_tui::app::{Action, PendingMeasurement, Selected};
 use ymp_tui::state::{App, PageKind, Surface};
 
 /// A product root of this check's own. Nothing here reads or writes the owner's own root.
@@ -54,6 +54,15 @@ impl Root {
     }
 }
 
+/// Where the operator is standing, as the event loop reports it to the session: on the row of the
+/// provider table whose properties are open, and on no other.
+fn standing_on(app: &App) -> Selected {
+    Selected {
+        provider: app.provider_index,
+        ..Selected::none()
+    }
+}
+
 /// Enable the account and hold the measurement it asked for unrun, which is the state the
 /// interface is in for as long as the engines take to answer.
 fn measuring(session: &mut Session, app: &mut App) -> PendingMeasurement {
@@ -61,7 +70,7 @@ fn measuring(session: &mut Session, app: &mut App) -> PendingMeasurement {
         .set_provider_enabled(ProviderFamily::Anthropic, true, None)
         .expect("enabling an account asks for a measurement of it");
     assert!(session.is_measuring(), "the session states no measurement");
-    app.adopt(session.projection_for(None, app.provider_index));
+    app.adopt(session.projection_for(standing_on(app)));
     pending
 }
 
@@ -90,7 +99,7 @@ fn every_surface_that_draws_an_account_states_that_it_is_being_measured() {
         );
 
         press(&mut app, KeyCode::Enter, height);
-        app.adopt(session.projection_for(None, app.provider_index));
+        app.adopt(session.projection_for(standing_on(&app)));
         assert_eq!(app.surface, Surface::Page(PageKind::Provider));
         let shown = screen(&app, width, height);
         assert!(
@@ -181,7 +190,7 @@ fn a_second_ask_is_folded_into_the_running_measurement_and_the_surfaces_say_so()
         "the running measurement does not carry the asks it answered"
     );
 
-    app.adopt(session.projection_for(None, app.provider_index));
+    app.adopt(session.projection_for(standing_on(&app)));
     open_command(&mut app, "providers", 40);
     let shown = screen(&app, 120, 40);
     assert!(

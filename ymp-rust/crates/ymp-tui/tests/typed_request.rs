@@ -113,6 +113,20 @@ fn submit(app: &mut App, session: &mut Session, text: &str) {
             let pending = session.refresh_provider_models(family);
             session.settle_measurement(pending);
         }
+        Some(Action::SetPoolEntryPermitted {
+            pool,
+            entry,
+            permitted,
+        }) => {
+            session.set_pool_entry_permitted(pool, entry, permitted);
+        }
+        Some(Action::SetPoolCapacity {
+            pool,
+            max_agents,
+            max_concurrent_attempts,
+        }) => {
+            session.set_pool_capacity(pool, max_agents, max_concurrent_attempts);
+        }
         Some(Action::Rebuild) | None => {}
     }
     app.adopt(session.projection(None));

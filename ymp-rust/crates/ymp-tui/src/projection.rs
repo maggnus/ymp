@@ -460,6 +460,10 @@ pub struct Projection {
     /// provider surfaces resolves the account it acts on from the view state alone, exactly as a
     /// key on the runtimes page resolves its engine.
     pub providers: Option<crate::providers::Report>,
+    /// The pool level as the session last read it from the records, here for the same reason: a
+    /// key on the pool surfaces resolves the pool and the entry it acts on from the view state
+    /// alone, so it can act only on what the operator is standing on.
+    pub pools: Option<crate::pools::Report>,
     /// Whether a run authorized now would be given a store of its own, addressed under the root
     /// by the layout, because the store this session is reading already holds one. It is the
     /// session's fact: which stores a root holds is not something the journal records.

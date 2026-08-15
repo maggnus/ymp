@@ -40,7 +40,7 @@ use ratatui::layout::Rect;
 use ratatui::text::Line;
 use ymp_application::PreparedContract;
 use ymp_domain::RunStatus;
-use ymp_tui::app::Action;
+use ymp_tui::app::{Action, Selected};
 use ymp_tui::projection::{ContractFacts, Projection};
 use ymp_tui::providers::ProviderFamily;
 use ymp_tui::state::{App, ConfirmAction, Modal, PageKind, Surface};
@@ -128,6 +128,12 @@ pub enum PublicCommand {
         #[command(subcommand)]
         command: ProviderCommand,
     },
+    /// Permit an entry in a pool, take one out, or state its ceilings. A pool is what a run may
+    /// recruit from; it names no participant and creates none.
+    Pool {
+        #[command(subcommand)]
+        command: PoolCommand,
+    },
     /// Print one data page, exactly as the interface lays it out.
     Show {
         /// Which page to print.
@@ -138,7 +144,77 @@ pub enum PublicCommand {
         /// Which provider the provider page states.
         #[arg(long, value_name = "PROVIDER")]
         provider: Option<String>,
+        /// Which pool the pool page states.
+        #[arg(long, value_name = "POOL")]
+        pool: Option<String>,
     },
+}
+
+/// What a command states about a pool.
+///
+/// These are the acts the interface offers on a pool's own properties view, in the same order and
+/// with the same consequences. The interface takes each of them on a selected row and never asks
+/// for a name; a command has no selection, so it names the row it acts on — a value, and never a
+/// confirmation. What the first edit of a pool that follows the catalog replaces is stated in the
+/// help of the two commands that can cause it, because a command is read before it is run.
+#[derive(Clone, Debug, Subcommand)]
+pub enum PoolCommand {
+    /// Permit one catalog entry in this pool. The first edit of a pool that follows the catalog
+    /// replaces the whole-catalog form with the list left behind, and the pool stops following the
+    /// catalog: a model measured later joins the catalog and not this pool.
+    Permit {
+        #[command(flatten)]
+        entry: PoolEntryArgs,
+    },
+    /// Take one catalog entry out of this pool. It replaces the whole-catalog form under exactly
+    /// the same rule, and nothing that is already working is disturbed: a run holds the snapshot
+    /// it froze.
+    Exclude {
+        #[command(flatten)]
+        entry: PoolEntryArgs,
+    },
+    /// State the ceilings a run using this pool is held to. Each is a ceiling and neither is a
+    /// target: nothing creates a participant to reach one.
+    SetCapacity {
+        /// The pool, spelled as the pools page spells it.
+        pool: String,
+        /// The ceiling on participants a run using this pool may create.
+        #[arg(long, value_name = "COUNT")]
+        participants: Option<u32>,
+        /// The ceiling on attempts running at once.
+        #[arg(long, value_name = "COUNT")]
+        concurrent_attempts: Option<u32>,
+    },
+}
+
+/// The entry one command acts on, named as the properties view names it.
+///
+/// The model alone selects an entry where one entry serves it. Where two accounts or two engines
+/// serve the same model they are different capabilities, so the command is refused with both named
+/// rather than resolved to one of them — the interface reaches the same entry by standing on its
+/// row.
+#[derive(Args, Clone, Debug)]
+pub struct PoolEntryArgs {
+    /// The pool, spelled as the pools page spells it.
+    pub pool: String,
+    /// The model, spelled as the catalog spells it.
+    pub model: String,
+    /// The account that serves it, where more than one does.
+    #[arg(long, value_name = "PROVIDER")]
+    pub provider: Option<String>,
+    /// The engine that reaches it, where more than one does.
+    #[arg(long, value_name = "ENGINE")]
+    pub engine: Option<String>,
+}
+
+impl PoolCommand {
+    /// The pool this command acts on.
+    fn pool(&self) -> &str {
+        match self {
+            Self::Permit { entry } | Self::Exclude { entry } => &entry.pool,
+            Self::SetCapacity { pool, .. } => pool,
+        }
+    }
 }
 
 /// What a command states about a provider.
@@ -292,6 +368,8 @@ pub enum PageName {
     Providers,
     Provider,
     Models,
+    Pools,
+    Pool,
     Runtimes,
     Candidates,
     Events,
@@ -307,6 +385,8 @@ impl PageName {
             Self::Providers => PageKind::Providers,
             Self::Provider => PageKind::Provider,
             Self::Models => PageKind::Models,
+            Self::Pools => PageKind::Pools,
+            Self::Pool => PageKind::Pool,
             Self::Runtimes => PageKind::Runtimes,
             Self::Candidates => PageKind::Candidates,
             Self::Events => PageKind::Events,
@@ -324,6 +404,8 @@ impl PageName {
             PageKind::Providers => Self::Providers,
             PageKind::Provider => Self::Provider,
             PageKind::Models => Self::Models,
+            PageKind::Pools => Self::Pools,
+            PageKind::Pool => Self::Pool,
             PageKind::Runtimes => Self::Runtimes,
             PageKind::Candidates => Self::Candidates,
             PageKind::Events => Self::Events,
@@ -395,10 +477,12 @@ pub fn run(
         PublicCommand::Provider { command } => {
             run_provider(&mut session, &mut app, &markers, command)
         }
+        PublicCommand::Pool { command } => run_pool(&mut session, &mut app, &markers, command),
         PublicCommand::Show {
             page,
             candidate,
             provider,
+            pool,
         } => run_show(
             &mut session,
             &mut app,
@@ -406,6 +490,7 @@ pub fn run(
             page,
             candidate,
             provider.as_deref(),
+            pool.as_deref(),
         ),
     }
 }
@@ -666,6 +751,56 @@ fn run_provider(
     Ok(())
 }
 
+/// Permit an entry in a pool, take one out, or state its ceilings — the acts of its properties
+/// view.
+///
+/// The row a key would be pressed on is named here as a value, and it is resolved against the same
+/// reading the interface draws its rows from: a pool this root does not hold, and a model no entry
+/// of that pool names, are refused with what it does hold rather than resolved to the nearest one.
+/// Everything after that is the interface's own session, so a command edits a pool exactly where
+/// the interface edits it and leaves the same record behind.
+fn run_pool(
+    session: &mut Session,
+    app: &mut App,
+    markers: &Markers,
+    command: PoolCommand,
+) -> Result<()> {
+    let errors = known_errors(&app.data.entries);
+    let report = ymp_tui::pools::read(session.registry_address());
+    let pool = ymp_tui::pools::pool_named(&report, command.pool()).map_err(anyhow::Error::msg)?;
+    let action = match &command {
+        PoolCommand::Permit { entry } | PoolCommand::Exclude { entry } => {
+            let named = ymp_tui::pools::entry_named(
+                &report,
+                &pool,
+                &entry.model,
+                entry.provider.as_deref(),
+                entry.engine.as_deref(),
+            )
+            .map_err(anyhow::Error::msg)?;
+            Action::SetPoolEntryPermitted {
+                pool,
+                entry: named,
+                permitted: matches!(command, PoolCommand::Permit { .. }),
+            }
+        }
+        PoolCommand::SetCapacity {
+            participants,
+            concurrent_attempts,
+            ..
+        } => Action::SetPoolCapacity {
+            pool,
+            max_agents: *participants,
+            max_concurrent_attempts: *concurrent_attempts,
+        },
+    };
+    perform(session, action);
+    app.adopt(session.projection(None));
+    print_transcript(app, markers);
+    reject_new_errors(app, &errors)?;
+    Ok(())
+}
+
 /// Print one data page.
 fn run_show(
     session: &mut Session,
@@ -674,6 +809,7 @@ fn run_show(
     page: PageName,
     candidate: Option<usize>,
     provider: Option<&str>,
+    pool: Option<&str>,
 ) -> Result<()> {
     let kind = page.kind();
     if kind == PageKind::Runtimes {
@@ -690,8 +826,8 @@ fn run_show(
         session.settle_measurement(pending);
     }
     let describe = (kind == PageKind::Describe).then(|| candidate.unwrap_or(0));
-    // The properties view of a provider is opened from a selected row in the interface. A command
-    // has no selection, so it names the account it states — a value, and never a confirmation.
+    // A properties view is opened from a selected row in the interface. A command has no
+    // selection, so it names the row it states — a value, and never a confirmation.
     let selected = match (kind, provider) {
         (PageKind::Provider, Some(stated)) => {
             ymp_tui::providers::index_of(ProviderFamily::parse(stated)?)
@@ -703,7 +839,25 @@ fn run_show(
         ),
         _ => None,
     };
-    app.adopt(session.projection_for(describe, selected));
+    let standing_on_pool = match (kind, pool) {
+        (PageKind::Pool, Some(stated)) => {
+            let held = session.pools();
+            let name = ymp_tui::pools::pool_named(held, stated).map_err(anyhow::Error::msg)?;
+            held.pools
+                .iter()
+                .position(|pool| pool.name() == name.as_str())
+        }
+        (PageKind::Pool, None) => bail!(
+            "nothing was shown — name the pool whose properties are stated, for example `--pool \
+             default`"
+        ),
+        _ => None,
+    };
+    app.adopt(session.projection_for(Selected {
+        candidate: describe,
+        provider: selected,
+        pool: standing_on_pool,
+    }));
     app.surface = Surface::Page(kind);
     let missing = app.page(kind).is_none();
     print_surface(app, markers, PAGE_HEIGHT);
@@ -794,6 +948,20 @@ fn perform(session: &mut Session, action: Action) {
         Action::RefreshProviderModels { family } => {
             let pending = session.refresh_provider_models(family);
             session.settle_measurement(pending);
+        }
+        Action::SetPoolEntryPermitted {
+            pool,
+            entry,
+            permitted,
+        } => {
+            session.set_pool_entry_permitted(pool, entry, permitted);
+        }
+        Action::SetPoolCapacity {
+            pool,
+            max_agents,
+            max_concurrent_attempts,
+        } => {
+            session.set_pool_capacity(pool, max_agents, max_concurrent_attempts);
         }
         // A command has no second thread to wait on: its own process is the check, and it has
         // already finished by the time anything could ask for it to be abandoned.

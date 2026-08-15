@@ -29,7 +29,7 @@ use crossterm::event::KeyCode;
 use support::{press, screen};
 use ymp_runtime_registry::{ProviderFamily, RegistryAddress};
 use ymp_tui::Session;
-use ymp_tui::app::MeasurementOutcome;
+use ymp_tui::app::{MeasurementOutcome, Selected};
 use ymp_tui::state::{App, PageKind};
 
 /// How long the planted engine takes to answer `--version`. Long enough that a held interface
@@ -49,6 +49,15 @@ fn plant(path: &Path, body: &str) {
     let mut permissions = fs::metadata(path).expect("metadata").permissions();
     permissions.set_mode(0o700);
     fs::set_permissions(path, permissions).expect("make the planted engine executable");
+}
+
+/// Where the operator is standing, as the event loop reports it to the session: on the row of the
+/// provider table whose properties are open, and on no other.
+fn standing_on(app: &App) -> Selected {
+    Selected {
+        provider: app.provider_index,
+        ..Selected::none()
+    }
 }
 
 #[test]
@@ -105,7 +114,7 @@ fn taking_the_decision_returns_before_the_engine_does() {
     session.start_measurement(pending, move |outcome| {
         let _ = deliver.send(outcome);
     });
-    app.adopt(session.projection_for(None, app.provider_index));
+    app.adopt(session.projection_for(standing_on(&app)));
     app.surface = ymp_tui::state::Surface::Page(PageKind::Providers);
 
     // The engine is running. Until it has actually started there is nothing to be held by, so the
@@ -164,7 +173,7 @@ fn taking_the_decision_returns_before_the_engine_does() {
         .recv_timeout(OUTCOME_WAIT)
         .expect("the measurement returned its outcome through the channel");
     session.finish_measurement(outcome);
-    app.adopt(session.projection_for(None, app.provider_index));
+    app.adopt(session.projection_for(standing_on(&app)));
     assert!(
         !session.is_measuring(),
         "the interface still states a measurement that has landed"
@@ -194,5 +203,22 @@ fn taking_the_decision_returns_before_the_engine_does() {
         started.len(),
         1,
         "the account was measured other than once: {started:?}"
+    );
+
+    // The observation is where the pools are resolved against the catalog it left, and this is the
+    // path the interface takes to one: the outcome came back from a worker, and the reply states
+    // what the pools hold after that resolution rather than before it. The planted engine serves
+    // no model, so the catalog offers nothing and this root holds no pool — which is the state
+    // P3 states, not a resolution that failed to run.
+    let stated = session
+        .projection(None)
+        .entries
+        .iter()
+        .map(|entry| format!("{entry:?}"))
+        .collect::<Vec<_>>()
+        .join("\n");
+    assert!(
+        stated.contains("no pool stands under this root"),
+        "the reply the measurement landed with does not state what the pools hold:\n{stated}"
     );
 }
