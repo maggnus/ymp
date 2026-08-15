@@ -3,23 +3,23 @@ id: W1-PRD-05d
 kind: task
 wave: W1
 card: W1-PRD-05
-state: active
+state: accepted
 risk: significant
 maturity: BUILD
 relation: required
 depends_on: [W1-PRD-05b, W1-PRD-05c]
 blocks: []
 created_at: 2026-08-15T18:55:00+08:00
-updated_at: 2026-08-15T18:55:00+08:00
+updated_at: 2026-08-15T23:30:00+08:00
 started_at: 2026-08-15T18:55:00+08:00
-accepted_at:
-candidate_commit:
+accepted_at: 2026-08-15T23:30:00+08:00
+candidate_commit: 72b288b
 closure_commit:
 evidence:
 duration_minutes: 0
 blocker:
 pause_reason:
-return_trigger:
+return_trigger: a live-session disable that leaves the just-disabled account routable (in-session staleness) reaching a run start; the frozen interface during measurement reaching an operator-facing release
 deliberate_partial: false
 ---
 
@@ -57,13 +57,27 @@ models rather than shortening the catalog silently.
 
 ## Acceptance
 
-- [ ] On a fresh root `/providers` lists the supported providers all disabled with no probe having
+- [x] On a fresh root `/providers` lists the supported providers all disabled with no probe having
       run (negative half: any probe before Enable is a failing test); Enable on a row probes,
       records the observation with its time, and `/models` shows the catalog; Refresh re-observes.
-- [ ] A deleted engine record shows as a route with no models, not as a shorter catalog; a stale
+- [x] A deleted engine record shows as a route with no models, not as a shorter catalog; a stale
       observation is stated with its age.
-- [ ] Deterministic screen tests (80×24, 120×40) for the three surfaces; each key is a command.
+- [x] Deterministic screen tests (80×24, 120×40) for the three surfaces; each key is a command.
 
 ## Current state
 
-Active.
+Accepted 2026-08-15 (candidate 72b288b after one RETURN pass; review ACCEPT WITH RESIDUE; merged at b25420d).
+
+## Findings
+
+- Product measures nothing before Enable: TUI start, `show providers|models|provider|runtimes` → 0
+  engine invocations on a fresh root (fake-binary log); `provider enable` → exactly one probe.
+- P1 residues closed: observation time (`observed_at_ms`, additive; Never/Undated/Ahead/Age),
+  deleted engine record shows as a route with no models.
+- Round-1 RETURN closed: `show runtimes` no longer probes unconditionally; a disabled-but-measured
+  provider states its measurements and age beside the reason. Columns per S03 (STATE, OBSERVED).
+- Pre-existing `engine_registry` assertion fixed deterministically (`0 ready · 2 unusable`).
+- Residues: in-session staleness — the disable arm of `set_provider_enabled` re-reads but does not
+  re-measure, so a live session may still route to a just-disabled account (one line; P4 takes it);
+  ~29–42 s frozen interface with no repaint/cancel during measurement (own node: worker thread);
+  the ↳ reason line is clipped at 80 columns; provider→engine binding at run start is P5.
