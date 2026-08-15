@@ -97,6 +97,7 @@
 | `[x]` | [`W1-PRD-05a`](waves/W1/W1-PRD-05/tasks/W1-PRD-05a.md) | The collective design deliverable | [`decd7ea`](https://github.com/maggnus/ymp/commit/decd7ea) | 15/08 02:07 | 15/08 07:47 (0m) |
 | `[x]` | [`W1-PRD-05b`](waves/W1/W1-PRD-05/tasks/W1-PRD-05b.md) | The product root carries provider and catalog records (P1) | [`09fc9c4`](09fc9c4) | 15/08 15:07 | 15/08 16:12 (0m) |
 | `[x]` | [`W1-PRD-05c`](waves/W1/W1-PRD-05/tasks/W1-PRD-05c.md) | Design correction under product brief v2 (TUI ownership + CRD resource model) | [`6dec28e`](6dec28e) | 15/08 16:12 | 15/08 18:55 (0m) |
-| `[~]` | [`W1-PRD-05d`](waves/W1/W1-PRD-05/tasks/W1-PRD-05d.md) | Provider and model surfaces; probing gated on Enable (P2) | — | 15/08 18:55 | 15/08 18:55 (0m) |
+| `[x]` | [`W1-PRD-05d`](waves/W1/W1-PRD-05/tasks/W1-PRD-05d.md) | Provider and model surfaces; probing gated on Enable (P2) | [`72b288b`](72b288b) | 15/08 18:55 | 15/08 23:30 (0m) |
 | `[x]` | [`W1-PRD-05e`](waves/W1/W1-PRD-05/tasks/W1-PRD-05e.md) | The AgentPool resource, its reconciler and the automatic `default` (P3) | [`ffde816`](ffde816) | 15/08 18:55 | 15/08 22:30 (0m) |
 | `[~]` | [`W1-PRD-05f`](waves/W1/W1-PRD-05/tasks/W1-PRD-05f.md) | /pools surfaces and the reconciler wired to the enable transition (P4) | — | 15/08 23:05 | 15/08 23:05 (0m) |
+| `[~]` | [`W1-PRD-05g`](waves/W1/W1-PRD-05/tasks/W1-PRD-05g.md) | Provider measurement runs off the interface thread | — | 15/08 23:35 | 15/08 23:35 (0m) |
