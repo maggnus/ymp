@@ -112,6 +112,52 @@ fn both_decision_surfaces_and_the_key_map_are_reachable_at_both_sizes() {
     }
 }
 
+/// The rows between the left and right border of a floating surface, in order.
+fn modal_rows(rendered: &str) -> Vec<String> {
+    rendered
+        .lines()
+        .filter_map(|line| {
+            let start = line.find('│')?;
+            let end = line.rfind('│')?;
+            (end > start).then(|| line[start + '│'.len_utf8()..end].trim_end().to_owned())
+        })
+        .collect()
+}
+
+#[test]
+fn the_key_map_shows_every_group_at_both_sizes() {
+    for (width, height) in SIZES {
+        let mut app = app_for(Some(&scenario::running()), vec![contract(true)]);
+        press(&mut app, KeyCode::Char('?'), height);
+        let rendered = screen(&app, width, height);
+        let rows = modal_rows(&rendered);
+
+        for (group, keys) in ymp_tui::overlay::KEY_GROUPS {
+            assert!(
+                rows.iter().any(|row| row.trim() == *group),
+                "the key map dropped the {group:?} group at {width}x{height}:\n{rendered}"
+            );
+            for (key, label) in *keys {
+                // The narrow map may cut a long description on the right; the row itself, and
+                // enough of the description to tell two rows apart, has to survive.
+                let head: String = label.chars().take(20).collect();
+                assert!(
+                    rows.iter().any(|row| {
+                        let row = row.trim_start();
+                        row.starts_with(key) && row.contains(&head)
+                    }),
+                    "the key map dropped {key:?} of {group:?} at {width}x{height}:\n{rendered}"
+                );
+            }
+        }
+        assert!(
+            rows.iter()
+                .any(|row| row.trim().starts_with("no mouse — every action")),
+            "the key map dropped its closing note at {width}x{height}:\n{rendered}"
+        );
+    }
+}
+
 /// A run identifier the product actually generates: `ymp internal managed-candidate-smoke`
 /// names its run with a prefix and a UUID. A short fixture leaves the decision title well
 /// inside the frame; a real one does not, and the irreversibility marker is what must survive.

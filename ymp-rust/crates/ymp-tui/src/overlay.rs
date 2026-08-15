@@ -21,7 +21,7 @@ pub fn modal_spec(app: &App, area: Rect, markers: &Markers) -> Option<ModalSpec>
         Modal::Palette(palette) => Some(palette_spec(palette, area)),
         Modal::Authorize(authorize) => Some(authorize_spec(authorize, area, markers)),
         Modal::Confirm(confirm) => Some(confirm_spec(confirm, markers)),
-        Modal::Keys => Some(keys_spec(app)),
+        Modal::Keys => Some(keys_spec(app, area)),
     }
 }
 
@@ -358,7 +358,67 @@ pub const KEY_GROUPS: &[(&str, &[(&str, &str)])] = &[
 
 const KEYS_WIDTH: u16 = 64;
 
-fn keys_spec(app: &App) -> ModalSpec {
+/// How much room the key map spends on anything other than the keys themselves.
+///
+/// The map is reference material with no scroll position of its own, so on a short terminal it
+/// gives up its spacing rather than its last group: a binding the operator cannot see is a
+/// binding that does not exist for them.
+#[derive(Clone, Copy)]
+struct KeysSpacing {
+    /// A blank row between two groups.
+    groups: bool,
+    /// The blank rows that set the assurance sentence and the closing note apart.
+    padding: bool,
+    /// The closing note.
+    note: bool,
+}
+
+/// Tried in order, most generous first; the last one is what a very short terminal gets.
+const KEYS_SPACINGS: [KeysSpacing; 4] = [
+    KeysSpacing {
+        groups: true,
+        padding: true,
+        note: true,
+    },
+    KeysSpacing {
+        groups: false,
+        padding: true,
+        note: true,
+    },
+    KeysSpacing {
+        groups: false,
+        padding: false,
+        note: true,
+    },
+    KeysSpacing {
+        groups: false,
+        padding: false,
+        note: false,
+    },
+];
+
+fn keys_spec(app: &App, area: Rect) -> ModalSpec {
+    // What a floating surface may fill: the frame layer keeps one row of margin above and below
+    // the centred surface, and two more rows go to its own border. The badge stays on that
+    // border at every supported width — below 80x24 the size guard replaces the interface — so
+    // it never claims a body row here.
+    let room = area.height.saturating_sub(4) as usize;
+    let spacing = KEYS_SPACINGS
+        .iter()
+        .find(|spacing| keys_body(app, **spacing).len() <= room)
+        .copied()
+        .unwrap_or(KEYS_SPACINGS[KEYS_SPACINGS.len() - 1]);
+
+    ModalSpec {
+        title: "keys".into(),
+        badge: "? or Esc to close".into(),
+        role: ModalRole::Reference,
+        width: KEYS_WIDTH,
+        body: keys_body(app, spacing),
+    }
+}
+
+fn keys_body(app: &App, spacing: KeysSpacing) -> Vec<Line<'static>> {
     let mut body: Vec<Line<'static>> = Vec::new();
 
     // The transcript states the assurance profile once, as a glyph in the header. The sentence
@@ -370,11 +430,13 @@ fn keys_spec(app: &App) -> ModalSpec {
         ) {
             body.push(Line::from(Span::styled(piece, theme::amber())));
         }
-        body.push(Line::default());
+        if spacing.padding {
+            body.push(Line::default());
+        }
     }
 
     for (index, (group, keys)) in KEY_GROUPS.iter().enumerate() {
-        if index > 0 {
+        if index > 0 && spacing.groups {
             body.push(Line::default());
         }
         body.push(Line::from(Span::styled(
@@ -382,23 +444,28 @@ fn keys_spec(app: &App) -> ModalSpec {
             theme::muted(),
         )));
         for (key, label) in *keys {
+            // Without the blank rows the group name is the only thing that separates two
+            // groups, so the keys under it are indented to read as belonging to it. The label
+            // column does not move: the indent is taken out of the key column.
+            let key = if spacing.groups {
+                pad(key, 16)
+            } else {
+                format!("  {}", pad(key, 14))
+            };
             body.push(Line::from(vec![
-                Span::styled(pad(key, 16), theme::accent()),
+                Span::styled(key, theme::accent()),
                 Span::styled((*label).to_owned(), theme::dim()),
             ]));
         }
     }
-    body.push(Line::default());
-    body.push(Line::from(Span::styled(
-        "no mouse — every action is reachable from this map".to_owned(),
-        theme::faint(),
-    )));
-
-    ModalSpec {
-        title: "keys".into(),
-        badge: "? or Esc to close".into(),
-        role: ModalRole::Reference,
-        width: KEYS_WIDTH,
-        body,
+    if spacing.note {
+        if spacing.padding {
+            body.push(Line::default());
+        }
+        body.push(Line::from(Span::styled(
+            "no mouse — every action is reachable from this map".to_owned(),
+            theme::faint(),
+        )));
     }
+    body
 }
