@@ -3,20 +3,20 @@ id: W1-APP-02o
 kind: task
 wave: W1
 card: W1-APP-02
-state: active
+state: accepted
 risk: significant
 maturity: BUILD
 relation: required
 depends_on: [W1-APP-02m]
 blocks: []
 created_at: 2026-08-13T14:47:29+08:00
-updated_at: 2026-08-15T13:24:11+08:00
+updated_at: 2026-08-15T14:21:36+08:00
 started_at: 2026-08-15T13:24:11+08:00
-accepted_at:
-candidate_commit:
-closure_commit:
-evidence:
-duration_minutes: 0
+accepted_at: 2026-08-15T14:21:36+08:00
+candidate_commit: https://github.com/maggnus/ymp/commit/29c86c5be8442094f3361accd0c5e137feead2dd
+closure_commit: https://github.com/maggnus/ymp/commit/96e041b
+evidence: one return round; the re-review drove twenty-two mutations — every start form, cfg shape and alias route it could construct was refused, only the stated macro/include boundaries pass; the old one_start_path guard stays for crates outside the shipped closure and its retirement is a separate node
+duration_minutes: 200
 blocker:
 pause_reason:
 return_trigger:
