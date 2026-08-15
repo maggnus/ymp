@@ -105,6 +105,20 @@ fn submit(app: &mut App, session: &mut Session, text: &str) {
             reason,
         }) => session.set_provider_enabled(family, enabled, reason),
         Some(Action::RefreshProviderModels { family }) => session.refresh_provider_models(family),
+        Some(Action::SetPoolEntryPermitted {
+            pool,
+            entry,
+            permitted,
+        }) => {
+            session.set_pool_entry_permitted(pool, entry, permitted);
+        }
+        Some(Action::SetPoolCapacity {
+            pool,
+            max_agents,
+            max_concurrent_attempts,
+        }) => {
+            session.set_pool_capacity(pool, max_agents, max_concurrent_attempts);
+        }
         Some(Action::Rebuild) | None => {}
     }
     app.adopt(session.projection(None));

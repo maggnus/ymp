@@ -37,6 +37,7 @@ use crate::decisions;
 use crate::draft::{Amendment, Assembly, Draft, DraftJob};
 use crate::journal::Model;
 use crate::pages::Page;
+use crate::pools::{self, PoolCapacity, PoolEntry, PoolName};
 use crate::projection::{ContractFacts, Environment, Projection};
 use crate::providers;
 use crate::runtimes::Report;
@@ -72,6 +73,17 @@ const DRAFT_DIRECTORY: &str = "draft";
 /// is named with it. The sentence `no providers configured` is what this replaces.
 const A_GOAL_NEEDS_A_PROVIDER: &str = "your goal is held · running it needs at least one enabled AI provider — /providers is where \
      one is enabled · nothing has started and nothing has left this host";
+/// The state a goal is answered with where this host offers models and holds no pool to draw them
+/// from.
+///
+/// It should not occur: the pools are resolved wherever a provider is observed, so the pool that
+/// permits the catalog exists from the first measurement onwards. It is stated all the same,
+/// because a state nothing explains is worse than a state nobody expected, and it names the act
+/// that resolves the pools rather than asking the operator to create one — nothing but the
+/// controller creates a pool.
+const A_GOAL_NEEDS_A_POOL: &str = "your goal is held · this host offers models and holds no pool to draw them from, which is a \
+     state it should never reach — /providers · r measures the account again and resolves the \
+     pools · nothing has started and nothing has left this host";
 /// What an export directory is called when the operator names none. The run identifier follows it.
 const EXPORT_PREFIX: &str = "ymp-evidence-";
 
@@ -93,6 +105,10 @@ pub struct Session {
     /// The provider level as this root holds it. It is read from the records — never probed — so
     /// holding it costs nothing and opening the table measures nothing.
     providers: providers::Report,
+    /// The pool level as this root holds it, read from the records for the same reason. It is
+    /// re-read wherever the records are written, so what the surfaces state is what the controller
+    /// last resolved rather than a resolution taken behind the operator while they looked at it.
+    pools: pools::Report,
     /// The request being assembled from what the operator typed, while one is.
     draft: Option<Draft>,
     /// Every contract this session can start a run from, whatever supplied it: a package the
@@ -120,6 +136,28 @@ pub struct Session {
     /// Which verification this session is waiting for, under the same rule as a draft check: an
     /// outcome from work that has been superseded decides nothing.
     verifying: u64,
+}
+
+/// The rows the operator is standing on, for the surfaces whose views exist only while one is.
+///
+/// A properties view is not a value the caller supplies but a position it reports: naming the
+/// three positions together is what keeps a caller from handing the pool's row to the provider's
+/// view, which three bare positions in a row would invite.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct Selected {
+    /// Which candidate the describe view is showing.
+    pub candidate: Option<usize>,
+    /// Which row of the provider table its properties view is showing.
+    pub provider: Option<usize>,
+    /// Which row of the pool table its properties view is showing.
+    pub pool: Option<usize>,
+}
+
+impl Selected {
+    /// Standing on no row of any of them, which is where a caller that only wants the pages is.
+    pub fn none() -> Self {
+        Self::default()
+    }
 }
 
 /// A demonstration this session asked for, ready to be run wherever the caller decides.
@@ -204,6 +242,7 @@ impl Session {
         session.root = Some(root.to_path_buf());
         session.registry = RegistryAddress::Root(root.to_path_buf());
         session.read_providers();
+        session.read_pools();
         session
     }
 
@@ -215,6 +254,7 @@ impl Session {
     ) -> Self {
         let registry = RegistryAddress::Store(data_root.to_path_buf());
         let providers = providers::read(&registry, SystemTime::now());
+        let pools = pools::read(&registry);
         Self {
             application: application.map(|application| Arc::new(Mutex::new(application))),
             root: None,
@@ -223,6 +263,7 @@ impl Session {
             model,
             runtimes: None,
             providers,
+            pools,
             draft: None,
             contracts: contracts.to_vec(),
             checking: 0,
@@ -291,12 +332,43 @@ impl Session {
     pub fn with_registry_root(mut self, root: &Path) -> Self {
         self.registry = RegistryAddress::Root(root.to_path_buf());
         self.read_providers();
+        self.read_pools();
         self
     }
 
     /// Re-read the provider level from the records. Starts nothing and writes nothing.
     pub fn read_providers(&mut self) {
         self.providers = providers::read(&self.registry, SystemTime::now());
+    }
+
+    /// Re-read the pool level from the records. Starts nothing, writes nothing and resolves
+    /// nothing: what it states is what the controller last wrote.
+    pub fn read_pools(&mut self) {
+        self.pools = pools::read(&self.registry);
+    }
+
+    /// Resolve every pool of this root against the catalog as it now stands, and create the
+    /// `default` pool where the catalog offers an entry and this root holds none.
+    ///
+    /// This is the pool controller, and it runs wherever a provider is observed: enabling an
+    /// account, measuring one again and holding one back all change which entries the catalog
+    /// offers, so all three leave the pools resolved against what the catalog now holds. That is
+    /// what makes `default` exist from the first measurement onwards — the operator is never asked
+    /// to create a pool — and what makes holding the last account back leave that pool empty and
+    /// standing rather than deleted.
+    ///
+    /// It creates no participant, opens no process and spends nothing. A resolution that fails is
+    /// stated rather than swallowed: a pool left resolved against an older catalog is a fact the
+    /// operator can act on, and a silent failure is not.
+    fn reconcile_pools(&mut self) {
+        let pools = self.registry.pools();
+        if let Err(error) = pools.reconcile(&self.registry.providers(), &self.registry.registry()) {
+            self.model.error(format!(
+                "the pools were not resolved against the catalog as it now stands — {error} · what \
+                 they state is the resolution before this change",
+            ));
+        }
+        self.read_pools();
     }
 
     /// The engines this session may measure without being asked to: those of the providers the
@@ -331,18 +403,22 @@ impl Session {
                 self.measure_enabled_providers();
                 self.model.reply(format!(
                     "the {} provider is enabled · recorded in {recorded_at} · repository content \
-                     of any workspace may now be sent to it · {}",
+                     of any workspace may now be sent to it · {} · {}",
                     family.name(),
-                    self.measurement_of(family)
+                    self.measurement_of(family),
+                    self.pools_after_the_change()
                 ));
             }
             Ok(record) => {
                 self.read_providers();
+                self.withdraw_routing_of(family);
+                self.reconcile_pools();
                 self.model.reply(format!(
                     "the {} provider is disabled — {} · recorded in {recorded_at} · its models are \
-                     not offered and reach no later pool · nothing it measured was erased",
+                     not offered and reach no later pool · nothing it measured was erased · {}",
                     family.name(),
-                    record.display_reason()
+                    record.display_reason(),
+                    self.pools_after_the_change()
                 ));
             }
         }
@@ -368,10 +444,81 @@ impl Session {
         }
         self.measure_enabled_providers();
         self.model.reply(format!(
-            "the {} provider was measured again · {}",
+            "the {} provider was measured again · {} · {}",
             family.name(),
-            self.measurement_of(family)
+            self.measurement_of(family),
+            self.pools_after_the_change()
         ));
+    }
+
+    /// What the pools of this root state after an observation, in one clause.
+    ///
+    /// It names the pool the operator never created, because an automatic record that appeared
+    /// without being announced is a record nobody knows to look at. A root whose catalog offers
+    /// nothing holds no pool, and that is stated as the state it is rather than as a failure.
+    ///
+    /// A pool that exists and cannot be read is neither of those, and it is stated as itself. The
+    /// reading answers a failure with no pools, so a reply that read that emptiness as a state
+    /// would tell an operator whose catalog offers two models that there is nothing to draw from —
+    /// which is the very contradiction the `/pools` page avoids by naming the failure.
+    fn pools_after_the_change(&self) -> String {
+        if let Some(error) = &self.pools.error {
+            return format!(
+                "the pools could not be read in full, so what they now hold is not stated — {error}"
+            );
+        }
+        match self.pools.pools.as_slice() {
+            [] => "no pool stands under this root: the catalog offers no entry to draw from"
+                .to_owned(),
+            pools => format!(
+                "pools · {}",
+                pools
+                    .iter()
+                    .map(|pool| format!(
+                        "{} {} · {} of {} offered",
+                        pool.name(),
+                        pool.state().label(),
+                        pool.admissible(),
+                        pool.record.resolved.entries.len()
+                    ))
+                    .collect::<Vec<_>>()
+                    .join(" · ")
+            ),
+        }
+    }
+
+    /// Take back what this session measured about the engines of one account, without starting
+    /// anything.
+    ///
+    /// Holding an account back is not a measurement, so nothing is started here. What must not
+    /// survive it is the readiness this session measured while the account was enabled: a profile
+    /// left `ready` after its account was held back would still be offered as the route of the
+    /// next run, and the operator's decision would reach the records and not the session they took
+    /// it in. The engines of the accounts they did not touch keep exactly what was measured about
+    /// them, because nothing about those accounts changed.
+    fn withdraw_routing_of(&mut self, family: ProviderFamily) {
+        let withdrawn = family.engines();
+        let read = crate::runtimes::read_all(&self.registry);
+        match self.runtimes.as_mut() {
+            None => self.runtimes = Some(read),
+            Some(report) => {
+                for profile in &mut report.profiles {
+                    let Some(engine) = profile.registry.as_ref().map(|facts| facts.engine) else {
+                        continue;
+                    };
+                    if !withdrawn.contains(&engine) {
+                        continue;
+                    }
+                    if let Some(fresh) = read
+                        .profiles
+                        .iter()
+                        .find(|fresh| fresh.registry.as_ref().is_some_and(|f| f.engine == engine))
+                    {
+                        *profile = fresh.clone();
+                    }
+                }
+            }
+        }
     }
 
     /// Start the engines of every enabled provider, record what they serve, and observe the
@@ -417,6 +564,10 @@ impl Session {
             }
         }
         self.read_providers();
+        // The observation is what the catalog is derived from, so the pools are resolved against
+        // it here rather than at the next surface that happens to read them: a pool is what a run
+        // may recruit from, and it must state the catalog this host has now.
+        self.reconcile_pools();
     }
 
     /// What the last measurement of one provider found, in one clause.
@@ -446,6 +597,143 @@ impl Session {
     /// How this session addresses the engine registry.
     pub fn registry_address(&self) -> &RegistryAddress {
         &self.registry
+    }
+
+    /// The pool level as this session last read it, which is what a key acts on.
+    pub fn pools(&self) -> &pools::Report {
+        &self.pools
+    }
+
+    /// Permit one entry in a pool, or take it out.
+    ///
+    /// The list this leaves is computed from the record and never from the screen, so an edit
+    /// applies to the pool as it stands. It is one entry either way: the operator pressed a key on
+    /// the row that names it, and the whole list is never restated.
+    ///
+    /// **The first edit of a pool that follows the catalog replaces the whole-catalog form.** The
+    /// consequence was on the surface above the key, so the reply says what was done rather than
+    /// asking whether it was meant: the pool now holds the list the operator left, and a model
+    /// measured later joins the catalog and not this pool.
+    pub fn set_pool_entry_permitted(
+        &mut self,
+        pool: PoolName,
+        entry: PoolEntry,
+        permitted: bool,
+    ) -> bool {
+        let records = self.registry.pools();
+        let record = match records.read(&pool) {
+            Err(error) => {
+                self.model
+                    .error(format!("the {pool} pool was not changed — {error}"));
+                return false;
+            }
+            Ok(None) => {
+                self.model.error(format!(
+                    "the {pool} pool was not changed — this root holds no pool of that name, and \
+                     nothing but the controller creates one"
+                ));
+                return false;
+            }
+            Ok(Some(record)) => record,
+        };
+        let was_tracking = record.resolved.tracking;
+        let list = pools::permitted_after(&record, &entry, permitted);
+        let outcome = records.edit(
+            &pool,
+            &self.registry.providers(),
+            &self.registry.registry(),
+            |declared| {
+                declared.models = ymp_runtime_registry::PoolModels::explicit(list);
+            },
+        );
+        match outcome {
+            Err(error) => {
+                self.model.error(format!(
+                    "the {pool} pool was not changed — {error} · it stands exactly as it did"
+                ));
+                false
+            }
+            Ok(record) => {
+                self.read_pools();
+                self.model.reply(format!(
+                    "{} · {} · {} of {} entries offered · recorded in {}{}",
+                    match permitted {
+                        true => format!(
+                            "the {pool} pool permits {} through the {} engine of {}",
+                            entry.model, entry.engine, entry.provider
+                        ),
+                        false => format!(
+                            "the {pool} pool no longer permits {} through the {} engine of {}",
+                            entry.model, entry.engine, entry.provider
+                        ),
+                    },
+                    match was_tracking {
+                        true =>
+                            "it held every admissible entry and now holds the list you left, \
+                                 so it no longer follows the catalog: a model measured later joins \
+                                 the catalog and not this pool",
+                        false => "it already held an explicit list and still does",
+                    },
+                    record.resolved.admissible,
+                    record.resolved.entries.len(),
+                    records.path_of(&pool).display(),
+                    match self.attempt.is_some() {
+                        true =>
+                            " · the run that is working holds the snapshot it froze and is \
+                                 not disturbed",
+                        false => "",
+                    }
+                ));
+                true
+            }
+        }
+    }
+
+    /// Raise or lower a pool's ceilings.
+    ///
+    /// Each ceiling is stated absolutely and each is optional, so a surface that moves one of them
+    /// leaves the other exactly as the record holds it. Neither is a target: nothing creates a
+    /// participant to reach one, and the digest a run freezes does not move when one changes,
+    /// because the digest follows the entries and their order alone.
+    pub fn set_pool_capacity(
+        &mut self,
+        pool: PoolName,
+        max_agents: Option<u32>,
+        max_concurrent_attempts: Option<u32>,
+    ) -> bool {
+        let records = self.registry.pools();
+        let outcome = records.edit(
+            &pool,
+            &self.registry.providers(),
+            &self.registry.registry(),
+            |declared| {
+                declared.capacity = PoolCapacity {
+                    max_agents: max_agents.unwrap_or(declared.capacity.max_agents),
+                    max_concurrent_attempts: max_concurrent_attempts
+                        .unwrap_or(declared.capacity.max_concurrent_attempts),
+                };
+            },
+        );
+        match outcome {
+            Err(error) => {
+                self.model.error(format!(
+                    "the {pool} pool was not changed — {error} · it stands exactly as it did"
+                ));
+                false
+            }
+            Ok(record) => {
+                self.read_pools();
+                self.model.reply(format!(
+                    "the {pool} pool is held to up to {} participants and up to {} attempts at \
+                     once · both are ceilings and neither is a target: nothing creates a \
+                     participant to reach one · recorded in {}",
+                    record.declared.capacity.max_agents,
+                    record.declared.capacity.max_concurrent_attempts,
+                    records.path_of(&pool).display()
+                ));
+                true
+            }
+        }
     }
 
     /// Enable or disable one engine, and say what changed.
@@ -642,17 +930,26 @@ impl Session {
 
     /// The full projection for the given describe selection.
     pub fn projection(&self, describe: Option<usize>) -> Projection {
-        self.projection_for(describe, None)
+        self.projection_for(Selected {
+            candidate: describe,
+            ..Selected::none()
+        })
     }
 
-    /// The full projection for the given describe and provider selections.
+    /// The full projection for the rows the operator is standing on.
     ///
-    /// Both are positions the operator is standing on rather than values: the properties view of a
-    /// provider exists while a row of the table is selected and not otherwise, exactly as the
+    /// Each of them is a position rather than a value: the properties view of a provider or of a
+    /// pool exists while a row of the table above it is selected and not otherwise, exactly as the
     /// describe view of a candidate does.
-    pub fn projection_for(&self, describe: Option<usize>, provider: Option<usize>) -> Projection {
+    pub fn projection_for(&self, selected: Selected) -> Projection {
+        let Selected {
+            candidate: describe,
+            provider,
+            pool,
+        } = selected;
         let mut projection = self.model.projection(self.runtimes.as_ref());
         self.push_provider_pages(&mut projection, provider);
+        self.push_pool_pages(&mut projection, pool);
         let (route, note) = attempt::routing_facts(self.route, self.runtimes.as_ref());
         projection.route = route;
         projection.route_note = note;
@@ -699,6 +996,35 @@ impl Session {
             pages.push((
                 PageKind::Provider,
                 providers::provider_page(selected, status),
+            ));
+        }
+        for (kind, page) in pages {
+            projection.commands.push(PaletteItem {
+                name: kind.command_name().to_owned(),
+                description: crate::journal::page_description(kind).to_owned(),
+                command: Command::OpenPage(kind),
+            });
+            projection.pages.push((kind, page));
+        }
+    }
+
+    /// Add the pool surfaces to a projection, with the palette entries that open them.
+    ///
+    /// They are added beside the provider surfaces and for the same reason: which entries a run
+    /// may recruit from is the product root's own configuration and is not in the journal. The
+    /// list is always there, whether or not this root holds a pool — a page that vanished on a
+    /// fresh root would answer *where do my models come from* with nothing at all.
+    fn push_pool_pages(&self, projection: &mut Projection, pool: Option<usize>) {
+        let status = self.model.status_line();
+        projection.pools = Some(self.pools.clone());
+        let mut pages = vec![(
+            PageKind::Pools,
+            pools::pools_page(&self.pools, status.clone()),
+        )];
+        if let Some(selected) = pool.and_then(|index| self.pools.pool_at(index)) {
+            pages.push((
+                PageKind::Pool,
+                pools::pool_page(selected, &self.pools.entries, status),
             ));
         }
         for (kind, page) in pages {
@@ -802,6 +1128,18 @@ impl Session {
         // never a technical refusal (product brief, Part A §6).
         if self.providers.enabled_count() == 0 {
             self.model.reply(A_GOAL_NEEDS_A_PROVIDER);
+        } else if self.pools.is_empty()
+            && self
+                .providers
+                .entries
+                .iter()
+                .any(|entry| entry.is_admissible())
+        {
+            // A catalog that offers an entry and a root that holds no pool cannot both be true
+            // once the pools are resolved wherever a provider is observed. It is answered anyway,
+            // and in the same plain words: a state nobody expected is still a state, and the reply
+            // names the act that resolves the pools rather than leaving the operator to guess.
+            self.model.reply(A_GOAL_NEEDS_A_POOL);
         }
         match self.draft.as_mut() {
             None => {
@@ -1795,6 +2133,21 @@ pub enum Action {
     RefreshProviderModels {
         family: ProviderFamily,
     },
+    /// Permit one catalog entry in a pool, or take it out. The first edit of a pool that follows
+    /// the catalog replaces the whole-catalog form with the list the operator leaves, which is
+    /// stated above the key that takes it and is not confirmed afterwards.
+    SetPoolEntryPermitted {
+        pool: PoolName,
+        entry: PoolEntry,
+        permitted: bool,
+    },
+    /// State a pool's ceilings. Each is optional and each is absolute, so moving one leaves the
+    /// other exactly as the record holds it; neither is a target.
+    SetPoolCapacity {
+        pool: PoolName,
+        max_agents: Option<u32>,
+        max_concurrent_attempts: Option<u32>,
+    },
     /// Abandon the demonstration a typed answer started. It acts on this interface's own
     /// scheduling: nothing durable is written and nothing spent, so there is nothing for a
     /// command to mirror — a command's process is its own check.
@@ -1968,6 +2321,23 @@ fn perform(session: &mut Session, app: &mut App, action: Action, tx: &Sender<App
             session.refresh_provider_models(family);
             adopt(session, app);
         }
+        Action::SetPoolEntryPermitted {
+            pool,
+            entry,
+            permitted,
+        } => {
+            session.set_pool_entry_permitted(pool.clone(), entry.clone(), permitted);
+            adopt(session, app);
+            follow_the_toggled_entry(app, &pool, &entry);
+        }
+        Action::SetPoolCapacity {
+            pool,
+            max_agents,
+            max_concurrent_attempts,
+        } => {
+            session.set_pool_capacity(pool, max_agents, max_concurrent_attempts);
+            adopt(session, app);
+        }
         Action::StartAttempt => {
             session.start_attempt();
             adopt(session, app);
@@ -2012,9 +2382,35 @@ fn perform(session: &mut Session, app: &mut App, action: Action, tx: &Sender<App
     }
 }
 
+/// Put the cursor back on the entry a toggle acted on.
+///
+/// Permitting an entry or taking one out moves its row: the entries a pool permits stand first, in
+/// its declared order, and the rest of the catalog follows them. The cursor is kept by position, so
+/// without this the operator would be left standing on whatever row took the place of the one they
+/// acted on — and the next press would act on an entry they never chose. It is called after the
+/// projection is rebuilt, because the row it looks for exists only in the rebuilt one.
+pub fn follow_the_toggled_entry(app: &mut App, pool: &PoolName, entry: &PoolEntry) {
+    let Some(report) = app.data.pools.as_ref() else {
+        return;
+    };
+    let Some(facts) = report.named(pool) else {
+        return;
+    };
+    let moved = pools::rows(facts, &report.entries)
+        .iter()
+        .position(|row| matches!(row, pools::PoolRow::Entry(row) if row.entry == *entry));
+    if let Some(index) = moved {
+        app.select_row(PageKind::Pool, index);
+    }
+}
+
 /// Replace the projection and re-apply the operator's position within it.
 fn adopt(session: &Session, app: &mut App) {
-    app.adopt(session.projection_for(app.describe_index, app.provider_index));
+    app.adopt(session.projection_for(Selected {
+        candidate: app.describe_index,
+        provider: app.provider_index,
+        pool: app.pool_index,
+    }));
 }
 
 // ---------------------------------------------------------------------------
@@ -2111,8 +2507,9 @@ fn page_key(app: &mut App, kind: PageKind, key: KeyEvent) -> Option<Action> {
             app.surface = match kind {
                 PageKind::Describe => Surface::Page(PageKind::Candidates),
                 // A provider's properties were opened from the list, so leaving them returns to
-                // the list rather than to the conversation.
+                // the list rather than to the conversation. A pool's properties are the same.
                 PageKind::Provider => Surface::Page(PageKind::Providers),
+                PageKind::Pool => Surface::Page(PageKind::Pools),
                 _ => Surface::Transcript,
             };
             app.prompt.suspended = None;
@@ -2155,6 +2552,47 @@ fn page_key(app: &mut App, kind: PageKind, key: KeyEvent) -> Option<Action> {
             let (family, _) = focused_provider(app)?;
             return Some(Action::RefreshProviderModels { family });
         }
+        // The pool table is a list and nothing is decided on it: the row is opened, and what each
+        // act would do is stated there, above the key that takes it.
+        KeyCode::Enter if kind == PageKind::Pools => {
+            app.pool_index = Some(app.selection_of(kind));
+            app.surface = Surface::Page(PageKind::Pool);
+            return Some(Action::Rebuild);
+        }
+        // The acts an operator takes on one pool, each on the row it acts on: an entry is
+        // permitted or taken out, and a ceiling is raised or lowered. No model name is typed and
+        // nothing is confirmed afterwards, because the consequence stands above the key.
+        KeyCode::Enter if kind == PageKind::Pool => {
+            let (pool, row) = focused_pool_row(app)?;
+            let pools::PoolRow::Entry(entry) = row else {
+                return None;
+            };
+            return Some(Action::SetPoolEntryPermitted {
+                pool,
+                permitted: !entry.permitted,
+                entry: entry.entry,
+            });
+        }
+        KeyCode::Char(step @ ('+' | '-')) if kind == PageKind::Pool => {
+            let (pool, row) = focused_pool_row(app)?;
+            let pools::PoolRow::Capacity(ceiling) = row else {
+                return None;
+            };
+            let held = app
+                .data
+                .pools
+                .as_ref()?
+                .named(&pool)?
+                .record
+                .declared
+                .capacity;
+            let moved = ceiling.stepped(held, step == '+');
+            return Some(Action::SetPoolCapacity {
+                pool,
+                max_agents: Some(moved.max_agents),
+                max_concurrent_attempts: Some(moved.max_concurrent_attempts),
+            });
+        }
         // The runtimes page is where an engine is admitted or held back, so the decision is taken
         // on the row that states it. Disabling from here records no reason of its own; the reason
         // an operator wants recorded is stated on the `runtime disable <engine> <reason>` line.
@@ -2188,6 +2626,19 @@ fn focused_provider(app: &App) -> Option<(ProviderFamily, bool)> {
     let report = app.data.providers.as_ref()?;
     let provider = report.providers.get(app.provider_index?)?;
     Some((provider.family, provider.enabled()))
+}
+
+/// The pool whose properties are open, and the row the cursor stands on.
+///
+/// The rows are the ones the page drew, built by the same call, so a key acts on exactly what the
+/// operator can see. A row that carries no act — the digest, the observation — resolves here and
+/// is refused by the caller, which is why this returns the row rather than a decision.
+fn focused_pool_row(app: &App) -> Option<(PoolName, pools::PoolRow)> {
+    let report = app.data.pools.as_ref()?;
+    let pool = report.pool_at(app.pool_index?)?;
+    let rows = pools::rows(pool, &report.entries);
+    let row = rows.get(app.selection_of(PageKind::Pool))?;
+    Some((pool.pool(), row.clone()))
 }
 
 fn open_palette(app: &mut App) {

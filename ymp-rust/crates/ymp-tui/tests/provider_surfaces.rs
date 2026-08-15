@@ -27,7 +27,7 @@ use ymp_runtime_registry::{
     Engine, ModelCatalog, ModelSource, ProviderFamily, Registry, RegistryAddress,
 };
 use ymp_tui::Session;
-use ymp_tui::app::Action;
+use ymp_tui::app::{Action, Selected};
 use ymp_tui::state::{App, PageKind, Surface};
 
 /// A product root of this check's own. Nothing here reads or writes the owner's own root.
@@ -122,6 +122,15 @@ fn key_row(rendered: &[String], key: &str) -> usize {
     row
 }
 
+/// Where the operator is standing, as the event loop reports it to the session: on the row of the
+/// provider table whose properties are open, and on no other.
+fn standing_on(app: &App) -> Selected {
+    Selected {
+        provider: app.provider_index,
+        ..Selected::none()
+    }
+}
+
 /// Open a page and leave the operator standing on it.
 fn open(app: &mut App, name: &str, height: u16) {
     let action = open_command(app, name, height);
@@ -191,7 +200,7 @@ fn enter_opens_a_provider_and_the_disclosure_stands_above_the_key_that_enables()
         let action = press(&mut app, KeyCode::Enter, height);
         assert_eq!(action, Some(Action::Rebuild), "Enter opened nothing");
         assert_eq!(app.provider_index, Some(0));
-        app.adopt(session.projection_for(None, app.provider_index));
+        app.adopt(session.projection_for(standing_on(&app)));
         assert_eq!(app.surface, Surface::Page(PageKind::Provider));
 
         let rendered = buffer(&app, width, height);
@@ -245,7 +254,7 @@ fn the_keys_of_a_provider_are_the_actions_a_command_performs() {
     let mut app = App::new(session.projection(None));
     open(&mut app, "providers", 40);
     press(&mut app, KeyCode::Enter, 40);
-    app.adopt(session.projection_for(None, app.provider_index));
+    app.adopt(session.projection_for(standing_on(&app)));
 
     assert_eq!(
         press(&mut app, KeyCode::Char('e'), 40),
@@ -267,7 +276,7 @@ fn the_keys_of_a_provider_are_the_actions_a_command_performs() {
     press(&mut app, KeyCode::Esc, 40);
     press(&mut app, KeyCode::Down, 40);
     press(&mut app, KeyCode::Enter, 40);
-    app.adopt(session.projection_for(None, app.provider_index));
+    app.adopt(session.projection_for(standing_on(&app)));
     assert_eq!(
         press(&mut app, KeyCode::Char('e'), 40),
         Some(Action::SetProviderEnabled {
@@ -299,7 +308,7 @@ fn an_enabled_provider_states_its_measurement_and_its_age_at_both_sizes() {
         assert!(shown.contains('2'), "the model count is missing:\n{shown}");
 
         press(&mut app, KeyCode::Enter, height);
-        app.adopt(session.projection_for(None, app.provider_index));
+        app.adopt(session.projection_for(standing_on(&app)));
         let rendered = buffer(&app, width, height);
         let shown = rendered.join("\n");
         assert!(shown.contains("ago"), "no age is stated:\n{shown}");
@@ -398,7 +407,7 @@ fn the_provider_surfaces_are_deterministic_and_never_exceed_the_terminal() {
         let mut app = App::new(session.projection(None));
         open(&mut app, "providers", height);
         press(&mut app, KeyCode::Enter, height);
-        app.adopt(session.projection_for(None, app.provider_index));
+        app.adopt(session.projection_for(standing_on(&app)));
         let first = buffer(&app, width, height);
         assert_eq!(first, buffer(&app, width, height));
         assert_eq!(first.len(), height as usize);

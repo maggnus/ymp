@@ -85,6 +85,12 @@ pub enum PageKind {
     Provider,
     /// The model catalog, derived from the provider and engine records when it is read.
     Models,
+    /// The pools this root holds: which of the catalog's entries a run may recruit from. A root
+    /// where nothing has been measured holds none, and the page says what creates one.
+    Pools,
+    /// One pool's properties, and the acts that can be taken on its rows. It exists only while a
+    /// pool is selected, for the same reason a provider's properties do.
+    Pool,
     Runtimes,
     Candidates,
     Events,
@@ -100,10 +106,12 @@ pub enum PageKind {
 
 impl PageKind {
     /// Every page the interface supports, in palette order.
-    pub const ALL: [Self; 10] = [
+    pub const ALL: [Self; 12] = [
         Self::Providers,
         Self::Provider,
         Self::Models,
+        Self::Pools,
+        Self::Pool,
         Self::Runtimes,
         Self::Candidates,
         Self::Events,
@@ -118,6 +126,8 @@ impl PageKind {
             Self::Providers => "providers",
             Self::Provider => "provider",
             Self::Models => "models",
+            Self::Pools => "pools",
+            Self::Pool => "pool",
             Self::Runtimes => "runtimes",
             Self::Candidates => "candidates",
             Self::Events => "events",
@@ -253,6 +263,8 @@ pub struct App {
     pub describe_index: Option<usize>,
     /// Which row of the provider table the properties surface is showing.
     pub provider_index: Option<usize>,
+    /// Which row of the pool table the pool properties surface is showing.
+    pub pool_index: Option<usize>,
     /// How many heartbeats have been drawn while something runs away from the drawing thread.
     /// The input row reads it, so a redraw during a wait is visible on screen.
     pub working_ticks: usize,
@@ -273,6 +285,7 @@ impl App {
             viewing_around: None,
             describe_index: None,
             provider_index: None,
+            pool_index: None,
             working_ticks: 0,
             selection: HashMap::new(),
         };
@@ -312,6 +325,19 @@ impl App {
     pub fn select_prev(&mut self, kind: PageKind) {
         if let Some(page) = self.data.page_mut(kind) {
             page.select_prev();
+            let selected = page.selected;
+            self.selection.insert(kind, selected);
+        }
+    }
+
+    /// Put the cursor on one row of a page, and keep it there across later rebuilds.
+    ///
+    /// It exists for the act that moves the row it acted on: the cursor is kept by position, so a
+    /// row that changed places would leave the operator standing on a different subject without
+    /// having pressed anything. A position past the end of the page is taken as its last row.
+    pub fn select_row(&mut self, kind: PageKind, index: usize) {
+        if let Some(page) = self.data.page_mut(kind) {
+            page.selected = index.min(page.rows_len().saturating_sub(1));
             let selected = page.selected;
             self.selection.insert(kind, selected);
         }

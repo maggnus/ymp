@@ -301,6 +301,13 @@ no pool record and no `pools/` directory at all. Creating that one record is the
 controller ever writes: an existing record's `declared` is carried forward byte for byte, and the
 operator's own write carries the stored `resolved` forward the same way.
 
+**The controller runs wherever a provider is observed** — when an account is enabled, when it is
+measured again and when it is held back — because those are the three moments the catalog changes.
+A root therefore holds the `default` record from the first measurement that offers an entry
+onwards, and holding the last account back leaves that record standing and empty rather than
+removing it. Nothing else runs the controller: reading a surface resolves nothing, so what a reader
+sees is what the last observation wrote.
+
 **An edit replaces the whole-catalog form rather than adding to it.** Writing an explicit list is
 the operator's statement of which entries this pool permits, so the pool stops following the catalog
 and the record says so — `resolved.tracking` is false and the `explicit` state carries the sentence.
