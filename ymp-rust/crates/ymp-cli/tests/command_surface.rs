@@ -12,10 +12,12 @@
 //! * An answer stays an answer. A stated value that begins with the command prefix, or carries an escape or
 //!   a control character, must not reach a surface the command did not open — the reproduction
 //!   that led to this check started an irreversible run from an `authorize` invocation.
-//! * The journal is compared byte for byte. The same request is carried to a run and then
+//! * The journals are compared record by record. The same request is carried to a run and then
 //!   cancelled twice: once through the interface's own session, once through the commands of the
 //!   built executable. The two stores must hold the same events, in the same order, under the
-//!   same command identifiers.
+//!   same command identifiers. What is set aside is the run identifier and the digest chain that
+//!   follows it: a run is identified by its store as well as by its contract, so two stores hold
+//!   two runs and are meant to say so. Each store is required to name its own run and no other.
 //! * The approved-contract check is exercised from the command side: a request that states no
 //!   acceptance condition starts nothing and exits non-zero.
 //! * The typed confirmation is exercised from the command side: absent and wrong confirmations
@@ -688,8 +690,35 @@ fn through_the_interface(fixture: &Fixture, data_root: &Path) -> (String, String
     (contract_id, run_id)
 }
 
-fn journal(data_root: &Path) -> String {
-    fs::read_to_string(data_root.join("events.jsonl")).expect("committed journal")
+/// What a store committed, with the identity of the run set aside.
+///
+/// A run is identified by its contract and by the store that holds it, so two stores never commit
+/// one run identifier and never commit one digest chain. What the two surfaces must agree on is
+/// what was committed: the same events, in the same order, under the same command identifiers.
+fn committed(data_root: &Path) -> Vec<serde_json::Value> {
+    fs::read_to_string(data_root.join("events.jsonl"))
+        .expect("committed journal")
+        .lines()
+        .map(|line| {
+            let mut record: serde_json::Value =
+                serde_json::from_str(line).expect("every record is an event envelope");
+            let object = record.as_object_mut().expect("an envelope is an object");
+            for followed in ["run_id", "digest", "predecessor_digest"] {
+                object.remove(followed);
+            }
+            record
+        })
+        .collect()
+}
+
+/// The run this store holds, read from the store itself rather than derived a second time.
+fn run_id(data_root: &Path) -> String {
+    let session = Session::open(data_root, &[]);
+    session
+        .projection(None)
+        .run
+        .expect("the store holds a run")
+        .run_id
 }
 
 #[test]
@@ -698,7 +727,7 @@ fn the_command_and_the_interface_commit_the_same_journal() {
     let interface_root = fixture.data_root("interface");
     let command_root = fixture.data_root("command");
 
-    let (contract_id, run_id) = through_the_interface(&fixture, &interface_root);
+    let (contract_id, interface_run) = through_the_interface(&fixture, &interface_root);
 
     let mut start = fixture.request_arguments();
     start.insert(0, "start".to_owned());
@@ -710,9 +739,16 @@ fn the_command_and_the_interface_commit_the_same_journal() {
         String::from_utf8_lossy(&started.stderr)
     );
 
+    // The run this store holds is the one the command cancels: the store names its run, and the
+    // identifier the other store's run carries is not it.
+    let command_run = run_id(&command_root);
+    assert_ne!(
+        command_run, interface_run,
+        "two stores hold two runs and name them the same"
+    );
     let cancelled = fixture.command(
         &command_root,
-        &["cancel".to_owned(), format!("--confirm={run_id}")],
+        &["cancel".to_owned(), format!("--confirm={command_run}")],
     );
     assert!(
         cancelled.status.success(),
@@ -721,8 +757,8 @@ fn the_command_and_the_interface_commit_the_same_journal() {
     );
 
     assert_eq!(
-        journal(&command_root),
-        journal(&interface_root),
+        committed(&command_root),
+        committed(&interface_root),
         "the command and the interface committed different journals"
     );
 }
@@ -816,14 +852,16 @@ fn starting_a_run_requires_the_contract_id_to_be_typed() {
 #[test]
 fn cancelling_a_run_requires_the_run_id_to_be_typed() {
     let fixture = Fixture::new();
-    let (contract_id, run_id) = through_the_interface(&fixture, &fixture.data_root("cancel"));
-    // The interface cancelled its own run, so a second store carries the live one. The same
-    // request derives the same identifiers, so the run id above is the one this store holds.
+    let (contract_id, _) = through_the_interface(&fixture, &fixture.data_root("cancel"));
+    // The interface cancelled its own run, so a second store carries the live one. That store
+    // holds its own run: the identifier is read from it rather than derived from the request,
+    // which names the contract and not the run.
     let live = fixture.data_root("cancel-live");
     let mut arguments = fixture.request_arguments();
     arguments.insert(0, "start".to_owned());
     arguments.push(format!("--confirm={contract_id}"));
     assert!(fixture.command(&live, &arguments).status.success());
+    let run_id = run_id(&live);
 
     let attempts: [Option<String>; 3] = [None, Some("wrong".to_owned()), Some(run_id[..6].into())];
     for confirmation in &attempts {

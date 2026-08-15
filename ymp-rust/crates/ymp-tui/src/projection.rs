@@ -201,7 +201,9 @@ pub struct ContractFacts {
     pub verifier: Option<VerifierFacts>,
     /// The budget the run would start with, as the application derived it.
     pub budget: Option<Budget>,
-    /// The identifier the run would carry, when this contract can start one.
+    /// The identifier the run would carry in the store this session addresses, when this contract
+    /// can start one. A run is identified by its contract and its store together, so this is the
+    /// identifier of a start into that store and of no other.
     pub run_id: Option<String>,
     /// Why no run can be started from this contract, in the application's own words.
     pub blocked: Option<String>,
@@ -221,7 +223,10 @@ pub struct VerifierFacts {
 
 impl ContractFacts {
     /// The contract the application prepared: startable, with every value read from it.
-    pub fn from_prepared(prepared: &PreparedContract) -> Self {
+    ///
+    /// `store` is the store a run authorized now would be recorded in, because the identifier of
+    /// that run is derived from the contract and that store together.
+    pub fn from_prepared(prepared: &PreparedContract, store: &Path) -> Self {
         let verifier = prepared.verifier();
         Self {
             contract_id: prepared.contract_id().to_owned(),
@@ -235,7 +240,7 @@ impl ContractFacts {
                 wall_time_ms: verifier.wall_time_ms,
             }),
             budget: Some(prepared.budget.clone()),
-            run_id: Some(prepared.run_id()),
+            run_id: Some(prepared.run_id_in(store)),
             blocked: None,
             previously_authorized: false,
         }

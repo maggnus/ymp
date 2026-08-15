@@ -485,13 +485,31 @@ fn run_start(
     };
     app.modal = Modal::Confirm(decisions::start_run(&action));
 
+    // Which run this store held before the start, so a store that answers with the run it already
+    // held cannot be read as a run this command started.
+    let held_before = app.data.run.as_ref().map(|run| run.run_id.clone());
+
     let ConfirmAction::StartRun { run_id, .. } = commit(session, app, markers, confirm)? else {
         bail!("the interface confirmed something other than the start of a run");
     };
 
+    // A run is identified by its contract and by the store that holds it. This command addresses
+    // the store itself, so it knows that identifier before the start and holds the start to it.
+    // Where the interface could not name the store in advance, the run the store now holds is
+    // required to be one this command did not find there.
     match &app.data.run {
-        Some(run) if run.run_id == run_id => Ok(()),
-        _ => bail!("no run was started — the store holds no run under {run_id}"),
+        Some(run)
+            if run_id
+                .as_ref()
+                .is_none_or(|expected| &run.run_id == expected)
+                && held_before.as_ref() != Some(&run.run_id) =>
+        {
+            Ok(())
+        }
+        _ => match run_id {
+            Some(expected) => bail!("no run was started — the store holds no run under {expected}"),
+            None => bail!("no run was started — the store this authorization addressed holds none"),
+        },
     }
 }
 

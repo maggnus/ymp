@@ -155,7 +155,7 @@ fn a_typed_request_becomes_a_contract_and_starts_a_run_the_journal_records() {
         confirm.action,
         state::ConfirmAction::StartRun {
             contract_id: contract_id.clone(),
-            run_id: run_id.clone(),
+            run_id: Some(run_id.clone()),
         }
     );
     type_text(&mut app, &contract_id[..4], 40);
@@ -493,7 +493,7 @@ fn command_line_contract(workspace: &Workspace) -> ymp_application::PreparedCont
 fn a_contract_from_the_command_line_starts_the_same_run_a_typed_request_would() {
     let workspace = workspace();
     let contract = command_line_contract(&workspace);
-    let run_id = contract.run_id();
+    let run_id = contract.run_id_in(&workspace.data_root);
     let mut session = Session::open(&workspace.data_root, std::slice::from_ref(&contract));
     let mut app = App::new(session.projection(None));
 
@@ -508,7 +508,7 @@ fn a_contract_from_the_command_line_starts_the_same_run_a_typed_request_would() 
         .clone()
         .expect("a contract the command line supplied offers its run");
     assert_eq!(action.contract_id, "contract-from-the-command-line");
-    assert_eq!(action.run_id, run_id);
+    assert_eq!(action.run_id.as_deref(), Some(run_id.as_str()));
 
     press(&mut app, KeyCode::Enter, 40);
     type_text(&mut app, "contract-from-the-command-line", 40);

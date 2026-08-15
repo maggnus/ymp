@@ -194,7 +194,13 @@ pub fn authorize(
         .can_start(run, start.in_a_store_of_its_own)
         .then(|| AuthorizeAction {
             contract_id: contract.contract_id.clone(),
-            run_id: contract.run_id.clone().unwrap_or_default(),
+            // The projection derives the identifier for the store this session reads. A run that
+            // goes to a store of its own is not that run, and the layout addresses its store only
+            // when it is started, so nothing here names it before it exists.
+            run_id: contract
+                .run_id
+                .clone()
+                .filter(|_| !start.in_a_store_of_its_own),
             budget: contract
                 .budget
                 .as_ref()
@@ -292,10 +298,17 @@ pub fn start_attempt(run: &RunFacts, profile: &str) -> Confirm {
 /// The typed confirmation that stores the contract and starts its run.
 pub fn start_run(action: &AuthorizeAction) -> Confirm {
     let mut consequences = vec![
-        format!(
-            "contract {} is stored immutably and run {} is recorded in the journal",
-            action.contract_id, action.run_id
-        ),
+        match &action.run_id {
+            Some(run_id) => format!(
+                "contract {} is stored immutably and run {run_id} is recorded in the journal",
+                action.contract_id
+            ),
+            None => format!(
+                "contract {} is stored immutably and the run it starts is recorded in the journal \
+                 of a store of its own, under the identifier that store gives it",
+                action.contract_id
+            ),
+        },
         format!("the work is done against {}", action.source),
         format!(
             "a candidate is accepted only if {} accepts it, and only while {} still rejects the \
@@ -330,7 +343,10 @@ pub fn start_run(action: &AuthorizeAction) -> Confirm {
     };
 
     Confirm {
-        title: format!("start run {}", action.run_id),
+        title: match &action.run_id {
+            Some(run_id) => format!("start run {run_id}"),
+            None => format!("start a run of contract {}", action.contract_id),
+        },
         badge: "irreversible · starts spending".into(),
         consequences,
         prompt_label,
@@ -491,7 +507,7 @@ mod tests {
             StartFacts::unknown(),
         );
         let action = modal.action.expect("the run is offered");
-        assert_eq!(action.run_id, "run-aaaaaaaaaaaa");
+        assert_eq!(action.run_id.as_deref(), Some("run-aaaaaaaaaaaa"));
         let confirm = start_run(&action);
         assert_eq!(confirm.required, "contract-1");
         assert!(
@@ -526,6 +542,67 @@ mod tests {
         );
         assert!(modal.action.is_none(), "a second run was offered");
         assert!(modal.action_note.contains("already holds a run"));
+    }
+
+    /// A run is identified by the store that holds it as well as by its contract. A start that
+    /// goes to a store of its own is a start whose store the layout addresses only when the run
+    /// begins, so nothing here may name a run: the identifier the projection derived belongs to
+    /// the store being read, which is not where this run would go.
+    ///
+    /// The negative half is the test above, where the same contract in a store free to take the
+    /// run does name it.
+    #[test]
+    fn a_start_into_a_store_of_its_own_names_no_run_before_that_store_exists() {
+        let ended = RunFacts {
+            run_id: "run-aaaaaaaaaaaa-11111111".into(),
+            status: RunStatus::Cancelled,
+            budget: Budget::new(1, 1),
+            active_attempts: Vec::new(),
+            candidate_digest: None,
+            last_sequence: 4,
+            terminal_reason: Some("ended by the operator".into()),
+        };
+        let modal = authorize(
+            &contract(true),
+            &environment(),
+            None,
+            Some(&ended),
+            StartFacts {
+                profile: None,
+                note: "",
+                in_a_store_of_its_own: true,
+            },
+        );
+        let action = modal.action.expect("a store of its own offers the run");
+        assert_eq!(action.run_id, None);
+
+        let confirm = start_run(&action);
+        assert!(
+            !confirm.title.contains("run-aaaaaaaaaaaa"),
+            "the confirmation names a run whose store is not addressed yet: {}",
+            confirm.title
+        );
+        assert!(
+            confirm.title.contains("contract-1"),
+            "the confirmation names neither the run nor the contract: {}",
+            confirm.title
+        );
+        assert!(
+            confirm
+                .consequences
+                .iter()
+                .all(|line| !line.contains("run-aaaaaaaaaaaa")),
+            "{:?}",
+            confirm.consequences
+        );
+        assert!(
+            confirm
+                .consequences
+                .iter()
+                .any(|line| line.contains("store of its own")),
+            "the confirmation does not state when the run is identified: {:?}",
+            confirm.consequences
+        );
     }
 
     #[test]

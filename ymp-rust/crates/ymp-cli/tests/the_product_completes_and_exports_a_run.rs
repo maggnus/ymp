@@ -129,29 +129,25 @@ impl Fixture {
             .expect("run the ymp executable")
     }
 
-    /// The identifiers the same request derives, read from the interface's own session over a
-    /// store of its own. The derivation is content-addressed, so the store the commands act on
-    /// carries the same contract and the same run.
-    fn identifiers(&self) -> (String, String) {
+    /// The contract identifier the same request derives, read from the interface's own session
+    /// over a store of its own. The derivation is content-addressed, so the store the commands act
+    /// on carries the same contract.
+    ///
+    /// The run identifier is not derived here. A run is identified by its store as well as by its
+    /// contract, so the run of this session is not the run the commands act on; that one is read
+    /// from the store it was started in.
+    fn contract_id(&self) -> String {
         let mut session = Session::open(&self.store("identifiers"), &[]);
         for line in self.lines() {
             session.local_turn(line);
         }
-        let contract_id = session
+        session
             .projection(None)
             .contracts
             .first()
             .expect("the request produced a contract")
             .contract_id
-            .clone();
-        session.start_run(&contract_id);
-        let run_id = session
-            .projection(None)
-            .run
-            .expect("the interface started a run")
-            .run_id
-            .clone();
-        (contract_id, run_id)
+            .clone()
     }
 }
 
@@ -209,6 +205,16 @@ fn status(store: &Path) -> RunStatus {
         .status
 }
 
+/// The run this store holds. It is read from the store, because the store is part of what
+/// identifies the run it holds.
+fn run_id(store: &Path) -> String {
+    Session::open(store, &[])
+        .projection(None)
+        .run
+        .expect("the store holds a run")
+        .run_id
+}
+
 /// Start the run this fixture describes, without launching anything.
 /// State the decision the engine registry holds, the way an operator states it.
 ///
@@ -232,7 +238,8 @@ fn admit_codex(fixture: &Fixture, store: &Path) {
     );
 }
 
-fn start(fixture: &Fixture, store: &Path, contract_id: &str) {
+/// Start the run and return the identifier the store gives it.
+fn start(fixture: &Fixture, store: &Path, contract_id: &str) -> String {
     admit_codex(fixture, store);
     let mut arguments = fixture.request_arguments();
     arguments.insert(0, "start".to_owned());
@@ -247,14 +254,15 @@ fn start(fixture: &Fixture, store: &Path, contract_id: &str) {
         !journal(store).contains("attempt_started"),
         "starting the run started an agent, which is a separate authorization"
     );
+    run_id(store)
 }
 
 #[test]
 fn a_profile_that_cannot_do_the_work_stops_the_attempt_and_is_not_replaced() {
     let fixture = Fixture::new();
     let store = fixture.store("named-profile");
-    let (contract_id, run_id) = fixture.identifiers();
-    start(&fixture, &store, &contract_id);
+    let contract_id = fixture.contract_id();
+    let run_id = start(&fixture, &store, &contract_id);
 
     let refused = fixture.command(
         &store,
@@ -289,8 +297,8 @@ fn a_profile_that_cannot_do_the_work_stops_the_attempt_and_is_not_replaced() {
 fn the_attempt_is_done_judged_and_exported_through_the_product_alone() {
     let fixture = Fixture::new();
     let store = fixture.store("complete");
-    let (contract_id, run_id) = fixture.identifiers();
-    start(&fixture, &store, &contract_id);
+    let contract_id = fixture.contract_id();
+    let run_id = start(&fixture, &store, &contract_id);
 
     let attempted = fixture.command(
         &store,
@@ -347,7 +355,6 @@ fn the_attempt_is_done_judged_and_exported_through_the_product_alone() {
         "nothing was exported: {}",
         reported(&exported)
     );
-    let _ = &run_id;
     for part in [
         "manifest.json",
         "events.jsonl",
@@ -465,8 +472,8 @@ fn the_attempt_is_done_judged_and_exported_through_the_product_alone() {
 fn a_verifier_that_cannot_decide_is_an_infrastructure_condition_and_not_a_rejection() {
     let fixture = Fixture::new();
     let store = fixture.store("verifier-gone");
-    let (contract_id, run_id) = fixture.identifiers();
-    start(&fixture, &store, &contract_id);
+    let contract_id = fixture.contract_id();
+    let run_id = start(&fixture, &store, &contract_id);
     // The contract names this exact program. Removing it after the authorization is the plainest
     // way to reach a verifier that answers nothing at all.
     fs::remove_file(&fixture.verifier).expect("remove the verifier the contract names");
@@ -508,8 +515,8 @@ fn a_rejected_candidate_with_no_attempt_left_exhausts_the_run() {
     // negative control for the same reason, so it discriminates and is taken.
     let fixture = Fixture::with_verifier("#!/bin/sh\ntest -f \"$1/never-written.txt\"\n");
     let store = fixture.store("rejected");
-    let (contract_id, run_id) = fixture.identifiers();
-    start(&fixture, &store, &contract_id);
+    let contract_id = fixture.contract_id();
+    let run_id = start(&fixture, &store, &contract_id);
 
     let attempted = fixture.command(
         &store,
