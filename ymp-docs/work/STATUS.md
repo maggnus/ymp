@@ -23,7 +23,7 @@
 | `[x]` | [`W1-APP-02e.5`](waves/W1/W1-APP-02/tasks/W1-APP-02e/subtasks/W1-APP-02e.5.md) | The start screen carries the logo and one line of basics | [`b0a14a7`](https://github.com/maggnus/ymp/commit/b0a14a7) | 15/08 08:15 | 15/08 08:36 (0m) |
 | `[~]` | [`W1-APP-02e.6`](waves/W1/W1-APP-02/tasks/W1-APP-02e/subtasks/W1-APP-02e.6.md) | Runtime engines are managed entities with properties and model lists | — | 15/08 08:15 | 15/08 08:15 (0m) |
 | `[ ]` | [`W1-APP-02e.7`](waves/W1/W1-APP-02/tasks/W1-APP-02e/subtasks/W1-APP-02e.7.md) | The product itself tells the runtime how a candidate is published | — | — | — |
-| `[ ]` | [`W1-APP-02e.8`](waves/W1/W1-APP-02/tasks/W1-APP-02e/subtasks/W1-APP-02e.8.md) | The key map fits the screen or scrolls | — | — | — |
+| `[~]` | [`W1-APP-02e.8`](waves/W1/W1-APP-02/tasks/W1-APP-02e/subtasks/W1-APP-02e.8.md) | The key map fits the screen or scrolls | — | 15/08 10:35 | 15/08 10:35 (0m) |
 | `[x]` | [`W1-APP-02f`](waves/W1/W1-APP-02/tasks/W1-APP-02f.md) | Duplicate or out-of-order runtime events terminate without a candidate | [`4145a442`](https://github.com/maggnus/ymp/commit/4145a442b476afedca8d091de3a30b1eb1ad9b84) | 12/08 09:40 | 12/08 10:03 (23m) |
 | `[x]` | [`W1-APP-02g`](waves/W1/W1-APP-02/tasks/W1-APP-02g.md) | Verification evidence binds the exact runtime environment | [`973a6e33`](https://github.com/maggnus/ymp/commit/973a6e331f4577a894ab95ee325efa4a03005510) | 12/08 10:28 | 12/08 11:18 (50m) |
 | `[x]` | [`W1-APP-02h`](waves/W1/W1-APP-02/tasks/W1-APP-02h.md) | Managed Codex and Claude sessions resume after interruption | [`0d351f60`](https://github.com/maggnus/ymp/commit/0d351f6015c25869bd4e45bb126482fd60945795) | 12/08 09:44 | 12/08 10:26 (41m) |
@@ -42,12 +42,12 @@
 | `[x]` | [`W1-APP-02u`](waves/W1/W1-APP-02/tasks/W1-APP-02u.md) | A verifier answer is an executable that demonstrably discriminates | [`c1db6db`](https://github.com/maggnus/ymp/commit/c1db6db) | 14/08 01:40 | 14/08 02:19 (38m) |
 | `[x]` | [`W1-APP-02v`](waves/W1/W1-APP-02/tasks/W1-APP-02v.md) | The dialogue experience converges on the Claude Code interface | [`7e98831`](https://github.com/maggnus/ymp/commit/7e98831) | 14/08 02:19 | 14/08 04:08 (0m) |
 | `[x]` | [`W1-APP-02w`](waves/W1/W1-APP-02/tasks/W1-APP-02w/TASK.md) | Product state lives under one .ymp root that supports many projects | [`9996944`](https://github.com/maggnus/ymp/commit/9996944) | 14/08 02:13 | 14/08 03:06 (53m) |
-| `[x]` | [`W1-APP-02w.1`](waves/W1/W1-APP-02/tasks/W1-APP-02w/subtasks/W1-APP-02w.1.md) | Product state lives under ~/.ymp; the launch directory stays untouched | [`PENDING`](PENDING) | 15/08 08:15 | 15/08 08:55 (0m) |
+| `[x]` | [`W1-APP-02w.1`](waves/W1/W1-APP-02/tasks/W1-APP-02w/subtasks/W1-APP-02w.1.md) | Product state lives under ~/.ymp; the launch directory stays untouched | [`d457519`](https://github.com/maggnus/ymp/commit/d457519) | 15/08 08:15 | 15/08 08:55 (0m) |
 | `[ ]` | [`W1-APP-02w.2`](waves/W1/W1-APP-02/tasks/W1-APP-02w/subtasks/W1-APP-02w.2.md) | A run identifier names the run, not only its contract | — | — | — |
 | `[ ]` | [`W1-APP-02w.3`](waves/W1/W1-APP-02/tasks/W1-APP-02w/subtasks/W1-APP-02w.3.md) | Export can apply the accepted candidate in place | — | — | — |
 | `[x]` | [`W1-APP-02x`](waves/W1/W1-APP-02/tasks/W1-APP-02x.md) | Entry validation cannot hold the interface | [`7e98831`](https://github.com/maggnus/ymp/commit/7e98831) | 14/08 02:19 | 14/08 04:08 (0m) |
 | `[x]` | [`W1-APP-02y`](waves/W1/W1-APP-02/tasks/W1-APP-02y.md) | The run record itself carries the per-model spend | [`c63130c`](https://github.com/maggnus/ymp/commit/c63130c) | 14/08 05:19 | 14/08 22:59 (0m) |
-| `[ ]` | [`W1-APP-02y.1`](waves/W1/W1-APP-02/tasks/W1-APP-02y.1.md) | The accounting assertion states what accounting guarantees | — | — | — |
+| `[~]` | [`W1-APP-02y.1`](waves/W1/W1-APP-02/tasks/W1-APP-02y.1.md) | The accounting assertion states what accounting guarantees | — | 15/08 10:35 | 15/08 10:35 (0m) |
 | `[x]` | [`W1-APP-02z`](waves/W1/W1-APP-02/tasks/W1-APP-02z/TASK.md) | A verifier cannot be rewritten by the candidate it judges | [`c364e30`](https://github.com/maggnus/ymp/commit/c364e30) | 14/08 05:07 | 15/08 00:05 (0m) |
 | `[ ]` | [`W1-APP-02z.1`](waves/W1/W1-APP-02/tasks/W1-APP-02z/subtasks/W1-APP-02z.1.md) | The npm entry point is pinned to its interpreter choice, or stays refused | — | — | — |
 | `[ ]` | [`W1-APP-02z.2`](waves/W1/W1-APP-02/tasks/W1-APP-02z/subtasks/W1-APP-02z.2.md) | The refusal names the actual obstacle | — | — | — |
