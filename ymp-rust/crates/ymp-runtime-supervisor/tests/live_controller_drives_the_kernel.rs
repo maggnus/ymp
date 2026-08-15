@@ -52,6 +52,14 @@ enum Disposition {
 
 /// A runtime that yields through the coordination tool the way a supervised participant does. It
 /// yields once for each step of its script and submits its candidate when it has no yields left.
+/// The journal a scripted runtime closes to further records as its supervision dies.
+///
+/// It is filled in after the run has started, because the store the journal lives in is created
+/// with the run. Closing it from inside the runtime is what places the refusal exactly where a
+/// check needs it: the records this run wrote up to that point are in the journal, and everything
+/// supervision writes on its way out is refused.
+type Seal = Arc<Mutex<Option<std::path::PathBuf>>>;
+
 struct YieldingRuntime {
     yields: u32,
     /// When it is set, the session holds its teardown open until this is opened. The worker winds
@@ -62,6 +70,9 @@ struct YieldingRuntime {
     /// when this is opened. Supervision is then held inside the call that reads the next event,
     /// which is where neither the closed control channel nor the cancellation token is read.
     silence: Option<Arc<AtomicBool>>,
+    /// When it is set, the journal it names is closed to further records the moment this runtime
+    /// is resumed — which is the moment the supervision driving it dies.
+    seal: Option<Seal>,
     disposition: Disposition,
 }
 
@@ -106,6 +117,7 @@ impl RuntimeDriver for YieldingRuntime {
             yields: self.yields,
             teardown: self.teardown.clone(),
             silence: self.silence.clone(),
+            seal: self.seal.clone(),
             disposition: self.disposition,
             interrupted: false,
             invocation_id,
@@ -122,6 +134,7 @@ struct YieldingSession {
     yields: u32,
     teardown: Option<Arc<AtomicBool>>,
     silence: Option<Arc<AtomicBool>>,
+    seal: Option<Seal>,
     disposition: Disposition,
     interrupted: bool,
     /// The identity and the ordering of the events this session has passed on, so that an event it
@@ -198,6 +211,18 @@ impl RuntimeSession for YieldingSession {
     /// recorded through the coordination tool, which is what the controller classifies the slice
     /// by.
     fn resume(&mut self, input: String) -> Result<(), RuntimeError> {
+        // The journal is closed here rather than by the check, so that the record holds everything
+        // this run wrote up to this point — the wake included — and takes nothing supervision
+        // writes after it.
+        if let Some(seal) = &self.seal
+            && let Some(journal) = seal.lock().expect("the journal to close").as_ref()
+        {
+            let mut closed = std::fs::metadata(journal)
+                .expect("the journal file")
+                .permissions();
+            closed.set_readonly(true);
+            std::fs::set_permissions(journal, closed).expect("close the journal");
+        }
         assert!(
             self.disposition != Disposition::PanicsWhenResumed,
             "the supervision of this run died while it drove the runtime"
@@ -330,7 +355,20 @@ fn start_with(yields: u32, teardown: Option<Arc<AtomicBool>>, disposition: Dispo
         yields,
         teardown,
         silence: None,
+        seal: None,
         disposition,
+    }))
+}
+
+/// A run whose supervision dies while driving the runtime, and whose journal is closed to further
+/// records in the same moment.
+fn start_sealing(seal: Seal) -> Fixture {
+    start_driver(Box::new(YieldingRuntime {
+        yields: 1,
+        teardown: None,
+        silence: None,
+        seal: Some(seal),
+        disposition: Disposition::PanicsWhenResumed,
     }))
 }
 
@@ -341,6 +379,7 @@ fn start_silent(silence: Arc<AtomicBool>) -> Fixture {
         yields: 1,
         teardown: None,
         silence: Some(silence),
+        seal: None,
         disposition: Disposition::Orderly,
     }))
 }
@@ -1669,27 +1708,37 @@ fn a_controller_that_stopped_waiting_writes_nothing_over_a_committed_terminal() 
     drop(temporary);
 }
 
-/// A failure the journal would not record is reported with the run rather than passed over.
+/// What a record could not take is reported with the run rather than passed over.
 ///
 /// The journal refuses an append it cannot write, and it refuses a record whose sequence it has
 /// already taken — which is what a panic between the append of a fact and its application in memory
-/// leaves behind. Discarding that refusal left nothing anywhere saying so: the kernel closed the
-/// slice, the journal went on naming a run in progress, and the two records disagreed in silence.
-/// What the journal declined is therefore carried out with the failure it belongs to.
+/// leaves behind. Discarding that refusal left nothing anywhere saying so: the run went on being
+/// named as in progress, and nothing in this process would ever have said otherwise.
+///
+/// Both endings a run owes are now written to that one journal — the failure of the run and the
+/// terminal of its process slice — so a journal that stops taking records leaves neither of them
+/// written, and the run reports both refusals rather than showing one record ahead of the other.
+/// The kernel used to hold its terminal in memory and could record it where the journal would take
+/// nothing, which read as agreement while nothing durable held it: the process that carried that
+/// terminal was the one dying.
+///
+/// The journal is closed from inside the runtime, at the moment supervision dies, so the wake that
+/// drove the resumption is in the record and everything after it is refused.
+///
+/// The check that must fail: drop what the kernel would not take instead of carrying it out. The
+/// run then reports a failure the journal refused while saying nothing about the terminal that was
+/// refused with it.
 #[test]
-fn a_failure_the_journal_would_not_record_is_reported_with_the_run() {
-    let fixture = start_with(1, None, Disposition::PanicsWhenResumed);
+fn what_the_record_would_not_take_is_reported_with_the_run() {
+    let seal: Seal = Arc::new(Mutex::new(None));
+    let fixture = start_sealing(Arc::clone(&seal));
     wait_until_yielded(&fixture.handle);
 
-    // From here the journal takes nothing further, which is what a run reaches when the record it
-    // writes to cannot be appended to.
     let journal = fixture.journal_file();
     let writable = std::fs::metadata(&journal)
         .expect("the journal file")
         .permissions();
-    let mut closed = writable.clone();
-    closed.set_readonly(true);
-    std::fs::set_permissions(&journal, closed).expect("close the journal to further records");
+    *seal.lock().expect("the journal to close") = Some(journal.clone());
 
     fixture
         .handle
@@ -1709,14 +1758,20 @@ fn a_failure_the_journal_would_not_record_is_reported_with_the_run() {
             .any(|detail| detail.contains("managed_runtime_failure_unrecorded")),
         "the run passed over a failure its journal would not take: {failures:?}"
     );
+    assert!(
+        failures
+            .iter()
+            .any(|detail| detail.contains("managed_runtime_terminal_unrecorded")),
+        "the run passed over the terminal its record would not take: {failures:?}"
+    );
     assert_eq!(
         fixture
             .handle
             .kernel()
             .root_terminal()
             .expect("the terminal"),
-        Some(RootTerminal::InfrastructureError),
-        "the run whose supervision died holds no kernel terminal"
+        None,
+        "a terminal the record never took is being reported as committed"
     );
 
     // The permissions the journal was created with, restored so that the temporary tree the check

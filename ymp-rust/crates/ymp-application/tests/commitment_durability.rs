@@ -7,10 +7,16 @@
 //! fact, without any live state crossing over. And a repeated command identifier is answered from
 //! the record instead of committing a second effect.
 //!
+//! One more half is asserted here: a store carrying two records that each open a kernel is refused
+//! rather than read from whichever came first.
+//!
 //! The check that must fail: drop the journal write from the commitment path — remove the
 //! `self.commit(...)` call in `Application::execute_commitment`, or make it append nothing — and
 //! `a_fact_is_in_the_journal_before_the_command_answers` reports it with a non-zero exit, because
 //! the store reopened at the end holds a ledger the run had already been told about.
+
+use std::fs::OpenOptions;
+use std::io::Write;
 
 use tempfile::{TempDir, tempdir};
 use ymp_application::{Application, ApplicationError};
@@ -18,7 +24,7 @@ use ymp_domain::commitment::{
     Advertise, Award, BudgetVector, CommitmentCommand, CommitmentError, CommitmentEvent, Dimension,
     FundingSource, OfferPolicy, RecordBid, RegisterParticipant,
 };
-use ymp_domain::{Budget, EventKind};
+use ymp_domain::{Budget, EventEnvelope, EventKind};
 
 const SPONSOR: &str = "sponsor-root";
 const SPONSOR_PRINCIPAL: &str = "principal-root";
@@ -270,6 +276,73 @@ fn a_repeated_command_after_a_restart_commits_nothing_further() {
         reopened.execute_commitment(*command_id, other),
         Err(ApplicationError::IdempotencyConflict { .. })
     ));
+}
+
+/// A store that opens a kernel twice is refused, rather than rebuilt from the first record.
+///
+/// The genesis states what a ledger is built from, and two of them state two different starting
+/// points for one run: the facts that follow were decided against one of the two and cannot be
+/// replayed into both. Reading the first and passing over the second rebuilt a run from half of
+/// what its journal holds, and reported nothing about the half it ignored.
+///
+/// The second record is appended to the journal directly, because nothing the application offers
+/// writes one — a second opening is refused before it reaches the record. What is measured here is
+/// the reading of a store that carries it, which is where such a record would actually arrive.
+///
+/// The check that must fail: pass over a genesis that arrives with a kernel already open, and the
+/// store below is read as a run whose ledger is the first record's, with no refusal anywhere.
+#[test]
+fn a_store_that_opens_a_kernel_twice_is_refused_rather_than_read_from_the_first() {
+    let (temporary, mut application) = opened();
+    for (command_id, command) in forming_commands() {
+        application
+            .execute_commitment(command_id, &command)
+            .expect("a legal commitment command");
+    }
+    let records = application
+        .events_after(0)
+        .expect("read the committed records");
+    let last = records.last().expect("the store holds records").clone();
+    let genesis = records
+        .iter()
+        .find(|envelope| matches!(envelope.event, EventKind::CommitmentKernelOpened { .. }))
+        .expect("the store holds the record that opened the kernel")
+        .event
+        .clone();
+    drop(application);
+
+    let repeated = EventEnvelope::new(
+        &last.run_id,
+        last.sequence + 1,
+        "kernel-again",
+        ymp_domain::digest_bytes(&serde_json::to_vec(&genesis).expect("the genesis event")),
+        Some(last.digest.clone()),
+        genesis,
+    )
+    .expect("a second record opening a kernel");
+    let mut journal = OpenOptions::new()
+        .append(true)
+        .open(temporary.path().join("events.jsonl"))
+        .expect("the journal file");
+    writeln!(
+        journal,
+        "{}",
+        serde_json::to_string(&repeated).expect("the record")
+    )
+    .expect("append the second genesis");
+    drop(journal);
+
+    let refused = Application::open(temporary.path())
+        .err()
+        .expect("a store that opens a kernel twice was read as a run");
+    assert!(
+        matches!(
+            refused,
+            ApplicationError::CommitmentKernelAlreadyOpen { ref root_obligation }
+                if root_obligation == ROOT_OBLIGATION
+        ),
+        "the store was refused for another reason: {refused}"
+    );
 }
 
 #[test]

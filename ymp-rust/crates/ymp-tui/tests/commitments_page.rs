@@ -12,7 +12,9 @@
 mod support;
 
 use support::{app_for, contract, open_command, screen};
-use ymp_tui::scenario;
+use ymp_domain::commitment::{AccountRef, BudgetVector, CommitmentEvent, Dimension};
+use ymp_domain::{Budget, EventEnvelope, EventKind, RunState};
+use ymp_tui::scenario::{self, Run};
 use ymp_tui::state::{PageKind, Surface};
 
 /// What one award moves in the scenario, and a second amount no ledger in this file holds twice.
@@ -79,6 +81,92 @@ fn a_run_whose_journal_opened_no_kernel_offers_no_commitments_page() {
             .iter()
             .any(|item| item.name == PageKind::Commitments.command_name()),
         "the page was offered for a run with no commitment kernel"
+    );
+}
+
+/// A journal built record by record: the run, the kernel it opens, and one commitment record for
+/// each group of facts given. Nothing here is decided by a ledger, because what is under test is a
+/// record a ledger would refuse.
+fn journal_of(records: Vec<Vec<CommitmentEvent>>) -> Run {
+    let budget = BudgetVector::ZERO.with(Dimension::MoneyMicros, 1_000);
+    let mut events = Vec::new();
+    let mut sequence = 0;
+    let mut predecessor = None;
+    let mut push = |event: EventKind, events: &mut Vec<EventEnvelope>| {
+        sequence += 1;
+        let envelope = EventEnvelope::new(
+            "demo-run",
+            sequence,
+            format!("cmd-{sequence}"),
+            scenario::digest(sequence as u8),
+            predecessor.clone(),
+            event,
+        )
+        .expect("event envelope");
+        predecessor = Some(envelope.digest.clone());
+        events.push(envelope);
+    };
+    push(
+        EventKind::RunStarted {
+            budget: Budget::new(1, 1),
+        },
+        &mut events,
+    );
+    push(
+        EventKind::CommitmentKernelOpened {
+            root_participant: "sponsor-root".to_owned(),
+            root_principal: "principal-root".to_owned(),
+            root_obligation: "obligation-root".to_owned(),
+            budget,
+        },
+        &mut events,
+    );
+    for facts in records {
+        push(EventKind::CommitmentFactsRecorded { facts }, &mut events);
+    }
+    let mut state = RunState::from_start(&events[0]).expect("run_started is the first event");
+    for envelope in events.iter().skip(1) {
+        state.apply(envelope);
+    }
+    Run { state, events }
+}
+
+/// The reason the fold stopped is the one that stopped it, whatever records follow.
+///
+/// A fact that cannot be replayed ends the rebuilding of the ledger, and the page states why. The
+/// records after it are read against a ledger that is no longer being built, so each of them finds
+/// no kernel — and stating that instead told the operator the run had opened none, which is both
+/// untrue and not what happened. What the page must carry is the first refusal.
+///
+/// The check that must fail: let a later commitment record write its own reason over the recorded
+/// one, and the page names the missing kernel rather than the fact the ledger refused.
+#[test]
+fn the_page_keeps_the_first_refusal_when_further_records_follow_it() {
+    // Capacity moving out of an account the ledger has never heard of. No ledger can replay it.
+    let unreplayable = CommitmentEvent::BudgetTransferred {
+        from: AccountRef::Participant {
+            participant_id: "participant-nobody".to_owned(),
+        },
+        to: AccountRef::Participant {
+            participant_id: "sponsor-root".to_owned(),
+        },
+        amount: BudgetVector::ZERO.with(Dimension::MoneyMicros, 1),
+    };
+    let after = CommitmentEvent::ClockAdvanced { to: 1 };
+    let run = journal_of(vec![vec![unreplayable], vec![after]]);
+    let app = app_for(Some(&run), vec![contract(true)]);
+
+    let page = app
+        .page(PageKind::Commitments)
+        .expect("a run whose commitment record was refused still has the page that states it");
+    let notes = page.notes.join(" ");
+    assert!(
+        notes.contains("unknown account: participant participant-nobody"),
+        "the page does not state the fact the ledger refused: {notes}"
+    );
+    assert!(
+        !notes.contains("before any kernel was opened"),
+        "a later record replaced the refusal with a consequence of it: {notes}"
     );
 }
 
