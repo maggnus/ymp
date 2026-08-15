@@ -15,6 +15,32 @@ Source links are pinned to
 
 ## D1 · Where the permitted model set is declared
 
+> **DECIDED by the owner, 2026-08-15 — option (b) with a product model refinement.**
+> The operator does not manage a "model pool" and assigns no roles. For a task the operator names
+> the permitted set of concrete models/agents (e.g. Opus 5, GLM, Fable) and, when needed, their
+> count/limit. The provider only supplies the catalog of available models. When the run starts,
+> that set is frozen for the run. From there the collective decides on its own: how many
+> participants to create, which permitted model to recruit, when to recruit another, which models
+> to use in parallel or in sequence, and when to stop.
+>
+>     Provider  -> many available models
+>     Operator  -> the models permitted for this task
+>     Collective -> forms the team from that set by itself
+>
+> 100 models at a provider never mean 100 agents; permitting Opus 5 + GLM + Fable means only that
+> the collective may use those three. Actual participant count and distribution is the
+> collective's, within budget and limits. Comparative experiments use the snapshot of the set taken
+> at run start, so both arms have the same possibilities.
+>
+> Important: no separate operator-facing "model pool" entity. For the operator it is simply the
+> task's list of permitted models; inside the system it may be a frozen snapshot.
+>
+> Consequence for the design: the registry (accepted W1-APP-02e.6) and the provider/catalog level
+> (P1) supply what exists; the per-task permitted list is operator input at request time and is
+> frozen into the internal contract by digest at authorization (P3); the deferred W1-EVL-04d is
+> closed by this decision.
+
+
 **Question.** A run may recruit only from a permitted pool. Where is that pool declared: in the
 engine registry, in the internal contract at the first request, or above both?
 

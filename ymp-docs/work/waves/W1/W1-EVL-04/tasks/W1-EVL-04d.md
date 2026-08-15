@@ -3,23 +3,23 @@ id: W1-EVL-04d
 kind: task
 wave: W1
 card: W1-EVL-04
-state: deferred
+state: accepted
 risk: significant
 maturity: RESEARCH
 relation: required
 depends_on: []
 blocks: []
 created_at: 2026-08-15T01:52:53+08:00
-updated_at: 2026-08-15T02:07:10+08:00
+updated_at: 2026-08-15T15:08:23+08:00
 started_at:
-accepted_at:
+accepted_at: 2026-08-15T15:08:23+08:00
 candidate_commit:
 closure_commit:
-evidence:
+evidence: closed by owner decision D1 (2026-08-15): the operator names the permitted models per task (no pool entity), the set is frozen at run start as a snapshot, the collective forms the team from it; recorded verbatim in COLLECTIVE-OWNER-DECISIONS.md
 duration_minutes: 0
 blocker:
-pause_reason: absorbed by the collective product brief — the catalog/pool/recruitment mechanism is decided there; the remaining unknowns are item 24 of W1-PRD-05a
-return_trigger: W1-PRD-05a leaves a model-policy question the design cannot settle
+pause_reason:
+return_trigger:
 deliberate_partial: false
 ---
 
