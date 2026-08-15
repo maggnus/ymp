@@ -47,11 +47,11 @@ previous composition tried to serve with one dashboard.
 
 A single scrolling transcript fills the screen, with an input line at the bottom, a thin context
 header, and a status line. Data views — runtimes, providers, provider properties, pools, agents,
-candidates, events, budgets, object detail — are full-screen pages opened on demand through a `:`
+candidates, events, budgets, object detail — are full-screen pages opened on demand through a `/`
 command line and closed with `Esc`.
 
 The opening screen is a three-line banner: a one-line logo carrying version, project and store, the
-invitation to state a goal, and a line naming the two doors out (`:providers` with its state
+invitation to state a goal, and a line naming the two doors out (`/providers` with its state
 counters, and the key map). A five-line logo was considered and rejected.
 
 The three stages are one continuous transcript, not three screens. The transcript is interrupted
@@ -75,7 +75,7 @@ around a single question that asked for none of it.
 
 A refusal is bound by the same discipline. It occupies at most two lines, its first line opens with
 the verb of the operator's next action, and the reason follows after a dash on that same line. The
-mechanics of the decision live behind `:describe refusal`, not in the transcript.
+mechanics of the decision live behind `/describe refusal`, not in the transcript.
 
 Entry text starts in a fixed column that does not depend on the content — column 20 for a run
 event, column 8 for a reply — and a wrapped line resumes exactly under that column. A digest is
@@ -177,7 +177,7 @@ instead of presenting a generated document as finished.
 
 ## Naming model
 
-The interface borrows the navigation model of k9s: a `:` command line instead of numbered screens,
+The interface borrows the navigation model of k9s: a `/` command line instead of numbered screens,
 `Enter` to descend, `Esc` to return, `/` to filter, and a thin header. The provider and pool screens
 follow the product's list, select, properties, action path.
 
@@ -273,7 +273,7 @@ reproduced verbatim in
 transcript density, the shape of a refusal, table rules, the state vocabulary, and the separation of
 providers from pools. It introduces the provider, provider-properties and pool screens, and for each
 theme it names the rejected form beside the adopted one, because the rejected form is what explains
-the adopted one. The `:runtimes` page stays separate from `:providers`: an engine is the CLI
+the adopted one. The `/runtimes` page stays separate from `/providers` — an engine is the CLI
 installed on this host, a provider is the account whose models are measured.
 
 The earlier artifact `ymp_k9s_tui.dc.html` has been removed from the working tree. Its dashboard
@@ -327,7 +327,7 @@ containment property the profile does not provide.
 
 Wherever the profile appears with room for prose it is followed by its limit — that it provides
 no hostile-code containment and that agents run with the operator's own permissions. The header
-glyph is the compact form; the full sentence lives in the key map and on `:runtimes`. This follows
+glyph is the compact form; the full sentence lives in the key map and on `/runtimes`. This follows
 the owner decision of 2026-08-15 that the opening transcript stays a three-line banner: the
 one-line logo already carries the profile with its glyph, and the remaining two lines are the
 invitation and the doors out.
