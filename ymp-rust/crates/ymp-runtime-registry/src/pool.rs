@@ -910,6 +910,11 @@ mod tests {
                 };
             })
             .expect("record the measurement");
+        // Since P2 a provider is offered only once the operator has enabled it; the fixture
+        // stands for a provider the operator enabled and then measured.
+        providers
+            .set_enabled(engine.provider(), true, None)
+            .expect("enable the provider");
         providers.observe(registry).expect("observe the providers");
     }
 
