@@ -149,6 +149,16 @@ impl ClaudeProfile {
                 self.minimum_version
             )));
         }
+        // The floor is a pin like every other value here, and it is the one that decides which
+        // builds are admitted at all. A profile that lowered it would admit releases the approved
+        // pin does not, so it is held to the constant rather than merely required to be readable.
+        if self.minimum_version != MINIMUM_CLAUDE_VERSION {
+            return Err(RuntimeError::InvalidProfile(format!(
+                "unapproved Claude minimum version {} — the approved floor is \
+                 {MINIMUM_CLAUDE_VERSION}",
+                self.minimum_version
+            )));
+        }
         if self.model != PINNED_CLAUDE_MODEL {
             return Err(RuntimeError::InvalidProfile(format!(
                 "unapproved Claude model {}",
@@ -342,14 +352,18 @@ pub struct ClaudeRuntime {
 }
 
 impl Default for ClaudeRuntime {
+    /// The installed engine, as the registry discovers it. Discovery belongs to the registry and
+    /// to nothing else, so an engine is selected through one channel whose result a record states.
     fn default() -> Self {
-        Self::new(installed_executable_path())
+        Self::new(ymp_runtime_registry::discover(
+            ymp_runtime_registry::Engine::ClaudeCode.program(),
+        ))
     }
 }
 
 impl ClaudeRuntime {
     pub fn new(executable: impl Into<PathBuf>) -> Self {
-        let executable = resolve_executable(executable.into());
+        let executable = ymp_runtime_registry::resolve(executable.into());
         Self {
             executable,
             verified_executable: Arc::new(Mutex::new(None)),
@@ -453,13 +467,17 @@ impl ClaudeRuntime {
             VersionMeasurement::Reported(reported) => reported,
         };
         let Some(installed) = InstalledBuild::parse(&reported) else {
+            // What failed here is the reading, not the comparison: nothing was ordered against the
+            // floor, so the refusal names the release that could not be read rather than claiming
+            // it is older than anything.
             return Ok(Err(ProbeReport {
                 kind: RuntimeKind::ClaudeCode,
                 executable: self.executable.display().to_string(),
                 version: Some(reported.clone()),
                 readiness: Readiness::Incompatible,
                 detail: format!(
-                    "profile requires a {CLAUDE_PRODUCT_NAME} build of at least {}, found {reported}",
+                    "the version this executable reported cannot be read as a {CLAUDE_PRODUCT_NAME} \
+                     release, so it was not compared with the floor {}: found {reported}",
                     self.profile.minimum_version
                 ),
             }));
@@ -488,6 +506,198 @@ impl ClaudeRuntime {
             detail: "executable not found".to_owned(),
         }
     }
+
+    /// Where the managed invocation's authentication material comes from, named rather than read.
+    /// The registry records the origin so an operator can see which account a spend would reach;
+    /// the credential itself never leaves the launch.
+    pub fn credential_origin(&self) -> Option<&'static str> {
+        self.credential.as_ref().map(CredentialSource::label)
+    }
+
+    /// The models the installed build can serve, measured from the build itself.
+    ///
+    /// Claude Code publishes no catalog and running one turn per candidate would spend money to
+    /// learn a name. What the build does answer for nothing is whether it recognises a model:
+    /// asked for a single printed turn with no input, it names an unrecognised model before it
+    /// refuses the missing input, and refuses the missing input alone for a model it knows. No
+    /// request reaches the provider either way, so the measurement costs nothing and needs no
+    /// credential.
+    ///
+    /// The candidates put to the build are read out of the installed executable, so both halves of
+    /// the measurement come from the build: it supplies the names and it decides which of them it
+    /// serves. A list written here would be a declaration, and a declared model list is exactly
+    /// what the registry exists to replace.
+    pub fn measure_model_catalog(&self) -> Result<Vec<String>, RuntimeError> {
+        self.profile.validate()?;
+        if !self.executable.is_file() {
+            return Ok(Vec::new());
+        }
+        let admitted = self.admitted_executable()?;
+        let environment = self.isolated_environment()?;
+        let values = environment.values(None, None, None)?;
+        let candidates = model_candidates(&admitted.execution_path)?;
+        let mut served = Vec::new();
+        for chunk in candidates.chunks(MODEL_PROBE_CONCURRENCY) {
+            let measured: Vec<Result<Option<String>, RuntimeError>> = thread::scope(|scope| {
+                let handles: Vec<_> = chunk
+                    .iter()
+                    .map(|candidate| {
+                        let admitted = &admitted;
+                        let values = &values;
+                        scope.spawn(move || {
+                            Ok(recognised_model(admitted, values, candidate)?
+                                .then(|| candidate.clone()))
+                        })
+                    })
+                    .collect();
+                handles
+                    .into_iter()
+                    .map(|handle| {
+                        handle.join().unwrap_or_else(|_| {
+                            Err(RuntimeError::InvalidProfile(
+                                "a Claude model probe did not finish".to_owned(),
+                            ))
+                        })
+                    })
+                    .collect()
+            });
+            for outcome in measured {
+                if let Some(name) = outcome? {
+                    served.push(name);
+                }
+            }
+        }
+        served.sort();
+        served.dedup();
+        Ok(served)
+    }
+}
+
+/// The phrase the installed build prints for a model it does not recognise. It is the whole of the
+/// measurement's negative answer, so a build that stops printing it measures nothing rather than
+/// measuring everything: every candidate would then be reported as served, which is why the
+/// measurement is checked against a build that refuses a name known not to exist.
+const UNRECOGNISED_MODEL_MARKER: &str = "not a model this version of Claude Code recognizes";
+
+/// How many candidates one measurement puts to the build. The installed executable is scanned for
+/// names, and a build that carried more than this many is measured up to the bound with the
+/// remainder stated rather than silently dropped.
+const MAX_MODEL_CANDIDATES: usize = 256;
+
+/// How many candidate probes run at once. Each one starts the installed build, so this trades the
+/// wall time of a measurement against the memory a copy of that build occupies.
+const MODEL_PROBE_CONCURRENCY: usize = 8;
+
+/// Whether the admitted build serves this model, asked without spending anything.
+fn recognised_model(
+    admitted: &VerifiedExecutable,
+    environment_values: &[EnvironmentValue],
+    candidate: &str,
+) -> Result<bool, RuntimeError> {
+    let mut command = Command::new(&admitted.execution_path);
+    ClaudeEnvironment::apply(&mut command, environment_values);
+    let output = command
+        .args(["--print", "--model", candidate, ""])
+        .stdin(Stdio::null())
+        .output()?;
+    let mut answer = String::from_utf8_lossy(&output.stdout).into_owned();
+    answer.push_str(&String::from_utf8_lossy(&output.stderr));
+    Ok(!answer.contains(UNRECOGNISED_MODEL_MARKER))
+}
+
+/// The model names the installed build carries, as candidates to put back to it.
+///
+/// The scan reads the executable in windows and keeps every identifier shaped like a model name.
+/// It is deliberately generous: a name the build does not serve is refused by the build itself, so
+/// the scan's only job is to miss nothing a later release adds.
+fn model_candidates(executable: &Path) -> Result<Vec<String>, RuntimeError> {
+    const PREFIX: &[u8] = b"claude-";
+    const WINDOW_BYTES: usize = 1 << 20;
+    /// The longest partial identifier carried into the next window. No model name approaches it.
+    const CARRY_BYTES: usize = 256;
+
+    let mut file = File::open(executable)?;
+    let mut found = HashSet::new();
+    let mut buffer = vec![0_u8; WINDOW_BYTES];
+    let mut window: Vec<u8> = Vec::with_capacity(WINDOW_BYTES + CARRY_BYTES);
+    loop {
+        let read = file.read(&mut buffer)?;
+        let last = read == 0;
+        window.extend_from_slice(&buffer[..read]);
+        let mut index = 0;
+        while let Some(offset) = find_bytes(&window[index..], PREFIX) {
+            let start = index + offset;
+            let mut end = start + PREFIX.len();
+            while end < window.len() && is_identifier_byte(window[end]) {
+                end += 1;
+            }
+            if end == window.len() && !last {
+                // The identifier may continue in the next window; it is read there whole.
+                index = start;
+                break;
+            }
+            if let Some(name) = model_identifier(&window[start..end]) {
+                found.insert(name);
+            }
+            index = end;
+        }
+        if last {
+            break;
+        }
+        window.drain(..index);
+        if window.len() > CARRY_BYTES {
+            let excess = window.len() - CARRY_BYTES;
+            window.drain(..excess);
+        }
+    }
+    let mut candidates: Vec<String> = found.into_iter().collect();
+    candidates.sort();
+    candidates.truncate(MAX_MODEL_CANDIDATES);
+    Ok(candidates)
+}
+
+fn find_bytes(haystack: &[u8], needle: &[u8]) -> Option<usize> {
+    let (first, rest) = needle.split_first()?;
+    let mut index = 0;
+    while let Some(offset) = haystack[index..].iter().position(|byte| byte == first) {
+        let start = index + offset;
+        if haystack[start + 1..].starts_with(rest) {
+            return Some(start);
+        }
+        index = start + 1;
+    }
+    None
+}
+
+fn is_identifier_byte(byte: u8) -> bool {
+    byte.is_ascii_lowercase() || byte.is_ascii_digit() || byte == b'-'
+}
+
+/// A model name is the product name, a family and a numbered release: `claude-haiku-4-5`. The
+/// shape rejects the build's other `claude-` strings before they cost a probe; the build rejects
+/// whatever the shape lets through.
+fn model_identifier(bytes: &[u8]) -> Option<String> {
+    let name = std::str::from_utf8(bytes).ok()?;
+    let mut segments = name.split('-');
+    if segments.next()? != "claude" {
+        return None;
+    }
+    let family = segments.next()?;
+    if family.len() < 3
+        || !family
+            .chars()
+            .all(|character| character.is_ascii_lowercase())
+    {
+        return None;
+    }
+    let mut releases = 0;
+    for segment in segments {
+        if segment.is_empty() || !segment.chars().all(|character| character.is_ascii_digit()) {
+            return None;
+        }
+        releases += 1;
+    }
+    (releases > 0).then(|| name.to_owned())
 }
 
 /// Authentication material for the managed invocation. Claude Code resolves its `claude.ai` OAuth
@@ -1959,34 +2169,6 @@ impl Drop for ClaudeSession {
 /// installation an explicit `CLAUDE_CONFIG_DIR` names wins over the search path, and whichever file
 /// is resolved is copied and held by digest before it runs, so the identity of what executed is
 /// recorded rather than assumed from its path.
-fn installed_executable_path() -> PathBuf {
-    installed_executable_under(std::env::var_os("CLAUDE_CONFIG_DIR").map(PathBuf::from))
-}
-
-fn installed_executable_under(configuration: Option<PathBuf>) -> PathBuf {
-    if let Some(configuration) = configuration {
-        let installed = configuration.join("claude");
-        if installed.is_file() {
-            return installed;
-        }
-    }
-    PathBuf::from("claude")
-}
-
-fn resolve_executable(executable: PathBuf) -> PathBuf {
-    if executable.is_absolute() || executable.components().count() > 1 {
-        return executable.canonicalize().unwrap_or(executable);
-    }
-    let Some(path) = std::env::var_os("PATH") else {
-        return executable;
-    };
-    std::env::split_paths(&path)
-        .map(|directory| directory.join(&executable))
-        .find(|candidate| candidate.is_file())
-        .and_then(|candidate| candidate.canonicalize().ok())
-        .unwrap_or(executable)
-}
-
 #[cfg(unix)]
 fn set_private_directory_permissions(path: &Path) -> Result<(), RuntimeError> {
     use std::os::unix::fs::PermissionsExt;
@@ -2199,8 +2381,7 @@ mod tests {
     use super::{
         APPROVED_BUILTIN_TOOLS, APPROVED_SEARCH_PATH, ClaudeProfile, ClaudeRuntime,
         G3_MAX_BUDGET_MICROUSD, G3_MAX_IN_FLIGHT_OVERSHOOT_MICROUSD, InstalledBuild,
-        MINIMUM_CLAUDE_VERSION, PINNED_CLAUDE_MODEL, installed_executable_path,
-        installed_executable_under,
+        MINIMUM_CLAUDE_VERSION, PINNED_CLAUDE_MODEL, model_identifier,
     };
     use std::fs;
     use std::os::unix::fs::PermissionsExt;
@@ -2273,6 +2454,15 @@ fi
     #[test]
     fn profile_rejects_ambient_configuration_subagents_events_usage_and_overshoot() {
         for (label, profile) in [
+            // The floor decides which builds are admitted at all, so a profile that states a
+            // readable but lower one is refused exactly as an unapproved model or tool is.
+            (
+                "a lowered version floor",
+                ClaudeProfile {
+                    minimum_version: "1.0.0 (Claude Code)".to_owned(),
+                    ..ClaudeProfile::default()
+                },
+            ),
             (
                 "ambient setting sources",
                 ClaudeProfile {
@@ -2472,10 +2662,19 @@ printf '%s\n' '{{"type":"result","subtype":"success","is_error":false,"terminal_
                 "2.1.99 (Claude Code)",
                 "profile requires at least 2.1.227 (Claude Code), found 2.1.99 (Claude Code)",
             ),
+            // A release of another product was never ordered against the floor, so the refusal
+            // names the reading that failed instead of claiming the release is the older one.
             (
                 "another product",
                 "9.9.9 (Other Code)",
-                "profile requires a Claude Code build of at least 2.1.227 (Claude Code), found 9.9.9 (Other Code)",
+                "the version this executable reported cannot be read as a Claude Code release, so \
+                 it was not compared with the floor 2.1.227 (Claude Code): found 9.9.9 (Other Code)",
+            ),
+            (
+                "a build identifier that is not a numbered release",
+                "nightly (Claude Code)",
+                "the version this executable reported cannot be read as a Claude Code release, so \
+                 it was not compared with the floor 2.1.227 (Claude Code): found nightly (Claude Code)",
             ),
         ] {
             let directory = tempfile::tempdir().expect("temporary directory");
@@ -2544,30 +2743,62 @@ printf '%s\n' '{{"type":"result","subtype":"success","is_error":false,"terminal_
         }
     }
 
-    /// The executable is resolved from the installation, never composed from the pinned version, so
-    /// upgrading the release does not make the runtime report itself as missing.
+    /// The executable is discovered by the registry and never composed from the pinned version, so
+    /// upgrading the release does not make the runtime report itself as missing, and no second
+    /// channel can select a different file from configuration.
     #[test]
-    fn the_executable_is_resolved_from_the_installation_and_not_from_the_version() {
-        let directory = tempfile::tempdir().expect("temporary directory");
-        assert_eq!(installed_executable_under(None), PathBuf::from("claude"));
-        assert_eq!(
-            installed_executable_under(Some(directory.path().to_owned())),
-            PathBuf::from("claude"),
-            "a configuration directory holding no executable falls back to the search path"
-        );
-        let configured = directory.path().join("claude");
-        fs::write(&configured, b"#!/bin/sh\n").expect("write configured executable");
-        assert_eq!(
-            installed_executable_under(Some(directory.path().to_owned())),
-            configured
-        );
+    fn the_executable_is_discovered_by_the_registry_and_not_composed_from_the_version() {
         let floor = InstalledBuild::parse(MINIMUM_CLAUDE_VERSION).expect("floor");
-        let resolved = installed_executable_path();
+        let resolved = ClaudeRuntime::default().executable().to_owned();
         assert!(
             !resolved.to_string_lossy().contains(floor.build.as_str()),
             "the resolved path {} still names the pinned build",
             resolved.display()
         );
+        assert_eq!(
+            resolved,
+            ymp_runtime_registry::discover("claude"),
+            "the runtime resolved an executable the registry does not discover"
+        );
+
+        // A path stated to the runtime is still the runtime's own, and it is resolved by the same
+        // registry function rather than by a second rule kept here.
+        let directory = tempfile::tempdir().expect("temporary directory");
+        let stated = directory.path().join("claude");
+        fs::write(&stated, b"#!/bin/sh\n").expect("write the stated executable");
+        assert_eq!(
+            ClaudeRuntime::new(&stated).executable(),
+            ymp_runtime_registry::resolve(stated.clone()),
+        );
+    }
+
+    /// The shape filter rejects the build's other `claude-` strings before they cost a probe, and
+    /// keeps every release identifier a model name can take.
+    #[test]
+    fn only_identifiers_shaped_like_a_model_name_become_candidates() {
+        for served in [
+            "claude-haiku-4-5",
+            "claude-sonnet-5",
+            "claude-opus-4-5-20251101",
+        ] {
+            assert_eq!(
+                model_identifier(served.as_bytes()).as_deref(),
+                Some(served),
+                "{served} was not read as a model name"
+            );
+        }
+        for other in [
+            "claude-3-5",
+            "claude-code",
+            "claude-",
+            "claude-opus-",
+            "claude-opus-4x",
+        ] {
+            assert!(
+                model_identifier(other.as_bytes()).is_none(),
+                "{other} was read as a model name"
+            );
+        }
     }
 
     #[test]
