@@ -3,24 +3,24 @@ id: W1-COR-03v
 kind: task
 wave: W1
 card: W1-COR-03
-state: active
+state: accepted
 risk: routine
 maturity: BUILD
 relation: supporting
 depends_on: [W1-COR-03t]
 blocks: []
 created_at: 2026-08-15T13:30:03+08:00
-updated_at: 2026-08-15T13:49:39+08:00
+updated_at: 2026-08-15T14:07:02+08:00
 started_at: 2026-08-15T13:49:39+08:00
-accepted_at:
-candidate_commit:
-closure_commit:
-evidence:
+accepted_at: 2026-08-15T14:07:02+08:00
+candidate_commit: https://github.com/maggnus/ymp/commit/61603f5451d3b2900ec8940742e75b527ecf3262
+closure_commit: https://github.com/maggnus/ymp/commit/3978c25
+evidence: join error texts preserved verbatim; the interface maps ManagedShutdown to an honest sentence with the supervisor report; author mutation reproduced; residual: the close-to-reply link itself is not pinned (a revert of cancel_run leaves 60 tests green)
 duration_minutes: 0
 blocker:
 pause_reason:
-return_trigger:
-deliberate_partial: false
+return_trigger: any later change to cancel_run or to the ManagedShutdown variants must add the live close-to-reply test (a FakeRuntime that stops answering plus an application fixture waiting past the shutdown limit)
+deliberate_partial: true
 ---
 
 # W1-COR-03v — The interface states what a bounded shutdown actually ended
