@@ -5,22 +5,34 @@
 //! [`Action`] the loop must execute, so every keyboard transition can be driven in a test
 //! without a terminal or a store.
 //!
-//! Input is read by a dedicated thread; journal notifications and the runtime probe arrive on
-//! the same channel. The main thread blocks until something happens and never polls.
+//! Input is read by a dedicated thread; journal notifications, the runtime probe and the outcome
+//! of a verification arrive on the same channel. The main thread blocks until something happens.
+//! The one exception is a working managed attempt, which reports through a channel of its own that
+//! wakes nothing: while one is working the loop looks for its output on a short tick, and with no
+//! attempt working it goes back to waiting.
 
 use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::{self, RecvTimeoutError, Sender};
+use std::sync::{Arc, Mutex, MutexGuard};
 use std::thread;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
-use ymp_application::{Application, ApplicationError, PreparedContract, prepare_contract};
+use ymp_application::root::{StoreIntent, store_under};
+use ymp_application::{
+    Application, ApplicationError, PreparedContract, VerificationJob, VerificationOutcome,
+    prepare_contract,
+};
 use ymp_domain::Command as DomainCommand;
+use ymp_domain::commitment::Verdict;
 use ymp_domain::contract::ContractDocument;
+use ymp_domain::{RunStatus, VerificationDecision};
+use ymp_runtime_api::{RuntimeEventKind, RuntimeKind};
+use ymp_runtime_supervisor::{ManagedRunEvent, ManagedRunHandle};
 
+use crate::attempt::{self, Route, Routing};
 use crate::decisions;
 use crate::draft::{Amendment, Assembly, Draft, DraftJob};
 use crate::journal::Model;
@@ -39,13 +51,27 @@ const IDLE: Duration = Duration::from_millis(500);
 /// Journal notifications buffered before the reader is considered lagging; it then recovers
 /// from its event cursor rather than assuming every notification arrived (INV-6).
 const NOTIFICATION_CAPACITY: usize = 64;
+/// How long the main thread sleeps while a managed attempt is producing events. The runtime
+/// writes on its own schedule, so the loop looks often enough for its output to read as output.
+const ATTEMPT_TICK: Duration = Duration::from_millis(50);
+/// How long a cancellation waits for the attempt's worker to end the process tree and close its
+/// slice in the kernel. A cancellation is that wait; past this the interface says what it could
+/// not establish rather than claiming an ending it never read.
+const TERMINATION_WAIT: Duration = Duration::from_secs(30);
 /// Where under the data root the product writes what it supplies for a draft: the verifier it
 /// proposes, the copy it takes as the negative control, and the sample that verifier must accept.
 const DRAFT_DIRECTORY: &str = "draft";
+/// What an export directory is called when the operator names none. The run identifier follows it.
+const EXPORT_PREFIX: &str = "ymp-evidence-";
 
 /// Everything durable the interface reads and the commands it can commit.
 pub struct Session {
-    application: Option<Application>,
+    /// The store, shared because the managed attempt commits through the same writer: the
+    /// candidate the runtime submits reaches the journal through this handle and no other.
+    application: Option<Arc<Mutex<Application>>>,
+    /// The root the invocation addressed, when it addressed one. A store holds one run, so the
+    /// second run of a project is addressed here rather than refused.
+    root: Option<PathBuf>,
     data_root: PathBuf,
     model: Model,
     runtimes: Option<Report>,
@@ -67,6 +93,15 @@ pub struct Session {
     /// The contract the current draft last produced, so an amended draft replaces it instead of
     /// leaving the version it replaced on the screen.
     drafted: Option<String>,
+    /// The runtime profile the operator named for this run, when one was named.
+    route: Option<Route>,
+    /// The managed attempt, from its launch until the verdict on its candidate is recorded.
+    /// Holding it is what makes the kernel record of this run's process slice reachable: a
+    /// cancellation and a verdict are written through it, not around it.
+    attempt: Option<ManagedRunHandle>,
+    /// Which verification this session is waiting for, under the same rule as a draft check: an
+    /// outcome from work that has been superseded decides nothing.
+    verifying: u64,
 }
 
 /// A demonstration this session asked for, ready to be run wherever the caller decides.
@@ -123,17 +158,7 @@ impl Session {
                     ));
                     model.refuse_store();
                 }
-                Self {
-                    application: None,
-                    data_root: data_root.to_path_buf(),
-                    model,
-                    runtimes: None,
-                    draft: None,
-                    contracts: contracts.to_vec(),
-                    checking: 0,
-                    authorized: BTreeSet::new(),
-                    drafted: None,
-                }
+                Self::over(None, data_root, model, contracts)
             }
             Ok(application) => {
                 let state = application.state().clone();
@@ -144,18 +169,42 @@ impl Session {
                 if let Some(facts) = bound_contract(&application) {
                     model.record_contract(facts);
                 }
-                Self {
-                    application: Some(application),
-                    data_root: data_root.to_path_buf(),
-                    model,
-                    runtimes: None,
-                    draft: None,
-                    contracts: contracts.to_vec(),
-                    checking: 0,
-                    authorized: BTreeSet::new(),
-                    drafted: None,
-                }
+                Self::over(Some(application), data_root, model, contracts)
             }
+        }
+    }
+
+    /// Open a data root addressed under a root the invocation named.
+    ///
+    /// The root is what lets a second run of the same project be addressed rather than refused: a
+    /// store holds one run, and the store of the next one is chosen here instead of by the
+    /// operator.
+    pub fn open_under_root(root: &Path, data_root: &Path, contracts: &[PreparedContract]) -> Self {
+        let mut session = Self::open(data_root, contracts);
+        session.root = Some(root.to_path_buf());
+        session
+    }
+
+    fn over(
+        application: Option<Application>,
+        data_root: &Path,
+        model: Model,
+        contracts: &[PreparedContract],
+    ) -> Self {
+        Self {
+            application: application.map(|application| Arc::new(Mutex::new(application))),
+            root: None,
+            data_root: data_root.to_path_buf(),
+            model,
+            runtimes: None,
+            draft: None,
+            contracts: contracts.to_vec(),
+            checking: 0,
+            authorized: BTreeSet::new(),
+            drafted: None,
+            route: None,
+            attempt: None,
+            verifying: 0,
         }
     }
 
@@ -171,26 +220,33 @@ impl Session {
             model.absorb(&state, &events);
         }
         let data_root = application.data_root().to_path_buf();
-        Self {
-            application: Some(application),
-            data_root,
-            model,
-            runtimes: None,
-            draft: None,
-            contracts: Vec::new(),
-            checking: 0,
-            authorized: BTreeSet::new(),
-            drafted: None,
-        }
+        Self::over(Some(application), &data_root, model, &[])
+    }
+
+    /// Take the writer for the length of one call.
+    ///
+    /// A lock another thread panicked under is taken all the same: every durable fact is committed
+    /// whole, so what a panic can leave behind is an unfinished call and never a half-written
+    /// record, and refusing here would leave a store nobody could read or end.
+    fn writer(application: &Arc<Mutex<Application>>) -> MutexGuard<'_, Application> {
+        application
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
     }
 
     /// Catch up with the journal from the model's cursor.
     pub fn refresh(&mut self) {
-        let Some(application) = &self.application else {
+        let Some(application) = self.application.clone() else {
             return;
         };
-        let state = application.state().clone();
-        match application.events_after(self.model.cursor) {
+        let (state, events) = {
+            let application = Self::writer(&application);
+            (
+                application.state().clone(),
+                application.events_after(self.model.cursor),
+            )
+        };
+        match events {
             Ok(events) => self.model.absorb(&state, &events),
             Err(error) => self.model.reply(format!("journal unreadable: {error}")),
         }
@@ -208,28 +264,107 @@ impl Session {
         &self.model
     }
 
-    /// Commit the operator's cancellation. The domain decides the transition; the interface
-    /// only names who asked for it.
+    /// Commit the operator's cancellation.
+    ///
+    /// A run whose managed attempt this session started is cancelled through that attempt, because
+    /// the attempt is where both records of how a run ended live: the journal, and the kernel
+    /// record of the process slice. Writing the journal alone would leave the kernel holding the
+    /// slice open on an unjudged candidate, and a verdict arriving afterwards could drive the same
+    /// run to acceptance. The domain still decides the transition; the interface only names who
+    /// asked for it.
     pub fn cancel_run(&mut self) {
-        let Some(application) = &mut self.application else {
+        let reason = decisions::cancellation_reason();
+        if self.attempt.is_some() {
+            let cancelled = self
+                .attempt
+                .as_ref()
+                .map(|handle| handle.cancel(reason.clone()));
+            match cancelled {
+                Some(Ok(())) => {
+                    // The slice is closed by the worker on its way out, so the kernel terminal is
+                    // read once that worker reports itself finished — not at the moment the
+                    // cancellation was asked for, when the slice is still open. Waiting here is
+                    // waiting for the process tree to end, which is what a cancellation is.
+                    let kernel = self.attempt.as_ref().map_or_else(String::new, |handle| {
+                        let deadline = Instant::now() + TERMINATION_WAIT;
+                        while !handle.is_finished() && Instant::now() < deadline {
+                            while handle.try_next().is_some() {}
+                            thread::sleep(ATTEMPT_TICK);
+                        }
+                        match handle.kernel().root_terminal() {
+                            Ok(Some(terminal)) => {
+                                format!("the kernel record of the attempt reads {terminal:?}")
+                            }
+                            Ok(None) => "the kernel record of the attempt still holds its slice \
+                                         open"
+                                .to_owned(),
+                            Err(error) => format!(
+                                "the kernel record of the attempt could not be read: {error}"
+                            ),
+                        }
+                    });
+                    // Dropping the handle ends the runtime's process tree and waits for the
+                    // worker, so nothing this run started outlives the cancellation.
+                    self.attempt = None;
+                    self.verifying = self.verifying.wrapping_add(1);
+                    self.model.working(None);
+                    self.refresh();
+                    // What the run ended as is read from the journal after it was caught up, not
+                    // assumed from the command that was issued. A cancellation asked for while the
+                    // attempt was already failing finds the run terminal for another reason, and
+                    // the domain refuses to rename it; saying `cancelled` here would be the
+                    // interface asserting an outcome the record does not hold.
+                    self.model.reply(format!(
+                        "cancel recorded — {}, {kernel}, and the managed process tree was ended",
+                        self.recorded_terminal()
+                    ));
+                }
+                Some(Err(error)) => self
+                    .model
+                    .reply(format!("cancel was not recorded: {error}")),
+                None => {}
+            }
+            return;
+        }
+        let Some(application) = self.application.clone() else {
             self.model
                 .reply("no run is open in this store — nothing to cancel");
             return;
         };
-        let command_id = format!(
-            "ymp.tui.cancel.{}",
-            application.state().last_sequence.saturating_add(1)
-        );
-        let reason = decisions::cancellation_reason();
-        match application.execute(command_id, DomainCommand::Cancel { reason }) {
+        let outcome = {
+            let mut application = Self::writer(&application);
+            let command_id = format!(
+                "ymp.tui.cancel.{}",
+                application.state().last_sequence.saturating_add(1)
+            );
+            application.execute(command_id, DomainCommand::Cancel { reason })
+        };
+        match outcome {
             Ok(_) => {
                 self.refresh();
                 self.model
-                    .reply("cancel recorded — the run ended with the terminal outcome cancelled");
+                    .reply(format!("cancel recorded — {}", self.recorded_terminal()));
             }
             Err(error) => self
                 .model
                 .reply(format!("cancel was not recorded: {error}")),
+        }
+    }
+
+    /// How the run stands in the journal, in the domain's own vocabulary.
+    ///
+    /// It is read after the model has caught up, so what the interface says about an ending is
+    /// what the record holds rather than what the command asked for.
+    fn recorded_terminal(&self) -> String {
+        match self.model.run() {
+            None => "this store holds no run".to_owned(),
+            Some(run) if run.is_live() => {
+                "the run is still live — nothing terminal was recorded".to_owned()
+            }
+            Some(run) => format!(
+                "the run ended with the terminal outcome {}",
+                crate::projection::outcome(run.status)
+            ),
         }
     }
 
@@ -238,16 +373,37 @@ impl Session {
         self.application.is_some()
     }
 
+    /// Whether a managed attempt of this session is still running or still owes a verdict.
+    pub fn attempt_is_live(&self) -> bool {
+        self.attempt.is_some()
+    }
+
     /// Subscribe to journal notifications, when there is a journal to follow.
     fn subscribe(&mut self) -> Option<mpsc::Receiver<u64>> {
-        self.application
-            .as_mut()
-            .and_then(|application| application.subscribe(NOTIFICATION_CAPACITY).ok())
+        let application = self.application.clone()?;
+        let mut application = Self::writer(&application);
+        application.subscribe(NOTIFICATION_CAPACITY).ok()
     }
 
     /// The full projection for the given describe selection.
     pub fn projection(&self, describe: Option<usize>) -> Projection {
         let mut projection = self.model.projection(self.runtimes.as_ref());
+        let (route, note) = attempt::routing_facts(self.route, self.runtimes.as_ref());
+        projection.route = route;
+        projection.route_note = note;
+        projection.addresses_a_store_of_its_own = self.addresses_a_store_of_its_own();
+        // The action that starts the agent is offered where a run is live, no attempt of it is
+        // working, and one profile is settled to do the work.
+        if let Some(run) = projection.run.as_ref().filter(|run| run.is_live())
+            && self.attempt.is_none()
+            && projection.route.is_some()
+        {
+            projection.commands.push(crate::state::PaletteItem {
+                name: format!("attempt {}", run.run_id),
+                description: "start the agent on this run — asks for typed confirmation".to_owned(),
+                command: Command::StartAttempt,
+            });
+        }
         if let Some(index) = describe
             && let Some(page) = self.model.describe_candidate(index)
         {
@@ -288,7 +444,27 @@ impl Session {
         if !text.trim().is_empty() {
             self.model.human(text.clone());
         }
-        if self.application.is_some() {
+        // A line naming a runtime profile chooses which agent does the work. It is not part of
+        // the contract — the same contract can be done by either profile — so it amends nothing
+        // and starts no assembly. It is read before anything else a line can be, because the run
+        // it routes may already exist: an attempt is launched into a run this session did not
+        // start as readily as into one it did. Only the word and a profile this product ships is
+        // that choice; anything else opening with the word is a line like any other.
+        if let Some(route) = runtime_line(&text) {
+            self.route = Some(route);
+            self.model.reply(format!(
+                "the work would be done by the {} profile · nothing has started and nothing is \
+                 spent",
+                route.name()
+            ));
+            return None;
+        }
+        // A store that holds a finished run, under a root that can address the next one, is
+        // ready for the next request: the line is a request again, and authorizing what it drafts
+        // records that run in a store of its own. While the run being read is still live there is
+        // nothing for prose to become — the domain carries no messages — so the turn is answered
+        // honestly and recorded nowhere.
+        if self.application.is_some() && !self.addresses_a_store_of_its_own() {
             self.model.reply(
                 "local turn — not recorded in the journal. This domain carries no messages, so no \
                  participant can receive it. Commands work: press / for the list, ? for the keys.",
@@ -469,11 +645,6 @@ impl Session {
     /// The contract is looked up by the identifier the decision surface required the operator to
     /// type, so a package named on the command line and a request typed here start identically.
     pub fn start_run(&mut self, contract_id: &str) {
-        if self.application.is_some() {
-            self.model
-                .error("this store already holds a run — a second run needs its own store");
-            return;
-        }
         let Some(prepared) = self
             .contracts
             .iter()
@@ -485,6 +656,18 @@ impl Session {
             ));
             return;
         };
+        // A profile the operator named is the profile this run uses. One that is not ready stops
+        // the run here, before anything is stored, rather than being replaced by whichever other
+        // profile happens to be installed.
+        if let Some(named) = self.route
+            && let Routing::Refused(reason) = attempt::resolve(Some(named), self.runtimes.as_ref())
+        {
+            self.model.error(format!("no run was started — {reason}"));
+            return;
+        }
+        if self.application.is_some() && !self.move_to_a_store_of_its_own() {
+            return;
+        }
         // The operator has authorized exactly this here: they read the coverage map and typed
         // the contract id. Whether the run then starts is the store's business, so the
         // authorization is recorded before the attempt and a second one asks for one
@@ -492,7 +675,7 @@ impl Session {
         self.authorized.insert(authorization_key(&prepared));
         match Application::create_with_contract(&self.data_root, &prepared) {
             Ok((application, outcome)) => {
-                self.application = Some(application);
+                self.application = Some(Arc::new(Mutex::new(application)));
                 self.draft = None;
                 self.drafted = None;
                 self.model.reply(format!(
@@ -503,6 +686,25 @@ impl Session {
                     outcome.event.sequence
                 ));
                 self.refresh();
+                // Starting the run spends the store; starting the agent spends the operator's own
+                // account with a runtime profile. They are separate authorizations because they
+                // grant separate things, so this states which profile would do the work and stops
+                // there.
+                let run_id = prepared.run_id();
+                match attempt::resolve(self.route, self.runtimes.as_ref()) {
+                    Routing::Ready(route) => self.model.reply(format!(
+                        "nothing is being done yet · /attempt {run_id} starts the {} profile on \
+                         this run, which is where spending against your own account begins",
+                        route.name()
+                    )),
+                    Routing::Refused(reason) => self.model.reply(format!(
+                        "nothing is being done yet, and no profile could start — {reason}"
+                    )),
+                    Routing::Probing => self.model.reply(format!(
+                        "nothing is being done yet · /attempt {run_id} starts the work once this \
+                         host has been probed"
+                    )),
+                }
             }
             Err(error) => {
                 // The contract is still there and still unauthorized in the store's eyes, so it
@@ -516,6 +718,517 @@ impl Session {
             }
         }
     }
+
+    /// Whether a run authorized now would be recorded in a store of its own.
+    ///
+    /// It would, exactly when the run being read has ended, this invocation addressed a root
+    /// rather than one exact store, and no attempt is still working — because the layout can then
+    /// name the next store, the run left behind is finished, and nothing this session holds is
+    /// abandoned by moving on. A run that is still live is one to watch, not one to start another
+    /// beside.
+    fn addresses_a_store_of_its_own(&self) -> bool {
+        self.application.is_some()
+            && self.root.is_some()
+            && self.attempt.is_none()
+            && self.model.run().is_some_and(|run| !run.is_live())
+    }
+
+    /// Move this session to a store of its own for the run it is about to start.
+    ///
+    /// A store holds one run. Under a root the product addresses the next store itself, so a
+    /// second run is a store away rather than a refusal; the run this session was reading is left
+    /// exactly as it stands. An invocation that named one exact store instead of a root has said
+    /// which store it acts on, and is told so.
+    fn move_to_a_store_of_its_own(&mut self) -> bool {
+        let Some(root) = self.root.clone() else {
+            self.model.error(
+                "this store already holds a run, and this invocation names one exact store rather \
+                 than a root — a second run needs its own store",
+            );
+            return false;
+        };
+        if self.attempt.is_some() {
+            self.model.error(
+                "this store holds a run whose attempt is still working — end it before starting \
+                 another run",
+            );
+            return false;
+        }
+        match store_under(&root, StoreIntent::New) {
+            Ok(store) => {
+                let carried: Vec<ContractFacts> = self
+                    .contracts
+                    .iter()
+                    .map(ContractFacts::from_prepared)
+                    .collect();
+                self.application = None;
+                self.data_root = store;
+                self.model = Model::cold(Environment::detect(&self.data_root), carried);
+                self.model.reply(format!(
+                    "a store holds one run · the run you authorized is started in {}, and the run \
+                     this session was reading is left exactly as it stands",
+                    self.data_root.display()
+                ));
+                true
+            }
+            Err(error) => {
+                self.model.error(format!(
+                    "no store could be addressed for a second run: {error}"
+                ));
+                false
+            }
+        }
+    }
+
+    /// Launch the managed attempt of the open run, at the operator's word.
+    ///
+    /// This is the action that spends: it starts the agent, gives it a private copy of the source
+    /// and the contract's prompt, and records everything it does. Where no profile can do the
+    /// work, nothing is launched and the reason names every profile and what the probe reported.
+    pub fn start_attempt(&mut self) {
+        if self.attempt.is_some() {
+            self.model
+                .error("this run already has an attempt working — nothing was launched");
+            return;
+        }
+        match attempt::resolve(self.route, self.runtimes.as_ref()) {
+            Routing::Ready(route) => self.launch_attempt(route),
+            Routing::Refused(reason) => self
+                .model
+                .error(format!("no attempt was launched — {reason}")),
+            Routing::Probing => self.model.error(
+                "no attempt was launched — the runtime profiles of this host have not been probed \
+                 yet",
+            ),
+        }
+    }
+
+    fn launch_attempt(&mut self, route: Route) {
+        let Some(application) = self.application.clone() else {
+            self.model
+                .error("no attempt was launched — this store holds no run to attempt");
+            return;
+        };
+        match attempt::start(application, route) {
+            Ok(handle) => {
+                self.model.reply(format!(
+                    "attempt {} launched on the {} profile · the workspace is a private copy of \
+                     the source the contract names · every launch, output and tool call is \
+                     recorded under runtime-evidence",
+                    handle.attempt_id(),
+                    route.name()
+                ));
+                self.model
+                    .working(Some(format!("{} is doing the work", route.name())));
+                self.attempt = Some(handle);
+                self.refresh();
+            }
+            Err(error) => {
+                self.model
+                    .error(format!("no attempt was launched — {error:#}"));
+                self.refresh();
+            }
+        }
+    }
+
+    /// Take whatever the managed attempt has produced since the last look.
+    ///
+    /// The verification a committed candidate makes possible is handed back rather than run here:
+    /// it runs a program of the operator's choosing and waits for it, which on the drawing thread
+    /// would stop every redraw for as long as that program runs.
+    pub fn poll_attempt(&mut self) -> AttemptProgress {
+        let Some(handle) = self.attempt.as_ref() else {
+            return AttemptProgress::Idle;
+        };
+        let profile = profile_label(handle.runtime_kind());
+        let mut notes = Vec::new();
+        let mut candidate = None;
+        let mut failure = None;
+        let mut finished = handle.is_finished();
+        while let Some(event) = handle.try_next() {
+            match event {
+                ManagedRunEvent::Runtime(event) => {
+                    if let Some(note) = runtime_note(&event.event) {
+                        notes.push(note);
+                    }
+                }
+                ManagedRunEvent::CandidateAvailable {
+                    candidate_digest, ..
+                } => candidate = Some(candidate_digest),
+                ManagedRunEvent::Failed { detail } => failure = Some(detail),
+                ManagedRunEvent::Finished => finished = true,
+            }
+        }
+
+        let advanced = !notes.is_empty() || candidate.is_some() || failure.is_some();
+        for note in notes {
+            self.model.runtime(profile, note);
+        }
+        if let Some(detail) = failure {
+            // The machinery failed. The journal already carries the terminal the controller
+            // recorded; what is added here is the detail, so the condition reads as its own kind
+            // rather than as anything about the candidate.
+            self.model.error(format!(
+                "the managed attempt did not complete — {detail}. This is an infrastructure \
+                 condition: nothing was established about any candidate."
+            ));
+        }
+        if advanced || finished {
+            self.refresh();
+        }
+        if let Some(candidate_digest) = candidate {
+            return match self.begin_verification(&candidate_digest) {
+                Some(pending) => AttemptProgress::Verify(Box::new(pending)),
+                None => AttemptProgress::Advanced,
+            };
+        }
+        if finished {
+            // The attempt is over and committed no candidate, so it owes the kernel no verdict.
+            self.attempt = None;
+            self.model.working(None);
+            self.report_terminal();
+            return AttemptProgress::Advanced;
+        }
+        if advanced {
+            AttemptProgress::Advanced
+        } else {
+            AttemptProgress::Idle
+        }
+    }
+
+    /// Everything the committed candidate has to be judged by, read from the approved contract.
+    fn begin_verification(&mut self, candidate_digest: &str) -> Option<PendingVerification> {
+        let application = self.application.clone()?;
+        let staging = attempt::verification_inputs(&self.data_root);
+        let job = Self::writer(&application).verification_job(&staging);
+        match job {
+            Ok(job) => {
+                self.verifying = self.verifying.wrapping_add(1);
+                self.model.reply(format!(
+                    "candidate {} published — asking the verifier the contract names to decide it",
+                    crate::projection::short_digest(candidate_digest)
+                ));
+                self.model.working(Some(job.waiting_for()));
+                Some(PendingVerification {
+                    generation: self.verifying,
+                    job,
+                })
+            }
+            Err(error) => {
+                self.fail_infrastructure(format!(
+                    "the candidate could not be prepared for verification: {error}"
+                ));
+                None
+            }
+        }
+    }
+
+    /// Take what one verification decided.
+    pub fn finish_verification(&mut self, report: VerificationReport) {
+        if report.generation != self.verifying {
+            return;
+        }
+        self.model.working(None);
+        let Some(application) = self.application.clone() else {
+            return;
+        };
+        let verdict = match &report.outcome {
+            VerificationOutcome::Judged(evidence) => {
+                if evidence.decision() == VerificationDecision::Accept {
+                    Verdict::Passed
+                } else {
+                    Verdict::Failed
+                }
+            }
+            VerificationOutcome::Undecided { .. } => Verdict::InfrastructureError,
+        };
+        if let VerificationOutcome::Undecided { reason } = &report.outcome {
+            self.model.error(format!(
+                "{reason}. This is an infrastructure condition: the candidate was neither \
+                 accepted nor rejected."
+            ));
+        }
+        let command_id = format!(
+            "ymp.tui.verify.{}",
+            crate::projection::short_digest(&report.candidate_digest)
+        );
+        let recorded =
+            Self::writer(&application).record_verification_outcome(command_id, report.outcome);
+        if let Err(error) = recorded {
+            self.model
+                .error(format!("the verdict was not recorded: {error}"));
+        }
+        // The kernel record of this run's process slice carries what the protected query decided,
+        // so the work obligation closes where it was opened rather than staying open on a
+        // candidate the journal has already judged.
+        if let Some(handle) = self.attempt.as_ref()
+            && let Err(error) = handle.verified(&report.candidate_digest, verdict)
+        {
+            self.model.error(format!(
+                "the kernel record of this attempt did not take the verdict: {error}"
+            ));
+        }
+        self.attempt = None;
+        self.refresh();
+        self.exhaust_when_nothing_is_left();
+        self.report_terminal();
+    }
+
+    /// Drive the managed attempt to its terminal outcome without returning.
+    ///
+    /// A caller with nothing else to do — a command, whose process is the wait — settles the
+    /// attempt on its own thread. The interface has a screen to keep drawing, so it uses
+    /// [`Self::poll_attempt`] and [`Self::finish_verification`] instead: the same two steps,
+    /// scheduled rather than run inline.
+    pub fn settle_attempt(&mut self) {
+        while self.attempt.is_some() {
+            match self.poll_attempt() {
+                AttemptProgress::Verify(pending) => {
+                    let report = pending.run();
+                    self.finish_verification(report);
+                }
+                AttemptProgress::Advanced => {}
+                AttemptProgress::Idle => thread::sleep(ATTEMPT_TICK),
+            }
+        }
+    }
+
+    /// A rejected candidate leaves the run live only while its budget could fund another attempt.
+    ///
+    /// Where it could not, the next attempt is asked for and the domain answers with the
+    /// exhaustion it actually reached; nothing is started by asking. Where it could, the run stays
+    /// live: this release does one attempt per run, and says so rather than ending a run whose
+    /// budget still holds.
+    fn exhaust_when_nothing_is_left(&mut self) {
+        let Some(application) = self.application.clone() else {
+            return;
+        };
+        let (running, attempts, sequence) = {
+            let application = Self::writer(&application);
+            (
+                application.state().status == RunStatus::Running,
+                application.state().budget.attempts_remaining,
+                application.state().last_sequence,
+            )
+        };
+        if !running {
+            return;
+        }
+        if attempts > 0 {
+            self.model.reply(format!(
+                "the candidate was not accepted · {attempts} attempt(s) of this run's budget are \
+                 unspent, and this release does one attempt per run — cancel the run, or start \
+                 another run from an amended request"
+            ));
+            return;
+        }
+        let outcome = {
+            let mut application = Self::writer(&application);
+            application.execute(
+                format!("ymp.tui.attempt.{}", sequence.saturating_add(1)),
+                DomainCommand::StartAttempt {
+                    attempt_id: format!("attempt-after-{}", sequence.saturating_add(1)),
+                },
+            )
+        };
+        if let Err(error) = outcome {
+            self.model.error(format!(
+                "the run's remaining budget could not be read: {error}"
+            ));
+        }
+        self.refresh();
+    }
+
+    /// Record an infrastructure condition against the open run.
+    fn fail_infrastructure(&mut self, reason: String) {
+        let Some(application) = self.application.clone() else {
+            return;
+        };
+        let outcome = {
+            let mut application = Self::writer(&application);
+            let sequence = application.state().last_sequence.saturating_add(1);
+            application.execute(
+                format!("ymp.tui.infrastructure.{sequence}"),
+                DomainCommand::FailInfrastructure {
+                    reason: reason.chars().take(ymp_domain::MAX_REASON_BYTES).collect(),
+                },
+            )
+        };
+        if let Err(error) = outcome {
+            self.model
+                .error(format!("{reason} · and it was not recorded: {error}"));
+        } else {
+            self.model.error(format!(
+                "{reason}. The run ended with the terminal outcome infrastructure_error."
+            ));
+        }
+        self.attempt = None;
+        self.model.working(None);
+        self.refresh();
+    }
+
+    /// State the terminal the run reached, and what can still be taken out of it.
+    fn report_terminal(&mut self) {
+        let Some(run) = self.model.run().cloned() else {
+            return;
+        };
+        if run.is_live() {
+            return;
+        }
+        let mut line = format!(
+            "run {} ended · {}",
+            run.run_id,
+            crate::projection::outcome(run.status)
+        );
+        if let Some(reason) = &run.terminal_reason {
+            line.push_str(&format!(" · {reason}"));
+        }
+        if run.candidate_digest.is_some() {
+            line.push_str(
+                " · /export writes the exact candidate and the verifier evidence out of this store",
+            );
+        }
+        self.model.reply(line);
+    }
+
+    /// Write the run's candidate and the evidence that judged it out of the store.
+    ///
+    /// What is written is what the store holds: the journal, the run state, the candidate as an
+    /// exact tree and its manifest, every verifier evidence object with the environment each was
+    /// bound to, and the runtime evidence of the attempt. Nothing is summarised and nothing is
+    /// recomputed.
+    pub fn export_evidence(&mut self, destination: Option<PathBuf>) {
+        let Some(application) = self.application.clone() else {
+            self.model
+                .error("no run is open in this store — there is nothing to export");
+            return;
+        };
+        let destination = destination.unwrap_or_else(|| self.export_destination());
+        let report = Self::writer(&application).export_evidence(&destination);
+        match report {
+            Ok(report) => self.model.reply(format!(
+                "evidence exported to {} · candidate {} · {} verifier evidence object(s) · {} \
+                 environment object(s) · {} journal events",
+                report.destination.display(),
+                crate::projection::short_digest(&report.candidate_digest),
+                report.evidence_digests.len(),
+                report.environment_digests.len(),
+                report.event_count
+            )),
+            Err(error) => self.model.error(format!("nothing was exported — {error}")),
+        }
+    }
+
+    /// Where an export of this run is written when the operator names no directory.
+    ///
+    /// It is beside the project rather than under the root, because an export exists to leave the
+    /// root: what it carries has to be readable without this product and without this store. One
+    /// directory per run, so an export names the run it came from and never lands on another's.
+    pub fn export_destination(&self) -> PathBuf {
+        let run = self
+            .model
+            .run()
+            .map_or_else(|| "run".to_owned(), |run| run.run_id.clone());
+        self.model
+            .environment()
+            .project_path
+            .join(format!("{EXPORT_PREFIX}{run}"))
+    }
+}
+
+/// What one look at the managed attempt found.
+pub enum AttemptProgress {
+    /// Nothing arrived since the last look.
+    Idle,
+    /// Something arrived and the projection changed.
+    Advanced,
+    /// The attempt committed a candidate, and this is the verification it made possible.
+    Verify(Box<PendingVerification>),
+}
+
+/// A verification this session asked for, ready to run wherever the caller decides.
+pub struct PendingVerification {
+    generation: u64,
+    job: VerificationJob,
+}
+
+impl PendingVerification {
+    /// What the interface says it is waiting for while this runs.
+    pub fn waiting_for(&self) -> String {
+        self.job.waiting_for()
+    }
+
+    /// Run the verifier and label the outcome with the work it belongs to.
+    pub fn run(self) -> VerificationReport {
+        VerificationReport {
+            generation: self.generation,
+            candidate_digest: self.job.candidate_digest().to_owned(),
+            outcome: self.job.run(),
+        }
+    }
+}
+
+/// The outcome of one verification, with the work it belongs to.
+pub struct VerificationReport {
+    generation: u64,
+    candidate_digest: String,
+    outcome: VerificationOutcome,
+}
+
+/// The profile name a runtime event is attributed to.
+fn profile_label(kind: RuntimeKind) -> &'static str {
+    match kind {
+        RuntimeKind::Codex => "codex",
+        RuntimeKind::ClaudeCode => "claude-code",
+        RuntimeKind::Fake => "fake",
+    }
+}
+
+/// What one runtime event is worth saying in the conversation.
+///
+/// Only what the operator is watching for is stated: what the agent said, that it started, that it
+/// asked the product for something, and how the invocation ended. The full record of every event
+/// is written to the run's runtime evidence, which the export carries out.
+fn runtime_note(event: &RuntimeEventKind) -> Option<String> {
+    match event {
+        RuntimeEventKind::Launch { .. } => None,
+        RuntimeEventKind::Started { .. } => Some("started".to_owned()),
+        RuntimeEventKind::Output { text } => Some(text.clone()),
+        RuntimeEventKind::McpToolCall {
+            tool,
+            status,
+            error,
+            ..
+        } => Some(match error {
+            Some(_) => format!("asked ymp to {tool} — refused ({status})"),
+            None => format!("asked ymp to {tool} — {status}"),
+        }),
+        RuntimeEventKind::Yielded { .. } => Some("yielded — waiting to be woken".to_owned()),
+        RuntimeEventKind::Completed { usage } => Some(format!(
+            "completed · input {} · output {} tokens",
+            usage.input_tokens, usage.output_tokens
+        )),
+        RuntimeEventKind::Failed { kind, .. } => Some(format!("failed · {kind:?}")),
+        RuntimeEventKind::TimedOut { limit_ms, .. } => {
+            Some(format!("stopped at its {limit_ms} ms wall limit"))
+        }
+        RuntimeEventKind::Cancelled { .. } => Some("cancelled".to_owned()),
+        RuntimeEventKind::Interrupted => Some("interrupted".to_owned()),
+    }
+}
+
+/// A line that names the runtime profile this run would use.
+///
+/// It is the word `runtime` and the name of a profile this product ships, and nothing else. A line
+/// that merely opens with the word is a line: `runtime overhead in the parser must be reduced` is
+/// work somebody is asking for, and taking it as a failed choice of agent would lose the request
+/// and answer a question nobody asked.
+fn runtime_line(text: &str) -> Option<Route> {
+    let rest = text.trim().strip_prefix("runtime")?;
+    if !rest.starts_with([':', '=', ' ']) {
+        return None;
+    }
+    Route::parse(rest.trim_start_matches([':', '=', ' ']).trim())
 }
 
 /// The contract a started run is bound to, read back from the store it was approved into.
@@ -594,6 +1307,11 @@ pub enum Action {
     CancelRun,
     /// Store the named contract and start the run it names.
     StartRun(String),
+    /// Launch the managed attempt of the open run: start the agent and watch it work.
+    StartAttempt,
+    /// Write the run's candidate and the evidence that judged it out of the store, into the
+    /// directory the operator named or the one the product states when they name none.
+    ExportEvidence(Option<PathBuf>),
     /// The operator typed prose. It is shown as a local turn and answered honestly: no
     /// participant can receive it until the domain carries messages.
     LocalTurn(String),
@@ -619,6 +1337,8 @@ enum AppEvent {
     Runtimes(Box<Report>),
     /// A demonstration this session asked for has decided.
     Checked(Box<CheckOutcome>),
+    /// A verification this session asked for has decided.
+    Verified(Box<VerificationReport>),
     InputEnded,
 }
 
@@ -645,7 +1365,23 @@ fn event_loop(
             dirty = false;
         }
 
-        match rx.recv_timeout(IDLE) {
+        // A managed attempt reports on its own schedule and wakes nothing, so the loop looks for
+        // its output rather than waiting to be told. With no attempt working there is nothing to
+        // look for and the loop goes back to waiting.
+        let wait = if session.attempt_is_live() {
+            dirty |= advance_attempt(session, app, &tx);
+            ATTEMPT_TICK
+        } else {
+            IDLE
+        };
+        if dirty {
+            guard
+                .terminal()
+                .draw(|frame| ui::render(frame, app, &markers))?;
+            dirty = false;
+        }
+
+        match rx.recv_timeout(wait) {
             Ok(event) => {
                 let mut batch = vec![event];
                 // Collapse whatever arrived while the frame was drawn: holding a scroll key
@@ -671,6 +1407,10 @@ fn event_loop(
                         }
                         AppEvent::Checked(outcome) => {
                             session.finish_check(*outcome);
+                            adopt(session, app);
+                        }
+                        AppEvent::Verified(report) => {
+                            session.finish_verification(*report);
                             adopt(session, app);
                         }
                         AppEvent::InputEnded => {
@@ -702,10 +1442,37 @@ fn event_loop(
     }
 }
 
+/// Take whatever the managed attempt produced, and schedule the verification it made possible.
+///
+/// Returns whether anything changed, so a loop that finds nothing does not redraw.
+fn advance_attempt(session: &mut Session, app: &mut App, tx: &Sender<AppEvent>) -> bool {
+    match session.poll_attempt() {
+        AttemptProgress::Idle => false,
+        AttemptProgress::Advanced => {
+            adopt(session, app);
+            true
+        }
+        AttemptProgress::Verify(pending) => {
+            app.working_ticks = 0;
+            adopt(session, app);
+            spawn_verification_thread(tx.clone(), *pending);
+            true
+        }
+    }
+}
+
 fn perform(session: &mut Session, app: &mut App, action: Action, tx: &Sender<AppEvent>) {
     match action {
         Action::CancelRun => {
             session.cancel_run();
+            adopt(session, app);
+        }
+        Action::StartAttempt => {
+            session.start_attempt();
+            adopt(session, app);
+        }
+        Action::ExportEvidence(destination) => {
+            session.export_evidence(destination);
             adopt(session, app);
         }
         Action::StartRun(contract_id) => {
@@ -911,7 +1678,14 @@ fn palette_key(app: &mut App, key: KeyEvent) -> Option<Action> {
             match command {
                 Some(Command::OpenPage(kind)) => app.surface = Surface::Page(kind),
                 Some(Command::Authorize(index)) => app.open_authorize_at(index),
+                Some(Command::StartAttempt) => app.open_attempt_confirm(),
                 Some(Command::CancelRun) => app.open_cancel_confirm(),
+                // Writing what the store already holds into a directory of its own takes nothing
+                // back and spends nothing, so it asks for no confirmation.
+                Some(Command::Export) => {
+                    app.resume_live();
+                    return Some(Action::ExportEvidence(None));
+                }
                 Some(Command::Quit) => app.should_quit = true,
                 None => {}
             }
@@ -956,6 +1730,7 @@ fn confirm_key(app: &mut App, key: KeyEvent) -> Option<Action> {
             return Some(match action {
                 ConfirmAction::CancelRun { .. } => Action::CancelRun,
                 ConfirmAction::StartRun { contract_id, .. } => Action::StartRun(contract_id),
+                ConfirmAction::StartAttempt { .. } => Action::StartAttempt,
             });
         }
         _ => {}
@@ -1000,6 +1775,15 @@ fn spawn_check_thread(tx: Sender<AppEvent>, pending: PendingCheck) {
     thread::spawn(move || {
         let outcome = pending.run();
         let _ = tx.send(AppEvent::Checked(Box::new(outcome)));
+    });
+}
+
+/// A verification runs a program of the operator's choosing and waits for it, so it never runs on
+/// the thread that draws; its outcome returns as an event like any other.
+fn spawn_verification_thread(tx: Sender<AppEvent>, pending: PendingVerification) {
+    thread::spawn(move || {
+        let report = pending.run();
+        let _ = tx.send(AppEvent::Verified(Box::new(report)));
     });
 }
 

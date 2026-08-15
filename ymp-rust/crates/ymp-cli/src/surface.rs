@@ -85,11 +85,26 @@ pub enum PublicCommand {
         #[command(flatten)]
         request: RequestArgs,
     },
+    /// Start the agent on the open run. Irreversible; type the run id to confirm.
+    Attempt {
+        /// The run id, typed exactly as the interface requires it to be typed.
+        #[arg(long, value_name = "RUN_ID")]
+        confirm: Option<String>,
+        /// Which runtime profile does the work. Omitted takes the only profile that is ready.
+        #[arg(long, value_name = "PROFILE")]
+        runtime: Option<String>,
+    },
     /// End the live run. Irreversible; type the run id to confirm.
     Cancel {
         /// The run id, typed exactly as the interface requires it to be typed.
         #[arg(long, value_name = "RUN_ID")]
         confirm: Option<String>,
+    },
+    /// Write this run's candidate and the evidence that judged it out of the store.
+    Export {
+        /// Where to write it. Omitted writes it beside the project, under the run's own name.
+        #[arg(long = "to", value_name = "DIR")]
+        destination: Option<PathBuf>,
     },
     /// Print one data page, exactly as the interface lays it out.
     Show {
@@ -122,6 +137,9 @@ pub struct RequestArgs {
     /// The deliberately wrong candidate that program must reject.
     #[arg(long = "negative-control")]
     pub negative_control: Option<PathBuf>,
+    /// Which runtime profile does the work. Omitted takes the only profile that is ready.
+    #[arg(long, value_name = "PROFILE")]
+    pub runtime: Option<String>,
 }
 
 impl RequestArgs {
@@ -212,10 +230,27 @@ pub fn run(
             confirm,
             request,
         ),
+        PublicCommand::Attempt { confirm, runtime } => {
+            run_attempt(&mut session, &mut app, &markers, confirm, runtime)
+        }
         PublicCommand::Cancel { confirm } => run_cancel(&mut session, &mut app, &markers, confirm),
+        PublicCommand::Export { destination } => {
+            run_export(&mut session, &mut app, &markers, destination)
+        }
         PublicCommand::Show { page, candidate } => {
             run_show(&mut session, &mut app, &markers, page, candidate)
         }
+    }
+}
+
+/// State which runtime profile does the work, as the line the interface reads it from.
+///
+/// The value is a value: it is handed to the session as the line an operator would type, and a
+/// name that selects no profile is refused there rather than resolved to the nearest one.
+fn select_runtime(session: &mut Session, app: &mut App, runtime: Option<&str>) {
+    if let Some(name) = runtime {
+        session.local_turn(format!("runtime {name}"));
+        app.adopt(session.projection(None));
     }
 }
 
@@ -249,6 +284,7 @@ fn run_authorize(
     request: RequestArgs,
 ) -> Result<()> {
     let errors = known_errors(&app.data.entries);
+    select_runtime(session, app, request.runtime.as_deref());
     if request.stated() {
         draft(session, app, &request);
     } else {
@@ -267,6 +303,66 @@ fn run_authorize(
     Ok(())
 }
 
+/// Start the agent on the open run, behind the interface's own typed confirmation.
+///
+/// A command's process is the wait, so it settles the attempt here: the run's events, the
+/// verification its candidate makes possible and the terminal it reaches all happen before this
+/// returns. The interface schedules the same steps instead of blocking on them.
+fn run_attempt(
+    session: &mut Session,
+    app: &mut App,
+    markers: &Markers,
+    confirm: Option<String>,
+    runtime: Option<String>,
+) -> Result<()> {
+    let errors = known_errors(&app.data.entries);
+    select_runtime(session, app, runtime.as_deref());
+    reject_new_errors(app, &errors)?;
+    // Which profile would do the work is read from this host, exactly where the interface reads
+    // it: a confirmation that could not name the profile would be asking for a spend nobody
+    // could make.
+    session.set_runtimes(ymp_tui::runtimes::probe_all());
+    app.adopt(session.projection(None));
+    app.open_attempt_confirm();
+    if matches!(app.modal, Modal::None) {
+        bail!("no attempt was launched — {}", attempt_refusal(&app.data));
+    }
+    commit(session, app, markers, confirm)?;
+    session.settle_attempt();
+    app.adopt(session.projection(None));
+    print_transcript(app, markers);
+    reject_new_errors(app, &errors)?;
+    Ok(())
+}
+
+/// Why this store offers no attempt to launch.
+fn attempt_refusal(projection: &Projection) -> String {
+    match &projection.run {
+        None => "this store holds no run".to_owned(),
+        Some(run) if !run.is_live() => format!(
+            "run {} has already ended with the terminal outcome {}",
+            run.run_id,
+            ymp_tui::projection::outcome(run.status)
+        ),
+        Some(_) => projection.route_note.clone(),
+    }
+}
+
+/// Write the run's candidate and the evidence that judged it out of the store.
+fn run_export(
+    session: &mut Session,
+    app: &mut App,
+    markers: &Markers,
+    destination: Option<PathBuf>,
+) -> Result<()> {
+    let errors = known_errors(&app.data.entries);
+    session.export_evidence(destination);
+    app.adopt(session.projection(None));
+    print_transcript(app, markers);
+    reject_new_errors(app, &errors)?;
+    Ok(())
+}
+
 /// Store a contract and start its run, behind the interface's own typed confirmation.
 fn run_start(
     session: &mut Session,
@@ -277,12 +373,16 @@ fn run_start(
     request: RequestArgs,
 ) -> Result<()> {
     let errors = known_errors(&app.data.entries);
+    select_runtime(session, app, request.runtime.as_deref());
     if request.stated() {
         draft(session, app, &request);
     }
     reject_new_errors(app, &errors)?;
 
     let index = select(&app.data, contract_id.as_deref())?;
+    // This command prints the confirmation rather than the coverage map, and starting the run
+    // starts no agent, so it has nothing to route and does not probe. `ymp authorize` states what
+    // this host offers, and `ymp attempt` reads it where it decides.
     app.open_authorize_at(index);
     // The coverage map gives way to the typed confirmation only when the projection says this
     // contract can start a run. When it cannot, the map states why and nothing is started. This
@@ -390,6 +490,7 @@ fn commit(
 fn committed(confirmed: &ConfirmAction) -> Action {
     match confirmed {
         ConfirmAction::StartRun { contract_id, .. } => Action::StartRun(contract_id.clone()),
+        ConfirmAction::StartAttempt { .. } => Action::StartAttempt,
         ConfirmAction::CancelRun { .. } => Action::CancelRun,
     }
 }
@@ -402,6 +503,8 @@ fn perform(session: &mut Session, action: Action) {
     match action {
         Action::CancelRun => session.cancel_run(),
         Action::StartRun(contract_id) => session.start_run(&contract_id),
+        Action::StartAttempt => session.start_attempt(),
+        Action::ExportEvidence(destination) => session.export_evidence(destination),
         Action::LocalTurn(text) => session.local_turn(text),
         // A command has no second thread to wait on: its own process is the check, and it has
         // already finished by the time anything could ask for it to be abandoned.

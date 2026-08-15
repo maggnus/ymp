@@ -108,6 +108,12 @@ pub enum Entry {
     Human { text: String },
     /// An ordinary application reply. The first line carries emphasis; the rest is body.
     AppReply { text: String },
+    /// What the runtime doing the work reported, attributed to the profile that reported it.
+    ///
+    /// It is not a journal fact and is never shown as one: the durable record of the same
+    /// invocation is the run's runtime evidence, and the journal carries only what the controller
+    /// committed. Nothing here is executable and nothing here decides anything.
+    RuntimeNote { profile: String, text: String },
     /// A failure the application is reporting, with the exact cause and the way out.
     AppError { text: String },
     /// A durable journal event.
@@ -191,6 +197,8 @@ impl Entry {
                 labelled_app(&body, theme::red(), width, true)
             }
 
+            Self::RuntimeNote { profile, text } => labelled_runtime(profile, text, width),
+
             Self::RunEvent { time, plane, text } => {
                 event_lines(time, *plane, None, None, text, width, markers)
             }
@@ -238,6 +246,34 @@ fn labelled_app(body: &str, body_style: Style, width: usize, plain: bool) -> Vec
         } else {
             spans.extend(style::spans(&piece, body_style));
         }
+        lines.push(Line::from(spans));
+    }
+    lines
+}
+
+/// What the runtime doing the work reported: the profile it came from, then the text.
+///
+/// The label is the profile's own name rather than a fixed column, so a longer name pushes the
+/// first line right instead of being cut to something the operator would have to decode. Every
+/// line still fits the terminal, because the wrap width follows the label.
+fn labelled_runtime(profile: &str, body: &str, width: usize) -> Vec<Line<'static>> {
+    let head = profile.chars().count() + 2;
+    let indent = LABEL_PREFIX.max(head);
+    let content_width = width.saturating_sub(indent).max(1);
+
+    let mut lines = Vec::new();
+    for (index, piece) in text::wrap(&text::sanitize(body), content_width)
+        .into_iter()
+        .enumerate()
+    {
+        let mut spans: Vec<Span<'static>> = Vec::new();
+        if index == 0 {
+            spans.push(Span::styled(format!(" {profile} "), theme::amber()));
+            spans.push(Span::raw(" ".repeat(indent - head)));
+        } else {
+            spans.push(Span::raw(" ".repeat(indent)));
+        }
+        spans.push(Span::styled(piece, theme::muted()));
         lines.push(Line::from(spans));
     }
     lines

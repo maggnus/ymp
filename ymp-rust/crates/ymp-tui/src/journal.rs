@@ -248,6 +248,17 @@ impl Model {
         self.push(Entry::Human { text: text.into() });
     }
 
+    /// Append what the runtime doing the work reported, attributed to its profile.
+    ///
+    /// It carries no journal fact and is never counted as one: the durable record of the same
+    /// invocation is the run's runtime evidence, and the events page reads the journal.
+    pub fn runtime(&mut self, profile: impl Into<String>, text: impl Into<String>) {
+        self.push(Entry::RuntimeNote {
+            profile: profile.into(),
+            text: text.into(),
+        });
+    }
+
     /// Record that this store cannot be read by this binary, so nothing is offered over it.
     pub fn refuse_store(&mut self) {
         self.refused = true;
@@ -349,6 +360,12 @@ impl Model {
             commands: self.commands(&pages),
             pages,
             runtimes: runtimes.cloned(),
+            // Where the work would go, and which store the next run belongs in, are the session's
+            // to settle: it holds the profile the operator named and knows the root this store was
+            // addressed under, and the journal records neither.
+            addresses_a_store_of_its_own: false,
+            route: None,
+            route_note: String::new(),
             awaiting: self.awaiting.clone(),
             working: self.working.clone(),
             status: self.status_line(),
@@ -366,15 +383,15 @@ impl Model {
             })
             .collect();
 
+        // Whether authorizing this contract would start a run is not the palette's to say: it
+        // turns on which store the next run belongs in, which the session settles and the journal
+        // does not record. The entry offers the review; the coverage map states what follows it.
         for (index, contract) in self.contracts.iter().enumerate() {
             items.push(PaletteItem {
                 name: format!("authorize {}", contract.contract_id),
-                description: match contract.can_start(self.run.as_ref()) {
-                    true => "review what would be checked, then start the run it names".to_owned(),
-                    false => {
-                        "review the coverage of this contract before anything is spent".to_owned()
-                    }
-                },
+                description: "review what this contract would have checked, before anything is \
+                              spent"
+                    .to_owned(),
                 command: Command::Authorize(index),
             });
         }
@@ -385,6 +402,18 @@ impl Model {
                 name: format!("cancel {}", run.run_id),
                 description: "end the live run — asks for typed confirmation".to_owned(),
                 command: Command::CancelRun,
+            });
+        }
+        // There is something to take out of the store only once a candidate exists: an export
+        // carries the exact candidate and the evidence that judged it, and neither exists before.
+        if let Some(run) = &self.run
+            && run.candidate_digest.is_some()
+        {
+            items.push(PaletteItem {
+                name: "export".into(),
+                description: "write this run's candidate and verifier evidence out of the store"
+                    .to_owned(),
+                command: Command::Export,
             });
         }
         items.push(PaletteItem {

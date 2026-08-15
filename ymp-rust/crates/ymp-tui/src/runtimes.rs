@@ -35,7 +35,8 @@ impl ProfileFacts {
         self.readiness == Readiness::Ready
     }
 
-    fn readiness_text(&self) -> &'static str {
+    /// What the probe found, as one word.
+    pub fn readiness_text(&self) -> &'static str {
         match self.readiness {
             Readiness::Ready => "ready",
             Readiness::NotInstalled => "not installed",

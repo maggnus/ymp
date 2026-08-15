@@ -28,6 +28,7 @@ pub mod answer;
 pub mod commitment;
 pub mod contract;
 pub mod root;
+pub mod verification;
 
 pub use answer::AnswerError;
 pub use commitment::{CommitmentOutcome, CommitmentService, CommitmentServiceError, RecordedFact};
@@ -35,6 +36,7 @@ pub use contract::{
     AcceptanceCondition, ContractRequestError, DEFAULT_RUN_BUDGET, PreparedContract, RunRequest,
     load_contract_package, prepare_contract,
 };
+pub use verification::{VerificationJob, VerificationOutcome};
 
 const BOOTSTRAP_COMMAND_ID: &str = "ymp.bootstrap";
 
@@ -81,6 +83,10 @@ pub enum ApplicationError {
     VerificationInfrastructure(#[from] VerificationInfrastructureError),
     #[error("a candidate must be submitted before verification")]
     NoCandidateForVerification,
+    #[error("this run is judged against no approved contract")]
+    NoApprovedContract,
+    #[error("the approved contract could not be read: {0}")]
+    ContractUnreadable(String),
     #[error("evidence export destination already exists: {0}")]
     ExportAlreadyExists(PathBuf),
     #[error("a candidate must be submitted before evidence can be exported")]

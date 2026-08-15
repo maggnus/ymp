@@ -1284,6 +1284,7 @@ dependencies = [
  "ymp-runtime-claude",
  "ymp-runtime-codex",
  "ymp-runtime-fake",
+ "ymp-runtime-supervisor",
 ]
 
 [[package]]

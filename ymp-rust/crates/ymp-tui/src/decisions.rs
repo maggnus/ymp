@@ -19,9 +19,39 @@ use crate::state::{
 pub const AUTHORIZATION_UNAVAILABLE: &str =
     "unavailable — nothing declared would reject a wrong candidate";
 
-/// Why authorization cannot be committed while this store already holds a run.
-pub const AUTHORIZATION_HAS_RUN: &str =
-    "unavailable — this store already holds a run; a second run needs its own store";
+/// Why authorization cannot be committed while this store already holds a run and no other store
+/// can be addressed for the next one.
+pub const AUTHORIZATION_HAS_RUN: &str = "unavailable — this store already holds a run, and this invocation names one exact store \
+     rather than a root; a second run needs its own store";
+
+/// Why authorization cannot be committed while no runtime profile can do the work.
+pub const AUTHORIZATION_HAS_NO_ROUTE: &str =
+    "unavailable — no runtime profile on this host would do this work";
+
+/// What the session settled about the run an authorization would start: which profile would do
+/// the work, and which store the run would be recorded in.
+#[derive(Clone, Copy, Debug)]
+pub struct StartFacts<'a> {
+    /// The profile that would do the work, when exactly one is settled.
+    pub profile: Option<&'a str>,
+    /// What is true about the routing, in the words the operator is shown.
+    pub note: &'a str,
+    /// Whether this run would be given a store of its own, because the one being read already
+    /// holds a run and the layout can address the next one.
+    pub in_a_store_of_its_own: bool,
+}
+
+impl StartFacts<'_> {
+    /// A caller that has settled neither — a surface built before this host was probed, or one
+    /// that is not about to start anything.
+    pub const fn unknown() -> Self {
+        Self {
+            profile: None,
+            note: "",
+            in_a_store_of_its_own: false,
+        }
+    }
+}
 
 /// The coverage map for one contract, and the run authorizing it would start.
 pub fn authorize(
@@ -29,6 +59,7 @@ pub fn authorize(
     environment: &Environment,
     runtimes: Option<&Report>,
     run: Option<&RunFacts>,
+    start: StartFacts<'_>,
 ) -> Authorize {
     let mut facts = vec![
         ("intent".to_owned(), first_line(&contract.prompt)),
@@ -42,22 +73,39 @@ pub fn authorize(
         ),
         ("source".to_owned(), contract.source.display().to_string()),
     ];
+    // A store holds one run. Where the one being read already holds one, the run this
+    // authorization starts is recorded in a store of its own, addressed under the same root by
+    // the layout rather than named by the operator — and the run being read is untouched.
+    if start.in_a_store_of_its_own {
+        facts.push((
+            "store".to_owned(),
+            "the store you are reading already holds a run · this one is recorded in a store of \
+             its own under the same root, and the run you are reading is left exactly as it stands"
+                .to_owned(),
+        ));
+    }
+    // Which agent would do the work, and what this host reported about every profile that could
+    // have. A profile that is not ready is named here, before anything is stored, and nothing is
+    // ever routed to another profile in its place.
     facts.push((
-        "routes".to_owned(),
-        match runtimes {
-            None => "probing runtime profiles…".to_owned(),
-            Some(report) if report.ready_count() == 0 => {
-                "no runtime profile on this host is ready".to_owned()
-            }
-            Some(report) => report
-                .profiles
-                .iter()
-                .filter(|profile| profile.ready())
-                .map(|profile| format!("{} ready", profile.name))
-                .collect::<Vec<_>>()
-                .join(" · "),
+        "route".to_owned(),
+        match (start.profile, runtimes) {
+            (Some(profile), _) => format!("{profile} — this run's work would be done by it"),
+            (None, None) => "probing runtime profiles…".to_owned(),
+            (None, Some(_)) => start.note.to_owned(),
         },
     ));
+    if let Some(report) = runtimes {
+        facts.push((
+            "profiles".to_owned(),
+            report
+                .profiles
+                .iter()
+                .map(|profile| format!("{} {}", profile.name, profile.readiness_text()))
+                .collect::<Vec<_>>()
+                .join(" · "),
+        ));
+    }
     facts.push((
         "assurance".to_owned(),
         format!(
@@ -76,7 +124,8 @@ pub fn authorize(
         ));
     }
 
-    let requirements = match &contract.verifier {
+    let routed = start.profile.is_some() || runtimes.is_none();
+    let mut requirements = match &contract.verifier {
         Some(verifier) => vec![
             Requirement {
                 state: RequirementState::Covered,
@@ -116,37 +165,75 @@ pub fn authorize(
         }],
     };
 
-    let action = contract.can_start(run).then(|| AuthorizeAction {
-        contract_id: contract.contract_id.clone(),
-        run_id: contract.run_id.clone().unwrap_or_default(),
-        budget: contract
-            .budget
-            .as_ref()
-            .map(|budget| {
-                vec![
-                    ("attempts".to_owned(), budget.attempts_remaining),
-                    (
-                        "verification_queries".to_owned(),
-                        budget.verification_queries_remaining,
-                    ),
-                ]
-            })
-            .unwrap_or_default(),
-        source: contract.source.display().to_string(),
-        verifier: contract
-            .verifier
-            .as_ref()
-            .map(|verifier| file_name(&verifier.program))
-            .unwrap_or_default(),
-        negative_control: contract
-            .verifier
-            .as_ref()
-            .map(|verifier| file_name(&verifier.negative_control))
-            .unwrap_or_default(),
-        reauthorization: contract.previously_authorized,
+    // Who would do the work is part of what is being authorized, so it is named here, before
+    // anything is stored. It does not block the run: a run whose work nothing can do yet is a run
+    // with an unspent budget, and the attempt is where a profile is refused. What is refused there
+    // is never replaced by another profile.
+    requirements.push(Requirement {
+        state: if routed {
+            RequirementState::Covered
+        } else {
+            RequirementState::Warning
+        },
+        name: "the work is done by a runtime profile you approved".into(),
+        checked_by: start.profile.unwrap_or("none ready").to_owned(),
+        negative_control: "—".into(),
+        detail: Some(match start.profile {
+            Some(profile) => format!(
+                "{profile} · a profile that is not ready stops the attempt rather than being \
+                 replaced by another"
+            ),
+            None if runtimes.is_none() => {
+                "this host has not been probed yet — the profiles are named once it is".to_owned()
+            }
+            None => format!("{} · nothing is spent until one can", start.note),
+        }),
     });
-    let action_note = if action.is_some() {
-        "authorize and start — the contract is stored and the run begins".to_owned()
+
+    let action = contract
+        .can_start(run, start.in_a_store_of_its_own)
+        .then(|| AuthorizeAction {
+            contract_id: contract.contract_id.clone(),
+            run_id: contract.run_id.clone().unwrap_or_default(),
+            budget: contract
+                .budget
+                .as_ref()
+                .map(|budget| {
+                    vec![
+                        ("attempts".to_owned(), budget.attempts_remaining),
+                        (
+                            "verification_queries".to_owned(),
+                            budget.verification_queries_remaining,
+                        ),
+                    ]
+                })
+                .unwrap_or_default(),
+            source: contract.source.display().to_string(),
+            verifier: contract
+                .verifier
+                .as_ref()
+                .map(|verifier| file_name(&verifier.program))
+                .unwrap_or_default(),
+            negative_control: contract
+                .verifier
+                .as_ref()
+                .map(|verifier| file_name(&verifier.negative_control))
+                .unwrap_or_default(),
+            reauthorization: contract.previously_authorized,
+        });
+    let blocking = contract.blocking_items();
+    let action_note = if action.is_some() && routed && start.in_a_store_of_its_own {
+        "authorize and start — the contract is stored, the run begins in a store of its own and \
+         the profile above does the work"
+            .to_owned()
+    } else if action.is_some() && routed {
+        "authorize and start — the contract is stored, the run begins and the profile above does \
+         the work"
+            .to_owned()
+    } else if action.is_some() {
+        format!(
+            "authorize and start — the run begins, and no attempt is launched: {AUTHORIZATION_HAS_NO_ROUTE}"
+        )
     } else if contract.blocking_items() > 0 {
         format!(
             "disabled — {} blocking item · {AUTHORIZATION_UNAVAILABLE}",
@@ -163,9 +250,42 @@ pub fn authorize(
         requirements,
         footer_note: "your approval grants authority, not validity — the gaps above stay yours"
             .into(),
-        blocking: contract.blocking_items(),
+        blocking,
         action,
         action_note,
+    }
+}
+
+/// The typed confirmation that launches the managed attempt of a live run.
+///
+/// This is where the agent starts and where spending against the operator's own account begins,
+/// so it carries the same weight as the start of the run: the run identifier, typed in full.
+pub fn start_attempt(run: &RunFacts, profile: &str) -> Confirm {
+    Confirm {
+        title: format!("start the attempt of run {}", run.run_id),
+        badge: "irreversible · starts spending".into(),
+        consequences: vec![
+            format!("the {profile} profile is started and does the work of this run"),
+            "it works in a private copy of the source, never in your working tree".to_owned(),
+            "it is paid for out of your own account with that profile, and what it spends is not \
+             returned"
+                .to_owned(),
+            format!(
+                "attempts left {} · verification queries left {}",
+                run.budget.attempts_remaining, run.budget.verification_queries_remaining
+            ),
+            "every launch, output and tool call is recorded under runtime-evidence in this store"
+                .to_owned(),
+        ],
+        prompt_label: "type the run id to confirm:".into(),
+        required: run.run_id.clone(),
+        typed: String::new(),
+        confirm_hint: "confirm — disabled until the id matches exactly".into(),
+        cancel_hint: "start nothing".into(),
+        action: ConfirmAction::StartAttempt {
+            run_id: run.run_id.clone(),
+            profile: profile.to_owned(),
+        },
     }
 }
 
@@ -320,7 +440,13 @@ mod tests {
 
     #[test]
     fn a_contract_without_a_verifier_blocks_and_says_why() {
-        let modal = authorize(&contract(false), &environment(), None, None);
+        let modal = authorize(
+            &contract(false),
+            &environment(),
+            None,
+            None,
+            StartFacts::unknown(),
+        );
         assert_eq!(modal.blocking, 1);
         assert_eq!(modal.requirements[0].state, RequirementState::Blocking);
         let detail = modal.requirements[0].detail.as_ref().expect("detail");
@@ -335,7 +461,13 @@ mod tests {
 
     #[test]
     fn a_verified_contract_names_its_check_and_its_negative_control() {
-        let modal = authorize(&contract(true), &environment(), None, None);
+        let modal = authorize(
+            &contract(true),
+            &environment(),
+            None,
+            None,
+            StartFacts::unknown(),
+        );
         assert_eq!(modal.blocking, 0);
         assert_eq!(modal.requirements[0].checked_by, "verify.sh");
         assert!(
@@ -351,7 +483,13 @@ mod tests {
 
     #[test]
     fn a_startable_contract_offers_the_run_and_a_store_with_a_run_does_not() {
-        let modal = authorize(&contract(true), &environment(), None, None);
+        let modal = authorize(
+            &contract(true),
+            &environment(),
+            None,
+            None,
+            StartFacts::unknown(),
+        );
         let action = modal.action.expect("the run is offered");
         assert_eq!(action.run_id, "run-aaaaaaaaaaaa");
         let confirm = start_run(&action);
@@ -379,7 +517,13 @@ mod tests {
             last_sequence: 3,
             terminal_reason: None,
         };
-        let modal = authorize(&contract(true), &environment(), None, Some(&run));
+        let modal = authorize(
+            &contract(true),
+            &environment(),
+            None,
+            Some(&run),
+            StartFacts::unknown(),
+        );
         assert!(modal.action.is_none(), "a second run was offered");
         assert!(modal.action_note.contains("already holds a run"));
     }
