@@ -3,19 +3,19 @@ id: W1-APP-02w.1
 kind: subtask
 wave: W1
 card: W1-APP-02
-state: active
+state: accepted
 risk: significant
 maturity: BUILD
 relation: required
 depends_on: [W1-APP-02w]
 blocks: []
 created_at: 2026-08-15T01:52:53+08:00
-updated_at: 2026-08-15T08:15:17+08:00
+updated_at: 2026-08-15T08:55:35+08:00
 started_at: 2026-08-15T08:15:17+08:00
-accepted_at:
-candidate_commit:
-closure_commit:
-evidence:
+accepted_at: 2026-08-15T08:55:35+08:00
+candidate_commit: https://github.com/maggnus/ymp/commit/a10ea9e10d90547a6586dac56696d55faf5c7f3d
+closure_commit: https://github.com/maggnus/ymp/commit/d457519
+evidence: sandboxed-HOME product runs left the launch directory byte-identical while the home root carried the store; both earlier-state forms refuse with named exits; the application route is forced by the surface scanner; reviewer mutation reproduced
 duration_minutes: 0
 blocker:
 pause_reason:

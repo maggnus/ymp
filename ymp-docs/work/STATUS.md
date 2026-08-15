@@ -42,8 +42,9 @@
 | `[x]` | [`W1-APP-02u`](waves/W1/W1-APP-02/tasks/W1-APP-02u.md) | A verifier answer is an executable that demonstrably discriminates | [`c1db6db`](https://github.com/maggnus/ymp/commit/c1db6db) | 14/08 01:40 | 14/08 02:19 (38m) |
 | `[x]` | [`W1-APP-02v`](waves/W1/W1-APP-02/tasks/W1-APP-02v.md) | The dialogue experience converges on the Claude Code interface | [`7e98831`](https://github.com/maggnus/ymp/commit/7e98831) | 14/08 02:19 | 14/08 04:08 (0m) |
 | `[x]` | [`W1-APP-02w`](waves/W1/W1-APP-02/tasks/W1-APP-02w/TASK.md) | Product state lives under one .ymp root that supports many projects | [`9996944`](https://github.com/maggnus/ymp/commit/9996944) | 14/08 02:13 | 14/08 03:06 (53m) |
-| `[~]` | [`W1-APP-02w.1`](waves/W1/W1-APP-02/tasks/W1-APP-02w/subtasks/W1-APP-02w.1.md) | Product state lives under ~/.ymp; the launch directory stays untouched | — | 15/08 08:15 | 15/08 08:15 (0m) |
+| `[x]` | [`W1-APP-02w.1`](waves/W1/W1-APP-02/tasks/W1-APP-02w/subtasks/W1-APP-02w.1.md) | Product state lives under ~/.ymp; the launch directory stays untouched | [`PENDING`](PENDING) | 15/08 08:15 | 15/08 08:55 (0m) |
 | `[ ]` | [`W1-APP-02w.2`](waves/W1/W1-APP-02/tasks/W1-APP-02w/subtasks/W1-APP-02w.2.md) | A run identifier names the run, not only its contract | — | — | — |
+| `[ ]` | [`W1-APP-02w.3`](waves/W1/W1-APP-02/tasks/W1-APP-02w/subtasks/W1-APP-02w.3.md) | Export can apply the accepted candidate in place | — | — | — |
 | `[x]` | [`W1-APP-02x`](waves/W1/W1-APP-02/tasks/W1-APP-02x.md) | Entry validation cannot hold the interface | [`7e98831`](https://github.com/maggnus/ymp/commit/7e98831) | 14/08 02:19 | 14/08 04:08 (0m) |
 | `[x]` | [`W1-APP-02y`](waves/W1/W1-APP-02/tasks/W1-APP-02y.md) | The run record itself carries the per-model spend | [`c63130c`](https://github.com/maggnus/ymp/commit/c63130c) | 14/08 05:19 | 14/08 22:59 (0m) |
 | `[ ]` | [`W1-APP-02y.1`](waves/W1/W1-APP-02/tasks/W1-APP-02y.1.md) | The accounting assertion states what accounting guarantees | — | — | — |

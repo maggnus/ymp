@@ -10,7 +10,7 @@ relation: supporting
 depends_on: [W1-APP-02y]
 blocks: []
 created_at: 2026-08-15T08:05:36+08:00
-updated_at: 2026-08-15T08:05:36+08:00
+updated_at: 2026-08-15T08:55:35+08:00
 started_at:
 accepted_at:
 candidate_commit:
@@ -36,7 +36,7 @@ green on three isolated repeats — W1-APP-02e re-review finding at codex_produc
 
 ### In
 
-- The exact-equality assertion in ymp-rust/crates/ymp-cli/tests/codex_product_path.rs.
+- The exact-equality assertions in ymp-rust/crates/ymp-cli/tests/codex_product_path.rs and the timeout arm of durable_claude_accounting in claude_product_path.rs (reproduced identically on base 620147f by two reviews).
 
 ### Out
 
