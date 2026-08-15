@@ -60,12 +60,11 @@ no confirmation.
 
 ## Current state
 
-Accepted after one return round. Reviewer blocker (landing overwrote an operator revocation made
-during the probe) was accepted and fixed at fb961cf: `finish_measurement` re-applies
-`withdraw_routing_of` for families withdrawn while the probe ran (`withdrawn_during`). Lean
-re-review ACCEPT: original scenario now lands at «0 ready», reviewer's own mutation of the fix
-fails exit 101, no new races (all landing steps sequential on the drawing thread). Merged into
-main as the integration merge; `cargo test -p ymp-tui` on the merged tree: 162 tests ok, 0 failed.
+Accepted after one return round. The reviewer blocker (landing overwrote an operator revocation made
+during the probe) was fixed at fb961cf: `finish_measurement` re-applies `withdraw_routing_of` for
+families withdrawn while the probe ran. Lean re-review ACCEPT: the scenario now lands at «0 ready»,
+the reviewer's own mutation of the fix fails exit 101, no new races (landing steps are sequential on
+the drawing thread). Merged into main; `cargo test -p ymp-tui`: 162 ok, 0 failed.
 
 ## Next action
 

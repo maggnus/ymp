@@ -27,12 +27,12 @@ deliberate_partial: false
 
 ## Outcome
 
-Migration unit P2 of [COLLECTIVE-MIGRATION.md](../../../../design/COLLECTIVE-MIGRATION.md): the
+Migration unit P2 of `ymp-docs/design/COLLECTIVE-MIGRATION.md`: the
 operator sees the fixed list of supported providers as a table (`/providers`), opens a provider's
 properties, and enables it there; probing/autodetect happens only on the enable transition or an
 explicit refresh, never before; the model catalog is a table (`/models`) derived from the accepted
 P1 records; the interface stops constructing drivers. Surfaces per
-[COLLECTIVE-TUI.md](../../../../design/COLLECTIVE-TUI.md) (S03–S05 family) and mirrored commands.
+`ymp-docs/design/COLLECTIVE-TUI.md` (S03–S05 family) and mirrored commands.
 
 Carries P1's two review residues: the stored provider state states the age of its observation (or
 the surface re-observes before reading), and a deleted engine record reads as a route with no

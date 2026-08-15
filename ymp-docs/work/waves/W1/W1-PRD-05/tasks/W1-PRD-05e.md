@@ -31,7 +31,7 @@ Migration unit P3: `AgentPool` exists as a stored resource under the product roo
 `spec` (selector or explicit ordered list of catalog entries, `maxAgents`, concurrency limit,
 resource limits — no `minAgents`, no `desired`, no roles: decisions D1, D11) and `status`
 (resolved entries, digest, conditions), per
-[COLLECTIVE-RESOURCES.md](../../../../design/COLLECTIVE-RESOURCES.md). A reconciler creates the
+`ymp-docs/design/COLLECTIVE-RESOURCES.md`. A reconciler creates the
 `default` pool automatically on the first ready provider (tracking the catalog) and keeps its
 resolved entries and digest current; editing `default` turns tracking into an explicit list and
 says so. Nothing here instantiates a participant.

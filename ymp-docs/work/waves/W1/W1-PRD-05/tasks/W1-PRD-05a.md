@@ -28,7 +28,7 @@ deliberate_partial: true
 ## Outcome
 
 A complete design document set in ymp-docs/design/ answering all 24 deliverable items of
-[PRODUCT-BRIEF-collective.md](../../../../design/PRODUCT-BRIEF-collective.md): product mental
+`ymp-docs/design/PRODUCT-BRIEF-collective.md`: product mental
 model, operator lifecycle, full TUI information architecture (the 30 surfaces, each with what the
 operator sees, available actions and their effects), provider/catalog/pool/recruitment design,
 internal ownership of contracts/oracles/verifiers with provenance classes A-E, exact
