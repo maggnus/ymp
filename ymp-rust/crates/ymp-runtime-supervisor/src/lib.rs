@@ -409,6 +409,19 @@ enum ManagedControl {
     Wake { input: String },
 }
 
+/// On whose behalf a cancellation is issued, which is what decides whether a run that has already
+/// finished may still be stopped.
+#[derive(Clone, Copy, Eq, PartialEq)]
+enum CancelScope {
+    /// An operator's command. It stops the run wherever the run stands, including a completed slice
+    /// whose candidate nothing has judged: an operator who stops a run means the candidate is not
+    /// to be accepted afterwards.
+    Commanded,
+    /// A controller closing. It stops a run that is still working and leaves a run that has already
+    /// recorded the terminal of its slice with the terminal it recorded.
+    WhileTheSliceIsOpen,
+}
+
 /// Take the guard that serializes every ending of one managed run.
 ///
 /// A poisoned guard is taken all the same. What it holds is an order of operations and not a datum
@@ -468,8 +481,24 @@ impl ManagedRunHandle {
     /// went on calling it running, and the controller that then waited for the worker waited for a
     /// run nothing had asked to stop.
     pub fn cancel(&self, reason: impl Into<String>) -> anyhow::Result<()> {
-        let reason = reason.into();
+        self.cancel_run(reason.into(), CancelScope::Commanded)
+    }
+
+    fn cancel_run(&self, reason: String, scope: CancelScope) -> anyhow::Result<()> {
         let _terminal = take_terminal(&self.terminal);
+        // A controller closing is not an operator stopping the work. The worker records the
+        // terminal of its slice, submits its candidate and only then winds the runtime down, and a
+        // close landing in that window used to stop a run that had already finished: both records
+        // were moved to cancelled over a completed slice, and the committed candidate lost the
+        // verdict it was waiting for. Whether the run has already answered is read out of the
+        // committed state of its slice — under this guard, so the worker either has not recorded
+        // its terminal yet or has recorded it together with the submission — and never out of the
+        // flag the worker sets on its way out, which comes after both.
+        if scope == CancelScope::WhileTheSliceIsOpen
+            && matches!(self.kernel.invocation_state(), Ok(InvocationState::Closed))
+        {
+            return Ok(());
+        }
         let ended = self.kernel.root_terminal()?;
         let refused = {
             let mut application = self
@@ -647,9 +676,26 @@ impl ManagedRunHandle {
             Ok(InvocationState::Closed) => return ShutdownRecord::AlreadyCommitted,
             Ok(_) => {}
             // A state that cannot be read is not the state "still open". Recording a terminal on it
-            // is what could rename one the worker has already committed, so nothing is recorded and
-            // the reading that failed is carried out instead.
-            Err(error) => return ShutdownRecord::Unread(error.to_string()),
+            // is what could rename one the worker has already committed, so the kernel is left
+            // alone and the reading that failed is carried out instead.
+            //
+            // The journal is moved all the same. The committed facts of a run are read through one
+            // lock, and a lock a panic poisoned stays poisoned: a run whose state cannot be read
+            // now will not be judged, closed or advanced later either. Leaving the journal on
+            // running would then show an operator a run in progress that nothing can move, so the
+            // record is failed here and names the reading that failed as the reason.
+            Err(error) => {
+                let error = error.to_string();
+                let detail = format!(
+                    "managed_runtime_slice_state_unread: supervision was still running {} ms after \
+                     the controller released its control channel, and the committed state of its \
+                     slice could not be read, so no terminal was recorded there: {error}",
+                    CONTROLLER_SHUTDOWN_LIMIT.as_millis()
+                );
+                let unrecorded =
+                    record_infrastructure_failure(&self.application, &self.attempt_id, &detail);
+                return ShutdownRecord::Unread { error, unrecorded };
+            }
         }
         let mut unrecorded = Vec::new();
         if !cancelled {
@@ -694,10 +740,17 @@ impl ManagedRunHandle {
                  had already recorded the terminal of its slice, so nothing was recorded here and \
                  the worker was left winding the runtime down"
             ),
-            WorkerShutdown::Unbounded(ShutdownRecord::Unread(error)) => bail!(
-                "managed runtime supervision did not end within {limit} ms; the committed state of \
-                 its slice could not be read, so nothing was recorded here: {error}"
-            ),
+            WorkerShutdown::Unbounded(ShutdownRecord::Unread { error, unrecorded }) => {
+                let report = format!(
+                    "managed runtime supervision did not end within {limit} ms; the committed \
+                     state of its slice could not be read, so the run was failed in the journal \
+                     alone: {error}"
+                );
+                match unrecorded {
+                    Some(unrecorded) => bail!("{report}; {unrecorded}"),
+                    None => bail!("{report}"),
+                }
+            }
             WorkerShutdown::Ended(Ok(())) | WorkerShutdown::AlreadyReleased => Ok(()),
         }
     }
@@ -722,15 +775,25 @@ enum ShutdownRecord {
     /// The worker had already committed the terminal of its slice — it was winding the runtime down
     /// rather than working — so neither record was written to.
     AlreadyCommitted,
-    /// The committed state of the slice could not be read, so neither record was written to.
-    Unread(String),
+    /// The committed state of the slice could not be read, so no terminal was recorded in the
+    /// kernel. The journal was failed on the reading that failed, carrying whatever it declined to
+    /// take.
+    Unread {
+        error: String,
+        unrecorded: Option<String>,
+    },
 }
 
 impl Drop for ManagedRunHandle {
     fn drop(&mut self) {
-        if !self.is_finished() {
-            let _ = self.cancel("managed runtime controller closed");
-        }
+        // Whether this run is still working is read out of the committed state of its slice, the
+        // way the wait that ran out reads it. A close that decided by the finished flag stopped a
+        // run held between the terminal it had recorded and the flag it had not yet set — the
+        // window the runtime is wound down in — and renamed a completed slice cancelled.
+        let _ = self.cancel_run(
+            "managed runtime controller closed".to_owned(),
+            CancelScope::WhileTheSliceIsOpen,
+        );
         // A wait that ran out records the terminal of the run itself, so a dropped controller
         // leaves no run whose records still call it running, and it leaves in bounded time.
         let _ = self.release_control_and_join();
@@ -1990,22 +2053,25 @@ pub fn initialize_private_git(workspace: &Path, git: &AdmittedProgram) -> anyhow
 #[cfg(test)]
 mod tests {
     use super::{
-        ManagedCandidateRequest, ManagedContract, ManagedRunEvent, admit_workspace_program,
-        admit_workspace_program_from, initialize_private_git, start_managed_candidate,
-        start_unattested_managed_candidate, validate_launch_descriptor, validate_runtime_launch,
+        CONTROLLER_SHUTDOWN_LIMIT, ManagedCandidateRequest, ManagedContract, ManagedKernel,
+        ManagedRunEvent, ManagedRunHandle, admit_workspace_program, admit_workspace_program_from,
+        initialize_private_git, start_managed_candidate, start_unattested_managed_candidate,
+        validate_launch_descriptor, validate_runtime_launch,
     };
     use std::collections::VecDeque;
     use std::path::{Path, PathBuf};
+    use std::sync::atomic::{AtomicBool, Ordering};
+    use std::sync::mpsc::channel;
     use std::sync::{Arc, Mutex};
     use std::time::{Duration, Instant};
     use ymp_agent_api::{AgentToolCall, AgentToolHandler, SubmitArguments, YieldArguments};
     use ymp_agent_rpc::SocketToolHandler;
     use ymp_application::Application;
-    use ymp_domain::{Budget, RunStatus};
+    use ymp_domain::{Budget, RunStatus, digest_bytes};
     use ymp_runtime_api::{
-        AdmittedProgram, InvocationRequest, ProbeReport, ProgramIdentity, ProgramRequirement,
-        ProgramRole, Readiness, RuntimeDriver, RuntimeError, RuntimeEvent, RuntimeEventKind,
-        RuntimeKind, RuntimeSession, Usage,
+        AdmittedProgram, CancellationToken, InvocationRequest, ProbeReport, ProgramIdentity,
+        ProgramRequirement, ProgramRole, Readiness, RuntimeDriver, RuntimeError, RuntimeEvent,
+        RuntimeEventKind, RuntimeKind, RuntimeSession, Usage,
     };
     use ymp_runtime_fake::{FakeRuntime, ScriptStep};
 
@@ -2979,5 +3045,92 @@ mod tests {
             assert_eq!(record["invocation_id"], invocation_id);
         }
         handle.join().expect("join worker");
+    }
+
+    /// A controller whose wait ran out over a slice whose committed state cannot be read moves the
+    /// journal off running and names the reading that failed as the reason.
+    ///
+    /// The committed facts of a run are read through one lock, and a lock a panic poisoned stays
+    /// poisoned: a state that cannot be read now will not be judged, closed or advanced later
+    /// either. Recording a kernel terminal on it would rename one the worker may already have
+    /// committed, so nothing is written there — but a journal left on running shows an operator a
+    /// run in progress that nothing can move, which is what this used to leave behind.
+    ///
+    /// The reading is made to fail here by giving the controller a kernel whose slice was never
+    /// started, because the lock a poison would have to be taken on belongs to the service that
+    /// owns the ledger and cannot be reached from outside it. What the shutdown decides on is a
+    /// reading of the committed state that failed, which is what this produces, and not the cause
+    /// behind the failure, which it does not reproduce.
+    ///
+    /// The check that must fail: leave the journal alone where the state could not be read. The
+    /// journal then carries no record of the reading that failed at all.
+    #[test]
+    fn a_wait_that_ran_out_over_an_unreadable_slice_fails_the_journal_with_its_reason() {
+        let temporary = tempfile::tempdir().expect("temporary directory");
+        let application = Arc::new(Mutex::new(
+            Application::create(temporary.path().join("data"), "run-1", Budget::new(1, 1))
+                .expect("create application"),
+        ));
+        let kernel = ManagedKernel::prepare(
+            "attempt-unread",
+            "invocation-unread",
+            "scope-unread",
+            &digest_bytes(b"base"),
+            &digest_bytes(b"intent"),
+        )
+        .expect("prepare the kernel record");
+        assert!(
+            kernel.invocation_state().is_err(),
+            "the state of this slice could be read, so the check measures nothing"
+        );
+
+        // A worker that outlasts the wait, which is the only state this path is reached from. It
+        // holds the receiving end of the control channel, so releasing that channel ends nothing.
+        let (_sender, receiver) = channel();
+        let (control_sender, control_receiver) = channel();
+        let released = Arc::new(AtomicBool::new(false));
+        let holding = Arc::clone(&released);
+        let worker = std::thread::Builder::new()
+            .spawn(move || {
+                let _control_receiver = control_receiver;
+                let deadline = Instant::now() + CONTROLLER_SHUTDOWN_LIMIT * 4;
+                while Instant::now() < deadline && !holding.load(Ordering::Acquire) {
+                    std::thread::sleep(Duration::from_millis(5));
+                }
+            })
+            .expect("the worker that outlasts the wait");
+        let handle = ManagedRunHandle {
+            attempt_id: "attempt-unread".to_owned(),
+            invocation_id: "invocation-unread".to_owned(),
+            runtime_kind: RuntimeKind::Fake,
+            cancellation: CancellationToken::default(),
+            application: Arc::clone(&application),
+            receiver: Mutex::new(receiver),
+            control_sender: Some(control_sender),
+            kernel: Arc::new(kernel),
+            terminal: Arc::new(Mutex::new(())),
+            finished: Arc::new(AtomicBool::new(false)),
+            worker: Some(worker),
+        };
+
+        let report = handle
+            .join()
+            .expect_err("a controller that stopped waiting reported success")
+            .to_string();
+        released.store(true, Ordering::Release);
+
+        assert!(
+            report.contains("could not be read"),
+            "the controller reported something other than what it found: {report}"
+        );
+        assert!(
+            report.contains("no recorded process slice"),
+            "the report carries no reason for the reading that failed: {report}"
+        );
+        assert_eq!(
+            application.lock().expect("application").state().status,
+            RunStatus::InfrastructureError,
+            "the journal still calls a run running that nothing can move"
+        );
     }
 }
