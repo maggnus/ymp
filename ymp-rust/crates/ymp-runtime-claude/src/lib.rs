@@ -29,7 +29,7 @@ pub const MINIMUM_CLAUDE_VERSION: &str = "2.1.227 (Claude Code)";
 /// `--version` with anything else is not the runtime this profile admits.
 pub const CLAUDE_PRODUCT_NAME: &str = "Claude Code";
 pub const PINNED_CLAUDE_MODEL: &str = "claude-opus-5";
-pub const PINNED_CLAUDE_PROMPT_POLICY: &str = "ymp-claude-low-v1";
+pub const PINNED_CLAUDE_PROMPT_POLICY: &str = "ymp-claude-low-v2";
 pub const PINNED_CLAUDE_API_PROVIDER: &str = "firstParty";
 
 /// Owner gate `G3` approves one project-wide monetary bound and a permitted in-flight overshoot.

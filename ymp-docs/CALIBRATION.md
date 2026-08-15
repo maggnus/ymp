@@ -29,8 +29,8 @@ the first three levels or expose their protected tests to producing attempts.
 
 | Runtime | Exact profile | Ambient state | Current readiness |
 |---|---|---|---|
-| Codex | `codex-cli 0.147.0`, `gpt-5.6-terra` (route measured against the account; `gpt-5.6-sol` is refused for ChatGPT accounts), low reasoning, `ymp-codex-low-v1` | Ephemeral session, user configuration and rules ignored, native multi-agent, plugins, skills, browser, applications and unrelated tools disabled | Ready and exercised through `ymp` |
-| Claude Code | installed build admitted at or above the `2.1.227 (Claude Code)` floor by numeric comparison, measured and recorded per run, `claude-opus-5`, low effort, `ymp-claude-low-v1`, `acceptEdits`, USD 1.00 invocation limit | Configuration sources, slash commands and session persistence disabled; strict generated MCP configuration and repository-only built-in tools | Driver fixture passes; local OAuth authenticated and exercised on the product path |
+| Codex | `codex-cli 0.147.0`, `gpt-5.6-terra` (route measured against the account; `gpt-5.6-sol` is refused for ChatGPT accounts), low reasoning, `ymp-codex-low-v2` (v2 from 2026-08-15: the product appends its own publication instruction after the verbatim request; measurements before that commit carry v1) | Ephemeral session, user configuration and rules ignored, native multi-agent, plugins, skills, browser, applications and unrelated tools disabled | Ready and exercised through `ymp` |
+| Claude Code | installed build admitted at or above the `2.1.227 (Claude Code)` floor by numeric comparison, measured and recorded per run, `claude-opus-5`, low effort, `ymp-claude-low-v2` (v2 from 2026-08-15, same boundary as codex), `acceptEdits`, USD 1.00 invocation limit | Configuration sources, slash commands and session persistence disabled; strict generated MCP configuration and repository-only built-in tools | Driver fixture passes; local OAuth authenticated and exercised on the product path |
 
 The compiled probes reject missing authentication and exact-version mismatches. Both process
 drivers bound structured output, impose a ten-minute wall-time limit, create a private process
@@ -139,3 +139,10 @@ managed repetitions and satisfy the functional repetition threshold. Codex has n
 currency-cost accounting, strict Linux containment, or the separate primary-corpus freeze required
 for promotion beyond development calibration. Agent-originated candidate submission is now proven
 by M3d.
+
+## Live measurements (2026-08-15)
+
+| Profile | Policy | Request | Outcome | Cost (microusd) |
+|---|---|---|---|---|
+| Claude Code 2.1.232, `claude-opus-5` | `ymp-claude-low-v2` | one live candidate, request never mentioning publication | accepted, candidate published via the product's own submit instruction | 118 783 |
+| Claude Code 2.1.232, `claude-opus-5` | `ymp-claude-low-v1` | "create an empty html file" through the public surface (W1-APP-02e), three runs | 1 infrastructure_error (no submit mentioned, no instruction yet), 2 accepted | 46 442 · 60 871 · 60 454 |

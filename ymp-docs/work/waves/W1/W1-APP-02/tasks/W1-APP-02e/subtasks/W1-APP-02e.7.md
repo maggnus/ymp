@@ -3,19 +3,19 @@ id: W1-APP-02e.7
 kind: subtask
 wave: W1
 card: W1-APP-02
-state: active
+state: accepted
 risk: significant
 maturity: BUILD
 relation: supporting
 depends_on: [W1-APP-02e]
 blocks: []
 created_at: 2026-08-15T02:53:45+08:00
-updated_at: 2026-08-15T11:26:50+08:00
+updated_at: 2026-08-15T12:14:44+08:00
 started_at: 2026-08-15T11:26:50+08:00
-accepted_at:
-candidate_commit:
-closure_commit:
-evidence:
+accepted_at: 2026-08-15T12:14:44+08:00
+candidate_commit: https://github.com/maggnus/ymp/commit/8467ec00303c322cf96272d42d591011fc23fae4
+closure_commit: FILL
+evidence: the request stays verbatim and the publication instruction follows as the product's own line only when the bridge is attached; contract bytes and intent digest untouched; live Claude run with no publication mention published a candidate (118783 microusd, recorded in CALIBRATION.md); reviewer fault injections reproduced the historic no-candidate outcome; prompt-policy pins bumped to v2 by a disclosed CTO fix with the boundary recorded
 duration_minutes: 0
 blocker:
 pause_reason:
