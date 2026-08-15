@@ -61,11 +61,12 @@
 //! * **No disclosure class, assurance profile or external-action allowance.** They are ceilings of a
 //!   run's policy, enforced where a run is created and a recruitment is admitted; nothing in this
 //!   build reads them, and a field recorded here now would be recorded and ignored.
-//! * **No resolution timestamp.** Nothing in this crate reads a clock. What a resolution was taken
-//!   from is stated instead, as the observation it can actually name: the provider records it was
-//!   read through and the digest of the catalog reading it resolved against. A reader comparing
-//!   that digest with the catalog sees whether the resolution is the one the catalog would produce
-//!   now, which is the question a timestamp would have been consulted for.
+//! * **No resolution timestamp.** Nothing that writes this record reads a clock, so a time on it
+//!   would be a claim nothing measured. What the resolution was taken from is stated instead, as
+//!   the observation this level can actually name: the provider records it was read through and the
+//!   digest of the catalog reading it resolved against. The question a timestamp would be consulted
+//!   for — is this the resolution the catalog would produce now — is answered by comparing that
+//!   digest with the catalog, which is a fact rather than an inference from an age.
 //!
 //! Nothing here instantiates a participant, spends anything or opens a process. Resolving a pool
 //! reads records under one root and writes one record back.

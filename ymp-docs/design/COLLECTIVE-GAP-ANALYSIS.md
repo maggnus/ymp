@@ -144,7 +144,7 @@ against a restated goal. The interview disappears; the analysis does not.
 
 **Transition.** `ContractDocument` gains `requirements[]` with a provenance class and
 `acceptance_plan[]`; the package is stored as an internal object and referenced by digest from
-`Run.spec.contractDigest` ([`COLLECTIVE-RESOURCES.md`](COLLECTIVE-RESOURCES.md), Run).
+`Run.declared.contractDigest` ([`COLLECTIVE-RESOURCES.md`](COLLECTIVE-RESOURCES.md), Run).
 
 **Interface.** No surface asks for a package. The block that starts the run states the restated
 goal, what *done* means in plain sentences, the ceiling it spends from and the disclosure; the eleven
@@ -174,7 +174,7 @@ decide a run. `MissingPart` survives for the fields the operator does supply.
 **Owner.** Derivation, inside the product, funded and disclosed rather than free and silent.
 
 **Transition.** `RunRequest` loses `acceptance`; `prepare_contract` consumes a derived acceptance
-plan instead of validating a supplied one; `Task.spec` has no acceptance field at all.
+plan instead of validating a supplied one; `Task.declared` has no acceptance field at all.
 
 **Interface.** The goal-entry surface never asks for a program, a control or a path. The advanced
 amendment grammar survives as an override that is never required, offered or implied.
@@ -346,12 +346,14 @@ and the interface drew it as a policy row before a run
 that a run states exactly what it could have used.
 
 **Owner.** The `AgentPool` resource with an automatic `default`, created once a provider is enabled
-and its models discovered. `Task.spec.agentPool` defaults to `default` and is never asked for. D1's
+and its models discovered. `Task.declared.agentPool` defaults to `default` and is never asked for.
+D1's
 own sentence — "no separate operator-facing model pool entity" — is superseded by brief v2, which is
 already annotated on the decision.
 
-**Transition.** `AgentPool` as a stored resource with `spec.models` (selector or explicit ordered
-list) and `spec.capacity`; `Run.spec.poolSnapshot` as the frozen value; `PoolFrozen` as the fact.
+**Transition.** `AgentPool` as a stored resource with `declared.models` (the whole catalog or an
+explicit ordered list) and `declared.capacity`; `Run.declared.poolSnapshot` as the frozen value;
+`PoolFrozen` as the fact.
 
 **Interface.** Nothing about models appears between the goal and the collective. `/pools` exists
 for the advanced operator and is never a prerequisite.
@@ -448,7 +450,8 @@ reading it from configuration: the first ready entry in the pool's declared orde
 ([decision D2](COLLECTIVE-OWNER-DECISIONS.md#d2--the-entry-rule-for-the-origin-participant), decided
 2026-08-15). No operator setting and no question.
 
-**Transition.** `Run.spec.entryModel`, recorded in the `PoolFrozen` fact so evidence names it and a
+**Transition.** `Run.declared.entryModel`, recorded in the `PoolFrozen` fact so evidence names it
+and a
 replayed journal reproduces it.
 
 **Interface.** The collective-startup surface states the rule in one line, so the entry is never
@@ -474,7 +477,7 @@ accepted provider record is already observed rather than seeded
 ([`provider.rs:23-32`](../../ymp-rust/crates/ymp-runtime-registry/src/provider.rs)), which is the
 correct half of this.
 
-**Owner.** The provider observer, gated on `spec.enabled`.
+**Owner.** The provider observer, gated on `declared.enabled`.
 
 **Transition.** Probing is triggered by the enable transition and by an explicit refresh, never by
 startup.
@@ -652,7 +655,7 @@ check), `W1-EVL-04d` (closed by owner decision D1).
 
 - `AgentPool` as a stored resource with a selector or explicit ordered list, capacity and limits;
   an automatic `default` created on the first ready provider (L-08).
-- `Run.spec.poolSnapshot` and `Run.spec.entryModel`, committed as `PoolFrozen` (L-08, L-12).
+- `Run.declared.poolSnapshot` and `Run.declared.entryModel`, committed as `PoolFrozen` (L-08, L-12).
 - `ContractDocument` gains requirements with provenance classes A–E and an acceptance plan naming
   which check observes which requirement (L-01, L-02).
 - `Clarification` as a typed object with its own budget dimension, and the divergence fact with its

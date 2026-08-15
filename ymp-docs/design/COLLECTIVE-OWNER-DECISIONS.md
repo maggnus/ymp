@@ -409,6 +409,15 @@ floor as this decision rather than as an omission, and unit P3 builds the resour
 >
 > Applies immediately to W1-PRD-05e (P3, the AgentPool record) before merge and to every later
 > unit; the TUI never showed these words in the first place.
+>
+> **The words chosen, 2026-08-15.** A resource's two halves are **declared** and **observed**, which
+> is what the seven per-resource parts of [`COLLECTIVE-RESOURCES.md`](COLLECTIVE-RESOURCES.md) are
+> now called. In the AgentPool record P3 built, the observed half is a resolution of the declaration
+> against the catalog, so the record spells them `declared` and `resolved`, the types are
+> `PoolDeclaration` and `PoolResolution`, and what a CRD would call conditions is `states` of
+> `PoolState`. The single sentence that maps the halves onto CRD `spec` and `status` stands in the
+> introduction of `COLLECTIVE-RESOURCES.md` and in the pool section of `ymp-rust/SCHEMA.md`, and
+> nowhere else.
 
 ## Summary
 

@@ -282,8 +282,8 @@ which entry a run ignites on. The digest therefore follows the catalog and the d
 ceiling raised or a resource bound stated leaves it exactly as it was. This is the value a run
 freezes.
 
-No resolution timestamp is written, because nothing in the crate that writes this record reads a
-clock. What the resolution was taken from is stated instead: the provider records it was read
+No resolution timestamp is written, because nothing that writes this record reads a clock, and a
+time on it would be a claim nothing measured. What the resolution was taken from is stated instead: the provider records it was read
 through with the state each one stated, and the digest of the whole catalog reading it resolved
 against. A reader holding the catalog compares that digest and sees whether the resolution is the
 one the catalog would produce now, which is the question a timestamp would have been consulted for.
