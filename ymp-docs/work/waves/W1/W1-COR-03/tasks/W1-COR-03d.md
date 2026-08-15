@@ -3,23 +3,23 @@ id: W1-COR-03d
 kind: task
 wave: W1
 card: W1-COR-03
-state: active
+state: accepted
 risk: critical
 maturity: BUILD
 relation: required
 depends_on: [W1-COR-03a, W1-COR-03b, W1-APP-02b]
 blocks: [W1-EVL-04a]
 created_at: 2026-08-10T19:34:25+08:00
-updated_at: 2026-08-15T16:45:00+08:00
+updated_at: 2026-08-15T18:40:00+08:00
 started_at: 2026-08-15T16:45:00+08:00
-accepted_at:
-candidate_commit:
+accepted_at: 2026-08-15T18:40:00+08:00
+candidate_commit: f4e9fbf
 closure_commit:
 evidence:
 duration_minutes: 0
 blocker:
 pause_reason:
-return_trigger:
+return_trigger: a test separating two constructions differing in exactly one of participant/contract_id/generation fails when that field leaves CandidateRecord::identify; verification coverage in the generated pool back to ≥4 of 192 seeds
 deliberate_partial: false
 ---
 
@@ -47,21 +47,20 @@ existing candidate.
 
 ## Acceptance
 
-- [ ] Two concurrent attempts from one base produce distinct immutable bundles and candidate
+- [x] Two concurrent attempts from one base produce distinct immutable bundles and candidate
   ancestry without modifying either workspace or candidate.
-- [ ] A stale fencing generation, stale base, conflicting patch, repeated submission, or partial
+- [x] A stale fencing generation, stale base, conflicting patch, repeated submission, or partial
   object cannot replace or mutate a current candidate.
-- [ ] A semantic conflict creates typed evidence and becomes participant-sponsored work; the
+- [x] A semantic conflict creates typed evidence and becomes participant-sponsored work; the
   integrator does not choose a resolution or winning branch.
-- [ ] A synthesized candidate records every contributing candidate, obligation, participant, base,
+- [x] A synthesized candidate records every contributing candidate, obligation, participant, base,
   and exact object digest required to reproduce its construction.
-- [ ] Deliberately removing the stale-token or immutability check produces a failing race or digest
+- [x] Deliberately removing the stale-token or immutability check produces a failing race or digest
   test.
 
 ## Current state
 
-The single-attempt candidate path is planned, but no multi-participant ancestry or synthesis path
-exists. This task follows the accepted contract, lifecycle, and candidate foundations.
+Accepted 2026-08-15 (candidate f4e9fbf, review ACCEPT WITH RESIDUE, merged into main).
 
 ## Next action
 
@@ -77,7 +76,17 @@ integrator.
 
 ## Findings
 
-None.
+- Candidate identity = digest of the construction (base, per-path objects, declaring bundle,
+  contributing candidates with obligations and participants); verified independent of source path,
+  branch, HOME, cwd and process; order-independent on the committed fact set.
+- Kernel commands record_object / submit_bundle / record_conflict; no ranking or preference path;
+  one contract seals one candidate. Journal version 4 (v3 stores refused explicitly).
+- R1 (residue): dropping participant, contract_id or generation from `CandidateRecord::identify`
+  leaves the domain suite green — the triple is correct but unproven individually.
+- R2 (residue): generated-schedule verification coverage fell from 4 seeds to 2 after the pool
+  split (resume coverage stayed at the single pre-existing seed 145 — fragile, deserves its own node).
+- Proposed child: move the live controller path (`ymp-runtime-supervisor::submitted`) from opaque
+  `SubmitResult` onto `submit_bundle` so provenance reaches the journal on the product path.
 
 ## Closure
 

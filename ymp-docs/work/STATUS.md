@@ -59,7 +59,7 @@
 | `[x]` | [`W1-COR-03a`](waves/W1/W1-COR-03/tasks/W1-COR-03a.md) | Local commitments conserve budgets and close obligations | [`58524264`](https://github.com/maggnus/ymp/commit/585242645d405ff1f76d6015a1141144eac4207b) | 13/08 15:10 | 13/08 16:27 (1h25m) |
 | `[x]` | [`W1-COR-03b`](waves/W1/W1-COR-03/tasks/W1-COR-03b.md) | Yielded participants resume finitely and runs terminate honestly | [`ca52994`](https://github.com/maggnus/ymp/commit/ca52994) | — | 14/08 04:06 (0m) |
 | `[ ]` | [`W1-COR-03c`](waves/W1/W1-COR-03/tasks/W1-COR-03c.md) | Scoped board preserves attribution without carrying authority | — | — | — |
-| `[~]` | [`W1-COR-03d`](waves/W1/W1-COR-03/tasks/W1-COR-03d.md) | Competing submissions preserve immutable candidate ancestry | — | 15/08 16:45 | 15/08 16:45 (0m) |
+| `[x]` | [`W1-COR-03d`](waves/W1/W1-COR-03/tasks/W1-COR-03d.md) | Competing submissions preserve immutable candidate ancestry | [`f4e9fbf`](f4e9fbf) | 15/08 16:45 | 15/08 18:40 (0m) |
 | `[ ]` | [`W1-COR-03e`](waves/W1/W1-COR-03/tasks/W1-COR-03e.md) | TUI exposes local commitments and communication evidence | — | — | — |
 | `[x]` | [`W1-COR-03f`](waves/W1/W1-COR-03/tasks/W1-COR-03f.md) | Commitment facts are durable and visible, not only in memory | [`8f5b815`](8f5b815) | 15/08 15:07 | 15/08 16:40 (0m) |
 | `[x]` | [`W1-COR-03g`](waves/W1/W1-COR-03/tasks/W1-COR-03g.md) | Settlement returns escrow only to an account that can still spend it | [`2b390922`](https://github.com/maggnus/ymp/commit/2b390922667426a48b01c9225ccee08c7d8e81f8) | 13/08 16:47 | 13/08 18:43 (1h36m) |
@@ -95,4 +95,6 @@
 | `[~]` | [`W1-PRD-05`](waves/W1/W1-PRD-05/CARD.md) | The product is experienced as an autonomous collective | — | 15/08 02:07 | 15/08 16:12 (0m) |
 | `[x]` | [`W1-PRD-05a`](waves/W1/W1-PRD-05/tasks/W1-PRD-05a.md) | The collective design deliverable | [`decd7ea`](https://github.com/maggnus/ymp/commit/decd7ea) | 15/08 02:07 | 15/08 07:47 (0m) |
 | `[x]` | [`W1-PRD-05b`](waves/W1/W1-PRD-05/tasks/W1-PRD-05b.md) | The product root carries provider and catalog records (P1) | [`09fc9c4`](09fc9c4) | 15/08 15:07 | 15/08 16:12 (0m) |
-| `[~]` | [`W1-PRD-05c`](waves/W1/W1-PRD-05/tasks/W1-PRD-05c.md) | Design correction under product brief v2 (TUI ownership + CRD resource model) | — | 15/08 16:12 | 15/08 16:12 (0m) |
+| `[x]` | [`W1-PRD-05c`](waves/W1/W1-PRD-05/tasks/W1-PRD-05c.md) | Design correction under product brief v2 (TUI ownership + CRD resource model) | [`6dec28e`](6dec28e) | 15/08 16:12 | 15/08 18:55 (0m) |
+| `[~]` | [`W1-PRD-05d`](waves/W1/W1-PRD-05/tasks/W1-PRD-05d.md) | Provider and model surfaces; probing gated on Enable (P2) | — | 15/08 18:55 | 15/08 18:55 (0m) |
+| `[~]` | [`W1-PRD-05e`](waves/W1/W1-PRD-05/tasks/W1-PRD-05e.md) | The AgentPool resource, its reconciler and the automatic `default` (P3) | — | 15/08 18:55 | 15/08 18:55 (0m) |

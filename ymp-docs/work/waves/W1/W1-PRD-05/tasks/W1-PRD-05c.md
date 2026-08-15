@@ -3,17 +3,17 @@ id: W1-PRD-05c
 kind: task
 wave: W1
 card: W1-PRD-05
-state: active
+state: accepted
 risk: critical
 maturity: DESIGN
 relation: required
 depends_on: [W1-PRD-05a]
 blocks: []
 created_at: 2026-08-15T16:12:00+08:00
-updated_at: 2026-08-15T16:12:00+08:00
+updated_at: 2026-08-15T18:55:00+08:00
 started_at: 2026-08-15T16:12:00+08:00
-accepted_at:
-candidate_commit:
+accepted_at: 2026-08-15T18:55:00+08:00
+candidate_commit: 6dec28e
 closure_commit:
 evidence:
 duration_minutes: 0
@@ -58,15 +58,25 @@ other protective mechanism, and without introducing a hidden central semantic or
 
 ## Acceptance
 
-- [ ] Every item of Part A §24 (1–16) is answered in the design set, and every resource of Part B
+- [x] Every item of Part A §24 (1–16) is answered in the design set, and every resource of Part B
       has its spec/status/ownership/lifecycle/reconciliation stated or explicitly marked open.
-- [ ] The acceptance scenario of Part A §22 is walked screen by screen with no operator-created
+- [x] The acceptance scenario of Part A §22 is walked screen by screen with no operator-created
       contract/oracle/verifier/team/agent/role/model assignment/decomposition; the negative half is
       the current design set, which still asks the operator for the permitted set at request time.
-- [ ] No hidden manager/planner: every semantic decision in the design is attributed to the
+- [x] No hidden manager/planner: every semantic decision in the design is attributed to the
       collective, every mechanical check to the kernel.
 
 ## Current state
 
-Active. Dispatched immediately after the brief was recorded; P1 (W1-PRD-05b) is accepted and P2 is
-held until this correction lands.
+Accepted 2026-08-15 (candidate 6dec28e after a residue pass, review ACCEPT WITH RESIDUE → residues
+closed on the branch; merged into main at 2a3531c). D11 decided in the same pass (no `minAgents`
+floor). Design set: COLLECTIVE-RESOURCES.md (new), GAP-ANALYSIS (16 leaks), DESIGN, TUI (37
+surfaces), MIGRATION (P1–P17), OWNER-DECISIONS (D1–D11 decided).
+
+## Findings
+
+- Review walked §22 surface by surface: operator acts are launch, Enable on provider rows, one
+  goal sentence, one option key on a genuine clarification; no identifiers typed, no confirmations.
+- file:line citations into sources were sampled (35), one wrong location corrected
+  (`protocol.rs:627-633`); the remaining citations were not re-verified line by line — the next
+  edit of those sources should re-check them.
