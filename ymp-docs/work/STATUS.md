@@ -104,4 +104,4 @@
 | `[x]` | [`W1-PRD-05h`](waves/W1/W1-PRD-05/tasks/W1-PRD-05h.md) | The run-scoped pool freeze: `PoolFrozen` committed at run creation (P5) | [`54ccbeeb`](https://github.com/maggnus/ymp/commit/54ccbeeb7d998aa387befcd010692edf7db3ee24) | 15/08 22:15 | 16/08 01:35 (3h20m) |
 | `[ ]` | [`W1-PRD-05i`](waves/W1/W1-PRD-05/tasks/W1-PRD-05i.md) | P9: the origin participant starts from the frozen pool | — | — | — |
 | `[~]` | [`W1-PRD-05j`](waves/W1/W1-PRD-05/tasks/W1-PRD-05j.md) | P10: recruitment through the kernel's mechanical gate | — | 16/08 09:45 | 16/08 09:45 (0m) |
-| `[ ]` | [`W1-APP-02aa`](waves/W1/W1-APP-02/tasks/W1-APP-02aa.md) | Quitting kills a probe that outlives the 5 s bound | — | — | — |
+| `[x]` | [`W1-APP-02aa`](waves/W1/W1-APP-02/tasks/W1-APP-02aa.md) | Quitting kills a probe that outlives the 5 s bound | [`a19c4807`](https://github.com/maggnus/ymp/commit/a19c480742f44b13021aab9c47cb149635024d92) | 16/08 09:30 | 16/08 11:45 (2h15m) |
