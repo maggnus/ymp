@@ -104,9 +104,12 @@ halves (rule-removal) and a reviewer-owned external falsifier of a different sha
 
 ### Residuals
 
-1. (major, additional-work) Board records are not persisted to the store and SCHEMA.md is
-   unchanged; INV-6 is covered in-memory by facts()/replay(). Return trigger: the persistence and
-   evidence-export card must land before any run whose board evidence is exported for the study.
+1. Closed 2026-08-16 by BOARD-PERSIST (merged 3bab764): the board crate carries its own record
+   section (`board.json` opening conditions + `facts.jsonl` digest-chained facts, OS-exclusive
+   writer lock, chain verification on append), and evidence exports as one reproducible file.
+   One minor limitation carried forward: prefix verification confirms the last written position,
+   not every position — full per-append chain comparison returns when the board gains a calling
+   side (review finding, measured).
 2. (minor, additional-work) `ymp-rust/README.md` package table lacks the ymp-board row. Return
    trigger: next documentation sweep.
 
