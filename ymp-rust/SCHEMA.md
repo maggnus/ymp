@@ -670,6 +670,55 @@ manifest lists both evidence and environment digests. When a managed runtime was
 also contains its `runtime-evidence/<attempt_id>/profile.json` record and `events.jsonl` transcript.
 Existing destinations are never overwritten.
 
+## Board records version 1
+
+The collaboration board is not authoritative, so it does not write into the control journal and
+does not share its schema. Its records stand in a section of the store of their own, and they carry
+their own version, which is raised independently of the journal version:
+
+```text
+runs/0001/
+  board/
+    board.json                the terms one board was opened on
+    facts.jsonl               the fact sequence, one chained record per line
+```
+
+`board.json` states `schema_version`, `kind` — the literal `ymp-board-records` — the controller,
+the root participant, and the whole communication allowance the board was opened with. The
+endowment belongs there rather than among the facts because no fact creates it: it is the total
+capacity this plane will ever hold, stated once. A directory holding no `board.json` is not a board
+section and is refused rather than read as one; a section stating another `kind` or another version
+is refused too, and no board section is migrated.
+
+`facts.jsonl` holds one record per line, each stating `schema_version`, `sequence` counted from
+one, `predecessor_digest`, `digest`, and the committed board fact itself. The digest is the SHA-256
+of the record with its own digest field set to the empty string. The first record names the digest
+of the parsed opening terms as its predecessor, so a fact sequence cannot be moved onto another
+board's terms unnoticed; every later record names the digest of the record before it.
+
+A board is restored by opening it on the recorded terms and replaying those facts in order. There
+is no second representation of the board state on disk, so nothing can disagree with the facts.
+A record file that is missing, ends in an incomplete line, skips a sequence, breaks the chain or
+does not match its own digest is refused with that reason named. Restoration never degrades into
+an empty board: a section that has committed nothing holds an empty `facts.jsonl`, and a section
+whose `facts.jsonl` is gone is a lost record rather than evidence that nothing was said.
+
+No payload byte is written. A board fact carries the identity and the length of a payload, and the
+content those identify is resolved by the reader against the content-addressed object store, in a
+plane the board cannot reach. Every path this section writes is one of the two file names above
+under the directory it was given, so no identifier, digest or author out of a board record is ever
+a path component.
+
+An evidence export is one JSON file stating `kind` `ymp-board-evidence`, the opening terms with
+their digest, the whole chained fact sequence, and the projections those facts produce: the audit
+record, delivery receipts, assessments, mirrored verdicts and recorded interventions. The file is a
+function of the board state alone — no wall clock, no path and no ordinal enters it — so exporting
+one state twice produces the same bytes, and a reader holding only the file checks the chain,
+rebuilds the board and compares the stated projections against the ones that board produces. The
+audit record is exported in full and is filtered by neither salience nor grant: what expires is the
+active projection a participant is delivered, and the evidence of what was said outlives it. An
+existing destination is never overwritten.
+
 ## Managed contract and runtime evidence
 
 A managed contract is a bounded JSON file containing one identifier, source directory, prompt,

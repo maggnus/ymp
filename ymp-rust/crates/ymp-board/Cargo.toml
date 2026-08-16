@@ -15,3 +15,8 @@ serde.workspace = true
 serde_json.workspace = true
 sha2.workspace = true
 thiserror.workspace = true
+
+# The suite writes durable records into a temporary directory. A development dependency is not
+# linked into the library, so it widens nothing the plane boundary above states.
+[dev-dependencies]
+tempfile.workspace = true

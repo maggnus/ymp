@@ -6,7 +6,13 @@
 //! library has no way to perform one: it declares no dependency on a package that holds control or
 //! verification state, and its own sources name no file, no address and no child process.
 //!
-//! Both checks are pure functions of text, so each is run twice: once over this crate's real
+//! One source is an exception, and it is bounded by three checks rather than by trust. The board
+//! keeps durable records, so `store.rs` opens files; it is held to naming no address and no child
+//! process like every other source, and additionally to building no path out of anything but two
+//! constants of its own. An identifier a participant chose therefore never becomes a path
+//! component, and the widest thing a payload could ask of this crate remains nothing at all.
+//!
+//! Every check is a pure function of text, so each is run twice: once over this crate's real
 //! manifest and sources, and once over a fixture that carries exactly what the check is looking
 //! for. Without the second half a passing check would only mean that nothing matched.
 
@@ -28,9 +34,26 @@ const FORBIDDEN_MARKERS: [&str; 8] = [
     "extern \"C\"",
 ];
 
-/// The sources the library is built from. The suite's own files are deliberately not among them:
-/// this file reads the manifest and those sources, which is exactly what a library file may not do.
-const LIBRARY_SOURCES: [&str; 6] = [
+/// What the durable-records source may not name. It is the same list without the two markers a
+/// file is written through: reaching the filesystem is what this one source is for, and reaching
+/// an address, a child process or a compile-time inclusion is not.
+const FORBIDDEN_IN_PERSISTENCE: [&str; 6] = [
+    "std::net",
+    "std::os",
+    "std::process",
+    "include_bytes!",
+    "include_str!",
+    "extern \"C\"",
+];
+
+/// The only path components the durable-records source may build a path from. Both are constants
+/// of this crate, so nothing an author, a scope or a payload named decides what is written where.
+const ALLOWED_PATH_COMPONENTS: [&str; 2] = ["OPENING_RECORD", "FACT_RECORD"];
+
+/// The sources the kernel is built from, which reach nothing outside the process at all. The
+/// suite's own files are deliberately not among them: this file reads the manifest and those
+/// sources, which is exactly what a library file may not do.
+const KERNEL_SOURCES: [&str; 6] = [
     "lib.rs",
     "budget.rs",
     "records.rs",
@@ -38,6 +61,9 @@ const LIBRARY_SOURCES: [&str; 6] = [
     "ledger.rs",
     "observatory.rs",
 ];
+
+/// The sources that keep the board's durable records.
+const PERSISTENCE_SOURCES: [&str; 1] = ["store.rs"];
 
 /// The dependency names a manifest declares.
 fn declared_dependencies(manifest: &str) -> Vec<String> {
@@ -73,13 +99,35 @@ fn unadmitted_dependencies(manifest: &str) -> Vec<String> {
         .collect()
 }
 
-/// Every place a source names something the library may not reach, with the line it is on.
-fn reachable_effects(name: &str, source: &str) -> Vec<String> {
+/// Every place a source names something it may not reach, with the line it is on.
+fn reachable_effects(name: &str, source: &str, forbidden: &[&str]) -> Vec<String> {
     let mut findings = Vec::new();
     for (index, line) in source.lines().enumerate() {
-        for marker in FORBIDDEN_MARKERS {
+        for marker in forbidden {
             if line.contains(marker) {
                 findings.push(format!("{name}:{}: {marker}", index + 1));
+            }
+        }
+    }
+    findings
+}
+
+/// Every path this source extends with something that is not one of its own constants.
+///
+/// The argument is read as it is written. A call that computes its component, reads it out of a
+/// record or takes it from a caller is not one of the admitted constants and is reported, which is
+/// the point: what may be reported is the whole question of whether a board record can name a file.
+fn unconstrained_path_components(name: &str, source: &str) -> Vec<String> {
+    let mut findings = Vec::new();
+    for (index, line) in source.lines().enumerate() {
+        for (offset, _) in line.match_indices(".join(") {
+            let argument: String = line[offset + ".join(".len()..]
+                .chars()
+                .take_while(|character| *character != ')')
+                .collect();
+            let argument = argument.trim().to_owned();
+            if !ALLOWED_PATH_COMPONENTS.contains(&argument.as_str()) {
+                findings.push(format!("{name}:{}: {argument}", index + 1));
             }
         }
     }
@@ -120,21 +168,25 @@ fn the_collaboration_plane_depends_on_no_other_ymp_package() {
     );
 }
 
-/// No source of the library names a file, an address or a child process.
+/// No source of the kernel names a file, an address or a child process.
 ///
 /// The negative half puts the same check to a source that names all three. A payload that asks for
-/// a fetch or a tool call therefore reaches a library with nothing to ask, which is a stronger
+/// a fetch or a tool call therefore reaches a kernel with nothing to ask, which is a stronger
 /// statement than observing that one particular payload caused neither.
 #[test]
-fn the_collaboration_plane_reaches_no_file_no_address_and_no_process() {
+fn the_collaboration_kernel_reaches_no_file_no_address_and_no_process() {
     let mut findings = Vec::new();
-    for source in LIBRARY_SOURCES {
-        findings.extend(reachable_effects(source, &read(&format!("src/{source}"))));
+    for source in KERNEL_SOURCES {
+        findings.extend(reachable_effects(
+            source,
+            &read(&format!("src/{source}")),
+            &FORBIDDEN_MARKERS,
+        ));
     }
     assert_eq!(
         findings,
         Vec::<String>::new(),
-        "a source of the collaboration plane names a way out of the process, so the plane could \
+        "a source of the collaboration kernel names a way out of the process, so the plane could \
          act on what a payload asks for"
     );
 
@@ -143,7 +195,7 @@ fn the_collaboration_plane_reaches_no_file_no_address_and_no_process() {
                     let _ = std::net::TcpStream::connect(payload);\n    \
                     let _ = std::process::Command::new(payload);\n}\n";
     assert_eq!(
-        reachable_effects("fixture.rs", obedient),
+        reachable_effects("fixture.rs", obedient, &FORBIDDEN_MARKERS),
         vec![
             "fixture.rs:2: std::fs".to_owned(),
             "fixture.rs:3: std::net".to_owned(),
@@ -151,6 +203,51 @@ fn the_collaboration_plane_reaches_no_file_no_address_and_no_process() {
         ],
         "the check does not notice a source that opens a file, reaches an address and starts a \
          process, so it is not what establishes that this plane cannot"
+    );
+}
+
+/// The durable-records source opens files and nothing else: it reaches no address and no child
+/// process, and it extends no path with anything but its own two constants.
+///
+/// The second half is what keeps persistence from becoming the way out the kernel does not have.
+/// A record naming its own file would let a participant decide what this plane writes and where;
+/// the fixture below is exactly that source, and the check reports it.
+#[test]
+fn the_durable_records_open_files_named_by_this_crate_and_nothing_else() {
+    let mut effects = Vec::new();
+    let mut components = Vec::new();
+    for source in PERSISTENCE_SOURCES {
+        let text = read(&format!("src/{source}"));
+        effects.extend(reachable_effects(source, &text, &FORBIDDEN_IN_PERSISTENCE));
+        components.extend(unconstrained_path_components(source, &text));
+    }
+    assert_eq!(
+        effects,
+        Vec::<String>::new(),
+        "the durable-records source names a way out of the process beyond the filesystem it is \
+         for"
+    );
+    assert_eq!(
+        components,
+        Vec::<String>::new(),
+        "the durable-records source builds a path out of something other than its own constants, \
+         so a board record could decide what this plane writes and where"
+    );
+
+    let obedient = "fn write(record: &MessageRecord, directory: &Path) {\n    \
+                    let path = directory.join(&record.author);\n    \
+                    let _ = std::net::TcpStream::connect(&record.payload_digest);\n\
+                    }\n";
+    assert_eq!(
+        reachable_effects("fixture.rs", obedient, &FORBIDDEN_IN_PERSISTENCE),
+        vec!["fixture.rs:3: std::net".to_owned()],
+        "the check does not notice a records source that reaches an address"
+    );
+    assert_eq!(
+        unconstrained_path_components("fixture.rs", obedient),
+        vec!["fixture.rs:2: &record.author".to_owned()],
+        "the check does not notice a records source that names a file after something a \
+         participant chose, so it is not what keeps a board record out of a path"
     );
 }
 
@@ -170,13 +267,14 @@ fn the_audit_covers_every_source_the_library_is_built_from() {
         .collect();
     for module in &declared {
         assert!(
-            LIBRARY_SOURCES.contains(&module.as_str()),
+            KERNEL_SOURCES.contains(&module.as_str())
+                || PERSISTENCE_SOURCES.contains(&module.as_str()),
             "the library declares the module {module}, and the audit does not cover it"
         );
     }
     assert_eq!(
         declared.len() + 1,
-        LIBRARY_SOURCES.len(),
+        KERNEL_SOURCES.len() + PERSISTENCE_SOURCES.len(),
         "the audited sources and the modules the library declares have drifted apart"
     );
 }

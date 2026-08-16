@@ -25,6 +25,12 @@
 //! vector: capacity granted for talking cannot be spent on starting a participant, and the two
 //! cannot be confused by a caller that holds one and needs the other.
 //!
+//! The board keeps its records in a section of its own, described in [`store`], and not in the
+//! control journal: this plane is not authoritative, so its records are versioned, written and
+//! read apart from the ones that are. A board is restored by replaying its own recorded facts, so
+//! there is no second on-disk representation that could disagree with them, and a lost record file
+//! is refused by name rather than read as a board on which nothing was ever said.
+//!
 //! Audit history and active salience are separate. Every message record is permanent, and the
 //! [audit projection](BoardLedger::audit) keeps returning it forever; the active projection a
 //! participant is delivered stops carrying it once its salience expires, and refreshing it costs
@@ -41,6 +47,7 @@ pub mod ledger;
 pub mod observatory;
 pub mod protocol;
 pub mod records;
+pub mod store;
 
 #[cfg(test)]
 mod tests;
@@ -61,6 +68,11 @@ pub use records::{
     InterventionRecord, MessageKind, MessageRecord, ObservedVerdict, ReaderRecord, Reference,
     Relation, ReviewPolicy, ReviewerRecord, ReviewerState, Rights, RunKeepingAuthority, ScopeKind,
     ScopeRecord, VerdictRecord,
+};
+pub use store::{
+    BOARD_EVIDENCE_KIND, BOARD_RECORD_KIND, BOARD_SECTION, BoardEvidence, BoardOpening,
+    BoardRecordError, BoardStore, FACT_RECORD, MAX_FACT_BYTES, MAX_RECORD_BYTES, OPENING_RECORD,
+    RecordedFact,
 };
 
 /// The version of the collaboration records this crate decides and projects.
