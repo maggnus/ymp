@@ -522,8 +522,13 @@ the failure this policy exists to prevent.
 ## Event journal version 7
 
 Version 7 keeps every envelope field, ordering rule, digest input and limit of version 6, and every
-<<<<<<< HEAD
-commitment fact and run record the versions before it added. What it adds is the life of the
+commitment fact and run record the versions before it added. What it adds is the participant
+records of POC-2 mechanics. Version 7 carries two families of participant records; a run may write
+either, both or neither, and each family stands on its own invariants.
+
+### The life of the participant a run ignites on
+
+What it adds is the life of the
 participant a run ignites on, as four records of the run itself:
 
 - `participant_started`, carrying `participant_id`, `attempt_id`, `entry` and `workspace` — the
@@ -564,8 +569,10 @@ carries no participant record, no charge and no workspace.
 The version is raised rather than treated as an extension for the reason versions 4, 5 and 6 were: a
 version-6 reader given one of these tags fails on an unknown record rather than on a stated version,
 which is the failure this policy exists to prevent.
-=======
-commitment fact and run record the versions before it added. What it adds is one record of the run
+
+### The participant one participant admits into the run
+
+What it adds is one record of the run
 itself, written once for each participant one participant admits into the run:
 
 - `participant_admitted`, carrying `admitted` and `facts`. `admitted` states what the admission
@@ -595,20 +602,14 @@ A run that admitted no participant writes none of these records and reads back e
 under version 6. The version is raised rather than treated as an extension for the reason versions 4,
 5 and 6 were: a version-6 reader given this tag fails on an unknown record rather than on a stated
 version.
->>>>>>> w1-prd-05j-claude-builder
+
 
 ## Compatibility and migration
 
 Schema version 1 is immutable, and versions 2, 3, 4, 5, 6 and 7 are new versions rather than
 extensions of what came before. A change that alters field meaning, digest input, event tags,
-<<<<<<< HEAD
 required fields, ordering rules, or replay behavior requires a new schema version. The current binary
 reads and writes only version 7 and fails closed on every other version, versions 1 to 6 included.
-=======
-required fields, ordering rules, or replay behavior requires a new schema version. The current
-binary reads and writes only version 7 and fails closed on every other version, versions 1 to 6
-included.
->>>>>>> w1-prd-05j-claude-builder
 
 The migration consequence is stated rather than worked around: a journal written by an earlier
 binary is rejected at open with an unsupported-schema error, and no command migrates it, because
