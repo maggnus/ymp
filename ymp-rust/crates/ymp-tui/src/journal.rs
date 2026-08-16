@@ -203,6 +203,22 @@ impl Model {
                     candidates: 0,
                 });
             }
+            // The origin's start is its attempt start, so the attempt it runs as enters the same
+            // list an ordinary attempt does. A page that read only `attempt_started` would show a
+            // run with a running participant and no attempt at all.
+            EventKind::ParticipantStarted(start) => {
+                self.attempts.push(AttemptFacts {
+                    attempt_id: start.attempt_id.clone(),
+                    started_at_sequence: envelope.sequence,
+                    active: true,
+                    candidates: 0,
+                });
+            }
+            // Where the participant stands is read from its own facts, which the transcript already
+            // carries; nothing here changes what the attempt list holds.
+            EventKind::ParticipantYielded { .. }
+            | EventKind::ParticipantResumed { .. }
+            | EventKind::ParticipantFinished { .. } => {}
             EventKind::CandidateSubmitted {
                 attempt_id,
                 base_digest,
@@ -1332,6 +1348,32 @@ fn describe_event(envelope: &EventEnvelope) -> (Plane, &'static str, String) {
                 frozen.origin
             ),
         ),
+        EventKind::ParticipantStarted(start) => (
+            Plane::Control,
+            "participant.started",
+            format!(
+                "this run ignited on {} · participant {} runs as attempt {}",
+                start.entry, start.participant_id, start.attempt_id
+            ),
+        ),
+        EventKind::ParticipantYielded { participant_id, .. } => (
+            Plane::Control,
+            "participant.yielded",
+            format!("participant {participant_id} stopped and is waiting to be resumed"),
+        ),
+        EventKind::ParticipantResumed { participant_id, .. } => (
+            Plane::Control,
+            "participant.resumed",
+            format!("participant {participant_id} was resumed on the attempt it was running"),
+        ),
+        EventKind::ParticipantFinished {
+            participant_id,
+            outcome,
+        } => (
+            Plane::Control,
+            "participant.finished",
+            format!("participant {participant_id} ended · {outcome}"),
+        ),
         EventKind::CandidateProvenanceUnrecorded {
             candidate_digest,
             reason,
@@ -1406,6 +1448,7 @@ mod tests {
             budget: Budget::new(2, 1),
             contract: None,
             frozen_pool: None,
+            origin_participant: None,
             active_attempts: Vec::new(),
             candidate_digest: None,
             last_sequence,

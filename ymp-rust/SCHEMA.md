@@ -519,12 +519,57 @@ The version is raised rather than treated as an extension for the reason version
 version-5 reader given this tag fails on an unknown record rather than on a stated version, which is
 the failure this policy exists to prevent.
 
+## Event journal version 7
+
+Version 7 keeps every envelope field, ordering rule, digest input and limit of version 6, and every
+commitment fact and run record the versions before it added. What it adds is the life of the
+participant a run ignites on, as four records of the run itself:
+
+- `participant_started`, carrying `participant_id`, `attempt_id`, `entry` and `workspace` — the
+  participant the run ignited on, the attempt it runs as, the triple it runs under, and the private
+  workspace that attempt runs in. The entry carries `provider`, `engine` and `model`, exactly as the
+  frozen record spells them;
+- `participant_yielded`, carrying `participant_id` and `cursor` — the slice stopped without ending
+  the attempt, at the position the runtime stated. The cursor is inert content: nothing reads it;
+- `participant_resumed`, carrying `participant_id` and `cursor` — the yielded participant was put
+  back to work. It names no attempt and creates none;
+- `participant_finished`, carrying `participant_id` and a tagged `outcome` — `completed`,
+  `interrupted`, or `failed` with the `reason` the failure was stated in. It is what the runtime
+  did, never a verdict on the work: whether the candidate is accepted is decided by a protected
+  query and no outcome here states it.
+
+`entry` is not a field a writer chooses. `participant_started` carries no entry in the command that
+produces it: the transition reads `origin` out of the `pool_frozen` record this run already carries,
+checks it against that same record's containment predicate, and copies it into the fact. A pool
+edited, an entry taken out of it or an account held back after the freeze therefore cannot move a
+started participant onto another route, and nothing but the frozen record can put a route into this
+fact.
+
+**The start of the origin is the attempt start of the origin.** One start authorization is one
+attempt: `participant_started` consumes one unit of the run's attempt budget and puts its
+`attempt_id` among the run's active attempts, exactly as `attempt_started` does, and a run whose
+attempt budget is spent records `run_exhausted` instead. A second `participant_started` is refused
+with the participant the run already ignited on, and a resumption moves the participant that exists
+rather than beginning another attempt. A run that ignites through this path therefore writes
+`participant_started` and no `attempt_started` for the same attempt; `attempt_started` is unchanged
+and still records an attempt started any other way.
+
+The start is also charged: one unit of the `participant_starts` dimension is consumed from the run's
+own authority in the commitment ledger before the fact is committed, so a participant nothing paid
+for cannot exist. Whether the host still admits the engine the frozen route names is decided before
+any of this is written, from the engine record under the product root, and a run refused there
+carries no participant record, no charge and no workspace.
+
+The version is raised rather than treated as an extension for the reason versions 4, 5 and 6 were: a
+version-6 reader given one of these tags fails on an unknown record rather than on a stated version,
+which is the failure this policy exists to prevent.
+
 ## Compatibility and migration
 
-Schema version 1 is immutable, and versions 2, 3, 4, 5 and 6 are new versions rather than extensions
-of what came before. A change that alters field meaning, digest input, event tags, required fields,
-ordering rules, or replay behavior requires a new schema version. The current binary reads and
-writes only version 6 and fails closed on every other version, versions 1 to 5 included.
+Schema version 1 is immutable, and versions 2, 3, 4, 5, 6 and 7 are new versions rather than
+extensions of what came before. A change that alters field meaning, digest input, event tags,
+required fields, ordering rules, or replay behavior requires a new schema version. The current binary
+reads and writes only version 7 and fails closed on every other version, versions 1 to 6 included.
 
 The migration consequence is stated rather than worked around: a journal written by an earlier
 binary is rejected at open with an unsupported-schema error, and no command migrates it, because

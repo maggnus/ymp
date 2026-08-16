@@ -1110,7 +1110,7 @@ dependencies = [
 
 [[package]]
 name = "ymp-board"
-version = "1.0.1"
+version = "1.0.4"
 dependencies = [
  "hex",
  "serde",
@@ -1286,6 +1286,7 @@ name = "ymp-testkit"
 version = "1.0.4"
 dependencies = [
  "serde",
+ "tempfile",
  "thiserror",
  "uuid",
  "ymp-application",
