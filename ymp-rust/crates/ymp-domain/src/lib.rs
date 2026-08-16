@@ -6,18 +6,21 @@ use thiserror::Error;
 
 pub mod commitment;
 pub mod contract;
+pub mod participant;
 pub mod pool;
 
 use commitment::{BudgetVector, CommitmentEvent};
-use pool::{FrozenEntry, FrozenPool, PoolFreezeError};
+use participant::{OriginParticipant, ParticipantOutcome, ParticipantStart, ParticipantState};
+use pool::{EntryIdentity, FrozenEntry, FrozenPool, PoolFreezeError};
 
-/// Journal schema version 6 adds the record a run writes when its pool is frozen: which entries it
-/// may create participants from, which of them it ignites on, and the digest of the ordered set.
-/// Version 5 added the record a run writes when the construction of its result is more than the
-/// commitment kernel can state, version 4 added the four commitment facts that carry a result's
-/// ancestry, version 3 added the two commitment tags, version 2 added `contract_approved`, and
-/// version 1 had none of them; see `ymp-rust/SCHEMA.md`.
-pub const EVENT_SCHEMA_VERSION: u32 = 6;
+/// Journal schema version 7 adds the four records of the participant a run ignites on: it started
+/// on the entry the frozen pool names, it yielded, it was resumed, and it ended. Version 6 added the
+/// record a run writes when its pool is frozen: which entries it may create participants from, which
+/// of them it ignites on, and the digest of the ordered set. Version 5 added the record a run writes
+/// when the construction of its result is more than the commitment kernel can state, version 4 added
+/// the four commitment facts that carry a result's ancestry, version 3 added the two commitment tags,
+/// version 2 added `contract_approved`, and version 1 had none of them; see `ymp-rust/SCHEMA.md`.
+pub const EVENT_SCHEMA_VERSION: u32 = 7;
 pub const MAX_IDENTIFIER_CHARS: usize = 128;
 pub const MAX_REASON_BYTES: usize = 1024;
 
@@ -76,6 +79,37 @@ pub enum Command {
     },
     StartAttempt {
         attempt_id: String,
+    },
+    /// Start the participant this run ignites on.
+    ///
+    /// The command names the participant, the attempt it runs as and the workspace it runs in, and
+    /// it deliberately names no entry: which provider, engine and model the participant runs under
+    /// is read from the frozen record when this is decided. A caller therefore cannot start a run
+    /// on a route the record does not carry, which is the same rule the freeze itself follows.
+    StartOriginParticipant {
+        participant_id: String,
+        attempt_id: String,
+        workspace: String,
+    },
+    /// Record that the participant's slice stopped without ending the attempt, at the cursor the
+    /// runtime stated.
+    YieldParticipant {
+        participant_id: String,
+        cursor: String,
+    },
+    /// Admit one resumption of the yielded participant. It resumes the attempt that already exists
+    /// and starts no second one.
+    ResumeParticipant {
+        participant_id: String,
+        cursor: String,
+    },
+    /// Record how the participant's attempt ended.
+    FinishParticipant {
+        participant_id: String,
+        /// Carried beside the command's own tag rather than nested under a field of the same name,
+        /// so a reader of the record reads the ending directly.
+        #[serde(flatten)]
+        outcome: ParticipantOutcome,
     },
     SubmitCandidate {
         attempt_id: String,
@@ -163,6 +197,28 @@ pub enum EventKind {
     PoolFrozen(FrozenPool),
     AttemptStarted {
         attempt_id: String,
+    },
+    /// The participant this run ignited on, started on the entry the frozen record names.
+    ///
+    /// It is the attempt start of the origin as well as its registration: one start authorization
+    /// is one attempt, and the record states the route and the workspace that attempt ran in, so
+    /// what a participant ran under is read from this fact and never reconstructed from a pool.
+    ParticipantStarted(ParticipantStart),
+    /// The participant's slice stopped without ending its attempt, at the cursor the runtime stated.
+    ParticipantYielded {
+        participant_id: String,
+        cursor: String,
+    },
+    /// The yielded participant was resumed. The attempt is the one that was already running.
+    ParticipantResumed {
+        participant_id: String,
+        cursor: String,
+    },
+    /// The participant's attempt ended, and how.
+    ParticipantFinished {
+        participant_id: String,
+        #[serde(flatten)]
+        outcome: ParticipantOutcome,
     },
     CandidateSubmitted {
         attempt_id: String,
@@ -315,6 +371,11 @@ pub struct RunState {
     /// product root holds now.
     #[serde(default)]
     pub frozen_pool: Option<FrozenPool>,
+    /// The participant this run ignited on, once its start has been recorded. It carries the route
+    /// that start read out of the frozen record, so a reader is told what the participant ran under
+    /// without opening the snapshot again.
+    #[serde(default)]
+    pub origin_participant: Option<OriginParticipant>,
     pub active_attempts: Vec<String>,
     pub candidate_digest: Option<String>,
     pub last_sequence: u64,
@@ -335,12 +396,33 @@ pub enum TransitionError {
     PoolAlreadyFrozen(String),
     #[error("{0}")]
     PoolFreeze(#[from] PoolFreezeError),
+    #[error(
+        "this run has frozen no pool, so there is no entry it ignites on and no participant it may \
+         start"
+    )]
+    PoolNotFrozen,
+    #[error(
+        "the snapshot this run stands on ignites on {0}, which that same snapshot does not permit"
+    )]
+    OriginNotPermitted(Box<EntryIdentity>),
+    #[error("this run already ignited on participant {participant_id}")]
+    OriginParticipantAlreadyStarted { participant_id: String },
+    #[error("this run has started no participant named {participant_id}")]
+    UnknownParticipant { participant_id: String },
+    #[error("participant {participant_id} is {state}, and this transition needs it {needed}")]
+    ParticipantNotInState {
+        participant_id: String,
+        state: &'static str,
+        needed: &'static str,
+    },
     #[error("{kind} must contain between 1 and {MAX_IDENTIFIER_CHARS} characters")]
     InvalidIdentifier { kind: &'static str },
     #[error("{kind} is not a canonical lowercase SHA-256 digest")]
     InvalidDigest { kind: &'static str },
     #[error("terminal reason must contain between 1 and {MAX_REASON_BYTES} bytes")]
     InvalidReason,
+    #[error("a workspace path must contain between 1 and {MAX_REASON_BYTES} bytes")]
+    InvalidWorkspace,
 }
 
 impl RunState {
@@ -354,6 +436,7 @@ impl RunState {
             budget: budget.clone(),
             contract: None,
             frozen_pool: None,
+            origin_participant: None,
             active_attempts: Vec::new(),
             candidate_digest: None,
             last_sequence: event.sequence,
@@ -415,6 +498,94 @@ impl RunState {
                     })
                 }
             }
+            // The route is read out of the frozen record here and is not part of the command, so
+            // the entry a participant starts on cannot enter the journal from anywhere but the
+            // snapshot this run was created under. Nothing in this transition reads a pool, a
+            // provider or an engine record: a pool edited or an account held back since the freeze
+            // belongs to the next run.
+            Command::StartOriginParticipant {
+                participant_id,
+                attempt_id,
+                workspace,
+            } => {
+                validate_identifier("participant_id", participant_id)?;
+                validate_identifier("attempt_id", attempt_id)?;
+                validate_workspace(workspace)?;
+                if let Some(started) = &self.origin_participant {
+                    return Err(TransitionError::OriginParticipantAlreadyStarted {
+                        participant_id: started.participant_id().to_owned(),
+                    });
+                }
+                let frozen = self
+                    .frozen_pool
+                    .as_ref()
+                    .ok_or(TransitionError::PoolNotFrozen)?;
+                let entry = frozen.origin.clone();
+                // The containment check every decision naming an entry is held to. A snapshot whose
+                // origin it refuses starts nothing, rather than starting on an entry the run was
+                // never permitted to use.
+                if !frozen.permits(&entry) {
+                    return Err(TransitionError::OriginNotPermitted(Box::new(entry)));
+                }
+                if self.budget.attempts_remaining == 0 {
+                    return Ok(EventKind::RunExhausted {
+                        reason: "attempt budget exhausted".to_owned(),
+                    });
+                }
+                Ok(EventKind::ParticipantStarted(ParticipantStart {
+                    participant_id: participant_id.clone(),
+                    attempt_id: attempt_id.clone(),
+                    entry,
+                    workspace: workspace.clone(),
+                }))
+            }
+            Command::YieldParticipant {
+                participant_id,
+                cursor,
+            } => {
+                validate_reason(cursor)?;
+                let participant = self.participant(participant_id)?;
+                if participant.state != ParticipantState::Running {
+                    return Err(not_in_state(participant, "running"));
+                }
+                Ok(EventKind::ParticipantYielded {
+                    participant_id: participant_id.clone(),
+                    cursor: cursor.clone(),
+                })
+            }
+            // A resumption puts the slice that already exists back to work. It carries no attempt
+            // identifier and creates none: one start authorization is one attempt, however often it
+            // yields and is resumed.
+            Command::ResumeParticipant {
+                participant_id,
+                cursor,
+            } => {
+                validate_reason(cursor)?;
+                let participant = self.participant(participant_id)?;
+                if participant.state != ParticipantState::Yielded {
+                    return Err(not_in_state(participant, "yielded"));
+                }
+                Ok(EventKind::ParticipantResumed {
+                    participant_id: participant_id.clone(),
+                    cursor: cursor.clone(),
+                })
+            }
+            Command::FinishParticipant {
+                participant_id,
+                outcome,
+            } => {
+                if let ParticipantOutcome::Failed { reason } = outcome {
+                    validate_reason(reason)?;
+                }
+                let participant = self.participant(participant_id)?;
+                if participant.state == ParticipantState::Finished {
+                    return Err(not_in_state(participant, "still running or yielded"));
+                }
+                Ok(EventKind::ParticipantFinished {
+                    participant_id: participant_id.clone(),
+                    outcome: outcome.clone(),
+                })
+            }
             Command::SubmitCandidate {
                 attempt_id,
                 base_digest,
@@ -450,6 +621,28 @@ impl RunState {
                     reason: reason.clone(),
                 })
             }
+        }
+    }
+
+    /// The participant a command names, or the refusal that this run has started no such one.
+    ///
+    /// This build ignites one participant per run and recruits none, so the answer is the origin or
+    /// nothing. Recruitment adds participants beside it; it does not change that a command is
+    /// decided against the participant its own identifier names.
+    fn participant(&self, participant_id: &str) -> Result<&OriginParticipant, TransitionError> {
+        self.origin_participant
+            .as_ref()
+            .filter(|participant| participant.participant_id() == participant_id)
+            .ok_or_else(|| TransitionError::UnknownParticipant {
+                participant_id: participant_id.to_owned(),
+            })
+    }
+
+    fn set_participant_state(&mut self, participant_id: &str, state: ParticipantState) {
+        if let Some(participant) = self.origin_participant.as_mut()
+            && participant.participant_id() == participant_id
+        {
+            participant.state = state;
         }
     }
 
@@ -510,6 +703,40 @@ impl RunState {
                 if !self.active_attempts.contains(attempt_id) {
                     self.active_attempts.push(attempt_id.clone());
                 }
+            }
+            // The origin's start is its attempt start: one authorization, one attempt, one
+            // participant. A record that arrives over one already held is read as the record of the
+            // start this run carries and never as a second participant, which is the rule the
+            // contract binding and the freeze both follow.
+            EventKind::ParticipantStarted(start) => {
+                if self.origin_participant.is_none() {
+                    self.budget.attempts_remaining =
+                        self.budget.attempts_remaining.saturating_sub(1);
+                    if !self.active_attempts.contains(&start.attempt_id) {
+                        self.active_attempts.push(start.attempt_id.clone());
+                    }
+                    self.origin_participant = Some(OriginParticipant::started(start.clone()));
+                }
+            }
+            EventKind::ParticipantYielded { participant_id, .. } => {
+                self.set_participant_state(participant_id, ParticipantState::Yielded);
+            }
+            EventKind::ParticipantResumed { participant_id, .. } => {
+                self.set_participant_state(participant_id, ParticipantState::Running);
+            }
+            EventKind::ParticipantFinished {
+                participant_id,
+                outcome,
+            } => {
+                if let Some(participant) = self.origin_participant.as_mut()
+                    && participant.participant_id() == participant_id
+                {
+                    participant.state = ParticipantState::Finished;
+                    participant.outcome.get_or_insert_with(|| outcome.clone());
+                }
+                // The attempt stays where the run's own transitions put it. A slice that ended is
+                // not a run that ended: the candidate this attempt produced is submitted after its
+                // process is gone, and only a terminal of the run itself closes the attempt.
             }
             EventKind::CandidateSubmitted { object_digest, .. } => {
                 self.candidate_digest = Some(object_digest.clone());
@@ -573,6 +800,25 @@ fn validate_digest(kind: &'static str, value: &str) -> Result<(), TransitionErro
     }
 }
 
+/// The workspace a start names, bounded like every other content a record carries. It is the path
+/// the run's own store holds the attempt's private copy at, and it is recorded rather than read: no
+/// transition opens it.
+fn validate_workspace(value: &str) -> Result<(), TransitionError> {
+    if value.is_empty() || value.len() > MAX_REASON_BYTES {
+        return Err(TransitionError::InvalidWorkspace);
+    }
+    Ok(())
+}
+
+/// The refusal a lifecycle command receives when the participant it names is somewhere else.
+fn not_in_state(participant: &OriginParticipant, needed: &'static str) -> TransitionError {
+    TransitionError::ParticipantNotInState {
+        participant_id: participant.participant_id().to_owned(),
+        state: participant.state.label(),
+        needed,
+    }
+}
+
 fn validate_reason(value: &str) -> Result<(), TransitionError> {
     if !value.is_empty() && value.len() <= MAX_REASON_BYTES {
         Ok(())
@@ -585,7 +831,8 @@ fn validate_reason(value: &str) -> Result<(), TransitionError> {
 mod tests {
     use super::{
         Budget, Command, EventEnvelope, EventKind, MAX_IDENTIFIER_CHARS, MAX_REASON_BYTES,
-        RunState, TransitionError, VerificationDecision, VerificationRecord,
+        ParticipantOutcome, ParticipantStart, ParticipantState, RunState, TransitionError,
+        VerificationDecision, VerificationRecord,
     };
 
     fn running_state() -> RunState {
@@ -737,6 +984,256 @@ mod tests {
         assert_eq!(
             serde_json::from_value::<EventKind>(json).expect("the record reads back"),
             event
+        );
+    }
+
+    /// Freeze one pool into a running state, so the participant transitions have a record to read.
+    fn frozen_state(entries: Vec<crate::pool::FrozenEntry>) -> RunState {
+        let mut state = running_state();
+        let event = state
+            .decide(&Command::FreezePool {
+                pool: "default".to_owned(),
+                entries,
+                digest: "b".repeat(64),
+            })
+            .expect("the pool freezes");
+        let envelope = EventEnvelope::new("run-1", 2, "freeze", "0".repeat(64), None, event)
+            .expect("freeze envelope");
+        state.apply(&envelope);
+        state
+    }
+
+    fn start_origin() -> Command {
+        Command::StartOriginParticipant {
+            participant_id: "origin".to_owned(),
+            attempt_id: "attempt-origin".to_owned(),
+            workspace: "/store/workspaces/attempt-origin".to_owned(),
+        }
+    }
+
+    /// Apply one decided event to a state, as the journal does.
+    fn commit(state: &mut RunState, sequence: u64, command: &Command) -> EventKind {
+        let event = state.decide(command).expect("the transition is admitted");
+        let envelope = EventEnvelope::new(
+            "run-1",
+            sequence,
+            format!("command-{sequence}"),
+            "0".repeat(64),
+            None,
+            event.clone(),
+        )
+        .expect("envelope");
+        state.apply(&envelope);
+        event
+    }
+
+    /// The route a start records is read out of the frozen record, and the command that produces it
+    /// carries no entry at all. The start is also the attempt start of the origin: one
+    /// authorization, one attempt, one participant.
+    #[test]
+    fn the_origin_starts_on_the_entry_the_frozen_record_names_and_is_its_attempt() {
+        use crate::pool::{EntryIdentity, FrozenEntry};
+
+        let mut state = frozen_state(vec![
+            FrozenEntry::unavailable(
+                "openai",
+                "codex",
+                "gpt-5",
+                "the account states no credential",
+            ),
+            FrozenEntry::admissible("anthropic", "claude-code", "claude-opus-5"),
+            FrozenEntry::admissible("anthropic", "claude-code", "claude-sonnet-5"),
+        ]);
+        let attempts_before = state.budget.attempts_remaining;
+
+        let EventKind::ParticipantStarted(start) = commit(&mut state, 3, &start_origin()) else {
+            panic!("the start of the origin is not recorded as one");
+        };
+        assert_eq!(
+            start.entry,
+            EntryIdentity::new("anthropic", "claude-code", "claude-opus-5"),
+            "the start recorded a route the frozen record does not name"
+        );
+        let participant = state
+            .origin_participant
+            .as_ref()
+            .expect("the run states its participant");
+        assert_eq!(participant.state, ParticipantState::Running);
+        assert_eq!(
+            state.budget.attempts_remaining,
+            attempts_before - 1,
+            "the origin's start did not spend the attempt it runs as"
+        );
+        assert_eq!(state.active_attempts, vec!["attempt-origin".to_owned()]);
+
+        // A second start is refused with the participant this run already ignited on, whatever
+        // identifiers it names.
+        assert_eq!(
+            state.decide(&Command::StartOriginParticipant {
+                participant_id: "second".to_owned(),
+                attempt_id: "attempt-second".to_owned(),
+                workspace: "/store/workspaces/attempt-second".to_owned(),
+            }),
+            Err(TransitionError::OriginParticipantAlreadyStarted {
+                participant_id: "origin".to_owned()
+            })
+        );
+    }
+
+    /// A run whose pool is not frozen has no entry to ignite on, so it starts nothing. The refusal
+    /// is the domain's, which is what keeps a surface from choosing a route where the record has
+    /// none.
+    #[test]
+    fn a_run_with_no_frozen_pool_starts_no_participant() {
+        assert_eq!(
+            running_state().decide(&start_origin()),
+            Err(TransitionError::PoolNotFrozen)
+        );
+    }
+
+    /// A snapshot whose own containment check refuses its origin starts nothing. The record is read
+    /// rather than trusted, so a boundary that contradicts itself stops the run instead of putting
+    /// a participant on an entry the run was never permitted to use.
+    #[test]
+    fn an_origin_the_snapshot_does_not_permit_starts_nothing() {
+        use crate::pool::{EntryIdentity, FrozenEntry};
+
+        let mut state = frozen_state(vec![FrozenEntry::admissible(
+            "anthropic",
+            "claude-code",
+            "claude-opus-5",
+        )]);
+        // The record is put into the one shape the containment predicate refuses: an origin that
+        // names an entry the entries themselves do not carry as live.
+        if let Some(frozen) = state.frozen_pool.as_mut() {
+            frozen.origin = EntryIdentity::new("openai", "codex", "gpt-5");
+        }
+        assert!(matches!(
+            state.decide(&start_origin()),
+            Err(TransitionError::OriginNotPermitted(_))
+        ));
+    }
+
+    /// The participant yields, is resumed and ends, and every one of those transitions is decided
+    /// against where the participant actually stands rather than against what a caller asserts.
+    #[test]
+    fn the_participant_lifecycle_is_decided_against_the_state_the_record_holds() {
+        use crate::pool::FrozenEntry;
+
+        let mut state = frozen_state(vec![FrozenEntry::admissible(
+            "anthropic",
+            "claude-code",
+            "claude-opus-5",
+        )]);
+        let yield_command = Command::YieldParticipant {
+            participant_id: "origin".to_owned(),
+            cursor: "cursor-1".to_owned(),
+        };
+        let resume_command = Command::ResumeParticipant {
+            participant_id: "origin".to_owned(),
+            cursor: "continue".to_owned(),
+        };
+
+        // Nothing has started, so nothing yields.
+        assert_eq!(
+            state.decide(&yield_command),
+            Err(TransitionError::UnknownParticipant {
+                participant_id: "origin".to_owned()
+            })
+        );
+
+        commit(&mut state, 3, &start_origin());
+        // A running participant is not resumed; a yielded one is not yielded again.
+        assert!(matches!(
+            state.decide(&resume_command),
+            Err(TransitionError::ParticipantNotInState {
+                state: "running",
+                needed: "yielded",
+                ..
+            })
+        ));
+        commit(&mut state, 4, &yield_command);
+        assert_eq!(
+            state
+                .origin_participant
+                .as_ref()
+                .expect("the participant")
+                .state,
+            ParticipantState::Yielded
+        );
+        assert!(matches!(
+            state.decide(&yield_command),
+            Err(TransitionError::ParticipantNotInState {
+                state: "yielded",
+                needed: "running",
+                ..
+            })
+        ));
+
+        // The resumption puts the participant back on the attempt it already had, and starts none.
+        commit(&mut state, 5, &resume_command);
+        assert_eq!(state.active_attempts, vec!["attempt-origin".to_owned()]);
+        assert_eq!(state.budget.attempts_remaining, 0);
+
+        commit(
+            &mut state,
+            6,
+            &Command::FinishParticipant {
+                participant_id: "origin".to_owned(),
+                outcome: ParticipantOutcome::Completed,
+            },
+        );
+        let participant = state.origin_participant.as_ref().expect("the participant");
+        assert_eq!(participant.state, ParticipantState::Finished);
+        assert_eq!(participant.outcome, Some(ParticipantOutcome::Completed));
+        // The attempt stays where the run's own transitions put it: the candidate this attempt
+        // produced is submitted after its process is gone.
+        assert_eq!(state.active_attempts, vec!["attempt-origin".to_owned()]);
+        // And a slice that has ended neither yields nor resumes.
+        assert!(matches!(
+            state.decide(&resume_command),
+            Err(TransitionError::ParticipantNotInState {
+                state: "finished",
+                ..
+            })
+        ));
+    }
+
+    /// The start records the route beside its own tag, so a reader of the journal reads the
+    /// participant, the attempt and the triple without opening a nested object.
+    #[test]
+    fn the_start_record_states_the_route_beside_its_tag() {
+        use crate::pool::EntryIdentity;
+
+        let event = EventKind::ParticipantStarted(ParticipantStart {
+            participant_id: "origin".to_owned(),
+            attempt_id: "attempt-origin".to_owned(),
+            entry: EntryIdentity::new("anthropic", "claude-code", "claude-opus-5"),
+            workspace: "/store/workspaces/attempt-origin".to_owned(),
+        });
+        let json = serde_json::to_value(&event).expect("the record serializes");
+        assert_eq!(json["type"], "participant_started");
+        assert_eq!(json["participant_id"], "origin");
+        assert_eq!(json["attempt_id"], "attempt-origin");
+        assert_eq!(json["entry"]["model"], "claude-opus-5");
+        assert_eq!(
+            serde_json::from_value::<EventKind>(json).expect("the record reads back"),
+            event
+        );
+
+        let ended = EventKind::ParticipantFinished {
+            participant_id: "origin".to_owned(),
+            outcome: ParticipantOutcome::Failed {
+                reason: "the runtime never came up".to_owned(),
+            },
+        };
+        let json = serde_json::to_value(&ended).expect("the record serializes");
+        assert_eq!(json["type"], "participant_finished");
+        assert_eq!(json["outcome"], "failed");
+        assert_eq!(json["reason"], "the runtime never came up");
+        assert_eq!(
+            serde_json::from_value::<EventKind>(json).expect("the record reads back"),
+            ended
         );
     }
 
