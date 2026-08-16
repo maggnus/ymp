@@ -78,15 +78,21 @@ fn quitting_while_an_engine_is_being_measured_leaves_no_engine_process() {
         .expect("enabling an account asks for a measurement of it");
     session.start_measurement(pending, |_| {});
 
-    // The engine is running and has said which process it is.
+    // The engine is running and has said which process it is. The engine creates the file and
+    // writes to it as two acts, so what is waited for is content and not the name: a reader that
+    // stopped at the name would read an empty file and ask the operating system about nothing.
     let deadline = Instant::now() + Duration::from_secs(30);
-    while !pid_file.exists() && Instant::now() < deadline {
-        std::thread::sleep(Duration::from_millis(10));
+    let mut pid = String::new();
+    while pid.is_empty() && Instant::now() < deadline {
+        pid = fs::read_to_string(&pid_file)
+            .unwrap_or_default()
+            .trim()
+            .to_owned();
+        if pid.is_empty() {
+            std::thread::sleep(Duration::from_millis(10));
+        }
     }
-    let pid = fs::read_to_string(&pid_file)
-        .expect("the planted engine recorded its process")
-        .trim()
-        .to_owned();
+    assert!(!pid.is_empty(), "the planted engine recorded no process");
     assert!(
         is_running(&pid),
         "the engine was already gone, so this check would pass without a quit ending anything"
