@@ -192,6 +192,10 @@ impl std::fmt::Display for Gate {
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ProposerState {
+    /// It holds no process slice at all. A participant that was admitted and whose start failed is
+    /// in exactly this state, and so is one whose start has not reached the kernel yet: it exists
+    /// in the accounts and is running nowhere.
+    NotStarted,
     /// Its process slice ended and it registered a wake. It has no process, so a request arriving
     /// in its name is one it cannot have issued.
     Yielded,
@@ -202,8 +206,9 @@ pub enum ProposerState {
 impl std::fmt::Display for ProposerState {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         formatter.write_str(match self {
-            Self::Yielded => "yielded",
-            Self::Closed => "closed",
+            Self::NotStarted => "has begun no process slice",
+            Self::Yielded => "has yielded the process slice it held",
+            Self::Closed => "holds no process slice that is still open",
         })
     }
 }
@@ -226,7 +231,7 @@ pub enum RecruitmentRefusal {
     NoFrozenPool,
     #[error("{proposer} is not a participant of this run")]
     ProposerUnknown { proposer: String },
-    #[error("{proposer} is {state} and a participant that is not running proposes nothing")]
+    #[error("{proposer} {state}, and only a participant that is running proposes anything")]
     ProposerNotRunning {
         proposer: String,
         state: ProposerState,
@@ -396,6 +401,10 @@ pub trait ParticipantStartPath {
 #[cfg(test)]
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub(crate) struct DisabledGates {
+    /// Not one of the five gates: the check that only a live participant proposes anything. It is
+    /// switchable for the same reason the gates are — so that what it prevents can be shown
+    /// happening rather than asserted in prose.
+    pub proposer_is_live: bool,
     pub frozen_membership: bool,
     pub participant_starts: bool,
     pub concurrency: bool,
@@ -417,6 +426,7 @@ impl Recruitment {
             policy,
             #[cfg(test)]
             disabled: DisabledGates {
+                proposer_is_live: false,
                 frozen_membership: false,
                 participant_starts: false,
                 concurrency: false,
@@ -450,6 +460,17 @@ impl Recruitment {
     #[cfg(not(test))]
     #[allow(clippy::unused_self)]
     const fn enforces(&self, _gate: Gate) -> bool {
+        true
+    }
+
+    #[cfg(test)]
+    const fn enforces_proposer_is_live(&self) -> bool {
+        !self.disabled.proposer_is_live
+    }
+
+    #[cfg(not(test))]
+    #[allow(clippy::unused_self)]
+    const fn enforces_proposer_is_live(&self) -> bool {
         true
     }
 
@@ -543,11 +564,19 @@ impl Recruitment {
         Ok(())
     }
 
-    /// Only a participant of this run that is running now proposes anything.
+    /// Only a live participant of this run proposes anything.
     ///
-    /// A participant with no process slice at all has not begun one and is running in the only
-    /// sense this check has; one whose slices are all yielded or closed has no process, so a request
-    /// arriving in its name is one it could not have issued.
+    /// Live means running a process slice the kernel committed, and the run's root participant,
+    /// which the kernel genesis created and which is accountable for the run from the moment the
+    /// kernel is opened. Everything else has no process: a participant that has yielded, one whose
+    /// slices have all closed, and — the case that matters here — one the run admitted and never
+    /// started, whether because its start failed or because it has not reached the kernel yet.
+    /// Such a participant exists in the accounts and runs nowhere, so a request arriving in its
+    /// name is one it could not have issued.
+    ///
+    /// The root participant is exempt only while it holds no slice at all. Once it has one, it is
+    /// read exactly as every other participant is: a root that yielded is as absent as any other
+    /// yielded participant.
     fn ensure_proposer_proposes(
         &self,
         request: &RequestParticipant,
@@ -558,19 +587,26 @@ impl Recruitment {
                 proposer: request.proposer.clone(),
             });
         }
+        if !self.enforces_proposer_is_live() {
+            return Ok(());
+        }
         let slices: Vec<InvocationState> = ledger
             .invocations()
             .values()
             .filter(|invocation| invocation.participant == request.proposer)
             .map(|invocation| invocation.state)
             .collect();
-        if slices.is_empty() || slices.contains(&InvocationState::Running) {
+        if slices.contains(&InvocationState::Running)
+            || (slices.is_empty() && is_run_root(ledger, &request.proposer))
+        {
             return Ok(());
         }
         Err(RecruitmentRefusal::ProposerNotRunning {
             proposer: request.proposer.clone(),
             state: if slices.contains(&InvocationState::Yielded) {
                 ProposerState::Yielded
+            } else if slices.is_empty() {
+                ProposerState::NotStarted
             } else {
                 ProposerState::Closed
             },
@@ -717,6 +753,17 @@ impl Recruitment {
             }),
         }
     }
+}
+
+/// Whether one participant is the participant the whole run is accountable through.
+///
+/// It is read out of the run's own root obligation rather than carried beside it, so what answers
+/// this is the record the kernel genesis committed.
+fn is_run_root(ledger: &CommitmentLedger, participant: &str) -> bool {
+    ledger
+        .obligations()
+        .get(ledger.root_obligation())
+        .is_some_and(|obligation| obligation.owner == participant)
 }
 
 #[cfg(test)]
@@ -1335,6 +1382,112 @@ mod tests {
         // Nothing was decided, so nothing moved: the ledger holds the participant it held.
         assert_eq!(yielded.participants().len(), 1);
         assert_eq!(yielded.consumed().get(Dimension::ParticipantStarts), 0);
+
+        // With the check switched off the violation happens in full: a participant with no process
+        // recruits, the run grows, and the authority is spent on its say-so. The proposer here
+        // holds capacity, so nothing downstream refuses what the check would have.
+        let mut ran_away = yielded;
+        let mut state = state;
+        let admission = gate
+            .without(DisabledGates {
+                proposer_is_live: true,
+                ..DisabledGates::default()
+            })
+            .admit(&request("request-1", OPUS), &state, &ran_away, &host)
+            .expect("the weakened check admits it");
+        commit(&admission, &mut state, &mut ran_away, 3);
+        assert_eq!(
+            ran_away.participants().len(),
+            2,
+            "a yielded participant brought a second one into the run"
+        );
+        assert_eq!(ran_away.consumed().get(Dimension::ParticipantStarts), 1);
+    }
+
+    /// A participant the run admitted and never started holds no process, so it proposes nothing —
+    /// and with the check switched off it recruits, which is the violation happening.
+    ///
+    /// The state is reached exactly as a failed start reaches it: the admission is committed and
+    /// the accounts are charged, and no process slice ever follows.
+    #[test]
+    fn a_participant_that_was_admitted_and_never_started_proposes_nothing() {
+        // The allowance carries the authority to start one participant, so what stands between the
+        // admitted participant and an onward recruitment is liveness alone and not funding.
+        let policy = RecruitmentPolicy {
+            participants: 6,
+            offer_allowance: BudgetVector::ZERO
+                .with(Dimension::ParticipantStarts, 1)
+                .with(Dimension::InvocationStarts, 1),
+        };
+        let mut state = run();
+        let mut ledger = ledger(4);
+        let host = Host::serving(&[OPUS]);
+
+        let admitted = Recruitment::new(policy)
+            .admit(&request("request-1", OPUS), &state, &ledger, &host)
+            .expect("the root participant recruits one participant");
+        commit(&admitted, &mut state, &mut ledger, 3);
+        let started_nothing = admitted.participant.participant_id.clone();
+        assert!(
+            !ledger
+                .invocations()
+                .values()
+                .any(|invocation| invocation.participant == started_nothing),
+            "the admitted participant holds no process slice"
+        );
+
+        // It exists in the accounts, holds the authority to recruit, and is running nowhere.
+        let onward = RequestParticipant::new("request-2", &started_nothing, entry(OPUS));
+        let refusal = Recruitment::new(policy)
+            .admit(&onward, &state, &ledger, &host)
+            .expect_err("a participant that was never started proposes nothing");
+        assert_eq!(
+            refusal,
+            RecruitmentRefusal::ProposerNotRunning {
+                proposer: started_nothing.clone(),
+                state: ProposerState::NotStarted,
+            }
+        );
+        assert!(refusal.gate().is_none());
+        assert_eq!(
+            refusal.to_string(),
+            format!(
+                "{started_nothing} has begun no process slice, and only a participant that is \
+                 running proposes anything"
+            )
+        );
+        assert_eq!(ledger.participants().len(), 2);
+
+        // With the check switched off the run grants an admission in the name of a participant
+        // that holds no process, and states that participant as the account the start is charged
+        // to. That the accounts then refuse the debit is the ledger's doing and not this check's:
+        // what the check prevents is the admission being granted at all.
+        let onward_admission = Recruitment::new(policy)
+            .without(DisabledGates {
+                proposer_is_live: true,
+                ..DisabledGates::default()
+            })
+            .admit(&onward, &state, &ledger, &host)
+            .expect("the weakened check admits it");
+        assert_eq!(onward_admission.participant.proposer, started_nothing);
+        assert_eq!(
+            onward_admission.charge,
+            CommitmentCommand::RegisterParticipant(RegisterParticipant {
+                participant_id: onward_admission.participant.participant_id.clone(),
+                principal_id: "anthropic".to_owned(),
+                sponsor: started_nothing.clone(),
+                endowment: policy.offer_allowance,
+            })
+        );
+
+        // The root participant is exempt only while it holds no slice at all, which is the state
+        // the kernel genesis leaves it in: it is accountable for the run from the moment the
+        // kernel is opened.
+        assert!(
+            Recruitment::new(policy)
+                .admit(&request("request-3", OPUS), &state, &ledger, &host)
+                .is_ok()
+        );
     }
 
     /// The request carries identifiers and nothing a transition could read a preference out of.

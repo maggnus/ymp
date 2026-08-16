@@ -30,7 +30,8 @@ use ymp_domain::commitment::{
 use ymp_domain::commitment::{CommitmentCommand, RegisterParticipant};
 use ymp_domain::pool::{EntryIdentity, FrozenEntry};
 use ymp_domain::recruitment::{
-    Gate, ParticipantStartPath, RecruitmentPolicy, RecruitmentRefusal, RequestParticipant,
+    Gate, ParticipantStartPath, ProposerState, RecruitmentPolicy, RecruitmentRefusal,
+    RequestParticipant,
 };
 use ymp_domain::{Budget, Command, EventKind};
 use ymp_testkit::recruitment::{MeasuredHost, RecordedStarts, route};
@@ -454,6 +455,30 @@ fn a_failed_start_leaves_the_admission_it_was_given_standing() {
         )
     );
     assert!(refusing.started().is_empty());
+
+    // And it recruits nobody. A participant that holds no process is not a live participant of
+    // this run, whatever the accounts say it holds, so a request arriving in its name is refused
+    // without an effect — the journal is what it was and no second participant exists.
+    let before = journal(temporary.path());
+    let onward = RequestParticipant::new("request-2", &admission.admitted.participant_id, opus());
+    let refusal = refused(&mut application, &onward, &MeasuredHost::serving(&[opus()]));
+    assert_eq!(
+        refusal,
+        RecruitmentRefusal::ProposerNotRunning {
+            proposer: admission.admitted.participant_id.clone(),
+            state: ProposerState::NotStarted,
+        }
+    );
+    assert!(refusal.gate().is_none());
+    assert_eq!(journal(temporary.path()), before);
+    assert_eq!(
+        application
+            .commitments()
+            .expect("the run holds a kernel")
+            .participants()
+            .len(),
+        2
+    );
 
     // The admission and its charge stand, and a restart reads them back.
     assert_eq!(admissions_in_journal(&application).len(), 1);
