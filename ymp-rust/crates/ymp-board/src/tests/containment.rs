@@ -8,18 +8,19 @@
 //!
 //! One source is an exception, and it is bounded by three checks rather than by trust. The board
 //! keeps durable records, so `store.rs` opens files; it is held to naming no address and no child
-//! process like every other source, and additionally to building no path out of anything but two
-//! constants of its own. An identifier a participant chose therefore never becomes a path
+//! process like every other source, and additionally to building no path out of anything but the
+//! three file names it declares. An identifier a participant chose therefore never becomes a path
 //! component, and the widest thing a payload could ask of this crate remains nothing at all.
 //!
 //! Every check is a pure function of text, so each is run twice: once over this crate's real
 //! manifest and sources, and once over a fixture that carries exactly what the check is looking
 //! for. Without the second half a passing check would only mean that nothing matched.
 
-/// Everything this crate is allowed to depend on: serialization, hashing and error types. No ymp
-/// package appears here, which is what makes a control writer, a verifier and a store unreachable
-/// from this plane rather than merely unused by it.
-const ALLOWED_DEPENDENCIES: [&str; 5] = ["hex", "serde", "serde_json", "sha2", "thiserror"];
+/// Everything this crate is allowed to depend on: serialization, hashing, error types, and the
+/// exclusive filesystem lock one writer of a board section holds. No ymp package appears here,
+/// which is what makes a control writer, a verifier and a store unreachable from this plane rather
+/// than merely unused by it.
+const ALLOWED_DEPENDENCIES: [&str; 6] = ["fs2", "hex", "serde", "serde_json", "sha2", "thiserror"];
 
 /// What no source of this library may name. Each one is a way out of the process, or a way to
 /// smuggle content in at compile time.
@@ -46,9 +47,9 @@ const FORBIDDEN_IN_PERSISTENCE: [&str; 6] = [
     "extern \"C\"",
 ];
 
-/// The only path components the durable-records source may build a path from. Both are constants
+/// The only path components the durable-records source may build a path from. Each is a constant
 /// of this crate, so nothing an author, a scope or a payload named decides what is written where.
-const ALLOWED_PATH_COMPONENTS: [&str; 2] = ["OPENING_RECORD", "FACT_RECORD"];
+const ALLOWED_PATH_COMPONENTS: [&str; 3] = ["OPENING_RECORD", "FACT_RECORD", "SECTION_LOCK"];
 
 /// The sources the kernel is built from, which reach nothing outside the process at all. The
 /// suite's own files are deliberately not among them: this file reads the manifest and those

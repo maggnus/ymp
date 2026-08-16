@@ -14,19 +14,31 @@
 //! A payload never reaches this module for the same reason it never reaches the kernel: a fact
 //! carries the identity and the length of a payload, so what is written out is a digest and a byte
 //! count. This module also names no address and starts no process, and every path it builds is one
-//! of two constants under the directory the caller named — an identifier out of a board record is
-//! never a path component, so nothing a participant chose can decide what is written where.
+//! of the three file names it declares, under the directory the caller named — an identifier out
+//! of a board record is never a path component, so nothing a participant chose can decide what is
+//! written where.
 //!
 //! Each record is chained: the first fact names the digest of the opening record, and every later
 //! one names the digest of its predecessor. A record file whose tail was cut short, whose sequence
 //! skips, whose chain breaks or which is missing altogether is refused by name. Restoration never
 //! degrades into an empty board, because an empty board is a statement that nothing was ever said
-//! and a lost record file is not evidence of that.
+//! and a lost record file is not evidence of that. A fact record standing where the opening terms
+//! are missing is likewise refused rather than created over, because what stands there is an audit
+//! record and creating a section would write an empty file across it.
+//!
+//! One writer holds a section at a time, by the operating system's exclusive lock rather than by
+//! agreement between callers. Two writers would each continue the recorded sequence from the
+//! position they last saw, and the second append would take positions the first had already
+//! written; the section refuses the second holder when it opens rather than producing a record
+//! that no longer restores. What a board offers to be appended is checked against the recorded
+//! chain for the same reason: a board of the right length is not thereby the board these records
+//! were written from.
 
 use std::fs::{self, File, OpenOptions};
 use std::io::{BufRead, BufReader, Read, Write};
 use std::path::{Path, PathBuf};
 
+use fs2::FileExt;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
@@ -47,6 +59,9 @@ pub const OPENING_RECORD: &str = "board.json";
 
 /// The file holding the fact sequence, one record per line.
 pub const FACT_RECORD: &str = "facts.jsonl";
+
+/// The file one writer of the section holds exclusively while it holds the section.
+pub const SECTION_LOCK: &str = "writer.lock";
 
 /// What the opening record declares itself to be, so a directory holding some other product's
 /// JSON is refused rather than read as a board.
@@ -85,6 +100,17 @@ pub enum BoardRecordError {
         path.display()
     )]
     FactRecordMissing { path: PathBuf },
+    #[error(
+        "{} holds a {FACT_RECORD} and no {OPENING_RECORD}: the terms restoration begins from are \
+         missing, and no section is created over a fact record that is still there",
+        path.display()
+    )]
+    FactRecordWithoutOpening { path: PathBuf },
+    #[error(
+        "the board section {} is already held by another writer; a section is written by one",
+        path.display()
+    )]
+    SectionHeld { path: PathBuf },
     #[error("the opening record at {} is not readable: {reason}", path.display())]
     UnreadableOpening { path: PathBuf, reason: String },
     #[error(
@@ -123,6 +149,11 @@ pub enum BoardRecordError {
          board is not the one these records were written from"
     )]
     RecordAhead { recorded: u64, held: u64 },
+    #[error(
+        "the fact this board holds at position {sequence} is not the one recorded there: the \
+         board is not the one these records were written from"
+    )]
+    RecordDivergence { sequence: u64 },
     #[error("a recorded fact was refused on replay: {0}")]
     Replay(#[from] BoardError),
     #[error("{} already exists and no export overwrites one", path.display())]
@@ -265,14 +296,70 @@ impl RecordedFact {
     }
 }
 
+/// Exclusive ownership of one board section, held for as long as the store that took it.
+///
+/// The lock is the operating system's and not a file this crate interprets: it is released when
+/// the process holding it ends, however it ends, so a crash leaves no stale claim for an operator
+/// to clear by hand. Two holders of one section would each believe their own fact sequence
+/// continued the recorded one, and the second append would be recorded at positions the first had
+/// already taken; the refusal here is what makes that a named error at the moment of opening
+/// rather than a record that no longer restores.
+#[derive(Debug)]
+struct SectionLock {
+    file: File,
+}
+
+impl SectionLock {
+    fn acquire(directory: &Path) -> Result<Self, BoardRecordError> {
+        create_dir_all(directory)?;
+        let path = directory.join(SECTION_LOCK);
+        let io = |source| BoardRecordError::Io {
+            path: path.clone(),
+            source,
+        };
+        let file = OpenOptions::new()
+            .create(true)
+            .truncate(false)
+            .read(true)
+            .write(true)
+            .open(&path)
+            .map_err(io)?;
+        file.try_lock_exclusive()
+            .map_err(|_| BoardRecordError::SectionHeld {
+                path: directory.to_path_buf(),
+            })?;
+        Ok(Self { file })
+    }
+}
+
+impl Drop for SectionLock {
+    fn drop(&mut self) {
+        let _ = FileExt::unlock(&self.file);
+    }
+}
+
 /// The board's own durable section: the terms it was opened on, and the facts it committed.
 #[derive(Debug)]
 pub struct BoardStore {
     directory: PathBuf,
     opening: BoardOpening,
     sequence: u64,
+    /// The digest of the record at `sequence`, or the digest of the opening terms when this
+    /// section holds no fact yet.
     last_digest: String,
+    /// The digest of the record before `sequence`, which is what makes the recorded position
+    /// checkable against a board without rereading the file. It is unused while `sequence` is
+    /// zero.
+    previous_digest: String,
+    /// Whether the recorded prefix has been established, fact by fact, to be the prefix of the
+    /// board this section is written from. A section created here starts with an empty prefix and
+    /// nothing to establish; a section restored from a file holds records this process did not
+    /// write, and the first append checks the whole of them.
+    prefix_verified: bool,
     bytes_written: u64,
+    /// Exclusive ownership of the section. The field is never read; dropping it is what releases
+    /// the claim, and holding it is what refuses a second writer.
+    _lock: SectionLock,
 }
 
 impl BoardStore {
@@ -296,7 +383,17 @@ impl BoardStore {
             store.opening.expect_same_terms(&stated)?;
             return Ok((store, board));
         }
-        create_dir_all(directory)?;
+        let lock = SectionLock::acquire(directory)?;
+        // A fact record standing where the opening terms are missing is a section that lost the
+        // one file restoration begins from. Creating the section over it would write an empty
+        // fact record across the audit that is still there, so what is missing is named and
+        // nothing is written. The check follows the lock, because a section only one holder may
+        // write is the only one whose files are stable enough to decide this on.
+        if fact_path(directory).exists() {
+            return Err(BoardRecordError::FactRecordWithoutOpening {
+                path: directory.to_path_buf(),
+            });
+        }
         write_atomically(
             &opening_path(directory),
             &serde_json::to_vec_pretty(&stated).expect("opening terms serialize"),
@@ -310,9 +407,12 @@ impl BoardStore {
             Self {
                 directory: directory.to_path_buf(),
                 last_digest: stated.digest(),
+                previous_digest: String::new(),
+                prefix_verified: true,
                 opening: stated,
                 sequence: 0,
                 bytes_written: 0,
+                _lock: lock,
             },
             board,
         ))
@@ -322,6 +422,7 @@ impl BoardStore {
     /// record is not there, is refused with the reason named.
     pub fn restore(directory: impl AsRef<Path>) -> Result<(Self, BoardLedger), BoardRecordError> {
         let directory = directory.as_ref();
+        let lock = SectionLock::acquire(directory)?;
         let opening = read_opening(directory)?;
         let facts = read_facts(directory, &opening)?;
         let mut board = opening.board()?;
@@ -331,6 +432,10 @@ impl BoardStore {
         let last_digest = facts
             .last()
             .map_or_else(|| opening.digest(), |record| record.digest.clone());
+        let previous_digest = match facts.len() {
+            0 | 1 => opening.digest(),
+            length => facts[length - 2].digest.clone(),
+        };
         let bytes_written = file_bytes(&fact_path(directory))?;
         Ok((
             Self {
@@ -338,7 +443,10 @@ impl BoardStore {
                 opening,
                 sequence: facts.len() as u64,
                 last_digest,
+                previous_digest,
+                prefix_verified: false,
                 bytes_written,
+                _lock: lock,
             },
             board,
         ))
@@ -372,12 +480,45 @@ impl BoardStore {
                 held,
             });
         }
+        // A board of the right length is not thereby the board these records were written from.
+        // Without a check on what it holds, another board's facts append onto this section and the
+        // audit becomes two conversations no reader can separate.
+        //
+        // A section restored from a file has a recorded prefix this process did not write, so the
+        // whole of it is rebuilt from the board's own facts and the resulting chain compared: that
+        // establishes fact by fact that the board offered is the one these records came from. It
+        // is done once, because afterwards the recorded prefix is what this store appended from a
+        // board it had already checked. Every later append is checked at the last recorded
+        // position, where recomputing the record from the fact the board holds there must
+        // reproduce the digest it was written under.
+        if self.sequence > 0 {
+            let recomputed = if self.prefix_verified {
+                RecordedFact::new(
+                    self.sequence,
+                    &self.previous_digest,
+                    &board.facts()[self.sequence as usize - 1],
+                )
+                .digest
+            } else {
+                chain_digest(
+                    &self.opening.digest(),
+                    &board.facts()[..self.sequence as usize],
+                )
+            };
+            if recomputed != self.last_digest {
+                return Err(BoardRecordError::RecordDivergence {
+                    sequence: self.sequence,
+                });
+            }
+            self.prefix_verified = true;
+        }
         let pending = &board.facts()[self.sequence as usize..];
         if pending.is_empty() {
             return Ok(0);
         }
         let mut sequence = self.sequence;
         let mut predecessor = self.last_digest.clone();
+        let mut penultimate = self.previous_digest.clone();
         let mut bytes = Vec::new();
         for fact in pending {
             sequence += 1;
@@ -393,6 +534,7 @@ impl BoardStore {
                     maximum: MAX_FACT_BYTES,
                 });
             }
+            penultimate = predecessor;
             predecessor = record.digest;
             bytes.extend_from_slice(&line);
             bytes.push(b'\n');
@@ -422,6 +564,7 @@ impl BoardStore {
         let appended = sequence - self.sequence;
         self.sequence = sequence;
         self.last_digest = predecessor;
+        self.previous_digest = penultimate;
         self.bytes_written = total;
         Ok(appended)
     }
@@ -631,6 +774,16 @@ fn read_facts(
         facts.push(record);
     }
     Ok(facts)
+}
+
+/// The digest one chain of facts arrives at, starting from `opening_digest`. It is what the last
+/// record of that chain states, and it is therefore what a recorded position is compared against.
+fn chain_digest(opening_digest: &str, facts: &[BoardEvent]) -> String {
+    let mut predecessor = opening_digest.to_owned();
+    for (index, fact) in facts.iter().enumerate() {
+        predecessor = RecordedFact::new(index as u64 + 1, &predecessor, fact).digest;
+    }
+    predecessor
 }
 
 /// Whether one record stands where it claims to, after the record it claims to follow, stating the

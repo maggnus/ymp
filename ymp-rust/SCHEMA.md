@@ -681,6 +681,7 @@ runs/0001/
   board/
     board.json                the terms one board was opened on
     facts.jsonl               the fact sequence, one chained record per line
+    writer.lock               exclusive ownership of the section, held by its one writer
 ```
 
 `board.json` states `schema_version`, `kind` — the literal `ymp-board-records` — the controller,
@@ -688,7 +689,18 @@ the root participant, and the whole communication allowance the board was opened
 endowment belongs there rather than among the facts because no fact creates it: it is the total
 capacity this plane will ever hold, stated once. A directory holding no `board.json` is not a board
 section and is refused rather than read as one; a section stating another `kind` or another version
-is refused too, and no board section is migrated.
+is refused too, and no board section is migrated. A directory holding a `facts.jsonl` and no
+`board.json` is refused as well and nothing is written into it: the terms restoration begins from
+are missing, while the audit record is still there, so creating a section over it would replace
+that record with an empty file.
+
+A section is written by one holder at a time. `writer.lock` carries the operating system's
+exclusive lock, taken when the section is opened or restored and released when the process holding
+it ends, however it ends; a second writer is refused at that moment rather than allowed to continue
+the sequence from a position another writer has already moved past. Facts offered for appending are
+checked against the recorded chain before anything is written — a board of the right length is not
+thereby the board these records were written from — and a board that diverges from the recorded
+position is refused with nothing appended.
 
 `facts.jsonl` holds one record per line, each stating `schema_version`, `sequence` counted from
 one, `predecessor_digest`, `digest`, and the committed board fact itself. The digest is the SHA-256

@@ -72,7 +72,7 @@ pub use records::{
 pub use store::{
     BOARD_EVIDENCE_KIND, BOARD_RECORD_KIND, BOARD_SECTION, BoardEvidence, BoardOpening,
     BoardRecordError, BoardStore, FACT_RECORD, MAX_FACT_BYTES, MAX_RECORD_BYTES, OPENING_RECORD,
-    RecordedFact,
+    RecordedFact, SECTION_LOCK,
 };
 
 /// The version of the collaboration records this crate decides and projects.

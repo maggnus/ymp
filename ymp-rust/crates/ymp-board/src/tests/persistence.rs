@@ -1,13 +1,17 @@
 //! What survives the process, and what is refused rather than guessed when it does not.
 //!
-//! Five claims are made here, each with its negative half beside it. A board of recorded facts is
+//! Eight claims are made here, each with its negative half beside it. A board of recorded facts is
 //! restored to the state it was in, and a record file that is gone, cut short or edited is refused
 //! by name instead of read as a board on which nothing was said. A section is reopened on the
-//! terms it records and never on different ones. No byte of a payload reaches the records, while
-//! the identity and the length of that payload do. Two exports of one state are the same bytes,
-//! and a state that moved exports different ones. The audit record outlives the admission that
-//! carried it: a reader whose grant expired is delivered nothing and projects nothing, and the
-//! evidence of what was said is still there to be restored and exported.
+//! terms it records and never on different ones. A fact record standing where the opening terms
+//! are missing is refused and left byte for byte as it was, rather than created over. A section is
+//! written by one holder, and a second one is refused instead of racing it. A board offered for
+//! appending is checked against the recorded chain, so another board's facts never continue this
+//! sequence. No byte of a payload reaches the records, while the identity and the length of that
+//! payload do. Two exports of one state are the same bytes, and a state that moved exports
+//! different ones. The audit record outlives the admission that carried it: a reader whose grant
+//! expired is delivered nothing and projects nothing, and the evidence of what was said is still
+//! there to be restored and exported.
 
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -19,7 +23,7 @@ use crate::protocol::{AdvanceClock, BoardCommand, BoardError, Publish, ReadBoard
 use crate::records::{Audience, MessageKind, Relation};
 use crate::store::{
     BOARD_EVIDENCE_KIND, BOARD_RECORD_KIND, BOARD_SECTION, BoardEvidence, BoardRecordError,
-    BoardStore, FACT_RECORD, OPENING_RECORD,
+    BoardStore, FACT_RECORD, OPENING_RECORD, SECTION_LOCK,
 };
 use crate::tests::{
     ALPHA, BETA, CONTROLLER, DELTA, GAMMA, GRANT_EXPIRY, READ_LIMIT, ROOT, SALIENCE_MS, endowment,
@@ -74,7 +78,10 @@ fn a_board_is_restored_from_its_own_records_and_a_damaged_record_is_refused_by_n
 
     let appended = store.record(&board).expect("the facts are recorded");
     assert_eq!(appended, board.facts().len() as u64);
-    assert_eq!(store.recorded_facts(), board.facts().len() as u64);
+    let recorded_facts = store.recorded_facts();
+    assert_eq!(recorded_facts, board.facts().len() as u64);
+    // The section is written by one holder, so the writer of it is released before it is reopened.
+    drop(store);
 
     let (reopened, restored) = BoardStore::restore(section(&root)).expect("the board is restored");
     assert_eq!(
@@ -88,12 +95,14 @@ fn a_board_is_restored_from_its_own_records_and_a_damaged_record_is_refused_by_n
         "the restored board is not the board that was recorded"
     );
     assert_eq!(restored.audit(), board.audit());
-    assert_eq!(reopened.recorded_facts(), store.recorded_facts());
+    assert_eq!(reopened.recorded_facts(), recorded_facts);
     assert!(restored.conserves_allowance());
+    drop(reopened);
 
     // Synchronizing a section that already holds every committed fact writes nothing.
     let (mut reopened, restored) = BoardStore::restore(section(&root)).expect("restored again");
     assert_eq!(reopened.record(&restored).expect("nothing to record"), 0);
+    drop(reopened);
 
     // The record file is gone. The section still states the terms the board was opened on, so
     // what is missing is the sequence itself, and no board is produced from its absence.
@@ -155,9 +164,11 @@ fn a_section_is_reopened_on_the_terms_it_records() {
         publication("message-1", ROOT, Audience::ProjectDiscovery, 64),
     );
     store.record(&board).expect("the fact is recorded");
+    drop(store);
 
-    let (_, reopened) = BoardStore::open(section(&root), CONTROLLER, ROOT, root_total())
+    let (held, reopened) = BoardStore::open(section(&root), CONTROLLER, ROOT, root_total())
         .expect("the section reopens on its own terms");
+    drop(held);
     assert_eq!(reopened.snapshot(), board.snapshot());
 
     // A board whose controller, root participant or total capacity changed underneath its facts
@@ -184,8 +195,9 @@ fn a_section_is_reopened_on_the_terms_it_records() {
         })
     ));
 
-    // The section holds the two files this crate names and nothing a participant named. A message
-    // identifier, an author and a payload digest are values in a record, never path components.
+    // The section holds the three files this crate names and nothing a participant named. A
+    // message identifier, an author and a payload digest are values in a record, never path
+    // components.
     let mut names: Vec<String> = fs::read_dir(section(&root))
         .expect("the section is readable")
         .map(|entry| {
@@ -197,7 +209,11 @@ fn a_section_is_reopened_on_the_terms_it_records() {
         })
         .collect();
     names.sort();
-    let mut expected = vec![OPENING_RECORD.to_owned(), FACT_RECORD.to_owned()];
+    let mut expected = vec![
+        OPENING_RECORD.to_owned(),
+        FACT_RECORD.to_owned(),
+        SECTION_LOCK.to_owned(),
+    ];
     expected.sort();
     assert_eq!(names, expected);
 }
@@ -361,7 +377,8 @@ fn the_audit_record_outlives_the_admission_that_carried_it() {
         }))
         .expect("the clock moves past the admissions");
     store.record(&board).expect("the facts are recorded");
-    let (_, restored) = BoardStore::restore(section(&root)).expect("the board is restored");
+    drop(store);
+    let (store, restored) = BoardStore::restore(section(&root)).expect("the board is restored");
 
     // The admission is gone: nothing is delivered, nothing is projected, and no message is
     // readable by the participant that used to be admitted.
@@ -442,6 +459,153 @@ fn a_refused_command_leaves_the_record_as_it_was() {
         fs::read(section(&root).join(FACT_RECORD)).expect("the record is readable"),
         "a refused command changed the durable record"
     );
+}
+
+/// A fact record standing where the opening terms are missing is refused, and the record it holds
+/// is left exactly as it was.
+///
+/// Creating the section over it would write an empty fact record across an audit that is still
+/// there, and return a board on which nothing was ever said. The negative half is a directory
+/// holding neither file: there the same call creates the section and returns an empty board, so
+/// the refusal is about the record that stands there and not about refusing every fresh section.
+#[test]
+fn a_fact_record_without_opening_terms_is_refused_and_left_as_it_was() {
+    let root = TempDir::new().expect("a temporary root");
+    let (mut store, _) = open(&root);
+    let board = conversed(4);
+    store.record(&board).expect("the facts are recorded");
+    drop(store);
+
+    let facts = section(&root).join(FACT_RECORD);
+    let before = fs::read(&facts).expect("the record is readable");
+    assert!(!before.is_empty());
+    fs::remove_file(section(&root).join(OPENING_RECORD)).expect("the opening record is removed");
+
+    let refusal = BoardStore::open(section(&root), CONTROLLER, ROOT, root_total());
+    assert!(
+        matches!(
+            refusal,
+            Err(BoardRecordError::FactRecordWithoutOpening { .. })
+        ),
+        "a section was created over a fact record that is still there"
+    );
+    assert_eq!(
+        before,
+        fs::read(&facts).expect("the record is readable"),
+        "the fact record was rewritten by a call that was supposed to refuse"
+    );
+
+    // The negative half: a directory holding neither file is a section this call creates, on an
+    // empty fact record and a board that has committed nothing.
+    let fresh = TempDir::new().expect("a temporary root");
+    let (created, empty) = open(&fresh);
+    assert!(empty.facts().is_empty());
+    assert_eq!(created.recorded_facts(), 0);
+    assert!(
+        fs::read(section(&fresh).join(FACT_RECORD))
+            .expect("the record is readable")
+            .is_empty()
+    );
+}
+
+/// A board section is written by one holder, and a second one is refused rather than allowed to
+/// race.
+///
+/// Two holders each continue the recorded sequence from the position they last saw, so the second
+/// append takes positions the first already wrote and the record no longer restores. The negative
+/// half releases the first holder and shows the section is then taken, so what is checked is the
+/// claim being held and not a section that refuses everyone.
+#[test]
+fn a_board_section_is_written_by_one_holder() {
+    let root = TempDir::new().expect("a temporary root");
+    let (mut store, _) = open(&root);
+    let board = conversed(4);
+    store.record(&board).expect("the facts are recorded");
+
+    assert!(
+        matches!(
+            BoardStore::open(section(&root), CONTROLLER, ROOT, root_total()),
+            Err(BoardRecordError::SectionHeld { .. })
+        ),
+        "a second writer opened a section another writer holds"
+    );
+    assert!(
+        matches!(
+            BoardStore::restore(section(&root)),
+            Err(BoardRecordError::SectionHeld { .. })
+        ),
+        "a second writer restored a section another writer holds"
+    );
+
+    // What the first holder recorded is the whole of the record: the refused second holder wrote
+    // nothing and took no position.
+    let (second, restored) = {
+        drop(store);
+        BoardStore::restore(section(&root)).expect("the released section is taken")
+    };
+    assert_eq!(second.recorded_facts(), board.facts().len() as u64);
+    assert_eq!(restored.snapshot(), board.snapshot());
+}
+
+/// What a board offers to be appended is checked against the recorded chain, so another board's
+/// facts never continue this section's sequence.
+///
+/// The negative half appends the true continuation of the recorded board and shows it is taken.
+/// Without it, a check that refused everything would look the same.
+#[test]
+fn a_foreign_board_is_refused_at_the_recorded_position() {
+    let root = TempDir::new().expect("a temporary root");
+    let (mut store, _) = open(&root);
+    let mut board = conversed(2);
+    store.record(&board).expect("the facts are recorded");
+    let recorded = store.recorded_facts();
+    drop(store);
+
+    // Another board, of the same terms and at least as many facts, saying different things.
+    let mut foreign = scoped();
+    for index in 1..=4 {
+        publish(
+            &mut foreign,
+            publication(&format!("foreign-{index}"), BETA, task_audience(), 64),
+        );
+    }
+    assert!(foreign.facts().len() as u64 > recorded);
+
+    let (mut store, restored) = BoardStore::restore(section(&root)).expect("the board is restored");
+    let before = fs::read(section(&root).join(FACT_RECORD)).expect("the record is readable");
+    assert!(
+        matches!(
+            store.record(&foreign),
+            Err(BoardRecordError::RecordDivergence { .. })
+        ),
+        "another board's facts were appended to this section's sequence"
+    );
+    assert_eq!(
+        before,
+        fs::read(section(&root).join(FACT_RECORD)).expect("the record is readable"),
+        "a refused append changed the durable record"
+    );
+    assert_eq!(store.recorded_facts(), recorded);
+
+    // A board shorter than the record is refused by the same reading, before any position is read.
+    assert!(matches!(
+        store.record(&scoped()),
+        Err(BoardRecordError::RecordAhead { .. })
+    ));
+
+    // The negative half: the board these records were written from, carried one message further,
+    // is appended.
+    board = restored;
+    publish(
+        &mut board,
+        publication("message-later", ALPHA, task_audience(), 96),
+    );
+    let appended = store.record(&board).expect("the continuation is recorded");
+    assert!(appended > 0);
+    assert_eq!(store.recorded_facts(), board.facts().len() as u64);
+    drop(store);
+    let (_, again) = BoardStore::restore(section(&root)).expect("the board is restored");
+    assert_eq!(again.snapshot(), board.snapshot());
 }
 
 /// Every readable file under a directory, with its bytes.
