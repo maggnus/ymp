@@ -28,6 +28,7 @@ mod blinding;
 mod containment;
 mod inertness;
 mod observatory;
+mod persistence;
 mod refusals;
 
 pub(crate) const CONTROLLER: &str = "controller";

@@ -9,9 +9,19 @@ license.workspace = true
 # at all. That absence is the plane boundary in its enforceable form: a board record cannot reach a
 # control writer, a verifier or a store, because none of them is in scope here. A dependency added
 # to this list would make that reachable, so the list itself is checked by the suite.
+# `fs2` is the one addition beyond serialization, hashing and error types: it takes the operating
+# system's exclusive lock on a board section, and it reaches no address and starts no process. A
+# section written by two holders at once produces a record neither of them restores, so the lock is
+# what makes that a refusal at opening rather than a discovery at recovery.
 [dependencies]
+fs2.workspace = true
 hex.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 sha2.workspace = true
 thiserror.workspace = true
+
+# The suite writes durable records into a temporary directory. A development dependency is not
+# linked into the library, so it widens nothing the plane boundary above states.
+[dev-dependencies]
+tempfile.workspace = true

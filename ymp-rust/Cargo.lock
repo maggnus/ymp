@@ -1113,10 +1113,12 @@ dependencies = [
 name = "ymp-board"
 version = "1.0.4"
 dependencies = [
+ "fs2",
  "hex",
  "serde",
  "serde_json",
  "sha2",
+ "tempfile",
  "thiserror",
 ]
 
