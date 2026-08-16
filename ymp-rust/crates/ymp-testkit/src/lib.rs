@@ -9,6 +9,7 @@ use ymp_verifier::{ExactDigestVerifier, VerifierError};
 
 pub mod origin_start;
 pub mod ready_root;
+pub mod recruitment;
 
 #[derive(Clone, Debug, Serialize)]
 pub struct DemoReport {

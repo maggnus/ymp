@@ -103,7 +103,8 @@ fn a_store_of_another_schema_version_is_refused_and_left_byte_for_byte_as_found(
 /// stated separately because those stores are the ones an operator is most likely to still have:
 /// they were written by earlier builds of this product, and journalling the commitment facts, then
 /// the ancestry of a result, then what the kernel could not state of one, then the pool a run is
-/// frozen to, then the life of the participant it ignites on, superseded them in turn.
+/// frozen to, then the participant records of POC-2 mechanics — the life of the participant a run
+/// ignites on and the participants its participants admit into it — superseded them in turn.
 #[test]
 fn the_versions_this_binary_superseded_are_refused_too() {
     for version in [2, 3, 4, 5, 6] {

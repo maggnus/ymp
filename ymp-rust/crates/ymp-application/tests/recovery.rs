@@ -263,6 +263,7 @@ fn journal_capacity_uses_terminal_reserve_and_recovers_as_infrastructure_error()
             max_journal_bytes: 4096,
             terminal_reserve_bytes: 1024,
         },
+        ..ApplicationConfig::default()
     };
     {
         let mut app =
