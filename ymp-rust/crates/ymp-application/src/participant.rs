@@ -5,7 +5,7 @@
 //! managed attempt, in a private workspace of its own, under the provider, engine and model the
 //! snapshot recorded — never under whatever the product root's pools happen to say now.
 //!
-//! Four things decide the shape of this path.
+//! Six things decide the shape of this path.
 //!
 //! * **The route is read, never resolved.** The frozen record is taken from the run's own
 //!   projection, which is a reading of its journal, and the entry is its `origin`. Nothing here
@@ -27,8 +27,18 @@
 //!   here rather than served from the recorded result of the first, because a repeated delivery
 //!   answered from the record would still have started a second process. Yielding and resuming
 //!   moves the participant that exists; it never begins another.
+//! * **What the run cannot afford is refused before it costs anything.** Whether the run holds an
+//!   attempt to spend is answered among the refusals, not by the transition that commits the start:
+//!   the domain answers it too, but by then the copy has been made and the account charged, and a
+//!   run that ended itself having paid for a participant it never got would be stating something
+//!   that did not happen.
+//! * **The private copy is made here and established above.** The bytes come from the run's own
+//!   artifact store, so this level materializes them; the baseline over them runs a program, so the
+//!   level that admits programs establishes it. A participant is put to work only once that
+//!   baseline stands, and a copy nothing could establish is a refusal rather than a start.
 
 use std::path::{Path, PathBuf};
+use std::sync::{Arc, Mutex, PoisonError};
 
 use thiserror::Error;
 use ymp_domain::commitment::{BudgetVector, CommitmentCommand, Dimension, RegisterParticipant};
@@ -110,6 +120,59 @@ impl RouteUnavailable {
     }
 }
 
+/// What turns a materialized copy of the source into a workspace a participant may be put to work
+/// in.
+///
+/// Materializing the files is this level's business, because the bytes come from the run's own
+/// artifact store. Establishing the private baseline over them is not: it runs a program, and
+/// which program is admitted for that is decided where programs are admitted. So the copy is made
+/// here and handed to the level above to be established, and a participant is put into it only
+/// once that level says it stands.
+pub trait PrivateWorkspaces {
+    fn establish(&self, workspace: &Path) -> Result<(), WorkspaceNotEstablished>;
+}
+
+/// Why the private baseline of a materialized copy could not be established.
+#[derive(Clone, Debug, Error, Eq, PartialEq)]
+#[error("{0}")]
+pub struct WorkspaceNotEstablished(pub String);
+
+impl WorkspaceNotEstablished {
+    pub fn new(reason: impl Into<String>) -> Self {
+        Self(reason.into())
+    }
+}
+
+/// What the level above the run supplies to a start.
+///
+/// Both halves answer questions this level cannot: which program serves a route the record names,
+/// and which program establishes a private baseline over a copy. Naming them together is what
+/// keeps a caller from supplying one and leaving the other to a default, because a start that
+/// established no baseline would put a participant to work in a directory with no history to
+/// state what it changed.
+pub struct ParticipantHost<'a> {
+    pub runtimes: &'a dyn ParticipantRuntimes,
+    pub workspaces: &'a dyn PrivateWorkspaces,
+}
+
+impl<'a> ParticipantHost<'a> {
+    pub const fn new(
+        runtimes: &'a dyn ParticipantRuntimes,
+        workspaces: &'a dyn PrivateWorkspaces,
+    ) -> Self {
+        Self {
+            runtimes,
+            workspaces,
+        }
+    }
+}
+
+impl std::fmt::Debug for ParticipantHost<'_> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.debug_struct("ParticipantHost").finish()
+    }
+}
+
 /// What the caller supplies to start the origin, which is deliberately almost nothing.
 ///
 /// The prompt, the source and the exclusions come from the approved contract, and the route comes
@@ -159,6 +222,11 @@ pub enum OriginStartRefused {
          nothing has started and nothing has left this host"
     )]
     RunEnded { status: RunStatus },
+    #[error(
+        "your goal is held · this run holds no attempt left to spend, so it ignites on nothing · \
+         nothing has started and nothing has left this host"
+    )]
+    AttemptBudgetSpent,
     #[error(
         "your goal is held · this run ignites on {entry}, which its own frozen pool does not \
          permit · nothing has started and nothing has left this host"
@@ -210,6 +278,11 @@ pub enum OriginStartRefused {
     ContractUnreadable(String),
     #[error("no participant started — the private workspace could not be prepared: {0}")]
     Workspace(#[source] ApplicationError),
+    #[error(
+        "no participant started — the private workspace has no baseline to state what the \
+         participant changes: {0}"
+    )]
+    WorkspaceNotEstablished(#[source] WorkspaceNotEstablished),
     #[error(transparent)]
     Application(#[from] ApplicationError),
     #[error("the participant was started and its runtime refused the invocation: {0}")]
@@ -238,8 +311,28 @@ impl Application {
     pub fn start_origin_participant<'a>(
         &'a mut self,
         request: &OriginStartRequest,
-        runtimes: &dyn ParticipantRuntimes,
+        host: &ParticipantHost<'_>,
     ) -> Result<OriginAttempt<'a>, OriginStartRefused> {
+        let (start, session) = self.ignite(request, host)?;
+        Ok(OriginAttempt {
+            application: Held::Exclusive(self),
+            session,
+            start,
+            slices: 0,
+        })
+    }
+
+    /// Everything one start does, up to the running session it hands back.
+    ///
+    /// It is separate from the attempt that drives that session so that a caller holding the run
+    /// behind a lock can take the lock for the start alone and give it back before the participant
+    /// begins producing events — see [`ignite_origin_participant`].
+    fn ignite(
+        &mut self,
+        request: &OriginStartRequest,
+        host: &ParticipantHost<'_>,
+    ) -> Result<(ParticipantStart, Box<dyn RuntimeSession>), OriginStartRefused> {
+        let runtimes = host.runtimes;
         self.refresh()?;
         if let Some(started) = &self.state.origin_participant {
             return Err(OriginStartRefused::AlreadyStarted {
@@ -250,6 +343,14 @@ impl Application {
             return Err(OriginStartRefused::RunEnded {
                 status: self.state.status,
             });
+        }
+        // Whether the run can afford an attempt at all is decided here, where a refusal still costs
+        // nothing. The same question is asked again by the domain when the start is committed, and
+        // that answer arrives after the copy has been made and the account charged: a run with no
+        // attempt left would then have paid for a participant it never got and ended itself saying
+        // so. What the record must state is that nothing happened.
+        if self.state.budget.attempts_remaining == 0 {
+            return Err(OriginStartRefused::AttemptBudgetSpent);
         }
         let frozen = self
             .state
@@ -294,6 +395,11 @@ impl Application {
         let workspace = self
             .materialize_origin_workspace(&document)
             .map_err(OriginStartRefused::Workspace)?;
+        // The baseline stands before anything is charged, so a host that cannot establish one has
+        // left a directory behind and nothing else: no charge, no record, no participant.
+        host.workspaces
+            .establish(&workspace)
+            .map_err(OriginStartRefused::WorkspaceNotEstablished)?;
         self.charge_participant_start()?;
         let outcome = self.execute(
             START_COMMAND,
@@ -322,12 +428,7 @@ impl Application {
             prompt: document.prompt.clone(),
             cancellation: request.cancellation.clone(),
         }) {
-            Ok(session) => Ok(OriginAttempt {
-                application: self,
-                session,
-                start,
-                slices: 0,
-            }),
+            Ok(session) => Ok((start, session)),
             Err(error) => {
                 // The start is a fact, and a runtime that never came up is how that fact ended.
                 let _ = self.finish_origin(
@@ -457,12 +558,60 @@ fn admit_route(root: &Path, entry: &EntryIdentity) -> Result<(), OriginStartRefu
 /// ending when it ends, and a resumption is committed before the instruction reaches the runtime.
 /// A caller that reads events elsewhere would leave the record behind the process it describes.
 pub struct OriginAttempt<'a> {
-    application: &'a mut Application,
+    application: Held<'a>,
     session: Box<dyn RuntimeSession>,
     start: ParticipantStart,
     /// How many process slices this attempt has run: the first, plus one for each resumption. It
     /// numbers the lifecycle commands so a second yield is not read as a repeat of the first.
     slices: u32,
+}
+
+/// How a running attempt reaches the run it commits through.
+///
+/// A caller that holds the run alone hands over the run itself. A caller that shares it with the
+/// surfaces drawing it hands over the shared handle, and the attempt then takes the lock for each
+/// thing it records and gives it back — because an attempt that held the lock for as long as the
+/// participant lives would stop every reading of the run it is writing.
+enum Held<'a> {
+    Exclusive(&'a mut Application),
+    Shared(Arc<Mutex<Application>>),
+}
+
+impl Held<'_> {
+    fn with<R>(&mut self, act: impl FnOnce(&mut Application) -> R) -> R {
+        match self {
+            Self::Exclusive(application) => act(application),
+            Self::Shared(application) => {
+                let mut held = application.lock().unwrap_or_else(PoisonError::into_inner);
+                act(&mut held)
+            }
+        }
+    }
+}
+
+/// Ignite a run whose store is shared with whatever else reads it, and hand back the attempt that
+/// drives the participant.
+///
+/// This is the entry point a product surface uses. The lock is taken for the start alone — the
+/// refusals, the copy, the charge and the start record — and is given back before the participant
+/// produces its first event, so the interface that authorized the run can go on drawing it while
+/// it runs. Everything the start decides is decided by [`Application::start_origin_participant`]
+/// and nothing is decided twice.
+pub fn ignite_origin_participant(
+    application: &Arc<Mutex<Application>>,
+    request: &OriginStartRequest,
+    host: &ParticipantHost<'_>,
+) -> Result<OriginAttempt<'static>, OriginStartRefused> {
+    let (start, session) = {
+        let mut held = application.lock().unwrap_or_else(PoisonError::into_inner);
+        held.ignite(request, host)?
+    };
+    Ok(OriginAttempt {
+        application: Held::Shared(Arc::clone(application)),
+        session,
+        start,
+        slices: 0,
+    })
 }
 
 /// The session a running attempt holds is a live process and describes nothing, so what is stated
@@ -489,15 +638,20 @@ impl OriginAttempt<'_> {
     }
 
     /// Where the participant stands, as the run's own record states it.
-    pub fn state(&self) -> Option<ParticipantState> {
-        self.application
-            .origin_participant()
-            .map(|participant| participant.state)
+    pub fn state(&mut self) -> Option<ParticipantState> {
+        self.application.with(|application| {
+            application
+                .origin_participant()
+                .map(|participant| participant.state)
+        })
     }
 
-    /// The run this attempt is recorded in.
-    pub fn application(&mut self) -> &mut Application {
-        self.application
+    /// Do one thing with the run this attempt is recorded in.
+    ///
+    /// It is a borrow taken and given back rather than one handed out, because an attempt over a
+    /// shared store holds the run only for as long as it is writing to it.
+    pub fn with_application<R>(&mut self, act: impl FnOnce(&mut Application) -> R) -> R {
+        self.application.with(act)
     }
 
     /// The next event of the participant's process slice, with what it means for the run recorded
@@ -556,13 +710,17 @@ impl OriginAttempt<'_> {
         let instruction = instruction.into();
         self.slices = self.slices.saturating_add(1);
         let slice = self.slices;
-        self.application.execute(
-            format!("ymp.participant.origin.resume-{slice}"),
-            Command::ResumeParticipant {
-                participant_id: self.start.participant_id.clone(),
-                cursor: instruction.clone(),
-            },
-        )?;
+        let participant_id = self.start.participant_id.clone();
+        let cursor = instruction.clone();
+        self.application.with(|application| {
+            application.execute(
+                format!("ymp.participant.origin.resume-{slice}"),
+                Command::ResumeParticipant {
+                    participant_id,
+                    cursor,
+                },
+            )
+        })?;
         if let Err(error) = self.session.resume(instruction) {
             self.record_finish(ParticipantOutcome::Failed {
                 reason: error.to_string(),
@@ -584,13 +742,17 @@ impl OriginAttempt<'_> {
 
     fn record_yield(&mut self, cursor: &str) -> Result<(), ApplicationError> {
         let slice = self.slices;
-        self.application.execute(
-            format!("ymp.participant.origin.yield-{slice}"),
-            Command::YieldParticipant {
-                participant_id: self.start.participant_id.clone(),
-                cursor: cursor.to_owned(),
-            },
-        )?;
+        let participant_id = self.start.participant_id.clone();
+        let cursor = cursor.to_owned();
+        self.application.with(|application| {
+            application.execute(
+                format!("ymp.participant.origin.yield-{slice}"),
+                Command::YieldParticipant {
+                    participant_id,
+                    cursor,
+                },
+            )
+        })?;
         Ok(())
     }
 
@@ -601,6 +763,7 @@ impl OriginAttempt<'_> {
             return Ok(());
         }
         let participant_id = self.start.participant_id.clone();
-        self.application.finish_origin(&participant_id, outcome)
+        self.application
+            .with(|application| application.finish_origin(&participant_id, outcome))
     }
 }
