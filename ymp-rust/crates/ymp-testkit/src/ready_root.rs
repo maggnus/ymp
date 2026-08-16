@@ -33,6 +33,39 @@ pub fn measured(root: &Path) {
     measured_engine(root, Engine::ClaudeCode, &MODELS);
 }
 
+/// The same root, with the engine it measured taken off admission.
+///
+/// Which engine this host admits and which account is enabled are two decisions, and only the
+/// second decides what a run may draw on: the pool stays alive, so a run is still created and still
+/// freezes the entry it ignites on. What changes is that nothing on this host will start that
+/// entry — the start refuses at the engine record, before a driver is built and before any process
+/// exists.
+///
+/// It is what a check whose subject is not the participant stands on. Authorizing a run now starts
+/// the participant the run ignites on, and a check standing on a root that admits an engine
+/// installed beside it would start that engine's real agent: it would measure the machine, spend
+/// the operator's account, and take as long as the agent takes. A check that does want a
+/// participant serves the route with the fixture runtime instead.
+pub fn measured_with_no_engine_admitted(root: &Path) {
+    measured(root);
+    hold_engine_back(root, Engine::ClaudeCode);
+}
+
+/// The same, for a stated engine and model list.
+pub fn measured_engine_with_no_admission(root: &Path, engine: Engine, models: &[&str]) {
+    measured_engine(root, engine, models);
+    hold_engine_back(root, engine);
+}
+
+fn hold_engine_back(root: &Path, engine: Engine) {
+    Registry::under(root)
+        .update(engine, |record| {
+            record.enabled = false;
+            record.disabled_reason = Some("not admitted on the host this check runs on".to_owned());
+        })
+        .expect("take the engine off admission");
+}
+
 /// The same, for a stated engine and model list.
 ///
 /// A check whose runtime profile is one particular engine states that engine here, so the pool it

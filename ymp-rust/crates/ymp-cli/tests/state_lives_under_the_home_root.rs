@@ -336,7 +336,7 @@ impl Host {
     /// it at all: the pool a run draws its models from is frozen when the run is created, and a
     /// root that offers nothing creates nothing.
     fn offers_models(&self, root: &Path) {
-        ymp_testkit::ready_root::measured(root);
+        ymp_testkit::ready_root::measured_with_no_engine_admitted(root);
     }
 
     /// The root an invocation with these leading arguments reads its pools under: the root it

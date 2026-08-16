@@ -92,7 +92,7 @@ fn a_run_ignites_once_on_the_entry_its_record_names() {
     let runtimes = FakeRuntimes::default();
 
     let attempt = application
-        .start_origin_participant(&request(&host), &runtimes)
+        .start_origin_participant(&request(&host), &runtimes.host())
         .expect("the run ignites");
     assert_eq!(
         *attempt.route(),
@@ -120,7 +120,7 @@ fn a_run_ignites_once_on_the_entry_its_record_names() {
 
     // A second authorization of the same run is refused rather than served from the record.
     let refusal = application
-        .start_origin_participant(&request(&host), &runtimes)
+        .start_origin_participant(&request(&host), &runtimes.host())
         .expect_err("a second authorization started a second participant");
     let stated = refusal.to_string();
     assert!(
@@ -206,7 +206,7 @@ fn what_changed_after_the_freeze_does_not_move_the_participant() {
 
     let runtimes = FakeRuntimes::default();
     let attempt = application
-        .start_origin_participant(&request(&host), &runtimes)
+        .start_origin_participant(&request(&host), &runtimes.host())
         .expect("a run already created ignites on what it froze");
     assert_eq!(
         *attempt.route(),
@@ -267,7 +267,7 @@ fn a_pool_that_still_resolves_after_the_freeze_does_not_move_the_participant() {
 
     let runtimes = FakeRuntimes::default();
     let attempt = application
-        .start_origin_participant(&request(&host), &runtimes)
+        .start_origin_participant(&request(&host), &runtimes.host())
         .expect("the run ignites");
     assert_eq!(
         *attempt.route(),
@@ -302,7 +302,7 @@ fn an_engine_this_host_holds_back_refuses_the_start_and_leaves_the_record_whole(
 
     let runtimes = FakeRuntimes::default();
     let refusal = application
-        .start_origin_participant(&request(&host), &runtimes)
+        .start_origin_participant(&request(&host), &runtimes.host())
         .expect_err("a held-back engine started a participant");
     let stated = refusal.to_string();
     assert!(
@@ -362,7 +362,7 @@ fn an_engine_this_host_holds_back_refuses_the_start_and_leaves_the_record_whole(
         })
         .expect("admit the engine again");
     let attempt = application
-        .start_origin_participant(&request(&host), &runtimes)
+        .start_origin_participant(&request(&host), &runtimes.host())
         .expect("an admitted engine ignites the run");
     assert_eq!(*attempt.route(), origin_entry());
 }
@@ -380,7 +380,7 @@ fn the_participant_yields_resumes_and_finishes_without_a_second_attempt() {
     let mut application = host.start_run(&store);
     let runtimes = FakeRuntimes::default();
     let mut attempt = application
-        .start_origin_participant(&request(&host), &runtimes)
+        .start_origin_participant(&request(&host), &runtimes.host())
         .expect("the run ignites");
 
     // Up to the yield: the record states the slice stopped, and the participant is waiting.
@@ -463,6 +463,135 @@ fn the_participant_yields_resumes_and_finishes_without_a_second_attempt() {
     );
 }
 
+/// Two runs frozen on different entries under one live pool each ignite on their own entry.
+///
+/// This is the arrangement the checks above cannot reach. Each of them holds one run, so its frozen
+/// entry, the live pool's entry and any single constant a build might answer with all coincide at
+/// least once — a build that answered `claude-opus-5` for every route passes every one of them. Two
+/// runs demand two different answers from one host in one process, and no constant and no reading
+/// of the live pool gives both: the live pool ignites on the first entry throughout, which is
+/// asserted below so that what this check discriminates is stated rather than assumed.
+///
+/// The check that must fail: answer the route from anything but the run's own record — a constant,
+/// or `freeze_under(root, None)`. The second run then runs on the first run's model.
+#[test]
+fn two_runs_frozen_on_different_entries_ignite_on_their_own() {
+    let host = OriginHost::measured();
+    let mut first = host.start_run_igniting_on(&host.store("first-route"), &origin_entry());
+    let mut second = host.start_run_igniting_on(&host.store("second-route"), &other_entry());
+
+    // What makes the two tell an answer read from the record from an answer read anywhere else:
+    // they froze different entries, and the pool they now stand under names neither of them twice.
+    assert_ne!(origin_entry(), other_entry());
+    assert_eq!(
+        ymp_application::freeze_under(&host.root, None)
+            .expect("the live pool resolves")
+            .origin,
+        origin_entry(),
+        "the live pool ignites on something other than the first run's entry, so a build reading \
+         it would not be caught by the second run"
+    );
+
+    // One host serves both, so the routes it is asked for are the whole measurement: a build that
+    // resolved the route anywhere but the record is visible here before any event is produced.
+    let runtimes = FakeRuntimes::default();
+    let first_attempt = first
+        .start_origin_participant(&request(&host), &runtimes.host())
+        .expect("the first run ignites");
+    assert_eq!(*first_attempt.route(), origin_entry());
+    drop(first_attempt);
+    let second_attempt = second
+        .start_origin_participant(&request(&host), &runtimes.host())
+        .expect("the second run ignites");
+    assert_eq!(
+        *second_attempt.route(),
+        other_entry(),
+        "the second run started on the first run's entry"
+    );
+    drop(second_attempt);
+
+    assert_eq!(
+        runtimes.requested(),
+        vec![origin_entry(), other_entry()],
+        "one host was asked for routes other than the two the two runs froze"
+    );
+    drop(first);
+    drop(second);
+
+    // And the record of each run states the entry that run was created under.
+    assert_eq!(
+        started_in_journal(&host.store("first-route"))[0].entry,
+        origin_entry()
+    );
+    assert_eq!(
+        started_in_journal(&host.store("second-route"))[0].entry,
+        other_entry()
+    );
+}
+
+/// A run holding no attempt to spend starts nothing, and pays for nothing.
+///
+/// The attempt budget is asked about twice: once before anything is written, and once by the domain
+/// when the start is committed. Only the first answer can leave the run untouched. The half that
+/// must fail is the build this card started from, which asked only the second: the private copy was
+/// made, the commitment kernel opened and the participant registered — one participant start
+/// charged — and the run then ended itself with `RunExhausted`, having paid for a participant that
+/// never existed.
+#[test]
+fn a_run_with_no_attempt_left_refuses_before_the_copy_and_the_charge() {
+    let host = OriginHost::measured();
+    let store = host.store("no-attempt");
+    let mut application = host.start_run_budgeted(&store, Some(ymp_domain::Budget::new(0, 1)));
+    let journal = store.join("events.jsonl");
+    let before = std::fs::read(&journal).expect("the journal this run was created with");
+    let runtimes = FakeRuntimes::default();
+
+    let refusal = application
+        .start_origin_participant(&request(&host), &runtimes.host())
+        .expect_err("a run with no attempt left started a participant");
+    let stated = refusal.to_string();
+    assert!(
+        matches!(refusal, OriginStartRefused::AttemptBudgetSpent),
+        "{stated}"
+    );
+    assert!(stated.contains("your goal is held"), "{stated}");
+    assert!(stated.contains("nothing has left this host"), "{stated}");
+
+    // Nothing was asked of the host, no copy was made, nothing was charged, and the journal is
+    // byte for byte the journal a refusal at the very first question leaves.
+    assert!(
+        runtimes.requested().is_empty(),
+        "a refused start asked the host for a runtime"
+    );
+    assert!(
+        runtimes.established().is_empty(),
+        "a refused start had a private copy established for it"
+    );
+    assert!(
+        !store.join("workspaces").exists(),
+        "a refused start left a private copy behind"
+    );
+    assert!(
+        application
+            .recovered_commitments()
+            .expect("the ledger")
+            .is_none(),
+        "a refused start opened a commitment kernel and registered a participant"
+    );
+    assert_eq!(
+        std::fs::read(&journal).expect("the journal as the refusal left it"),
+        before,
+        "a refused start wrote to the journal"
+    );
+    assert_eq!(
+        application.state().status,
+        ymp_domain::RunStatus::Running,
+        "a refused start ended the run"
+    );
+    drop(application);
+    assert!(started_in_journal(&store).is_empty());
+}
+
 /// A host that serves no runtime for the frozen route refuses in plain words and writes nothing.
 ///
 /// It is the other half of the admission: the engine may be admitted on this host and still serve
@@ -475,7 +604,7 @@ fn a_route_this_host_cannot_serve_refuses_rather_than_starting_on_another() {
     let runtimes = FakeRuntimes::default().serving_nothing_for(origin_entry());
 
     let refusal = application
-        .start_origin_participant(&request(&host), &runtimes)
+        .start_origin_participant(&request(&host), &runtimes.host())
         .expect_err("a route this host cannot serve started something");
     let stated = refusal.to_string();
     assert!(

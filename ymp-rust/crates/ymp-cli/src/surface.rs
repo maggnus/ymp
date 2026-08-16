@@ -673,6 +673,11 @@ fn run_start(
     let ConfirmAction::StartRun { run_id, .. } = commit(session, app, markers, confirm)? else {
         bail!("the interface confirmed something other than the start of a run");
     };
+    // Authorizing a run ignites the participant it ignites on, and this command has no interface to
+    // watch it in. It waits for the work it started rather than leaving with it half done: a
+    // command that returned here would end the process the run's own record says is doing the work.
+    session.await_origin();
+    app.adopt(session.projection(None));
 
     // A run is identified by its contract and by the store that holds it. This command addresses
     // the store itself, so it knows that identifier before the start and holds the start to it.

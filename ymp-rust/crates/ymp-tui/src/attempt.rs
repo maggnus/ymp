@@ -225,7 +225,10 @@ pub fn start(
 /// the reason the operator recorded — before the driver is built, so a disabled engine starts no
 /// process even where the routing that led here was stale. [`admit_runtime_start`] then answers
 /// whether the driver attests what it launches.
-fn driver(route: Route, registry: &RegistryAddress) -> anyhow::Result<Box<dyn RuntimeDriver>> {
+pub(crate) fn driver(
+    route: Route,
+    registry: &RegistryAddress,
+) -> anyhow::Result<Box<dyn RuntimeDriver>> {
     registry.registry().admit(route.engine())?;
     let driver: Box<dyn RuntimeDriver> = match route {
         Route::Codex => Box::new(CodexRuntime::default()),

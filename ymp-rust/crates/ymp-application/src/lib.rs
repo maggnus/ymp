@@ -46,7 +46,8 @@ pub use contract::{
 };
 pub use participant::{
     ORIGIN_ATTEMPT, ORIGIN_INVOCATION, ORIGIN_PARTICIPANT, OriginAttempt, OriginAttemptError,
-    OriginStartRefused, OriginStartRequest, ParticipantRuntimes, RouteUnavailable,
+    OriginStartRefused, OriginStartRequest, ParticipantHost, ParticipantRuntimes,
+    PrivateWorkspaces, RouteUnavailable, WorkspaceNotEstablished, ignite_origin_participant,
 };
 pub use pool::{PoolFreezeRefused, freeze_record, freeze_under};
 pub use verification::{VerificationJob, VerificationOutcome};
