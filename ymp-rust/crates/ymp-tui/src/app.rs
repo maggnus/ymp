@@ -23,14 +23,15 @@ use std::time::{Duration, Instant, SystemTime};
 use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
 use ymp_application::root::{StoreIntent, store_under};
 use ymp_application::{
-    Application, ApplicationError, PreparedContract, VerificationJob, VerificationOutcome,
-    freeze_under, prepare_contract,
+    Application, ApplicationError, OriginStartRequest, ParticipantHost, ParticipantRuntimes,
+    PreparedContract, VerificationJob, VerificationOutcome, freeze_under,
+    ignite_origin_participant, prepare_contract,
 };
 use ymp_domain::Command as DomainCommand;
 use ymp_domain::commitment::Verdict;
 use ymp_domain::contract::ContractDocument;
 use ymp_domain::{RunStatus, VerificationDecision};
-use ymp_runtime_api::{RuntimeEventKind, RuntimeKind};
+use ymp_runtime_api::{CancellationToken, RuntimeEventKind, RuntimeKind};
 use ymp_runtime_supervisor::{
     CONTROLLER_SHUTDOWN_LIMIT, ManagedRunEvent, ManagedRunHandle, ManagedShutdown,
 };
@@ -40,6 +41,7 @@ use crate::decisions;
 use crate::draft::{Amendment, Assembly, Draft, DraftJob};
 use crate::engines;
 use crate::journal::Model;
+use crate::origin::{ManagedRuntimes, PrivateGit};
 use crate::pages::Page;
 use crate::pools::{self, PoolCapacity, PoolEntry, PoolName};
 use crate::projection::{ContractFacts, Environment, Projection};
@@ -161,6 +163,35 @@ pub struct Session {
     /// reachable when this session goes away: quitting waits for it rather than leaving the
     /// processes it is waiting on behind.
     probe: Option<RunningMeasurement>,
+    /// The runtime profiles a frozen route is served with. It is held rather than built where it
+    /// is used so that a check can put the in-process fixture runtime here and change nothing
+    /// else: what the route is stays the run's own record either way.
+    participants: Option<Arc<dyn ParticipantRuntimes + Send + Sync>>,
+    /// The participant this run ignited on, while its worker is still running it. Holding it is
+    /// what makes that participant reachable when this session goes away.
+    origin: Option<RunningOrigin>,
+}
+
+/// The origin participant of this run, running on a worker of its own.
+///
+/// The worker holds the store the same way the managed attempt's worker does — through the shared
+/// handle, taking the lock for each thing it records — so the interface goes on drawing the run
+/// while the participant works in it. Nothing can hold a worker this session cannot end: it is
+/// reached only through [`Session::await_origin`] and [`Session::end_origin`].
+struct RunningOrigin {
+    cancellation: CancellationToken,
+    worker: thread::JoinHandle<()>,
+}
+
+/// A session that goes away takes the participant it started with it.
+///
+/// The store is held by that participant's worker as well as by this session, so a session dropped
+/// while one is working would leave a writer nothing could reach and a process nobody would end.
+/// Waiting here is what makes the end of a session the end of the work it authorized.
+impl Drop for Session {
+    fn drop(&mut self) {
+        self.end_origin();
+    }
 }
 
 /// The rows the operator is standing on, for the surfaces whose views exist only while one is.
@@ -463,6 +494,8 @@ impl Session {
             measuring: None,
             measured: 0,
             probe: None,
+            participants: None,
+            origin: None,
         }
     }
 
@@ -1754,25 +1787,12 @@ impl Session {
                     outcome.event.sequence
                 ));
                 self.refresh();
-                // Starting the run spends the store; starting the agent spends the operator's own
-                // account with a runtime profile. They are separate authorizations because they
-                // grant separate things, so this states which profile would do the work and stops
-                // there.
+                // The run exists, and the entry it ignites on is already fixed in it. Starting
+                // that participant is the other half of this authorization rather than a second
+                // one: the operator authorized the work, and the run's own record — not this
+                // session and not the pools of the root — decides what does it.
                 let run_id = outcome.event.run_id.clone();
-                match attempt::resolve(self.route, self.runtimes.as_ref()) {
-                    Routing::Ready(route) => self.model.reply(format!(
-                        "nothing is being done yet · /attempt {run_id} starts the {} profile on \
-                         this run, which is where spending against your own account begins",
-                        route.name()
-                    )),
-                    Routing::Refused(reason) => self.model.reply(format!(
-                        "nothing is being done yet, and no profile could start — {reason}"
-                    )),
-                    Routing::Probing => self.model.reply(format!(
-                        "nothing is being done yet · /attempt {run_id} starts the work once this \
-                         host has been probed"
-                    )),
-                }
+                self.ignite_origin(&run_id);
             }
             Err(error) => {
                 // The contract is still there and still unauthorized in the store's eyes, so it
@@ -1784,6 +1804,90 @@ impl Session {
                 self.model
                     .error(format!("the run was not started: {error}"));
             }
+        }
+    }
+
+    /// Serve the frozen routes of this session's runs with the in-process fixture runtime, or with
+    /// any other host a caller supplies.
+    ///
+    /// It replaces which programs a route is served by and nothing else: which route is asked for
+    /// is read from the run's own frozen record either way, so a check that puts a fixture here
+    /// measures the same start path the operator's host runs.
+    pub fn set_participant_runtimes(
+        &mut self,
+        runtimes: Arc<dyn ParticipantRuntimes + Send + Sync>,
+    ) {
+        self.participants = Some(runtimes);
+    }
+
+    /// Start the participant this run ignites on, and put it to work on a worker of its own.
+    ///
+    /// A refusal is stated and nothing else happens: the run stands as it was created, its attempt
+    /// is unspent, and the surface that starts an attempt by hand is still there. That is why the
+    /// refusal names what the operator can still do rather than only what could not be done.
+    fn ignite_origin(&mut self, run_id: &str) {
+        let Some(application) = self.application.clone() else {
+            return;
+        };
+        let runtimes: Arc<dyn ParticipantRuntimes + Send + Sync> = match &self.participants {
+            Some(runtimes) => Arc::clone(runtimes),
+            None => Arc::new(ManagedRuntimes::under(self.registry.clone())),
+        };
+        let cancellation = CancellationToken::default();
+        let request = OriginStartRequest {
+            root: self.registry.root().to_path_buf(),
+            mcp: None,
+            cancellation: cancellation.clone(),
+        };
+        let host = ParticipantHost::new(runtimes.as_ref(), &PrivateGit);
+        let mut attempt = match ignite_origin_participant(&application, &request, &host) {
+            Ok(attempt) => attempt,
+            Err(refusal) => {
+                self.model.reply(format!(
+                    "{refusal} · /attempt {run_id} is where the work is started by hand"
+                ));
+                self.refresh();
+                return;
+            }
+        };
+        self.model.reply(format!(
+            "run {run_id} ignited on {} · participant {} is working in a private copy of the \
+             source, and every turn it takes reaches this transcript",
+            attempt.route(),
+            attempt.start().participant_id
+        ));
+        // The events the participant produces are journalled by the attempt itself, so nothing is
+        // reported from here: the transcript follows the journal, which is where the participant's
+        // own record already is by the time any of it is drawn.
+        let worker = thread::spawn(move || while matches!(attempt.next_event(), Ok(Some(_))) {});
+        self.origin = Some(RunningOrigin {
+            cancellation,
+            worker,
+        });
+        self.refresh();
+    }
+
+    /// Wait for the origin participant to finish the work it was started on.
+    ///
+    /// A command that authorized a run has nothing left to draw and would otherwise leave with the
+    /// participant it started still working, so it waits here. Nothing is cancelled: what is being
+    /// waited for is the work the operator authorized.
+    pub fn await_origin(&mut self) {
+        if let Some(origin) = self.origin.take() {
+            let _ = origin.worker.join();
+        }
+        self.refresh();
+    }
+
+    /// Stop the origin participant and wait for its worker to leave.
+    ///
+    /// This is the closing path. The participant is told to stop and is then waited for, so a
+    /// session that has gone away has left no process behind it and no half-written record: how
+    /// the attempt ended is journalled by the attempt before its worker returns.
+    pub fn end_origin(&mut self) {
+        if let Some(origin) = self.origin.take() {
+            origin.cancellation.cancel();
+            let _ = origin.worker.join();
         }
     }
 
@@ -2674,12 +2778,17 @@ fn event_loop(
                 if app.should_quit {
                     stop.store(true, Ordering::SeqCst);
                     let _ = input.join();
+                    // The participant this run ignited on is stopped and waited for before the
+                    // interface goes away, for the same reason a measurement is: a worker this
+                    // session started is one this session ends.
+                    session.end_origin();
                     return Ok(session.end_measurement());
                 }
             }
             Err(RecvTimeoutError::Disconnected) => {
                 stop.store(true, Ordering::SeqCst);
                 let _ = input.join();
+                session.end_origin();
                 return Ok(session.end_measurement());
             }
             // Nothing arrived. While work runs away from this thread the row that states it
