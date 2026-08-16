@@ -265,7 +265,12 @@ impl Model {
                     Err(refusal) => self.commitments_refused = Some(refusal.to_string()),
                 }
             }
-            EventKind::CommitmentFactsRecorded { facts } => {
+            // An admission carries the commitment facts that paid for it inside its own record, so
+            // it is folded exactly as any other commitment record. A reader that took the line and
+            // passed over the facts would draw a ledger without the participant the run admitted
+            // and with the authority it cost still unspent.
+            EventKind::CommitmentFactsRecorded { facts }
+            | EventKind::ParticipantAdmitted { facts, .. } => {
                 // The fold stops at the first record it cannot take, and what it states is that
                 // first reason. The records after it are read against a ledger that is no longer
                 // being built, so each of them would find no kernel and say so — replacing what
@@ -1320,6 +1325,17 @@ fn describe_event(envelope: &EventEnvelope) -> (Plane, &'static str, String) {
                     .join(" · ")
             ),
         ),
+        // One line stating the fact, in the vocabulary the record itself uses. Who was recruited
+        // for what, and every surface that answers it, is COR-03e's: this states that a
+        // participant was admitted, on which entry, and at whose asking, and nothing further.
+        EventKind::ParticipantAdmitted { admitted, .. } => (
+            Plane::Control,
+            "participant.admitted",
+            format!(
+                "{} admitted on {} · asked for by {}",
+                admitted.participant_id, admitted.entry, admitted.proposer
+            ),
+        ),
         EventKind::PoolFrozen(frozen) => (
             Plane::Control,
             "pool.frozen",
@@ -1406,6 +1422,7 @@ mod tests {
             budget: Budget::new(2, 1),
             contract: None,
             frozen_pool: None,
+            admissions: Vec::new(),
             active_attempts: Vec::new(),
             candidate_digest: None,
             last_sequence,
@@ -1427,6 +1444,70 @@ mod tests {
         model.absorb(&state(RunStatus::Running, 1), &events);
         assert_eq!(model.entries.len(), before + 1);
         assert_eq!(model.attempts.len(), 1);
+    }
+
+    /// An admission is one transcript line stating the fact, and its facts reach the ledger this
+    /// model rebuilds. A reader that took the line and passed over the facts would draw a run
+    /// without the participant it admitted and with the authority it cost still unspent.
+    #[test]
+    fn an_admission_states_the_fact_and_its_charge_reaches_the_ledger() {
+        use ymp_domain::commitment::{AccountRef, BudgetVector, CommitmentEvent, Dimension};
+        use ymp_domain::pool::EntryIdentity;
+        use ymp_domain::recruitment::AdmittedParticipant;
+
+        let admitted = AdmittedParticipant {
+            request_id: "request-1".into(),
+            proposer: "participant-root".into(),
+            participant_id: "participant-abc".into(),
+            principal_id: "anthropic".into(),
+            entry: EntryIdentity::new("anthropic", "claude-code", "claude-opus-5"),
+            profile: "claude-code".into(),
+            route: "anthropic/claude-opus-5".into(),
+            workspace: "participants/participant-abc".into(),
+        };
+        let events = vec![
+            envelope(
+                1,
+                EventKind::CommitmentKernelOpened {
+                    root_participant: "participant-root".into(),
+                    root_principal: "anthropic".into(),
+                    root_obligation: "obligation-root".into(),
+                    budget: BudgetVector::units(Dimension::ParticipantStarts, 2),
+                },
+            ),
+            envelope(
+                2,
+                EventKind::ParticipantAdmitted {
+                    admitted: admitted.clone(),
+                    facts: vec![
+                        CommitmentEvent::ParticipantRegistered {
+                            participant_id: admitted.participant_id.clone(),
+                            principal_id: admitted.principal_id.clone(),
+                        },
+                        CommitmentEvent::BudgetConsumed {
+                            account: AccountRef::Participant {
+                                participant_id: "participant-root".into(),
+                            },
+                            amount: BudgetVector::unit(Dimension::ParticipantStarts),
+                        },
+                    ],
+                },
+            ),
+        ];
+
+        let mut model = Model::cold(environment(), Vec::new());
+        model.absorb(&state(RunStatus::Running, 2), &events);
+
+        let line = &model.events[1];
+        assert_eq!(line.kind, "participant.admitted");
+        assert_eq!(
+            line.subject,
+            "participant-abc admitted on anthropic · claude-code · claude-opus-5 · asked for by \
+             participant-root"
+        );
+        let ledger = model.commitments.as_ref().expect("the rebuilt ledger");
+        assert!(ledger.participants().contains_key("participant-abc"));
+        assert_eq!(ledger.consumed().get(Dimension::ParticipantStarts), 1);
     }
 
     #[test]
