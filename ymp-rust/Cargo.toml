@@ -30,6 +30,7 @@ ymp-agent-mcp = { path = "crates/ymp-agent-mcp" }
 ymp-agent-rpc = { path = "crates/ymp-agent-rpc" }
 ymp-application = { path = "crates/ymp-application" }
 ymp-artifacts = { path = "crates/ymp-artifacts" }
+ymp-board = { path = "crates/ymp-board" }
 ymp-domain = { path = "crates/ymp-domain" }
 ymp-kernel = { path = "crates/ymp-kernel" }
 ymp-runtime-api = { path = "crates/ymp-runtime-api" }

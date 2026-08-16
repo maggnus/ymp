@@ -266,9 +266,13 @@ fn journal_capacity_uses_terminal_reserve_and_recovers_as_infrastructure_error()
         ..ApplicationConfig::default()
     };
     {
-        let mut app =
-            Application::create_with_config(temporary.path(), "run-1", Budget::new(1, 1), config)
-                .expect("create bounded application");
+        let mut app = Application::create_with_config(
+            temporary.path(),
+            "run-1",
+            Budget::new(1, 1),
+            config.clone(),
+        )
+        .expect("create bounded application");
         let candidate = app
             .object_store()
             .put(b"candidate")

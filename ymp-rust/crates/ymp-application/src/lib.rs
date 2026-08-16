@@ -13,6 +13,8 @@ use ymp_agent_api::{
     SubmitArguments,
 };
 use ymp_artifacts::{ArtifactError, ArtifactStore, CandidateRef, FileEntry, SubmissionRef};
+use ymp_board::budget::{Allowance as BoardAllowance, CommunicationAllowance};
+use ymp_board::{BoardCommand, BoardEvent, BoardLedger, BoardStore, OPENING_RECORD};
 use ymp_domain::commitment::{
     BudgetVector, BundleChange, CommitmentCommand, CommitmentError, CommitmentEvent,
     CommitmentLedger, PathChange,
@@ -87,6 +89,8 @@ pub enum ApplicationError {
     NotInitialized,
     #[error("data root is already owned by another foreground process")]
     WriterAlreadyActive,
+    #[error("the board section of this run could not be opened for this run's terms: {0}")]
+    BoardSectionUnusable(String),
     #[error("first journal event is not run_started")]
     InvalidFirstEvent,
     #[error("command identifier {command_id} was reused with different content")]
@@ -243,13 +247,118 @@ pub struct ParticipantAdmission {
     pub start_failure: Option<ParticipantStartFailed>,
 }
 
-#[derive(Clone, Copy, Debug, Default)]
+#[derive(Clone, Debug, Default)]
 pub struct ApplicationConfig {
     pub journal_limits: JournalLimits,
     /// The ceilings this run recruits under. It is a declared boundary of the run rather than
     /// something read from the host, so a run recruits under the ceiling it was created with even
     /// when the ceilings of the product root move afterwards.
     pub recruitment: RecruitmentPolicy,
+    /// The terms the board section of every run this application creates is opened on. It is a
+    /// constant of the build for now; it is a field because it is not a constant of the product.
+    pub board: DefaultBoardConfig,
+}
+
+impl Default for DefaultBoardConfig {
+    fn default() -> Self {
+        Self {
+            controller: DEFAULT_BOARD_CONTROLLER.to_owned(),
+            root_participant: DEFAULT_BOARD_ROOT.to_owned(),
+            endowment: default_board_endowment(),
+        }
+    }
+}
+
+/// The opening terms of a run's board section: one controller, one root participant, one
+/// endowment that is the whole communication capacity the plane will ever hold. They are decided
+/// here and named nowhere else, because these terms are the run's and not a caller's.
+#[derive(Clone, Debug)]
+pub struct DefaultBoardConfig {
+    pub controller: String,
+    pub root_participant: String,
+    pub endowment: CommunicationAllowance,
+}
+
+pub const DEFAULT_BOARD_CONTROLLER: &str = "ymp";
+pub const DEFAULT_BOARD_ROOT: &str = "participant-root";
+pub use ymp_board::BOARD_SECTION;
+
+/// The board endowment every run's board section opens with.
+pub fn default_board_endowment() -> CommunicationAllowance {
+    CommunicationAllowance::ZERO
+        .with(BoardAllowance::Publications, 1_000)
+        .with(BoardAllowance::SalienceRefreshes, 200)
+        .with(BoardAllowance::MembershipGrants, 200)
+        .with(BoardAllowance::ActiveMemberships, 200)
+        .with(BoardAllowance::PublishedBytes, 1_000_000)
+        .with(BoardAllowance::DeliveredBytes, 1_000_000)
+}
+
+/// The board section of one run's store: the exclusive writer of `runs/…/board/` and the board
+/// it restores. It is the only path in this crate that reaches that directory, and it is
+/// reached by nothing in the control plane: the journal never names a board file, and the board
+/// records no journal fact.
+#[derive(Debug)]
+pub struct BoardSection {
+    store: BoardStore,
+    ledger: BoardLedger,
+}
+
+impl BoardSection {
+    /// Address the run's board section, creating it when it holds none and restoring the board an
+    /// existing one records. The crate that owns the section refuses terms that differ from the
+    /// ones recorded, so a reopened run gets the board its facts belong to and never a fresh one.
+    fn open(data_root: &Path, config: &DefaultBoardConfig) -> Result<Self, ApplicationError> {
+        let (store, ledger) = BoardStore::open(
+            data_root.join(BOARD_SECTION),
+            &config.controller,
+            &config.root_participant,
+            config.endowment,
+        )
+        .map_err(|error| ApplicationError::BoardSectionUnusable(error.to_string()))?;
+        Ok(Self { store, ledger })
+    }
+
+    /// Restore the section a reopened run already holds. A run is created with a board section,
+    /// so a store that holds none is a store whose section was lost or never written, and it is
+    /// refused by name: restoring nothing would hand the run an empty board and read the absence
+    /// of every recorded fact as evidence that nothing was ever said.
+    fn reopen(data_root: &Path, config: &DefaultBoardConfig) -> Result<Self, ApplicationError> {
+        let directory = data_root.join(BOARD_SECTION);
+        if !directory.join(OPENING_RECORD).is_file() {
+            return Err(ApplicationError::BoardSectionUnusable(format!(
+                "this run's store holds no board section at {}; a section is lost rather than \
+                 empty, and no board is restored from its absence",
+                directory.display()
+            )));
+        }
+        Self::open(data_root, config)
+    }
+
+    /// The section directory, for the acceptance that names it.
+    pub fn directory(&self) -> &Path {
+        self.store.directory()
+    }
+
+    pub fn ledger(&self) -> &BoardLedger {
+        &self.ledger
+    }
+
+    pub fn recorded_facts(&self) -> u64 {
+        self.store.recorded_facts()
+    }
+
+    /// Write this board's evidence to `path`: the terms it was opened on, the chained fact
+    /// sequence, and the projections a reader of that evidence checks the facts against. The
+    /// destination is the caller's; nothing under the run's store is written by it.
+    pub fn export_evidence(
+        &self,
+        path: impl AsRef<Path>,
+    ) -> Result<ymp_board::BoardEvidence, ApplicationError> {
+        self.store
+            .export_evidence(&self.ledger, path)
+            .map_err(|error| ApplicationError::BoardSectionUnusable(error.to_string()))
+    }
 }
 
 pub struct Application {
@@ -271,6 +380,12 @@ pub struct Application {
     /// The mechanical gate a recruitment request passes. It holds the run's ceilings and no state:
     /// what every gate reads is the run's own record.
     recruitment: Recruitment,
+    /// The board section of this run's store: the exclusive writer of the section and the board it
+    /// holds. A run is created with one and reopened with the one it recorded, so there is no
+    /// application without it. It is held while the application lives, so the section lock the
+    /// crate takes refuses a second writer for the lifetime of this one, exactly as the journal's
+    /// writer lock does.
+    board: BoardSection,
     notification_senders: Vec<SyncSender<u64>>,
 }
 
@@ -365,6 +480,7 @@ impl Application {
         )?;
         journal.append(&start)?;
         let state = RunState::from_start(&start).ok_or(ApplicationError::InvalidFirstEvent)?;
+        let board = BoardSection::open(&data_root, &config.board)?;
         let command_results = HashMap::from([(
             BOOTSTRAP_COMMAND_ID.to_owned(),
             RecordedCommandResult {
@@ -384,6 +500,7 @@ impl Application {
             commitments: None,
             commitment_results: HashMap::new(),
             recruitment: Recruitment::new(config.recruitment),
+            board,
             notification_senders: Vec::new(),
         };
         app.write_metadata()?;
@@ -429,6 +546,7 @@ impl Application {
         let first = events.first().ok_or(ApplicationError::NotInitialized)?;
         let state = RunState::from_start(first).ok_or(ApplicationError::InvalidFirstEvent)?;
         let object_store = ObjectStore::open(data_root.join("objects/sha256"))?;
+        let board = BoardSection::reopen(&data_root, &config.board)?;
         let command_results = HashMap::from([(
             first.command_id.clone(),
             RecordedCommandResult {
@@ -448,6 +566,7 @@ impl Application {
             commitments: None,
             commitment_results: HashMap::new(),
             recruitment: Recruitment::new(config.recruitment),
+            board,
             notification_senders: Vec::new(),
         };
         for event in events.iter().skip(1) {
@@ -905,6 +1024,34 @@ impl Application {
     /// Every participant this run has admitted, in the order its journal recorded them.
     pub fn admissions(&self) -> &[AdmittedParticipant] {
         &self.state.admissions
+    }
+
+    /// The board section of this run's store, opened on the terms the section records.
+    pub fn board(&self) -> &BoardSection {
+        &self.board
+    }
+
+    /// Execute one board command and persist every fact it commits, in one call: the facts are
+    /// committed to the board and appended to the section's record, and a caller that has been
+    /// told a fact is one the record already states.
+    ///
+    /// The command reaches the board the crate owns and nothing else. No control-plane fact is
+    /// written by it and no journal position moves, so the two planes stay as separate in effect
+    /// as they are in storage.
+    pub fn record_board(
+        &mut self,
+        command: &BoardCommand,
+    ) -> Result<Vec<BoardEvent>, ApplicationError> {
+        let section = &mut self.board;
+        let facts = section
+            .ledger
+            .execute(command)
+            .map_err(|error| ApplicationError::BoardSectionUnusable(error.to_string()))?;
+        section
+            .store
+            .record(&section.ledger)
+            .map_err(|error| ApplicationError::BoardSectionUnusable(error.to_string()))?;
+        Ok(facts)
     }
 
     /// Records evidence issued directly by a verifier.

@@ -12,6 +12,7 @@ thiserror.workspace = true
 uuid.workspace = true
 ymp-agent-api.workspace = true
 ymp-artifacts.workspace = true
+ymp-board.workspace = true
 ymp-domain.workspace = true
 ymp-kernel.workspace = true
 ymp-runtime-api.workspace = true

@@ -7,6 +7,7 @@ use ymp_artifacts::{ArtifactError, CandidateRef, SnapshotRef, SubmissionRef};
 use ymp_domain::{Budget, Command, RunState};
 use ymp_verifier::{ExactDigestVerifier, VerifierError};
 
+pub mod board_section;
 pub mod origin_start;
 pub mod ready_root;
 pub mod recruitment;
