@@ -13,27 +13,46 @@
 //! Every process a managed run starts is put in a private process group of its own. Every process
 //! the measurement path starts is not: a release and a model catalogue are read with a plain
 //! invocation, so those processes stay in the process group this interface itself belongs to.
-//! Membership of that group is what separates the two, and it is read rather than remembered, so a
-//! run this interface is still supervising is left untouched by an ending that is not its own.
+//! Membership of that group is what separates the two, so a run this interface is still supervising
+//! is left untouched by an ending that is not its own.
 //!
 //! That group also holds processes this interface never started — the shell or the harness that
-//! leads it, and whatever else they placed there. What is ended is therefore the intersection: a
-//! process this interface is an ancestor of, in this interface's own process group. Both halves are
-//! read from the process table, through the same admitted utilities a managed run observes and ends
-//! its own processes with.
+//! leads it, and whatever else they placed there. A process is taken as this measurement's,
+//! therefore, where it stands under this interface in the process table and in this interface's own
+//! process group. Both halves are read through the same admitted utilities a managed run observes
+//! and ends its own processes with.
+//!
+//! # Why membership is recorded and not worked out again
+//!
+//! Both halves rest on links the operating system keeps only while both ends of them are alive.
+//! When the process that started another one ends, what is left is handed to the first process on
+//! the machine, and from that moment the table says nothing about where it came from. A shutdown
+//! that decided membership afresh on every reading would therefore lose precisely the process that
+//! outlives the one that started it — and, finding nothing left, would report an ending it had not
+//! established. This is the reasoning `configure_process_group` in `ymp-runtime-api` records for
+//! the managed path, and it applies here for the same reason.
+//!
+//! Membership is therefore written down while it can still be read: [`observe`] records every
+//! process of the measurement from the moment the measurement starts, and a process stays recorded
+//! until the operating system stops reporting it. Neither being handed to another parent nor
+//! leaving the process group takes a process off that record, and a signal is sent by identifier,
+//! which no such change affects. The identifier is held with the start time the operating system
+//! reports beside it, so a record is never read as a later program the same identifier was given.
 //!
 //! # What this cannot reach
 //!
-//! A descendant that leaves the process group and is orphaned in the same moment carries nothing
-//! either reading can attribute to this interface. That is the boundary W1-APP-02k recorded for the
-//! managed path, where it is closed by a marker the launch installs; the measurement path enters no
-//! launch of its own and installs none, so the boundary stands here. Nothing on the measurement
-//! path daemonises: the engines are asked for a version and for the models they serve, and each one
-//! answers on the descriptor it was given.
+//! A process that no reading ever saw while it still stood under this interface. That is one that
+//! is started and detached inside a single interval between readings, or started by a process that
+//! had already left the record. It carries nothing either reading can attribute, and the marker
+//! that closes the same boundary for a managed run is installed by a launch the measurement path
+//! does not enter. Nothing on the measurement path daemonises: the engines are asked for a release
+//! and for the models they serve, and each one answers on the descriptor it was given.
 
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::BTreeMap;
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
+use std::sync::{Mutex, OnceLock};
+use std::thread;
 use std::time::{Duration, Instant};
 
 use ymp_runtime_api::{
@@ -46,6 +65,10 @@ pub const REQUEST_LIMIT: Duration = Duration::from_millis(500);
 pub const ENFORCEMENT_LIMIT: Duration = Duration::from_millis(500);
 /// How often the process table is read while absence is waited for.
 const OBSERVATION_INTERVAL: Duration = Duration::from_millis(20);
+/// How often the process table is read while a measurement is running. The record only has to be
+/// written before the link it is read from disappears, which happens when a process ends, so this
+/// is far longer than the interval a shutdown reads at.
+const RECORDING_INTERVAL: Duration = Duration::from_millis(100);
 
 /// What ending the engines of a measurement established.
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -69,11 +92,88 @@ struct Process {
     /// The state the operating system reports. A process that has ended and is only waiting to be
     /// collected by its parent still holds a row in the table, and it is not something running.
     state: String,
+    /// The start time the operating system reports. It is what tells a recorded process apart from
+    /// a later program the same identifier was given, so a record never ends a process this
+    /// measurement did not start.
+    started: String,
 }
 
 impl Process {
     fn ended(&self) -> bool {
         self.state.starts_with('Z')
+    }
+
+    /// Whether this row is the process a record holds, rather than a later one the operating system
+    /// gave the same identifier.
+    fn is(&self, pid: u32, started: &str) -> bool {
+        self.pid == pid && self.started == started && !self.ended()
+    }
+}
+
+/// The processes of the measurement that is running, recorded while the process table still says
+/// they are this interface's.
+#[derive(Default)]
+struct Record {
+    /// Each recorded process, by identifier, with the start time it was recorded under.
+    members: BTreeMap<u32, String>,
+    /// Whether a measurement is running and its processes are being recorded.
+    recording: bool,
+    /// Which recording this is. A measurement that starts while the reader of the previous one is
+    /// still leaving does not gain a second reader: each reader stops when the count moves past the
+    /// one it was started for.
+    generation: u64,
+}
+
+fn record() -> &'static Mutex<Record> {
+    static RECORD: OnceLock<Mutex<Record>> = OnceLock::new();
+    RECORD.get_or_init(|| Mutex::new(Record::default()))
+}
+
+/// Start recording the processes of a measurement that is beginning.
+///
+/// The record is what a shutdown ends, and it is written here rather than at the shutdown because
+/// the links it is read from are gone by then for exactly the process that most needs ending. A
+/// reading that fails is passed over: the shutdown reads the table itself and reports what it could
+/// not establish, and a measurement is not refused because the machine could not be observed at one
+/// moment during it.
+pub fn observe() {
+    let generation = {
+        let Ok(mut record) = record().lock() else {
+            return;
+        };
+        record.members.clear();
+        record.recording = true;
+        record.generation = record.generation.wrapping_add(1);
+        record.generation
+    };
+    thread::Builder::new()
+        .name("ymp-measurement-processes".to_owned())
+        .spawn(move || {
+            let root = std::process::id();
+            let Ok(utilities) = Utilities::admit() else {
+                return;
+            };
+            loop {
+                match record().lock() {
+                    Ok(record) if record.recording && record.generation == generation => {}
+                    _ => return,
+                }
+                if let Ok(processes) = utilities.processes()
+                    && let Ok(mut record) = record().lock()
+                {
+                    absorb(&processes, root, &mut record.members);
+                }
+                thread::sleep(RECORDING_INTERVAL);
+            }
+        })
+        .ok();
+}
+
+/// Stop recording and drop the record: the measurement it describes is over.
+pub fn forget() {
+    if let Ok(mut record) = record().lock() {
+        record.recording = false;
+        record.members.clear();
     }
 }
 
@@ -110,8 +210,13 @@ impl Utilities {
 
     /// Every process the operating system reports, except the reader this call started to ask.
     fn processes(&self) -> Result<Vec<Process>, String> {
+        verify_admitted_programs(&self.admitted).map_err(|error| {
+            format!(
+                "the utility that reads the process table changed after it was admitted: {error}"
+            )
+        })?;
         let reader = Command::new(&self.table)
-            .args(["-A", "-o", "pid=,ppid=,pgid=,state="])
+            .args(["-A", "-o", "pid=,ppid=,pgid=,state=,lstart="])
             .stdin(Stdio::null())
             .stderr(Stdio::null())
             .stdout(Stdio::piped())
@@ -156,9 +261,9 @@ impl Utilities {
     }
 }
 
-/// Reads the utility's answer into the rows it is made of. A line that does not carry exactly the
-/// four values that were asked for is not read at all, so a reader that answers something else is
-/// not silently taken for a shorter process table.
+/// Reads the utility's answer into the rows it is made of. A line that does not carry the values
+/// that were asked for is not read at all, so a reader that answers something else is not silently
+/// taken for a shorter process table.
 ///
 /// Its own reader is left out: it is a process this interface started, in this interface's group,
 /// and it is already leaving.
@@ -166,19 +271,17 @@ fn parse(reported: &str, asking: u32) -> Vec<Process> {
     let mut processes = Vec::new();
     for line in reported.lines() {
         let mut fields = line.split_whitespace();
-        let (Some(pid), Some(parent), Some(group), Some(state), None) = (
-            fields.next(),
-            fields.next(),
-            fields.next(),
-            fields.next(),
-            fields.next(),
-        ) else {
+        let (Some(pid), Some(parent), Some(group), Some(state)) =
+            (fields.next(), fields.next(), fields.next(), fields.next())
+        else {
             continue;
         };
         let (Ok(pid), Ok(parent), Ok(group)) = (pid.parse(), parent.parse(), group.parse()) else {
             continue;
         };
-        if pid <= 1 || pid == asking {
+        // The start time the utility reports carries spaces, so it is what remains of the line.
+        let started = fields.collect::<Vec<_>>().join(" ");
+        if started.is_empty() || pid <= 1 || pid == asking {
             continue;
         }
         processes.push(Process {
@@ -186,9 +289,34 @@ fn parse(reported: &str, asking: u32) -> Vec<Process> {
             parent,
             group,
             state: state.to_owned(),
+            started,
         });
     }
     processes
+}
+
+/// Records every process that now stands under this interface in its own process group, and drops
+/// the records the operating system no longer reports.
+///
+/// Dropping is what keeps an identifier from outliving the process it was recorded for: once the
+/// operating system stops reporting that process, the identifier is free to be given to another
+/// program, and a record kept past that point would end a program this measurement never started.
+fn absorb(processes: &[Process], root: u32, members: &mut BTreeMap<u32, String>) {
+    members.retain(|pid, started| {
+        processes
+            .iter()
+            .any(|process| process.is(*pid, started.as_str()))
+    });
+    let Some(group) = processes
+        .iter()
+        .find(|process| process.pid == root)
+        .map(|process| process.group)
+    else {
+        return;
+    };
+    for process in attributed(processes, root, group, members) {
+        members.insert(process.pid, process.started);
+    }
 }
 
 /// The processes `root` is an ancestor of that are still in `root`'s own process group, an ancestor
@@ -200,17 +328,71 @@ fn parse(reported: &str, asking: u32) -> Vec<Process> {
 /// excluded by it, and the descendants of such a run are excluded with it, because a private group
 /// is inherited by everything the run starts.
 ///
+/// What is standing under an already recorded process is this measurement's too, so the walk starts
+/// from the record as well as from `root`: a process the record still holds keeps carrying what it
+/// starts, whatever the operating system now says about the record's own parent.
+fn attributed(
+    processes: &[Process],
+    root: u32,
+    group: u32,
+    members: &BTreeMap<u32, String>,
+) -> Vec<Process> {
+    let mut descended: BTreeMap<u32, ()> = BTreeMap::from([(root, ())]);
+    for (pid, started) in members {
+        if processes.iter().any(|process| process.is(*pid, started)) {
+            descended.insert(*pid, ());
+        }
+    }
+    loop {
+        let known = descended.len();
+        for process in processes {
+            if descended.contains_key(&process.parent) {
+                descended.insert(process.pid, ());
+            }
+        }
+        if descended.len() == known {
+            break;
+        }
+    }
+    processes
+        .iter()
+        .filter(|process| {
+            process.pid != root
+                && process.group == group
+                && descended.contains_key(&process.pid)
+                && !process.ended()
+        })
+        .cloned()
+        .collect()
+}
+
+/// The recorded processes the operating system still reports, an ancestor before anything standing
+/// under it.
+///
 /// The order matters when the signal is delivered. A process that is ending is free to start
 /// another one first — the driver reads the models a build serves in batches, and a shell in the
 /// same position starts its next child when the previous one dies — and a process that has already
 /// been ended starts nothing. Reaching the ancestor first therefore stops the succession rather
-/// than racing it, while everything already standing under it is signalled from the identifiers
-/// this same reading holds, which no later reparenting takes away.
-fn attributed(processes: &[Process], root: u32, group: u32) -> Vec<Process> {
-    let mut depths = BTreeMap::from([(root, 0_u32)]);
+/// than racing it, while everything already standing under it is signalled from identifiers this
+/// same reading holds. A recorded process whose parent is not recorded stands first: nothing among
+/// these can end it, so nothing among these has to precede it.
+fn targets(processes: &[Process], members: &BTreeMap<u32, String>) -> Vec<u32> {
+    let held: Vec<&Process> = processes
+        .iter()
+        .filter(|process| {
+            members
+                .get(&process.pid)
+                .is_some_and(|started| process.is(process.pid, started))
+        })
+        .collect();
+    let mut depths: BTreeMap<u32, u32> = held
+        .iter()
+        .filter(|process| !members.contains_key(&process.parent))
+        .map(|process| (process.pid, 0))
+        .collect();
     loop {
         let known = depths.len();
-        for process in processes {
+        for process in &held {
             if let Some(depth) = depths.get(&process.parent).copied() {
                 depths.entry(process.pid).or_insert(depth + 1);
             }
@@ -219,18 +401,11 @@ fn attributed(processes: &[Process], root: u32, group: u32) -> Vec<Process> {
             break;
         }
     }
-    let mut attributed: Vec<Process> = processes
-        .iter()
-        .filter(|process| {
-            process.pid != root
-                && process.group == group
-                && depths.contains_key(&process.pid)
-                && !process.ended()
-        })
-        .cloned()
-        .collect();
-    attributed.sort_by_key(|process| (depths[&process.pid], process.pid));
-    attributed
+    let mut ordered: Vec<u32> = held.iter().map(|process| process.pid).collect();
+    // A process in a cycle of records the walk never reached is still ended; it is placed last
+    // rather than left out, because being unreachable is not being gone.
+    ordered.sort_by_key(|pid| (depths.get(pid).copied().unwrap_or(u32::MAX), *pid));
+    ordered
 }
 
 /// Ends every engine process this interface started on the measurement path, and establishes from
@@ -249,7 +424,7 @@ pub fn end_measurement_processes() -> Termination {
 fn ended() -> Result<Termination, String> {
     let utilities = Utilities::admit()?;
     let root = std::process::id();
-    let mut signalled = BTreeSet::new();
+    let mut signalled = BTreeMap::new();
 
     let left = clear(&utilities, root, "-TERM", REQUEST_LIMIT, &mut signalled)?;
     if signalled.is_empty() {
@@ -260,7 +435,7 @@ fn ended() -> Result<Termination, String> {
         false => clear(&utilities, root, "-KILL", ENFORCEMENT_LIMIT, &mut signalled)?,
     };
     if left.is_empty() {
-        return Ok(Termination::Ended(signalled.into_iter().collect()));
+        return Ok(Termination::Ended(signalled.into_keys().collect()));
     }
     Ok(Termination::Unestablished(format!(
         "{} engine process(es) this interface started were still running after being ended \
@@ -273,43 +448,47 @@ fn ended() -> Result<Termination, String> {
     )))
 }
 
-/// Signals what is attributed to this interface now, and keeps reading the process table until
-/// nothing is attributed to it any more or until `limit` runs out. What is returned is what the
-/// last reading still found.
+/// Signals every recorded process the operating system still reports, and keeps reading the table
+/// until the record holds nothing that is still running or until `limit` runs out. What is returned
+/// is what the last reading still found.
 ///
-/// Every reading signals what it finds rather than only what the first one did, because the worker
-/// that is being ended is a loop: the driver measures the models a build serves in batches, and one
-/// batch starting while the previous one is being ended would otherwise be left running by a
-/// shutdown that had already read its snapshot. `signalled` accumulates everything that was reached,
-/// so the report names the engines that were ended and not only the last of them.
+/// Each reading records again before it signals, for two reasons that are one rule. A process that
+/// started since the previous reading is recorded and ended with the rest, because the worker being
+/// ended is a loop: the driver reads the models a build serves in batches, and a batch beginning
+/// while the previous one is ended would otherwise be released by a shutdown working from a
+/// snapshot. And a process whose parent has since ended stays recorded, because it was recorded
+/// while the table still said whose it was — which is the case a reading on its own can no longer
+/// establish. `signalled` accumulates everything that was reached, so the report names the engines
+/// that were ended and not only the last of them.
 fn clear(
     utilities: &Utilities,
     root: u32,
     signal: &str,
     limit: Duration,
-    signalled: &mut BTreeSet<u32>,
+    signalled: &mut BTreeMap<u32, ()>,
 ) -> Result<Vec<u32>, String> {
     let deadline = Instant::now() + limit;
     loop {
         let processes = utilities.processes()?;
-        let group = processes
-            .iter()
-            .find(|process| process.pid == root)
-            .ok_or_else(|| {
-                format!(
-                    "the process table reader did not report this interface itself ({root}), so \
-                     which processes belong to it was not established"
-                )
-            })?
-            .group;
-        let running: Vec<u32> = attributed(&processes, root, group)
-            .iter()
-            .map(|process| process.pid)
-            .collect();
+        if !processes.iter().any(|process| process.pid == root) {
+            return Err(format!(
+                "the process table reader did not report this interface itself ({root}), so which \
+                 processes belong to it was not established"
+            ));
+        }
+        let running = {
+            let mut record = record().lock().map_err(|_| {
+                "the record of this measurement's processes failed, so nothing about them was \
+                 established"
+                    .to_owned()
+            })?;
+            absorb(&processes, root, &mut record.members);
+            targets(&processes, &record.members)
+        };
         if running.is_empty() {
             return Ok(running);
         }
-        signalled.extend(running.iter().copied());
+        signalled.extend(running.iter().map(|pid| (*pid, ())));
         utilities.signal(signal, &running)?;
         if Instant::now() >= deadline {
             return Ok(running);
@@ -322,13 +501,23 @@ fn clear(
 mod tests {
     use super::*;
 
+    const STARTED: &str = "Mon Jan  1 00:00:00 2035";
+
     fn process(pid: u32, parent: u32, group: u32, state: &str) -> Process {
         Process {
             pid,
             parent,
             group,
             state: state.to_owned(),
+            started: STARTED.to_owned(),
         }
+    }
+
+    /// The record as it stands after reading this table, from an empty record.
+    fn recorded(table: &[Process], root: u32) -> BTreeMap<u32, String> {
+        let mut members = BTreeMap::new();
+        absorb(table, root, &mut members);
+        members
     }
 
     /// The processes of a managed run are not the measurement's to end.
@@ -351,10 +540,7 @@ mod tests {
             process(201, 200, 200, "S"), // and what it started, which inherited that group
         ];
         assert_eq!(
-            attributed(&table, 100, 40)
-                .iter()
-                .map(|process| process.pid)
-                .collect::<Vec<_>>(),
+            recorded(&table, 100).into_keys().collect::<Vec<_>>(),
             vec![101, 102],
             "attribution did not separate the engines of the measurement from a managed run"
         );
@@ -375,12 +561,63 @@ mod tests {
             process(101, 100, 40, "S"), // an engine it started
         ];
         assert_eq!(
-            attributed(&table, 100, 40)
-                .iter()
-                .map(|process| process.pid)
-                .collect::<Vec<_>>(),
+            recorded(&table, 100).into_keys().collect::<Vec<_>>(),
             vec![101],
             "attribution reached a process this interface did not start"
+        );
+    }
+
+    /// A process the record already holds stays this measurement's after the one that started it
+    /// has ended.
+    ///
+    /// Once its parent is gone the process is handed to the first process on the machine, and the
+    /// table no longer says where it came from. What says so is that a reading already said so,
+    /// while both ends of that link were alive.
+    ///
+    /// The check that must fail: work membership out afresh from each reading, which is what a
+    /// shutdown reading the table alone would do. The process is then this measurement's before its
+    /// parent ends and nobody's afterwards, so a quit ends what is easy to reach and reports an
+    /// ending for what it lost.
+    #[test]
+    fn a_recorded_process_stays_recorded_once_the_one_that_started_it_has_ended() {
+        let engine_running = [
+            process(100, 1, 40, "S"),   // this interface
+            process(101, 100, 40, "S"), // the engine
+            process(102, 101, 40, "S"), // what the engine started
+        ];
+        let mut members = recorded(&engine_running, 100);
+        assert_eq!(
+            members.keys().copied().collect::<Vec<_>>(),
+            vec![101, 102],
+            "the engine and what it started were not recorded while both were reachable"
+        );
+
+        // The engine ends on the request to end; what it started declines, is handed to the first
+        // process on the machine, and takes a process group of its own — so neither half of what a
+        // reading attributes by still holds. The record is what holds instead.
+        let engine_gone = [process(100, 1, 40, "S"), process(102, 1, 102, "S")];
+        absorb(&engine_gone, 100, &mut members);
+        assert_eq!(
+            targets(&engine_gone, &members),
+            vec![102],
+            "the process that outlived the engine stopped being this measurement's to end"
+        );
+    }
+
+    /// A record is dropped once the operating system stops reporting the process it was written
+    /// for, so an identifier given to another program afterwards is not ended in its place.
+    #[test]
+    fn a_record_does_not_outlive_the_process_it_was_written_for() {
+        let running = [process(100, 1, 40, "S"), process(101, 100, 40, "S")];
+        let mut members = recorded(&running, 100);
+
+        let mut reused = process(101, 1, 40, "S");
+        reused.started = "Mon Jan  1 00:00:01 2035".to_owned();
+        let after = [process(100, 1, 40, "S"), reused];
+        absorb(&after, 100, &mut members);
+        assert!(
+            targets(&after, &members).is_empty(),
+            "a program that was only given the same identifier was left to be ended"
         );
     }
 
@@ -393,7 +630,7 @@ mod tests {
     fn a_process_waiting_to_be_collected_is_not_running() {
         let table = [process(100, 1, 40, "S"), process(101, 100, 40, "Z+")];
         assert!(
-            attributed(&table, 100, 40).is_empty(),
+            recorded(&table, 100).is_empty(),
             "a process that had already ended was taken for a running engine"
         );
     }
@@ -415,27 +652,25 @@ mod tests {
             process(200, 100, 40, "S"), // the engine itself
         ];
         assert_eq!(
-            attributed(&table, 100, 40)
-                .iter()
-                .map(|process| process.pid)
-                .collect::<Vec<_>>(),
+            targets(&table, &recorded(&table, 100)),
             vec![200, 300],
             "a process was signalled before the one that is free to replace it"
         );
     }
 
     /// The reader this interface starts to ask the question is not part of the answer, and a line
-    /// that does not carry the four values that were asked for is not read as a process at all.
+    /// that carries no start time beside the rest is not read as a process at all.
     #[test]
     fn the_reader_of_the_process_table_is_left_out_of_it() {
-        let reported = "  100     1    40 S\n  777   100    40 R\n  101 100 40 S extra\n";
+        let reported = "  100     1    40 S    Mon Jan  1 00:00:00 2035\n  \
+                        777   100    40 R    Mon Jan  1 00:00:00 2035\n  101 100 40 S\n";
         assert_eq!(
             parse(reported, 777)
                 .iter()
                 .map(|process| process.pid)
                 .collect::<Vec<_>>(),
             vec![100],
-            "the process table was not read as the four values it was asked for"
+            "the process table was not read as the values it was asked for"
         );
     }
 }

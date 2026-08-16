@@ -284,6 +284,11 @@ impl RunningMeasurement {
         deliver: impl FnOnce(MeasurementOutcome) + Send + 'static,
     ) -> Self {
         let (open, ended) = mpsc::channel();
+        // Which processes belong to this measurement is recorded from here on, while the process
+        // table still says so. A process handed to another parent when the one that started it ends
+        // carries nothing a later reading could attribute, and that is the process a quit most needs
+        // to reach.
+        engines::observe();
         let worker = thread::spawn(move || {
             let outcome = pending.run();
             deliver(outcome);
@@ -307,6 +312,9 @@ impl RunningMeasurement {
             Ok(nothing) => match nothing {},
             Err(RecvTimeoutError::Disconnected) => {
                 let _ = self.worker.join();
+                // The measurement is over, so what was recorded about its processes describes
+                // nothing this interface still holds.
+                engines::forget();
                 MeasurementShutdown::Ended
             }
             Err(RecvTimeoutError::Timeout) => self.terminate(),
@@ -329,6 +337,7 @@ impl RunningMeasurement {
         if returned {
             let _ = worker.join();
         }
+        engines::forget();
         let waited = CONTROLLER_SHUTDOWN_LIMIT.as_millis();
         match (termination, returned) {
             (engines::Termination::NothingRunning, true) => MeasurementShutdown::Ended,
