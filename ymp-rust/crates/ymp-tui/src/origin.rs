@@ -102,3 +102,69 @@ impl PrivateWorkspaces for PrivateGit {
             .map_err(|error| WorkspaceNotEstablished(error.to_string()))
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::{ManagedRuntimes, PINNED_CLAUDE_MODEL};
+    use ymp_application::ParticipantRuntimes;
+    use ymp_domain::pool::EntryIdentity;
+    use ymp_runtime_registry::RegistryAddress;
+
+    /// The model a frozen route names is matched, and a route naming another is refused here by
+    /// name rather than served by the profile's own model.
+    ///
+    /// It is checked at this level because this is the only level that knows both: the frozen entry
+    /// and the model the managed profile is pinned to. The refusals reached through
+    /// `admit_route` — an engine this build does not manage, an engine the operator holds back —
+    /// stand in `ymp-application` and are measured against a run, and they answer a different
+    /// question: whether this host will start the engine at all. Neither of them reads a model, so
+    /// a route naming an admitted engine and a model the profile does not run would pass every one
+    /// of them and reach the driver.
+    ///
+    /// The check that must fail: drop the comparison and let the profile serve whatever model it is
+    /// asked for. `claude-sonnet-5` is then run by a profile pinned to `claude-opus-5`, and the run
+    /// does work on a model it never froze.
+    #[test]
+    fn a_route_naming_another_model_is_refused_by_name() {
+        let root = tempfile::tempdir().expect("temporary root");
+        let host = ManagedRuntimes::under(RegistryAddress::Root(root.path().to_path_buf()));
+
+        let refusal = host
+            .driver_for(&EntryIdentity::new(
+                "anthropic",
+                "claude-code",
+                "claude-sonnet-5",
+            ))
+            .err()
+            .expect("a model this profile does not run was served");
+        let stated = refusal.0;
+        assert!(stated.contains("claude-sonnet-5"), "{stated}");
+        assert!(stated.contains(PINNED_CLAUDE_MODEL), "{stated}");
+
+        // An engine no profile of this build carries is refused with what it does carry, so the
+        // operator reads which profiles exist rather than only that theirs does not.
+        let unknown = host
+            .driver_for(&EntryIdentity::new("anthropic", "gemini-cli", "gemini-3"))
+            .err()
+            .expect("an engine this build does not manage was served")
+            .0;
+        assert!(unknown.contains("gemini-cli"), "{unknown}");
+        assert!(unknown.contains("claude-code"), "{unknown}");
+
+        // The positive half: the pinned model is not what refuses the route this host does serve.
+        let pinned = host
+            .driver_for(&EntryIdentity::new(
+                "anthropic",
+                "claude-code",
+                PINNED_CLAUDE_MODEL,
+            ))
+            .err()
+            .map(|refusal| refusal.0);
+        assert!(
+            !pinned
+                .as_deref()
+                .is_some_and(|stated| stated.contains("and this run froze")),
+            "the pinned model was refused as another model: {pinned:?}"
+        );
+    }
+}

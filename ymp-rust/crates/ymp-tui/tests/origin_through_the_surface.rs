@@ -14,13 +14,14 @@ mod support;
 
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicUsize, Ordering};
 
 use support::{SIZES, screen};
 use ymp_application::{Application, ORIGIN_ATTEMPT, ORIGIN_PARTICIPANT, PreparedContract};
 use ymp_domain::commitment::{CommitmentEvent, Dimension};
-use ymp_domain::participant::{ParticipantOutcome, ParticipantState};
+use ymp_domain::participant::ParticipantState;
 use ymp_domain::pool::EntryIdentity;
-use ymp_domain::{Budget, Command as DomainCommand, EventKind, RunStatus};
+use ymp_domain::{Budget, EventKind, RunStatus};
 use ymp_testkit::origin_start::{FakeRuntimes, OriginHost};
 use ymp_tui::Session;
 use ymp_tui::state::App;
@@ -354,51 +355,45 @@ fn two_runs_authorized_under_one_root_ignite_on_what_each_froze() {
 /// lines come from the projections the accepted work already ships, which is what makes this a
 /// reading of the product rather than of a fixture.
 ///
+/// The life is driven through the accepted start path rather than through the surface, because a
+/// surface that ends its session ends the participant with it: there is no way for this check to
+/// give a stopped participant its instruction while the session holding the store is still open.
+/// What is read here is the transcript, and the transcript is the product's.
+///
 /// The check that must fail: project any one of the four as no line, and the size it is missing
 /// from names it.
 #[test]
 fn the_four_participant_facts_are_read_at_both_sizes() {
-    let surface = Surface::measured();
-    let contract = surface.host.contract();
-    let (mut session, _runtimes) = surface.session(&contract);
-    session.start_run(contract.contract_id());
-    session.await_origin();
-    drop(session);
-
-    // The participant of this run stopped for an instruction. Giving it one and letting it finish
-    // is the operator's own act; it is taken here directly on the store, because the surface that
-    // carries an instruction to a working participant is not part of this card.
+    let host = OriginHost::measured();
+    let store = host.store("four-facts");
     {
-        let mut application = Application::open(&surface.store).expect("reopen the store");
-        assert_eq!(
-            application
-                .origin_participant()
-                .expect("the run states its participant")
-                .state,
-            ParticipantState::Yielded,
-            "the fixture participant did not stop for an instruction"
-        );
-        application
-            .execute(
-                "ymp.check.resume",
-                DomainCommand::ResumeParticipant {
-                    participant_id: ORIGIN_PARTICIPANT.to_owned(),
-                    cursor: "continue".to_owned(),
-                },
+        let mut application = host.start_run(&store);
+        let runtimes = FakeRuntimes::default();
+        let mut attempt = application
+            .start_origin_participant(
+                &ymp_application::OriginStartRequest::under(&host.root),
+                &runtimes.host(),
             )
-            .expect("the participant resumes");
-        application
-            .execute(
-                "ymp.check.finish",
-                DomainCommand::FinishParticipant {
-                    participant_id: ORIGIN_PARTICIPANT.to_owned(),
-                    outcome: ParticipantOutcome::Completed,
-                },
-            )
-            .expect("the participant finishes");
+            .expect("the run ignites");
+        while let Some(event) = attempt.next_event().expect("the participant runs") {
+            if matches!(
+                event.event,
+                ymp_runtime_api::RuntimeEventKind::Yielded { .. }
+            ) {
+                break;
+            }
+        }
+        assert_eq!(attempt.state(), Some(ParticipantState::Yielded));
+        attempt.resume("continue").expect("the participant resumes");
+        while attempt
+            .next_event()
+            .expect("the participant runs")
+            .is_some()
+        {}
+        assert_eq!(attempt.state(), Some(ParticipantState::Finished));
     }
 
-    let mut session = Session::open(&surface.store, &[]);
+    let mut session = Session::open(&store, &[]);
     for screen in transcript(&mut session) {
         for stated in [
             "this run ignited on",
@@ -412,4 +407,173 @@ fn the_four_participant_facts_are_read_at_both_sizes() {
             );
         }
     }
+}
+
+/// A host that counts the runtime sessions it has handed out and not yet had taken back.
+///
+/// A session is the process. One still counted after the thing that authorized it has gone is the
+/// evidence a check needs and cannot get from the journal, which records what was decided rather
+/// than what is still running.
+struct Counting {
+    inner: FakeRuntimes,
+    live: Arc<AtomicUsize>,
+}
+
+impl Counting {
+    fn new() -> Self {
+        Self {
+            inner: FakeRuntimes::default(),
+            live: Arc::new(AtomicUsize::new(0)),
+        }
+    }
+}
+
+impl ymp_application::ParticipantRuntimes for Counting {
+    fn driver_for(
+        &self,
+        route: &EntryIdentity,
+    ) -> Result<Box<dyn ymp_runtime_api::RuntimeDriver>, ymp_application::RouteUnavailable> {
+        Ok(Box::new(CountingDriver {
+            inner: self.inner.driver_for(route)?,
+            live: Arc::clone(&self.live),
+        }))
+    }
+}
+
+struct CountingDriver {
+    inner: Box<dyn ymp_runtime_api::RuntimeDriver>,
+    live: Arc<AtomicUsize>,
+}
+
+impl ymp_runtime_api::RuntimeDriver for CountingDriver {
+    fn kind(&self) -> ymp_runtime_api::RuntimeKind {
+        self.inner.kind()
+    }
+    fn executable(&self) -> &Path {
+        self.inner.executable()
+    }
+    fn probe(&self) -> Result<ymp_runtime_api::ProbeReport, ymp_runtime_api::RuntimeError> {
+        self.inner.probe()
+    }
+    fn start(
+        &self,
+        request: ymp_runtime_api::InvocationRequest,
+    ) -> Result<Box<dyn ymp_runtime_api::RuntimeSession>, ymp_runtime_api::RuntimeError> {
+        let session = self.inner.start(request)?;
+        self.live.fetch_add(1, Ordering::SeqCst);
+        Ok(Box::new(CountingSession {
+            inner: session,
+            live: Arc::clone(&self.live),
+        }))
+    }
+}
+
+struct CountingSession {
+    inner: Box<dyn ymp_runtime_api::RuntimeSession>,
+    live: Arc<AtomicUsize>,
+}
+
+impl Drop for CountingSession {
+    fn drop(&mut self) {
+        self.live.fetch_sub(1, Ordering::SeqCst);
+    }
+}
+
+impl ymp_runtime_api::RuntimeSession for CountingSession {
+    fn next_event(
+        &mut self,
+    ) -> Result<Option<ymp_runtime_api::RuntimeEvent>, ymp_runtime_api::RuntimeError> {
+        self.inner.next_event()
+    }
+    fn resume(&mut self, input: String) -> Result<(), ymp_runtime_api::RuntimeError> {
+        self.inner.resume(input)
+    }
+    fn interrupt(&mut self) -> Result<(), ymp_runtime_api::RuntimeError> {
+        self.inner.interrupt()
+    }
+}
+
+/// Cancelling a run ends the participant it ignited on, and the record states that ending.
+///
+/// The fixture participant stops for an instruction and then holds its session, which is what a
+/// working agent does: nothing further arrives, and the process stays. Cancelling has to reach it.
+///
+/// The check that must fail: leave the cancellation to record the run's own ending alone. The
+/// session count below is then still one after the interface has gone — the process outlived the
+/// run it was started for and goes on spending the operator's account — and the record states a
+/// cancelled run whose participant never ended.
+#[test]
+fn cancelling_a_run_ends_the_participant_it_ignited_on() {
+    let surface = Surface::measured();
+    let contract = surface.host.contract();
+    let runtimes = Arc::new(Counting::new());
+    let live = Arc::clone(&runtimes.live);
+    let mut session = Session::open(&surface.store, std::slice::from_ref(&contract));
+    session.set_participant_runtimes(Arc::clone(&runtimes) as Arc<_>);
+    session.start_run(contract.contract_id());
+    assert_eq!(live.load(Ordering::SeqCst), 1, "no session was started");
+
+    session.cancel_run();
+    assert_eq!(
+        live.load(Ordering::SeqCst),
+        0,
+        "the participant's session outlived the cancellation of its run"
+    );
+    drop(session);
+
+    let events = committed(&surface.store);
+    let finished = events
+        .iter()
+        .position(|event| matches!(event, EventKind::ParticipantFinished { .. }))
+        .expect("the record does not state that the participant ended");
+    let cancelled = events
+        .iter()
+        .position(|event| matches!(event, EventKind::RunCancelled { .. }))
+        .expect("the record does not state that the run was cancelled");
+    assert!(
+        finished < cancelled,
+        "the run stated its own ending before the participant reached one"
+    );
+}
+
+/// A second authorization in a session already running one participant ends that participant
+/// before it starts another.
+///
+/// Under a root the second run is addressed in a store of its own rather than refused, and the
+/// first run's participant is still holding its process when that happens.
+///
+/// The check that must fail: keep the handle of the running participant in a field the second
+/// authorization overwrites. The count below is then two — two agents working for one session,
+/// one of them for a run nothing is reading — and stays at one after the interface has gone.
+#[test]
+fn a_second_authorization_ends_the_participant_the_first_started() {
+    let host = OriginHost::measured();
+    let contract = host.contract();
+    let runtimes = Arc::new(Counting::new());
+    let live = Arc::clone(&runtimes.live);
+    let first_store = host.store("first-of-two");
+    let mut session =
+        Session::open_under_root(&host.root, &first_store, std::slice::from_ref(&contract));
+    session.set_participant_runtimes(Arc::clone(&runtimes) as Arc<_>);
+
+    session.start_run(contract.contract_id());
+    assert_eq!(live.load(Ordering::SeqCst), 1);
+
+    session.start_run(contract.contract_id());
+    assert_eq!(
+        live.load(Ordering::SeqCst),
+        1,
+        "two participants are working for one session"
+    );
+    drop(session);
+    assert_eq!(live.load(Ordering::SeqCst), 0);
+
+    // The first run's own record states that its participant ended, rather than being left running
+    // by a session that moved on.
+    assert!(
+        committed(&first_store)
+            .iter()
+            .any(|event| matches!(event, EventKind::ParticipantFinished { .. })),
+        "the first run's participant was left without an ending"
+    );
 }
