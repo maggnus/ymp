@@ -140,6 +140,9 @@ fn submit(app: &mut App, session: &mut Session, text: &str) {
 fn a_typed_request_becomes_a_contract_and_starts_a_run_the_journal_records() {
     let workspace = workspace();
     let mut session = Session::open(&workspace.data_root, &[]);
+    session.set_participant_runtimes(std::sync::Arc::new(
+        ymp_testkit::origin_start::FakeRuntimes::serving_nothing(),
+    ));
     let mut app = App::new(session.projection(None));
 
     assert!(
@@ -247,6 +250,9 @@ fn a_project_with_no_test_entry_point_starts_nothing_and_says_what_it_could_not_
     let workspace = workspace();
     fs::remove_file(workspace.source.join("scripts/test.sh")).expect("remove the entry point");
     let mut session = Session::open(&workspace.data_root, &[]);
+    session.set_participant_runtimes(std::sync::Arc::new(
+        ymp_testkit::origin_start::FakeRuntimes::serving_nothing(),
+    ));
     let mut app = App::new(session.projection(None));
 
     for line in request(&workspace) {
@@ -308,6 +314,9 @@ fn a_project_with_no_test_entry_point_starts_nothing_and_says_what_it_could_not_
 fn a_request_that_opens_with_the_word_runtime_still_becomes_a_contract() {
     let workspace = workspace();
     let mut session = Session::open(&workspace.data_root, &[]);
+    session.set_participant_runtimes(std::sync::Arc::new(
+        ymp_testkit::origin_start::FakeRuntimes::serving_nothing(),
+    ));
     let mut app = App::new(session.projection(None));
 
     submit(
@@ -352,6 +361,9 @@ fn a_second_authorization_starts_its_run_in_a_store_of_its_own() {
     let first_store =
         store_under(&root, StoreIntent::New).expect("the layout addresses the first store");
     let mut session = Session::open_under_root(&root, &first_store, &[]);
+    session.set_participant_runtimes(std::sync::Arc::new(
+        ymp_testkit::origin_start::FakeRuntimes::serving_nothing(),
+    ));
     let mut app = App::new(session.projection(None));
 
     for line in request(&workspace) {
@@ -463,6 +475,9 @@ fn a_second_authorization_starts_its_run_in_a_store_of_its_own() {
 fn a_session_that_names_one_exact_store_still_refuses_a_second_run() {
     let workspace = workspace();
     let mut session = Session::open(&workspace.data_root, &[]);
+    session.set_participant_runtimes(std::sync::Arc::new(
+        ymp_testkit::origin_start::FakeRuntimes::serving_nothing(),
+    ));
     let mut app = App::new(session.projection(None));
 
     for line in request(&workspace) {
@@ -531,6 +546,9 @@ fn a_contract_from_the_command_line_starts_the_same_run_a_typed_request_would() 
     let contract = command_line_contract(&workspace);
     let run_id = contract.run_id_in(&workspace.data_root);
     let mut session = Session::open(&workspace.data_root, std::slice::from_ref(&contract));
+    session.set_participant_runtimes(std::sync::Arc::new(
+        ymp_testkit::origin_start::FakeRuntimes::serving_nothing(),
+    ));
     let mut app = App::new(session.projection(None));
 
     // The coverage map offers the run, and the offer is honoured: the action the operator sees
@@ -596,6 +614,9 @@ fn a_contract_from_the_command_line_starts_the_same_run_a_typed_request_would() 
 fn a_start_naming_a_contract_the_session_does_not_carry_writes_nothing() {
     let workspace = workspace();
     let mut session = Session::open(&workspace.data_root, &[]);
+    session.set_participant_runtimes(std::sync::Arc::new(
+        ymp_testkit::origin_start::FakeRuntimes::serving_nothing(),
+    ));
     let mut app = App::new(session.projection(None));
 
     session.start_run("contract-that-was-never-prepared");
@@ -621,6 +642,9 @@ fn a_store_written_under_another_schema_version_is_reported_and_left_alone() {
     fs::write(workspace.data_root.join("run.json"), projection).expect("projection");
 
     let mut session = Session::open(&workspace.data_root, &[]);
+    session.set_participant_runtimes(std::sync::Arc::new(
+        ymp_testkit::origin_start::FakeRuntimes::serving_nothing(),
+    ));
     let mut app = App::new(session.projection(None));
 
     let rendered = screen(&app, 120, 40);

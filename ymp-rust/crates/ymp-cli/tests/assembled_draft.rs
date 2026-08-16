@@ -182,7 +182,7 @@ fn authorizing_the_assembled_contract_costs_the_contract_id() {
     // under is put into the state one measured account leaves behind. Without it the authorization
     // is answered with the state that names /providers, which is what
     // `a_run_is_not_created_over_a_root_that_offers_it_nothing` establishes.
-    ymp_testkit::ready_root::measured(&project.data_root);
+    ymp_testkit::ready_root::measured_with_no_engine_admitted(&project.data_root);
 
     let started = project.run(&[
         "start",

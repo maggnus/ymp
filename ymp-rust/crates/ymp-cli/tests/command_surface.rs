@@ -759,7 +759,7 @@ impl Fixture {
     /// fixture names stores directly rather than addressing them under a layout.
     fn data_root(&self, name: &str) -> PathBuf {
         let store = self._root.path().join(name);
-        ymp_testkit::ready_root::measured(&store);
+        ymp_testkit::ready_root::measured_with_no_engine_admitted(&store);
         store
     }
 
