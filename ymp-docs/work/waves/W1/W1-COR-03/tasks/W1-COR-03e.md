@@ -3,22 +3,21 @@ id: W1-COR-03e
 kind: task
 wave: W1
 card: W1-COR-03
-state: active
+state: deferred
 risk: significant
 maturity: BUILD
 relation: required
 depends_on: [W0-UX-01c, W1-APP-02e, W1-COR-03c, W1-COR-03d]
 blocks: [W1-EVL-04b]
 created_at: 2026-08-10T21:23:34+08:00
-updated_at: 2026-08-18T09:16:00+08:00
-started_at: 2026-08-18T09:16:00+08:00
+updated_at: 2026-08-18T10:00:00+08:00
 accepted_at:
 candidate_commit:
 closure_commit:
 evidence:
 duration_minutes: 0
 blocker:
-pause_reason:
+pause_reason: owner stop 2026-08-18 — all builders closed; wip scaffold preserved on branch paseo/w1-cor-03e-tui-observatory-20260818 (commit 66dc45b)
 return_trigger:
 deliberate_partial: false
 ---
