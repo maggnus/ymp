@@ -4,22 +4,21 @@ kind: subtask
 wave: W1
 card: W1-APP-02
 parent: W1-APP-02z
-state: active
+state: deferred
 risk: significant
 maturity: BUILD
 relation: required
 depends_on: [W1-APP-02z]
 blocks: []
 created_at: 2026-08-15T00:05:22+08:00
-updated_at: 2026-08-18T09:16:00+08:00
-started_at: 2026-08-18T09:16:00+08:00
+updated_at: 2026-08-18T09:52:00+08:00
 accepted_at:
 candidate_commit:
 closure_commit:
 evidence:
 duration_minutes: 0
 blocker:
-pause_reason:
+pause_reason: owner decision 2026-08-18 — npm and its tails are not needed; the pinning work was dropped, its artifacts discarded, npm patterns gitignored
 return_trigger:
 deliberate_partial: false
 ---
@@ -58,7 +57,13 @@ None recorded.
 
 ## Findings
 
-None yet.
+### Dropped
+
+Owner decision 2026-08-18: npm is not needed. The builder's uncommitted draft (refusal-stays with
+three measured grounds: `.npmrc` script-shell, `node_modules/.bin` path prepend, npm absent from
+the executor PATH; test `npm_entry_point.rs`) was discarded unreviewed rather than landed. The
+committed `TestEntryPointNotSupported` refusal in the parent W1-APP-02z stays as the accepted
+boundary.
 
 ## Closure
 

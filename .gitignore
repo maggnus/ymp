@@ -17,3 +17,10 @@ ymp-docs/design/paseo/
 # Lock file generated when the nested contract checker is built by a test
 ymp-rust/crates/ymp-tui/contract-checker/
 /.ymp/
+
+# npm artifacts are not part of this product; owner decision 2026-08-18
+node_modules/
+package.json
+package-lock.json
+.npmrc
+npm-debug.log*
