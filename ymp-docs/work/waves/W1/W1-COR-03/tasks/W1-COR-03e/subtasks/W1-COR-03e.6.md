@@ -11,18 +11,18 @@ relation: required
 depends_on: []
 blocks: [W1-COR-03e.2]
 created_at: 2026-09-01T22:52:28+08:00
-updated_at: 2026-09-01T23:30:29+08:00
+updated_at: 2026-09-02T00:09:32+08:00
 started_at: 2026-09-01T22:52:28+08:00
 accepted_at:
-candidate_commit:
+candidate_commit: https://github.com/maggnus/ymp/commit/817ab0637972a0d974dff56359c70fce353e269a
 closure_commit:
 evidence:
-duration_minutes: 0
+duration_minutes: 86
 blocker:
 pause_reason:
 return_trigger:
 deliberate_partial: false
-review_rounds: 0
+review_rounds: 1
 escalation_decision:
 ---
 
@@ -172,16 +172,15 @@ interaction model be translated into screens.
 
 ## Current state
 
-The owner rejected candidate 893a7d1 because it preserved the old system-oriented information
-architecture under improved formatting. Scientific research, Codex MAX analysis and a cross-provider
-comparison now agree on “result first, team transparently nearby” and are resolving exact POC gaps,
-provider/pool setup and owner decisions before a document is drafted.
+Draft [817ab06](https://github.com/maggnus/ymp/commit/817ab0637972a0d974dff56359c70fce353e269a)
+is integrated and independently accepted at body hash
+`39e4add89b02cef6cd99fa81a08eb0833893d653525390427959ccb17bfe6619`.
+Approval metadata remains `draft`/`pending`; no UI contract is open.
 
 ## Next action
 
-Produce the draft and body hash; obtain and commit the standing researcher marker; present the same
-hash to the owner and commit the explicit owner marker; then add the two immutable source URLs to
-the journey, run the provenance-aware readiness check and accept this task before any UI contract.
+Obtain the standing researcher verdict on the exact body hash and commit its immutable marker, then
+present the same bytes to the owner for explicit approval.
 
 ## Guardrails
 
@@ -213,6 +212,8 @@ the journey, run the provenance-aware readiness check and accept this task befor
 - Owner decision: provider enable/disable is the permission; enablement fetches available models in
   the background. Catalogue failure leaves the provider enabled with no models, while all later
   failures are reported at their actual operation boundary.
+- Independent R1 confirmed the complete 10-step journey, 10 user stories, source-bound GAP map and
+  absence of required protocol duties; no outcome defect was found.
 
 ## Review rounds
 
@@ -221,6 +222,9 @@ One line per round of the convergence loop, written by the CTO from the two role
 marker carries the reviewer's ten-point score and the local moment of the verdict. After an
 escalation, one `- CTO <decision> <dd/mm hh:mm> — <reason>` line records what was decided. The review
 dialogue itself stays in the reports and the evidence package.
+
+- R1(9/10) ACCEPT 02/09 00:09 — full two-file draft and body hash verified → high-risk Russian,
+  board-write and multi-participant claims checked against current sources → draft integrated
 
 ## Closure
 
