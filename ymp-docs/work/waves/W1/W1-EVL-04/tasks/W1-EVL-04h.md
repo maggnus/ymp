@@ -3,15 +3,15 @@ id: W1-EVL-04h
 kind: task
 wave: W1
 card: W1-EVL-04
-state: ready
+state: active
 risk: critical
 maturity: BUILD
 relation: required
 depends_on: [W1-COR-03z, W1-PRD-05j.1]
 blocks: [W1-EVL-04e]
 created_at: 2026-09-01T15:02:06+08:00
-updated_at: 2026-09-01T15:02:06+08:00
-started_at:
+updated_at: 2026-09-01T15:06:13+08:00
+started_at: 2026-09-01T15:06:13+08:00
 accepted_at:
 candidate_commit:
 closure_commit:
@@ -93,16 +93,15 @@ present and valid.
 
 ## Current state
 
-The collaboration transport and model-callable recruitment path are accepted. A manual Luna/low
-file pilot reached the model but both A attempts refused to write because the workspace tool host
-was unavailable; B/C never ran and the board stayed byte-identical. No executable admission fixture
-currently distinguishes that infrastructure failure before task output, so the weak-model gate is
-closed.
+The Critical contract passed pre-dispatch review. The collaboration transport and model-callable
+recruitment path are accepted, while the manual Luna/low pilot remained infrastructure-invalid.
+An exclusive Sol xhigh workspace is implementing the tool-only admission manifest, CLI and S1-S3
+rehearsal; the weak-model gate remains closed.
 
 ## Next action
 
-Implement the frozen zero-model manifest, admission validator and S1-S3 fake-runtime CLI strictly in
-the declared tool-only write zone.
+Return one clean committed zero-model candidate that reaches the existing MCP/RPC/Application seam
+and refuses every incomplete admission record.
 
 ## Guardrails
 
