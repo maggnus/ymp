@@ -4,15 +4,15 @@ kind: subtask
 wave: W1
 card: W1-COR-03
 parent: W1-COR-03e
-state: ready
+state: active
 risk: significant
 maturity: DESIGN
 relation: required
 depends_on: []
 blocks: [W1-COR-03e.2]
 created_at: 2026-09-01T22:52:28+08:00
-updated_at: 2026-09-01T22:52:28+08:00
-started_at:
+updated_at: 2026-09-01T23:19:13+08:00
+started_at: 2026-09-01T22:52:28+08:00
 accepted_at:
 candidate_commit:
 closure_commit:
@@ -119,13 +119,14 @@ interaction model be translated into screens.
 ## Current state
 
 The owner rejected candidate 893a7d1 because it preserved the old system-oriented information
-architecture under improved formatting. Scientific research and a cross-provider committee are now
-deriving the primary user story before another interface is drawn.
+architecture under improved formatting. Scientific research, Codex MAX analysis and a cross-provider
+comparison now agree on “result first, team transparently nearby” and are resolving exact POC gaps,
+provider/pool setup and owner decisions before a document is drafted.
 
 ## Next action
 
-Converge the researcher and committee reports into one user-journey draft, then present that story
-for owner approval before writing any UI contract.
+Produce one bounded consensus with a truthful Battleship POC slice and five owner decisions, then
+present it before drafting `USER_JOURNEY.md` or any UI contract.
 
 ## Guardrails
 
