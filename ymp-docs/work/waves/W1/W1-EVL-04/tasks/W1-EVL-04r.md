@@ -3,25 +3,25 @@ id: W1-EVL-04r
 kind: task
 wave: W1
 card: W1-EVL-04
-state: active
+state: accepted
 risk: critical
 maturity: BUILD
 relation: required
 depends_on: [W1-EVL-04n]
 blocks: [W1-EVL-04s]
 created_at: 2026-09-01T21:14:37+08:00
-updated_at: 2026-09-01T22:21:30+08:00
+updated_at: 2026-09-01T22:28:48+08:00
 started_at: 2026-09-01T21:23:04+08:00
-accepted_at:
-candidate_commit: https://github.com/maggnus/ymp/commit/5c84ed1d399e959bce2dd3e9ed9814f1aacc691a
-closure_commit:
-evidence:
-duration_minutes: 58
+accepted_at: 2026-09-01T22:28:48+08:00
+candidate_commit: https://github.com/maggnus/ymp/commit/c7f410853862291f058ee851e7799658bdd7b1dc
+closure_commit: https://github.com/maggnus/ymp/commit/baf31aa974535d56514bbb0948df5b77cc983b4c
+evidence: ["[baf31aa](https://github.com/maggnus/ymp/commit/baf31aa974535d56514bbb0948df5b77cc983b4c)"]
+duration_minutes: 66
 blocker:
 pause_reason:
 return_trigger:
 deliberate_partial: false
-review_rounds: 1
+review_rounds: 2
 escalation_decision:
 ---
 
@@ -70,33 +70,34 @@ attestation or exposing raw stderr.
 
 ## Acceptance
 
-- [ ] Deterministic fixture failures before process spawn, before `turn.started`, after turn start,
+- [x] Deterministic fixture failures before process spawn, before `turn.started`, after turn start,
       before MCP call, after MCP receipt/result and before controller read-back each persist exactly
       one distinct phase with last event identity and no attestation.
-- [ ] Ordinary non-probe RuntimeSession implementations compile unchanged through the default method;
+- [x] Ordinary non-probe RuntimeSession implementations compile unchanged through the default method;
       only Codex probe sessions return phase evidence, and supervisor never fabricates missing driver
       observations.
-- [ ] Failure records preserve complete token classes, in-flight model request count, cost
+- [x] Failure records preserve complete token classes, in-flight model request count, cost
       availability, exit/signal/duration and only `{sha256, bytes, truncated}` diagnostics. Missing
       observations are explicit `unknown`, never zero or inferred success.
-- [ ] Provider states are exactly `not_started`, `turn_started_unconfirmed`, `provider_responded` or
+- [x] Provider states are exactly `not_started`, `turn_started_unconfirmed`, `provider_responded` or
       `unknown`; deterministic tests prove each transition and prevent ProcessExit alone from being
       classified as provider failure.
-- [ ] Recovery rejects missing/corrupt/mismatched/replayed failure records, copied stores and any
+- [x] Recovery rejects missing/corrupt/mismatched/replayed failure records, copied stores and any
       simultaneous failure+attestation. A spent failed reservation cannot run again or be refunded.
-- [ ] Focused tests and a mutation discarding terminal Usage/diagnostic/phase fail as expected;
+- [x] Focused tests and a mutation discarding terminal Usage/diagnostic/phase fail as expected;
       strict Clippy, formatting and `git diff --check` pass with zero live calls and isolated state.
 
 ## Current state
 
-Candidate [5c84ed1](https://github.com/maggnus/ymp/commit/5c84ed1d399e959bce2dd3e9ed9814f1aacc691a)
-is clean and carries phase-localized durable evidence. R1 found no code defect but executed zero
-cases for its recovery falsifier; the author is supplying one exact non-zero scenario before R2.
+Accepted on integrated main
+[baf31aa](https://github.com/maggnus/ymp/commit/baf31aa974535d56514bbb0948df5b77cc983b4c).
+Every failed probe now leaves verified phase-localized evidence after a spent reservation and cannot
+produce an attestation, refund or retry.
 
 ## Next action
 
-Run R2 with the exact executable recovery scenario on the final candidate; accept only after typed
-rejection and absence of refund/attestation are observed.
+Repeat the read-only W1-EVL-04s gate against this accepted diagnostic schema, then authorize only its
+already frozen single live command.
 
 ## Guardrails
 
@@ -113,6 +114,8 @@ rejection and absence of refund/attestation are observed.
   Application finalizer; the general event protocol remains unchanged.
 - R1 outcome review selected the correct corruption/recovery risk but its command executed zero
   tests; this is an evidence defect, not evidence of a product-code failure.
+- R2 ran two exact recovery cases: byte corruption, copied storage, absent attestation and spent
+  reservation were all distinguished without changing production behavior.
 
 ## Review rounds
 
@@ -124,19 +127,24 @@ dialogue itself stays in the reports and the evidence package.
 
 - R1(4/10) RETURN 01/09 22:19 — independent corruption/recovery command executed zero tests → final
   candidate remained unchanged → author must provide one exact non-zero typed-rejection scenario
+- R2(9/10) ACCEPT 01/09 22:28 — test-only delta selected two cases → typed corruption/copy rejection,
+  absent attestation and spent reservation observed → final candidate integrated unchanged
 
 ## Closure
 
-Filled when the task is accepted. Until then this section stays as written.
-
 ### Accepted outcome
 
-What was actually accepted.
+Strict failure phases and provider states now travel from the private Codex probe session through
+supervisor evidence into one canonical, synchronized `failure.json`. Application recovery verifies
+reservation and store identity, rejects corruption, copying, replay and failure+attestation, and
+never converts failed evidence into readiness.
 
 ### Residuals
 
-Honestly retained limitations, each with an exact return trigger. Empty when there are none.
+None. A real live result belongs exclusively to W1-EVL-04s.
 
 ### Evidence
 
-- Commit, evidence package, or durable document of record, each as a Markdown link.
+- [baf31aa](https://github.com/maggnus/ymp/commit/baf31aa974535d56514bbb0948df5b77cc983b4c)
+  — integrated code and exact R1 test correction; byte-equivalent to candidate
+  [c7f4108](https://github.com/maggnus/ymp/commit/c7f410853862291f058ee851e7799658bdd7b1dc).
