@@ -3,15 +3,15 @@ id: W1-EVL-04l
 kind: task
 wave: W1
 card: W1-EVL-04
-state: ready
+state: active
 risk: critical
 maturity: BUILD
 relation: required
 depends_on: [W1-EVL-04j]
 blocks: [W1-EVL-04n]
 created_at: 2026-09-01T15:57:45+08:00
-updated_at: 2026-09-01T17:24:00+08:00
-started_at:
+updated_at: 2026-09-01T17:24:36+08:00
+started_at: 2026-09-01T17:24:36+08:00
 accepted_at:
 candidate_commit:
 closure_commit:
