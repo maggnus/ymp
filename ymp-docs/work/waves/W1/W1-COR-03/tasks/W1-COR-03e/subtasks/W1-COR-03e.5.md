@@ -4,25 +4,25 @@ kind: subtask
 wave: W1
 card: W1-COR-03
 parent: W1-COR-03e
-state: active
+state: rejected
 risk: significant
 maturity: DESIGN
 relation: required
 depends_on: [W0-UX-01c]
 blocks: [W1-COR-03e.2]
 created_at: 2026-09-01T22:12:00+08:00
-updated_at: 2026-09-01T22:18:04+08:00
+updated_at: 2026-09-01T22:52:28+08:00
 started_at: 2026-09-01T22:18:04+08:00
 accepted_at:
-candidate_commit:
+candidate_commit: https://github.com/maggnus/ymp/commit/893a7d19d33a30e80a4c0f639b8f9fd3c44a0aac
 closure_commit:
 evidence:
-duration_minutes: 0
+duration_minutes: 34
 blocker:
 pause_reason:
-return_trigger:
+return_trigger: owner accepts W1-COR-03e.6 and authorizes a new interaction model
 deliberate_partial: false
-review_rounds: 0
+review_rounds: 1
 escalation_decision:
 ---
 
@@ -97,13 +97,14 @@ removing the old dashboard-first content hierarchy.
 
 ## Current state
 
-The Significant contract check accepted the four state families, typed command boundary and modal
-separation after the exact offline Chrome-to-PDF path was added. No TUI implementation is running
-against the superseded content hierarchy.
+Rejected by the owner before integration. Candidate 893a7d1 improved formatting but retained the
+old system-oriented information architecture and was produced before a complete user journey. Its
+visual files are not current design authority and no TUI implementation may use them.
 
 ## Next action
 
-Update and render the three authoritative visual sources in one isolated design workspace.
+Do not integrate or correct this candidate. Return only after W1-COR-03e.6 is owner-approved and a
+new interaction model is explicitly authorized.
 
 ## Guardrails
 
@@ -119,6 +120,9 @@ Update and render the three authoritative visual sources in one isolated design 
 - Contract preflight found no project-owned PDF command and a broken Homebrew Chromium launcher;
   the installed Chrome 151 path produced a 19-page Letter PDF offline, so that exact route and its
   local-only resources are now part of acceptance.
+- R1 confirmed visual coherence but could not execute the required modal-class negative proof.
+- Owner rejected the direction independently of R1: it optimized the previous interface instead of
+  deriving UI from the user’s job and complete journey.
 
 ## Review rounds
 
@@ -127,6 +131,9 @@ One line per round of the convergence loop, written by the CTO from the two role
 marker carries the reviewer's ten-point score and the local moment of the verdict. After an
 escalation, one `- CTO <decision> <dd/mm hh:mm> — <reason>` line records what was decided. The review
 dialogue itself stays in the reports and the evidence package.
+
+- R1(5/10) RETURN 01/09 22:52 — visual/PDF contract coherent but negative modal proof unavailable →
+  owner rejected the underlying user story → candidate withdrawn without integration
 
 ## Closure
 
