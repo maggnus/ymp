@@ -129,6 +129,10 @@ GitHub source above.
   `max`. Weaker GPT, GLM, and Claude profiles may run tests, search for counterexamples, review
   results, or participate in controlled POC experiments, but they do not author repository code,
   test code, research conclusions, or plans; any resulting fix returns to a Sol author.
+- Keep one read-only `codex/gpt-5.6-sol` `max` researcher attached to the scientific component
+  across experiment-design and interpretation work. Consult it before changing a hypothesis,
+  oracle regime, arm definition, budget comparison, metric, causal claim, or POC conclusion. Its
+  report informs the CTO contract but never substitutes for executable or controlled evidence.
 - GPT, GLM, and Claude are the only model families executed for development, testing, review, or
   POC participation. Other model routes may remain documented as possible integrations, but they
   are not run unless the owner explicitly changes this allowlist.
