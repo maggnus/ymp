@@ -36,6 +36,7 @@ const MAX_CONTRACT_BYTES: usize = 1024 * 1024;
 const MAX_PROMPT_BYTES: usize = 64 * 1024;
 const MAX_RUNTIME_EVIDENCE_BYTES: u64 = 4 * 1024 * 1024;
 const RUNTIME_EVIDENCE_SCHEMA_VERSION: u32 = 3;
+const SUPPORTED_CODEX_RUNTIME_VERSION: &str = "codex-cli 0.151.0";
 
 /// How long a controller waits for its worker to end before it stops waiting.
 ///
@@ -893,6 +894,28 @@ pub fn start_unattested_managed_candidate(
     start_candidate(application, driver, request, LaunchAttestation::Waived)
 }
 
+fn validate_runtime_probe(kind: RuntimeKind, probe: &ProbeReport) -> anyhow::Result<()> {
+    if probe.kind != kind {
+        bail!("runtime_probe_kind_mismatch");
+    }
+    if probe.readiness != Readiness::Ready {
+        bail!("runtime profile is not ready: {}", probe.detail);
+    }
+    if kind == RuntimeKind::Codex {
+        let version = probe
+            .version
+            .as_deref()
+            .context("codex_runtime_projection_missing")?;
+        if version != SUPPORTED_CODEX_RUNTIME_VERSION {
+            bail!(
+                "codex_runtime_projection_mismatch: expected {}, found {version}",
+                SUPPORTED_CODEX_RUNTIME_VERSION
+            );
+        }
+    }
+    Ok(())
+}
+
 fn start_candidate(
     application: Arc<Mutex<Application>>,
     driver: Box<dyn RuntimeDriver>,
@@ -901,9 +924,7 @@ fn start_candidate(
 ) -> anyhow::Result<ManagedRunHandle> {
     let lifecycle_programs = admit_start(driver.kind(), attestation)?;
     let probe = driver.probe()?;
-    if probe.readiness != Readiness::Ready {
-        bail!("runtime profile is not ready: {}", probe.detail);
-    }
+    validate_runtime_probe(driver.kind(), &probe)?;
     let bridge_executable = request.bridge_executable.canonicalize().with_context(|| {
         format!(
             "canonicalize current ymp executable {}",
@@ -2133,9 +2154,10 @@ pub fn initialize_private_git(workspace: &Path, git: &AdmittedProgram) -> anyhow
 mod tests {
     use super::{
         CONTROLLER_SHUTDOWN_LIMIT, ManagedCandidateRequest, ManagedContract, ManagedKernel,
-        ManagedRunEvent, ManagedRunHandle, admit_workspace_program, admit_workspace_program_from,
-        initialize_private_git, start_managed_candidate, start_unattested_managed_candidate,
-        validate_launch_descriptor, validate_runtime_launch,
+        ManagedRunEvent, ManagedRunHandle, SUPPORTED_CODEX_RUNTIME_VERSION,
+        admit_workspace_program, admit_workspace_program_from, initialize_private_git,
+        start_managed_candidate, start_unattested_managed_candidate, validate_launch_descriptor,
+        validate_runtime_launch, validate_runtime_probe,
     };
     use std::collections::VecDeque;
     use std::path::{Path, PathBuf};
@@ -2272,6 +2294,33 @@ mod tests {
         RepeatedEventId,
         EmptyEventId,
         WrongInvocation,
+    }
+
+    #[test]
+    fn codex_projection_accepts_only_the_measured_0151_tuple() {
+        let report = |version: Option<&str>| ProbeReport {
+            kind: RuntimeKind::Codex,
+            executable: "codex".to_owned(),
+            version: version.map(str::to_owned),
+            readiness: Readiness::Ready,
+            detail: "measured fixture".to_owned(),
+        };
+        validate_runtime_probe(
+            RuntimeKind::Codex,
+            &report(Some(SUPPORTED_CODEX_RUNTIME_VERSION)),
+        )
+        .expect("the exact measured projection is accepted");
+
+        for (version, reason) in [
+            (Some("codex-cli 0.147.0"), "projection_mismatch"),
+            (Some("codex-cli 0.152.0"), "projection_mismatch"),
+            (None, "projection_missing"),
+        ] {
+            let error = validate_runtime_probe(RuntimeKind::Codex, &report(version))
+                .expect_err("an unmeasured projection must fail closed")
+                .to_string();
+            assert!(error.contains(reason), "{version:?}: {error}");
+        }
     }
 
     struct FaultingRuntime {
@@ -2555,7 +2604,7 @@ mod tests {
             Ok(ProbeReport {
                 kind: RuntimeKind::Codex,
                 executable: self.executable.display().to_string(),
-                version: Some("codex-cli 0.147.0".to_owned()),
+                version: Some("codex-cli 0.151.0".to_owned()),
                 readiness: Readiness::Ready,
                 detail: "chainless runtime for supervisor regression".to_owned(),
             })

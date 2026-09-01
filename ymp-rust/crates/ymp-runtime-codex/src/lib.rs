@@ -22,7 +22,7 @@ use ymp_runtime_api::{
     verify_admitted_programs,
 };
 
-pub const PINNED_CODEX_VERSION: &str = "codex-cli 0.147.0";
+pub const PINNED_CODEX_VERSION: &str = "codex-cli 0.151.0";
 /// The model route the managed profile requests. `gpt-5.6-sol` was refused with HTTP 400
 /// (`invalid_request_error`: not supported when using Codex with a ChatGPT account), so the route
 /// is the balanced agentic coding model the account does list, which accepts the `low` reasoning
@@ -39,7 +39,7 @@ const HARNESS_INSTRUCTIONS: &str = "Execution policy: work without delegation or
 /// travels here instead: an attempt that only writes files leaves nothing the run can accept, and
 /// the budget it spent buys no candidate.
 const PUBLICATION_INSTRUCTIONS: &str = "Publication policy: the work of this attempt becomes a candidate only when it is published with the submit tool of the ymp MCP server. Files left in the workspace are not a result, and no report replaces that call. Call submit once, as soon as the requested outcome is reached, whether or not the request above mentions publishing.";
-const DISABLED_AMBIENT_FEATURES: [&str; 35] = [
+const DISABLED_AMBIENT_FEATURES: [&str; 32] = [
     "apps",
     "auth_elicitation",
     "browser_use",
@@ -48,7 +48,6 @@ const DISABLED_AMBIENT_FEATURES: [&str; 35] = [
     "code_mode_host",
     "computer_use",
     "deferred_executor",
-    "enable_fanout",
     "fast_mode",
     "goals",
     "guardian_approval",
@@ -64,8 +63,6 @@ const DISABLED_AMBIENT_FEATURES: [&str; 35] = [
     "plugins",
     "recommended_plugins",
     "remote_compaction_v2",
-    "remote_control",
-    "remote_models",
     "remote_plugin",
     "skill_mcp_dependency_install",
     "skill_search",
@@ -75,6 +72,15 @@ const DISABLED_AMBIENT_FEATURES: [&str; 35] = [
     "tool_suggest",
     "view_image",
     "web_search_request",
+];
+const REMOVED_CODEX_0151_FEATURES: [&str; 3] = ["enable_fanout", "remote_control", "remote_models"];
+const REQUIRED_CODEX_0151_FEATURES: [&str; 6] = [
+    "hooks",
+    "multi_agent",
+    "multi_agent_v2",
+    "plugins",
+    "remote_plugin",
+    "shell_snapshot",
 ];
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -121,10 +127,11 @@ impl Default for CodexProfile {
 
 impl CodexProfile {
     fn validate(&self) -> Result<(), RuntimeError> {
-        if self.expected_version.trim().is_empty() {
-            return Err(RuntimeError::InvalidProfile(
-                "expected version must not be empty".to_owned(),
-            ));
+        if self.expected_version != PINNED_CODEX_VERSION {
+            return Err(RuntimeError::InvalidProfile(format!(
+                "unmeasured Codex version {}; this build requires {PINNED_CODEX_VERSION}",
+                self.expected_version
+            )));
         }
         if self.model != PINNED_CODEX_MODEL {
             return Err(RuntimeError::InvalidProfile(format!(
@@ -262,6 +269,125 @@ impl CodexRuntime {
         let executable = VerifiedExecutable::admit(&self.executable, "codex")?;
         *admitted = Some(executable.clone());
         Ok(executable)
+    }
+
+    fn observation(
+        &self,
+        executable: &Path,
+        environment: &[EnvironmentValue],
+        label: &str,
+        arguments: &[&str],
+    ) -> Result<String, RuntimeError> {
+        let mut command = Command::new(executable);
+        CodexEnvironment::apply(&mut command, environment);
+        let output = command.args(arguments).output()?;
+        if !output.status.success() {
+            return Err(RuntimeError::InvalidProfile(format!(
+                "codex_0151_{label}_probe_failed: exited with {}",
+                output.status
+            )));
+        }
+        String::from_utf8(output.stdout).map_err(|_| RuntimeError::NonUtf8Output)
+    }
+
+    fn observe_0151_surface(
+        &self,
+        executable: &Path,
+        environment: &[EnvironmentValue],
+    ) -> Result<(), RuntimeError> {
+        let exec_help =
+            self.observation(executable, environment, "exec_help", &["exec", "--help"])?;
+        for required in ["--json", "--ignore-user-config", "--ignore-rules", "resume"] {
+            if !exec_help.contains(required) {
+                return Err(RuntimeError::InvalidProfile(format!(
+                    "codex_0151_exec_help_mismatch: missing {required}"
+                )));
+            }
+        }
+        let resume_help = self.observation(
+            executable,
+            environment,
+            "resume_help",
+            &["exec", "resume", "--help"],
+        )?;
+        for required in [
+            "SESSION_ID",
+            "--json",
+            "--ignore-user-config",
+            "--ignore-rules",
+        ] {
+            if !resume_help.contains(required) {
+                return Err(RuntimeError::InvalidProfile(format!(
+                    "codex_0151_resume_help_mismatch: missing {required}"
+                )));
+            }
+        }
+
+        let features =
+            self.observation(executable, environment, "features", &["features", "list"])?;
+        for feature in REMOVED_CODEX_0151_FEATURES {
+            if feature_state(&features, feature).as_deref() != Some("removed") {
+                return Err(RuntimeError::InvalidProfile(format!(
+                    "codex_0151_feature_state_mismatch: {feature} is not removed"
+                )));
+            }
+        }
+        for feature in REQUIRED_CODEX_0151_FEATURES {
+            match feature_state(&features, feature).as_deref() {
+                Some("removed") | None => {
+                    return Err(RuntimeError::InvalidProfile(format!(
+                        "codex_0151_feature_state_mismatch: {feature} cannot be disabled"
+                    )));
+                }
+                Some(_) => {}
+            }
+        }
+
+        let app_server_help = self.observation(
+            executable,
+            environment,
+            "app_server_help",
+            &["app-server", "--help"],
+        )?;
+        for required in ["generate-json-schema", "--listen <URL>", "stdio://"] {
+            if !app_server_help.contains(required) {
+                return Err(RuntimeError::InvalidProfile(format!(
+                    "codex_0151_app_server_help_mismatch: missing {required}"
+                )));
+            }
+        }
+
+        let schema_directory = tempfile::Builder::new()
+            .prefix("ymp-codex-0151-schema-")
+            .tempdir()?;
+        let schema_path = schema_directory.path().to_str().ok_or_else(|| {
+            RuntimeError::InvalidProfile(
+                "Codex App Server schema path must be valid UTF-8".to_owned(),
+            )
+        })?;
+        self.observation(
+            executable,
+            environment,
+            "app_server_schema",
+            &["app-server", "generate-json-schema", "--out", schema_path],
+        )?;
+        let schema = fs::read(
+            schema_directory
+                .path()
+                .join("codex_app_server_protocol.schemas.json"),
+        )?;
+        if schema.len() > self.profile.output_limit_bytes {
+            return Err(RuntimeError::InvalidProfile(
+                "codex_0151_app_server_schema_mismatch: schema exceeds output limit".to_owned(),
+            ));
+        }
+        let schema: Value = serde_json::from_slice(&schema).map_err(|error| {
+            RuntimeError::InvalidProfile(format!(
+                "codex_0151_app_server_schema_mismatch: invalid JSON: {error}"
+            ))
+        })?;
+        validate_0151_app_server_schema(&schema)?;
+        Ok(())
     }
 }
 
@@ -499,6 +625,7 @@ impl CodexLaunch {
             arguments.push(session_id.to_owned());
         }
         arguments.push("-".to_owned());
+        validate_0151_launch_arguments(&arguments)?;
         Ok(arguments)
     }
 
@@ -694,6 +821,16 @@ impl RuntimeDriver for CodexRuntime {
                     "profile requires {}, found {version}",
                     self.profile.expected_version
                 ),
+            });
+        }
+        if let Err(error) = self.observe_0151_surface(&admitted.execution_path, &environment_values)
+        {
+            return Ok(ProbeReport {
+                kind: RuntimeKind::Codex,
+                executable: self.executable.display().to_string(),
+                version: Some(version),
+                readiness: Readiness::Incompatible,
+                detail: error.to_string(),
             });
         }
         let mut auth_command = Command::new(&admitted.execution_path);
@@ -980,7 +1117,9 @@ impl CodexSession {
     fn merge_usage(&mut self, value: &Value) -> Result<(), RuntimeError> {
         let mut observed = observed_usage(value);
         observed.input_tokens = u64_field(value, "input_tokens")?;
+        observed.cached_input_tokens = u64_field(value, "cached_input_tokens")?;
         observed.output_tokens = u64_field(value, "output_tokens")?;
+        observed.reasoning_output_tokens = u64_field(value, "reasoning_output_tokens")?;
         let observed_in_flight = value.get("in_flight_excess").map(in_flight_excess);
         self.current_turn_usage = observed;
         add_usage(&mut self.usage, &self.current_turn_usage);
@@ -1100,7 +1239,16 @@ impl CodexSession {
                         let server = string_field(item, "server")?;
                         let tool = string_field(item, "tool")?;
                         let status = string_field(item, "status")?;
-                        let arguments = item.get("arguments").cloned().unwrap_or(Value::Null);
+                        if !matches!(status.as_str(), "inProgress" | "completed" | "failed") {
+                            return Err(RuntimeError::MalformedEvent(format!(
+                                "mcp_tool_call has unsupported status {status}"
+                            )));
+                        }
+                        let arguments = item.get("arguments").cloned().ok_or_else(|| {
+                            RuntimeError::MalformedEvent(
+                                "mcp_tool_call has no arguments".to_owned(),
+                            )
+                        })?;
                         let result = item.get("result").filter(|value| !value.is_null()).cloned();
                         let error = item.get("error").filter(|value| !value.is_null()).cloned();
                         Ok(Some(self.emit(RuntimeEventKind::McpToolCall {
@@ -1359,6 +1507,133 @@ fn string_field(value: &Value, field: &str) -> Result<String, RuntimeError> {
         .ok_or_else(|| RuntimeError::MalformedEvent(format!("missing string field {field}")))
 }
 
+fn feature_state(observed: &str, feature: &str) -> Option<String> {
+    observed
+        .lines()
+        .find_map(|line| {
+            let mut fields = line.split_whitespace();
+            (fields.next()? == feature).then(|| {
+                let fields: Vec<_> = fields.collect();
+                fields[..fields.len().saturating_sub(1)].join(" ")
+            })
+        })
+        .filter(|state| {
+            matches!(
+                state.as_str(),
+                "removed" | "deprecated" | "stable" | "experimental" | "under development"
+            )
+        })
+}
+
+fn validate_0151_launch_arguments(arguments: &[String]) -> Result<(), RuntimeError> {
+    for removed in REMOVED_CODEX_0151_FEATURES {
+        if arguments
+            .windows(2)
+            .any(|pair| pair[0] == "--disable" && pair[1] == removed)
+        {
+            return Err(RuntimeError::InvalidProfile(format!(
+                "codex_0151_removed_flag: --disable {removed}"
+            )));
+        }
+    }
+    for required in REQUIRED_CODEX_0151_FEATURES {
+        if !arguments
+            .windows(2)
+            .any(|pair| pair[0] == "--disable" && pair[1] == required)
+        {
+            return Err(RuntimeError::InvalidProfile(format!(
+                "codex_0151_feature_not_disabled: {required}"
+            )));
+        }
+    }
+    Ok(())
+}
+
+fn required_fields(value: &Value, expected: &[&str]) -> bool {
+    let Some(fields) = value.get("required").and_then(Value::as_array) else {
+        return false;
+    };
+    expected
+        .iter()
+        .all(|expected| fields.iter().any(|field| field.as_str() == Some(expected)))
+}
+
+fn schema_contains_object(value: &Value, title: &str, required: &[&str]) -> bool {
+    match value {
+        Value::Object(object) => {
+            if object.get("title").and_then(Value::as_str) == Some(title)
+                && required_fields(value, required)
+            {
+                return true;
+            }
+            object
+                .values()
+                .any(|value| schema_contains_object(value, title, required))
+        }
+        Value::Array(values) => values
+            .iter()
+            .any(|value| schema_contains_object(value, title, required)),
+        _ => false,
+    }
+}
+
+fn schema_contains_string(value: &Value, expected: &str) -> bool {
+    match value {
+        Value::String(value) => value == expected,
+        Value::Object(object) => object
+            .values()
+            .any(|value| schema_contains_string(value, expected)),
+        Value::Array(values) => values
+            .iter()
+            .any(|value| schema_contains_string(value, expected)),
+        _ => false,
+    }
+}
+
+fn validate_0151_app_server_schema(schema: &Value) -> Result<(), RuntimeError> {
+    if !schema_contains_object(
+        schema,
+        "McpToolCallThreadItem",
+        &["arguments", "id", "server", "status", "tool", "type"],
+    ) {
+        return Err(RuntimeError::InvalidProfile(
+            "codex_0151_app_server_tool_schema_mismatch".to_owned(),
+        ));
+    }
+    let usage = schema
+        .pointer("/definitions/v2/TokenUsageBreakdown")
+        .filter(|usage| {
+            required_fields(
+                usage,
+                &[
+                    "cachedInputTokens",
+                    "inputTokens",
+                    "outputTokens",
+                    "reasoningOutputTokens",
+                    "totalTokens",
+                ],
+            )
+        });
+    if usage.is_none() {
+        return Err(RuntimeError::InvalidProfile(
+            "codex_0151_app_server_usage_schema_mismatch".to_owned(),
+        ));
+    }
+    for method in [
+        "thread/resume",
+        "turn/interrupt",
+        "thread/tokenUsage/updated",
+        "turn/completed",
+    ] {
+        if !schema_contains_string(schema, method) {
+            return Err(RuntimeError::InvalidProfile(format!(
+                "codex_0151_app_server_event_schema_mismatch: missing {method}"
+            )));
+        }
+    }
+    Ok(())
+}
+
 fn u64_field(value: &Value, field: &str) -> Result<u64, RuntimeError> {
     value
         .get(field)
@@ -1533,13 +1808,17 @@ fn coordination_tools(capabilities: AgentToolCapabilities) -> Vec<&'static str> 
 
 #[cfg(test)]
 mod tests {
-    use super::{CodexProfile, CodexRuntime, PINNED_CODEX_MODEL, add_mcp_config_arguments};
+    use super::{
+        CodexProfile, CodexRuntime, DISABLED_AMBIENT_FEATURES, PINNED_CODEX_MODEL,
+        PINNED_CODEX_VERSION, REMOVED_CODEX_0151_FEATURES, add_mcp_config_arguments,
+        validate_0151_app_server_schema, validate_0151_launch_arguments,
+    };
     use std::fs;
     use std::os::unix::fs::PermissionsExt;
     use std::path::{Path, PathBuf};
     use ymp_agent_rpc::AgentToolCapabilities;
     use ymp_runtime_api::{
-        CancellationToken, InvocationRequest, McpBinding, RuntimeDriver, RuntimeError,
+        CancellationToken, InvocationRequest, McpBinding, Readiness, RuntimeDriver, RuntimeError,
         RuntimeEventKind, RuntimeFailureKind, RuntimeSession,
     };
 
@@ -1582,6 +1861,17 @@ mod tests {
             Err(RuntimeError::InvalidProfile(_))
         ));
 
+        for expected_version in ["codex-cli 0.147.0", "codex-cli 0.152.0", ""] {
+            let profile = CodexProfile {
+                expected_version: expected_version.to_owned(),
+                ..CodexProfile::default()
+            };
+            let error = profile
+                .validate()
+                .expect_err("an unmeasured Codex version must fail closed");
+            assert!(matches!(error, RuntimeError::InvalidProfile(_)));
+        }
+
         let profile = CodexProfile {
             output_limit_bytes: 0,
             ..CodexProfile::default()
@@ -1614,8 +1904,101 @@ mod tests {
     #[test]
     fn default_runtime_exposes_pinned_profile() {
         let runtime = CodexRuntime::default();
+        assert_eq!(runtime.profile().expected_version, PINNED_CODEX_VERSION);
         assert_eq!(runtime.profile().model, PINNED_CODEX_MODEL);
         assert_eq!(runtime.profile().reasoning_effort, "low");
+    }
+
+    #[test]
+    fn removed_0151_flags_and_schema_mutations_have_distinct_refusals() {
+        let mut arguments = vec!["exec".to_owned()];
+        for feature in DISABLED_AMBIENT_FEATURES {
+            arguments.extend(["--disable".to_owned(), feature.to_owned()]);
+        }
+        validate_0151_launch_arguments(&arguments)
+            .expect("the measured 0.151 launch flags are accepted");
+        for removed in REMOVED_CODEX_0151_FEATURES {
+            let mut retained = arguments.clone();
+            retained.extend(["--disable".to_owned(), removed.to_owned()]);
+            let error = validate_0151_launch_arguments(&retained)
+                .expect_err("a removed flag must be refused")
+                .to_string();
+            assert!(error.contains("codex_0151_removed_flag"), "{error}");
+            assert!(error.contains(removed), "{error}");
+        }
+
+        let schema = serde_json::json!({
+            "definitions": {
+                "v2": {
+                    "TokenUsageBreakdown": {
+                        "required": [
+                            "cachedInputTokens", "inputTokens", "outputTokens",
+                            "reasoningOutputTokens", "totalTokens"
+                        ]
+                    }
+                }
+            },
+            "items": [{
+                "title": "McpToolCallThreadItem",
+                "required": ["arguments", "id", "server", "status", "tool", "type"]
+            }],
+            "methods": [
+                "thread/resume", "turn/interrupt", "thread/tokenUsage/updated", "turn/completed"
+            ]
+        });
+        validate_0151_app_server_schema(&schema).expect("the measured schema is accepted");
+
+        let mut changed_tool = schema.clone();
+        changed_tool["items"][0]["required"] =
+            serde_json::json!(["id", "server", "status", "tool", "type"]);
+        let error = validate_0151_app_server_schema(&changed_tool)
+            .expect_err("a changed tool schema must be refused")
+            .to_string();
+        assert!(error.contains("tool_schema_mismatch"), "{error}");
+
+        let mut changed_usage = schema.clone();
+        changed_usage["definitions"]["v2"]["TokenUsageBreakdown"]["required"] =
+            serde_json::json!([
+                "inputTokens",
+                "outputTokens",
+                "reasoningOutputTokens",
+                "totalTokens"
+            ]);
+        let error = validate_0151_app_server_schema(&changed_usage)
+            .expect_err("a changed usage schema must be refused")
+            .to_string();
+        assert!(error.contains("usage_schema_mismatch"), "{error}");
+
+        let mut changed_event = schema;
+        changed_event["methods"] = serde_json::json!([
+            "thread/resume",
+            "thread/tokenUsage/updated",
+            "turn/completed"
+        ]);
+        let error = validate_0151_app_server_schema(&changed_event)
+            .expect_err("a changed event schema must be refused")
+            .to_string();
+        assert!(error.contains("event_schema_mismatch"), "{error}");
+    }
+
+    #[test]
+    fn false_0151_version_output_is_incompatible_before_other_probes() {
+        let directory = tempfile::tempdir().expect("temporary directory");
+        let executable = directory.path().join("codex-false-version");
+        fs::write(
+            &executable,
+            "#!/bin/sh\nprintf '%s\\n' 'codex-cli 0.152.0'\n",
+        )
+        .expect("write false-version fixture");
+        let mut permissions = fs::metadata(&executable).expect("metadata").permissions();
+        permissions.set_mode(0o700);
+        fs::set_permissions(&executable, permissions).expect("make executable");
+        let probe = CodexRuntime::new(&executable)
+            .probe()
+            .expect("version probe");
+        assert_eq!(probe.readiness, Readiness::Incompatible);
+        assert_eq!(probe.version.as_deref(), Some("codex-cli 0.152.0"));
+        assert!(probe.detail.contains(PINNED_CODEX_VERSION));
     }
 
     #[test]
@@ -1647,7 +2030,18 @@ mod tests {
             &executable,
             r##"#!/bin/sh
 if [ "$1" = "--version" ]; then
-  printf '%s\n' 'codex-cli 0.147.0'
+  printf '%s\n' 'codex-cli 0.151.0'
+elif [ "$1" = "exec" ] && [ "$2" = "--help" ]; then
+  printf '%s\n' 'resume --json --ignore-user-config --ignore-rules'
+elif [ "$1" = "exec" ] && [ "$2" = "resume" ] && [ "$3" = "--help" ]; then
+  printf '%s\n' 'SESSION_ID --json --ignore-user-config --ignore-rules'
+elif [ "$1" = "features" ] && [ "$2" = "list" ]; then
+  printf '%s\n' 'hooks stable true' 'multi_agent stable true' 'multi_agent_v2 stable false' 'plugins stable true' 'remote_plugin stable true' 'shell_snapshot stable true' 'enable_fanout removed false' 'remote_control removed false' 'remote_models removed false'
+elif [ "$1" = "app-server" ] && [ "$2" = "--help" ]; then
+  printf '%s\n' 'generate-json-schema --listen <URL> stdio://'
+elif [ "$1" = "app-server" ] && [ "$2" = "generate-json-schema" ]; then
+  mkdir -p "$4"
+  printf '\173"definitions":\173"v2":\173"TokenUsageBreakdown":\173"required":["cachedInputTokens","inputTokens","outputTokens","reasoningOutputTokens","totalTokens"]\175\175\175,"items":[\173"title":"McpToolCallThreadItem","required":["arguments","id","server","status","tool","type"]\175],"methods":["thread/resume","turn/interrupt","thread/tokenUsage/updated","turn/completed"]\175\n' > "$4/codex_app_server_protocol.schemas.json"
 elif [ "$1" = "login" ]; then
   exit 0
 else
@@ -1744,12 +2138,10 @@ fi
                 "plugins were not disabled",
             ),
             (
-                arguments.contains("--disable\nremote_control\n"),
-                "remote control was not disabled",
-            ),
-            (
-                arguments.contains("--disable\nremote_models\n"),
-                "remote models were not disabled",
+                REMOVED_CODEX_0151_FEATURES
+                    .iter()
+                    .all(|feature| !arguments.contains(&format!("--disable\n{feature}\n"))),
+                "a removed 0.151 feature flag reached the child",
             ),
             (
                 arguments.contains("--disable\nremote_plugin\n"),
@@ -1845,14 +2237,25 @@ fi
             &executable,
             r##"#!/bin/sh
 if [ "$1" = "--version" ]; then
-  printf '%s\n' 'codex-cli 0.147.0'
+  printf '%s\n' 'codex-cli 0.151.0'
+elif [ "$1" = "exec" ] && [ "$2" = "--help" ]; then
+  printf '%s\n' 'resume --json --ignore-user-config --ignore-rules'
+elif [ "$1" = "exec" ] && [ "$2" = "resume" ] && [ "$3" = "--help" ]; then
+  printf '%s\n' 'SESSION_ID --json --ignore-user-config --ignore-rules'
+elif [ "$1" = "features" ] && [ "$2" = "list" ]; then
+  printf '%s\n' 'hooks stable true' 'multi_agent stable true' 'multi_agent_v2 stable false' 'plugins stable true' 'remote_plugin stable true' 'shell_snapshot stable true' 'enable_fanout removed false' 'remote_control removed false' 'remote_models removed false'
+elif [ "$1" = "app-server" ] && [ "$2" = "--help" ]; then
+  printf '%s\n' 'generate-json-schema --listen <URL> stdio://'
+elif [ "$1" = "app-server" ] && [ "$2" = "generate-json-schema" ]; then
+  mkdir -p "$4"
+  printf '\173"definitions":\173"v2":\173"TokenUsageBreakdown":\173"required":["cachedInputTokens","inputTokens","outputTokens","reasoningOutputTokens","totalTokens"]\175\175\175,"items":[\173"title":"McpToolCallThreadItem","required":["arguments","id","server","status","tool","type"]\175],"methods":["thread/resume","turn/interrupt","thread/tokenUsage/updated","turn/completed"]\175\n' > "$4/codex_app_server_protocol.schemas.json"
 elif [ "$1" = "login" ]; then
   exit 0
 else
   printf '%s\n' "$@" > invocation.args
   cat > delivered.stdin
   printf '%s\n' '{"type":"thread.started","thread_id":"thread-delivery"}'
-  printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":1,"output_tokens":1}}'
+  printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":1,"cached_input_tokens":0,"output_tokens":1,"reasoning_output_tokens":0}}'
 fi
 "##,
         )
@@ -1939,7 +2342,18 @@ fi
             &executable,
             r##"#!/bin/sh
 if [ "$1" = "--version" ]; then
-  printf '%s\n' 'codex-cli 0.147.0'
+  printf '%s\n' 'codex-cli 0.151.0'
+elif [ "$1" = "exec" ] && [ "$2" = "--help" ]; then
+  printf '%s\n' 'resume --json --ignore-user-config --ignore-rules'
+elif [ "$1" = "exec" ] && [ "$2" = "resume" ] && [ "$3" = "--help" ]; then
+  printf '%s\n' 'SESSION_ID --json --ignore-user-config --ignore-rules'
+elif [ "$1" = "features" ] && [ "$2" = "list" ]; then
+  printf '%s\n' 'hooks stable true' 'multi_agent stable true' 'multi_agent_v2 stable false' 'plugins stable true' 'remote_plugin stable true' 'shell_snapshot stable true' 'enable_fanout removed false' 'remote_control removed false' 'remote_models removed false'
+elif [ "$1" = "app-server" ] && [ "$2" = "--help" ]; then
+  printf '%s\n' 'generate-json-schema --listen <URL> stdio://'
+elif [ "$1" = "app-server" ] && [ "$2" = "generate-json-schema" ]; then
+  mkdir -p "$4"
+  printf '\173"definitions":\173"v2":\173"TokenUsageBreakdown":\173"required":["cachedInputTokens","inputTokens","outputTokens","reasoningOutputTokens","totalTokens"]\175\175\175,"items":[\173"title":"McpToolCallThreadItem","required":["arguments","id","server","status","tool","type"]\175],"methods":["thread/resume","turn/interrupt","thread/tokenUsage/updated","turn/completed"]\175\n' > "$4/codex_app_server_protocol.schemas.json"
 elif [ "$1" = "login" ]; then
   exit 0
 else
@@ -2027,21 +2441,33 @@ fi
     }
 
     #[test]
-    fn missing_usage_and_incompatible_structured_events_reject_the_run() {
+    fn changed_tool_event_and_usage_schemas_fail_for_their_own_reason() {
         let directory = tempfile::tempdir().expect("temporary directory");
         let executable = directory.path().join("codex-invalid-event-fixture");
         fs::write(
             &executable,
             r##"#!/bin/sh
 if [ "$1" = "--version" ]; then
-  printf '%s\n' 'codex-cli 0.147.0'
+  printf '%s\n' 'codex-cli 0.151.0'
+elif [ "$1" = "exec" ] && [ "$2" = "--help" ]; then
+  printf '%s\n' 'resume --json --ignore-user-config --ignore-rules'
+elif [ "$1" = "exec" ] && [ "$2" = "resume" ] && [ "$3" = "--help" ]; then
+  printf '%s\n' 'SESSION_ID --json --ignore-user-config --ignore-rules'
+elif [ "$1" = "features" ] && [ "$2" = "list" ]; then
+  printf '%s\n' 'hooks stable true' 'multi_agent stable true' 'multi_agent_v2 stable false' 'plugins stable true' 'remote_plugin stable true' 'shell_snapshot stable true' 'enable_fanout removed false' 'remote_control removed false' 'remote_models removed false'
+elif [ "$1" = "app-server" ] && [ "$2" = "--help" ]; then
+  printf '%s\n' 'generate-json-schema --listen <URL> stdio://'
+elif [ "$1" = "app-server" ] && [ "$2" = "generate-json-schema" ]; then
+  mkdir -p "$4"
+  printf '\173"definitions":\173"v2":\173"TokenUsageBreakdown":\173"required":["cachedInputTokens","inputTokens","outputTokens","reasoningOutputTokens","totalTokens"]\175\175\175,"items":[\173"title":"McpToolCallThreadItem","required":["arguments","id","server","status","tool","type"]\175],"methods":["thread/resume","turn/interrupt","thread/tokenUsage/updated","turn/completed"]\175\n' > "$4/codex_app_server_protocol.schemas.json"
 elif [ "$1" = "login" ]; then
   exit 0
 else
   input=$(cat)
   printf '%s\n' '{"type":"thread.started","thread_id":"thread-invalid-event"}'
   case "$input" in
-    *missing-usage*) printf '%s\n' '{"type":"turn.completed"}' ;;
+    *changed-tool*) printf '%s\n' '{"type":"item.completed","item":{"type":"mcp_tool_call","server":"ymp","tool":"submit","status":"completed"}}' ;;
+    *changed-usage*) printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":1,"output_tokens":1,"reasoning_output_tokens":0}}' ;;
     *) printf '%s\n' '{"type":"future.incompatible_event"}' ;;
   esac
 fi
@@ -2052,7 +2478,14 @@ fi
         permissions.set_mode(0o700);
         fs::set_permissions(&executable, permissions).expect("make executable");
 
-        for prompt in ["missing-usage", "incompatible-event"] {
+        for (prompt, reason) in [
+            ("changed-tool", "mcp_tool_call has no arguments"),
+            ("changed-usage", "missing integer field cached_input_tokens"),
+            (
+                "changed-event",
+                "unsupported Codex event type future.incompatible_event",
+            ),
+        ] {
             let runtime = CodexRuntime::new(&executable);
             let mut session = runtime
                 .start(InvocationRequest {
@@ -2069,14 +2502,21 @@ fi
                 session.next_event().expect("started").expect("event").event,
                 RuntimeEventKind::Started { .. }
             ));
-            assert!(matches!(
-                session.next_event().expect("failure").expect("event").event,
-                RuntimeEventKind::Failed {
-                    kind: RuntimeFailureKind::Protocol,
-                    diagnostic: Some(diagnostic),
-                    ..
-                } if diagnostic.digest.len() == 64
-            ));
+            let failure = session.next_event().expect("failure").expect("event");
+            let RuntimeEventKind::Failed {
+                kind: RuntimeFailureKind::Protocol,
+                diagnostic: Some(diagnostic),
+                ..
+            } = failure.event
+            else {
+                panic!("{prompt} did not produce a typed protocol failure");
+            };
+            let detail = format!("runtime emitted a malformed event: {reason}");
+            assert_eq!(
+                diagnostic.digest,
+                ymp_runtime_api::evidence_digest(detail.as_bytes()),
+                "{prompt} failed for another reason"
+            );
         }
     }
 
@@ -2088,7 +2528,18 @@ fi
             &executable,
             r##"#!/bin/sh
 if [ "$1" = "--version" ]; then
-  printf '%s\n' 'codex-cli 0.147.0'
+  printf '%s\n' 'codex-cli 0.151.0'
+elif [ "$1" = "exec" ] && [ "$2" = "--help" ]; then
+  printf '%s\n' 'resume --json --ignore-user-config --ignore-rules'
+elif [ "$1" = "exec" ] && [ "$2" = "resume" ] && [ "$3" = "--help" ]; then
+  printf '%s\n' 'SESSION_ID --json --ignore-user-config --ignore-rules'
+elif [ "$1" = "features" ] && [ "$2" = "list" ]; then
+  printf '%s\n' 'hooks stable true' 'multi_agent stable true' 'multi_agent_v2 stable false' 'plugins stable true' 'remote_plugin stable true' 'shell_snapshot stable true' 'enable_fanout removed false' 'remote_control removed false' 'remote_models removed false'
+elif [ "$1" = "app-server" ] && [ "$2" = "--help" ]; then
+  printf '%s\n' 'generate-json-schema --listen <URL> stdio://'
+elif [ "$1" = "app-server" ] && [ "$2" = "generate-json-schema" ]; then
+  mkdir -p "$4"
+  printf '\173"definitions":\173"v2":\173"TokenUsageBreakdown":\173"required":["cachedInputTokens","inputTokens","outputTokens","reasoningOutputTokens","totalTokens"]\175\175\175,"items":[\173"title":"McpToolCallThreadItem","required":["arguments","id","server","status","tool","type"]\175],"methods":["thread/resume","turn/interrupt","thread/tokenUsage/updated","turn/completed"]\175\n' > "$4/codex_app_server_protocol.schemas.json"
 elif [ "$1" = "login" ]; then
   exit 0
 else
@@ -2230,7 +2681,18 @@ fi
             &executable,
             r##"#!/bin/sh
 if [ "$1" = "--version" ]; then
-  printf '%s\n' 'codex-cli 0.147.0'
+  printf '%s\n' 'codex-cli 0.151.0'
+elif [ "$1" = "exec" ] && [ "$2" = "--help" ]; then
+  printf '%s\n' 'resume --json --ignore-user-config --ignore-rules'
+elif [ "$1" = "exec" ] && [ "$2" = "resume" ] && [ "$3" = "--help" ]; then
+  printf '%s\n' 'SESSION_ID --json --ignore-user-config --ignore-rules'
+elif [ "$1" = "features" ] && [ "$2" = "list" ]; then
+  printf '%s\n' 'hooks stable true' 'multi_agent stable true' 'multi_agent_v2 stable false' 'plugins stable true' 'remote_plugin stable true' 'shell_snapshot stable true' 'enable_fanout removed false' 'remote_control removed false' 'remote_models removed false'
+elif [ "$1" = "app-server" ] && [ "$2" = "--help" ]; then
+  printf '%s\n' 'generate-json-schema --listen <URL> stdio://'
+elif [ "$1" = "app-server" ] && [ "$2" = "generate-json-schema" ]; then
+  mkdir -p "$4"
+  printf '\173"definitions":\173"v2":\173"TokenUsageBreakdown":\173"required":["cachedInputTokens","inputTokens","outputTokens","reasoningOutputTokens","totalTokens"]\175\175\175,"items":[\173"title":"McpToolCallThreadItem","required":["arguments","id","server","status","tool","type"]\175],"methods":["thread/resume","turn/interrupt","thread/tokenUsage/updated","turn/completed"]\175\n' > "$4/codex_app_server_protocol.schemas.json"
 elif [ "$1" = "login" ]; then
   exit 0
 else
@@ -2285,7 +2747,18 @@ fi
             &executable,
             r##"#!/bin/sh
 if [ "$1" = "--version" ]; then
-  printf '%s\n' 'codex-cli 0.147.0'
+  printf '%s\n' 'codex-cli 0.151.0'
+elif [ "$1" = "exec" ] && [ "$2" = "--help" ]; then
+  printf '%s\n' 'resume --json --ignore-user-config --ignore-rules'
+elif [ "$1" = "exec" ] && [ "$2" = "resume" ] && [ "$3" = "--help" ]; then
+  printf '%s\n' 'SESSION_ID --json --ignore-user-config --ignore-rules'
+elif [ "$1" = "features" ] && [ "$2" = "list" ]; then
+  printf '%s\n' 'hooks stable true' 'multi_agent stable true' 'multi_agent_v2 stable false' 'plugins stable true' 'remote_plugin stable true' 'shell_snapshot stable true' 'enable_fanout removed false' 'remote_control removed false' 'remote_models removed false'
+elif [ "$1" = "app-server" ] && [ "$2" = "--help" ]; then
+  printf '%s\n' 'generate-json-schema --listen <URL> stdio://'
+elif [ "$1" = "app-server" ] && [ "$2" = "generate-json-schema" ]; then
+  mkdir -p "$4"
+  printf '\173"definitions":\173"v2":\173"TokenUsageBreakdown":\173"required":["cachedInputTokens","inputTokens","outputTokens","reasoningOutputTokens","totalTokens"]\175\175\175,"items":[\173"title":"McpToolCallThreadItem","required":["arguments","id","server","status","tool","type"]\175],"methods":["thread/resume","turn/interrupt","thread/tokenUsage/updated","turn/completed"]\175\n' > "$4/codex_app_server_protocol.schemas.json"
 elif [ "$1" = "login" ]; then
   exit 0
 else
@@ -2357,7 +2830,18 @@ fi
             &executable,
             r##"#!/bin/sh
 if [ "$1" = "--version" ]; then
-  printf '%s\n' 'codex-cli 0.147.0'
+  printf '%s\n' 'codex-cli 0.151.0'
+elif [ "$1" = "exec" ] && [ "$2" = "--help" ]; then
+  printf '%s\n' 'resume --json --ignore-user-config --ignore-rules'
+elif [ "$1" = "exec" ] && [ "$2" = "resume" ] && [ "$3" = "--help" ]; then
+  printf '%s\n' 'SESSION_ID --json --ignore-user-config --ignore-rules'
+elif [ "$1" = "features" ] && [ "$2" = "list" ]; then
+  printf '%s\n' 'hooks stable true' 'multi_agent stable true' 'multi_agent_v2 stable false' 'plugins stable true' 'remote_plugin stable true' 'shell_snapshot stable true' 'enable_fanout removed false' 'remote_control removed false' 'remote_models removed false'
+elif [ "$1" = "app-server" ] && [ "$2" = "--help" ]; then
+  printf '%s\n' 'generate-json-schema --listen <URL> stdio://'
+elif [ "$1" = "app-server" ] && [ "$2" = "generate-json-schema" ]; then
+  mkdir -p "$4"
+  printf '\173"definitions":\173"v2":\173"TokenUsageBreakdown":\173"required":["cachedInputTokens","inputTokens","outputTokens","reasoningOutputTokens","totalTokens"]\175\175\175,"items":[\173"title":"McpToolCallThreadItem","required":["arguments","id","server","status","tool","type"]\175],"methods":["thread/resume","turn/interrupt","thread/tokenUsage/updated","turn/completed"]\175\n' > "$4/codex_app_server_protocol.schemas.json"
 elif [ "$1" = "login" ]; then
   exit 0
 else
@@ -2420,7 +2904,18 @@ fi
             &executable,
             r##"#!/bin/sh
 if [ "$1" = "--version" ]; then
-  printf '%s\n' 'codex-cli 0.147.0'
+  printf '%s\n' 'codex-cli 0.151.0'
+elif [ "$1" = "exec" ] && [ "$2" = "--help" ]; then
+  printf '%s\n' 'resume --json --ignore-user-config --ignore-rules'
+elif [ "$1" = "exec" ] && [ "$2" = "resume" ] && [ "$3" = "--help" ]; then
+  printf '%s\n' 'SESSION_ID --json --ignore-user-config --ignore-rules'
+elif [ "$1" = "features" ] && [ "$2" = "list" ]; then
+  printf '%s\n' 'hooks stable true' 'multi_agent stable true' 'multi_agent_v2 stable false' 'plugins stable true' 'remote_plugin stable true' 'shell_snapshot stable true' 'enable_fanout removed false' 'remote_control removed false' 'remote_models removed false'
+elif [ "$1" = "app-server" ] && [ "$2" = "--help" ]; then
+  printf '%s\n' 'generate-json-schema --listen <URL> stdio://'
+elif [ "$1" = "app-server" ] && [ "$2" = "generate-json-schema" ]; then
+  mkdir -p "$4"
+  printf '\173"definitions":\173"v2":\173"TokenUsageBreakdown":\173"required":["cachedInputTokens","inputTokens","outputTokens","reasoningOutputTokens","totalTokens"]\175\175\175,"items":[\173"title":"McpToolCallThreadItem","required":["arguments","id","server","status","tool","type"]\175],"methods":["thread/resume","turn/interrupt","thread/tokenUsage/updated","turn/completed"]\175\n' > "$4/codex_app_server_protocol.schemas.json"
 elif [ "$1" = "login" ]; then
   exit 0
 else
@@ -2480,7 +2975,18 @@ fi
         let executable = directory.path().join("codex-launch-descriptor-fixture");
         let script = r##"#!/bin/sh
 if [ "$1" = "--version" ]; then
-  printf '%s\n' 'codex-cli 0.147.0'
+  printf '%s\n' 'codex-cli 0.151.0'
+elif [ "$1" = "exec" ] && [ "$2" = "--help" ]; then
+  printf '%s\n' 'resume --json --ignore-user-config --ignore-rules'
+elif [ "$1" = "exec" ] && [ "$2" = "resume" ] && [ "$3" = "--help" ]; then
+  printf '%s\n' 'SESSION_ID --json --ignore-user-config --ignore-rules'
+elif [ "$1" = "features" ] && [ "$2" = "list" ]; then
+  printf '%s\n' 'hooks stable true' 'multi_agent stable true' 'multi_agent_v2 stable false' 'plugins stable true' 'remote_plugin stable true' 'shell_snapshot stable true' 'enable_fanout removed false' 'remote_control removed false' 'remote_models removed false'
+elif [ "$1" = "app-server" ] && [ "$2" = "--help" ]; then
+  printf '%s\n' 'generate-json-schema --listen <URL> stdio://'
+elif [ "$1" = "app-server" ] && [ "$2" = "generate-json-schema" ]; then
+  mkdir -p "$4"
+  printf '\173"definitions":\173"v2":\173"TokenUsageBreakdown":\173"required":["cachedInputTokens","inputTokens","outputTokens","reasoningOutputTokens","totalTokens"]\175\175\175,"items":[\173"title":"McpToolCallThreadItem","required":["arguments","id","server","status","tool","type"]\175],"methods":["thread/resume","turn/interrupt","thread/tokenUsage/updated","turn/completed"]\175\n' > "$4/codex_app_server_protocol.schemas.json"
 elif [ "$1" = "login" ]; then
   exit 0
 else
@@ -2490,7 +2996,7 @@ else
   cat >/dev/null
   printf '%s\n' '{"type":"thread.started","thread_id":"thread-launch"}'
   printf '%s\n' '{"type":"item.completed","item":{"type":"mcp_tool_call","server":"ymp","tool":"submit","status":"completed","arguments":{"command_id":"launch-submit"},"result":{"committed":true},"error":null}}'
-  printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":1,"output_tokens":1}}'
+  printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":1,"cached_input_tokens":0,"output_tokens":1,"reasoning_output_tokens":0}}'
 fi
 "##;
         fs::write(&executable, script).expect("write fixture");
@@ -2645,7 +3151,18 @@ fi
             &executable,
             r##"#!/bin/sh
 if [ "$1" = "--version" ]; then
-  printf '%s\n' 'codex-cli 0.147.0'
+  printf '%s\n' 'codex-cli 0.151.0'
+elif [ "$1" = "exec" ] && [ "$2" = "--help" ]; then
+  printf '%s\n' 'resume --json --ignore-user-config --ignore-rules'
+elif [ "$1" = "exec" ] && [ "$2" = "resume" ] && [ "$3" = "--help" ]; then
+  printf '%s\n' 'SESSION_ID --json --ignore-user-config --ignore-rules'
+elif [ "$1" = "features" ] && [ "$2" = "list" ]; then
+  printf '%s\n' 'hooks stable true' 'multi_agent stable true' 'multi_agent_v2 stable false' 'plugins stable true' 'remote_plugin stable true' 'shell_snapshot stable true' 'enable_fanout removed false' 'remote_control removed false' 'remote_models removed false'
+elif [ "$1" = "app-server" ] && [ "$2" = "--help" ]; then
+  printf '%s\n' 'generate-json-schema --listen <URL> stdio://'
+elif [ "$1" = "app-server" ] && [ "$2" = "generate-json-schema" ]; then
+  mkdir -p "$4"
+  printf '\173"definitions":\173"v2":\173"TokenUsageBreakdown":\173"required":["cachedInputTokens","inputTokens","outputTokens","reasoningOutputTokens","totalTokens"]\175\175\175,"items":[\173"title":"McpToolCallThreadItem","required":["arguments","id","server","status","tool","type"]\175],"methods":["thread/resume","turn/interrupt","thread/tokenUsage/updated","turn/completed"]\175\n' > "$4/codex_app_server_protocol.schemas.json"
 elif [ "$1" = "login" ]; then
   exit 0
 else
@@ -2764,7 +3281,18 @@ fi
                 format!(
                     r##"#!/bin/sh
 if [ "$1" = "--version" ]; then
-  printf '%s\n' 'codex-cli 0.147.0'
+  printf '%s\n' 'codex-cli 0.151.0'
+elif [ "$1" = "exec" ] && [ "$2" = "--help" ]; then
+  printf '%s\n' 'resume --json --ignore-user-config --ignore-rules'
+elif [ "$1" = "exec" ] && [ "$2" = "resume" ] && [ "$3" = "--help" ]; then
+  printf '%s\n' 'SESSION_ID --json --ignore-user-config --ignore-rules'
+elif [ "$1" = "features" ] && [ "$2" = "list" ]; then
+  printf '%s\n' 'hooks stable true' 'multi_agent stable true' 'multi_agent_v2 stable false' 'plugins stable true' 'remote_plugin stable true' 'shell_snapshot stable true' 'enable_fanout removed false' 'remote_control removed false' 'remote_models removed false'
+elif [ "$1" = "app-server" ] && [ "$2" = "--help" ]; then
+  printf '%s\n' 'generate-json-schema --listen <URL> stdio://'
+elif [ "$1" = "app-server" ] && [ "$2" = "generate-json-schema" ]; then
+  mkdir -p "$4"
+  printf '\173"definitions":\173"v2":\173"TokenUsageBreakdown":\173"required":["cachedInputTokens","inputTokens","outputTokens","reasoningOutputTokens","totalTokens"]\175\175\175,"items":[\173"title":"McpToolCallThreadItem","required":["arguments","id","server","status","tool","type"]\175],"methods":["thread/resume","turn/interrupt","thread/tokenUsage/updated","turn/completed"]\175\n' > "$4/codex_app_server_protocol.schemas.json"
 elif [ "$1" = "login" ]; then
   exit 0
 else
@@ -2851,14 +3379,25 @@ fi
             path,
             r##"#!/bin/sh
 if [ "$1" = "--version" ]; then
-  printf '%s\n' 'codex-cli 0.147.0'
+  printf '%s\n' 'codex-cli 0.151.0'
+elif [ "$1" = "exec" ] && [ "$2" = "--help" ]; then
+  printf '%s\n' 'resume --json --ignore-user-config --ignore-rules'
+elif [ "$1" = "exec" ] && [ "$2" = "resume" ] && [ "$3" = "--help" ]; then
+  printf '%s\n' 'SESSION_ID --json --ignore-user-config --ignore-rules'
+elif [ "$1" = "features" ] && [ "$2" = "list" ]; then
+  printf '%s\n' 'hooks stable true' 'multi_agent stable true' 'multi_agent_v2 stable false' 'plugins stable true' 'remote_plugin stable true' 'shell_snapshot stable true' 'enable_fanout removed false' 'remote_control removed false' 'remote_models removed false'
+elif [ "$1" = "app-server" ] && [ "$2" = "--help" ]; then
+  printf '%s\n' 'generate-json-schema --listen <URL> stdio://'
+elif [ "$1" = "app-server" ] && [ "$2" = "generate-json-schema" ]; then
+  mkdir -p "$4"
+  printf '\173"definitions":\173"v2":\173"TokenUsageBreakdown":\173"required":["cachedInputTokens","inputTokens","outputTokens","reasoningOutputTokens","totalTokens"]\175\175\175,"items":[\173"title":"McpToolCallThreadItem","required":["arguments","id","server","status","tool","type"]\175],"methods":["thread/resume","turn/interrupt","thread/tokenUsage/updated","turn/completed"]\175\n' > "$4/codex_app_server_protocol.schemas.json"
 elif [ "$1" = "login" ]; then
   exit 0
 else
   cat >/dev/null
   printf '%s\n' admitted > admitted-runtime.marker
   printf '%s\n' '{"type":"thread.started","thread_id":"thread-chain"}'
-  printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":1,"output_tokens":1}}'
+  printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":1,"cached_input_tokens":0,"output_tokens":1,"reasoning_output_tokens":0}}'
 fi
 "##,
         )
@@ -2975,7 +3514,18 @@ fi
         let executable = directory.path().join("codex-admitted-runtime-fixture");
         let admitted = r##"#!/bin/sh
 if [ "$1" = "--version" ]; then
-  printf '%s\n' 'codex-cli 0.147.0'
+  printf '%s\n' 'codex-cli 0.151.0'
+elif [ "$1" = "exec" ] && [ "$2" = "--help" ]; then
+  printf '%s\n' 'resume --json --ignore-user-config --ignore-rules'
+elif [ "$1" = "exec" ] && [ "$2" = "resume" ] && [ "$3" = "--help" ]; then
+  printf '%s\n' 'SESSION_ID --json --ignore-user-config --ignore-rules'
+elif [ "$1" = "features" ] && [ "$2" = "list" ]; then
+  printf '%s\n' 'hooks stable true' 'multi_agent stable true' 'multi_agent_v2 stable false' 'plugins stable true' 'remote_plugin stable true' 'shell_snapshot stable true' 'enable_fanout removed false' 'remote_control removed false' 'remote_models removed false'
+elif [ "$1" = "app-server" ] && [ "$2" = "--help" ]; then
+  printf '%s\n' 'generate-json-schema --listen <URL> stdio://'
+elif [ "$1" = "app-server" ] && [ "$2" = "generate-json-schema" ]; then
+  mkdir -p "$4"
+  printf '\173"definitions":\173"v2":\173"TokenUsageBreakdown":\173"required":["cachedInputTokens","inputTokens","outputTokens","reasoningOutputTokens","totalTokens"]\175\175\175,"items":[\173"title":"McpToolCallThreadItem","required":["arguments","id","server","status","tool","type"]\175],"methods":["thread/resume","turn/interrupt","thread/tokenUsage/updated","turn/completed"]\175\n' > "$4/codex_app_server_protocol.schemas.json"
 elif [ "$1" = "login" ]; then
   exit 0
 else
@@ -2983,7 +3533,7 @@ else
   printf '%s\n' admitted > admitted-runtime.marker
   printf '%s\n' '{"type":"thread.started","thread_id":"thread-admitted"}'
   printf '%s\n' '{"type":"item.completed","item":{"type":"mcp_tool_call","server":"ymp","tool":"submit","status":"completed","arguments":{"command_id":"admitted-submit"},"result":{"committed":true},"error":null}}'
-  printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":1,"output_tokens":1}}'
+  printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":1,"cached_input_tokens":0,"output_tokens":1,"reasoning_output_tokens":0}}'
 fi
 "##;
         fs::write(&executable, admitted).expect("write admitted fixture");
@@ -3025,7 +3575,18 @@ fi
             &executable,
             r##"#!/bin/sh
 if [ "$1" = "--version" ]; then
-  printf '%s\n' 'codex-cli 0.147.0'
+  printf '%s\n' 'codex-cli 0.151.0'
+elif [ "$1" = "exec" ] && [ "$2" = "--help" ]; then
+  printf '%s\n' 'resume --json --ignore-user-config --ignore-rules'
+elif [ "$1" = "exec" ] && [ "$2" = "resume" ] && [ "$3" = "--help" ]; then
+  printf '%s\n' 'SESSION_ID --json --ignore-user-config --ignore-rules'
+elif [ "$1" = "features" ] && [ "$2" = "list" ]; then
+  printf '%s\n' 'hooks stable true' 'multi_agent stable true' 'multi_agent_v2 stable false' 'plugins stable true' 'remote_plugin stable true' 'shell_snapshot stable true' 'enable_fanout removed false' 'remote_control removed false' 'remote_models removed false'
+elif [ "$1" = "app-server" ] && [ "$2" = "--help" ]; then
+  printf '%s\n' 'generate-json-schema --listen <URL> stdio://'
+elif [ "$1" = "app-server" ] && [ "$2" = "generate-json-schema" ]; then
+  mkdir -p "$4"
+  printf '\173"definitions":\173"v2":\173"TokenUsageBreakdown":\173"required":["cachedInputTokens","inputTokens","outputTokens","reasoningOutputTokens","totalTokens"]\175\175\175,"items":[\173"title":"McpToolCallThreadItem","required":["arguments","id","server","status","tool","type"]\175],"methods":["thread/resume","turn/interrupt","thread/tokenUsage/updated","turn/completed"]\175\n' > "$4/codex_app_server_protocol.schemas.json"
 elif [ "$1" = "login" ]; then
   exit 0
 else
@@ -3043,7 +3604,7 @@ else
   "$bridge"
   printf '%s\n' admitted > admitted-runtime.marker
   printf '%s\n' '{"type":"thread.started","thread_id":"thread-bridge"}'
-  printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":1,"output_tokens":1}}'
+  printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":1,"cached_input_tokens":0,"output_tokens":1,"reasoning_output_tokens":0}}'
 fi
 "##,
         )
