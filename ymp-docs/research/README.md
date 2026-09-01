@@ -12,6 +12,8 @@ Rust tool; research prose links to their exact evidence instead of copying it.
 
 - [WEAK_DIAGNOSTIC.md](WEAK_DIAGNOSTIC.md) — diagnostic matched-budget comparison using weak
   participant profiles before the frozen primary study.
+- [MECHANISM_MAP.md](MECHANISM_MAP.md) — falsifiable coordination mechanisms, interventions,
+  expected null strata, and scientific stop rules.
 
 ## Standing review rule
 
