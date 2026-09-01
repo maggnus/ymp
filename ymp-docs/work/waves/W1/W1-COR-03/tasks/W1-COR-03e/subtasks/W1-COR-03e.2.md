@@ -4,14 +4,14 @@ kind: subtask
 wave: W1
 card: W1-COR-03
 parent: W1-COR-03e
-state: deferred
+state: active
 risk: significant
 maturity: BUILD
 relation: required
-depends_on: [W1-COR-03e.1]
+depends_on: [W1-COR-03e.1, W1-COR-03e.4]
 blocks: []
 created_at: 2026-09-01T12:16:00+08:00
-updated_at: 2026-09-01T21:55:00+08:00
+updated_at: 2026-09-01T22:08:00+08:00
 started_at: 2026-09-01T21:41:03+08:00
 accepted_at:
 candidate_commit:
@@ -19,8 +19,8 @@ closure_commit:
 evidence:
 duration_minutes: 0
 blocker:
-pause_reason: operator projection omits the persisted message audience; TUI cannot reconstruct it honestly
-return_trigger: W1-COR-03e.4 accepted
+pause_reason:
+return_trigger:
 deliberate_partial: false
 review_rounds: 0
 escalation_decision:
@@ -64,14 +64,14 @@ order in the shared transcript without gaining board, object-store, or control a
 
 ## Current state
 
-The transcript has an inert `BoardMessage` form and Application resolves exact payload bytes, but
-`MessageView` drops the persisted audience before `operator_board_projection()`. Implementation
-stopped without changes because TUI cannot reconstruct scope or recipients honestly.
+The audience-preserving Application projection is accepted on integrated main. The retained clean
+TUI workspace is fast-forwarded to that revision and may now render the exact owned snapshot without
+reconstructing scope or recipients.
 
 ## Next action
 
-After W1-COR-03e.4 preserves exact audience in the owned projection, fast-forward the retained clean
-workspace and implement the original vertical slice.
+Implement the original vertical slice in the retained TUI workspace and return one normal-size PNG
+only after the deterministic scenario is green.
 
 ## Guardrails
 
