@@ -11,7 +11,7 @@ relation: required
 depends_on: []
 blocks: []
 created_at: 2026-09-01T12:14:00+08:00
-updated_at: 2026-09-01T12:50:00+08:00
+updated_at: 2026-09-01T12:53:00+08:00
 started_at: 2026-09-01T12:15:03+08:00
 accepted_at:
 candidate_commit: https://github.com/maggnus/ymp/commit/ff0dae3d54f01b9c1ba3d0a244d217a714bfb0cf
@@ -32,7 +32,7 @@ escalation_decision: independent_review
 
 The application atomically persists each inert collaboration payload before its board fact and
 returns an owned operator projection whose visible messages resolve to the exact verified bytes,
-without exposing storage, a mutable board, or authority to the TUI.
+without exposing object/board storage, mutable state, or model authority through product-facing APIs.
 
 ## Scope
 
@@ -44,13 +44,17 @@ without exposing storage, a mutable board, or authority to the TUI.
 - The exact `ymp-testkit/src/lib.rs` call site that currently obtains `Application::object_store()`
   and a candidate path; it is replaced by a typed application verification operation.
 - The exact `ymp-runtime-supervisor::start_candidate` and `ymp-tui::App::from_application` call
-  sites that currently consume `Application::data_root()`; they may be replaced only by typed
-  application operations or owned values that do not reveal the storage root.
+  sites that currently consume `Application::data_root()`.
+- Removal of the generic root accessor. Trusted controller/runtime code may receive only the
+  specific workspace or evidence path it already needs; TUI construction may receive the configured
+  root from foreground composition, outside the board/operator projection.
 
 ### Out
 
 - TUI rendering or visual behaviour, runtime scheduling semantics, agent-facing tools, new board
   semantics, automatic migration, and any causal interpretation of messages.
+- Replacing accepted `InvocationRequest.workspace: PathBuf` or
+  `WorkspaceSubmission.workspace: PathBuf` with a new cross-crate capability system.
 
 ## Acceptance
 
@@ -59,25 +63,32 @@ without exposing storage, a mutable board, or authority to the TUI.
       nor the persisted board or object.
 - [ ] A digest or length mismatch, and a missing or corrupt object, fail without changing the board
       audit or durable record position.
+- [ ] No generic `Application::data_root()`, object-store accessor, board accessor, or board/store
+      path appears in the model-facing tool/RPC schema or owned operator projection. Managed runtime
+      launch still receives its exact private workspace path and TUI startup receives the configured
+      root through trusted foreground composition.
 - [ ] Existing board-section and board-projection checks, strict application Clippy, formatting,
       and `git diff --check` pass.
 
 ## Current state
 
-The clean range resolved R2's branch contamination. R3 found `Application::data_root()`; the author
-then found two necessary consumers outside the former zone and stopped without changes. Those exact
-runtime-supervisor and TUI call sites are now authorized for typed replacement.
+R3 exposed an overstrong contract: accepted runtime requests require exact workspace paths, while
+architecture treats TUI, application, and supervisor as one trusted foreground base. The corrected
+boundary removes the generic root and keeps specific paths inside trusted composition only.
 
 ## Next action
 
-Replace all three `data_root()` callers, close the accessor, and return one bounded commit.
+Have the independent reviewer confirm the corrected trust boundary, then replace all three callers.
 
 ## Guardrails
 
 - Payload bytes remain inert object data and are never parsed by the kernel or board transition.
 - An object is durable before its board fact; a later refusal may leave an unreferenced object but
   never a board record pointing to missing or partial bytes.
-- No path, object store, `BoardLedger`, or `BoardStore` crosses the application API.
+- No generic root, object/board path, `ObjectStore`, `BoardLedger`, or `BoardStore` crosses an
+  operator projection, agent tool, RPC/MCP schema, or untrusted process boundary.
+- A specific private workspace/evidence path may cross trusted application/runtime interfaces that
+  already own filesystem authority; it does not grant board/object-store access to a participant.
 
 ## Findings
 
@@ -88,6 +99,8 @@ Replace all three `data_root()` callers, close the accessor, and return one boun
   compile-fail proof did not cover this equivalent accessor.
 - R3 scope break: runtime launch and TUI construction also call `data_root()`; only those two exact
   call sites are added to the correction zone.
+- R3 contract correction: an absolute no-path rule contradicts accepted runtime request types and
+  the documented trusted foreground process; the external/model-facing boundary remains closed.
 
 ## Review rounds
 
