@@ -19,6 +19,7 @@ use ymp_runtime_api::{
     ToolHostProbeRuntimeIdentity, ToolHostProbeTool, ToolHostProbeTrust, Usage, evidence_digest,
     probe_transport_digest, tool_host_probe_tool_schema_digest,
 };
+use ymp_runtime_codex::codex_compatibility_contract_digest;
 use ymp_runtime_supervisor::execute_tool_host_probe;
 
 const DEADLINE_MS: u64 = 1_000;
@@ -79,6 +80,8 @@ fn identity(executable: &Path) -> ToolHostProbeRuntimeIdentity {
         profile: "workspace-read-write-only".to_owned(),
         cli: executable.display().to_string(),
         cli_version: "fake-cli 1.0.0".to_owned(),
+        compatibility_contract_digest: evidence_digest(b"fixture compatibility contract v1"),
+        executable_digest: evidence_digest(&fs::read(executable).expect("runtime bytes")),
         driver: "fake-process-driver".to_owned(),
         driver_version: "fake-process-driver 1.0.0".to_owned(),
         tool_schema_digest: tool_host_probe_tool_schema_digest(),
@@ -446,6 +449,13 @@ fn a_live_runtime_cannot_cross_the_owner_gate() {
     let executable = Path::new("/bin/sh");
     let mut request = request(executable);
     request.expected_runtime.runtime_kind = RuntimeKind::Codex;
+    assert_eq!(
+        execute_tool_host_probe(&LiveDriver, &workspace, request.clone()),
+        Err(ToolHostProbeError::RuntimeIdentityMismatch {
+            field: "compatibility_contract_digest"
+        })
+    );
+    request.expected_runtime.compatibility_contract_digest = codex_compatibility_contract_digest();
 
     assert_eq!(
         execute_tool_host_probe(&LiveDriver, &workspace, request),
@@ -575,6 +585,19 @@ fn separate_reservation_and_runtime_tuple_fail_before_success() {
     assert_eq!(driver.starts.load(Ordering::SeqCst), 0);
 
     let driver = ScriptedDriver::new(executable, Scenario::Success);
+    let mut wrong_contract = request(executable);
+    wrong_contract
+        .expected_runtime
+        .compatibility_contract_digest = "f".repeat(64);
+    assert_eq!(
+        execute_tool_host_probe(&driver, &workspace, wrong_contract),
+        Err(ToolHostProbeError::RuntimeIdentityMismatch {
+            field: "compatibility_contract_digest"
+        })
+    );
+    assert_eq!(driver.starts.load(Ordering::SeqCst), 0);
+
+    let driver = ScriptedDriver::new(executable, Scenario::Success);
     let mut wrong_route = request(executable);
     wrong_route.expected_runtime.route = "different-route".to_owned();
     assert_eq!(
@@ -592,6 +615,42 @@ fn separate_reservation_and_runtime_tuple_fail_before_success() {
             field: "cost_microusd"
         })
     );
+}
+
+#[test]
+fn version_difference_alone_does_not_reject_the_runtime_projection() {
+    let root = TempDir::new().expect("root");
+    let workspace = root.path().join("workspace");
+    fs::create_dir(&workspace).expect("workspace");
+    let executable = Path::new("/bin/sh");
+    let mut driver = ScriptedDriver::new(executable, Scenario::Success);
+    driver.identity.cli_version = "fake-cli 9.7.3".to_owned();
+    let mut request = request(executable);
+    request.expected_runtime.cli_version = driver.identity.cli_version.clone();
+
+    let trace = execute_tool_host_probe(&driver, &workspace, request)
+        .expect("compatible behavior with a different observed version");
+    assert_eq!(trace.runtime.cli_version, "fake-cli 9.7.3");
+}
+
+#[test]
+fn executable_replacement_after_identity_measurement_is_refused_before_start() {
+    let root = TempDir::new().expect("root");
+    let workspace = root.path().join("workspace");
+    fs::create_dir(&workspace).expect("workspace");
+    let executable = root.path().join("runtime");
+    fs::write(&executable, b"measured runtime bytes").expect("measured runtime");
+    let driver = ScriptedDriver::new(&executable, Scenario::Success);
+    let request = request(&executable);
+    fs::write(&executable, b"substituted runtime bytes").expect("substituted runtime");
+
+    assert_eq!(
+        execute_tool_host_probe(&driver, &workspace, request),
+        Err(ToolHostProbeError::RuntimeIdentityMismatch {
+            field: "executable_digest"
+        })
+    );
+    assert_eq!(driver.starts.load(Ordering::SeqCst), 0);
 }
 
 struct ProcessDriver {

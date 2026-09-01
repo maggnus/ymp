@@ -938,7 +938,7 @@ impl Usage {
     }
 }
 
-pub const TOOL_HOST_PROBE_SCHEMA_VERSION: u32 = 2;
+pub const TOOL_HOST_PROBE_SCHEMA_VERSION: u32 = 3;
 pub const TOOL_HOST_PROBE_WORKSPACE_SERVER: &str = "ymp.workspace";
 pub const TOOL_HOST_PROBE_MCP_PROTOCOL_VERSION: &str = "2025-11-25";
 pub const TOOL_HOST_PROBE_SERVER_VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -1013,6 +1013,8 @@ pub struct ToolHostProbeRuntimeIdentity {
     pub profile: String,
     pub cli: String,
     pub cli_version: String,
+    pub compatibility_contract_digest: String,
+    pub executable_digest: String,
     pub driver: String,
     pub driver_version: String,
     pub tool_schema_digest: String,
@@ -1370,6 +1372,8 @@ mod tool_host_probe_schema_tests {
             profile: "fixture-profile".to_owned(),
             cli: "/fixture/runtime".to_owned(),
             cli_version: "fixture-cli 1".to_owned(),
+            compatibility_contract_digest: "4".repeat(64),
+            executable_digest: "5".repeat(64),
             driver: "fixture-driver".to_owned(),
             driver_version: "fixture-driver 1".to_owned(),
             tool_schema_digest: tool_host_probe_tool_schema_digest(),
@@ -1486,6 +1490,18 @@ mod tool_host_probe_schema_tests {
             .expect("runtime object")
             .remove("probe_transport_digest");
         assert!(serde_json::from_value::<ToolHostProbeTrace>(missing_digest).is_err());
+
+        for field in ["compatibility_contract_digest", "executable_digest"] {
+            let mut missing = serde_json::to_value(trace()).expect("trace value");
+            missing["runtime"]
+                .as_object_mut()
+                .expect("runtime object")
+                .remove(field);
+            assert!(
+                serde_json::from_value::<ToolHostProbeTrace>(missing).is_err(),
+                "runtime identity accepted missing {field}"
+            );
+        }
     }
 
     #[test]

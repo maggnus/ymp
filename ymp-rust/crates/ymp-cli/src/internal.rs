@@ -781,7 +781,9 @@ mod tests {
 
     impl FakeProbeDriver {
         fn new(probe_transport: ProbeTransportIdentity) -> Self {
-            let executable = PathBuf::from("ymp-internal-fake");
+            let executable = std::env::current_exe().expect("current test executable");
+            let executable_digest =
+                ymp_domain::digest_bytes(&fs::read(&executable).expect("test executable bytes"));
             let probe_transport_digest = probe_transport_digest(&probe_transport);
             Self {
                 executable: executable.clone(),
@@ -791,6 +793,10 @@ mod tests {
                     profile: "workspace-read-write-only".to_owned(),
                     cli: executable.display().to_string(),
                     cli_version: "fake-cli 1.0.0".to_owned(),
+                    compatibility_contract_digest: ymp_domain::digest_bytes(
+                        b"fixture compatibility contract v1",
+                    ),
+                    executable_digest,
                     driver: "fake-process-driver".to_owned(),
                     driver_version: "fake-process-driver 1.0.0".to_owned(),
                     tool_schema_digest: tool_host_probe_tool_schema_digest(),

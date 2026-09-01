@@ -22,6 +22,19 @@ use ymp_runtime_api::{
     verify_admitted_programs,
 };
 
+/// Canonical behavioral surface an installed Codex executable must satisfy. The observed release
+/// string is deliberately absent: it is evidence recorded beside this contract, not an acceptance
+/// predicate. The JSON is kept as one canonical byte string so downstream admission can bind its
+/// digest without re-serializing a second representation.
+pub const CODEX_COMPATIBILITY_CONTRACT: &str = r#"{"contract_version":1,"app_server_help":{"required":["generate-json-schema","--listen <URL>","stdio://"]},"app_server_schema":{"events":["thread/resume","turn/interrupt","thread/tokenUsage/updated","turn/completed"],"tool":{"required":["arguments","id","server","status","tool","type"],"title":"McpToolCallThreadItem"},"usage":{"pointer":"/definitions/v2/TokenUsageBreakdown","required":["cachedInputTokens","inputTokens","outputTokens","reasoningOutputTokens","totalTokens"]}},"cancellation":{"terminal":"cancelled","tree":"all_descendants"},"descendant_termination":{"boundaries":["timeout","interrupt","drop"],"tree":"all_descendants"},"exec_help":{"required":["--json","--ignore-user-config","--ignore-rules","resume"]},"features":{"removed":["enable_fanout","remote_control","remote_models"],"required_not_removed":["hooks","multi_agent","multi_agent_v2","plugins","remote_plugin","shell_snapshot"]},"launch_feature_flags":{"removed_disable":["enable_fanout","remote_control","remote_models"],"required_disable":["hooks","multi_agent","multi_agent_v2","plugins","remote_plugin","shell_snapshot"]},"resume":{"help_required":["SESSION_ID","--json","--ignore-user-config","--ignore-rules"],"identity":"stable_thread_id"},"runtime_events":{"allowed":["thread.started","turn.started","item.started","item.updated","item.completed","turn.completed","turn.failed","error"],"mcp_status":["inProgress","completed","failed"],"tool_required":["arguments","server","status","tool"],"usage_required":["input_tokens","cached_input_tokens","output_tokens","reasoning_output_tokens"]}}"#;
+
+pub fn codex_compatibility_contract_digest() -> String {
+    evidence_digest(CODEX_COMPATIBILITY_CONTRACT.as_bytes())
+}
+/// Compatibility alias retained for the accepted v1 product fixtures and admission reader. The
+/// Codex driver and supervisor never use it for runtime admission; W1-EVL-04q owns its remaining
+/// product consumer and turns v1 into immutable historical evidence.
+#[doc(hidden)]
 pub const PINNED_CODEX_VERSION: &str = "codex-cli 0.151.0";
 /// The model route the managed profile requests. `gpt-5.6-sol` was refused with HTTP 400
 /// (`invalid_request_error`: not supported when using Codex with a ChatGPT account), so the route
@@ -73,8 +86,8 @@ const DISABLED_AMBIENT_FEATURES: [&str; 32] = [
     "view_image",
     "web_search_request",
 ];
-const REMOVED_CODEX_0151_FEATURES: [&str; 3] = ["enable_fanout", "remote_control", "remote_models"];
-const REQUIRED_CODEX_0151_FEATURES: [&str; 6] = [
+const REMOVED_CODEX_FEATURES: [&str; 3] = ["enable_fanout", "remote_control", "remote_models"];
+const REQUIRED_CODEX_FEATURES: [&str; 6] = [
     "hooks",
     "multi_agent",
     "multi_agent_v2",
@@ -100,7 +113,6 @@ impl CodexSandbox {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct CodexProfile {
-    pub expected_version: String,
     pub model: String,
     pub reasoning_effort: String,
     pub approval_policy: String,
@@ -113,7 +125,6 @@ pub struct CodexProfile {
 impl Default for CodexProfile {
     fn default() -> Self {
         Self {
-            expected_version: PINNED_CODEX_VERSION.to_owned(),
             model: PINNED_CODEX_MODEL.to_owned(),
             reasoning_effort: "low".to_owned(),
             approval_policy: "never".to_owned(),
@@ -127,12 +138,6 @@ impl Default for CodexProfile {
 
 impl CodexProfile {
     fn validate(&self) -> Result<(), RuntimeError> {
-        if self.expected_version != PINNED_CODEX_VERSION {
-            return Err(RuntimeError::InvalidProfile(format!(
-                "unmeasured Codex version {}; this build requires {PINNED_CODEX_VERSION}",
-                self.expected_version
-            )));
-        }
         if self.model != PINNED_CODEX_MODEL {
             return Err(RuntimeError::InvalidProfile(format!(
                 "unapproved Codex model {}",
@@ -283,14 +288,14 @@ impl CodexRuntime {
         let output = command.args(arguments).output()?;
         if !output.status.success() {
             return Err(RuntimeError::InvalidProfile(format!(
-                "codex_0151_{label}_probe_failed: exited with {}",
+                "codex_compatibility_{label}_probe_failed: exited with {}",
                 output.status
             )));
         }
         String::from_utf8(output.stdout).map_err(|_| RuntimeError::NonUtf8Output)
     }
 
-    fn observe_0151_surface(
+    fn observe_compatibility_surface(
         &self,
         executable: &Path,
         environment: &[EnvironmentValue],
@@ -300,7 +305,7 @@ impl CodexRuntime {
         for required in ["--json", "--ignore-user-config", "--ignore-rules", "resume"] {
             if !exec_help.contains(required) {
                 return Err(RuntimeError::InvalidProfile(format!(
-                    "codex_0151_exec_help_mismatch: missing {required}"
+                    "codex_compatibility_exec_help_mismatch: missing {required}"
                 )));
             }
         }
@@ -318,25 +323,25 @@ impl CodexRuntime {
         ] {
             if !resume_help.contains(required) {
                 return Err(RuntimeError::InvalidProfile(format!(
-                    "codex_0151_resume_help_mismatch: missing {required}"
+                    "codex_compatibility_resume_help_mismatch: missing {required}"
                 )));
             }
         }
 
         let features =
             self.observation(executable, environment, "features", &["features", "list"])?;
-        for feature in REMOVED_CODEX_0151_FEATURES {
+        for feature in REMOVED_CODEX_FEATURES {
             if feature_state(&features, feature).as_deref() != Some("removed") {
                 return Err(RuntimeError::InvalidProfile(format!(
-                    "codex_0151_feature_state_mismatch: {feature} is not removed"
+                    "codex_compatibility_feature_state_mismatch: {feature} is not removed"
                 )));
             }
         }
-        for feature in REQUIRED_CODEX_0151_FEATURES {
+        for feature in REQUIRED_CODEX_FEATURES {
             match feature_state(&features, feature).as_deref() {
                 Some("removed") | None => {
                     return Err(RuntimeError::InvalidProfile(format!(
-                        "codex_0151_feature_state_mismatch: {feature} cannot be disabled"
+                        "codex_compatibility_feature_state_mismatch: {feature} cannot be disabled"
                     )));
                 }
                 Some(_) => {}
@@ -352,13 +357,13 @@ impl CodexRuntime {
         for required in ["generate-json-schema", "--listen <URL>", "stdio://"] {
             if !app_server_help.contains(required) {
                 return Err(RuntimeError::InvalidProfile(format!(
-                    "codex_0151_app_server_help_mismatch: missing {required}"
+                    "codex_compatibility_app_server_help_mismatch: missing {required}"
                 )));
             }
         }
 
         let schema_directory = tempfile::Builder::new()
-            .prefix("ymp-codex-0151-schema-")
+            .prefix("ymp-codex-compatibility-schema-")
             .tempdir()?;
         let schema_path = schema_directory.path().to_str().ok_or_else(|| {
             RuntimeError::InvalidProfile(
@@ -378,15 +383,16 @@ impl CodexRuntime {
         )?;
         if schema.len() > self.profile.output_limit_bytes {
             return Err(RuntimeError::InvalidProfile(
-                "codex_0151_app_server_schema_mismatch: schema exceeds output limit".to_owned(),
+                "codex_compatibility_app_server_schema_mismatch: schema exceeds output limit"
+                    .to_owned(),
             ));
         }
         let schema: Value = serde_json::from_slice(&schema).map_err(|error| {
             RuntimeError::InvalidProfile(format!(
-                "codex_0151_app_server_schema_mismatch: invalid JSON: {error}"
+                "codex_compatibility_app_server_schema_mismatch: invalid JSON: {error}"
             ))
         })?;
-        validate_0151_app_server_schema(&schema)?;
+        validate_compatibility_app_server_schema(&schema)?;
         Ok(())
     }
 }
@@ -625,7 +631,7 @@ impl CodexLaunch {
             arguments.push(session_id.to_owned());
         }
         arguments.push("-".to_owned());
-        validate_0151_launch_arguments(&arguments)?;
+        validate_compatibility_launch_arguments(&arguments)?;
         Ok(arguments)
     }
 
@@ -811,19 +817,17 @@ impl RuntimeDriver for CodexRuntime {
             .map_err(|_| RuntimeError::NonUtf8Output)?
             .trim()
             .to_owned();
-        if version != self.profile.expected_version {
+        if version.is_empty() || version.len() > 4096 {
             return Ok(ProbeReport {
                 kind: RuntimeKind::Codex,
                 executable: self.executable.display().to_string(),
                 version: Some(version.clone()),
                 readiness: Readiness::Incompatible,
-                detail: format!(
-                    "profile requires {}, found {version}",
-                    self.profile.expected_version
-                ),
+                detail: "codex_compatibility_version_observation_invalid".to_owned(),
             });
         }
-        if let Err(error) = self.observe_0151_surface(&admitted.execution_path, &environment_values)
+        if let Err(error) =
+            self.observe_compatibility_surface(&admitted.execution_path, &environment_values)
         {
             return Ok(ProbeReport {
                 kind: RuntimeKind::Codex,
@@ -851,7 +855,7 @@ impl RuntimeDriver for CodexRuntime {
             version: Some(version),
             readiness: Readiness::Ready,
             detail: format!(
-                "pinned local profile ready: model={}, api_origin={}, reasoning_effort={}, approval_policy={}, prompt_policy={}, sandbox={}, environment=synthetic_allowlist_v1, wall_time_limit_ms={}, output_limit_bytes={}",
+                "behaviorally compatible local profile ready: model={}, api_origin={}, reasoning_effort={}, approval_policy={}, prompt_policy={}, sandbox={}, environment=synthetic_allowlist_v1, wall_time_limit_ms={}, output_limit_bytes={}",
                 self.profile.model,
                 PINNED_CODEX_API_ORIGIN,
                 self.profile.reasoning_effort,
@@ -1525,24 +1529,24 @@ fn feature_state(observed: &str, feature: &str) -> Option<String> {
         })
 }
 
-fn validate_0151_launch_arguments(arguments: &[String]) -> Result<(), RuntimeError> {
-    for removed in REMOVED_CODEX_0151_FEATURES {
+fn validate_compatibility_launch_arguments(arguments: &[String]) -> Result<(), RuntimeError> {
+    for removed in REMOVED_CODEX_FEATURES {
         if arguments
             .windows(2)
             .any(|pair| pair[0] == "--disable" && pair[1] == removed)
         {
             return Err(RuntimeError::InvalidProfile(format!(
-                "codex_0151_removed_flag: --disable {removed}"
+                "codex_compatibility_removed_flag: --disable {removed}"
             )));
         }
     }
-    for required in REQUIRED_CODEX_0151_FEATURES {
+    for required in REQUIRED_CODEX_FEATURES {
         if !arguments
             .windows(2)
             .any(|pair| pair[0] == "--disable" && pair[1] == required)
         {
             return Err(RuntimeError::InvalidProfile(format!(
-                "codex_0151_feature_not_disabled: {required}"
+                "codex_compatibility_feature_not_disabled: {required}"
             )));
         }
     }
@@ -1590,14 +1594,14 @@ fn schema_contains_string(value: &Value, expected: &str) -> bool {
     }
 }
 
-fn validate_0151_app_server_schema(schema: &Value) -> Result<(), RuntimeError> {
+fn validate_compatibility_app_server_schema(schema: &Value) -> Result<(), RuntimeError> {
     if !schema_contains_object(
         schema,
         "McpToolCallThreadItem",
         &["arguments", "id", "server", "status", "tool", "type"],
     ) {
         return Err(RuntimeError::InvalidProfile(
-            "codex_0151_app_server_tool_schema_mismatch".to_owned(),
+            "codex_compatibility_app_server_tool_schema_mismatch".to_owned(),
         ));
     }
     let usage = schema
@@ -1616,7 +1620,7 @@ fn validate_0151_app_server_schema(schema: &Value) -> Result<(), RuntimeError> {
         });
     if usage.is_none() {
         return Err(RuntimeError::InvalidProfile(
-            "codex_0151_app_server_usage_schema_mismatch".to_owned(),
+            "codex_compatibility_app_server_usage_schema_mismatch".to_owned(),
         ));
     }
     for method in [
@@ -1627,7 +1631,7 @@ fn validate_0151_app_server_schema(schema: &Value) -> Result<(), RuntimeError> {
     ] {
         if !schema_contains_string(schema, method) {
             return Err(RuntimeError::InvalidProfile(format!(
-                "codex_0151_app_server_event_schema_mismatch: missing {method}"
+                "codex_compatibility_app_server_event_schema_mismatch: missing {method}"
             )));
         }
     }
@@ -1809,9 +1813,10 @@ fn coordination_tools(capabilities: AgentToolCapabilities) -> Vec<&'static str> 
 #[cfg(test)]
 mod tests {
     use super::{
-        CodexProfile, CodexRuntime, DISABLED_AMBIENT_FEATURES, PINNED_CODEX_MODEL,
-        PINNED_CODEX_VERSION, REMOVED_CODEX_0151_FEATURES, add_mcp_config_arguments,
-        validate_0151_app_server_schema, validate_0151_launch_arguments,
+        CODEX_COMPATIBILITY_CONTRACT, CodexProfile, CodexRuntime, DISABLED_AMBIENT_FEATURES,
+        PINNED_CODEX_MODEL, REMOVED_CODEX_FEATURES, REQUIRED_CODEX_FEATURES,
+        add_mcp_config_arguments, codex_compatibility_contract_digest,
+        validate_compatibility_app_server_schema, validate_compatibility_launch_arguments,
     };
     use std::fs;
     use std::os::unix::fs::PermissionsExt;
@@ -1827,6 +1832,52 @@ mod tests {
             session.next_event().expect("launch").expect("event").event,
             RuntimeEventKind::Launch { .. }
         ));
+    }
+
+    fn write_compatibility_probe_fixture(path: &Path, version: &str, mutation: &str) {
+        let exec_help = if mutation == "exec_help" {
+            "resume --ignore-user-config --ignore-rules"
+        } else {
+            "resume --json --ignore-user-config --ignore-rules"
+        };
+        let features = if mutation == "feature" {
+            "hooks removed false\nmulti_agent stable true\nmulti_agent_v2 stable false\nplugins stable true\nremote_plugin stable true\nshell_snapshot stable true\nenable_fanout removed false\nremote_control removed false\nremote_models removed false"
+        } else {
+            "hooks stable true\nmulti_agent stable true\nmulti_agent_v2 stable false\nplugins stable true\nremote_plugin stable true\nshell_snapshot stable true\nenable_fanout removed false\nremote_control removed false\nremote_models removed false"
+        };
+        let schema = if mutation == "schema" {
+            r#"{"definitions":{"v2":{"TokenUsageBreakdown":{"required":["cachedInputTokens","inputTokens","outputTokens","reasoningOutputTokens","totalTokens"]}}},"items":[{"title":"McpToolCallThreadItem","required":["id","server","status","tool","type"]}],"methods":["thread/resume","turn/interrupt","thread/tokenUsage/updated","turn/completed"]}"#
+        } else {
+            r#"{"definitions":{"v2":{"TokenUsageBreakdown":{"required":["cachedInputTokens","inputTokens","outputTokens","reasoningOutputTokens","totalTokens"]}}},"items":[{"title":"McpToolCallThreadItem","required":["arguments","id","server","status","tool","type"]}],"methods":["thread/resume","turn/interrupt","thread/tokenUsage/updated","turn/completed"]}"#
+        };
+        let script = r##"#!/bin/sh
+if [ "$1" = "--version" ]; then
+  printf '%s\n' '__VERSION__'
+elif [ "$1" = "exec" ] && [ "$2" = "--help" ]; then
+  printf '%s\n' '__EXEC_HELP__'
+elif [ "$1" = "exec" ] && [ "$2" = "resume" ] && [ "$3" = "--help" ]; then
+  printf '%s\n' 'SESSION_ID --json --ignore-user-config --ignore-rules'
+elif [ "$1" = "features" ] && [ "$2" = "list" ]; then
+  printf '%s\n' '__FEATURES__'
+elif [ "$1" = "app-server" ] && [ "$2" = "--help" ]; then
+  printf '%s\n' 'generate-json-schema --listen <URL> stdio://'
+elif [ "$1" = "app-server" ] && [ "$2" = "generate-json-schema" ]; then
+  mkdir -p "$4"
+  printf '%s\n' '__SCHEMA__' > "$4/codex_app_server_protocol.schemas.json"
+elif [ "$1" = "login" ] && [ "$2" = "status" ]; then
+  exit 0
+else
+  exit 64
+fi
+"##
+        .replace("__VERSION__", version)
+        .replace("__EXEC_HELP__", exec_help)
+        .replace("__FEATURES__", features)
+        .replace("__SCHEMA__", schema);
+        fs::write(path, script).expect("write compatibility fixture");
+        let mut permissions = fs::metadata(path).expect("metadata").permissions();
+        permissions.set_mode(0o700);
+        fs::set_permissions(path, permissions).expect("make fixture executable");
     }
 
     #[test]
@@ -1861,17 +1912,6 @@ mod tests {
             Err(RuntimeError::InvalidProfile(_))
         ));
 
-        for expected_version in ["codex-cli 0.147.0", "codex-cli 0.152.0", ""] {
-            let profile = CodexProfile {
-                expected_version: expected_version.to_owned(),
-                ..CodexProfile::default()
-            };
-            let error = profile
-                .validate()
-                .expect_err("an unmeasured Codex version must fail closed");
-            assert!(matches!(error, RuntimeError::InvalidProfile(_)));
-        }
-
         let profile = CodexProfile {
             output_limit_bytes: 0,
             ..CodexProfile::default()
@@ -1902,28 +1942,62 @@ mod tests {
     }
 
     #[test]
-    fn default_runtime_exposes_pinned_profile() {
+    fn default_runtime_exposes_the_managed_profile_without_a_version_selector() {
         let runtime = CodexRuntime::default();
-        assert_eq!(runtime.profile().expected_version, PINNED_CODEX_VERSION);
         assert_eq!(runtime.profile().model, PINNED_CODEX_MODEL);
         assert_eq!(runtime.profile().reasoning_effort, "low");
     }
 
     #[test]
-    fn removed_0151_flags_and_schema_mutations_have_distinct_refusals() {
+    fn compatibility_contract_covers_the_measured_surface() {
+        let contract: serde_json::Value =
+            serde_json::from_str(CODEX_COMPATIBILITY_CONTRACT).expect("canonical contract JSON");
+        assert_eq!(contract["contract_version"], 1);
+        for dimension in [
+            "app_server_help",
+            "app_server_schema",
+            "cancellation",
+            "descendant_termination",
+            "exec_help",
+            "features",
+            "launch_feature_flags",
+            "resume",
+            "runtime_events",
+        ] {
+            assert!(
+                !contract[dimension].is_null(),
+                "contract omitted {dimension}"
+            );
+        }
+        assert_eq!(
+            contract["features"]["removed"],
+            serde_json::json!(REMOVED_CODEX_FEATURES)
+        );
+        assert_eq!(
+            contract["features"]["required_not_removed"],
+            serde_json::json!(REQUIRED_CODEX_FEATURES)
+        );
+        assert_eq!(codex_compatibility_contract_digest().len(), 64);
+    }
+
+    #[test]
+    fn removed_flags_and_schema_mutations_have_distinct_refusals() {
         let mut arguments = vec!["exec".to_owned()];
         for feature in DISABLED_AMBIENT_FEATURES {
             arguments.extend(["--disable".to_owned(), feature.to_owned()]);
         }
-        validate_0151_launch_arguments(&arguments)
-            .expect("the measured 0.151 launch flags are accepted");
-        for removed in REMOVED_CODEX_0151_FEATURES {
+        validate_compatibility_launch_arguments(&arguments)
+            .expect("the measured launch flags are accepted");
+        for removed in REMOVED_CODEX_FEATURES {
             let mut retained = arguments.clone();
             retained.extend(["--disable".to_owned(), removed.to_owned()]);
-            let error = validate_0151_launch_arguments(&retained)
+            let error = validate_compatibility_launch_arguments(&retained)
                 .expect_err("a removed flag must be refused")
                 .to_string();
-            assert!(error.contains("codex_0151_removed_flag"), "{error}");
+            assert!(
+                error.contains("codex_compatibility_removed_flag"),
+                "{error}"
+            );
             assert!(error.contains(removed), "{error}");
         }
 
@@ -1946,12 +2020,12 @@ mod tests {
                 "thread/resume", "turn/interrupt", "thread/tokenUsage/updated", "turn/completed"
             ]
         });
-        validate_0151_app_server_schema(&schema).expect("the measured schema is accepted");
+        validate_compatibility_app_server_schema(&schema).expect("the measured schema is accepted");
 
         let mut changed_tool = schema.clone();
         changed_tool["items"][0]["required"] =
             serde_json::json!(["id", "server", "status", "tool", "type"]);
-        let error = validate_0151_app_server_schema(&changed_tool)
+        let error = validate_compatibility_app_server_schema(&changed_tool)
             .expect_err("a changed tool schema must be refused")
             .to_string();
         assert!(error.contains("tool_schema_mismatch"), "{error}");
@@ -1964,7 +2038,7 @@ mod tests {
                 "reasoningOutputTokens",
                 "totalTokens"
             ]);
-        let error = validate_0151_app_server_schema(&changed_usage)
+        let error = validate_compatibility_app_server_schema(&changed_usage)
             .expect_err("a changed usage schema must be refused")
             .to_string();
         assert!(error.contains("usage_schema_mismatch"), "{error}");
@@ -1975,30 +2049,57 @@ mod tests {
             "thread/tokenUsage/updated",
             "turn/completed"
         ]);
-        let error = validate_0151_app_server_schema(&changed_event)
+        let error = validate_compatibility_app_server_schema(&changed_event)
             .expect_err("a changed event schema must be refused")
             .to_string();
         assert!(error.contains("event_schema_mismatch"), "{error}");
     }
 
     #[test]
-    fn false_0151_version_output_is_incompatible_before_other_probes() {
+    fn version_difference_is_evidence_and_never_an_acceptance_predicate() {
         let directory = tempfile::tempdir().expect("temporary directory");
-        let executable = directory.path().join("codex-false-version");
-        fs::write(
-            &executable,
-            "#!/bin/sh\nprintf '%s\\n' 'codex-cli 0.152.0'\n",
-        )
-        .expect("write false-version fixture");
-        let mut permissions = fs::metadata(&executable).expect("metadata").permissions();
-        permissions.set_mode(0o700);
-        fs::set_permissions(&executable, permissions).expect("make executable");
-        let probe = CodexRuntime::new(&executable)
-            .probe()
-            .expect("version probe");
-        assert_eq!(probe.readiness, Readiness::Incompatible);
-        assert_eq!(probe.version.as_deref(), Some("codex-cli 0.152.0"));
-        assert!(probe.detail.contains(PINNED_CODEX_VERSION));
+        let mut evidence = Vec::new();
+        for (name, version) in [
+            ("historical", "codex-cli 0.151.0"),
+            ("different", "codex-cli 9.7.3"),
+        ] {
+            let executable = directory.path().join(format!("codex-{name}"));
+            write_compatibility_probe_fixture(&executable, version, "compatible");
+            let runtime = CodexRuntime::new(&executable);
+            let probe = runtime.probe().expect("behavioral probe");
+            assert_eq!(probe.readiness, Readiness::Ready, "{}", probe.detail);
+            evidence.push((
+                probe.version.expect("observed version"),
+                runtime.executable_digest().expect("executable digest"),
+                codex_compatibility_contract_digest(),
+            ));
+        }
+        assert_ne!(evidence[0].0, evidence[1].0);
+        assert_ne!(evidence[0].1, evidence[1].1);
+        assert_eq!(evidence[0].2, evidence[1].2);
+    }
+
+    #[test]
+    fn historical_version_with_behavior_drift_fails_its_exact_check() {
+        let directory = tempfile::tempdir().expect("temporary directory");
+        for (mutation, reason) in [
+            ("exec_help", "exec_help_mismatch"),
+            ("feature", "feature_state_mismatch"),
+            ("schema", "tool_schema_mismatch"),
+        ] {
+            let executable = directory.path().join(format!("codex-{mutation}"));
+            write_compatibility_probe_fixture(&executable, "codex-cli 0.151.0", mutation);
+            let probe = CodexRuntime::new(&executable)
+                .probe()
+                .expect("behavioral probe");
+            assert_eq!(probe.readiness, Readiness::Incompatible);
+            assert_eq!(probe.version.as_deref(), Some("codex-cli 0.151.0"));
+            assert!(
+                probe.detail.contains(reason),
+                "{mutation}: {}",
+                probe.detail
+            );
+        }
     }
 
     #[test]
@@ -2138,10 +2239,10 @@ fi
                 "plugins were not disabled",
             ),
             (
-                REMOVED_CODEX_0151_FEATURES
+                REMOVED_CODEX_FEATURES
                     .iter()
                     .all(|feature| !arguments.contains(&format!("--disable\n{feature}\n"))),
-                "a removed 0.151 feature flag reached the child",
+                "a removed compatibility feature flag reached the child",
             ),
             (
                 arguments.contains("--disable\nremote_plugin\n"),

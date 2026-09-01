@@ -32,6 +32,7 @@ use ymp_runtime_api::{
     admit_lifecycle_programs, evidence_digest, tool_host_probe_tool_schema_digest,
     unestablished_terminations,
 };
+use ymp_runtime_codex::codex_compatibility_contract_digest;
 
 mod kernel;
 
@@ -42,7 +43,6 @@ const MAX_CONTRACT_BYTES: usize = 1024 * 1024;
 const MAX_PROMPT_BYTES: usize = 64 * 1024;
 const MAX_RUNTIME_EVIDENCE_BYTES: u64 = 4 * 1024 * 1024;
 const RUNTIME_EVIDENCE_SCHEMA_VERSION: u32 = 3;
-const SUPPORTED_CODEX_RUNTIME_VERSION: &str = "codex-cli 0.151.0";
 
 /// How long a controller waits for its worker to end before it stops waiting.
 ///
@@ -1223,6 +1223,24 @@ fn validate_tool_host_probe_identity(
             return Err(ToolHostProbeError::InvalidIdentity { field });
         }
     }
+    for (field, digest) in [
+        (
+            "compatibility_contract_digest",
+            identity.compatibility_contract_digest.as_str(),
+        ),
+        ("executable_digest", identity.executable_digest.as_str()),
+    ] {
+        if !is_sha256_digest(digest) {
+            return Err(ToolHostProbeError::InvalidIdentity { field });
+        }
+    }
+    if identity.runtime_kind == RuntimeKind::Codex
+        && identity.compatibility_contract_digest != codex_compatibility_contract_digest()
+    {
+        return Err(ToolHostProbeError::RuntimeIdentityMismatch {
+            field: "compatibility_contract_digest",
+        });
+    }
     if identity.tool_schema_digest != tool_host_probe_tool_schema_digest() {
         return Err(ToolHostProbeError::RuntimeIdentityMismatch {
             field: "tool_schema_digest",
@@ -1337,6 +1355,15 @@ fn validate_tool_host_probe_projection(
             field: "cli_version",
         });
     }
+    let actual_executable_digest = fs::read(driver.executable())
+        .ok()
+        .filter(|_| driver.executable().is_file())
+        .map(|bytes| evidence_digest(&bytes));
+    if actual_executable_digest.as_deref() != Some(expected.executable_digest.as_str()) {
+        return Err(ToolHostProbeError::RuntimeIdentityMismatch {
+            field: "executable_digest",
+        });
+    }
     Ok(())
 }
 
@@ -1353,6 +1380,14 @@ fn compare_tool_host_probe_identity(
         ("profile", expected.profile == observed.profile),
         ("cli", expected.cli == observed.cli),
         ("cli_version", expected.cli_version == observed.cli_version),
+        (
+            "compatibility_contract_digest",
+            expected.compatibility_contract_digest == observed.compatibility_contract_digest,
+        ),
+        (
+            "executable_digest",
+            expected.executable_digest == observed.executable_digest,
+        ),
         ("driver", expected.driver == observed.driver),
         (
             "driver_version",
@@ -1564,6 +1599,13 @@ fn elapsed_millis(started_at: Instant) -> u64 {
     u64::try_from(started_at.elapsed().as_millis()).unwrap_or(u64::MAX)
 }
 
+fn is_sha256_digest(value: &str) -> bool {
+    value.len() == 64
+        && value
+            .bytes()
+            .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
+}
+
 fn validate_runtime_probe(kind: RuntimeKind, probe: &ProbeReport) -> anyhow::Result<()> {
     if probe.kind != kind {
         bail!("runtime_probe_kind_mismatch");
@@ -1576,11 +1618,8 @@ fn validate_runtime_probe(kind: RuntimeKind, probe: &ProbeReport) -> anyhow::Res
             .version
             .as_deref()
             .context("codex_runtime_projection_missing")?;
-        if version != SUPPORTED_CODEX_RUNTIME_VERSION {
-            bail!(
-                "codex_runtime_projection_mismatch: expected {}, found {version}",
-                SUPPORTED_CODEX_RUNTIME_VERSION
-            );
+        if version.is_empty() {
+            bail!("codex_runtime_projection_missing");
         }
     }
     Ok(())
@@ -2824,10 +2863,9 @@ pub fn initialize_private_git(workspace: &Path, git: &AdmittedProgram) -> anyhow
 mod tests {
     use super::{
         CONTROLLER_SHUTDOWN_LIMIT, ManagedCandidateRequest, ManagedContract, ManagedKernel,
-        ManagedRunEvent, ManagedRunHandle, SUPPORTED_CODEX_RUNTIME_VERSION,
-        admit_workspace_program, admit_workspace_program_from, initialize_private_git,
-        start_managed_candidate, start_unattested_managed_candidate, validate_launch_descriptor,
-        validate_runtime_launch, validate_runtime_probe,
+        ManagedRunEvent, ManagedRunHandle, admit_workspace_program, admit_workspace_program_from,
+        initialize_private_git, start_managed_candidate, start_unattested_managed_candidate,
+        validate_launch_descriptor, validate_runtime_launch, validate_runtime_probe,
     };
     use std::collections::VecDeque;
     use std::path::{Path, PathBuf};
@@ -2967,7 +3005,7 @@ mod tests {
     }
 
     #[test]
-    fn codex_projection_accepts_only_the_measured_0151_tuple() {
+    fn codex_projection_records_any_nonempty_behaviorally_accepted_version() {
         let report = |version: Option<&str>| ProbeReport {
             kind: RuntimeKind::Codex,
             executable: "codex".to_owned(),
@@ -2975,21 +3013,16 @@ mod tests {
             readiness: Readiness::Ready,
             detail: "measured fixture".to_owned(),
         };
-        validate_runtime_probe(
-            RuntimeKind::Codex,
-            &report(Some(SUPPORTED_CODEX_RUNTIME_VERSION)),
-        )
-        .expect("the exact measured projection is accepted");
+        for version in ["codex-cli 0.151.0", "codex-cli 9.7.3"] {
+            validate_runtime_probe(RuntimeKind::Codex, &report(Some(version)))
+                .expect("version difference alone must not reject compatible behavior");
+        }
 
-        for (version, reason) in [
-            (Some("codex-cli 0.147.0"), "projection_mismatch"),
-            (Some("codex-cli 0.152.0"), "projection_mismatch"),
-            (None, "projection_missing"),
-        ] {
+        for version in [None, Some("")] {
             let error = validate_runtime_probe(RuntimeKind::Codex, &report(version))
-                .expect_err("an unmeasured projection must fail closed")
+                .expect_err("missing observed version evidence must fail closed")
                 .to_string();
-            assert!(error.contains(reason), "{version:?}: {error}");
+            assert!(error.contains("projection_missing"), "{version:?}: {error}");
         }
     }
 

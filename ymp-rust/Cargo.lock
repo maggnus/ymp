@@ -1282,6 +1282,7 @@ dependencies = [
  "ymp-application",
  "ymp-domain",
  "ymp-runtime-api",
+ "ymp-runtime-codex",
  "ymp-runtime-fake",
 ]
 

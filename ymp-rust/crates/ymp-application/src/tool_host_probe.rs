@@ -1703,6 +1703,8 @@ mod tests {
             profile: "workspace-read-write-only".to_owned(),
             cli: "ymp-internal-fake".to_owned(),
             cli_version: "fake-cli 1.0.0".to_owned(),
+            compatibility_contract_digest: "4".repeat(64),
+            executable_digest: "5".repeat(64),
             driver: "fake-process-driver".to_owned(),
             driver_version: "fake-process-driver 1.0.0".to_owned(),
             tool_schema_digest: tool_host_probe_tool_schema_digest(),

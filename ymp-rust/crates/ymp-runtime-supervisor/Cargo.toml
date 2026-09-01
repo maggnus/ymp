@@ -14,6 +14,7 @@ ymp-agent-rpc.workspace = true
 ymp-application.workspace = true
 ymp-domain.workspace = true
 ymp-runtime-api.workspace = true
+ymp-runtime-codex.workspace = true
 
 [dev-dependencies]
 tempfile.workspace = true
