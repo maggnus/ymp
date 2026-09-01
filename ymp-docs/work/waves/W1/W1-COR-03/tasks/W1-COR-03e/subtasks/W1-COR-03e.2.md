@@ -4,14 +4,14 @@ kind: subtask
 wave: W1
 card: W1-COR-03
 parent: W1-COR-03e
-state: active
+state: deferred
 risk: significant
 maturity: BUILD
 relation: required
 depends_on: [W1-COR-03e.1]
 blocks: []
 created_at: 2026-09-01T12:16:00+08:00
-updated_at: 2026-09-01T21:41:03+08:00
+updated_at: 2026-09-01T21:48:42+08:00
 started_at: 2026-09-01T21:41:03+08:00
 accepted_at:
 candidate_commit:
@@ -19,8 +19,8 @@ closure_commit:
 evidence:
 duration_minutes: 0
 blocker:
-pause_reason:
-return_trigger:
+pause_reason: operator projection omits the persisted message audience; TUI cannot reconstruct it honestly
+return_trigger: W1-COR-03e.4 accepted
 deliberate_partial: false
 review_rounds: 0
 escalation_decision:
@@ -61,13 +61,14 @@ order in the shared transcript without gaining board, object-store, or control a
 
 ## Current state
 
-The transcript already has an inert attributed `BoardMessage` entry type, but no session path feeds
-it from the persisted application board. Subtask W1-COR-03e.1 owns the prerequisite payload
-publication and resolution API.
+The transcript has an inert `BoardMessage` form and Application resolves exact payload bytes, but
+`MessageView` drops the persisted audience before `operator_board_projection()`. Implementation
+stopped without changes because TUI cannot reconstruct scope or recipients honestly.
 
 ## Next action
 
-Start after W1-COR-03e.1 is accepted and integrate the first resolved message end to end.
+After W1-COR-03e.4 preserves exact audience in the owned projection, fast-forward the retained clean
+workspace and implement the original vertical slice.
 
 ## Guardrails
 
@@ -78,7 +79,8 @@ Start after W1-COR-03e.1 is accepted and integrate the first resolved message en
 
 ## Findings
 
-- None.
+- Builder preflight found `MessageRecord.audience` is discarded by `MessageView/view_of`; deriving it
+  from reader, order, relations or payload text would invent state, so work paused before editing.
 
 ## Review rounds
 
