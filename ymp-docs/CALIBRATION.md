@@ -60,6 +60,11 @@ pass lifecycle, isolation, cancellation, usage-evidence, and cost-accounting pro
 produce a comparable observation. A result is first interpreted within its own profile cohort;
 cross-family agreement or transfer is reported separately.
 
+On 2026-09-01 a read-only `gpt-5.6-luna` low-effort test runner executed `validate-cases` in an
+isolated worktree. The command exited zero and reported `seeded_defect_rejected: true` for L1, L2,
+and L3 with identical clean Git state before and after. This establishes only that the protected
+oracles reject the planted defects; it is not an agent-solution result or profile admission.
+
 ## Pinned development profiles
 
 | Runtime | Exact profile | Ambient state | Current readiness |
