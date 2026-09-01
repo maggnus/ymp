@@ -1,0 +1,7 @@
+{
+  "schema_version": 1,
+  "mutation_id": "stratum-relabel",
+  "task_id": "l4-sequential-replay",
+  "from": "strongly_sequential_expected_null",
+  "to": "decomposable"
+}

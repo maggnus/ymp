@@ -4,6 +4,7 @@ use std::path::PathBuf;
 
 use anyhow::{Result, ensure};
 use clap::{Parser, Subcommand};
+use ymp_corpus::development::DevelopmentCommand;
 use ymp_corpus::study::{
     analyze_study_records, load_frozen_manifest, load_study_records, negative_controls,
     power_analysis, run_negative_control,
@@ -84,10 +85,18 @@ enum CorpusCommand {
         #[arg(long)]
         case: String,
     },
+    Development {
+        #[command(subcommand)]
+        command: DevelopmentCommand,
+    },
 }
 
 fn main() -> Result<()> {
     let cli = Cli::parse();
+    if let CorpusCommand::Development { command } = &cli.command {
+        command.execute()?;
+        return Ok(());
+    }
     let corpus = load_corpus(&cli.corpus)?;
     match cli.command {
         CorpusCommand::Prepare => {
@@ -158,6 +167,7 @@ fn main() -> Result<()> {
             let records = load_study_records(&records)?;
             run_negative_control(&corpus, &manifest, &records, &case)?;
         }
+        CorpusCommand::Development { .. } => unreachable!(),
     }
     Ok(())
 }

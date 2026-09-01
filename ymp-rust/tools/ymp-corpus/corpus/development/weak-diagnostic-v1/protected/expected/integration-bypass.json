@@ -1,0 +1,7 @@
+{
+  "schema_version": 1,
+  "mutation_id": "integration-bypass",
+  "command": "development verify",
+  "expected_exit": "nonzero",
+  "reason": "INTEGRATION_BYPASS"
+}

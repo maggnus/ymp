@@ -1,0 +1,53 @@
+{
+  "schema_version": 1,
+  "corpus_id": "weak-diagnostic-v1-l4plus",
+  "artifact_role": "development_only_held_out_corpus",
+  "freeze_state": "frozen_before_model_call",
+  "model_calls_at_freeze": 0,
+  "primary_tasks_or_seeds_consumed": false,
+  "seed_namespace_root": "ymp-weak-diagnostic-v1-l4plus",
+  "protected_manifest_sha256": "33b0559d85ef27ac47d1188c13093a70f4365247d3652421930fa29d951fabd1",
+  "splits": {
+    "development": ["l4-config-fusion"],
+    "transfer": ["l4-sequential-replay"]
+  },
+  "write_zone": {
+    "new_prefix": "ymp-rust/tools/ymp-corpus/corpus/development/weak-diagnostic-v1/",
+    "new_files": ["ymp-rust/tools/ymp-corpus/src/development.rs"],
+    "additive_seams": [
+      "ymp-rust/tools/ymp-corpus/src/lib.rs",
+      "ymp-rust/tools/ymp-corpus/src/main.rs",
+      "ymp-rust/tools/ymp-corpus/Cargo.toml",
+      "ymp-rust/Cargo.lock"
+    ]
+  },
+  "tasks": [
+    {
+      "id": "l4-config-fusion",
+      "source_sha256": "7987ea229855bcd13a46086134e4080c94bd82d7cee576963146df092f97787e",
+      "public_contract_sha256": "ea3724230eed689b7bcab3110d600027feaba1284375a52683239a3039a9c13e",
+      "protected_oracle_sha256": "f0af0c746ad3b5850c8794bfc1e64ab2da7d1ad493d23b56a496f18d7704d88b",
+      "reference_candidate_sha256": "2f234adc1ecc5546de722dfe42c0c630d5b1d539226dbda94d426c9ccbb2165c",
+      "stratum": "decomposable",
+      "split": "development",
+      "seed_namespace": "ymp-weak-diagnostic-v1-l4plus/development/l4-config-fusion",
+      "dependency_order": []
+    },
+    {
+      "id": "l4-sequential-replay",
+      "source_sha256": "98b551704e9e589b841655f5a90395ec573083f225e19e25616690a60d50d6a5",
+      "public_contract_sha256": "47740fcc8feeb7ac168e16c1e9612d5f5b29b81ce89a19cf9a4ce26adba0f53f",
+      "protected_oracle_sha256": "f1e7029b579154cc7a8af095a062e9f922a0ce84988949af01dc696740d11447",
+      "reference_candidate_sha256": "1dc49f36bcfbd8b9ba31395d11f14afe0f2e13291675e9965223559a218f02f8",
+      "stratum": "strongly_sequential_expected_null",
+      "split": "transfer",
+      "seed_namespace": "ymp-weak-diagnostic-v1-l4plus/transfer/l4-sequential-replay",
+      "dependency_order": [
+        "decode",
+        "predecessor_validation",
+        "transition_validation",
+        "commit_identity"
+      ]
+    }
+  ]
+}

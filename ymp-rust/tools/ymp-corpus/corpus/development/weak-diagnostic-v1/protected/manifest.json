@@ -1,0 +1,86 @@
+{
+  "schema_version": 1,
+  "corpus_id": "weak-diagnostic-v1-l4plus",
+  "task_bindings": [
+    {
+      "task_id": "l4-config-fusion",
+      "frozen_stratum": "decomposable",
+      "oracle": {"path": "protected/oracles/l4-config-fusion.rs", "sha256": "f0af0c746ad3b5850c8794bfc1e64ab2da7d1ad493d23b56a496f18d7704d88b"},
+      "reference": {"path": "protected/reference/l4-config-fusion", "sha256": "2f234adc1ecc5546de722dfe42c0c630d5b1d539226dbda94d426c9ccbb2165c"},
+      "oracles": [
+        {
+          "id": "branch_a",
+          "test": "branch_a_inventory_contract",
+          "failure_reason": "BRANCH_A_OMISSION",
+          "blind_spot": "Checks normalization and conflict handling, but not allocation complexity or locale-dependent diagnostics."
+        },
+        {
+          "id": "branch_b",
+          "test": "branch_b_routing_contract",
+          "failure_reason": "BRANCH_B_OMISSION",
+          "blind_spot": "Checks route identity and conflicts, but not performance on very large route tables."
+        },
+        {
+          "id": "integration",
+          "test": "integration_requires_complete_join",
+          "failure_reason": "INTEGRATION_BYPASS",
+          "blind_spot": "Checks complete cross-branch coverage and deterministic output, but not semantic deployment safety beyond the declared join."
+        }
+      ]
+    },
+    {
+      "task_id": "l4-sequential-replay",
+      "frozen_stratum": "strongly_sequential_expected_null",
+      "oracle": {"path": "protected/oracles/l4-sequential-replay.rs", "sha256": "f1e7029b579154cc7a8af095a062e9f922a0ce84988949af01dc696740d11447"},
+      "reference": {"path": "protected/reference/l4-sequential-replay", "sha256": "1dc49f36bcfbd8b9ba31395d11f14afe0f2e13291675e9965223559a218f02f8"},
+      "oracles": [
+        {
+          "id": "dependency_order",
+          "test": "dependency_order_is_enforced",
+          "failure_reason": "DEPENDENCY_ORDER_BYPASS",
+          "blind_spot": "Checks state immutability at predecessor rejection, but not crash persistence or concurrent writers."
+        },
+        {
+          "id": "rejected_identity",
+          "test": "rejected_identity_is_replayed_after_state_changes",
+          "failure_reason": "REJECTED_IDENTITY_LOSS",
+          "blind_spot": "Checks in-process replay identity, but not serialization compatibility across executable versions."
+        }
+      ]
+    }
+  ],
+  "mutations": [
+    {
+      "id": "branch-a-omission",
+      "kind": "candidate_file_replacement",
+      "task_id": "l4-config-fusion",
+      "target": "src/inventory.rs",
+      "artifact": {"path": "protected/mutations/branch-a-omission.rs", "sha256": "678900ff18bd5d5e4281cba9877686a4693ee733778b8951179f1717e53913f5"},
+      "expected": {"path": "protected/expected/branch-a-omission.json", "sha256": "9cbf69fd8af7754dab99aa66b23210213c6ddaf79d2d9cb85b54d6c3ad972bfb"}
+    },
+    {
+      "id": "branch-b-omission",
+      "kind": "candidate_file_replacement",
+      "task_id": "l4-config-fusion",
+      "target": "src/routing.rs",
+      "artifact": {"path": "protected/mutations/branch-b-omission.rs", "sha256": "d3bb9bef48fada4c8255e704f51bd54095303775656b80e6f8229f08391cad07"},
+      "expected": {"path": "protected/expected/branch-b-omission.json", "sha256": "e102951fefdd0810a2c6a73e0604c1efa94418a6d2fef76f858204f7bd68c091"}
+    },
+    {
+      "id": "integration-bypass",
+      "kind": "candidate_file_replacement",
+      "task_id": "l4-config-fusion",
+      "target": "src/lib.rs",
+      "artifact": {"path": "protected/mutations/integration-bypass.rs", "sha256": "66c05cb1ddd7d390027dd8ad4551559526305f14b77a4a69daaf904a3691f2d5"},
+      "expected": {"path": "protected/expected/integration-bypass.json", "sha256": "76d0c3265444696bb211844b6ea1cc17755355e83a3db8794dc0bced81613eeb"}
+    },
+    {
+      "id": "stratum-relabel",
+      "kind": "manifest_stratum_relabel",
+      "task_id": "l4-sequential-replay",
+      "target": "tasks[].stratum",
+      "artifact": {"path": "protected/mutations/stratum-relabel.json", "sha256": "233356ae9778445cff5a8402e8b59d90e41b44d58e71e4677e47b04228579687"},
+      "expected": {"path": "protected/expected/stratum-relabel.json", "sha256": "96781f585360098298be60fcb5d01e3e73dd4d79824de70625511c263d905672"}
+    }
+  ]
+}

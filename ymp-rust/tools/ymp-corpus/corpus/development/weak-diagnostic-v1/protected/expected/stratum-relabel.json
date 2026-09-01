@@ -1,0 +1,7 @@
+{
+  "schema_version": 1,
+  "mutation_id": "stratum-relabel",
+  "command": "development check",
+  "expected_exit": "nonzero",
+  "reason": "STRATUM_RELABEL"
+}

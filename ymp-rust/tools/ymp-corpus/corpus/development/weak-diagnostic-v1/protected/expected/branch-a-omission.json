@@ -1,0 +1,7 @@
+{
+  "schema_version": 1,
+  "mutation_id": "branch-a-omission",
+  "command": "development verify",
+  "expected_exit": "nonzero",
+  "reason": "BRANCH_A_OMISSION"
+}
