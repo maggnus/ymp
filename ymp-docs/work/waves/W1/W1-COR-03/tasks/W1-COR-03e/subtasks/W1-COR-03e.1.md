@@ -4,14 +4,14 @@ kind: subtask
 wave: W1
 card: W1-COR-03
 parent: W1-COR-03e
-state: active
+state: rework
 risk: significant
 maturity: BUILD
 relation: required
 depends_on: []
 blocks: []
 created_at: 2026-09-01T12:14:00+08:00
-updated_at: 2026-09-01T12:15:03+08:00
+updated_at: 2026-09-01T12:26:00+08:00
 started_at: 2026-09-01T12:15:03+08:00
 accepted_at:
 candidate_commit:
@@ -22,7 +22,7 @@ blocker:
 pause_reason:
 return_trigger:
 deliberate_partial: false
-review_rounds: 0
+review_rounds: 1
 escalation_decision:
 ---
 
@@ -59,13 +59,13 @@ without exposing storage, a mutable board, or authority to the TUI.
 
 ## Current state
 
-Active on `codex/gpt-5.6-sol` at `xhigh`. The application owns and persists the board and exposes an
-owned operator `ViewState`; this subtask now binds exact payload bytes to publication and resolves
-them through an owned consumer projection.
+R1 returned candidate `ec45bce`: payload ordering and resolution are correct, but pre-existing
+public `Application::object_store()` and `Application::board()` still bypass the typed boundary.
+The Sol author is closing or replacing those accessors without weakening candidate/verifier paths.
 
 ## Next action
 
-Return the reviewed publish/resolve candidate and its focused evidence.
+Return a corrected candidate whose public API exposes no object store, board section, or ledger.
 
 ## Guardrails
 
@@ -85,6 +85,9 @@ One line per round of the convergence loop, written by the CTO from the two role
 marker carries the reviewer's ten-point score and the local moment of the verdict. After an
 escalation, one `- CTO <decision> <dd/mm hh:mm> — <reason>` line records what was decided. The review
 dialogue itself stays in the reports and the evidence package.
+
+- R1(7/10) RETURN 01/09 12:26 — public object-store and board access bypasses the typed seam → Sol
+  correction assigned → candidate `ec45bce` returned
 
 ## Closure
 
