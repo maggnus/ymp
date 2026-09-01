@@ -42,6 +42,11 @@ interaction model be translated into screens.
 - Create `ymp-docs/USER_JOURNEY.md` as the authority for the primary POC user, job-to-be-done,
   chronological journey, user stories, failure/return paths and experience invariants; add it to the
   document index.
+- Begin `USER_JOURNEY.md` with fixed machine-readable front matter:
+  `journey_status: draft|owner_approved`, `owner_approved_at`,
+  `scientific_review: pending|confirmed`, and `scientific_reviewed_at`. The author returns a draft;
+  only an explicit later owner decision and standing-researcher verdict may populate the accepted
+  values. Neither the author nor a UI reviewer may infer those approvals.
 - Primary user: a person who wants a working project result and does not operate runtimes,
   multi-agent protocols or experiments. The concrete reference story is creating and revising a
   playable Battleship game from a plain-language request.
@@ -145,6 +150,11 @@ interaction model be translated into screens.
 - [ ] The scientific researcher confirms that visible progress/evidence does not claim listening,
       communication value, coordination or self-organization; the owner approves the complete story
       before any new screen contract is dispatched.
+- [ ] The accepted document itself records `journey_status: owner_approved` with a non-empty
+      `owner_approved_at`, and `scientific_review: confirmed` with a non-empty
+      `scientific_reviewed_at`. A readiness command checks all four fields. On a temporary copy with
+      `draft` or `pending`, the same command exits non-zero; no UI task may treat chat history or a
+      reviewer summary as an equivalent approval.
 
 ## Current state
 
@@ -155,8 +165,9 @@ provider/pool setup and owner decisions before a document is drafted.
 
 ## Next action
 
-Produce one bounded consensus with a truthful Battleship POC slice and five owner decisions, then
-present it before drafting `USER_JOURNEY.md` or any UI contract.
+Produce the draft, obtain and record the standing researcher verdict, present the complete story to
+the owner, and record explicit approval in the document. Re-run the four-field readiness check and
+accept this task before drafting any UI contract.
 
 ## Guardrails
 
@@ -168,6 +179,9 @@ present it before drafting `USER_JOURNEY.md` or any UI contract.
 - External UI/UX and TUI skills are not installed or treated as process authority. They may be read
   only as references after the owner accepts this journey; layout, interaction and Ratatui guidance
   cannot introduce a user step or information category absent from the accepted story.
+- Draft metadata is fail-closed. Only the owner supplies owner approval and only the standing
+  scientific researcher supplies scientific confirmation; all other roles may inspect but cannot
+  set those states.
 
 ## Findings
 
