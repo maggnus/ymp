@@ -14,11 +14,12 @@ use crate::protocol::{
     BoardCommand, NoteAncestry, NoteVerdict, ReadBoard, RecordIntervention, RefreshSalience,
 };
 use crate::records::{
-    InterventionKind, InterventionRecord, MessageKind, ObservedVerdict, Reference, Relation,
+    Audience, InterventionKind, InterventionRecord, MessageKind, ObservedVerdict, Reference,
+    Relation,
 };
 use crate::tests::{
-    ALPHA, BETA, CONTROLLER, GAMMA, READ_LIMIT, SALIENCE_MS, digest, publication, publish, scoped,
-    task_audience,
+    ALPHA, BETA, CONTROLLER, DELTA, GAMMA, READ_LIMIT, SALIENCE_MS, TASK_SCOPE, digest,
+    publication, publish, scoped, task_audience,
 };
 use crate::{BoardLedger, Payload};
 
@@ -424,6 +425,54 @@ fn a_reading_for_a_participant_carries_only_what_it_may_read() {
         member.messages.iter().all(|message| message.untrusted),
         "the reading presents a payload as something other than an untrusted claim"
     );
+}
+
+/// Audience is recorded provenance, not something a reader or surface may reconstruct. All three
+/// variants therefore survive the operator projection by exact equality, including the order of a
+/// named recipient list. The returned values are owned: changing one cannot rewrite a later view.
+#[test]
+fn the_operator_reading_copies_each_exact_owned_audience_in_publication_order() {
+    let mut board = scoped();
+    let audiences = [
+        Audience::ProjectDiscovery,
+        Audience::Scope {
+            scope_id: TASK_SCOPE.to_owned(),
+        },
+        Audience::Named {
+            scope_id: TASK_SCOPE.to_owned(),
+            recipients: vec![BETA.to_owned(), DELTA.to_owned()],
+        },
+    ];
+    for (index, audience) in audiences.iter().cloned().enumerate() {
+        publish(
+            &mut board,
+            publication(&format!("m-audience-{}", index + 1), ALPHA, audience, 32),
+        );
+    }
+
+    let mut view = ViewState::for_operator(&board);
+    let projected: Vec<_> = view
+        .messages
+        .iter()
+        .map(|message| (message.message_id.clone(), message.audience.clone()))
+        .collect();
+    assert_eq!(
+        projected,
+        audiences
+            .iter()
+            .cloned()
+            .enumerate()
+            .map(|(index, audience)| (format!("m-audience-{}", index + 1), audience))
+            .collect::<Vec<_>>()
+    );
+
+    let Audience::Named { recipients, .. } = &mut view.messages[2].audience else {
+        panic!("the named audience was collapsed to another variant");
+    };
+    recipients.push(GAMMA.to_owned());
+
+    let repeated = ViewState::for_operator(&board);
+    assert_eq!(repeated.messages[2].audience, audiences[2]);
 }
 
 /// The payload never reaches the reading either: what a message view carries is the identity and

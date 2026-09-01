@@ -84,6 +84,9 @@ fn publication_mismatches_and_metadata_only_bypass_leave_board_unchanged() {
     let temporary = tempdir().expect("temporary directory");
     let mut application =
         Application::create(temporary.path(), "run-1", Budget::new(1, 1)).expect("create run");
+    application
+        .publish_board(&publication("existing", Payload::of(PAYLOAD)), PAYLOAD)
+        .expect("publish the complete projection that refusals must preserve");
     let stable_positions = positions(&application);
 
     let wrong_length = publication(
@@ -112,6 +115,13 @@ fn publication_mismatches_and_metadata_only_bypass_leave_board_unchanged() {
         Err(ApplicationError::BoardPayloadRequired)
     ));
     assert_eq!(positions(&application), stable_positions);
+
+    let projection = application
+        .operator_board_projection()
+        .expect("refused mismatches leave the prior projection whole");
+    assert_eq!(projection.messages.len(), 1);
+    assert_eq!(projection.messages[0].message.message_id, "existing");
+    assert_eq!(projection.messages[0].payload, PAYLOAD);
 }
 
 #[test]
@@ -141,20 +151,23 @@ fn missing_or_corrupt_payload_object_refuses_projection_without_moving_board() {
     for corruption in ["missing", "corrupt"] {
         let temporary = tempdir().expect("temporary directory");
         let root = temporary.path();
-        let publish = publication("message-1", Payload::of(PAYLOAD));
+        let second_payload = b"second exact inert payload";
+        let publish = publication("message-2", Payload::of(second_payload));
         let digest = publish.payload.digest().to_owned();
         let mut application =
             Application::create(root, "run-1", Budget::new(1, 1)).expect("create run");
         application
-            .publish_board(&publish, PAYLOAD)
-            .expect("publish exact payload");
+            .publish_board(&publication("message-1", Payload::of(PAYLOAD)), PAYLOAD)
+            .expect("publish valid first payload");
+        application
+            .publish_board(&publish, second_payload)
+            .expect("publish exact second payload");
         let stable_positions = positions(&application);
         let object = object_path(root, &digest);
         if corruption == "missing" {
             fs::remove_file(object).expect("remove payload object");
         } else {
-            fs::write(object, b"corrupt inert collaboration payload")
-                .expect("corrupt payload object");
+            fs::write(object, vec![b'x'; second_payload.len()]).expect("corrupt payload object");
         }
 
         let result = application.operator_board_projection();

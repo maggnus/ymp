@@ -19,7 +19,7 @@ use serde::Serialize;
 
 use crate::ledger::BoardLedger;
 use crate::records::{
-    Admissibility, AssessmentRecord, InterventionRecord, MessageKind, MessageRecord,
+    Admissibility, AssessmentRecord, Audience, InterventionRecord, MessageKind, MessageRecord,
     ObservedVerdict, Reference, Relation,
 };
 
@@ -118,6 +118,7 @@ pub struct MessageView {
     pub sequence: u64,
     pub message_id: String,
     pub author: String,
+    pub audience: Audience,
     pub kind: MessageKind,
     pub payload_digest: String,
     pub payload_bytes: u64,
@@ -460,6 +461,7 @@ fn view_of(message: &MessageRecord) -> MessageView {
         sequence: message.sequence,
         message_id: message.message_id.clone(),
         author: message.author.clone(),
+        audience: message.audience.clone(),
         kind: message.kind,
         payload_digest: message.payload_digest.clone(),
         payload_bytes: message.payload_bytes,
