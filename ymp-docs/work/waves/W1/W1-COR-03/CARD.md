@@ -61,7 +61,7 @@ exposes these paths without assigning work or overstating communication evidence
 - [W1-COR-03b](tasks/W1-COR-03b.md) — required
 - [W1-COR-03c](tasks/W1-COR-03c.md) — required
 - [W1-COR-03d](tasks/W1-COR-03d.md) — required
-- [W1-COR-03e](tasks/W1-COR-03e.md) — required
+- [W1-COR-03e](tasks/W1-COR-03e/TASK.md) — required
 - [W1-COR-03f](tasks/W1-COR-03f.md) — required
 - [W1-COR-03g](tasks/W1-COR-03g.md) — required
 - [W1-COR-03h](tasks/W1-COR-03h.md) — required
