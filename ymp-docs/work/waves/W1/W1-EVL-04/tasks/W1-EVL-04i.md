@@ -3,25 +3,25 @@ id: W1-EVL-04i
 kind: task
 wave: W1
 card: W1-EVL-04
-state: ready
+state: accepted
 risk: critical
 maturity: BUILD
 relation: required
 depends_on: [W1-EVL-04h]
 blocks: [W1-EVL-04k, W1-EVL-04j, W1-EVL-04e]
 created_at: 2026-09-01T15:41:48+08:00
-updated_at: 2026-09-01T15:50:30+08:00
-started_at:
-accepted_at:
-candidate_commit:
-closure_commit:
-evidence:
-duration_minutes: 0
+updated_at: 2026-09-01T16:33:04+08:00
+started_at: 2026-09-01T15:54:18+08:00
+accepted_at: 2026-09-01T16:33:04+08:00
+candidate_commit: https://github.com/maggnus/ymp/commit/0f4be38b521b1c991e65bbced5f265f403997bae
+closure_commit: https://github.com/maggnus/ymp/commit/b93cd09b039eb9751f929ce7972d141ceebbe0e1
+evidence: ["[b93cd09](https://github.com/maggnus/ymp/commit/b93cd09b039eb9751f929ce7972d141ceebbe0e1)"]
+duration_minutes: 39
 blocker:
 pause_reason:
 return_trigger:
 deliberate_partial: false
-review_rounds: 0
+review_rounds: 1
 escalation_decision:
 ---
 
@@ -57,32 +57,33 @@ accepted task can start.
 
 ## Acceptance
 
-- [ ] An exact fake `codex-cli 0.151.0` passes the driver and supervisor conformance matrix with only
+- [x] An exact fake `codex-cli 0.151.0` passes the driver and supervisor conformance matrix with only
       flags and wire shapes that 0.151 actually supports; the measured version is projected
       automatically into the managed attempt.
-- [ ] A fake 0.151 executable that retains a removed flag, changes the tool/event/usage schema, lies
+- [x] A fake 0.151 executable that retains a removed flag, changes the tool/event/usage schema, lies
       about its version, loses resume identity or ignores cancellation fails for its own typed reason
       before an accepted task can start.
-- [ ] The pinned driver constant and supervisor projection bind the same exact tuple. A stale 0.147
+- [x] The pinned driver constant and supervisor projection bind the same exact tuple. A stale 0.147
       projection, a future unmeasured version or loss of the projection fails closed rather than
       silently selecting a nearby version.
-- [ ] Negative fixtures independently distinguish removed flags, changed tool/event/usage schema,
+- [x] Negative fixtures independently distinguish removed flags, changed tool/event/usage schema,
       false version output, lost resume identity, ignored cancellation and surviving descendants;
       each reaches the production driver or supervisor path and fails for its typed reason.
-- [ ] No real model/provider/network call runs; focused runtime and supervisor tests, strict Clippy,
+- [x] No real model/provider/network call runs; focused runtime and supervisor tests, strict Clippy,
       formatting and `git diff --check` pass without warnings.
 
 ## Current state
 
-W1-EVL-04h measured installed `codex-cli 0.151.0` against the accepted `0.147.0` profile and closed
-the gate. The pinned constant in `ymp-runtime-codex` and its supervisor projection are the two live
-runtime authorities; product fixtures and the admission manifest move only in W1-EVL-04k. No model
-call is authorized.
+Accepted and integrated as
+[b93cd09](https://github.com/maggnus/ymp/commit/b93cd09b039eb9751f929ce7972d141ceebbe0e1).
+Codex readiness now measures exact 0.151 help, capabilities and App Server schema without a model;
+the supervisor accepts only the exact 0.151 projection and the managed process boundary proves
+cancellation plus descendant termination. Product fixtures remain W1-EVL-04k work.
 
 ## Next action
 
-Repeat the Critical contract check against this runtime-only boundary, then dispatch one Sol xhigh
-builder from the current clean `main`.
+Run W1-EVL-04k and W1-EVL-04j in parallel from the accepted 0.151 runtime boundary; their write zones
+are disjoint.
 
 ## Guardrails
 
@@ -96,6 +97,8 @@ builder from the current clean `main`.
 
 - R1 contract review split the original cross-surface task: this node owns behavioral runtime
   conformance; W1-EVL-04k owns product fixtures and admission metadata.
+- The accepted implementation removed obsolete capability flags, added measured help/schema
+  readiness and tightened tool/event/usage parsing without changing manifests or dependencies.
 
 ## Review rounds
 
@@ -105,18 +108,27 @@ marker carries the reviewer's ten-point score and the local moment of the verdic
 escalation, one `- CTO <decision> <dd/mm hh:mm> — <reason>` line records what was decided. The review
 dialogue itself stays in the reports and the evidence package.
 
-## Closure
+- R1(9/10) ACCEPT 01/09 16:33 — the three-path runtime-only diff pins exact 0.151 behavior and
+  preserves the No-touch boundary → author evidence covers focused conformance and typed negatives
+  → an independent managed-process scenario proves launch, exact projection, cancellation and
+  descendant termination without model or network use
 
-Filled when the task is accepted. Until then this section stays as written.
+## Closure
 
 ### Accepted outcome
 
-What was actually accepted.
+`ymp-runtime-codex` admits exact `codex-cli 0.151.0` only after no-model discovery of `exec`/resume
+help, capability state and App Server schema; obsolete flags are not passed and structured
+tool/event/usage parsing is strict. The supervisor rejects missing, stale or future projections,
+records the exact runtime profile and terminates a cancelled managed process together with its
+descendants.
 
 ### Residuals
 
-Honestly retained limitations, each with an exact return trigger. Empty when there are none.
+None.
 
 ### Evidence
 
-- Commit, evidence package, or durable document of record, each as a Markdown link.
+- [b93cd09](https://github.com/maggnus/ymp/commit/b93cd09b039eb9751f929ce7972d141ceebbe0e1)
+  — integrated tree, byte-identical for the reviewed runtime paths to candidate
+  [0f4be38](https://github.com/maggnus/ymp/commit/0f4be38b521b1c991e65bbced5f265f403997bae).

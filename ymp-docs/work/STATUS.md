@@ -93,7 +93,7 @@
 | `[ ]` | [`W1-EVL-04f`](waves/W1/W1-EVL-04/tasks/W1-EVL-04f.md) | Strong-profile transfer gates causal intervention | — | — | — |
 | `[ ]` | [`W1-EVL-04g`](waves/W1/W1-EVL-04/tasks/W1-EVL-04g.md) | Legacy work records no longer mask plan validation | — | — | — |
 | `[x]` | [`W1-EVL-04h`](waves/W1/W1-EVL-04/tasks/W1-EVL-04h.md) | Zero-model admission and pull transport are executable | [`694c7901`](https://github.com/maggnus/ymp/commit/694c79010f7417e1938d1e3d305817618c148657) | 01/09 15:06 | 01/09 15:41 (35m) |
-| `[ ]` | [`W1-EVL-04i`](waves/W1/W1-EVL-04/tasks/W1-EVL-04i.md) | Codex runtime proves exact 0.151 conformance | — | — | — |
+| `[x]` | [`W1-EVL-04i`](waves/W1/W1-EVL-04/tasks/W1-EVL-04i.md) | Codex runtime proves exact 0.151 conformance | [`b93cd09b`](https://github.com/maggnus/ymp/commit/b93cd09b039eb9751f929ce7972d141ceebbe0e1) | 01/09 15:54 | 01/09 16:33 (39m) |
 | `[ ]` | [`W1-EVL-04j`](waves/W1/W1-EVL-04/tasks/W1-EVL-04j.md) | Runtime executes a bounded no-task-output probe | — | — | — |
 | `[ ]` | [`W1-EVL-04k`](waves/W1/W1-EVL-04/tasks/W1-EVL-04k.md) | Product fixtures bind the proven Codex runtime tuple | — | — | — |
 | `[ ]` | [`W1-EVL-04l`](waves/W1/W1-EVL-04/tasks/W1-EVL-04l.md) | Controller owns nonce read-back and probe attestation | — | — | — |
