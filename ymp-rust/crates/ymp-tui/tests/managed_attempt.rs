@@ -275,5 +275,15 @@ fn exporting_a_store_with_no_run_writes_nothing() {
     let rendered = screen(&App::new(session.projection(None)), 120, 40);
     assert!(rendered.contains("nothing to export"), "{rendered}");
     assert!(!store.join("exports").exists());
-    let _: PathBuf = session.export_destination();
+    let destination: PathBuf = session.export_destination();
+    assert!(
+        destination.starts_with(store.join("exports")),
+        "the TUI's default export leaves the run store: {}",
+        destination.display()
+    );
+    assert!(
+        !destination.starts_with(std::env::current_dir().expect("current directory")),
+        "the TUI's default export writes into the launch directory: {}",
+        destination.display()
+    );
 }

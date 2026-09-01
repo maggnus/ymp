@@ -9,9 +9,7 @@ pub use journal::{
     TERMINAL_EVENT_RESERVE_BYTES,
 };
 pub use object_store::{ObjectStore, ObjectStoreError};
-pub use root::{
-    DataRoot, LAYOUT_VERSION, LEGACY_STORE, ROOT_DIRECTORY, RootError, StoreIntent, YMP_HOME,
-};
+pub use root::{DataRoot, LAYOUT_VERSION, ROOT_DIRECTORY, RootError, StoreIntent, YMP_HOME};
 
 use fs2::FileExt;
 use std::fs::{self, File, OpenOptions};

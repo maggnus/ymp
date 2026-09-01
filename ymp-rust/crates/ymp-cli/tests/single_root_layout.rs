@@ -12,8 +12,8 @@
 //!   the second run is refused;
 //! * two projects keep disjoint state under the one root they share — proved by driving both and
 //!   diffing what each tree records;
-//! * state an earlier build wrote beside the project is read where it stands or refused with the
-//!   reason named, and never copied.
+//! * state from an earlier build beside the project is ignored by the default and never copied or
+//!   changed; diagnostic overrides may still address it explicitly.
 
 use std::collections::BTreeSet;
 use std::fs;
@@ -249,10 +249,11 @@ fn two_projects_on_one_host_keep_disjoint_state() {
 // ---------------------------------------------------------------------------
 
 #[test]
-fn a_store_of_the_earlier_layout_is_read_where_it_stands_and_never_copied() {
+fn earlier_product_data_beside_the_project_is_ignored_unchanged_and_never_copied() {
     let host = Host::new();
     let project = host.project("earlier-layout");
     let legacy = project.join(".ymp-data");
+    let earlier_root = project.join(".ymp");
 
     host.start(
         &project,
@@ -260,77 +261,38 @@ fn a_store_of_the_earlier_layout_is_read_where_it_stands_and_never_copied() {
         "earlier work",
     )
     .assert_started();
-    let before = fs::read_to_string(legacy.join("events.jsonl")).expect("the earlier journal");
-
-    // The default root refuses to begin beside it, and names both ways out.
-    let refused = host.command(&project, &["show".to_owned(), "events".to_owned()]);
-    assert!(
-        !refused.output.status.success(),
-        "the product began beside a store of the earlier layout"
-    );
-    let reason = refused.text();
-    assert!(
-        reason.contains(".ymp-data") && reason.contains("--data-root") && reason.contains("--root"),
-        "the refusal does not name the store and both ways to proceed: {reason}"
-    );
-    assert!(
-        !project.join(".ymp").exists(),
-        "the refusal created a root beside the store it refused to begin"
-    );
-
-    // Read where it stands: the earlier store answers, unchanged.
-    let read = host.command(
+    host.start(
         &project,
-        &[
-            "--data-root".to_owned(),
-            ".ymp-data".to_owned(),
-            "show".to_owned(),
-            "events".to_owned(),
-        ],
-    );
-    assert!(
-        read.output.status.success(),
-        "the earlier store was not read: {}",
-        read.text()
-    );
-    assert!(
-        read.text().contains("run.started"),
-        "reading the earlier store showed no run: {}",
-        read.text()
-    );
+        &["--root".to_owned(), ".ymp".to_owned()],
+        "earlier root work",
+    )
+    .assert_started();
+    let legacy_before = relative_paths(&legacy);
+    let root_before = relative_paths(&earlier_root);
+    let legacy_journal = fs::read(legacy.join("events.jsonl")).expect("the earlier journal");
 
-    // Naming a root proceeds and leaves the earlier store alone; nothing was copied into it, and
-    // it holds no run until one is started there.
-    let named = host.command(
-        &project,
-        &[
-            "--root".to_owned(),
-            ".ymp".to_owned(),
-            "show".to_owned(),
-            "events".to_owned(),
-        ],
-    );
-    assert!(
-        !named.output.status.success(),
-        "a root holding no run reported a page it does not have"
-    );
-    assert!(
-        journals(&project.join(".ymp")).is_empty(),
-        "the earlier store was copied into the named root"
+    // A normal start addresses the home root without inspecting or adopting either local name.
+    host.start(&project, &[], "new work").assert_started();
+
+    assert_eq!(
+        legacy_before,
+        relative_paths(&legacy),
+        "the default changed the earlier store tree"
     );
     assert_eq!(
-        before,
-        fs::read_to_string(legacy.join("events.jsonl")).expect("the earlier journal"),
-        "the earlier store was written into"
+        root_before,
+        relative_paths(&earlier_root),
+        "the default changed the earlier root tree"
     );
-
-    // The root that invocation named is itself state beside the project, so the default keeps
-    // refusing rather than adopting it — and names it, not only the store, as the thing it found.
-    let again = host.command(&project, &["show".to_owned(), "events".to_owned()]);
-    assert!(
-        !again.output.status.success() && again.text().contains(".ymp"),
-        "the default adopted state standing beside the project: {}",
-        again.text()
+    assert_eq!(
+        legacy_journal,
+        fs::read(legacy.join("events.jsonl")).expect("the earlier journal"),
+        "the default changed the earlier store bytes"
+    );
+    assert_eq!(
+        1,
+        host.stores(&project).len(),
+        "the default copied local state into the home root"
     );
 }
 

@@ -105,6 +105,9 @@ const A_GOAL_NEEDS_A_POOL: &str = "your goal is held · this host offers models 
      pools · nothing has started and nothing has left this host";
 /// What an export directory is called when the operator names none. The run identifier follows it.
 const EXPORT_PREFIX: &str = "ymp-evidence-";
+/// Where default evidence exports live inside the run store. A path outside the product root is
+/// reached only when the operator names it explicitly.
+const EXPORT_DIRECTORY: &str = "exports";
 
 /// Everything durable the interface reads and the commands it can commit.
 pub struct Session {
@@ -2371,7 +2374,8 @@ impl Session {
         }
         if run.candidate_digest.is_some() {
             line.push_str(
-                " · /export writes the exact candidate and the verifier evidence out of this store",
+                " · /export writes a readable copy of the exact candidate and verifier evidence \
+                 under this run's product data",
             );
         }
         self.model.reply(line);
@@ -2408,9 +2412,9 @@ impl Session {
     /// Put the accepted candidate's files into the project directory itself.
     ///
     /// This is the other form an export takes: the operator receives the work as files where they
-    /// work, and nothing about the run is written beside them. The bundle stays the default,
-    /// because it is the form that keeps the record and takes nothing back; applying files into a
-    /// directory an operator already owns is chosen, never assumed.
+    /// work, and nothing about the run is written beside them. The bundle stays the default and is
+    /// kept under the product data root; applying files into a directory an operator already owns
+    /// is chosen, never assumed.
     ///
     /// A file the project already holds is named and nothing is written, unless the operator
     /// states that replacing it is intended.
@@ -2453,17 +2457,17 @@ impl Session {
 
     /// Where an export of this run is written when the operator names no directory.
     ///
-    /// It is beside the project rather than under the root, because an export exists to leave the
-    /// root: what it carries has to be readable without this product and without this store. One
-    /// directory per run, so an export names the run it came from and never lands on another's.
+    /// It remains under the run store, so a default action never writes into the directory the
+    /// product was launched from. The bundle is still directly readable, and an operator who
+    /// wants it elsewhere names that destination explicitly. One directory per run means an
+    /// export names the run it came from and never lands on another's.
     pub fn export_destination(&self) -> PathBuf {
         let run = self
             .model
             .run()
             .map_or_else(|| "run".to_owned(), |run| run.run_id.clone());
-        self.model
-            .environment()
-            .project_path
+        self.data_root
+            .join(EXPORT_DIRECTORY)
             .join(format!("{EXPORT_PREFIX}{run}"))
     }
 }
@@ -2704,8 +2708,8 @@ pub enum Action {
     StartRun(String),
     /// Launch the managed attempt of the open run: start the agent and watch it work.
     StartAttempt,
-    /// Write the run's candidate and the evidence that judged it out of the store, into the
-    /// directory the operator named or the one the product states when they name none.
+    /// Write a readable copy of the run's candidate and the evidence that judged it into the
+    /// directory the operator named, or under the run store when they name none.
     ExportEvidence(Option<PathBuf>),
     /// Put the accepted candidate's files into the project directory the operator named, or the
     /// one this session stands in when they name none, and write nothing else there. `overwrite`

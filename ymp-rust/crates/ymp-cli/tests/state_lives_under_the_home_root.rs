@@ -1,8 +1,8 @@
 #![forbid(unsafe_code)]
 
-//! Acceptance: the product's durable state lives under the operator's home root, and the directory
-//! the product was started in receives nothing but a result the operator asked to have delivered
-//! there.
+//! Acceptance: the product's durable state and default outputs live under the operator's home
+//! root. The directory the product was started in receives nothing unless the operator explicitly
+//! chooses it as an export or application destination.
 //!
 //! Every check drives the built executable from a project directory with a home directory of the
 //! fixture's own, so what the default addresses is the default an operator has and no state of
@@ -13,8 +13,8 @@
 //!   directory the previous default wrote and which this outcome removes;
 //! * a stated `YMP_HOME` is the root, and the home directory is then left alone;
 //! * a draft is assembled under the root rather than beside the project it copies;
-//! * an export is the one thing that reaches the launch directory, and it carries the accepted
-//!   candidate — against the same directory before the export, which holds nothing at all.
+//! * a default export stays under the run store and leaves the launch directory untouched; an
+//!   explicitly named destination reaches exactly the directory the operator selected.
 
 use std::collections::BTreeSet;
 use std::fs;
@@ -130,6 +130,13 @@ fn a_draft_is_assembled_under_the_root_rather_than_beside_the_project() {
     let entry_point = project.join("scripts/test.sh");
     fs::write(&entry_point, b"#!/bin/sh\ntest -f result.txt\n").expect("test entry point");
     executable(&entry_point);
+    for (directory, bytes) in [
+        (".ymp", b"old root bytes\n".as_slice()),
+        (".ymp-data", b"old store bytes\n".as_slice()),
+    ] {
+        fs::create_dir_all(project.join(directory)).expect("old product directory");
+        fs::write(project.join(directory).join("sentinel"), bytes).expect("old product sentinel");
+    }
     let before = relative_paths(&project);
 
     let drafted = host.command(
@@ -155,14 +162,29 @@ fn a_draft_is_assembled_under_the_root_rather_than_beside_the_project() {
         "the draft was assembled nowhere under the root: {:?}",
         relative_paths(&host.root())
     );
+    assert!(
+        assembled
+            .iter()
+            .all(|path| !path.contains("/negative-control/.ymp/")
+                && !path.contains("/negative-control/.ymp-data/")),
+        "old product data was copied into a draft control: {assembled:?}"
+    );
+    assert_eq!(
+        fs::read(project.join(".ymp/sentinel")).expect("old root sentinel"),
+        b"old root bytes\n"
+    );
+    assert_eq!(
+        fs::read(project.join(".ymp-data/sentinel")).expect("old store sentinel"),
+        b"old store bytes\n"
+    );
 }
 
 // ---------------------------------------------------------------------------
-// An export is delivered into the launch directory
+// A default export remains under the home root
 // ---------------------------------------------------------------------------
 
 #[test]
-fn an_export_delivers_the_accepted_candidate_into_the_launch_directory_and_nothing_else_does() {
+fn a_default_export_stays_under_the_run_store_and_an_explicit_one_goes_where_selected() {
     let host = Host::new();
     let project = host.project("delivery");
 
@@ -183,13 +205,18 @@ fn an_export_delivers_the_accepted_candidate_into_the_launch_directory_and_nothi
     let exported = host.command(&project, &["export".to_owned()]);
     exported.assert_succeeded();
 
-    let delivered = entries(&project);
+    assert!(
+        entries(&project).is_empty(),
+        "a default export wrote into the launch directory: {:?}",
+        relative_paths(&project)
+    );
+    let delivered = entries(&store.join("exports"));
     assert_eq!(
         1,
         delivered.len(),
-        "the export was not the one thing written into the launch directory: {delivered:?}"
+        "the default export was not filed under the run store: {delivered:?}"
     );
-    let export = project.join(&delivered[0]);
+    let export = store.join("exports").join(&delivered[0]);
     assert!(
         delivered[0].starts_with(EXPORT_PREFIX),
         "the delivered directory does not name the run it carries: {delivered:?}"
@@ -206,6 +233,21 @@ fn an_export_delivers_the_accepted_candidate_into_the_launch_directory_and_nothi
             relative_paths(&export)
         );
     }
+
+    // The positive half for delivery outside the root: the path is reached only when the operator
+    // names it, and exactly that path receives the bundle.
+    let selected = project.join("selected-evidence");
+    let selected_export = host.command(
+        &project,
+        &["export".to_owned(), format!("--to={}", selected.display())],
+    );
+    selected_export.assert_succeeded();
+    assert_eq!(
+        vec!["selected-evidence".to_owned()],
+        entries(&project),
+        "an explicitly selected export wrote anywhere else in the launch directory"
+    );
+    assert!(selected.join("candidate/src/lib.rs").is_file());
 }
 
 /// The delivery the owner asked for: the result stands where the operator works, as files, with

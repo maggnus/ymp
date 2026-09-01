@@ -548,8 +548,16 @@ const COPY_ENTRY_LIMIT: usize = 20_000;
 const COPY_BYTE_LIMIT: u64 = 256 * 1024 * 1024;
 
 /// Directories a clean copy of a project never needs: history, build output and fetched
-/// dependencies are rebuilt, not judged.
-const NOT_COPIED: [&str; 5] = [".git", "target", "node_modules", ".ymp-data", ".venv"];
+/// dependencies are rebuilt, not judged, while product data belongs to the root rather than to a
+/// project snapshot.
+const NOT_COPIED: [&str; 6] = [
+    ".git",
+    "target",
+    "node_modules",
+    ".ymp",
+    ".ymp-data",
+    ".venv",
+];
 
 /// Assemble what the product can supply for a request against this source.
 ///
@@ -1105,10 +1113,10 @@ pub fn derive_check(prompt: &str) -> Option<DerivedCheck> {
     })
 }
 
-/// Directories a produced artifact is never looked for in: history and fetched dependencies are
-/// not what the work left behind, and a candidate that happens to carry one of them would
-/// otherwise satisfy the check with a file it never wrote.
-const NOT_SEARCHED: [&str; 4] = [".git", "node_modules", ".ymp-data", "target"];
+/// Directories a produced artifact is never looked for in: history, fetched dependencies and
+/// product data are not what the work left behind, and a candidate that happens to carry one of
+/// them would otherwise satisfy the check with a file it never wrote.
+const NOT_SEARCHED: [&str; 5] = [".git", "node_modules", ".ymp", ".ymp-data", "target"];
 
 /// The generated program, as the text an operator reads before approving it.
 fn generated_program(artifact: &Artifact, claim: &str, remainder: &str) -> String {

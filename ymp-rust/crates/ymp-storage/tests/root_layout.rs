@@ -249,60 +249,6 @@ fn a_root_of_another_layout_version_is_refused() {
     DataRoot::open_for_project(&root, &project).expect("this build's own root");
 }
 
-/// The default root stands at the operator's home, so what an earlier build left beside a project
-/// is refused rather than found: both the store the earliest builds wrote there and the root the
-/// build before this one wrote there.
-#[test]
-fn state_an_earlier_build_left_beside_the_project_is_refused_by_the_default_root() {
-    let host = TempDir::new().expect("temporary host");
-    let project = directory(host.path(), "project");
-    let root = directory(host.path(), "home").join(".ymp");
-
-    // Nothing beside the project: the default begins.
-    DataRoot::refuse_earlier_layout_beside(&project, &root).expect("a clean project begins");
-
-    // The root the previous default wrote beside the project.
-    let earlier = directory(&project, ".ymp");
-    fs::write(
-        earlier.join("root.json"),
-        br#"{"schema_version":1,"kind":"ymp-root"}"#,
-    )
-    .expect("the earlier root marker");
-    let error = DataRoot::refuse_earlier_layout_beside(&project, &root)
-        .expect_err("the default began beside a root an earlier build wrote");
-    assert!(
-        matches!(error, RootError::EarlierRoot { .. }),
-        "unexpected refusal: {error}"
-    );
-    let reason = error.to_string();
-    assert!(
-        reason.contains(".ymp") && reason.contains("--root"),
-        "the refusal does not name the root and both ways to proceed: {reason}"
-    );
-
-    // A root does not refuse itself: an environment that points the default back at that same
-    // directory has named it deliberately.
-    DataRoot::refuse_earlier_layout_beside(&project, &earlier)
-        .expect("the addressed root refused itself");
-
-    // The store the earliest builds wrote beside the project, named as a store rather than a root.
-    let legacy = directory(&project, ".ymp-data");
-    start(&legacy);
-    let error = DataRoot::refuse_earlier_layout_beside(&project, &earlier)
-        .expect_err("the default began beside a store the earliest layout wrote");
-    let reason = error.to_string();
-    assert!(
-        matches!(error, RootError::LegacyStore { .. })
-            && reason.contains(".ymp-data")
-            && reason.contains("--data-root"),
-        "the refusal does not name the store and how it is read where it stands: {reason}"
-    );
-
-    // Neither was written into, and neither was copied anywhere.
-    assert_eq!(vec!["root.json"], names(&earlier));
-    assert_eq!(vec!["events.jsonl"], names(&legacy));
-}
-
 fn open(root: &Path, project: &Path) -> DataRoot {
     DataRoot::open_for_project(root, project).expect("open the root")
 }

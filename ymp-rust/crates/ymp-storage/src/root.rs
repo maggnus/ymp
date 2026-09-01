@@ -29,9 +29,8 @@
 //! `--root` names one for a single invocation.
 //!
 //! A directory an earlier build wrote beside the project — a `.ymp` root or a `.ymp-data` store —
-//! is neither moved nor copied nor read as if the default had found it. It is read where it stands
-//! when the invocation says so, and otherwise the default refuses and names both ways out; see
-//! [`DataRoot::refuse_earlier_layout_beside`].
+//! has no bearing on default resolution. The default neither reads nor writes it; an invocation
+//! reaches such a directory only when the operator names it explicitly.
 
 use serde_json::Value;
 use sha2::{Digest, Sha256};
@@ -48,15 +47,6 @@ pub const ROOT_DIRECTORY: &str = ".ymp";
 /// The variable that names the root for a whole environment. What it names is the root itself,
 /// exactly as `--root` names one, rather than a directory the root is then placed inside.
 pub const YMP_HOME: &str = "YMP_HOME";
-
-/// The store directory the earliest builds defaulted to. This layout never writes into it and
-/// never copies out of it; it is read where it stands or refused with the reason named.
-pub const LEGACY_STORE: &str = ".ymp-data";
-
-/// What an earlier build left beside a project: the root the previous default wrote there, and
-/// the store the default before that wrote there. Both are refused by the default and read only
-/// when the invocation names them.
-const EARLIER_LAYOUT: [&str; 2] = [ROOT_DIRECTORY, LEGACY_STORE];
 
 /// The layout version this build writes and reads. A root is not migrated.
 pub const LAYOUT_VERSION: u64 = 1;
@@ -98,24 +88,6 @@ pub enum RootError {
         found: u64,
         expected: u64,
     },
-    #[error(
-        "a store written by the earlier layout stands at {}, and nothing was copied out of it. \
-         Read it where it stands with --data-root {}, or name the new root with --root {} to \
-         leave it untouched.",
-        legacy.display(),
-        legacy.display(),
-        root.display()
-    )]
-    LegacyStore { legacy: PathBuf, root: PathBuf },
-    #[error(
-        "a root written by an earlier build stands at {}, and nothing was copied out of it. Read \
-         it where it stands with --root {}, or name this build's root with --root {} to leave it \
-         untouched.",
-        earlier.display(),
-        earlier.display(),
-        root.display()
-    )]
-    EarlierRoot { earlier: PathBuf, root: PathBuf },
     #[error(
         "no root could be addressed: neither {YMP_HOME} nor a home directory names one. Set \
          {YMP_HOME}, or name the root of this invocation with --root <DIR>."
@@ -182,38 +154,6 @@ impl DataRoot {
         home.filter(|home| !home.as_os_str().is_empty())
             .map(|home| home.join(ROOT_DIRECTORY))
             .ok_or(RootError::HomeUnknown)
-    }
-
-    /// Refuse to begin beside state an earlier build wrote into the launch directory.
-    ///
-    /// Such a directory is neither moved nor copied nor read as if the default had found it: the
-    /// refusal names it, names the invocation that reads it where it stands, and names the
-    /// invocation that declares this build's root and leaves it alone. This guards the default
-    /// root only — an operator who named a root has already answered the question this asks.
-    ///
-    /// The one directory this cannot be about is the root now being addressed. An environment that
-    /// points [`YMP_HOME`] back at the launch directory names that root deliberately, and a root
-    /// does not refuse itself.
-    pub fn refuse_earlier_layout_beside(project: &Path, root: &Path) -> Result<(), RootError> {
-        for name in EARLIER_LAYOUT {
-            let earlier = project.join(name);
-            if same_directory(&earlier, root) {
-                continue;
-            }
-            if earlier.join(JOURNAL).is_file() {
-                return Err(RootError::LegacyStore {
-                    legacy: earlier,
-                    root: root.to_path_buf(),
-                });
-            }
-            if earlier.join(ROOT_MARKER).is_file() {
-                return Err(RootError::EarlierRoot {
-                    earlier,
-                    root: root.to_path_buf(),
-                });
-            }
-        }
-        Ok(())
     }
 
     /// Open a root for the directory the product was started in.
@@ -450,13 +390,6 @@ fn highest_run(runs: &Path) -> Result<Option<(u32, PathBuf)>, RootError> {
         }
     }
     Ok(highest)
-}
-
-/// Whether two paths name one directory. Neither has to exist: a path that cannot be resolved is
-/// compared as it was written, which is what an operator reading the refusal would compare.
-fn same_directory(one: &Path, other: &Path) -> bool {
-    let resolve = |path: &Path| fs::canonicalize(path).unwrap_or_else(|_| path.to_path_buf());
-    one == other || resolve(one) == resolve(other)
 }
 
 fn create_dir_all(path: &Path) -> Result<(), RootError> {

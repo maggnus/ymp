@@ -151,6 +151,44 @@ fn source_capture_can_omit_declared_derived_subtrees() {
     assert!(!materialized.join("target").exists());
 }
 
+/// Product data that happens to stand inside the addressed source is never source material. Both
+/// historical names are excluded at the root, while an equal name below a source directory stays
+/// ordinary project content.
+#[test]
+fn source_capture_omits_product_roots_without_omitting_nested_project_names() {
+    let temporary = tempdir().expect("temporary directory");
+    let source = temporary.path().join("source");
+    for directory in [".ymp", ".ymp-data", "fixtures/.ymp", "fixtures/.ymp-data"] {
+        std::fs::create_dir_all(source.join(directory)).expect("source directory");
+        std::fs::write(
+            source.join(directory).join("sentinel"),
+            directory.as_bytes(),
+        )
+        .expect("sentinel file");
+    }
+    std::fs::write(source.join("source.txt"), b"source\n").expect("source file");
+
+    let objects = ObjectStore::open(temporary.path().join("objects")).expect("object store");
+    let artifacts = ArtifactStore::new(objects);
+    let snapshot = artifacts.capture_source(&source).expect("capture source");
+    let materialized = temporary.path().join("materialized");
+    artifacts
+        .materialize(&snapshot.manifest_digest, &materialized)
+        .expect("materialize source");
+
+    assert!(!materialized.join(".ymp").exists());
+    assert!(!materialized.join(".ymp-data").exists());
+    assert_eq!(
+        std::fs::read(materialized.join("fixtures/.ymp/sentinel")).expect("nested project file"),
+        b"fixtures/.ymp"
+    );
+    assert_eq!(
+        std::fs::read(materialized.join("fixtures/.ymp-data/sentinel"))
+            .expect("nested project file"),
+        b"fixtures/.ymp-data"
+    );
+}
+
 #[test]
 fn stale_base_is_rejected_without_candidate_creation() {
     let temporary = tempdir().expect("temporary directory");

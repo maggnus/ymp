@@ -306,7 +306,11 @@ impl ArtifactStore {
         let mut entries = fs::read_dir(directory)?.collect::<Result<Vec<_>, _>>()?;
         entries.sort_by_key(std::fs::DirEntry::file_name);
         for entry in entries {
-            if directory == root && matches!(entry.file_name().to_str(), Some(".git" | ".ymp-data"))
+            if directory == root
+                && matches!(
+                    entry.file_name().to_str(),
+                    Some(".git" | ".ymp" | ".ymp-data")
+                )
             {
                 continue;
             }

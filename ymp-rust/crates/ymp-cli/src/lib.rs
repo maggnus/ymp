@@ -11,7 +11,7 @@ use anyhow::{Context, bail};
 use clap::{Parser, Subcommand};
 use std::path::PathBuf;
 use ymp_application::PreparedContract;
-use ymp_application::root::{StoreIntent, default_root, refuse_earlier_layout, store_under};
+use ymp_application::root::{StoreIntent, default_root, store_under};
 
 pub mod internal;
 pub mod surface;
@@ -31,6 +31,7 @@ pub struct Cli {
         long,
         global = true,
         value_name = "DIR",
+        hide = true,
         help = "The root every durable path lives under [default: $YMP_HOME, else ~/.ymp]"
     )]
     pub root: Option<PathBuf>,
@@ -41,6 +42,7 @@ pub struct Cli {
         global = true,
         value_name = "DIR",
         conflicts_with = "root",
+        hide = true,
         help = "Act on exactly this store instead of one addressed under the root"
     )]
     pub data_root: Option<PathBuf>,
@@ -138,11 +140,7 @@ fn addressed(cli: &Cli) -> anyhow::Result<Addressed> {
     if let Some(root) = &cli.root {
         return Ok(Addressed::Root(root.clone()));
     }
-    let root = default_root()?;
-    // Only the default root asks this question. An operator who named a root has answered it,
-    // and an operator who named a store is already reading one where it stands.
-    refuse_earlier_layout(&root)?;
-    Ok(Addressed::Root(root))
+    Ok(Addressed::Root(default_root()?))
 }
 
 /// Whether this invocation acts on the project's current store or starts a run in a fresh one.
@@ -255,6 +253,18 @@ mod tests {
     fn cli_default_invocation_selects_the_foreground_mode() {
         let cli = Cli::try_parse_from(["ymp"]).expect("default invocation");
         assert!(cli.command.is_none());
+    }
+
+    #[test]
+    fn ordinary_help_does_not_ask_the_operator_to_choose_storage() {
+        let mut command = Cli::command();
+        let help = command.render_long_help().to_string();
+        for diagnostic in ["--root", "--data-root", "YMP_HOME"] {
+            assert!(
+                !help.contains(diagnostic),
+                "ordinary help exposes diagnostic storage selection {diagnostic}:\n{help}"
+            );
+        }
     }
 
     #[test]

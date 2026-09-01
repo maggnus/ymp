@@ -145,6 +145,45 @@ fn a_request_for_a_file_generates_a_check_that_rejects_the_project_and_accepts_t
     assert!(decides(&generated.program, &generated.positive_control));
 }
 
+/// Product roots inside the launch directory are neither copied into draft controls nor searched
+/// as project output. The source copies remain byte-for-byte untouched; only a deliberately
+/// planted project artifact satisfies the generated check.
+#[test]
+fn generated_checks_ignore_both_product_root_names_without_touching_them() {
+    let workspace = workspace();
+    let sentinels = [
+        (".ymp/hidden.html", b"home-root-state\n".as_slice()),
+        (".ymp-data/hidden.html", b"legacy-store-state\n".as_slice()),
+    ];
+    for (relative, bytes) in sentinels {
+        let path = workspace.source.join(relative);
+        fs::create_dir_all(path.parent().expect("sentinel parent"))
+            .expect("product data directory");
+        fs::write(path, bytes).expect("product data sentinel");
+    }
+
+    let generated = workspace
+        .generate("create an empty html file")
+        .expect("a request naming a file derives a check");
+
+    for (relative, bytes) in sentinels {
+        assert_eq!(
+            fs::read(workspace.source.join(relative)).expect("unchanged product data sentinel"),
+            bytes,
+            "draft assembly changed {relative}"
+        );
+    }
+    for control in [&generated.negative_control, &generated.positive_control] {
+        assert!(!control.join(".ymp").exists());
+        assert!(!control.join(".ymp-data").exists());
+    }
+    assert!(
+        !decides(&generated.program, &workspace.source),
+        "a file inside product data was mistaken for project output"
+    );
+    assert!(decides(&generated.program, &generated.positive_control));
+}
+
 /// The check the operator approves is the one the contract pins. The digest is stated in the draft
 /// before authorization, and it is the digest the contract records for the oracle, so a program
 /// edited between the two no longer belongs to the contract that was approved.

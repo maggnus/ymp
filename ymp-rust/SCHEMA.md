@@ -5,9 +5,11 @@ compatibility contract, not a promise that every later feature fits schema versi
 
 ## Product state layout version 1
 
-Everything the product writes on a host lives under one root. The root is `.ymp` in the operator's
-home directory — `YMP_HOME` names another one for a whole environment, and `--root` for a single
-invocation — and it is addressed rather than named per run:
+Everything the product writes durably on a host lives under one automatically addressed root. The
+normal root is `.ymp` in the operator's home directory; `YMP_HOME` may relocate the whole
+environment, while the hidden `--root` and `--data-root` overrides remain diagnostic mechanisms,
+not steps in the normal user path. Projects and runs are addressed inside the root rather than
+named by the operator:
 
 ```text
 ~/.ymp/
@@ -18,6 +20,7 @@ invocation — and it is addressed rather than named per run:
   projects/<project>/
     project.json                the directory this project addresses
     runs/0001/                  one store: one run, its objects and its evidence
+      exports/ymp-evidence-<run>/  default readable evidence export
     runs/0002/
 ```
 
@@ -74,21 +77,20 @@ root always carries `project.json` naming the directory it stands for.
 and no command migrates a root. A directory holding a journal is refused as a root, because it is
 a store.
 
-`--data-root` addresses one exact store instead of one under a root. That is how a store written
-before this layout is read where it stands. When state an earlier build left beside the project
-stands in the launch directory — a `.ymp` root, or a `.ymp-data` store older still — the default
-is refused and names both ways to proceed: reading that directory where it stands with `--root` or
-`--data-root`, or declaring the root this build addresses and leaving it untouched. Nothing is
-copied out of it and nothing is written into it. A root named on the command line answers that
-question itself and is not asked again.
+`--data-root` addresses one exact store instead of one under a root. It and `--root` are hidden
+diagnostic overrides used by controlled checks and recovery tools. State an earlier build left in
+the launch directory — a `.ymp` root, or a `.ymp-data` store older still — has no effect on default
+resolution: it is not detected, copied, changed or deleted. It is reached only when a diagnostic
+invocation explicitly names it. Project capture and draft construction exclude both names at the
+source root, so ignored product data cannot become candidate content or a negative control.
 
-Three kinds of path are deliberately outside the root, each for a reason that does not apply to
-durable state. The coordination socket, the generated runtime home and the private copies of
-admitted executables live in the operating system's temporary directory: they exist only while one
-process does, they are removed with it, and a unix socket path is length-limited in a way a
-project-relative path cannot honour. An evidence export is written where the operator names it,
-and beside the project under the run's own name when they name none, because an export exists to
-leave the root.
+Two kinds of path are deliberately outside the root. The coordination socket, the generated
+runtime home and the private copies of admitted executables live in the operating system's
+temporary directory: they exist only while one process does, they are removed with it, and a unix
+socket path is length-limited. An evidence export or accepted candidate may leave the root only
+when the operator explicitly names a destination or chooses application; with no destination, a
+readable evidence export remains under the run store. Schema and runtime versions remain integrity
+facts recorded and checked by the product, not storage choices the normal user must make.
 
 ## Run identity version 2
 

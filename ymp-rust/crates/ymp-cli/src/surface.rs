@@ -103,7 +103,7 @@ pub enum PublicCommand {
     },
     /// Write this run's candidate and the evidence that judged it out of the store.
     Export {
-        /// Where to write it. Omitted writes it beside the project, under the run's own name.
+        /// Where to write it. Omitted keeps a readable bundle under this run's product data.
         #[arg(long = "to", value_name = "DIR")]
         destination: Option<PathBuf>,
         /// Put the accepted candidate's files into the project directory itself and write
