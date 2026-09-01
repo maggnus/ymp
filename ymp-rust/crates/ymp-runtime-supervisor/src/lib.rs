@@ -924,7 +924,7 @@ fn start_candidate(
     let attempt_id = format!("attempt-{}", Uuid::new_v4());
     let invocation_id = format!("invocation-{}", Uuid::new_v4());
     let evidence_invocation_id = invocation_id.clone();
-    let (data_root, run_id, base_digest, workspace, controller_cursor) = {
+    let (run_id, base_digest, workspace, evidence_directory, controller_cursor) = {
         let mut application = application
             .lock()
             .map_err(|_| anyhow::anyhow!("application lock was poisoned"))?;
@@ -934,11 +934,11 @@ fn start_candidate(
         if !application.state().active_attempts.is_empty() {
             bail!("the POC profile admits only one active attempt");
         }
-        let data_root = application.data_root().to_path_buf();
         let base = application
             .artifact_store()
             .capture_source(&request.contract.source)?;
-        let workspace = data_root.join("workspaces").join(&attempt_id);
+        let workspace = application.private_workspace_path(&attempt_id)?;
+        let evidence_directory = application.runtime_evidence_path(&attempt_id)?;
         application
             .artifact_store()
             .materialize(&base.manifest_digest, &workspace)?;
@@ -950,10 +950,10 @@ fn start_candidate(
             },
         )?;
         (
-            data_root,
             application.state().run_id.clone(),
             base.manifest_digest,
             workspace,
+            evidence_directory,
             application.state().last_sequence,
         )
     };
@@ -1080,7 +1080,6 @@ fn start_candidate(
         .as_ref()
         .and_then(|descriptor| descriptor.coordination_executable_digest.clone())
         .unwrap_or(bridge_executable_digest);
-    let evidence_directory = data_root.join("runtime-evidence").join(&attempt_id);
     if let Err(error) = fs::create_dir_all(&evidence_directory) {
         let detail = error.to_string();
         return Err(failed_start(

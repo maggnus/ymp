@@ -78,9 +78,6 @@ const REGISTER_COMMAND: &str = "ymp.participant.origin.register";
 const START_COMMAND: &str = "ymp.participant.origin.start";
 const FINISH_COMMAND: &str = "ymp.participant.origin.finish";
 
-/// The directory a run's private workspaces stand in, inside its own store.
-const WORKSPACES_DIRECTORY: &str = "workspaces";
-
 /// What the run's own authority holds when it ignites.
 ///
 /// It holds exactly one permission to start a participant, so the accounting itself states that
@@ -463,10 +460,7 @@ impl Application {
     ) -> Result<PathBuf, ApplicationError> {
         let artifacts = self.artifact_store();
         let base = artifacts.capture_source(&document.source)?;
-        let workspace = self
-            .data_root()
-            .join(WORKSPACES_DIRECTORY)
-            .join(ORIGIN_ATTEMPT);
+        let workspace = self.private_workspace_path(ORIGIN_ATTEMPT)?;
         artifacts.materialize(&base.manifest_digest, &workspace)?;
         Ok(workspace)
     }

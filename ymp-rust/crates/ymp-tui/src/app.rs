@@ -551,6 +551,7 @@ impl Session {
     /// A session over an already-open application, used by the preview and by tests.
     pub fn from_application(
         application: Application,
+        configured_root: PathBuf,
         environment: Environment,
         contracts: Vec<ContractFacts>,
     ) -> Self {
@@ -559,8 +560,7 @@ impl Session {
         if let Ok(events) = application.events_after(0) {
             model.absorb(&state, &events);
         }
-        let data_root = application.data_root().to_path_buf();
-        Self::over(Some(application), &data_root, model, &[])
+        Self::over(Some(application), &configured_root, model, &[])
     }
 
     /// Take the writer for the length of one call.

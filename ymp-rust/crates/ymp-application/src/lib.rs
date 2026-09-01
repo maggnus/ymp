@@ -59,6 +59,8 @@ pub use pool::{PoolFreezeRefused, freeze_record, freeze_under};
 pub use verification::{VerificationJob, VerificationOutcome};
 
 const BOOTSTRAP_COMMAND_ID: &str = "ymp.bootstrap";
+const PRIVATE_WORKSPACES_DIRECTORY: &str = "workspaces";
+const RUNTIME_EVIDENCE_DIRECTORY: &str = "runtime-evidence";
 
 #[derive(Debug, Error)]
 pub enum ApplicationError {
@@ -484,8 +486,38 @@ impl WorkspaceSubmission {
 }
 
 impl Application {
-    pub fn data_root(&self) -> &Path {
-        &self.data_root
+    /// The exact private workspace assigned to one trusted attempt.
+    ///
+    /// The application exposes no generic storage root from which object or board paths can be
+    /// reconstructed:
+    ///
+    /// ```compile_fail
+    /// use std::path::Path;
+    /// use ymp_application::Application;
+    /// fn generic_root(application: &Application) -> &Path {
+    ///     application.data_root()
+    /// }
+    /// ```
+    pub fn private_workspace_path(&self, attempt_id: &str) -> Result<PathBuf, ApplicationError> {
+        self.attempt_storage_path(PRIVATE_WORKSPACES_DIRECTORY, attempt_id)
+    }
+
+    /// The exact evidence directory assigned to one trusted runtime attempt.
+    pub fn runtime_evidence_path(&self, attempt_id: &str) -> Result<PathBuf, ApplicationError> {
+        self.attempt_storage_path(RUNTIME_EVIDENCE_DIRECTORY, attempt_id)
+    }
+
+    fn attempt_storage_path(
+        &self,
+        directory: &str,
+        attempt_id: &str,
+    ) -> Result<PathBuf, ApplicationError> {
+        validate_identifier("attempt_id", attempt_id)?;
+        let mut components = Path::new(attempt_id).components();
+        if !matches!(components.next(), Some(Component::Normal(_))) || components.next().is_some() {
+            return Err(ApplicationError::InvalidIdentifier { kind: "attempt_id" });
+        }
+        Ok(self.data_root.join(directory).join(attempt_id))
     }
 
     pub fn create(
@@ -1563,7 +1595,7 @@ impl Application {
                     self.object_store.read(digest)?,
                 )?;
             }
-            let runtime_evidence_source = self.data_root.join("runtime-evidence");
+            let runtime_evidence_source = self.data_root.join(RUNTIME_EVIDENCE_DIRECTORY);
             let has_runtime_evidence = runtime_evidence_source.is_dir();
             if has_runtime_evidence {
                 copy_export_tree(
