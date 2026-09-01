@@ -1332,6 +1332,55 @@ pub struct ToolHostProbeFailureEvidence {
     pub mcp_diagnostic: Option<DiagnosticSummary>,
 }
 
+impl ToolHostProbeFailureEvidence {
+    /// Merges only observations the source actually contains. Unknown enum values and absent
+    /// optional fields never erase an observation already made by another probe component.
+    pub fn merge_observed(&mut self, source: Self) {
+        if source.phase != ToolHostProbeFailurePhase::Unknown {
+            self.phase = source.phase;
+        }
+        if source.provider_request_state != ProviderRequestState::Unknown {
+            self.provider_request_state = source.provider_request_state;
+        }
+        macro_rules! merge_stage {
+            ($field:ident) => {
+                if source.stages.$field.is_some() {
+                    self.stages.$field = source.stages.$field;
+                }
+            };
+        }
+        merge_stage!(process_spawned);
+        merge_stage!(runtime_started);
+        merge_stage!(turn_started);
+        merge_stage!(provider_response);
+        merge_stage!(provider_typed_failure);
+        merge_stage!(mcp_call);
+        merge_stage!(mcp_result);
+        merge_stage!(controller_readback);
+        merge_stage!(attestation_written);
+        merge_stage!(handle_written);
+        merge_stage!(cleanup_completed);
+        macro_rules! merge_optional {
+            ($field:ident) => {
+                if source.$field.is_some() {
+                    self.$field = source.$field;
+                }
+            };
+        }
+        merge_optional!(runtime_failure_kind);
+        merge_optional!(last_event_id);
+        merge_optional!(last_event_sequence);
+        merge_optional!(last_event_type);
+        merge_optional!(process_exit_code);
+        merge_optional!(process_signal);
+        merge_optional!(duration_ms);
+        merge_optional!(usage);
+        merge_optional!(cost);
+        merge_optional!(codex_diagnostic);
+        merge_optional!(mcp_diagnostic);
+    }
+}
+
 /// A terminal runtime failure observed as a complete structured event. Unlike
 /// [`ToolHostProbeError::RuntimeFailed`], this record preserves every bounded field the runtime
 /// supplied and never stores raw diagnostic bytes.
@@ -1742,6 +1791,40 @@ mod tool_host_probe_schema_tests {
         assert!(diagnostic.get("bytes").is_some());
         assert!(diagnostic.get("truncated").is_some());
         assert!(!diagnostic.to_string().contains("secret"));
+    }
+
+    #[test]
+    fn evidence_merge_never_erases_an_observation_with_unknown() {
+        let mut evidence = ToolHostProbeFailureEvidence {
+            phase: super::ToolHostProbeFailurePhase::RuntimeProcess,
+            stages: super::ToolHostProbeFailureStages {
+                runtime_started: Some(true),
+                ..super::ToolHostProbeFailureStages::default()
+            },
+            last_event_sequence: Some(1),
+            ..ToolHostProbeFailureEvidence::default()
+        };
+        evidence.merge_observed(ToolHostProbeFailureEvidence {
+            provider_request_state: ProviderRequestState::NotStarted,
+            stages: super::ToolHostProbeFailureStages {
+                turn_started: Some(false),
+                ..super::ToolHostProbeFailureStages::default()
+            },
+            duration_ms: Some(7),
+            ..ToolHostProbeFailureEvidence::default()
+        });
+        assert_eq!(
+            evidence.phase,
+            super::ToolHostProbeFailurePhase::RuntimeProcess
+        );
+        assert_eq!(
+            evidence.provider_request_state,
+            ProviderRequestState::NotStarted
+        );
+        assert_eq!(evidence.stages.runtime_started, Some(true));
+        assert_eq!(evidence.stages.turn_started, Some(false));
+        assert_eq!(evidence.last_event_sequence, Some(1));
+        assert_eq!(evidence.duration_ms, Some(7));
     }
 
     #[test]

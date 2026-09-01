@@ -1326,65 +1326,8 @@ fn merge_probe_failure_evidence(
     target: &mut ToolHostProbeFailureEvidence,
     source: Option<ToolHostProbeFailureEvidence>,
 ) {
-    let Some(source) = source else {
-        return;
-    };
-    if source.phase != ToolHostProbeFailurePhase::Unknown {
-        target.phase = source.phase;
-    }
-    if source.provider_request_state != ProviderRequestState::Unknown {
-        target.provider_request_state = source.provider_request_state;
-    }
-    macro_rules! merge_stage {
-        ($field:ident) => {
-            if source.stages.$field.is_some() {
-                target.stages.$field = source.stages.$field;
-            }
-        };
-    }
-    merge_stage!(process_spawned);
-    merge_stage!(runtime_started);
-    merge_stage!(turn_started);
-    merge_stage!(provider_response);
-    merge_stage!(provider_typed_failure);
-    merge_stage!(mcp_call);
-    merge_stage!(mcp_result);
-    merge_stage!(controller_readback);
-    merge_stage!(attestation_written);
-    merge_stage!(handle_written);
-    merge_stage!(cleanup_completed);
-    if source.runtime_failure_kind.is_some() {
-        target.runtime_failure_kind = source.runtime_failure_kind;
-    }
-    if source.last_event_id.is_some() {
-        target.last_event_id = source.last_event_id;
-    }
-    if source.last_event_sequence.is_some() {
-        target.last_event_sequence = source.last_event_sequence;
-    }
-    if source.last_event_type.is_some() {
-        target.last_event_type = source.last_event_type;
-    }
-    if source.process_exit_code.is_some() {
-        target.process_exit_code = source.process_exit_code;
-    }
-    if source.process_signal.is_some() {
-        target.process_signal = source.process_signal;
-    }
-    if source.duration_ms.is_some() {
-        target.duration_ms = source.duration_ms;
-    }
-    if source.usage.is_some() {
-        target.usage = source.usage;
-    }
-    if source.cost.is_some() {
-        target.cost = source.cost;
-    }
-    if source.codex_diagnostic.is_some() {
-        target.codex_diagnostic = source.codex_diagnostic;
-    }
-    if source.mcp_diagnostic.is_some() {
-        target.mcp_diagnostic = source.mcp_diagnostic;
+    if let Some(source) = source {
+        target.merge_observed(source);
     }
 }
 
