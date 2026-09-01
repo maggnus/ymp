@@ -9,7 +9,7 @@ relation: required
 depends_on: []
 blocks: [W1-APP-02]
 created_at: 2026-08-10T19:34:25+08:00
-updated_at: 2026-08-14T02:22:00+08:00
+updated_at: 2026-09-01T13:42:00+08:00
 started_at: 2026-08-12T11:02:25+08:00
 accepted_at: 2026-08-14T02:22:00+08:00
 candidate_commit:
@@ -43,6 +43,9 @@ This card owns `POC-0`: curated contracts and oracles, preregistration, executab
 falsification, fake-runtime fixtures, and exact Codex and Claude Code capability probes. It does
 not build the user-facing runtime or broaden the supported project class.
 
+The later W1-EXP-01e follow-up freezes development-only L4+ strata without reopening or changing
+the accepted POC-0 corpus, primary seeds, decision rule, or closure evidence.
+
 ## Aggregate acceptance
 
 All four required tasks are accepted. At least one oracle mutation, one protocol mutation, and one
@@ -56,3 +59,4 @@ visible.
 - [W1-EXP-01b](tasks/W1-EXP-01b.md) — required
 - [W1-EXP-01c](tasks/W1-EXP-01c.md) — required
 - [W1-EXP-01d](tasks/W1-EXP-01d/TASK.md) — required
+- [W1-EXP-01e](tasks/W1-EXP-01e.md) — follow-up

@@ -7,10 +7,10 @@ state: ready
 risk: significant
 maturity: RESEARCH
 relation: required
-depends_on: [W1-EVL-04a, W1-COR-03e]
+depends_on: [W1-EVL-04a, W1-EVL-04f, W1-COR-03z, W1-PRD-05j.1]
 blocks: [W1-EVL-04c]
 created_at: 2026-08-10T19:34:25+08:00
-updated_at: 2026-08-10T21:23:34+08:00
+updated_at: 2026-09-01T13:42:00+08:00
 started_at:
 accepted_at:
 candidate_commit:
@@ -62,13 +62,14 @@ neutral text, shuffled text, and direct delivery of the same underlying evidence
 
 ## Current state
 
-The intervention families are described in design documents, but no executable study harness,
-episode sample, treatment assignment, or result exists.
+The intervention families are specified, but no executable harness, frozen episode sample,
+treatment assignment, or result exists. This task now waits for accepted primary traces and the
+separate strong-profile transfer gate, not for TUI rendering.
 
 ## Next action
 
-After the primary arms produce valid traces, freeze the episode sample before running any
-communication intervention.
+After W1-EVL-04a and W1-EVL-04f, freeze the eligible episode sample before revealing or running any
+intervention outcome.
 
 ## Guardrails
 
@@ -80,7 +81,8 @@ communication intervention.
 
 ## Findings
 
-None.
+- The scientific plan audit removed `W1-COR-03e` as a headless-experiment dependency and added the
+  accepted collaboration path, recruitment, and transfer gate explicitly.
 
 ## Closure
 

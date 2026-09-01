@@ -7,10 +7,10 @@ state: deferred
 risk: critical
 maturity: RESEARCH
 relation: required
-depends_on: [W1-EXP-01a, W1-EXP-01b, W1-COR-03b, W1-COR-03d]
+depends_on: [W1-EXP-01a, W1-EXP-01b, W1-EXP-01e, W1-COR-03b, W1-COR-03d, W1-COR-03z, W1-PRD-05j.1, W1-EVL-04e, W1-EVL-04f]
 blocks: [W1-EVL-04b, W1-EVL-04c]
 created_at: 2026-08-10T19:34:25+08:00
-updated_at: 2026-09-01T12:22:00+08:00
+updated_at: 2026-09-01T13:42:00+08:00
 started_at: 2026-09-01T12:18:20+08:00
 accepted_at:
 candidate_commit:
@@ -18,8 +18,8 @@ closure_commit:
 evidence:
 duration_minutes: 0
 blocker:
-pause_reason: weak-diagnostic-v1 is defined; executable comparison awaits the multi-participant collaboration path
-return_trigger: W1-COR-03z and W1-COR-03e.2 accepted, with a two-participant run reachable through the product
+pause_reason: the frozen primary remains untouched while held-out weak diagnostic and strong-profile transfer gates are built and decided
+return_trigger: W1-EXP-01e, W1-EVL-04e, W1-EVL-04f and W1-PRD-05j.1 accepted; W1-COR-03z is already accepted
 deliberate_partial: false
 ---
 
@@ -45,6 +45,8 @@ comparable acceptance, false-acceptance, cost, latency, failure, and abstention 
 
 - Protocol tuning after primary results, ordinary-machine execution, production data, external
   delivery, unregistered exclusions, and substitution of a weaker single-agent baseline.
+- L1–L3 calibration, weak-profile development diagnostics, strong-profile transfer gating, and any
+  reuse of their observations as primary samples.
 
 ## Acceptance
 
@@ -65,18 +67,16 @@ comparable acceptance, false-acceptance, cost, latency, failure, and abstention 
 
 ## Current state
 
-The Sol max research result is recorded in
-[prt-001-weak-diagnostic.md](../../../../../research/prt-001-weak-diagnostic.md). No primary seed, paid model call, or
-experimental quota was consumed. The protocol is executable only after the product can run two
-participants with collaboration tools. The frozen study manifest
+The frozen primary study manifest
 ([d12eff3](https://github.com/maggnus/ymp/commit/d12eff31940f8ad124f5f8f566a0dd21de3d2ae6))
-binds arms, corpus, seeds, and the 0.125 minimum useful effect.
+binds arms, corpus, seeds, and the 0.125 minimum useful effect. No primary seed, paid model call, or
+experimental quota has been consumed. Development diagnostics and transfer now have separate tasks
+and cannot close this primary outcome.
 
 ## Next action
 
-After the return trigger, assign Sol to implement the diagnostic manifest, scheduler, blinded
-best-of-2 selector, and compliance record. Prove them first with deterministic fake runtimes in a
-fresh disposable evaluation root before any model call or primary seed is used.
+After the return trigger, execute only the frozen primary arms and compliance analysis; do not
+reimplement or import development diagnostic observations.
 
 ## Guardrails
 
@@ -87,7 +87,8 @@ fresh disposable evaluation root before any model call or primary seed is used.
 
 ## Findings
 
-None.
+- Scientific plan audit removed weak-diagnostic implementation and the TUI prerequisite from this
+  task; W1-EVL-04e/f and W1-PRD-05j.1 now own the actual prerequisites.
 
 ## Closure
 

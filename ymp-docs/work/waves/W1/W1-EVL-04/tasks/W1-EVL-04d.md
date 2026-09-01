@@ -11,11 +11,11 @@ depends_on: []
 blocks: []
 created_at: 2026-08-15T01:52:53+08:00
 updated_at: 2026-08-15T15:08:23+08:00
-started_at:
+started_at: 2026-08-15T01:52:53+08:00
 accepted_at: 2026-08-15T15:08:23+08:00
 candidate_commit:
-closure_commit:
-evidence: closed by owner decision D1 (2026-08-15): the operator names the permitted models per task (no pool entity), the set is frozen at run start as a snapshot, the collective forms the team from it; recorded verbatim in COLLECTIVE-OWNER-DECISIONS.md
+closure_commit: https://github.com/maggnus/ymp/commit/4b58ecda4c311a7fae25d006227efc09b6e5ca98
+evidence: ["[4b58ecd](https://github.com/maggnus/ymp/commit/4b58ecda4c311a7fae25d006227efc09b6e5ca98)"]
 duration_minutes: 0
 blocker:
 pause_reason:
@@ -47,18 +47,17 @@ attribution (W1-APP-02y). Refuting a candidate mechanism is a result.
 
 ## Acceptance
 
-- [ ] A written recommendation with named options, their consequences and one preferred mechanism,
+- [x] A written recommendation with named options, their consequences and one preferred mechanism,
       traceable to the accepted evidence; the owner decides on it.
 
 ## Current state
 
-Ready. From the owner decision of 2026-08-15: engines are probed for everything they can serve,
-but what may be USED must be declared somewhere — possibly in the contract at first request — and
-depends on pool formation.
+Accepted by owner decision D1: permitted models are named per task, frozen as a run-start snapshot,
+and the collective forms its team from that set; no semantic pool entity ranks models.
 
 ## Next action
 
-None recorded.
+No further action; implementation consumers use the accepted per-task snapshot rule.
 
 ## Guardrails
 
@@ -66,20 +65,20 @@ None recorded.
 
 ## Findings
 
-None yet.
+None.
 
 ## Closure
 
-Filled when the task is accepted.
-
 ### Accepted outcome
 
-Not accepted.
+The operator declares the permitted models per task; the set freezes at run start, and participant
+formation selects only from that snapshot without a model-ranking pool.
 
 ### Residuals
 
-None recorded.
+None.
 
 ### Evidence
 
-None recorded.
+- [4b58ecd](https://github.com/maggnus/ymp/commit/4b58ecda4c311a7fae25d006227efc09b6e5ca98)
+  — owner decision D1 and its durable design record.
