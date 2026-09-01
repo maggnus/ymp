@@ -23,15 +23,14 @@ use std::fs;
 use std::path::Path;
 
 use tempfile::{TempDir, tempdir};
-use ymp_application::{Application, ApplicationConfig, ApplicationError, ParticipantAdmission};
+use ymp_application::{Application, ApplicationConfig, ApplicationError};
 use ymp_domain::commitment::{
     BudgetVector, CommitmentEvent, CommitmentLedger, Dimension, StopReason, StopRun,
 };
 use ymp_domain::commitment::{CommitmentCommand, RegisterParticipant};
 use ymp_domain::pool::{EntryIdentity, FrozenEntry};
 use ymp_domain::recruitment::{
-    Gate, ParticipantStartPath, ProposerState, RecruitmentPolicy, RecruitmentRefusal,
-    RequestParticipant,
+    Gate, ProposerState, RecruitmentPolicy, RecruitmentRefusal, RequestParticipant,
 };
 use ymp_domain::{Budget, Command, EventKind};
 use ymp_testkit::recruitment::{MeasuredHost, RecordedStarts, route};
@@ -541,17 +540,4 @@ fn refused(
             admission.admitted.participant_id
         ),
     }
-}
-
-/// The type of one admission is carried out of the crate whole, so a caller reads what was admitted
-/// without opening the journal itself.
-#[allow(dead_code)]
-fn admission_is_public(admission: ParticipantAdmission) -> String {
-    admission.admitted.participant_id
-}
-
-/// The start path is a trait the product implements once, so a check can stand in for it.
-#[allow(dead_code)]
-fn start_path_is_a_trait(path: &mut dyn ParticipantStartPath) -> &mut dyn ParticipantStartPath {
-    path
 }
