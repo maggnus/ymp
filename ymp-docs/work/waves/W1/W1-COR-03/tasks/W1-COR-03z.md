@@ -3,17 +3,17 @@ id: W1-COR-03z
 kind: task
 wave: W1
 card: W1-COR-03
-state: active
+state: review
 risk: significant
 maturity: BUILD
 relation: required
 depends_on: [W1-COR-03c, W1-COR-03e.1]
 blocks: [W1-EVL-04a, W1-EVL-04b]
 created_at: 2026-09-01T12:20:00+08:00
-updated_at: 2026-09-01T13:02:00+08:00
+updated_at: 2026-09-01T13:29:00+08:00
 started_at: 2026-09-01T13:02:00+08:00
 accepted_at:
-candidate_commit:
+candidate_commit: https://github.com/maggnus/ymp/commit/0571ced10cb84c8b07990dc5cec5aae391b7b30a
 closure_commit:
 evidence:
 duration_minutes: 0
@@ -78,13 +78,13 @@ caller identity, scope, budgets, payload storage, and authority remain controlle
 
 ## Current state
 
-The durable application payload seam is accepted. The tool contract passed its independent
-pre-dispatch check, and the scientific curator confirmed that existing publication, delivery, and
-action facts carry the identifiers needed for later causal tests. Implementation is active.
+Candidate [0571ced](https://github.com/maggnus/ymp/commit/0571ced10cb84c8b07990dc5cec5aae391b7b30a)
+implements strict `publish` and `read_board` across API, MCP/RPC, Application, and both runtime
+allowlists. Independent Significant R1 and one isolated consumer-surface walk are active.
 
 ## Next action
 
-Implement the two explicit tools across the accepted write zone and return one reviewable commit.
+Accept or return the exact candidate from the independent review.
 
 ## Guardrails
 
@@ -102,6 +102,8 @@ Implement the two explicit tools across the accepted write zone and return one r
 - Scientific consultation found no instrumentation addition: `MessagePublished` and
   `DeliveryRecorded` already preserve the publication/delivery linkage; a receipt remains evidence
   of availability only, never listening or influence.
+- Candidate declares a mechanically forced `Cargo.lock` update outside the nominal write zone; R1
+  must prove it contains only dependency consequences of the touched packages before ratification.
 
 ## Review rounds
 
