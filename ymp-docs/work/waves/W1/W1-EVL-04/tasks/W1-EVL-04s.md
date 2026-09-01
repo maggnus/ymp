@@ -10,7 +10,7 @@ relation: required
 depends_on: [W1-EVL-04n, W1-EVL-04r]
 blocks: [W1-EVL-04m]
 created_at: 2026-09-01T21:14:37+08:00
-updated_at: 2026-09-01T21:14:37+08:00
+updated_at: 2026-09-01T21:34:00+08:00
 started_at:
 accepted_at:
 candidate_commit:
@@ -40,6 +40,13 @@ or contamination of any experimental arm.
 
 - Freeze a new probe id, nonce namespace, disposable root and stage-two resource vector distinct from
   the spent W1-EVL-04n attempt and every task/arm budget.
+- Exact fresh vector: `model_calls=1`, input tokens `<=32768`, cached input `<=32768`, output
+  `<=1024`, reasoning output `<=1024`, wall time `<=120000 ms`, workspace writes `=1`, workspace
+  reads `=1`, invocation starts `=1`, and zero protected/external/participant/attempt/offer/
+  obligation/board/task/recruitment/candidate/communication actions. Cost may be reported or
+  explicitly unavailable; it may not be omitted silently.
+- Use the separate namespace `ymp-live-probe-diagnostic-v2`; no identifier, reservation or result
+  from the spent W1-EVL-04n attempt may be imported.
 - Run all W1-EVL-04r deterministic phase/diagnostic negatives and exact runtime/transport/admission
   readiness before any provider request. Failure closes the task without a live call.
 - Execute the existing ignored `live_tool_host_probe` consumer exactly once with the current
