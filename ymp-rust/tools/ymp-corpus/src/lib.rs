@@ -2,6 +2,7 @@
 
 pub mod admission;
 pub mod development;
+pub mod development_v2;
 pub mod study;
 
 use std::collections::BTreeSet;

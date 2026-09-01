@@ -1,0 +1,8 @@
+{
+  "schema_version": 1,
+  "mutation_id": "split-alias",
+  "command": "development-v2 check",
+  "expected_exit": "nonzero",
+  "reason": "SPLIT_ALIAS",
+  "blind_spot": "Detects reused task identifiers across splits, but not conceptual similarity between different identifiers."
+}

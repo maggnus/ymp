@@ -1,0 +1,8 @@
+{
+  "schema_version": 1,
+  "mutation_id": "missing-cell",
+  "command": "development-v2 check",
+  "expected_exit": "nonzero",
+  "reason": "MISSING_MATRIX_CELL",
+  "blind_spot": "Detects absent or duplicate matrix coverage, but does not establish semantic task quality."
+}

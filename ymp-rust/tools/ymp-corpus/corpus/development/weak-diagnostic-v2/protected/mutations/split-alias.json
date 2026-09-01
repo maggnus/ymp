@@ -1,0 +1,6 @@
+{
+  "schema_version": 1,
+  "operation": "alias_split",
+  "task_id": "l4-config-fusion",
+  "split": "transfer"
+}

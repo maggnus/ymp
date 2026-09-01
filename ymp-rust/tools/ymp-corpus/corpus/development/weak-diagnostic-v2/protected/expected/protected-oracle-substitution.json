@@ -1,0 +1,8 @@
+{
+  "schema_version": 1,
+  "mutation_id": "protected-oracle-substitution",
+  "command": "development-v2 check",
+  "expected_exit": "nonzero",
+  "reason": "PROTECTED_ORACLE_SUBSTITUTION",
+  "blind_spot": "Detects artifact substitution against the frozen binding, but not an undiscovered weakness in the correctly bound oracle."
+}

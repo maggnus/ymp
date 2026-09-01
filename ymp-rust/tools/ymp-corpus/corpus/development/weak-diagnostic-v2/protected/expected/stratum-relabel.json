@@ -1,0 +1,8 @@
+{
+  "schema_version": 1,
+  "mutation_id": "stratum-relabel",
+  "command": "development-v2 check",
+  "expected_exit": "nonzero",
+  "reason": "STRATUM_RELABEL",
+  "blind_spot": "Detects disagreement with the protected frozen label, but not a scientifically mistaken original classification."
+}

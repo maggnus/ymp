@@ -1,0 +1,5 @@
+{
+  "schema_version": 1,
+  "operation": "remove_cell",
+  "task_id": "l4-sequential-checkpoint"
+}

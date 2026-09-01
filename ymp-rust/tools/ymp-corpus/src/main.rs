@@ -6,6 +6,7 @@ use anyhow::{Result, ensure};
 use clap::{Parser, Subcommand};
 use ymp_corpus::admission::AdmissionCommand;
 use ymp_corpus::development::DevelopmentCommand;
+use ymp_corpus::development_v2::DevelopmentV2Command;
 use ymp_corpus::study::{
     analyze_study_records, load_frozen_manifest, load_study_records, negative_controls,
     power_analysis, run_negative_control,
@@ -94,6 +95,10 @@ enum CorpusCommand {
         #[command(subcommand)]
         command: DevelopmentCommand,
     },
+    DevelopmentV2 {
+        #[command(subcommand)]
+        command: DevelopmentV2Command,
+    },
 }
 
 fn main() -> Result<()> {
@@ -103,6 +108,10 @@ fn main() -> Result<()> {
         return Ok(());
     }
     if let CorpusCommand::Development { command } = &cli.command {
+        command.execute()?;
+        return Ok(());
+    }
+    if let CorpusCommand::DevelopmentV2 { command } = &cli.command {
         command.execute()?;
         return Ok(());
     }
@@ -185,6 +194,7 @@ fn main() -> Result<()> {
             run_negative_control(&corpus, &manifest, &records, &case)?;
         }
         CorpusCommand::Development { .. } => unreachable!(),
+        CorpusCommand::DevelopmentV2 { .. } => unreachable!(),
         CorpusCommand::Admission { .. } => unreachable!(),
     }
     Ok(())
@@ -241,5 +251,23 @@ mod tests {
         ])
         .expect("parse admission command");
         assert!(matches!(parsed.command, CorpusCommand::Admission { .. }));
+    }
+
+    #[test]
+    fn development_v2_does_not_require_primary_corpus_arguments() {
+        let parsed = Cli::try_parse_from([
+            "ymp-corpus",
+            "development-v2",
+            "check",
+            "--manifest",
+            "/tmp/manifest.json",
+            "--digest",
+            "/tmp/manifest.sha256",
+        ])
+        .expect("parse development-v2 command");
+        assert!(matches!(
+            parsed.command,
+            CorpusCommand::DevelopmentV2 { .. }
+        ));
     }
 }

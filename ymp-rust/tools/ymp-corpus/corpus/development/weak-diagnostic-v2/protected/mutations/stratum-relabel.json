@@ -1,0 +1,6 @@
+{
+  "schema_version": 1,
+  "operation": "relabel_stratum",
+  "task_id": "l4-policy-union",
+  "stratum": "strongly_sequential_expected_null"
+}

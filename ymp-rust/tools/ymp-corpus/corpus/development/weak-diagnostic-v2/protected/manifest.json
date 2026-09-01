@@ -1,0 +1,94 @@
+{
+  "schema_version": 2,
+  "corpus_id": "weak-diagnostic-v2-l4plus-matrix",
+  "task_bindings": [
+    {
+      "task_id": "l4-sequential-checkpoint",
+      "frozen_stratum": "strongly_sequential_expected_null",
+      "seeded_invalid_reason": "REJECTED_IDENTITY_LOSS",
+      "oracle": {
+        "path": "protected/oracles/l4-sequential-checkpoint.rs",
+        "sha256": "9d4433229c6814144aec3b278c2bca981c82714a4c71a9f38312e3c4e9a52e26"
+      },
+      "reference": {
+        "path": "protected/reference/l4-sequential-checkpoint",
+        "sha256": "f9052aa6617c658f583a0e54832a8a4baa15e0e82c7eb01ba4c00497308aeb21"
+      },
+      "oracles": [
+        {
+          "id": "rejected_identity",
+          "test": "rejected_identity_is_stable_after_progress",
+          "failure_reason": "REJECTED_IDENTITY_LOSS",
+          "blind_spot": "Checks in-process rejected-result identity after progress, but not persistence across executable versions."
+        },
+        {
+          "id": "ordered_transition",
+          "test": "rejected_transition_preserves_state",
+          "failure_reason": "ORDERED_TRANSITION_BYPASS",
+          "blind_spot": "Checks generation and value atomicity for overflow, but not concurrent writers or crash recovery."
+        },
+        {
+          "id": "command_conflict",
+          "test": "identifier_conflict_precedes_current_state",
+          "failure_reason": "COMMAND_IDENTITY_CONFLICT",
+          "blind_spot": "Checks payload identity for one process lifetime, but not canonical serialization of commands."
+        }
+      ]
+    },
+    {
+      "task_id": "l4-policy-union",
+      "frozen_stratum": "decomposable",
+      "seeded_invalid_reason": "INTEGRATION_BRANCH_OMISSION",
+      "oracle": {
+        "path": "protected/oracles/l4-policy-union.rs",
+        "sha256": "f37a248ba06fcb9539ade36dab92e409248bfe7ec1bc394013f8ac2f28b38e38"
+      },
+      "reference": {
+        "path": "protected/reference/l4-policy-union",
+        "sha256": "bee771da947f13673402628cccc942e70fd0e25dac3049f65a3c8c4fdc764991"
+      },
+      "oracles": [
+        {
+          "id": "branch_a",
+          "test": "quota_branch_rejects_conflicts",
+          "failure_reason": "QUOTA_BRANCH_CONFLICT",
+          "blind_spot": "Checks exact duplicate and conflict semantics, but not memory use for large quota sets."
+        },
+        {
+          "id": "branch_b",
+          "test": "route_branch_rejects_conflicts",
+          "failure_reason": "ROUTE_BRANCH_CONFLICT",
+          "blind_spot": "Checks path identity conflicts, but not path grammar beyond the public string contract."
+        },
+        {
+          "id": "integration",
+          "test": "integration_requires_complete_join",
+          "failure_reason": "INTEGRATION_BRANCH_OMISSION",
+          "blind_spot": "Checks that no route is silently dropped at the join, but not downstream service availability."
+        }
+      ]
+    }
+  ],
+  "mutations": [
+    {
+      "id": "missing-cell",
+      "artifact": {"path": "protected/mutations/missing-cell.json", "sha256": "7d7f9890600700186ca94c807d646ff90664fd1cf2937dd7459a91c7ecc5dd74"},
+      "expected": {"path": "protected/expected/missing-cell.json", "sha256": "5bcd7cc904136b38ea0de3a095aa2c0b53c3cb23ffc8622300128bee55d18745"}
+    },
+    {
+      "id": "split-alias",
+      "artifact": {"path": "protected/mutations/split-alias.json", "sha256": "d81cd575f71ed7d65c3030f497d868478756b925eefc3d6c6f7966bf32207d95"},
+      "expected": {"path": "protected/expected/split-alias.json", "sha256": "b6b67a93c27ef146a8d91de4dfd9dd49a1614fc1de4da56a0f06c7d8148e62d6"}
+    },
+    {
+      "id": "stratum-relabel",
+      "artifact": {"path": "protected/mutations/stratum-relabel.json", "sha256": "225d722ec90565649d1652ef297296acf508d8a1dfb8b7473361f1780ca6ada9"},
+      "expected": {"path": "protected/expected/stratum-relabel.json", "sha256": "472ed33b4d5008e39aa95027fc61aa47fe6824c75e5c4586c853ec6d7448d933"}
+    },
+    {
+      "id": "protected-oracle-substitution",
+      "artifact": {"path": "protected/mutations/protected-oracle-substitution.json", "sha256": "e0115e6cc699a814207407cba2eb8220b992b3f09991d68ef046f95f2ad11749"},
+      "expected": {"path": "protected/expected/protected-oracle-substitution.json", "sha256": "1167da01dede6561856bbf23e242aea21652d0019ecea2c4ca4ace6b8a8eff7f"}
+    }
+  ]
+}

@@ -1,0 +1,6 @@
+{
+  "schema_version": 1,
+  "operation": "substitute_oracle",
+  "task_id": "l4-policy-union",
+  "from_task_id": "l4-sequential-checkpoint"
+}
