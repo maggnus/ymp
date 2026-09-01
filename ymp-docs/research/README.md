@@ -74,6 +74,10 @@ record also updates this index.
   [run-002-first-authorized-live-tool-host-probe.md](run-002-first-authorized-live-tool-host-probe.md)
   — infrastructure-invalid first authorized live probe, its indeterminate failure phase, spent
   reservation, and diagnostic STOP.
+- **RUN-003** —
+  [run-003-w1-evl-04s-prelive-stop.md](run-003-w1-evl-04s-prelive-stop.md) — authorized
+  W1-EVL-04s attempt stopped in deterministic preflight with zero live/model calls because product
+  process-cleanup conformance remained unproven.
 
 ## Standing review rule
 
