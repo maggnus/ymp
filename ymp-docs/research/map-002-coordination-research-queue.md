@@ -6,55 +6,75 @@
 work. Priorities are readiness classes, not product scheduling or kernel policy. Every item is
 specified only: none is an experiment, harness, accepted causal result, or authorization to spend
 model budget. It is curated under `SCI-QUEUE-01` against baseline
-[fbf52f7](https://github.com/maggnus/ymp/commit/fbf52f763f0dc2a3badff3e21fae33dc6469cd87).
+[59288d1](https://github.com/maggnus/ymp/commit/59288d11b400a00ee22c8cc36f9a80e4077aea1c).
 
 This record changes no current arm, task set, seed, budget, metric, frozen protocol, or kernel
 semantics. In particular, `weak-diagnostic-v1` and the frozen primary comparison remain unchanged.
 
-## P0 — pull-transport causal reachability
+## P0 — pull-transport reachability and profile tool use
 
-**Claim.** The accepted `publish`/`read_board` seam can place one authorized message from participant
-A in participant B's available context early enough for a predeclared later B action. This is only
-transport readiness, not listening.
+**Claim.** The accepted `publish`/`read_board` seam can make one authorized message from participant
+A available to participant B during bounded active invocation opportunities, early enough for a
+predeclared later B action. This is transport readiness only.
 
-**Observable prediction.** One isolated, bounded trace must contain, in order:
+**Zero-model conformance.** A deterministic fake runtime may force ordering because it tests the
+runner, not cooperation. It must exercise S1 (publish, then read), S2 (empty read, publish, remaining
+read), and S3 (all reads spent or yield before publish, with no board-message wake). S1 and S2 must
+preserve, in order:
 
 ```text
 A MessagePublished -> DeliveryRecorded to B -> predeclared later B action -> honest terminal
 ```
 
-The same fixture must hide the message from an unauthorized audience member. B performs only the
-predeclared finite read opportunity; repeated polling, an unbounded retry loop, or message traffic
-that keeps the run alive fails the reachability gate. `DeliveryRecorded` proves availability and
-cursor advance, never reading, belief, influence, or task value.
+An unauthorized participant receives nothing, S3 terminates honestly, and the fixed read cap
+precludes polling pressure. `DeliveryRecorded` proves availability and cursor advance, never
+reading, belief, influence, or task value.
 
-Before the first participant call, the exact installed runtime, profile, route, and effective tool
-binding must pass a zero-model tool-host fixture that proves bounded inspection and mutation of its
-isolated workspace. Authentication, model availability, and filesystem creation alone are not this
-proof.
+**Real participant boundary.** The runner may freeze content-independent active windows, their
+order, read cap, accounting, and termination. It may not force `publish`, `read_board`, continued
+activity, or a semantic response. An unused opportunity, early yield, or reads spent before
+publication is valid negative participant behaviour. Missing promised mechanics or accounting, or
+a successful authorized post-publication read without `DeliveryRecorded`, is infrastructure-invalid.
+The first model experiment therefore needs bounded active invocation opportunities, not a typed
+board-message wake. Communication after a participant has yielded remains a separate hypothesis.
 
-**Falsifier / stop.** If B can yield before observing the message and no already named control wake
-can resume B, the trace stops and returns for explicit core/protocol review. A board publication is
-not assumed to wake a yielded participant. Absence of the ordered trace, unauthorized delivery,
-polling pressure, or a dishonest terminal also stops all downstream communication intervention.
-Failure of the exact-route tool-host fixture stops before participant output; a later repair requires
-a newly frozen budget and a fresh run rather than continuation of the failed pilot.
+**Two-stage profile admission.** Stage 1 is a zero-model launch-path compatibility check of the
+exact executable version, flags, Git trust, isolated configuration, generated tool binding, and
+fake tool host. It cannot be called exact-route proof because no model route or model tool choice is
+exercised. Stage 2 is one separately frozen and tightly capped no-task-output model call in a
+disposable project. A random nonce absent from the prompt is placed in an allowed input file; the
+model must read it, write the exact bytes to the sole allowed output, read them back through the
+bound workspace tools, terminate honestly, and produce complete call, token, time, and cost
+accounting. This is profile-admission evidence, never an arm or communication observation, and it
+does not replace lifecycle, isolation, cancellation, or descendant-cleanup admission. The
+read-back trace proves tool use and returned bytes, not comprehension.
 
-**Dependencies.** Accepted collaboration tools; an authorized two-participant managed path; a
-zero-model exact-route tool-host fixture; a predeclared B action and finite invocation/read schedule.
+**Falsifier / stop.** Stage 1 fails on any compatibility or fake-host defect. Stage 2 fails on a
+wrong or absent nonce, missing attributable read/write/read-back trace, an unauthorized effect,
+dishonest terminal, budget excess, or absent usage or cost. Either failure leaves the exact profile
+unadmitted and stops model experiments. S1/S2 transport failure, unauthorized delivery, S3 waking
+from publication, an unbounded poll, or dishonest termination stops the runner. A participant's
+valid early yield is retained as negative behaviour and does not become an infrastructure repair.
+Any repair starts under a new manifest and budget; it cannot continue a failed run.
+
+**Dependencies.** Accepted collaboration and recruitment tools; an authorized two-participant
+managed path; both admission stages; a predeclared B action and finite invocation/read schedule.
 The board emits
-[`MessagePublished` and `DeliveryRecorded`](https://github.com/maggnus/ymp/blob/fbf52f763f0dc2a3badff3e21fae33dc6469cd87/ymp-rust/crates/ymp-board/src/protocol.rs#L253-L274),
+[`MessagePublished` and `DeliveryRecorded`](https://github.com/maggnus/ymp/blob/59288d11b400a00ee22c8cc36f9a80e4077aea1c/ymp-rust/crates/ymp-board/src/protocol.rs#L253-L274),
 and `read_board` records delivery only after B pulls it
-([`ymp-application`](https://github.com/maggnus/ymp/blob/fbf52f763f0dc2a3badff3e21fae33dc6469cd87/ymp-rust/crates/ymp-application/src/lib.rs#L2036-L2094)).
+([`ymp-application`](https://github.com/maggnus/ymp/blob/59288d11b400a00ee22c8cc36f9a80e4077aea1c/ymp-rust/crates/ymp-application/src/lib.rs#L2061-L2118)).
 The accepted kernel's enumerated
-[`WakeCondition`](https://github.com/maggnus/ymp/blob/fbf52f763f0dc2a3badff3e21fae33dc6469cd87/ymp-rust/crates/ymp-domain/src/commitment/invocations.rs#L61-L85)
-has neither board-publication nor direct-message delivery, so a control wake must be named rather
-than inferred.
+[`WakeCondition`](https://github.com/maggnus/ymp/blob/59288d11b400a00ee22c8cc36f9a80e4077aea1c/ymp-rust/crates/ymp-domain/src/commitment/invocations.rs#L61-L85)
+has no board-publication condition; none is assumed for this bounded-active-window experiment.
 
-**Priority and evidence status.** **P0.** The publish/read seam and audience filtering are accepted
-repository evidence
-([`W1-COR-03z`](https://github.com/maggnus/ymp/blob/fbf52f763f0dc2a3badff3e21fae33dc6469cd87/ymp-docs/work/waves/W1/W1-COR-03/tasks/W1-COR-03z.md#L79-L105));
-the isolated causal-readiness trace, action link, and terminal observation do not exist.
+**Priority and evidence status.** **P0.** The publish/read seam and audience filtering
+([`W1-COR-03z`](https://github.com/maggnus/ymp/blob/59288d11b400a00ee22c8cc36f9a80e4077aea1c/ymp-docs/work/waves/W1/W1-COR-03/tasks/W1-COR-03z.md#L79-L105))
+and participant recruitment
+([`W1-PRD-05j.1`](https://github.com/maggnus/ymp/blob/59288d11b400a00ee22c8cc36f9a80e4077aea1c/ymp-docs/work/waves/W1/W1-PRD-05/tasks/W1-PRD-05j/subtasks/W1-PRD-05j.1.md#L64-L90))
+are accepted. [RUN-001](run-001-manual-file-communication-pilot.md) is infrastructure-invalid and
+rejects its probe-only readiness as sufficient admission: its declared-ready profile could not use
+workspace tools. It did not execute the complete fake-host stage specified here. No admitted S1-S3
+trace or communication observation exists.
 
 ## P1 — independent-first communication
 
@@ -74,7 +94,7 @@ independence is unnecessary.
 **Dependencies.** P0 reachability; blinded reveal enforcement; a valid reviewer oracle; fresh
 sessions and matched budgets. The product protocol already specifies the independent commitment
 boundary
-([`PROTOCOL.md`](https://github.com/maggnus/ymp/blob/fbf52f763f0dc2a3badff3e21fae33dc6469cd87/ymp-docs/PROTOCOL.md#L236-L242)).
+([`PROTOCOL.md`](https://github.com/maggnus/ymp/blob/59288d11b400a00ee22c8cc36f9a80e4077aea1c/ymp-docs/PROTOCOL.md#L236-L242)).
 
 **Priority and evidence status.** **P1.** [Lorenz et al. (PNAS 2011)](https://doi.org/10.1073/pnas.1008636108)
 found that social influence can narrow human estimate diversity without improving accuracy. Human
@@ -98,12 +118,28 @@ Sequential/null strata remain expected negative controls.
 **Dependencies.** Frozen L4+ strata and oracles; candidate ancestry and contribution ablations;
 blinded selection; exact usage and protected-query accounting. The existing mechanism map states
 the same rejection boundary
-([`map-001`](https://github.com/maggnus/ymp/blob/fbf52f763f0dc2a3badff3e21fae33dc6469cd87/ymp-docs/research/map-001-mechanism-map.md#L14-L20)).
+([`map-001`](https://github.com/maggnus/ymp/blob/59288d11b400a00ee22c8cc36f9a80e4077aea1c/ymp-docs/research/map-001-mechanism-map.md#L14-L20)).
+
+**Blocking split conflict.** The accepted manifest assigns the only decomposable task to
+`development` and the only sequential expected-null task to `transfer`
+([`manifest.json`](https://github.com/maggnus/ymp/blob/59288d11b400a00ee22c8cc36f9a80e4077aea1c/ymp-rust/tools/ymp-corpus/corpus/development/weak-diagnostic-v1/manifest.json#L10-L43)).
+`W1-EVL-04e` requires the weak cohort across both strata, while `W1-EVL-04f` requires a qualifying
+effect to reproduce on the frozen transfer split
+([`W1-EVL-04e`](https://github.com/maggnus/ymp/blob/59288d11b400a00ee22c8cc36f9a80e4077aea1c/ymp-docs/work/waves/W1/W1-EVL-04/tasks/W1-EVL-04e.md#L40-L75),
+[`W1-EVL-04f`](https://github.com/maggnus/ymp/blob/59288d11b400a00ee22c8cc36f9a80e4077aea1c/ymp-docs/work/waves/W1/W1-EVL-04/tasks/W1-EVL-04f.md#L30-L58)).
+Running development only omits the null stratum; running both leaves no same-stratum held-out
+decomposable transfer, and a sequential expected-null task cannot reproduce a decomposable positive
+effect. The model gate is therefore **STOP**. The accepted corpus is not amended: resumption needs a
+prospective, separately frozen scientific decision that makes diagnosis and same-stratum transfer
+jointly identifiable without changing observed tasks, arms, seeds, budgets, outcomes, or the frozen
+primary comparison.
 
 **Priority and evidence status.** **P1.** [Kim et al. (Nature Machine Intelligence 2026)](https://www.nature.com/articles/s42256-026-01268-y)
 provide matched-compute evidence that collaboration varies sharply with task structure and model
 capability, including negative sequential-task effects. Their fixed canonical architectures do not
-establish synthesis value in ymp. No eligible task set, selector, ablation harness, or result exists.
+establish synthesis value in ymp. The task packages and oracles exist, but their current split does
+not support the planned inference; no selector, ablation harness, admitted observation, or result
+exists.
 
 ## P2 — bounded adaptive recruitment
 
@@ -122,11 +158,10 @@ controls stops the item. Adaptive recruitment is explicitly outside `weak-diagno
 not alter that diagnostic's fixed two-participant coordinated arm.
 
 **Dependencies.** Accepted P1 synthesis signal; the strong-profile gate in
-[`W1-EVL-04f`](https://github.com/maggnus/ymp/blob/fbf52f763f0dc2a3badff3e21fae33dc6469cd87/ymp-docs/work/waves/W1/W1-EVL-04/tasks/W1-EVL-04f.md#L28-L77);
-an accepted model-callable recruitment surface. At this baseline, recruitment wiring is active but
-not accepted
-([`W1-PRD-05j.1`](https://github.com/maggnus/ymp/blob/fbf52f763f0dc2a3badff3e21fae33dc6469cd87/ymp-docs/work/waves/W1/W1-PRD-05/tasks/W1-PRD-05j/subtasks/W1-PRD-05j.1.md#L1-L18),
-[`current state`](https://github.com/maggnus/ymp/blob/fbf52f763f0dc2a3badff3e21fae33dc6469cd87/ymp-docs/work/waves/W1/W1-PRD-05/tasks/W1-PRD-05j/subtasks/W1-PRD-05j.1.md#L81-L89)).
+[`W1-EVL-04f`](https://github.com/maggnus/ymp/blob/59288d11b400a00ee22c8cc36f9a80e4077aea1c/ymp-docs/work/waves/W1/W1-EVL-04/tasks/W1-EVL-04f.md#L28-L77);
+an accepted model-callable recruitment surface. Recruitment is accepted, but no recruitment
+experiment exists
+([`W1-PRD-05j.1`](https://github.com/maggnus/ymp/blob/59288d11b400a00ee22c8cc36f9a80e4077aea1c/ymp-docs/work/waves/W1/W1-PRD-05/tasks/W1-PRD-05j/subtasks/W1-PRD-05j.1.md#L64-L90)).
 
 **Priority and evidence status.** **P2.** [MANTA](https://arxiv.org/abs/2607.28527) reports bounded
 inference-time topology changes informed by collaboration traces and prior structural experience.
@@ -176,7 +211,7 @@ fails held-out profile/task transfer.
 **Dependencies.** Positive lower-priority mechanism evidence; a versioned participant-local policy
 artifact; held-out development and transfer splits; external acceptance and full search-cost
 accounting. The protocol deliberately excludes a global semantic scheduler
-([`PROTOCOL.md`](https://github.com/maggnus/ymp/blob/fbf52f763f0dc2a3badff3e21fae33dc6469cd87/ymp-docs/PROTOCOL.md#L595-L614)).
+([`PROTOCOL.md`](https://github.com/maggnus/ymp/blob/59288d11b400a00ee22c8cc36f9a80e4077aea1c/ymp-docs/PROTOCOL.md#L595-L614)).
 
 **Priority and evidence status.** **P3.** [ADAS](https://arxiv.org/abs/2408.08435),
 [AFlow](https://arxiv.org/abs/2410.10762), and the
@@ -205,7 +240,7 @@ the retained self-score. The affected run is invalid, not a failed candidate.
 transfer, and primary lineages; a frozen retention/redaction policy; limited oracle disclosure; and
 an acceptance signal outside the learner's control. The current contract already treats adaptive
 holdout reuse as a threat
-([`PROJECT-CONTRACT.md`](https://github.com/maggnus/ymp/blob/fbf52f763f0dc2a3badff3e21fae33dc6469cd87/ymp-docs/PROJECT-CONTRACT.md#L124-L137)).
+([`PROJECT-CONTRACT.md`](https://github.com/maggnus/ymp/blob/59288d11b400a00ee22c8cc36f9a80e4077aea1c/ymp-docs/PROJECT-CONTRACT.md#L124-L137)).
 
 **Priority and evidence status.** **P3.** DGM's archive and transfer results and MANTA's prior
 structural experience make cross-run abstraction plausible, but do not establish leakage-free ymp

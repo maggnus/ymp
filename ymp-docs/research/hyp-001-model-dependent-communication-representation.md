@@ -6,7 +6,7 @@
 representation is universally best, or that a delivered message was read. No experiment manifest,
 harness, treatment assignment, eligible episode set, model observation, or result exists.
 It is curated under `SCI-QUEUE-01` against baseline
-[fbf52f7](https://github.com/maggnus/ymp/commit/fbf52f763f0dc2a3badff3e21fae33dc6469cd87).
+[59288d1](https://github.com/maggnus/ymp/commit/59288d11b400a00ee22c8cc36f9a80e4077aea1c).
 
 This record changes no current arm, task set, seed, budget, metric, frozen protocol, or kernel
 semantics. Any later test needs its own preregistration and executable compliance check.
@@ -85,12 +85,19 @@ unverifiable accounting invalidates the affected contrast.
 ## Dependencies
 
 - The P0 reachability gate in [map-002-coordination-research-queue.md](map-002-coordination-research-queue.md)
-  must first show that the intended receiver can actually obtain a published message without an
-  assumed wake.
+  must first show bounded pull reachability while keeping participant publication, read, yield, and
+  action choices observable rather than forced.
+- Each exact sender and receiver profile must pass the two-stage tool-use admission boundary in
+  [RUN-001](run-001-manual-file-communication-pilot.md). A zero-model compatibility check cannot
+  substitute for the separately capped model nonce round trip or the existing lifecycle,
+  isolation, cancellation, usage, and cost requirements
+  ([`cal-001`](https://github.com/maggnus/ymp/blob/59288d11b400a00ee22c8cc36f9a80e4077aea1c/ymp-docs/research/cal-001-calibration.md#L61-L77)).
 - Eligible intervention episodes and predeclared receiver actions belong to
-  [`W1-EVL-04b`](https://github.com/maggnus/ymp/blob/fbf52f763f0dc2a3badff3e21fae33dc6469cd87/ymp-docs/work/waves/W1/W1-EVL-04/tasks/W1-EVL-04b.md#L28-L67).
+  [`W1-EVL-04b`](https://github.com/maggnus/ymp/blob/59288d11b400a00ee22c8cc36f9a80e4077aea1c/ymp-docs/work/waves/W1/W1-EVL-04/tasks/W1-EVL-04b.md#L28-L67).
 - Message intervention remains downstream of stronger-profile transfer under the accepted
-  [stage boundary](https://github.com/maggnus/ymp/blob/fbf52f763f0dc2a3badff3e21fae33dc6469cd87/ymp-docs/research/rdr-001-evaluation-stage-boundaries.md#L42-L51).
+  [stage boundary](https://github.com/maggnus/ymp/blob/59288d11b400a00ee22c8cc36f9a80e4077aea1c/ymp-docs/research/rdr-001-evaluation-stage-boundaries.md#L42-L51),
+  and the split conflict recorded in MAP-002 must be resolved prospectively before that transfer can
+  identify a same-stratum effect.
 - Exact profile admission, frozen task and oracle identities, semantic-equivalence fixtures, and
   complete accounting must exist before a design can freeze.
 
@@ -112,5 +119,9 @@ show large task-, architecture-, and capability-dependent variation under matche
 architectures and benchmarks motivate interaction and null strata, but do not test the four
 representation families defined here.
 
-The current ymp record supports only the specification above. Evidence status:
-**no experiment, no harness, and no result**.
+[RUN-001](run-001-manual-file-communication-pilot.md) exercised no representation cell: both A
+calls ended before publication, B and C were never launched, and the board remained unchanged. It
+falsifies readiness of that exploratory runtime/tool-host binding but supplies no signaling,
+delivery, receiver-action, listening, task-value, or representation evidence. The current ymp
+record therefore supports only the specification above. Evidence status: **no HYP-001 experiment,
+harness, or result**.
