@@ -45,6 +45,7 @@ pub mod contract;
 pub mod participant;
 pub mod pool;
 pub mod root;
+mod tool_host_probe;
 pub mod verification;
 
 pub use answer::AnswerError;
@@ -58,6 +59,10 @@ pub use participant::{
     PrivateWorkspaces, RouteUnavailable, WorkspaceNotEstablished, ignite_origin_participant,
 };
 pub use pool::{PoolFreezeRefused, freeze_record, freeze_under};
+pub use tool_host_probe::{
+    ATTESTED_TOOL_HOST_PROBE_SCHEMA_VERSION, AttestedToolHostProbe, AttestedToolHostProbeHandle,
+    ControllerToolHostProbeRequest, TOOL_HOST_PROBE_HANDLE_EXPORT, ToolHostProbeAttestationError,
+};
 pub use verification::{VerificationJob, VerificationOutcome};
 
 const BOOTSTRAP_COMMAND_ID: &str = "ymp.bootstrap";

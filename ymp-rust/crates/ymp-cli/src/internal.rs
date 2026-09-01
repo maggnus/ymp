@@ -13,18 +13,23 @@ use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 use uuid::Uuid;
-use ymp_application::{Application, PreparedContract, VerificationOutcome, freeze_under};
+use ymp_application::{
+    Application, ControllerToolHostProbeRequest, PreparedContract, VerificationOutcome,
+    freeze_under,
+};
 use ymp_domain::Command as DomainCommand;
 use ymp_runtime_api::{
     CancellationToken, InvocationRequest, McpBinding, Readiness, RuntimeDriver,
-    unestablished_terminations,
+    ToolHostProbeResourceVector, unestablished_terminations,
 };
 use ymp_runtime_claude::ClaudeRuntime;
 use ymp_runtime_codex::CodexRuntime;
 use ymp_runtime_registry::{Engine, RegistryAddress};
 use ymp_runtime_supervisor::{
-    admit_runtime_start, admit_workspace_program, initialize_private_git,
+    admit_runtime_start, admit_workspace_program, execute_tool_host_probe, initialize_private_git,
 };
+
+const ADMISSION_TOOL_HOST_PROBE_DEADLINE_MS: u64 = 120_000;
 
 #[derive(Debug, Subcommand)]
 pub enum InternalCommand {
@@ -46,6 +51,10 @@ pub enum InternalCommand {
     ManagedCandidateSmoke {
         #[arg(long)]
         runtime: RuntimeChoice,
+    },
+    ToolHostProbe {
+        #[arg(long)]
+        admission_manifest_digest: String,
     },
     Verifier {
         #[arg(long)]
@@ -133,6 +142,9 @@ pub fn run(
             runtime,
             crate::one_contract(contracts)?,
         ),
+        InternalCommand::ToolHostProbe {
+            admission_manifest_digest,
+        } => run_tool_host_probe(data_root, registry, admission_manifest_digest),
         InternalCommand::Verifier {
             candidate,
             expected_sha256,
@@ -396,6 +408,83 @@ fn run_managed_candidate_smoke(
     Ok(())
 }
 
+fn run_tool_host_probe(
+    data_root: PathBuf,
+    registry: RegistryAddress,
+    admission_manifest_digest: String,
+) -> anyhow::Result<()> {
+    let driver = runtime_driver(&registry, RuntimeChoice::Codex)?;
+    let expected_runtime = driver
+        .tool_host_probe_identity()
+        .context("load the controller-pinned tool-host probe runtime identity")?;
+    run_controller_tool_host_probe(
+        data_root,
+        driver,
+        ControllerToolHostProbeRequest::new(
+            admission_manifest_digest,
+            expected_runtime,
+            ADMISSION_TOOL_HOST_PROBE_DEADLINE_MS,
+            admission_tool_host_probe_reservation(),
+        ),
+    )
+}
+
+fn run_controller_tool_host_probe(
+    data_root: PathBuf,
+    driver: Box<dyn RuntimeDriver>,
+    request: ControllerToolHostProbeRequest,
+) -> anyhow::Result<()> {
+    let mut application = Application::open(&data_root)?;
+    let export = application.attested_tool_host_probe_handle_export_path();
+    match std::fs::symlink_metadata(&export) {
+        Ok(_) => bail!(
+            "tool-host probe handle export already exists: {}",
+            export.display()
+        ),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+        Err(error) => return Err(error.into()),
+    }
+    let handle = application.controller_tool_host_probe(request, |workspace, request| {
+        execute_tool_host_probe(driver.as_ref(), workspace, request)
+    })?;
+    let export = application.export_attested_tool_host_probe_handle(&handle)?;
+    println!(
+        "{}",
+        serde_json::to_string(&serde_json::json!({
+            "type": "tool_host_probe_handle",
+            "handle": handle,
+            "export": export,
+        }))?
+    );
+    Ok(())
+}
+
+fn admission_tool_host_probe_reservation() -> ToolHostProbeResourceVector {
+    ToolHostProbeResourceVector {
+        model_calls: 1,
+        max_input_tokens: 32_768,
+        max_cached_input_tokens: 32_768,
+        max_output_tokens: 1_024,
+        max_reasoning_output_tokens: 1_024,
+        max_cost_microusd: None,
+        max_wall_time_ms: ADMISSION_TOOL_HOST_PROBE_DEADLINE_MS,
+        workspace_reads: 1,
+        workspace_writes: 1,
+        invocation_starts: 1,
+        protected_queries: 0,
+        external_actions: 0,
+        participant_starts: 0,
+        attempt_starts: 0,
+        offer_creations: 0,
+        obligation_creations: 0,
+        board_actions: 0,
+        task_actions: 0,
+        recruitment_actions: 0,
+        candidate_actions: 0,
+        communication_actions: 0,
+    }
+}
+
 pub struct ManagedVerificationRequest {
     pub data_root: PathBuf,
     pub program: PathBuf,
@@ -531,12 +620,220 @@ fn run_agent_mcp() -> anyhow::Result<()> {
 
 #[cfg(test)]
 mod tests {
-    use super::{ManagedVerificationRequest, materialize_controller_candidate};
+    use super::{
+        ManagedVerificationRequest, admission_tool_host_probe_reservation,
+        materialize_controller_candidate, run_controller_tool_host_probe,
+    };
+    use crate::{Cli, Command as CliCommand};
+    use clap::Parser;
+    use serde_json::json;
+    use std::collections::VecDeque;
     use std::fs;
+    use std::path::{Path, PathBuf};
     use std::time::Duration;
     use tempfile::tempdir;
-    use ymp_application::Application;
+    use ymp_application::{
+        Application, AttestedToolHostProbeHandle, ControllerToolHostProbeRequest,
+        TOOL_HOST_PROBE_HANDLE_EXPORT,
+    };
     use ymp_domain::{Budget, Command, RunStatus};
+    use ymp_runtime_api::{
+        InvocationRequest, ProbeReport, Readiness, RuntimeDriver, RuntimeError, RuntimeEvent,
+        RuntimeEventKind, RuntimeKind, RuntimeSession, TOOL_HOST_PROBE_WORKSPACE_SERVER,
+        ToolHostProbeInvocation, ToolHostProbeRuntimeIdentity, ToolHostProbeTool, Usage,
+        tool_host_probe_tool_schema_digest,
+    };
+
+    struct FakeProbeDriver {
+        executable: PathBuf,
+        identity: ToolHostProbeRuntimeIdentity,
+    }
+
+    impl FakeProbeDriver {
+        fn new() -> Self {
+            let executable = PathBuf::from("ymp-internal-fake");
+            Self {
+                executable: executable.clone(),
+                identity: ToolHostProbeRuntimeIdentity {
+                    runtime_kind: RuntimeKind::Fake,
+                    route: "fixture/no-network".to_owned(),
+                    profile: "workspace-read-write-only".to_owned(),
+                    cli: executable.display().to_string(),
+                    cli_version: "fake-cli 1.0.0".to_owned(),
+                    driver: "fake-process-driver".to_owned(),
+                    driver_version: "fake-process-driver 1.0.0".to_owned(),
+                    tool_schema_digest: tool_host_probe_tool_schema_digest(),
+                },
+            }
+        }
+    }
+
+    impl RuntimeDriver for FakeProbeDriver {
+        fn kind(&self) -> RuntimeKind {
+            RuntimeKind::Fake
+        }
+
+        fn executable(&self) -> &Path {
+            &self.executable
+        }
+
+        fn probe(&self) -> Result<ProbeReport, RuntimeError> {
+            Ok(ProbeReport {
+                kind: RuntimeKind::Fake,
+                executable: self.executable.display().to_string(),
+                version: Some(self.identity.cli_version.clone()),
+                readiness: Readiness::Ready,
+                detail: "isolated deterministic probe fixture".to_owned(),
+            })
+        }
+
+        fn start(
+            &self,
+            _request: InvocationRequest,
+        ) -> Result<Box<dyn RuntimeSession>, RuntimeError> {
+            Err(RuntimeError::Unsupported("ordinary fake invocation"))
+        }
+
+        fn tool_host_probe_identity(&self) -> Result<ToolHostProbeRuntimeIdentity, RuntimeError> {
+            Ok(self.identity.clone())
+        }
+
+        fn start_tool_host_probe(
+            &self,
+            invocation: ToolHostProbeInvocation,
+        ) -> Result<Box<dyn RuntimeSession>, RuntimeError> {
+            assert_eq!(
+                invocation.allowed_tools,
+                [
+                    ToolHostProbeTool::WorkspaceWrite,
+                    ToolHostProbeTool::WorkspaceRead,
+                ]
+            );
+            let request = invocation.request;
+            fs::write(
+                invocation.workspace.join(&request.workspace_path),
+                request.nonce.as_bytes(),
+            )
+            .expect("fake workspace write");
+            let usage = Usage {
+                input_tokens: 11,
+                cached_input_tokens: 3,
+                output_tokens: 5,
+                reasoning_output_tokens: 2,
+                cost_microusd: None,
+                cost_by_model: Vec::new(),
+                wall_time_ms: 7,
+                protected_queries: 0,
+                in_flight_excess: Default::default(),
+            };
+            let invocation_id = request.invocation_id.clone();
+            let events = [
+                RuntimeEventKind::Started {
+                    opaque_session_id: "fake-session".to_owned(),
+                },
+                RuntimeEventKind::McpToolCall {
+                    server: TOOL_HOST_PROBE_WORKSPACE_SERVER.to_owned(),
+                    tool: ToolHostProbeTool::WorkspaceWrite.to_string(),
+                    status: "completed".to_owned(),
+                    arguments: json!({
+                        "path": request.workspace_path,
+                        "content": request.nonce,
+                    }),
+                    result: Some(json!({"bytes_written": request.nonce.len()})),
+                    error: None,
+                },
+                RuntimeEventKind::McpToolCall {
+                    server: TOOL_HOST_PROBE_WORKSPACE_SERVER.to_owned(),
+                    tool: ToolHostProbeTool::WorkspaceRead.to_string(),
+                    status: "completed".to_owned(),
+                    arguments: json!({"path": request.workspace_path}),
+                    result: Some(json!({"content": request.nonce})),
+                    error: None,
+                },
+                RuntimeEventKind::Completed {
+                    usage: usage.clone(),
+                },
+            ]
+            .into_iter()
+            .enumerate()
+            .map(|(index, event)| {
+                let sequence = u64::try_from(index + 1).expect("bounded event sequence");
+                RuntimeEvent {
+                    sequence,
+                    event_id: format!("{invocation_id}.event-{sequence}"),
+                    invocation_id: invocation_id.clone(),
+                    event,
+                }
+            })
+            .collect();
+            Ok(Box::new(FakeProbeSession { events, usage }))
+        }
+    }
+
+    struct FakeProbeSession {
+        events: VecDeque<RuntimeEvent>,
+        usage: Usage,
+    }
+
+    impl RuntimeSession for FakeProbeSession {
+        fn next_event(&mut self) -> Result<Option<RuntimeEvent>, RuntimeError> {
+            Ok(self.events.pop_front())
+        }
+
+        fn resume(&mut self, _input: String) -> Result<(), RuntimeError> {
+            Err(RuntimeError::NotYielded)
+        }
+
+        fn interrupt(&mut self) -> Result<(), RuntimeError> {
+            self.events.clear();
+            Ok(())
+        }
+
+        fn usage(&self) -> Usage {
+            self.usage.clone()
+        }
+    }
+
+    #[test]
+    fn internal_probe_command_accepts_no_evidence_or_destination_material() {
+        let cli = Cli::try_parse_from([
+            "ymp",
+            "internal",
+            "tool-host-probe",
+            "--admission-manifest-digest",
+            &"a".repeat(64),
+        ])
+        .expect("minimal internal probe command");
+        assert!(matches!(
+            cli.command,
+            Some(CliCommand::Internal {
+                command: super::InternalCommand::ToolHostProbe { .. }
+            })
+        ));
+
+        for forbidden in [
+            "--nonce",
+            "--workspace",
+            "--object-digest",
+            "--attestation",
+            "--export",
+            "--cli-version",
+        ] {
+            assert!(
+                Cli::try_parse_from([
+                    "ymp",
+                    "internal",
+                    "tool-host-probe",
+                    "--admission-manifest-digest",
+                    &"a".repeat(64),
+                    forbidden,
+                    "caller-controlled",
+                ])
+                .is_err(),
+                "internal probe accepted forbidden argument {forbidden}"
+            );
+        }
+    }
 
     #[test]
     fn managed_verification_materializes_the_controller_bound_candidate() {
@@ -802,5 +1099,67 @@ mod tests {
         assert_eq!(recovered.state().status, RunStatus::Accepted);
         assert_eq!(recovered.state().budget.verification_queries_remaining, 0);
         assert_eq!(recovered.events_after(0).expect("events").len(), 4);
+    }
+
+    #[test]
+    fn internal_probe_path_uses_the_fake_seam_and_only_the_isolated_store() {
+        let root = tempdir().expect("short isolated root");
+        let project = root.path().join("project");
+        let home = root.path().join("home");
+        let ymp_home = root.path().join("ymp-home");
+        let temporary = root.path().join("tmp");
+        let build = root.path().join("build");
+        let external_export = root.path().join("export");
+        for directory in [
+            &project,
+            &home,
+            &ymp_home,
+            &temporary,
+            &build,
+            &external_export,
+        ] {
+            fs::create_dir(directory).expect("isolated directory");
+        }
+        let data_root = ymp_home.join("projects/p/runs/0001");
+        Application::create(&data_root, "run-probe", Budget::new(1, 1))
+            .expect("isolated application");
+
+        let driver = FakeProbeDriver::new();
+        let expected_runtime = driver
+            .tool_host_probe_identity()
+            .expect("fake probe identity");
+        run_controller_tool_host_probe(
+            data_root.clone(),
+            Box::new(driver),
+            ControllerToolHostProbeRequest::new(
+                "a".repeat(64),
+                expected_runtime,
+                super::ADMISSION_TOOL_HOST_PROBE_DEADLINE_MS,
+                admission_tool_host_probe_reservation(),
+            ),
+        )
+        .expect("internal fake probe");
+
+        let export = data_root.join(TOOL_HOST_PROBE_HANDLE_EXPORT);
+        let handle: AttestedToolHostProbeHandle =
+            serde_json::from_slice(&fs::read(&export).expect("handle export"))
+                .expect("strict handle");
+        let application = Application::open(&data_root).expect("reopen isolated application");
+        let attestation = application
+            .attested_tool_host_probe(&handle)
+            .expect("verified attestation");
+        assert_eq!(attestation.admission_manifest_digest(), "a".repeat(64));
+        assert_eq!(attestation.runtime().runtime_kind, RuntimeKind::Fake);
+        assert!(data_root.join("runtime-evidence/tool-host-probes").is_dir());
+        for untouched in [project, home, temporary, build, external_export] {
+            assert_eq!(
+                fs::read_dir(&untouched)
+                    .expect("untouched isolated directory")
+                    .count(),
+                0,
+                "probe wrote outside isolated YMP_HOME: {}",
+                untouched.display()
+            );
+        }
     }
 }
