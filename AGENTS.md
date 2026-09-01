@@ -128,6 +128,11 @@ GitHub source above.
   boundaries. Weaker GPT, GLM, and Claude profiles may run tests, search for counterexamples,
   review results, perform read-only research, or participate in controlled POC experiments, but
   they do not author repository code or test code; any resulting fix returns to a Sol author.
+- Every behavioral test or evaluation that launches the product executable or an external agent
+  runs in a newly created disposable directory with isolated project, `HOME`, `YMP_HOME`, `TMPDIR`,
+  build, and export paths. It must not use the repository worktree as the launch directory or touch
+  the operator's real `~/.ymp`. Library unit tests may run in their isolated Git worktree, but the
+  moment a check crosses the executable/runtime boundary it uses the disposable evaluation root.
 - Build the POC as the production foundation. Documentation records verified behavior and must
   not replace implementation evidence.
 - Check claims against Git, current documents, executable tests, and all three current
