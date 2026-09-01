@@ -3,15 +3,15 @@ id: W1-EVL-04n
 kind: task
 wave: W1
 card: W1-EVL-04
-state: ready
+state: active
 risk: critical
 maturity: BUILD
 relation: required
 depends_on: [W1-EVL-04l, W1-EVL-04o, W1-EVL-04p, W1-EVL-04q]
 blocks: [W1-EVL-04m]
 created_at: 2026-09-01T17:17:30+08:00
-updated_at: 2026-09-01T18:26:00+08:00
-started_at:
+updated_at: 2026-09-01T20:13:34+08:00
+started_at: 2026-09-01T20:13:34+08:00
 accepted_at:
 candidate_commit:
 closure_commit:
@@ -128,6 +128,9 @@ dispatch one Sol xhigh builder and one frozen live probe only after deterministi
   behavior and W1-EVL-04q preserves exact version/digest only as reproducibility evidence.
 - W1-EVL-04o R1 review assigned the final expected-vs-actual executable/config/root recheck here,
   because only this node owns the real pre-spawn boundary.
+- Final pre-dispatch review confirmed that the only missing code is exactly this task's two-file
+  outcome: Codex probe methods and removal of the Fake-only supervisor guard. CTO accepted dispatch;
+  no additional dependency or write-zone expansion was identified.
 
 ## Review rounds
 

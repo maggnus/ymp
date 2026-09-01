@@ -98,7 +98,7 @@
 | `[x]` | [`W1-EVL-04k`](waves/W1/W1-EVL-04/tasks/W1-EVL-04k.md) | Product fixtures bind the proven Codex runtime tuple | [`77dab741`](https://github.com/maggnus/ymp/commit/77dab74116e9836795e07e9eb0e5b149d032d73d) | 01/09 16:39 | 01/09 17:07 (17m) |
 | `[x]` | [`W1-EVL-04l`](waves/W1/W1-EVL-04/tasks/W1-EVL-04l.md) | Controller owns nonce read-back and probe attestation | [`f52994f8`](https://github.com/maggnus/ymp/commit/f52994f8fc889894fbde85a4908589431b4f3bce) | 01/09 17:24 | 01/09 17:59 (31m) |
 | `[ ]` | [`W1-EVL-04m`](waves/W1/W1-EVL-04/tasks/W1-EVL-04m.md) | Admission consumes only controller-attested probe evidence | — | — | — |
-| `[ ]` | [`W1-EVL-04n`](waves/W1/W1-EVL-04/tasks/W1-EVL-04n.md) | Compatible Codex runtime performs one attested tool-host probe | — | — | — |
+| `[~]` | [`W1-EVL-04n`](waves/W1/W1-EVL-04/tasks/W1-EVL-04n.md) | Compatible Codex runtime performs one attested tool-host probe | — | 01/09 20:13 | 01/09 20:13 (0m) |
 | `[x]` | [`W1-EVL-04o`](waves/W1/W1-EVL-04/tasks/W1-EVL-04o.md) | Probe MCP transport is exact and attestation-bound | [`674182a8`](https://github.com/maggnus/ymp/commit/674182a8c1a0ca92bd100d4d1af4bc12b417db74) | 01/09 18:15 | 01/09 18:57 (35m) |
 | `[x]` | [`W1-EVL-04p`](waves/W1/W1-EVL-04/tasks/W1-EVL-04p.md) | Runtime compatibility is behavioral, not version-pinned | [`777dfd59`](https://github.com/maggnus/ymp/commit/777dfd597c89f9de3f194e326a13d819bc193231) | 01/09 18:58 | 01/09 19:34 (32m) |
 | `[x]` | [`W1-EVL-04q`](waves/W1/W1-EVL-04/tasks/W1-EVL-04q.md) | Product and admission consume behavioral compatibility | [`3dab48d4`](https://github.com/maggnus/ymp/commit/3dab48d44e514f4c01c879c73afbbd8706c9f53f) | 01/09 19:35 | 01/09 20:09 (25m) |
