@@ -3,15 +3,15 @@ id: W1-COR-03z
 kind: task
 wave: W1
 card: W1-COR-03
-state: ready
+state: active
 risk: significant
 maturity: BUILD
 relation: required
 depends_on: [W1-COR-03c, W1-COR-03e.1]
 blocks: [W1-EVL-04a, W1-EVL-04b]
 created_at: 2026-09-01T12:20:00+08:00
-updated_at: 2026-09-01T12:20:00+08:00
-started_at:
+updated_at: 2026-09-01T13:02:00+08:00
+started_at: 2026-09-01T13:02:00+08:00
 accepted_at:
 candidate_commit:
 closure_commit:
@@ -78,14 +78,13 @@ caller identity, scope, budgets, payload storage, and authority remain controlle
 
 ## Current state
 
-The board domain and persistent Application section exist, but agent tool schemas and both managed
-runtime allowlists expose only `read_control`, `read_events`, `yield`, and `submit`. No external
-participant can yet publish or read collaboration messages through `ymp`.
+The durable application payload seam is accepted. The tool contract passed its independent
+pre-dispatch check, and the scientific curator confirmed that existing publication, delivery, and
+action facts carry the identifiers needed for later causal tests. Implementation is active.
 
 ## Next action
 
-Repeat the contract check on the explicit schemas and refusal inputs, then start after
-W1-COR-03e.1 is accepted.
+Implement the two explicit tools across the accepted write zone and return one reviewable commit.
 
 ## Guardrails
 
@@ -100,6 +99,9 @@ W1-COR-03e.1 is accepted.
 - Pre-dispatch check R0 returned the former phrases "permitted reader" and
   "oversized/mismatched" as non-falsifiable; the contract now names exact schemas, bounds, and
   refusal inputs.
+- Scientific consultation found no instrumentation addition: `MessagePublished` and
+  `DeliveryRecorded` already preserve the publication/delivery linkage; a receipt remains evidence
+  of availability only, never listening or influence.
 
 ## Review rounds
 
