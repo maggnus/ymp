@@ -10,18 +10,18 @@ relation: required
 depends_on: [W1-EVL-04n]
 blocks: [W1-EVL-04s]
 created_at: 2026-09-01T21:14:37+08:00
-updated_at: 2026-09-01T21:23:04+08:00
+updated_at: 2026-09-01T22:21:30+08:00
 started_at: 2026-09-01T21:23:04+08:00
 accepted_at:
-candidate_commit:
+candidate_commit: https://github.com/maggnus/ymp/commit/5c84ed1d399e959bce2dd3e9ed9814f1aacc691a
 closure_commit:
 evidence:
-duration_minutes: 0
+duration_minutes: 58
 blocker:
 pause_reason:
 return_trigger:
 deliberate_partial: false
-review_rounds: 0
+review_rounds: 1
 escalation_decision:
 ---
 
@@ -89,15 +89,14 @@ attestation or exposing raw stderr.
 
 ## Current state
 
-The first authorized live attempt ended `ProcessExit` after 47.65 s. Before the R1 repair, supervisor
-discarded its terminal `Usage` and diagnostic summary, so provider request and failure phase are
-indeterminate. W1-EVL-04n is accepted only as deterministic implementation; the live gate remains
-closed and its reservation spent.
+Candidate [5c84ed1](https://github.com/maggnus/ymp/commit/5c84ed1d399e959bce2dd3e9ed9814f1aacc691a)
+is clean and carries phase-localized durable evidence. R1 found no code defect but executed zero
+cases for its recovery falsifier; the author is supplying one exact non-zero scenario before R2.
 
 ## Next action
 
-Run a Critical contract check of this diagnostic-only four-file seam, then dispatch one Sol xhigh
-builder with all provider/model calls prohibited.
+Run R2 with the exact executable recovery scenario on the final candidate; accept only after typed
+rejection and absence of refund/attestation are observed.
 
 ## Guardrails
 
@@ -112,6 +111,8 @@ builder with all provider/model calls prohibited.
 - R1 contract review required an explicit narrow carrier and persistence order. The corrected design
   uses one default probe-session method, the existing terminal failure type and one post-reservation
   Application finalizer; the general event protocol remains unchanged.
+- R1 outcome review selected the correct corruption/recovery risk but its command executed zero
+  tests; this is an evidence defect, not evidence of a product-code failure.
 
 ## Review rounds
 
@@ -120,6 +121,9 @@ One line per round of the convergence loop, written by the CTO from the two role
 marker carries the reviewer's ten-point score and the local moment of the verdict. After an
 escalation, one `- CTO <decision> <dd/mm hh:mm> — <reason>` line records what was decided. The review
 dialogue itself stays in the reports and the evidence package.
+
+- R1(4/10) RETURN 01/09 22:19 — independent corruption/recovery command executed zero tests → final
+  candidate remained unchanged → author must provide one exact non-zero typed-rejection scenario
 
 ## Closure
 
