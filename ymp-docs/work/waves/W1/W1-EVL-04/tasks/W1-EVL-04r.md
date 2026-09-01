@@ -10,7 +10,7 @@ relation: required
 depends_on: [W1-EVL-04n]
 blocks: [W1-EVL-04s]
 created_at: 2026-09-01T21:14:37+08:00
-updated_at: 2026-09-01T21:14:37+08:00
+updated_at: 2026-09-01T21:22:00+08:00
 started_at:
 accepted_at:
 candidate_commit:
@@ -42,12 +42,22 @@ attestation or exposing raw stderr.
   `ToolHostProbeFailureRecord` binding manifest/runtime/compatibility/executable/probe-transport,
   probe/invocation/reservation identities, last accepted event id/sequence/type, exit status or
   signal, duration, complete `Usage`, cost availability and bounded diagnostics for Codex and MCP.
+- Add one probe-specific default method
+  `RuntimeSession::tool_host_probe_failure_evidence() -> Option<ToolHostProbeFailureEvidence>`.
+  Ordinary sessions inherit `None`; the private Codex probe-session wrapper returns only its tracked
+  sanitized stages/process outcome/duration. No general `RuntimeEventKind` or agent protocol grows.
 - Runtime-codex records observable stages only: process spawned, `turn.started`, provider response or
   provider-typed failure. It must not infer a provider request from elapsed time or process exit.
 - Supervisor adds observed probe stages: runtime started, MCP call events seen and terminal mapping.
-  It preserves structured failure evidence for both terminal events and stream/process errors.
-- Application writes `failure.json` with `create_new`+fsync beside the already spent reservation on
-  any executor failure, verifies it on recovery and never writes `attestation.ref` or refunds/retries.
+  It merges the session evidence with existing `RuntimeTerminalFailed` kind, `Usage`, diagnostic and
+  event identity; absent driver observations remain explicit `unknown`.
+- After `reservation.json` is fsynced, `Application::controller_tool_host_probe` routes executor,
+  trace-validation, read-back and attestation-write errors through one private finalizer. It writes
+  canonical `failure.json` via `create_new`+fsync before returning; the record binds store,
+  reservation and replay identities and never precedes a spent reservation.
+- `Application::tool_host_probe_failure(probe_id)` reloads and verifies reservation plus failure for
+  the trusted harness. Recovery refuses failure+attestation, missing/corrupt/mismatched or copied
+  records; no public constructor or raw deserialization grants authority.
 - Exclusive write zone: narrow changes in `ymp-runtime-api/src/lib.rs`,
   `ymp-runtime-codex/src/lib.rs`, `ymp-runtime-supervisor/src/lib.rs`,
   `ymp-application/src/tool_host_probe.rs`, focused tests and the existing live CLI harness only;
@@ -63,6 +73,9 @@ attestation or exposing raw stderr.
 - [ ] Deterministic fixture failures before process spawn, before `turn.started`, after turn start,
       before MCP call, after MCP receipt/result and before controller read-back each persist exactly
       one distinct phase with last event identity and no attestation.
+- [ ] Ordinary non-probe RuntimeSession implementations compile unchanged through the default method;
+      only Codex probe sessions return phase evidence, and supervisor never fabricates missing driver
+      observations.
 - [ ] Failure records preserve complete token classes, in-flight model request count, cost
       availability, exit/signal/duration and only `{sha256, bytes, truncated}` diagnostics. Missing
       observations are explicit `unknown`, never zero or inferred success.
@@ -96,6 +109,9 @@ builder with all provider/model calls prohibited.
 
 - Scientific classification of the first attempt is
   `infrastructure-invalid / failure phase indeterminate`; the reservation is spent.
+- R1 contract review required an explicit narrow carrier and persistence order. The corrected design
+  uses one default probe-session method, the existing terminal failure type and one post-reservation
+  Application finalizer; the general event protocol remains unchanged.
 
 ## Review rounds
 
