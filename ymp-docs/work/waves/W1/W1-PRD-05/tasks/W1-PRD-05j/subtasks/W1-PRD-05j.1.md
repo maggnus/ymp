@@ -4,15 +4,15 @@ kind: subtask
 wave: W1
 card: W1-PRD-05
 parent: W1-PRD-05j
-state: ready
+state: active
 risk: significant
 maturity: BUILD
 relation: follow_up
 depends_on: [W1-PRD-05j]
 blocks: [W1-EVL-04a]
 created_at: 2026-09-01T12:38:00+08:00
-updated_at: 2026-09-01T13:58:00+08:00
-started_at:
+updated_at: 2026-09-01T14:00:00+08:00
+started_at: 2026-09-01T14:00:00+08:00
 accepted_at:
 candidate_commit:
 closure_commit:
@@ -80,14 +80,13 @@ by the endpoint, not supplied by the model.
 
 ## Current state
 
-The accepted kernel/Application gate and managed start path exist. The participant catalogue now
-also exposes collaboration publish/read, but no `AgentToolCall::RequestParticipant`, MCP/RPC binding
-or runtime allowlist entry exists, so a coordinated arm cannot form itself through the product.
+The corrected contract passed pre-dispatch review. The accepted kernel/Application gate and managed
+start path exist; implementation of the exact agent API/MCP/RPC/runtime surface is active in an
+exclusive Sol xhigh workspace.
 
 ## Next action
 
-Create the exact named surface and route it through the existing application/start path without a
-parallel recruitment implementation.
+Return one committed candidate that reaches the existing application/start path exactly once.
 
 ## Guardrails
 

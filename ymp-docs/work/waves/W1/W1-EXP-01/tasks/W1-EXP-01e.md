@@ -3,15 +3,15 @@ id: W1-EXP-01e
 kind: task
 wave: W1
 card: W1-EXP-01
-state: ready
+state: active
 risk: critical
 maturity: BUILD
 relation: follow_up
 depends_on: []
 blocks: [W1-EVL-04e, W1-EVL-04f, W1-EVL-04a]
 created_at: 2026-09-01T13:41:52+08:00
-updated_at: 2026-09-01T13:58:00+08:00
-started_at:
+updated_at: 2026-09-01T14:00:00+08:00
+started_at: 2026-09-01T14:00:00+08:00
 accepted_at:
 candidate_commit:
 closure_commit:
@@ -78,14 +78,13 @@ from independent selection without consuming a primary-study task or seed.
 
 ## Current state
 
-L1–L3 validate profiles and oracles but provide no held-out decomposability stratum. No task owns
-the L4+ corpus, protected mutations, split, or frozen digests required by the weak diagnostic and
-strong-profile transfer gates.
+The bounded contract passed pre-dispatch review. An exclusive Sol xhigh workspace is implementing
+the new development-only corpus path, protected mutations, split manifest and verifier seam; L1–L3
+and every primary path remain untouched.
 
 ## Next action
 
-Have Sol max freeze the task hypotheses and Sol xhigh implement the smallest exact packages and
-protected verifiers before any model call.
+Return one committed zero-model candidate with exact mutation failures and frozen digests.
 
 ## Guardrails
 
