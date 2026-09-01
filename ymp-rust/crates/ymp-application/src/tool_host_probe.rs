@@ -817,6 +817,30 @@ fn validate_expected_transport(
     validate_probe_transport_identity(expected_transport, workspace)
 }
 
+/// Compares the runtime facts that establish compatibility while deliberately excluding the CLI
+/// version. The runtime-observed value remains serialized in the trace, but it cannot authorize or
+/// refuse behavior that the contract and executable bytes already identify.
+fn runtime_compatibility_matches(
+    expected: &ToolHostProbeRuntimeIdentity,
+    observed: &ToolHostProbeRuntimeIdentity,
+) -> bool {
+    expected.runtime_kind == observed.runtime_kind
+        && expected.route == observed.route
+        && expected.profile == observed.profile
+        && expected.cli == observed.cli
+        && expected.compatibility_contract_digest == observed.compatibility_contract_digest
+        && expected.executable_digest == observed.executable_digest
+        && expected.driver == observed.driver
+        && expected.driver_version == observed.driver_version
+        && expected.tool_schema_digest == observed.tool_schema_digest
+        && expected.probe_transport == observed.probe_transport
+        && expected.probe_transport_digest == observed.probe_transport_digest
+}
+
+fn observed_cli_version_is_valid(runtime: &ToolHostProbeRuntimeIdentity) -> bool {
+    !runtime.cli_version.is_empty() && runtime.cli_version.len() <= 4096
+}
+
 fn validate_probe_transport_identity(
     expected_transport: &ProbeTransportIdentity,
     workspace: &Path,
@@ -987,7 +1011,11 @@ fn validate_trace(
             request
                 .expected_runtime
                 .as_ref()
-                .is_some_and(|expected| trace.runtime == *expected),
+                .is_some_and(|expected| runtime_compatibility_matches(expected, &trace.runtime)),
+        ),
+        (
+            "runtime_cli_version",
+            observed_cli_version_is_valid(&trace.runtime),
         ),
         (
             "model_calls",
@@ -1438,7 +1466,15 @@ fn validate_loaded_attestation(
             "trace_digest",
             attestation.trace_digest == digest_bytes(&canonical_json(&attestation.trace)?),
         ),
-        ("runtime", attestation.runtime == attestation.trace.runtime),
+        (
+            "runtime",
+            runtime_compatibility_matches(&attestation.runtime, &attestation.trace.runtime),
+        ),
+        (
+            "runtime_cli_version",
+            observed_cli_version_is_valid(&attestation.runtime)
+                && observed_cli_version_is_valid(&attestation.trace.runtime),
+        ),
         (
             "runtime_transport",
             attestation.runtime.probe_transport == attestation.probe_transport
@@ -1940,6 +1976,32 @@ mod tests {
                 .expect("recovered attestation"),
             attestation
         );
+    }
+
+    #[test]
+    fn observed_runtime_version_is_evidence_not_attestation_authority() {
+        const OBSERVED_VERSION: &str = "fake-cli 9.7.3";
+
+        let root = tempdir().expect("temporary root");
+        let mut application = create_application(&root);
+        let handle = execute_prepared(&mut application, material('c'), |workspace, request| {
+            assert_ne!(request.expected_runtime.cli_version, OBSERVED_VERSION);
+            fs::write(
+                workspace.join(&request.workspace_path),
+                request.nonce.as_bytes(),
+            )
+            .expect("fixture write");
+            let mut trace = successful_trace(&request);
+            trace.runtime.cli_version = OBSERVED_VERSION.to_owned();
+            Ok(trace)
+        })
+        .expect("version-independent attestation");
+
+        let attestation = application
+            .attested_tool_host_probe(&handle)
+            .expect("attested observed version");
+        assert_eq!(attestation.trace().runtime.cli_version, OBSERVED_VERSION);
+        assert_eq!(attestation.runtime().cli_version, OBSERVED_VERSION);
     }
 
     #[test]

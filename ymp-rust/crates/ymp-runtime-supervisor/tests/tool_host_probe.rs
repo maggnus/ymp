@@ -625,8 +625,11 @@ fn version_difference_alone_does_not_reject_the_runtime_projection() {
     let executable = Path::new("/bin/sh");
     let mut driver = ScriptedDriver::new(executable, Scenario::Success);
     driver.identity.cli_version = "fake-cli 9.7.3".to_owned();
-    let mut request = request(executable);
-    request.expected_runtime.cli_version = driver.identity.cli_version.clone();
+    let request = request(executable);
+    assert_ne!(
+        request.expected_runtime.cli_version,
+        driver.identity.cli_version
+    );
 
     let trace = execute_tool_host_probe(&driver, &workspace, request)
         .expect("compatible behavior with a different observed version");

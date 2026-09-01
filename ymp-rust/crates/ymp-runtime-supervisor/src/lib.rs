@@ -1350,7 +1350,11 @@ fn validate_tool_host_probe_projection(
     {
         return Err(ToolHostProbeError::RuntimeIdentityMismatch { field: "cli" });
     }
-    if probe.version.as_deref() != Some(expected.cli_version.as_str()) {
+    if !probe
+        .version
+        .as_deref()
+        .is_some_and(|version| !version.is_empty() && version.len() <= 4096)
+    {
         return Err(ToolHostProbeError::RuntimeIdentityMismatch {
             field: "cli_version",
         });
@@ -1379,7 +1383,6 @@ fn compare_tool_host_probe_identity(
         ("route", expected.route == observed.route),
         ("profile", expected.profile == observed.profile),
         ("cli", expected.cli == observed.cli),
-        ("cli_version", expected.cli_version == observed.cli_version),
         (
             "compatibility_contract_digest",
             expected.compatibility_contract_digest == observed.compatibility_contract_digest,
