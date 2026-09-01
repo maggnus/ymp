@@ -76,14 +76,14 @@ surrounding documentation is updated. Do not send Claude requests to recover or 
 ## Required plugins
 
 Install `paseo-cto` and `russian-speech` only from the GitHub repository
-`maggnus/claude-plugins`, pinned to the declared tag. Do not use a local directory as the
+`maggnus/agentic-plugins`, pinned to the declared tag. Do not use a local directory as the
 installation source.
 
 Claude Code:
 
 ```sh
-PASEO_CTO_TAG=v9.16.0
-claude plugin marketplace add "maggnus/claude-plugins@${PASEO_CTO_TAG}"
+PASEO_CTO_TAG=v10.8.2
+claude plugin marketplace add "maggnus/agentic-plugins@${PASEO_CTO_TAG}"
 claude plugin install paseo-cto@maggnus
 claude plugin install russian-speech@maggnus
 ```
@@ -91,8 +91,8 @@ claude plugin install russian-speech@maggnus
 Codex:
 
 ```sh
-PASEO_CTO_TAG=v9.16.0
-codex plugin marketplace add maggnus/claude-plugins --ref "$PASEO_CTO_TAG"
+PASEO_CTO_TAG=v10.8.2
+codex plugin marketplace add maggnus/agentic-plugins --ref "$PASEO_CTO_TAG"
 codex plugin add paseo-cto@maggnus
 codex plugin add russian-speech@maggnus
 ```
@@ -106,8 +106,8 @@ codex plugin marketplace list
 codex plugin list
 ```
 
-The required source is GitHub `maggnus/claude-plugins`; the required `paseo-cto` version is
-`9.16.0`.
+The required source is GitHub `maggnus/agentic-plugins`; the required `paseo-cto` version is
+`10.8.2`.
 
 ## work.py
 
@@ -118,7 +118,7 @@ inside the installed plugin:
 - Codex: `~/.codex/plugins/cache/maggnus/paseo-cto/*/skills/paseo-cto/templates/work.py`;
 - Claude Code: `~/.claude/plugins/cache/maggnus/paseo-cto/*/skills/paseo-cto/templates/work.py`.
 
-If several versions are present, use the copy from `paseo-cto` version `9.16.0` installed from the
+If several versions are present, use the copy from `paseo-cto` version `10.8.2` installed from the
 GitHub source above.
 
 ## Change and validation rules

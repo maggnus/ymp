@@ -62,8 +62,8 @@ The initial implementation validation ladder is:
 6. the complete controlled POC procedure only at the `W1-EVL-04` and wave acceptance boundaries.
 
 The work-tree generator and validator are supplied by the pinned `paseo-cto` plugin rather than a
-repository-local `work.py` copy. Use version `9.13.0` installed from
-`https://github.com/maggnus/claude-plugins`.
+repository-local `work.py` copy. Use version `10.8.2` installed from
+`https://github.com/maggnus/agentic-plugins`.
 
 Every acceptance check includes a negative control. A check whose deliberately invalid case has
 not been observed to fail is not acceptance evidence.
