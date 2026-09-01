@@ -159,5 +159,5 @@ assignable, reviewable and closable.
   reviewed candidate; the merged tree is byte-identical to it.
 - [`d56b199`](https://github.com/maggnus/ymp/commit/d56b199ed1c8c7e13f479cfcac9647fa4f5abd0b) —
   integration into the release branch.
-- `ymp-docs/research/001-calibration.md`
+- `ymp-docs/research/RES-001-calibration.md`
 - `ymp-rust/tools/ymp-calibration/results/2026-08-12-smoke.json`

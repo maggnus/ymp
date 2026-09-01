@@ -10,17 +10,23 @@ Rust tool; research prose links to their exact evidence instead of copying it.
 
 ## File numbering
 
-`README.md` is the only unnumbered file. Every research idea, hypothesis, protocol, analysis, or
-result uses `NNN-kebab-title.md`, where `NNN` is the next unused three-digit index from `001` to
-`999`. Numbers are permanent and never reused; creating a file also updates this index.
+`README.md` is the only unclassified file. Every record uses `TYPE-NNN-kebab-title.md`, where the
+three-digit number is the next unused index inside its type and is never reused:
+
+- `RES-NNN-*` — research ideas, hypotheses, protocols, analyses, and results in this directory;
+- `ADR-NNN-*` — accepted architecture decision records, reserved for a future ADR directory.
+
+The scientific researcher creates only `RES-*` records. `DECISIONS.md` remains the canonical
+decision log until an explicit migration; this naming rule does not silently turn research into an
+architecture decision. Creating any record also updates its directory index.
 
 ## Current protocols
 
-- [001-calibration.md](001-calibration.md) — development profile ladder, measured runs, and promotion
+- [RES-001-calibration.md](RES-001-calibration.md) — development profile ladder, measured runs, and promotion
   boundary.
-- [002-weak-diagnostic.md](002-weak-diagnostic.md) — diagnostic matched-budget comparison using weak
+- [RES-002-weak-diagnostic.md](RES-002-weak-diagnostic.md) — diagnostic matched-budget comparison using weak
   participant profiles before the frozen primary study.
-- [003-mechanism-map.md](003-mechanism-map.md) — falsifiable coordination mechanisms, interventions,
+- [RES-003-mechanism-map.md](RES-003-mechanism-map.md) — falsifiable coordination mechanisms, interventions,
   expected null strata, and scientific stop rules.
 
 ## Standing review rule
