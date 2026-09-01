@@ -25,6 +25,24 @@ unchanged, runs formatting, tests and strict Clippy, and emits a candidate diges
 The next level must add repository-scale decomposition and bounded coordination. It must not weaken
 the first three levels or expose their protected tests to producing attempts.
 
+## Weak-participant mechanism-visibility ladder
+
+Before spending the frozen primary-comparison budget, development experiments deliberately use a
+weaker admitted profile on elementary and then increasingly decomposable repository tasks. Each
+level compares the same profile in three matched-budget conditions: one participant, independent
+best-of-`n`, and local coordination. The purpose is to make a coordination effect, or its absence,
+large enough to diagnose before stronger executors approach the oracle ceiling.
+
+A coordinated result advances this diagnostic ladder only when it repeatedly exceeds both the
+single-participant and independent-selection conditions, combines attributable non-redundant work,
+and survives removal or replacement of the messages claimed to matter. Fluent transcripts, more
+participants, or beating only one weak participant do not advance it.
+
+This ladder is development evidence. It does not replace the preregistered primary comparison or
+the required strong-single-agent baseline. A mechanism that helps weak participants but fails to
+transfer to stronger profiles remains a bounded finding about weak-agent coordination rather than
+the product's reliability claim.
+
 ## Pinned development profiles
 
 | Runtime | Exact profile | Ambient state | Current readiness |
