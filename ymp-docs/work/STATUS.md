@@ -101,7 +101,7 @@
 | `[ ]` | [`W1-EVL-04n`](waves/W1/W1-EVL-04/tasks/W1-EVL-04n.md) | Compatible Codex runtime performs one attested tool-host probe | — | — | — |
 | `[x]` | [`W1-EVL-04o`](waves/W1/W1-EVL-04/tasks/W1-EVL-04o.md) | Probe MCP transport is exact and attestation-bound | [`674182a8`](https://github.com/maggnus/ymp/commit/674182a8c1a0ca92bd100d4d1af4bc12b417db74) | 01/09 18:15 | 01/09 18:57 (35m) |
 | `[x]` | [`W1-EVL-04p`](waves/W1/W1-EVL-04/tasks/W1-EVL-04p.md) | Runtime compatibility is behavioral, not version-pinned | [`777dfd59`](https://github.com/maggnus/ymp/commit/777dfd597c89f9de3f194e326a13d819bc193231) | 01/09 18:58 | 01/09 19:34 (32m) |
-| `[ ]` | [`W1-EVL-04q`](waves/W1/W1-EVL-04/tasks/W1-EVL-04q.md) | Product and admission consume behavioral compatibility | — | — | — |
+| `[~]` | [`W1-EVL-04q`](waves/W1/W1-EVL-04/tasks/W1-EVL-04q.md) | Product and admission consume behavioral compatibility | — | 01/09 19:35 | 01/09 19:35 (0m) |
 | `[x]` | [`W1-EXP-01`](waves/W1/W1-EXP-01/CARD.md) | POC assumptions are falsifiable before product code | [`ca221c9a`](https://github.com/maggnus/ymp/commit/ca221c9a4b81775bf158cf915d0d7613e9daae92) | 12/08 11:02 | 14/08 02:22 (0m) |
 | `[x]` | [`W1-EXP-01a`](waves/W1/W1-EXP-01/tasks/W1-EXP-01a.md) | POC corpus rejects known invalid candidates | [`ff4a9383`](https://github.com/maggnus/ymp/commit/ff4a9383653a0f09b947ff24b569e760396a0502) | 12/08 11:59 | 12/08 15:34 (2h59m) |
 | `[x]` | [`W1-EXP-01b`](waves/W1/W1-EXP-01/tasks/W1-EXP-01b.md) | Matched-budget study has a frozen decision rule | [`d12eff31`](https://github.com/maggnus/ymp/commit/d12eff31940f8ad124f5f8f566a0dd21de3d2ae6) | 12/08 15:44 | 12/08 17:44 (1h42m) |
