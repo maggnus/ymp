@@ -10,7 +10,7 @@ relation: required
 depends_on: [W1-EVL-04i]
 blocks: [W1-EVL-04m, W1-EVL-04e]
 created_at: 2026-09-01T15:49:59+08:00
-updated_at: 2026-09-01T15:57:50+08:00
+updated_at: 2026-09-01T16:40:38+08:00
 started_at:
 accepted_at:
 candidate_commit:
@@ -42,15 +42,19 @@ stale or unmeasured tuples without exposing version management to the user.
 - Update `ymp-rust/tools/ymp-corpus/corpus/development/weak-diagnostic-admission-v1/manifest.json`
   and its `manifest.sha256` to the proven tuple without changing the frozen schedule, limits or
   outcomes.
+- Update only `FROZEN_MANIFEST_SHA256` and the exact Codex-version/tool-schema fixture expectations
+  mechanically forced by those manifest bytes in `ymp-rust/tools/ymp-corpus/src/admission.rs`;
+  admission logic, schemas, schedules and decisions remain unchanged.
 - Exclusive write zone is those seven files plus mechanically forced changes only in
   `ymp-rust/crates/ymp-cli/Cargo.toml`, `ymp-rust/tools/ymp-corpus/Cargo.toml` and
-  `ymp-rust/Cargo.lock`.
+  `ymp-rust/Cargo.lock`, and the narrowly bounded `admission.rs` constants/fixture above.
 
 ### Out
 
-- No-touch: `ymp-runtime-codex/**`, `ymp-runtime-supervisor/**`, all research and calibration
-  records, accepted admission report schemas and rehearsal semantics, primary/development corpus
-  tasks, provider/model selection, TUI, storage, deployment and real model/network/money calls.
+- No-touch: every other `admission.rs` behavior, `ymp-runtime-codex/**`,
+  `ymp-runtime-supervisor/**`, all research and calibration records, accepted admission report
+  schemas and rehearsal semantics, primary/development corpus tasks, provider/model selection, TUI,
+  storage, deployment and real model/network/money calls.
 - Historical `ymp-docs/research/cal-001-calibration.md` and
   `ymp-rust/tools/ymp-calibration/results/**` remain immutable; they describe the profiles actually
   measured at their revisions.
@@ -61,6 +65,8 @@ stale or unmeasured tuples without exposing version management to the user.
       readiness, completion/export, resume, cancellation and descendant-termination behavior.
 - [ ] The admission manifest and digest bind that same tuple while retaining byte-identical
       schedule, read cap, accounting limits, S1-S3 expectations and `model_calls=0`.
+- [ ] The embedded frozen-manifest digest equals the new sidecar and computed manifest SHA-256; the
+      previous embedded digest or a fixture still claiming 0.147 fails before admission evaluation.
 - [ ] A stale 0.147 fixture or manifest, a future unmeasured version, a digest mismatch and a tuple
       that disagrees with the runtime projection each fail closed before `model_ready=true` or an
       accepted task can start.
@@ -75,14 +81,15 @@ stale or unmeasured tuples without exposing version management to the user.
 
 ## Current state
 
-The repository has five product fixtures and one admission manifest pinned to 0.147. W1-EVL-04i
-now owns proving 0.151 behavior in the runtime and supervisor first. This task may migrate only the
-consumers of that accepted proof; a version-number substitution without the proven tuple is refused.
+The accepted runtime proves 0.151 behavior. The first builder preflight showed that the admission
+manifest is also bound by `FROZEN_MANIFEST_SHA256` and an exact Codex fixture in `admission.rs`, so
+the original seven-file zone could not produce a valid candidate. That mechanical coupling is now
+explicitly allowed; admission behavior remains out of scope.
 
 ## Next action
 
-After W1-EVL-04i is accepted, run a Critical contract check of these exact seven product files and
-dispatch one Sol xhigh builder from the then-current `main`.
+Continue the original Sol xhigh builder from the current `main` with only the newly explicit
+embedded-digest and fixture allowance.
 
 ## Guardrails
 
@@ -94,6 +101,8 @@ dispatch one Sol xhigh builder from the then-current `main`.
 
 - Created by R1 decomposition of W1-EVL-04i so runtime behavior and product-fixture migration have
   separate write zones, dependencies and acceptance stories.
+- Builder preflight found the manifest's unavoidable embedded digest and exact test fixture; the
+  contract was corrected without authorizing any admission-policy change.
 
 ## Review rounds
 
