@@ -1178,6 +1178,14 @@ dependencies = [
  "serde_json",
  "sha2",
  "tempfile",
+ "ymp-agent-mcp",
+ "ymp-agent-rpc",
+ "ymp-application",
+ "ymp-board",
+ "ymp-domain",
+ "ymp-runtime-api",
+ "ymp-runtime-codex",
+ "ymp-runtime-fake",
 ]
 
 [[package]]

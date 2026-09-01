@@ -1,5 +1,6 @@
 #![forbid(unsafe_code)]
 
+pub mod admission;
 pub mod development;
 pub mod study;
 

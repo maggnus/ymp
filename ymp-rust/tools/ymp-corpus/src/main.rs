@@ -4,6 +4,7 @@ use std::path::PathBuf;
 
 use anyhow::{Result, ensure};
 use clap::{Parser, Subcommand};
+use ymp_corpus::admission::AdmissionCommand;
 use ymp_corpus::development::DevelopmentCommand;
 use ymp_corpus::study::{
     analyze_study_records, load_frozen_manifest, load_study_records, negative_controls,
@@ -15,10 +16,10 @@ use ymp_corpus::{check_cache, load_corpus, prepare, report_json, reproduce, writ
 #[command(about = "Prepare and reproduce an ymp repair-corpus edition")]
 struct Cli {
     #[arg(long)]
-    corpus: PathBuf,
+    corpus: Option<PathBuf>,
 
     #[arg(long)]
-    cache: PathBuf,
+    cache: Option<PathBuf>,
 
     #[command(subcommand)]
     command: CorpusCommand,
@@ -26,6 +27,10 @@ struct Cli {
 
 #[derive(Debug, Subcommand)]
 enum CorpusCommand {
+    Admission {
+        #[command(subcommand)]
+        command: AdmissionCommand,
+    },
     Prepare,
     Check {
         #[arg(long)]
@@ -93,21 +98,33 @@ enum CorpusCommand {
 
 fn main() -> Result<()> {
     let cli = Cli::parse();
+    if let CorpusCommand::Admission { command } = &cli.command {
+        command.execute()?;
+        return Ok(());
+    }
     if let CorpusCommand::Development { command } = &cli.command {
         command.execute()?;
         return Ok(());
     }
-    let corpus = load_corpus(&cli.corpus)?;
+    let corpus_path = cli
+        .corpus
+        .as_deref()
+        .ok_or_else(|| anyhow::anyhow!("--corpus is required for this command"))?;
+    let cache = cli
+        .cache
+        .as_deref()
+        .ok_or_else(|| anyhow::anyhow!("--cache is required for this command"))?;
+    let corpus = load_corpus(corpus_path)?;
     match cli.command {
         CorpusCommand::Prepare => {
-            let report = prepare(&corpus, &cli.cache)?;
+            let report = prepare(&corpus, cache)?;
             println!("{}", report_json(&report)?);
         }
         CorpusCommand::Check {
             technical_evidence_only,
         } => {
             require_technical_evidence_mode(technical_evidence_only)?;
-            check_cache(&corpus, &cli.cache)?;
+            check_cache(&corpus, cache)?;
             println!(
                 "corpus {} and cache are technically intact; owner authorization is external and was not evaluated",
                 corpus.registry.corpus_id
@@ -118,7 +135,7 @@ fn main() -> Result<()> {
             technical_evidence_only,
         } => {
             require_technical_evidence_mode(technical_evidence_only)?;
-            let result = reproduce(&corpus, &cli.cache)?;
+            let result = reproduce(&corpus, cache)?;
             if let Some(path) = report {
                 write_report(&path, &result)?;
             }
@@ -168,6 +185,7 @@ fn main() -> Result<()> {
             run_negative_control(&corpus, &manifest, &records, &case)?;
         }
         CorpusCommand::Development { .. } => unreachable!(),
+        CorpusCommand::Admission { .. } => unreachable!(),
     }
     Ok(())
 }
@@ -184,7 +202,7 @@ fn require_technical_evidence_mode(technical_evidence_only: bool) -> Result<()> 
 mod tests {
     use clap::{Parser, error::ErrorKind};
 
-    use super::{Cli, require_technical_evidence_mode};
+    use super::{Cli, CorpusCommand, require_technical_evidence_mode};
 
     #[test]
     fn owner_approval_file_is_not_a_public_input() {
@@ -211,18 +229,17 @@ mod tests {
     }
 
     #[test]
-    fn corpus_argument_is_required() {
-        let error = Cli::try_parse_from([
+    fn admission_does_not_require_primary_corpus_arguments() {
+        let parsed = Cli::try_parse_from([
             "ymp-corpus",
-            "--cache",
-            "/tmp/cache",
-            "study-check",
+            "admission",
+            "check",
             "--manifest",
             "/tmp/manifest.json",
             "--digest",
             "/tmp/manifest.sha256",
         ])
-        .unwrap_err();
-        assert_eq!(error.kind(), ErrorKind::MissingRequiredArgument);
+        .expect("parse admission command");
+        assert!(matches!(parsed.command, CorpusCommand::Admission { .. }));
     }
 }
