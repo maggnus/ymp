@@ -21,6 +21,7 @@ This file is the short operational guide for new Codex and Claude Code sessions.
    - `ymp-docs/INVARIANTS.md` and `ymp-docs/SECURITY.md` — non-negotiable constraints;
    - `ymp-docs/DECISIONS.md` and `ymp-docs/REPUTATION.md` — decisions and rationale;
    - `ymp-docs/CALIBRATION.md` — pinned runtime profiles, calibration ladder, evidence, and blockers;
+   - `ymp-docs/research/README.md` — research index, experiment protocols, analyses, and results;
    - `ymp-docs/work/WORKFLOW.md` — execution-record rules;
    - `ymp-docs/work/STATUS.md` and `ymp-docs/work/WAVES.md` — generated status indexes.
    - `ymp-rust/SCHEMA.md` — durable event, object, compatibility, and migration rules.
@@ -64,6 +65,14 @@ references are evidence of history, not current design authority.
 Do not search for, recreate, or request `CLAUDE_REQUESTS.md`, `CLAUDE_DESIGN_REQUEST_V2.md`, or
 other Claude Design material. References to those files are stale and must be removed when the
 surrounding documentation is updated. Do not send Claude requests to recover or clarify design.
+
+## Research-document boundary
+
+Human-readable hypotheses, experimental protocols, intervention plans, scientific analyses,
+results, and negative findings live only under `ymp-docs/research/`. Product contracts,
+architecture, security, invariants, and roadmap documents remain at the `ymp-docs/` root.
+Executable manifests, corpora, or compliance tools remain beside their owning Rust tool and are
+linked from the research document; do not duplicate executable truth into prose.
 
 ## Repository facts
 

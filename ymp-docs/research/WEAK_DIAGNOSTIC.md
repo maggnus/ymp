@@ -17,7 +17,7 @@ three fresh repetitions per case and three matched-budget conditions per repetit
 The 27 conditions are ordered by SHA-256 over cohort, case, repetition, and arm rather than by an
 operator choice. Their seeds use the separate namespace `ymp-weak-diagnostic-v1`; no frozen primary
 seed is consumed. The profile candidates and evidence boundary are defined in
-[CALIBRATION.md](CALIBRATION.md).
+[CALIBRATION.md](../CALIBRATION.md).
 
 ## Matched budget
 
