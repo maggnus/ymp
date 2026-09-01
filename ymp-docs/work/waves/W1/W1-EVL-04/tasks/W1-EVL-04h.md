@@ -3,25 +3,25 @@ id: W1-EVL-04h
 kind: task
 wave: W1
 card: W1-EVL-04
-state: active
+state: accepted
 risk: critical
 maturity: BUILD
 relation: required
 depends_on: [W1-COR-03z, W1-PRD-05j.1]
 blocks: [W1-EVL-04e]
 created_at: 2026-09-01T15:02:06+08:00
-updated_at: 2026-09-01T15:06:13+08:00
+updated_at: 2026-09-01T15:41:27+08:00
 started_at: 2026-09-01T15:06:13+08:00
-accepted_at:
-candidate_commit:
-closure_commit:
-evidence:
-duration_minutes: 0
+accepted_at: 2026-09-01T15:41:27+08:00
+candidate_commit: https://github.com/maggnus/ymp/commit/4dafa512f737876c444ee285e99556d0899e7a31
+closure_commit: https://github.com/maggnus/ymp/commit/694c79010f7417e1938d1e3d305817618c148657
+evidence: ["[694c790](https://github.com/maggnus/ymp/commit/694c79010f7417e1938d1e3d305817618c148657)"]
+duration_minutes: 35
 blocker:
 pause_reason:
 return_trigger:
 deliberate_partial: false
-review_rounds: 0
+review_rounds: 1
 escalation_decision:
 ---
 
@@ -68,40 +68,40 @@ present and valid.
 
 ## Acceptance
 
-- [ ] `admission check` accepts the exact frozen manifest with `model_calls=0`; a CLI/driver version
+- [x] `admission check` accepts the exact frozen manifest with `model_calls=0`; a CLI/driver version
       change, removed flag, missing Git trust, wrong tool schema, changed profile/route or missing
       tool-host binding fails before any task or provider invocation.
-- [ ] `admission rehearse` reaches MCP→private RPC→Application with the fake runtime. S1 and S2
+- [x] `admission rehearse` reaches MCP→private RPC→Application with the fake runtime. S1 and S2
       record the exact `MessagePublished`, `DeliveryRecorded`, predeclared later B action and honest
       terminal; the unauthorized reader receives nothing. S3 records no wake and remains a valid
       negative behavior, not an infrastructure success.
-- [ ] The manifest fixes process windows, their order and a hard read cap without depending on
+- [x] The manifest fixes process windows, their order and a hard read cap without depending on
       publication, message content or outcome. Rehearsal uses no retry-until-success polling; an
       extra read or schedule selected after observing a message fails compliance.
-- [ ] Admission has two distinct stages: zero-model compatibility and one separately budgeted
+- [x] Admission has two distinct stages: zero-model compatibility and one separately budgeted
       no-task-output nonce write/read probe. Missing, refused, mismatched or unaccounted probe
       evidence deterministically keeps `model_ready=false` and emits no arm schedule or model call.
-- [ ] The probe schema records exact input, cached-input, output and reasoning tokens, wall time,
+- [x] The probe schema records exact input, cached-input, output and reasoning tokens, wall time,
       route, CLI/driver versions, currency/cost availability and output/event digests. It cannot be
       counted as an arm observation or paid from an arm budget.
-- [ ] Removing a delivery receipt, advertising recruitment without its endpoint capability,
+- [x] Removing a delivery receipt, advertising recruitment without its endpoint capability,
       accepting a stale version or replacing a failed nonce probe with success makes a focused
       negative check fail non-zero; each check states its blind spot.
-- [ ] The CLI walk runs in one fresh short root with separate `project`, `HOME`, `YMP_HOME`,
+- [x] The CLI walk runs in one fresh short root with separate `project`, `HOME`, `YMP_HOME`,
       `TMPDIR`, build and export paths, never the repository or real `~/.ymp`; strict affected-crate
       Clippy, formatting and `git diff --check` have no warnings or errors.
 
 ## Current state
 
-The Critical contract passed pre-dispatch review. The collaboration transport and model-callable
-recruitment path are accepted, while the manual Luna/low pilot remained infrastructure-invalid.
-An exclusive Sol xhigh workspace is implementing the tool-only admission manifest, CLI and S1-S3
-rehearsal; the weak-model gate remains closed.
+Accepted and integrated as
+[694c790](https://github.com/maggnus/ymp/commit/694c79010f7417e1938d1e3d305817618c148657).
+The zero-model gate and S1-S3 rehearsal are executable; the installed `codex-cli 0.151.0` fails the
+frozen `0.147.0` profile and no controller-attested nonce evidence exists, so
+`model_ready=false` and no arm schedule is emitted.
 
 ## Next action
 
-Return one clean committed zero-model candidate that reaches the existing MCP/RPC/Application seam
-and refuses every incomplete admission record.
+Complete W1-EVL-04i and W1-EVL-04j, then rerun this immutable gate before any weak-model arm.
 
 ## Guardrails
 
@@ -118,6 +118,8 @@ and refuses every incomplete admission record.
   scientific development/transfer task allocation is resolved independently.
 - The exploratory pilot exposed layered readiness: authentication, model availability and isolated
   storage did not establish workspace tool-host availability.
+- The accepted gate converted both missing production seams into explicit fail-closed results rather
+  than weakening the manifest or accepting model-authored evidence.
 
 ## Review rounds
 
@@ -127,18 +129,29 @@ marker carries the reviewer's ten-point score and the local moment of the verdic
 escalation, one `- CTO <decision> <dd/mm hh:mm> — <reason>` line records what was decided. The review
 dialogue itself stays in the reports and the evidence package.
 
-## Closure
+- R1(9/10) ACCEPT 01/09 15:41 — the full tool-only diff preserves strict schemas, caps,
+  `model_calls=0` and production MCP/RPC/Application transport → author evidence proves S1-S3 and
+  all focused negative mutations → exact runtime/probe gaps remain closed additional work, not a
+  false admission
 
-Filled when the task is accepted. Until then this section stays as written.
+## Closure
 
 ### Accepted outcome
 
-What was actually accepted.
+`ymp-corpus admission check/rehearse` validates a frozen route manifest, produces an immutable
+admission report, and exercises S1-S3 plus unauthorized reading through the accepted collaboration
+path without any model call. Stage two accepts only controller-attested, separately budgeted
+no-task-output evidence. The current machine is correctly inadmissible and receives no schedule.
 
 ### Residuals
 
-Honestly retained limitations, each with an exact return trigger. Empty when there are none.
+- [W1-EVL-04i](W1-EVL-04i.md) owns the installed `0.151.0` versus supported `0.147.0` runtime
+  mismatch; return trigger: its accepted product-path conformance evidence.
+- [W1-EVL-04j](W1-EVL-04j.md) owns controller-attested nonce-probe evidence; return trigger: its
+  accepted fake-runtime and production-boundary proof.
 
 ### Evidence
 
-- Commit, evidence package, or durable document of record, each as a Markdown link.
+- [694c790](https://github.com/maggnus/ymp/commit/694c79010f7417e1938d1e3d305817618c148657)
+  — integrated tree, byte-identical for the reviewed admission paths to candidate
+  [4dafa51](https://github.com/maggnus/ymp/commit/4dafa512f737876c444ee285e99556d0899e7a31).

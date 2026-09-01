@@ -67,3 +67,5 @@ or invalidate the experiment because oracle or execution integrity failed.
 - [W1-EVL-04g](tasks/W1-EVL-04g.md) — follow-up
 - [W1-EVL-04g](tasks/W1-EVL-04g.md) — required
 - [W1-EVL-04h](tasks/W1-EVL-04h.md) — required
+- [W1-EVL-04i](tasks/W1-EVL-04i.md) — required
+- [W1-EVL-04j](tasks/W1-EVL-04j.md) — required

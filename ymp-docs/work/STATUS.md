@@ -92,7 +92,9 @@
 | `[ ]` | [`W1-EVL-04e`](waves/W1/W1-EVL-04/tasks/W1-EVL-04e.md) | Weak diagnostic runner stops before primary evidence | — | — | — |
 | `[ ]` | [`W1-EVL-04f`](waves/W1/W1-EVL-04/tasks/W1-EVL-04f.md) | Strong-profile transfer gates causal intervention | — | — | — |
 | `[ ]` | [`W1-EVL-04g`](waves/W1/W1-EVL-04/tasks/W1-EVL-04g.md) | Legacy work records no longer mask plan validation | — | — | — |
-| `[~]` | [`W1-EVL-04h`](waves/W1/W1-EVL-04/tasks/W1-EVL-04h.md) | Zero-model admission and pull transport are executable | — | 01/09 15:06 | 01/09 15:06 (0m) |
+| `[x]` | [`W1-EVL-04h`](waves/W1/W1-EVL-04/tasks/W1-EVL-04h.md) | Zero-model admission and pull transport are executable | [`694c7901`](https://github.com/maggnus/ymp/commit/694c79010f7417e1938d1e3d305817618c148657) | 01/09 15:06 | 01/09 15:41 (35m) |
+| `[ ]` | [`W1-EVL-04i`](waves/W1/W1-EVL-04/tasks/W1-EVL-04i.md) | Installed weak runtime matches the supported CLI | — | — | — |
+| `[ ]` | [`W1-EVL-04j`](waves/W1/W1-EVL-04/tasks/W1-EVL-04j.md) | Controller attests the no-task-output tool-host probe | — | — | — |
 | `[x]` | [`W1-EXP-01`](waves/W1/W1-EXP-01/CARD.md) | POC assumptions are falsifiable before product code | [`ca221c9a`](https://github.com/maggnus/ymp/commit/ca221c9a4b81775bf158cf915d0d7613e9daae92) | 12/08 11:02 | 14/08 02:22 (0m) |
 | `[x]` | [`W1-EXP-01a`](waves/W1/W1-EXP-01/tasks/W1-EXP-01a.md) | POC corpus rejects known invalid candidates | [`ff4a9383`](https://github.com/maggnus/ymp/commit/ff4a9383653a0f09b947ff24b569e760396a0502) | 12/08 11:59 | 12/08 15:34 (2h59m) |
 | `[x]` | [`W1-EXP-01b`](waves/W1/W1-EXP-01/tasks/W1-EXP-01b.md) | Matched-budget study has a frozen decision rule | [`d12eff31`](https://github.com/maggnus/ymp/commit/d12eff31940f8ad124f5f8f566a0dd21de3d2ae6) | 12/08 15:44 | 12/08 17:44 (1h42m) |
