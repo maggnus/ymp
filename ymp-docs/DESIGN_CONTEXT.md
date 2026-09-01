@@ -28,6 +28,10 @@ ymp may use multiple providers, models and agents in one bounded run. The system
 participants may recruit, negotiate, challenge, revise and contribute competing candidates within
 the allowed pool and limits.
 
+The interface must show only participants and activity actually observed in the current run. Until
+multi-participant execution is proven on the primary path, it must honestly show a single participant
+or an unavailable recruitment state rather than illustrating a hypothetical team.
+
 The user does not manually assign every task, but the team is not hidden. The product keeps a compact
 factual picture of:
 
