@@ -10,7 +10,7 @@ relation: required
 depends_on: [W1-EVL-04n, W1-EVL-04r]
 blocks: [W1-EVL-04m]
 created_at: 2026-09-01T21:14:37+08:00
-updated_at: 2026-09-01T21:34:00+08:00
+updated_at: 2026-09-01T21:36:00+08:00
 started_at:
 accepted_at:
 candidate_commit:
@@ -47,6 +47,9 @@ or contamination of any experimental arm.
   explicitly unavailable; it may not be omitted silently.
 - Use the separate namespace `ymp-live-probe-diagnostic-v2`; no identifier, reservation or result
   from the spent W1-EVL-04n attempt may be imported.
+- Owner authority is the standing project instruction to test ymp with weak GPT/GLM/Claude profiles.
+  It authorizes only this frozen one-call vector after W1-EVL-04r acceptance; it does not authorize a
+  retry, another profile, a larger budget or an experimental arm.
 - Run all W1-EVL-04r deterministic phase/diagnostic negatives and exact runtime/transport/admission
   readiness before any provider request. Failure closes the task without a live call.
 - Execute the existing ignored `live_tool_host_probe` consumer exactly once with the current
@@ -88,8 +91,8 @@ second budget or permission exists until that diagnostic node is accepted.
 
 ## Next action
 
-After W1-EVL-04r acceptance, perform one final read-only gate review and owner budget authorization;
-then run the existing consumer once.
+After W1-EVL-04r acceptance, perform one final read-only gate review against this already authorized
+frozen vector; then run the existing consumer once.
 
 ## Guardrails
 
