@@ -125,9 +125,10 @@ GitHub source above.
 
 - Repository code is written only by `codex/gpt-5.6-sol`: use `high` for local, mechanically
   bounded changes and `xhigh` for architecture, state, security, concurrency, and cross-component
-  boundaries. Weaker GPT, GLM, and Claude profiles may run tests, search for counterexamples,
-  review results, perform read-only research, or participate in controlled POC experiments, but
-  they do not author repository code or test code; any resulting fix returns to a Sol author.
+  boundaries. Research, architecture analysis, and experiment design use `codex/gpt-5.6-sol` at
+  `max`. Weaker GPT, GLM, and Claude profiles may run tests, search for counterexamples, review
+  results, or participate in controlled POC experiments, but they do not author repository code,
+  test code, research conclusions, or plans; any resulting fix returns to a Sol author.
 - GPT, GLM, and Claude are the only model families executed for development, testing, review, or
   POC participation. Other model routes may remain documented as possible integrations, but they
   are not run unless the owner explicitly changes this allowlist.
