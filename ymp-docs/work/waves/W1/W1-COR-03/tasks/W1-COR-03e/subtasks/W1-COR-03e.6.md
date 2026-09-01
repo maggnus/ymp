@@ -4,26 +4,26 @@ kind: subtask
 wave: W1
 card: W1-COR-03
 parent: W1-COR-03e
-state: active
+state: accepted
 risk: significant
 maturity: DESIGN
 relation: required
 depends_on: []
 blocks: [W1-COR-03e.2]
 created_at: 2026-09-01T22:52:28+08:00
-updated_at: 2026-09-02T00:31:00+08:00
+updated_at: 2026-09-02T00:32:54+08:00
 started_at: 2026-09-01T22:52:28+08:00
-accepted_at:
-candidate_commit: https://github.com/maggnus/ymp/commit/817ab0637972a0d974dff56359c70fce353e269a
-closure_commit:
-evidence:
-duration_minutes: 86
+accepted_at: 2026-09-02T00:32:54+08:00
+candidate_commit: https://github.com/maggnus/ymp/commit/6a95010dec982f7ff8c9ff6120ff0a942b4283ca
+closure_commit: https://github.com/maggnus/ymp/commit/445ae66f18881a2f5eaeb5c82c8ab519f35bb60e
+evidence: ["[USER_JOURNEY](https://github.com/maggnus/ymp/blob/445ae66f18881a2f5eaeb5c82c8ab519f35bb60e/ymp-docs/USER_JOURNEY.md)"]
+duration_minutes: 100
 blocker:
 pause_reason:
 return_trigger:
 deliberate_partial: false
-review_rounds: 1
-escalation_decision:
+review_rounds: 2
+escalation_decision: accept_with_corrections
 ---
 
 # W1-COR-03e.6 — Primary user journey turns an ordinary goal into a working result
@@ -118,58 +118,58 @@ interaction model be translated into screens.
 
 ## Acceptance
 
-- [ ] The document opens with the ordinary user goal and tells one continuous Battleship story from
+- [x] The document opens with the ordinary user goal and tells one continuous Battleship story from
       empty project to runnable result, revision and acceptance without requiring knowledge of ymp
       internals.
-- [ ] Six to ten “when / I want / so that” user stories each name observable success, refusal or
+- [x] Six to ten “when / I want / so that” user stories each name observable success, refusal or
       recovery, evidence shown to the person and the next available action.
-- [ ] One story covers automatic team formation and progress: the person can see how many agents are
+- [x] One story covers automatic team formation and progress: the person can see how many agents are
       active, which providers/models they use and their declared tasks/statuses without choosing or
       manually assigning them. Detailed team/task/board/artifact flow is readable on demand.
-- [ ] One setup story covers provider enable/disable, authentication/error states, disclosure
+- [x] One setup story covers provider enable/disable, authentication/error states, disclosure
       consent and the eligible pool. The person chooses the allowed resources and ceilings, not the
       semantic assignment of every task; effects on active versus future work are stated honestly.
-- [ ] One story covers a user message to the shared board as an attributed intervention; audience,
+- [x] One story covers a user message to the shared board as an attributed intervention; audience,
       delivery and later participant action remain distinct and no automatic effect is implied.
-- [ ] Success, clarification, cancellation, recoverable failure and infrastructure STOP paths are
+- [x] Success, clarification, cancellation, recoverable failure and infrastructure STOP paths are
       complete; none ends at a diagnostic label without a human next step.
-- [ ] The primary journey asks for no contract approval, runtime/model selection, manual agent
+- [x] The primary journey asks for no contract approval, runtime/model selection, manual agent
       assignment, oracle inspection or budget-vector editing. It may show agent/provider facts but an
       automated check fails if viewing the team is turned into required configuration work.
-- [ ] Conversation, optional command, detail inspection and consequence-bearing decision have one
+- [x] Conversation, optional command, detail inspection and consequence-bearing decision have one
       clear use rule each. Slash commands and modals are possible implementations, not mandatory
       steps in the story.
-- [ ] Contract/check preparation appears only as non-blocking system trace; no primary-path action
+- [x] Contract/check preparation appears only as non-blocking system trace; no primary-path action
       asks the person to authorize a contract or type an internal identifier.
-- [ ] `/agents`, `/pool` and `/board` are not aliases: the first observes the current team, the second
+- [x] `/agents`, `/pool` and `/board` are not aliases: the first observes the current team, the second
       configures future eligibility and ceilings, and the third reads scoped communication or posts
       an attributed human intervention.
-- [ ] Provider state is mechanically honest: off or enabled; enabled has catalogue loading,
+- [x] Provider state is mechanically honest: off or enabled; enabled has catalogue loading,
       models-present or models-empty-with-error detail. A failed catalogue request keeps the provider
       enabled but contributes no models to a future pool. Retry is explicit, and later operation
       errors remain attached to their own starts/invocations.
-- [ ] The Battleship story begins with the Russian phrase unchanged. It records structured intent
+- [x] The Battleship story begins with the Russian phrase unchanged. It records structured intent
       normalization/check derivation as an implementation prerequisite instead of requiring English
       artifact keywords from the person.
-- [ ] The result is never played or manually tested inside the ymp interface. ymp shows the exact
+- [x] The result is never played or manually tested inside the ymp interface. ymp shows the exact
       external launch/open path, status and evidence; automated checks run in their isolated product
       path, and human use/evaluation happens in the artifact's own browser, terminal or process before
       feedback returns to the conversation. A future TUI that embeds the game or its manual test fails
       the journey contract.
-- [ ] Every promised capability is linked to accepted current behavior or labelled a gap; POC and
+- [x] Every promised capability is linked to accepted current behavior or labelled a gap; POC and
       MVP are separated without presenting future behavior as implemented.
-- [ ] A protocol-derived control inventory classifies provider/pool eligibility, participant and
+- [x] A protocol-derived control inventory classifies provider/pool eligibility, participant and
       recruitment ceilings, spend, cancellation, board reading/writing, export and diagnostics as
       primary, occasional setup or advanced detail; no internal mechanism is promoted without a
       user consequence.
-- [ ] The scientific researcher confirms that visible progress/evidence does not claim listening,
+- [x] The scientific researcher confirms that visible progress/evidence does not claim listening,
       communication value, coordination or self-organization; the owner approves the complete story
       before any new screen contract is dispatched.
-- [ ] The accepted document itself records `journey_status: owner_approved` with a non-empty
+- [x] The accepted document itself records `journey_status: owner_approved` with a non-empty
       `owner_approved_at`, and `scientific_review: confirmed` with a non-empty
       `scientific_reviewed_at`. It also records a computed `journey_body_sha256` and full immutable
       commit URLs in `owner_approval_source` and `scientific_review_source`.
-- [ ] A readiness command recomputes the body hash, extracts both source SHAs, and uses `git show` to
+- [x] A readiness command recomputes the body hash, extracts both source SHAs, and uses `git show` to
       verify that the cited historical W1-COR-03e.6 contains respectively exact markers
       `OWNER APPROVED <hash>` and `SCIENTIFIC CONFIRMED <hash>`. Both cited commits must precede the
       final journey-approval commit. A temporary `draft`/`pending`, altered body, missing/wrong source,
@@ -177,15 +177,15 @@ interaction model be translated into screens.
 
 ## Current state
 
-Draft [817ab06](https://github.com/maggnus/ymp/commit/817ab0637972a0d974dff56359c70fce353e269a)
-is integrated and independently accepted at body hash
-`39e4add89b02cef6cd99fa81a08eb0833893d653525390427959ccb17bfe6619`.
-Approval metadata remains `draft`/`pending`; no UI contract is open.
+Accepted and released as
+[USER_JOURNEY](https://github.com/maggnus/ymp/blob/445ae66f18881a2f5eaeb5c82c8ab519f35bb60e/ymp-docs/USER_JOURNEY.md)
+at body hash `bb91b3879d6db257185e78d8c416b130a0b75202319f1667eff3ea663dc6f1ce`.
+Scientific and owner sources are immutable prior commits; no screen contract is included.
 
 ## Next action
 
-Obtain the standing researcher verdict on the exact body hash and commit its immutable marker, then
-present the same bytes to the owner for explicit approval.
+Create one short project-essence document for Claude Design from this accepted journey; do not reuse
+the rejected screen inventory or start UI implementation before that context is accepted.
 
 ## Guardrails
 
@@ -240,19 +240,28 @@ dialogue itself stays in the reports and the evidence package.
 
 - R1(9/10) ACCEPT 02/09 00:09 — full two-file draft and body hash verified → high-risk Russian,
   board-write and multi-participant claims checked against current sources → draft integrated
+- R2(8/10) RETURN 02/09 00:17 — citation/revision did not explicitly deny action or authority → exact
+  scientific and owner corrections applied with external result execution → final body released
+- CTO accept_with_corrections 02/09 00:32 — owner waived another full review and ordered the exact
+  corrected body updated and released after mechanical hash/provenance verification
 
 ## Closure
 
-Filled when the subtask is accepted.
-
 ### Accepted outcome
 
-What was actually accepted.
+The primary developer journey now runs from a Russian ordinary-language goal through occasional
+provider/pool setup, transparent automatic team work, scoped board evidence, an externally executed
+and evaluated result, revision, consequence-bearing application and honest recovery. Current POC
+facts and implementation gaps are separated, and no UI layout is prescribed.
 
 ### Residuals
 
-Honestly retained limitations, each with an exact return trigger.
+The journey is a DESIGN authority, not proof that the Russian normalization, multi-participant path,
+board intervention, provider catalogue or result workflow already execute. Those gaps remain named
+inside the accepted document and require their own BUILD evidence.
 
 ### Evidence
 
-- Commit, evidence package, or durable document of record, each as a Markdown link.
+- [USER_JOURNEY at 445ae66](https://github.com/maggnus/ymp/blob/445ae66f18881a2f5eaeb5c82c8ab519f35bb60e/ymp-docs/USER_JOURNEY.md)
+- [Scientific source fd5b42c](https://github.com/maggnus/ymp/commit/fd5b42ce695fc19e18afa3050873aa3f618097c0)
+- [Owner source 5c6ca3e](https://github.com/maggnus/ymp/commit/5c6ca3e091fcddff34fbc423295af6ad17739b36)
