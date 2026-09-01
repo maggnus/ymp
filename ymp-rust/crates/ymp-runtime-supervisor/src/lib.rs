@@ -23,12 +23,13 @@ use ymp_domain::{Command, EventKind, MAX_IDENTIFIER_CHARS, RunStatus, digest_byt
 use ymp_runtime_api::{
     AdmittedProgram, CancellationToken, DiagnosticSummary, InvocationRequest, LaunchDescriptor,
     McpBinding, ProbeReport, ProbeTransportIdentity, ProgramIdentity, ProgramRequirement,
-    ProgramRole, Readiness, RuntimeDriver, RuntimeError, RuntimeEvent, RuntimeEventKind,
-    RuntimeFailureKind, RuntimeKind, TOOL_HOST_PROBE_ENVIRONMENT,
+    ProgramRole, ProviderRequestState, Readiness, RuntimeDriver, RuntimeError, RuntimeEvent,
+    RuntimeEventKind, RuntimeFailureKind, RuntimeKind, TOOL_HOST_PROBE_ENVIRONMENT,
     TOOL_HOST_PROBE_INTERNAL_ARGUMENTS, TOOL_HOST_PROBE_INTERNAL_SUBCOMMAND,
     TOOL_HOST_PROBE_MCP_PROTOCOL_VERSION, TOOL_HOST_PROBE_SCHEMA_VERSION,
     TOOL_HOST_PROBE_SERVER_VERSION, TOOL_HOST_PROBE_WORKSPACE_SERVER, ToolHostProbeCost,
     ToolHostProbeCostAvailability, ToolHostProbeEffect, ToolHostProbeError,
+    ToolHostProbeFailureEvidence, ToolHostProbeFailurePhase, ToolHostProbeFailureStages,
     ToolHostProbeInvocation, ToolHostProbeRequest, ToolHostProbeResourceVector,
     ToolHostProbeRuntimeIdentity, ToolHostProbeTerminal, ToolHostProbeTerminalFailure,
     ToolHostProbeTool, ToolHostProbeToolEventDigest, ToolHostProbeTrace, ToolHostProbeTrust, Usage,
@@ -916,6 +917,29 @@ pub fn execute_tool_host_probe(
     workspace: &Path,
     request: ToolHostProbeRequest,
 ) -> Result<ToolHostProbeTrace, ToolHostProbeError> {
+    execute_tool_host_probe_inner(driver, workspace, request).map_err(|error| {
+        if matches!(error, ToolHostProbeError::FailureEvidence { .. }) {
+            return error;
+        }
+        error.with_failure_evidence(ToolHostProbeFailureEvidence {
+            phase: ToolHostProbeFailurePhase::BeforeProcessSpawn,
+            provider_request_state: ProviderRequestState::NotStarted,
+            stages: ToolHostProbeFailureStages {
+                process_spawned: Some(false),
+                runtime_started: Some(false),
+                turn_started: Some(false),
+                ..ToolHostProbeFailureStages::default()
+            },
+            ..ToolHostProbeFailureEvidence::default()
+        })
+    })
+}
+
+fn execute_tool_host_probe_inner(
+    driver: &dyn RuntimeDriver,
+    workspace: &Path,
+    request: ToolHostProbeRequest,
+) -> Result<ToolHostProbeTrace, ToolHostProbeError> {
     validate_tool_host_probe_request(&request)?;
     let launch_attestation = match (driver.kind(), request.expected_runtime.runtime_kind) {
         (RuntimeKind::Fake, RuntimeKind::Fake) => LaunchAttestation::Waived,
@@ -981,9 +1005,44 @@ pub fn execute_tool_host_probe(
                 ToolHostProbeTool::WorkspaceRead,
             ],
         })
-        .map_err(|error| ToolHostProbeError::StartFailed {
-            detail: error.to_string(),
+        .map_err(|error| {
+            ToolHostProbeError::StartFailed {
+                detail: error.to_string(),
+            }
+            .with_failure_evidence(ToolHostProbeFailureEvidence {
+                phase: ToolHostProbeFailurePhase::RuntimeProcess,
+                ..ToolHostProbeFailureEvidence::default()
+            })
         })?;
+    let mut failure_evidence = ToolHostProbeFailureEvidence {
+        phase: ToolHostProbeFailurePhase::RuntimeProcess,
+        stages: ToolHostProbeFailureStages {
+            runtime_started: Some(true),
+            ..ToolHostProbeFailureStages::default()
+        },
+        ..ToolHostProbeFailureEvidence::default()
+    };
+    merge_probe_failure_evidence(
+        &mut failure_evidence,
+        session.tool_host_probe_failure_evidence(),
+    );
+
+    macro_rules! fail_probe {
+        ($error:expr) => {{
+            let error = $error;
+            let _ = session.interrupt();
+            merge_probe_failure_evidence(
+                &mut failure_evidence,
+                session.tool_host_probe_failure_evidence(),
+            );
+            finish_probe_failure_evidence(
+                &mut failure_evidence,
+                &error,
+                request.expected_runtime.runtime_kind,
+            );
+            return Err(error.with_failure_evidence(failure_evidence));
+        }};
+    }
     let mut progress = RuntimeProgress::new(&request.invocation_id);
     let mut events = Vec::new();
     let mut saw_started = false;
@@ -993,46 +1052,56 @@ pub fn execute_tool_host_probe(
 
     loop {
         if request.cancellation.is_cancelled() {
-            let _ = session.interrupt();
-            return Err(ToolHostProbeError::Cancelled);
+            fail_probe!(ToolHostProbeError::Cancelled);
         }
         if elapsed_millis(started_at) > request.deadline_ms {
             request.cancellation.cancel();
-            let _ = session.interrupt();
-            return Err(ToolHostProbeError::TimedOut {
+            fail_probe!(ToolHostProbeError::TimedOut {
                 limit_ms: request.deadline_ms,
             });
         }
         let event = match session.next_event() {
-            Ok(Some(event)) => event,
-            Ok(None) => break,
+            Ok(Some(event)) => {
+                merge_probe_failure_evidence(
+                    &mut failure_evidence,
+                    session.tool_host_probe_failure_evidence(),
+                );
+                event
+            }
+            Ok(None) => {
+                merge_probe_failure_evidence(
+                    &mut failure_evidence,
+                    session.tool_host_probe_failure_evidence(),
+                );
+                break;
+            }
             Err(RuntimeError::TimedOut { limit_ms }) => {
                 if limit_ms != request.deadline_ms {
-                    return Err(ToolHostProbeError::InvalidEventStream {
+                    fail_probe!(ToolHostProbeError::InvalidEventStream {
                         detail: "runtime timeout does not match the requested deadline".to_owned(),
                     });
                 }
-                return Err(ToolHostProbeError::TimedOut { limit_ms });
+                fail_probe!(ToolHostProbeError::TimedOut { limit_ms });
             }
             Err(error) => {
-                return Err(ToolHostProbeError::RuntimeFailed {
+                fail_probe!(ToolHostProbeError::RuntimeFailed {
                     detail: error.to_string(),
                 });
             }
         };
-        progress
-            .validate(&event)
-            .map_err(|error| ToolHostProbeError::InvalidEventStream {
+        if let Err(error) = progress.validate(&event) {
+            fail_probe!(ToolHostProbeError::InvalidEventStream {
                 detail: error.to_string(),
-            })?;
+            });
+        }
         if terminal_usage.is_some() {
-            return Err(classify_extra_probe_event(&event));
+            fail_probe!(classify_extra_probe_event(&event));
         }
         match &event.event {
             RuntimeEventKind::Started { opaque_session_id }
                 if !saw_started && opaque_session_id.is_empty() =>
             {
-                return Err(ToolHostProbeError::InvalidEventStream {
+                fail_probe!(ToolHostProbeError::InvalidEventStream {
                     detail: "runtime started with an empty session identifier".to_owned(),
                 });
             }
@@ -1040,7 +1109,7 @@ pub fn execute_tool_host_probe(
                 saw_started = true;
             }
             RuntimeEventKind::Started { .. } => {
-                return Err(ToolHostProbeError::InvalidEventStream {
+                fail_probe!(ToolHostProbeError::InvalidEventStream {
                     detail: "runtime repeated or reordered its started event".to_owned(),
                 });
             }
@@ -1052,8 +1121,12 @@ pub fn execute_tool_host_probe(
                 result,
                 error,
             } => {
+                failure_evidence.stages.mcp_call = Some(true);
+                if let Some(error) = error {
+                    failure_evidence.mcp_diagnostic = Some(mcp_diagnostic(error));
+                }
                 if !saw_started {
-                    return Err(ToolHostProbeError::InvalidEventStream {
+                    fail_probe!(ToolHostProbeError::InvalidEventStream {
                         detail: "runtime used a tool before its started event".to_owned(),
                     });
                 }
@@ -1061,10 +1134,10 @@ pub fn execute_tool_host_probe(
                     0 => ToolHostProbeTool::WorkspaceWrite,
                     1 => ToolHostProbeTool::WorkspaceRead,
                     _ => {
-                        return Err(unexpected_probe_tool(server, tool));
+                        fail_probe!(unexpected_probe_tool(server, tool));
                     }
                 };
-                let readback = validate_tool_host_probe_event(
+                let readback = match validate_tool_host_probe_event(
                     expected,
                     server,
                     tool,
@@ -1073,53 +1146,69 @@ pub fn execute_tool_host_probe(
                     result.as_ref(),
                     error.as_ref(),
                     &request,
-                )?;
+                ) {
+                    Ok(readback) => readback,
+                    Err(error) => fail_probe!(error),
+                };
                 let result = result
                     .as_ref()
                     .expect("validated tool-host probe result is present");
+                failure_evidence.stages.mcp_result = Some(true);
                 tool_digests.push(ToolHostProbeToolEventDigest {
                     sequence: event.sequence,
                     tool: expected,
-                    arguments_digest: digest_json(arguments).map_err(|error| {
-                        ToolHostProbeError::InvalidEventStream {
+                    arguments_digest: match digest_json(arguments) {
+                        Ok(digest) => digest,
+                        Err(error) => fail_probe!(ToolHostProbeError::InvalidEventStream {
                             detail: error.to_string(),
-                        }
-                    })?,
-                    result_digest: digest_json(result).map_err(|error| {
-                        ToolHostProbeError::InvalidEventStream {
+                        }),
+                    },
+                    result_digest: match digest_json(result) {
+                        Ok(digest) => digest,
+                        Err(error) => fail_probe!(ToolHostProbeError::InvalidEventStream {
                             detail: error.to_string(),
-                        }
-                    })?,
+                        }),
+                    },
                 });
                 if let Some(readback) = readback {
                     runtime_reported_readback = Some(readback);
                 }
             }
             RuntimeEventKind::Output { .. } => {
-                return Err(ToolHostProbeError::UnexpectedOutput);
+                fail_probe!(ToolHostProbeError::UnexpectedOutput);
             }
             RuntimeEventKind::Completed { usage } => {
                 terminal_usage = Some(usage.clone());
             }
-            RuntimeEventKind::TimedOut { limit_ms, .. } => {
+            RuntimeEventKind::TimedOut { limit_ms, usage } => {
+                observe_probe_terminal_usage(&mut failure_evidence, usage);
+                observe_last_probe_event(&mut failure_evidence, &event);
                 if *limit_ms != request.deadline_ms {
-                    return Err(ToolHostProbeError::InvalidEventStream {
+                    fail_probe!(ToolHostProbeError::InvalidEventStream {
                         detail: "runtime timeout does not match the requested deadline".to_owned(),
                     });
                 }
-                return Err(ToolHostProbeError::TimedOut {
+                fail_probe!(ToolHostProbeError::TimedOut {
                     limit_ms: *limit_ms,
                 });
             }
-            RuntimeEventKind::Cancelled { .. } => {
-                return Err(ToolHostProbeError::Cancelled);
+            RuntimeEventKind::Cancelled { usage } => {
+                observe_probe_terminal_usage(&mut failure_evidence, usage);
+                observe_last_probe_event(&mut failure_evidence, &event);
+                fail_probe!(ToolHostProbeError::Cancelled);
             }
             RuntimeEventKind::Failed {
                 kind,
                 usage,
                 diagnostic,
             } => {
-                return Err(ToolHostProbeError::RuntimeTerminalFailed(Box::new(
+                observe_probe_terminal_usage(&mut failure_evidence, usage);
+                failure_evidence.runtime_failure_kind = Some(*kind);
+                if request.expected_runtime.runtime_kind == RuntimeKind::Codex {
+                    failure_evidence.codex_diagnostic = diagnostic.clone();
+                }
+                observe_last_probe_event(&mut failure_evidence, &event);
+                fail_probe!(ToolHostProbeError::RuntimeTerminalFailed(Box::new(
                     ToolHostProbeTerminalFailure {
                         kind: *kind,
                         usage: usage.clone(),
@@ -1132,42 +1221,49 @@ pub fn execute_tool_host_probe(
             RuntimeEventKind::Launch { .. }
             | RuntimeEventKind::Yielded { .. }
             | RuntimeEventKind::Interrupted => {
-                return Err(ToolHostProbeError::AmbiguousTerminal);
+                fail_probe!(ToolHostProbeError::AmbiguousTerminal);
             }
         }
+        observe_last_probe_event(&mut failure_evidence, &event);
         events.push(event);
     }
 
     if request.cancellation.is_cancelled() {
-        return Err(ToolHostProbeError::Cancelled);
+        fail_probe!(ToolHostProbeError::Cancelled);
     }
     if elapsed_millis(started_at) > request.deadline_ms {
-        return Err(ToolHostProbeError::TimedOut {
+        fail_probe!(ToolHostProbeError::TimedOut {
             limit_ms: request.deadline_ms,
         });
     }
     if !saw_started {
-        return Err(ToolHostProbeError::InvalidEventStream {
+        fail_probe!(ToolHostProbeError::InvalidEventStream {
             detail: "runtime emitted no started event".to_owned(),
         });
     }
     if tool_digests.is_empty() {
-        return Err(ToolHostProbeError::MissingToolEvent {
+        fail_probe!(ToolHostProbeError::MissingToolEvent {
             tool: ToolHostProbeTool::WorkspaceWrite,
         });
     }
     if tool_digests.len() == 1 {
-        return Err(ToolHostProbeError::MissingToolEvent {
+        fail_probe!(ToolHostProbeError::MissingToolEvent {
             tool: ToolHostProbeTool::WorkspaceRead,
         });
     }
-    let usage = terminal_usage.ok_or(ToolHostProbeError::AmbiguousTerminal)?;
+    let usage = match terminal_usage {
+        Some(usage) => usage,
+        None => fail_probe!(ToolHostProbeError::AmbiguousTerminal),
+    };
     if session.usage() != usage {
-        return Err(ToolHostProbeError::IncompleteUsage {
+        fail_probe!(ToolHostProbeError::IncompleteUsage {
             field: "terminal_usage",
         });
     }
-    validate_tool_host_probe_usage(&usage, &request.resource_reservation)?;
+    observe_probe_terminal_usage(&mut failure_evidence, &usage);
+    if let Err(error) = validate_tool_host_probe_usage(&usage, &request.resource_reservation) {
+        fail_probe!(error);
+    }
     let cost = match usage.cost_microusd {
         Some(cost) => ToolHostProbeCost {
             availability: ToolHostProbeCostAvailability::Reported,
@@ -1180,18 +1276,28 @@ pub fn execute_tool_host_probe(
             amount_microusd: None,
         },
     };
-    let runtime_reported_readback =
-        runtime_reported_readback.ok_or(ToolHostProbeError::MissingToolEvent {
+    let runtime_reported_readback = match runtime_reported_readback {
+        Some(readback) => readback,
+        None => fail_probe!(ToolHostProbeError::MissingToolEvent {
             tool: ToolHostProbeTool::WorkspaceRead,
-        })?;
-    let event_digest = evidence_digest(&serde_json::to_vec(&events).map_err(|error| {
-        ToolHostProbeError::InvalidEventStream {
+        }),
+    };
+    let event_bytes = match serde_json::to_vec(&events) {
+        Ok(bytes) => bytes,
+        Err(error) => fail_probe!(ToolHostProbeError::InvalidEventStream {
             detail: error.to_string(),
-        }
-    })?);
-    let tool_event_digests: [ToolHostProbeToolEventDigest; 2] = tool_digests
-        .try_into()
-        .map_err(|_| ToolHostProbeError::AmbiguousTerminal)?;
+        }),
+    };
+    let event_digest = evidence_digest(&event_bytes);
+    let tool_event_digests: [ToolHostProbeToolEventDigest; 2] = match tool_digests.try_into() {
+        Ok(digests) => digests,
+        Err(_) => fail_probe!(ToolHostProbeError::AmbiguousTerminal),
+    };
+    merge_probe_failure_evidence(
+        &mut failure_evidence,
+        session.tool_host_probe_failure_evidence(),
+    );
+    failure_evidence.phase = ToolHostProbeFailurePhase::McpTransport;
 
     Ok(ToolHostProbeTrace {
         schema_version: TOOL_HOST_PROBE_SCHEMA_VERSION,
@@ -1210,9 +1316,152 @@ pub fn execute_tool_host_probe(
         output_digest: evidence_digest(runtime_reported_readback.as_bytes()),
         tool_event_digests,
         event_digest,
+        failure_evidence,
         terminal: ToolHostProbeTerminal::Completed,
         trust: ToolHostProbeTrust::UntrustedRuntimeTrace,
     })
+}
+
+fn merge_probe_failure_evidence(
+    target: &mut ToolHostProbeFailureEvidence,
+    source: Option<ToolHostProbeFailureEvidence>,
+) {
+    let Some(source) = source else {
+        return;
+    };
+    if source.phase != ToolHostProbeFailurePhase::Unknown {
+        target.phase = source.phase;
+    }
+    if source.provider_request_state != ProviderRequestState::Unknown {
+        target.provider_request_state = source.provider_request_state;
+    }
+    macro_rules! merge_stage {
+        ($field:ident) => {
+            if source.stages.$field.is_some() {
+                target.stages.$field = source.stages.$field;
+            }
+        };
+    }
+    merge_stage!(process_spawned);
+    merge_stage!(runtime_started);
+    merge_stage!(turn_started);
+    merge_stage!(provider_response);
+    merge_stage!(provider_typed_failure);
+    merge_stage!(mcp_call);
+    merge_stage!(mcp_result);
+    merge_stage!(controller_readback);
+    merge_stage!(attestation_written);
+    merge_stage!(handle_written);
+    merge_stage!(cleanup_completed);
+    if source.runtime_failure_kind.is_some() {
+        target.runtime_failure_kind = source.runtime_failure_kind;
+    }
+    if source.last_event_id.is_some() {
+        target.last_event_id = source.last_event_id;
+    }
+    if source.last_event_sequence.is_some() {
+        target.last_event_sequence = source.last_event_sequence;
+    }
+    if source.last_event_type.is_some() {
+        target.last_event_type = source.last_event_type;
+    }
+    if source.process_exit_code.is_some() {
+        target.process_exit_code = source.process_exit_code;
+    }
+    if source.process_signal.is_some() {
+        target.process_signal = source.process_signal;
+    }
+    if source.duration_ms.is_some() {
+        target.duration_ms = source.duration_ms;
+    }
+    if source.usage.is_some() {
+        target.usage = source.usage;
+    }
+    if source.cost.is_some() {
+        target.cost = source.cost;
+    }
+    if source.codex_diagnostic.is_some() {
+        target.codex_diagnostic = source.codex_diagnostic;
+    }
+    if source.mcp_diagnostic.is_some() {
+        target.mcp_diagnostic = source.mcp_diagnostic;
+    }
+}
+
+fn finish_probe_failure_evidence(
+    evidence: &mut ToolHostProbeFailureEvidence,
+    error: &ToolHostProbeError,
+    _runtime_kind: RuntimeKind,
+) {
+    if let ToolHostProbeError::RuntimeTerminalFailed(failure) = error {
+        evidence.runtime_failure_kind = Some(failure.kind);
+        observe_probe_terminal_usage(evidence, &failure.usage);
+        if failure.diagnostic.is_some() {
+            evidence.codex_diagnostic = failure.diagnostic.clone();
+        }
+        evidence.last_event_id = Some(failure.event_id.clone());
+        evidence.last_event_sequence = Some(failure.sequence);
+        evidence.last_event_type = Some("failed".to_owned());
+    }
+    evidence.phase = if evidence.stages.cleanup_completed == Some(false) {
+        ToolHostProbeFailurePhase::Cleanup
+    } else if evidence.stages.mcp_call == Some(true) {
+        ToolHostProbeFailurePhase::McpTransport
+    } else if evidence.provider_request_state != ProviderRequestState::Unknown {
+        ToolHostProbeFailurePhase::ProviderRequest
+    } else if evidence.stages.process_spawned == Some(true)
+        || evidence.stages.runtime_started == Some(true)
+    {
+        ToolHostProbeFailurePhase::RuntimeProcess
+    } else {
+        evidence.phase
+    };
+}
+
+fn observe_probe_terminal_usage(evidence: &mut ToolHostProbeFailureEvidence, usage: &Usage) {
+    evidence.usage = Some(usage.clone());
+    evidence.cost = Some(tool_host_probe_cost(usage));
+}
+
+fn tool_host_probe_cost(usage: &Usage) -> ToolHostProbeCost {
+    match usage.cost_microusd {
+        Some(cost) => ToolHostProbeCost {
+            availability: ToolHostProbeCostAvailability::Reported,
+            currency: Some("USD".to_owned()),
+            amount_microusd: Some(cost),
+        },
+        None => ToolHostProbeCost {
+            availability: ToolHostProbeCostAvailability::Unavailable,
+            currency: None,
+            amount_microusd: None,
+        },
+    }
+}
+
+fn observe_last_probe_event(evidence: &mut ToolHostProbeFailureEvidence, event: &RuntimeEvent) {
+    evidence.last_event_id = Some(event.event_id.clone());
+    evidence.last_event_sequence = Some(event.sequence);
+    evidence.last_event_type = Some(
+        match &event.event {
+            RuntimeEventKind::Launch { .. } => "launch",
+            RuntimeEventKind::Started { .. } => "started",
+            RuntimeEventKind::Output { .. } => "output",
+            RuntimeEventKind::McpToolCall { .. } => "mcp_tool_call",
+            RuntimeEventKind::Yielded { .. } => "yielded",
+            RuntimeEventKind::Completed { .. } => "completed",
+            RuntimeEventKind::Failed { .. } => "failed",
+            RuntimeEventKind::TimedOut { .. } => "timed_out",
+            RuntimeEventKind::Cancelled { .. } => "cancelled",
+            RuntimeEventKind::Interrupted => "interrupted",
+        }
+        .to_owned(),
+    );
+}
+
+fn mcp_diagnostic(error: &Value) -> DiagnosticSummary {
+    let bytes =
+        serde_json::to_vec(error).unwrap_or_else(|_| b"mcp_error_serialization_failed".to_vec());
+    DiagnosticSummary::from_bytes(&bytes, false)
 }
 
 fn validate_tool_host_probe_request(

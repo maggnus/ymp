@@ -15,11 +15,12 @@ use ymp_agent_rpc::{AgentToolCapabilities, endpoint_capabilities};
 use ymp_runtime_api::{
     AdmittedProgram, BoundedOutputLine, CancellationToken, DiagnosticSummary, InFlightExcess,
     InvocationRequest, LaunchChain, LaunchDescriptor, LaunchEnvironmentVariable, McpBinding,
-    ModelSpend, ProbeReport, ProbeTransportIdentity, Readiness, RuntimeDriver, RuntimeError,
-    RuntimeEvent, RuntimeEventKind, RuntimeFailureKind, RuntimeKind, RuntimeSession,
-    TOOL_HOST_PROBE_ENVIRONMENT, TOOL_HOST_PROBE_INTERNAL_ARGUMENTS,
+    ModelSpend, ProbeReport, ProbeTransportIdentity, ProviderRequestState, Readiness,
+    RuntimeDriver, RuntimeError, RuntimeEvent, RuntimeEventKind, RuntimeFailureKind, RuntimeKind,
+    RuntimeSession, TOOL_HOST_PROBE_ENVIRONMENT, TOOL_HOST_PROBE_INTERNAL_ARGUMENTS,
     TOOL_HOST_PROBE_INTERNAL_SUBCOMMAND, TOOL_HOST_PROBE_MCP_PROTOCOL_VERSION,
-    TOOL_HOST_PROBE_SERVER_VERSION, TOOL_HOST_PROBE_WORKSPACE_SERVER, ToolHostProbeInvocation,
+    TOOL_HOST_PROBE_SERVER_VERSION, TOOL_HOST_PROBE_WORKSPACE_SERVER, ToolHostProbeFailureEvidence,
+    ToolHostProbeFailurePhase, ToolHostProbeFailureStages, ToolHostProbeInvocation,
     ToolHostProbeRuntimeIdentity, ToolHostProbeTool, Usage, configure_process_group,
     create_launch_marker, end_process_tree_or_keep, evidence_digest, managed_launch_command,
     probe_transport_digest, read_bounded_lines, register_launch_marker, terminate_process_tree,
@@ -1285,7 +1286,7 @@ impl RuntimeDriver for CodexRuntime {
             pre_spawn_tool_host_replacement: self.pre_spawn_tool_host_replacement.clone(),
         };
         let process = launch.spawn()?;
-        Ok(Box::new(CodexSession {
+        let session = CodexSession {
             child: process.child,
             lines: process.lines,
             stderr_reader: Some(process.stderr_reader),
@@ -1312,7 +1313,12 @@ impl RuntimeDriver for CodexRuntime {
             yielded: false,
             failure_emitted: false,
             strict_probe_events: true,
-        }))
+            probe_observations: Some(CodexProbeObservations::default()),
+            process_exit_code: None,
+            process_signal: None,
+            cleanup_completed: None,
+        };
+        Ok(Box::new(CodexToolHostProbeSession { inner: session }))
     }
 
     fn start(&self, request: InvocationRequest) -> Result<Box<dyn RuntimeSession>, RuntimeError> {
@@ -1454,8 +1460,19 @@ impl RuntimeDriver for CodexRuntime {
             yielded: false,
             failure_emitted: false,
             strict_probe_events: false,
+            probe_observations: None,
+            process_exit_code: None,
+            process_signal: None,
+            cleanup_completed: None,
         }))
     }
+}
+
+#[derive(Clone, Debug, Default)]
+struct CodexProbeObservations {
+    turn_started: bool,
+    provider_response: bool,
+    provider_typed_failure: bool,
 }
 
 struct CodexSession {
@@ -1485,6 +1502,10 @@ struct CodexSession {
     yielded: bool,
     failure_emitted: bool,
     strict_probe_events: bool,
+    probe_observations: Option<CodexProbeObservations>,
+    process_exit_code: Option<i32>,
+    process_signal: Option<i32>,
+    cleanup_completed: Option<bool>,
 }
 
 impl CodexSession {
@@ -1500,9 +1521,55 @@ impl CodexSession {
 
     fn finish(&mut self) -> Result<ExitStatus, RuntimeError> {
         let status = self.child.wait()?;
+        self.record_process_exit(status);
         self.completed = true;
-        terminate_process_tree(&mut self.child)?;
+        match terminate_process_tree(&mut self.child) {
+            Ok(()) => self.cleanup_completed = Some(true),
+            Err(error) => {
+                self.cleanup_completed = Some(false);
+                return Err(error.into());
+            }
+        }
         Ok(status)
+    }
+
+    fn record_process_exit(&mut self, status: ExitStatus) {
+        self.process_exit_code = status.code();
+        #[cfg(unix)]
+        {
+            use std::os::unix::process::ExitStatusExt;
+
+            self.process_signal = status.signal();
+        }
+    }
+
+    fn record_reaped_process(&mut self) {
+        if let Ok(Some(status)) = self.child.try_wait() {
+            self.record_process_exit(status);
+        }
+    }
+
+    fn end_process_for_failure(&mut self) {
+        if self.strict_probe_events {
+            self.cleanup_completed = Some(terminate_process_tree(&mut self.child).is_ok());
+            self.record_reaped_process();
+        } else {
+            end_process_tree_or_keep(&mut self.child);
+        }
+    }
+
+    fn observe_probe_event_type(&mut self, event_type: &str) {
+        let Some(observations) = &mut self.probe_observations else {
+            return;
+        };
+        match event_type {
+            "turn.started" => observations.turn_started = true,
+            "item.started" | "item.updated" | "item.completed" | "turn.completed" => {
+                observations.provider_response = true;
+            }
+            "error" | "turn.failed" => observations.provider_typed_failure = true,
+            _ => {}
+        }
     }
 
     fn stderr(&mut self) -> DiagnosticSummary {
@@ -1602,13 +1669,14 @@ impl CodexSession {
             return;
         }
         if !self.completed {
-            end_process_tree_or_keep(&mut self.child);
+            self.end_process_for_failure();
             self.completed = true;
         }
         if let Some(reader) = self.stderr_reader.take() {
             let _ = reader.join();
         }
-        self.recoverable = self.session_id.is_some()
+        self.recoverable = !self.strict_probe_events
+            && self.session_id.is_some()
             && !self.native_resume_started
             && matches!(
                 error,
@@ -1621,13 +1689,13 @@ impl CodexSession {
         let limit = Duration::from_millis(self.wall_time_limit_ms);
         loop {
             if self.cancellation.is_cancelled() {
-                end_process_tree_or_keep(&mut self.child);
+                self.end_process_for_failure();
                 self.completed = true;
                 self.interrupted = true;
                 return Ok(None);
             }
             let Some(remaining) = limit.checked_sub(self.started_at.elapsed()) else {
-                end_process_tree_or_keep(&mut self.child);
+                self.end_process_for_failure();
                 self.completed = true;
                 return Err(RuntimeError::TimedOut {
                     limit_ms: self.wall_time_limit_ms,
@@ -1643,7 +1711,7 @@ impl CodexSession {
                     return Err(RuntimeError::MalformedEvent(error));
                 }
                 Ok(BoundedOutputLine::LimitExceeded) => {
-                    end_process_tree_or_keep(&mut self.child);
+                    self.end_process_for_failure();
                     self.completed = true;
                     return Err(RuntimeError::OutputLimitExceeded {
                         limit_bytes: self.output_limit_bytes,
@@ -1660,12 +1728,13 @@ impl CodexSession {
             .get("type")
             .and_then(Value::as_str)
             .ok_or_else(|| RuntimeError::MalformedEvent("event has no type".to_owned()))?;
+        self.observe_probe_event_type(event_type);
         match event_type {
             "thread.started" => {
                 let session_id = string_field(&event, "thread_id")?;
-                if let Some(expected) = &self.session_id {
-                    if expected != &session_id {
-                        end_process_tree_or_keep(&mut self.child);
+                if let Some(expected) = self.session_id.clone() {
+                    if expected != session_id {
+                        self.end_process_for_failure();
                         self.completed = true;
                         self.terminal = true;
                         return Err(RuntimeError::InvalidProfile(format!(
@@ -1779,7 +1848,7 @@ impl CodexSession {
                         "failed to summarize runtime failure event: {error}"
                     ))
                 })?;
-                end_process_tree_or_keep(&mut self.child);
+                self.end_process_for_failure();
                 self.completed = true;
                 Ok(Some(self.failed_event(
                     RuntimeFailureKind::RuntimeReported,
@@ -1795,7 +1864,7 @@ impl CodexSession {
     fn next_event_inner(&mut self) -> Result<Option<RuntimeEvent>, RuntimeError> {
         if self.cancellation.is_cancelled() && !self.terminal && !self.interrupted {
             if !self.completed {
-                end_process_tree_or_keep(&mut self.child);
+                self.end_process_for_failure();
             }
             self.completed = true;
             self.terminal = true;
@@ -1919,7 +1988,14 @@ impl RuntimeSession for CodexSession {
         self.cancellation.cancel();
         if !self.terminal && !self.interrupted {
             if !self.completed {
-                terminate_process_tree(&mut self.child)?;
+                match terminate_process_tree(&mut self.child) {
+                    Ok(()) => self.cleanup_completed = Some(true),
+                    Err(error) => {
+                        self.cleanup_completed = Some(false);
+                        return Err(error.into());
+                    }
+                }
+                self.record_reaped_process();
             }
             self.completed = true;
             self.terminal = true;
@@ -1934,10 +2010,98 @@ impl RuntimeSession for CodexSession {
     }
 }
 
+/// Only a Codex session created through the dedicated probe entry point exposes these
+/// observations. Ordinary Codex sessions keep the trait default of `None`.
+struct CodexToolHostProbeSession {
+    inner: CodexSession,
+}
+
+impl RuntimeSession for CodexToolHostProbeSession {
+    fn next_event(&mut self) -> Result<Option<RuntimeEvent>, RuntimeError> {
+        self.inner.next_event()
+    }
+
+    fn resume(&mut self, input: String) -> Result<(), RuntimeError> {
+        self.inner.resume(input)
+    }
+
+    fn interrupt(&mut self) -> Result<(), RuntimeError> {
+        self.inner.interrupt()
+    }
+
+    fn usage(&self) -> Usage {
+        self.inner.usage()
+    }
+
+    fn tool_host_probe_failure_evidence(&self) -> Option<ToolHostProbeFailureEvidence> {
+        let observations = self.inner.probe_observations.as_ref()?;
+        let terminal_observed = self.inner.completed
+            || self.inner.terminal
+            || self.inner.process_exit_code.is_some()
+            || self.inner.process_signal.is_some();
+        let turn_started = if observations.turn_started {
+            Some(true)
+        } else if terminal_observed {
+            Some(false)
+        } else {
+            None
+        };
+        let provider_response = if observations.provider_response {
+            Some(true)
+        } else if terminal_observed && observations.turn_started {
+            Some(false)
+        } else {
+            None
+        };
+        let provider_typed_failure = if observations.provider_typed_failure {
+            Some(true)
+        } else if terminal_observed && observations.turn_started {
+            Some(false)
+        } else {
+            None
+        };
+        let provider_request_state =
+            if observations.provider_response || observations.provider_typed_failure {
+                ProviderRequestState::ProviderResponded
+            } else if observations.turn_started {
+                ProviderRequestState::TurnStartedUnconfirmed
+            } else if turn_started == Some(false) {
+                ProviderRequestState::NotStarted
+            } else {
+                ProviderRequestState::Unknown
+            };
+        let phase = match provider_request_state {
+            ProviderRequestState::ProviderResponded
+            | ProviderRequestState::TurnStartedUnconfirmed => {
+                ToolHostProbeFailurePhase::ProviderRequest
+            }
+            ProviderRequestState::NotStarted | ProviderRequestState::Unknown => {
+                ToolHostProbeFailurePhase::RuntimeProcess
+            }
+        };
+        Some(ToolHostProbeFailureEvidence {
+            phase,
+            provider_request_state,
+            stages: ToolHostProbeFailureStages {
+                process_spawned: Some(true),
+                turn_started,
+                provider_response,
+                provider_typed_failure,
+                cleanup_completed: self.inner.cleanup_completed,
+                ..ToolHostProbeFailureStages::default()
+            },
+            process_exit_code: self.inner.process_exit_code,
+            process_signal: self.inner.process_signal,
+            duration_ms: Some(elapsed_millis(self.inner.session_started_at)),
+            ..ToolHostProbeFailureEvidence::default()
+        })
+    }
+}
+
 impl Drop for CodexSession {
     fn drop(&mut self) {
         if !self.completed {
-            end_process_tree_or_keep(&mut self.child);
+            self.end_process_for_failure();
         }
     }
 }
@@ -2309,10 +2473,10 @@ mod tests {
     use std::path::{Path, PathBuf};
     use ymp_agent_rpc::AgentToolCapabilities;
     use ymp_runtime_api::{
-        CancellationToken, InvocationRequest, McpBinding, Readiness, RuntimeDriver, RuntimeError,
-        RuntimeEventKind, RuntimeFailureKind, RuntimeSession, TOOL_HOST_PROBE_SCHEMA_VERSION,
-        ToolHostProbeInvocation, ToolHostProbeRequest, ToolHostProbeResourceVector,
-        ToolHostProbeTool, ToolHostProbeTrust,
+        CancellationToken, InvocationRequest, McpBinding, ProviderRequestState, Readiness,
+        RuntimeDriver, RuntimeError, RuntimeEventKind, RuntimeFailureKind, RuntimeSession,
+        TOOL_HOST_PROBE_SCHEMA_VERSION, ToolHostProbeFailurePhase, ToolHostProbeInvocation,
+        ToolHostProbeRequest, ToolHostProbeResourceVector, ToolHostProbeTool, ToolHostProbeTrust,
     };
 
     fn expect_launch(session: &mut dyn RuntimeSession) {
@@ -2409,6 +2573,28 @@ __EXTRA__
         let mut permissions = fs::metadata(path).expect("metadata").permissions();
         permissions.set_mode(0o700);
         fs::set_permissions(path, permissions).expect("make fixture executable");
+    }
+
+    fn write_tool_host_phase_fixture(path: &Path, events: &str, status: i32) {
+        let compatible = path.with_extension("compatible");
+        write_compatibility_probe_fixture(&compatible, "codex-cli 0.151.0", "compatible");
+        let script = r##"#!/bin/sh
+set -eu
+if [ "$1" = "--version" ] || { [ "$1" = "exec" ] && [ "${2:-}" = "--help" ]; } || { [ "$1" = "exec" ] && [ "${2:-}" = "resume" ] && [ "${3:-}" = "--help" ]; } || { [ "$1" = "features" ] && [ "${2:-}" = "list" ]; } || { [ "$1" = "app-server" ] && { [ "${2:-}" = "--help" ] || [ "${2:-}" = "generate-json-schema" ]; }; } || { [ "$1" = "login" ] && [ "${2:-}" = "status" ]; }; then
+  exec '__COMPATIBLE__' "$@"
+fi
+/bin/cat >/dev/null
+__EVENTS__
+/usr/bin/printf '%s' 'raw stderr prompt credential output must not persist' >&2
+exit __STATUS__
+"##
+        .replace("__COMPATIBLE__", &compatible.display().to_string())
+        .replace("__EVENTS__", events)
+        .replace("__STATUS__", &status.to_string());
+        fs::write(path, script).expect("write phase fixture");
+        let mut permissions = fs::metadata(path).expect("metadata").permissions();
+        permissions.set_mode(0o700);
+        fs::set_permissions(path, permissions).expect("make phase fixture executable");
     }
 
     fn tool_host_reservation(deadline_ms: u64) -> ToolHostProbeResourceVector {
@@ -2719,16 +2905,190 @@ __EXTRA__
             RuntimeEventKind::McpToolCall { server, tool, .. }
                 if server == "ymp.workspace" && tool == "workspace_read"
         ));
-        assert!(matches!(events[3], RuntimeEventKind::Completed { .. }));
+        assert!(
+            matches!(events[3], RuntimeEventKind::Completed { .. }),
+            "unexpected probe terminal: {:?}",
+            events[3]
+        );
         assert_eq!(
             fs::read_to_string(workspace.join("probe/nonce.txt")).expect("probe write"),
             "opaque-caller-nonce-7c1e"
         );
         assert!(marker.is_file(), "the fixture process completed one turn");
         assert!(session.usage().wall_time_ms > 0);
+        let evidence = session
+            .tool_host_probe_failure_evidence()
+            .expect("probe-only Codex observations");
+        assert_eq!(
+            evidence.provider_request_state,
+            ProviderRequestState::ProviderResponded
+        );
+        assert_eq!(evidence.stages.process_spawned, Some(true));
+        assert_eq!(evidence.stages.turn_started, Some(true));
+        assert_eq!(evidence.stages.provider_response, Some(true));
+        assert_eq!(evidence.stages.provider_typed_failure, Some(false));
+        assert_eq!(evidence.process_exit_code, Some(0));
+        assert_eq!(evidence.process_signal, None);
+        assert_eq!(evidence.stages.cleanup_completed, Some(true));
+        assert!(evidence.duration_ms.is_some_and(|duration| duration > 0));
         let serialized = serde_json::to_value(ToolHostProbeTrust::UntrustedRuntimeTrace)
             .expect("trust marker serializes");
         assert_eq!(serialized, serde_json::json!("untrusted_runtime_trace"));
+    }
+
+    #[test]
+    fn probe_wrapper_reports_only_direct_provider_stage_observations() {
+        let scenarios = [
+            (
+                "spawned-before-turn",
+                r#"/usr/bin/printf '%s\n' '{"type":"thread.started","thread_id":"fixture-session"}'"#,
+                ProviderRequestState::NotStarted,
+                ToolHostProbeFailurePhase::RuntimeProcess,
+                Some(false),
+                None,
+                None,
+                0,
+            ),
+            (
+                "turn-unconfirmed",
+                r#"/usr/bin/printf '%s\n' '{"type":"thread.started","thread_id":"fixture-session"}'
+/usr/bin/printf '%s\n' '{"type":"turn.started"}'"#,
+                ProviderRequestState::TurnStartedUnconfirmed,
+                ToolHostProbeFailurePhase::ProviderRequest,
+                Some(true),
+                Some(false),
+                Some(false),
+                1,
+            ),
+            (
+                "provider-response",
+                r#"/usr/bin/printf '%s\n' '{"type":"thread.started","thread_id":"fixture-session"}'
+/usr/bin/printf '%s\n' '{"type":"turn.started"}'
+/usr/bin/printf '%s\n' '{"type":"item.started","item":{"type":"reasoning"}}'"#,
+                ProviderRequestState::ProviderResponded,
+                ToolHostProbeFailurePhase::ProviderRequest,
+                Some(true),
+                Some(true),
+                Some(false),
+                1,
+            ),
+            (
+                "provider-typed-failure",
+                r#"/usr/bin/printf '%s\n' '{"type":"thread.started","thread_id":"fixture-session"}'
+/usr/bin/printf '%s\n' '{"type":"turn.started"}'
+/usr/bin/printf '%s\n' '{"type":"turn.failed","usage":{"input_tokens":7,"cached_input_tokens":2,"output_tokens":3,"reasoning_output_tokens":1}}'"#,
+                ProviderRequestState::ProviderResponded,
+                ToolHostProbeFailurePhase::ProviderRequest,
+                Some(true),
+                Some(false),
+                Some(true),
+                0,
+            ),
+            (
+                "signal-before-turn",
+                r#"/usr/bin/printf '%s\n' '{"type":"thread.started","thread_id":"fixture-session"}'
+/bin/kill -TERM $$"#,
+                ProviderRequestState::NotStarted,
+                ToolHostProbeFailurePhase::RuntimeProcess,
+                Some(false),
+                None,
+                None,
+                0,
+            ),
+        ];
+
+        for (
+            name,
+            events,
+            provider_state,
+            phase,
+            turn_started,
+            provider_response,
+            provider_typed_failure,
+            in_flight_model_requests,
+        ) in scenarios
+        {
+            let directory = tempfile::tempdir().expect("temporary directory");
+            let workspace = directory.path().join("workspace");
+            fs::create_dir(&workspace).expect("workspace");
+            let workspace = workspace.canonicalize().expect("canonical workspace");
+            let executable = directory.path().join(format!("codex-{name}"));
+            write_tool_host_phase_fixture(&executable, events, 17);
+            let tool_host = directory.path().join("ymp");
+            fs::write(&tool_host, b"#!/bin/sh\nexit 0\n").expect("tool-host fixture");
+            let mut permissions = fs::metadata(&tool_host).expect("metadata").permissions();
+            permissions.set_mode(0o700);
+            fs::set_permissions(&tool_host, permissions).expect("make tool-host executable");
+
+            let mut runtime = CodexRuntime::new(&executable);
+            runtime.auth_source = None;
+            runtime.tool_host_executable = tool_host.canonicalize().expect("canonical tool host");
+            let identity = runtime
+                .tool_host_probe_runtime_identity(&workspace)
+                .expect("behaviorally compatible identity");
+            let deadline_ms = 1_000;
+            let mut session = runtime
+                .start_tool_host_probe(ToolHostProbeInvocation {
+                    request: ToolHostProbeRequest {
+                        schema_version: TOOL_HOST_PROBE_SCHEMA_VERSION,
+                        probe_id: format!("probe-{name}"),
+                        invocation_id: format!("invocation-{name}"),
+                        nonce: "opaque-caller-nonce-7c1e".to_owned(),
+                        workspace_path: PathBuf::from("probe/nonce.txt"),
+                        deadline_ms,
+                        resource_reservation: tool_host_reservation(deadline_ms),
+                        expected_runtime: identity,
+                        cancellation: CancellationToken::default(),
+                    },
+                    workspace,
+                    allowed_tools: [
+                        ToolHostProbeTool::WorkspaceWrite,
+                        ToolHostProbeTool::WorkspaceRead,
+                    ],
+                })
+                .expect("start phase fixture");
+            let mut terminal = None;
+            while let Some(event) = session.next_event().expect("phase event") {
+                if matches!(event.event, RuntimeEventKind::Failed { .. }) {
+                    terminal = Some(event);
+                    break;
+                }
+            }
+            let terminal = terminal.expect("phase fixture terminal failure");
+            let evidence = session
+                .tool_host_probe_failure_evidence()
+                .expect("probe-only evidence");
+            assert_eq!(evidence.provider_request_state, provider_state, "{name}");
+            assert_eq!(evidence.phase, phase, "{name}");
+            assert_eq!(evidence.stages.process_spawned, Some(true), "{name}");
+            assert!(evidence.duration_ms.is_some(), "{name}");
+            assert_eq!(evidence.stages.turn_started, turn_started, "{name}");
+            assert_eq!(
+                evidence.stages.provider_response, provider_response,
+                "{name}"
+            );
+            assert_eq!(
+                evidence.stages.provider_typed_failure, provider_typed_failure,
+                "{name}"
+            );
+            let serialized = serde_json::to_string(&terminal).expect("terminal JSON");
+            let RuntimeEventKind::Failed { usage, .. } = &terminal.event else {
+                unreachable!();
+            };
+            assert_eq!(
+                usage.in_flight_excess.model_requests, in_flight_model_requests,
+                "{name}"
+            );
+            if name == "spawned-before-turn" {
+                assert_eq!(evidence.process_exit_code, Some(17));
+                assert_eq!(evidence.process_signal, None);
+            }
+            if name == "signal-before-turn" {
+                assert_eq!(evidence.process_exit_code, None);
+                assert_eq!(evidence.process_signal, Some(15));
+            }
+            assert!(!serialized.contains("raw stderr prompt credential output"));
+        }
     }
 
     #[test]

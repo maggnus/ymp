@@ -7,6 +7,7 @@ use std::process::Command;
 use tempfile::TempDir;
 use ymp_application::{Application, AttestedToolHostProbeHandle};
 use ymp_domain::Budget;
+use ymp_runtime_api::ToolHostProbeFailurePhase;
 use ymp_runtime_registry::{Engine, EngineRecord, RegistryAddress};
 
 const ADMISSION_V2_DIGEST: &str =
@@ -23,14 +24,15 @@ fn create_directory(path: &Path) {
         .unwrap_or_else(|error| panic!("create isolated directory {}: {error}", path.display()));
 }
 
-/// This test is the only admitted live path for W1-EVL-04n. It is ignored in every ordinary test
-/// run and is executed once, by exact name, only after the deterministic matrix is green.
+/// This test is the only admitted live path for W1-EVL-04s. It is ignored in every ordinary test
+/// run and is executed once, by exact name, only after the deterministic diagnostic matrix is
+/// green.
 #[test]
 #[ignore = "single owner-admitted live Codex compatibility probe"]
 fn one_live_controller_attested_codex_tool_host_probe() {
     assert_eq!(
         std::env::var("YMP_ADMIT_ONE_LIVE_TOOL_HOST_PROBE").as_deref(),
-        Ok("W1-EVL-04n"),
+        Ok("W1-EVL-04s"),
         "the explicit one-call admission marker is required"
     );
     let project = required_path("YMP_LIVE_PROJECT");
@@ -63,7 +65,7 @@ fn one_live_controller_attested_codex_tool_host_probe() {
     let data_root = ephemeral.path().join("application-store");
     let application = Application::create(
         &data_root,
-        "run-w1-evl-04n-live-tool-host-probe",
+        "run-w1-evl-04s-live-tool-host-probe",
         Budget::new(1, 0),
     )
     .expect("create isolated Application store");
@@ -100,12 +102,58 @@ fn one_live_controller_attested_codex_tool_host_probe() {
         .env("NO_COLOR", "1")
         .output()
         .expect("spawn the actual built ymp binary");
-    assert!(
-        output.status.success(),
-        "STOP: live tool-host probe failed: status={} stderr={}",
-        output.status,
-        String::from_utf8_lossy(&output.stderr)
-    );
+    if !output.status.success() {
+        let application = Application::open(&data_root).expect("reopen failed probe store");
+        let probes = data_root.join("runtime-evidence/tool-host-probes");
+        let entries: Vec<_> = fs::read_dir(&probes)
+            .expect("failed probe directory")
+            .collect::<Result<_, _>>()
+            .expect("failed probe entries");
+        assert_eq!(entries.len(), 1, "one live reservation has one outcome");
+        let probe = entries[0].path();
+        let probe_id = probe
+            .file_name()
+            .and_then(|name| name.to_str())
+            .expect("UTF-8 failed probe id");
+        let failure = application
+            .tool_host_probe_failure(probe_id)
+            .expect("live failure is canonical and reloadable");
+        assert_ne!(failure.evidence().phase, ToolHostProbeFailurePhase::Unknown);
+        assert_eq!(failure.admission_manifest_digest(), ADMISSION_V2_DIGEST);
+        assert_eq!(
+            failure.runtime().runtime_kind,
+            ymp_runtime_api::RuntimeKind::Codex
+        );
+        assert!(probe.join("reservation.json").is_file());
+        assert!(probe.join("failure.json").is_file());
+        assert!(!probe.join("attestation.ref").exists());
+        assert!(
+            !application
+                .attested_tool_host_probe_handle_export_path()
+                .exists()
+        );
+        println!(
+            "{}",
+            serde_json::to_string(&serde_json::json!({
+                "kind": "w1_evl_04s_live_tool_host_probe_failure",
+                "admission_manifest_digest": failure.admission_manifest_digest(),
+                "runtime": failure.runtime(),
+                "probe_transport_digest": failure.probe_transport_digest(),
+                "probe_id": failure.probe_id(),
+                "invocation_id": failure.invocation_id(),
+                "reservation_digest": failure.reservation_digest(),
+                "replay_key": failure.replay_key(),
+                "failure_record_digest": failure.record_digest(),
+                "failure": failure.evidence(),
+                "model_ready": false,
+                "attestation": null,
+                "task_output": null,
+                "arm_output": null,
+            }))
+            .expect("serialize sanitized live failure evidence")
+        );
+        return;
+    }
 
     let line = String::from_utf8(output.stdout).expect("UTF-8 controller output");
     let exported: Value = serde_json::from_str(line.trim()).expect("controller handle JSON");
@@ -135,7 +183,7 @@ fn one_live_controller_attested_codex_tool_host_probe() {
     println!(
         "{}",
         serde_json::to_string(&serde_json::json!({
-            "kind": "w1_evl_04n_live_tool_host_probe",
+            "kind": "w1_evl_04s_live_tool_host_probe",
             "candidate_executable": env!("CARGO_BIN_EXE_ymp"),
             "admission_manifest_digest": attestation.admission_manifest_digest(),
             "runtime": attestation.runtime(),

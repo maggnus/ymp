@@ -7,11 +7,12 @@ use thiserror::Error;
 use uuid::Uuid;
 use ymp_domain::digest_bytes;
 use ymp_runtime_api::{
-    CancellationToken, ProbeTransportIdentity, TOOL_HOST_PROBE_ENVIRONMENT,
+    CancellationToken, ProbeTransportIdentity, ProviderRequestState, TOOL_HOST_PROBE_ENVIRONMENT,
     TOOL_HOST_PROBE_INTERNAL_ARGUMENTS, TOOL_HOST_PROBE_INTERNAL_SUBCOMMAND,
     TOOL_HOST_PROBE_MCP_PROTOCOL_VERSION, TOOL_HOST_PROBE_SCHEMA_VERSION,
     TOOL_HOST_PROBE_SERVER_VERSION, TOOL_HOST_PROBE_WORKSPACE_SERVER, ToolHostProbeCost,
-    ToolHostProbeCostAvailability, ToolHostProbeError, ToolHostProbeRequest,
+    ToolHostProbeCostAvailability, ToolHostProbeError, ToolHostProbeFailureEvidence,
+    ToolHostProbeFailurePhase, ToolHostProbeFailureStages, ToolHostProbeRequest,
     ToolHostProbeResourceVector, ToolHostProbeRuntimeIdentity, ToolHostProbeTerminal,
     ToolHostProbeTool, ToolHostProbeTrace, ToolHostProbeTrust, Usage, evidence_digest,
     probe_transport_digest, tool_host_probe_tool_schema_digest,
@@ -20,13 +21,21 @@ use ymp_storage::ObjectStoreError;
 
 use crate::Application;
 
-pub const ATTESTED_TOOL_HOST_PROBE_SCHEMA_VERSION: u32 = 2;
+pub const ATTESTED_TOOL_HOST_PROBE_SCHEMA_VERSION: u32 = 3;
+pub const TOOL_HOST_PROBE_FAILURE_SCHEMA_VERSION: u32 = 1;
 pub const TOOL_HOST_PROBE_HANDLE_EXPORT: &str = "exports/tool-host-probe.handle.json";
 
 const TOOL_HOST_PROBES_DIRECTORY: &str = "runtime-evidence/tool-host-probes";
 const RESERVATION_FILE: &str = "reservation.json";
+const FAILURE_FILE: &str = "failure.json";
 const ATTESTATION_REFERENCE_FILE: &str = "attestation.ref";
 const WORKSPACE_DIRECTORY: &str = "workspace";
+
+#[cfg(test)]
+thread_local! {
+    static INJECT_ATTESTATION_WRITE_FAILURE: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+    static FAILURE_DURABILITY_STAGES: std::cell::Cell<u8> = const { std::cell::Cell::new(0) };
+}
 
 /// The controller request has two phases. Application first creates it with private material and a
 /// canonical root but no expected transport; the trusted foreground then consumes it to bind the
@@ -109,6 +118,94 @@ impl AttestedToolHostProbeHandle {
 
     pub fn probe_id(&self) -> &str {
         &self.probe_id
+    }
+
+    pub fn record_digest(&self) -> &str {
+        &self.record_digest
+    }
+}
+
+/// Immutable, read-only failure evidence recovered through the owning Application store. It is a
+/// diagnostic record only and carries no attestation, retry, refund or readiness authority.
+#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+pub struct ToolHostProbeFailureRecord {
+    schema_version: u32,
+    store_identity: String,
+    run_id: String,
+    admission_manifest_digest: String,
+    probe_id: String,
+    invocation_id: String,
+    nonce_digest: String,
+    relative_path: PathBuf,
+    runtime: ToolHostProbeRuntimeIdentity,
+    probe_transport: ProbeTransportIdentity,
+    probe_transport_digest: String,
+    reservation_digest: String,
+    resource_reservation: ToolHostProbeResourceVector,
+    replay_key: String,
+    evidence: ToolHostProbeFailureEvidence,
+    record_digest: String,
+}
+
+impl ToolHostProbeFailureRecord {
+    pub fn schema_version(&self) -> u32 {
+        self.schema_version
+    }
+
+    pub fn store_identity(&self) -> &str {
+        &self.store_identity
+    }
+
+    pub fn run_id(&self) -> &str {
+        &self.run_id
+    }
+
+    pub fn admission_manifest_digest(&self) -> &str {
+        &self.admission_manifest_digest
+    }
+
+    pub fn probe_id(&self) -> &str {
+        &self.probe_id
+    }
+
+    pub fn invocation_id(&self) -> &str {
+        &self.invocation_id
+    }
+
+    pub fn nonce_digest(&self) -> &str {
+        &self.nonce_digest
+    }
+
+    pub fn relative_path(&self) -> &Path {
+        &self.relative_path
+    }
+
+    pub fn runtime(&self) -> &ToolHostProbeRuntimeIdentity {
+        &self.runtime
+    }
+
+    pub fn probe_transport(&self) -> &ProbeTransportIdentity {
+        &self.probe_transport
+    }
+
+    pub fn probe_transport_digest(&self) -> &str {
+        &self.probe_transport_digest
+    }
+
+    pub fn reservation_digest(&self) -> &str {
+        &self.reservation_digest
+    }
+
+    pub fn resource_reservation(&self) -> &ToolHostProbeResourceVector {
+        &self.resource_reservation
+    }
+
+    pub fn replay_key(&self) -> &str {
+        &self.replay_key
+    }
+
+    pub fn evidence(&self) -> &ToolHostProbeFailureEvidence {
+        &self.evidence
     }
 
     pub fn record_digest(&self) -> &str {
@@ -271,6 +368,17 @@ pub enum ToolHostProbeAttestationError {
     ReservationMissing,
     #[error("tool-host probe reservation is corrupt or mismatched: {detail}")]
     ReservationInvalid { detail: String },
+    #[error("tool-host probe failure record is missing")]
+    FailureMissing,
+    #[error("tool-host probe failure record is corrupt or mismatched: {detail}")]
+    FailureInvalid { detail: String },
+    #[error("tool-host probe cannot contain both failure evidence and an attestation")]
+    FailureAttestationConflict,
+    #[error("tool-host probe could not persist failure evidence after {original}: {persistence}")]
+    FailurePersistence {
+        original: Box<ToolHostProbeAttestationError>,
+        persistence: String,
+    },
     #[error("tool-host probe trace differs from controller state in {field}")]
     TraceMismatch { field: &'static str },
     #[error("tool-host probe destination is missing after the runtime trace")]
@@ -306,6 +414,7 @@ struct ProbeReservation {
     invocation_id: String,
     nonce_digest: String,
     relative_path: PathBuf,
+    expected_runtime: ToolHostProbeRuntimeIdentity,
     expected_transport: ProbeTransportIdentity,
     probe_transport_digest: String,
     resource_reservation: ToolHostProbeResourceVector,
@@ -322,9 +431,16 @@ struct ReplayKeyMaterial<'a> {
     invocation_id: &'a str,
     nonce_digest: &'a str,
     relative_path: &'a Path,
+    expected_runtime: &'a ToolHostProbeRuntimeIdentity,
     expected_transport: &'a ProbeTransportIdentity,
     probe_transport_digest: &'a str,
     resource_reservation: &'a ToolHostProbeResourceVector,
+}
+
+#[derive(Clone, Copy)]
+struct ExpectedProbeBinding<'a> {
+    runtime: &'a ToolHostProbeRuntimeIdentity,
+    transport: &'a ProbeTransportIdentity,
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -337,6 +453,50 @@ struct AttestationReference {
     reservation_digest: String,
     object_digest: String,
     record_digest: String,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
+struct StoredToolHostProbeFailureRecord {
+    schema_version: u32,
+    store_identity: String,
+    run_id: String,
+    admission_manifest_digest: String,
+    probe_id: String,
+    invocation_id: String,
+    nonce_digest: String,
+    relative_path: PathBuf,
+    runtime: ToolHostProbeRuntimeIdentity,
+    probe_transport: ProbeTransportIdentity,
+    probe_transport_digest: String,
+    reservation_digest: String,
+    resource_reservation: ToolHostProbeResourceVector,
+    replay_key: String,
+    evidence: ToolHostProbeFailureEvidence,
+    record_digest: String,
+}
+
+impl From<StoredToolHostProbeFailureRecord> for ToolHostProbeFailureRecord {
+    fn from(stored: StoredToolHostProbeFailureRecord) -> Self {
+        Self {
+            schema_version: stored.schema_version,
+            store_identity: stored.store_identity,
+            run_id: stored.run_id,
+            admission_manifest_digest: stored.admission_manifest_digest,
+            probe_id: stored.probe_id,
+            invocation_id: stored.invocation_id,
+            nonce_digest: stored.nonce_digest,
+            relative_path: stored.relative_path,
+            runtime: stored.runtime,
+            probe_transport: stored.probe_transport,
+            probe_transport_digest: stored.probe_transport_digest,
+            reservation_digest: stored.reservation_digest,
+            resource_reservation: stored.resource_reservation,
+            replay_key: stored.replay_key,
+            evidence: stored.evidence,
+            record_digest: stored.record_digest,
+        }
+    }
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -528,7 +688,10 @@ impl Application {
             &request.admission_manifest_digest,
             &material,
             &nonce_digest,
-            &expected_transport,
+            ExpectedProbeBinding {
+                runtime: &expected_runtime,
+                transport: &expected_transport,
+            },
             &request.resource_reservation,
         )?;
         let reservation = ProbeReservation {
@@ -540,6 +703,7 @@ impl Application {
             invocation_id: material.invocation_id.clone(),
             nonce_digest: nonce_digest.clone(),
             relative_path: material.relative_path.clone(),
+            expected_runtime: expected_runtime.clone(),
             expected_transport: expected_transport.clone(),
             probe_transport_digest: expected_runtime.probe_transport_digest.clone(),
             resource_reservation: request.resource_reservation.clone(),
@@ -563,81 +727,135 @@ impl Application {
             workspace_path: material.relative_path.clone(),
             deadline_ms: request.deadline_ms,
             resource_reservation: request.resource_reservation.clone(),
-            expected_runtime,
+            expected_runtime: expected_runtime.clone(),
             cancellation: CancellationToken::default(),
         };
-        let trace = executor(&workspace, runtime_request)?;
-        validate_trace(&trace, &request, &material)?;
-        validate_workspace_effect(&workspace, &material.relative_path)?;
-        let readback = read_controller_destination(&workspace, &material.relative_path)?;
-        if readback != material.nonce.as_bytes() {
-            return Err(ToolHostProbeAttestationError::ReadbackMismatch);
+        let mut failure_evidence = ToolHostProbeFailureEvidence {
+            stages: ToolHostProbeFailureStages {
+                controller_readback: Some(false),
+                attestation_written: Some(false),
+                handle_written: Some(false),
+                ..ToolHostProbeFailureStages::default()
+            },
+            ..ToolHostProbeFailureEvidence::default()
+        };
+        let operation = (|| {
+            let trace = match executor(&workspace, runtime_request) {
+                Ok(trace) => trace,
+                Err(error) => {
+                    let (original, observed) = error.into_original_and_evidence();
+                    if let Some(observed) = observed {
+                        merge_controller_failure_evidence(&mut failure_evidence, observed);
+                    }
+                    if failure_evidence.phase == ToolHostProbeFailurePhase::Unknown {
+                        failure_evidence.phase = ToolHostProbeFailurePhase::RuntimeProcess;
+                    }
+                    return Err(ToolHostProbeAttestationError::Runtime(original));
+                }
+            };
+            merge_controller_failure_evidence(
+                &mut failure_evidence,
+                trace.failure_evidence.clone(),
+            );
+            failure_evidence.phase = ToolHostProbeFailurePhase::ControllerTraceValidation;
+            validate_trace(&trace, &request, &material)?;
+
+            failure_evidence.phase = ToolHostProbeFailurePhase::ControllerReadback;
+            validate_workspace_effect(&workspace, &material.relative_path)?;
+            let readback = read_controller_destination(&workspace, &material.relative_path)?;
+            if readback != material.nonce.as_bytes() {
+                return Err(ToolHostProbeAttestationError::ReadbackMismatch);
+            }
+            failure_evidence.stages.controller_readback = Some(true);
+
+            let readback_digest = digest_bytes(&readback);
+            let readback_bytes = u64::try_from(readback.len()).map_err(|_| {
+                ToolHostProbeAttestationError::TraceMismatch {
+                    field: "readback_bytes",
+                }
+            })?;
+            let charged = charged_vector(&trace);
+            ensure_charged_within(&charged, &request.resource_reservation)?;
+            let trace_digest = digest_bytes(&canonical_json(&trace)?);
+            failure_evidence.phase = ToolHostProbeFailurePhase::AttestationPersistence;
+            injected_attestation_write_failure()?;
+            let attestation = AttestedToolHostProbe {
+                schema_version: ATTESTED_TOOL_HOST_PROBE_SCHEMA_VERSION,
+                store_identity: store_identity.clone(),
+                run_id: run_id.clone(),
+                admission_manifest_digest: request.admission_manifest_digest.clone(),
+                probe_id: material.probe_id.clone(),
+                invocation_id: material.invocation_id.clone(),
+                nonce_digest: nonce_digest.clone(),
+                readback_digest,
+                readback_bytes,
+                prelaunch_destination_absent: true,
+                relative_path: material.relative_path.clone(),
+                trace: trace.clone(),
+                trace_digest,
+                runtime: trace.runtime.clone(),
+                probe_transport: expected_transport.clone(),
+                probe_transport_digest: trace.runtime.probe_transport_digest.clone(),
+                reservation_digest: reservation_digest.clone(),
+                resource_reservation: trace.resource_reservation.clone(),
+                charged,
+                usage: trace.usage.clone(),
+                wall_time_ms: trace.usage.wall_time_ms,
+                cost: trace.cost.clone(),
+                terminal: trace.terminal,
+                replay_key: replay_key.clone(),
+            };
+            let attestation_bytes = canonical_json(&attestation)?;
+            let object_digest = self.object_store.put(&attestation_bytes)?;
+            failure_evidence.stages.attestation_written = Some(true);
+
+            let mut reference = AttestationReference {
+                schema_version: ATTESTED_TOOL_HOST_PROBE_SCHEMA_VERSION,
+                store_identity: store_identity.clone(),
+                run_id: run_id.clone(),
+                probe_id: material.probe_id.clone(),
+                reservation_digest: reservation_digest.clone(),
+                object_digest,
+                record_digest: String::new(),
+            };
+            reference.record_digest = reference_digest(&reference)?;
+            let reference_bytes = canonical_json(&reference)?;
+            let reference_path = probe_directory.join(ATTESTATION_REFERENCE_FILE);
+            write_new_synced(&reference_path, &reference_bytes).map_err(|error| {
+                if error.kind() == ErrorKind::AlreadyExists {
+                    ToolHostProbeAttestationError::AttestationReferenceAlreadyExists
+                } else {
+                    error.into()
+                }
+            })?;
+            failure_evidence.stages.handle_written = Some(true);
+
+            Ok(AttestedToolHostProbeHandle {
+                schema_version: ATTESTED_TOOL_HOST_PROBE_SCHEMA_VERSION,
+                store_identity: reference.store_identity,
+                probe_id: reference.probe_id,
+                record_digest: reference.record_digest,
+            })
+        })();
+
+        match operation {
+            Ok(handle) => Ok(handle),
+            Err(original) => {
+                let failure_path = probe_directory.join(FAILURE_FILE);
+                match write_tool_host_probe_failure(
+                    &failure_path,
+                    &reservation,
+                    &reservation_digest,
+                    failure_evidence,
+                ) {
+                    Ok(()) => Err(original),
+                    Err(persistence) => Err(ToolHostProbeAttestationError::FailurePersistence {
+                        original: Box::new(original),
+                        persistence: persistence.to_string(),
+                    }),
+                }
+            }
         }
-
-        let readback_digest = digest_bytes(&readback);
-        let readback_bytes = u64::try_from(readback.len()).map_err(|_| {
-            ToolHostProbeAttestationError::TraceMismatch {
-                field: "readback_bytes",
-            }
-        })?;
-        let charged = charged_vector(&trace);
-        ensure_charged_within(&charged, &request.resource_reservation)?;
-        let trace_digest = digest_bytes(&canonical_json(&trace)?);
-        let attestation = AttestedToolHostProbe {
-            schema_version: ATTESTED_TOOL_HOST_PROBE_SCHEMA_VERSION,
-            store_identity: store_identity.clone(),
-            run_id: run_id.clone(),
-            admission_manifest_digest: request.admission_manifest_digest,
-            probe_id: material.probe_id.clone(),
-            invocation_id: material.invocation_id,
-            nonce_digest,
-            readback_digest,
-            readback_bytes,
-            prelaunch_destination_absent: true,
-            relative_path: material.relative_path,
-            trace: trace.clone(),
-            trace_digest,
-            runtime: trace.runtime.clone(),
-            probe_transport: expected_transport,
-            probe_transport_digest: trace.runtime.probe_transport_digest.clone(),
-            reservation_digest: reservation_digest.clone(),
-            resource_reservation: trace.resource_reservation.clone(),
-            charged,
-            usage: trace.usage.clone(),
-            wall_time_ms: trace.usage.wall_time_ms,
-            cost: trace.cost.clone(),
-            terminal: trace.terminal,
-            replay_key,
-        };
-        let attestation_bytes = canonical_json(&attestation)?;
-        let object_digest = self.object_store.put(&attestation_bytes)?;
-
-        let mut reference = AttestationReference {
-            schema_version: ATTESTED_TOOL_HOST_PROBE_SCHEMA_VERSION,
-            store_identity,
-            run_id,
-            probe_id: material.probe_id.clone(),
-            reservation_digest,
-            object_digest,
-            record_digest: String::new(),
-        };
-        reference.record_digest = reference_digest(&reference)?;
-        let reference_bytes = canonical_json(&reference)?;
-        let reference_path = probe_directory.join(ATTESTATION_REFERENCE_FILE);
-        write_new_synced(&reference_path, &reference_bytes).map_err(|error| {
-            if error.kind() == ErrorKind::AlreadyExists {
-                ToolHostProbeAttestationError::AttestationReferenceAlreadyExists
-            } else {
-                error.into()
-            }
-        })?;
-
-        Ok(AttestedToolHostProbeHandle {
-            schema_version: ATTESTED_TOOL_HOST_PROBE_SCHEMA_VERSION,
-            store_identity: reference.store_identity,
-            probe_id: reference.probe_id,
-            record_digest: reference.record_digest,
-        })
     }
 
     /// Resolve an untrusted handle only through this application's private store and verify every
@@ -663,6 +881,7 @@ impl Application {
             .data_root
             .join(TOOL_HOST_PROBES_DIRECTORY)
             .join(&handle.probe_id);
+        refuse_failure_attestation_conflict(&probe_directory)?;
         let reservation_path = probe_directory.join(RESERVATION_FILE);
         let reservation_bytes = read_required(
             &reservation_path,
@@ -721,6 +940,53 @@ impl Application {
         Ok(attestation)
     }
 
+    /// Reload one immutable failed probe only through this application's private store. The probe
+    /// identifier is a locator; every reservation, replay, store and digest binding is rechecked.
+    pub fn tool_host_probe_failure(
+        &self,
+        probe_id: &str,
+    ) -> Result<ToolHostProbeFailureRecord, ToolHostProbeAttestationError> {
+        validate_generated_identifier("probe", probe_id)
+            .map_err(|_| failure_invalid("invalid probe identifier"))?;
+        let store_identity = configured_store_identity(&self.data_root)?;
+        let probe_directory = self
+            .data_root
+            .join(TOOL_HOST_PROBES_DIRECTORY)
+            .join(probe_id);
+        refuse_failure_attestation_conflict(&probe_directory)?;
+
+        let reservation_path = probe_directory.join(RESERVATION_FILE);
+        let reservation_bytes = read_required(
+            &reservation_path,
+            ToolHostProbeAttestationError::ReservationMissing,
+        )?;
+        let reservation: ProbeReservation =
+            decode_canonical(&reservation_bytes).map_err(|error| {
+                ToolHostProbeAttestationError::ReservationInvalid {
+                    detail: error.to_string(),
+                }
+            })?;
+        let workspace = canonical_probe_workspace(&self.data_root, probe_id, false)?;
+        validate_reservation(
+            &reservation,
+            &store_identity,
+            &self.state.run_id,
+            probe_id,
+            &workspace,
+        )?;
+        let reservation_digest = digest_bytes(&reservation_bytes);
+
+        let failure_bytes = read_required(
+            &probe_directory.join(FAILURE_FILE),
+            ToolHostProbeAttestationError::FailureMissing,
+        )?;
+        let stored: StoredToolHostProbeFailureRecord =
+            decode_canonical(&failure_bytes).map_err(|error| failure_invalid(error.to_string()))?;
+        let failure = ToolHostProbeFailureRecord::from(stored);
+        validate_loaded_failure(&failure, &reservation, &reservation_digest)?;
+        Ok(failure)
+    }
+
     /// The one controller-owned export location. No caller-selected path is accepted.
     pub fn attested_tool_host_probe_handle_export_path(&self) -> PathBuf {
         self.data_root.join(TOOL_HOST_PROBE_HANDLE_EXPORT)
@@ -744,6 +1010,443 @@ impl Application {
         })?;
         Ok(destination)
     }
+}
+
+#[cfg(test)]
+fn injected_attestation_write_failure() -> Result<(), ToolHostProbeAttestationError> {
+    let injected = INJECT_ATTESTATION_WRITE_FAILURE.with(|flag| flag.replace(false));
+    if injected {
+        return Err(std::io::Error::other("injected attestation persistence failure").into());
+    }
+    Ok(())
+}
+
+#[cfg(not(test))]
+fn injected_attestation_write_failure() -> Result<(), ToolHostProbeAttestationError> {
+    Ok(())
+}
+
+fn merge_controller_failure_evidence(
+    target: &mut ToolHostProbeFailureEvidence,
+    source: ToolHostProbeFailureEvidence,
+) {
+    if source.phase != ToolHostProbeFailurePhase::Unknown {
+        target.phase = source.phase;
+    }
+    if source.provider_request_state != ProviderRequestState::Unknown {
+        target.provider_request_state = source.provider_request_state;
+    }
+    macro_rules! merge_stage {
+        ($field:ident) => {
+            if source.stages.$field.is_some() {
+                target.stages.$field = source.stages.$field;
+            }
+        };
+    }
+    merge_stage!(process_spawned);
+    merge_stage!(runtime_started);
+    merge_stage!(turn_started);
+    merge_stage!(provider_response);
+    merge_stage!(provider_typed_failure);
+    merge_stage!(mcp_call);
+    merge_stage!(mcp_result);
+    merge_stage!(controller_readback);
+    merge_stage!(attestation_written);
+    merge_stage!(handle_written);
+    merge_stage!(cleanup_completed);
+    if source.runtime_failure_kind.is_some() {
+        target.runtime_failure_kind = source.runtime_failure_kind;
+    }
+    if source.last_event_id.is_some() {
+        target.last_event_id = source.last_event_id;
+    }
+    if source.last_event_sequence.is_some() {
+        target.last_event_sequence = source.last_event_sequence;
+    }
+    if source.last_event_type.is_some() {
+        target.last_event_type = source.last_event_type;
+    }
+    if source.process_exit_code.is_some() {
+        target.process_exit_code = source.process_exit_code;
+    }
+    if source.process_signal.is_some() {
+        target.process_signal = source.process_signal;
+    }
+    if source.duration_ms.is_some() {
+        target.duration_ms = source.duration_ms;
+    }
+    if source.usage.is_some() {
+        target.usage = source.usage;
+    }
+    if source.cost.is_some() {
+        target.cost = source.cost;
+    }
+    if source.codex_diagnostic.is_some() {
+        target.codex_diagnostic = source.codex_diagnostic;
+    }
+    if source.mcp_diagnostic.is_some() {
+        target.mcp_diagnostic = source.mcp_diagnostic;
+    }
+}
+
+fn write_tool_host_probe_failure(
+    path: &Path,
+    reservation: &ProbeReservation,
+    reservation_digest: &str,
+    mut evidence: ToolHostProbeFailureEvidence,
+) -> Result<(), ToolHostProbeAttestationError> {
+    normalize_failure_evidence(&mut evidence);
+    validate_failure_evidence(&evidence)?;
+    let mut stored = StoredToolHostProbeFailureRecord {
+        schema_version: TOOL_HOST_PROBE_FAILURE_SCHEMA_VERSION,
+        store_identity: reservation.store_identity.clone(),
+        run_id: reservation.run_id.clone(),
+        admission_manifest_digest: reservation.admission_manifest_digest.clone(),
+        probe_id: reservation.probe_id.clone(),
+        invocation_id: reservation.invocation_id.clone(),
+        nonce_digest: reservation.nonce_digest.clone(),
+        relative_path: reservation.relative_path.clone(),
+        runtime: reservation.expected_runtime.clone(),
+        probe_transport: reservation.expected_transport.clone(),
+        probe_transport_digest: reservation.probe_transport_digest.clone(),
+        reservation_digest: reservation_digest.to_owned(),
+        resource_reservation: reservation.resource_reservation.clone(),
+        replay_key: reservation.replay_key.clone(),
+        evidence,
+        record_digest: String::new(),
+    };
+    stored.record_digest = failure_record_digest(&stored)?;
+    let bytes = canonical_json(&stored)?;
+    write_new_failure_synced(path, &bytes).map_err(|error| {
+        if error.kind() == ErrorKind::AlreadyExists {
+            failure_invalid("failure record already exists")
+        } else {
+            error.into()
+        }
+    })
+}
+
+fn normalize_failure_evidence(evidence: &mut ToolHostProbeFailureEvidence) {
+    if evidence.phase == ToolHostProbeFailurePhase::Unknown {
+        evidence.phase = ToolHostProbeFailurePhase::RuntimeProcess;
+    }
+    let event_identity = [
+        evidence.last_event_id.is_some(),
+        evidence.last_event_sequence.is_some(),
+        evidence.last_event_type.is_some(),
+    ];
+    let invalid_event = event_identity.iter().any(|present| *present)
+        && !event_identity.iter().all(|present| *present)
+        || evidence
+            .last_event_id
+            .as_ref()
+            .is_some_and(|value| value.is_empty() || value.len() > 128)
+        || evidence.last_event_sequence == Some(0)
+        || evidence
+            .last_event_type
+            .as_ref()
+            .is_some_and(|value| value.is_empty() || value.len() > 64);
+    if invalid_event {
+        evidence.last_event_id = None;
+        evidence.last_event_sequence = None;
+        evidence.last_event_type = None;
+    }
+    if evidence.process_exit_code.is_some() && evidence.process_signal.is_some() {
+        evidence.process_exit_code = None;
+        evidence.process_signal = None;
+    }
+    match &evidence.usage {
+        Some(usage) => evidence.cost = Some(failure_cost_from_usage(usage)),
+        None => evidence.cost = None,
+    }
+    if evidence.usage.is_none()
+        && (evidence.runtime_failure_kind.is_some()
+            || matches!(
+                evidence.last_event_type.as_deref(),
+                Some("failed" | "timed_out" | "cancelled")
+            ))
+    {
+        evidence.runtime_failure_kind = None;
+        evidence.last_event_id = None;
+        evidence.last_event_sequence = None;
+        evidence.last_event_type = None;
+    }
+    if evidence
+        .codex_diagnostic
+        .as_ref()
+        .is_some_and(|diagnostic| !is_sha256(&diagnostic.digest))
+    {
+        evidence.codex_diagnostic = None;
+    }
+    if evidence
+        .mcp_diagnostic
+        .as_ref()
+        .is_some_and(|diagnostic| !is_sha256(&diagnostic.digest))
+    {
+        evidence.mcp_diagnostic = None;
+    }
+    let provider_is_consistent = match evidence.provider_request_state {
+        ProviderRequestState::NotStarted => evidence.stages.turn_started == Some(false),
+        ProviderRequestState::TurnStartedUnconfirmed => {
+            evidence.stages.turn_started == Some(true)
+                && evidence.stages.provider_response != Some(true)
+                && evidence.stages.provider_typed_failure != Some(true)
+        }
+        ProviderRequestState::ProviderResponded => {
+            evidence.stages.provider_response == Some(true)
+                || evidence.stages.provider_typed_failure == Some(true)
+        }
+        ProviderRequestState::Unknown => true,
+    };
+    if !provider_is_consistent {
+        evidence.provider_request_state = ProviderRequestState::Unknown;
+        evidence.stages.turn_started = None;
+        evidence.stages.provider_response = None;
+        evidence.stages.provider_typed_failure = None;
+    }
+    if evidence.stages.process_spawned == Some(false)
+        && (evidence.stages.turn_started == Some(true)
+            || evidence.stages.mcp_call == Some(true)
+            || evidence.stages.mcp_result == Some(true))
+    {
+        evidence.stages.process_spawned = None;
+    }
+    if evidence.stages.handle_written == Some(true) {
+        evidence.stages.handle_written = Some(false);
+    }
+}
+
+fn failure_cost_from_usage(usage: &Usage) -> ToolHostProbeCost {
+    match usage.cost_microusd {
+        Some(amount) => ToolHostProbeCost {
+            availability: ToolHostProbeCostAvailability::Reported,
+            currency: Some("USD".to_owned()),
+            amount_microusd: Some(amount),
+        },
+        None => ToolHostProbeCost {
+            availability: ToolHostProbeCostAvailability::Unavailable,
+            currency: None,
+            amount_microusd: None,
+        },
+    }
+}
+
+fn validate_loaded_failure(
+    failure: &ToolHostProbeFailureRecord,
+    reservation: &ProbeReservation,
+    reservation_digest: &str,
+) -> Result<(), ToolHostProbeAttestationError> {
+    for (field, matches) in [
+        (
+            "schema_version",
+            failure.schema_version == TOOL_HOST_PROBE_FAILURE_SCHEMA_VERSION,
+        ),
+        (
+            "store_identity",
+            failure.store_identity == reservation.store_identity,
+        ),
+        ("run_id", failure.run_id == reservation.run_id),
+        (
+            "manifest_digest",
+            failure.admission_manifest_digest == reservation.admission_manifest_digest,
+        ),
+        ("probe_id", failure.probe_id == reservation.probe_id),
+        (
+            "invocation_id",
+            failure.invocation_id == reservation.invocation_id,
+        ),
+        (
+            "nonce_digest",
+            failure.nonce_digest == reservation.nonce_digest,
+        ),
+        (
+            "relative_path",
+            failure.relative_path == reservation.relative_path,
+        ),
+        ("runtime", failure.runtime == reservation.expected_runtime),
+        (
+            "probe_transport",
+            failure.probe_transport == reservation.expected_transport,
+        ),
+        (
+            "probe_transport_digest",
+            failure.probe_transport_digest == reservation.probe_transport_digest
+                && failure.probe_transport_digest
+                    == probe_transport_digest(&failure.probe_transport),
+        ),
+        (
+            "reservation_digest",
+            failure.reservation_digest == reservation_digest,
+        ),
+        (
+            "resource_reservation",
+            failure.resource_reservation == reservation.resource_reservation,
+        ),
+        ("replay_key", failure.replay_key == reservation.replay_key),
+        ("record_digest", is_sha256(&failure.record_digest)),
+    ] {
+        if !matches {
+            return Err(failure_invalid(field));
+        }
+    }
+    let stored = StoredToolHostProbeFailureRecord {
+        schema_version: failure.schema_version,
+        store_identity: failure.store_identity.clone(),
+        run_id: failure.run_id.clone(),
+        admission_manifest_digest: failure.admission_manifest_digest.clone(),
+        probe_id: failure.probe_id.clone(),
+        invocation_id: failure.invocation_id.clone(),
+        nonce_digest: failure.nonce_digest.clone(),
+        relative_path: failure.relative_path.clone(),
+        runtime: failure.runtime.clone(),
+        probe_transport: failure.probe_transport.clone(),
+        probe_transport_digest: failure.probe_transport_digest.clone(),
+        reservation_digest: failure.reservation_digest.clone(),
+        resource_reservation: failure.resource_reservation.clone(),
+        replay_key: failure.replay_key.clone(),
+        evidence: failure.evidence.clone(),
+        record_digest: failure.record_digest.clone(),
+    };
+    if failure.record_digest != failure_record_digest(&stored)? {
+        return Err(failure_invalid("record digest"));
+    }
+    validate_failure_evidence(&failure.evidence)
+}
+
+fn validate_failure_evidence(
+    evidence: &ToolHostProbeFailureEvidence,
+) -> Result<(), ToolHostProbeAttestationError> {
+    if evidence.phase == ToolHostProbeFailurePhase::Unknown {
+        return Err(failure_invalid("failure phase is unknown"));
+    }
+    let event_identity = [
+        evidence.last_event_id.is_some(),
+        evidence.last_event_sequence.is_some(),
+        evidence.last_event_type.is_some(),
+    ];
+    if event_identity.iter().any(|present| *present)
+        && !event_identity.iter().all(|present| *present)
+    {
+        return Err(failure_invalid("last event identity is incomplete"));
+    }
+    if evidence
+        .last_event_id
+        .as_ref()
+        .is_some_and(|value| value.is_empty() || value.len() > 128)
+        || evidence.last_event_sequence == Some(0)
+        || evidence
+            .last_event_type
+            .as_ref()
+            .is_some_and(|value| value.is_empty() || value.len() > 64)
+    {
+        return Err(failure_invalid("last event identity is invalid"));
+    }
+    if evidence.process_exit_code.is_some() && evidence.process_signal.is_some() {
+        return Err(failure_invalid("process exit and signal are both present"));
+    }
+    match (&evidence.usage, &evidence.cost) {
+        (None, None) => {}
+        (Some(usage), Some(cost)) => validate_failure_cost(usage, cost)?,
+        _ => return Err(failure_invalid("usage and cost availability differ")),
+    }
+    if (evidence.runtime_failure_kind.is_some()
+        || matches!(
+            evidence.last_event_type.as_deref(),
+            Some("failed" | "timed_out" | "cancelled")
+        ))
+        && evidence.usage.is_none()
+    {
+        return Err(failure_invalid("terminal usage is missing"));
+    }
+    for diagnostic in [
+        evidence.codex_diagnostic.as_ref(),
+        evidence.mcp_diagnostic.as_ref(),
+    ]
+    .into_iter()
+    .flatten()
+    {
+        if !is_sha256(&diagnostic.digest) {
+            return Err(failure_invalid("diagnostic digest"));
+        }
+    }
+    match evidence.provider_request_state {
+        ProviderRequestState::NotStarted if evidence.stages.turn_started != Some(false) => {
+            return Err(failure_invalid("provider not_started observation"));
+        }
+        ProviderRequestState::TurnStartedUnconfirmed
+            if evidence.stages.turn_started != Some(true)
+                || evidence.stages.provider_response == Some(true)
+                || evidence.stages.provider_typed_failure == Some(true) =>
+        {
+            return Err(failure_invalid("provider unconfirmed observation"));
+        }
+        ProviderRequestState::ProviderResponded
+            if evidence.stages.provider_response != Some(true)
+                && evidence.stages.provider_typed_failure != Some(true) =>
+        {
+            return Err(failure_invalid("provider response observation"));
+        }
+        _ => {}
+    }
+    if evidence.stages.process_spawned == Some(false)
+        && (evidence.stages.turn_started == Some(true)
+            || evidence.stages.mcp_call == Some(true)
+            || evidence.stages.mcp_result == Some(true))
+    {
+        return Err(failure_invalid("pre-spawn record contains later stages"));
+    }
+    if evidence.stages.handle_written == Some(true) {
+        return Err(failure_invalid("failed probe claims a handle"));
+    }
+    Ok(())
+}
+
+fn validate_failure_cost(
+    usage: &Usage,
+    cost: &ToolHostProbeCost,
+) -> Result<(), ToolHostProbeAttestationError> {
+    match usage.cost_microusd {
+        Some(amount)
+            if cost.availability == ToolHostProbeCostAvailability::Reported
+                && cost.currency.as_deref() == Some("USD")
+                && cost.amount_microusd == Some(amount) =>
+        {
+            Ok(())
+        }
+        None if cost.availability == ToolHostProbeCostAvailability::Unavailable
+            && cost.currency.is_none()
+            && cost.amount_microusd.is_none() =>
+        {
+            Ok(())
+        }
+        _ => Err(failure_invalid("cost availability")),
+    }
+}
+
+fn failure_record_digest(
+    record: &StoredToolHostProbeFailureRecord,
+) -> Result<String, serde_json::Error> {
+    let mut unsigned = record.clone();
+    unsigned.record_digest.clear();
+    Ok(digest_bytes(&canonical_json(&unsigned)?))
+}
+
+fn refuse_failure_attestation_conflict(
+    probe_directory: &Path,
+) -> Result<(), ToolHostProbeAttestationError> {
+    let exists = |path: &Path| -> Result<bool, std::io::Error> {
+        match fs::symlink_metadata(path) {
+            Ok(_) => Ok(true),
+            Err(error) if error.kind() == ErrorKind::NotFound => Ok(false),
+            Err(error) => Err(error),
+        }
+    };
+    if exists(&probe_directory.join(FAILURE_FILE))?
+        && exists(&probe_directory.join(ATTESTATION_REFERENCE_FILE))?
+    {
+        return Err(ToolHostProbeAttestationError::FailureAttestationConflict);
+    }
+    Ok(())
 }
 
 fn validate_controller_request(
@@ -1042,10 +1745,76 @@ fn validate_trace(
             return Err(trace_mismatch(field));
         }
     }
+    validate_trace_failure_evidence(trace)?;
     validate_usage_and_cost(&trace.usage, &trace.cost, &request.resource_reservation)?;
     validate_tool_event_digests(trace, material)?;
     if !is_sha256(&trace.event_digest) {
         return Err(trace_mismatch("event_digest"));
+    }
+    Ok(())
+}
+
+fn validate_trace_failure_evidence(
+    trace: &ToolHostProbeTrace,
+) -> Result<(), ToolHostProbeAttestationError> {
+    let evidence = &trace.failure_evidence;
+    validate_failure_evidence(evidence).map_err(|_| trace_mismatch("failure_evidence"))?;
+    for (field, matches) in [
+        (
+            "failure_evidence.phase",
+            evidence.phase == ToolHostProbeFailurePhase::McpTransport,
+        ),
+        (
+            "failure_evidence.runtime_started",
+            evidence.stages.runtime_started == Some(true),
+        ),
+        (
+            "failure_evidence.mcp_call",
+            evidence.stages.mcp_call == Some(true),
+        ),
+        (
+            "failure_evidence.mcp_result",
+            evidence.stages.mcp_result == Some(true),
+        ),
+        (
+            "failure_evidence.controller_readback",
+            evidence.stages.controller_readback.is_none(),
+        ),
+        (
+            "failure_evidence.attestation",
+            evidence.stages.attestation_written.is_none()
+                && evidence.stages.handle_written.is_none(),
+        ),
+        (
+            "failure_evidence.runtime_failure_kind",
+            evidence.runtime_failure_kind.is_none(),
+        ),
+        (
+            "failure_evidence.last_event_type",
+            evidence.last_event_type.as_deref() == Some("completed"),
+        ),
+        (
+            "failure_evidence.last_event_sequence",
+            evidence
+                .last_event_sequence
+                .is_some_and(|sequence| sequence > trace.tool_event_digests[1].sequence),
+        ),
+        (
+            "failure_evidence.usage",
+            evidence.usage.as_ref() == Some(&trace.usage),
+        ),
+        (
+            "failure_evidence.cost",
+            evidence.cost.as_ref() == Some(&trace.cost),
+        ),
+        (
+            "failure_evidence.diagnostic",
+            evidence.codex_diagnostic.is_none() && evidence.mcp_diagnostic.is_none(),
+        ),
+    ] {
+        if !matches {
+            return Err(trace_mismatch(field));
+        }
     }
     Ok(())
 }
@@ -1337,7 +2106,10 @@ fn validate_reservation(
         (
             "probe_transport_digest",
             reservation.probe_transport_digest
-                == probe_transport_digest(&reservation.expected_transport),
+                == probe_transport_digest(&reservation.expected_transport)
+                && reservation.probe_transport_digest
+                    == reservation.expected_runtime.probe_transport_digest
+                && reservation.expected_runtime.probe_transport == reservation.expected_transport,
         ),
     ] {
         if !matches {
@@ -1352,13 +2124,22 @@ fn validate_reservation(
     .map_err(|_| reservation_invalid("resource reservation"))?;
     validate_probe_transport_identity(&reservation.expected_transport, workspace)
         .map_err(|_| reservation_invalid("expected transport"))?;
+    validate_expected_transport(
+        &reservation.expected_runtime,
+        &reservation.expected_transport,
+        workspace,
+    )
+    .map_err(|_| reservation_invalid("expected runtime"))?;
     let expected_replay_key = replay_key(
         store_identity,
         run_id,
         &reservation.admission_manifest_digest,
         &material,
         &reservation.nonce_digest,
-        &reservation.expected_transport,
+        ExpectedProbeBinding {
+            runtime: &reservation.expected_runtime,
+            transport: &reservation.expected_transport,
+        },
         &reservation.resource_reservation,
     )?;
     if reservation.replay_key != expected_replay_key {
@@ -1468,7 +2249,11 @@ fn validate_loaded_attestation(
         ),
         (
             "runtime",
-            runtime_compatibility_matches(&attestation.runtime, &attestation.trace.runtime),
+            runtime_compatibility_matches(&attestation.runtime, &attestation.trace.runtime)
+                && runtime_compatibility_matches(
+                    &reservation.expected_runtime,
+                    &attestation.runtime,
+                ),
         ),
         (
             "runtime_cli_version",
@@ -1583,10 +2368,10 @@ fn replay_key(
     admission_manifest_digest: &str,
     material: &ProbeMaterial,
     nonce_digest: &str,
-    expected_transport: &ProbeTransportIdentity,
+    expected: ExpectedProbeBinding<'_>,
     resource_reservation: &ToolHostProbeResourceVector,
 ) -> Result<String, serde_json::Error> {
-    let probe_transport_digest = probe_transport_digest(expected_transport);
+    let probe_transport_digest = probe_transport_digest(expected.transport);
     Ok(digest_bytes(&canonical_json(&ReplayKeyMaterial {
         schema_version: ATTESTED_TOOL_HOST_PROBE_SCHEMA_VERSION,
         store_identity,
@@ -1596,7 +2381,8 @@ fn replay_key(
         invocation_id: &material.invocation_id,
         nonce_digest,
         relative_path: &material.relative_path,
-        expected_transport,
+        expected_runtime: expected.runtime,
+        expected_transport: expected.transport,
         probe_transport_digest: &probe_transport_digest,
         resource_reservation,
     })?))
@@ -1635,6 +2421,37 @@ fn write_new_synced(path: &Path, bytes: &[u8]) -> Result<(), std::io::Error> {
     file.flush()?;
     file.sync_all()?;
     File::open(parent)?.sync_all()?;
+    Ok(())
+}
+
+fn write_new_failure_synced(path: &Path, bytes: &[u8]) -> Result<(), std::io::Error> {
+    let parent = path
+        .parent()
+        .ok_or_else(|| std::io::Error::new(ErrorKind::InvalidInput, "record path has no parent"))?;
+    fs::create_dir_all(parent)?;
+    #[cfg(test)]
+    FAILURE_DURABILITY_STAGES.with(|stages| stages.set(0));
+    let mut file = OpenOptions::new().create_new(true).write(true).open(path)?;
+    #[cfg(test)]
+    FAILURE_DURABILITY_STAGES.with(|stages| stages.set(stages.get() | 0b001));
+    file.write_all(bytes)?;
+    file.flush()?;
+    sync_failure_file(&file)?;
+    sync_failure_parent(parent)?;
+    Ok(())
+}
+
+fn sync_failure_file(file: &File) -> Result<(), std::io::Error> {
+    file.sync_all()?;
+    #[cfg(test)]
+    FAILURE_DURABILITY_STAGES.with(|stages| stages.set(stages.get() | 0b010));
+    Ok(())
+}
+
+fn sync_failure_parent(parent: &Path) -> Result<(), std::io::Error> {
+    File::open(parent)?.sync_all()?;
+    #[cfg(test)]
+    FAILURE_DURABILITY_STAGES.with(|stages| stages.set(stages.get() | 0b100));
     Ok(())
 }
 
@@ -1678,6 +2495,12 @@ fn reservation_invalid(detail: impl Into<String>) -> ToolHostProbeAttestationErr
     }
 }
 
+fn failure_invalid(detail: impl Into<String>) -> ToolHostProbeAttestationError {
+    ToolHostProbeAttestationError::FailureInvalid {
+        detail: detail.into(),
+    }
+}
+
 fn reference_invalid(detail: impl Into<String>) -> ToolHostProbeAttestationError {
     ToolHostProbeAttestationError::AttestationReferenceInvalid {
         detail: detail.into(),
@@ -1697,7 +2520,10 @@ mod tests {
     use std::sync::atomic::{AtomicUsize, Ordering};
     use tempfile::{TempDir, tempdir};
     use ymp_domain::Budget;
-    use ymp_runtime_api::{RuntimeKind, ToolHostProbeEffect, ToolHostProbeToolEventDigest};
+    use ymp_runtime_api::{
+        DiagnosticSummary, InFlightExcess, RuntimeFailureKind, RuntimeKind, ToolHostProbeEffect,
+        ToolHostProbeToolEventDigest,
+    };
 
     const DEADLINE_MS: u64 = 1_000;
 
@@ -1866,6 +2692,25 @@ mod tests {
                 },
             ],
             event_digest: "b".repeat(64),
+            failure_evidence: ToolHostProbeFailureEvidence {
+                phase: ToolHostProbeFailurePhase::McpTransport,
+                stages: ToolHostProbeFailureStages {
+                    runtime_started: Some(true),
+                    mcp_call: Some(true),
+                    mcp_result: Some(true),
+                    ..ToolHostProbeFailureStages::default()
+                },
+                last_event_id: Some(format!("{}.event-4", request.invocation_id)),
+                last_event_sequence: Some(4),
+                last_event_type: Some("completed".to_owned()),
+                usage: Some(complete_usage()),
+                cost: Some(ToolHostProbeCost {
+                    availability: ToolHostProbeCostAvailability::Unavailable,
+                    currency: None,
+                    amount_microusd: None,
+                }),
+                ..ToolHostProbeFailureEvidence::default()
+            },
             terminal: ToolHostProbeTerminal::Completed,
             trust: ToolHostProbeTrust::UntrustedRuntimeTrace,
         }
@@ -1905,6 +2750,113 @@ mod tests {
                 .exists(),
             "failed probe persisted a success reference"
         );
+    }
+
+    fn assert_one_failure_record(root: &TempDir, probe_id: &str) {
+        let directory = probe_directory(root, probe_id);
+        assert!(directory.join(RESERVATION_FILE).is_file());
+        assert!(directory.join(FAILURE_FILE).is_file());
+        assert_no_attestation(root, probe_id);
+        let failures = fs::read_dir(&directory)
+            .expect("probe directory")
+            .filter_map(Result::ok)
+            .filter(|entry| entry.file_name() == FAILURE_FILE)
+            .count();
+        assert_eq!(failures, 1);
+    }
+
+    fn terminal_failure_evidence(
+        phase: ToolHostProbeFailurePhase,
+        provider_request_state: ProviderRequestState,
+        stages: ToolHostProbeFailureStages,
+        sequence: u64,
+    ) -> ToolHostProbeFailureEvidence {
+        let mut usage = complete_usage();
+        if provider_request_state == ProviderRequestState::TurnStartedUnconfirmed {
+            usage.in_flight_excess = InFlightExcess {
+                model_requests: 1,
+                ..InFlightExcess::default()
+            };
+        }
+        ToolHostProbeFailureEvidence {
+            phase,
+            provider_request_state,
+            stages,
+            runtime_failure_kind: Some(RuntimeFailureKind::ProcessExit),
+            last_event_id: Some(format!("invocation.event-{sequence}")),
+            last_event_sequence: Some(sequence),
+            last_event_type: Some("failed".to_owned()),
+            process_exit_code: Some(17),
+            duration_ms: Some(47),
+            usage: Some(usage),
+            cost: Some(ToolHostProbeCost {
+                availability: ToolHostProbeCostAvailability::Unavailable,
+                currency: None,
+                amount_microusd: None,
+            }),
+            codex_diagnostic: Some(DiagnosticSummary::from_bytes(
+                b"raw stderr prompt output credential",
+                true,
+            )),
+            ..ToolHostProbeFailureEvidence::default()
+        }
+    }
+
+    fn persist_terminal_failure(application: &mut Application, material: &ProbeMaterial) {
+        let evidence = terminal_failure_evidence(
+            ToolHostProbeFailurePhase::RuntimeProcess,
+            ProviderRequestState::NotStarted,
+            ToolHostProbeFailureStages {
+                process_spawned: Some(true),
+                runtime_started: Some(true),
+                turn_started: Some(false),
+                cleanup_completed: Some(true),
+                ..ToolHostProbeFailureStages::default()
+            },
+            1,
+        );
+        let result = execute_prepared(application, material.clone(), move |_, _| {
+            Err(ToolHostProbeError::RuntimeFailed {
+                detail: "raw runtime failure".to_owned(),
+            }
+            .with_failure_evidence(evidence))
+        });
+        assert!(matches!(
+            result,
+            Err(ToolHostProbeAttestationError::Runtime(
+                ToolHostProbeError::RuntimeFailed { .. }
+            ))
+        ));
+    }
+
+    fn rewrite_failure(
+        root: &TempDir,
+        probe_id: &str,
+        mutate: impl FnOnce(&mut StoredToolHostProbeFailureRecord),
+    ) {
+        let path = probe_directory(root, probe_id).join(FAILURE_FILE);
+        let mut stored: StoredToolHostProbeFailureRecord =
+            decode_canonical(&fs::read(&path).expect("failure bytes")).expect("stored failure");
+        mutate(&mut stored);
+        stored.record_digest = failure_record_digest(&stored).expect("mutated record digest");
+        fs::write(
+            &path,
+            canonical_json(&stored).expect("mutated failure bytes"),
+        )
+        .expect("replace failure fixture");
+    }
+
+    fn copy_directory(source: &Path, destination: &Path) {
+        fs::create_dir_all(destination).expect("copy destination");
+        for entry in fs::read_dir(source).expect("copy source") {
+            let entry = entry.expect("copy entry");
+            let target = destination.join(entry.file_name());
+            if entry.file_type().expect("copy file type").is_dir() {
+                copy_directory(&entry.path(), &target);
+            } else {
+                fs::copy(entry.path(), target).expect("copy file");
+            }
+        }
     }
 
     #[test]
@@ -2191,6 +3143,302 @@ mod tests {
     }
 
     #[test]
+    fn every_runtime_provider_and_mcp_stage_writes_one_sanitized_failure_record() {
+        let root = tempdir().expect("temporary root");
+        let mut application = create_application(&root);
+        let cases = [
+            (
+                '0',
+                ToolHostProbeFailureEvidence {
+                    phase: ToolHostProbeFailurePhase::BeforeProcessSpawn,
+                    provider_request_state: ProviderRequestState::NotStarted,
+                    stages: ToolHostProbeFailureStages {
+                        process_spawned: Some(false),
+                        runtime_started: Some(false),
+                        turn_started: Some(false),
+                        ..ToolHostProbeFailureStages::default()
+                    },
+                    ..ToolHostProbeFailureEvidence::default()
+                },
+            ),
+            (
+                '1',
+                terminal_failure_evidence(
+                    ToolHostProbeFailurePhase::RuntimeProcess,
+                    ProviderRequestState::NotStarted,
+                    ToolHostProbeFailureStages {
+                        process_spawned: Some(true),
+                        runtime_started: Some(true),
+                        turn_started: Some(false),
+                        cleanup_completed: Some(true),
+                        ..ToolHostProbeFailureStages::default()
+                    },
+                    1,
+                ),
+            ),
+            (
+                '2',
+                terminal_failure_evidence(
+                    ToolHostProbeFailurePhase::ProviderRequest,
+                    ProviderRequestState::TurnStartedUnconfirmed,
+                    ToolHostProbeFailureStages {
+                        process_spawned: Some(true),
+                        runtime_started: Some(true),
+                        turn_started: Some(true),
+                        provider_response: Some(false),
+                        provider_typed_failure: Some(false),
+                        cleanup_completed: Some(true),
+                        ..ToolHostProbeFailureStages::default()
+                    },
+                    2,
+                ),
+            ),
+            (
+                '3',
+                terminal_failure_evidence(
+                    ToolHostProbeFailurePhase::ProviderRequest,
+                    ProviderRequestState::ProviderResponded,
+                    ToolHostProbeFailureStages {
+                        process_spawned: Some(true),
+                        runtime_started: Some(true),
+                        turn_started: Some(true),
+                        provider_response: Some(true),
+                        provider_typed_failure: Some(false),
+                        cleanup_completed: Some(true),
+                        ..ToolHostProbeFailureStages::default()
+                    },
+                    3,
+                ),
+            ),
+            (
+                '4',
+                terminal_failure_evidence(
+                    ToolHostProbeFailurePhase::ProviderRequest,
+                    ProviderRequestState::ProviderResponded,
+                    ToolHostProbeFailureStages {
+                        process_spawned: Some(true),
+                        runtime_started: Some(true),
+                        turn_started: Some(true),
+                        provider_response: Some(false),
+                        provider_typed_failure: Some(true),
+                        cleanup_completed: Some(true),
+                        ..ToolHostProbeFailureStages::default()
+                    },
+                    4,
+                ),
+            ),
+            (
+                '5',
+                terminal_failure_evidence(
+                    ToolHostProbeFailurePhase::McpTransport,
+                    ProviderRequestState::ProviderResponded,
+                    ToolHostProbeFailureStages {
+                        process_spawned: Some(true),
+                        runtime_started: Some(true),
+                        turn_started: Some(true),
+                        provider_response: Some(true),
+                        provider_typed_failure: Some(false),
+                        mcp_call: Some(false),
+                        cleanup_completed: Some(true),
+                        ..ToolHostProbeFailureStages::default()
+                    },
+                    5,
+                ),
+            ),
+            (
+                '6',
+                terminal_failure_evidence(
+                    ToolHostProbeFailurePhase::McpTransport,
+                    ProviderRequestState::ProviderResponded,
+                    ToolHostProbeFailureStages {
+                        process_spawned: Some(true),
+                        runtime_started: Some(true),
+                        turn_started: Some(true),
+                        provider_response: Some(true),
+                        provider_typed_failure: Some(false),
+                        mcp_call: Some(true),
+                        mcp_result: Some(false),
+                        cleanup_completed: Some(true),
+                        ..ToolHostProbeFailureStages::default()
+                    },
+                    6,
+                ),
+            ),
+            ('7', {
+                let mut evidence = terminal_failure_evidence(
+                    ToolHostProbeFailurePhase::McpTransport,
+                    ProviderRequestState::ProviderResponded,
+                    ToolHostProbeFailureStages {
+                        process_spawned: Some(true),
+                        runtime_started: Some(true),
+                        turn_started: Some(true),
+                        provider_response: Some(true),
+                        provider_typed_failure: Some(false),
+                        mcp_call: Some(true),
+                        mcp_result: Some(true),
+                        cleanup_completed: Some(true),
+                        ..ToolHostProbeFailureStages::default()
+                    },
+                    7,
+                );
+                evidence.mcp_diagnostic = Some(DiagnosticSummary::from_bytes(
+                    b"raw MCP result must not persist",
+                    false,
+                ));
+                evidence
+            }),
+        ];
+
+        for (suffix, evidence) in cases {
+            let material = material(suffix);
+            let mut expected = evidence.clone();
+            expected.stages.controller_readback = Some(false);
+            expected.stages.attestation_written = Some(false);
+            expected.stages.handle_written = Some(false);
+            let result = execute_prepared(&mut application, material.clone(), move |_, _| {
+                Err(ToolHostProbeError::RuntimeFailed {
+                    detail: "raw stderr prompt output credential".to_owned(),
+                }
+                .with_failure_evidence(evidence))
+            });
+            assert!(matches!(
+                result,
+                Err(ToolHostProbeAttestationError::Runtime(
+                    ToolHostProbeError::RuntimeFailed { .. }
+                ))
+            ));
+            assert_one_failure_record(&root, &material.probe_id);
+            FAILURE_DURABILITY_STAGES.with(|stages| assert_eq!(stages.get(), 0b111));
+
+            let failure = application
+                .tool_host_probe_failure(&material.probe_id)
+                .expect("verified failure reload");
+            assert_eq!(failure.evidence(), &expected);
+            assert_eq!(failure.probe_id(), material.probe_id);
+            assert_eq!(failure.invocation_id(), material.invocation_id);
+            assert_eq!(failure.record_digest().len(), 64);
+            assert_eq!(
+                failure.probe_transport_digest(),
+                probe_transport_digest(failure.probe_transport())
+            );
+            if suffix == '0' {
+                assert_eq!(
+                    failure.evidence().provider_request_state,
+                    ProviderRequestState::NotStarted
+                );
+                assert_eq!(failure.evidence().usage, None);
+                assert_eq!(failure.evidence().cost, None);
+                assert_eq!(failure.evidence().last_event_id, None);
+                assert_eq!(failure.evidence().process_exit_code, None);
+            }
+            if suffix == '2' {
+                assert_eq!(
+                    failure
+                        .evidence()
+                        .usage
+                        .as_ref()
+                        .expect("turn usage")
+                        .in_flight_excess
+                        .model_requests,
+                    1
+                );
+            }
+            let bytes = fs::read(probe_directory(&root, &material.probe_id).join(FAILURE_FILE))
+                .expect("failure bytes");
+            let text = String::from_utf8(bytes).expect("failure UTF-8");
+            for forbidden in [
+                "raw stderr",
+                "raw MCP result",
+                "prompt output",
+                "credential",
+                material.nonce.as_str(),
+            ] {
+                assert!(!text.contains(forbidden), "failure exposed {forbidden}");
+            }
+
+            let replay = execute_prepared(&mut application, material.clone(), |_, _| {
+                panic!("spent failed reservation executed again")
+            });
+            assert!(matches!(
+                replay,
+                Err(ToolHostProbeAttestationError::ReservationSpent)
+            ));
+        }
+    }
+
+    #[test]
+    fn trace_readback_and_attestation_failures_are_durably_distinct() {
+        let root = tempdir().expect("temporary root");
+        let mut application = create_application(&root);
+
+        let trace_material = material('8');
+        let trace_result =
+            execute_prepared(&mut application, trace_material.clone(), |_, request| {
+                let mut trace = successful_trace(&request);
+                trace.runtime.route = "mutated-route".to_owned();
+                Ok(trace)
+            });
+        assert!(matches!(
+            trace_result,
+            Err(ToolHostProbeAttestationError::TraceMismatch { field: "runtime" })
+        ));
+
+        let readback_material = material('9');
+        let readback_result =
+            execute_prepared(&mut application, readback_material.clone(), |_, request| {
+                Ok(successful_trace(&request))
+            });
+        assert!(matches!(
+            readback_result,
+            Err(ToolHostProbeAttestationError::DestinationMissing)
+        ));
+
+        let attestation_material = material('a');
+        INJECT_ATTESTATION_WRITE_FAILURE.with(|flag| flag.set(true));
+        let attestation_result = execute_prepared(
+            &mut application,
+            attestation_material.clone(),
+            write_nonce_and_trace,
+        );
+        assert!(matches!(
+            attestation_result,
+            Err(ToolHostProbeAttestationError::Io(_))
+        ));
+
+        for (material, phase, readback) in [
+            (
+                trace_material,
+                ToolHostProbeFailurePhase::ControllerTraceValidation,
+                Some(false),
+            ),
+            (
+                readback_material,
+                ToolHostProbeFailurePhase::ControllerReadback,
+                Some(false),
+            ),
+            (
+                attestation_material,
+                ToolHostProbeFailurePhase::AttestationPersistence,
+                Some(true),
+            ),
+        ] {
+            assert_one_failure_record(&root, &material.probe_id);
+            let failure = application
+                .tool_host_probe_failure(&material.probe_id)
+                .expect("controller failure reload");
+            assert_eq!(failure.evidence().phase, phase);
+            assert_eq!(failure.evidence().stages.controller_readback, readback);
+            assert_eq!(failure.evidence().stages.handle_written, Some(false));
+            assert_eq!(failure.evidence().usage, Some(complete_usage()));
+            assert_eq!(
+                failure.evidence().last_event_type.as_deref(),
+                Some("completed")
+            );
+        }
+        FAILURE_DURABILITY_STAGES.with(|stages| assert_eq!(stages.get(), 0b111));
+    }
+
+    #[test]
     fn controller_readback_and_workspace_effect_check_reject_a_false_green_trace() {
         let root = tempdir().expect("temporary root");
         let mut application = create_application(&root);
@@ -2246,6 +3494,7 @@ mod tests {
             Digest,
             Terminal,
             ForbiddenEffect,
+            Evidence,
         }
         for (suffix, mutation) in [
             ('0', Mutation::MissingFile),
@@ -2257,6 +3506,7 @@ mod tests {
             ('6', Mutation::Digest),
             ('7', Mutation::Terminal),
             ('8', Mutation::ForbiddenEffect),
+            ('9', Mutation::Evidence),
         ]
         .into_iter()
         {
@@ -2297,6 +3547,12 @@ mod tests {
                                 trace.resource_reservation.max_input_tokens + 1;
                         }
                         Mutation::Digest => trace.output_digest = "c".repeat(63),
+                        Mutation::Evidence => {
+                            trace.failure_evidence.provider_request_state =
+                                ProviderRequestState::ProviderResponded;
+                            trace.failure_evidence.stages.provider_response = None;
+                            trace.failure_evidence.stages.provider_typed_failure = None;
+                        }
                         Mutation::Terminal | Mutation::ForbiddenEffect => unreachable!(),
                     }
                     Ok(trace)
@@ -2309,8 +3565,114 @@ mod tests {
                     .is_file(),
                 "mutation {suffix} failed before spending its start reservation"
             );
+            assert!(
+                probe_directory(&root, &material.probe_id)
+                    .join(FAILURE_FILE)
+                    .is_file(),
+                "mutation {suffix} did not persist failure evidence"
+            );
+            application
+                .tool_host_probe_failure(&material.probe_id)
+                .expect("mutated trace has reloadable sanitized failure");
             assert_no_attestation(&root, &material.probe_id);
         }
+    }
+
+    #[test]
+    fn failure_recovery_rejects_missing_corrupt_mutated_replayed_and_conflicting_records() {
+        enum Mutation {
+            Missing,
+            Corrupt,
+            MissingUsage,
+            UnknownPhase,
+            ReplayKey,
+        }
+        for (index, mutation) in [
+            Mutation::Missing,
+            Mutation::Corrupt,
+            Mutation::MissingUsage,
+            Mutation::UnknownPhase,
+            Mutation::ReplayKey,
+        ]
+        .into_iter()
+        .enumerate()
+        {
+            let root = tempdir().expect("temporary root");
+            let mut application = create_application(&root);
+            let suffix = char::from(b'b' + u8::try_from(index).expect("bounded index"));
+            let material = material(suffix);
+            persist_terminal_failure(&mut application, &material);
+            let path = probe_directory(&root, &material.probe_id).join(FAILURE_FILE);
+            match mutation {
+                Mutation::Missing => fs::remove_file(path).expect("remove failure"),
+                Mutation::Corrupt => fs::write(path, b"not-json").expect("corrupt failure"),
+                Mutation::MissingUsage => rewrite_failure(&root, &material.probe_id, |stored| {
+                    stored.evidence.usage = None;
+                    stored.evidence.cost = None;
+                }),
+                Mutation::UnknownPhase => rewrite_failure(&root, &material.probe_id, |stored| {
+                    stored.evidence.phase = ToolHostProbeFailurePhase::Unknown;
+                }),
+                Mutation::ReplayKey => rewrite_failure(&root, &material.probe_id, |stored| {
+                    stored.replay_key = "f".repeat(64);
+                }),
+            }
+            assert!(
+                application
+                    .tool_host_probe_failure(&material.probe_id)
+                    .is_err(),
+                "failure mutation {index} reloaded"
+            );
+        }
+
+        let root = tempdir().expect("conflict root");
+        let mut application = create_application(&root);
+        let material = material('f');
+        persist_terminal_failure(&mut application, &material);
+        fs::write(
+            probe_directory(&root, &material.probe_id).join(ATTESTATION_REFERENCE_FILE),
+            b"fabricated simultaneous attestation",
+        )
+        .expect("conflicting attestation reference");
+        assert!(matches!(
+            application.tool_host_probe_failure(&material.probe_id),
+            Err(ToolHostProbeAttestationError::FailureAttestationConflict)
+        ));
+        let handle = AttestedToolHostProbeHandle {
+            schema_version: ATTESTED_TOOL_HOST_PROBE_SCHEMA_VERSION,
+            store_identity: configured_store_identity(&root.path().join("store"))
+                .expect("store identity"),
+            probe_id: material.probe_id,
+            record_digest: "0".repeat(64),
+        };
+        assert!(matches!(
+            application.attested_tool_host_probe(&handle),
+            Err(ToolHostProbeAttestationError::FailureAttestationConflict)
+        ));
+    }
+
+    #[test]
+    fn failure_record_copied_to_another_store_is_not_recoverable() {
+        let source = tempdir().expect("source root");
+        let mut application = create_application(&source);
+        let material = material('d');
+        persist_terminal_failure(&mut application, &material);
+        assert!(
+            application
+                .tool_host_probe_failure(&material.probe_id)
+                .is_ok()
+        );
+        drop(application);
+
+        let copied = tempdir().expect("copied root");
+        copy_directory(&source.path().join("store"), &copied.path().join("store"));
+        let copied_application =
+            Application::open(copied.path().join("store")).expect("open copied store bytes");
+        assert!(matches!(
+            copied_application.tool_host_probe_failure(&material.probe_id),
+            Err(ToolHostProbeAttestationError::ReservationInvalid { .. })
+                | Err(ToolHostProbeAttestationError::UnexpectedWorkspaceEffect)
+        ));
     }
 
     #[test]

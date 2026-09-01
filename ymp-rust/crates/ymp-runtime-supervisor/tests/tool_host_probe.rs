@@ -12,15 +12,16 @@ use ymp_application::{Application, ToolHostProbeAttestationError};
 use ymp_domain::Budget;
 use ymp_runtime_api::{
     CancellationToken, DiagnosticSummary, InvocationRequest, ModelSpend, ProbeReport,
-    ProbeTransportIdentity, Readiness, RuntimeDriver, RuntimeError, RuntimeEvent, RuntimeEventKind,
-    RuntimeFailureKind, RuntimeKind, RuntimeSession, TOOL_HOST_PROBE_ENVIRONMENT,
-    TOOL_HOST_PROBE_INTERNAL_ARGUMENTS, TOOL_HOST_PROBE_INTERNAL_SUBCOMMAND,
-    TOOL_HOST_PROBE_MCP_PROTOCOL_VERSION, TOOL_HOST_PROBE_SCHEMA_VERSION,
-    TOOL_HOST_PROBE_SERVER_VERSION, TOOL_HOST_PROBE_WORKSPACE_SERVER,
-    ToolHostProbeCostAvailability, ToolHostProbeEffect, ToolHostProbeError,
+    ProbeTransportIdentity, ProviderRequestState, Readiness, RuntimeDriver, RuntimeError,
+    RuntimeEvent, RuntimeEventKind, RuntimeFailureKind, RuntimeKind, RuntimeSession,
+    TOOL_HOST_PROBE_ENVIRONMENT, TOOL_HOST_PROBE_INTERNAL_ARGUMENTS,
+    TOOL_HOST_PROBE_INTERNAL_SUBCOMMAND, TOOL_HOST_PROBE_MCP_PROTOCOL_VERSION,
+    TOOL_HOST_PROBE_SCHEMA_VERSION, TOOL_HOST_PROBE_SERVER_VERSION,
+    TOOL_HOST_PROBE_WORKSPACE_SERVER, ToolHostProbeCostAvailability, ToolHostProbeEffect,
+    ToolHostProbeError, ToolHostProbeFailureEvidence, ToolHostProbeFailurePhase,
     ToolHostProbeInvocation, ToolHostProbeRequest, ToolHostProbeResourceVector,
     ToolHostProbeRuntimeIdentity, ToolHostProbeTerminalFailure, ToolHostProbeTool,
-    ToolHostProbeTrust, Usage, evidence_digest, probe_transport_digest,
+    ToolHostProbeTrace, ToolHostProbeTrust, Usage, evidence_digest, probe_transport_digest,
     tool_host_probe_tool_schema_digest,
 };
 use ymp_runtime_codex::{PINNED_CODEX_PROMPT_POLICY, codex_compatibility_contract_digest};
@@ -106,6 +107,17 @@ fn request(executable: &Path) -> ToolHostProbeRequest {
         expected_runtime: identity(executable),
         cancellation: CancellationToken::default(),
     }
+}
+
+fn failure_parts(
+    result: Result<ToolHostProbeTrace, ToolHostProbeError>,
+) -> (ToolHostProbeError, ToolHostProbeFailureEvidence) {
+    let error = result.expect_err("probe fixture must fail");
+    let (original, evidence) = error.into_original_and_evidence();
+    (
+        original,
+        evidence.expect("supervisor failure must carry probe evidence"),
+    )
 }
 
 fn complete_usage() -> Usage {
@@ -420,6 +432,7 @@ impl RuntimeDriver for ScriptedDriver {
             usage,
             next_error: matches!(self.scenario, Scenario::RustError)
                 .then(|| "fixture next_event Rust error".to_owned()),
+            probe_evidence: None,
         }))
     }
 }
@@ -428,12 +441,14 @@ struct ScriptedSession {
     events: VecDeque<RuntimeEvent>,
     usage: Usage,
     next_error: Option<String>,
+    probe_evidence: Option<ToolHostProbeFailureEvidence>,
 }
 
 struct CompatibleCodexDriver {
     executable: PathBuf,
     version: String,
     starts: Arc<AtomicUsize>,
+    session_evidence: Option<ToolHostProbeFailureEvidence>,
 }
 
 impl RuntimeDriver for CompatibleCodexDriver {
@@ -476,6 +491,7 @@ impl RuntimeDriver for CompatibleCodexDriver {
             events: successful_events(&request, &usage),
             usage,
             next_error: None,
+            probe_evidence: self.session_evidence.clone(),
         }))
     }
 }
@@ -555,6 +571,10 @@ impl RuntimeSession for ScriptedSession {
     fn usage(&self) -> Usage {
         self.usage.clone()
     }
+
+    fn tool_host_probe_failure_evidence(&self) -> Option<ToolHostProbeFailureEvidence> {
+        self.probe_evidence.clone()
+    }
 }
 
 #[test]
@@ -568,19 +588,25 @@ fn malformed_paths_and_cancelled_requests_never_start_an_invocation() {
         let driver = ScriptedDriver::new(executable, Scenario::Success);
         let mut request = request(executable);
         request.workspace_path = path;
+        let (error, evidence) =
+            failure_parts(execute_tool_host_probe(&driver, &workspace, request));
+        assert_eq!(error, ToolHostProbeError::InvalidWorkspacePath);
         assert_eq!(
-            execute_tool_host_probe(&driver, &workspace, request),
-            Err(ToolHostProbeError::InvalidWorkspacePath)
+            evidence.phase,
+            ToolHostProbeFailurePhase::BeforeProcessSpawn
         );
+        assert_eq!(evidence.stages.process_spawned, Some(false));
         assert_eq!(driver.starts.load(Ordering::SeqCst), 0);
     }
 
     let driver = ScriptedDriver::new(executable, Scenario::Success);
     let cancelled = request(executable);
     cancelled.cancellation.cancel();
+    let (error, evidence) = failure_parts(execute_tool_host_probe(&driver, &workspace, cancelled));
+    assert_eq!(error, ToolHostProbeError::Cancelled);
     assert_eq!(
-        execute_tool_host_probe(&driver, &workspace, cancelled),
-        Err(ToolHostProbeError::Cancelled)
+        evidence.phase,
+        ToolHostProbeFailurePhase::BeforeProcessSpawn
     );
     assert_eq!(driver.starts.load(Ordering::SeqCst), 0);
 }
@@ -595,6 +621,21 @@ fn compatible_codex_is_reconstructed_without_version_equality_or_attestation_aut
         executable: executable.to_owned(),
         version: "codex-cli 9.7.3".to_owned(),
         starts: Arc::new(AtomicUsize::new(0)),
+        session_evidence: Some(ToolHostProbeFailureEvidence {
+            phase: ToolHostProbeFailurePhase::ProviderRequest,
+            provider_request_state: ProviderRequestState::ProviderResponded,
+            stages: ymp_runtime_api::ToolHostProbeFailureStages {
+                process_spawned: Some(true),
+                turn_started: Some(true),
+                provider_response: Some(true),
+                provider_typed_failure: Some(false),
+                cleanup_completed: Some(true),
+                ..ymp_runtime_api::ToolHostProbeFailureStages::default()
+            },
+            process_exit_code: Some(0),
+            duration_ms: Some(12),
+            ..ToolHostProbeFailureEvidence::default()
+        }),
     };
     let request = codex_request(executable, &workspace);
     assert_ne!(
@@ -607,6 +648,29 @@ fn compatible_codex_is_reconstructed_without_version_equality_or_attestation_aut
     assert_eq!(trace.runtime.cli_version, "codex-cli 9.7.3");
     assert_eq!(trace.runtime.runtime_kind, RuntimeKind::Codex);
     assert_eq!(trace.trust, ToolHostProbeTrust::UntrustedRuntimeTrace);
+    assert_eq!(
+        trace.failure_evidence.provider_request_state,
+        ProviderRequestState::ProviderResponded
+    );
+    assert_eq!(trace.failure_evidence.stages.process_spawned, Some(true));
+    assert_eq!(trace.failure_evidence.process_exit_code, Some(0));
+    assert_eq!(trace.failure_evidence.duration_ms, Some(12));
+    assert_eq!(
+        trace.failure_evidence.phase,
+        ToolHostProbeFailurePhase::McpTransport
+    );
+    assert_eq!(
+        trace.failure_evidence.provider_request_state,
+        ProviderRequestState::ProviderResponded
+    );
+    assert_eq!(trace.failure_evidence.stages.runtime_started, Some(true));
+    assert_eq!(trace.failure_evidence.stages.mcp_call, Some(true));
+    assert_eq!(trace.failure_evidence.stages.mcp_result, Some(true));
+    assert_eq!(
+        trace.failure_evidence.last_event_type.as_deref(),
+        Some("completed")
+    );
+    assert_eq!(trace.failure_evidence.usage.as_ref(), Some(&trace.usage));
     assert_eq!(driver.starts.load(Ordering::SeqCst), 1);
 }
 
@@ -626,6 +690,7 @@ fn incompatible_codex_contract_executable_and_transport_fail_before_start() {
             executable: executable.to_owned(),
             version: "codex-cli 0.151.0".to_owned(),
             starts: Arc::new(AtomicUsize::new(0)),
+            session_evidence: None,
         };
         let mut request = codex_request(executable, &workspace);
         match mutate {
@@ -641,9 +706,12 @@ fn incompatible_codex_contract_executable_and_transport_fail_before_start() {
             }
             _ => unreachable!(),
         }
+        let (error, evidence) =
+            failure_parts(execute_tool_host_probe(&driver, &workspace, request));
+        assert_eq!(error, ToolHostProbeError::RuntimeIdentityMismatch { field });
         assert_eq!(
-            execute_tool_host_probe(&driver, &workspace, request),
-            Err(ToolHostProbeError::RuntimeIdentityMismatch { field })
+            evidence.phase,
+            ToolHostProbeFailurePhase::BeforeProcessSpawn
         );
         assert_eq!(driver.starts.load(Ordering::SeqCst), 0);
     }
@@ -665,10 +733,9 @@ fn an_existing_symlink_cannot_move_the_probe_write_outside_the_workspace() {
     let mut request = request(executable);
     request.workspace_path = PathBuf::from("escape/nonce.txt");
 
-    assert_eq!(
-        execute_tool_host_probe(&driver, &workspace, request),
-        Err(ToolHostProbeError::InvalidWorkspacePath)
-    );
+    let (error, evidence) = failure_parts(execute_tool_host_probe(&driver, &workspace, request));
+    assert_eq!(error, ToolHostProbeError::InvalidWorkspacePath);
+    assert_eq!(evidence.stages.process_spawned, Some(false));
     assert_eq!(driver.starts.load(Ordering::SeqCst), 0);
     assert!(!outside.join("nonce.txt").exists());
 }
@@ -688,17 +755,20 @@ fn codex_workspace_root_substitution_after_measurement_fails_before_start() {
         executable: executable.to_owned(),
         version: "codex-cli 0.151.0".to_owned(),
         starts: Arc::new(AtomicUsize::new(0)),
+        session_evidence: None,
     };
     let request = codex_request(executable, &workspace);
     fs::remove_dir(&workspace).expect("remove measured workspace");
     symlink(&substitute, &workspace).expect("substitute workspace root");
 
+    let (error, evidence) = failure_parts(execute_tool_host_probe(&driver, &workspace, request));
     assert_eq!(
-        execute_tool_host_probe(&driver, &workspace, request),
-        Err(ToolHostProbeError::RuntimeIdentityMismatch {
+        error,
+        ToolHostProbeError::RuntimeIdentityMismatch {
             field: "canonical_workspace_root_digest"
-        })
+        }
     );
+    assert_eq!(evidence.stages.process_spawned, Some(false));
     assert_eq!(driver.starts.load(Ordering::SeqCst), 0);
     assert!(!substitute.join("probe/nonce.txt").exists());
 }
@@ -761,8 +831,13 @@ fn malformed_terminal_tool_usage_and_output_return_no_trace() {
     ];
     for (scenario, expected) in cases {
         let driver = ScriptedDriver::new(executable, scenario);
-        let result = execute_tool_host_probe(&driver, &workspace, request(executable));
-        assert_eq!(result, Err(expected));
+        let (error, evidence) = failure_parts(execute_tool_host_probe(
+            &driver,
+            &workspace,
+            request(executable),
+        ));
+        assert_eq!(error, expected);
+        assert_ne!(evidence.phase, ToolHostProbeFailurePhase::Unknown);
     }
 }
 
@@ -789,11 +864,25 @@ fn terminal_failure_preserves_kind_usage_diagnostic_and_event_identity_without_a
             event_id: "invocation-fixture-1.event-2".to_owned(),
             sequence: 2,
         };
-        let error = execute_tool_host_probe(&driver, &workspace, request(executable))
-            .expect_err("terminal failure returns no successful trace");
+        let (error, evidence) = failure_parts(execute_tool_host_probe(
+            &driver,
+            &workspace,
+            request(executable),
+        ));
         assert_eq!(
             error,
             ToolHostProbeError::RuntimeTerminalFailed(Box::new(expected.clone()))
+        );
+        assert_eq!(
+            evidence.runtime_failure_kind,
+            Some(RuntimeFailureKind::ProcessExit)
+        );
+        assert_eq!(evidence.usage, Some(complete_usage()));
+        assert_eq!(evidence.last_event_sequence, Some(2));
+        assert_eq!(evidence.last_event_type.as_deref(), Some("failed"));
+        assert_eq!(
+            evidence.provider_request_state,
+            ProviderRequestState::Unknown
         );
         let serialized = serde_json::to_string(&expected).expect("serialize terminal failure");
         let display = error.to_string();
@@ -868,7 +957,27 @@ fn controller_reservation_retains_terminal_failure_but_creates_no_attestation() 
     assert_eq!(entries.len(), 1);
     let probe = entries[0].path();
     assert!(probe.join("reservation.json").is_file());
+    assert!(probe.join("failure.json").is_file());
     assert!(!probe.join("attestation.ref").exists());
+    let probe_id = probe
+        .file_name()
+        .and_then(|name| name.to_str())
+        .expect("UTF-8 probe id");
+    let record = application
+        .tool_host_probe_failure(probe_id)
+        .expect("verified durable failure");
+    assert_eq!(
+        record.evidence().runtime_failure_kind,
+        Some(RuntimeFailureKind::ProcessExit)
+    );
+    assert_eq!(record.evidence().usage, Some(complete_usage()));
+    assert_eq!(record.evidence().last_event_sequence, Some(2));
+    assert_eq!(
+        record.evidence().provider_request_state,
+        ProviderRequestState::Unknown
+    );
+    let failure_json = fs::read_to_string(probe.join("failure.json")).expect("failure JSON");
+    assert!(!failure_json.contains("bounded terminal diagnostic"));
     assert!(
         !application
             .attested_tool_host_probe_handle_export_path()
@@ -884,11 +993,20 @@ fn next_event_rust_error_without_terminal_event_keeps_the_legacy_runtime_failed_
     let executable = Path::new("/bin/sh");
     let driver = ScriptedDriver::new(executable, Scenario::RustError);
 
+    let (error, evidence) = failure_parts(execute_tool_host_probe(
+        &driver,
+        &workspace,
+        request(executable),
+    ));
     assert_eq!(
-        execute_tool_host_probe(&driver, &workspace, request(executable)),
-        Err(ToolHostProbeError::RuntimeFailed {
+        error,
+        ToolHostProbeError::RuntimeFailed {
             detail: "runtime emitted a malformed event: fixture next_event Rust error".to_owned(),
-        })
+        }
+    );
+    assert_eq!(
+        evidence.provider_request_state,
+        ProviderRequestState::Unknown
     );
     assert!(!root.path().join("runtime-evidence").exists());
 }
@@ -906,13 +1024,19 @@ fn board_task_recruitment_and_candidate_effects_are_typed_refusals() {
         ToolHostProbeEffect::Candidate,
     ] {
         let driver = ScriptedDriver::new(executable, Scenario::Forbidden(effect));
+        let (error, evidence) = failure_parts(execute_tool_host_probe(
+            &driver,
+            &workspace,
+            request(executable),
+        ));
         assert!(matches!(
-            execute_tool_host_probe(&driver, &workspace, request(executable)),
-            Err(ToolHostProbeError::ForbiddenEffect {
+            error,
+            ToolHostProbeError::ForbiddenEffect {
                 effect: found,
                 ..
-            }) if found == effect
+            } if found == effect
         ));
+        assert_eq!(evidence.phase, ToolHostProbeFailurePhase::McpTransport);
     }
 }
 
@@ -926,12 +1050,14 @@ fn separate_reservation_and_runtime_tuple_fail_before_success() {
     let driver = ScriptedDriver::new(executable, Scenario::Success);
     let mut arm_funded = request(executable);
     arm_funded.resource_reservation.candidate_actions = 1;
+    let (error, evidence) = failure_parts(execute_tool_host_probe(&driver, &workspace, arm_funded));
     assert_eq!(
-        execute_tool_host_probe(&driver, &workspace, arm_funded),
-        Err(ToolHostProbeError::InvalidReservation {
+        error,
+        ToolHostProbeError::InvalidReservation {
             field: "candidate_actions"
-        })
+        }
     );
+    assert_eq!(evidence.stages.process_spawned, Some(false));
     assert_eq!(driver.starts.load(Ordering::SeqCst), 0);
 
     let driver = ScriptedDriver::new(executable, Scenario::Success);
@@ -939,31 +1065,42 @@ fn separate_reservation_and_runtime_tuple_fail_before_success() {
     wrong_contract
         .expected_runtime
         .compatibility_contract_digest = "f".repeat(64);
+    let (error, _) = failure_parts(execute_tool_host_probe(&driver, &workspace, wrong_contract));
     assert_eq!(
-        execute_tool_host_probe(&driver, &workspace, wrong_contract),
-        Err(ToolHostProbeError::RuntimeIdentityMismatch {
+        error,
+        ToolHostProbeError::RuntimeIdentityMismatch {
             field: "compatibility_contract_digest"
-        })
+        }
     );
     assert_eq!(driver.starts.load(Ordering::SeqCst), 0);
 
     let driver = ScriptedDriver::new(executable, Scenario::Success);
     let mut wrong_route = request(executable);
     wrong_route.expected_runtime.route = "different-route".to_owned();
+    let (error, _) = failure_parts(execute_tool_host_probe(&driver, &workspace, wrong_route));
     assert_eq!(
-        execute_tool_host_probe(&driver, &workspace, wrong_route),
-        Err(ToolHostProbeError::RuntimeIdentityMismatch { field: "route" })
+        error,
+        ToolHostProbeError::RuntimeIdentityMismatch { field: "route" }
     );
     assert_eq!(driver.starts.load(Ordering::SeqCst), 0);
 
     let driver = ScriptedDriver::new(executable, Scenario::ReportedCost);
     let mut unreserved_cost = request(executable);
     unreserved_cost.resource_reservation.max_cost_microusd = None;
+    let (error, evidence) = failure_parts(execute_tool_host_probe(
+        &driver,
+        &workspace,
+        unreserved_cost,
+    ));
     assert_eq!(
-        execute_tool_host_probe(&driver, &workspace, unreserved_cost),
-        Err(ToolHostProbeError::ReservationExceeded {
+        error,
+        ToolHostProbeError::ReservationExceeded {
             field: "cost_microusd"
-        })
+        }
+    );
+    assert_eq!(
+        evidence.cost.as_ref().and_then(|cost| cost.amount_microusd),
+        Some(7)
     );
 }
 
@@ -997,11 +1134,16 @@ fn executable_replacement_after_identity_measurement_is_refused_before_start() {
     let request = request(&executable);
     fs::write(&executable, b"substituted runtime bytes").expect("substituted runtime");
 
+    let (error, evidence) = failure_parts(execute_tool_host_probe(&driver, &workspace, request));
     assert_eq!(
-        execute_tool_host_probe(&driver, &workspace, request),
-        Err(ToolHostProbeError::RuntimeIdentityMismatch {
+        error,
+        ToolHostProbeError::RuntimeIdentityMismatch {
             field: "executable_digest"
-        })
+        }
+    );
+    assert_eq!(
+        evidence.phase,
+        ToolHostProbeFailurePhase::BeforeProcessSpawn
     );
     assert_eq!(driver.starts.load(Ordering::SeqCst), 0);
 }
@@ -1231,6 +1373,22 @@ fn fake_process_walk_returns_only_an_untrusted_complete_trace() {
         ToolHostProbeCostAvailability::Unavailable
     );
     assert_eq!(trace.trust, ToolHostProbeTrust::UntrustedRuntimeTrace);
+    assert_eq!(
+        trace.failure_evidence.phase,
+        ToolHostProbeFailurePhase::McpTransport
+    );
+    assert_eq!(
+        trace.failure_evidence.provider_request_state,
+        ProviderRequestState::Unknown
+    );
+    assert_eq!(trace.failure_evidence.stages.runtime_started, Some(true));
+    assert_eq!(trace.failure_evidence.stages.mcp_call, Some(true));
+    assert_eq!(trace.failure_evidence.stages.mcp_result, Some(true));
+    assert_eq!(
+        trace.failure_evidence.last_event_type.as_deref(),
+        Some("completed")
+    );
+    assert_eq!(trace.failure_evidence.usage.as_ref(), Some(&trace.usage));
     assert_eq!(
         fs::read_to_string(workspace.join("probe/nonce.txt")).expect("runtime workspace write"),
         NONCE

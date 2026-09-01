@@ -731,6 +731,7 @@ pub struct LaunchDescriptor {
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
 pub struct DiagnosticSummary {
     pub digest: String,
     pub bytes: usize,
@@ -938,7 +939,7 @@ impl Usage {
     }
 }
 
-pub const TOOL_HOST_PROBE_SCHEMA_VERSION: u32 = 3;
+pub const TOOL_HOST_PROBE_SCHEMA_VERSION: u32 = 4;
 pub const TOOL_HOST_PROBE_WORKSPACE_SERVER: &str = "ymp.workspace";
 pub const TOOL_HOST_PROBE_MCP_PROTOCOL_VERSION: &str = "2025-11-25";
 pub const TOOL_HOST_PROBE_SERVER_VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -1139,6 +1140,10 @@ pub struct ToolHostProbeTrace {
     pub output_digest: String,
     pub tool_event_digests: [ToolHostProbeToolEventDigest; 2],
     pub event_digest: String,
+    /// Sanitized observations carried forward only so a later controller-side failure can retain
+    /// what the runtime and supervisor had already established. This remains untrusted trace data
+    /// and grants no attestation or admission authority.
+    pub failure_evidence: ToolHostProbeFailureEvidence,
     pub terminal: ToolHostProbeTerminal,
     pub trust: ToolHostProbeTrust,
 }
@@ -1221,6 +1226,32 @@ pub enum ToolHostProbeError {
     RuntimeFailed { detail: String },
     #[error("{0}")]
     RuntimeTerminalFailed(Box<ToolHostProbeTerminalFailure>),
+    #[error("{error}")]
+    FailureEvidence {
+        error: Box<ToolHostProbeError>,
+        evidence: Box<ToolHostProbeFailureEvidence>,
+    },
+}
+
+impl ToolHostProbeError {
+    /// Attaches probe-only sanitized observations while preserving the exact original error.
+    pub fn with_failure_evidence(self, evidence: ToolHostProbeFailureEvidence) -> Self {
+        if matches!(self, Self::FailureEvidence { .. }) {
+            return self;
+        }
+        Self::FailureEvidence {
+            error: Box::new(self),
+            evidence: Box::new(evidence),
+        }
+    }
+
+    /// Separates the original error from its observation carrier at the controller boundary.
+    pub fn into_original_and_evidence(self) -> (Self, Option<ToolHostProbeFailureEvidence>) {
+        match self {
+            Self::FailureEvidence { error, evidence } => (*error, Some(*evidence)),
+            error => (error, None),
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -1230,6 +1261,75 @@ pub enum RuntimeFailureKind {
     RuntimeReported,
     Protocol,
     OutputLimit,
+}
+
+/// The component boundary at which a tool-host probe stopped. Finer observations are retained in
+/// [`ToolHostProbeFailureStages`]; the phase never claims a cause that was not observed.
+#[derive(Clone, Copy, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ToolHostProbeFailurePhase {
+    BeforeProcessSpawn,
+    RuntimeProcess,
+    ProviderRequest,
+    McpTransport,
+    ControllerTraceValidation,
+    ControllerReadback,
+    AttestationPersistence,
+    Cleanup,
+    #[default]
+    Unknown,
+}
+
+/// What the Codex event stream directly established about the one provider request. Runtime
+/// process exit, elapsed time and common supervisor events cannot advance this state.
+#[derive(Clone, Copy, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ProviderRequestState {
+    NotStarted,
+    TurnStartedUnconfirmed,
+    ProviderResponded,
+    #[default]
+    Unknown,
+}
+
+/// Three-valued stage observations. `Some(true)` and `Some(false)` are direct positive and
+/// negative observations; `None` is serialized as `null` and means unknown.
+#[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct ToolHostProbeFailureStages {
+    pub process_spawned: Option<bool>,
+    pub runtime_started: Option<bool>,
+    pub turn_started: Option<bool>,
+    pub provider_response: Option<bool>,
+    pub provider_typed_failure: Option<bool>,
+    pub mcp_call: Option<bool>,
+    pub mcp_result: Option<bool>,
+    pub controller_readback: Option<bool>,
+    pub attestation_written: Option<bool>,
+    pub handle_written: Option<bool>,
+    pub cleanup_completed: Option<bool>,
+}
+
+/// Probe-specific, sanitized observations collected below the controller. Optional measurements
+/// are absent when the observing component did not establish them; zero is reserved for an
+/// observed zero value.
+#[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct ToolHostProbeFailureEvidence {
+    pub phase: ToolHostProbeFailurePhase,
+    pub provider_request_state: ProviderRequestState,
+    pub stages: ToolHostProbeFailureStages,
+    pub runtime_failure_kind: Option<RuntimeFailureKind>,
+    pub last_event_id: Option<String>,
+    pub last_event_sequence: Option<u64>,
+    pub last_event_type: Option<String>,
+    pub process_exit_code: Option<i32>,
+    pub process_signal: Option<i32>,
+    pub duration_ms: Option<u64>,
+    pub usage: Option<Usage>,
+    pub cost: Option<ToolHostProbeCost>,
+    pub codex_diagnostic: Option<DiagnosticSummary>,
+    pub mcp_diagnostic: Option<DiagnosticSummary>,
 }
 
 /// A terminal runtime failure observed as a complete structured event. Unlike
@@ -1344,6 +1444,9 @@ pub trait RuntimeSession: Send {
     fn usage(&self) -> Usage {
         Usage::default()
     }
+    fn tool_host_probe_failure_evidence(&self) -> Option<ToolHostProbeFailureEvidence> {
+        None
+    }
 }
 
 pub trait RuntimeDriver: Send + Sync {
@@ -1383,20 +1486,37 @@ pub trait RuntimeDriver: Send + Sync {
 #[cfg(test)]
 mod tool_host_probe_schema_tests {
     use super::{
-        DiagnosticSummary, InFlightExcess, ModelSpend, ProbeTransportIdentity, RuntimeFailureKind,
-        TOOL_HOST_PROBE_ENVIRONMENT, TOOL_HOST_PROBE_INTERNAL_ARGUMENTS,
-        TOOL_HOST_PROBE_INTERNAL_SUBCOMMAND, TOOL_HOST_PROBE_MCP_PROTOCOL_VERSION,
-        TOOL_HOST_PROBE_SCHEMA_VERSION, TOOL_HOST_PROBE_SERVER_VERSION,
-        TOOL_HOST_PROBE_TOOL_SCHEMA, TOOL_HOST_PROBE_WORKSPACE_SERVER, ToolHostProbeCost,
-        ToolHostProbeCostAvailability, ToolHostProbeError, ToolHostProbeRequest,
+        DiagnosticSummary, InFlightExcess, ModelSpend, ProbeTransportIdentity,
+        ProviderRequestState, RuntimeFailureKind, TOOL_HOST_PROBE_ENVIRONMENT,
+        TOOL_HOST_PROBE_INTERNAL_ARGUMENTS, TOOL_HOST_PROBE_INTERNAL_SUBCOMMAND,
+        TOOL_HOST_PROBE_MCP_PROTOCOL_VERSION, TOOL_HOST_PROBE_SCHEMA_VERSION,
+        TOOL_HOST_PROBE_SERVER_VERSION, TOOL_HOST_PROBE_TOOL_SCHEMA,
+        TOOL_HOST_PROBE_WORKSPACE_SERVER, ToolHostProbeCost, ToolHostProbeCostAvailability,
+        ToolHostProbeError, ToolHostProbeFailureEvidence, ToolHostProbeRequest,
         ToolHostProbeResourceVector, ToolHostProbeRuntimeIdentity, ToolHostProbeTerminal,
         ToolHostProbeTerminalFailure, ToolHostProbeTool, ToolHostProbeToolEventDigest,
         ToolHostProbeTrace, ToolHostProbeTrust, Usage, evidence_digest, probe_transport_digest,
         tool_host_probe_tool_schema_digest,
     };
-    use crate::{CancellationToken, RuntimeKind};
+    use crate::{CancellationToken, RuntimeError, RuntimeKind, RuntimeSession};
     use serde_json::Value;
     use std::path::PathBuf;
+
+    struct OrdinarySession;
+
+    impl RuntimeSession for OrdinarySession {
+        fn next_event(&mut self) -> Result<Option<crate::RuntimeEvent>, RuntimeError> {
+            Ok(None)
+        }
+
+        fn resume(&mut self, _input: String) -> Result<(), RuntimeError> {
+            Ok(())
+        }
+
+        fn interrupt(&mut self) -> Result<(), RuntimeError> {
+            Ok(())
+        }
+    }
 
     fn reservation() -> ToolHostProbeResourceVector {
         ToolHostProbeResourceVector {
@@ -1522,6 +1642,7 @@ mod tool_host_probe_schema_tests {
                 },
             ],
             event_digest: "f".repeat(64),
+            failure_evidence: ToolHostProbeFailureEvidence::default(),
             terminal: ToolHostProbeTerminal::Completed,
             trust: ToolHostProbeTrust::UntrustedRuntimeTrace,
         }
@@ -1562,6 +1683,65 @@ mod tool_host_probe_schema_tests {
                 "runtime identity accepted missing {field}"
             );
         }
+    }
+
+    #[test]
+    fn ordinary_runtime_sessions_inherit_no_probe_failure_evidence() {
+        assert!(OrdinarySession.tool_host_probe_failure_evidence().is_none());
+    }
+
+    #[test]
+    fn provider_request_state_has_exactly_the_four_failure_vocabulary_values() {
+        let values = [
+            ProviderRequestState::NotStarted,
+            ProviderRequestState::TurnStartedUnconfirmed,
+            ProviderRequestState::ProviderResponded,
+            ProviderRequestState::Unknown,
+        ]
+        .map(|state| serde_json::to_value(state).expect("provider state"));
+        assert_eq!(
+            values,
+            [
+                serde_json::json!("not_started"),
+                serde_json::json!("turn_started_unconfirmed"),
+                serde_json::json!("provider_responded"),
+                serde_json::json!("unknown"),
+            ]
+        );
+        assert!(serde_json::from_str::<ProviderRequestState>(r#""provider_failed""#).is_err());
+    }
+
+    #[test]
+    fn missing_probe_observations_serialize_as_unknown_or_null_not_zero() {
+        let value = serde_json::to_value(ToolHostProbeFailureEvidence::default())
+            .expect("default failure evidence");
+        assert_eq!(value["phase"], "unknown");
+        assert_eq!(value["provider_request_state"], "unknown");
+        for field in [
+            "runtime_failure_kind",
+            "last_event_id",
+            "last_event_sequence",
+            "last_event_type",
+            "process_exit_code",
+            "process_signal",
+            "duration_ms",
+            "usage",
+            "cost",
+            "codex_diagnostic",
+            "mcp_diagnostic",
+        ] {
+            assert!(value[field].is_null(), "{field} was not explicit null");
+        }
+        assert!(value["stages"]["process_spawned"].is_null());
+        assert!(value["stages"]["turn_started"].is_null());
+
+        let diagnostic = serde_json::to_value(DiagnosticSummary::from_bytes(b"secret", true))
+            .expect("diagnostic summary");
+        assert_eq!(diagnostic.as_object().expect("diagnostic object").len(), 3);
+        assert!(diagnostic.get("digest").is_some());
+        assert!(diagnostic.get("bytes").is_some());
+        assert!(diagnostic.get("truncated").is_some());
+        assert!(!diagnostic.to_string().contains("secret"));
     }
 
     #[test]
