@@ -11,7 +11,7 @@ relation: required
 depends_on: [W1-COR-03e.1]
 blocks: []
 created_at: 2026-09-01T12:16:00+08:00
-updated_at: 2026-09-01T21:48:42+08:00
+updated_at: 2026-09-01T21:55:00+08:00
 started_at: 2026-09-01T21:41:03+08:00
 accepted_at:
 candidate_commit:
@@ -56,6 +56,9 @@ order in the shared transcript without gaining board, object-store, or control a
       executable control, link, or inferred semantic label.
 - [ ] Publication, delivery, citation, revision, challenge, and causal intervention remain distinct;
       ordinary ordering or delivery is never labelled listening, influence, leadership, or value.
+- [ ] `operator_board_projection()` is treated as a full replaceable snapshot: repeated `refresh()`
+      with unchanged state produces the same message count, order and bytes, never duplicates. Board
+      messages order only by `message.sequence` and are not merged into journal causality.
 - [ ] One focused TUI scenario, strict `ymp-tui` Clippy, formatting, and `git diff --check` pass; a
       PNG is produced for the visually changed normal-size screen.
 
@@ -76,6 +79,8 @@ workspace and implement the original vertical slice.
   paths, or raw collaboration storage.
 - Untrusted text is escaped by the existing terminal text boundary and cannot create actions.
 - Visual ordering is provenance, not causation or ranking.
+- Board state is replaced from the latest owned snapshot, not appended as if it were an incremental
+  event page.
 
 ## Findings
 
