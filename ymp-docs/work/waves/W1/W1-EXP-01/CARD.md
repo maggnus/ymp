@@ -60,3 +60,4 @@ visible.
 - [W1-EXP-01c](tasks/W1-EXP-01c.md) — required
 - [W1-EXP-01d](tasks/W1-EXP-01d/TASK.md) — required
 - [W1-EXP-01e](tasks/W1-EXP-01e.md) — follow-up
+- [W1-EXP-01f](tasks/W1-EXP-01f.md) — follow_up

@@ -7,7 +7,7 @@ state: ready
 risk: critical
 maturity: RESEARCH
 relation: required
-depends_on: [W1-EVL-04e, W1-EXP-01e]
+depends_on: [W1-EVL-04e, W1-EXP-01e, W1-EXP-01f]
 blocks: [W1-EVL-04a, W1-EVL-04b]
 created_at: 2026-09-01T13:41:53+08:00
 updated_at: 2026-09-01T13:41:53+08:00

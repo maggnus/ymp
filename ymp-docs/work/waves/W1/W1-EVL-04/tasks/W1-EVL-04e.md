@@ -7,7 +7,7 @@ state: ready
 risk: critical
 maturity: OPERATIONALIZATION
 relation: required
-depends_on: [W1-EXP-01e, W1-COR-03z, W1-PRD-05j.1, W1-EVL-04h]
+depends_on: [W1-EXP-01e, W1-EXP-01f, W1-COR-03z, W1-PRD-05j.1, W1-EVL-04h]
 blocks: [W1-EVL-04f, W1-EVL-04a]
 created_at: 2026-09-01T13:41:52+08:00
 updated_at: 2026-09-01T14:28:10+08:00
