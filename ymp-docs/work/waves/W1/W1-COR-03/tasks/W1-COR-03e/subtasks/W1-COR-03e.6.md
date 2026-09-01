@@ -11,7 +11,7 @@ relation: required
 depends_on: []
 blocks: [W1-COR-03e.2]
 created_at: 2026-09-01T22:52:28+08:00
-updated_at: 2026-09-02T00:28:33+08:00
+updated_at: 2026-09-02T00:31:00+08:00
 started_at: 2026-09-01T22:52:28+08:00
 accepted_at:
 candidate_commit: https://github.com/maggnus/ymp/commit/817ab0637972a0d974dff56359c70fce353e269a
@@ -221,10 +221,11 @@ present the same bytes to the owner for explicit approval.
   external run/open path and receives the person's evaluation back through the conversation.
 - Independent R1 confirmed the complete 10-step journey, 10 user stories, source-bound GAP map and
   absence of required protocol duties; no outcome defect was found.
-- SCIENTIFIC CONFIRMED 38f098458bba84ebaed35245993bc37abae18ebaebf05c84f6865384f62c5f38 —
-  the standing curator's four exact corrections are present: consequence-bearing local application,
-  one blocking clarification at a time, single-executable scope limited to ymp delivery, and distinct
-  inert citation/revision facts. Result execution and human evaluation are explicitly outside ymp.
+- SCIENTIFIC CONFIRMED bb91b3879d6db257185e78d8c416b130a0b75202319f1667eff3ea663dc6f1ce —
+  the standing curator's exact corrections are present: consequence-bearing local application, one
+  blocking clarification at a time, single-executable scope limited to ymp delivery, and distinct
+  inert citation/revision facts that create no action, authority or capability. Result execution and
+  human evaluation are explicitly outside ymp.
 
 ## Review rounds
 
