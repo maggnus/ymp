@@ -3,25 +3,25 @@ id: W1-EVL-04p
 kind: task
 wave: W1
 card: W1-EVL-04
-state: active
+state: accepted
 risk: critical
 maturity: BUILD
 relation: required
 depends_on: [W1-EVL-04i, W1-EVL-04o]
 blocks: [W1-EVL-04q]
 created_at: 2026-09-01T18:19:05+08:00
-updated_at: 2026-09-01T18:58:42+08:00
+updated_at: 2026-09-01T19:34:21+08:00
 started_at: 2026-09-01T18:58:42+08:00
-accepted_at:
-candidate_commit:
-closure_commit:
-evidence:
-duration_minutes: 0
+accepted_at: 2026-09-01T19:34:21+08:00
+candidate_commit: https://github.com/maggnus/ymp/commit/d0a49e481aea9e8ad9f2cc15a8dc260d9300af24
+closure_commit: https://github.com/maggnus/ymp/commit/777dfd597c89f9de3f194e326a13d819bc193231
+evidence: ["[777dfd5](https://github.com/maggnus/ymp/commit/777dfd597c89f9de3f194e326a13d819bc193231)"]
+duration_minutes: 32
 blocker:
 pause_reason:
 return_trigger:
 deliberate_partial: false
-review_rounds: 0
+review_rounds: 2
 escalation_decision:
 ---
 
@@ -67,32 +67,31 @@ or a hard-coded acceptance condition.
 
 ## Acceptance
 
-- [ ] Two fake executables with different version strings but byte-for-byte equivalent required
+- [x] Two fake executables with different version strings but byte-for-byte equivalent required
       behavior both pass and yield the same compatibility-contract digest while recording distinct
       observed version and executable digests.
-- [ ] A fake executable reporting the former reference version but changing any required flag,
+- [x] A fake executable reporting the former reference version but changing any required flag,
       feature, App Server/tool/event/usage shape, resume identity, cancellation or descendant
       termination fails for its exact behavioral reason before an accepted task starts.
-- [ ] The supervisor projection and launch evidence bind contract digest, observed version and
+- [x] The supervisor projection and launch evidence bind contract digest, observed version and
       executable digest. Missing/stale contract digest, behavior drift or executable TOCTOU fails;
       version-string difference alone does not.
-- [ ] No public/internal CLI option, environment setting, prompt or TUI action lets the user choose,
+- [x] No public/internal CLI option, environment setting, prompt or TUI action lets the user choose,
       pin, downgrade or acknowledge a Codex version. Compatible installed execution is automatic;
       incompatible behavior produces one product-owned diagnostic.
-- [ ] Focused runtime/supervisor tests, a mutation restoring exact-version equality, strict Clippy,
+- [x] Focused runtime/supervisor tests, a mutation restoring exact-version equality, strict Clippy,
       formatting and `git diff --check` pass without model/network/money calls or warnings.
 
 ## Current state
 
-W1-EVL-04i/04k made Codex 0.151 a reproducible reference but also made its version string an
-acceptance gate. The behavioral measurements provide the stronger boundary, but current probe
-identity lacks explicit compatibility-contract and executable digests. W1-EVL-04o owns the same
-type first, so implementation waits for its accepted transport field.
+Accepted and integrated through
+[777dfd5](https://github.com/maggnus/ymp/commit/777dfd597c89f9de3f194e326a13d819bc193231).
+Codex is now admitted by the measured behavioral contract; observed version and executable digest
+remain evidence, and exact 0.151 remains only the historical reference.
 
 ## Next action
 
-After W1-EVL-04o is accepted, repeat the Critical contract check against its exact identity and then
-dispatch one Sol xhigh builder.
+Run W1-EVL-04q to add the v2 product/admission consumer without rewriting accepted v1 evidence.
 
 ## Guardrails
 
@@ -114,18 +113,30 @@ marker carries the reviewer's ten-point score and the local moment of the verdic
 escalation, one `- CTO <decision> <dd/mm hh:mm> — <reason>` line records what was decided. The review
 dialogue itself stays in the reports and the evidence package.
 
-## Closure
+- R1(5/10) RETURN 01/09 19:25 — driver behavior was measured but supervisor and Application still
+  compared `cli_version` → the author agreed → all version equality was removed while contract and
+  executable digests remained authoritative
+- R2(9/10) ACCEPT 01/09 19:33 — an external isolated supervisor scenario accepts a differing version
+  and records it, while executable replacement and old-version behavior drift fail before start;
+  Git and real user state remain unchanged
 
-Filled when the task is accepted. Until then this section stays as written.
+## Closure
 
 ### Accepted outcome
 
-What was actually accepted.
+`CODEX_COMPATIBILITY_CONTRACT` now canonically identifies the measured help, capabilities, App
+Server schema and lifecycle behavior. Driver and supervisor admit by its digest and actual executable
+bytes; `cli_version` is required to be nonempty and is persisted only as observed evidence. No
+version selector, update prompt, download path or user acknowledgement was introduced.
 
 ### Residuals
 
-Honestly retained limitations, each with an exact return trigger. Empty when there are none.
+The accepted v1 product/admission fixtures still encode exact 0.151 historical authority. They
+cannot open the new behavioral gate until additive W1-EVL-04q v2 is accepted.
 
 ### Evidence
 
-- Commit, evidence package, or durable document of record, each as a Markdown link.
+- [777dfd5](https://github.com/maggnus/ymp/commit/777dfd597c89f9de3f194e326a13d819bc193231)
+  — integrated final tree corresponding to candidate sequence
+  [76c1ca1](https://github.com/maggnus/ymp/commit/76c1ca1e39be5ea193e387fb7c65e1788d11d98a) and
+  [d0a49e4](https://github.com/maggnus/ymp/commit/d0a49e481aea9e8ad9f2cc15a8dc260d9300af24).
