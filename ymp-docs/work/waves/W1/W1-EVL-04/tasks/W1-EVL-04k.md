@@ -3,25 +3,25 @@ id: W1-EVL-04k
 kind: task
 wave: W1
 card: W1-EVL-04
-state: ready
+state: accepted
 risk: critical
 maturity: BUILD
 relation: required
 depends_on: [W1-EVL-04i]
 blocks: [W1-EVL-04m, W1-EVL-04e]
 created_at: 2026-09-01T15:49:59+08:00
-updated_at: 2026-09-01T16:40:38+08:00
-started_at:
-accepted_at:
-candidate_commit:
-closure_commit:
-evidence:
-duration_minutes: 0
+updated_at: 2026-09-01T17:07:17+08:00
+started_at: 2026-09-01T16:39:00+08:00
+accepted_at: 2026-09-01T17:07:17+08:00
+candidate_commit: https://github.com/maggnus/ymp/commit/9c1f27accc03c7972bfe6b5b0e63720f42d3f50d
+closure_commit: https://github.com/maggnus/ymp/commit/77dab74116e9836795e07e9eb0e5b149d032d73d
+evidence: ["[77dab74](https://github.com/maggnus/ymp/commit/77dab74116e9836795e07e9eb0e5b149d032d73d)"]
+duration_minutes: 17
 blocker:
 pause_reason:
 return_trigger:
 deliberate_partial: false
-review_rounds: 0
+review_rounds: 2
 escalation_decision:
 ---
 
@@ -61,35 +61,35 @@ stale or unmeasured tuples without exposing version management to the user.
 
 ## Acceptance
 
-- [ ] All five product-path fixtures exercise the exact tuple proven by W1-EVL-04i and preserve
+- [x] All five product-path fixtures exercise the exact tuple proven by W1-EVL-04i and preserve
       readiness, completion/export, resume, cancellation and descendant-termination behavior.
-- [ ] The admission manifest and digest bind that same tuple while retaining byte-identical
+- [x] The admission manifest and digest bind that same tuple while retaining byte-identical
       schedule, read cap, accounting limits, S1-S3 expectations and `model_calls=0`.
-- [ ] The embedded frozen-manifest digest equals the new sidecar and computed manifest SHA-256; the
+- [x] The embedded frozen-manifest digest equals the new sidecar and computed manifest SHA-256; the
       previous embedded digest or a fixture still claiming 0.147 fails before admission evaluation.
-- [ ] A stale 0.147 fixture or manifest, a future unmeasured version, a digest mismatch and a tuple
+- [x] A stale 0.147 fixture or manifest, a future unmeasured version, a digest mismatch and a tuple
       that disagrees with the runtime projection each fail closed before `model_ready=true` or an
       accepted task can start.
-- [ ] The command-line and TUI surfaces contain no version selector, project-directory ceremony or
+- [x] The command-line and TUI surfaces contain no version selector, project-directory ceremony or
       upgrade prompt; compatible installed runtime use is automatic and incompatibility produces
       one actionable product-owned error.
-- [ ] One fresh disposable-root product-path walk uses separate project, `HOME`, `YMP_HOME`,
+- [x] One fresh disposable-root product-path walk uses separate project, `HOME`, `YMP_HOME`,
       `TMPDIR`, build and export directories; no file reaches the worktree, current directory or
       real `~/.ymp`.
-- [ ] No real model/provider/network call runs; focused CLI and admission checks, strict affected
+- [x] No real model/provider/network call runs; focused CLI and admission checks, strict affected
       package Clippy, formatting and `git diff --check` pass without warnings.
 
 ## Current state
 
-The accepted runtime proves 0.151 behavior. The first builder preflight showed that the admission
-manifest is also bound by `FROZEN_MANIFEST_SHA256` and an exact Codex fixture in `admission.rs`, so
-the original seven-file zone could not produce a valid candidate. That mechanical coupling is now
-explicitly allowed; admission behavior remains out of scope.
+Accepted and integrated as
+[77dab74](https://github.com/maggnus/ymp/commit/77dab74116e9836795e07e9eb0e5b149d032d73d).
+All five product fixtures and the zero-model admission manifest now consume the exact accepted
+Codex 0.151 tuple; frozen schedules, limits and admission decisions remain unchanged.
 
 ## Next action
 
-Continue the original Sol xhigh builder from the current `main` with only the newly explicit
-embedded-digest and fixture allowance.
+After W1-EVL-04l is accepted, run W1-EVL-04m to consume controller-attested probe evidence through
+the now exact 0.151 admission manifest.
 
 ## Guardrails
 
@@ -112,18 +112,31 @@ marker carries the reviewer's ten-point score and the local moment of the verdic
 escalation, one `- CTO <decision> <dd/mm hh:mm> — <reason>` line records what was decided. The review
 dialogue itself stays in the reports and the evidence package.
 
-## Closure
+- R1(6/10) RETURN 01/09 17:06 — static bindings were correct but the independent external consumer
+  run stopped in Rust toolchain setup → the candidate remained unchanged → the same reviewer was
+  given an explicit installed toolchain/cache while retaining isolated product state
+- R2(9/10) ACCEPT 01/09 17:07 — real `ymp-corpus admission check` with a fake stale 0.147 runtime
+  returns typed incompatibility, `model_calls=0` and `model_ready=false` → the isolated root is
+  removed and repository status remains byte-identical
 
-Filled when the task is accepted. Until then this section stays as written.
+## Closure
 
 ### Accepted outcome
 
-What was actually accepted.
+The five Codex product fixtures automatically consume the exact accepted 0.151 runtime tuple for
+readiness, completion/export, resume, cancellation and descendant termination. The admission
+manifest, sidecar and embedded digest agree at `48f6107e…9947e24b`; a stale 0.147 or future 0.152
+projection and schema mismatch fail before model readiness. No user-facing version control was
+introduced.
 
 ### Residuals
 
-Honestly retained limitations, each with an exact return trigger. Empty when there are none.
+An out-of-scope expanded author run observed `Protocol` failures in two Claude descendant fixtures.
+Before a POC experiment uses Claude, or before the release integration suite, reproduce and classify
+those failures in a separate focused task; they do not affect the accepted Codex-only gate.
 
 ### Evidence
 
-- Commit, evidence package, or durable document of record, each as a Markdown link.
+- [77dab74](https://github.com/maggnus/ymp/commit/77dab74116e9836795e07e9eb0e5b149d032d73d)
+  — integrated tree, byte-identical for the reviewed paths to candidate
+  [9c1f27a](https://github.com/maggnus/ymp/commit/9c1f27accc03c7972bfe6b5b0e63720f42d3f50d).
