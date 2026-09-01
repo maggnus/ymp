@@ -11,7 +11,7 @@ relation: required
 depends_on: []
 blocks: [W1-COR-03e.2]
 created_at: 2026-09-01T22:52:28+08:00
-updated_at: 2026-09-02T00:09:32+08:00
+updated_at: 2026-09-02T00:21:16+08:00
 started_at: 2026-09-01T22:52:28+08:00
 accepted_at:
 candidate_commit: https://github.com/maggnus/ymp/commit/817ab0637972a0d974dff56359c70fce353e269a
@@ -151,6 +151,11 @@ interaction model be translated into screens.
 - [ ] The Battleship story begins with the Russian phrase unchanged. It records structured intent
       normalization/check derivation as an implementation prerequisite instead of requiring English
       artifact keywords from the person.
+- [ ] The result is never played or manually tested inside the ymp interface. ymp shows the exact
+      external launch/open path, status and evidence; automated checks run in their isolated product
+      path, and human use/evaluation happens in the artifact's own browser, terminal or process before
+      feedback returns to the conversation. A future TUI that embeds the game or its manual test fails
+      the journey contract.
 - [ ] Every promised capability is linked to accepted current behavior or labelled a gap; POC and
       MVP are separated without presenting future behavior as implemented.
 - [ ] A protocol-derived control inventory classifies provider/pool eligibility, participant and
@@ -212,6 +217,8 @@ present the same bytes to the owner for explicit approval.
 - Owner decision: provider enable/disable is the permission; enablement fetches available models in
   the background. Catalogue failure leaves the provider enabled with no models, while all later
   failures are reported at their actual operation boundary.
+- Owner decision: ymp never hosts gameplay or manual result testing in its own TUI. It exposes an
+  external run/open path and receives the person's evaluation back through the conversation.
 - Independent R1 confirmed the complete 10-step journey, 10 user stories, source-bound GAP map and
   absence of required protocol duties; no outcome defect was found.
 
