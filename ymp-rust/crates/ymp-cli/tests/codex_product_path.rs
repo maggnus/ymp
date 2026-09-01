@@ -24,7 +24,18 @@ fn generated_codex_environment_completes_a_candidate_through_product_mcp() {
         &executable,
         r##"#!/bin/sh
 if [ "$1" = "--version" ]; then
-  printf '%s\n' 'codex-cli 0.147.0'
+  printf '%s\n' 'codex-cli 0.151.0'
+elif [ "$1" = "exec" ] && [ "$2" = "--help" ]; then
+  printf '%s\n' 'resume --json --ignore-user-config --ignore-rules'
+elif [ "$1" = "exec" ] && [ "$2" = "resume" ] && [ "$3" = "--help" ]; then
+  printf '%s\n' 'SESSION_ID --json --ignore-user-config --ignore-rules'
+elif [ "$1" = "features" ] && [ "$2" = "list" ]; then
+  printf '%s\n' 'hooks stable true' 'multi_agent stable true' 'multi_agent_v2 stable false' 'plugins stable true' 'remote_plugin stable true' 'shell_snapshot stable true' 'enable_fanout removed false' 'remote_control removed false' 'remote_models removed false'
+elif [ "$1" = "app-server" ] && [ "$2" = "--help" ]; then
+  printf '%s\n' 'generate-json-schema --listen <URL> stdio://'
+elif [ "$1" = "app-server" ] && [ "$2" = "generate-json-schema" ]; then
+  mkdir -p "$4"
+  printf '\173"definitions":\173"v2":\173"TokenUsageBreakdown":\173"required":["cachedInputTokens","inputTokens","outputTokens","reasoningOutputTokens","totalTokens"]\175\175\175,"items":[\173"title":"McpToolCallThreadItem","required":["arguments","id","server","status","tool","type"]\175],"methods":["thread/resume","turn/interrupt","thread/tokenUsage/updated","turn/completed"]\175\n' > "$4/codex_app_server_protocol.schemas.json"
 elif [ "$1" = "login" ]; then
   exit 0
 else
@@ -169,7 +180,7 @@ fi
     .expect("parse runtime profile evidence");
     assert_eq!(profile["profile"]["schema_version"], 3);
     assert_eq!(profile["profile"]["runtime_kind"], "codex");
-    assert_eq!(profile["profile"]["probe"]["version"], "codex-cli 0.147.0");
+    assert_eq!(profile["profile"]["probe"]["version"], "codex-cli 0.151.0");
     assert!(
         profile["profile"]["probe"]["detail"]
             .as_str()
@@ -268,7 +279,18 @@ fn child_stderr_cannot_persist_its_mcp_token_or_raw_diagnostic() {
         &executable,
         r##"#!/bin/sh
 if [ "$1" = "--version" ]; then
-  printf '%s\n' 'codex-cli 0.147.0'
+  printf '%s\n' 'codex-cli 0.151.0'
+elif [ "$1" = "exec" ] && [ "$2" = "--help" ]; then
+  printf '%s\n' 'resume --json --ignore-user-config --ignore-rules'
+elif [ "$1" = "exec" ] && [ "$2" = "resume" ] && [ "$3" = "--help" ]; then
+  printf '%s\n' 'SESSION_ID --json --ignore-user-config --ignore-rules'
+elif [ "$1" = "features" ] && [ "$2" = "list" ]; then
+  printf '%s\n' 'hooks stable true' 'multi_agent stable true' 'multi_agent_v2 stable false' 'plugins stable true' 'remote_plugin stable true' 'shell_snapshot stable true' 'enable_fanout removed false' 'remote_control removed false' 'remote_models removed false'
+elif [ "$1" = "app-server" ] && [ "$2" = "--help" ]; then
+  printf '%s\n' 'generate-json-schema --listen <URL> stdio://'
+elif [ "$1" = "app-server" ] && [ "$2" = "generate-json-schema" ]; then
+  mkdir -p "$4"
+  printf '\173"definitions":\173"v2":\173"TokenUsageBreakdown":\173"required":["cachedInputTokens","inputTokens","outputTokens","reasoningOutputTokens","totalTokens"]\175\175\175,"items":[\173"title":"McpToolCallThreadItem","required":["arguments","id","server","status","tool","type"]\175],"methods":["thread/resume","turn/interrupt","thread/tokenUsage/updated","turn/completed"]\175\n' > "$4/codex_app_server_protocol.schemas.json"
 elif [ "$1" = "login" ]; then
   exit 0
 else
@@ -366,7 +388,18 @@ fn durable_accounting_covers_success_error_cancel_and_timeout() {
         &executable,
         r##"#!/bin/sh
 if [ "$1" = "--version" ]; then
-  printf '%s\n' 'codex-cli 0.147.0'
+  printf '%s\n' 'codex-cli 0.151.0'
+elif [ "$1" = "exec" ] && [ "$2" = "--help" ]; then
+  printf '%s\n' 'resume --json --ignore-user-config --ignore-rules'
+elif [ "$1" = "exec" ] && [ "$2" = "resume" ] && [ "$3" = "--help" ]; then
+  printf '%s\n' 'SESSION_ID --json --ignore-user-config --ignore-rules'
+elif [ "$1" = "features" ] && [ "$2" = "list" ]; then
+  printf '%s\n' 'hooks stable true' 'multi_agent stable true' 'multi_agent_v2 stable false' 'plugins stable true' 'remote_plugin stable true' 'shell_snapshot stable true' 'enable_fanout removed false' 'remote_control removed false' 'remote_models removed false'
+elif [ "$1" = "app-server" ] && [ "$2" = "--help" ]; then
+  printf '%s\n' 'generate-json-schema --listen <URL> stdio://'
+elif [ "$1" = "app-server" ] && [ "$2" = "generate-json-schema" ]; then
+  mkdir -p "$4"
+  printf '\173"definitions":\173"v2":\173"TokenUsageBreakdown":\173"required":["cachedInputTokens","inputTokens","outputTokens","reasoningOutputTokens","totalTokens"]\175\175\175,"items":[\173"title":"McpToolCallThreadItem","required":["arguments","id","server","status","tool","type"]\175],"methods":["thread/resume","turn/interrupt","thread/tokenUsage/updated","turn/completed"]\175\n' > "$4/codex_app_server_protocol.schemas.json"
 elif [ "$1" = "login" ]; then
   exit 0
 else
@@ -637,7 +670,18 @@ fn a_run_whose_runtime_states_no_excess_records_none() {
         &executable,
         r##"#!/bin/sh
 if [ "$1" = "--version" ]; then
-  printf '%s\n' 'codex-cli 0.147.0'
+  printf '%s\n' 'codex-cli 0.151.0'
+elif [ "$1" = "exec" ] && [ "$2" = "--help" ]; then
+  printf '%s\n' 'resume --json --ignore-user-config --ignore-rules'
+elif [ "$1" = "exec" ] && [ "$2" = "resume" ] && [ "$3" = "--help" ]; then
+  printf '%s\n' 'SESSION_ID --json --ignore-user-config --ignore-rules'
+elif [ "$1" = "features" ] && [ "$2" = "list" ]; then
+  printf '%s\n' 'hooks stable true' 'multi_agent stable true' 'multi_agent_v2 stable false' 'plugins stable true' 'remote_plugin stable true' 'shell_snapshot stable true' 'enable_fanout removed false' 'remote_control removed false' 'remote_models removed false'
+elif [ "$1" = "app-server" ] && [ "$2" = "--help" ]; then
+  printf '%s\n' 'generate-json-schema --listen <URL> stdio://'
+elif [ "$1" = "app-server" ] && [ "$2" = "generate-json-schema" ]; then
+  mkdir -p "$4"
+  printf '\173"definitions":\173"v2":\173"TokenUsageBreakdown":\173"required":["cachedInputTokens","inputTokens","outputTokens","reasoningOutputTokens","totalTokens"]\175\175\175,"items":[\173"title":"McpToolCallThreadItem","required":["arguments","id","server","status","tool","type"]\175],"methods":["thread/resume","turn/interrupt","thread/tokenUsage/updated","turn/completed"]\175\n' > "$4/codex_app_server_protocol.schemas.json"
 elif [ "$1" = "login" ]; then
   exit 0
 else
@@ -754,14 +798,25 @@ fn fabricated_stdout_lifecycle_cannot_submit_or_yield() {
         &executable,
         r##"#!/bin/sh
 if [ "$1" = "--version" ]; then
-  printf '%s\n' 'codex-cli 0.147.0'
+  printf '%s\n' 'codex-cli 0.151.0'
+elif [ "$1" = "exec" ] && [ "$2" = "--help" ]; then
+  printf '%s\n' 'resume --json --ignore-user-config --ignore-rules'
+elif [ "$1" = "exec" ] && [ "$2" = "resume" ] && [ "$3" = "--help" ]; then
+  printf '%s\n' 'SESSION_ID --json --ignore-user-config --ignore-rules'
+elif [ "$1" = "features" ] && [ "$2" = "list" ]; then
+  printf '%s\n' 'hooks stable true' 'multi_agent stable true' 'multi_agent_v2 stable false' 'plugins stable true' 'remote_plugin stable true' 'shell_snapshot stable true' 'enable_fanout removed false' 'remote_control removed false' 'remote_models removed false'
+elif [ "$1" = "app-server" ] && [ "$2" = "--help" ]; then
+  printf '%s\n' 'generate-json-schema --listen <URL> stdio://'
+elif [ "$1" = "app-server" ] && [ "$2" = "generate-json-schema" ]; then
+  mkdir -p "$4"
+  printf '\173"definitions":\173"v2":\173"TokenUsageBreakdown":\173"required":["cachedInputTokens","inputTokens","outputTokens","reasoningOutputTokens","totalTokens"]\175\175\175,"items":[\173"title":"McpToolCallThreadItem","required":["arguments","id","server","status","tool","type"]\175],"methods":["thread/resume","turn/interrupt","thread/tokenUsage/updated","turn/completed"]\175\n' > "$4/codex_app_server_protocol.schemas.json"
 elif [ "$1" = "login" ]; then
   exit 0
 else
   cat >/dev/null
   printf '%s\n' '{"type":"thread.started","thread_id":"thread-fabricated"}'
   printf '%s\n' '{"type":"item.completed","item":{"type":"mcp_tool_call","server":"ymp","tool":"submit","status":"completed","arguments":{"command_id":"fabricated-submit"},"result":{"committed":true},"error":null}}'
-  printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":1,"output_tokens":1}}'
+  printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":1,"cached_input_tokens":0,"output_tokens":1,"reasoning_output_tokens":0}}'
 fi
 "##,
     )
@@ -878,7 +933,18 @@ fn managed_codex_yield_wake_resume_keeps_one_identity_and_effect() {
         &executable,
         r##"#!/bin/sh
 if [ "$1" = "--version" ]; then
-  printf '%s\n' 'codex-cli 0.147.0'
+  printf '%s\n' 'codex-cli 0.151.0'
+elif [ "$1" = "exec" ] && [ "$2" = "--help" ]; then
+  printf '%s\n' 'resume --json --ignore-user-config --ignore-rules'
+elif [ "$1" = "exec" ] && [ "$2" = "resume" ] && [ "$3" = "--help" ]; then
+  printf '%s\n' 'SESSION_ID --json --ignore-user-config --ignore-rules'
+elif [ "$1" = "features" ] && [ "$2" = "list" ]; then
+  printf '%s\n' 'hooks stable true' 'multi_agent stable true' 'multi_agent_v2 stable false' 'plugins stable true' 'remote_plugin stable true' 'shell_snapshot stable true' 'enable_fanout removed false' 'remote_control removed false' 'remote_models removed false'
+elif [ "$1" = "app-server" ] && [ "$2" = "--help" ]; then
+  printf '%s\n' 'generate-json-schema --listen <URL> stdio://'
+elif [ "$1" = "app-server" ] && [ "$2" = "generate-json-schema" ]; then
+  mkdir -p "$4"
+  printf '\173"definitions":\173"v2":\173"TokenUsageBreakdown":\173"required":["cachedInputTokens","inputTokens","outputTokens","reasoningOutputTokens","totalTokens"]\175\175\175,"items":[\173"title":"McpToolCallThreadItem","required":["arguments","id","server","status","tool","type"]\175],"methods":["thread/resume","turn/interrupt","thread/tokenUsage/updated","turn/completed"]\175\n' > "$4/codex_app_server_protocol.schemas.json"
 elif [ "$1" = "login" ]; then
   exit 0
 else
@@ -921,7 +987,7 @@ else
     printf '%s' "$responses" | grep -q '"snapshot_digest"' || exit 54
     printf '%s\n' '{"type":"item.completed","item":{"type":"agent_message","text":"resumed exactly once"}}'
     printf '%s\n' '{"type":"item.completed","item":{"type":"mcp_tool_call","server":"ymp","tool":"submit","status":"completed","arguments":{"command_id":"resume-submit"},"result":{"committed":true},"error":null}}'
-    printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":7,"output_tokens":3,"cost_microusd":17}}'
+    printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":7,"cached_input_tokens":0,"output_tokens":3,"reasoning_output_tokens":0,"cost_microusd":17}}'
   else
     responses=$({
       printf '%s\n' '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-11-25"}}'
@@ -930,7 +996,7 @@ else
       printf '%s\n' '{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"yield","arguments":{"command_id":"resume-yield"}}}'
     } | "$bridge" internal agent-mcp) || exit 55
     test "$(printf '%s' "$responses" | grep -c '"isError":false')" -ge 2 || exit 56
-    printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":5,"output_tokens":2,"cost_microusd":11}}'
+    printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":5,"cached_input_tokens":0,"output_tokens":2,"reasoning_output_tokens":0,"cost_microusd":11}}'
   fi
 fi
 "##,

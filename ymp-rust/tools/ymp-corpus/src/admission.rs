@@ -33,7 +33,7 @@ use crate::report_json;
 
 const ADMISSION_ID: &str = "weak-diagnostic-admission-v1";
 const FROZEN_MANIFEST_SHA256: &str =
-    "eddafc93dbefcbbf75d29b646ac5a5dc1964d254a484249bb96a5c72ea2d6cda";
+    "48f6107e12764b40f508b0f07ec75156735739750d43f4872278b2b39947e24b";
 const ROOT_PARTICIPANT: &str = "participant-root";
 const READER: &str = "reader-b";
 const OUTSIDER: &str = "unauthorized-reader";
@@ -1691,18 +1691,28 @@ mod tests {
     use std::path::PathBuf;
 
     #[cfg(unix)]
-    fn write_codex_fixture(path: &std::path::Path, version: &str, include_flags: bool) {
+    fn write_codex_fixture(
+        path: &std::path::Path,
+        version: &str,
+        include_flags: bool,
+        exact_tool_schema: bool,
+    ) {
         use std::os::unix::fs::PermissionsExt;
 
         let flags = if include_flags {
-            "--json --ignore-user-config --ignore-rules --sandbox --model --disable --cd"
+            "resume --json --ignore-user-config --ignore-rules --sandbox --model --disable --cd"
         } else {
-            "--json --ignore-user-config --sandbox --model --disable --cd"
+            "resume --json --ignore-user-config --sandbox --model --disable --cd"
+        };
+        let tool_schema = if exact_tool_schema {
+            r#"{"definitions":{"v2":{"TokenUsageBreakdown":{"required":["cachedInputTokens","inputTokens","outputTokens","reasoningOutputTokens","totalTokens"]}}},"items":[{"title":"McpToolCallThreadItem","required":["arguments","id","server","status","tool","type"]}],"methods":["thread/resume","turn/interrupt","thread/tokenUsage/updated","turn/completed"]}"#
+        } else {
+            r#"{"definitions":{"v2":{"TokenUsageBreakdown":{"required":["cachedInputTokens","inputTokens","outputTokens","reasoningOutputTokens","totalTokens"]}}},"items":[{"title":"McpToolCallThreadItem","required":["id","server","status","tool","type"]}],"methods":["thread/resume","turn/interrupt","thread/tokenUsage/updated","turn/completed"]}"#
         };
         fs::write(
             path,
             format!(
-                "#!/bin/sh\ncase \"$1 $2\" in\n  '--version '*) printf '%s\\n' '{version}' ;;\n  'login status'*) exit 0 ;;\n  'exec --help'*) printf '%s\\n' '{flags}' ;;\n  *) exit 2 ;;\nesac\n"
+                "#!/bin/sh\nif [ \"$1\" = \"--version\" ]; then\n  printf '%s\\n' '{version}'\nelif [ \"$1\" = \"exec\" ] && [ \"$2\" = \"--help\" ]; then\n  printf '%s\\n' '{flags}'\nelif [ \"$1\" = \"exec\" ] && [ \"$2\" = \"resume\" ] && [ \"$3\" = \"--help\" ]; then\n  printf '%s\\n' 'SESSION_ID --json --ignore-user-config --ignore-rules'\nelif [ \"$1\" = \"features\" ] && [ \"$2\" = \"list\" ]; then\n  printf '%s\\n' 'hooks stable true' 'multi_agent stable true' 'multi_agent_v2 stable false' 'plugins stable true' 'remote_plugin stable true' 'shell_snapshot stable true' 'enable_fanout removed false' 'remote_control removed false' 'remote_models removed false'\nelif [ \"$1\" = \"app-server\" ] && [ \"$2\" = \"--help\" ]; then\n  printf '%s\\n' 'generate-json-schema --listen <URL> stdio://'\nelif [ \"$1\" = \"app-server\" ] && [ \"$2\" = \"generate-json-schema\" ]; then\n  mkdir -p \"$4\"\n  printf '%s\\n' '{tool_schema}' > \"$4/codex_app_server_protocol.schemas.json\"\nelif [ \"$1\" = \"login\" ]; then\n  exit 0\nelse\n  exit 2\nfi\n"
             ),
         )
         .expect("write Codex fixture");
@@ -1739,18 +1749,40 @@ mod tests {
                 .success()
         );
         let exact = directory.path().join("codex-exact");
-        write_codex_fixture(&exact, &loaded.manifest.runtime.cli_version, true);
+        write_codex_fixture(&exact, &loaded.manifest.runtime.cli_version, true, true);
         let accepted = super::evaluate_stage_one(&loaded.manifest, &exact, &project);
         assert!(accepted.compatible, "{:?}", accepted.issues);
         assert_eq!(accepted.model_calls, 0);
 
         let stale = directory.path().join("codex-stale");
-        write_codex_fixture(&stale, "codex-cli 0.146.0", true);
+        write_codex_fixture(&stale, "codex-cli 0.147.0", true, true);
         assert!(!super::evaluate_stage_one(&loaded.manifest, &stale, &project).compatible);
+        let future = directory.path().join("codex-future");
+        write_codex_fixture(&future, "codex-cli 0.152.0", true, true);
+        assert!(!super::evaluate_stage_one(&loaded.manifest, &future, &project).compatible);
         let removed_flag = directory.path().join("codex-missing-flag");
-        write_codex_fixture(&removed_flag, &loaded.manifest.runtime.cli_version, false);
+        write_codex_fixture(
+            &removed_flag,
+            &loaded.manifest.runtime.cli_version,
+            false,
+            true,
+        );
         assert!(!super::evaluate_stage_one(&loaded.manifest, &removed_flag, &project).compatible);
+        let changed_schema = directory.path().join("codex-changed-schema");
+        write_codex_fixture(
+            &changed_schema,
+            &loaded.manifest.runtime.cli_version,
+            true,
+            false,
+        );
+        assert!(!super::evaluate_stage_one(&loaded.manifest, &changed_schema, &project).compatible);
         assert!(!super::evaluate_stage_one(&loaded.manifest, &exact, directory.path()).compatible);
+
+        for version in ["codex-cli 0.147.0", "codex-cli 0.152.0"] {
+            let mut manifest = loaded.manifest.clone();
+            manifest.runtime.cli_version = version.to_owned();
+            assert!(super::validate_manifest(&manifest).is_err(), "{version}");
+        }
     }
 
     #[test]
@@ -1790,10 +1822,21 @@ mod tests {
     fn digest_schedule_and_extra_read_are_load_bearing() {
         let loaded = loaded();
         let directory = tempdir().expect("temporary directory");
-        let manifest = serde_json::to_vec_pretty(&loaded.manifest).expect("manifest bytes");
-        fs::write(directory.path().join("manifest.json"), &manifest).expect("write manifest");
-        fs::write(directory.path().join("manifest.sha256"), "0".repeat(64))
-            .expect("write wrong sidecar");
+        let manifest_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("corpus/development/weak-diagnostic-admission-v1/manifest.json");
+        let manifest = fs::read_to_string(manifest_path).expect("read current frozen manifest");
+        let previous_manifest = manifest.replacen("codex-cli 0.151.0", "codex-cli 0.147.0", 1);
+        assert_eq!(
+            super::sha256_bytes(previous_manifest.as_bytes()),
+            "eddafc93dbefcbbf75d29b646ac5a5dc1964d254a484249bb96a5c72ea2d6cda"
+        );
+        fs::write(directory.path().join("manifest.json"), previous_manifest)
+            .expect("write previous frozen manifest");
+        fs::write(
+            directory.path().join("manifest.sha256"),
+            "eddafc93dbefcbbf75d29b646ac5a5dc1964d254a484249bb96a5c72ea2d6cda\n",
+        )
+        .expect("write previous frozen-manifest digest");
         assert!(
             load_manifest(
                 &directory.path().join("manifest.json"),

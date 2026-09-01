@@ -8,7 +8,7 @@
     "driver_crate": "ymp-runtime-codex",
     "driver_version": "1.0.6",
     "cli_program": "codex",
-    "cli_version": "codex-cli 0.147.0",
+    "cli_version": "codex-cli 0.151.0",
     "model": "gpt-5.6-terra",
     "route": "openai_responses_chatgpt",
     "api_origin": "https://api.openai.com/v1",

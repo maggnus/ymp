@@ -36,7 +36,7 @@ use ymp_tui::Session;
 
 /// The version the shipped Codex profile is pinned to. A fixture that answered anything else
 /// would be refused by the product's own probe, which is the point of stating it here.
-const PINNED: &str = "codex-cli 0.147.0";
+const PINNED: &str = "codex-cli 0.151.0";
 
 struct Fixture {
     root: TempDir,
@@ -565,7 +565,18 @@ fn a_rejected_candidate_with_no_attempt_left_exhausts_the_run() {
 /// journal.
 const CODEX_FIXTURE: &str = r##"#!/bin/sh
 if [ "$1" = "--version" ]; then
-  printf '%s\n' 'codex-cli 0.147.0'
+  printf '%s\n' 'codex-cli 0.151.0'
+elif [ "$1" = "exec" ] && [ "$2" = "--help" ]; then
+  printf '%s\n' 'resume --json --ignore-user-config --ignore-rules'
+elif [ "$1" = "exec" ] && [ "$2" = "resume" ] && [ "$3" = "--help" ]; then
+  printf '%s\n' 'SESSION_ID --json --ignore-user-config --ignore-rules'
+elif [ "$1" = "features" ] && [ "$2" = "list" ]; then
+  printf '%s\n' 'hooks stable true' 'multi_agent stable true' 'multi_agent_v2 stable false' 'plugins stable true' 'remote_plugin stable true' 'shell_snapshot stable true' 'enable_fanout removed false' 'remote_control removed false' 'remote_models removed false'
+elif [ "$1" = "app-server" ] && [ "$2" = "--help" ]; then
+  printf '%s\n' 'generate-json-schema --listen <URL> stdio://'
+elif [ "$1" = "app-server" ] && [ "$2" = "generate-json-schema" ]; then
+  mkdir -p "$4"
+  printf '\173"definitions":\173"v2":\173"TokenUsageBreakdown":\173"required":["cachedInputTokens","inputTokens","outputTokens","reasoningOutputTokens","totalTokens"]\175\175\175,"items":[\173"title":"McpToolCallThreadItem","required":["arguments","id","server","status","tool","type"]\175],"methods":["thread/resume","turn/interrupt","thread/tokenUsage/updated","turn/completed"]\175\n' > "$4/codex_app_server_protocol.schemas.json"
 elif [ "$1" = "login" ]; then
   exit 0
 else
