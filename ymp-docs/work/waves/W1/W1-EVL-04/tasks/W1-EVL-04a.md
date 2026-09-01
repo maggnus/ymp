@@ -66,7 +66,7 @@ comparable acceptance, false-acceptance, cost, latency, failure, and abstention 
 ## Current state
 
 The Sol max research result is recorded in
-[WEAK_DIAGNOSTIC.md](../../../../../research/WEAK_DIAGNOSTIC.md). No primary seed, paid model call, or
+[002-weak-diagnostic.md](../../../../../research/002-weak-diagnostic.md). No primary seed, paid model call, or
 experimental quota was consumed. The protocol is executable only after the product can run two
 participants with collaboration tools. The frozen study manifest
 ([d12eff3](https://github.com/maggnus/ymp/commit/d12eff31940f8ad124f5f8f566a0dd21de3d2ae6))

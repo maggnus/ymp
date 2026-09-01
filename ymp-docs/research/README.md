@@ -8,13 +8,19 @@ invariants, and roadmap remain in the parent directory. Machine-executable study
 corpora, frozen assignments, compliance checks, and analysis programs remain beside their owning
 Rust tool; research prose links to their exact evidence instead of copying it.
 
+## File numbering
+
+`README.md` is the only unnumbered file. Every research idea, hypothesis, protocol, analysis, or
+result uses `NNN-kebab-title.md`, where `NNN` is the next unused three-digit index from `001` to
+`999`. Numbers are permanent and never reused; creating a file also updates this index.
+
 ## Current protocols
 
-- [CALIBRATION.md](CALIBRATION.md) — development profile ladder, measured runs, and promotion
+- [001-calibration.md](001-calibration.md) — development profile ladder, measured runs, and promotion
   boundary.
-- [WEAK_DIAGNOSTIC.md](WEAK_DIAGNOSTIC.md) — diagnostic matched-budget comparison using weak
+- [002-weak-diagnostic.md](002-weak-diagnostic.md) — diagnostic matched-budget comparison using weak
   participant profiles before the frozen primary study.
-- [MECHANISM_MAP.md](MECHANISM_MAP.md) — falsifiable coordination mechanisms, interventions,
+- [003-mechanism-map.md](003-mechanism-map.md) — falsifiable coordination mechanisms, interventions,
   expected null strata, and scientific stop rules.
 
 ## Standing review rule

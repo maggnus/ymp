@@ -32,7 +32,7 @@ rather than forming another outcome category.
 1. Without model calls, validate the oracle, planted defects, assignment, budget conservation, and
    evidence accounting.
 2. Run one exact weak-profile cohort through the three-arm protocol in
-   [WEAK_DIAGNOSTIC.md](WEAK_DIAGNOSTIC.md).
+   [002-weak-diagnostic.md](002-weak-diagnostic.md).
 3. Stop before message interventions if coordination does not exceed both the single and independent
    controls under the predefined diagnostic rule.
 4. Freeze eligible message episodes before inspecting intervention outcomes. Start with absence and
