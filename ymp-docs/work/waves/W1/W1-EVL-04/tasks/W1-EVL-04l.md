@@ -8,9 +8,9 @@ risk: critical
 maturity: BUILD
 relation: required
 depends_on: [W1-EVL-04j]
-blocks: [W1-EVL-04m]
+blocks: [W1-EVL-04n]
 created_at: 2026-09-01T15:57:45+08:00
-updated_at: 2026-09-01T15:57:50+08:00
+updated_at: 2026-09-01T17:17:30+08:00
 started_at:
 accepted_at:
 candidate_commit:
@@ -29,46 +29,70 @@ escalation_decision:
 
 ## Outcome
 
-The trusted foreground controller generates an unpredictable nonce and scoped disposable path,
-reserves the separate probe budget, executes W1-EVL-04j, independently reads back the file and
-persists an immutable `AttestedToolHostProbe` below the configured YMP data root only when every
-identity, route, usage, effect and terminal condition matches.
+The trusted foreground controller proves the destination absent, creates an unpredictable nonce and
+scoped disposable path, durably spends one separate probe reservation, executes the accepted fake
+W1-EVL-04j seam, independently reads back the file and persists one opaque
+`AttestedToolHostProbe` below the configured YMP data root only when every binding matches.
 
 ## Scope
 
 ### In
 
-- Controller-owned nonce generation, normalized relative destination, deadline, probe/invocation
-  identity and separate resource reservation.
-- Independent filesystem read-back and exact nonce comparison after the supervisor returns its
-  untrusted trace; binding to runtime/profile/CLI/driver/tool schema, usage, event/output digests,
-  wall time and cost availability.
-- Immutable persistence and replay identity below the configured YMP data root.
+- `ControllerToolHostProbeRequest` names only the accepted admission-manifest digest, expected
+  runtime tuple, deadline and `ToolHostProbeResourceVector`; `Application` generates the unique
+  `probe_id`, `invocation_id`, nonce and normalized relative destination and proves the target absent
+  before any invocation.
+- A narrow probe store below
+  `runtime-evidence/tool-host-probes/<probe_id>/` writes and fsyncs canonical
+  `reservation.json` with `create_new` before execution. It records store/run identity, manifest,
+  probe/invocation, nonce digest, relative path, reservation and replay key; an existing marker is
+  spent and cannot start another invocation. Failure may add an immutable typed failure record but
+  never removes or refunds the reservation.
+- After the supervisor returns its untrusted trace, the controller reads the workspace file itself.
+  `AttestedToolHostProbe` binds schema version, store/run identity, manifest digest, probe and
+  invocation identities, nonce/read-back digest and byte count, proven-prelaunch absence, relative
+  path, the complete canonical `ToolHostProbeTrace` and trace digest, runtime tuple, reservation,
+  charged vector, usage, wall time, cost availability, terminal and replay key.
+- Canonical attestation bytes go first to the existing `ObjectStore`; a `create_new`+fsync
+  `attestation.ref` then binds its object digest and record digest. A missing, corrupt or mismatched
+  object/reference, or a reservation without an attestation, is recovered fail-closed. An
+  unreferenced object left by interruption is permitted and grants nothing.
+- The public `AttestedToolHostProbe` has private fields, read-only accessors and `Serialize` only;
+  it has no public constructor or `Deserialize`. `Application::attested_tool_host_probe(handle)`
+  reloads and verifies the private record. `AttestedToolHostProbeHandle` carries only probe,
+  store-identity and record digests for the later trusted consumer.
 - Exclusive write zone: optional new
   `ymp-rust/crates/ymp-application/src/tool_host_probe.rs`, narrow declarations and dispatch in
   `ymp-rust/crates/ymp-application/src/lib.rs`, narrow internal command wiring in
-  `ymp-rust/crates/ymp-cli/src/internal.rs`, and optional new
+  `ymp-rust/crates/ymp-cli/src/internal.rs` (the existing `InternalCommand` dispatch in
+  `ymp-cli/src/lib.rs` already routes it and is No-touch), and optional new
   `ymp-rust/crates/ymp-cli/tests/tool_host_probe.rs`.
 
 ### Out
 
-- No-touch: runtime API/supervisor/driver code, `ymp-corpus/**`, Cargo manifests/lockfile, public
+- No-touch: runtime API/supervisor/driver code, `ymp-corpus/**`, Cargo manifests/lockfile,
+  `ymp-cli/src/{lib.rs,main.rs}`, public
   CLI/TUI commands, arbitrary caller paths, real user HOME, task/board/recruitment/candidate state,
   deployment and live model/network/money execution.
 
 ## Acceptance
 
-- [ ] In a disposable evaluation root the controller generates nonce/path/identity, reserves exactly
-      one probe resource vector, invokes the accepted runtime seam, reads the file itself and emits
-      one immutable attestation bound to the complete trace and read-back digest.
+- [ ] In a disposable evaluation root the controller first proves the target absent, creates and
+      fsyncs exactly one reservation marker, generates nonce/path/identity, invokes the accepted
+      fake-runtime seam, reads the file itself and emits one immutable opaque attestation bound to
+      the complete trace and read-back digest.
 - [ ] Missing file, wrong nonce, runtime- or model-chosen path/nonce/digest, stale or replayed
       invocation, incomplete usage, mismatched route/profile/version/schema, ambiguous terminal,
       timeout/cancellation, budget overrun or extra effect produces no attestation and no persisted
       success record.
-- [ ] A syntactically valid raw trace or model-authored evidence cannot construct or serialize an
-      accepted attestation without the controller-held nonce and read-back result.
-- [ ] The probe budget is distinct from every arm/task/candidate/communication allocation and is
-      charged once across start and terminal records; failure cannot refund or duplicate it.
+- [ ] A pre-existing destination, syntactically valid raw trace or model-authored evidence cannot
+      construct, deserialize or reload an accepted attestation without the controller-owned
+      reservation, independent read-back and private store reference.
+- [ ] The probe budget is distinct from every arm/task/candidate/communication allocation. Its
+      immutable reservation is written before start; charged usage is no larger than it, and a
+      failure, crash, replay or repeated terminal cannot refund it or start a second invocation.
+- [ ] Recovery accepts only matching reservation, object and reference digests; missing/corrupt
+      records and a reservation stranded before attestation remain spent and keep the gate closed.
 - [ ] A product-path test with separate project, `HOME`, `YMP_HOME`, `TMPDIR`, build and export
       proves all durable probe state is below isolated `YMP_HOME`, with nothing in the repository,
       current directory or real `~/.ymp`.
@@ -77,13 +101,16 @@ identity, route, usage, effect and terminal condition matches.
 
 ## Current state
 
-W1-EVL-04h showed that schema-valid probe evidence is insufficient, while W1-EVL-04j now owns only
-the untrusted runtime trace. The missing authority is controller nonce ownership plus independent
-read-back, exact budget binding and isolated persistence. No live probe is authorized.
+W1-EVL-04j supplies only an untrusted fake-runtime trace. The missing authority is controller-owned
+prelaunch absence, nonce/read-back, one durable reservation and one private immutable attestation.
+This node validates that mechanism without a model; W1-EVL-04n separately owns the exact live Codex
+bridge, so no live probe is authorized here.
 
 ## Next action
 
-After W1-EVL-04j is accepted, run a Critical contract check of this Application/internal-CLI seam.
+Repeat the Critical contract check against these exact narrow storage and accounting semantics; on
+acceptance, dispatch one Sol xhigh builder without widening into a generic budget or capability
+subsystem.
 
 ## Guardrails
 
@@ -95,6 +122,11 @@ After W1-EVL-04j is accepted, run a Critical contract check of this Application/
 
 - Created by R1 decomposition of W1-EVL-04j to isolate the authority, accounting and persistence
   boundary from runtime execution and corpus policy.
+- R1 contract review found the former storage format, recovery, replay and accounting semantics
+  underspecified; the corrected contract uses one purpose-built reservation marker plus the existing
+  object store rather than a new general ledger.
+- Scientific peer review added the mandatory prelaunch absence check and identified the accepted
+  fake-only runtime as an unconditional live-gate stop; W1-EVL-04n owns that minimal bridge.
 
 ## Review rounds
 

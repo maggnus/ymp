@@ -7,10 +7,10 @@ state: ready
 risk: critical
 maturity: BUILD
 relation: required
-depends_on: [W1-EVL-04k, W1-EVL-04l]
+depends_on: [W1-EVL-04k, W1-EVL-04l, W1-EVL-04n]
 blocks: [W1-EVL-04e]
 created_at: 2026-09-01T15:57:45+08:00
-updated_at: 2026-09-01T15:57:50+08:00
+updated_at: 2026-09-01T17:17:30+08:00
 started_at:
 accepted_at:
 candidate_commit:
@@ -29,9 +29,10 @@ escalation_decision:
 
 ## Outcome
 
-The zero-model admission command sets `model_ready=true` only from one strict
-`AttestedToolHostProbe` produced by W1-EVL-04l and bound to the exact manifest/runtime tuple from
-W1-EVL-04k; raw, model-authored, stale, replayed or incomplete evidence remains fail-closed.
+The admission command sets `model_ready=true` only from one strict `AttestedToolHostProbe` produced
+by the W1-EVL-04l controller from the exact non-Fake Codex invocation admitted by W1-EVL-04n and
+bound to the W1-EVL-04k manifest; raw, Fake, model-authored, stale, replayed or incomplete evidence
+remains fail-closed.
 
 ## Scope
 
@@ -52,10 +53,11 @@ W1-EVL-04k; raw, model-authored, stale, replayed or incomplete evidence remains 
 
 ## Acceptance
 
-- [ ] A controller-attested record with matching manifest digest, runtime tuple, invocation/probe
+- [ ] A controller-attested non-Fake record with matching manifest digest, runtime tuple,
+      invocation/probe
       identity, nonce read-back digest, route/schema, complete usage, separate budget, event/output
       digests and honest terminal makes stage two pass and `model_ready=true` exactly once.
-- [ ] A raw `ToolHostProbeTrace`, the former schema-valid `ProbeEvidence`, model-authored JSON,
+- [ ] A raw or Fake `ToolHostProbeTrace`, the former schema-valid `ProbeEvidence`, model-authored JSON,
       missing controller binding, stale/replayed identity, mismatched manifest/runtime/route/schema,
       incomplete usage, extra effect or budget overflow each leaves `model_ready=false` with its own
       typed reason.
@@ -70,14 +72,13 @@ W1-EVL-04k; raw, model-authored, stale, replayed or incomplete evidence remains 
 
 ## Current state
 
-The accepted admission code deliberately keeps `model_ready=false` because its current public seam
-has no controller-attested record. W1-EVL-04l will provide that authority; this node owns only the
-policy consumer and cannot manufacture or persist evidence.
+W1-EVL-04j owns the untrusted trace, W1-EVL-04l owns controller authority and persistence,
+W1-EVL-04k freezes the exact runtime tuple, and W1-EVL-04n owns the only admitted live bridge. This
+consumer remains blocked until all four pieces are accepted; no raw or Fake trace can open it.
 
 ## Next action
 
-After W1-EVL-04k and W1-EVL-04l are accepted, run a Critical contract check of the single-file
-consumer boundary.
+After W1-EVL-04n is accepted, run a Critical contract check of the single-file consumer boundary.
 
 ## Guardrails
 
