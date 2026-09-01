@@ -4,14 +4,14 @@ kind: subtask
 wave: W1
 card: W1-COR-03
 parent: W1-COR-03e
-state: active
+state: deferred
 risk: significant
 maturity: BUILD
 relation: required
-depends_on: [W1-COR-03e.1, W1-COR-03e.4]
+depends_on: [W1-COR-03e.1, W1-COR-03e.4, W1-COR-03e.5]
 blocks: []
 created_at: 2026-09-01T12:16:00+08:00
-updated_at: 2026-09-01T22:08:00+08:00
+updated_at: 2026-09-01T22:12:00+08:00
 started_at: 2026-09-01T21:41:03+08:00
 accepted_at:
 candidate_commit:
@@ -19,8 +19,8 @@ closure_commit:
 evidence:
 duration_minutes: 0
 blocker:
-pause_reason:
-return_trigger:
+pause_reason: owner replaced the old TUI content hierarchy with a new chat, slash-command and modal contract
+return_trigger: W1-COR-03e.5 accepted
 deliberate_partial: false
 review_rounds: 0
 escalation_decision:
@@ -64,14 +64,14 @@ order in the shared transcript without gaining board, object-store, or control a
 
 ## Current state
 
-The audience-preserving Application projection is accepted on integrated main. The retained clean
-TUI workspace is fast-forwarded to that revision and may now render the exact owned snapshot without
-reconstructing scope or recipients.
+The audience-preserving Application projection is accepted and the retained implementation worktree
+is clean. Before code was written, the owner replaced the old content hierarchy with a chat-first
+surface centered on slash commands and modal windows; W1-COR-03e.5 now owns that exact design.
 
 ## Next action
 
-Implement the original vertical slice in the retained TUI workspace and return one normal-size PNG
-only after the deterministic scenario is green.
+Resume from the accepted W1-COR-03e.5 fixture and implement its 120×40 vertical slice together with
+resolved participant messages.
 
 ## Guardrails
 

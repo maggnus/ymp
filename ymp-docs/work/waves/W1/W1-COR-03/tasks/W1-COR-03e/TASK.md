@@ -10,7 +10,7 @@ relation: required
 depends_on: [W0-UX-01c, W1-APP-02e, W1-COR-03c, W1-COR-03d]
 blocks: [W1-EVL-04b]
 created_at: 2026-08-10T21:23:34+08:00
-updated_at: 2026-09-01T21:48:42+08:00
+updated_at: 2026-09-01T22:12:00+08:00
 started_at: 2026-09-01T21:41:03+08:00
 accepted_at:
 candidate_commit:
@@ -70,14 +70,14 @@ acting as a dispatcher or labelling temporal association as collective reasoning
 
 ## Current state
 
-The rejected scaffold remains deleted. Accepted 03e.1 resolves payload bytes, but 03e.2 preflight
-found the owned projection drops committed audience. Required 03e.4 now owns that two-package fact
-propagation; 03e.2 and then 03e.3 remain sequential. No discarded code is reused.
+The rejected scaffold remains deleted and 03e.1/03e.4 now provide exact resolved payload and audience
+facts. The owner replaced the old content hierarchy before 03e.2 wrote code: new required 03e.5
+freezes the chat/slash/modal surface, then 03e.2 and 03e.3 implement it sequentially.
 
 ## Next action
 
-Accept 03e.4, resume and accept 03e.2, then implement sequential 03e.3; close the parent only when all
-five observatory acceptance criteria are demonstrated together.
+Accept the compact 03e.5 design contract, resume and accept 03e.2 against it, then implement 03e.3;
+close the parent only when all five observatory acceptance criteria are demonstrated together.
 
 ## Guardrails
 
@@ -96,6 +96,8 @@ five observatory acceptance criteria are demonstrated together.
   trigger; fresh work began from current main with disjoint runtime/TUI write zones.
 - Fresh 03e.2 preflight found the typed projection, not TUI, omits audience; a new narrow prerequisite
   prevents the interface from inventing scope or recipients.
+- Owner direction on 01/09 retains the chat-first visual idea but replaces the old screen contents;
+  03e.5 now owns the exact slash-command and modal fixtures before implementation resumes.
 
 ## Closure
 
