@@ -4,25 +4,25 @@ kind: subtask
 wave: W1
 card: W1-COR-03
 parent: W1-COR-03e
-state: rework
+state: accepted
 risk: significant
 maturity: BUILD
 relation: required
 depends_on: []
 blocks: []
 created_at: 2026-09-01T12:14:00+08:00
-updated_at: 2026-09-01T12:53:00+08:00
+updated_at: 2026-09-01T13:00:00+08:00
 started_at: 2026-09-01T12:15:03+08:00
-accepted_at:
-candidate_commit: https://github.com/maggnus/ymp/commit/ff0dae3d54f01b9c1ba3d0a244d217a714bfb0cf
-closure_commit:
-evidence:
-duration_minutes: 0
+accepted_at: 2026-09-01T13:00:00+08:00
+candidate_commit: https://github.com/maggnus/ymp/commit/183417da84ce7c9ee6cb53b1ece2a390539d54df
+closure_commit: https://github.com/maggnus/ymp/commit/40315e299729ecdd4b3683c473fd42c5e93e57b7
+evidence: ["[40315e2](https://github.com/maggnus/ymp/commit/40315e299729ecdd4b3683c473fd42c5e93e57b7)"]
+duration_minutes: 45
 blocker:
 pause_reason:
 return_trigger:
 deliberate_partial: false
-review_rounds: 2
+review_rounds: 4
 escalation_decision: independent_review
 ---
 
@@ -58,27 +58,29 @@ without exposing object/board storage, mutable state, or model authority through
 
 ## Acceptance
 
-- [ ] Exact payload bytes survive publication, reopen, and read through the typed application API.
-- [ ] The returned message and bytes are owned copies; mutating them changes neither a later read
+- [x] Exact payload bytes survive publication, reopen, and read through the typed application API.
+- [x] The returned message and bytes are owned copies; mutating them changes neither a later read
       nor the persisted board or object.
-- [ ] A digest or length mismatch, and a missing or corrupt object, fail without changing the board
+- [x] A digest or length mismatch, and a missing or corrupt object, fail without changing the board
       audit or durable record position.
-- [ ] No generic `Application::data_root()`, object-store accessor, board accessor, or board/store
+- [x] No generic `Application::data_root()`, object-store accessor, board accessor, or board/store
       path appears in the model-facing tool/RPC schema or owned operator projection. Managed runtime
       launch still receives its exact private workspace path and TUI startup receives the configured
       root through trusted foreground composition.
-- [ ] Existing board-section and board-projection checks, strict application Clippy, formatting,
+- [x] Existing board-section and board-projection checks, strict application Clippy, formatting,
       and `git diff --check` pass.
 
 ## Current state
 
-R3 exposed an overstrong contract: accepted runtime requests require exact workspace paths, while
-architecture treats TUI, application, and supervisor as one trusted foreground base. The corrected
-boundary removes the generic root and keeps specific paths inside trusted composition only.
+Accepted at integrated main
+[40315e2](https://github.com/maggnus/ymp/commit/40315e299729ecdd4b3683c473fd42c5e93e57b7).
+Exact payloads are durable and resolved through an owned
+projection; generic root/store/board access is closed, while trusted runtime composition receives
+only the specific paths it already requires.
 
 ## Next action
 
-Have the independent reviewer confirm the corrected trust boundary, then replace all three callers.
+Start W1-COR-03z on the accepted typed publication and projection seam.
 
 ## Guardrails
 
@@ -111,25 +113,32 @@ escalation, one `- CTO <decision> <dd/mm hh:mm> — <reason>` line records what 
 dialogue itself stays in the reports and the evidence package.
 
 - R1(7/10) RETURN 01/09 12:26 — public object-store and board access bypasses the typed seam → Sol
-  correction assigned → candidate `ec45bce` returned
+  correction assigned → candidate
+  [ec45bce](https://github.com/maggnus/ymp/commit/ec45bce39c63ee25d8201dc5f741538e2e750d70)
+  returned
 - R2(6/10) ESCALATE 01/09 12:44 — correction range also carried unrelated mainline documents → R1
   finding closed but range rejected → clean two-commit candidate required
 - CTO independent_review 01/09 12:46 — replacement review inspects the clean range only
 - R3(6/10) RETURN 01/09 12:48 — public `data_root()` reconstructs storage paths → original Sol
   author found two out-of-zone consumers and stopped → exact call sites added before correction
+- R4(9/10) ACCEPT 01/09 13:00 — generic root and equivalent store paths closed → trusted
+  workspace/evidence paths retained by corrected contract → clean candidate integrated unchanged
 
 ## Closure
 
-Filled when the subtask is accepted.
-
 ### Accepted outcome
 
-What was actually accepted.
+Payload bytes are written before the corresponding board fact, validated against their digest and
+length, recovered after reopen, and returned only as owned resolved messages. Missing or corrupt
+objects fail closed. Public object-store, mutable-board, and generic-root accessors are absent;
+trusted runtime and foreground TUI composition receive only their specific configured paths.
 
 ### Residuals
 
-Honestly retained limitations, each with an exact return trigger.
+None.
 
 ### Evidence
 
-- Commit, evidence package, or durable document of record, each as a Markdown link.
+- [40315e2](https://github.com/maggnus/ymp/commit/40315e299729ecdd4b3683c473fd42c5e93e57b7)
+  — integrated code; its `ymp-rust` tree is byte-identical to reviewed candidate
+  [183417d](https://github.com/maggnus/ymp/commit/183417da84ce7c9ee6cb53b1ece2a390539d54df).
