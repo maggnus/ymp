@@ -33,15 +33,26 @@ Architecture `adr` and general product `rfc` records remain outside this researc
 `DECISIONS.md` stays canonical until an explicit architecture-record migration. Creating a research
 record also updates this index.
 
-## Current protocols
+## Current protocols and calibration
 
 - [cal-001-calibration.md](cal-001-calibration.md) — development profile ladder, measured runs, and promotion
   boundary.
 - [prt-001-weak-diagnostic.md](prt-001-weak-diagnostic.md) — diagnostic matched-budget comparison on a
   separately frozen held-out L4+ set using weak participant profiles before the frozen primary
   study.
+
+## Current hypotheses
+
+- [hyp-001-model-dependent-communication-representation.md](hyp-001-model-dependent-communication-representation.md)
+  — directional sender-profile × representation × receiver-profile hypothesis, typed research
+  envelope, counterhypotheses, and transfer boundary.
+
+## Current mechanism maps
+
 - [map-001-mechanism-map.md](map-001-mechanism-map.md) — falsifiable coordination mechanisms, interventions,
   expected null strata, and scientific stop rules.
+- [map-002-coordination-research-queue.md](map-002-coordination-research-queue.md) — dependency-ordered
+  coordination questions, transport readiness gate, observable predictions, and scientific stops.
 
 ## Research decisions
 
