@@ -109,6 +109,7 @@ part of POC, MVP, or Alpha, and MCP is not their internal protocol.
 | [ARCHITECTURE.md](ARCHITECTURE.md) | Three-plane trust boundary, local commitments, immutable candidates, and communication observatory |
 | [PROTOCOL.md](PROTOCOL.md) | Negotiation, scoped inert messages, obligations, leases, budgets, and termination |
 | [PROJECT-CONTRACT.md](PROJECT-CONTRACT.md) | Public specification, protected oracle, approval, and oracle validation |
+| [USER_JOURNEY.md](USER_JOURNEY.md) | Draft primary journey from an ordinary goal to a working, checked result |
 | [REPUTATION.md](REPUTATION.md) | Why grade was removed; contextual evidence, uncertainty, cold start, and diversity |
 | [SECURITY.md](SECURITY.md) | Threat actors, trust boundaries, enforceable containment, and residual risk |
 | [DECISIONS.md](DECISIONS.md) | Settled decisions, rejected mechanisms, research applicability, and open experiments |
