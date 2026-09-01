@@ -10,7 +10,7 @@ relation: required
 depends_on: [W1-EVL-04k, W1-EVL-04l, W1-EVL-04n]
 blocks: [W1-EVL-04e]
 created_at: 2026-09-01T15:57:45+08:00
-updated_at: 2026-09-01T17:17:30+08:00
+updated_at: 2026-09-01T17:24:00+08:00
 started_at:
 accepted_at:
 candidate_commit:
@@ -41,6 +41,10 @@ remains fail-closed.
 - Replace the current specified-only stage-two probe acceptance in
   `ymp-rust/tools/ymp-corpus/src/admission.rs` with strict consumption of the controller-attested
   Application record and its exact manifest, runtime, route, usage, budget and digest bindings.
+- Read only the strict serialized `AttestedToolHostProbeHandle` from the controller-owned export
+  outside the candidate project; derive the matching probe Application store from the prepared
+  evaluation `YMP_HOME`, open it through the existing Application/root API and call
+  `Application::attested_tool_host_probe(&handle)`. The handle is a locator, not evidence.
 - Preserve the accepted zero-model rehearsal, S1-S3 schedules, read cap, limits and report schema
   except for the minimal attestation fields required to open the gate.
 - Exclusive write zone: `ymp-rust/tools/ymp-corpus/src/admission.rs` only.
@@ -63,6 +67,9 @@ remains fail-closed.
       typed reason.
 - [ ] Re-running with the same attestation cannot consume it twice or create a second readiness
       transition; an attestation for another isolated root cannot be imported.
+- [ ] Mutated or fabricated handle JSON, a valid handle copied from another `YMP_HOME`, a missing
+      private reference/object and direct deserialization of attestation bytes each fail before
+      stage two; the single-file consumer needs no new Application, CLI or Cargo change.
 - [ ] One `ymp-corpus admission` consumer walk runs in a fresh root with separate project, `HOME`,
       `YMP_HOME`, `TMPDIR`, build and export; the positive record is supplied only through the
       trusted controller export outside the candidate project.
@@ -84,6 +91,8 @@ After W1-EVL-04n is accepted, run a Critical contract check of the single-file c
 
 - Admission consumes authority; it never creates, repairs or infers it.
 - A syntactically correct evidence file is not proof of controller nonce ownership or read-back.
+- A handle is an untrusted locator; only verified reload from the matching Application store returns
+  the opaque attestation consumed here.
 - This node opens only the development model gate and changes no experimental arm or metric.
 
 ## Findings

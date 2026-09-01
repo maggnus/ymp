@@ -10,7 +10,7 @@ relation: required
 depends_on: [W1-EVL-04j]
 blocks: [W1-EVL-04n]
 created_at: 2026-09-01T15:57:45+08:00
-updated_at: 2026-09-01T17:17:30+08:00
+updated_at: 2026-09-01T17:24:00+08:00
 started_at:
 accepted_at:
 candidate_commit:
@@ -58,9 +58,16 @@ W1-EVL-04j seam, independently reads back the file and persists one opaque
   object/reference, or a reservation without an attestation, is recovered fail-closed. An
   unreferenced object left by interruption is permitted and grants nothing.
 - The public `AttestedToolHostProbe` has private fields, read-only accessors and `Serialize` only;
-  it has no public constructor or `Deserialize`. `Application::attested_tool_host_probe(handle)`
-  reloads and verifies the private record. `AttestedToolHostProbeHandle` carries only probe,
-  store-identity and record digests for the later trusted consumer.
+  it has no public constructor or `Deserialize`. `AttestedToolHostProbeHandle` is a strict
+  `Serialize`/`Deserialize` locator containing only schema version, store identity, `probe_id` and
+  record digest; it is explicitly untrusted and grants no authority by itself.
+- `Application::attested_tool_host_probe(&handle)` first proves that the handle names this
+  application's configured store, then loads `attestation.ref`, verifies the object and record
+  digests and returns the opaque attestation. Any forged/imported handle, wrong store, missing
+  reference or raw JSON fails before an attestation value exists.
+- `ymp internal tool-host-probe` uses the existing internal dispatch and writes the canonical handle
+  with `create_new` only to the controller-owned export path after the private attestation is
+  durable. It accepts no caller nonce, workspace path, object digest or attestation bytes.
 - Exclusive write zone: optional new
   `ymp-rust/crates/ymp-application/src/tool_host_probe.rs`, narrow declarations and dispatch in
   `ymp-rust/crates/ymp-application/src/lib.rs`, narrow internal command wiring in
@@ -88,6 +95,9 @@ W1-EVL-04j seam, independently reads back the file and persists one opaque
 - [ ] A pre-existing destination, syntactically valid raw trace or model-authored evidence cannot
       construct, deserialize or reload an accepted attestation without the controller-owned
       reservation, independent read-back and private store reference.
+- [ ] A round-trip serialized handle reloads the same opaque attestation only through the matching
+      Application store. Mutated digest/store/probe fields, a copied handle in another isolated root
+      and a fabricated handle each fail; handle JSON alone cannot satisfy W1-EVL-04m.
 - [ ] The probe budget is distinct from every arm/task/candidate/communication allocation. Its
       immutable reservation is written before start; charged usage is no larger than it, and a
       failure, crash, replay or repeated terminal cannot refund it or start a second invocation.
@@ -125,6 +135,9 @@ subsystem.
 - R1 contract review found the former storage format, recovery, replay and accounting semantics
   underspecified; the corrected contract uses one purpose-built reservation marker plus the existing
   object store rather than a new general ledger.
+- R2 contract review found the first opaque-type design had no executable cross-process consumer;
+  the corrected design serializes only an untrusted locator and requires verified reload from the
+  matching private Application store.
 - Scientific peer review added the mandatory prelaunch absence check and identified the accepted
   fake-only runtime as an unconditional live-gate stop; W1-EVL-04n owns that minimal bridge.
 
