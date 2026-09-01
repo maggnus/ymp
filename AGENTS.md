@@ -128,6 +128,9 @@ GitHub source above.
   boundaries. Weaker GPT, GLM, and Claude profiles may run tests, search for counterexamples,
   review results, perform read-only research, or participate in controlled POC experiments, but
   they do not author repository code or test code; any resulting fix returns to a Sol author.
+- GPT, GLM, and Claude are the only model families executed for development, testing, review, or
+  POC participation. Other model routes may remain documented as possible integrations, but they
+  are not run unless the owner explicitly changes this allowlist.
 - Every behavioral test or evaluation that launches the product executable or an external agent
   runs in a newly created disposable directory with isolated project, `HOME`, `YMP_HOME`, `TMPDIR`,
   build, and export paths. It must not use the repository worktree as the launch directory or touch
