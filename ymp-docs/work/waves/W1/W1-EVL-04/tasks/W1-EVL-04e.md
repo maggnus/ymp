@@ -10,7 +10,7 @@ relation: required
 depends_on: [W1-EXP-01e, W1-COR-03z, W1-PRD-05j.1]
 blocks: [W1-EVL-04f, W1-EVL-04a]
 created_at: 2026-09-01T13:41:52+08:00
-updated_at: 2026-09-01T13:41:52+08:00
+updated_at: 2026-09-01T14:28:10+08:00
 started_at:
 accepted_at:
 candidate_commit:
@@ -55,8 +55,19 @@ decision that is not primary evidence.
 - [ ] A zero-model fake-runtime run exercises every arm, budget field, selector commitment,
       protected query and stop branch; budget mismatch, early arm disclosure, missing usage,
       duplicate condition, unavailable oracle or undeclared exclusion is rejected.
+- [ ] Before any model call, the fake runtime forces three transport-conformance schedules: S1
+      publishes before the receiver reads; S2 records one empty read before publication and one
+      remaining read after it; S3 exhausts the receiver's reads or yields before publication and is
+      not woken by the board message. S1 and S2 preserve the exact publication, delivery receipt,
+      later receiver action and honest terminal; an unauthorized third participant receives
+      nothing.
 - [ ] The real cohort runs every frozen task/repetition/arm exactly once in hash-derived order with
       the same profile, route, total resource vector and one protected query per condition.
+- [ ] Real coordinated conditions freeze process windows, their order and the read cap independently
+      of message presence, content and outcome. The runner never forces `publish` or `read_board`.
+      An available but unused opportunity, early yield or exhausted reads is retained as negative
+      participant behavior; a missing promised window/tool/accounting record, or a successful
+      authorized post-publication read without `DeliveryRecorded`, makes the condition invalid.
 - [ ] The selector commits before arm identity, messages or producer rationale are revealed; a
       deliberately early reveal makes the compliance check fail.
 - [ ] The diagnostic decision compares coordination with both controls by stratum, requires the
@@ -67,25 +78,34 @@ decision that is not primary evidence.
 
 ## Current state
 
-The protocol is specified, and `publish/read_board` is accepted, but recruitment, the L4+ corpus,
-diagnostic scheduler, selector and compliance runner are absent. No weak model observation has been
-admitted or paid for.
+The protocol and pull-transport seam are specified; `publish/read_board` is accepted. Recruitment
+has a candidate under review and the L4+ corpus is being implemented, while the diagnostic
+scheduler, selector, compliance runner and the required two-participant transport schedules remain
+absent. No weak model observation has been admitted or paid for.
 
 ## Next action
 
-After W1-EXP-01e and W1-PRD-05j.1, implement and prove the complete fake-runtime path before opening
-any model or monetary gate.
+After W1-EXP-01e and W1-PRD-05j.1 are accepted, implement S1-S3 and the complete fake-runtime path
+with a frozen content-independent schedule and read cap before opening any model or monetary gate.
 
 ## Guardrails
 
 - A development diagnostic can stop primary work but can never count toward the primary estimate.
 - Failure to beat both single and independent controls stops mechanism deepening.
 - Infrastructure failure, candidate failure and oracle invalidity remain distinct outcomes.
+- The first model experiment studies organization inside bounded active process windows and does
+  not require a board-message wake. Asynchronous communication after `yield` is a separate future
+  hypothesis and cannot be assumed without explicit kernel/protocol review.
+- `DeliveryRecorded` proves availability only. Listening and task value require later controlled
+  interventions.
 
 ## Findings
 
 - Split from W1-EVL-04a because weak development evidence cannot close a frozen primary-comparison
   task.
+- Peer scientific review resolved the pull-transport boundary by retaining S3 as a valid negative
+  outcome instead of excluding it through scheduling. Only missing promised mechanics invalidate a
+  condition; participant choices do not.
 
 ## Review rounds
 
