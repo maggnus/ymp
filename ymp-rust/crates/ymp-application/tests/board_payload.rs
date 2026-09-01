@@ -28,10 +28,8 @@ fn publication(message_id: &str, payload: Payload) -> Publish {
 }
 
 fn positions(application: &Application) -> (usize, u64) {
-    (
-        application.board().ledger().audit().len(),
-        application.board().recorded_facts(),
-    )
+    let observation = application.board_observation();
+    (observation.audit_messages, observation.recorded_facts)
 }
 
 fn object_path(root: &Path, digest: &str) -> PathBuf {

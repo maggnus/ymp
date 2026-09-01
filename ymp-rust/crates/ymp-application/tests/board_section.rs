@@ -75,9 +75,12 @@ fn creating_a_run_opens_the_board_section() {
         section.display()
     );
     assert!(section.join(FACT_RECORD).is_file());
-    let recorded_facts = app.board().ledger().facts().len() as u64;
-    assert!(recorded_facts >= 2, "the publications committed no facts");
-    assert_eq!(app.board().recorded_facts(), recorded_facts);
+    let observation = app.board_observation();
+    assert!(
+        observation.committed_facts >= 2,
+        "the publications committed no facts"
+    );
+    assert_eq!(observation.recorded_facts, observation.committed_facts);
     let recorded = fs::read_to_string(&opening).expect("the opening terms are readable");
     assert!(recorded.contains(BOARD_RECORD_KIND));
     assert!(recorded.contains(&BOARD_SCHEMA_VERSION.to_string()));
@@ -100,22 +103,15 @@ fn reopening_the_same_run_restores_the_board() {
     let temporary = tempdir().expect("temporary directory");
     let root = temporary.path();
     let app = run_with_publications(root);
-    let facts_before: Vec<BoardEvent> = app.board().ledger().facts().to_vec();
-    let state_before = app.board().ledger().snapshot();
+    let before = app.board_observation();
     drop(app);
 
     let reopened = Application::open(root).expect("reopen the run");
     assert_eq!(
-        reopened.board().ledger().facts(),
-        facts_before.as_slice(),
+        reopened.board_observation(),
+        before,
         "the restored board does not replay the sequence it was recorded from"
     );
-    assert_eq!(
-        reopened.board().ledger().snapshot(),
-        state_before,
-        "the restored board is not the board that was recorded"
-    );
-    assert_eq!(reopened.board().recorded_facts(), facts_before.len() as u64);
 
     // Negative half: a corrupted section file is an honest refusal. The last record line is cut
     // short, as an interrupted append leaves it, and reopening refuses by name rather than
@@ -141,16 +137,14 @@ fn reopening_uses_the_board_terms_recorded_at_creation() {
         .expect("create run");
     app.publish_board(&publication("message-1"), PAYLOAD_SENTENCE)
         .expect("a publication is recorded");
-    let facts_before = app.board().ledger().facts().to_vec();
-    let state_before = app.board().ledger().snapshot();
+    let before = app.board_observation();
     drop(app);
 
     let mut current = ApplicationConfig::default();
     current.board.controller = "current-controller".to_owned();
     let reopened = Application::open_with_config(root, current)
         .expect("reopen from the board's recorded terms");
-    assert_eq!(reopened.board().ledger().facts(), facts_before.as_slice());
-    assert_eq!(reopened.board().ledger().snapshot(), state_before);
+    assert_eq!(reopened.board_observation(), before);
 }
 
 #[test]
@@ -158,9 +152,7 @@ fn a_board_write_error_leaves_the_live_ledger_unchanged() {
     let temporary = tempdir().expect("temporary directory");
     let root = temporary.path();
     let mut app = Application::create(root, "run-1", Budget::new(2, 1)).expect("create run");
-    let ledger_before = app.board().ledger().clone();
-    let bytes_before = serde_json::to_vec(&ledger_before).expect("serialize the live ledger");
-    let recorded_before = app.board().recorded_facts();
+    let before = app.board_observation();
 
     let fact_record = root.join(BOARD_SECTION).join(FACT_RECORD);
     fs::remove_file(&fact_record).expect("remove the fact record");
@@ -170,12 +162,7 @@ fn a_board_write_error_leaves_the_live_ledger_unchanged() {
         app.publish_board(&publication("message-1"), PAYLOAD_SENTENCE),
         Err(ApplicationError::BoardSectionUnusable(_))
     ));
-    assert_eq!(app.board().ledger(), &ledger_before);
-    assert_eq!(
-        serde_json::to_vec(app.board().ledger()).expect("serialize the live ledger after refusal"),
-        bytes_before
-    );
-    assert_eq!(app.board().recorded_facts(), recorded_before);
+    assert_eq!(app.board_observation(), before);
 }
 
 #[test]
@@ -257,8 +244,7 @@ fn payload_bytes_appear_in_neither_the_section_nor_the_export() {
     // The same holds for the exported evidence of the board the section holds.
     let export = temporary.path().join("board-evidence.json");
     let evidence = app
-        .board()
-        .export_evidence(&export)
+        .export_board_evidence(&export)
         .expect("the board evidence exports");
     let bytes = fs::read(&export).expect("the export is readable");
     assert!(

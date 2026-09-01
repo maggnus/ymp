@@ -7,16 +7,17 @@ use ymp_domain::{Budget, Command, EventEnvelope, EventKind, RunState, RunStatus}
 use ymp_kernel::validate_state;
 use ymp_storage::{JournalError, JournalLimits, ObjectStoreError};
 
+mod support;
+
+use support::FixtureObjects;
+
 #[test]
 fn duplicate_command_is_replayed_and_state_recovers_from_cursor() {
     let temporary = tempdir().expect("temporary directory");
     let expected_state = {
         let mut app = Application::create(temporary.path(), "run-1", Budget::new(2, 1))
             .expect("create application");
-        let candidate = app
-            .object_store()
-            .put(b"candidate bytes")
-            .expect("store candidate");
+        let candidate = FixtureObjects::at(temporary.path()).put(b"candidate bytes");
         let first = app
             .execute(
                 "command-1",
@@ -225,10 +226,7 @@ fn lagging_notification_receiver_recovers_from_durable_cursor() {
     let mut app = Application::create(temporary.path(), "run-1", Budget::new(1, 1))
         .expect("create application");
     let notifications = app.subscribe(1).expect("subscribe");
-    let candidate = app
-        .object_store()
-        .put(b"candidate bytes")
-        .expect("store candidate");
+    let candidate = FixtureObjects::at(temporary.path()).put(b"candidate bytes");
 
     app.execute(
         "start",
@@ -273,10 +271,7 @@ fn journal_capacity_uses_terminal_reserve_and_recovers_as_infrastructure_error()
             config.clone(),
         )
         .expect("create bounded application");
-        let candidate = app
-            .object_store()
-            .put(b"candidate")
-            .expect("store candidate");
+        let candidate = FixtureObjects::at(temporary.path()).put(b"candidate");
         app.execute(
             "start",
             Command::StartAttempt {
@@ -398,10 +393,12 @@ fn missing_candidate_object_is_rejected_during_recovery() {
     let object_path = {
         let mut app = Application::create(temporary.path(), "run-1", Budget::new(1, 1))
             .expect("create application");
-        let candidate = app
-            .object_store()
-            .put(b"candidate bytes")
-            .expect("store candidate");
+        let objects = FixtureObjects::at(temporary.path());
+        let candidate = objects.put(b"candidate bytes");
+        assert_eq!(objects.read(&candidate), b"candidate bytes");
+        objects
+            .verify(&candidate)
+            .expect("fixture candidate is initially intact");
         app.execute(
             "command-1",
             Command::StartAttempt {
@@ -418,9 +415,7 @@ fn missing_candidate_object_is_rejected_during_recovery() {
             },
         )
         .expect("submit candidate");
-        app.object_store()
-            .path_for(&candidate)
-            .expect("candidate path")
+        objects.path_for(&candidate)
     };
     std::fs::remove_file(object_path).expect("remove candidate object");
 

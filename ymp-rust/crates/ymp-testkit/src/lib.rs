@@ -12,6 +12,9 @@ pub mod origin_start;
 pub mod ready_root;
 pub mod recruitment;
 
+const EXACT_DIGEST_ENVIRONMENT: &[u8] =
+    br#"{"schema_version":1,"verifier_profile":"exact_digest_v1"}"#;
+
 #[derive(Clone, Debug, Serialize)]
 pub struct DemoReport {
     pub state: RunState,
@@ -38,16 +41,11 @@ pub fn run_accepted_demo(data_root: impl AsRef<Path>) -> Result<DemoReport, Demo
     let data_root = data_root.as_ref().to_path_buf();
     let mut app = Application::create(&data_root, "demo-run", Budget::new(2, 1))?;
     let (source, submission, candidate) = build_candidate_fixture(&app, &data_root)?;
-    let candidate_object_path = app
-        .object_store()
-        .path_for(&candidate.snapshot_digest)
-        .expect("candidate digest was produced by the object store");
     let verifier = ExactDigestVerifier::new(
         "1111111111111111111111111111111111111111111111111111111111111111",
         "2222222222222222222222222222222222222222222222222222222222222222",
         &candidate.snapshot_digest,
     )?;
-    let evidence = verifier.verify_candidate(candidate_object_path, &candidate.snapshot_digest)?;
 
     app.execute(
         "demo.start-attempt",
@@ -69,7 +67,7 @@ pub fn run_accepted_demo(data_root: impl AsRef<Path>) -> Result<DemoReport, Demo
             object_digest: candidate.snapshot_digest.clone(),
         },
     )?;
-    app.record_verification("demo.verify-candidate", &evidence)?;
+    app.verify_with_environment("demo.verify-candidate", EXACT_DIGEST_ENVIRONMENT, &verifier)?;
     let events = app.events_after(0)?;
 
     Ok(DemoReport {

@@ -3,6 +3,10 @@ use ymp_application::{Application, ApplicationError};
 use ymp_domain::{Budget, Command};
 use ymp_verifier::ExactDigestVerifier;
 
+mod support;
+
+use support::FixtureObjects;
+
 #[test]
 fn quiescent_private_workspace_becomes_reproducible_candidate() {
     let temporary = tempdir().expect("temporary directory");
@@ -158,14 +162,13 @@ fn conflicting_integration_cannot_replace_an_existing_candidate() {
         event_count
     );
 
-    let altered_digest = application
-        .object_store()
-        .put(b"proposed candidate")
-        .expect("store proposed candidate");
-    let altered_path = application
-        .object_store()
-        .path_for(&altered_digest)
-        .expect("proposed candidate path");
+    let objects = FixtureObjects::at(&data_root);
+    let altered_digest = objects.put(b"proposed candidate");
+    assert_eq!(objects.read(&altered_digest), b"proposed candidate");
+    objects
+        .verify(&altered_digest)
+        .expect("fixture candidate is initially intact");
+    let altered_path = objects.path_for(&altered_digest);
     std::fs::write(altered_path, b"altered candidate").expect("alter proposed candidate");
     assert!(matches!(
         application.execute(

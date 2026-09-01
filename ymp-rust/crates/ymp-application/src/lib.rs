@@ -315,6 +315,16 @@ pub struct ResolvedBoardProjection {
     pub verdicts: Vec<(String, ObservedVerdict)>,
 }
 
+/// A value-only checkpoint of the collaboration board, suitable for checking that an operation
+/// moved or preserved its durable position without exposing the board or its store.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct BoardObservation {
+    pub audit_messages: usize,
+    pub committed_facts: u64,
+    pub recorded_facts: u64,
+    pub state_digest: String,
+}
+
 impl ResolvedBoardProjection {
     /// Apply the board projection's presentation checks without granting access to its ledger.
     pub fn check(&self) -> Result<(), ViewDefect> {
@@ -350,7 +360,7 @@ pub fn default_board_endowment() -> CommunicationAllowance {
 /// reached by nothing in the control plane: the journal never names a board file, and the board
 /// records no journal fact.
 #[derive(Debug)]
-pub struct BoardSection {
+struct BoardSection {
     store: BoardStore,
     ledger: BoardLedger,
 }
@@ -381,23 +391,14 @@ impl BoardSection {
         Ok(Self { store, ledger })
     }
 
-    /// The section directory, for the acceptance that names it.
-    pub fn directory(&self) -> &Path {
-        self.store.directory()
-    }
-
-    pub fn ledger(&self) -> &BoardLedger {
-        &self.ledger
-    }
-
-    pub fn recorded_facts(&self) -> u64 {
+    fn recorded_facts(&self) -> u64 {
         self.store.recorded_facts()
     }
 
     /// Write this board's evidence to `path`: the terms it was opened on, the chained fact
     /// sequence, and the projections a reader of that evidence checks the facts against. The
     /// destination is the caller's; nothing under the run's store is written by it.
-    pub fn export_evidence(
+    fn export_evidence(
         &self,
         path: impl AsRef<Path>,
     ) -> Result<ymp_board::BoardEvidence, ApplicationError> {
@@ -1072,9 +1073,57 @@ impl Application {
         &self.state.admissions
     }
 
-    /// The board section of this run's store, opened on the terms the section records.
-    pub fn board(&self) -> &BoardSection {
-        &self.board
+    /// A value-only checkpoint of the board's audit, committed state, and durable record.
+    ///
+    /// Storage and board owners deliberately have no public application accessor. External code
+    /// cannot recover them through this observation:
+    ///
+    /// ```compile_fail
+    /// use ymp_application::Application;
+    /// use ymp_storage::ObjectStore;
+    /// fn storage(application: &Application) -> &ObjectStore {
+    ///     application.object_store()
+    /// }
+    /// ```
+    ///
+    /// ```compile_fail
+    /// use ymp_application::{Application, BoardSection};
+    /// fn section(application: &Application) -> &BoardSection {
+    ///     application.board()
+    /// }
+    /// ```
+    ///
+    /// ```compile_fail
+    /// use ymp_application::Application;
+    /// use ymp_board::BoardLedger;
+    /// fn ledger(application: &Application) -> &BoardLedger {
+    ///     application.board().ledger()
+    /// }
+    /// ```
+    ///
+    /// ```compile_fail
+    /// use ymp_application::Application;
+    /// use ymp_board::BoardStore;
+    /// fn store(application: &Application) -> &BoardStore {
+    ///     application.board().store()
+    /// }
+    /// ```
+    pub fn board_observation(&self) -> BoardObservation {
+        let snapshot = self.board.ledger.snapshot();
+        BoardObservation {
+            audit_messages: self.board.ledger.audit().len(),
+            committed_facts: self.board.ledger.facts().len() as u64,
+            recorded_facts: self.board.recorded_facts(),
+            state_digest: ymp_board::digest_bytes(snapshot.as_bytes()),
+        }
+    }
+
+    /// Export an owned evidence reading of the board to a caller-selected destination.
+    pub fn export_board_evidence(
+        &self,
+        path: impl AsRef<Path>,
+    ) -> Result<ymp_board::BoardEvidence, ApplicationError> {
+        self.board.export_evidence(path)
     }
 
     /// An owned, read-only projection of the persisted collaboration record for the operator.
@@ -1787,10 +1836,6 @@ impl Application {
         &self.state
     }
 
-    pub fn object_store(&self) -> &ObjectStore {
-        &self.object_store
-    }
-
     pub fn artifact_store(&self) -> ArtifactStore {
         ArtifactStore::new(self.object_store.clone())
     }
@@ -2321,7 +2366,7 @@ mod interrupted_commit {
         let mut application = Application::create(temporary.path(), "run-1", Budget::new(1, 1))
             .expect("create application");
         let candidate = application
-            .object_store()
+            .object_store
             .put(b"candidate bytes")
             .expect("store the candidate");
         application
@@ -2347,7 +2392,7 @@ mod interrupted_commit {
         // the journal records is immutable, so a different one is refused rather than accepted
         // over it.
         let other = application
-            .object_store()
+            .object_store
             .put(b"a different candidate")
             .expect("store the second candidate");
         assert!(matches!(

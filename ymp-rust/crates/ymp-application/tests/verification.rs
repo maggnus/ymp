@@ -9,6 +9,10 @@ use ymp_verifier::{
     VerifierError,
 };
 
+mod support;
+
+use support::FixtureObjects;
+
 enum EnvironmentMutation {
     ReplaceByte,
     RemoveObject,
@@ -62,10 +66,7 @@ impl EnvironmentBoundVerifier for MutatingVerifier {
 fn submitted_application(data_root: &Path) -> (Application, String) {
     let mut app =
         Application::create(data_root, "run-1", Budget::new(1, 2)).expect("create application");
-    let candidate_digest = app
-        .object_store()
-        .put(b"candidate")
-        .expect("store candidate");
+    let candidate_digest = FixtureObjects::at(data_root).put(b"candidate");
     app.execute(
         "start",
         Command::StartAttempt {
@@ -89,6 +90,7 @@ fn submitted_application(data_root: &Path) -> (Application, String) {
 fn only_bound_verifier_evidence_can_accept_a_candidate() {
     let temporary = tempdir().expect("temporary data root");
     let (mut app, candidate_digest) = submitted_application(temporary.path());
+    let objects = FixtureObjects::at(temporary.path());
     let environment_object = br#"{"runtime":"exact-digest","toolchain":"sha256-v1"}"#;
 
     let verifier = ExactDigestVerifier::new("1".repeat(64), "2".repeat(64), &candidate_digest)
@@ -109,10 +111,7 @@ fn only_bound_verifier_evidence_can_accept_a_candidate() {
         }
         unexpected => panic!("unexpected event: {unexpected:?}"),
     };
-    let evidence_bytes = app
-        .object_store()
-        .read(&evidence_digest)
-        .expect("read evidence object");
+    let evidence_bytes = objects.read(&evidence_digest);
     let restored: StoredVerificationEvidence =
         VerifiedEvidence::from_object_bytes(&evidence_bytes, &evidence_digest)
             .expect("restore evidence");
@@ -123,19 +122,15 @@ fn only_bound_verifier_evidence_can_accept_a_candidate() {
         environment_digest,
         ymp_domain::digest_bytes(environment_object)
     );
-    app.object_store()
+    objects
         .verify(environment_digest)
         .expect("environment object is durable");
 
     let reproduced = verifier
         .verify_candidate_in_environment(
-            &app.object_store()
-                .path_for(&candidate_digest)
-                .expect("candidate path"),
+            &objects.path_for(&candidate_digest),
             &candidate_digest,
-            &app.object_store()
-                .path_for(environment_digest)
-                .expect("environment path"),
+            &objects.path_for(environment_digest),
             environment_digest,
         )
         .expect("reproduce evidence from immutable inputs");
@@ -149,15 +144,11 @@ fn only_bound_verifier_evidence_can_accept_a_candidate() {
 fn exact_verification_retry_returns_the_stored_result_without_spending_budget() {
     let temporary = tempdir().expect("temporary data root");
     let (mut app, candidate_digest) = submitted_application(temporary.path());
+    let objects = FixtureObjects::at(temporary.path());
     let verifier = ExactDigestVerifier::new("1".repeat(64), "2".repeat(64), &candidate_digest)
         .expect("configure verifier");
     let evidence = verifier
-        .verify_candidate(
-            app.object_store()
-                .path_for(&candidate_digest)
-                .expect("candidate path"),
-            candidate_digest,
-        )
+        .verify_candidate(objects.path_for(&candidate_digest), candidate_digest)
         .expect("verify candidate");
     let first = app
         .record_verification("verify-first", &evidence)
@@ -235,6 +226,7 @@ fn recovery_refuses_missing_or_altered_environment_objects() {
     for remove in [true, false] {
         let temporary = tempdir().expect("temporary data root");
         let (mut app, candidate_digest) = submitted_application(temporary.path());
+        let objects = FixtureObjects::at(temporary.path());
         let verifier = ExactDigestVerifier::new("1".repeat(64), "2".repeat(64), candidate_digest)
             .expect("configure verifier");
         app.verify_with_environment("verify", b"runtime-environment-v1", &verifier)
@@ -250,10 +242,7 @@ fn recovery_refuses_missing_or_altered_environment_objects() {
                 _ => None,
             })
             .expect("verification evidence digest");
-        let evidence_bytes = app
-            .object_store()
-            .read(&evidence_digest)
-            .expect("read evidence");
+        let evidence_bytes = objects.read(&evidence_digest);
         let evidence: StoredVerificationEvidence =
             VerifiedEvidence::from_object_bytes(&evidence_bytes, evidence_digest)
                 .expect("restore evidence");
@@ -261,10 +250,7 @@ fn recovery_refuses_missing_or_altered_environment_objects() {
             .environment_digest()
             .expect("environment digest")
             .to_owned();
-        let environment_path = app
-            .object_store()
-            .path_for(&environment_digest)
-            .expect("environment path");
+        let environment_path = objects.path_for(&environment_digest);
         drop(app);
         if remove {
             std::fs::remove_file(environment_path).expect("remove environment");
@@ -308,10 +294,7 @@ fn ambiguous_version_one_evidence_blocks_recovery_as_infrastructure_error() {
         "evidence_digest": ""
     }))
     .expect("serialize legacy evidence");
-    let legacy_digest = app
-        .object_store()
-        .put(&legacy_bytes)
-        .expect("store legacy evidence");
+    let legacy_digest = FixtureObjects::at(temporary.path()).put(&legacy_bytes);
     let state = app.state().clone();
     drop(app);
 
@@ -353,10 +336,8 @@ fn rejected_evidence_cannot_accept_and_command_ids_remain_content_bound() {
     let temporary = tempdir().expect("temporary data root");
     let mut app = Application::create(temporary.path(), "run-1", Budget::new(1, 2))
         .expect("create application");
-    let candidate_digest = app
-        .object_store()
-        .put(b"candidate")
-        .expect("store candidate");
+    let objects = FixtureObjects::at(temporary.path());
+    let candidate_digest = objects.put(b"candidate");
     app.execute(
         "start",
         Command::StartAttempt {
@@ -379,12 +360,7 @@ fn rejected_evidence_cannot_accept_and_command_ids_remain_content_bound() {
         ExactDigestVerifier::new("1".repeat(64), "2".repeat(64), wrong_expected)
             .expect("configure rejecting verifier");
     let rejected = rejecting_verifier
-        .verify_candidate(
-            app.object_store()
-                .path_for(&candidate_digest)
-                .expect("candidate path"),
-            &candidate_digest,
-        )
+        .verify_candidate(objects.path_for(&candidate_digest), &candidate_digest)
         .expect("verify candidate");
     app.record_verification("verify", &rejected)
         .expect("commit rejection");
@@ -394,12 +370,7 @@ fn rejected_evidence_cannot_accept_and_command_ids_remain_content_bound() {
         ExactDigestVerifier::new("1".repeat(64), "2".repeat(64), &candidate_digest)
             .expect("configure accepting verifier");
     let accepted = accepting_verifier
-        .verify_candidate(
-            app.object_store()
-                .path_for(&candidate_digest)
-                .expect("candidate path"),
-            &candidate_digest,
-        )
+        .verify_candidate(objects.path_for(&candidate_digest), &candidate_digest)
         .expect("verify candidate");
     assert!(matches!(
         app.record_verification("verify", &accepted),
@@ -414,10 +385,8 @@ fn recovery_rejects_a_missing_verifier_evidence_object() {
     let evidence_digest = {
         let mut app = Application::create(temporary.path(), "run-1", Budget::new(1, 1))
             .expect("create application");
-        let candidate_digest = app
-            .object_store()
-            .put(b"candidate")
-            .expect("store candidate");
+        let objects = FixtureObjects::at(temporary.path());
+        let candidate_digest = objects.put(b"candidate");
         app.execute(
             "start",
             Command::StartAttempt {
@@ -437,19 +406,11 @@ fn recovery_rejects_a_missing_verifier_evidence_object() {
         let verifier = ExactDigestVerifier::new("1".repeat(64), "2".repeat(64), &candidate_digest)
             .expect("configure verifier");
         let evidence = verifier
-            .verify_candidate(
-                app.object_store()
-                    .path_for(&candidate_digest)
-                    .expect("candidate path"),
-                candidate_digest,
-            )
+            .verify_candidate(objects.path_for(&candidate_digest), candidate_digest)
             .expect("verify candidate");
         app.record_verification("verify", &evidence)
             .expect("commit verifier evidence");
-        let path = app
-            .object_store()
-            .path_for(evidence.evidence_digest())
-            .expect("evidence path");
+        let path = objects.path_for(evidence.evidence_digest());
         std::fs::remove_file(path).expect("remove evidence object");
         evidence.evidence_digest().to_owned()
     };

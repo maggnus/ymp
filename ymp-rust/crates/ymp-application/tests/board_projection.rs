@@ -34,13 +34,9 @@ fn operator_projection_is_attributed_untrusted_and_read_only() {
         )
         .expect("record representative board message");
 
-    let audit_position = application.board().ledger().audit().len();
-    let record_position = application.board().recorded_facts();
-    assert_eq!(audit_position, 1);
-    assert_eq!(
-        record_position,
-        application.board().ledger().facts().len() as u64
-    );
+    let position = application.board_observation();
+    assert_eq!(position.audit_messages, 1);
+    assert_eq!(position.recorded_facts, position.committed_facts);
     let mut projection: ResolvedBoardProjection = application
         .operator_board_projection()
         .expect("resolve operator projection");
@@ -85,6 +81,5 @@ fn operator_projection_is_attributed_untrusted_and_read_only() {
         .operator_board_projection()
         .expect("resolve repeated operator projection");
     assert_eq!(repeated.messages.len(), 1);
-    assert_eq!(application.board().ledger().audit().len(), audit_position);
-    assert_eq!(application.board().recorded_facts(), record_position);
+    assert_eq!(application.board_observation(), position);
 }
