@@ -1,11 +1,11 @@
 ---
-journey_status: draft
+journey_status: owner_approved
 journey_body_sha256: bb91b3879d6db257185e78d8c416b130a0b75202319f1667eff3ea663dc6f1ce
-owner_approved_at:
-owner_approval_source:
-scientific_review: pending
-scientific_reviewed_at:
-scientific_review_source:
+owner_approved_at: 2026-09-02T00:31:59+08:00
+owner_approval_source: https://github.com/maggnus/ymp/commit/5c6ca3e091fcddff34fbc423295af6ad17739b36
+scientific_review: confirmed
+scientific_reviewed_at: 2026-09-02T00:31:00+08:00
+scientific_review_source: https://github.com/maggnus/ymp/commit/fd5b42ce695fc19e18afa3050873aa3f618097c0
 ---
 # Сделай игру «Морской бой»: путь к работающему результату
 
