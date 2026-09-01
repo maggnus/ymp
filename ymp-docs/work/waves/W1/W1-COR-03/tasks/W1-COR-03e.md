@@ -17,8 +17,8 @@ closure_commit:
 evidence:
 duration_minutes: 0
 blocker:
-pause_reason: owner stop 2026-08-18 — all builders closed; wip scaffold preserved on branch paseo/w1-cor-03e-tui-observatory-20260818 (commit 66dc45b)
-return_trigger:
+pause_reason: owner review 2026-09-01 — preserved scaffold independently rejected and branch deleted; re-dispatch fresh from current main
+return_trigger: owner explicitly requests a fresh W1-COR-03e implementation from current main
 deliberate_partial: false
 ---
 
@@ -69,14 +69,17 @@ acting as a dispatcher or labelling temporal association as collective reasoning
 
 ## Current state
 
-The sole HTML artifact and design-review path exist, and the production TUI package has an initial
-single-run scaffold. No accepted screen revision, collaboration projection, multi-participant
-candidate graph, corresponding TUI state, or rendering test exists.
+The design sources and accepted collaboration and candidate mechanics exist, but no production
+W1-COR-03e interface implementation exists. The preserved scaffold was independently
+rejected on 2026-09-01: it was unreachable from the TUI, read ledgers instead of application
+projections, supplied no route, rendering or tests, and failed locked-build and formatting checks.
+Its branch was deleted rather than integrated.
 
 ## Next action
 
-After `W0-UX-01c`, `W1-APP-02e`, `W1-COR-03c`, and `W1-COR-03d` are accepted, map their stable
-projections to the frozen POC-2 screen-state contract before implementing terminal widgets.
+Re-dispatch from current `main`: first map the accepted application projections to the current
+POC-2 screen-state contract, then implement the reachable TUI route, rendering and deterministic
+acceptance tests as one reviewable vertical slice.
 
 ## Guardrails
 
@@ -88,7 +91,9 @@ projections to the frozen POC-2 screen-state contract before implementing termin
 
 ## Findings
 
-None.
+- The discarded scaffold cannot seed the next implementation: its direct ledger reads violated the
+  application-projection boundary, and its semantic label scan did not cover the data it claimed to
+  protect.
 
 ## Closure
 
