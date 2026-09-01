@@ -261,7 +261,17 @@ fn attempt_scope_is_controller_bound_and_invalid_pages_are_tool_errors() {
         .iter()
         .map(|tool| tool["name"].as_str().expect("tool name"))
         .collect();
-    assert_eq!(names, ["read_control", "read_events", "yield", "submit"]);
+    assert_eq!(
+        names,
+        [
+            "read_control",
+            "read_events",
+            "read_board",
+            "publish",
+            "yield",
+            "submit"
+        ]
+    );
     assert!(!tools.to_string().contains("oracle"));
     assert!(!tools.to_string().contains("verif"));
 }

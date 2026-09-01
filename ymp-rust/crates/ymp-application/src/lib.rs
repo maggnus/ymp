@@ -9,20 +9,22 @@ use std::sync::mpsc::{Receiver, SyncSender, TrySendError, sync_channel};
 use thiserror::Error;
 use uuid::Uuid;
 use ymp_agent_api::{
-    AgentToolCall, AgentToolError, AgentToolHandler, MAX_EVENT_PAGE, ReadEventsArguments,
-    SubmitArguments,
+    AgentToolCall, AgentToolError, AgentToolHandler, MAX_EVENT_PAGE, PublishArguments,
+    ReadBoardArguments, ReadEventsArguments, SubmitArguments,
 };
 use ymp_artifacts::{ArtifactError, ArtifactStore, CandidateRef, FileEntry, SubmissionRef};
 use ymp_board::budget::{Allowance as BoardAllowance, CommunicationAllowance};
 use ymp_board::observatory::MessageView;
 use ymp_board::{
     AssessmentRecord, BoardCommand, BoardEvent, BoardLedger, BoardStore, Edge, InterventionRecord,
-    ObservedVerdict, Publish, ViewDefect,
+    MAX_DELIVERY_BYTES, MAX_DISCOVERY_PAYLOAD_BYTES, MAX_PAYLOAD_BYTES, MAX_SALIENCE_MS,
+    ObservedVerdict, Payload, Publish, ReadBoard, ViewDefect,
 };
 use ymp_domain::commitment::{
-    BudgetVector, BundleChange, CommitmentCommand, CommitmentError, CommitmentEvent,
+    AttemptState, BudgetVector, BundleChange, CommitmentCommand, CommitmentError, CommitmentEvent,
     CommitmentLedger, PathChange,
 };
+use ymp_domain::participant::ParticipantState;
 use ymp_domain::recruitment::{
     AdmittedParticipant, ParticipantStartFailed, ParticipantStartPath, Recruitment,
     RecruitmentPolicy, RecruitmentRefusal, RequestParticipant, RuntimeAdmission,
@@ -97,6 +99,8 @@ pub enum ApplicationError {
     WriterAlreadyActive,
     #[error("the board section of this run could not be opened for this run's terms: {0}")]
     BoardSectionUnusable(String),
+    #[error("the board refused the command: {0}")]
+    BoardCommandRejected(String),
     #[error("board publications require their exact payload bytes")]
     BoardPayloadRequired,
     #[error("board payload digest mismatch: declared {declared}, actual {actual}")]
@@ -1213,6 +1217,11 @@ impl Application {
                 actual: actual_bytes,
             });
         }
+        let command = BoardCommand::Publish(publication.clone());
+        self.board
+            .ledger
+            .decide(&command)
+            .map_err(|error| ApplicationError::BoardCommandRejected(error.to_string()))?;
         let actual_digest = self.object_store.put(payload)?;
         if actual_digest != publication.payload.digest() {
             return Err(ApplicationError::BoardPayloadDigestMismatch {
@@ -1220,7 +1229,7 @@ impl Application {
                 actual: actual_digest,
             });
         }
-        self.record_board_command(&BoardCommand::Publish(publication.clone()))
+        self.record_board_command(&command)
     }
 
     /// Execute one non-publication board command and persist every fact it commits, in one call.
@@ -1245,7 +1254,7 @@ impl Application {
         let mut staged = section.ledger.clone();
         let facts = staged
             .execute(command)
-            .map_err(|error| ApplicationError::BoardSectionUnusable(error.to_string()))?;
+            .map_err(|error| ApplicationError::BoardCommandRejected(error.to_string()))?;
         section
             .store
             .record(&staged)
@@ -1929,6 +1938,8 @@ impl AgentToolHandler for AgentSession<'_> {
             AgentToolCall::ReadControl => serde_json::to_value(self.app.state())
                 .map_err(|_| AgentToolError::internal("control state serialization failed")),
             AgentToolCall::ReadEvents(arguments) => self.read_events(arguments),
+            AgentToolCall::ReadBoard(arguments) => self.read_board(arguments),
+            AgentToolCall::Publish(arguments) => self.publish(arguments),
             AgentToolCall::Submit(arguments) => self.submit(arguments),
             AgentToolCall::Yield(_) => Err(AgentToolError::rejected(
                 "yield requires an invocation-bound controller endpoint",
@@ -1938,6 +1949,151 @@ impl AgentToolHandler for AgentSession<'_> {
 }
 
 impl AgentSession<'_> {
+    fn acting_participant(&self) -> Result<String, AgentToolError> {
+        if self.app.state.status.is_terminal() {
+            return Err(AgentToolError::rejected(
+                "the controller-bound attempt is not live",
+            ));
+        }
+        if let Some(origin) = self.app.state.origin_participant.as_ref()
+            && origin.attempt_id() == self.attempt_id
+        {
+            return if origin.state == ParticipantState::Running {
+                Ok(origin.participant_id().to_owned())
+            } else {
+                Err(AgentToolError::rejected(
+                    "the controller-bound attempt is not live",
+                ))
+            };
+        }
+        if let Some(attempt) = self
+            .app
+            .commitments
+            .as_ref()
+            .and_then(|ledger| ledger.attempts().get(&self.attempt_id))
+        {
+            return if attempt.state == AttemptState::Running {
+                Ok(attempt.participant.clone())
+            } else {
+                Err(AgentToolError::rejected(
+                    "the controller-bound attempt is not live",
+                ))
+            };
+        }
+        if self.app.state.active_attempts.contains(&self.attempt_id) {
+            return Ok(self.attempt_id.clone());
+        }
+        Err(AgentToolError::rejected(
+            "the controller-bound attempt is not live",
+        ))
+    }
+
+    fn publish(
+        &mut self,
+        arguments: PublishArguments,
+    ) -> Result<serde_json::Value, AgentToolError> {
+        let author = self.acting_participant()?;
+        let command_chars = arguments.command_id.chars().count();
+        if !(1..=MAX_IDENTIFIER_CHARS).contains(&command_chars) {
+            return Err(AgentToolError::invalid(
+                "command_id must contain between 1 and 128 characters",
+            ));
+        }
+        if !(1..=MAX_SALIENCE_MS).contains(&arguments.salience_ms) {
+            return Err(AgentToolError::invalid(format!(
+                "salience_ms must be between 1 and {MAX_SALIENCE_MS}"
+            )));
+        }
+        let content = arguments.content.into_bytes();
+        let payload_limit = if arguments.audience.is_discovery() {
+            MAX_DISCOVERY_PAYLOAD_BYTES
+        } else {
+            MAX_PAYLOAD_BYTES
+        };
+        if content.len() as u64 > payload_limit {
+            return Err(AgentToolError::invalid(format!(
+                "content exceeds the {payload_limit}-byte audience limit"
+            )));
+        }
+        let publication = Publish {
+            message_id: arguments.command_id,
+            author,
+            audience: arguments.audience,
+            kind: arguments.kind,
+            payload: Payload::of(&content),
+            salience_ms: arguments.salience_ms,
+            references: arguments.references,
+            relation: arguments.relation,
+            claimed_decision_basis: arguments.claimed_decision_basis,
+        };
+        let events = self
+            .app
+            .publish_board(&publication, &content)
+            .map_err(agent_application_error)?;
+        Ok(serde_json::json!({ "events": events }))
+    }
+
+    fn read_board(
+        &mut self,
+        arguments: ReadBoardArguments,
+    ) -> Result<serde_json::Value, AgentToolError> {
+        if !(1..=MAX_DELIVERY_BYTES).contains(&arguments.limit_bytes) {
+            return Err(AgentToolError::invalid(format!(
+                "limit_bytes must be between 1 and {MAX_DELIVERY_BYTES}"
+            )));
+        }
+        let reader = self.acting_participant()?;
+        let section = &mut self.app.board;
+        let mut staged = section.ledger.clone();
+        let delivery = staged
+            .deliver(&ReadBoard {
+                reader: reader.clone(),
+                limit_bytes: arguments.limit_bytes,
+            })
+            .map_err(|error| AgentToolError::rejected(error.to_string()))?;
+        let mut messages = Vec::with_capacity(delivery.messages.len());
+        for delivered in &delivery.messages {
+            let message = staged
+                .message(&delivered.message_id)
+                .cloned()
+                .ok_or_else(|| {
+                    AgentToolError::internal("a delivered collaboration message is unavailable")
+                })?;
+            let payload = self
+                .app
+                .object_store
+                .read(&message.payload_digest)
+                .map_err(|error| agent_application_error(error.into()))?;
+            if payload.len() as u64 != message.payload_bytes {
+                return Err(AgentToolError::internal(
+                    "a collaboration payload has an inconsistent byte length",
+                ));
+            }
+            let content = String::from_utf8(payload).map_err(|_| {
+                AgentToolError::internal("a collaboration payload is not valid UTF-8")
+            })?;
+            messages.push(serde_json::json!({
+                "message": message,
+                "content": content
+            }));
+        }
+        let result = serde_json::json!({
+            "reader": reader,
+            "from_cursor": delivery.from_cursor,
+            "to_cursor": delivery.to_cursor,
+            "messages": messages,
+            "bytes": delivery.bytes
+        });
+        if delivery.to_cursor != delivery.from_cursor {
+            section
+                .store
+                .record(&staged)
+                .map_err(|_| AgentToolError::internal("board delivery could not be recorded"))?;
+            section.ledger = staged;
+        }
+        Ok(result)
+    }
+
     fn read_events(
         &self,
         arguments: ReadEventsArguments,
@@ -2219,6 +2375,7 @@ fn ensure_candidate_identity(
 fn agent_application_error(error: ApplicationError) -> AgentToolError {
     match error {
         ApplicationError::Transition(_)
+        | ApplicationError::BoardCommandRejected(_)
         | ApplicationError::IdempotencyConflict { .. }
         | ApplicationError::CandidateConflict { .. }
         | ApplicationError::ObjectStore(ObjectStoreError::Missing(_))

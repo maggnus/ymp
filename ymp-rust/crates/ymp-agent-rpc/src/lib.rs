@@ -491,6 +491,7 @@ pub fn socket_path_is_private(_path: &Path) -> Result<bool, AgentRpcError> {
 #[cfg(test)]
 mod tests {
     use super::{AgentRpcServer, SocketToolHandler, socket_path_is_private};
+    use serde_json::{Value, json};
     use std::fs;
     use std::sync::{Arc, Mutex};
     use ymp_agent_api::{
@@ -498,6 +499,146 @@ mod tests {
     };
     use ymp_application::{Application, WorkspaceSubmission};
     use ymp_domain::{Budget, Command};
+
+    fn mcp_request(
+        server: &mut ymp_agent_mcp::McpServer<SocketToolHandler>,
+        request: Value,
+    ) -> Value {
+        serde_json::from_str(
+            &server
+                .handle_line(&request.to_string())
+                .expect("MCP request has a response"),
+        )
+        .expect("parse MCP response")
+    }
+
+    #[test]
+    fn mcp_rpc_application_chain_derives_collaboration_metadata() {
+        let temporary = tempfile::tempdir().expect("temporary directory");
+        let app = Arc::new(Mutex::new(
+            Application::create(
+                temporary.path().join("data"),
+                "run-collaboration",
+                Budget::new(1, 1),
+            )
+            .expect("create application"),
+        ));
+        app.lock()
+            .expect("application lock")
+            .execute(
+                "start-root",
+                Command::StartAttempt {
+                    attempt_id: "participant-root".to_owned(),
+                },
+            )
+            .expect("start controller-bound participant");
+        let socket = temporary.path().join("runtime").join("collaboration.sock");
+        let _server = AgentRpcServer::start(
+            &socket,
+            "secret-token",
+            "participant-root",
+            Arc::clone(&app),
+        )
+        .expect("start RPC server");
+        let mut mcp = ymp_agent_mcp::McpServer::new(SocketToolHandler::new(
+            &socket,
+            "secret-token",
+            "participant-root",
+        ));
+        mcp_request(
+            &mut mcp,
+            json!({ "jsonrpc": "2.0", "id": 1, "method": "initialize" }),
+        );
+        let content = "published through MCP and RPC";
+        let unknown_field = mcp_request(
+            &mut mcp,
+            json!({
+                "jsonrpc": "2.0",
+                "id": "unknown-field",
+                "method": "tools/call",
+                "params": {
+                    "name": "publish",
+                    "arguments": {
+                        "command_id": "forged-message",
+                        "author": "model-selected-author",
+                        "audience": { "audience": "project_discovery" },
+                        "kind": "observation",
+                        "content": "must not publish",
+                        "salience_ms": 5_000,
+                        "references": [],
+                        "relation": { "relation": "standalone" },
+                        "claimed_decision_basis": []
+                    }
+                }
+            }),
+        );
+        assert_eq!(unknown_field["error"]["code"], -32602);
+        assert_eq!(
+            app.lock()
+                .expect("application lock")
+                .board_observation()
+                .audit_messages,
+            0
+        );
+        let published = mcp_request(
+            &mut mcp,
+            json!({
+                "jsonrpc": "2.0",
+                "id": 2,
+                "method": "tools/call",
+                "params": {
+                    "name": "publish",
+                    "arguments": {
+                        "command_id": "message-through-production-chain",
+                        "audience": { "audience": "project_discovery" },
+                        "kind": "observation",
+                        "content": content,
+                        "salience_ms": 5_000,
+                        "references": [],
+                        "relation": { "relation": "standalone" },
+                        "claimed_decision_basis": []
+                    }
+                }
+            }),
+        );
+        assert_eq!(published["result"]["isError"], false);
+
+        let read = mcp_request(
+            &mut mcp,
+            json!({
+                "jsonrpc": "2.0",
+                "id": 3,
+                "method": "tools/call",
+                "params": {
+                    "name": "read_board",
+                    "arguments": { "limit_bytes": 32_768 }
+                }
+            }),
+        );
+        let result = &read["result"]["structuredContent"];
+        assert_eq!(result["reader"], "participant-root");
+        assert_eq!(result["messages"][0]["content"], content);
+        assert_eq!(
+            result["messages"][0]["message"]["author"],
+            "participant-root"
+        );
+        assert_eq!(
+            result["messages"][0]["message"]["payload_bytes"],
+            content.len() as u64
+        );
+        assert_eq!(
+            result["messages"][0]["message"]["payload_digest"],
+            ymp_domain::digest_bytes(content.as_bytes())
+        );
+        let projection = app
+            .lock()
+            .expect("application lock")
+            .operator_board_projection()
+            .expect("resolve application board");
+        assert_eq!(projection.messages.len(), 1);
+        assert_eq!(projection.messages[0].message.author, "participant-root");
+        assert_eq!(projection.messages[0].payload, content.as_bytes());
+    }
 
     #[test]
     fn socket_capability_binds_calls_to_one_attempt() {

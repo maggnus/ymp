@@ -3,8 +3,12 @@
 use serde::Deserialize;
 use serde_json::{Value, json};
 use ymp_agent_api::{
-    AgentToolCall, AgentToolError, AgentToolHandler, MAX_EVENT_PAGE, READ_CONTROL_TOOL,
-    READ_EVENTS_TOOL, SUBMIT_TOOL, YIELD_TOOL,
+    AgentToolCall, AgentToolError, AgentToolHandler, MAX_EVENT_PAGE, PUBLISH_TOOL, READ_BOARD_TOOL,
+    READ_CONTROL_TOOL, READ_EVENTS_TOOL, SUBMIT_TOOL, YIELD_TOOL,
+};
+use ymp_board::{
+    MAX_DECISION_BASIS, MAX_DELIVERY_BYTES, MAX_IDENTIFIER_CHARS, MAX_RECIPIENTS, MAX_REFERENCES,
+    MAX_SALIENCE_MS,
 };
 
 pub const MCP_PROTOCOL_VERSION: &str = "2025-11-25";
@@ -164,6 +168,72 @@ pub fn tool_catalog() -> Vec<Value> {
             }
         }),
         json!({
+            "name": READ_BOARD_TOOL,
+            "title": "Read collaboration board",
+            "description": "Read one byte-bounded delivery from the audiences granted to this attempt.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "limit_bytes": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": MAX_DELIVERY_BYTES
+                    }
+                },
+                "required": ["limit_bytes"],
+                "additionalProperties": false
+            }
+        }),
+        json!({
+            "name": PUBLISH_TOOL,
+            "title": "Publish collaboration message",
+            "description": "Publish bounded inert UTF-8 content under this attempt's controller-derived identity.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "command_id": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": MAX_IDENTIFIER_CHARS
+                    },
+                    "audience": audience_schema(),
+                    "kind": {
+                        "type": "string",
+                        "enum": [
+                            "proposal", "question", "hypothesis", "observation", "constraint",
+                            "dead_end", "challenge", "confirmation", "decision", "help_request"
+                        ]
+                    },
+                    "content": { "type": "string" },
+                    "salience_ms": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": MAX_SALIENCE_MS
+                    },
+                    "references": {
+                        "type": "array",
+                        "maxItems": MAX_REFERENCES,
+                        "items": reference_schema()
+                    },
+                    "relation": relation_schema(),
+                    "claimed_decision_basis": {
+                        "type": "array",
+                        "maxItems": MAX_DECISION_BASIS,
+                        "items": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": MAX_IDENTIFIER_CHARS
+                        }
+                    }
+                },
+                "required": [
+                    "command_id", "audience", "kind", "content", "salience_ms", "references",
+                    "relation", "claimed_decision_basis"
+                ],
+                "additionalProperties": false
+            }
+        }),
+        json!({
             "name": YIELD_TOOL,
             "title": "Yield the current invocation",
             "description": "Commit an explicit yield for this invocation before it stops.",
@@ -190,6 +260,97 @@ pub fn tool_catalog() -> Vec<Value> {
             }
         }),
     ]
+}
+
+fn audience_schema() -> Value {
+    json!({
+        "oneOf": [
+            {
+                "type": "object",
+                "properties": { "audience": { "const": "project_discovery" } },
+                "required": ["audience"],
+                "additionalProperties": false
+            },
+            {
+                "type": "object",
+                "properties": {
+                    "audience": { "const": "scope" },
+                    "scope_id": {
+                        "type": "string", "minLength": 1, "maxLength": MAX_IDENTIFIER_CHARS
+                    }
+                },
+                "required": ["audience", "scope_id"],
+                "additionalProperties": false
+            },
+            {
+                "type": "object",
+                "properties": {
+                    "audience": { "const": "named" },
+                    "scope_id": {
+                        "type": "string", "minLength": 1, "maxLength": MAX_IDENTIFIER_CHARS
+                    },
+                    "recipients": {
+                        "type": "array",
+                        "minItems": 1,
+                        "maxItems": MAX_RECIPIENTS,
+                        "items": {
+                            "type": "string", "minLength": 1,
+                            "maxLength": MAX_IDENTIFIER_CHARS
+                        }
+                    }
+                },
+                "required": ["audience", "scope_id", "recipients"],
+                "additionalProperties": false
+            }
+        ]
+    })
+}
+
+fn reference_schema() -> Value {
+    json!({
+        "oneOf": [
+            tagged_identifier_schema("reference", "message", "message_id", false),
+            tagged_identifier_schema("reference", "artifact", "object_digest", true),
+            tagged_identifier_schema("reference", "candidate", "candidate_digest", true),
+            tagged_identifier_schema("reference", "control_record", "record_id", false)
+        ]
+    })
+}
+
+fn relation_schema() -> Value {
+    json!({
+        "oneOf": [
+            {
+                "type": "object",
+                "properties": { "relation": { "const": "standalone" } },
+                "required": ["relation"],
+                "additionalProperties": false
+            },
+            tagged_identifier_schema("relation", "reply_to", "message_id", false),
+            tagged_identifier_schema("relation", "challenges", "message_id", false),
+            tagged_identifier_schema("relation", "revises", "message_id", false),
+            tagged_identifier_schema("relation", "refreshes", "message_id", false)
+        ]
+    })
+}
+
+fn tagged_identifier_schema(tag: &str, variant: &str, field: &str, digest: bool) -> Value {
+    let value = if digest {
+        json!({ "type": "string", "pattern": "^[0-9a-f]{64}$" })
+    } else {
+        json!({
+            "type": "string", "minLength": 1, "maxLength": MAX_IDENTIFIER_CHARS
+        })
+    };
+    json!({
+        "type": "object",
+        "properties": {
+            (tag): { "const": variant },
+            (field): value
+        },
+        "required": [tag, field],
+        "additionalProperties": false
+    })
 }
 
 fn tool_result(value: Value) -> Value {
@@ -292,7 +453,31 @@ mod tests {
                 .as_array()
                 .expect("tool array")
                 .len(),
-            4
+            6
+        );
+        let catalog = listed["result"]["tools"].as_array().expect("tool array");
+        let publish = catalog
+            .iter()
+            .find(|tool| tool["name"] == "publish")
+            .expect("publish schema");
+        let schema = &publish["inputSchema"];
+        assert_eq!(schema["additionalProperties"], false);
+        for forbidden in [
+            "author",
+            "reader",
+            "principal",
+            "payload_digest",
+            "payload_bytes",
+        ] {
+            assert!(schema["properties"].get(forbidden).is_none());
+        }
+        let read = catalog
+            .iter()
+            .find(|tool| tool["name"] == "read_board")
+            .expect("read schema");
+        assert_eq!(
+            read["inputSchema"]["properties"]["limit_bytes"]["maximum"],
+            32_768
         );
     }
 

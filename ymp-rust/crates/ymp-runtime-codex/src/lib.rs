@@ -1480,8 +1480,7 @@ fn add_mcp_config_arguments(
     })?;
     for setting in [
         "mcp_servers.ymp.required=true".to_owned(),
-        "mcp_servers.ymp.enabled_tools=[\"read_control\",\"read_events\",\"yield\",\"submit\"]"
-            .to_owned(),
+        "mcp_servers.ymp.enabled_tools=[\"read_control\",\"read_events\",\"read_board\",\"publish\",\"yield\",\"submit\"]".to_owned(),
         "mcp_servers.ymp.default_tools_approval_mode=\"approve\"".to_owned(),
         format!(
             "mcp_servers.ymp.command={}",
@@ -1791,6 +1790,7 @@ if [ "$1" = "--version" ]; then
 elif [ "$1" = "login" ]; then
   exit 0
 else
+  printf '%s\n' "$@" > invocation.args
   cat > delivered.stdin
   printf '%s\n' '{"type":"thread.started","thread_id":"thread-delivery"}'
   printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":1,"output_tokens":1}}'
@@ -1803,6 +1803,7 @@ fi
         fs::set_permissions(&executable, permissions).expect("make executable");
 
         let mut delivered = Vec::new();
+        let mut invocation_arguments = Vec::new();
         for (name, mcp) in [
             (
                 "coordinated",
@@ -1830,8 +1831,14 @@ fi
             delivered.push(
                 fs::read_to_string(workspace.join("delivered.stdin")).expect("delivered input"),
             );
+            invocation_arguments.push(
+                fs::read_to_string(workspace.join("invocation.args"))
+                    .expect("captured invocation arguments"),
+            );
         }
         let [coordinated, plain] = <[String; 2]>::try_from(delivered).expect("two deliveries");
+        let [coordinated_arguments, plain_arguments] =
+            <[String; 2]>::try_from(invocation_arguments).expect("two argument lists");
 
         for (label, text) in [("coordinated", &coordinated), ("uncoordinated", &plain)] {
             assert!(
@@ -1852,6 +1859,16 @@ fi
             "an invocation without the coordination bridge was told to call a tool it does not \
              have: {plain}"
         );
+        for tool in ["read_board", "publish"] {
+            assert!(
+                coordinated_arguments.contains(tool),
+                "coordinated Codex configuration omitted {tool}: {coordinated_arguments}"
+            );
+            assert!(
+                !plain_arguments.contains(tool),
+                "plain Codex configuration granted {tool}: {plain_arguments}"
+            );
+        }
     }
 
     #[test]
@@ -1944,7 +1961,7 @@ fi
             .expect("captured invocation arguments");
         assert!(arguments.contains("mcp_servers.ymp.required=true"));
         assert!(arguments.contains(
-            "mcp_servers.ymp.enabled_tools=[\"read_control\",\"read_events\",\"yield\",\"submit\"]"
+            "mcp_servers.ymp.enabled_tools=[\"read_control\",\"read_events\",\"read_board\",\"publish\",\"yield\",\"submit\"]"
         ));
         assert!(arguments.contains("mcp_servers.ymp.default_tools_approval_mode=\"approve\""));
     }

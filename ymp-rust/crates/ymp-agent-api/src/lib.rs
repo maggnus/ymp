@@ -1,11 +1,14 @@
 #![forbid(unsafe_code)]
 
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize};
 use serde_json::Value;
 use thiserror::Error;
+use ymp_board::{Audience, MessageKind, Reference, Relation};
 
 pub const READ_CONTROL_TOOL: &str = "read_control";
 pub const READ_EVENTS_TOOL: &str = "read_events";
+pub const READ_BOARD_TOOL: &str = "read_board";
+pub const PUBLISH_TOOL: &str = "publish";
 pub const SUBMIT_TOOL: &str = "submit";
 pub const YIELD_TOOL: &str = "yield";
 pub const MAX_EVENT_PAGE: u16 = 128;
@@ -15,6 +18,8 @@ pub const MAX_EVENT_PAGE: u16 = 128;
 pub enum AgentToolCall {
     ReadControl,
     ReadEvents(ReadEventsArguments),
+    ReadBoard(ReadBoardArguments),
+    Publish(PublishArguments),
     Submit(SubmitArguments),
     Yield(YieldArguments),
 }
@@ -27,6 +32,8 @@ impl AgentToolCall {
                 Ok(Self::ReadControl)
             }
             READ_EVENTS_TOOL => Ok(Self::ReadEvents(serde_json::from_value(arguments)?)),
+            READ_BOARD_TOOL => Ok(Self::ReadBoard(serde_json::from_value(arguments)?)),
+            PUBLISH_TOOL => Ok(Self::Publish(serde_json::from_value(arguments)?)),
             SUBMIT_TOOL => Ok(Self::Submit(serde_json::from_value(arguments)?)),
             YIELD_TOOL => Ok(Self::Yield(serde_json::from_value(arguments)?)),
             _ => Err(ToolParseError::UnknownTool(name.to_owned())),
@@ -45,6 +52,121 @@ pub struct ReadEventsArguments {
     pub cursor: u64,
     #[serde(default = "default_event_page")]
     pub limit: u16,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct ReadBoardArguments {
+    pub limit_bytes: u64,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct PublishArguments {
+    pub command_id: String,
+    #[serde(deserialize_with = "deserialize_audience")]
+    pub audience: Audience,
+    pub kind: MessageKind,
+    pub content: String,
+    pub salience_ms: u64,
+    #[serde(deserialize_with = "deserialize_references")]
+    pub references: Vec<Reference>,
+    #[serde(deserialize_with = "deserialize_relation")]
+    pub relation: Relation,
+    pub claimed_decision_basis: Vec<String>,
+}
+
+#[derive(Deserialize)]
+#[serde(tag = "audience", rename_all = "snake_case", deny_unknown_fields)]
+enum StrictAudience {
+    ProjectDiscovery {},
+    Scope {
+        scope_id: String,
+    },
+    Named {
+        scope_id: String,
+        recipients: Vec<String>,
+    },
+}
+
+impl From<StrictAudience> for Audience {
+    fn from(value: StrictAudience) -> Self {
+        match value {
+            StrictAudience::ProjectDiscovery {} => Self::ProjectDiscovery,
+            StrictAudience::Scope { scope_id } => Self::Scope { scope_id },
+            StrictAudience::Named {
+                scope_id,
+                recipients,
+            } => Self::Named {
+                scope_id,
+                recipients,
+            },
+        }
+    }
+}
+
+fn deserialize_audience<'de, D>(deserializer: D) -> Result<Audience, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    StrictAudience::deserialize(deserializer).map(Into::into)
+}
+
+#[derive(Deserialize)]
+#[serde(tag = "reference", rename_all = "snake_case", deny_unknown_fields)]
+enum StrictReference {
+    Message { message_id: String },
+    Artifact { object_digest: String },
+    Candidate { candidate_digest: String },
+    ControlRecord { record_id: String },
+}
+
+impl From<StrictReference> for Reference {
+    fn from(value: StrictReference) -> Self {
+        match value {
+            StrictReference::Message { message_id } => Self::Message { message_id },
+            StrictReference::Artifact { object_digest } => Self::Artifact { object_digest },
+            StrictReference::Candidate { candidate_digest } => Self::Candidate { candidate_digest },
+            StrictReference::ControlRecord { record_id } => Self::ControlRecord { record_id },
+        }
+    }
+}
+
+fn deserialize_references<'de, D>(deserializer: D) -> Result<Vec<Reference>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    Vec::<StrictReference>::deserialize(deserializer)
+        .map(|references| references.into_iter().map(Into::into).collect())
+}
+
+#[derive(Deserialize)]
+#[serde(tag = "relation", rename_all = "snake_case", deny_unknown_fields)]
+enum StrictRelation {
+    Standalone {},
+    ReplyTo { message_id: String },
+    Challenges { message_id: String },
+    Revises { message_id: String },
+    Refreshes { message_id: String },
+}
+
+impl From<StrictRelation> for Relation {
+    fn from(value: StrictRelation) -> Self {
+        match value {
+            StrictRelation::Standalone {} => Self::Standalone,
+            StrictRelation::ReplyTo { message_id } => Self::ReplyTo { message_id },
+            StrictRelation::Challenges { message_id } => Self::Challenges { message_id },
+            StrictRelation::Revises { message_id } => Self::Revises { message_id },
+            StrictRelation::Refreshes { message_id } => Self::Refreshes { message_id },
+        }
+    }
+}
+
+fn deserialize_relation<'de, D>(deserializer: D) -> Result<Relation, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    StrictRelation::deserialize(deserializer).map(Into::into)
 }
 
 const fn default_event_page() -> u16 {
@@ -116,10 +238,11 @@ pub enum ToolParseError {
 #[cfg(test)]
 mod tests {
     use super::{
-        AgentToolCall, MAX_EVENT_PAGE, ReadEventsArguments, SubmitArguments, ToolParseError,
-        YieldArguments,
+        AgentToolCall, MAX_EVENT_PAGE, PublishArguments, ReadBoardArguments, ReadEventsArguments,
+        SubmitArguments, ToolParseError, YieldArguments,
     };
     use serde_json::json;
+    use ymp_board::{Audience, MessageKind, Relation};
 
     #[test]
     fn tool_arguments_are_strict_and_defaults_are_stable() {
@@ -159,6 +282,84 @@ mod tests {
         assert!(matches!(
             AgentToolCall::parse("unknown", json!({})),
             Err(ToolParseError::UnknownTool(_))
+        ));
+    }
+
+    #[test]
+    fn collaboration_arguments_are_exact_and_carry_no_caller_identity_or_payload_claims() {
+        assert_eq!(
+            AgentToolCall::parse("read_board", json!({ "limit_bytes": 32_768 }))
+                .expect("parse board read"),
+            AgentToolCall::ReadBoard(ReadBoardArguments {
+                limit_bytes: 32_768
+            })
+        );
+        let publication = json!({
+            "command_id": "message-1",
+            "audience": { "audience": "project_discovery" },
+            "kind": "observation",
+            "content": "exact UTF-8 content",
+            "salience_ms": 5_000,
+            "references": [],
+            "relation": { "relation": "standalone" },
+            "claimed_decision_basis": []
+        });
+        assert_eq!(
+            AgentToolCall::parse("publish", publication.clone()).expect("parse publication"),
+            AgentToolCall::Publish(PublishArguments {
+                command_id: "message-1".to_owned(),
+                audience: Audience::ProjectDiscovery,
+                kind: MessageKind::Observation,
+                content: "exact UTF-8 content".to_owned(),
+                salience_ms: 5_000,
+                references: Vec::new(),
+                relation: Relation::Standalone,
+                claimed_decision_basis: Vec::new(),
+            })
+        );
+
+        for forbidden in [
+            "author",
+            "reader",
+            "principal",
+            "capability",
+            "payload_digest",
+            "payload_bytes",
+            "workspace",
+            "url",
+            "protected_oracle",
+            "command",
+        ] {
+            let mut arguments = publication.clone();
+            arguments[forbidden] = json!("model-selected");
+            assert!(
+                matches!(
+                    AgentToolCall::parse("publish", arguments),
+                    Err(ToolParseError::InvalidArguments(_))
+                ),
+                "publish accepted forbidden field {forbidden}"
+            );
+        }
+        for forbidden in ["reader", "author", "payload_digest", "payload_bytes"] {
+            assert!(matches!(
+                AgentToolCall::parse(
+                    "read_board",
+                    json!({ "limit_bytes": 1, (forbidden): "model-selected" })
+                ),
+                Err(ToolParseError::InvalidArguments(_))
+            ));
+        }
+        let mut nested = publication.clone();
+        nested["audience"]["reader"] = json!("model-selected");
+        assert!(matches!(
+            AgentToolCall::parse("publish", nested),
+            Err(ToolParseError::InvalidArguments(_))
+        ));
+        let mut nested = publication;
+        nested["relation"]["command"] = json!("generic");
+        assert!(matches!(
+            AgentToolCall::parse("publish", nested),
+            Err(ToolParseError::InvalidArguments(_))
         ));
     }
 }

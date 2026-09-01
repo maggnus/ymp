@@ -9,3 +9,4 @@ license.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 ymp-agent-api.workspace = true
+ymp-board.workspace = true

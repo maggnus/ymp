@@ -53,9 +53,11 @@ const PUBLICATION_INSTRUCTIONS: &str = "Publication policy: the work of this att
 pub const APPROVED_BUILTIN_TOOLS: [&str; 6] = ["Bash", "Edit", "Glob", "Grep", "Read", "Write"];
 
 /// Invocation-scoped coordination tools, named as Claude Code exposes MCP tools.
-pub const COORDINATION_TOOLS: [&str; 4] = [
+pub const COORDINATION_TOOLS: [&str; 6] = [
     "mcp__ymp__read_control",
     "mcp__ymp__read_events",
+    "mcp__ymp__read_board",
+    "mcp__ymp__publish",
     "mcp__ymp__submit",
     "mcp__ymp__yield",
 ];
@@ -3205,7 +3207,7 @@ printf '%s\n' '{{"type":"result","subtype":"success","is_error":false,"total_cos
             directory.path(),
             "claude-repeated-reply",
             r##"cat >/dev/null
-printf '%s\n' '{"type":"system","subtype":"init","session_id":"session-reply","claude_code_version":"2.1.227","model":"claude-opus-5","permissionMode":"acceptEdits","tools":["Bash","Edit","Glob","Grep","Read","Write","mcp__ymp__read_control","mcp__ymp__read_events","mcp__ymp__submit","mcp__ymp__yield"],"mcp_servers":[{"name":"ymp","status":"connected"}],"slash_commands":[],"plugins":[],"skills":[]}'
+printf '%s\n' '{"type":"system","subtype":"init","session_id":"session-reply","claude_code_version":"2.1.227","model":"claude-opus-5","permissionMode":"acceptEdits","tools":["Bash","Edit","Glob","Grep","Read","Write","mcp__ymp__read_control","mcp__ymp__read_events","mcp__ymp__read_board","mcp__ymp__publish","mcp__ymp__submit","mcp__ymp__yield"],"mcp_servers":[{"name":"ymp","status":"connected"}],"slash_commands":[],"plugins":[],"skills":[]}'
 printf '%s\n' '{"type":"assistant","request_id":"req_1","message":{"content":[{"type":"tool_use","id":"toolu_1","name":"mcp__ymp__submit","input":{"command_id":"agent.submit"}}]}}'
 printf '%s\n' '{"type":"user","message":{"content":[{"type":"tool_result","tool_use_id":"toolu_1","content":[{"type":"text","text":"{\"snapshot_digest\":\"a\"}"}]}]}}'
 printf '%s\n' '{"type":"user","message":{"content":[{"type":"tool_result","tool_use_id":"toolu_1","content":[{"type":"text","text":"{\"snapshot_digest\":\"a\"}"}]}]}}'
@@ -3444,8 +3446,9 @@ printf '%s\n' '{{"type":"result","subtype":"success","is_error":false,"total_cos
             directory.path(),
             "claude-coordinated-delivery",
             &format!(
-                r##"cat > delivered.stdin
-printf '%s\n' '{{"type":"system","subtype":"init","session_id":"session-delivery","claude_code_version":"2.1.227","model":"claude-opus-5","permissionMode":"acceptEdits","tools":["Bash","Edit","Glob","Grep","Read","Write","mcp__ymp__read_control","mcp__ymp__read_events","mcp__ymp__submit","mcp__ymp__yield"],"mcp_servers":[{{"name":"ymp","status":"connected"}}],"slash_commands":[],"plugins":[],"skills":[]}}'
+                r##"printf '%s\n' "$@" > invocation.args
+cat > delivered.stdin
+printf '%s\n' '{{"type":"system","subtype":"init","session_id":"session-delivery","claude_code_version":"2.1.227","model":"claude-opus-5","permissionMode":"acceptEdits","tools":["Bash","Edit","Glob","Grep","Read","Write","mcp__ymp__read_control","mcp__ymp__read_events","mcp__ymp__read_board","mcp__ymp__publish","mcp__ymp__submit","mcp__ymp__yield"],"mcp_servers":[{{"name":"ymp","status":"connected"}}],"slash_commands":[],"plugins":[],"skills":[]}}'
 printf '%s\n' '{RESULT}'
 "##
             ),
@@ -3454,7 +3457,8 @@ printf '%s\n' '{RESULT}'
             directory.path(),
             "claude-plain-delivery",
             &format!(
-                r##"cat > delivered.stdin
+                r##"printf '%s\n' "$@" > invocation.args
+cat > delivered.stdin
 printf '%s\n' '{{"type":"system","subtype":"init","session_id":"session-delivery","claude_code_version":"2.1.227","model":"claude-opus-5","permissionMode":"acceptEdits","tools":{INIT_TOOLS},"mcp_servers":[],"slash_commands":[],"plugins":[],"skills":[]}}'
 printf '%s\n' '{RESULT}'
 "##
@@ -3462,6 +3466,7 @@ printf '%s\n' '{RESULT}'
         );
 
         let mut delivered = Vec::new();
+        let mut invocation_arguments = Vec::new();
         for (executable, workspace, mcp) in [
             (
                 &coordinated_executable,
@@ -3494,8 +3499,14 @@ printf '%s\n' '{RESULT}'
             delivered.push(
                 fs::read_to_string(workspace.join("delivered.stdin")).expect("delivered input"),
             );
+            invocation_arguments.push(
+                fs::read_to_string(workspace.join("invocation.args"))
+                    .expect("captured invocation arguments"),
+            );
         }
         let [coordinated, plain] = <[String; 2]>::try_from(delivered).expect("two deliveries");
+        let [coordinated_arguments, plain_arguments] =
+            <[String; 2]>::try_from(invocation_arguments).expect("two argument lists");
 
         for (label, text) in [("coordinated", &coordinated), ("uncoordinated", &plain)] {
             assert!(
@@ -3516,6 +3527,16 @@ printf '%s\n' '{RESULT}'
             "an invocation without the coordination bridge was told to call a tool it does not \
              have: {plain}"
         );
+        for tool in ["mcp__ymp__read_board", "mcp__ymp__publish"] {
+            assert!(
+                coordinated_arguments.contains(tool),
+                "coordinated Claude configuration omitted {tool}: {coordinated_arguments}"
+            );
+            assert!(
+                !plain_arguments.contains(tool),
+                "plain Claude configuration granted {tool}: {plain_arguments}"
+            );
+        }
     }
 
     #[test]
