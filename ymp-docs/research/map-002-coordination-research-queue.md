@@ -71,7 +71,9 @@ has no board-publication condition; none is assumed for this bounded-active-wind
 ([`W1-COR-03z`](https://github.com/maggnus/ymp/blob/59288d11b400a00ee22c8cc36f9a80e4077aea1c/ymp-docs/work/waves/W1/W1-COR-03/tasks/W1-COR-03z.md#L79-L105))
 and participant recruitment
 ([`W1-PRD-05j.1`](https://github.com/maggnus/ymp/blob/59288d11b400a00ee22c8cc36f9a80e4077aea1c/ymp-docs/work/waves/W1/W1-PRD-05/tasks/W1-PRD-05j/subtasks/W1-PRD-05j.1.md#L64-L90))
-are accepted. [RUN-001](run-001-manual-file-communication-pilot.md) is infrastructure-invalid and
+are accepted.
+[RUN-001](https://github.com/maggnus/ymp/blob/bad509110f7fa1e0f8d7438552878a3f21fff679/ymp-docs/research/run-001-manual-file-communication-pilot.md#L3-L113)
+is infrastructure-invalid and
 rejects its probe-only readiness as sufficient admission: its declared-ready profile could not use
 workspace tools. It did not execute the complete fake-host stage specified here. No admitted S1-S3
 trace or communication observation exists.
@@ -173,7 +175,8 @@ or result exists.
 
 **Claim.** Communication value depends directionally on sender profile, frozen representation, and
 receiver profile rather than on a universally optimal format. The exact hypothesis and typed
-envelope are fixed in [HYP-001](hyp-001-model-dependent-communication-representation.md).
+envelope are fixed in
+[HYP-001](https://github.com/maggnus/ymp/blob/bad509110f7fa1e0f8d7438552878a3f21fff679/ymp-docs/research/hyp-001-model-dependent-communication-representation.md#L14-L64).
 
 **Observable prediction.** Natural, structured, hybrid, and reusable-symbolic renderings of the same
 evidence produce preregistered differences in receiver action and independently assessed task value

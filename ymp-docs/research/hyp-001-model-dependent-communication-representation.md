@@ -84,11 +84,13 @@ unverifiable accounting invalidates the affected contrast.
 
 ## Dependencies
 
-- The P0 reachability gate in [map-002-coordination-research-queue.md](map-002-coordination-research-queue.md)
+- The P0 reachability gate in
+  [map-002-coordination-research-queue.md](https://github.com/maggnus/ymp/blob/bad509110f7fa1e0f8d7438552878a3f21fff679/ymp-docs/research/map-002-coordination-research-queue.md#L14-L77)
   must first show bounded pull reachability while keeping participant publication, read, yield, and
   action choices observable rather than forced.
 - Each exact sender and receiver profile must pass the two-stage tool-use admission boundary in
-  [RUN-001](run-001-manual-file-communication-pilot.md). A zero-model compatibility check cannot
+  [RUN-001](https://github.com/maggnus/ymp/blob/bad509110f7fa1e0f8d7438552878a3f21fff679/ymp-docs/research/run-001-manual-file-communication-pilot.md#L89-L113).
+  A zero-model compatibility check cannot
   substitute for the separately capped model nonce round trip or the existing lifecycle,
   isolation, cancellation, usage, and cost requirements
   ([`cal-001`](https://github.com/maggnus/ymp/blob/59288d11b400a00ee22c8cc36f9a80e4077aea1c/ymp-docs/research/cal-001-calibration.md#L61-L77)).
@@ -96,8 +98,9 @@ unverifiable accounting invalidates the affected contrast.
   [`W1-EVL-04b`](https://github.com/maggnus/ymp/blob/59288d11b400a00ee22c8cc36f9a80e4077aea1c/ymp-docs/work/waves/W1/W1-EVL-04/tasks/W1-EVL-04b.md#L28-L67).
 - Message intervention remains downstream of stronger-profile transfer under the accepted
   [stage boundary](https://github.com/maggnus/ymp/blob/59288d11b400a00ee22c8cc36f9a80e4077aea1c/ymp-docs/research/rdr-001-evaluation-stage-boundaries.md#L42-L51),
-  and the split conflict recorded in MAP-002 must be resolved prospectively before that transfer can
-  identify a same-stratum effect.
+  and the split conflict recorded in
+  [MAP-002](https://github.com/maggnus/ymp/blob/bad509110f7fa1e0f8d7438552878a3f21fff679/ymp-docs/research/map-002-coordination-research-queue.md#L123-L135)
+  must be resolved prospectively before that transfer can identify a same-stratum effect.
 - Exact profile admission, frozen task and oracle identities, semantic-equivalence fixtures, and
   complete accounting must exist before a design can freeze.
 
@@ -119,7 +122,8 @@ show large task-, architecture-, and capability-dependent variation under matche
 architectures and benchmarks motivate interaction and null strata, but do not test the four
 representation families defined here.
 
-[RUN-001](run-001-manual-file-communication-pilot.md) exercised no representation cell: both A
+[RUN-001](https://github.com/maggnus/ymp/blob/bad509110f7fa1e0f8d7438552878a3f21fff679/ymp-docs/research/run-001-manual-file-communication-pilot.md#L3-L56)
+exercised no representation cell: both A
 calls ended before publication, B and C were never launched, and the board remained unchanged. It
 falsifies readiness of that exploratory runtime/tool-host binding but supplies no signaling,
 delivery, receiver-action, listening, task-value, or representation evidence. The current ymp
