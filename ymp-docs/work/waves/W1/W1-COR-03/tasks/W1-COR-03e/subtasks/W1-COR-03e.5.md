@@ -55,6 +55,16 @@ removing the old dashboard-first content hierarchy.
 - Specify modal classes separately: information/error, consent, and irreversible confirmation.
   Consequence text, permitted keys and typed confirmation belong to the modal; untrusted transcript
   text can never create an action.
+- Reproducible PDF path on the accepted macOS design host:
+  `Google Chrome 151.0.7922.170` at
+  `/Applications/Google Chrome.app/Contents/MacOS/Google Chrome`, invoked from the repository root as
+  `/Applications/Google\ Chrome.app/Contents/MacOS/Google\ Chrome --headless=new --disable-gpu
+  --disable-background-networking --no-pdf-header-footer
+  --print-to-pdf="$PWD/ymp-docs/design/ymp_chat_tui.pdf"
+  "file://$PWD/ymp-docs/design/ymp_chat_tui.dc.html"`. The HTML may use only inline CSS/graphics and
+  the local stack `ui-monospace, Menlo, Monaco, Consolas, monospace`; remote fonts, images, scripts
+  and other network resources are forbidden. A different Chrome build is not accepted evidence
+  until the same page count and page renders are compared against the accepted fixture.
 - Exclusive write zone: the three authoritative visual-design files above and external temporary
   render artefacts only.
 
@@ -80,7 +90,8 @@ removing the old dashboard-first content hierarchy.
 - [ ] 80×24 shows an honest size-conscious composition, 120×40 is the primary implementation
       contract, and 180×50 adds useful transcript depth rather than more permanent chrome.
 - [ ] HTML carries the exact fixtures and correspondence; PDF is regenerated and visually checked
-      page by page; `VISUAL_CONCEPT.md` matches them. Link/path checks and `git diff --check` pass.
+      page by page with the recorded Chrome command; the HTML has zero network resources and
+      `VISUAL_CONCEPT.md` matches it. Link/path checks and `git diff --check` pass.
 - [ ] A negative fixture that restores the dashboard-first default, lets palette selection execute,
       or uses the same popup for consent and irreversible actions fails the design-state check.
 
@@ -88,7 +99,8 @@ removing the old dashboard-first content hierarchy.
 
 The current concept is already transcript-first, but its exact fixture content still carries the
 older observatory/page emphasis. The owner retained the general visual idea and replaced the POC
-focus with chat, slash commands and popup windows before new TUI implementation began.
+focus with chat, slash commands and popup windows before new TUI implementation began. The exact
+offline Chrome-to-PDF path is now proven on the current design host.
 
 ## Next action
 
@@ -106,6 +118,9 @@ render the three authoritative sources.
 
 - Owner direction on 01/09 replaced the old TUI content before W1-COR-03e.2 wrote code; the retained
   clean implementation workspace was stopped without product changes.
+- Contract preflight found no project-owned PDF command and a broken Homebrew Chromium launcher;
+  the installed Chrome 151 path produced a 19-page Letter PDF offline, so that exact route and its
+  local-only resources are now part of acceptance.
 
 ## Review rounds
 
