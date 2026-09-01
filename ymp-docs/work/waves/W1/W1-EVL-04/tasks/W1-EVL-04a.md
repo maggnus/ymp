@@ -3,15 +3,15 @@ id: W1-EVL-04a
 kind: task
 wave: W1
 card: W1-EVL-04
-state: ready
+state: active
 risk: critical
 maturity: RESEARCH
 relation: required
 depends_on: [W1-EXP-01a, W1-EXP-01b, W1-COR-03b, W1-COR-03d]
 blocks: [W1-EVL-04b, W1-EVL-04c]
 created_at: 2026-08-10T19:34:25+08:00
-updated_at: 2026-08-16T00:26:57+08:00
-started_at:
+updated_at: 2026-09-01T12:18:20+08:00
+started_at: 2026-09-01T12:18:20+08:00
 accepted_at:
 candidate_commit:
 closure_commit:
@@ -65,20 +65,18 @@ comparable acceptance, false-acceptance, cost, latency, failure, and abstention 
 
 ## Current state
 
-Ready. All four listed dependencies are accepted (W1-EXP-01a, W1-EXP-01b, W1-COR-03b,
-W1-COR-03d); the former `blocked` marker was stale. The frozen study manifest
+Active in read-only protocol research on `codex/gpt-5.6-sol` at `max`; no primary seed, paid model
+call, or experimental quota is being consumed. All four listed dependencies are accepted
+(W1-EXP-01a, W1-EXP-01b, W1-COR-03b, W1-COR-03d). The frozen study manifest
 ([d12eff3](https://github.com/maggnus/ymp/commit/d12eff31940f8ad124f5f8f566a0dd21de3d2ae6))
 binds arms, corpus, seeds, and the 0.125 minimum useful effect.
 
 ## Next action
 
-Execute the operational compliance dry run first: one task, one repetition, three arms, a separate
-disposable environment and quota, without consuming the frozen primary seeds. Every compliance
-rule is exercised together with its negative half (missing seed, budget mismatch, hidden overshoot,
-early selector disclosure, infrastructure error mislabelled as rejection). The dry run is followed
-by a review before any primary-comparison budget is spent. Owner inputs required before dispatch:
-the dry-run model route, the accounting basis (token-based for the dry run, currency for the
-primary, or currency for both), and the blinded human auditor for the false-acceptance sample.
+Return the exact smallest weak-participant matched-budget diagnostic protocol, its implemented and
+missing machinery, and the next executable Sol code contract. The later operational compliance dry
+run remains one task, one repetition, three arms, and a fresh disposable evaluation root without
+consuming frozen primary seeds.
 
 ## Guardrails
 

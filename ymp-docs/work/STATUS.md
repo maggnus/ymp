@@ -84,7 +84,7 @@
 | `[x]` | [`W1-COR-03x`](waves/W1/W1-COR-03/tasks/W1-COR-03x.md) | The run's commitment kernel journals through the durable path | [`eb0fdd34`](https://github.com/maggnus/ymp/commit/eb0fdd34f3564eaf05c6a2e6b02b6d9eb3cbfc65) | 15/08 16:45 | 15/08 19:30 (0m) |
 | `[x]` | [`W1-COR-03y`](waves/W1/W1-COR-03/tasks/W1-COR-03y.md) | The live controller submits bundles; the durable path guards its terminal | [`acdf9f82`](https://github.com/maggnus/ymp/commit/acdf9f82df02a65a7cf8d8612c17e43e5e91e804) | 15/08 19:35 | 15/08 23:00 (0m) |
 | `[ ]` | [`W1-EVL-04`](waves/W1/W1-EVL-04/CARD.md) | Controlled evidence decides both POC hypotheses | — | — | — |
-| `[ ]` | [`W1-EVL-04a`](waves/W1/W1-EVL-04/tasks/W1-EVL-04a.md) | Matched-budget arms produce comparable acceptance evidence | — | — | — |
+| `[~]` | [`W1-EVL-04a`](waves/W1/W1-EVL-04/tasks/W1-EVL-04a.md) | Matched-budget arms produce comparable acceptance evidence | — | 01/09 12:18 | 01/09 12:18 (0m) |
 | `[ ]` | [`W1-EVL-04b`](waves/W1/W1-EVL-04/tasks/W1-EVL-04b.md) | Message interventions separate appearance from causal use | — | — | — |
 | `[ ]` | [`W1-EVL-04c`](waves/W1/W1-EVL-04/tasks/W1-EVL-04c.md) | POC decision is reproducible from frozen evidence | — | — | — |
 | `[x]` | [`W1-EVL-04d`](waves/W1/W1-EVL-04/tasks/W1-EVL-04d.md) | The model-use policy is decided before pools form | — | — | 15/08 15:08 (0m) |
