@@ -11,7 +11,7 @@ relation: follow_up
 depends_on: [W1-PRD-05j]
 blocks: [W1-EVL-04a]
 created_at: 2026-09-01T12:38:00+08:00
-updated_at: 2026-09-01T12:38:00+08:00
+updated_at: 2026-09-01T13:58:00+08:00
 started_at:
 accepted_at:
 candidate_commit:
@@ -40,10 +40,17 @@ by the endpoint, not supplied by the model.
 
 - A typed `request_participant` agent call carrying only a fresh request identifier and frozen entry
   identifier.
+- New exact surface names: `RequestParticipantArguments { request_id, entry }`,
+  `AgentToolCall::RequestParticipant`, MCP tool `request_participant`, and an invocation-bound
+  `AgentSession::request_participant` dispatcher that supplies the proposer before calling the
+  accepted `Application::request_participant` operation.
 - Agent API parsing, RPC/MCP exposure, invocation-bound application dispatch, and the minimum
   runtime allowlist or capability wiring required to expose the call to an admitted participant.
 - Focused proof that the private endpoint supplies the proposer identity and that the accepted
   `Application::request_participant` gate performs the admission and start exactly once.
+- Write zone: `ymp-agent-api`, `ymp-agent-rpc`, `ymp-agent-mcp`, `ymp-runtime-codex`,
+  `ymp-runtime-claude`, and the narrow AgentSession dispatch in `ymp-application`, plus mechanically
+  forced touched manifests/lockfile entries.
 
 ### Out
 
@@ -51,6 +58,8 @@ by the endpoint, not supplied by the model.
   TUI changes, and any new recruitment gate.
 - A general application proxy, caller-supplied principal, filesystem path, workspace authority, or
   capability token in model-controlled arguments.
+- All other crates and application operations, including `ymp-domain`, board semantics, TUI,
+  research/evaluation tools, work records, primary corpus, and provider/model selection.
 
 ## Acceptance
 
@@ -64,19 +73,21 @@ by the endpoint, not supplied by the model.
       existing application reasons without admission or start side effects.
 - [ ] The public tool schema exposes no proposer, principal, path, workspace, profile, route,
       capability, score, rank, or role-selection field.
+- [ ] Unknown fields including `proposer`, `participant`, `profile`, `route`, `workspace`, or
+      `capability` fail strict parsing before any application call or durable effect.
 - [ ] Focused agent API, RPC/MCP, application and touched runtime checks pass; strict Clippy for
       touched packages, formatting, and `git diff --check` report no warnings or errors.
 
 ## Current state
 
-The accepted kernel and application gate exist, but the participant-facing catalogue exposes only
-control reading, event reading, submission, and yielding. No model-callable recruitment path exists,
-so a coordinated arm cannot form itself through the product.
+The accepted kernel/Application gate and managed start path exist. The participant catalogue now
+also exposes collaboration publish/read, but no `AgentToolCall::RequestParticipant`, MCP/RPC binding
+or runtime allowlist entry exists, so a coordinated arm cannot form itself through the product.
 
 ## Next action
 
-Verify the contract against current API/RPC/MCP and invocation-binding names, then dispatch one
-cross-component implementation after the overlapping board-tool slice releases those write zones.
+Create the exact named surface and route it through the existing application/start path without a
+parallel recruitment implementation.
 
 ## Guardrails
 
@@ -86,11 +97,13 @@ cross-component implementation after the overlapping board-tool slice releases t
   command forwarding surface is a contract defect.
 - No behavioral evaluation runs in the repository or real home directory; any surface walk uses a
   fresh disposable root with isolated project, `HOME`, `YMP_HOME`, `TMPDIR`, build and export paths.
+- Runtime allowlists expose the new tool only when the invocation's accepted contract grants
+  recruitment; availability is not inferred from spare budget or model capability.
 
 ## Findings
 
-None open; the pre-dispatch contract check must confirm the exact invocation-bound handler before
-implementation.
+- Pre-dispatch check returned the formerly implicit target names. The contract now names the new
+  argument type, enum variant, MCP tool, AgentSession dispatcher, write zone and no-touch boundary.
 
 ## Review rounds
 
