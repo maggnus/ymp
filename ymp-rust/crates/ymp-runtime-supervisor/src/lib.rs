@@ -24,7 +24,13 @@ use ymp_runtime_api::{
     AdmittedProgram, CancellationToken, DiagnosticSummary, InvocationRequest, LaunchDescriptor,
     McpBinding, ProbeReport, ProgramIdentity, ProgramRequirement, ProgramRole, Readiness,
     RuntimeDriver, RuntimeError, RuntimeEvent, RuntimeEventKind, RuntimeFailureKind, RuntimeKind,
-    Usage, admit_lifecycle_programs, unestablished_terminations,
+    TOOL_HOST_PROBE_SCHEMA_VERSION, TOOL_HOST_PROBE_WORKSPACE_SERVER, ToolHostProbeCost,
+    ToolHostProbeCostAvailability, ToolHostProbeEffect, ToolHostProbeError,
+    ToolHostProbeInvocation, ToolHostProbeRequest, ToolHostProbeResourceVector,
+    ToolHostProbeRuntimeIdentity, ToolHostProbeTerminal, ToolHostProbeTool,
+    ToolHostProbeToolEventDigest, ToolHostProbeTrace, ToolHostProbeTrust, Usage,
+    admit_lifecycle_programs, evidence_digest, tool_host_probe_tool_schema_digest,
+    unestablished_terminations,
 };
 
 mod kernel;
@@ -892,6 +898,670 @@ pub fn start_unattested_managed_candidate(
     request: ManagedCandidateRequest,
 ) -> anyhow::Result<ManagedRunHandle> {
     start_candidate(application, driver, request, LaunchAttestation::Waived)
+}
+
+/// Executes one runtime-reported workspace nonce write/read probe without entering the
+/// Application, kernel, board, task, recruitment, candidate, persistence or attestation paths.
+///
+/// Only the fake-runtime process boundary is admitted by this build. A production runtime must be
+/// authorized and given an attested launch in later controller work; implementing the driver's
+/// optional probe methods alone cannot make a live route reachable here.
+pub fn execute_tool_host_probe(
+    driver: &dyn RuntimeDriver,
+    workspace: &Path,
+    request: ToolHostProbeRequest,
+) -> Result<ToolHostProbeTrace, ToolHostProbeError> {
+    validate_tool_host_probe_request(&request)?;
+    if driver.kind() != RuntimeKind::Fake
+        || request.expected_runtime.runtime_kind != RuntimeKind::Fake
+    {
+        return Err(ToolHostProbeError::LiveRuntimeForbidden);
+    }
+    if request.cancellation.is_cancelled() {
+        return Err(ToolHostProbeError::Cancelled);
+    }
+    let workspace = validate_tool_host_probe_workspace(workspace, &request.workspace_path)?;
+    admit_start(driver.kind(), LaunchAttestation::Waived).map_err(|error| {
+        ToolHostProbeError::StartFailed {
+            detail: error.to_string(),
+        }
+    })?;
+    let probe = driver
+        .probe()
+        .map_err(|error| ToolHostProbeError::RuntimeProbeFailed {
+            detail: error.to_string(),
+        })?;
+    if probe.readiness != Readiness::Ready {
+        return Err(ToolHostProbeError::RuntimeNotReady {
+            detail: probe.detail,
+        });
+    }
+    validate_tool_host_probe_projection(driver, &probe, &request.expected_runtime)?;
+    let runtime = driver.tool_host_probe_identity().map_err(|error| {
+        ToolHostProbeError::RuntimeProbeFailed {
+            detail: error.to_string(),
+        }
+    })?;
+    validate_tool_host_probe_identity(&runtime)?;
+    compare_tool_host_probe_identity(&request.expected_runtime, &runtime)?;
+
+    let started_at = Instant::now();
+    let mut session = driver
+        .start_tool_host_probe(ToolHostProbeInvocation {
+            request: request.clone(),
+            workspace,
+            allowed_tools: [
+                ToolHostProbeTool::WorkspaceWrite,
+                ToolHostProbeTool::WorkspaceRead,
+            ],
+        })
+        .map_err(|error| ToolHostProbeError::StartFailed {
+            detail: error.to_string(),
+        })?;
+    let mut progress = RuntimeProgress::new(&request.invocation_id);
+    let mut events = Vec::new();
+    let mut saw_started = false;
+    let mut terminal_usage = None;
+    let mut tool_digests = Vec::new();
+    let mut runtime_reported_readback = None;
+
+    loop {
+        if request.cancellation.is_cancelled() {
+            let _ = session.interrupt();
+            return Err(ToolHostProbeError::Cancelled);
+        }
+        if elapsed_millis(started_at) > request.deadline_ms {
+            request.cancellation.cancel();
+            let _ = session.interrupt();
+            return Err(ToolHostProbeError::TimedOut {
+                limit_ms: request.deadline_ms,
+            });
+        }
+        let event = match session.next_event() {
+            Ok(Some(event)) => event,
+            Ok(None) => break,
+            Err(RuntimeError::TimedOut { limit_ms }) => {
+                if limit_ms != request.deadline_ms {
+                    return Err(ToolHostProbeError::InvalidEventStream {
+                        detail: "runtime timeout does not match the requested deadline".to_owned(),
+                    });
+                }
+                return Err(ToolHostProbeError::TimedOut { limit_ms });
+            }
+            Err(error) => {
+                return Err(ToolHostProbeError::RuntimeFailed {
+                    detail: error.to_string(),
+                });
+            }
+        };
+        progress
+            .validate(&event)
+            .map_err(|error| ToolHostProbeError::InvalidEventStream {
+                detail: error.to_string(),
+            })?;
+        if terminal_usage.is_some() {
+            return Err(classify_extra_probe_event(&event));
+        }
+        match &event.event {
+            RuntimeEventKind::Started { opaque_session_id }
+                if !saw_started && opaque_session_id.is_empty() =>
+            {
+                return Err(ToolHostProbeError::InvalidEventStream {
+                    detail: "runtime started with an empty session identifier".to_owned(),
+                });
+            }
+            RuntimeEventKind::Started { .. } if !saw_started && tool_digests.is_empty() => {
+                saw_started = true;
+            }
+            RuntimeEventKind::Started { .. } => {
+                return Err(ToolHostProbeError::InvalidEventStream {
+                    detail: "runtime repeated or reordered its started event".to_owned(),
+                });
+            }
+            RuntimeEventKind::McpToolCall {
+                server,
+                tool,
+                status,
+                arguments,
+                result,
+                error,
+            } => {
+                if !saw_started {
+                    return Err(ToolHostProbeError::InvalidEventStream {
+                        detail: "runtime used a tool before its started event".to_owned(),
+                    });
+                }
+                let expected = match tool_digests.len() {
+                    0 => ToolHostProbeTool::WorkspaceWrite,
+                    1 => ToolHostProbeTool::WorkspaceRead,
+                    _ => {
+                        return Err(unexpected_probe_tool(server, tool));
+                    }
+                };
+                let readback = validate_tool_host_probe_event(
+                    expected,
+                    server,
+                    tool,
+                    status,
+                    arguments,
+                    result.as_ref(),
+                    error.as_ref(),
+                    &request,
+                )?;
+                let result = result
+                    .as_ref()
+                    .expect("validated tool-host probe result is present");
+                tool_digests.push(ToolHostProbeToolEventDigest {
+                    sequence: event.sequence,
+                    tool: expected,
+                    arguments_digest: digest_json(arguments).map_err(|error| {
+                        ToolHostProbeError::InvalidEventStream {
+                            detail: error.to_string(),
+                        }
+                    })?,
+                    result_digest: digest_json(result).map_err(|error| {
+                        ToolHostProbeError::InvalidEventStream {
+                            detail: error.to_string(),
+                        }
+                    })?,
+                });
+                if let Some(readback) = readback {
+                    runtime_reported_readback = Some(readback);
+                }
+            }
+            RuntimeEventKind::Output { .. } => {
+                return Err(ToolHostProbeError::UnexpectedOutput);
+            }
+            RuntimeEventKind::Completed { usage } => {
+                terminal_usage = Some(usage.clone());
+            }
+            RuntimeEventKind::TimedOut { limit_ms, .. } => {
+                if *limit_ms != request.deadline_ms {
+                    return Err(ToolHostProbeError::InvalidEventStream {
+                        detail: "runtime timeout does not match the requested deadline".to_owned(),
+                    });
+                }
+                return Err(ToolHostProbeError::TimedOut {
+                    limit_ms: *limit_ms,
+                });
+            }
+            RuntimeEventKind::Cancelled { .. } => {
+                return Err(ToolHostProbeError::Cancelled);
+            }
+            RuntimeEventKind::Failed { kind, .. } => {
+                return Err(ToolHostProbeError::RuntimeFailed {
+                    detail: format!("{kind:?}"),
+                });
+            }
+            RuntimeEventKind::Launch { .. }
+            | RuntimeEventKind::Yielded { .. }
+            | RuntimeEventKind::Interrupted => {
+                return Err(ToolHostProbeError::AmbiguousTerminal);
+            }
+        }
+        events.push(event);
+    }
+
+    if request.cancellation.is_cancelled() {
+        return Err(ToolHostProbeError::Cancelled);
+    }
+    if elapsed_millis(started_at) > request.deadline_ms {
+        return Err(ToolHostProbeError::TimedOut {
+            limit_ms: request.deadline_ms,
+        });
+    }
+    if !saw_started {
+        return Err(ToolHostProbeError::InvalidEventStream {
+            detail: "runtime emitted no started event".to_owned(),
+        });
+    }
+    if tool_digests.is_empty() {
+        return Err(ToolHostProbeError::MissingToolEvent {
+            tool: ToolHostProbeTool::WorkspaceWrite,
+        });
+    }
+    if tool_digests.len() == 1 {
+        return Err(ToolHostProbeError::MissingToolEvent {
+            tool: ToolHostProbeTool::WorkspaceRead,
+        });
+    }
+    let usage = terminal_usage.ok_or(ToolHostProbeError::AmbiguousTerminal)?;
+    if session.usage() != usage {
+        return Err(ToolHostProbeError::IncompleteUsage {
+            field: "terminal_usage",
+        });
+    }
+    validate_tool_host_probe_usage(&usage, &request.resource_reservation)?;
+    let cost = match usage.cost_microusd {
+        Some(cost) => ToolHostProbeCost {
+            availability: ToolHostProbeCostAvailability::Reported,
+            currency: Some("USD".to_owned()),
+            amount_microusd: Some(cost),
+        },
+        None => ToolHostProbeCost {
+            availability: ToolHostProbeCostAvailability::Unavailable,
+            currency: None,
+            amount_microusd: None,
+        },
+    };
+    let runtime_reported_readback =
+        runtime_reported_readback.ok_or(ToolHostProbeError::MissingToolEvent {
+            tool: ToolHostProbeTool::WorkspaceRead,
+        })?;
+    let event_digest = evidence_digest(&serde_json::to_vec(&events).map_err(|error| {
+        ToolHostProbeError::InvalidEventStream {
+            detail: error.to_string(),
+        }
+    })?);
+    let tool_event_digests: [ToolHostProbeToolEventDigest; 2] = tool_digests
+        .try_into()
+        .map_err(|_| ToolHostProbeError::AmbiguousTerminal)?;
+
+    Ok(ToolHostProbeTrace {
+        schema_version: TOOL_HOST_PROBE_SCHEMA_VERSION,
+        probe_id: request.probe_id,
+        invocation_id: request.invocation_id,
+        nonce_input: request.nonce.clone(),
+        runtime_reported_readback: runtime_reported_readback.clone(),
+        workspace_path: request.workspace_path,
+        deadline_ms: request.deadline_ms,
+        resource_reservation: request.resource_reservation.clone(),
+        runtime,
+        model_calls: request.resource_reservation.model_calls,
+        usage,
+        cost,
+        input_digest: evidence_digest(request.nonce.as_bytes()),
+        output_digest: evidence_digest(runtime_reported_readback.as_bytes()),
+        tool_event_digests,
+        event_digest,
+        terminal: ToolHostProbeTerminal::Completed,
+        trust: ToolHostProbeTrust::UntrustedRuntimeTrace,
+    })
+}
+
+fn validate_tool_host_probe_request(
+    request: &ToolHostProbeRequest,
+) -> Result<(), ToolHostProbeError> {
+    if request.schema_version != TOOL_HOST_PROBE_SCHEMA_VERSION {
+        return Err(ToolHostProbeError::UnsupportedSchema {
+            found: request.schema_version,
+        });
+    }
+    for (field, value) in [
+        ("probe_id", request.probe_id.as_str()),
+        ("invocation_id", request.invocation_id.as_str()),
+    ] {
+        if value.is_empty() || value.chars().count() > MAX_IDENTIFIER_CHARS {
+            return Err(ToolHostProbeError::InvalidIdentity { field });
+        }
+    }
+    if request.nonce.is_empty() || request.nonce.len() > 4096 {
+        return Err(ToolHostProbeError::InvalidNonce { max_bytes: 4096 });
+    }
+    if !is_normalized_relative_probe_path(&request.workspace_path) {
+        return Err(ToolHostProbeError::InvalidWorkspacePath);
+    }
+    if request.deadline_ms == 0 || request.deadline_ms > 600_000 {
+        return Err(ToolHostProbeError::InvalidDeadline);
+    }
+    validate_tool_host_probe_reservation(&request.resource_reservation, request.deadline_ms)?;
+    validate_tool_host_probe_identity(&request.expected_runtime)
+}
+
+fn validate_tool_host_probe_identity(
+    identity: &ToolHostProbeRuntimeIdentity,
+) -> Result<(), ToolHostProbeError> {
+    for (field, value) in [
+        ("route", identity.route.as_str()),
+        ("profile", identity.profile.as_str()),
+        ("cli", identity.cli.as_str()),
+        ("cli_version", identity.cli_version.as_str()),
+        ("driver", identity.driver.as_str()),
+        ("driver_version", identity.driver_version.as_str()),
+    ] {
+        if value.is_empty() || value.len() > 4096 {
+            return Err(ToolHostProbeError::InvalidIdentity { field });
+        }
+    }
+    if identity.tool_schema_digest != tool_host_probe_tool_schema_digest() {
+        return Err(ToolHostProbeError::RuntimeIdentityMismatch {
+            field: "tool_schema_digest",
+        });
+    }
+    Ok(())
+}
+
+fn validate_tool_host_probe_reservation(
+    vector: &ToolHostProbeResourceVector,
+    deadline_ms: u64,
+) -> Result<(), ToolHostProbeError> {
+    for (field, exact, found) in [
+        ("model_calls", 1, vector.model_calls),
+        ("workspace_reads", 1, vector.workspace_reads),
+        ("workspace_writes", 1, vector.workspace_writes),
+        ("invocation_starts", 1, vector.invocation_starts),
+    ] {
+        if found != exact {
+            return Err(ToolHostProbeError::InvalidReservation { field });
+        }
+    }
+    if vector.max_input_tokens == 0 || vector.max_output_tokens == 0 {
+        return Err(ToolHostProbeError::InvalidReservation {
+            field: "token_limits",
+        });
+    }
+    if vector.max_wall_time_ms != deadline_ms {
+        return Err(ToolHostProbeError::InvalidReservation {
+            field: "max_wall_time_ms",
+        });
+    }
+    for (field, found) in [
+        ("protected_queries", vector.protected_queries),
+        ("external_actions", vector.external_actions),
+        ("participant_starts", vector.participant_starts),
+        ("attempt_starts", vector.attempt_starts),
+        ("offer_creations", vector.offer_creations),
+        ("obligation_creations", vector.obligation_creations),
+        ("board_actions", vector.board_actions),
+        ("task_actions", vector.task_actions),
+        ("recruitment_actions", vector.recruitment_actions),
+        ("candidate_actions", vector.candidate_actions),
+        ("communication_actions", vector.communication_actions),
+    ] {
+        if found != 0 {
+            return Err(ToolHostProbeError::InvalidReservation { field });
+        }
+    }
+    Ok(())
+}
+
+fn is_normalized_relative_probe_path(path: &Path) -> bool {
+    !path.as_os_str().is_empty()
+        && !path.is_absolute()
+        && path
+            .components()
+            .all(|component| matches!(component, Component::Normal(_)))
+}
+
+fn validate_tool_host_probe_workspace(
+    workspace: &Path,
+    relative: &Path,
+) -> Result<PathBuf, ToolHostProbeError> {
+    if !workspace.is_absolute() || !workspace.is_dir() {
+        return Err(ToolHostProbeError::WorkspaceUnavailable {
+            detail: "workspace root must be an existing absolute directory".to_owned(),
+        });
+    }
+    let canonical =
+        workspace
+            .canonicalize()
+            .map_err(|error| ToolHostProbeError::WorkspaceUnavailable {
+                detail: error.to_string(),
+            })?;
+    let mut candidate = canonical.clone();
+    for component in relative.components() {
+        let Component::Normal(component) = component else {
+            return Err(ToolHostProbeError::InvalidWorkspacePath);
+        };
+        candidate.push(component);
+        if candidate.exists() {
+            let resolved = candidate.canonicalize().map_err(|error| {
+                ToolHostProbeError::WorkspaceUnavailable {
+                    detail: error.to_string(),
+                }
+            })?;
+            if !resolved.starts_with(&canonical) {
+                return Err(ToolHostProbeError::InvalidWorkspacePath);
+            }
+        }
+    }
+    Ok(canonical)
+}
+
+fn validate_tool_host_probe_projection(
+    driver: &dyn RuntimeDriver,
+    probe: &ProbeReport,
+    expected: &ToolHostProbeRuntimeIdentity,
+) -> Result<(), ToolHostProbeError> {
+    if probe.kind != driver.kind() || expected.runtime_kind != driver.kind() {
+        return Err(ToolHostProbeError::RuntimeIdentityMismatch {
+            field: "runtime_kind",
+        });
+    }
+    if probe.executable != expected.cli || driver.executable().display().to_string() != expected.cli
+    {
+        return Err(ToolHostProbeError::RuntimeIdentityMismatch { field: "cli" });
+    }
+    if probe.version.as_deref() != Some(expected.cli_version.as_str()) {
+        return Err(ToolHostProbeError::RuntimeIdentityMismatch {
+            field: "cli_version",
+        });
+    }
+    Ok(())
+}
+
+fn compare_tool_host_probe_identity(
+    expected: &ToolHostProbeRuntimeIdentity,
+    observed: &ToolHostProbeRuntimeIdentity,
+) -> Result<(), ToolHostProbeError> {
+    for (field, matches) in [
+        (
+            "runtime_kind",
+            expected.runtime_kind == observed.runtime_kind,
+        ),
+        ("route", expected.route == observed.route),
+        ("profile", expected.profile == observed.profile),
+        ("cli", expected.cli == observed.cli),
+        ("cli_version", expected.cli_version == observed.cli_version),
+        ("driver", expected.driver == observed.driver),
+        (
+            "driver_version",
+            expected.driver_version == observed.driver_version,
+        ),
+        (
+            "tool_schema_digest",
+            expected.tool_schema_digest == observed.tool_schema_digest,
+        ),
+    ] {
+        if !matches {
+            return Err(ToolHostProbeError::RuntimeIdentityMismatch { field });
+        }
+    }
+    Ok(())
+}
+
+#[allow(clippy::too_many_arguments)]
+fn validate_tool_host_probe_event(
+    expected: ToolHostProbeTool,
+    server: &str,
+    tool: &str,
+    status: &str,
+    arguments: &Value,
+    result: Option<&Value>,
+    error: Option<&Value>,
+    request: &ToolHostProbeRequest,
+) -> Result<Option<String>, ToolHostProbeError> {
+    if server != TOOL_HOST_PROBE_WORKSPACE_SERVER || tool != expected.to_string() {
+        return Err(unexpected_probe_tool(server, tool));
+    }
+    if status != "completed" {
+        return Err(ToolHostProbeError::InvalidToolEvent {
+            tool: expected,
+            field: "status",
+        });
+    }
+    if error.is_some() {
+        return Err(ToolHostProbeError::InvalidToolEvent {
+            tool: expected,
+            field: "error",
+        });
+    }
+    let result = result.ok_or(ToolHostProbeError::InvalidToolEvent {
+        tool: expected,
+        field: "result",
+    })?;
+    match expected {
+        ToolHostProbeTool::WorkspaceWrite => {
+            if arguments
+                != &serde_json::json!({
+                    "path": request.workspace_path,
+                    "content": request.nonce,
+                })
+            {
+                return Err(ToolHostProbeError::InvalidToolEvent {
+                    tool: expected,
+                    field: "arguments",
+                });
+            }
+            if result != &serde_json::json!({"bytes_written": request.nonce.len()}) {
+                return Err(ToolHostProbeError::InvalidToolEvent {
+                    tool: expected,
+                    field: "result",
+                });
+            }
+            Ok(None)
+        }
+        ToolHostProbeTool::WorkspaceRead => {
+            if arguments != &serde_json::json!({"path": request.workspace_path}) {
+                return Err(ToolHostProbeError::InvalidToolEvent {
+                    tool: expected,
+                    field: "arguments",
+                });
+            }
+            let readback = result
+                .as_object()
+                .filter(|object| object.len() == 1)
+                .and_then(|object| object.get("content"))
+                .and_then(Value::as_str)
+                .ok_or(ToolHostProbeError::InvalidToolEvent {
+                    tool: expected,
+                    field: "result",
+                })?;
+            if readback != request.nonce {
+                return Err(ToolHostProbeError::InvalidToolEvent {
+                    tool: expected,
+                    field: "result",
+                });
+            }
+            Ok(Some(readback.to_owned()))
+        }
+    }
+}
+
+fn forbidden_probe_effect(server: &str, tool: &str) -> Option<ToolHostProbeEffect> {
+    let boundary = format!("{server}/{tool}").to_ascii_lowercase();
+    if boundary.contains("board") {
+        Some(ToolHostProbeEffect::Board)
+    } else if boundary.contains("recruit") || boundary.contains("participant") {
+        Some(ToolHostProbeEffect::Recruitment)
+    } else if boundary.contains("candidate") || boundary.contains("submit") {
+        Some(ToolHostProbeEffect::Candidate)
+    } else if boundary.contains("task") || boundary.contains("offer") || boundary.contains("bid") {
+        Some(ToolHostProbeEffect::Task)
+    } else {
+        None
+    }
+}
+
+fn unexpected_probe_tool(server: &str, tool: &str) -> ToolHostProbeError {
+    match forbidden_probe_effect(server, tool) {
+        Some(effect) => ToolHostProbeError::ForbiddenEffect {
+            effect,
+            server: server.to_owned(),
+            tool: tool.to_owned(),
+        },
+        None => ToolHostProbeError::UnexpectedToolUse {
+            server: server.to_owned(),
+            tool: tool.to_owned(),
+        },
+    }
+}
+
+fn classify_extra_probe_event(event: &RuntimeEvent) -> ToolHostProbeError {
+    match &event.event {
+        RuntimeEventKind::Output { .. } => ToolHostProbeError::UnexpectedOutput,
+        RuntimeEventKind::McpToolCall { server, tool, .. } => unexpected_probe_tool(server, tool),
+        _ => ToolHostProbeError::AmbiguousTerminal,
+    }
+}
+
+fn validate_tool_host_probe_usage(
+    usage: &Usage,
+    reservation: &ToolHostProbeResourceVector,
+) -> Result<(), ToolHostProbeError> {
+    let total_tokens = usage
+        .input_tokens
+        .saturating_add(usage.cached_input_tokens)
+        .saturating_add(usage.output_tokens)
+        .saturating_add(usage.reasoning_output_tokens);
+    if total_tokens == 0 {
+        return Err(ToolHostProbeError::IncompleteUsage { field: "tokens" });
+    }
+    if usage.wall_time_ms == 0 {
+        return Err(ToolHostProbeError::IncompleteUsage {
+            field: "wall_time_ms",
+        });
+    }
+    if usage.cost_microusd.is_none() && !usage.cost_by_model.is_empty() {
+        return Err(ToolHostProbeError::IncompleteUsage { field: "cost" });
+    }
+    if !usage.cost_is_attributed() {
+        return Err(ToolHostProbeError::IncompleteUsage {
+            field: "cost_by_model",
+        });
+    }
+    if usage.protected_queries != 0 || usage.in_flight_excess != Default::default() {
+        return Err(ToolHostProbeError::ReservationExceeded {
+            field: "forbidden_usage",
+        });
+    }
+    for (field, found, limit) in [
+        (
+            "input_tokens",
+            usage.input_tokens,
+            reservation.max_input_tokens,
+        ),
+        (
+            "cached_input_tokens",
+            usage.cached_input_tokens,
+            reservation.max_cached_input_tokens,
+        ),
+        (
+            "output_tokens",
+            usage.output_tokens,
+            reservation.max_output_tokens,
+        ),
+        (
+            "reasoning_output_tokens",
+            usage.reasoning_output_tokens,
+            reservation.max_reasoning_output_tokens,
+        ),
+        (
+            "wall_time_ms",
+            usage.wall_time_ms,
+            reservation.max_wall_time_ms,
+        ),
+    ] {
+        if found > limit {
+            return Err(ToolHostProbeError::ReservationExceeded { field });
+        }
+    }
+    if let Some(found) = usage.cost_microusd {
+        match reservation.max_cost_microusd {
+            Some(limit) if found <= limit => {}
+            None if found == 0 => {}
+            _ => {
+                return Err(ToolHostProbeError::ReservationExceeded {
+                    field: "cost_microusd",
+                });
+            }
+        }
+    }
+    Ok(())
+}
+
+fn elapsed_millis(started_at: Instant) -> u64 {
+    u64::try_from(started_at.elapsed().as_millis()).unwrap_or(u64::MAX)
 }
 
 fn validate_runtime_probe(kind: RuntimeKind, probe: &ProbeReport) -> anyhow::Result<()> {

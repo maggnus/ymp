@@ -938,6 +938,243 @@ impl Usage {
     }
 }
 
+pub const TOOL_HOST_PROBE_SCHEMA_VERSION: u32 = 1;
+pub const TOOL_HOST_PROBE_WORKSPACE_SERVER: &str = "ymp.workspace";
+pub const TOOL_HOST_PROBE_TOOL_SCHEMA: &str = concat!(
+    r#"{"schema_version":1,"tools":["#,
+    r#"{"name":"workspace_write","arguments":{"path":"normalized_relative_path","content":"opaque_nonce"}},"#,
+    r#"{"name":"workspace_read","arguments":{"path":"normalized_relative_path"}}]}"#,
+);
+
+pub fn tool_host_probe_tool_schema_digest() -> String {
+    digest_bytes(TOOL_HOST_PROBE_TOOL_SCHEMA.as_bytes())
+}
+
+/// The only tools a no-task-output probe invocation may receive. The fixed order is part of the
+/// probe schema: the nonce is written once and then read once.
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ToolHostProbeTool {
+    WorkspaceWrite,
+    WorkspaceRead,
+}
+
+impl std::fmt::Display for ToolHostProbeTool {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.write_str(match self {
+            Self::WorkspaceWrite => "workspace_write",
+            Self::WorkspaceRead => "workspace_read",
+        })
+    }
+}
+
+/// The exact runtime tuple a caller expects the probe to exercise. The runtime reports the same
+/// tuple independently through [`RuntimeDriver::tool_host_probe_identity`]; the supervisor returns
+/// no trace when the two differ.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct ToolHostProbeRuntimeIdentity {
+    pub runtime_kind: RuntimeKind,
+    pub route: String,
+    pub profile: String,
+    pub cli: String,
+    pub cli_version: String,
+    pub driver: String,
+    pub driver_version: String,
+    pub tool_schema_digest: String,
+}
+
+/// One reservation dedicated to a probe. Workspace effects are counted separately from every
+/// run, task, candidate and communication dimension so none of those accounts can satisfy it.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct ToolHostProbeResourceVector {
+    pub model_calls: u64,
+    pub max_input_tokens: u64,
+    pub max_cached_input_tokens: u64,
+    pub max_output_tokens: u64,
+    pub max_reasoning_output_tokens: u64,
+    pub max_cost_microusd: Option<u64>,
+    pub max_wall_time_ms: u64,
+    pub workspace_reads: u64,
+    pub workspace_writes: u64,
+    pub invocation_starts: u64,
+    pub protected_queries: u64,
+    pub external_actions: u64,
+    pub participant_starts: u64,
+    pub attempt_starts: u64,
+    pub offer_creations: u64,
+    pub obligation_creations: u64,
+    pub board_actions: u64,
+    pub task_actions: u64,
+    pub recruitment_actions: u64,
+    pub candidate_actions: u64,
+    pub communication_actions: u64,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct ToolHostProbeRequest {
+    pub schema_version: u32,
+    pub probe_id: String,
+    pub invocation_id: String,
+    pub nonce: String,
+    pub workspace_path: PathBuf,
+    pub deadline_ms: u64,
+    pub resource_reservation: ToolHostProbeResourceVector,
+    pub expected_runtime: ToolHostProbeRuntimeIdentity,
+    #[serde(skip)]
+    pub cancellation: CancellationToken,
+}
+
+/// The invocation delivered to a driver after the supervisor has checked the caller's request,
+/// workspace boundary, separate reservation and expected runtime identity.
+#[derive(Clone, Debug)]
+pub struct ToolHostProbeInvocation {
+    pub request: ToolHostProbeRequest,
+    pub workspace: PathBuf,
+    pub allowed_tools: [ToolHostProbeTool; 2],
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ToolHostProbeCostAvailability {
+    Reported,
+    Unavailable,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct ToolHostProbeCost {
+    pub availability: ToolHostProbeCostAvailability,
+    pub currency: Option<String>,
+    pub amount_microusd: Option<u64>,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct ToolHostProbeToolEventDigest {
+    pub sequence: u64,
+    pub tool: ToolHostProbeTool,
+    pub arguments_digest: String,
+    pub result_digest: String,
+}
+
+/// A successful runtime report says only that the untrusted runtime emitted the expected bounded
+/// event sequence. It is not controller read-back, persistence, attestation or admission.
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ToolHostProbeTrust {
+    UntrustedRuntimeTrace,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ToolHostProbeTerminal {
+    Completed,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct ToolHostProbeTrace {
+    pub schema_version: u32,
+    pub probe_id: String,
+    pub invocation_id: String,
+    pub nonce_input: String,
+    pub runtime_reported_readback: String,
+    pub workspace_path: PathBuf,
+    pub deadline_ms: u64,
+    pub resource_reservation: ToolHostProbeResourceVector,
+    pub runtime: ToolHostProbeRuntimeIdentity,
+    pub model_calls: u64,
+    pub usage: Usage,
+    pub cost: ToolHostProbeCost,
+    pub input_digest: String,
+    pub output_digest: String,
+    pub tool_event_digests: [ToolHostProbeToolEventDigest; 2],
+    pub event_digest: String,
+    pub terminal: ToolHostProbeTerminal,
+    pub trust: ToolHostProbeTrust,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum ToolHostProbeEffect {
+    Board,
+    Task,
+    Recruitment,
+    Candidate,
+}
+
+impl std::fmt::Display for ToolHostProbeEffect {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.write_str(match self {
+            Self::Board => "board",
+            Self::Task => "task",
+            Self::Recruitment => "recruitment",
+            Self::Candidate => "candidate",
+        })
+    }
+}
+
+#[derive(Clone, Debug, Eq, Error, PartialEq)]
+pub enum ToolHostProbeError {
+    #[error("unsupported tool-host probe schema version {found}")]
+    UnsupportedSchema { found: u32 },
+    #[error("invalid tool-host probe {field}")]
+    InvalidIdentity { field: &'static str },
+    #[error("tool-host probe nonce must contain between 1 and {max_bytes} bytes")]
+    InvalidNonce { max_bytes: usize },
+    #[error("tool-host probe path is not a normalized relative workspace path")]
+    InvalidWorkspacePath,
+    #[error("tool-host probe workspace is unavailable: {detail}")]
+    WorkspaceUnavailable { detail: String },
+    #[error("tool-host probe deadline is invalid")]
+    InvalidDeadline,
+    #[error("tool-host probe reservation is invalid in {field}")]
+    InvalidReservation { field: &'static str },
+    #[error("tool-host probe supports only the fake-runtime boundary in this build")]
+    LiveRuntimeForbidden,
+    #[error("tool-host runtime probe failed: {detail}")]
+    RuntimeProbeFailed { detail: String },
+    #[error("tool-host runtime is not ready: {detail}")]
+    RuntimeNotReady { detail: String },
+    #[error("tool-host runtime identity differs in {field}")]
+    RuntimeIdentityMismatch { field: &'static str },
+    #[error("tool-host probe invocation could not start: {detail}")]
+    StartFailed { detail: String },
+    #[error("tool-host probe event stream is invalid: {detail}")]
+    InvalidEventStream { detail: String },
+    #[error("tool-host probe is missing {tool}")]
+    MissingToolEvent { tool: ToolHostProbeTool },
+    #[error("tool-host probe used unexpected tool {server}/{tool}")]
+    UnexpectedToolUse { server: String, tool: String },
+    #[error("tool-host probe attempted forbidden {effect} effect through {server}/{tool}")]
+    ForbiddenEffect {
+        effect: ToolHostProbeEffect,
+        server: String,
+        tool: String,
+    },
+    #[error("tool-host probe {tool} event has invalid {field}")]
+    InvalidToolEvent {
+        tool: ToolHostProbeTool,
+        field: &'static str,
+    },
+    #[error("tool-host probe emitted task output")]
+    UnexpectedOutput,
+    #[error("tool-host probe usage is incomplete in {field}")]
+    IncompleteUsage { field: &'static str },
+    #[error("tool-host probe exceeded its reservation in {field}")]
+    ReservationExceeded { field: &'static str },
+    #[error("tool-host probe reported an ambiguous terminal")]
+    AmbiguousTerminal,
+    #[error("tool-host probe exceeded its {limit_ms}-millisecond deadline")]
+    TimedOut { limit_ms: u64 },
+    #[error("tool-host probe was cancelled")]
+    Cancelled,
+    #[error("tool-host probe runtime failed: {detail}")]
+    RuntimeFailed { detail: String },
+}
+
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum RuntimeFailureKind {
@@ -1010,6 +1247,15 @@ pub trait RuntimeDriver: Send + Sync {
     fn executable(&self) -> &Path;
     fn probe(&self) -> Result<ProbeReport, RuntimeError>;
     fn start(&self, request: InvocationRequest) -> Result<Box<dyn RuntimeSession>, RuntimeError>;
+    fn tool_host_probe_identity(&self) -> Result<ToolHostProbeRuntimeIdentity, RuntimeError> {
+        Err(RuntimeError::Unsupported("tool-host probe identity"))
+    }
+    fn start_tool_host_probe(
+        &self,
+        _request: ToolHostProbeInvocation,
+    ) -> Result<Box<dyn RuntimeSession>, RuntimeError> {
+        Err(RuntimeError::Unsupported("tool-host probe invocation"))
+    }
     fn prepare_launch(
         &self,
         _request: &InvocationRequest,
@@ -1027,6 +1273,164 @@ pub trait RuntimeDriver: Send + Sync {
             ));
         }
         self.start(request)
+    }
+}
+
+#[cfg(test)]
+mod tool_host_probe_schema_tests {
+    use super::{
+        TOOL_HOST_PROBE_SCHEMA_VERSION, TOOL_HOST_PROBE_TOOL_SCHEMA, ToolHostProbeCost,
+        ToolHostProbeCostAvailability, ToolHostProbeRequest, ToolHostProbeResourceVector,
+        ToolHostProbeRuntimeIdentity, ToolHostProbeTerminal, ToolHostProbeTool,
+        ToolHostProbeToolEventDigest, ToolHostProbeTrace, ToolHostProbeTrust, Usage,
+        tool_host_probe_tool_schema_digest,
+    };
+    use crate::{CancellationToken, RuntimeKind};
+    use serde_json::Value;
+    use std::path::PathBuf;
+
+    fn reservation() -> ToolHostProbeResourceVector {
+        ToolHostProbeResourceVector {
+            model_calls: 1,
+            max_input_tokens: 32,
+            max_cached_input_tokens: 16,
+            max_output_tokens: 16,
+            max_reasoning_output_tokens: 8,
+            max_cost_microusd: Some(100),
+            max_wall_time_ms: 1_000,
+            workspace_reads: 1,
+            workspace_writes: 1,
+            invocation_starts: 1,
+            protected_queries: 0,
+            external_actions: 0,
+            participant_starts: 0,
+            attempt_starts: 0,
+            offer_creations: 0,
+            obligation_creations: 0,
+            board_actions: 0,
+            task_actions: 0,
+            recruitment_actions: 0,
+            candidate_actions: 0,
+            communication_actions: 0,
+        }
+    }
+
+    fn identity() -> ToolHostProbeRuntimeIdentity {
+        ToolHostProbeRuntimeIdentity {
+            runtime_kind: RuntimeKind::Fake,
+            route: "fixture-route".to_owned(),
+            profile: "fixture-profile".to_owned(),
+            cli: "/fixture/runtime".to_owned(),
+            cli_version: "fixture-cli 1".to_owned(),
+            driver: "fixture-driver".to_owned(),
+            driver_version: "fixture-driver 1".to_owned(),
+            tool_schema_digest: tool_host_probe_tool_schema_digest(),
+        }
+    }
+
+    fn request() -> ToolHostProbeRequest {
+        ToolHostProbeRequest {
+            schema_version: TOOL_HOST_PROBE_SCHEMA_VERSION,
+            probe_id: "probe-1".to_owned(),
+            invocation_id: "invocation-1".to_owned(),
+            nonce: "opaque-nonce".to_owned(),
+            workspace_path: PathBuf::from("probe/nonce.txt"),
+            deadline_ms: 1_000,
+            resource_reservation: reservation(),
+            expected_runtime: identity(),
+            cancellation: CancellationToken::default(),
+        }
+    }
+
+    fn trace() -> ToolHostProbeTrace {
+        let request = request();
+        ToolHostProbeTrace {
+            schema_version: TOOL_HOST_PROBE_SCHEMA_VERSION,
+            probe_id: request.probe_id,
+            invocation_id: request.invocation_id,
+            nonce_input: request.nonce.clone(),
+            runtime_reported_readback: request.nonce.clone(),
+            workspace_path: request.workspace_path,
+            deadline_ms: request.deadline_ms,
+            resource_reservation: request.resource_reservation,
+            runtime: request.expected_runtime,
+            model_calls: 1,
+            usage: Usage {
+                input_tokens: 3,
+                output_tokens: 2,
+                wall_time_ms: 7,
+                ..Usage::default()
+            },
+            cost: ToolHostProbeCost {
+                availability: ToolHostProbeCostAvailability::Unavailable,
+                currency: None,
+                amount_microusd: None,
+            },
+            input_digest: "a".repeat(64),
+            output_digest: "a".repeat(64),
+            tool_event_digests: [
+                ToolHostProbeToolEventDigest {
+                    sequence: 2,
+                    tool: ToolHostProbeTool::WorkspaceWrite,
+                    arguments_digest: "b".repeat(64),
+                    result_digest: "c".repeat(64),
+                },
+                ToolHostProbeToolEventDigest {
+                    sequence: 3,
+                    tool: ToolHostProbeTool::WorkspaceRead,
+                    arguments_digest: "d".repeat(64),
+                    result_digest: "e".repeat(64),
+                },
+            ],
+            event_digest: "f".repeat(64),
+            terminal: ToolHostProbeTerminal::Completed,
+            trust: ToolHostProbeTrust::UntrustedRuntimeTrace,
+        }
+    }
+
+    #[test]
+    fn request_and_trace_refuse_schema_extensions() {
+        let mut request = serde_json::to_value(request()).expect("request value");
+        request["unknown_authority"] = Value::Bool(true);
+        assert!(serde_json::from_value::<ToolHostProbeRequest>(request).is_err());
+
+        let mut trace = serde_json::to_value(trace()).expect("trace value");
+        trace["unknown_authority"] = Value::Bool(true);
+        assert!(serde_json::from_value::<ToolHostProbeTrace>(trace).is_err());
+    }
+
+    #[test]
+    fn trace_vocabulary_cannot_claim_controller_authority() {
+        let value = serde_json::to_value(trace()).expect("trace value");
+        let object = value.as_object().expect("trace object");
+        for forbidden in [
+            "controller_read_back",
+            "persisted",
+            "attested",
+            "model_ready",
+            "admitted",
+        ] {
+            assert!(
+                !object.contains_key(forbidden),
+                "untrusted trace exposed authority field {forbidden}"
+            );
+        }
+        assert_eq!(value["trust"], "untrusted_runtime_trace");
+
+        let mut injected = value;
+        injected["model_ready"] = Value::Bool(true);
+        assert!(serde_json::from_value::<ToolHostProbeTrace>(injected).is_err());
+    }
+
+    #[test]
+    fn fixed_tool_schema_contains_only_one_write_and_one_read() {
+        let schema: Value =
+            serde_json::from_str(TOOL_HOST_PROBE_TOOL_SCHEMA).expect("tool schema JSON");
+        let tools = schema["tools"].as_array().expect("tool list");
+        assert_eq!(tools.len(), 2);
+        assert_eq!(tools[0]["name"], "workspace_write");
+        assert_eq!(tools[1]["name"], "workspace_read");
+        assert_eq!(tool_host_probe_tool_schema_digest().len(), 64);
     }
 }
 
