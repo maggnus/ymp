@@ -41,6 +41,8 @@ without exposing storage, a mutable board, or authority to the TUI.
 - The application publication seam for `Publish` plus exact payload bytes.
 - Object-before-record ordering, digest and length validation, and owned resolved projections.
 - Focused application tests for reopen, mutation isolation, and fail-closed mismatch or loss.
+- The exact `ymp-testkit/src/lib.rs` call site that currently obtains `Application::object_store()`
+  and a candidate path; it is replaced by a typed application verification operation.
 
 ### Out
 
@@ -61,11 +63,13 @@ without exposing storage, a mutable board, or authority to the TUI.
 
 R1 returned candidate `ec45bce`: payload ordering and resolution are correct, but pre-existing
 public `Application::object_store()` and `Application::board()` still bypass the typed boundary.
-The Sol author is closing or replacing those accessors without weakening candidate/verifier paths.
+The only non-test call site is the accepted-demo verifier in `ymp-testkit`; its exact replacement is
+now in scope and no correction code has yet been written.
 
 ## Next action
 
-Return a corrected candidate whose public API exposes no object store, board section, or ledger.
+Replace the testkit path extraction with a typed application verification operation, close both
+public accessors, and return the corrected candidate.
 
 ## Guardrails
 
@@ -76,7 +80,8 @@ Return a corrected candidate whose public API exposes no object store, board sec
 
 ## Findings
 
-- None.
+- R1 scope break: `ymp-testkit::run_accepted_demo` depends on the public object-store/path accessor;
+  only this call site is authorized outside `ymp-application/**` for the correction.
 
 ## Review rounds
 
