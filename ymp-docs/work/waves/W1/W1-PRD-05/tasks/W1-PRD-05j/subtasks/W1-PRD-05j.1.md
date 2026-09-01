@@ -4,26 +4,26 @@ kind: subtask
 wave: W1
 card: W1-PRD-05
 parent: W1-PRD-05j
-state: active
+state: accepted
 risk: significant
 maturity: BUILD
 relation: follow_up
 depends_on: [W1-PRD-05j]
 blocks: [W1-EVL-04a]
 created_at: 2026-09-01T12:38:00+08:00
-updated_at: 2026-09-01T14:00:00+08:00
+updated_at: 2026-09-01T14:43:52+08:00
 started_at: 2026-09-01T14:00:00+08:00
-accepted_at:
-candidate_commit:
-closure_commit:
-evidence:
-duration_minutes: 0
+accepted_at: 2026-09-01T14:43:52+08:00
+candidate_commit: https://github.com/maggnus/ymp/commit/7c086eb60f09916df1f32d45342378f51ad2255b
+closure_commit: https://github.com/maggnus/ymp/commit/ec9a792888782fe1cd43a70bbae6361733a37f56
+evidence: ["[ec9a792](https://github.com/maggnus/ymp/commit/ec9a792888782fe1cd43a70bbae6361733a37f56)"]
+duration_minutes: 44
 blocker:
 pause_reason:
 return_trigger:
 deliberate_partial: false
-review_rounds: 0
-escalation_decision:
+review_rounds: 3
+escalation_decision: bounded_retry
 ---
 
 # W1-PRD-05j.1 — Agent tool recruits through the accepted Application gate
@@ -63,30 +63,31 @@ by the endpoint, not supplied by the model.
 
 ## Acceptance
 
-- [ ] An admitted participant invokes the agent call with `{request_id, entry}`; its bound identity
+- [x] An admitted participant invokes the agent call with `{request_id, entry}`; its bound identity
       is used as proposer, the accepted mechanical gate admits one participant, and the existing
       managed start path is observed.
-- [ ] Repeating the call or its delivery admits and starts no second participant and records no
+- [x] Repeating the call or its delivery admits and starts no second participant and records no
       second admission.
-- [ ] An entry outside the frozen pool, an unbound or no-longer-running caller, exhausted budget,
+- [x] An entry outside the frozen pool, an unbound or no-longer-running caller, exhausted budget,
       concurrency refusal, runtime refusal, and unaffordable communication charge fail through the
       existing application reasons without admission or start side effects.
-- [ ] The public tool schema exposes no proposer, principal, path, workspace, profile, route,
+- [x] The public tool schema exposes no proposer, principal, path, workspace, profile, route,
       capability, score, rank, or role-selection field.
-- [ ] Unknown fields including `proposer`, `participant`, `profile`, `route`, `workspace`, or
+- [x] Unknown fields including `proposer`, `participant`, `profile`, `route`, `workspace`, or
       `capability` fail strict parsing before any application call or durable effect.
-- [ ] Focused agent API, RPC/MCP, application and touched runtime checks pass; strict Clippy for
+- [x] Focused agent API, RPC/MCP, application and touched runtime checks pass; strict Clippy for
       touched packages, formatting, and `git diff --check` report no warnings or errors.
 
 ## Current state
 
-The corrected contract passed pre-dispatch review. The accepted kernel/Application gate and managed
-start path exist; implementation of the exact agent API/MCP/RPC/runtime surface is active in an
-exclusive Sol xhigh workspace.
+Accepted and integrated as
+[ec9a792](https://github.com/maggnus/ymp/commit/ec9a792888782fe1cd43a70bbae6361733a37f56).
+The private endpoint binds proposer identity, the accepted Application gate admits and starts once,
+and Codex or Claude advertises the recruitment tool only when the bound endpoint grants it.
 
 ## Next action
 
-Return one committed candidate that reaches the existing application/start path exactly once.
+Use the accepted tool in the bounded two-participant fake-runtime path of W1-EVL-04e.
 
 ## Guardrails
 
@@ -103,6 +104,10 @@ Return one committed candidate that reaches the existing application/start path 
 
 - Pre-dispatch check returned the formerly implicit target names. The contract now names the new
   argument type, enum variant, MCP tool, AgentSession dispatcher, write zone and no-touch boundary.
+- R1 found that runtime configurations still advertised the tool without a recruitment grant; the
+  author corrected both Codex and Claude to derive their tool sets from the bound endpoint.
+- R2 reached compilation but filtered out every test; the bounded proof-only R3 executed one Codex
+  and one Claude boundary test and observed granted/ungranted tool sets.
 
 ## Review rounds
 
@@ -112,18 +117,32 @@ marker carries the reviewer's ten-point score and the local moment of the verdic
 escalation, one `- CTO <decision> <dd/mm hh:mm> — <reason>` line records what was decided. The review
 dialogue itself stays in the reports and the evidence package.
 
-## Closure
+- R1(6/10) RETURN 01/09 14:29 — Codex advertised `request_participant` without the accepted
+  capability → the author agreed and found the same defect in Claude → both runtimes now derive
+  their tool set from the bound endpoint
+- R2(7/10) ESCALATE 01/09 14:41 — static closure was sound but the exact test filter executed zero
+  tests → candidate unchanged → proof requires a nonzero runtime-boundary observation
+- CTO bounded_retry 01/09 14:41 — one proof-only R3 authorized; acceptance requires an executed
+  granted/ungranted runtime test, not compilation or an empty filter
+- R3(9/10) ACCEPT 01/09 14:43 — one Codex and one Claude boundary test executed and passed → tool
+  presence followed the endpoint capability → R1 closed without another code change
 
-Filled when the subtask is accepted.
+## Closure
 
 ### Accepted outcome
 
-What was actually accepted.
+Managed participants receive strict `request_participant { request_id, entry }` through the private
+agent API, RPC and MCP path. The endpoint supplies proposer identity; the existing Application gate
+and managed start path retain every admission decision and exactly-once effect. Runtime-generated
+Codex and Claude tool sets expose recruitment only when the invocation-bound endpoint grants it and
+fall back to the base tool set when capability discovery fails.
 
 ### Residuals
 
-Honestly retained limitations, each with an exact return trigger.
+None.
 
 ### Evidence
 
-- Commit, evidence package, or durable document of record, each as a Markdown link.
+- [ec9a792](https://github.com/maggnus/ymp/commit/ec9a792888782fe1cd43a70bbae6361733a37f56)
+  — integrated tree, byte-identical for the reviewed recruitment paths to candidate
+  [7c086eb](https://github.com/maggnus/ymp/commit/7c086eb60f09916df1f32d45342378f51ad2255b).
