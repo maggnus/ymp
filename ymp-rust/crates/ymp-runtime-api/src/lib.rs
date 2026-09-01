@@ -938,12 +938,22 @@ impl Usage {
     }
 }
 
-pub const TOOL_HOST_PROBE_SCHEMA_VERSION: u32 = 1;
+pub const TOOL_HOST_PROBE_SCHEMA_VERSION: u32 = 2;
 pub const TOOL_HOST_PROBE_WORKSPACE_SERVER: &str = "ymp.workspace";
+pub const TOOL_HOST_PROBE_MCP_PROTOCOL_VERSION: &str = "2025-11-25";
+pub const TOOL_HOST_PROBE_SERVER_VERSION: &str = env!("CARGO_PKG_VERSION");
+pub const TOOL_HOST_PROBE_INTERNAL_SUBCOMMAND: &str = "tool-host-probe-mcp";
+pub const TOOL_HOST_PROBE_INTERNAL_ARGUMENTS: [&str; 2] =
+    ["internal", TOOL_HOST_PROBE_INTERNAL_SUBCOMMAND];
+pub const TOOL_HOST_PROBE_ENVIRONMENT: [&str; 3] = [
+    "YMP_TOOL_HOST_PROBE_WORKSPACE_ROOT",
+    "YMP_TOOL_HOST_PROBE_PATH",
+    "YMP_TOOL_HOST_PROBE_NONCE",
+];
 pub const TOOL_HOST_PROBE_TOOL_SCHEMA: &str = concat!(
-    r#"{"schema_version":1,"tools":["#,
-    r#"{"name":"workspace_write","arguments":{"path":"normalized_relative_path","content":"opaque_nonce"}},"#,
-    r#"{"name":"workspace_read","arguments":{"path":"normalized_relative_path"}}]}"#,
+    r#"{"schema_version":2,"tools":["#,
+    r#"{"name":"workspace_write","description":"Write the controller nonce once at the controller path.","inputSchema":{"type":"object","properties":{"path":{"type":"string"},"content":{"type":"string"}},"required":["path","content"],"additionalProperties":false}},"#,
+    r#"{"name":"workspace_read","description":"Read the controller nonce once from the controller path.","inputSchema":{"type":"object","properties":{"path":{"type":"string"}},"required":["path"],"additionalProperties":false}}]}"#,
 );
 
 pub fn tool_host_probe_tool_schema_digest() -> String {
@@ -968,6 +978,30 @@ impl std::fmt::Display for ToolHostProbeTool {
     }
 }
 
+/// The exact stdio MCP transport measured by the trusted foreground controller before a probe
+/// reservation is spent. Per-probe path and nonce bindings remain in the controller reservation;
+/// this identity covers only the fixed transport contract and its canonical workspace root.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct ProbeTransportIdentity {
+    pub mcp_protocol_version: String,
+    pub server_name: String,
+    pub server_version: String,
+    pub tool_schema_digest: String,
+    pub ordered_tools: [ToolHostProbeTool; 2],
+    pub server_executable_digest: String,
+    pub launcher_executable_digest: String,
+    pub internal_subcommand: String,
+    pub arguments: Vec<String>,
+    pub inherited_environment: Vec<String>,
+    pub canonical_workspace_root_digest: String,
+}
+
+pub fn probe_transport_digest(identity: &ProbeTransportIdentity) -> String {
+    let bytes = serde_json::to_vec(identity).expect("probe transport identity is serializable");
+    digest_bytes(&bytes)
+}
+
 /// The exact runtime tuple a caller expects the probe to exercise. The runtime reports the same
 /// tuple independently through [`RuntimeDriver::tool_host_probe_identity`]; the supervisor returns
 /// no trace when the two differ.
@@ -982,6 +1016,16 @@ pub struct ToolHostProbeRuntimeIdentity {
     pub driver: String,
     pub driver_version: String,
     pub tool_schema_digest: String,
+    pub probe_transport: ProbeTransportIdentity,
+    pub probe_transport_digest: String,
+}
+
+impl ToolHostProbeRuntimeIdentity {
+    pub fn with_probe_transport(mut self, transport: ProbeTransportIdentity) -> Self {
+        self.probe_transport_digest = probe_transport_digest(&transport);
+        self.probe_transport = transport;
+        self
+    }
 }
 
 /// One reservation dedicated to a probe. Workspace effects are counted separately from every
@@ -1279,11 +1323,14 @@ pub trait RuntimeDriver: Send + Sync {
 #[cfg(test)]
 mod tool_host_probe_schema_tests {
     use super::{
-        TOOL_HOST_PROBE_SCHEMA_VERSION, TOOL_HOST_PROBE_TOOL_SCHEMA, ToolHostProbeCost,
+        ProbeTransportIdentity, TOOL_HOST_PROBE_ENVIRONMENT, TOOL_HOST_PROBE_INTERNAL_ARGUMENTS,
+        TOOL_HOST_PROBE_INTERNAL_SUBCOMMAND, TOOL_HOST_PROBE_MCP_PROTOCOL_VERSION,
+        TOOL_HOST_PROBE_SCHEMA_VERSION, TOOL_HOST_PROBE_SERVER_VERSION,
+        TOOL_HOST_PROBE_TOOL_SCHEMA, TOOL_HOST_PROBE_WORKSPACE_SERVER, ToolHostProbeCost,
         ToolHostProbeCostAvailability, ToolHostProbeRequest, ToolHostProbeResourceVector,
         ToolHostProbeRuntimeIdentity, ToolHostProbeTerminal, ToolHostProbeTool,
         ToolHostProbeToolEventDigest, ToolHostProbeTrace, ToolHostProbeTrust, Usage,
-        tool_host_probe_tool_schema_digest,
+        probe_transport_digest, tool_host_probe_tool_schema_digest,
     };
     use crate::{CancellationToken, RuntimeKind};
     use serde_json::Value;
@@ -1316,6 +1363,7 @@ mod tool_host_probe_schema_tests {
     }
 
     fn identity() -> ToolHostProbeRuntimeIdentity {
+        let probe_transport = transport_identity();
         ToolHostProbeRuntimeIdentity {
             runtime_kind: RuntimeKind::Fake,
             route: "fixture-route".to_owned(),
@@ -1325,6 +1373,33 @@ mod tool_host_probe_schema_tests {
             driver: "fixture-driver".to_owned(),
             driver_version: "fixture-driver 1".to_owned(),
             tool_schema_digest: tool_host_probe_tool_schema_digest(),
+            probe_transport_digest: probe_transport_digest(&probe_transport),
+            probe_transport,
+        }
+    }
+
+    fn transport_identity() -> ProbeTransportIdentity {
+        ProbeTransportIdentity {
+            mcp_protocol_version: TOOL_HOST_PROBE_MCP_PROTOCOL_VERSION.to_owned(),
+            server_name: TOOL_HOST_PROBE_WORKSPACE_SERVER.to_owned(),
+            server_version: TOOL_HOST_PROBE_SERVER_VERSION.to_owned(),
+            tool_schema_digest: tool_host_probe_tool_schema_digest(),
+            ordered_tools: [
+                ToolHostProbeTool::WorkspaceWrite,
+                ToolHostProbeTool::WorkspaceRead,
+            ],
+            server_executable_digest: "1".repeat(64),
+            launcher_executable_digest: "2".repeat(64),
+            internal_subcommand: TOOL_HOST_PROBE_INTERNAL_SUBCOMMAND.to_owned(),
+            arguments: TOOL_HOST_PROBE_INTERNAL_ARGUMENTS
+                .iter()
+                .map(|argument| (*argument).to_owned())
+                .collect(),
+            inherited_environment: TOOL_HOST_PROBE_ENVIRONMENT
+                .iter()
+                .map(|name| (*name).to_owned())
+                .collect(),
+            canonical_workspace_root_digest: "3".repeat(64),
         }
     }
 
@@ -1394,9 +1469,23 @@ mod tool_host_probe_schema_tests {
         request["unknown_authority"] = Value::Bool(true);
         assert!(serde_json::from_value::<ToolHostProbeRequest>(request).is_err());
 
-        let mut trace = serde_json::to_value(trace()).expect("trace value");
-        trace["unknown_authority"] = Value::Bool(true);
-        assert!(serde_json::from_value::<ToolHostProbeTrace>(trace).is_err());
+        let mut extended_trace = serde_json::to_value(trace()).expect("trace value");
+        extended_trace["unknown_authority"] = Value::Bool(true);
+        assert!(serde_json::from_value::<ToolHostProbeTrace>(extended_trace).is_err());
+
+        let mut missing_transport = serde_json::to_value(trace()).expect("trace value");
+        missing_transport["runtime"]
+            .as_object_mut()
+            .expect("runtime object")
+            .remove("probe_transport");
+        assert!(serde_json::from_value::<ToolHostProbeTrace>(missing_transport).is_err());
+
+        let mut missing_digest = serde_json::to_value(trace()).expect("trace value");
+        missing_digest["runtime"]
+            .as_object_mut()
+            .expect("runtime object")
+            .remove("probe_transport_digest");
+        assert!(serde_json::from_value::<ToolHostProbeTrace>(missing_digest).is_err());
     }
 
     #[test]
@@ -1431,6 +1520,60 @@ mod tool_host_probe_schema_tests {
         assert_eq!(tools[0]["name"], "workspace_write");
         assert_eq!(tools[1]["name"], "workspace_read");
         assert_eq!(tool_host_probe_tool_schema_digest().len(), 64);
+    }
+
+    #[test]
+    fn transport_digest_discriminates_every_bound_transport_dimension() {
+        let identity = transport_identity();
+        let digest = probe_transport_digest(&identity);
+        let mut mutations = Vec::new();
+
+        let mut mutated = identity.clone();
+        mutated.mcp_protocol_version.push_str("-other");
+        mutations.push(mutated);
+        let mut mutated = identity.clone();
+        mutated.server_name.push_str(".other");
+        mutations.push(mutated);
+        let mut mutated = identity.clone();
+        mutated.server_version.push_str("-other");
+        mutations.push(mutated);
+        let mut mutated = identity.clone();
+        mutated.tool_schema_digest = "4".repeat(64);
+        mutations.push(mutated);
+        let mut mutated = identity.clone();
+        mutated.ordered_tools.swap(0, 1);
+        mutations.push(mutated);
+        let mut mutated = identity.clone();
+        mutated.server_executable_digest = "5".repeat(64);
+        mutations.push(mutated);
+        let mut mutated = identity.clone();
+        mutated.launcher_executable_digest = "6".repeat(64);
+        mutations.push(mutated);
+        let mut mutated = identity.clone();
+        mutated.internal_subcommand.push_str("-other");
+        mutations.push(mutated);
+        let mut mutated = identity.clone();
+        mutated.arguments.push("--other".to_owned());
+        mutations.push(mutated);
+        let mut mutated = identity.clone();
+        mutated
+            .inherited_environment
+            .push("YMP_TOOL_HOST_PROBE_OTHER".to_owned());
+        mutations.push(mutated);
+        let mut mutated = identity;
+        mutated.canonical_workspace_root_digest = "7".repeat(64);
+        mutations.push(mutated);
+
+        for mutation in mutations {
+            assert_ne!(probe_transport_digest(&mutation), digest);
+        }
+    }
+
+    #[test]
+    fn transport_identity_refuses_unknown_fields() {
+        let mut value = serde_json::to_value(transport_identity()).expect("transport identity");
+        value["child_claimed_expected_digest"] = Value::String("a".repeat(64));
+        assert!(serde_json::from_value::<ProbeTransportIdentity>(value).is_err());
     }
 }
 

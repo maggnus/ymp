@@ -7,17 +7,20 @@ use thiserror::Error;
 use uuid::Uuid;
 use ymp_domain::digest_bytes;
 use ymp_runtime_api::{
-    CancellationToken, TOOL_HOST_PROBE_SCHEMA_VERSION, ToolHostProbeCost,
+    CancellationToken, ProbeTransportIdentity, TOOL_HOST_PROBE_ENVIRONMENT,
+    TOOL_HOST_PROBE_INTERNAL_ARGUMENTS, TOOL_HOST_PROBE_INTERNAL_SUBCOMMAND,
+    TOOL_HOST_PROBE_MCP_PROTOCOL_VERSION, TOOL_HOST_PROBE_SCHEMA_VERSION,
+    TOOL_HOST_PROBE_SERVER_VERSION, TOOL_HOST_PROBE_WORKSPACE_SERVER, ToolHostProbeCost,
     ToolHostProbeCostAvailability, ToolHostProbeError, ToolHostProbeRequest,
     ToolHostProbeResourceVector, ToolHostProbeRuntimeIdentity, ToolHostProbeTerminal,
     ToolHostProbeTool, ToolHostProbeTrace, ToolHostProbeTrust, Usage, evidence_digest,
-    tool_host_probe_tool_schema_digest,
+    probe_transport_digest, tool_host_probe_tool_schema_digest,
 };
 use ymp_storage::ObjectStoreError;
 
 use crate::Application;
 
-pub const ATTESTED_TOOL_HOST_PROBE_SCHEMA_VERSION: u32 = 1;
+pub const ATTESTED_TOOL_HOST_PROBE_SCHEMA_VERSION: u32 = 2;
 pub const TOOL_HOST_PROBE_HANDLE_EXPORT: &str = "exports/tool-host-probe.handle.json";
 
 const TOOL_HOST_PROBES_DIRECTORY: &str = "runtime-evidence/tool-host-probes";
@@ -25,38 +28,42 @@ const RESERVATION_FILE: &str = "reservation.json";
 const ATTESTATION_REFERENCE_FILE: &str = "attestation.ref";
 const WORKSPACE_DIRECTORY: &str = "workspace";
 
-/// The controller input contains no caller-selected identity, nonce, workspace path or stored
-/// evidence. Those values exist only after the Application accepts this bounded request.
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
-#[serde(deny_unknown_fields)]
+/// The controller request has two phases. Application first creates it with private material and a
+/// canonical root but no expected transport; the trusted foreground then consumes it to bind the
+/// prelaunch measurement. An unbound value is rejected before reservation or execution.
+#[derive(Clone, Debug)]
 pub struct ControllerToolHostProbeRequest {
     admission_manifest_digest: String,
-    expected_runtime: ToolHostProbeRuntimeIdentity,
+    expected_runtime: Option<ToolHostProbeRuntimeIdentity>,
+    expected_transport: Option<ProbeTransportIdentity>,
     deadline_ms: u64,
     resource_reservation: ToolHostProbeResourceVector,
+    material: ProbeMaterial,
+    workspace: PathBuf,
 }
 
 impl ControllerToolHostProbeRequest {
-    pub fn new(
-        admission_manifest_digest: impl Into<String>,
+    pub fn bind_expected_transport(
+        mut self,
         expected_runtime: ToolHostProbeRuntimeIdentity,
-        deadline_ms: u64,
-        resource_reservation: ToolHostProbeResourceVector,
-    ) -> Self {
-        Self {
-            admission_manifest_digest: admission_manifest_digest.into(),
-            expected_runtime,
-            deadline_ms,
-            resource_reservation,
-        }
+        expected_transport: ProbeTransportIdentity,
+    ) -> Result<Self, ToolHostProbeAttestationError> {
+        validate_expected_transport(&expected_runtime, &expected_transport, &self.workspace)?;
+        self.expected_runtime = Some(expected_runtime);
+        self.expected_transport = Some(expected_transport);
+        Ok(self)
     }
 
     pub fn admission_manifest_digest(&self) -> &str {
         &self.admission_manifest_digest
     }
 
-    pub fn expected_runtime(&self) -> &ToolHostProbeRuntimeIdentity {
-        &self.expected_runtime
+    pub fn expected_runtime(&self) -> Option<&ToolHostProbeRuntimeIdentity> {
+        self.expected_runtime.as_ref()
+    }
+
+    pub fn expected_transport(&self) -> Option<&ProbeTransportIdentity> {
+        self.expected_transport.as_ref()
     }
 
     pub fn deadline_ms(&self) -> u64 {
@@ -65,6 +72,18 @@ impl ControllerToolHostProbeRequest {
 
     pub fn resource_reservation(&self) -> &ToolHostProbeResourceVector {
         &self.resource_reservation
+    }
+
+    pub fn workspace_root(&self) -> &Path {
+        &self.workspace
+    }
+
+    pub fn relative_path(&self) -> &Path {
+        &self.material.relative_path
+    }
+
+    pub fn nonce(&self) -> &str {
+        &self.material.nonce
     }
 }
 
@@ -122,6 +141,8 @@ pub struct AttestedToolHostProbe {
     trace: ToolHostProbeTrace,
     trace_digest: String,
     runtime: ToolHostProbeRuntimeIdentity,
+    probe_transport: ProbeTransportIdentity,
+    probe_transport_digest: String,
     reservation_digest: String,
     resource_reservation: ToolHostProbeResourceVector,
     charged: ToolHostProbeResourceVector,
@@ -187,6 +208,14 @@ impl AttestedToolHostProbe {
 
     pub fn runtime(&self) -> &ToolHostProbeRuntimeIdentity {
         &self.runtime
+    }
+
+    pub fn probe_transport(&self) -> &ProbeTransportIdentity {
+        &self.probe_transport
+    }
+
+    pub fn probe_transport_digest(&self) -> &str {
+        &self.probe_transport_digest
     }
 
     pub fn reservation_digest(&self) -> &str {
@@ -277,6 +306,8 @@ struct ProbeReservation {
     invocation_id: String,
     nonce_digest: String,
     relative_path: PathBuf,
+    expected_transport: ProbeTransportIdentity,
+    probe_transport_digest: String,
     resource_reservation: ToolHostProbeResourceVector,
     replay_key: String,
 }
@@ -291,6 +322,8 @@ struct ReplayKeyMaterial<'a> {
     invocation_id: &'a str,
     nonce_digest: &'a str,
     relative_path: &'a Path,
+    expected_transport: &'a ProbeTransportIdentity,
+    probe_transport_digest: &'a str,
     resource_reservation: &'a ToolHostProbeResourceVector,
 }
 
@@ -323,6 +356,8 @@ struct StoredAttestedToolHostProbe {
     trace: ToolHostProbeTrace,
     trace_digest: String,
     runtime: ToolHostProbeRuntimeIdentity,
+    probe_transport: ProbeTransportIdentity,
+    probe_transport_digest: String,
     reservation_digest: String,
     resource_reservation: ToolHostProbeResourceVector,
     charged: ToolHostProbeResourceVector,
@@ -350,6 +385,8 @@ impl From<StoredAttestedToolHostProbe> for AttestedToolHostProbe {
             trace: stored.trace,
             trace_digest: stored.trace_digest,
             runtime: stored.runtime,
+            probe_transport: stored.probe_transport,
+            probe_transport_digest: stored.probe_transport_digest,
             reservation_digest: stored.reservation_digest,
             resource_reservation: stored.resource_reservation,
             charged: stored.charged,
@@ -385,6 +422,60 @@ impl ProbeMaterial {
 }
 
 impl Application {
+    /// Phase one creates the only workspace root the probe may use. No reservation is written and
+    /// no executor is reachable until the trusted foreground binds its prelaunch measurement.
+    pub fn prepare_controller_tool_host_probe(
+        &self,
+        admission_manifest_digest: impl Into<String>,
+        deadline_ms: u64,
+        resource_reservation: ToolHostProbeResourceVector,
+    ) -> Result<ControllerToolHostProbeRequest, ToolHostProbeAttestationError> {
+        self.prepare_controller_tool_host_probe_with_material(
+            admission_manifest_digest.into(),
+            deadline_ms,
+            resource_reservation,
+            ProbeMaterial::random(),
+        )
+    }
+
+    fn prepare_controller_tool_host_probe_with_material(
+        &self,
+        admission_manifest_digest: String,
+        deadline_ms: u64,
+        resource_reservation: ToolHostProbeResourceVector,
+        material: ProbeMaterial,
+    ) -> Result<ControllerToolHostProbeRequest, ToolHostProbeAttestationError> {
+        validate_controller_request_base(
+            &admission_manifest_digest,
+            deadline_ms,
+            &resource_reservation,
+        )?;
+        validate_probe_material(&material)?;
+        let probe_directory = self
+            .data_root
+            .join(TOOL_HOST_PROBES_DIRECTORY)
+            .join(&material.probe_id);
+        if probe_directory.join(RESERVATION_FILE).exists() {
+            return Err(ToolHostProbeAttestationError::ReservationSpent);
+        }
+        let workspace = canonical_probe_workspace(&self.data_root, &material.probe_id, true)?;
+        let destination = workspace.join(&material.relative_path);
+        match fs::symlink_metadata(&destination) {
+            Ok(_) => return Err(ToolHostProbeAttestationError::DestinationAlreadyExists),
+            Err(error) if error.kind() == ErrorKind::NotFound => {}
+            Err(error) => return Err(error.into()),
+        }
+        Ok(ControllerToolHostProbeRequest {
+            admission_manifest_digest,
+            expected_runtime: None,
+            expected_transport: None,
+            deadline_ms,
+            resource_reservation,
+            material,
+            workspace,
+        })
+    }
+
     /// Spend one controller-owned reservation and produce a private attestation through the
     /// purpose-built runtime seam. The executor receives only the generated runtime request and
     /// the private workspace selected here.
@@ -396,19 +487,16 @@ impl Application {
     where
         F: FnOnce(&Path, ToolHostProbeRequest) -> Result<ToolHostProbeTrace, ToolHostProbeError>,
     {
-        self.controller_tool_host_probe_with_material(request, ProbeMaterial::random(), executor)
-    }
-
-    fn controller_tool_host_probe_with_material<F>(
-        &mut self,
-        request: ControllerToolHostProbeRequest,
-        material: ProbeMaterial,
-        executor: F,
-    ) -> Result<AttestedToolHostProbeHandle, ToolHostProbeAttestationError>
-    where
-        F: FnOnce(&Path, ToolHostProbeRequest) -> Result<ToolHostProbeTrace, ToolHostProbeError>,
-    {
         validate_controller_request(&request)?;
+        let expected_runtime = request
+            .expected_runtime
+            .clone()
+            .ok_or_else(|| invalid_request("expected_runtime"))?;
+        let expected_transport = request
+            .expected_transport
+            .clone()
+            .ok_or_else(|| invalid_request("expected_transport"))?;
+        let material = request.material.clone();
         validate_probe_material(&material)?;
 
         let store_identity = configured_store_identity(&self.data_root)?;
@@ -422,9 +510,10 @@ impl Application {
             return Err(ToolHostProbeAttestationError::ReservationSpent);
         }
 
-        let workspace = probe_directory.join(WORKSPACE_DIRECTORY);
-        fs::create_dir_all(&workspace)?;
-        let workspace = workspace.canonicalize()?;
+        let workspace = canonical_probe_workspace(&self.data_root, &material.probe_id, false)?;
+        if workspace != request.workspace {
+            return Err(invalid_request("workspace_root"));
+        }
         let destination = workspace.join(&material.relative_path);
         match fs::symlink_metadata(&destination) {
             Ok(_) => return Err(ToolHostProbeAttestationError::DestinationAlreadyExists),
@@ -439,6 +528,7 @@ impl Application {
             &request.admission_manifest_digest,
             &material,
             &nonce_digest,
+            &expected_transport,
             &request.resource_reservation,
         )?;
         let reservation = ProbeReservation {
@@ -450,6 +540,8 @@ impl Application {
             invocation_id: material.invocation_id.clone(),
             nonce_digest: nonce_digest.clone(),
             relative_path: material.relative_path.clone(),
+            expected_transport: expected_transport.clone(),
+            probe_transport_digest: expected_runtime.probe_transport_digest.clone(),
             resource_reservation: request.resource_reservation.clone(),
             replay_key: replay_key.clone(),
         };
@@ -471,7 +563,7 @@ impl Application {
             workspace_path: material.relative_path.clone(),
             deadline_ms: request.deadline_ms,
             resource_reservation: request.resource_reservation.clone(),
-            expected_runtime: request.expected_runtime.clone(),
+            expected_runtime,
             cancellation: CancellationToken::default(),
         };
         let trace = executor(&workspace, runtime_request)?;
@@ -506,6 +598,8 @@ impl Application {
             trace: trace.clone(),
             trace_digest,
             runtime: trace.runtime.clone(),
+            probe_transport: expected_transport,
+            probe_transport_digest: trace.runtime.probe_transport_digest.clone(),
             reservation_digest: reservation_digest.clone(),
             resource_reservation: trace.resource_reservation.clone(),
             charged,
@@ -580,11 +674,13 @@ impl Application {
                     detail: error.to_string(),
                 }
             })?;
+        let workspace = canonical_probe_workspace(&self.data_root, &handle.probe_id, false)?;
         validate_reservation(
             &reservation,
             &store_identity,
             &self.state.run_id,
             &handle.probe_id,
+            &workspace,
         )?;
         let reservation_digest = digest_bytes(&reservation_bytes);
 
@@ -615,7 +711,13 @@ impl Application {
                 }
             })?;
         let attestation = AttestedToolHostProbe::from(stored);
-        validate_loaded_attestation(&attestation, &reservation, &reservation_digest, &reference)?;
+        validate_loaded_attestation(
+            &attestation,
+            &reservation,
+            &reservation_digest,
+            &reference,
+            &workspace,
+        )?;
         Ok(attestation)
     }
 
@@ -647,31 +749,142 @@ impl Application {
 fn validate_controller_request(
     request: &ControllerToolHostProbeRequest,
 ) -> Result<(), ToolHostProbeAttestationError> {
-    if !is_sha256(&request.admission_manifest_digest) {
+    validate_controller_request_base(
+        &request.admission_manifest_digest,
+        request.deadline_ms,
+        &request.resource_reservation,
+    )?;
+    let expected_runtime = request
+        .expected_runtime
+        .as_ref()
+        .ok_or_else(|| invalid_request("expected_runtime"))?;
+    let expected_transport = request
+        .expected_transport
+        .as_ref()
+        .ok_or_else(|| invalid_request("expected_transport"))?;
+    validate_expected_transport(expected_runtime, expected_transport, &request.workspace)
+}
+
+fn validate_controller_request_base(
+    admission_manifest_digest: &str,
+    deadline_ms: u64,
+    resource_reservation: &ToolHostProbeResourceVector,
+) -> Result<(), ToolHostProbeAttestationError> {
+    if !is_sha256(admission_manifest_digest) {
         return Err(invalid_request("admission_manifest_digest"));
     }
-    if request.deadline_ms == 0 || request.deadline_ms > 600_000 {
+    if deadline_ms == 0 || deadline_ms > 600_000 {
         return Err(invalid_request("deadline_ms"));
     }
+    validate_reservation_vector(resource_reservation, deadline_ms)
+}
+
+fn validate_expected_transport(
+    expected_runtime: &ToolHostProbeRuntimeIdentity,
+    expected_transport: &ProbeTransportIdentity,
+    workspace: &Path,
+) -> Result<(), ToolHostProbeAttestationError> {
     for (field, value) in [
-        ("route", request.expected_runtime.route.as_str()),
-        ("profile", request.expected_runtime.profile.as_str()),
-        ("cli", request.expected_runtime.cli.as_str()),
-        ("cli_version", request.expected_runtime.cli_version.as_str()),
-        ("driver", request.expected_runtime.driver.as_str()),
-        (
-            "driver_version",
-            request.expected_runtime.driver_version.as_str(),
-        ),
+        ("route", expected_runtime.route.as_str()),
+        ("profile", expected_runtime.profile.as_str()),
+        ("cli", expected_runtime.cli.as_str()),
+        ("cli_version", expected_runtime.cli_version.as_str()),
+        ("driver", expected_runtime.driver.as_str()),
+        ("driver_version", expected_runtime.driver_version.as_str()),
     ] {
         if value.is_empty() || value.len() > 4096 {
             return Err(invalid_request(field));
         }
     }
-    if request.expected_runtime.tool_schema_digest != tool_host_probe_tool_schema_digest() {
+    if expected_runtime.tool_schema_digest != tool_host_probe_tool_schema_digest() {
         return Err(invalid_request("tool_schema_digest"));
     }
-    validate_reservation_vector(&request.resource_reservation, request.deadline_ms)
+    let transport_digest = probe_transport_digest(expected_transport);
+    for (field, matches) in [
+        (
+            "probe_transport",
+            expected_runtime.probe_transport == *expected_transport,
+        ),
+        (
+            "probe_transport_digest",
+            expected_runtime.probe_transport_digest == transport_digest,
+        ),
+    ] {
+        if !matches {
+            return Err(invalid_request(field));
+        }
+    }
+    validate_probe_transport_identity(expected_transport, workspace)
+}
+
+fn validate_probe_transport_identity(
+    expected_transport: &ProbeTransportIdentity,
+    workspace: &Path,
+) -> Result<(), ToolHostProbeAttestationError> {
+    for (field, matches) in [
+        (
+            "mcp_protocol_version",
+            expected_transport.mcp_protocol_version == TOOL_HOST_PROBE_MCP_PROTOCOL_VERSION,
+        ),
+        (
+            "server_name",
+            expected_transport.server_name == TOOL_HOST_PROBE_WORKSPACE_SERVER,
+        ),
+        (
+            "server_version",
+            expected_transport.server_version == TOOL_HOST_PROBE_SERVER_VERSION,
+        ),
+        (
+            "transport_tool_schema_digest",
+            expected_transport.tool_schema_digest == tool_host_probe_tool_schema_digest(),
+        ),
+        (
+            "ordered_tools",
+            expected_transport.ordered_tools
+                == [
+                    ToolHostProbeTool::WorkspaceWrite,
+                    ToolHostProbeTool::WorkspaceRead,
+                ],
+        ),
+        (
+            "server_executable_digest",
+            is_sha256(&expected_transport.server_executable_digest),
+        ),
+        (
+            "launcher_executable_digest",
+            is_sha256(&expected_transport.launcher_executable_digest),
+        ),
+        (
+            "internal_subcommand",
+            expected_transport.internal_subcommand == TOOL_HOST_PROBE_INTERNAL_SUBCOMMAND,
+        ),
+        (
+            "arguments",
+            expected_transport.arguments
+                == TOOL_HOST_PROBE_INTERNAL_ARGUMENTS
+                    .iter()
+                    .map(|argument| (*argument).to_owned())
+                    .collect::<Vec<_>>(),
+        ),
+        (
+            "inherited_environment",
+            expected_transport.inherited_environment
+                == TOOL_HOST_PROBE_ENVIRONMENT
+                    .iter()
+                    .map(|name| (*name).to_owned())
+                    .collect::<Vec<_>>(),
+        ),
+        (
+            "canonical_workspace_root_digest",
+            expected_transport.canonical_workspace_root_digest
+                == digest_bytes(workspace.as_os_str().as_encoded_bytes()),
+        ),
+    ] {
+        if !matches {
+            return Err(invalid_request(field));
+        }
+    }
+    Ok(())
 }
 
 fn validate_reservation_vector(
@@ -769,7 +982,13 @@ fn validate_trace(
             "resource_reservation",
             trace.resource_reservation == request.resource_reservation,
         ),
-        ("runtime", trace.runtime == request.expected_runtime),
+        (
+            "runtime",
+            request
+                .expected_runtime
+                .as_ref()
+                .is_some_and(|expected| trace.runtime == *expected),
+        ),
         (
             "model_calls",
             trace.model_calls == request.resource_reservation.model_calls,
@@ -1063,6 +1282,7 @@ fn validate_reservation(
     store_identity: &str,
     run_id: &str,
     probe_id: &str,
+    workspace: &Path,
 ) -> Result<(), ToolHostProbeAttestationError> {
     let material = ProbeMaterial {
         probe_id: reservation.probe_id.clone(),
@@ -1086,6 +1306,11 @@ fn validate_reservation(
             is_sha256(&reservation.admission_manifest_digest),
         ),
         ("nonce_digest", is_sha256(&reservation.nonce_digest)),
+        (
+            "probe_transport_digest",
+            reservation.probe_transport_digest
+                == probe_transport_digest(&reservation.expected_transport),
+        ),
     ] {
         if !matches {
             return Err(reservation_invalid(field));
@@ -1097,12 +1322,15 @@ fn validate_reservation(
         reservation.resource_reservation.max_wall_time_ms,
     )
     .map_err(|_| reservation_invalid("resource reservation"))?;
+    validate_probe_transport_identity(&reservation.expected_transport, workspace)
+        .map_err(|_| reservation_invalid("expected transport"))?;
     let expected_replay_key = replay_key(
         store_identity,
         run_id,
         &reservation.admission_manifest_digest,
         &material,
         &reservation.nonce_digest,
+        &reservation.expected_transport,
         &reservation.resource_reservation,
     )?;
     if reservation.replay_key != expected_replay_key {
@@ -1151,6 +1379,7 @@ fn validate_loaded_attestation(
     reservation: &ProbeReservation,
     reservation_digest: &str,
     reference: &AttestationReference,
+    workspace: &Path,
 ) -> Result<(), ToolHostProbeAttestationError> {
     for (field, matches) in [
         (
@@ -1180,6 +1409,16 @@ fn validate_loaded_attestation(
             attestation.relative_path == reservation.relative_path,
         ),
         (
+            "probe_transport",
+            attestation.probe_transport == reservation.expected_transport,
+        ),
+        (
+            "probe_transport_digest",
+            attestation.probe_transport_digest == reservation.probe_transport_digest
+                && attestation.probe_transport_digest
+                    == probe_transport_digest(&attestation.probe_transport),
+        ),
+        (
             "reservation_digest",
             attestation.reservation_digest == reservation_digest,
         ),
@@ -1200,6 +1439,11 @@ fn validate_loaded_attestation(
             attestation.trace_digest == digest_bytes(&canonical_json(&attestation.trace)?),
         ),
         ("runtime", attestation.runtime == attestation.trace.runtime),
+        (
+            "runtime_transport",
+            attestation.runtime.probe_transport == attestation.probe_transport
+                && attestation.runtime.probe_transport_digest == attestation.probe_transport_digest,
+        ),
         ("usage", attestation.usage == attestation.trace.usage),
         ("cost", attestation.cost == attestation.trace.cost),
         (
@@ -1230,23 +1474,32 @@ fn validate_loaded_attestation(
             return Err(attestation_invalid(field));
         }
     }
-    let request = ControllerToolHostProbeRequest::new(
-        reservation.admission_manifest_digest.clone(),
-        attestation.runtime.clone(),
-        reservation.resource_reservation.max_wall_time_ms,
-        reservation.resource_reservation.clone(),
-    );
     let material = ProbeMaterial {
         probe_id: reservation.probe_id.clone(),
         invocation_id: reservation.invocation_id.clone(),
         nonce: attestation.trace.nonce_input.clone(),
         relative_path: reservation.relative_path.clone(),
     };
+    let request = ControllerToolHostProbeRequest {
+        admission_manifest_digest: reservation.admission_manifest_digest.clone(),
+        expected_runtime: Some(attestation.runtime.clone()),
+        expected_transport: Some(reservation.expected_transport.clone()),
+        deadline_ms: reservation.resource_reservation.max_wall_time_ms,
+        resource_reservation: reservation.resource_reservation.clone(),
+        material: material.clone(),
+        workspace: workspace.to_owned(),
+    };
     if digest_bytes(material.nonce.as_bytes()) != reservation.nonce_digest {
         return Err(attestation_invalid("nonce binding"));
     }
     validate_trace(&attestation.trace, &request, &material)
         .map_err(|error| attestation_invalid(error.to_string()))?;
+    validate_expected_transport(
+        &attestation.runtime,
+        &attestation.probe_transport,
+        workspace,
+    )
+    .map_err(|error| attestation_invalid(error.to_string()))?;
     let charged = charged_vector(&attestation.trace);
     if charged != attestation.charged {
         return Err(attestation_invalid("charged vector"));
@@ -1260,14 +1513,44 @@ fn configured_store_identity(data_root: &Path) -> Result<String, std::io::Error>
     Ok(digest_bytes(canonical.as_os_str().as_encoded_bytes()))
 }
 
+fn canonical_probe_workspace(
+    data_root: &Path,
+    probe_id: &str,
+    create: bool,
+) -> Result<PathBuf, ToolHostProbeAttestationError> {
+    let workspace = data_root
+        .join(TOOL_HOST_PROBES_DIRECTORY)
+        .join(probe_id)
+        .join(WORKSPACE_DIRECTORY);
+    if create {
+        fs::create_dir_all(&workspace)?;
+    }
+    let metadata = fs::symlink_metadata(&workspace)?;
+    if metadata.file_type().is_symlink() || !metadata.is_dir() {
+        return Err(ToolHostProbeAttestationError::UnexpectedWorkspaceEffect);
+    }
+    let canonical = workspace.canonicalize()?;
+    let expected = data_root
+        .canonicalize()?
+        .join(TOOL_HOST_PROBES_DIRECTORY)
+        .join(probe_id)
+        .join(WORKSPACE_DIRECTORY);
+    if canonical != expected {
+        return Err(ToolHostProbeAttestationError::UnexpectedWorkspaceEffect);
+    }
+    Ok(canonical)
+}
+
 fn replay_key(
     store_identity: &str,
     run_id: &str,
     admission_manifest_digest: &str,
     material: &ProbeMaterial,
     nonce_digest: &str,
+    expected_transport: &ProbeTransportIdentity,
     resource_reservation: &ToolHostProbeResourceVector,
 ) -> Result<String, serde_json::Error> {
+    let probe_transport_digest = probe_transport_digest(expected_transport);
     Ok(digest_bytes(&canonical_json(&ReplayKeyMaterial {
         schema_version: ATTESTED_TOOL_HOST_PROBE_SCHEMA_VERSION,
         store_identity,
@@ -1277,6 +1560,8 @@ fn replay_key(
         invocation_id: &material.invocation_id,
         nonce_digest,
         relative_path: &material.relative_path,
+        expected_transport,
+        probe_transport_digest: &probe_transport_digest,
         resource_reservation,
     })?))
 }
@@ -1411,7 +1696,7 @@ mod tests {
         }
     }
 
-    fn runtime_identity() -> ToolHostProbeRuntimeIdentity {
+    fn runtime_identity(transport: ProbeTransportIdentity) -> ToolHostProbeRuntimeIdentity {
         ToolHostProbeRuntimeIdentity {
             runtime_kind: RuntimeKind::Fake,
             route: "fixture/no-network".to_owned(),
@@ -1421,16 +1706,54 @@ mod tests {
             driver: "fake-process-driver".to_owned(),
             driver_version: "fake-process-driver 1.0.0".to_owned(),
             tool_schema_digest: tool_host_probe_tool_schema_digest(),
+            probe_transport_digest: probe_transport_digest(&transport),
+            probe_transport: transport,
         }
     }
 
-    fn request() -> ControllerToolHostProbeRequest {
-        ControllerToolHostProbeRequest::new(
+    fn transport_identity(workspace: &Path) -> ProbeTransportIdentity {
+        ProbeTransportIdentity {
+            mcp_protocol_version: TOOL_HOST_PROBE_MCP_PROTOCOL_VERSION.to_owned(),
+            server_name: TOOL_HOST_PROBE_WORKSPACE_SERVER.to_owned(),
+            server_version: TOOL_HOST_PROBE_SERVER_VERSION.to_owned(),
+            tool_schema_digest: tool_host_probe_tool_schema_digest(),
+            ordered_tools: [
+                ToolHostProbeTool::WorkspaceWrite,
+                ToolHostProbeTool::WorkspaceRead,
+            ],
+            server_executable_digest: "1".repeat(64),
+            launcher_executable_digest: "1".repeat(64),
+            internal_subcommand: TOOL_HOST_PROBE_INTERNAL_SUBCOMMAND.to_owned(),
+            arguments: TOOL_HOST_PROBE_INTERNAL_ARGUMENTS
+                .iter()
+                .map(|argument| (*argument).to_owned())
+                .collect(),
+            inherited_environment: TOOL_HOST_PROBE_ENVIRONMENT
+                .iter()
+                .map(|name| (*name).to_owned())
+                .collect(),
+            canonical_workspace_root_digest: digest_bytes(workspace.as_os_str().as_encoded_bytes()),
+        }
+    }
+
+    fn execute_prepared<F>(
+        application: &mut Application,
+        material: ProbeMaterial,
+        executor: F,
+    ) -> Result<AttestedToolHostProbeHandle, ToolHostProbeAttestationError>
+    where
+        F: FnOnce(&Path, ToolHostProbeRequest) -> Result<ToolHostProbeTrace, ToolHostProbeError>,
+    {
+        let prepared = application.prepare_controller_tool_host_probe_with_material(
             "a".repeat(64),
-            runtime_identity(),
             DEADLINE_MS,
             reservation(),
-        )
+            material,
+        )?;
+        let transport = transport_identity(prepared.workspace_root());
+        let request =
+            prepared.bind_expected_transport(runtime_identity(transport.clone()), transport)?;
+        application.controller_tool_host_probe(request, executor)
     }
 
     fn material(suffix: char) -> ProbeMaterial {
@@ -1551,12 +1874,7 @@ mod tests {
         let root = tempdir().expect("temporary root");
         let mut application = create_application(&root);
         let material = material('1');
-        let handle = application
-            .controller_tool_host_probe_with_material(
-                request(),
-                material.clone(),
-                write_nonce_and_trace,
-            )
+        let handle = execute_prepared(&mut application, material.clone(), write_nonce_and_trace)
             .expect("attested probe handle");
 
         let directory = probe_directory(&root, &material.probe_id);
@@ -1592,6 +1910,10 @@ mod tests {
         assert_eq!(attestation.charged().model_calls, 1);
         assert_eq!(attestation.charged().workspace_reads, 1);
         assert_eq!(attestation.charged().workspace_writes, 1);
+        assert_eq!(
+            attestation.probe_transport_digest(),
+            probe_transport_digest(attestation.probe_transport())
+        );
 
         let export = application
             .export_attested_tool_host_probe_handle(&decoded)
@@ -1619,6 +1941,120 @@ mod tests {
     }
 
     #[test]
+    fn preparation_and_measurement_precede_reservation_and_executor() {
+        let root = tempdir().expect("temporary root");
+        let mut application = create_application(&root);
+        let material = material('9');
+        let prepared = application
+            .prepare_controller_tool_host_probe_with_material(
+                "a".repeat(64),
+                DEADLINE_MS,
+                reservation(),
+                material.clone(),
+            )
+            .expect("prepared probe");
+        let reservation_path = probe_directory(&root, &material.probe_id).join(RESERVATION_FILE);
+        assert!(!reservation_path.exists());
+        let transport = transport_identity(prepared.workspace_root());
+        let unbound = application.controller_tool_host_probe(prepared.clone(), |_, _| {
+            panic!("unbound request reached executor")
+        });
+        assert!(matches!(
+            unbound,
+            Err(ToolHostProbeAttestationError::InvalidRequest {
+                field: "expected_runtime"
+            })
+        ));
+        assert!(!reservation_path.exists());
+        let mut default_digest = runtime_identity(transport.clone());
+        default_digest.probe_transport_digest.clear();
+        assert!(
+            prepared
+                .clone()
+                .bind_expected_transport(default_digest, transport.clone())
+                .is_err()
+        );
+        let request = prepared
+            .bind_expected_transport(runtime_identity(transport.clone()), transport)
+            .expect("foreground-bound request");
+        assert!(!reservation_path.exists());
+
+        application
+            .controller_tool_host_probe(request, |workspace, request| {
+                assert!(reservation_path.is_file());
+                write_nonce_and_trace(workspace, request)
+            })
+            .expect("attested probe");
+    }
+
+    #[test]
+    fn altered_actual_transport_and_copied_workspace_root_fail_before_attestation() {
+        let root = tempdir().expect("temporary root");
+        let mut application = create_application(&root);
+        let first_material = material('a');
+        let prepared = application
+            .prepare_controller_tool_host_probe_with_material(
+                "a".repeat(64),
+                DEADLINE_MS,
+                reservation(),
+                first_material.clone(),
+            )
+            .expect("prepared probe");
+        let transport = transport_identity(prepared.workspace_root());
+        let request = prepared
+            .bind_expected_transport(runtime_identity(transport.clone()), transport)
+            .expect("bound request");
+        let result = application.controller_tool_host_probe(request, |workspace, request| {
+            fs::write(
+                workspace.join(&request.workspace_path),
+                request.nonce.as_bytes(),
+            )
+            .expect("nonce destination");
+            let mut trace = successful_trace(&request);
+            trace.runtime.probe_transport.server_executable_digest = "f".repeat(64);
+            trace.runtime.probe_transport_digest =
+                probe_transport_digest(&trace.runtime.probe_transport);
+            Ok(trace)
+        });
+        assert!(matches!(
+            result,
+            Err(ToolHostProbeAttestationError::TraceMismatch { field: "runtime" })
+        ));
+        assert_no_attestation(&root, &first_material.probe_id);
+
+        let other = tempdir().expect("copied root");
+        let other_workspace = other.path().join("workspace");
+        fs::create_dir(&other_workspace).expect("other workspace");
+        let material = material('b');
+        let prepared = application
+            .prepare_controller_tool_host_probe_with_material(
+                "a".repeat(64),
+                DEADLINE_MS,
+                reservation(),
+                material.clone(),
+            )
+            .expect("second prepared probe");
+        let copied_transport = transport_identity(
+            &other_workspace
+                .canonicalize()
+                .expect("canonical other workspace"),
+        );
+        assert!(
+            prepared
+                .bind_expected_transport(
+                    runtime_identity(copied_transport.clone()),
+                    copied_transport,
+                )
+                .is_err()
+        );
+        assert!(
+            !probe_directory(&root, &material.probe_id)
+                .join(RESERVATION_FILE)
+                .exists()
+        );
+    }
+
+    #[test]
     fn preexisting_destination_is_refused_before_reservation_or_execution() {
         let root = tempdir().expect("temporary root");
         let mut application = create_application(&root);
@@ -1626,11 +2062,9 @@ mod tests {
         let workspace = probe_directory(&root, &material.probe_id).join(WORKSPACE_DIRECTORY);
         fs::create_dir_all(&workspace).expect("workspace");
         fs::write(workspace.join(&material.relative_path), b"planted").expect("planted file");
-        let result = application.controller_tool_host_probe_with_material(
-            request(),
-            material.clone(),
-            |_, _| panic!("executor reached after prelaunch refusal"),
-        );
+        let result = execute_prepared(&mut application, material.clone(), |_, _| {
+            panic!("executor reached after prelaunch refusal")
+        });
         assert!(matches!(
             result,
             Err(ToolHostProbeAttestationError::DestinationAlreadyExists)
@@ -1649,16 +2083,12 @@ mod tests {
         let material = material('3');
         let starts = Arc::new(AtomicUsize::new(0));
         let first_starts = Arc::clone(&starts);
-        let first = application.controller_tool_host_probe_with_material(
-            request(),
-            material.clone(),
-            move |_, _| {
-                first_starts.fetch_add(1, Ordering::SeqCst);
-                Err(ToolHostProbeError::RuntimeFailed {
-                    detail: "fixture crash".to_owned(),
-                })
-            },
-        );
+        let first = execute_prepared(&mut application, material.clone(), move |_, _| {
+            first_starts.fetch_add(1, Ordering::SeqCst);
+            Err(ToolHostProbeError::RuntimeFailed {
+                detail: "fixture crash".to_owned(),
+            })
+        });
         assert!(matches!(
             first,
             Err(ToolHostProbeAttestationError::Runtime(
@@ -1673,14 +2103,10 @@ mod tests {
         assert_no_attestation(&root, &material.probe_id);
 
         let second_starts = Arc::clone(&starts);
-        let second = application.controller_tool_host_probe_with_material(
-            request(),
-            material.clone(),
-            move |_, _| {
-                second_starts.fetch_add(1, Ordering::SeqCst);
-                unreachable!("spent reservation started again")
-            },
-        );
+        let second = execute_prepared(&mut application, material.clone(), move |_, _| {
+            second_starts.fetch_add(1, Ordering::SeqCst);
+            unreachable!("spent reservation started again")
+        });
         assert!(matches!(
             second,
             Err(ToolHostProbeAttestationError::ReservationSpent)
@@ -1705,8 +2131,8 @@ mod tests {
         let root = tempdir().expect("temporary root");
         let mut application = create_application(&root);
         let wrong_bytes = material('4');
-        let result = application.controller_tool_host_probe_with_material(
-            request(),
+        let result = execute_prepared(
+            &mut application,
             wrong_bytes.clone(),
             |workspace, request| {
                 fs::write(
@@ -1724,8 +2150,8 @@ mod tests {
         assert_no_attestation(&root, &wrong_bytes.probe_id);
 
         let extra_effect = material('5');
-        let result = application.controller_tool_host_probe_with_material(
-            request(),
+        let result = execute_prepared(
+            &mut application,
             extra_effect.clone(),
             |workspace, request| {
                 fs::write(
@@ -1773,8 +2199,8 @@ mod tests {
             let root = tempdir().expect("temporary root");
             let mut application = create_application(&root);
             let material = material(suffix);
-            let result = application.controller_tool_host_probe_with_material(
-                request(),
+            let result = execute_prepared(
+                &mut application,
                 material.clone(),
                 move |workspace, request| {
                     if matches!(mutation, Mutation::Terminal) {
@@ -1827,12 +2253,7 @@ mod tests {
     fn mutated_fabricated_and_copied_handles_are_not_authority() {
         let root = tempdir().expect("temporary root");
         let mut application = create_application(&root);
-        let handle = application
-            .controller_tool_host_probe_with_material(
-                request(),
-                material('6'),
-                write_nonce_and_trace,
-            )
+        let handle = execute_prepared(&mut application, material('6'), write_nonce_and_trace)
             .expect("handle");
         let valid = serde_json::to_value(&handle).expect("handle value");
 
@@ -1877,6 +2298,8 @@ mod tests {
             CorruptObject,
             RawTraceObject,
             CorruptReservation,
+            MissingTransportReservation,
+            AlteredTransportObject,
         }
         for (index, corruption) in [
             Corruption::MissingReference,
@@ -1885,6 +2308,8 @@ mod tests {
             Corruption::CorruptObject,
             Corruption::RawTraceObject,
             Corruption::CorruptReservation,
+            Corruption::MissingTransportReservation,
+            Corruption::AlteredTransportObject,
         ]
         .into_iter()
         .enumerate()
@@ -1892,13 +2317,9 @@ mod tests {
             let root = tempdir().expect("temporary root");
             let mut application = create_application(&root);
             let suffix = char::from(b'0' + u8::try_from(index).expect("bounded index"));
-            let handle = application
-                .controller_tool_host_probe_with_material(
-                    request(),
-                    material(suffix),
-                    write_nonce_and_trace,
-                )
-                .expect("handle");
+            let handle =
+                execute_prepared(&mut application, material(suffix), write_nonce_and_trace)
+                    .expect("handle");
             let directory = probe_directory(&root, handle.probe_id());
             let reference_path = directory.join(ATTESTATION_REFERENCE_FILE);
             let reservation_path = directory.join(RESERVATION_FILE);
@@ -1946,6 +2367,55 @@ mod tests {
                 }
                 Corruption::CorruptReservation => {
                     fs::write(reservation_path, b"{}").expect("corrupt reservation");
+                }
+                Corruption::MissingTransportReservation => {
+                    let mut value: serde_json::Value = serde_json::from_slice(
+                        &fs::read(&reservation_path).expect("reservation bytes"),
+                    )
+                    .expect("reservation value");
+                    value
+                        .as_object_mut()
+                        .expect("reservation object")
+                        .remove("expected_transport");
+                    fs::write(
+                        reservation_path,
+                        serde_json::to_vec(&value).expect("missing-transport bytes"),
+                    )
+                    .expect("replace reservation");
+                }
+                Corruption::AlteredTransportObject => {
+                    let object_bytes = application
+                        .object_store
+                        .read(&stored_reference.object_digest)
+                        .expect("attestation object");
+                    let mut stored: StoredAttestedToolHostProbe =
+                        decode_canonical(&object_bytes).expect("stored attestation");
+                    stored.probe_transport.server_name =
+                        "ymp.schema-identical-substitute".to_owned();
+                    stored.probe_transport_digest = probe_transport_digest(&stored.probe_transport);
+                    stored.runtime.probe_transport = stored.probe_transport.clone();
+                    stored.runtime.probe_transport_digest = stored.probe_transport_digest.clone();
+                    stored.trace.runtime = stored.runtime.clone();
+                    stored.trace_digest =
+                        digest_bytes(&canonical_json(&stored.trace).expect("trace bytes"));
+                    stored_reference.object_digest = application
+                        .object_store
+                        .put(&canonical_json(&stored).expect("altered attestation bytes"))
+                        .expect("altered attestation object");
+                    stored_reference.record_digest =
+                        reference_digest(&stored_reference).expect("altered reference digest");
+                    fs::write(
+                        &reference_path,
+                        canonical_json(&stored_reference).expect("reference bytes"),
+                    )
+                    .expect("replace reference");
+                    let mut forged = handle.clone();
+                    forged.record_digest = stored_reference.record_digest;
+                    assert!(matches!(
+                        application.attested_tool_host_probe(&forged),
+                        Err(ToolHostProbeAttestationError::AttestationObjectInvalid { .. })
+                    ));
+                    continue;
                 }
             }
             assert!(

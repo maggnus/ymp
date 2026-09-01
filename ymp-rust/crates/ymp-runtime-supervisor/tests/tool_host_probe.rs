@@ -9,13 +9,15 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use tempfile::TempDir;
 use ymp_runtime_api::{
-    CancellationToken, InvocationRequest, ModelSpend, ProbeReport, Readiness, RuntimeDriver,
-    RuntimeError, RuntimeEvent, RuntimeEventKind, RuntimeKind, RuntimeSession,
-    TOOL_HOST_PROBE_SCHEMA_VERSION, TOOL_HOST_PROBE_WORKSPACE_SERVER,
-    ToolHostProbeCostAvailability, ToolHostProbeEffect, ToolHostProbeError,
-    ToolHostProbeInvocation, ToolHostProbeRequest, ToolHostProbeResourceVector,
+    CancellationToken, InvocationRequest, ModelSpend, ProbeReport, ProbeTransportIdentity,
+    Readiness, RuntimeDriver, RuntimeError, RuntimeEvent, RuntimeEventKind, RuntimeKind,
+    RuntimeSession, TOOL_HOST_PROBE_ENVIRONMENT, TOOL_HOST_PROBE_INTERNAL_ARGUMENTS,
+    TOOL_HOST_PROBE_INTERNAL_SUBCOMMAND, TOOL_HOST_PROBE_MCP_PROTOCOL_VERSION,
+    TOOL_HOST_PROBE_SCHEMA_VERSION, TOOL_HOST_PROBE_SERVER_VERSION,
+    TOOL_HOST_PROBE_WORKSPACE_SERVER, ToolHostProbeCostAvailability, ToolHostProbeEffect,
+    ToolHostProbeError, ToolHostProbeInvocation, ToolHostProbeRequest, ToolHostProbeResourceVector,
     ToolHostProbeRuntimeIdentity, ToolHostProbeTool, ToolHostProbeTrust, Usage, evidence_digest,
-    tool_host_probe_tool_schema_digest,
+    probe_transport_digest, tool_host_probe_tool_schema_digest,
 };
 use ymp_runtime_supervisor::execute_tool_host_probe;
 
@@ -49,6 +51,28 @@ fn reservation() -> ToolHostProbeResourceVector {
 }
 
 fn identity(executable: &Path) -> ToolHostProbeRuntimeIdentity {
+    let probe_transport = ProbeTransportIdentity {
+        mcp_protocol_version: TOOL_HOST_PROBE_MCP_PROTOCOL_VERSION.to_owned(),
+        server_name: TOOL_HOST_PROBE_WORKSPACE_SERVER.to_owned(),
+        server_version: TOOL_HOST_PROBE_SERVER_VERSION.to_owned(),
+        tool_schema_digest: tool_host_probe_tool_schema_digest(),
+        ordered_tools: [
+            ToolHostProbeTool::WorkspaceWrite,
+            ToolHostProbeTool::WorkspaceRead,
+        ],
+        server_executable_digest: "1".repeat(64),
+        launcher_executable_digest: "1".repeat(64),
+        internal_subcommand: TOOL_HOST_PROBE_INTERNAL_SUBCOMMAND.to_owned(),
+        arguments: TOOL_HOST_PROBE_INTERNAL_ARGUMENTS
+            .iter()
+            .map(|argument| (*argument).to_owned())
+            .collect(),
+        inherited_environment: TOOL_HOST_PROBE_ENVIRONMENT
+            .iter()
+            .map(|name| (*name).to_owned())
+            .collect(),
+        canonical_workspace_root_digest: "2".repeat(64),
+    };
     ToolHostProbeRuntimeIdentity {
         runtime_kind: RuntimeKind::Fake,
         route: "fixture/no-network".to_owned(),
@@ -58,6 +82,8 @@ fn identity(executable: &Path) -> ToolHostProbeRuntimeIdentity {
         driver: "fake-process-driver".to_owned(),
         driver_version: "fake-process-driver 1.0.0".to_owned(),
         tool_schema_digest: tool_host_probe_tool_schema_digest(),
+        probe_transport_digest: probe_transport_digest(&probe_transport),
+        probe_transport,
     }
 }
 
