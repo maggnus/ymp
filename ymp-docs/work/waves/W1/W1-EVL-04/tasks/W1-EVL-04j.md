@@ -7,10 +7,10 @@ state: ready
 risk: critical
 maturity: BUILD
 relation: required
-depends_on: [W1-EVL-04h, W1-EVL-04i, W1-EVL-04k]
-blocks: [W1-EVL-04e]
+depends_on: [W1-EVL-04h, W1-EVL-04i]
+blocks: [W1-EVL-04l]
 created_at: 2026-09-01T15:41:48+08:00
-updated_at: 2026-09-01T15:50:30+08:00
+updated_at: 2026-09-01T15:57:50+08:00
 started_at:
 accepted_at:
 candidate_commit:
@@ -25,76 +25,70 @@ review_rounds: 0
 escalation_decision:
 ---
 
-# W1-EVL-04j — Controller attests the no-task-output tool-host probe
+# W1-EVL-04j — Runtime executes a bounded no-task-output probe
 
 ## Outcome
 
-The trusted foreground controller can run one separately budgeted no-task-output workspace-tool
-probe, verify an unpredictable nonce write/read and complete route/usage/event evidence, and persist
-an attested record that the admission gate accepts. Model-authored or incomplete evidence can never
-set `model_ready=true`.
+The runtime API and supervisor execute one separately budgeted no-task-output workspace probe and
+return a complete, explicitly untrusted trace of the scoped write/read attempt, route, usage, events
+and terminal state. This seam cannot attest controller ownership, persist evidence or set
+`model_ready=true`.
 
 ## Scope
 
 ### In
 
-- New strict `ToolHostProbeRequest`, `ToolHostProbeEvidence` and `AttestedToolHostProbe` types with
-  controller-owned nonce, path, deadline, invocation identity and digest binding.
-- One minimal managed invocation with workspace read/write only, no network, board, task contract,
-  recruitment, candidate, verification query or experimental arm; exact usage and terminal evidence
-  is charged to a separate admission budget.
-- Controller read-back of the nonce from the disposable workspace, comparison with the generated
-  value, binding to runtime/profile/CLI/driver/tool schema and durable storage under `~/.ymp`.
-- Proposed write zone for Critical contract review: narrow additions in `ymp-runtime-api`,
-  `ymp-runtime-supervisor`, `ymp-application`, internal `ymp-cli` wiring, the admission evidence
-  consumer in `ymp-corpus/src/admission.rs`, required manifests and `Cargo.lock`.
+- Strict `ToolHostProbeRequest` and `ToolHostProbeTrace` types carrying probe/invocation identity,
+  caller-supplied nonce and relative workspace path, deadline, exact resource reservation, route,
+  tool/event/output digests, usage and terminal state.
+- One minimal managed invocation with workspace read/write only: no network, board, task contract,
+  recruitment, candidate, verifier query or experimental arm.
+- Exclusive write zone: `ymp-rust/crates/ymp-runtime-api/src/lib.rs`,
+  `ymp-rust/crates/ymp-runtime-supervisor/src/lib.rs` and optional new
+  `ymp-rust/crates/ymp-runtime-supervisor/tests/tool_host_probe.rs`.
 
 ### Out
 
-- Real task prompts or output, collaboration messages, primary/development arms, semantic grading,
-  model/provider selection, TUI ceremony, arbitrary file paths from the model, real user HOME,
-  deployment or live paid execution during implementation.
+- No-touch: `ymp-application/**`, `ymp-cli/**`, `ymp-corpus/**`, all Cargo manifests/lockfile,
+  runtime driver packages, real task prompts or output, collaboration messages,
+  primary/development arms, TUI, persistence, deployment and live paid execution.
 
 ## Acceptance
 
-- [ ] A fake managed runtime receives only a controller-generated nonce and scoped disposable path,
-      writes and reads it once, terminates honestly and yields a controller-attested record whose
-      invocation, route, profile, CLI/driver/tool schema, usage, wall time, currency/cost availability
-      and output/event digests are complete.
-- [ ] Missing write/read, wrong nonce, model-chosen path or digest, stale/replayed invocation,
-      incomplete usage, ambiguous terminal, timeout, cancellation, extra tool use or any board/task
-      effect fails closed without an attestation or model-ready transition.
-- [ ] The probe consumes one separately reserved start and complete resource vector; no spare arm
-      budget, task result, candidate or communication record can pay for or satisfy it.
-- [ ] Only controller read-back plus controller-held nonce material creates the attestation. Raw
-      model output, self-authored tests or a syntactically valid evidence file are insufficient.
-- [ ] Application persists the record only below the configured ymp data root; a disposable-root
-      product-path test proves no file appears in the repository, current directory or real `~/.ymp`.
-- [ ] Fake-runtime positive and fault matrix, one consumer-boundary negative, strict affected-package
-      Clippy, formatting and `git diff --check` pass; implementation performs no real model/network
-      or money call.
+- [ ] A fake managed runtime receives one opaque nonce and one normalized relative path rooted in
+      its disposable workspace, is offered only read/write tools, terminates honestly and returns a
+      trace with exact invocation, route/profile/CLI/driver/tool schema, usage, wall time,
+      cost-availability and output/event digests.
+- [ ] Missing tool event, absolute or traversing path, incomplete usage, ambiguous terminal,
+      timeout, cancellation, extra tool use, extra output or any board/task/recruitment/candidate
+      effect fails for a typed reason and yields no successful trace.
+- [ ] Start and completion consume one separately reserved resource vector; arm budget, task result,
+      candidate or communication records cannot pay for or satisfy the probe.
+- [ ] A successful trace is explicitly untrusted: it exposes no constructor or flag that can claim
+      controller read-back, persistence, attestation or model readiness.
+- [ ] Focused API and supervisor tests, one fake-process boundary walk, strict affected-package
+      Clippy, formatting and `git diff --check` pass; no real model/network/money call runs.
 
 ## Current state
 
-W1-EVL-04h defines and validates the evidence schema but correctly refuses every record because no
-production component can attest nonce ownership, read-back and usage/route binding. The manual pilot
-showed that model readiness without this tool-host proof is insufficient. No live probe is authorized.
+W1-EVL-04h defines the admission evidence schema but correctly refuses it. Existing runtime types
+carry managed requests, events and usage, but no bounded probe request/trace exists. R1 contract
+review split execution from controller authority and corpus consumption. No live probe is authorized.
 
 ## Next action
 
-Run a Critical contract review to confirm the smallest production seam and split it if runtime
-execution, controller attestation and corpus consumption cannot land under one acceptance story.
+After W1-EVL-04i is accepted, dispatch one Sol xhigh builder for this runtime-only seam.
 
 ## Guardrails
 
-- The probe is admission evidence only and never enters any experimental arm or task outcome.
-- The model never chooses the nonce, authority, destination path, evidence digest or success rule.
-- A real probe remains a separate owner model/money gate after fake-runtime implementation.
+- The trace reports execution only; it is never an attestation or admission decision.
+- The caller supplies the nonce and path; the runtime may neither widen authority nor choose them.
+- A real probe remains a separate owner model/money gate after all fake-runtime nodes are accepted.
 
 ## Findings
 
-- Created from the accepted W1-EVL-04h additional-work finding. Cross-crate breadth requires a
-  pre-dispatch decomposition decision before any writer receives authority.
+- R1 contract review rejected the former five-subsystem atom. This node now owns only API and
+  supervisor execution; W1-EVL-04l owns controller authority and W1-EVL-04m owns admission use.
 
 ## Review rounds
 
