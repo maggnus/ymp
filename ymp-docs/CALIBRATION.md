@@ -43,6 +43,19 @@ the required strong-single-agent baseline. A mechanism that helps weak participa
 transfer to stronger profiles remains a bounded finding about weak-agent coordination rather than
 the product's reliability claim.
 
+The first provisional profile cohorts are evaluated separately rather than mixed inside one arm:
+
+| Family | Diagnostic profile | Initial effort |
+|---|---|---|
+| Codex | `gpt-5.6-luna` | `low` |
+| Claude | `claude-haiku-4-5` | provider default |
+| GLM | `glm-4.5-air` | `none` |
+
+Availability in the local catalog is not admission. Each exact runtime/profile pairing must still
+pass lifecycle, isolation, cancellation, usage-evidence, and cost-accounting probes before it can
+produce a comparable observation. A result is first interpreted within its own profile cohort;
+cross-family agreement or transfer is reported separately.
+
 ## Pinned development profiles
 
 | Runtime | Exact profile | Ambient state | Current readiness |
