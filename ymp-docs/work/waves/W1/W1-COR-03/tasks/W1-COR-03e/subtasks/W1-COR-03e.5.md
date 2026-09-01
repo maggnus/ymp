@@ -4,15 +4,15 @@ kind: subtask
 wave: W1
 card: W1-COR-03
 parent: W1-COR-03e
-state: ready
+state: active
 risk: significant
 maturity: DESIGN
 relation: required
 depends_on: [W0-UX-01c]
 blocks: [W1-COR-03e.2]
 created_at: 2026-09-01T22:12:00+08:00
-updated_at: 2026-09-01T22:12:00+08:00
-started_at:
+updated_at: 2026-09-01T22:18:04+08:00
+started_at: 2026-09-01T22:18:04+08:00
 accepted_at:
 candidate_commit:
 closure_commit:
@@ -97,15 +97,13 @@ removing the old dashboard-first content hierarchy.
 
 ## Current state
 
-The current concept is already transcript-first, but its exact fixture content still carries the
-older observatory/page emphasis. The owner retained the general visual idea and replaced the POC
-focus with chat, slash commands and popup windows before new TUI implementation began. The exact
-offline Chrome-to-PDF path is now proven on the current design host.
+The Significant contract check accepted the four state families, typed command boundary and modal
+separation after the exact offline Chrome-to-PDF path was added. No TUI implementation is running
+against the superseded content hierarchy.
 
 ## Next action
 
-Run a Significant design-contract check, then assign one Sol high designer-builder to update and
-render the three authoritative sources.
+Update and render the three authoritative visual sources in one isolated design workspace.
 
 ## Guardrails
 
