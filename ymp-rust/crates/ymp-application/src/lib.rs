@@ -281,7 +281,7 @@ pub struct DefaultBoardConfig {
 
 pub const DEFAULT_BOARD_CONTROLLER: &str = "ymp";
 pub const DEFAULT_BOARD_ROOT: &str = "participant-root";
-pub use ymp_board::BOARD_SECTION;
+pub use ymp_board::{BOARD_SECTION, ViewState};
 
 /// The board endowment every run's board section opens with.
 pub fn default_board_endowment() -> CommunicationAllowance {
@@ -1024,6 +1024,15 @@ impl Application {
     /// The board section of this run's store, opened on the terms the section records.
     pub fn board(&self) -> &BoardSection {
         &self.board
+    }
+
+    /// An owned, read-only projection of the persisted collaboration record for the operator.
+    ///
+    /// The projection is rebuilt from the board section's ledger on every call. It therefore
+    /// carries attributed, untrusted communication evidence without exposing the ledger or store
+    /// that owns that evidence, and changing the returned value cannot change either one.
+    pub fn operator_board_projection(&self) -> ViewState {
+        ViewState::for_operator(&self.board.ledger)
     }
 
     /// Execute one board command and persist every fact it commits, in one call: the facts are
