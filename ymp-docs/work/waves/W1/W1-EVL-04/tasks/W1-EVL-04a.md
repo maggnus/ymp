@@ -3,14 +3,14 @@ id: W1-EVL-04a
 kind: task
 wave: W1
 card: W1-EVL-04
-state: active
+state: deferred
 risk: critical
 maturity: RESEARCH
 relation: required
 depends_on: [W1-EXP-01a, W1-EXP-01b, W1-COR-03b, W1-COR-03d]
 blocks: [W1-EVL-04b, W1-EVL-04c]
 created_at: 2026-08-10T19:34:25+08:00
-updated_at: 2026-09-01T12:18:20+08:00
+updated_at: 2026-09-01T12:22:00+08:00
 started_at: 2026-09-01T12:18:20+08:00
 accepted_at:
 candidate_commit:
@@ -18,8 +18,8 @@ closure_commit:
 evidence:
 duration_minutes: 0
 blocker:
-pause_reason:
-return_trigger:
+pause_reason: weak-diagnostic-v1 is defined; executable comparison awaits the multi-participant collaboration path
+return_trigger: W1-COR-03z and W1-COR-03e.2 accepted, with a two-participant run reachable through the product
 deliberate_partial: false
 ---
 
@@ -65,18 +65,18 @@ comparable acceptance, false-acceptance, cost, latency, failure, and abstention 
 
 ## Current state
 
-Active in read-only protocol research on `codex/gpt-5.6-sol` at `max`; no primary seed, paid model
-call, or experimental quota is being consumed. All four listed dependencies are accepted
-(W1-EXP-01a, W1-EXP-01b, W1-COR-03b, W1-COR-03d). The frozen study manifest
+The Sol max research result is recorded in
+[WEAK_DIAGNOSTIC.md](../../../../../WEAK_DIAGNOSTIC.md). No primary seed, paid model call, or
+experimental quota was consumed. The protocol is executable only after the product can run two
+participants with collaboration tools. The frozen study manifest
 ([d12eff3](https://github.com/maggnus/ymp/commit/d12eff31940f8ad124f5f8f566a0dd21de3d2ae6))
 binds arms, corpus, seeds, and the 0.125 minimum useful effect.
 
 ## Next action
 
-Return the exact smallest weak-participant matched-budget diagnostic protocol, its implemented and
-missing machinery, and the next executable Sol code contract. The later operational compliance dry
-run remains one task, one repetition, three arms, and a fresh disposable evaluation root without
-consuming frozen primary seeds.
+After the return trigger, assign Sol to implement the diagnostic manifest, scheduler, blinded
+best-of-2 selector, and compliance record. Prove them first with deterministic fake runtimes in a
+fresh disposable evaluation root before any model call or primary seed is used.
 
 ## Guardrails
 
