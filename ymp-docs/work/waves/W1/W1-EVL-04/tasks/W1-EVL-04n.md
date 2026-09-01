@@ -3,25 +3,25 @@ id: W1-EVL-04n
 kind: task
 wave: W1
 card: W1-EVL-04
-state: active
+state: accepted
 risk: critical
 maturity: BUILD
 relation: required
 depends_on: [W1-EVL-04l, W1-EVL-04o, W1-EVL-04p, W1-EVL-04q]
-blocks: [W1-EVL-04m]
+blocks: [W1-EVL-04r]
 created_at: 2026-09-01T17:17:30+08:00
-updated_at: 2026-09-01T20:20:00+08:00
+updated_at: 2026-09-01T21:14:37+08:00
 started_at: 2026-09-01T20:13:34+08:00
-accepted_at:
-candidate_commit:
-closure_commit:
-evidence:
-duration_minutes: 0
+accepted_at: 2026-09-01T21:14:37+08:00
+candidate_commit: https://github.com/maggnus/ymp/commit/f914f2b92564b6143fbf420cea3b995f610e3452
+closure_commit: https://github.com/maggnus/ymp/commit/ee96f70fded65303fcc70c90d5b53eed4ae6db98
+evidence: ["[ee96f70](https://github.com/maggnus/ymp/commit/ee96f70fded65303fcc70c90d5b53eed4ae6db98)"]
+duration_minutes: 56
 blocker:
 pause_reason:
-return_trigger:
-deliberate_partial: false
-review_rounds: 0
+return_trigger: W1-EVL-04r and W1-EVL-04s accepted
+deliberate_partial: true
+review_rounds: 2
 escalation_decision:
 ---
 
@@ -80,12 +80,12 @@ observed version and executable digest are evidence, not an acceptance selector.
 
 ## Acceptance
 
-- [ ] A behaviorally compatible fake Codex with any observed version plus the probe run exposes only
+- [x] A behaviorally compatible fake Codex with any observed version plus the probe run exposes only
       W1-EVL-04o workspace write and read, carries compatibility-contract, observed
       version/executable, route/profile/driver, probe schema and transport digests, writes then reads
       the supplied path, reports complete usage/cost/terminal evidence and yields a W1-EVL-04l
       attestation with `model_calls=1` and `model_ready=false` until W1-EVL-04m consumes it.
-- [ ] A direct caller can obtain at most `UntrustedRuntimeTrace`; presenting it or a raw request to
+- [x] A direct caller can obtain at most `UntrustedRuntimeTrace`; presenting it or a raw request to
       Application/04m creates no attestation. Wrong/missing compatibility contract, behavior drift,
       route/profile/schema/transport mismatch, absolute/traversing path, missing/reordered tool event, output, extra effect,
       timeout/cancellation, incomplete usage or budget overflow returns a typed refusal.
@@ -93,30 +93,31 @@ observed version and executable digest are evidence, not an acceptance selector.
       uses one fresh short root with separate project, `HOME`, `YMP_HOME`, `TMPDIR`, build and export;
       it performs exactly one provider request within the frozen stage-two vector and is never
       continued or selectively retried after any failure.
-- [ ] A schema-identical child measured correctly and then replaced or reconfigured before spawn is
+- [x] A schema-identical child measured correctly and then replaced or reconfigured before spawn is
       refused by the immediate runtime/supervisor recheck with `model_calls=0`, no attestation and no
       reservation refund.
-- [ ] Every terminal runtime failure preserves failure kind, terminal sequence/id, complete `Usage`
+- [x] Every terminal runtime failure preserves failure kind, terminal sequence/id, complete `Usage`
       and optional diagnostic digest/size/truncation through the public error and CLI display. Raw
       stderr is absent; missing statistics are explicit rather than silently replaced with zeros.
 - [ ] The controller proves the destination absent before launch and its independent read-back equals
       the nonce after the ordered tool events. A `Fake` trace, schema-identical substitute server or
       mismatched transport digest may test mechanics but can never satisfy the live admission
       evidence consumed by W1-EVL-04m.
-- [ ] Focused Codex/supervisor/controller-bound tests, strict affected-package Clippy, formatting and
+- [x] Focused Codex/supervisor/controller-bound tests, strict affected-package Clippy, formatting and
       `git diff --check` pass. The real repository, current directory and real `~/.ymp` remain
       byte-identical; the disposable root is removed after evidence capture.
 
 ## Current state
 
-Private Application attestation is accepted. The runtime still rejects every non-Fake probe;
-W1-EVL-04o must provide an exact transport, W1-EVL-04p behavioral compatibility, and W1-EVL-04q its
-v2 consumer. Until all three are accepted, the live gate is unconditionally closed.
+Implementation accepted and integrated through
+[ee96f70](https://github.com/maggnus/ymp/commit/ee96f70fded65303fcc70c90d5b53eed4ae6db98).
+The first authorized live attempt ended `ProcessExit` after 47.65 s without trace/attestation; it is
+`infrastructure-invalid / failure phase indeterminate`, and the model gate remains closed.
 
 ## Next action
 
-After W1-EVL-04o and W1-EVL-04q are accepted, repeat the Critical contract check of this two-package bridge, then
-dispatch one Sol xhigh builder and one frozen live probe only after deterministic negatives pass.
+Implement W1-EVL-04r without model calls, then execute the separately budgeted W1-EVL-04s once; do
+not retry the 04n attempt.
 
 ## Guardrails
 
@@ -154,18 +155,36 @@ marker carries the reviewer's ten-point score and the local moment of the verdic
 escalation, one `- CTO <decision> <dd/mm hh:mm> — <reason>` line records what was decided. The review
 dialogue itself stays in the reports and the evidence package.
 
-## Closure
+- R1(6/10) RETURN 01/09 21:00 — deterministic launch boundary was correct, but terminal
+  `DiagnosticSummary` and `Usage` were discarded → the author agreed → a structured safe failure
+  variant now preserves kind, usage, event identity and diagnostic digest without raw stderr
+- R2(9/10) ACCEPT 01/09 21:13 — code accepted with live STOP: deterministic substitute-child falsifier fails before
+  start with `model_calls=0`, structured failures survive exactly and launch code is unchanged →
+  implementation is safe to integrate while live admission remains explicitly unaccepted
 
-Filled when the task is accepted. Until then this section stays as written.
+## Closure
 
 ### Accepted outcome
 
-What was actually accepted.
+Codex now implements the bounded probe session through the private two-tool MCP child; supervisor
+admits only behaviorally compatible Codex or deterministic Fake, reconstructs exact identities and
+rehashes child/configuration/root immediately before spawn. Direct calls yield only an untrusted
+trace. Terminal failures preserve complete sanitized evidence. All deterministic checks and the
+mutation removing the final rehash passed their expected positive/negative halves.
 
 ### Residuals
 
-Honestly retained limitations, each with an exact return trigger. Empty when there are none.
+The only 04n live attempt ended `ProcessExit` after 47.65 s. Provider request, usage and failure phase
+could not be established from the pre-fix error; no tool event, controller read-back, handle or
+attestation exists and `model_ready=false`. W1-EVL-04r must persist phase-localized failure evidence;
+W1-EVL-04s alone may spend a fresh budget on one new attempt.
 
 ### Evidence
 
-- Commit, evidence package, or durable document of record, each as a Markdown link.
+- [ee96f70](https://github.com/maggnus/ymp/commit/ee96f70fded65303fcc70c90d5b53eed4ae6db98)
+  — integrated final implementation corresponding to candidate sequence
+  [2ab84f4](https://github.com/maggnus/ymp/commit/2ab84f4449d44ea103e0bca820929daaab9ab057) and
+  [f914f2b](https://github.com/maggnus/ymp/commit/f914f2b92564b6143fbf420cea3b995f610e3452).
+- Live attempt fingerprints: `ymp=f3707ba48d784047c992c27f49c921f3c208a89f23225a67bd7dbf70d915a9d7`,
+  `codex=98491713ffb196061003ee148636e743997cc31d76144ba7c53462269896891d`,
+  `admission-v2=d354f20c8482cd5df7e33fab70dcd267befb621ef09647d430dc40f3924b8ea2`.

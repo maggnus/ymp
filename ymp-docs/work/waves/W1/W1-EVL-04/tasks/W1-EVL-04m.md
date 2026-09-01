@@ -7,10 +7,10 @@ state: ready
 risk: critical
 maturity: BUILD
 relation: required
-depends_on: [W1-EVL-04l, W1-EVL-04n, W1-EVL-04q]
+depends_on: [W1-EVL-04l, W1-EVL-04q, W1-EVL-04s]
 blocks: [W1-EVL-04e]
 created_at: 2026-09-01T15:57:45+08:00
-updated_at: 2026-09-01T18:19:05+08:00
+updated_at: 2026-09-01T21:14:37+08:00
 started_at:
 accepted_at:
 candidate_commit:
@@ -80,13 +80,15 @@ evidence remains fail-closed.
 
 ## Current state
 
-W1-EVL-04j owns the untrusted trace, W1-EVL-04l owns controller authority and persistence,
-W1-EVL-04q freezes the behavioral compatibility consumer, and W1-EVL-04n owns the only admitted live bridge. This
-consumer remains blocked until all four pieces are accepted; no raw or Fake trace can open it.
+W1-EVL-04j owns the untrusted trace, W1-EVL-04l owns controller authority, and W1-EVL-04q freezes the
+behavioral consumer. The first W1-EVL-04n live attempt failed without attestation; only the separately
+budgeted W1-EVL-04s outcome may provide consumable evidence. Raw, Fake or failure records cannot open
+this consumer.
 
 ## Next action
 
-After W1-EVL-04n is accepted, run a Critical contract check of the single-file consumer boundary.
+After W1-EVL-04s produces a complete attestation, run a Critical contract check of the single-file
+consumer boundary. A failure result keeps this node blocked.
 
 ## Guardrails
 
