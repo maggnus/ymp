@@ -134,11 +134,16 @@ for owner approval before writing any UI contract.
 - The system asks only for information that changes the desired result or an unavoidable external
   consequence; implementation convenience never becomes a user decision.
 - No screen is designed and no current visual artifact is treated as authority in this subtask.
+- External UI/UX and TUI skills are not installed or treated as process authority. They may be read
+  only as references after the owner accepts this journey; layout, interaction and Ratatui guidance
+  cannot introduce a user step or information category absent from the accepted story.
 
 ## Findings
 
 - Owner feedback established that the actual product job is “generate a working result such as a
   Battleship game”, not “operate a multi-agent experiment”.
+- Owner decision: external design skills remain reference-only; a correct user story is a mandatory
+  prerequisite and cannot be reconstructed from layout patterns.
 
 ## Review rounds
 
