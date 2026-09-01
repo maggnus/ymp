@@ -9,7 +9,8 @@ use std::sync::{Arc, Mutex};
 use std::thread::{self, JoinHandle};
 use std::time::Duration;
 use thiserror::Error;
-use ymp_agent_api::{AgentToolCall, AgentToolCapabilities, AgentToolError, AgentToolHandler};
+pub use ymp_agent_api::AgentToolCapabilities;
+use ymp_agent_api::{AgentToolCall, AgentToolError, AgentToolHandler};
 use ymp_application::{Application, WorkspaceSubmission};
 use ymp_domain::digest_bytes;
 use ymp_domain::recruitment::{ParticipantStartPath, RuntimeAdmission};
@@ -267,6 +268,20 @@ impl SocketToolHandler {
             )),
         }
     }
+}
+
+/// Read the tool capabilities accepted by one invocation-bound private endpoint.
+///
+/// Runtime drivers use this before generating their model-facing allowlist. An unavailable or
+/// rejected endpoint remains an error here; callers that can safely omit optional tools may map
+/// that error to the empty capability set, but must never infer recruitment from runtime capacity.
+pub fn endpoint_capabilities(
+    socket_path: impl Into<PathBuf>,
+    token: impl Into<String>,
+    attempt_id: impl Into<String>,
+    invocation_id: impl Into<String>,
+) -> Result<AgentToolCapabilities, AgentToolError> {
+    SocketToolHandler::for_invocation(socket_path, token, attempt_id, invocation_id).capabilities()
 }
 
 #[cfg(unix)]
@@ -639,7 +654,10 @@ pub fn socket_path_is_private(_path: &Path) -> Result<bool, AgentRpcError> {
 
 #[cfg(test)]
 mod tests {
-    use super::{AgentRpcServer, RecruitmentEndpoint, SocketToolHandler, socket_path_is_private};
+    use super::{
+        AgentRpcServer, RecruitmentEndpoint, SocketToolHandler, endpoint_capabilities,
+        socket_path_is_private,
+    };
     use serde_json::{Value, json};
     use std::fs;
     use std::sync::{Arc, Mutex};
@@ -1092,6 +1110,11 @@ mod tests {
             "invocation-yield",
         );
         assert!(
+            !endpoint_capabilities(&socket, "secret-token", "attempt-yield", "invocation-yield",)
+                .expect("read ungranted endpoint capabilities")
+                .request_participant
+        );
+        assert!(
             !client
                 .capabilities()
                 .expect("read endpoint capabilities")
@@ -1188,6 +1211,11 @@ mod tests {
             ROOT,
             INVOCATION,
         ));
+        assert!(
+            endpoint_capabilities(&socket, "secret-token", ROOT, INVOCATION)
+                .expect("read granted endpoint capabilities")
+                .request_participant
+        );
         mcp_request(
             &mut mcp,
             json!({ "jsonrpc": "2.0", "id": 1, "method": "initialize" }),

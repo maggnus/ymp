@@ -10,6 +10,7 @@ use std::sync::mpsc::{Receiver, RecvTimeoutError};
 use std::sync::{Arc, Mutex};
 use std::thread::{self, JoinHandle};
 use std::time::{Duration, Instant};
+use ymp_agent_rpc::{AgentToolCapabilities, endpoint_capabilities};
 use ymp_runtime_api::{
     AdmittedProgram, BoundedOutputLine, CancellationToken, DiagnosticSummary, InFlightExcess,
     InvocationRequest, LaunchChain, LaunchDescriptor, LaunchEnvironmentVariable, McpBinding,
@@ -879,6 +880,7 @@ struct ClaudeLaunch {
     attempt_id: String,
     invocation_id: String,
     mcp: Option<McpBinding>,
+    agent_capabilities: AgentToolCapabilities,
     environment: ClaudeEnvironment,
 }
 
@@ -1038,8 +1040,7 @@ impl ClaudeLaunch {
             self.profile.builtin_tools.join(","),
         ];
         if self.mcp.is_some() {
-            arguments.push("--allowed-tools".to_owned());
-            arguments.push(COORDINATION_TOOLS.join(","));
+            add_coordination_arguments(&mut arguments, self.agent_capabilities);
         }
         if let Some(session_id) = session_id {
             arguments.push("--resume".to_owned());
@@ -1326,6 +1327,11 @@ impl RuntimeDriver for ClaudeRuntime {
         if let Some(mcp) = &request.mcp {
             mcp.validate()?;
         }
+        let agent_capabilities = accepted_agent_capabilities(
+            request.mcp.as_ref(),
+            &request.attempt_id,
+            &request.invocation_id,
+        );
         let executable = self.admitted_executable()?;
         let environment = self.isolated_environment()?;
         let measured_build =
@@ -1366,6 +1372,7 @@ impl RuntimeDriver for ClaudeRuntime {
             attempt_id: request.attempt_id.clone(),
             invocation_id: request.invocation_id.clone(),
             mcp,
+            agent_capabilities,
             environment,
         };
         let descriptor = launch.descriptor(None)?;
@@ -1743,18 +1750,12 @@ impl ClaudeSession {
         let mut expected_tools: Vec<String> = self.launch.profile.builtin_tools.clone();
         if self.coordinated {
             expected_tools.extend(
-                COORDINATION_TOOLS
-                    .iter()
-                    .filter(|tool| **tool != "mcp__ymp__request_participant")
-                    .map(|tool| (*tool).to_owned()),
+                coordination_tools(self.launch.agent_capabilities)
+                    .into_iter()
+                    .map(str::to_owned),
             );
         }
         expected_tools.sort();
-        let mut recruitment_tools = expected_tools.clone();
-        if self.coordinated {
-            recruitment_tools.push("mcp__ymp__request_participant".to_owned());
-            recruitment_tools.sort();
-        }
         let mut observed_tools: Vec<String> = array_field(event, "tools")?
             .iter()
             .filter_map(Value::as_str)
@@ -1769,9 +1770,9 @@ impl ClaudeSession {
                 "Claude enabled the delegation tool {delegation}"
             )));
         }
-        if observed_tools != expected_tools && observed_tools != recruitment_tools {
+        if observed_tools != expected_tools {
             return Err(RuntimeError::InvalidProfile(format!(
-                "Claude resolved tools {}, profile requires {} with only an endpoint-granted request_participant addition",
+                "Claude resolved tools {}, endpoint-bound profile requires {}",
                 observed_tools.join("+"),
                 expected_tools.join("+")
             )));
@@ -2398,6 +2399,36 @@ fn plain_environment_value(name: &str, value: &str, confidential: bool) -> Envir
     }
 }
 
+fn accepted_agent_capabilities(
+    binding: Option<&McpBinding>,
+    attempt_id: &str,
+    invocation_id: &str,
+) -> AgentToolCapabilities {
+    let Some(binding) = binding else {
+        return AgentToolCapabilities::default();
+    };
+    endpoint_capabilities(
+        &binding.socket_path,
+        &binding.token,
+        attempt_id,
+        invocation_id,
+    )
+    .unwrap_or_default()
+}
+
+fn coordination_tools(capabilities: AgentToolCapabilities) -> Vec<&'static str> {
+    COORDINATION_TOOLS
+        .iter()
+        .copied()
+        .filter(|tool| capabilities.request_participant || *tool != "mcp__ymp__request_participant")
+        .collect()
+}
+
+fn add_coordination_arguments(arguments: &mut Vec<String>, capabilities: AgentToolCapabilities) {
+    arguments.push("--allowed-tools".to_owned());
+    arguments.push(coordination_tools(capabilities).join(","));
+}
+
 fn mcp_config(binding: Option<&McpBinding>) -> Result<String, RuntimeError> {
     let servers = if let Some(binding) = binding {
         binding.validate()?;
@@ -2422,17 +2453,33 @@ mod tests {
     use super::{
         APPROVED_BUILTIN_TOOLS, APPROVED_SEARCH_PATH, ClaudeProfile, ClaudeRuntime,
         G3_MAX_BUDGET_MICROUSD, G3_MAX_IN_FLIGHT_OVERSHOOT_MICROUSD, InstalledBuild,
-        MINIMUM_CLAUDE_VERSION, PINNED_CLAUDE_MODEL, model_identifier,
+        MINIMUM_CLAUDE_VERSION, PINNED_CLAUDE_MODEL, add_coordination_arguments, model_identifier,
     };
     use std::fs;
     use std::os::unix::fs::PermissionsExt;
     use std::path::{Path, PathBuf};
+    use ymp_agent_rpc::AgentToolCapabilities;
     use ymp_runtime_api::{
         InvocationRequest, McpBinding, Readiness, RuntimeDriver, RuntimeError, RuntimeEventKind,
         RuntimeFailureKind, RuntimeSession,
     };
 
     const INIT_TOOLS: &str = r#"["Bash","Edit","Glob","Grep","Read","Write"]"#;
+
+    #[test]
+    fn generated_tool_config_tracks_endpoint_recruitment_capability() {
+        for (capabilities, expected) in [
+            (AgentToolCapabilities::default(), false),
+            (AgentToolCapabilities::RECRUITMENT, true),
+        ] {
+            let mut arguments = Vec::new();
+            add_coordination_arguments(&mut arguments, capabilities);
+            let allowlist = arguments.last().expect("generated allowed tools");
+            assert_eq!(allowlist.contains("request_participant"), expected);
+            assert!(allowlist.contains("mcp__ymp__read_control"));
+            assert!(allowlist.contains("mcp__ymp__submit"));
+        }
+    }
 
     fn fixture(directory: &Path, name: &str, body: &str) -> PathBuf {
         fixture_reporting(directory, name, "2.1.227 (Claude Code)", body)
@@ -3218,7 +3265,7 @@ printf '%s\n' '{{"type":"result","subtype":"success","is_error":false,"total_cos
             directory.path(),
             "claude-repeated-reply",
             r##"cat >/dev/null
-printf '%s\n' '{"type":"system","subtype":"init","session_id":"session-reply","claude_code_version":"2.1.227","model":"claude-opus-5","permissionMode":"acceptEdits","tools":["Bash","Edit","Glob","Grep","Read","Write","mcp__ymp__read_control","mcp__ymp__read_events","mcp__ymp__read_board","mcp__ymp__publish","mcp__ymp__request_participant","mcp__ymp__submit","mcp__ymp__yield"],"mcp_servers":[{"name":"ymp","status":"connected"}],"slash_commands":[],"plugins":[],"skills":[]}'
+printf '%s\n' '{"type":"system","subtype":"init","session_id":"session-reply","claude_code_version":"2.1.227","model":"claude-opus-5","permissionMode":"acceptEdits","tools":["Bash","Edit","Glob","Grep","Read","Write","mcp__ymp__read_control","mcp__ymp__read_events","mcp__ymp__read_board","mcp__ymp__publish","mcp__ymp__submit","mcp__ymp__yield"],"mcp_servers":[{"name":"ymp","status":"connected"}],"slash_commands":[],"plugins":[],"skills":[]}'
 printf '%s\n' '{"type":"assistant","request_id":"req_1","message":{"content":[{"type":"tool_use","id":"toolu_1","name":"mcp__ymp__submit","input":{"command_id":"agent.submit"}}]}}'
 printf '%s\n' '{"type":"user","message":{"content":[{"type":"tool_result","tool_use_id":"toolu_1","content":[{"type":"text","text":"{\"snapshot_digest\":\"a\"}"}]}]}}'
 printf '%s\n' '{"type":"user","message":{"content":[{"type":"tool_result","tool_use_id":"toolu_1","content":[{"type":"text","text":"{\"snapshot_digest\":\"a\"}"}]}]}}'
@@ -3538,11 +3585,7 @@ printf '%s\n' '{RESULT}'
             "an invocation without the coordination bridge was told to call a tool it does not \
              have: {plain}"
         );
-        for tool in [
-            "mcp__ymp__read_board",
-            "mcp__ymp__publish",
-            "mcp__ymp__request_participant",
-        ] {
+        for tool in ["mcp__ymp__read_board", "mcp__ymp__publish"] {
             assert!(
                 coordinated_arguments.contains(tool),
                 "coordinated Claude configuration omitted {tool}: {coordinated_arguments}"
@@ -3552,6 +3595,7 @@ printf '%s\n' '{RESULT}'
                 "plain Claude configuration granted {tool}: {plain_arguments}"
             );
         }
+        assert!(!coordinated_arguments.contains("mcp__ymp__request_participant"));
     }
 
     #[test]

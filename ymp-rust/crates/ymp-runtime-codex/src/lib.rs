@@ -11,6 +11,7 @@ use std::sync::mpsc::{Receiver, RecvTimeoutError};
 use std::sync::{Arc, Mutex};
 use std::thread::{self, JoinHandle};
 use std::time::{Duration, Instant};
+use ymp_agent_rpc::{AgentToolCapabilities, endpoint_capabilities};
 use ymp_runtime_api::{
     AdmittedProgram, BoundedOutputLine, CancellationToken, DiagnosticSummary, InFlightExcess,
     InvocationRequest, LaunchChain, LaunchDescriptor, LaunchEnvironmentVariable, McpBinding,
@@ -315,6 +316,7 @@ struct CodexLaunch {
     attempt_id: String,
     invocation_id: String,
     mcp: Option<McpBinding>,
+    agent_capabilities: AgentToolCapabilities,
     environment: CodexEnvironment,
 }
 
@@ -490,7 +492,7 @@ impl CodexLaunch {
             arguments.push(feature.to_owned());
         }
         if let Some(mcp) = &self.mcp {
-            add_mcp_config_arguments(&mut arguments, mcp)?;
+            add_mcp_config_arguments(&mut arguments, mcp, self.agent_capabilities)?;
         }
         if let Some(session_id) = session_id {
             arguments.push("resume".to_owned());
@@ -763,6 +765,11 @@ impl RuntimeDriver for CodexRuntime {
         if let Some(mcp) = &request.mcp {
             mcp.validate()?;
         }
+        let agent_capabilities = accepted_agent_capabilities(
+            request.mcp.as_ref(),
+            &request.attempt_id,
+            &request.invocation_id,
+        );
         let executable = self.admitted_executable()?;
         let (mcp, coordination_executable) = match &request.mcp {
             Some(binding) => {
@@ -782,6 +789,7 @@ impl RuntimeDriver for CodexRuntime {
             attempt_id: request.attempt_id.clone(),
             invocation_id: request.invocation_id.clone(),
             mcp,
+            agent_capabilities,
             environment: self.isolated_environment()?,
         };
         let descriptor = launch.descriptor(None)?;
@@ -1473,14 +1481,17 @@ fn plain_environment_value(name: &str, value: &str, confidential: bool) -> Envir
 fn add_mcp_config_arguments(
     arguments: &mut Vec<String>,
     binding: &McpBinding,
+    capabilities: AgentToolCapabilities,
 ) -> Result<(), RuntimeError> {
     binding.validate()?;
     let executable = binding.executable.to_str().ok_or_else(|| {
         RuntimeError::InvalidProfile("MCP executable path must be UTF-8".to_owned())
     })?;
+    let enabled_tools = serde_json::to_string(&coordination_tools(capabilities))
+        .expect("coordination tool names are serializable");
     for setting in [
         "mcp_servers.ymp.required=true".to_owned(),
-        "mcp_servers.ymp.enabled_tools=[\"read_control\",\"read_events\",\"read_board\",\"publish\",\"request_participant\",\"yield\",\"submit\"]".to_owned(),
+        format!("mcp_servers.ymp.enabled_tools={enabled_tools}"),
         "mcp_servers.ymp.default_tools_approval_mode=\"approve\"".to_owned(),
         format!(
             "mcp_servers.ymp.command={}",
@@ -1494,15 +1505,42 @@ fn add_mcp_config_arguments(
     Ok(())
 }
 
+fn accepted_agent_capabilities(
+    binding: Option<&McpBinding>,
+    attempt_id: &str,
+    invocation_id: &str,
+) -> AgentToolCapabilities {
+    let Some(binding) = binding else {
+        return AgentToolCapabilities::default();
+    };
+    endpoint_capabilities(
+        &binding.socket_path,
+        &binding.token,
+        attempt_id,
+        invocation_id,
+    )
+    .unwrap_or_default()
+}
+
+fn coordination_tools(capabilities: AgentToolCapabilities) -> Vec<&'static str> {
+    let mut tools = vec!["read_control", "read_events", "read_board", "publish"];
+    if capabilities.request_participant {
+        tools.push("request_participant");
+    }
+    tools.extend(["yield", "submit"]);
+    tools
+}
+
 #[cfg(test)]
 mod tests {
-    use super::{CodexProfile, CodexRuntime, PINNED_CODEX_MODEL};
+    use super::{CodexProfile, CodexRuntime, PINNED_CODEX_MODEL, add_mcp_config_arguments};
     use std::fs;
     use std::os::unix::fs::PermissionsExt;
     use std::path::{Path, PathBuf};
+    use ymp_agent_rpc::AgentToolCapabilities;
     use ymp_runtime_api::{
-        CancellationToken, InvocationRequest, RuntimeDriver, RuntimeError, RuntimeEventKind,
-        RuntimeFailureKind, RuntimeSession,
+        CancellationToken, InvocationRequest, McpBinding, RuntimeDriver, RuntimeError,
+        RuntimeEventKind, RuntimeFailureKind, RuntimeSession,
     };
 
     fn expect_launch(session: &mut dyn RuntimeSession) {
@@ -1510,6 +1548,27 @@ mod tests {
             session.next_event().expect("launch").expect("event").event,
             RuntimeEventKind::Launch { .. }
         ));
+    }
+
+    #[test]
+    fn generated_tool_config_tracks_endpoint_recruitment_capability() {
+        let binding = McpBinding {
+            executable: PathBuf::from("/tmp/ymp"),
+            socket_path: PathBuf::from("/tmp/ymp-agent.sock"),
+            token: "fixture-token".to_owned(),
+        };
+        for (capabilities, expected) in [
+            (AgentToolCapabilities::default(), false),
+            (AgentToolCapabilities::RECRUITMENT, true),
+        ] {
+            let mut arguments = Vec::new();
+            add_mcp_config_arguments(&mut arguments, &binding, capabilities)
+                .expect("generate MCP configuration");
+            let configuration = arguments.join(" ");
+            assert_eq!(configuration.contains("request_participant"), expected);
+            assert!(configuration.contains("read_control"));
+            assert!(configuration.contains("submit"));
+        }
     }
 
     #[test]
@@ -1859,7 +1918,7 @@ fi
             "an invocation without the coordination bridge was told to call a tool it does not \
              have: {plain}"
         );
-        for tool in ["read_board", "publish", "request_participant"] {
+        for tool in ["read_board", "publish"] {
             assert!(
                 coordinated_arguments.contains(tool),
                 "coordinated Codex configuration omitted {tool}: {coordinated_arguments}"
@@ -1869,6 +1928,7 @@ fi
                 "plain Codex configuration granted {tool}: {plain_arguments}"
             );
         }
+        assert!(!coordinated_arguments.contains("request_participant"));
     }
 
     #[test]
@@ -1961,7 +2021,7 @@ fi
             .expect("captured invocation arguments");
         assert!(arguments.contains("mcp_servers.ymp.required=true"));
         assert!(arguments.contains(
-            "mcp_servers.ymp.enabled_tools=[\"read_control\",\"read_events\",\"read_board\",\"publish\",\"request_participant\",\"yield\",\"submit\"]"
+            "mcp_servers.ymp.enabled_tools=[\"read_control\",\"read_events\",\"read_board\",\"publish\",\"yield\",\"submit\"]"
         ));
         assert!(arguments.contains("mcp_servers.ymp.default_tools_approval_mode=\"approve\""));
     }

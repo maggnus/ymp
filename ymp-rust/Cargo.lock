@@ -1224,6 +1224,7 @@ version = "1.0.6"
 dependencies = [
  "serde_json",
  "tempfile",
+ "ymp-agent-rpc",
  "ymp-runtime-api",
  "ymp-runtime-registry",
 ]
@@ -1234,6 +1235,7 @@ version = "1.0.6"
 dependencies = [
  "serde_json",
  "tempfile",
+ "ymp-agent-rpc",
  "ymp-runtime-api",
  "ymp-runtime-registry",
 ]
