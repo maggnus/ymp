@@ -14,6 +14,10 @@ candidate, injects the protected oracle into the private copy, checks that `Carg
 unchanged, runs formatting, tests and strict Clippy, and emits a candidate digest and JSON result.
 `validate-cases` proves that each seeded defect is rejected before the ladder is used.
 
+Every product-level calibration or evaluation receives a fresh disposable root with separate
+project, `HOME`, `YMP_HOME`, `TMPDIR`, build, and export paths. The product is never evaluated from
+the source worktree and never reads or writes the operator's real `~/.ymp`.
+
 ## Ladder
 
 | Level | Case | Added difficulty | Protected observation |
