@@ -76,9 +76,13 @@ interaction model be translated into screens.
   communication and artifact movement are product-level facts; contracts, budget vectors, routes,
   oracles, attestations, digests, leases and experimental apparatus remain diagnostic details unless
   their consequence directly requires a user decision.
-- Distinguish provider permission from readiness. The journey uses `off`, `not configured`,
-  `configured — sign-in unverified`, `checking`, `ready` and `error`; `ready` requires an observed
-  successful sign-in/capability check, not merely an executable and credential source.
+- Treat provider enablement as the only persistent permission state. Enabling starts a background
+  available-model catalogue request; while it runs the provider remains enabled and loading. Success
+  supplies eligible models. Failure leaves the provider enabled with an empty model list, exact error
+  and retry action. There is no separate `sign-in verified` state.
+- Catch later participant-start and invocation errors at the operation that failed instead of
+  rewriting provider enablement. Disabling removes that provider's models from future pool snapshots;
+  a current run continues on its frozen snapshot.
 - Give `/agents`, `/pool` and `/board` distinct jobs: current participants and declared work; future
   eligible provider/profile/model resources and ceilings; full scoped communication and attributed
   human intervention. The main conversation carries only a compact team summary and latest material
@@ -125,9 +129,10 @@ interaction model be translated into screens.
 - [ ] `/agents`, `/pool` and `/board` are not aliases: the first observes the current team, the second
       configures future eligibility and ceilings, and the third reads scoped communication or posts
       an attributed human intervention.
-- [ ] A provider cannot be labelled `ready` from configuration presence alone; the current missing
-      managed sign-in verification is explicit and the story names whether start is blocked or a
-      real check is run before team formation.
+- [ ] Provider state is mechanically honest: off or enabled; enabled has catalogue loading,
+      models-present or models-empty-with-error detail. A failed catalogue request keeps the provider
+      enabled but contributes no models to a future pool. Retry is explicit, and later operation
+      errors remain attached to their own starts/invocations.
 - [ ] The Battleship story begins with the Russian phrase unchanged. It records structured intent
       normalization/check derivation as an implementation prerequisite instead of requiring English
       artifact keywords from the person.
@@ -173,6 +178,9 @@ present it before drafting `USER_JOURNEY.md` or any UI contract.
 - Owner decisions: contract preparation is a dim system trace, not a ceremony; `/agents` and `/pool`
   are separate current-versus-future views; `/board` is a separate communication view; Russian intent
   normalization is a backend prerequisite rather than a wording burden on the user.
+- Owner decision: provider enable/disable is the permission; enablement fetches available models in
+  the background. Catalogue failure leaves the provider enabled with no models, while all later
+  failures are reported at their actual operation boundary.
 
 ## Review rounds
 
