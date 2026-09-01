@@ -10,7 +10,7 @@ relation: required
 depends_on: [W1-EVL-04l]
 blocks: [W1-EVL-04p]
 created_at: 2026-09-01T18:09:44+08:00
-updated_at: 2026-09-01T18:15:48+08:00
+updated_at: 2026-09-01T18:26:00+08:00
 started_at: 2026-09-01T18:15:48+08:00
 accepted_at:
 candidate_commit:
@@ -76,7 +76,8 @@ workspace root rather than trusting a server that merely advertises matching JSO
 - [ ] The canonical `probe_transport_digest` changes when server/launcher executable bytes, internal
       command/configuration, protocol/name/version, tool schema/order or canonical workspace root
       changes. A schema-identical substitute child or path changed after the controller's prelaunch
-      measurement therefore differs from the reservation and is rejected.
+      measurement therefore produces a different actual identity; W1-EVL-04n owns the mandatory
+      immediate pre-spawn comparison and refusal.
 - [ ] `ToolHostProbeTrace` and recovered `AttestedToolHostProbe` bind the exact transport identity;
       missing/default/altered transport identity, a copied root or mismatched executable/configuration
       fails before attestation or `model_ready`.
@@ -88,7 +89,8 @@ workspace root rather than trusting a server that merely advertises matching JSO
       unknown fields, additional tools and inherited unapproved environment each fail without an
       accepted read-back or file outside the disposable workspace.
 - [ ] Focused runtime-api/MCP/internal-CLI/Application fixture tests, one mutation replacing the
-      executable while retaining the same JSON schema, strict affected-package Clippy, formatting
+      executable while retaining the same JSON schema and proving a different transport digest,
+      strict affected-package Clippy, formatting
       and `git diff --check` pass with zero model/network/money calls and isolated
       project/HOME/YMP_HOME/TMPDIR/build/export.
 
@@ -120,6 +122,9 @@ builder; W1-EVL-04n remains blocked until this identity and server are accepted.
 - R1 contract review required an independent expected digest. The corrected source is the foreground
   controller's prelaunch measurement persisted in the Application reservation, never the child
   server's self-report.
+- R1 implementation review confirmed measurement and persistence but found final TOCTOU refusal
+  impossible before a live start exists. The immediate byte/config/root recheck is now an explicit
+  W1-EVL-04n responsibility; 04o claims no live-process refusal.
 
 ## Review rounds
 

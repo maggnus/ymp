@@ -10,7 +10,7 @@ relation: required
 depends_on: [W1-EVL-04l, W1-EVL-04o, W1-EVL-04p, W1-EVL-04q]
 blocks: [W1-EVL-04m]
 created_at: 2026-09-01T17:17:30+08:00
-updated_at: 2026-09-01T18:19:05+08:00
+updated_at: 2026-09-01T18:26:00+08:00
 started_at:
 accepted_at:
 candidate_commit:
@@ -44,6 +44,10 @@ observed version and executable digest are evidence, not an acceptance selector.
   W1-EVL-04o server, `workspace_write` then `workspace_read`, the controller-supplied path and nonce,
   and a fixed compatibility directive that is not a user task or experimental arm. Nonempty ordinary
   output remains an error rather than hidden evidence.
+- Immediately before `start_tool_host_probe` spawns the MCP child, independently rehash its actual
+  executable bytes and recompute the W1-EVL-04o launch configuration/root identity; compare them to
+  the controller reservation. Any post-reservation replacement, path/config/root change or symlink
+  fails before the provider request and before an attestation can exist.
 - Replace the fake-only guard in `ymp-rust/crates/ymp-runtime-supervisor/src/lib.rs` with an exact
   allowlist of `Fake` for deterministic tests and a Codex runtime carrying the accepted behavioral
   contract plus exact observed runtime/probe transport identity. A public direct caller may receive
@@ -83,6 +87,9 @@ observed version and executable digest are evidence, not an acceptance selector.
       uses one fresh short root with separate project, `HOME`, `YMP_HOME`, `TMPDIR`, build and export;
       it performs exactly one provider request within the frozen stage-two vector and is never
       continued or selectively retried after any failure.
+- [ ] A schema-identical child measured correctly and then replaced or reconfigured before spawn is
+      refused by the immediate runtime/supervisor recheck with `model_calls=0`, no attestation and no
+      reservation refund.
 - [ ] The controller proves the destination absent before launch and its independent read-back equals
       the nonce after the ordered tool events. A `Fake` trace, schema-identical substitute server or
       mismatched transport digest may test mechanics but can never satisfy the live admission
@@ -119,6 +126,8 @@ dispatch one Sol xhigh builder and one frozen live probe only after deterministi
   untrusted and binds both schema domains without changing the manifest.
 - Owner correction removed exact CLI version as product authority. W1-EVL-04p admits observed
   behavior and W1-EVL-04q preserves exact version/digest only as reproducibility evidence.
+- W1-EVL-04o R1 review assigned the final expected-vs-actual executable/config/root recheck here,
+  because only this node owns the real pre-spawn boundary.
 
 ## Review rounds
 
