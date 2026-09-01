@@ -3,25 +3,25 @@ id: W1-EVL-04j
 kind: task
 wave: W1
 card: W1-EVL-04
-state: ready
+state: accepted
 risk: critical
 maturity: BUILD
 relation: required
 depends_on: [W1-EVL-04h, W1-EVL-04i]
 blocks: [W1-EVL-04l]
 created_at: 2026-09-01T15:41:48+08:00
-updated_at: 2026-09-01T15:57:50+08:00
-started_at:
-accepted_at:
-candidate_commit:
-closure_commit:
-evidence:
-duration_minutes: 0
+updated_at: 2026-09-01T17:05:17+08:00
+started_at: 2026-09-01T16:35:36+08:00
+accepted_at: 2026-09-01T17:05:17+08:00
+candidate_commit: https://github.com/maggnus/ymp/commit/718e919f796d436e75534ecbd89ef70f6e19c77e
+closure_commit: https://github.com/maggnus/ymp/commit/d5e805aeec270d7a12587e92da53806d3074f4eb
+evidence: ["[d5e805a](https://github.com/maggnus/ymp/commit/d5e805aeec270d7a12587e92da53806d3074f4eb)"]
+duration_minutes: 29
 blocker:
 pause_reason:
 return_trigger:
 deliberate_partial: false
-review_rounds: 0
+review_rounds: 1
 escalation_decision:
 ---
 
@@ -55,29 +55,31 @@ and terminal state. This seam cannot attest controller ownership, persist eviden
 
 ## Acceptance
 
-- [ ] A fake managed runtime receives one opaque nonce and one normalized relative path rooted in
+- [x] A fake managed runtime receives one opaque nonce and one normalized relative path rooted in
       its disposable workspace, is offered only read/write tools, terminates honestly and returns a
       trace with exact invocation, route/profile/CLI/driver/tool schema, usage, wall time,
       cost-availability and output/event digests.
-- [ ] Missing tool event, absolute or traversing path, incomplete usage, ambiguous terminal,
+- [x] Missing tool event, absolute or traversing path, incomplete usage, ambiguous terminal,
       timeout, cancellation, extra tool use, extra output or any board/task/recruitment/candidate
       effect fails for a typed reason and yields no successful trace.
-- [ ] Start and completion consume one separately reserved resource vector; arm budget, task result,
+- [x] Start and completion consume one separately reserved resource vector; arm budget, task result,
       candidate or communication records cannot pay for or satisfy the probe.
-- [ ] A successful trace is explicitly untrusted: it exposes no constructor or flag that can claim
+- [x] A successful trace is explicitly untrusted: it exposes no constructor or flag that can claim
       controller read-back, persistence, attestation or model readiness.
-- [ ] Focused API and supervisor tests, one fake-process boundary walk, strict affected-package
+- [x] Focused API and supervisor tests, one fake-process boundary walk, strict affected-package
       Clippy, formatting and `git diff --check` pass; no real model/network/money call runs.
 
 ## Current state
 
-W1-EVL-04h defines the admission evidence schema but correctly refuses it. Existing runtime types
-carry managed requests, events and usage, but no bounded probe request/trace exists. R1 contract
-review split execution from controller authority and corpus consumption. No live probe is authorized.
+Accepted and integrated as
+[d5e805a](https://github.com/maggnus/ymp/commit/d5e805aeec270d7a12587e92da53806d3074f4eb).
+The runtime now returns one strictly bounded, explicitly untrusted probe trace through the fake
+managed-process boundary. No live probe is authorized and no controller attestation exists yet.
 
 ## Next action
 
-After W1-EVL-04i is accepted, dispatch one Sol xhigh builder for this runtime-only seam.
+Run the contract check and implementation of W1-EVL-04l, which alone owns controller nonce
+read-back, immutable persistence and attestation.
 
 ## Guardrails
 
@@ -98,18 +100,28 @@ marker carries the reviewer's ten-point score and the local moment of the verdic
 escalation, one `- CTO <decision> <dd/mm hh:mm> — <reason>` line records what was decided. The review
 dialogue itself stays in the reports and the evidence package.
 
-## Closure
+- R1(9/10) ACCEPT 01/09 17:04 — the three-path runtime-only diff preserves the No-touch boundary
+  and exposes no attestation authority → author evidence covers the focused matrix and typed
+  negatives → an independent fake-process run passes normally and rejects skipped workspace write
+  with exit 101, without model or network use
 
-Filled when the task is accepted. Until then this section stays as written.
+## Closure
 
 ### Accepted outcome
 
-What was actually accepted.
+`ymp-runtime-api` defines strict probe request, resource reservation and explicitly untrusted trace
+types. `ymp-runtime-supervisor` admits only a fake managed runtime for this seam, confines the path
+to the disposable workspace, accounts one bounded write/read exchange and rejects incomplete usage,
+extra effects, ambiguous termination, timeout or cancellation. The trace cannot claim controller
+read-back, persistence, attestation or model readiness.
 
 ### Residuals
 
-Honestly retained limitations, each with an exact return trigger. Empty when there are none.
+Controller-owned nonce read-back, persistence and attestation remain explicitly assigned to
+W1-EVL-04l; this is a dependency, not residual authority in the accepted runtime seam.
 
 ### Evidence
 
-- Commit, evidence package, or durable document of record, each as a Markdown link.
+- [d5e805a](https://github.com/maggnus/ymp/commit/d5e805aeec270d7a12587e92da53806d3074f4eb)
+  — integrated tree, byte-identical for the reviewed paths to candidate
+  [718e919](https://github.com/maggnus/ymp/commit/718e919f796d436e75534ecbd89ef70f6e19c77e).
