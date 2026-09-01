@@ -3,25 +3,25 @@ id: W1-EVL-04o
 kind: task
 wave: W1
 card: W1-EVL-04
-state: active
+state: accepted
 risk: critical
 maturity: BUILD
 relation: required
 depends_on: [W1-EVL-04l]
 blocks: [W1-EVL-04p]
 created_at: 2026-09-01T18:09:44+08:00
-updated_at: 2026-09-01T18:26:00+08:00
+updated_at: 2026-09-01T18:57:13+08:00
 started_at: 2026-09-01T18:15:48+08:00
-accepted_at:
-candidate_commit:
-closure_commit:
-evidence:
-duration_minutes: 0
+accepted_at: 2026-09-01T18:57:13+08:00
+candidate_commit: https://github.com/maggnus/ymp/commit/3d1e95c61c15662594a8ae828c1464cdadd7f1be
+closure_commit: https://github.com/maggnus/ymp/commit/674182a8c1a0ca92bd100d4d1af4bc12b417db74
+evidence: ["[674182a](https://github.com/maggnus/ymp/commit/674182a8c1a0ca92bd100d4d1af4bc12b417db74)"]
+duration_minutes: 35
 blocker:
 pause_reason:
 return_trigger:
 deliberate_partial: false
-review_rounds: 0
+review_rounds: 2
 escalation_decision:
 ---
 
@@ -70,25 +70,25 @@ workspace root rather than trusting a server that merely advertises matching JSO
 
 ## Acceptance
 
-- [ ] Direct MCP initialization/list/call in a fresh root exposes exactly two ordered tools and one
+- [x] Direct MCP initialization/list/call in a fresh root exposes exactly two ordered tools and one
       canonical server identity; write then read produces exact bytes only at the controller-bound
       relative path and no file elsewhere.
-- [ ] The canonical `probe_transport_digest` changes when server/launcher executable bytes, internal
+- [x] The canonical `probe_transport_digest` changes when server/launcher executable bytes, internal
       command/configuration, protocol/name/version, tool schema/order or canonical workspace root
       changes. A schema-identical substitute child or path changed after the controller's prelaunch
       measurement therefore produces a different actual identity; W1-EVL-04n owns the mandatory
       immediate pre-spawn comparison and refusal.
-- [ ] `ToolHostProbeTrace` and recovered `AttestedToolHostProbe` bind the exact transport identity;
+- [x] `ToolHostProbeTrace` and recovered `AttestedToolHostProbe` bind the exact transport identity;
       missing/default/altered transport identity, a copied root or mismatched executable/configuration
       fails before attestation or `model_ready`.
-- [ ] The expected executable/configuration digest is measured and fsynced by the foreground
+- [x] The expected executable/configuration digest is measured and fsynced by the foreground
       controller before child creation, not self-reported by the MCP child. Replacing only the child
       while retaining its JSON schema fails; replacing the entire trusted foreground executable is
       explicitly the signed-release/TCB boundary, not a claim of this probe.
-- [ ] Absolute/traversing/symlink/pre-existing paths, wrong nonce, duplicate/reordered/extra calls,
+- [x] Absolute/traversing/symlink/pre-existing paths, wrong nonce, duplicate/reordered/extra calls,
       unknown fields, additional tools and inherited unapproved environment each fail without an
       accepted read-back or file outside the disposable workspace.
-- [ ] Focused runtime-api/MCP/internal-CLI/Application fixture tests, one mutation replacing the
+- [x] Focused runtime-api/MCP/internal-CLI/Application fixture tests, one mutation replacing the
       executable while retaining the same JSON schema and proving a different transport digest,
       strict affected-package Clippy, formatting
       and `git diff --check` pass with zero model/network/money calls and isolated
@@ -96,15 +96,15 @@ workspace root rather than trusting a server that merely advertises matching JSO
 
 ## Current state
 
-The accepted fake trace binds only `tool_host_probe_tool_schema_digest`; no real MCP server exists.
-A schema-identical substitute could create expected bytes and produce a false reachability claim.
-W1-EVL-04l already stores the full runtime identity, so adding one exact transport identity closes
-the gap without changing its authority or persistence model.
+Accepted and integrated as
+[674182a](https://github.com/maggnus/ymp/commit/674182a8c1a0ca92bd100d4d1af4bc12b417db74).
+The private two-tool MCP server and canonical transport identity now bind foreground measurement,
+reservation, trace and opaque attestation without any live provider call.
 
 ## Next action
 
-Run a Critical contract check of the three-file transport seam before dispatching one Sol xhigh
-builder; W1-EVL-04n remains blocked until this identity and server are accepted.
+Run W1-EVL-04p to add behavioral compatibility fields to the accepted transport-bearing runtime
+identity, then W1-EVL-04q and the live bridge.
 
 ## Guardrails
 
@@ -134,18 +134,30 @@ marker carries the reviewer's ten-point score and the local moment of the verdic
 escalation, one `- CTO <decision> <dd/mm hh:mm> — <reason>` line records what was decided. The review
 dialogue itself stays in the reports and the evidence package.
 
-## Closure
+- R1(7/10) RETURN 01/09 18:54 — measurement and persistence were correct but no live start existed
+  to recheck bytes after reservation → the candidate remained unchanged → the immediate TOCTOU
+  check was assigned explicitly to W1-EVL-04n, which alone owns the real pre-spawn boundary
+- R2(9/10) ACCEPT 01/09 18:56 — the narrowed zero-model outcome is complete → independent review
+  confirms exact two-tool server, strict measurement and attestation binding, and a distinct digest
+  for a schema-identical substitute without claiming a live refusal
 
-Filled when the task is accepted. Until then this section stays as written.
+## Closure
 
 ### Accepted outcome
 
-What was actually accepted.
+The product now has a separate `ymp.workspace` stdio MCP server exposing only ordered
+`workspace_write` and `workspace_read`. The trusted foreground measures executable bytes,
+configuration and canonical workspace before reservation; `ProbeTransportIdentity` and its digest
+are bound through request, reservation, untrusted trace and opaque Application attestation. Unsafe
+paths, wrong nonce/order/schema and copied or altered transport identity fail without model use.
 
 ### Residuals
 
-Honestly retained limitations, each with an exact return trigger. Empty when there are none.
+The live child is not started in this task. W1-EVL-04n must rehash executable/configuration/root
+immediately before spawn and prove a post-reservation substitution fails with `model_calls=0`.
 
 ### Evidence
 
-- Commit, evidence package, or durable document of record, each as a Markdown link.
+- [674182a](https://github.com/maggnus/ymp/commit/674182a8c1a0ca92bd100d4d1af4bc12b417db74)
+  — integrated tree, byte-identical for the reviewed paths to candidate
+  [3d1e95c](https://github.com/maggnus/ymp/commit/3d1e95c61c15662594a8ae828c1464cdadd7f1be).
