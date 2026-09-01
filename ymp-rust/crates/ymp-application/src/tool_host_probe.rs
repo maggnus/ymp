@@ -3514,6 +3514,7 @@ mod tests {
 
     #[test]
     fn failure_recovery_rejects_missing_corrupt_mutated_replayed_and_conflicting_records() {
+        #[derive(Clone, Copy)]
         enum Mutation {
             Missing,
             Corrupt,
@@ -3551,12 +3552,30 @@ mod tests {
                     stored.replay_key = "f".repeat(64);
                 }),
             }
-            assert!(
-                application
-                    .tool_host_probe_failure(&material.probe_id)
-                    .is_err(),
-                "failure mutation {index} reloaded"
-            );
+            let error = application
+                .tool_host_probe_failure(&material.probe_id)
+                .expect_err("failure mutation must be rejected");
+            match mutation {
+                Mutation::Missing => assert!(matches!(
+                    error,
+                    ToolHostProbeAttestationError::FailureMissing
+                )),
+                Mutation::Corrupt
+                | Mutation::MissingUsage
+                | Mutation::UnknownPhase
+                | Mutation::ReplayKey => assert!(matches!(
+                    error,
+                    ToolHostProbeAttestationError::FailureInvalid { .. }
+                )),
+            }
+            assert_no_attestation(&root, &material.probe_id);
+            let replay = execute_prepared(&mut application, material.clone(), |_, _| {
+                panic!("corrupt failed reservation executed again")
+            });
+            assert!(matches!(
+                replay,
+                Err(ToolHostProbeAttestationError::ReservationSpent)
+            ));
         }
 
         let root = tempdir().expect("conflict root");
@@ -3591,21 +3610,37 @@ mod tests {
         let mut application = create_application(&source);
         let material = material('d');
         persist_terminal_failure(&mut application, &material);
+        assert_no_attestation(&source, &material.probe_id);
         assert!(
             application
                 .tool_host_probe_failure(&material.probe_id)
                 .is_ok()
         );
+        let replay = execute_prepared(&mut application, material.clone(), |_, _| {
+            panic!("source failed reservation executed again")
+        });
+        assert!(matches!(
+            replay,
+            Err(ToolHostProbeAttestationError::ReservationSpent)
+        ));
         drop(application);
 
         let copied = tempdir().expect("copied root");
         copy_directory(&source.path().join("store"), &copied.path().join("store"));
-        let copied_application =
+        let mut copied_application =
             Application::open(copied.path().join("store")).expect("open copied store bytes");
         assert!(matches!(
             copied_application.tool_host_probe_failure(&material.probe_id),
             Err(ToolHostProbeAttestationError::ReservationInvalid { .. })
                 | Err(ToolHostProbeAttestationError::UnexpectedWorkspaceEffect)
+        ));
+        assert_no_attestation(&copied, &material.probe_id);
+        let replay = execute_prepared(&mut copied_application, material, |_, _| {
+            panic!("copied failed reservation executed again")
+        });
+        assert!(matches!(
+            replay,
+            Err(ToolHostProbeAttestationError::ReservationSpent)
         ));
     }
 
