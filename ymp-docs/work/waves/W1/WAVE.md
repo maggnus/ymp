@@ -4,10 +4,10 @@ kind: wave
 state: active
 areas: [EXP, APP, COR, EVL]
 plan_review_state: accepted
-plan_review_evidence: https://github.com/maggnus/ymp/commit/dd2cadb7d34a3698bfbe6011b4f502506173aa0a
-plan_review_at: 2026-08-12T09:35:13+08:00
+plan_review_evidence: https://github.com/maggnus/ymp/commit/b6ca7c8d589fb3143ee0aabc5afe3fda3e014ddf
+plan_review_at: 2026-09-01T13:54:00+08:00
 created_at: 2026-08-10T19:34:25+08:00
-updated_at: 2026-08-12T11:56:07+08:00
+updated_at: 2026-09-01T13:54:00+08:00
 blocker:
 ---
 
@@ -50,3 +50,11 @@ Owner gates `G2` and `G3` were resolved on 12 August. External public packages h
 owner-imposed numeric ceiling. A monetary limit is optional and, if configured, applies to the
 project as a whole. Corpus size and resource opportunity are frozen by the preregistered
 statistical design, while actual usage and cost remain fully accounted.
+
+The plan was reviewed again after the scientific stage-boundary audit. R1 returned the tree because
+the new held-out L4+ task owner contradicted a protocol that still ran L1–L3 as three-arm evidence;
+it also required legacy validator debt to have its own non-blocking node. R2(9/10) accepted
+[b6ca7c8](https://github.com/maggnus/ymp/commit/b6ca7c8d589fb3143ee0aabc5afe3fda3e014ddf):
+L1–L3 are calibration only; W1-EXP-01e freezes L4+ tasks before any model call; W1-EVL-04e/f own
+weak diagnostic and strong-profile transfer; W1-EVL-04a remains primary-only; W1-EVL-04g isolates
+historical work-record debt. The reviewed closure graph is acyclic.
