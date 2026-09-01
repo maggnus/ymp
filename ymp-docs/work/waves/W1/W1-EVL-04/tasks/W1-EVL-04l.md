@@ -3,25 +3,25 @@ id: W1-EVL-04l
 kind: task
 wave: W1
 card: W1-EVL-04
-state: active
+state: accepted
 risk: critical
 maturity: BUILD
 relation: required
 depends_on: [W1-EVL-04j]
 blocks: [W1-EVL-04n]
 created_at: 2026-09-01T15:57:45+08:00
-updated_at: 2026-09-01T17:24:36+08:00
+updated_at: 2026-09-01T17:59:33+08:00
 started_at: 2026-09-01T17:24:36+08:00
-accepted_at:
-candidate_commit:
-closure_commit:
-evidence:
-duration_minutes: 0
+accepted_at: 2026-09-01T17:59:33+08:00
+candidate_commit: https://github.com/maggnus/ymp/commit/3295bfe34f794723bba4f3a2aace2923911370b8
+closure_commit: https://github.com/maggnus/ymp/commit/f52994f8fc889894fbde85a4908589431b4f3bce
+evidence: ["[f52994f](https://github.com/maggnus/ymp/commit/f52994f8fc889894fbde85a4908589431b4f3bce)"]
+duration_minutes: 31
 blocker:
 pause_reason:
 return_trigger:
 deliberate_partial: false
-review_rounds: 0
+review_rounds: 1
 escalation_decision:
 ---
 
@@ -84,43 +84,42 @@ W1-EVL-04j seam, independently reads back the file and persists one opaque
 
 ## Acceptance
 
-- [ ] In a disposable evaluation root the controller first proves the target absent, creates and
+- [x] In a disposable evaluation root the controller first proves the target absent, creates and
       fsyncs exactly one reservation marker, generates nonce/path/identity, invokes the accepted
       fake-runtime seam, reads the file itself and emits one immutable opaque attestation bound to
       the complete trace and read-back digest.
-- [ ] Missing file, wrong nonce, runtime- or model-chosen path/nonce/digest, stale or replayed
+- [x] Missing file, wrong nonce, runtime- or model-chosen path/nonce/digest, stale or replayed
       invocation, incomplete usage, mismatched route/profile/version/schema, ambiguous terminal,
       timeout/cancellation, budget overrun or extra effect produces no attestation and no persisted
       success record.
-- [ ] A pre-existing destination, syntactically valid raw trace or model-authored evidence cannot
+- [x] A pre-existing destination, syntactically valid raw trace or model-authored evidence cannot
       construct, deserialize or reload an accepted attestation without the controller-owned
       reservation, independent read-back and private store reference.
-- [ ] A round-trip serialized handle reloads the same opaque attestation only through the matching
+- [x] A round-trip serialized handle reloads the same opaque attestation only through the matching
       Application store. Mutated digest/store/probe fields, a copied handle in another isolated root
       and a fabricated handle each fail; handle JSON alone cannot satisfy W1-EVL-04m.
-- [ ] The probe budget is distinct from every arm/task/candidate/communication allocation. Its
+- [x] The probe budget is distinct from every arm/task/candidate/communication allocation. Its
       immutable reservation is written before start; charged usage is no larger than it, and a
       failure, crash, replay or repeated terminal cannot refund it or start a second invocation.
-- [ ] Recovery accepts only matching reservation, object and reference digests; missing/corrupt
+- [x] Recovery accepts only matching reservation, object and reference digests; missing/corrupt
       records and a reservation stranded before attestation remain spent and keep the gate closed.
-- [ ] A product-path test with separate project, `HOME`, `YMP_HOME`, `TMPDIR`, build and export
+- [x] A product-path test with separate project, `HOME`, `YMP_HOME`, `TMPDIR`, build and export
       proves all durable probe state is below isolated `YMP_HOME`, with nothing in the repository,
       current directory or real `~/.ymp`.
-- [ ] Focused Application/internal-CLI tests, strict affected-package Clippy, formatting and
+- [x] Focused Application/internal-CLI tests, strict affected-package Clippy, formatting and
       `git diff --check` pass; no real model/network/money call runs.
 
 ## Current state
 
-W1-EVL-04j supplies only an untrusted fake-runtime trace. The missing authority is controller-owned
-prelaunch absence, nonce/read-back, one durable reservation and one private immutable attestation.
-This node validates that mechanism without a model; W1-EVL-04n separately owns the exact live Codex
-bridge, so no live probe is authorized here.
+Accepted and integrated as
+[f52994f](https://github.com/maggnus/ymp/commit/f52994f8fc889894fbde85a4908589431b4f3bce).
+The controller now owns prelaunch absence, nonce/read-back, one durable reservation and one opaque
+private attestation. Only W1-EVL-04n may add the exact live Codex bridge.
 
 ## Next action
 
-Repeat the Critical contract check against these exact narrow storage and accounting semantics; on
-acceptance, dispatch one Sol xhigh builder without widening into a generic budget or capability
-subsystem.
+Run the Critical contract check and implementation of W1-EVL-04n, then one separately budgeted live
+Codex probe in a disposable root.
 
 ## Guardrails
 
@@ -149,18 +148,29 @@ marker carries the reviewer's ten-point score and the local moment of the verdic
 escalation, one `- CTO <decision> <dd/mm hh:mm> — <reason>` line records what was decided. The review
 dialogue itself stays in the reports and the evidence package.
 
-## Closure
+- R1(9/10) ACCEPT 01/09 17:58 — the three-path implementation keeps nonce, path, reservation and
+  private attestation under controller authority → author evidence covers focused positive and
+  negative halves → the independent falsifier proves a valid handle copied to another store and
+  damaged reference/object cannot yield an opaque attestation
 
-Filled when the task is accepted. Until then this section stays as written.
+## Closure
 
 ### Accepted outcome
 
-What was actually accepted.
+`Application` now creates one controller-owned probe identity, nonce and private destination, proves
+the target absent and fsyncs a single non-refundable reservation before the fake runtime starts. It
+independently reads the resulting bytes, validates the complete untrusted trace, stores canonical
+opaque attestation bytes in the existing object store and then durably binds them with one reference.
+The internal command exports only a strict untrusted handle; only the matching Application store can
+reload and return the non-deserializable attestation.
 
 ### Residuals
 
-Honestly retained limitations, each with an exact return trigger. Empty when there are none.
+The task deliberately exercises only the accepted fake seam. Exact live Codex reachability and its
+single admitted expense remain W1-EVL-04n dependencies; no live gate is claimed here.
 
 ### Evidence
 
-- Commit, evidence package, or durable document of record, each as a Markdown link.
+- [f52994f](https://github.com/maggnus/ymp/commit/f52994f8fc889894fbde85a4908589431b4f3bce)
+  — integrated tree, byte-identical for the reviewed paths to candidate
+  [3295bfe](https://github.com/maggnus/ymp/commit/3295bfe34f794723bba4f3a2aace2923911370b8).

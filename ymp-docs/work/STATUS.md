@@ -96,7 +96,7 @@
 | `[x]` | [`W1-EVL-04i`](waves/W1/W1-EVL-04/tasks/W1-EVL-04i.md) | Codex runtime proves exact 0.151 conformance | [`b93cd09b`](https://github.com/maggnus/ymp/commit/b93cd09b039eb9751f929ce7972d141ceebbe0e1) | 01/09 15:54 | 01/09 16:33 (39m) |
 | `[x]` | [`W1-EVL-04j`](waves/W1/W1-EVL-04/tasks/W1-EVL-04j.md) | Runtime executes a bounded no-task-output probe | [`d5e805ae`](https://github.com/maggnus/ymp/commit/d5e805aeec270d7a12587e92da53806d3074f4eb) | 01/09 16:35 | 01/09 17:05 (29m) |
 | `[x]` | [`W1-EVL-04k`](waves/W1/W1-EVL-04/tasks/W1-EVL-04k.md) | Product fixtures bind the proven Codex runtime tuple | [`77dab741`](https://github.com/maggnus/ymp/commit/77dab74116e9836795e07e9eb0e5b149d032d73d) | 01/09 16:39 | 01/09 17:07 (17m) |
-| `[~]` | [`W1-EVL-04l`](waves/W1/W1-EVL-04/tasks/W1-EVL-04l.md) | Controller owns nonce read-back and probe attestation | — | 01/09 17:24 | 01/09 17:24 (0m) |
+| `[x]` | [`W1-EVL-04l`](waves/W1/W1-EVL-04/tasks/W1-EVL-04l.md) | Controller owns nonce read-back and probe attestation | [`f52994f8`](https://github.com/maggnus/ymp/commit/f52994f8fc889894fbde85a4908589431b4f3bce) | 01/09 17:24 | 01/09 17:59 (31m) |
 | `[ ]` | [`W1-EVL-04m`](waves/W1/W1-EVL-04/tasks/W1-EVL-04m.md) | Admission consumes only controller-attested probe evidence | — | — | — |
 | `[ ]` | [`W1-EVL-04n`](waves/W1/W1-EVL-04/tasks/W1-EVL-04n.md) | Exact Codex profile performs one controller-bound tool-host probe | — | — | — |
 | `[x]` | [`W1-EXP-01`](waves/W1/W1-EXP-01/CARD.md) | POC assumptions are falsifiable before product code | [`ca221c9a`](https://github.com/maggnus/ymp/commit/ca221c9a4b81775bf158cf915d0d7613e9daae92) | 12/08 11:02 | 14/08 02:22 (0m) |
