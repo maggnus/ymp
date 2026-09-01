@@ -3,26 +3,26 @@ id: W1-EXP-01f
 kind: task
 wave: W1
 card: W1-EXP-01
-state: ready
+state: accepted
 risk: critical
 maturity: BUILD
 relation: follow_up
 depends_on: [W1-EXP-01e]
 blocks: [W1-EVL-04e, W1-EVL-04f, W1-EVL-04a]
 created_at: 2026-09-01T15:18:13+08:00
-updated_at: 2026-09-01T15:18:13+08:00
-started_at:
-accepted_at:
-candidate_commit:
-closure_commit:
-evidence:
-duration_minutes: 0
+updated_at: 2026-09-01T16:27:38+08:00
+started_at: 2026-09-01T15:53:23+08:00
+accepted_at: 2026-09-01T16:27:38+08:00
+candidate_commit: https://github.com/maggnus/ymp/commit/a2a3de1288dfc4957b34bb6ecec7e5e8ee27452c
+closure_commit: https://github.com/maggnus/ymp/commit/59e35d90981e78fbfe194ab7df41b4afab6d2d1b
+evidence: ["[59e35d9](https://github.com/maggnus/ymp/commit/59e35d90981e78fbfe194ab7df41b4afab6d2d1b)"]
+duration_minutes: 34
 blocker:
 pause_reason:
 return_trigger:
 deliberate_partial: false
-review_rounds: 0
-escalation_decision:
+review_rounds: 3
+escalation_decision: bounded_retry
 ---
 
 # W1-EXP-01f — Immutable v2 covers both strata in both splits
@@ -69,39 +69,39 @@ strong-profile transfer jointly identifiable before any model call.
 
 ## Acceptance
 
-- [ ] The v2 manifest binds the exact accepted v1 manifest digest and records `model_calls=0`; a
+- [x] The v2 manifest binds the exact accepted v1 manifest digest and records `model_calls=0`; a
       changed parent digest, write to v1, or attempt to replace an accepted v1 cell is rejected.
-- [ ] `development-v2 check` reports exactly one task in each of the four stratum×split cells. A
+- [x] `development-v2 check` reports exactly one task in each of the four stratum×split cells. A
       missing cell, duplicate cell, unknown stratum/split, or reuse of one task identifier in both
       splits fails before any candidate or model execution.
-- [ ] Within each stratum, development and transfer are fresh task instances: their task,
+- [x] Within each stratum, development and transfer are fresh task instances: their task,
       source/public-contract/protected-oracle/reference-candidate digests and seed namespaces are
       distinct. Cross-split aliasing of any required identity fails compliance.
-- [ ] The retained v1 tasks remain byte-identical and digest-bound. Both new reference candidates
+- [x] The retained v1 tasks remain byte-identical and digest-bound. Both new reference candidates
       pass their exact protected verifier; their seeded invalid candidates fail non-zero for
       distinct recorded reasons and blind spots.
-- [ ] Separate mutations for missing matrix cell, split alias, stratum relabel and protected-oracle
+- [x] Separate mutations for missing matrix cell, split alias, stratum relabel and protected-oracle
       substitution have immutable mutation/expected-result digests and each makes the v2 validator
       fail for its own reason with `model_calls=0`.
-- [ ] Preparation, digest reproduction, mutation validation and the CLI consumer walk execute in a
+- [x] Preparation, digest reproduction, mutation validation and the CLI consumer walk execute in a
       fresh root with separate project, `HOME`, `YMP_HOME`, `TMPDIR`, build and export paths;
       protected bytes stay in a sibling verifier root unavailable to candidate projects.
-- [ ] A write-zone inventory fails on every v1, calibration, primary, recruitment, runtime,
+- [x] A write-zone inventory fails on every v1, calibration, primary, recruitment, runtime,
       research or work-record change; focused tests, strict Clippy, formatting and
       `git diff --check` have no warnings or errors.
 
 ## Current state
 
-Accepted v1 has only development/decomposable `l4-config-fusion` and
-transfer/sequential-null `l4-sequential-replay`. Scientific review confirmed that this cannot both
-diagnose the promised strata and transfer the same positive mechanism to a fresh task. No model has
-seen the freeze. W1-EVL-04h currently owns the shared `ymp-corpus` seams, so this task is planned but
-not dispatched until that candidate is integrated.
+Accepted and integrated as
+[59e35d9](https://github.com/maggnus/ymp/commit/59e35d90981e78fbfe194ab7df41b4afab6d2d1b).
+The immutable v2 supplies all four development/transfer × decomposable/sequential-null cells,
+retains v1 by exact manifest and tree digests, and rejects every declared mutation before any model
+path. No model has seen the freeze.
 
 ## Next action
 
-After W1-EVL-04h releases `ymp-corpus` seams, run the Critical pre-dispatch contract check and assign
-one Sol xhigh builder from the then-current `main`.
+Consume this exact v2 freeze from W1-EVL-04e and W1-EVL-04f without changing tasks, digests, strata,
+splits, seeds or protected inputs.
 
 ## Guardrails
 
@@ -117,6 +117,9 @@ one Sol xhigh builder from the then-current `main`.
 
 - Created from independent review of RUN-001/HYP-001/MAP-002 against the accepted v1 manifest and
   W1-EVL-04e/f. The 2×2 counterexample is a blocking scientific result, not a reason to rewrite v1.
+- Independent review reached the product only after correcting its own tool-cache and corpus-layout
+  errors; the final external mutation of the accepted v1 manifest failed on the expected digest
+  mismatch with `model_calls=0` and an empty candidate project.
 
 ## Review rounds
 
@@ -126,18 +129,34 @@ marker carries the reviewer's ten-point score and the local moment of the verdic
 escalation, one `- CTO <decision> <dd/mm hh:mm> — <reason>` line records what was decided. The review
 dialogue itself stays in the reports and the evidence package.
 
-## Closure
+- R1(7/10) ESCALATE 01/09 16:20 — the full 38-path diff and frozen identities satisfy the contract,
+  but the independent mutation did not reach the product because the isolated tool cache was empty
+  → CTO granted one proof-only retry with offline local tool caches → candidate unchanged
+- CTO bounded_retry 01/09 16:20 — no product defect was established; the bounded evidence budget
+  was extended only to let the same reviewer-owned v1 mutation reach the product offline
+- R2(7/10) RETURN 01/09 16:24 — the CLI failed closed with `model_calls=0`, but the reviewer placed
+  v1 outside the validator's expected sibling path and observed ENOENT rather than a digest failure
+  → CTO granted a final sibling-layout proof inside the absolute review ceiling → candidate unchanged
+- R3(8/10) ACCEPT 01/09 16:27 — the product read the altered accepted-v1 manifest and rejected it as
+  `PARENT_V1_MUTATED` with `development manifest digest mismatch` → candidate project stayed empty,
+  temporary state was removed and repository porcelain remained byte-identical
 
-Filled when the task is accepted. Until then this section stays as written.
+## Closure
 
 ### Accepted outcome
 
-What was actually accepted.
+An additive immutable `weak-diagnostic-v2` binds the accepted v1 manifest and tree, retains its two
+cells, and adds fresh development/sequential-null and transfer/decomposable tasks. The exact CLI
+reports one task in every matrix cell, accepts four references, rejects two seeded defects and four
+independent compliance mutations, keeps protected bytes outside candidate projects, and records
+`model_calls=0`.
 
 ### Residuals
 
-Honestly retained limitations, each with an exact return trigger. Empty when there are none.
+None.
 
 ### Evidence
 
-- Commit, evidence package, or durable document of record, each as a Markdown link.
+- [59e35d9](https://github.com/maggnus/ymp/commit/59e35d90981e78fbfe194ab7df41b4afab6d2d1b)
+  — integrated tree, byte-identical for the reviewed corpus paths to candidate
+  [a2a3de1](https://github.com/maggnus/ymp/commit/a2a3de1288dfc4957b34bb6ecec7e5e8ee27452c).
