@@ -123,6 +123,10 @@ GitHub source above.
 
 ## Change and validation rules
 
+- Repository code is written only by `codex/gpt-5.6-sol`: use `high` for local, mechanically
+  bounded changes and `xhigh` for architecture, state, security, concurrency, and cross-component
+  boundaries. Weaker profiles may participate in controlled POC experiments or read-only research,
+  but they do not author repository code.
 - Build the POC as the production foundation. Documentation records verified behavior and must
   not replace implementation evidence.
 - Check claims against Git, current documents, executable tests, and all three current
