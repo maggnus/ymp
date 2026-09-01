@@ -44,9 +44,15 @@ interaction model be translated into screens.
   document index.
 - Begin `USER_JOURNEY.md` with fixed machine-readable front matter:
   `journey_status: draft|owner_approved`, `owner_approved_at`,
-  `scientific_review: pending|confirmed`, and `scientific_reviewed_at`. The author returns a draft;
-  only an explicit later owner decision and standing-researcher verdict may populate the accepted
-  values. Neither the author nor a UI reviewer may infer those approvals.
+  `scientific_review: pending|confirmed`, `scientific_reviewed_at`, `journey_body_sha256`,
+  `owner_approval_source` and `scientific_review_source`. The body hash excludes front matter so
+  approval metadata can be added without changing the reviewed story. The author returns a draft;
+  neither the author nor a UI reviewer may infer approval.
+- Bind both approvals to immutable prior Git records in this task file. After the draft is stable,
+  the standing researcher reviews its exact `journey_body_sha256`; the CTO records
+  `SCIENTIFIC CONFIRMED <hash>` in W1-COR-03e.6 and commits it. The owner then explicitly approves the
+  same hash; the CTO records `OWNER APPROVED <hash>` in a later task commit. Only afterwards may the
+  journey front matter cite those two full 40-character commit URLs and become accepted.
 - Primary user: a person who wants a working project result and does not operate runtimes,
   multi-agent protocols or experiments. The concrete reference story is creating and revising a
   playable Battleship game from a plain-language request.
@@ -152,9 +158,13 @@ interaction model be translated into screens.
       before any new screen contract is dispatched.
 - [ ] The accepted document itself records `journey_status: owner_approved` with a non-empty
       `owner_approved_at`, and `scientific_review: confirmed` with a non-empty
-      `scientific_reviewed_at`. A readiness command checks all four fields. On a temporary copy with
-      `draft` or `pending`, the same command exits non-zero; no UI task may treat chat history or a
-      reviewer summary as an equivalent approval.
+      `scientific_reviewed_at`. It also records a computed `journey_body_sha256` and full immutable
+      commit URLs in `owner_approval_source` and `scientific_review_source`.
+- [ ] A readiness command recomputes the body hash, extracts both source SHAs, and uses `git show` to
+      verify that the cited historical W1-COR-03e.6 contains respectively exact markers
+      `OWNER APPROVED <hash>` and `SCIENTIFIC CONFIRMED <hash>`. Both cited commits must precede the
+      final journey-approval commit. A temporary `draft`/`pending`, altered body, missing/wrong source,
+      short SHA or mismatched marker exits non-zero. Chat history and reviewer summaries do not count.
 
 ## Current state
 
@@ -165,9 +175,9 @@ provider/pool setup and owner decisions before a document is drafted.
 
 ## Next action
 
-Produce the draft, obtain and record the standing researcher verdict, present the complete story to
-the owner, and record explicit approval in the document. Re-run the four-field readiness check and
-accept this task before drafting any UI contract.
+Produce the draft and body hash; obtain and commit the standing researcher marker; present the same
+hash to the owner and commit the explicit owner marker; then add the two immutable source URLs to
+the journey, run the provenance-aware readiness check and accept this task before any UI contract.
 
 ## Guardrails
 
@@ -182,6 +192,8 @@ accept this task before drafting any UI contract.
 - Draft metadata is fail-closed. Only the owner supplies owner approval and only the standing
   scientific researcher supplies scientific confirmation; all other roles may inspect but cannot
   set those states.
+- Approval sources are prior commits, never the final document's own commit, a branch, a short SHA,
+  an agent report or conversation prose. Both approvals bind the same computed story-body hash.
 
 ## Findings
 
