@@ -11,10 +11,10 @@ relation: required
 depends_on: []
 blocks: []
 created_at: 2026-09-01T12:14:00+08:00
-updated_at: 2026-09-01T12:26:00+08:00
+updated_at: 2026-09-01T12:50:00+08:00
 started_at: 2026-09-01T12:15:03+08:00
 accepted_at:
-candidate_commit:
+candidate_commit: https://github.com/maggnus/ymp/commit/ff0dae3d54f01b9c1ba3d0a244d217a714bfb0cf
 closure_commit:
 evidence:
 duration_minutes: 0
@@ -22,8 +22,8 @@ blocker:
 pause_reason:
 return_trigger:
 deliberate_partial: false
-review_rounds: 1
-escalation_decision:
+review_rounds: 2
+escalation_decision: independent_review
 ---
 
 # W1-COR-03e.1 — Application persists and resolves inert board payloads
@@ -43,11 +43,14 @@ without exposing storage, a mutable board, or authority to the TUI.
 - Focused application tests for reopen, mutation isolation, and fail-closed mismatch or loss.
 - The exact `ymp-testkit/src/lib.rs` call site that currently obtains `Application::object_store()`
   and a candidate path; it is replaced by a typed application verification operation.
+- The exact `ymp-runtime-supervisor::start_candidate` and `ymp-tui::App::from_application` call
+  sites that currently consume `Application::data_root()`; they may be replaced only by typed
+  application operations or owned values that do not reveal the storage root.
 
 ### Out
 
-- TUI rendering, agent-facing tools, new board semantics, automatic migration, and any causal
-  interpretation of messages.
+- TUI rendering or visual behaviour, runtime scheduling semantics, agent-facing tools, new board
+  semantics, automatic migration, and any causal interpretation of messages.
 
 ## Acceptance
 
@@ -61,15 +64,13 @@ without exposing storage, a mutable board, or authority to the TUI.
 
 ## Current state
 
-R1 returned candidate `ec45bce`: payload ordering and resolution are correct, but pre-existing
-public `Application::object_store()` and `Application::board()` still bypass the typed boundary.
-The only non-test call site is the accepted-demo verifier in `ymp-testkit`; its exact replacement is
-now in scope and no correction code has yet been written.
+The clean range resolved R2's branch contamination. R3 found `Application::data_root()`; the author
+then found two necessary consumers outside the former zone and stopped without changes. Those exact
+runtime-supervisor and TUI call sites are now authorized for typed replacement.
 
 ## Next action
 
-Replace the testkit path extraction with a typed application verification operation, close both
-public accessors, and return the corrected candidate.
+Replace all three `data_root()` callers, close the accessor, and return one bounded commit.
 
 ## Guardrails
 
@@ -80,8 +81,13 @@ public accessors, and return the corrected candidate.
 
 ## Findings
 
-- R1 scope break: `ymp-testkit::run_accepted_demo` depends on the public object-store/path accessor;
-  only this call site is authorized outside `ymp-application/**` for the correction.
+- R1 scope break was corrected: the exact `ymp-testkit` call now uses a typed application verifier.
+- R2 break was branch topology, not a new product defect; the contaminated range was replaced by a
+  clean candidate instead of ratifying unrelated paths.
+- R3 major outcome defect: public `data_root()` still reveals storage paths; the independent
+  compile-fail proof did not cover this equivalent accessor.
+- R3 scope break: runtime launch and TUI construction also call `data_root()`; only those two exact
+  call sites are added to the correction zone.
 
 ## Review rounds
 
@@ -93,6 +99,11 @@ dialogue itself stays in the reports and the evidence package.
 
 - R1(7/10) RETURN 01/09 12:26 — public object-store and board access bypasses the typed seam → Sol
   correction assigned → candidate `ec45bce` returned
+- R2(6/10) ESCALATE 01/09 12:44 — correction range also carried unrelated mainline documents → R1
+  finding closed but range rejected → clean two-commit candidate required
+- CTO independent_review 01/09 12:46 — replacement review inspects the clean range only
+- R3(6/10) RETURN 01/09 12:48 — public `data_root()` reconstructs storage paths → original Sol
+  author found two out-of-zone consumers and stopped → exact call sites added before correction
 
 ## Closure
 
