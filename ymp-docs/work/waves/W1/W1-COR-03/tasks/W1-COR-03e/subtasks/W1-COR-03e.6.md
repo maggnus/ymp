@@ -49,6 +49,13 @@ interaction model be translated into screens.
   the system handles itself, the visible progress/error, the observable success and the next move.
 - Cover first launch, initial goal, only necessary clarification, work in progress, preview/run,
   requested revision, acceptance/export, cancellation, recoverable failure and infrastructure STOP.
+- Cover provider and pool preparation as a separate occasional setup journey, not a tax on every
+  task: inspect installed/authenticated availability, enable or disable a provider with plain-language
+  data-disclosure consequences, choose which provider/model profiles are eligible to populate the
+  pool, and set participant/spend ceilings. Normal task execution uses the accepted pool automatically.
+- State what a provider/pool change affects according to accepted product behavior — future
+  participant starts, current work, stored evidence and data access — or label the behavior a gap;
+  never imply live revocation or migration that the protocol does not provide.
 - Keep the distinctive multi-agent system legible without making it the user’s job: the primary
   path always carries a compact factual team summary — participant count, provider/model identity,
   current declared task/obligation and status — while detailed team, task, board and artifact-flow
@@ -86,6 +93,9 @@ interaction model be translated into screens.
 - [ ] One story covers automatic team formation and progress: the person can see how many agents are
       active, which providers/models they use and their declared tasks/statuses without choosing or
       manually assigning them. Detailed team/task/board/artifact flow is readable on demand.
+- [ ] One setup story covers provider enable/disable, authentication/error states, disclosure
+      consent and the eligible pool. The person chooses the allowed resources and ceilings, not the
+      semantic assignment of every task; effects on active versus future work are stated honestly.
 - [ ] One story covers a user message to the shared board as an attributed intervention; audience,
       delivery and later participant action remain distinct and no automatic effect is implied.
 - [ ] Success, clarification, cancellation, recoverable failure and infrastructure STOP paths are
@@ -98,6 +108,10 @@ interaction model be translated into screens.
       steps in the story.
 - [ ] Every promised capability is linked to accepted current behavior or labelled a gap; POC and
       MVP are separated without presenting future behavior as implemented.
+- [ ] A protocol-derived control inventory classifies provider/pool eligibility, participant and
+      recruitment ceilings, spend, cancellation, board reading/writing, export and diagnostics as
+      primary, occasional setup or advanced detail; no internal mechanism is promoted without a
+      user consequence.
 - [ ] The scientific researcher confirms that visible progress/evidence does not claim listening,
       communication value, coordination or self-organization; the owner approves the complete story
       before any new screen contract is dispatched.
