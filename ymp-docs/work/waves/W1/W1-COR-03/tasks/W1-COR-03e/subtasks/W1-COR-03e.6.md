@@ -49,15 +49,23 @@ interaction model be translated into screens.
   the system handles itself, the visible progress/error, the observable success and the next move.
 - Cover first launch, initial goal, only necessary clarification, work in progress, preview/run,
   requested revision, acceptance/export, cancellation, recoverable failure and infrastructure STOP.
+- Keep the distinctive multi-agent system legible without making it the user’s job: the primary
+  path always carries a compact factual team summary — participant count, provider/model identity,
+  current declared task/obligation and status — while detailed team, task, board and artifact-flow
+  views open only when requested.
+- Let the person read the shared board and communication flow. A user-authored board message is an
+  explicit, attributed intervention with visible scope; it cannot silently become a task assignment,
+  capability or proof that another participant listened.
 - Define the interaction grammar without drawing it: normal conversation, optional expert command,
   inspectable detail, and consequence-bearing decision. A UI surface is chosen later from this
   grammar rather than from system components.
 - Name the two or three unavoidable decisions that require the person: material spend beyond an
   accepted default, external publication/access, and an irreversible action. Phrase each in user
   consequences, never internal authority terms.
-- Define the visibility boundary: contracts, budgets, routes, agents, oracles, attestations,
-  digests and experimental apparatus are hidden from the primary journey and available only through
-  explicit diagnostic details when they help resolve a failure.
+- Define the visibility boundary: team composition, provider/model identity, declared work, board
+  communication and artifact movement are product-level facts; contracts, budget vectors, routes,
+  oracles, attestations, digests, leases and experimental apparatus remain diagnostic details unless
+  their consequence directly requires a user decision.
 - Map each promised step to current accepted product behavior or mark it explicitly as an
   implementation gap; separate the production-foundation POC journey from later MVP breadth.
 - Exclusive write zone: new `ymp-docs/USER_JOURNEY.md` and its single index entry in
@@ -75,11 +83,16 @@ interaction model be translated into screens.
       internals.
 - [ ] Six to ten “when / I want / so that” user stories each name observable success, refusal or
       recovery, evidence shown to the person and the next available action.
+- [ ] One story covers automatic team formation and progress: the person can see how many agents are
+      active, which providers/models they use and their declared tasks/statuses without choosing or
+      manually assigning them. Detailed team/task/board/artifact flow is readable on demand.
+- [ ] One story covers a user message to the shared board as an attributed intervention; audience,
+      delivery and later participant action remain distinct and no automatic effect is implied.
 - [ ] Success, clarification, cancellation, recoverable failure and infrastructure STOP paths are
       complete; none ends at a diagnostic label without a human next step.
-- [ ] The primary journey asks for no contract approval, runtime/model selection, agent management,
-      oracle inspection or budget-vector editing. An automated check scoped only to the primary
-      journey fails if those internal duties are inserted there.
+- [ ] The primary journey asks for no contract approval, runtime/model selection, manual agent
+      assignment, oracle inspection or budget-vector editing. It may show agent/provider facts but an
+      automated check fails if viewing the team is turned into required configuration work.
 - [ ] Conversation, optional command, detail inspection and consequence-bearing decision have one
       clear use rule each. Slash commands and modals are possible implementations, not mandatory
       steps in the story.
@@ -102,7 +115,8 @@ for owner approval before writing any UI contract.
 
 ## Guardrails
 
-- Primary-path language describes the person’s goal, result and choices, not ymp’s internal nouns.
+- Primary-path language describes the person’s goal, result and choices. Team facts are visible in
+  ordinary language; protocol mechanics are not promoted into required steps.
 - The system asks only for information that changes the desired result or an unavoidable external
   consequence; implementation convenience never becomes a user decision.
 - No screen is designed and no current visual artifact is treated as authority in this subtask.
