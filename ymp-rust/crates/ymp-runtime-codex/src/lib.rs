@@ -15,11 +15,15 @@ use ymp_agent_rpc::{AgentToolCapabilities, endpoint_capabilities};
 use ymp_runtime_api::{
     AdmittedProgram, BoundedOutputLine, CancellationToken, DiagnosticSummary, InFlightExcess,
     InvocationRequest, LaunchChain, LaunchDescriptor, LaunchEnvironmentVariable, McpBinding,
-    ModelSpend, ProbeReport, Readiness, RuntimeDriver, RuntimeError, RuntimeEvent,
-    RuntimeEventKind, RuntimeFailureKind, RuntimeKind, RuntimeSession, Usage,
-    configure_process_group, create_launch_marker, end_process_tree_or_keep, evidence_digest,
-    managed_launch_command, read_bounded_lines, register_launch_marker, terminate_process_tree,
-    verify_admitted_programs,
+    ModelSpend, ProbeReport, ProbeTransportIdentity, Readiness, RuntimeDriver, RuntimeError,
+    RuntimeEvent, RuntimeEventKind, RuntimeFailureKind, RuntimeKind, RuntimeSession,
+    TOOL_HOST_PROBE_ENVIRONMENT, TOOL_HOST_PROBE_INTERNAL_ARGUMENTS,
+    TOOL_HOST_PROBE_INTERNAL_SUBCOMMAND, TOOL_HOST_PROBE_MCP_PROTOCOL_VERSION,
+    TOOL_HOST_PROBE_SERVER_VERSION, TOOL_HOST_PROBE_WORKSPACE_SERVER, ToolHostProbeInvocation,
+    ToolHostProbeRuntimeIdentity, ToolHostProbeTool, Usage, configure_process_group,
+    create_launch_marker, end_process_tree_or_keep, evidence_digest, managed_launch_command,
+    probe_transport_digest, read_bounded_lines, register_launch_marker, terminate_process_tree,
+    tool_host_probe_tool_schema_digest, verify_admitted_programs,
 };
 
 /// Canonical behavioral surface an installed Codex executable must satisfy. The observed release
@@ -43,6 +47,9 @@ pub const PINNED_CODEX_VERSION: &str = "codex-cli 0.151.0";
 pub const PINNED_CODEX_MODEL: &str = "gpt-5.6-terra";
 pub const PINNED_CODEX_PROMPT_POLICY: &str = "ymp-codex-low-v2";
 pub const PINNED_CODEX_API_ORIGIN: &str = "https://api.openai.com/v1";
+const PINNED_CODEX_ROUTE: &str = "openai_responses_chatgpt";
+const CODEX_DRIVER: &str = "ymp-runtime-codex";
+const CODEX_DRIVER_VERSION: &str = env!("CARGO_PKG_VERSION");
 const DEFAULT_OUTPUT_LIMIT_BYTES: usize = 16 * 1024 * 1024;
 const DEFAULT_WALL_TIME_LIMIT_MS: u64 = 10 * 60 * 1000;
 const LAUNCH_DESCRIPTOR_SCHEMA_VERSION: u32 = 1;
@@ -179,12 +186,15 @@ impl CodexProfile {
 #[derive(Clone, Debug)]
 pub struct CodexRuntime {
     executable: PathBuf,
+    tool_host_executable: PathBuf,
     verified_executable: Arc<Mutex<Option<VerifiedExecutable>>>,
     profile: CodexProfile,
     auth_source: Option<PathBuf>,
     runtime_path: OsString,
     launch_chain: LaunchChain,
     prepared_launches: Arc<Mutex<HashMap<String, CodexLaunch>>>,
+    #[cfg(test)]
+    pre_spawn_tool_host_replacement: Option<Vec<u8>>,
 }
 
 impl Default for CodexRuntime {
@@ -202,6 +212,7 @@ impl CodexRuntime {
         let executable = ymp_runtime_registry::resolve(executable.into());
         Self {
             executable,
+            tool_host_executable: std::env::current_exe().unwrap_or_default(),
             verified_executable: Arc::new(Mutex::new(None)),
             profile: CodexProfile::default(),
             auth_source: discover_auth_source(),
@@ -209,6 +220,8 @@ impl CodexRuntime {
                 .unwrap_or_else(|| OsString::from("/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin")),
             launch_chain: LaunchChain::default(),
             prepared_launches: Arc::new(Mutex::new(HashMap::new())),
+            #[cfg(test)]
+            pre_spawn_tool_host_replacement: None,
         }
     }
 
@@ -395,6 +408,42 @@ impl CodexRuntime {
         validate_compatibility_app_server_schema(&schema)?;
         Ok(())
     }
+
+    fn tool_host_probe_runtime_identity(
+        &self,
+        workspace: &Path,
+    ) -> Result<ToolHostProbeRuntimeIdentity, RuntimeError> {
+        let probe = self.probe()?;
+        if probe.readiness != Readiness::Ready {
+            return Err(RuntimeError::InvalidProfile(format!(
+                "Codex tool-host probe profile is not ready: {}",
+                probe.detail
+            )));
+        }
+        let cli_version = probe.version.ok_or_else(|| {
+            RuntimeError::InvalidProfile(
+                "Codex compatibility probe did not report an observed version".to_owned(),
+            )
+        })?;
+        let executable_digest = executable_digest(&self.executable)?;
+        let probe_transport =
+            measure_tool_host_probe_transport(&self.tool_host_executable, workspace)?;
+        let probe_transport_digest = probe_transport_digest(&probe_transport);
+        Ok(ToolHostProbeRuntimeIdentity {
+            runtime_kind: RuntimeKind::Codex,
+            route: PINNED_CODEX_ROUTE.to_owned(),
+            profile: self.profile.prompt_policy.clone(),
+            cli: self.executable.display().to_string(),
+            cli_version,
+            compatibility_contract_digest: codex_compatibility_contract_digest(),
+            executable_digest,
+            driver: CODEX_DRIVER.to_owned(),
+            driver_version: CODEX_DRIVER_VERSION.to_owned(),
+            tool_schema_digest: tool_host_probe_tool_schema_digest(),
+            probe_transport,
+            probe_transport_digest,
+        })
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -450,6 +499,22 @@ struct CodexLaunch {
     mcp: Option<McpBinding>,
     agent_capabilities: AgentToolCapabilities,
     environment: CodexEnvironment,
+}
+
+#[derive(Debug)]
+struct CodexProbeLaunch {
+    executable: VerifiedExecutable,
+    tool_host_source: PathBuf,
+    tool_host_executable: VerifiedExecutable,
+    launch_chain: Vec<AdmittedProgram>,
+    profile: CodexProfile,
+    workspace: PathBuf,
+    relative_path: PathBuf,
+    nonce: String,
+    expected_transport: ProbeTransportIdentity,
+    environment: CodexEnvironment,
+    #[cfg(test)]
+    pre_spawn_tool_host_replacement: Option<Vec<u8>>,
 }
 
 #[derive(Debug)]
@@ -547,6 +612,305 @@ impl CodexEnvironment {
         for variable in values {
             command.env(&variable.name, &variable.value);
         }
+    }
+}
+
+fn measure_tool_host_probe_transport(
+    executable: &Path,
+    workspace: &Path,
+) -> Result<ProbeTransportIdentity, RuntimeError> {
+    let metadata = fs::symlink_metadata(executable)?;
+    if !metadata.is_file() || metadata.file_type().is_symlink() {
+        return Err(RuntimeError::InvalidProfile(
+            "tool-host probe executable must be a regular non-symlink file".to_owned(),
+        ));
+    }
+    let canonical_executable = executable.canonicalize()?;
+    if canonical_executable != executable {
+        return Err(RuntimeError::InvalidProfile(
+            "tool-host probe executable changed during canonicalization".to_owned(),
+        ));
+    }
+    let workspace_metadata = fs::symlink_metadata(workspace)?;
+    if !workspace_metadata.is_dir() || workspace_metadata.file_type().is_symlink() {
+        return Err(RuntimeError::InvalidProfile(
+            "tool-host probe workspace must be a regular non-symlink directory".to_owned(),
+        ));
+    }
+    let canonical_workspace = workspace.canonicalize()?;
+    if canonical_workspace != workspace {
+        return Err(RuntimeError::InvalidProfile(
+            "tool-host probe workspace changed during canonicalization".to_owned(),
+        ));
+    }
+    let executable_digest = evidence_digest(&fs::read(&canonical_executable)?);
+    Ok(ProbeTransportIdentity {
+        mcp_protocol_version: TOOL_HOST_PROBE_MCP_PROTOCOL_VERSION.to_owned(),
+        server_name: TOOL_HOST_PROBE_WORKSPACE_SERVER.to_owned(),
+        server_version: TOOL_HOST_PROBE_SERVER_VERSION.to_owned(),
+        tool_schema_digest: tool_host_probe_tool_schema_digest(),
+        ordered_tools: [
+            ToolHostProbeTool::WorkspaceWrite,
+            ToolHostProbeTool::WorkspaceRead,
+        ],
+        server_executable_digest: executable_digest.clone(),
+        launcher_executable_digest: executable_digest,
+        internal_subcommand: TOOL_HOST_PROBE_INTERNAL_SUBCOMMAND.to_owned(),
+        arguments: TOOL_HOST_PROBE_INTERNAL_ARGUMENTS
+            .iter()
+            .map(|argument| (*argument).to_owned())
+            .collect(),
+        inherited_environment: TOOL_HOST_PROBE_ENVIRONMENT
+            .iter()
+            .map(|name| (*name).to_owned())
+            .collect(),
+        canonical_workspace_root_digest: evidence_digest(
+            canonical_workspace.as_os_str().as_encoded_bytes(),
+        ),
+    })
+}
+
+fn require_tool_host_probe_transport(
+    expected: &ProbeTransportIdentity,
+    actual: &ProbeTransportIdentity,
+) -> Result<(), RuntimeError> {
+    if expected != actual || probe_transport_digest(expected) != probe_transport_digest(actual) {
+        return Err(RuntimeError::InvalidProfile(
+            "tool-host probe transport changed after controller reservation".to_owned(),
+        ));
+    }
+    Ok(())
+}
+
+fn compare_codex_tool_host_probe_identity(
+    expected: &ToolHostProbeRuntimeIdentity,
+    observed: &ToolHostProbeRuntimeIdentity,
+) -> Result<(), RuntimeError> {
+    for (field, matches) in [
+        (
+            "runtime_kind",
+            expected.runtime_kind == observed.runtime_kind,
+        ),
+        ("route", expected.route == observed.route),
+        ("profile", expected.profile == observed.profile),
+        ("cli", expected.cli == observed.cli),
+        (
+            "compatibility_contract_digest",
+            expected.compatibility_contract_digest == observed.compatibility_contract_digest,
+        ),
+        (
+            "executable_digest",
+            expected.executable_digest == observed.executable_digest,
+        ),
+        ("driver", expected.driver == observed.driver),
+        (
+            "driver_version",
+            expected.driver_version == observed.driver_version,
+        ),
+        (
+            "tool_schema_digest",
+            expected.tool_schema_digest == observed.tool_schema_digest,
+        ),
+        (
+            "probe_transport",
+            expected.probe_transport == observed.probe_transport,
+        ),
+        (
+            "probe_transport_digest",
+            expected.probe_transport_digest == observed.probe_transport_digest,
+        ),
+    ] {
+        if !matches {
+            return Err(RuntimeError::InvalidProfile(format!(
+                "Codex tool-host probe identity differs in {field}"
+            )));
+        }
+    }
+    if observed.cli_version.is_empty() || observed.cli_version.len() > 4096 {
+        return Err(RuntimeError::InvalidProfile(
+            "Codex tool-host probe observed version is invalid".to_owned(),
+        ));
+    }
+    Ok(())
+}
+
+impl CodexProbeLaunch {
+    fn arguments(&self) -> Result<Vec<String>, RuntimeError> {
+        let workspace = self.workspace.to_str().ok_or_else(|| {
+            RuntimeError::InvalidProfile("Codex probe workspace path must be UTF-8".to_owned())
+        })?;
+        let mut arguments = vec![
+            "exec".to_owned(),
+            "--json".to_owned(),
+            "--ignore-user-config".to_owned(),
+            "--ignore-rules".to_owned(),
+            "--sandbox".to_owned(),
+            CodexSandbox::WorkspaceWrite.as_arg().to_owned(),
+            "--model".to_owned(),
+            self.profile.model.clone(),
+            "-c".to_owned(),
+            format!(
+                "model_reasoning_effort=\"{}\"",
+                self.profile.reasoning_effort
+            ),
+            "-c".to_owned(),
+            format!("approval_policy=\"{}\"", self.profile.approval_policy),
+            "-c".to_owned(),
+            "shell_environment_policy.inherit=\"none\"".to_owned(),
+            "-C".to_owned(),
+            workspace.to_owned(),
+        ];
+        for feature in DISABLED_AMBIENT_FEATURES {
+            arguments.push("--disable".to_owned());
+            arguments.push(feature.to_owned());
+        }
+        arguments.push("-c".to_owned());
+        arguments.push(self.mcp_configuration()?);
+        arguments.push("-".to_owned());
+        validate_compatibility_launch_arguments(&arguments)?;
+        Ok(arguments)
+    }
+
+    fn mcp_configuration(&self) -> Result<String, RuntimeError> {
+        let executable = self
+            .tool_host_executable
+            .execution_path
+            .to_str()
+            .ok_or_else(|| {
+                RuntimeError::InvalidProfile(
+                    "tool-host probe executable path must be UTF-8".to_owned(),
+                )
+            })?;
+        let workspace = self.workspace.to_str().ok_or_else(|| {
+            RuntimeError::InvalidProfile("tool-host probe workspace must be UTF-8".to_owned())
+        })?;
+        let relative_path = self.relative_path.to_str().ok_or_else(|| {
+            RuntimeError::InvalidProfile("tool-host probe path must be UTF-8".to_owned())
+        })?;
+        let server = serde_json::to_string(TOOL_HOST_PROBE_WORKSPACE_SERVER)
+            .expect("fixed server name is serializable");
+        let command =
+            serde_json::to_string(executable).expect("UTF-8 executable path is serializable");
+        let child_arguments = serde_json::to_string(&TOOL_HOST_PROBE_INTERNAL_ARGUMENTS)
+            .expect("fixed child arguments are serializable");
+        let enabled_tools = serde_json::to_string(&[
+            ToolHostProbeTool::WorkspaceWrite.to_string(),
+            ToolHostProbeTool::WorkspaceRead.to_string(),
+        ])
+        .expect("fixed tool names are serializable");
+        let workspace = serde_json::to_string(workspace).expect("UTF-8 workspace is serializable");
+        let relative_path =
+            serde_json::to_string(relative_path).expect("UTF-8 relative path is serializable");
+        let nonce = serde_json::to_string(&self.nonce).expect("nonce is serializable");
+        Ok(format!(
+            "mcp_servers={{{server}={{required=true,enabled_tools={enabled_tools},default_tools_approval_mode=\"approve\",command={command},args={child_arguments},env={{YMP_TOOL_HOST_PROBE_WORKSPACE_ROOT={workspace},YMP_TOOL_HOST_PROBE_PATH={relative_path},YMP_TOOL_HOST_PROBE_NONCE={nonce}}},env_vars=[]}}}}"
+        ))
+    }
+
+    fn directive(&self) -> String {
+        let path =
+            serde_json::to_string(&self.relative_path).expect("controller path is serializable");
+        let nonce = serde_json::to_string(&self.nonce).expect("controller nonce is serializable");
+        format!(
+            "Compatibility probe only; this is not a user task or experimental arm. Use only the \
+             {server} MCP server. Call workspace_write exactly once with path {path} and content \
+             {nonce}; then call workspace_read exactly once with path {path}. Use no other tool. \
+             Produce no ordinary output, commentary, explanation, result, or collaboration data. \
+             End immediately after workspace_read returns the same nonce.",
+            server = TOOL_HOST_PROBE_WORKSPACE_SERVER,
+        )
+    }
+
+    fn spawn(&self) -> Result<CodexProcess, RuntimeError> {
+        let actual = measure_tool_host_probe_transport(&self.tool_host_source, &self.workspace)?;
+        require_tool_host_probe_transport(&self.expected_transport, &actual)?;
+        if executable_digest(&self.executable.execution_path)? != self.executable.digest {
+            return Err(RuntimeError::InvalidProfile(
+                "Codex executable changed before tool-host probe spawn".to_owned(),
+            ));
+        }
+        if executable_digest(&self.tool_host_executable.execution_path)?
+            != self.expected_transport.server_executable_digest
+        {
+            return Err(RuntimeError::InvalidProfile(
+                "tool-host probe child changed before spawn".to_owned(),
+            ));
+        }
+        verify_admitted_programs(&self.launch_chain)?;
+        let marker = create_launch_marker()?;
+        let arguments = self.arguments()?;
+        let mut command = match managed_launch_command(
+            &self.executable.execution_path,
+            &arguments,
+            &marker,
+            &self.launch_chain,
+        ) {
+            Ok(command) => command,
+            Err(error) => {
+                let _ = fs::remove_file(&marker);
+                return Err(error);
+            }
+        };
+        let environment = self.environment.values(None, None, None)?;
+        CodexEnvironment::apply(&mut command, &environment);
+        command
+            .current_dir(&self.workspace)
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped());
+        configure_process_group(&mut command);
+
+        // This is the final source/config/root measurement before process creation. The private
+        // child copy is already bound to those bytes, so a source substitution cannot become the
+        // configured MCP process after this check.
+        #[cfg(test)]
+        if let Some(replacement) = &self.pre_spawn_tool_host_replacement {
+            fs::write(&self.tool_host_source, replacement)?;
+        }
+        let actual = measure_tool_host_probe_transport(&self.tool_host_source, &self.workspace)?;
+        require_tool_host_probe_transport(&self.expected_transport, &actual)?;
+        let started_at = Instant::now();
+        let mut child = match command.spawn() {
+            Ok(child) => child,
+            Err(error) => {
+                let _ = fs::remove_file(&marker);
+                return Err(error.into());
+            }
+        };
+        register_launch_marker(&child, marker);
+        if let Err(error) = verify_admitted_programs(&self.launch_chain) {
+            end_process_tree_or_keep(&mut child);
+            return Err(error);
+        }
+        let mut stdin = child
+            .stdin
+            .take()
+            .ok_or_else(|| RuntimeError::MalformedEvent("Codex stdin was not piped".to_owned()))?;
+        stdin.write_all(self.directive().as_bytes())?;
+        stdin.flush()?;
+        drop(stdin);
+        let stdout = child
+            .stdout
+            .take()
+            .ok_or_else(|| RuntimeError::MalformedEvent("Codex stdout was not piped".to_owned()))?;
+        let stderr = child
+            .stderr
+            .take()
+            .ok_or_else(|| RuntimeError::MalformedEvent("Codex stderr was not piped".to_owned()))?;
+        let stderr_limit = self.profile.output_limit_bytes;
+        let stderr_reader = thread::spawn(move || {
+            let mut bytes = Vec::new();
+            let _ = stderr
+                .take((stderr_limit.saturating_add(1)) as u64)
+                .read_to_end(&mut bytes);
+            bytes
+        });
+        Ok(CodexProcess {
+            child,
+            lines: read_bounded_lines(stdout, self.profile.output_limit_bytes),
+            stderr_reader,
+            started_at,
+        })
     }
 }
 
@@ -868,6 +1232,89 @@ impl RuntimeDriver for CodexRuntime {
         })
     }
 
+    fn tool_host_probe_identity(&self) -> Result<ToolHostProbeRuntimeIdentity, RuntimeError> {
+        let workspace = std::env::current_dir()?.canonicalize()?;
+        self.tool_host_probe_runtime_identity(&workspace)
+    }
+
+    fn start_tool_host_probe(
+        &self,
+        invocation: ToolHostProbeInvocation,
+    ) -> Result<Box<dyn RuntimeSession>, RuntimeError> {
+        if invocation.allowed_tools
+            != [
+                ToolHostProbeTool::WorkspaceWrite,
+                ToolHostProbeTool::WorkspaceRead,
+            ]
+        {
+            return Err(RuntimeError::InvalidProfile(
+                "Codex tool-host probe requires the fixed write/read tool order".to_owned(),
+            ));
+        }
+        let request = invocation.request;
+        let observed = self.tool_host_probe_runtime_identity(&invocation.workspace)?;
+        compare_codex_tool_host_probe_identity(&request.expected_runtime, &observed)?;
+
+        let tool_host_executable =
+            VerifiedExecutable::admit(&self.tool_host_executable, "ymp-tool-host-probe")?;
+        if tool_host_executable.digest
+            != request
+                .expected_runtime
+                .probe_transport
+                .server_executable_digest
+        {
+            return Err(RuntimeError::InvalidProfile(
+                "tool-host probe executable changed after controller reservation".to_owned(),
+            ));
+        }
+        let actual =
+            measure_tool_host_probe_transport(&self.tool_host_executable, &invocation.workspace)?;
+        require_tool_host_probe_transport(&request.expected_runtime.probe_transport, &actual)?;
+        let launch = CodexProbeLaunch {
+            executable: self.admitted_executable()?,
+            tool_host_source: self.tool_host_executable.clone(),
+            tool_host_executable,
+            launch_chain: self.launch_chain.admit()?,
+            profile: self.profile.clone(),
+            workspace: invocation.workspace,
+            relative_path: request.workspace_path.clone(),
+            nonce: request.nonce.clone(),
+            expected_transport: request.expected_runtime.probe_transport.clone(),
+            environment: self.isolated_environment()?,
+            #[cfg(test)]
+            pre_spawn_tool_host_replacement: self.pre_spawn_tool_host_replacement.clone(),
+        };
+        let process = launch.spawn()?;
+        Ok(Box::new(CodexSession {
+            child: process.child,
+            lines: process.lines,
+            stderr_reader: Some(process.stderr_reader),
+            launch: None,
+            _probe_launch: Some(launch),
+            session_id: None,
+            invocation_id: request.invocation_id,
+            sequence: 0,
+            output_limit_bytes: self.profile.output_limit_bytes,
+            wall_time_limit_ms: request.deadline_ms,
+            started_at: process.started_at,
+            session_started_at: process.started_at,
+            cancellation: request.cancellation,
+            completed: false,
+            terminal: false,
+            recoverable: false,
+            native_resume_started: false,
+            interrupted: false,
+            interruption_emitted: false,
+            pending_events: VecDeque::new(),
+            usage: Usage::default(),
+            current_turn_usage: Usage::default(),
+            in_flight: InFlightExcess::default(),
+            yielded: false,
+            failure_emitted: false,
+            strict_probe_events: true,
+        }))
+    }
+
     fn start(&self, request: InvocationRequest) -> Result<Box<dyn RuntimeSession>, RuntimeError> {
         let readiness = self.probe()?;
         if readiness.readiness != Readiness::Ready {
@@ -984,7 +1431,8 @@ impl RuntimeDriver for CodexRuntime {
             child: process.child,
             lines: process.lines,
             stderr_reader: Some(process.stderr_reader),
-            launch,
+            launch: Some(launch),
+            _probe_launch: None,
             session_id: None,
             invocation_id: request.invocation_id,
             sequence: 0,
@@ -1005,6 +1453,7 @@ impl RuntimeDriver for CodexRuntime {
             in_flight: InFlightExcess::default(),
             yielded: false,
             failure_emitted: false,
+            strict_probe_events: false,
         }))
     }
 }
@@ -1013,7 +1462,8 @@ struct CodexSession {
     child: Child,
     lines: Receiver<BoundedOutputLine>,
     stderr_reader: Option<JoinHandle<Vec<u8>>>,
-    launch: CodexLaunch,
+    launch: Option<CodexLaunch>,
+    _probe_launch: Option<CodexProbeLaunch>,
     session_id: Option<String>,
     invocation_id: String,
     sequence: u64,
@@ -1034,6 +1484,7 @@ struct CodexSession {
     in_flight: InFlightExcess,
     yielded: bool,
     failure_emitted: bool,
+    strict_probe_events: bool,
 }
 
 impl CodexSession {
@@ -1237,6 +1688,9 @@ impl CodexSession {
                 match item.get("type").and_then(Value::as_str) {
                     Some("agent_message") => {
                         let text = string_field(item, "text")?;
+                        if self.strict_probe_events && text.is_empty() {
+                            return Ok(None);
+                        }
                         Ok(Some(self.emit(RuntimeEventKind::Output { text })))
                     }
                     Some("mcp_tool_call") => {
@@ -1263,6 +1717,13 @@ impl CodexSession {
                             result,
                             error,
                         })))
+                    }
+                    Some("reasoning") => Ok(None),
+                    other if self.strict_probe_events => {
+                        Err(RuntimeError::MalformedEvent(format!(
+                            "tool-host probe emitted unexpected completed item {}",
+                            other.unwrap_or("<missing>")
+                        )))
                     }
                     _ => Ok(None),
                 }
@@ -1291,7 +1752,24 @@ impl CodexSession {
                 self.begin_turn(&event);
                 Ok(None)
             }
-            "item.started" | "item.updated" => Ok(None),
+            "item.started" | "item.updated" => {
+                if self.strict_probe_events
+                    && let Some(item) = event.get("item")
+                    && !matches!(
+                        item.get("type").and_then(Value::as_str),
+                        Some("mcp_tool_call" | "reasoning" | "agent_message")
+                    )
+                {
+                    return Err(RuntimeError::MalformedEvent(format!(
+                        "tool-host probe emitted unexpected {} item {}",
+                        event_type,
+                        item.get("type")
+                            .and_then(Value::as_str)
+                            .unwrap_or("<missing>")
+                    )));
+                }
+                Ok(None)
+            }
             "error" | "turn.failed" => {
                 if let Some(usage) = event.get("usage") {
                     self.merge_usage(usage)?;
@@ -1411,7 +1889,11 @@ impl RuntimeSession for CodexSession {
     }
 
     fn resume(&mut self, input: String) -> Result<(), RuntimeError> {
-        if self.terminal || self.interrupted || self.cancellation.is_cancelled() {
+        if self.strict_probe_events
+            || self.terminal
+            || self.interrupted
+            || self.cancellation.is_cancelled()
+        {
             return Err(RuntimeError::NotYielded);
         }
         let session_id = self.session_id.clone().ok_or_else(|| {
@@ -1423,8 +1905,12 @@ impl RuntimeSession for CodexSession {
         if !self.recoverable && !self.yielded {
             return Err(RuntimeError::NotYielded);
         }
-        let descriptor = self.launch.descriptor(Some(&session_id))?;
-        let process = self.launch.spawn(&descriptor, Some(&session_id), &input)?;
+        let (descriptor, process) = {
+            let launch = self.launch.as_ref().ok_or(RuntimeError::NotYielded)?;
+            let descriptor = launch.descriptor(Some(&session_id))?;
+            let process = launch.spawn(&descriptor, Some(&session_id), &input)?;
+            (descriptor, process)
+        };
         self.install_process(process, descriptor);
         Ok(())
     }
@@ -1824,7 +2310,9 @@ mod tests {
     use ymp_agent_rpc::AgentToolCapabilities;
     use ymp_runtime_api::{
         CancellationToken, InvocationRequest, McpBinding, Readiness, RuntimeDriver, RuntimeError,
-        RuntimeEventKind, RuntimeFailureKind, RuntimeSession,
+        RuntimeEventKind, RuntimeFailureKind, RuntimeSession, TOOL_HOST_PROBE_SCHEMA_VERSION,
+        ToolHostProbeInvocation, ToolHostProbeRequest, ToolHostProbeResourceVector,
+        ToolHostProbeTool, ToolHostProbeTrust,
     };
 
     fn expect_launch(session: &mut dyn RuntimeSession) {
@@ -1878,6 +2366,75 @@ fi
         let mut permissions = fs::metadata(path).expect("metadata").permissions();
         permissions.set_mode(0o700);
         fs::set_permissions(path, permissions).expect("make fixture executable");
+    }
+
+    fn write_tool_host_codex_fixture(path: &Path, marker: &Path, extra: &str) {
+        let compatible = path.with_extension("compatible");
+        write_compatibility_probe_fixture(&compatible, "codex-cli 0.151.0", "compatible");
+        let script = r##"#!/bin/sh
+set -eu
+if [ "$1" = "--version" ] || { [ "$1" = "exec" ] && [ "${2:-}" = "--help" ]; } || { [ "$1" = "exec" ] && [ "${2:-}" = "resume" ] && [ "${3:-}" = "--help" ]; } || { [ "$1" = "features" ] && [ "${2:-}" = "list" ]; } || { [ "$1" = "app-server" ] && { [ "${2:-}" = "--help" ] || [ "${2:-}" = "generate-json-schema" ]; }; } || { [ "$1" = "login" ] && [ "${2:-}" = "status" ]; }; then
+  exec '__COMPATIBLE__' "$@"
+fi
+workspace=
+configuration=
+previous=
+for argument in "$@"; do
+  if [ "$previous" = "-C" ]; then workspace=$argument; fi
+  case "$argument" in mcp_servers=*) configuration=$argument ;; esac
+  previous=$argument
+done
+[ -n "$workspace" ]
+case "$configuration" in
+  *'"ymp.workspace"'*'workspace_write'*'workspace_read'*'tool-host-probe-mcp'*'YMP_TOOL_HOST_PROBE_WORKSPACE_ROOT'*'YMP_TOOL_HOST_PROBE_PATH'*'YMP_TOOL_HOST_PROBE_NONCE'*) ;;
+  *) exit 65 ;;
+esac
+prompt=$(/bin/cat)
+case "$prompt" in *'Compatibility probe only'*'workspace_write'*'workspace_read'*'Produce no ordinary output'*) ;; *) exit 66 ;; esac
+/bin/mkdir -p "$workspace/probe"
+/usr/bin/printf '%s' 'opaque-caller-nonce-7c1e' > "$workspace/probe/nonce.txt"
+/usr/bin/printf '%s\n' '{"type":"thread.started","thread_id":"fixture-session"}'
+/usr/bin/printf '%s\n' '{"type":"turn.started"}'
+/usr/bin/printf '%s\n' '{"type":"item.completed","item":{"type":"mcp_tool_call","server":"ymp.workspace","tool":"workspace_write","status":"completed","arguments":{"path":"probe/nonce.txt","content":"opaque-caller-nonce-7c1e"},"result":{"bytes_written":24},"error":null}}'
+/usr/bin/printf '%s\n' '{"type":"item.completed","item":{"type":"mcp_tool_call","server":"ymp.workspace","tool":"workspace_read","status":"completed","arguments":{"path":"probe/nonce.txt"},"result":{"content":"opaque-caller-nonce-7c1e"},"error":null}}'
+__EXTRA__
+/bin/sleep 0.01
+/usr/bin/printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":11,"cached_input_tokens":3,"output_tokens":5,"reasoning_output_tokens":2}}'
+/usr/bin/printf '%s' started > '__MARKER__'
+"##
+        .replace("__COMPATIBLE__", &compatible.display().to_string())
+        .replace("__EXTRA__", extra)
+        .replace("__MARKER__", &marker.display().to_string());
+        fs::write(path, script).expect("write tool-host Codex fixture");
+        let mut permissions = fs::metadata(path).expect("metadata").permissions();
+        permissions.set_mode(0o700);
+        fs::set_permissions(path, permissions).expect("make fixture executable");
+    }
+
+    fn tool_host_reservation(deadline_ms: u64) -> ToolHostProbeResourceVector {
+        ToolHostProbeResourceVector {
+            model_calls: 1,
+            max_input_tokens: 64,
+            max_cached_input_tokens: 32,
+            max_output_tokens: 32,
+            max_reasoning_output_tokens: 16,
+            max_cost_microusd: None,
+            max_wall_time_ms: deadline_ms,
+            workspace_reads: 1,
+            workspace_writes: 1,
+            invocation_starts: 1,
+            protected_queries: 0,
+            external_actions: 0,
+            participant_starts: 0,
+            attempt_starts: 0,
+            offer_creations: 0,
+            obligation_creations: 0,
+            board_actions: 0,
+            task_actions: 0,
+            recruitment_actions: 0,
+            candidate_actions: 0,
+            communication_actions: 0,
+        }
     }
 
     #[test]
@@ -2100,6 +2657,136 @@ fi
                 probe.detail
             );
         }
+    }
+
+    #[test]
+    fn tool_host_probe_process_emits_the_fixed_0151_mcp_event_shape() {
+        let directory = tempfile::tempdir().expect("temporary directory");
+        let workspace = directory.path().join("workspace");
+        fs::create_dir(&workspace).expect("workspace");
+        let workspace = workspace.canonicalize().expect("canonical workspace");
+        let executable = directory.path().join("codex");
+        let marker = directory.path().join("model-call-marker");
+        write_tool_host_codex_fixture(&executable, &marker, "");
+        let tool_host = directory.path().join("ymp");
+        fs::write(&tool_host, b"#!/bin/sh\nexit 0\n").expect("tool-host fixture");
+        let mut permissions = fs::metadata(&tool_host).expect("metadata").permissions();
+        permissions.set_mode(0o700);
+        fs::set_permissions(&tool_host, permissions).expect("make tool-host executable");
+
+        let mut runtime = CodexRuntime::new(&executable);
+        runtime.auth_source = None;
+        runtime.tool_host_executable = tool_host.canonicalize().expect("canonical tool host");
+        let identity = runtime
+            .tool_host_probe_runtime_identity(&workspace)
+            .expect("behaviorally compatible identity");
+        assert_eq!(identity.cli_version, "codex-cli 0.151.0");
+        let deadline_ms = 1_000;
+        let request = ToolHostProbeRequest {
+            schema_version: TOOL_HOST_PROBE_SCHEMA_VERSION,
+            probe_id: "probe-fixture-1".to_owned(),
+            invocation_id: "invocation-fixture-1".to_owned(),
+            nonce: "opaque-caller-nonce-7c1e".to_owned(),
+            workspace_path: PathBuf::from("probe/nonce.txt"),
+            deadline_ms,
+            resource_reservation: tool_host_reservation(deadline_ms),
+            expected_runtime: identity,
+            cancellation: CancellationToken::default(),
+        };
+        let mut session = runtime
+            .start_tool_host_probe(ToolHostProbeInvocation {
+                request,
+                workspace: workspace.clone(),
+                allowed_tools: [
+                    ToolHostProbeTool::WorkspaceWrite,
+                    ToolHostProbeTool::WorkspaceRead,
+                ],
+            })
+            .expect("start deterministic Codex probe process");
+        let mut events = Vec::new();
+        while let Some(event) = session.next_event().expect("probe event") {
+            events.push(event.event);
+        }
+        assert_eq!(events.len(), 4);
+        assert!(matches!(events[0], RuntimeEventKind::Started { .. }));
+        assert!(matches!(
+            &events[1],
+            RuntimeEventKind::McpToolCall { server, tool, .. }
+                if server == "ymp.workspace" && tool == "workspace_write"
+        ));
+        assert!(matches!(
+            &events[2],
+            RuntimeEventKind::McpToolCall { server, tool, .. }
+                if server == "ymp.workspace" && tool == "workspace_read"
+        ));
+        assert!(matches!(events[3], RuntimeEventKind::Completed { .. }));
+        assert_eq!(
+            fs::read_to_string(workspace.join("probe/nonce.txt")).expect("probe write"),
+            "opaque-caller-nonce-7c1e"
+        );
+        assert!(marker.is_file(), "the fixture process completed one turn");
+        assert!(session.usage().wall_time_ms > 0);
+        let serialized = serde_json::to_value(ToolHostProbeTrust::UntrustedRuntimeTrace)
+            .expect("trust marker serializes");
+        assert_eq!(serialized, serde_json::json!("untrusted_runtime_trace"));
+    }
+
+    #[test]
+    fn final_tool_host_child_rehash_rejects_a_schema_identical_substitute_before_codex_spawn() {
+        let directory = tempfile::tempdir().expect("temporary directory");
+        let workspace = directory.path().join("workspace");
+        fs::create_dir(&workspace).expect("workspace");
+        let workspace = workspace.canonicalize().expect("canonical workspace");
+        let executable = directory.path().join("codex");
+        let marker = directory.path().join("model-call-marker");
+        write_tool_host_codex_fixture(&executable, &marker, "");
+        let tool_host = directory.path().join("ymp");
+        fs::write(&tool_host, b"#!/bin/sh\n# measured child\nexit 0\n")
+            .expect("measured tool-host fixture");
+        let mut permissions = fs::metadata(&tool_host).expect("metadata").permissions();
+        permissions.set_mode(0o700);
+        fs::set_permissions(&tool_host, permissions).expect("make tool-host executable");
+
+        let mut runtime = CodexRuntime::new(&executable);
+        runtime.auth_source = None;
+        runtime.tool_host_executable = tool_host.canonicalize().expect("canonical tool host");
+        let identity = runtime
+            .tool_host_probe_runtime_identity(&workspace)
+            .expect("controller-time identity");
+        runtime.pre_spawn_tool_host_replacement =
+            Some(b"#!/bin/sh\n# schema-identical substitute child\nexit 0\n".to_vec());
+        let deadline_ms = 1_000;
+        let error = match runtime.start_tool_host_probe(ToolHostProbeInvocation {
+            request: ToolHostProbeRequest {
+                schema_version: TOOL_HOST_PROBE_SCHEMA_VERSION,
+                probe_id: "probe-fixture-2".to_owned(),
+                invocation_id: "invocation-fixture-2".to_owned(),
+                nonce: "opaque-caller-nonce-7c1e".to_owned(),
+                workspace_path: PathBuf::from("probe/nonce.txt"),
+                deadline_ms,
+                resource_reservation: tool_host_reservation(deadline_ms),
+                expected_runtime: identity,
+                cancellation: CancellationToken::default(),
+            },
+            workspace,
+            allowed_tools: [
+                ToolHostProbeTool::WorkspaceWrite,
+                ToolHostProbeTool::WorkspaceRead,
+            ],
+        }) {
+            Ok(_) => panic!("post-reservation child substitution must be refused"),
+            Err(error) => error,
+        };
+        assert!(
+            error
+                .to_string()
+                .contains("transport changed after controller reservation"),
+            "{error}"
+        );
+        assert!(
+            !marker.exists(),
+            "the fake Codex process, and therefore its model-call marker, never started"
+        );
     }
 
     #[test]

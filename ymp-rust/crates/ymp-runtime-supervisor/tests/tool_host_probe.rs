@@ -19,7 +19,7 @@ use ymp_runtime_api::{
     ToolHostProbeRuntimeIdentity, ToolHostProbeTool, ToolHostProbeTrust, Usage, evidence_digest,
     probe_transport_digest, tool_host_probe_tool_schema_digest,
 };
-use ymp_runtime_codex::codex_compatibility_contract_digest;
+use ymp_runtime_codex::{PINNED_CODEX_PROMPT_POLICY, codex_compatibility_contract_digest};
 use ymp_runtime_supervisor::execute_tool_host_probe;
 
 const DEADLINE_MS: u64 = 1_000;
@@ -191,6 +191,7 @@ enum Scenario {
     TimedOut,
     WrongDeadline,
     ExtraTool,
+    ReorderedTools,
     ExtraOutput,
     WrongReadback,
     ReportedCost,
@@ -312,6 +313,25 @@ impl RuntimeDriver for ScriptedDriver {
                     },
                 ));
             }
+            Scenario::ReorderedTools => {
+                events.clear();
+                events.push_back(event(
+                    &request.invocation_id,
+                    1,
+                    RuntimeEventKind::Started {
+                        opaque_session_id: "fake-session".to_owned(),
+                    },
+                ));
+                events.push_back(read_event(&request, 2));
+                events.push_back(write_event(&request, 3));
+                events.push_back(event(
+                    &request.invocation_id,
+                    4,
+                    RuntimeEventKind::Completed {
+                        usage: usage.clone(),
+                    },
+                ));
+            }
             Scenario::ExtraOutput => {
                 events.pop_back();
                 events.push_back(event(
@@ -374,24 +394,104 @@ struct ScriptedSession {
     usage: Usage,
 }
 
-struct LiveDriver;
+struct CompatibleCodexDriver {
+    executable: PathBuf,
+    version: String,
+    starts: Arc<AtomicUsize>,
+}
 
-impl RuntimeDriver for LiveDriver {
+impl RuntimeDriver for CompatibleCodexDriver {
     fn kind(&self) -> RuntimeKind {
         RuntimeKind::Codex
     }
 
     fn executable(&self) -> &Path {
-        Path::new("/bin/sh")
+        &self.executable
     }
 
     fn probe(&self) -> Result<ProbeReport, RuntimeError> {
-        panic!("live runtime must be refused before probing")
+        Ok(ProbeReport {
+            kind: RuntimeKind::Codex,
+            executable: self.executable.display().to_string(),
+            version: Some(self.version.clone()),
+            readiness: Readiness::Ready,
+            detail: "behaviorally compatible fake Codex fixture".to_owned(),
+        })
     }
 
     fn start(&self, _request: InvocationRequest) -> Result<Box<dyn RuntimeSession>, RuntimeError> {
-        panic!("live runtime must be refused before starting")
+        Err(RuntimeError::Unsupported(
+            "ordinary Codex fixture invocation",
+        ))
     }
+
+    fn tool_host_probe_identity(&self) -> Result<ToolHostProbeRuntimeIdentity, RuntimeError> {
+        panic!("Codex transport identity must be reconstructed by the supervisor")
+    }
+
+    fn start_tool_host_probe(
+        &self,
+        invocation: ToolHostProbeInvocation,
+    ) -> Result<Box<dyn RuntimeSession>, RuntimeError> {
+        self.starts.fetch_add(1, Ordering::SeqCst);
+        let request = invocation.request;
+        let usage = complete_usage();
+        Ok(Box::new(ScriptedSession {
+            events: successful_events(&request, &usage),
+            usage,
+        }))
+    }
+}
+
+fn codex_identity(executable: &Path, workspace: &Path) -> ToolHostProbeRuntimeIdentity {
+    let current_exe = std::env::current_exe()
+        .expect("current executable")
+        .canonicalize()
+        .expect("canonical current executable");
+    let current_digest = evidence_digest(&fs::read(current_exe).expect("current executable bytes"));
+    let workspace = workspace.canonicalize().expect("canonical workspace");
+    let probe_transport = ProbeTransportIdentity {
+        mcp_protocol_version: TOOL_HOST_PROBE_MCP_PROTOCOL_VERSION.to_owned(),
+        server_name: TOOL_HOST_PROBE_WORKSPACE_SERVER.to_owned(),
+        server_version: TOOL_HOST_PROBE_SERVER_VERSION.to_owned(),
+        tool_schema_digest: tool_host_probe_tool_schema_digest(),
+        ordered_tools: [
+            ToolHostProbeTool::WorkspaceWrite,
+            ToolHostProbeTool::WorkspaceRead,
+        ],
+        server_executable_digest: current_digest.clone(),
+        launcher_executable_digest: current_digest,
+        internal_subcommand: TOOL_HOST_PROBE_INTERNAL_SUBCOMMAND.to_owned(),
+        arguments: TOOL_HOST_PROBE_INTERNAL_ARGUMENTS
+            .iter()
+            .map(|argument| (*argument).to_owned())
+            .collect(),
+        inherited_environment: TOOL_HOST_PROBE_ENVIRONMENT
+            .iter()
+            .map(|name| (*name).to_owned())
+            .collect(),
+        canonical_workspace_root_digest: evidence_digest(workspace.as_os_str().as_encoded_bytes()),
+    };
+    ToolHostProbeRuntimeIdentity {
+        runtime_kind: RuntimeKind::Codex,
+        route: "openai_responses_chatgpt".to_owned(),
+        profile: PINNED_CODEX_PROMPT_POLICY.to_owned(),
+        cli: executable.display().to_string(),
+        cli_version: "codex-cli 0.151.0".to_owned(),
+        compatibility_contract_digest: codex_compatibility_contract_digest(),
+        executable_digest: evidence_digest(&fs::read(executable).expect("Codex fixture bytes")),
+        driver: "ymp-runtime-codex".to_owned(),
+        driver_version: env!("CARGO_PKG_VERSION").to_owned(),
+        tool_schema_digest: tool_host_probe_tool_schema_digest(),
+        probe_transport_digest: probe_transport_digest(&probe_transport),
+        probe_transport,
+    }
+}
+
+fn codex_request(executable: &Path, workspace: &Path) -> ToolHostProbeRequest {
+    let mut request = request(executable);
+    request.expected_runtime = codex_identity(executable, workspace);
+    request
 }
 
 impl RuntimeSession for ScriptedSession {
@@ -442,25 +542,67 @@ fn malformed_paths_and_cancelled_requests_never_start_an_invocation() {
 }
 
 #[test]
-fn a_live_runtime_cannot_cross_the_owner_gate() {
+fn compatible_codex_is_reconstructed_without_version_equality_or_attestation_authority() {
     let root = TempDir::new().expect("root");
     let workspace = root.path().join("workspace");
     fs::create_dir(&workspace).expect("workspace");
     let executable = Path::new("/bin/sh");
-    let mut request = request(executable);
-    request.expected_runtime.runtime_kind = RuntimeKind::Codex;
-    assert_eq!(
-        execute_tool_host_probe(&LiveDriver, &workspace, request.clone()),
-        Err(ToolHostProbeError::RuntimeIdentityMismatch {
-            field: "compatibility_contract_digest"
-        })
+    let driver = CompatibleCodexDriver {
+        executable: executable.to_owned(),
+        version: "codex-cli 9.7.3".to_owned(),
+        starts: Arc::new(AtomicUsize::new(0)),
+    };
+    let request = codex_request(executable, &workspace);
+    assert_ne!(
+        request.expected_runtime.cli_version, driver.version,
+        "version strings are evidence, not compatibility authority"
     );
-    request.expected_runtime.compatibility_contract_digest = codex_compatibility_contract_digest();
 
-    assert_eq!(
-        execute_tool_host_probe(&LiveDriver, &workspace, request),
-        Err(ToolHostProbeError::LiveRuntimeForbidden)
-    );
+    let trace = execute_tool_host_probe(&driver, &workspace, request)
+        .expect("behaviorally compatible Codex trace");
+    assert_eq!(trace.runtime.cli_version, "codex-cli 9.7.3");
+    assert_eq!(trace.runtime.runtime_kind, RuntimeKind::Codex);
+    assert_eq!(trace.trust, ToolHostProbeTrust::UntrustedRuntimeTrace);
+    assert_eq!(driver.starts.load(Ordering::SeqCst), 1);
+}
+
+#[test]
+fn incompatible_codex_contract_executable_and_transport_fail_before_start() {
+    let root = TempDir::new().expect("root");
+    let workspace = root.path().join("workspace");
+    fs::create_dir(&workspace).expect("workspace");
+    let executable = Path::new("/bin/sh");
+
+    for (field, mutate) in [
+        ("compatibility_contract_digest", 0_u8),
+        ("executable_digest", 1_u8),
+        ("server_executable_digest", 2_u8),
+    ] {
+        let driver = CompatibleCodexDriver {
+            executable: executable.to_owned(),
+            version: "codex-cli 0.151.0".to_owned(),
+            starts: Arc::new(AtomicUsize::new(0)),
+        };
+        let mut request = codex_request(executable, &workspace);
+        match mutate {
+            0 => request.expected_runtime.compatibility_contract_digest = "f".repeat(64),
+            1 => request.expected_runtime.executable_digest = "e".repeat(64),
+            2 => {
+                request
+                    .expected_runtime
+                    .probe_transport
+                    .server_executable_digest = "d".repeat(64);
+                request.expected_runtime.probe_transport_digest =
+                    probe_transport_digest(&request.expected_runtime.probe_transport);
+            }
+            _ => unreachable!(),
+        }
+        assert_eq!(
+            execute_tool_host_probe(&driver, &workspace, request),
+            Err(ToolHostProbeError::RuntimeIdentityMismatch { field })
+        );
+        assert_eq!(driver.starts.load(Ordering::SeqCst), 0);
+    }
 }
 
 #[cfg(unix)]
@@ -485,6 +627,36 @@ fn an_existing_symlink_cannot_move_the_probe_write_outside_the_workspace() {
     );
     assert_eq!(driver.starts.load(Ordering::SeqCst), 0);
     assert!(!outside.join("nonce.txt").exists());
+}
+
+#[cfg(unix)]
+#[test]
+fn codex_workspace_root_substitution_after_measurement_fails_before_start() {
+    use std::os::unix::fs::symlink;
+
+    let root = TempDir::new().expect("root");
+    let workspace = root.path().join("workspace");
+    let substitute = root.path().join("substitute");
+    fs::create_dir(&workspace).expect("workspace");
+    fs::create_dir(&substitute).expect("substitute");
+    let executable = Path::new("/bin/sh");
+    let driver = CompatibleCodexDriver {
+        executable: executable.to_owned(),
+        version: "codex-cli 0.151.0".to_owned(),
+        starts: Arc::new(AtomicUsize::new(0)),
+    };
+    let request = codex_request(executable, &workspace);
+    fs::remove_dir(&workspace).expect("remove measured workspace");
+    symlink(&substitute, &workspace).expect("substitute workspace root");
+
+    assert_eq!(
+        execute_tool_host_probe(&driver, &workspace, request),
+        Err(ToolHostProbeError::RuntimeIdentityMismatch {
+            field: "canonical_workspace_root_digest"
+        })
+    );
+    assert_eq!(driver.starts.load(Ordering::SeqCst), 0);
+    assert!(!substitute.join("probe/nonce.txt").exists());
 }
 
 #[test]
@@ -522,6 +694,13 @@ fn malformed_terminal_tool_usage_and_output_return_no_trace() {
         ),
         (
             Scenario::ExtraTool,
+            ToolHostProbeError::UnexpectedToolUse {
+                server: TOOL_HOST_PROBE_WORKSPACE_SERVER.to_owned(),
+                tool: ToolHostProbeTool::WorkspaceRead.to_string(),
+            },
+        ),
+        (
+            Scenario::ReorderedTools,
             ToolHostProbeError::UnexpectedToolUse {
                 server: TOOL_HOST_PROBE_WORKSPACE_SERVER.to_owned(),
                 tool: ToolHostProbeTool::WorkspaceRead.to_string(),

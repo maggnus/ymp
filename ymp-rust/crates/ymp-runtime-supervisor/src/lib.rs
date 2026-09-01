@@ -22,17 +22,20 @@ use ymp_domain::commitment::{InvocationClosure, InvocationState, RootTerminal, V
 use ymp_domain::{Command, EventKind, MAX_IDENTIFIER_CHARS, RunStatus, digest_bytes};
 use ymp_runtime_api::{
     AdmittedProgram, CancellationToken, DiagnosticSummary, InvocationRequest, LaunchDescriptor,
-    McpBinding, ProbeReport, ProgramIdentity, ProgramRequirement, ProgramRole, Readiness,
-    RuntimeDriver, RuntimeError, RuntimeEvent, RuntimeEventKind, RuntimeFailureKind, RuntimeKind,
-    TOOL_HOST_PROBE_SCHEMA_VERSION, TOOL_HOST_PROBE_WORKSPACE_SERVER, ToolHostProbeCost,
+    McpBinding, ProbeReport, ProbeTransportIdentity, ProgramIdentity, ProgramRequirement,
+    ProgramRole, Readiness, RuntimeDriver, RuntimeError, RuntimeEvent, RuntimeEventKind,
+    RuntimeFailureKind, RuntimeKind, TOOL_HOST_PROBE_ENVIRONMENT,
+    TOOL_HOST_PROBE_INTERNAL_ARGUMENTS, TOOL_HOST_PROBE_INTERNAL_SUBCOMMAND,
+    TOOL_HOST_PROBE_MCP_PROTOCOL_VERSION, TOOL_HOST_PROBE_SCHEMA_VERSION,
+    TOOL_HOST_PROBE_SERVER_VERSION, TOOL_HOST_PROBE_WORKSPACE_SERVER, ToolHostProbeCost,
     ToolHostProbeCostAvailability, ToolHostProbeEffect, ToolHostProbeError,
     ToolHostProbeInvocation, ToolHostProbeRequest, ToolHostProbeResourceVector,
     ToolHostProbeRuntimeIdentity, ToolHostProbeTerminal, ToolHostProbeTool,
     ToolHostProbeToolEventDigest, ToolHostProbeTrace, ToolHostProbeTrust, Usage,
-    admit_lifecycle_programs, evidence_digest, tool_host_probe_tool_schema_digest,
-    unestablished_terminations,
+    admit_lifecycle_programs, evidence_digest, probe_transport_digest,
+    tool_host_probe_tool_schema_digest, unestablished_terminations,
 };
-use ymp_runtime_codex::codex_compatibility_contract_digest;
+use ymp_runtime_codex::{PINNED_CODEX_PROMPT_POLICY, codex_compatibility_contract_digest};
 
 mod kernel;
 
@@ -43,6 +46,9 @@ const MAX_CONTRACT_BYTES: usize = 1024 * 1024;
 const MAX_PROMPT_BYTES: usize = 64 * 1024;
 const MAX_RUNTIME_EVIDENCE_BYTES: u64 = 4 * 1024 * 1024;
 const RUNTIME_EVIDENCE_SCHEMA_VERSION: u32 = 3;
+const CODEX_TOOL_HOST_ROUTE: &str = "openai_responses_chatgpt";
+const CODEX_TOOL_HOST_DRIVER: &str = "ymp-runtime-codex";
+const CODEX_TOOL_HOST_DRIVER_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 /// How long a controller waits for its worker to end before it stops waiting.
 ///
@@ -903,25 +909,28 @@ pub fn start_unattested_managed_candidate(
 /// Executes one runtime-reported workspace nonce write/read probe without entering the
 /// Application, kernel, board, task, recruitment, candidate, persistence or attestation paths.
 ///
-/// Only the fake-runtime process boundary is admitted by this build. A production runtime must be
-/// authorized and given an attested launch in later controller work; implementing the driver's
-/// optional probe methods alone cannot make a live route reachable here.
+/// Fake fixtures and the one behaviorally compatible Codex profile are admitted. The returned
+/// trace remains untrusted; only the Application controller can perform read-back and attest it.
 pub fn execute_tool_host_probe(
     driver: &dyn RuntimeDriver,
     workspace: &Path,
     request: ToolHostProbeRequest,
 ) -> Result<ToolHostProbeTrace, ToolHostProbeError> {
     validate_tool_host_probe_request(&request)?;
-    if driver.kind() != RuntimeKind::Fake
-        || request.expected_runtime.runtime_kind != RuntimeKind::Fake
-    {
-        return Err(ToolHostProbeError::LiveRuntimeForbidden);
-    }
+    let launch_attestation = match (driver.kind(), request.expected_runtime.runtime_kind) {
+        (RuntimeKind::Fake, RuntimeKind::Fake) => LaunchAttestation::Waived,
+        (RuntimeKind::Codex, RuntimeKind::Codex) => LaunchAttestation::Required,
+        _ => {
+            return Err(ToolHostProbeError::RuntimeIdentityMismatch {
+                field: "runtime_kind",
+            });
+        }
+    };
     if request.cancellation.is_cancelled() {
         return Err(ToolHostProbeError::Cancelled);
     }
     let workspace = validate_tool_host_probe_workspace(workspace, &request.workspace_path)?;
-    admit_start(driver.kind(), LaunchAttestation::Waived).map_err(|error| {
+    admit_start(driver.kind(), launch_attestation).map_err(|error| {
         ToolHostProbeError::StartFailed {
             detail: error.to_string(),
         }
@@ -937,13 +946,30 @@ pub fn execute_tool_host_probe(
         });
     }
     validate_tool_host_probe_projection(driver, &probe, &request.expected_runtime)?;
-    let runtime = driver.tool_host_probe_identity().map_err(|error| {
-        ToolHostProbeError::RuntimeProbeFailed {
-            detail: error.to_string(),
+    let runtime = match driver.kind() {
+        RuntimeKind::Fake => driver.tool_host_probe_identity().map_err(|error| {
+            ToolHostProbeError::RuntimeProbeFailed {
+                detail: error.to_string(),
+            }
+        })?,
+        RuntimeKind::Codex => {
+            reconstruct_codex_tool_host_probe_identity(driver, &probe, &workspace)?
         }
-    })?;
+        _ => {
+            return Err(ToolHostProbeError::LiveRuntimeForbidden);
+        }
+    };
     validate_tool_host_probe_identity(&runtime)?;
+    compare_probe_transport_identity(
+        &request.expected_runtime.probe_transport,
+        &runtime.probe_transport,
+    )?;
     compare_tool_host_probe_identity(&request.expected_runtime, &runtime)?;
+
+    if driver.kind() == RuntimeKind::Codex {
+        let immediate_transport = measure_current_tool_host_probe_transport(&workspace)?;
+        compare_probe_transport_identity(&runtime.probe_transport, &immediate_transport)?;
+    }
 
     let started_at = Instant::now();
     let mut session = driver
@@ -1246,6 +1272,12 @@ fn validate_tool_host_probe_identity(
             field: "tool_schema_digest",
         });
     }
+    validate_probe_transport_shape(&identity.probe_transport)?;
+    if identity.probe_transport_digest != probe_transport_digest(&identity.probe_transport) {
+        return Err(ToolHostProbeError::RuntimeIdentityMismatch {
+            field: "probe_transport_digest",
+        });
+    }
     Ok(())
 }
 
@@ -1336,6 +1368,238 @@ fn validate_tool_host_probe_workspace(
     Ok(canonical)
 }
 
+fn reconstruct_codex_tool_host_probe_identity(
+    driver: &dyn RuntimeDriver,
+    probe: &ProbeReport,
+    workspace: &Path,
+) -> Result<ToolHostProbeRuntimeIdentity, ToolHostProbeError> {
+    let cli_version = probe
+        .version
+        .clone()
+        .ok_or(ToolHostProbeError::RuntimeIdentityMismatch {
+            field: "cli_version",
+        })?;
+    let executable_digest = regular_non_symlink_digest(driver.executable(), "executable_digest")?;
+    let probe_transport = measure_current_tool_host_probe_transport(workspace)?;
+    let probe_transport_digest = probe_transport_digest(&probe_transport);
+    Ok(ToolHostProbeRuntimeIdentity {
+        runtime_kind: RuntimeKind::Codex,
+        route: CODEX_TOOL_HOST_ROUTE.to_owned(),
+        profile: PINNED_CODEX_PROMPT_POLICY.to_owned(),
+        cli: driver.executable().display().to_string(),
+        cli_version,
+        compatibility_contract_digest: codex_compatibility_contract_digest(),
+        executable_digest,
+        driver: CODEX_TOOL_HOST_DRIVER.to_owned(),
+        driver_version: CODEX_TOOL_HOST_DRIVER_VERSION.to_owned(),
+        tool_schema_digest: tool_host_probe_tool_schema_digest(),
+        probe_transport,
+        probe_transport_digest,
+    })
+}
+
+fn measure_current_tool_host_probe_transport(
+    workspace: &Path,
+) -> Result<ProbeTransportIdentity, ToolHostProbeError> {
+    let executable = std::env::current_exe()
+        .map_err(|error| ToolHostProbeError::RuntimeProbeFailed {
+            detail: format!("resolve current ymp executable: {error}"),
+        })?
+        .canonicalize()
+        .map_err(|error| ToolHostProbeError::RuntimeProbeFailed {
+            detail: format!("canonicalize current ymp executable: {error}"),
+        })?;
+    let executable_digest = regular_non_symlink_digest(&executable, "probe_executable_digest")?;
+    let metadata = fs::symlink_metadata(workspace).map_err(|error| {
+        ToolHostProbeError::WorkspaceUnavailable {
+            detail: error.to_string(),
+        }
+    })?;
+    if !metadata.is_dir() || metadata.file_type().is_symlink() {
+        return Err(ToolHostProbeError::WorkspaceUnavailable {
+            detail: "workspace root must be a regular non-symlink directory".to_owned(),
+        });
+    }
+    let canonical =
+        workspace
+            .canonicalize()
+            .map_err(|error| ToolHostProbeError::WorkspaceUnavailable {
+                detail: error.to_string(),
+            })?;
+    if canonical != workspace {
+        return Err(ToolHostProbeError::RuntimeIdentityMismatch {
+            field: "canonical_workspace_root_digest",
+        });
+    }
+    Ok(ProbeTransportIdentity {
+        mcp_protocol_version: TOOL_HOST_PROBE_MCP_PROTOCOL_VERSION.to_owned(),
+        server_name: TOOL_HOST_PROBE_WORKSPACE_SERVER.to_owned(),
+        server_version: TOOL_HOST_PROBE_SERVER_VERSION.to_owned(),
+        tool_schema_digest: tool_host_probe_tool_schema_digest(),
+        ordered_tools: [
+            ToolHostProbeTool::WorkspaceWrite,
+            ToolHostProbeTool::WorkspaceRead,
+        ],
+        server_executable_digest: executable_digest.clone(),
+        launcher_executable_digest: executable_digest,
+        internal_subcommand: TOOL_HOST_PROBE_INTERNAL_SUBCOMMAND.to_owned(),
+        arguments: TOOL_HOST_PROBE_INTERNAL_ARGUMENTS
+            .iter()
+            .map(|argument| (*argument).to_owned())
+            .collect(),
+        inherited_environment: TOOL_HOST_PROBE_ENVIRONMENT
+            .iter()
+            .map(|name| (*name).to_owned())
+            .collect(),
+        canonical_workspace_root_digest: evidence_digest(canonical.as_os_str().as_encoded_bytes()),
+    })
+}
+
+fn regular_non_symlink_digest(
+    path: &Path,
+    field: &'static str,
+) -> Result<String, ToolHostProbeError> {
+    let metadata =
+        fs::symlink_metadata(path).map_err(|error| ToolHostProbeError::RuntimeProbeFailed {
+            detail: error.to_string(),
+        })?;
+    if !metadata.is_file() || metadata.file_type().is_symlink() {
+        return Err(ToolHostProbeError::RuntimeIdentityMismatch { field });
+    }
+    fs::read(path)
+        .map(|bytes| evidence_digest(&bytes))
+        .map_err(|error| ToolHostProbeError::RuntimeProbeFailed {
+            detail: error.to_string(),
+        })
+}
+
+fn validate_probe_transport_shape(
+    transport: &ProbeTransportIdentity,
+) -> Result<(), ToolHostProbeError> {
+    for (field, matches) in [
+        (
+            "mcp_protocol_version",
+            transport.mcp_protocol_version == TOOL_HOST_PROBE_MCP_PROTOCOL_VERSION,
+        ),
+        (
+            "server_name",
+            transport.server_name == TOOL_HOST_PROBE_WORKSPACE_SERVER,
+        ),
+        (
+            "server_version",
+            transport.server_version == TOOL_HOST_PROBE_SERVER_VERSION,
+        ),
+        (
+            "transport_tool_schema_digest",
+            transport.tool_schema_digest == tool_host_probe_tool_schema_digest(),
+        ),
+        (
+            "ordered_tools",
+            transport.ordered_tools
+                == [
+                    ToolHostProbeTool::WorkspaceWrite,
+                    ToolHostProbeTool::WorkspaceRead,
+                ],
+        ),
+        (
+            "internal_subcommand",
+            transport.internal_subcommand == TOOL_HOST_PROBE_INTERNAL_SUBCOMMAND,
+        ),
+        (
+            "arguments",
+            transport.arguments
+                == TOOL_HOST_PROBE_INTERNAL_ARGUMENTS
+                    .iter()
+                    .map(|argument| (*argument).to_owned())
+                    .collect::<Vec<_>>(),
+        ),
+        (
+            "inherited_environment",
+            transport.inherited_environment
+                == TOOL_HOST_PROBE_ENVIRONMENT
+                    .iter()
+                    .map(|name| (*name).to_owned())
+                    .collect::<Vec<_>>(),
+        ),
+    ] {
+        if !matches {
+            return Err(ToolHostProbeError::RuntimeIdentityMismatch { field });
+        }
+    }
+    for (field, digest) in [
+        (
+            "server_executable_digest",
+            transport.server_executable_digest.as_str(),
+        ),
+        (
+            "launcher_executable_digest",
+            transport.launcher_executable_digest.as_str(),
+        ),
+        (
+            "canonical_workspace_root_digest",
+            transport.canonical_workspace_root_digest.as_str(),
+        ),
+    ] {
+        if !is_sha256_digest(digest) {
+            return Err(ToolHostProbeError::InvalidIdentity { field });
+        }
+    }
+    Ok(())
+}
+
+fn compare_probe_transport_identity(
+    expected: &ProbeTransportIdentity,
+    observed: &ProbeTransportIdentity,
+) -> Result<(), ToolHostProbeError> {
+    validate_probe_transport_shape(expected)?;
+    validate_probe_transport_shape(observed)?;
+    for (field, matches) in [
+        (
+            "mcp_protocol_version",
+            expected.mcp_protocol_version == observed.mcp_protocol_version,
+        ),
+        ("server_name", expected.server_name == observed.server_name),
+        (
+            "server_version",
+            expected.server_version == observed.server_version,
+        ),
+        (
+            "transport_tool_schema_digest",
+            expected.tool_schema_digest == observed.tool_schema_digest,
+        ),
+        (
+            "ordered_tools",
+            expected.ordered_tools == observed.ordered_tools,
+        ),
+        (
+            "server_executable_digest",
+            expected.server_executable_digest == observed.server_executable_digest,
+        ),
+        (
+            "launcher_executable_digest",
+            expected.launcher_executable_digest == observed.launcher_executable_digest,
+        ),
+        (
+            "internal_subcommand",
+            expected.internal_subcommand == observed.internal_subcommand,
+        ),
+        ("arguments", expected.arguments == observed.arguments),
+        (
+            "inherited_environment",
+            expected.inherited_environment == observed.inherited_environment,
+        ),
+        (
+            "canonical_workspace_root_digest",
+            expected.canonical_workspace_root_digest == observed.canonical_workspace_root_digest,
+        ),
+    ] {
+        if !matches {
+            return Err(ToolHostProbeError::RuntimeIdentityMismatch { field });
+        }
+    }
+    Ok(())
+}
+
 fn validate_tool_host_probe_projection(
     driver: &dyn RuntimeDriver,
     probe: &ProbeReport,
@@ -1359,11 +1623,9 @@ fn validate_tool_host_probe_projection(
             field: "cli_version",
         });
     }
-    let actual_executable_digest = fs::read(driver.executable())
-        .ok()
-        .filter(|_| driver.executable().is_file())
-        .map(|bytes| evidence_digest(&bytes));
-    if actual_executable_digest.as_deref() != Some(expected.executable_digest.as_str()) {
+    let actual_executable_digest =
+        regular_non_symlink_digest(driver.executable(), "executable_digest")?;
+    if actual_executable_digest != expected.executable_digest {
         return Err(ToolHostProbeError::RuntimeIdentityMismatch {
             field: "executable_digest",
         });
@@ -1399,6 +1661,14 @@ fn compare_tool_host_probe_identity(
         (
             "tool_schema_digest",
             expected.tool_schema_digest == observed.tool_schema_digest,
+        ),
+        (
+            "probe_transport",
+            expected.probe_transport == observed.probe_transport,
+        ),
+        (
+            "probe_transport_digest",
+            expected.probe_transport_digest == observed.probe_transport_digest,
         ),
     ] {
         if !matches {
