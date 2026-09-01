@@ -3,26 +3,26 @@ id: W1-EVL-04q
 kind: task
 wave: W1
 card: W1-EVL-04
-state: active
+state: accepted
 risk: critical
 maturity: BUILD
 relation: required
 depends_on: [W1-EVL-04k, W1-EVL-04p]
 blocks: [W1-EVL-04n, W1-EVL-04m]
 created_at: 2026-09-01T18:19:05+08:00
-updated_at: 2026-09-01T19:35:30+08:00
+updated_at: 2026-09-01T20:09:43+08:00
 started_at: 2026-09-01T19:35:30+08:00
-accepted_at:
-candidate_commit:
-closure_commit:
-evidence:
-duration_minutes: 0
+accepted_at: 2026-09-01T20:09:43+08:00
+candidate_commit: https://github.com/maggnus/ymp/commit/4d3751f728ff8130bded3a5af371c73e7b33315c
+closure_commit: https://github.com/maggnus/ymp/commit/3dab48d44e514f4c01c879c73afbbd8706c9f53f
+evidence: ["[3dab48d](https://github.com/maggnus/ymp/commit/3dab48d44e514f4c01c879c73afbbd8706c9f53f)"]
+duration_minutes: 25
 blocker:
 pause_reason:
 return_trigger:
 deliberate_partial: false
-review_rounds: 0
-escalation_decision:
+review_rounds: 3
+escalation_decision: bounded_retry
 ---
 
 # W1-EVL-04q — Product and admission consume behavioral compatibility
@@ -60,30 +60,31 @@ management to the user.
 
 ## Acceptance
 
-- [ ] V2 validates a compatible executable whose observed version differs from the historical
+- [x] V2 validates a compatible executable whose observed version differs from the historical
       reference, records exact version/executable digest and the frozen compatibility-contract
       digest, and leaves every experimental schedule/budget/outcome unchanged.
-- [ ] Same version with incompatible behavior, missing/wrong compatibility digest, malformed
+- [x] Same version with incompatible behavior, missing/wrong compatibility digest, malformed
       observed version/digest, stale v1 evidence and future behavior drift each fail before
       `model_ready` or an accepted task starts; version difference alone never fails.
-- [ ] All five product fixtures preserve their accepted behavior with automatic discovery and have
+- [x] All five product fixtures preserve their accepted behavior with automatic discovery and have
       no selector, upgrade prompt, project-directory ceremony or version acknowledgement.
-- [ ] V1 bytes and digest remain byte-identical and retrievable as historical evidence; v2 has a new
+- [x] V1 bytes and digest remain byte-identical and retrievable as historical evidence; v2 has a new
       identity/digest and exact parent binding, with no silent reinterpretation of the v1 freeze.
-- [ ] One fresh-root product/admission walk uses separate project, HOME, YMP_HOME, TMPDIR, build and
+- [x] One fresh-root product/admission walk uses separate project, HOME, YMP_HOME, TMPDIR, build and
       export; focused tests, strict Clippy, formatting and `git diff --check` pass without model,
       network, money, warnings or writes to real state.
 
 ## Current state
 
-W1-EVL-04k correctly bound the reference 0.151 fixtures and v1 manifest, but that exact version must
-remain historical evidence rather than product authority. W1-EVL-04p will expose a behavioral
-contract digest; no v2 admission manifest exists yet, and the live model gate stays closed.
+Accepted and integrated as
+[3dab48d](https://github.com/maggnus/ymp/commit/3dab48d44e514f4c01c879c73afbbd8706c9f53f).
+Admission v2 and product fixtures consume behavioral compatibility; v1 stays immutable history and
+the model gate remains closed until live attestation is accepted.
 
 ## Next action
 
-After W1-EVL-04p is accepted, run a Critical contract check of the additive v2 consumer and dispatch
-one Sol xhigh builder; W1-EVL-04n remains blocked until v2 is accepted.
+Repeat the W1-EVL-04n contract check against the accepted transport, behavioral identity and v2
+manifest, then implement and run the single live probe.
 
 ## Guardrails
 
@@ -104,18 +105,35 @@ marker carries the reviewer's ten-point score and the local moment of the verdic
 escalation, one `- CTO <decision> <dd/mm hh:mm> — <reason>` line records what was decided. The review
 dialogue itself stays in the reports and the evidence package.
 
-## Closure
+- R1(8/10) ACCEPT 01/09 20:05 — static and focused evidence showed no outcome defect, but the
+  external parent mutation did not finish → the candidate remained unchanged → the reviewer was
+  assigned the same scenario with a prebuilt binary
+- R2(7/10) RETURN 01/09 20:07 — the harness accidentally failed v2 self-digest before reaching its
+  copied parent → the exact sibling layout and pre-run v2 digest assertion were specified → no code
+  change was made
+- CTO bounded_retry 01/09 20:08 — no code defect was established and the remaining uncertainty was
+  one deterministic harness path, so one final evidence-only retry was authorized without changing
+  the candidate
+- R3(9/10) ACCEPT 01/09 20:09 — v2 self-digest passes, one byte changed only in copied v1 causes a
+  parent-loader refusal before report/model readiness, the root is removed and Git remains clean
 
-Filled when the task is accepted. Until then this section stays as written.
+## Closure
 
 ### Accepted outcome
 
-What was actually accepted.
+Admission v2 adds a strict behavioral-compatibility schema and exact parent binding to immutable v1
+manifest, sidecar and tree. Different observed Codex versions with the accepted contract pass and are
+recorded with executable digests; behavior drift at the historical version fails. Five product
+fixtures preserve readiness, export, resume, cancellation and descendant termination without any
+version control exposed to the user.
 
 ### Residuals
 
-Honestly retained limitations, each with an exact return trigger. Empty when there are none.
+Stage two deliberately remains `model_ready=false`: W1-EVL-04n must produce one live controller
+attestation and W1-EVL-04m must consume it exactly once.
 
 ### Evidence
 
-- Commit, evidence package, or durable document of record, each as a Markdown link.
+- [3dab48d](https://github.com/maggnus/ymp/commit/3dab48d44e514f4c01c879c73afbbd8706c9f53f)
+  — integrated tree, byte-identical for the reviewed paths to candidate
+  [4d3751f](https://github.com/maggnus/ymp/commit/4d3751f728ff8130bded3a5af371c73e7b33315c).
