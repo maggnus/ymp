@@ -53,11 +53,12 @@ const PUBLICATION_INSTRUCTIONS: &str = "Publication policy: the work of this att
 pub const APPROVED_BUILTIN_TOOLS: [&str; 6] = ["Bash", "Edit", "Glob", "Grep", "Read", "Write"];
 
 /// Invocation-scoped coordination tools, named as Claude Code exposes MCP tools.
-pub const COORDINATION_TOOLS: [&str; 6] = [
+pub const COORDINATION_TOOLS: [&str; 7] = [
     "mcp__ymp__read_control",
     "mcp__ymp__read_events",
     "mcp__ymp__read_board",
     "mcp__ymp__publish",
+    "mcp__ymp__request_participant",
     "mcp__ymp__submit",
     "mcp__ymp__yield",
 ];
@@ -1741,9 +1742,19 @@ impl ClaudeSession {
         }
         let mut expected_tools: Vec<String> = self.launch.profile.builtin_tools.clone();
         if self.coordinated {
-            expected_tools.extend(COORDINATION_TOOLS.iter().map(|tool| (*tool).to_owned()));
+            expected_tools.extend(
+                COORDINATION_TOOLS
+                    .iter()
+                    .filter(|tool| **tool != "mcp__ymp__request_participant")
+                    .map(|tool| (*tool).to_owned()),
+            );
         }
         expected_tools.sort();
+        let mut recruitment_tools = expected_tools.clone();
+        if self.coordinated {
+            recruitment_tools.push("mcp__ymp__request_participant".to_owned());
+            recruitment_tools.sort();
+        }
         let mut observed_tools: Vec<String> = array_field(event, "tools")?
             .iter()
             .filter_map(Value::as_str)
@@ -1758,9 +1769,9 @@ impl ClaudeSession {
                 "Claude enabled the delegation tool {delegation}"
             )));
         }
-        if observed_tools != expected_tools {
+        if observed_tools != expected_tools && observed_tools != recruitment_tools {
             return Err(RuntimeError::InvalidProfile(format!(
-                "Claude resolved tools {}, profile requires {}",
+                "Claude resolved tools {}, profile requires {} with only an endpoint-granted request_participant addition",
                 observed_tools.join("+"),
                 expected_tools.join("+")
             )));
@@ -3207,7 +3218,7 @@ printf '%s\n' '{{"type":"result","subtype":"success","is_error":false,"total_cos
             directory.path(),
             "claude-repeated-reply",
             r##"cat >/dev/null
-printf '%s\n' '{"type":"system","subtype":"init","session_id":"session-reply","claude_code_version":"2.1.227","model":"claude-opus-5","permissionMode":"acceptEdits","tools":["Bash","Edit","Glob","Grep","Read","Write","mcp__ymp__read_control","mcp__ymp__read_events","mcp__ymp__read_board","mcp__ymp__publish","mcp__ymp__submit","mcp__ymp__yield"],"mcp_servers":[{"name":"ymp","status":"connected"}],"slash_commands":[],"plugins":[],"skills":[]}'
+printf '%s\n' '{"type":"system","subtype":"init","session_id":"session-reply","claude_code_version":"2.1.227","model":"claude-opus-5","permissionMode":"acceptEdits","tools":["Bash","Edit","Glob","Grep","Read","Write","mcp__ymp__read_control","mcp__ymp__read_events","mcp__ymp__read_board","mcp__ymp__publish","mcp__ymp__request_participant","mcp__ymp__submit","mcp__ymp__yield"],"mcp_servers":[{"name":"ymp","status":"connected"}],"slash_commands":[],"plugins":[],"skills":[]}'
 printf '%s\n' '{"type":"assistant","request_id":"req_1","message":{"content":[{"type":"tool_use","id":"toolu_1","name":"mcp__ymp__submit","input":{"command_id":"agent.submit"}}]}}'
 printf '%s\n' '{"type":"user","message":{"content":[{"type":"tool_result","tool_use_id":"toolu_1","content":[{"type":"text","text":"{\"snapshot_digest\":\"a\"}"}]}]}}'
 printf '%s\n' '{"type":"user","message":{"content":[{"type":"tool_result","tool_use_id":"toolu_1","content":[{"type":"text","text":"{\"snapshot_digest\":\"a\"}"}]}]}}'
@@ -3527,7 +3538,11 @@ printf '%s\n' '{RESULT}'
             "an invocation without the coordination bridge was told to call a tool it does not \
              have: {plain}"
         );
-        for tool in ["mcp__ymp__read_board", "mcp__ymp__publish"] {
+        for tool in [
+            "mcp__ymp__read_board",
+            "mcp__ymp__publish",
+            "mcp__ymp__request_participant",
+        ] {
             assert!(
                 coordinated_arguments.contains(tool),
                 "coordinated Claude configuration omitted {tool}: {coordinated_arguments}"

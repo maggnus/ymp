@@ -3,8 +3,9 @@
 use serde::Deserialize;
 use serde_json::{Value, json};
 use ymp_agent_api::{
-    AgentToolCall, AgentToolError, AgentToolHandler, MAX_EVENT_PAGE, PUBLISH_TOOL, READ_BOARD_TOOL,
-    READ_CONTROL_TOOL, READ_EVENTS_TOOL, SUBMIT_TOOL, YIELD_TOOL,
+    AgentToolCall, AgentToolCapabilities, AgentToolError, AgentToolHandler, MAX_EVENT_PAGE,
+    PUBLISH_TOOL, READ_BOARD_TOOL, READ_CONTROL_TOOL, READ_EVENTS_TOOL, REQUEST_PARTICIPANT_TOOL,
+    SUBMIT_TOOL, YIELD_TOOL,
 };
 use ymp_board::{
     MAX_DECISION_BASIS, MAX_DELIVERY_BYTES, MAX_IDENTIFIER_CHARS, MAX_RECIPIENTS, MAX_REFERENCES,
@@ -83,7 +84,17 @@ impl<H: AgentToolHandler> McpServer<H> {
                 "Server not initialized",
                 Some(json!({ "requiredMethod": "initialize" })),
             ),
-            "tools/list" => rpc_result(id, json!({ "tools": tool_catalog() })),
+            "tools/list" => match self.handler.capabilities() {
+                Ok(capabilities) => {
+                    rpc_result(id, json!({ "tools": tool_catalog_for(capabilities) }))
+                }
+                Err(error) => rpc_error(
+                    id,
+                    -32603,
+                    "Controller capabilities unavailable",
+                    Some(json!({ "detail": error.message })),
+                ),
+            },
             "tools/call" => self.call_tool(id, request.params),
             _ => rpc_error(id, -32601, "Method not found", None),
         };
@@ -138,7 +149,11 @@ impl AgentToolHandler for UnavailableToolHandler {
 }
 
 pub fn tool_catalog() -> Vec<Value> {
-    vec![
+    tool_catalog_for(AgentToolCapabilities::RECRUITMENT)
+}
+
+fn tool_catalog_for(capabilities: AgentToolCapabilities) -> Vec<Value> {
+    let mut tools = vec![
         json!({
             "name": READ_CONTROL_TOOL,
             "title": "Read run control state",
@@ -234,6 +249,45 @@ pub fn tool_catalog() -> Vec<Value> {
             }
         }),
         json!({
+            "name": REQUEST_PARTICIPANT_TOOL,
+            "title": "Request a frozen-pool participant",
+            "description": "Request the exact frozen entry under this invocation's controller-derived proposer identity.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "request_id": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": MAX_IDENTIFIER_CHARS
+                    },
+                    "entry": {
+                        "type": "object",
+                        "properties": {
+                            "provider": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": MAX_IDENTIFIER_CHARS
+                            },
+                            "engine": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": MAX_IDENTIFIER_CHARS
+                            },
+                            "model": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": MAX_IDENTIFIER_CHARS
+                            }
+                        },
+                        "required": ["provider", "engine", "model"],
+                        "additionalProperties": false
+                    }
+                },
+                "required": ["request_id", "entry"],
+                "additionalProperties": false
+            }
+        }),
+        json!({
             "name": YIELD_TOOL,
             "title": "Yield the current invocation",
             "description": "Commit an explicit yield for this invocation before it stops.",
@@ -259,7 +313,11 @@ pub fn tool_catalog() -> Vec<Value> {
                 "additionalProperties": false
             }
         }),
-    ]
+    ];
+    if !capabilities.request_participant {
+        tools.retain(|tool| tool["name"] != REQUEST_PARTICIPANT_TOOL);
+    }
+    tools
 }
 
 fn audience_schema() -> Value {
@@ -400,12 +458,16 @@ fn serialize(value: &Value) -> String {
 mod tests {
     use super::{MCP_PROTOCOL_VERSION, McpServer};
     use serde_json::{Value, json};
-    use ymp_agent_api::{AgentToolCall, AgentToolError, AgentToolHandler};
+    use ymp_agent_api::{AgentToolCall, AgentToolCapabilities, AgentToolError, AgentToolHandler};
 
     #[derive(Default)]
     struct StubHandler;
 
     impl AgentToolHandler for StubHandler {
+        fn capabilities(&mut self) -> Result<AgentToolCapabilities, AgentToolError> {
+            Ok(AgentToolCapabilities::RECRUITMENT)
+        }
+
         fn call(&mut self, call: AgentToolCall) -> Result<Value, AgentToolError> {
             Ok(json!({ "call": format!("{call:?}") }))
         }
@@ -453,7 +515,7 @@ mod tests {
                 .as_array()
                 .expect("tool array")
                 .len(),
-            6
+            7
         );
         let catalog = listed["result"]["tools"].as_array().expect("tool array");
         let publish = catalog
@@ -479,6 +541,29 @@ mod tests {
             read["inputSchema"]["properties"]["limit_bytes"]["maximum"],
             32_768
         );
+        let recruitment = catalog
+            .iter()
+            .find(|tool| tool["name"] == "request_participant")
+            .expect("recruitment schema");
+        let schema = &recruitment["inputSchema"];
+        assert_eq!(schema["additionalProperties"], false);
+        assert_eq!(schema["properties"]["entry"]["additionalProperties"], false);
+        assert_eq!(schema["required"], json!(["request_id", "entry"]));
+        for forbidden in [
+            "proposer",
+            "participant",
+            "principal",
+            "path",
+            "profile",
+            "route",
+            "workspace",
+            "capability",
+            "score",
+            "rank",
+            "role",
+        ] {
+            assert!(schema["properties"].get(forbidden).is_none());
+        }
     }
 
     #[test]

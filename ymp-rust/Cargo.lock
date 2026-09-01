@@ -1075,6 +1075,7 @@ dependencies = [
  "ymp-agent-mcp",
  "ymp-application",
  "ymp-domain",
+ "ymp-testkit",
 ]
 
 [[package]]

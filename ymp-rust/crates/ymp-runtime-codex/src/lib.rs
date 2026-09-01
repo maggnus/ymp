@@ -1480,7 +1480,7 @@ fn add_mcp_config_arguments(
     })?;
     for setting in [
         "mcp_servers.ymp.required=true".to_owned(),
-        "mcp_servers.ymp.enabled_tools=[\"read_control\",\"read_events\",\"read_board\",\"publish\",\"yield\",\"submit\"]".to_owned(),
+        "mcp_servers.ymp.enabled_tools=[\"read_control\",\"read_events\",\"read_board\",\"publish\",\"request_participant\",\"yield\",\"submit\"]".to_owned(),
         "mcp_servers.ymp.default_tools_approval_mode=\"approve\"".to_owned(),
         format!(
             "mcp_servers.ymp.command={}",
@@ -1859,7 +1859,7 @@ fi
             "an invocation without the coordination bridge was told to call a tool it does not \
              have: {plain}"
         );
-        for tool in ["read_board", "publish"] {
+        for tool in ["read_board", "publish", "request_participant"] {
             assert!(
                 coordinated_arguments.contains(tool),
                 "coordinated Codex configuration omitted {tool}: {coordinated_arguments}"
@@ -1961,7 +1961,7 @@ fi
             .expect("captured invocation arguments");
         assert!(arguments.contains("mcp_servers.ymp.required=true"));
         assert!(arguments.contains(
-            "mcp_servers.ymp.enabled_tools=[\"read_control\",\"read_events\",\"read_board\",\"publish\",\"yield\",\"submit\"]"
+            "mcp_servers.ymp.enabled_tools=[\"read_control\",\"read_events\",\"read_board\",\"publish\",\"request_participant\",\"yield\",\"submit\"]"
         ));
         assert!(arguments.contains("mcp_servers.ymp.default_tools_approval_mode=\"approve\""));
     }

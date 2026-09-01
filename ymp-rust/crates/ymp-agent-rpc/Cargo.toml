@@ -16,3 +16,4 @@ ymp-domain.workspace = true
 [dev-dependencies]
 tempfile.workspace = true
 ymp-agent-mcp.workspace = true
+ymp-testkit.workspace = true

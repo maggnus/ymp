@@ -4,11 +4,13 @@ use serde::{Deserialize, Deserializer, Serialize};
 use serde_json::Value;
 use thiserror::Error;
 use ymp_board::{Audience, MessageKind, Reference, Relation};
+use ymp_domain::pool::EntryIdentity;
 
 pub const READ_CONTROL_TOOL: &str = "read_control";
 pub const READ_EVENTS_TOOL: &str = "read_events";
 pub const READ_BOARD_TOOL: &str = "read_board";
 pub const PUBLISH_TOOL: &str = "publish";
+pub const REQUEST_PARTICIPANT_TOOL: &str = "request_participant";
 pub const SUBMIT_TOOL: &str = "submit";
 pub const YIELD_TOOL: &str = "yield";
 pub const MAX_EVENT_PAGE: u16 = 128;
@@ -20,6 +22,7 @@ pub enum AgentToolCall {
     ReadEvents(ReadEventsArguments),
     ReadBoard(ReadBoardArguments),
     Publish(PublishArguments),
+    RequestParticipant(RequestParticipantArguments),
     Submit(SubmitArguments),
     Yield(YieldArguments),
 }
@@ -34,6 +37,9 @@ impl AgentToolCall {
             READ_EVENTS_TOOL => Ok(Self::ReadEvents(serde_json::from_value(arguments)?)),
             READ_BOARD_TOOL => Ok(Self::ReadBoard(serde_json::from_value(arguments)?)),
             PUBLISH_TOOL => Ok(Self::Publish(serde_json::from_value(arguments)?)),
+            REQUEST_PARTICIPANT_TOOL => {
+                Ok(Self::RequestParticipant(serde_json::from_value(arguments)?))
+            }
             SUBMIT_TOOL => Ok(Self::Submit(serde_json::from_value(arguments)?)),
             YIELD_TOOL => Ok(Self::Yield(serde_json::from_value(arguments)?)),
             _ => Err(ToolParseError::UnknownTool(name.to_owned())),
@@ -74,6 +80,34 @@ pub struct PublishArguments {
     #[serde(deserialize_with = "deserialize_relation")]
     pub relation: Relation,
     pub claimed_decision_basis: Vec<String>,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct RequestParticipantArguments {
+    pub request_id: String,
+    #[serde(deserialize_with = "deserialize_entry_identity")]
+    pub entry: EntryIdentity,
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct StrictEntryIdentity {
+    provider: String,
+    engine: String,
+    model: String,
+}
+
+fn deserialize_entry_identity<'de, D>(deserializer: D) -> Result<EntryIdentity, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let entry = StrictEntryIdentity::deserialize(deserializer)?;
+    Ok(EntryIdentity::new(
+        entry.provider,
+        entry.engine,
+        entry.model,
+    ))
 }
 
 #[derive(Deserialize)]
@@ -200,6 +234,18 @@ pub struct AgentToolError {
     pub message: String,
 }
 
+#[derive(Clone, Copy, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct AgentToolCapabilities {
+    pub request_participant: bool,
+}
+
+impl AgentToolCapabilities {
+    pub const RECRUITMENT: Self = Self {
+        request_participant: true,
+    };
+}
+
 impl AgentToolError {
     pub fn invalid(message: impl Into<String>) -> Self {
         Self {
@@ -224,6 +270,10 @@ impl AgentToolError {
 }
 
 pub trait AgentToolHandler {
+    fn capabilities(&mut self) -> Result<AgentToolCapabilities, AgentToolError> {
+        Ok(AgentToolCapabilities::default())
+    }
+
     fn call(&mut self, call: AgentToolCall) -> Result<Value, AgentToolError>;
 }
 
@@ -239,10 +289,11 @@ pub enum ToolParseError {
 mod tests {
     use super::{
         AgentToolCall, MAX_EVENT_PAGE, PublishArguments, ReadBoardArguments, ReadEventsArguments,
-        SubmitArguments, ToolParseError, YieldArguments,
+        RequestParticipantArguments, SubmitArguments, ToolParseError, YieldArguments,
     };
     use serde_json::json;
     use ymp_board::{Audience, MessageKind, Relation};
+    use ymp_domain::pool::EntryIdentity;
 
     #[test]
     fn tool_arguments_are_strict_and_defaults_are_stable() {
@@ -359,6 +410,57 @@ mod tests {
         nested["relation"]["command"] = json!("generic");
         assert!(matches!(
             AgentToolCall::parse("publish", nested),
+            Err(ToolParseError::InvalidArguments(_))
+        ));
+    }
+
+    #[test]
+    fn recruitment_arguments_name_only_the_request_and_frozen_entry() {
+        let arguments = json!({
+            "request_id": "request-1",
+            "entry": {
+                "provider": "anthropic",
+                "engine": "claude-code",
+                "model": "claude-opus-5"
+            }
+        });
+        assert_eq!(
+            AgentToolCall::parse("request_participant", arguments.clone())
+                .expect("parse recruitment request"),
+            AgentToolCall::RequestParticipant(RequestParticipantArguments {
+                request_id: "request-1".to_owned(),
+                entry: EntryIdentity::new("anthropic", "claude-code", "claude-opus-5"),
+            })
+        );
+
+        for forbidden in [
+            "proposer",
+            "participant",
+            "principal",
+            "path",
+            "profile",
+            "route",
+            "workspace",
+            "capability",
+            "score",
+            "rank",
+            "role",
+        ] {
+            let mut forged = arguments.clone();
+            forged[forbidden] = json!("model-selected");
+            assert!(
+                matches!(
+                    AgentToolCall::parse("request_participant", forged),
+                    Err(ToolParseError::InvalidArguments(_))
+                ),
+                "recruitment accepted forbidden field {forbidden}"
+            );
+        }
+
+        let mut nested = arguments;
+        nested["entry"]["profile"] = json!("model-selected");
+        assert!(matches!(
+            AgentToolCall::parse("request_participant", nested),
             Err(ToolParseError::InvalidArguments(_))
         ));
     }

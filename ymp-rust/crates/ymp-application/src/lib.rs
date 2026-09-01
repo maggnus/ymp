@@ -10,7 +10,7 @@ use thiserror::Error;
 use uuid::Uuid;
 use ymp_agent_api::{
     AgentToolCall, AgentToolError, AgentToolHandler, MAX_EVENT_PAGE, PublishArguments,
-    ReadBoardArguments, ReadEventsArguments, SubmitArguments,
+    ReadBoardArguments, ReadEventsArguments, RequestParticipantArguments, SubmitArguments,
 };
 use ymp_artifacts::{ArtifactError, ArtifactStore, CandidateRef, FileEntry, SubmissionRef};
 use ymp_board::budget::{Allowance as BoardAllowance, CommunicationAllowance};
@@ -1940,6 +1940,9 @@ impl AgentToolHandler for AgentSession<'_> {
             AgentToolCall::ReadEvents(arguments) => self.read_events(arguments),
             AgentToolCall::ReadBoard(arguments) => self.read_board(arguments),
             AgentToolCall::Publish(arguments) => self.publish(arguments),
+            AgentToolCall::RequestParticipant(_) => Err(AgentToolError::rejected(
+                "request_participant requires an invocation-bound recruitment endpoint",
+            )),
             AgentToolCall::Submit(arguments) => self.submit(arguments),
             AgentToolCall::Yield(_) => Err(AgentToolError::rejected(
                 "yield requires an invocation-bound controller endpoint",
@@ -1986,6 +1989,28 @@ impl AgentSession<'_> {
         Err(AgentToolError::rejected(
             "the controller-bound attempt is not live",
         ))
+    }
+
+    /// Recruit the exact frozen entry named by an invocation-bound agent call.
+    ///
+    /// The caller supplies only the request and entry identifiers. The proposer is derived from
+    /// the attempt this session is bound to, then the accepted application gate decides every
+    /// mechanical condition and hands an admission to the one managed start path supplied by the
+    /// controller.
+    pub fn request_participant(
+        &mut self,
+        arguments: RequestParticipantArguments,
+        runtime: &dyn RuntimeAdmission,
+        start: &mut dyn ParticipantStartPath,
+    ) -> Result<serde_json::Value, AgentToolError> {
+        let proposer = self.acting_participant()?;
+        let request = RequestParticipant::new(arguments.request_id, proposer, arguments.entry);
+        let admission = self
+            .app
+            .request_participant(&request, runtime, start)
+            .map_err(agent_application_error)?;
+        serde_json::to_value(admission)
+            .map_err(|_| AgentToolError::internal("participant admission serialization failed"))
     }
 
     fn publish(
@@ -2375,6 +2400,7 @@ fn ensure_candidate_identity(
 fn agent_application_error(error: ApplicationError) -> AgentToolError {
     match error {
         ApplicationError::Transition(_)
+        | ApplicationError::RecruitmentRefused(_)
         | ApplicationError::BoardCommandRejected(_)
         | ApplicationError::IdempotencyConflict { .. }
         | ApplicationError::CandidateConflict { .. }
