@@ -37,6 +37,9 @@ level compares the same profile in three matched-budget conditions: one particip
 best-of-`n`, and local coordination. The purpose is to make a coordination effect, or its absence,
 large enough to diagnose before stronger executors approach the oracle ceiling.
 
+The exact first development protocol is recorded in
+[WEAK_DIAGNOSTIC.md](WEAK_DIAGNOSTIC.md).
+
 A coordinated result advances this diagnostic ladder only when it repeatedly exceeds both the
 single-participant and independent-selection conditions, combines attributable non-redundant work,
 and survives removal or replacement of the messages claimed to matter. Fluent transcripts, more
