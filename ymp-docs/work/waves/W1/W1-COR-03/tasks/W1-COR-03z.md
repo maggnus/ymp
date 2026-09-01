@@ -10,7 +10,7 @@ relation: required
 depends_on: [W1-COR-03c, W1-COR-03e.1]
 blocks: [W1-EVL-04a, W1-EVL-04b]
 created_at: 2026-09-01T12:20:00+08:00
-updated_at: 2026-09-01T13:29:00+08:00
+updated_at: 2026-09-01T13:36:00+08:00
 started_at: 2026-09-01T13:02:00+08:00
 accepted_at:
 candidate_commit: https://github.com/maggnus/ymp/commit/0571ced10cb84c8b07990dc5cec5aae391b7b30a
@@ -21,8 +21,8 @@ blocker:
 pause_reason:
 return_trigger:
 deliberate_partial: false
-review_rounds: 0
-escalation_decision:
+review_rounds: 4
+escalation_decision: bounded_retry
 ---
 
 # W1-COR-03z — Agent tools publish and read collaboration through Application
@@ -78,13 +78,13 @@ caller identity, scope, budgets, payload storage, and authority remain controlle
 
 ## Current state
 
-Candidate [0571ced](https://github.com/maggnus/ymp/commit/0571ced10cb84c8b07990dc5cec5aae391b7b30a)
-implements strict `publish` and `read_board` across API, MCP/RPC, Application, and both runtime
-allowlists. Independent Significant R1 and one isolated consumer-surface walk are active.
+R4 accepted candidate [0571ced](https://github.com/maggnus/ymp/commit/0571ced10cb84c8b07990dc5cec5aae391b7b30a)
+after the exact MCP→RPC→Application path passed in a short disposable root. R1–R3 were infrastructure
+failures before product observation; no code finding remains open.
 
 ## Next action
 
-Accept or return the exact candidate from the independent review.
+Integrate the accepted candidate into current main without semantic conflict.
 
 ## Guardrails
 
@@ -103,7 +103,9 @@ Accept or return the exact candidate from the independent review.
   `DeliveryRecorded` already preserve the publication/delivery linkage; a receipt remains evidence
   of availability only, never listening or influence.
 - Candidate declares a mechanically forced `Cargo.lock` update outside the nominal write zone; R1
-  must prove it contains only dependency consequences of the touched packages before ratification.
+  proved it contains only dependency consequences of the touched packages and accepted it.
+- R1–R3 did not reach product code because of sandbox socket permission, hidden Rust toolchain, and
+  Unix socket path length respectively; the short-root R4 closed the proof gap.
 
 ## Review rounds
 
@@ -112,6 +114,17 @@ One line per round of the convergence loop, written by the CTO from the two role
 marker carries the reviewer's ten-point score and the local moment of the verdict. After an
 escalation, one `- CTO <decision> <dd/mm hh:mm> — <reason>` line records what was decided. The review
 dialogue itself stays in the reports and the evidence package.
+
+- R1(6/10) RETURN 01/09 13:31 — Unix-socket permission prevented the required MCP→RPC→Application
+  surface walk → code candidate unchanged → reviewer reruns only that proof in a disposable root
+- R2(5/10) RETURN 01/09 13:33 — isolated HOME hid the Rust toolchain before test start → product
+  state remained isolated → external build tooling made explicit
+- CTO bounded_retry 01/09 13:34 — two infrastructure-only returns; acceptance requires one reached
+  MCP→RPC→Application scenario, with no code delta
+- R3(4/10) ESCALATE 01/09 13:35 — long disposable path exceeded Unix `SUN_LEN` before product start
+  → candidate unchanged → final bounded attempt uses a short root
+- R4(9/10) ACCEPT 01/09 13:36 — short isolated root reached publish/read and rejected caller `author`
+  → exact UTF-8 bytes, digest and bound identity observed → proof gap closed
 
 ## Closure
 
