@@ -70,7 +70,7 @@ fn transcript_spec(app: &App, body: Rect, markers: &Markers) -> SurfaceSpec {
     }
 }
 
-/// `ymp <version> · <project>` left; contract, run and assurance right. A wide terminal also
+/// `ymp · <project>` left; contract, run and assurance right. A wide terminal also
 /// carries the project path and the assurance profile; a narrow one drops them first.
 fn context_header(app: &App, width: u16) -> (Vec<Span<'static>>, Vec<Span<'static>>) {
     let wide = width >= 120;
@@ -81,10 +81,7 @@ fn context_header(app: &App, width: u16) -> (Vec<Span<'static>>, Vec<Span<'stati
         return (left, right);
     };
 
-    left.push(Span::styled(
-        format!("ymp {}", environment.version),
-        theme::muted(),
-    ));
+    left.push(Span::styled("ymp".to_owned(), theme::muted()));
     left.push(Span::styled(" · ".to_owned(), theme::faint()));
     left.push(Span::styled(environment.project.clone(), theme::dim()));
     if wide {
@@ -377,5 +374,5 @@ fn size_guard_lines(area: Rect, markers: &Markers) -> Vec<Line<'static>> {
 
 /// The environment header, exposed so a test can assert the header without a rendered buffer.
 pub fn header_of(environment: &Environment) -> String {
-    format!("ymp {} · {}", environment.version, environment.project)
+    format!("ymp · {}", environment.project)
 }

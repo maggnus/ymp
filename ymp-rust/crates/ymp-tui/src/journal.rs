@@ -91,19 +91,12 @@ impl Model {
             refused: false,
             cursor: 0,
         };
-        model.push(Entry::Banner {
-            version: model.environment.version.clone(),
-        });
+        model.push(Entry::Banner);
         model.push(Entry::Blank);
-        // One line of basics under the wordmark. Where the store lives and which assurance
-        // profile is in force are carried by the header and by `?`; repeating them here would
-        // spend the first screen on facts the operator did not ask for.
+        // One line of working context under the wordmark. Product version and storage internals
+        // are diagnostics, not facts an ordinary start asks the operator to interpret.
         model.push(Entry::AppReply {
-            text: format!(
-                "{} · ymp {}",
-                model.environment.project_path.display(),
-                model.environment.version
-            ),
+            text: format!("working in {}", model.environment.project_path.display()),
         });
         model.push(Entry::Blank);
         model.push(Entry::AppReply {
@@ -135,14 +128,14 @@ impl Model {
             return vec![
                 Entry::Blank,
                 Entry::AppReply {
-                    text: "this store was left exactly as it was found — whether it holds a run \
-                           is not something this binary can read"
+                    text: "ymp cannot read its saved state, which was left exactly as it was found"
                         .into(),
                 },
                 Entry::AppReply {
-                    text: "no request can be drafted here · point ymp at another store, or use a \
-                           binary that reads this one's version"
-                        .into(),
+                    text:
+                        "no request can be drafted here · update ymp or restore compatible saved \
+                           data before continuing"
+                            .into(),
                 },
                 Entry::AppReply {
                     text: "?          key map".into(),
@@ -576,8 +569,9 @@ impl Model {
         {
             items.push(PaletteItem {
                 name: "export".into(),
-                description: "write this run's candidate and verifier evidence out of the store"
-                    .to_owned(),
+                description:
+                    "write this run's candidate and verifier evidence as a readable export"
+                        .to_owned(),
                 command: Command::Export,
             });
         }
@@ -592,19 +586,13 @@ impl Model {
     /// The status line: what is true about the run right now.
     pub fn status_line(&self) -> String {
         if self.refused {
-            return format!(
-                "unreadable store · nothing changed · store {}",
-                self.environment.data_root.display()
-            );
+            return "saved state unavailable · nothing changed".to_owned();
         }
         match &self.run {
             // The standing form of the opening invitation. It sits here rather than in the
             // transcript because it is true for as long as no run exists, and a fact that stays
             // true belongs on a line that is redrawn rather than one that is appended.
-            None => format!(
-                "idle · no run · state your request in one line · store {}",
-                self.environment.data_root.display()
-            ),
+            None => "idle · no run · state your request in one line".to_owned(),
             Some(run) => {
                 let mut line = format!(
                     "{} {} {} · attempts left {} · verification queries left {} · ev {}",

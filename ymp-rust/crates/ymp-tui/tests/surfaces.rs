@@ -408,8 +408,8 @@ fn the_cold_transcript_opens_on_the_logo_one_line_of_basics_and_the_invitation()
             "the wordmark did not open the transcript at {width}x{height}:\n{rendered}"
         );
         assert!(
-            stated.contains("/tmp/checkout · ymp 0.1.0"),
-            "the basics line did not carry the directory and the version:\n{rendered}"
+            stated.contains("working in /tmp/checkout"),
+            "the basics line did not carry the working directory:\n{rendered}"
         );
         assert!(
             stated.contains("state your request below in one line"),
@@ -420,7 +420,13 @@ fn the_cold_transcript_opens_on_the_logo_one_line_of_basics_and_the_invitation()
         // glyph on the header and the status line, the assurance sentence in `?` and on
         // `/runtimes`, the palette in the status line's own hint.
         for retired in [
+            "0.1.0",
+            "/tmp/checkout/.ymp-data",
             "ymp store",
+            "unreadable store",
+            "layout version",
+            "schema version",
+            "binary version",
             "no hostile-code containment",
             "no run recorded",
             "no contract drafted",

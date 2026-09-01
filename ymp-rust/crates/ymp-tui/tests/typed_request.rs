@@ -457,8 +457,12 @@ fn a_second_authorization_starts_its_run_in_a_store_of_its_own() {
         second_store.display()
     );
     assert!(
-        screen(&app, 120, 40).contains(&second_store.display().to_string()),
-        "the interface did not say which store the run went to"
+        !screen(&app, 120, 40).contains(&second_store.display().to_string()),
+        "the interface exposed the internal location of the second run"
+    );
+    assert!(
+        screen(&app, 120, 40).contains("previous run remains unchanged"),
+        "the interface did not state the user-facing consequence"
     );
 
     // The run being read is untouched: one store, one run, byte for byte.
@@ -648,8 +652,17 @@ fn a_store_written_under_another_schema_version_is_reported_and_left_alone() {
     let mut app = App::new(session.projection(None));
 
     let rendered = screen(&app, 120, 40);
-    assert!(rendered.contains("schema version 1"), "{rendered}");
+    assert!(
+        rendered.contains("cannot read its saved state"),
+        "{rendered}"
+    );
     assert!(rendered.contains("Nothing in it was changed"), "{rendered}");
+    for internal in ["schema version", "binary", "store", ".ymp-data"] {
+        assert!(
+            !rendered.contains(internal),
+            "the refusal exposed {internal:?}:\n{rendered}"
+        );
+    }
     assert!(
         !rendered.contains("no run recorded"),
         "an unreadable store was reported as an empty one:\n{rendered}"
@@ -667,7 +680,7 @@ fn a_store_written_under_another_schema_version_is_reported_and_left_alone() {
         "a request was drafted over a store that cannot be read"
     );
     assert!(
-        screen(&app, 120, 40).contains("cannot be read by this binary"),
+        screen(&app, 120, 40).contains("saved state is unavailable"),
         "the refusal to draft was not stated"
     );
     assert_eq!(

@@ -137,7 +137,7 @@ pub enum Entry {
         hint: String,
     },
     /// The wordmark, drawn once on an empty transcript.
-    Banner { version: String },
+    Banner,
     /// A blank separator line.
     Blank,
 }
@@ -158,17 +158,10 @@ impl Entry {
         match self {
             Self::Blank => vec![Line::default()],
 
-            Self::Banner { version } => {
-                let mut lines: Vec<Line<'static>> = WORDMARK
-                    .iter()
-                    .map(|row| Line::from(Span::styled((*row).to_owned(), theme::accent())))
-                    .collect();
-                if let Some(last) = lines.last_mut() {
-                    last.spans
-                        .push(Span::styled(format!("     {version}"), theme::faint()));
-                }
-                lines
-            }
+            Self::Banner => WORDMARK
+                .iter()
+                .map(|row| Line::from(Span::styled((*row).to_owned(), theme::accent())))
+                .collect(),
 
             Self::Human { text } => {
                 let mut lines = Vec::new();

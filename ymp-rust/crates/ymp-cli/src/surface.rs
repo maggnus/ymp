@@ -425,11 +425,15 @@ impl PageName {
 pub fn run(
     data_root: PathBuf,
     root: Option<PathBuf>,
+    diagnostic: bool,
     contracts: Vec<PreparedContract>,
     command: PublicCommand,
 ) -> Result<()> {
     let markers = Markers::detect();
-    let mut session = Session::open(&data_root, &contracts);
+    let mut session = match diagnostic {
+        true => Session::open_diagnostic(&data_root, &contracts),
+        false => Session::open(&data_root, &contracts),
+    };
     if let Some(root) = &root {
         session = session.with_registry_root(root);
     }
@@ -596,7 +600,7 @@ fn run_attempt(
 /// Why this store offers no attempt to launch.
 fn attempt_refusal(projection: &Projection) -> String {
     match &projection.run {
-        None => "this store holds no run".to_owned(),
+        None => "no run is open".to_owned(),
         Some(run) if !run.is_live() => format!(
             "run {} has already ended with the terminal outcome {}",
             run.run_id,
@@ -693,8 +697,8 @@ fn run_start(
             Ok(())
         }
         _ => match run_id {
-            Some(expected) => bail!("no run was started — the store holds no run under {expected}"),
-            None => bail!("no run was started — the store this authorization addressed holds none"),
+            Some(expected) => bail!("no run was started under {expected}"),
+            None => bail!("no run was started"),
         },
     }
 }
@@ -708,7 +712,7 @@ fn run_cancel(
 ) -> Result<()> {
     app.open_cancel_confirm();
     if matches!(app.modal, Modal::None) {
-        bail!("nothing was cancelled — this store holds no live run");
+        bail!("nothing was cancelled — no live run is open");
     }
     commit(session, app, markers, confirm)?;
 
@@ -868,7 +872,7 @@ fn run_show(
     print_surface(app, markers, PAGE_HEIGHT);
     if missing {
         bail!(
-            "nothing was shown — this store has no {} page",
+            "nothing was shown — no {} data is available",
             kind.command_name()
         );
     }

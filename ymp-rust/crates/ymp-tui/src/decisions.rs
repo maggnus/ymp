@@ -78,9 +78,8 @@ pub fn authorize(
     // the layout rather than named by the operator — and the run being read is untouched.
     if start.in_a_store_of_its_own {
         facts.push((
-            "store".to_owned(),
-            "the store you are reading already holds a run · this one is recorded in a store of \
-             its own under the same root, and the run you are reading is left exactly as it stands"
+            "previous run".to_owned(),
+            "this authorization starts a separate run · the run you are reading remains unchanged"
                 .to_owned(),
         ));
     }
@@ -280,8 +279,7 @@ pub fn start_attempt(run: &RunFacts, profile: &str) -> Confirm {
                 "attempts left {} · verification queries left {}",
                 run.budget.attempts_remaining, run.budget.verification_queries_remaining
             ),
-            "every launch, output and tool call is recorded under runtime-evidence in this store"
-                .to_owned(),
+            "every launch, output and tool call is recorded by ymp".to_owned(),
         ],
         prompt_label: "type the run id to confirm:".into(),
         required: run.run_id.clone(),

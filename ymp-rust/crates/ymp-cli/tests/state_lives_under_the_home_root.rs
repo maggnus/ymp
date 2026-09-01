@@ -115,6 +115,66 @@ fn a_root_stated_by_the_environment_is_the_one_addressed() {
     assert!(entries(&project).is_empty());
 }
 
+#[test]
+fn ordinary_and_explicit_storage_report_incompatible_state_at_different_detail() {
+    let host = Host::new();
+    let project = host.project("incompatible-state");
+    let store = DataRoot::open_for_project(&host.root(), &project)
+        .expect("the home root")
+        .store(StoreIntent::New)
+        .expect("the project's first store");
+    fs::write(
+        store.join("events.jsonl"),
+        "{\"schema_version\":1,\"run_id\":\"older-run\",\"sequence\":1,\"command_id\":\"ymp.bootstrap\",\"command_digest\":\"00\",\"predecessor_digest\":null,\"event\":{\"type\":\"run_started\",\"budget\":{\"attempts_remaining\":2,\"verification_queries_remaining\":1}},\"digest\":\"11\"}\n",
+    )
+    .expect("older journal");
+    fs::write(
+        store.join("run.json"),
+        "{\n  \"run_id\": \"older-run\",\n  \"status\": \"running\"\n}\n",
+    )
+    .expect("older projection");
+    let diagnostic_store = project.join("diag");
+    fs::create_dir(&diagnostic_store).expect("diagnostic store");
+    fs::copy(
+        store.join("events.jsonl"),
+        diagnostic_store.join("events.jsonl"),
+    )
+    .expect("diagnostic journal");
+    fs::copy(store.join("run.json"), diagnostic_store.join("run.json"))
+        .expect("diagnostic projection");
+
+    let ordinary = host.command(
+        &project,
+        &[
+            "request".to_owned(),
+            "--prompt=inspect the state".to_owned(),
+        ],
+    );
+    let ordinary = ordinary.text();
+    assert!(
+        ordinary.contains("cannot read its saved state"),
+        "{ordinary}"
+    );
+    assert!(
+        !ordinary.contains(&store.display().to_string()),
+        "{ordinary}"
+    );
+    assert!(!ordinary.contains("schema version"), "{ordinary}");
+
+    let explicit = host.command(
+        &project,
+        &[
+            "--data-root".to_owned(),
+            "diag".to_owned(),
+            "request".to_owned(),
+            "--prompt=inspect the state".to_owned(),
+        ],
+    );
+    let explicit = explicit.text();
+    assert!(explicit.contains("saved state at diag"), "{explicit}");
+    assert!(explicit.contains("schema version 1"), "{explicit}");
+}
+
 // ---------------------------------------------------------------------------
 // A draft is assembled under the root
 // ---------------------------------------------------------------------------

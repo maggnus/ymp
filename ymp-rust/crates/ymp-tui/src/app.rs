@@ -431,6 +431,20 @@ impl Session {
     /// Open a data root. A root with no committed run is not an error: the interface states
     /// the absence and offers what is possible from there.
     pub fn open(data_root: &Path, contracts: &[PreparedContract]) -> Self {
+        Self::open_with_diagnostics(data_root, contracts, false)
+    }
+
+    /// Open a store explicitly named by a diagnostic invocation, preserving its path and schema
+    /// details when it cannot be read.
+    pub fn open_diagnostic(data_root: &Path, contracts: &[PreparedContract]) -> Self {
+        Self::open_with_diagnostics(data_root, contracts, true)
+    }
+
+    fn open_with_diagnostics(
+        data_root: &Path,
+        contracts: &[PreparedContract],
+        diagnostic: bool,
+    ) -> Self {
         let environment = Environment::detect(data_root);
         let facts: Vec<ContractFacts> = contracts
             .iter()
@@ -444,10 +458,16 @@ impl Session {
                 // untouched, so the interface neither claims the run never existed nor offers
                 // to start one over it.
                 if let ApplicationError::IncompatibleStore { .. } = &error {
-                    model.error(format!(
-                        "{error}. Nothing in it was changed. Point ymp at another store, or keep \
-                         this one for a binary that reads its version."
-                    ));
+                    match diagnostic {
+                        true => model.error(format!(
+                            "saved state at {} cannot be read: {error}. Nothing in it was changed.",
+                            data_root.display()
+                        )),
+                        false => model.error(
+                            "ymp cannot read its saved state. Nothing in it was changed. Update ymp \
+                             or restore compatible saved data before continuing.",
+                        ),
+                    }
                     model.refuse_store();
                 }
                 Self::over(None, data_root, model, contracts)
@@ -473,6 +493,20 @@ impl Session {
     /// operator.
     pub fn open_under_root(root: &Path, data_root: &Path, contracts: &[PreparedContract]) -> Self {
         let mut session = Self::open(data_root, contracts);
+        session.root = Some(root.to_path_buf());
+        session.registry = RegistryAddress::Root(root.to_path_buf());
+        session.read_providers();
+        session.read_pools();
+        session
+    }
+
+    /// Open a store under an explicitly named diagnostic root.
+    pub fn open_under_root_diagnostic(
+        root: &Path,
+        data_root: &Path,
+        contracts: &[PreparedContract],
+    ) -> Self {
+        let mut session = Self::open_diagnostic(data_root, contracts);
         session.root = Some(root.to_path_buf());
         session.registry = RegistryAddress::Root(root.to_path_buf());
         session.read_providers();
@@ -1299,8 +1333,7 @@ impl Session {
             return;
         }
         let Some(application) = self.application.clone() else {
-            self.model
-                .reply("no run is open in this store — nothing to cancel");
+            self.model.reply("no run is open — nothing to cancel");
             return;
         };
         let outcome = {
@@ -1329,7 +1362,7 @@ impl Session {
     /// what the record holds rather than what the command asked for.
     fn recorded_terminal(&self) -> String {
         match self.model.run() {
-            None => "this store holds no run".to_owned(),
+            None => "no run is open".to_owned(),
             Some(run) if run.is_live() => {
                 "the run is still live — nothing terminal was recorded".to_owned()
             }
@@ -1555,9 +1588,8 @@ impl Session {
             return None;
         }
         if self.model.store_refused() {
-            self.model.error(
-                "this store cannot be read by this binary, so no request can be drafted over it",
-            );
+            self.model
+                .error("saved state is unavailable, so no request can be drafted here");
             return None;
         }
         if text.trim().is_empty() {
@@ -1722,9 +1754,8 @@ impl Session {
                         facts.contract_id
                     ),
                     None => format!(
-                        "/authorize {} starts a run in a store of its own, and that run is \
-                         identified once its store is addressed — {ceremony}. Anything else you \
-                         type amends this draft first.",
+                        "/authorize {} starts a new run and leaves the previous run unchanged — \
+                         {ceremony}. Anything else you type amends this draft first.",
                         facts.contract_id
                     ),
                 });
@@ -2053,17 +2084,15 @@ impl Session {
                 self.application = None;
                 self.data_root = store;
                 self.model = Model::cold(Environment::detect(&self.data_root), carried);
-                self.model.reply(format!(
-                    "a store holds one run · the run you authorized is started in {}, and the run \
-                     this session was reading is left exactly as it stands",
-                    self.data_root.display()
-                ));
+                self.model
+                    .reply("continuing with a new run · the previous run remains unchanged");
                 true
             }
-            Err(error) => {
-                self.model.error(format!(
-                    "no store could be addressed for a second run: {error}"
-                ));
+            Err(_error) => {
+                self.model.error(
+                    "a new run could not be prepared · nothing changed · check that ymp can write \
+                     its saved data and try again",
+                );
                 false
             }
         }
@@ -2094,8 +2123,7 @@ impl Session {
 
     fn launch_attempt(&mut self, route: Route) {
         let Some(application) = self.application.clone() else {
-            self.model
-                .error("no attempt was launched — this store holds no run to attempt");
+            self.model.error("no attempt was launched — no run is open");
             return;
         };
         match attempt::start(application, route, &self.registry) {
@@ -2390,21 +2418,27 @@ impl Session {
     pub fn export_evidence(&mut self, destination: Option<PathBuf>) {
         let Some(application) = self.application.clone() else {
             self.model
-                .error("no run is open in this store — there is nothing to export");
+                .error("no run is open — there is nothing to export");
             return;
         };
+        let destination_was_named = destination.is_some();
         let destination = destination.unwrap_or_else(|| self.export_destination());
         let report = Self::writer(&application).export_evidence(&destination);
         match report {
-            Ok(report) => self.model.reply(format!(
-                "evidence exported to {} · candidate {} · {} verifier evidence object(s) · {} \
-                 environment object(s) · {} journal events",
-                report.destination.display(),
-                crate::projection::short_digest(&report.candidate_digest),
-                report.evidence_digests.len(),
-                report.environment_digests.len(),
-                report.event_count
-            )),
+            Ok(report) => {
+                let destination = match destination_was_named {
+                    true => format!("evidence exported to {}", report.destination.display()),
+                    false => "evidence export saved by ymp".to_owned(),
+                };
+                self.model.reply(format!(
+                    "{destination} · candidate {} · {} verifier evidence object(s) · {} \
+                     environment object(s) · {} journal events",
+                    crate::projection::short_digest(&report.candidate_digest),
+                    report.evidence_digests.len(),
+                    report.environment_digests.len(),
+                    report.event_count
+                ));
+            }
             Err(error) => self.model.error(format!("nothing was exported — {error}")),
         }
     }
@@ -2421,7 +2455,7 @@ impl Session {
     pub fn apply_candidate(&mut self, destination: Option<PathBuf>, overwrite: bool) {
         let Some(application) = self.application.clone() else {
             self.model
-                .error("no run is open in this store — there is nothing to apply");
+                .error("no run is open — there is nothing to apply");
             return;
         };
         let destination =

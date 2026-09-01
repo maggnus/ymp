@@ -96,6 +96,15 @@ pub fn run_with_contracts(
     app::run(session, theme::Markers::detect())
 }
 
+/// Start the interface over a store explicitly named by a diagnostic invocation.
+pub fn run_with_contracts_diagnostic(
+    data_root: impl AsRef<Path>,
+    contracts: Vec<PreparedContract>,
+) -> anyhow::Result<()> {
+    let session = Session::open_diagnostic(data_root.as_ref(), &contracts);
+    app::run(session, theme::Markers::detect())
+}
+
 /// Start the interface over a store addressed under a root.
 ///
 /// A store holds one run. Knowing the root is what lets the second run an operator authorizes in
@@ -107,5 +116,16 @@ pub fn run_under_root(
     contracts: Vec<PreparedContract>,
 ) -> anyhow::Result<()> {
     let session = Session::open_under_root(root.as_ref(), data_root.as_ref(), &contracts);
+    app::run(session, theme::Markers::detect())
+}
+
+/// Start the interface under a root explicitly named by a diagnostic invocation.
+pub fn run_under_root_diagnostic(
+    root: impl AsRef<Path>,
+    data_root: impl AsRef<Path>,
+    contracts: Vec<PreparedContract>,
+) -> anyhow::Result<()> {
+    let session =
+        Session::open_under_root_diagnostic(root.as_ref(), data_root.as_ref(), &contracts);
     app::run(session, theme::Markers::detect())
 }
