@@ -3,15 +3,15 @@ id: W1-EVL-04s
 kind: task
 wave: W1
 card: W1-EVL-04
-state: ready
+state: active
 risk: critical
 maturity: OPERATIONALIZATION
 relation: required
 depends_on: [W1-EVL-04n, W1-EVL-04r]
 blocks: [W1-EVL-04m]
 created_at: 2026-09-01T21:14:37+08:00
-updated_at: 2026-09-01T21:36:00+08:00
-started_at:
+updated_at: 2026-09-01T22:30:22+08:00
+started_at: 2026-09-01T22:30:22+08:00
 accepted_at:
 candidate_commit:
 closure_commit:
@@ -85,14 +85,14 @@ or contamination of any experimental arm.
 
 ## Current state
 
-The first 04n attempt is spent and unlocalized; it cannot be retried. Deterministic launch code is
-integrated, but W1-EVL-04r must first make every future failure phase and expenditure durable. No
-second budget or permission exists until that diagnostic node is accepted.
+W1-EVL-04r is accepted on integrated main and the final read-only gate confirms all six diagnostic
+criteria, the unchanged v2 vector and an existing source-complete harness. The first 04n attempt
+remains spent and unlocalized; it cannot be retried or imported.
 
 ## Next action
 
-After W1-EVL-04r acceptance, perform one final read-only gate review against this already authorized
-frozen vector; then run the existing consumer once.
+Run the deterministic zero-model preflight, then execute the existing consumer exactly once in a
+fresh external root; stop permanently on its first terminal outcome.
 
 ## Guardrails
 
@@ -104,6 +104,8 @@ frozen vector; then run the existing consumer once.
 
 - Proposed after the first authorized attempt produced `ProcessExit` without enough evidence to
   localize whether a provider request occurred.
+- Final gate ACCEPT on 01/09 confirmed accepted 04r evidence, unchanged one-call budget and no source
+  change required by the existing live harness.
 
 ## Review rounds
 
