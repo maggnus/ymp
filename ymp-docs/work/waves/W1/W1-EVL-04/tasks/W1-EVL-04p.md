@@ -7,10 +7,10 @@ state: ready
 risk: critical
 maturity: BUILD
 relation: required
-depends_on: [W1-EVL-04i]
+depends_on: [W1-EVL-04i, W1-EVL-04o]
 blocks: [W1-EVL-04q]
 created_at: 2026-09-01T18:19:05+08:00
-updated_at: 2026-09-01T18:19:05+08:00
+updated_at: 2026-09-01T18:22:00+08:00
 started_at:
 accepted_at:
 candidate_commit:
@@ -49,12 +49,19 @@ or a hard-coded acceptance condition.
 - Update only the narrow runtime projection and exact compatibility checks in
   `ymp-rust/crates/ymp-runtime-supervisor/src/lib.rs` so the supervisor binds the compatibility
   contract digest plus observed version/executable digest, not a predetermined version number.
-- Exclusive write zone: those two production files, optional focused additions under their existing
-  tests, and mechanically forced changes only in the two package manifests and `ymp-rust/Cargo.lock`.
+- Add explicit `compatibility_contract_digest` and `executable_digest` fields to
+  `ToolHostProbeRuntimeIdentity` in `ymp-rust/crates/ymp-runtime-api/src/lib.rs`; overloading
+  `profile`, `driver_version` or another string is forbidden. The accepted W1-EVL-04o transport
+  identity remains unchanged.
+- Exclusive write zone: those three production files, optional focused additions under their
+  existing tests, mechanically forced identity literals only in
+  `ymp-application/src/tool_host_probe.rs`, `ymp-cli/src/internal.rs` and
+  `ymp-runtime-supervisor/tests/tool_host_probe.rs`, plus mechanically forced changes only in the
+  three package manifests and `ymp-rust/Cargo.lock`.
 
 ### Out
 
-- No-touch: product CLI/TUI, Application, corpus/admission manifests, runtime-api, Claude, prompts,
+- No-touch: product CLI/TUI behavior, Application logic, corpus/admission manifests, Claude, prompts,
   model/provider selection, budgets, research/calibration history, deployment and real model/network
   calls. W1-EVL-04q owns product/admission consumers.
 
@@ -78,14 +85,14 @@ or a hard-coded acceptance condition.
 ## Current state
 
 W1-EVL-04i/04k made Codex 0.151 a reproducible reference but also made its version string an
-acceptance gate. That is useful evidence and wrong product policy: users must not manage versions,
-and ymp cannot maintain one hard-coded CLI release. The accepted behavioral measurements already
-provide the stronger compatibility boundary needed here.
+acceptance gate. The behavioral measurements provide the stronger boundary, but current probe
+identity lacks explicit compatibility-contract and executable digests. W1-EVL-04o owns the same
+type first, so implementation waits for its accepted transport field.
 
 ## Next action
 
-Run a Critical contract check, then dispatch one Sol xhigh builder independently of active W1-EVL-04o
-because their write zones do not overlap.
+After W1-EVL-04o is accepted, repeat the Critical contract check against its exact identity and then
+dispatch one Sol xhigh builder.
 
 ## Guardrails
 
@@ -96,6 +103,8 @@ because their write zones do not overlap.
 ## Findings
 
 - Owner correction: exact 0.151 support is a temporary calibration point, not a product requirement.
+- R1 contract review required explicit compatibility-contract and executable digest fields in
+  runtime-api; the task is serialized after W1-EVL-04o because both own that identity type.
 
 ## Review rounds
 
