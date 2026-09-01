@@ -4,15 +4,15 @@ kind: subtask
 wave: W1
 card: W1-COR-03
 parent: W1-COR-03e
-state: ready
+state: active
 risk: significant
 maturity: BUILD
 relation: required
 depends_on: [W1-COR-03e.1]
 blocks: []
 created_at: 2026-09-01T12:16:00+08:00
-updated_at: 2026-09-01T12:16:00+08:00
-started_at:
+updated_at: 2026-09-01T21:41:03+08:00
+started_at: 2026-09-01T21:41:03+08:00
 accepted_at:
 candidate_commit:
 closure_commit:
