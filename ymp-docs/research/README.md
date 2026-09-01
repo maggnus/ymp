@@ -70,6 +70,10 @@ record also updates this index.
   [run-001-manual-file-communication-pilot.md](run-001-manual-file-communication-pilot.md) —
   infrastructure-invalid exploratory file-communication pilot, its zero communication observations,
   and the resulting profile-admission stop.
+- **RUN-002** —
+  [run-002-first-authorized-live-tool-host-probe.md](run-002-first-authorized-live-tool-host-probe.md)
+  — infrastructure-invalid first authorized live probe, its indeterminate failure phase, spent
+  reservation, and diagnostic STOP.
 
 ## Standing review rule
 
