@@ -8,9 +8,9 @@ risk: critical
 maturity: BUILD
 relation: required
 depends_on: [W1-EVL-04i]
-blocks: [W1-EVL-04n]
+blocks: [W1-EVL-04q]
 created_at: 2026-09-01T15:49:59+08:00
-updated_at: 2026-09-01T17:17:30+08:00
+updated_at: 2026-09-01T18:19:05+08:00
 started_at: 2026-09-01T16:39:00+08:00
 accepted_at: 2026-09-01T17:07:17+08:00
 candidate_commit: https://github.com/maggnus/ymp/commit/9c1f27accc03c7972bfe6b5b0e63720f42d3f50d
@@ -88,8 +88,8 @@ Codex 0.151 tuple; frozen schedules, limits and admission decisions remain uncha
 
 ## Next action
 
-After W1-EVL-04l is accepted, run W1-EVL-04n to admit exactly one controller-bound live Codex probe;
-W1-EVL-04m then consumes that attestation through the exact 0.151 manifest.
+Run W1-EVL-04p/04q so this exact 0.151 reference remains historical evidence while product
+compatibility becomes behavioral; W1-EVL-04n then admits one compatible live probe.
 
 ## Guardrails
 

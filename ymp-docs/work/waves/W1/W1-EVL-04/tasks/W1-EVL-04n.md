@@ -7,10 +7,10 @@ state: ready
 risk: critical
 maturity: BUILD
 relation: required
-depends_on: [W1-EVL-04k, W1-EVL-04l, W1-EVL-04o]
+depends_on: [W1-EVL-04l, W1-EVL-04o, W1-EVL-04p, W1-EVL-04q]
 blocks: [W1-EVL-04m]
 created_at: 2026-09-01T17:17:30+08:00
-updated_at: 2026-09-01T18:08:00+08:00
+updated_at: 2026-09-01T18:19:05+08:00
 started_at:
 accepted_at:
 candidate_commit:
@@ -25,37 +25,38 @@ review_rounds: 0
 escalation_decision:
 ---
 
-# W1-EVL-04n — Exact Codex profile performs one controller-bound tool-host probe
+# W1-EVL-04n — Compatible Codex runtime performs one attested tool-host probe
 
 ## Outcome
 
-The exact manifest-bound Codex 0.151 profile can execute one no-task-output compatibility probe
-through the W1-EVL-04o two-tool MCP transport and return an explicitly untrusted trace that only the
-W1-EVL-04l Application controller can attest; no other live runtime, task output, collaboration
-authority or repeated admitted invocation becomes reachable.
+An installed Codex runtime whose observed behavior satisfies the W1-EVL-04p compatibility contract
+can execute one no-task-output probe through the W1-EVL-04o two-tool MCP transport and return an
+explicitly untrusted trace that only the W1-EVL-04l Application controller can attest. Its exact
+observed version and executable digest are evidence, not an acceptance selector.
 
 ## Scope
 
 ### In
 
 - Implement `RuntimeDriver::tool_host_probe_identity` and `start_tool_host_probe` for the exact
-  accepted Codex 0.151 tuple in `ymp-rust/crates/ymp-runtime-codex/src/lib.rs`, using the fixed
+  accepted behavioral compatibility contract in `ymp-rust/crates/ymp-runtime-codex/src/lib.rs`,
+  using the fixed
   W1-EVL-04o server, `workspace_write` then `workspace_read`, the controller-supplied path and nonce,
   and a fixed compatibility directive that is not a user task or experimental arm. Nonempty ordinary
   output remains an error rather than hidden evidence.
 - Replace the fake-only guard in `ymp-rust/crates/ymp-runtime-supervisor/src/lib.rs` with an exact
-  allowlist of `Fake` for deterministic tests and the exact Codex runtime plus probe transport
-  identity. A public direct caller may receive only the existing `UntrustedRuntimeTrace`; it gains no
-  controller read-back, private attestation or `model_ready` authority. Trusted local code already
-  owns ordinary runtime starts, so preventing it from spending its own call is not a new POC gate.
+  allowlist of `Fake` for deterministic tests and a Codex runtime carrying the accepted behavioral
+  contract plus exact observed runtime/probe transport identity. A public direct caller may receive
+  only the existing `UntrustedRuntimeTrace`; it gains no controller read-back, private attestation or
+  `model_ready` authority.
 - Focused tests may be added only under
   `ymp-rust/crates/ymp-runtime-{codex,supervisor}/tests/**`; mechanically forced changes are allowed
   only in those two package manifests and `ymp-rust/Cargo.lock`.
-- One admitted live probe uses the frozen W1-EVL-04k manifest and separate stage-two budget: exactly
+- One admitted live probe uses the additive W1-EVL-04q v2 manifest and separate stage-two budget: exactly
   one model request, no task/arm output, no board/recruitment/candidate tool, and one ordered
   write/read exchange in a fresh disposable root. The W1-EVL-04l controller independently reads and
   attests it before the model gate can open.
-- The W1-EVL-04k manifest continues to bind the collaboration MCP digest. The opaque attestation
+- The W1-EVL-04q manifest binds the compatibility-contract and collaboration MCP digests. The opaque attestation
   independently binds the probe tool-schema digest and the W1-EVL-04o `probe_transport_digest`; no
   manifest byte changes in this task.
 
@@ -69,13 +70,14 @@ authority or repeated admitted invocation becomes reachable.
 
 ## Acceptance
 
-- [ ] Exact fake Codex 0.151 discovery plus the probe run exposes only W1-EVL-04o workspace write and
-      read, carries the manifest route/profile/CLI/driver, probe schema and transport digests, writes
-      then reads the supplied relative path, reports complete usage/cost/terminal evidence and yields
-      a W1-EVL-04l attestation with `model_calls=1` and `model_ready=false` until W1-EVL-04m consumes it.
+- [ ] A behaviorally compatible fake Codex with any observed version plus the probe run exposes only
+      W1-EVL-04o workspace write and read, carries compatibility-contract, observed
+      version/executable, route/profile/driver, probe schema and transport digests, writes then reads
+      the supplied path, reports complete usage/cost/terminal evidence and yields a W1-EVL-04l
+      attestation with `model_calls=1` and `model_ready=false` until W1-EVL-04m consumes it.
 - [ ] A direct caller can obtain at most `UntrustedRuntimeTrace`; presenting it or a raw request to
-      Application/04m creates no attestation. Stale 0.147, future 0.152, wrong route/profile/schema/
-      transport, absolute/traversing path, missing/reordered tool event, output, extra effect,
+      Application/04m creates no attestation. Wrong/missing compatibility contract, behavior drift,
+      route/profile/schema/transport mismatch, absolute/traversing path, missing/reordered tool event, output, extra effect,
       timeout/cancellation, incomplete usage or budget overflow returns a typed refusal.
 - [ ] The live run starts only after zero-model readiness and all deterministic mutations pass. It
       uses one fresh short root with separate project, `HOME`, `YMP_HOME`, `TMPDIR`, build and export;
@@ -91,13 +93,13 @@ authority or repeated admitted invocation becomes reachable.
 
 ## Current state
 
-Codex 0.151 conformance, the admission tuple and private Application attestation are accepted. The
-runtime still rejects every non-Fake probe, and W1-EVL-04o must first provide an exact two-tool MCP
-server plus transport digest. Until both are accepted, the live gate is unconditionally closed.
+Private Application attestation is accepted. The runtime still rejects every non-Fake probe;
+W1-EVL-04o must provide an exact transport, W1-EVL-04p behavioral compatibility, and W1-EVL-04q its
+v2 consumer. Until all three are accepted, the live gate is unconditionally closed.
 
 ## Next action
 
-After W1-EVL-04o is accepted, repeat the Critical contract check of this two-package bridge, then
+After W1-EVL-04o and W1-EVL-04q are accepted, repeat the Critical contract check of this two-package bridge, then
 dispatch one Sol xhigh builder and one frozen live probe only after deterministic negatives pass.
 
 ## Guardrails
@@ -115,6 +117,8 @@ dispatch one Sol xhigh builder and one frozen live probe only after deterministi
   server, no dedicated probe launch mode and ambiguity between collaboration and probe schema
   digests. The corrected graph assigns the exact transport to W1-EVL-04o, keeps public traces
   untrusted and binds both schema domains without changing the manifest.
+- Owner correction removed exact CLI version as product authority. W1-EVL-04p admits observed
+  behavior and W1-EVL-04q preserves exact version/digest only as reproducibility evidence.
 
 ## Review rounds
 

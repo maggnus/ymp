@@ -7,10 +7,10 @@ state: ready
 risk: critical
 maturity: BUILD
 relation: required
-depends_on: [W1-EVL-04k, W1-EVL-04l, W1-EVL-04n]
+depends_on: [W1-EVL-04l, W1-EVL-04n, W1-EVL-04q]
 blocks: [W1-EVL-04e]
 created_at: 2026-09-01T15:57:45+08:00
-updated_at: 2026-09-01T18:08:00+08:00
+updated_at: 2026-09-01T18:19:05+08:00
 started_at:
 accepted_at:
 candidate_commit:
@@ -30,9 +30,9 @@ escalation_decision:
 ## Outcome
 
 The admission command sets `model_ready=true` only from one strict `AttestedToolHostProbe` produced
-by the W1-EVL-04l controller from the exact non-Fake Codex invocation admitted by W1-EVL-04n and
-bound to the W1-EVL-04k manifest; raw, Fake, model-authored, stale, replayed or incomplete evidence
-remains fail-closed.
+by the W1-EVL-04l controller from the compatible non-Fake Codex invocation admitted by W1-EVL-04n
+and bound to the W1-EVL-04q v2 manifest; raw, Fake, model-authored, stale, replayed or incomplete
+evidence remains fail-closed.
 
 ## Scope
 
@@ -58,8 +58,8 @@ remains fail-closed.
 ## Acceptance
 
 - [ ] A controller-attested non-Fake record with matching manifest digest, runtime tuple,
-      invocation/probe
-      identity, nonce read-back digest, collaboration schema digest, probe schema digest, exact
+      invocation/probe identity, observed version/executable digest, behavioral compatibility
+      contract, nonce read-back digest, collaboration schema digest, probe schema digest, exact
       W1-EVL-04o `probe_transport_digest`, complete usage, separate budget, event/output digests and
       honest terminal makes stage two pass and `model_ready=true` exactly once.
 - [ ] A raw or Fake `ToolHostProbeTrace`, the former schema-valid `ProbeEvidence`, model-authored JSON,
@@ -81,7 +81,7 @@ remains fail-closed.
 ## Current state
 
 W1-EVL-04j owns the untrusted trace, W1-EVL-04l owns controller authority and persistence,
-W1-EVL-04k freezes the exact runtime tuple, and W1-EVL-04n owns the only admitted live bridge. This
+W1-EVL-04q freezes the behavioral compatibility consumer, and W1-EVL-04n owns the only admitted live bridge. This
 consumer remains blocked until all four pieces are accepted; no raw or Fake trace can open it.
 
 ## Next action
