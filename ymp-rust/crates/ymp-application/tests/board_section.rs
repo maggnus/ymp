@@ -25,8 +25,8 @@ use tempfile::tempdir;
 use ymp_application::{Application, ApplicationConfig, ApplicationError, BOARD_SECTION};
 use ymp_board::store::{FACT_RECORD, OPENING_RECORD};
 use ymp_board::{
-    Audience, BOARD_RECORD_KIND, BOARD_SCHEMA_VERSION, BoardCommand, BoardEvent, MessageKind,
-    Payload, Publish, Relation,
+    Audience, BOARD_RECORD_KIND, BOARD_SCHEMA_VERSION, BoardEvent, MessageKind, Payload, Publish,
+    Relation,
 };
 use ymp_domain::{Budget, Command};
 
@@ -54,10 +54,8 @@ fn publication(message_id: &str) -> Publish {
 fn run_with_publications(root: &Path) -> Application {
     let mut app = Application::create(root, "run-1", Budget::new(2, 1)).expect("create run");
     for index in 1..=2 {
-        app.record_board(&BoardCommand::Publish(publication(&format!(
-            "message-{index}"
-        ))))
-        .expect("a publication is recorded");
+        app.publish_board(&publication(&format!("message-{index}")), PAYLOAD_SENTENCE)
+            .expect("a publication is recorded");
     }
     app
 }
@@ -141,7 +139,7 @@ fn reopening_uses_the_board_terms_recorded_at_creation() {
     creation.board.controller = "recorded-controller".to_owned();
     let mut app = Application::create_with_config(root, "run-1", Budget::new(2, 1), creation)
         .expect("create run");
-    app.record_board(&BoardCommand::Publish(publication("message-1")))
+    app.publish_board(&publication("message-1"), PAYLOAD_SENTENCE)
         .expect("a publication is recorded");
     let facts_before = app.board().ledger().facts().to_vec();
     let state_before = app.board().ledger().snapshot();
@@ -169,7 +167,7 @@ fn a_board_write_error_leaves_the_live_ledger_unchanged() {
     fs::create_dir(&fact_record).expect("put an unwritable target at the fact-record path");
 
     assert!(matches!(
-        app.record_board(&BoardCommand::Publish(publication("message-1"))),
+        app.publish_board(&publication("message-1"), PAYLOAD_SENTENCE),
         Err(ApplicationError::BoardSectionUnusable(_))
     ));
     assert_eq!(app.board().ledger(), &ledger_before);

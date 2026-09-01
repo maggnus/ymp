@@ -14,7 +14,11 @@ use ymp_agent_api::{
 };
 use ymp_artifacts::{ArtifactError, ArtifactStore, CandidateRef, FileEntry, SubmissionRef};
 use ymp_board::budget::{Allowance as BoardAllowance, CommunicationAllowance};
-use ymp_board::{BoardCommand, BoardEvent, BoardLedger, BoardStore};
+use ymp_board::observatory::MessageView;
+use ymp_board::{
+    AssessmentRecord, BoardCommand, BoardEvent, BoardLedger, BoardStore, Edge, InterventionRecord,
+    ObservedVerdict, Publish, ViewDefect,
+};
 use ymp_domain::commitment::{
     BudgetVector, BundleChange, CommitmentCommand, CommitmentError, CommitmentEvent,
     CommitmentLedger, PathChange,
@@ -91,6 +95,12 @@ pub enum ApplicationError {
     WriterAlreadyActive,
     #[error("the board section of this run could not be opened for this run's terms: {0}")]
     BoardSectionUnusable(String),
+    #[error("board publications require their exact payload bytes")]
+    BoardPayloadRequired,
+    #[error("board payload digest mismatch: declared {declared}, actual {actual}")]
+    BoardPayloadDigestMismatch { declared: String, actual: String },
+    #[error("board payload length mismatch: declared {declared}, actual {actual}")]
+    BoardPayloadLengthMismatch { declared: u64, actual: u64 },
     #[error("first journal event is not run_started")]
     InvalidFirstEvent,
     #[error("command identifier {command_id} was reused with different content")]
@@ -282,6 +292,47 @@ pub struct DefaultBoardConfig {
 pub const DEFAULT_BOARD_CONTROLLER: &str = "ymp";
 pub const DEFAULT_BOARD_ROOT: &str = "participant-root";
 pub use ymp_board::{BOARD_SECTION, ViewState};
+
+/// One visible, attributed board message and the exact inert bytes its record names.
+///
+/// Both values are owned copies. The message remains untrusted data, and changing either value
+/// changes no board fact and no stored object.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ResolvedMessageView {
+    pub message: MessageView,
+    pub payload: Vec<u8>,
+}
+
+/// An owned operator reading whose visible board messages have been resolved from verified
+/// objects.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ResolvedBoardProjection {
+    pub reader: Option<String>,
+    pub messages: Vec<ResolvedMessageView>,
+    pub edges: Vec<Edge>,
+    pub interventions: Vec<InterventionRecord>,
+    pub assessments: Vec<AssessmentRecord>,
+    pub verdicts: Vec<(String, ObservedVerdict)>,
+}
+
+impl ResolvedBoardProjection {
+    /// Apply the board projection's presentation checks without granting access to its ledger.
+    pub fn check(&self) -> Result<(), ViewDefect> {
+        ViewState {
+            reader: self.reader.clone(),
+            messages: self
+                .messages
+                .iter()
+                .map(|resolved| resolved.message.clone())
+                .collect(),
+            edges: self.edges.clone(),
+            interventions: self.interventions.clone(),
+            assessments: self.assessments.clone(),
+            verdicts: self.verdicts.clone(),
+        }
+        .check()
+    }
+}
 
 /// The board endowment every run's board section opens with.
 pub fn default_board_endowment() -> CommunicationAllowance {
@@ -1028,21 +1079,84 @@ impl Application {
 
     /// An owned, read-only projection of the persisted collaboration record for the operator.
     ///
-    /// The projection is rebuilt from the board section's ledger on every call. It therefore
-    /// carries attributed, untrusted communication evidence without exposing the ledger or store
-    /// that owns that evidence, and changing the returned value cannot change either one.
-    pub fn operator_board_projection(&self) -> ViewState {
-        ViewState::for_operator(&self.board.ledger)
+    /// The projection is rebuilt from the board section's ledger on every call, and every visible
+    /// message is joined to an object whose digest is verified by the object store and whose byte
+    /// count is checked here. No partial projection is returned when any object is missing,
+    /// corrupt, or inconsistent with its board record.
+    pub fn operator_board_projection(&self) -> Result<ResolvedBoardProjection, ApplicationError> {
+        let ViewState {
+            reader,
+            messages: visible,
+            edges,
+            interventions,
+            assessments,
+            verdicts,
+        } = ViewState::for_operator(&self.board.ledger);
+        let mut messages = Vec::with_capacity(visible.len());
+        for message in visible {
+            let payload = self.object_store.read(&message.payload_digest)?;
+            let actual = payload.len() as u64;
+            if actual != message.payload_bytes {
+                return Err(ApplicationError::BoardPayloadLengthMismatch {
+                    declared: message.payload_bytes,
+                    actual,
+                });
+            }
+            messages.push(ResolvedMessageView { message, payload });
+        }
+        Ok(ResolvedBoardProjection {
+            reader,
+            messages,
+            edges,
+            interventions,
+            assessments,
+            verdicts,
+        })
     }
 
-    /// Execute one board command and persist every fact it commits, in one call: the facts are
-    /// committed to the board and appended to the section's record, and a caller that has been
-    /// told a fact is one the record already states.
+    /// Persist exact inert bytes and only then append the board facts that name them.
     ///
-    /// The command reaches the board the crate owns and nothing else. No control-plane fact is
-    /// written by it and no journal position moves, so the two planes stay as separate in effect
-    /// as they are in storage.
+    /// A length mismatch is refused before storage. A digest mismatch may leave the actual bytes
+    /// as an unreferenced object, but neither mismatch reaches the board. Once the object is
+    /// durable and verified, ordinary staged board recording ensures that a record failure cannot
+    /// move the live ledger.
+    pub fn publish_board(
+        &mut self,
+        publication: &Publish,
+        payload: &[u8],
+    ) -> Result<Vec<BoardEvent>, ApplicationError> {
+        let actual_bytes = payload.len() as u64;
+        if actual_bytes != publication.payload.bytes() {
+            return Err(ApplicationError::BoardPayloadLengthMismatch {
+                declared: publication.payload.bytes(),
+                actual: actual_bytes,
+            });
+        }
+        let actual_digest = self.object_store.put(payload)?;
+        if actual_digest != publication.payload.digest() {
+            return Err(ApplicationError::BoardPayloadDigestMismatch {
+                declared: publication.payload.digest().to_owned(),
+                actual: actual_digest,
+            });
+        }
+        self.record_board_command(&BoardCommand::Publish(publication.clone()))
+    }
+
+    /// Execute one non-publication board command and persist every fact it commits, in one call.
+    ///
+    /// Publication is refused here because a command carries only a digest and length. It must go
+    /// through [`Application::publish_board`] so its exact bytes become durable first.
     pub fn record_board(
+        &mut self,
+        command: &BoardCommand,
+    ) -> Result<Vec<BoardEvent>, ApplicationError> {
+        if matches!(command, BoardCommand::Publish(_)) {
+            return Err(ApplicationError::BoardPayloadRequired);
+        }
+        self.record_board_command(command)
+    }
+
+    fn record_board_command(
         &mut self,
         command: &BoardCommand,
     ) -> Result<Vec<BoardEvent>, ApplicationError> {

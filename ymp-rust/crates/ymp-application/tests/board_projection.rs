@@ -2,10 +2,9 @@
 //! without handing the caller its ledger or store.
 
 use tempfile::tempdir;
-use ymp_application::{Application, ViewState};
+use ymp_application::{Application, ResolvedBoardProjection};
 use ymp_board::{
-    Audience, Basis, BoardCommand, EdgeKind, MessageKind, NodeRef, Payload, Publish, Reference,
-    Relation,
+    Audience, Basis, EdgeKind, MessageKind, NodeRef, Payload, Publish, Reference, Relation,
 };
 use ymp_domain::Budget;
 
@@ -15,20 +14,24 @@ fn operator_projection_is_attributed_untrusted_and_read_only() {
     let mut application =
         Application::create(temporary.path(), "run-1", Budget::new(1, 1)).expect("create run");
     let artifact_digest = "a".repeat(64);
+    let payload = b"untrusted observation";
     application
-        .record_board(&BoardCommand::Publish(Publish {
-            message_id: "message-1".to_owned(),
-            author: "participant-root".to_owned(),
-            audience: Audience::ProjectDiscovery,
-            kind: MessageKind::Observation,
-            payload: Payload::of(b"untrusted observation"),
-            salience_ms: 5_000,
-            references: vec![Reference::Artifact {
-                object_digest: artifact_digest.clone(),
-            }],
-            relation: Relation::Standalone,
-            claimed_decision_basis: Vec::new(),
-        }))
+        .publish_board(
+            &Publish {
+                message_id: "message-1".to_owned(),
+                author: "participant-root".to_owned(),
+                audience: Audience::ProjectDiscovery,
+                kind: MessageKind::Observation,
+                payload: Payload::of(payload),
+                salience_ms: 5_000,
+                references: vec![Reference::Artifact {
+                    object_digest: artifact_digest.clone(),
+                }],
+                relation: Relation::Standalone,
+                claimed_decision_basis: Vec::new(),
+            },
+            payload,
+        )
         .expect("record representative board message");
 
     let audit_position = application.board().ledger().audit().len();
@@ -38,15 +41,18 @@ fn operator_projection_is_attributed_untrusted_and_read_only() {
         record_position,
         application.board().ledger().facts().len() as u64
     );
-    let mut projection: ViewState = application.operator_board_projection();
+    let mut projection: ResolvedBoardProjection = application
+        .operator_board_projection()
+        .expect("resolve operator projection");
 
     projection
         .check()
         .expect("operator projection is presentable");
     assert_eq!(projection.reader, None);
     assert_eq!(projection.messages.len(), 1);
-    assert_eq!(projection.messages[0].author, "participant-root");
-    assert!(projection.messages[0].untrusted);
+    assert_eq!(projection.messages[0].message.author, "participant-root");
+    assert!(projection.messages[0].message.untrusted);
+    assert_eq!(projection.messages[0].payload, payload);
     assert!(projection.edges.iter().any(|edge| {
         edge.kind == EdgeKind::Publication
             && edge.from
@@ -75,7 +81,9 @@ fn operator_projection_is_attributed_untrusted_and_read_only() {
     // A caller owns only its projection. Even changing that value cannot change the board the
     // next read is built from, or advance either persisted position.
     projection.messages.clear();
-    let repeated = application.operator_board_projection();
+    let repeated = application
+        .operator_board_projection()
+        .expect("resolve repeated operator projection");
     assert_eq!(repeated.messages.len(), 1);
     assert_eq!(application.board().ledger().audit().len(), audit_position);
     assert_eq!(application.board().recorded_facts(), record_position);
