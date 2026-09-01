@@ -3,25 +3,25 @@ id: W1-EXP-01e
 kind: task
 wave: W1
 card: W1-EXP-01
-state: active
+state: accepted
 risk: critical
 maturity: BUILD
 relation: follow_up
 depends_on: []
 blocks: [W1-EVL-04e, W1-EVL-04f, W1-EVL-04a]
 created_at: 2026-09-01T13:41:52+08:00
-updated_at: 2026-09-01T14:00:00+08:00
+updated_at: 2026-09-01T14:40:21+08:00
 started_at: 2026-09-01T14:00:00+08:00
-accepted_at:
-candidate_commit:
-closure_commit:
-evidence:
-duration_minutes: 0
+accepted_at: 2026-09-01T14:40:21+08:00
+candidate_commit: https://github.com/maggnus/ymp/commit/77ec6d0447b391206a725dbdcd7153c15e091b3c
+closure_commit: https://github.com/maggnus/ymp/commit/58c20c3838fa3bb77e5b71c0f3af66528055d79f
+evidence: ["[58c20c3](https://github.com/maggnus/ymp/commit/58c20c3838fa3bb77e5b71c0f3af66528055d79f)"]
+duration_minutes: 40
 blocker:
 pause_reason:
 return_trigger:
 deliberate_partial: false
-review_rounds: 0
+review_rounds: 1
 escalation_decision:
 ---
 
@@ -57,34 +57,36 @@ from independent selection without consuming a primary-study task or seed.
 
 ## Acceptance
 
-- [ ] Every task package has a stable identifier, source digest, public-contract digest, protected
+- [x] Every task package has a stable identifier, source digest, public-contract digest, protected
       oracle digest, stratum, split, and a seed namespace disjoint from calibration and primary use.
-- [ ] The decomposable package exposes at least two branch oracles and one integration oracle;
+- [x] The decomposable package exposes at least two branch oracles and one integration oracle;
       removing either required branch or the integration step makes the protected verifier reject.
-- [ ] Its protected manifest names distinct branch-A omission, branch-B omission and integration
+- [x] Its protected manifest names distinct branch-A omission, branch-B omission and integration
       bypass mutations with immutable mutation and expected-result digests; applying each mutation
       to the accepted reference candidate makes the exact verifier fail non-zero for its own reason.
-- [ ] The sequential/null package declares its dependency order and expected-null stratum before
+- [x] The sequential/null package declares its dependency order and expected-null stratum before
       execution; a manifest that relabels it as decomposable is rejected by compliance validation.
-- [ ] A separate stratum-relabel mutation and digest is rejected before any model call; it cannot
+- [x] A separate stratum-relabel mutation and digest is rejected before any model call; it cannot
       share the success condition of a branch or integration mutation.
-- [ ] Correct reference candidates pass and every seeded invalid candidate fails through the exact
+- [x] Correct reference candidates pass and every seeded invalid candidate fails through the exact
       verifier with captured exits; the report states each oracle's blind spot.
-- [ ] Preparation, mutation validation, digest reproduction and split-integrity checks run without
+- [x] Preparation, mutation validation, digest reproduction and split-integrity checks run without
       model calls in a fresh root with separate project, `HOME`, `YMP_HOME`, `TMPDIR`, build and
       export paths.
-- [ ] A write-zone inventory fails if the candidate changes recruitment, calibration, primary
+- [x] A write-zone inventory fails if the candidate changes recruitment, calibration, primary
       corpus/study/policy/seed/budget/outcome, or any path outside the declared additive seam.
 
 ## Current state
 
-The bounded contract passed pre-dispatch review. An exclusive Sol xhigh workspace is implementing
-the new development-only corpus path, protected mutations, split manifest and verifier seam; L1–L3
-and every primary path remain untouched.
+Accepted and integrated as
+[58c20c3](https://github.com/maggnus/ymp/commit/58c20c3838fa3bb77e5b71c0f3af66528055d79f).
+The frozen development-only corpus contains decomposable and sequential/null strata, separate
+development/transfer assignments and protected exact-oracle bindings. L1–L3, primary paths and
+model-call budgets remain untouched.
 
 ## Next action
 
-Return one committed zero-model candidate with exact mutation failures and frozen digests.
+Consume this exact freeze from W1-EVL-04e without changing its tasks, digests or protected inputs.
 
 ## Guardrails
 
@@ -101,6 +103,8 @@ Return one committed zero-model candidate with exact mutation failures and froze
   calibration directly to an uninterpretable coordination comparison.
 - Pre-dispatch check required an explicit disjoint write zone and distinct executable
   branch/integration/relabel mutations; both are now part of acceptance.
+- Independent Critical review inspected all 46 paths and rejected a newly corrupted protected
+  oracle byte by digest before candidate execution with `model_calls=0`.
 
 ## Review rounds
 
@@ -110,18 +114,26 @@ marker carries the reviewer's ten-point score and the local moment of the verdic
 escalation, one `- CTO <decision> <dd/mm hh:mm> — <reason>` line records what was decided. The review
 dialogue itself stays in the reports and the evidence package.
 
-## Closure
+- R1(9/10) ACCEPT 01/09 14:40 — all 46 paths, frozen splits and protected bindings satisfy the
+  Critical contract → the author's exact zero-model checks remained valid → an independent
+  protected-oracle byte corruption failed on its digest before candidate execution
 
-Filled when the task is accepted. Until then this section stays as written.
+## Closure
 
 ### Accepted outcome
 
-What was actually accepted.
+A development-only `weak-diagnostic-v1` freeze supplies one decomposable and one sequential/null
+package with distinct development/transfer assignments, disjoint seed namespaces, exact public and
+protected digests, and separate branch-A, branch-B, integration-bypass and stratum-relabel
+mutations. The validator accepts both references, rejects every declared mutation for its own
+reason, and performs no model call.
 
 ### Residuals
 
-Honestly retained limitations, each with an exact return trigger. Empty when there are none.
+None.
 
 ### Evidence
 
-- Commit, evidence package, or durable document of record, each as a Markdown link.
+- [58c20c3](https://github.com/maggnus/ymp/commit/58c20c3838fa3bb77e5b71c0f3af66528055d79f)
+  — integrated tree, byte-identical for the reviewed corpus paths to candidate
+  [77ec6d0](https://github.com/maggnus/ymp/commit/77ec6d0447b391206a725dbdcd7153c15e091b3c).
