@@ -30,8 +30,8 @@ use ymp_runtime_api::{
     TOOL_HOST_PROBE_SERVER_VERSION, TOOL_HOST_PROBE_WORKSPACE_SERVER, ToolHostProbeCost,
     ToolHostProbeCostAvailability, ToolHostProbeEffect, ToolHostProbeError,
     ToolHostProbeInvocation, ToolHostProbeRequest, ToolHostProbeResourceVector,
-    ToolHostProbeRuntimeIdentity, ToolHostProbeTerminal, ToolHostProbeTool,
-    ToolHostProbeToolEventDigest, ToolHostProbeTrace, ToolHostProbeTrust, Usage,
+    ToolHostProbeRuntimeIdentity, ToolHostProbeTerminal, ToolHostProbeTerminalFailure,
+    ToolHostProbeTool, ToolHostProbeToolEventDigest, ToolHostProbeTrace, ToolHostProbeTrust, Usage,
     admit_lifecycle_programs, evidence_digest, probe_transport_digest,
     tool_host_probe_tool_schema_digest, unestablished_terminations,
 };
@@ -1114,10 +1114,20 @@ pub fn execute_tool_host_probe(
             RuntimeEventKind::Cancelled { .. } => {
                 return Err(ToolHostProbeError::Cancelled);
             }
-            RuntimeEventKind::Failed { kind, .. } => {
-                return Err(ToolHostProbeError::RuntimeFailed {
-                    detail: format!("{kind:?}"),
-                });
+            RuntimeEventKind::Failed {
+                kind,
+                usage,
+                diagnostic,
+            } => {
+                return Err(ToolHostProbeError::RuntimeTerminalFailed(Box::new(
+                    ToolHostProbeTerminalFailure {
+                        kind: *kind,
+                        usage: usage.clone(),
+                        diagnostic: diagnostic.clone(),
+                        event_id: event.event_id.clone(),
+                        sequence: event.sequence,
+                    },
+                )));
             }
             RuntimeEventKind::Launch { .. }
             | RuntimeEventKind::Yielded { .. }

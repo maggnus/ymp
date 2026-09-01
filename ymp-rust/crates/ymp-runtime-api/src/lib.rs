@@ -1219,6 +1219,8 @@ pub enum ToolHostProbeError {
     Cancelled,
     #[error("tool-host probe runtime failed: {detail}")]
     RuntimeFailed { detail: String },
+    #[error("{0}")]
+    RuntimeTerminalFailed(Box<ToolHostProbeTerminalFailure>),
 }
 
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -1228,6 +1230,62 @@ pub enum RuntimeFailureKind {
     RuntimeReported,
     Protocol,
     OutputLimit,
+}
+
+/// A terminal runtime failure observed as a complete structured event. Unlike
+/// [`ToolHostProbeError::RuntimeFailed`], this record preserves every bounded field the runtime
+/// supplied and never stores raw diagnostic bytes.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct ToolHostProbeTerminalFailure {
+    pub kind: RuntimeFailureKind,
+    pub usage: Usage,
+    pub diagnostic: Option<DiagnosticSummary>,
+    pub event_id: String,
+    pub sequence: u64,
+}
+
+impl std::fmt::Display for ToolHostProbeTerminalFailure {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            formatter,
+            "tool-host probe runtime terminal failure: kind={:?}, event_id={}, sequence={}, \
+             usage[input_tokens={}, cached_input_tokens={}, output_tokens={}, \
+             reasoning_output_tokens={}, cost_microusd=",
+            self.kind,
+            self.event_id,
+            self.sequence,
+            self.usage.input_tokens,
+            self.usage.cached_input_tokens,
+            self.usage.output_tokens,
+            self.usage.reasoning_output_tokens,
+        )?;
+        match self.usage.cost_microusd {
+            Some(cost) => write!(formatter, "{cost}")?,
+            None => formatter.write_str("unavailable")?,
+        }
+        write!(
+            formatter,
+            ", cost_by_model_entries={}, attributed_cost_microusd={}, wall_time_ms={}, \
+             protected_queries={}, in_flight_model_requests={}, in_flight_input_tokens={}, \
+             in_flight_cached_input_tokens={}, in_flight_output_tokens={}, \
+             in_flight_reasoning_output_tokens={}, in_flight_cost_microusd={}], diagnostic=",
+            self.usage.cost_by_model.len(),
+            self.usage.attributed_cost_microusd(),
+            self.usage.wall_time_ms,
+            self.usage.protected_queries,
+            self.usage.in_flight_excess.model_requests,
+            self.usage.in_flight_excess.input_tokens,
+            self.usage.in_flight_excess.cached_input_tokens,
+            self.usage.in_flight_excess.output_tokens,
+            self.usage.in_flight_excess.reasoning_output_tokens,
+            self.usage.in_flight_excess.cost_microusd,
+        )?;
+        match &self.diagnostic {
+            Some(diagnostic) => diagnostic.fmt(formatter),
+            None => formatter.write_str("none"),
+        }
+    }
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -1325,14 +1383,16 @@ pub trait RuntimeDriver: Send + Sync {
 #[cfg(test)]
 mod tool_host_probe_schema_tests {
     use super::{
-        ProbeTransportIdentity, TOOL_HOST_PROBE_ENVIRONMENT, TOOL_HOST_PROBE_INTERNAL_ARGUMENTS,
+        DiagnosticSummary, InFlightExcess, ModelSpend, ProbeTransportIdentity, RuntimeFailureKind,
+        TOOL_HOST_PROBE_ENVIRONMENT, TOOL_HOST_PROBE_INTERNAL_ARGUMENTS,
         TOOL_HOST_PROBE_INTERNAL_SUBCOMMAND, TOOL_HOST_PROBE_MCP_PROTOCOL_VERSION,
         TOOL_HOST_PROBE_SCHEMA_VERSION, TOOL_HOST_PROBE_SERVER_VERSION,
         TOOL_HOST_PROBE_TOOL_SCHEMA, TOOL_HOST_PROBE_WORKSPACE_SERVER, ToolHostProbeCost,
-        ToolHostProbeCostAvailability, ToolHostProbeRequest, ToolHostProbeResourceVector,
-        ToolHostProbeRuntimeIdentity, ToolHostProbeTerminal, ToolHostProbeTool,
-        ToolHostProbeToolEventDigest, ToolHostProbeTrace, ToolHostProbeTrust, Usage,
-        probe_transport_digest, tool_host_probe_tool_schema_digest,
+        ToolHostProbeCostAvailability, ToolHostProbeError, ToolHostProbeRequest,
+        ToolHostProbeResourceVector, ToolHostProbeRuntimeIdentity, ToolHostProbeTerminal,
+        ToolHostProbeTerminalFailure, ToolHostProbeTool, ToolHostProbeToolEventDigest,
+        ToolHostProbeTrace, ToolHostProbeTrust, Usage, evidence_digest, probe_transport_digest,
+        tool_host_probe_tool_schema_digest,
     };
     use crate::{CancellationToken, RuntimeKind};
     use serde_json::Value;
@@ -1590,6 +1650,83 @@ mod tool_host_probe_schema_tests {
         let mut value = serde_json::to_value(transport_identity()).expect("transport identity");
         value["child_claimed_expected_digest"] = Value::String("a".repeat(64));
         assert!(serde_json::from_value::<ProbeTransportIdentity>(value).is_err());
+    }
+
+    #[test]
+    fn terminal_failure_serialization_equality_and_display_preserve_only_bounded_diagnostics() {
+        let raw_diagnostic = b"raw child stderr must never survive";
+        let diagnostic = DiagnosticSummary::from_bytes(raw_diagnostic, true);
+        let usage = Usage {
+            input_tokens: 101,
+            cached_input_tokens: 41,
+            output_tokens: 17,
+            reasoning_output_tokens: 9,
+            cost_microusd: Some(73),
+            cost_by_model: vec![ModelSpend {
+                model: "fixture-model".to_owned(),
+                cost_microusd: 73,
+            }],
+            wall_time_ms: 4_321,
+            protected_queries: 2,
+            in_flight_excess: InFlightExcess {
+                model_requests: 1,
+                input_tokens: 3,
+                cached_input_tokens: 4,
+                output_tokens: 5,
+                reasoning_output_tokens: 6,
+                cost_microusd: 7,
+            },
+        };
+        let failure = ToolHostProbeTerminalFailure {
+            kind: RuntimeFailureKind::ProcessExit,
+            usage,
+            diagnostic: Some(diagnostic.clone()),
+            event_id: "invocation-1.event-7".to_owned(),
+            sequence: 7,
+        };
+        let error = ToolHostProbeError::RuntimeTerminalFailed(Box::new(failure.clone()));
+        assert_eq!(error, error.clone());
+
+        let serialized = serde_json::to_value(&failure).expect("serialize structured failure");
+        let round_trip: ToolHostProbeTerminalFailure =
+            serde_json::from_value(serialized).expect("deserialize structured terminal fields");
+        assert_eq!(round_trip, failure);
+        assert_eq!(round_trip.diagnostic, Some(diagnostic.clone()));
+        assert_eq!(diagnostic.digest, evidence_digest(raw_diagnostic));
+
+        let json = serde_json::to_string(&failure).expect("serialize terminal fields");
+        let display = error.to_string();
+        for expected in [
+            "kind=ProcessExit",
+            "event_id=invocation-1.event-7",
+            "sequence=7",
+            "input_tokens=101",
+            "cached_input_tokens=41",
+            "output_tokens=17",
+            "reasoning_output_tokens=9",
+            "cost_microusd=73",
+            "wall_time_ms=4321",
+            diagnostic.digest.as_str(),
+            "bytes=35",
+            "truncated=true",
+        ] {
+            assert!(
+                display.contains(expected),
+                "display omitted {expected}: {display}"
+            );
+        }
+        let raw = String::from_utf8_lossy(raw_diagnostic);
+        assert!(!json.contains(raw.as_ref()));
+        assert!(!display.contains(raw.as_ref()));
+
+        let without_diagnostic = ToolHostProbeTerminalFailure {
+            diagnostic: None,
+            ..failure
+        };
+        let serialized = serde_json::to_value(&without_diagnostic)
+            .expect("serialize explicit missing diagnostic");
+        assert!(serialized["diagnostic"].is_null());
+        assert!(without_diagnostic.to_string().contains("diagnostic=none"));
     }
 }
 

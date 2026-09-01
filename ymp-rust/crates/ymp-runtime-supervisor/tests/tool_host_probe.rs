@@ -8,16 +8,20 @@ use std::process::{Child, Command, Stdio};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use tempfile::TempDir;
+use ymp_application::{Application, ToolHostProbeAttestationError};
+use ymp_domain::Budget;
 use ymp_runtime_api::{
-    CancellationToken, InvocationRequest, ModelSpend, ProbeReport, ProbeTransportIdentity,
-    Readiness, RuntimeDriver, RuntimeError, RuntimeEvent, RuntimeEventKind, RuntimeKind,
-    RuntimeSession, TOOL_HOST_PROBE_ENVIRONMENT, TOOL_HOST_PROBE_INTERNAL_ARGUMENTS,
-    TOOL_HOST_PROBE_INTERNAL_SUBCOMMAND, TOOL_HOST_PROBE_MCP_PROTOCOL_VERSION,
-    TOOL_HOST_PROBE_SCHEMA_VERSION, TOOL_HOST_PROBE_SERVER_VERSION,
-    TOOL_HOST_PROBE_WORKSPACE_SERVER, ToolHostProbeCostAvailability, ToolHostProbeEffect,
-    ToolHostProbeError, ToolHostProbeInvocation, ToolHostProbeRequest, ToolHostProbeResourceVector,
-    ToolHostProbeRuntimeIdentity, ToolHostProbeTool, ToolHostProbeTrust, Usage, evidence_digest,
-    probe_transport_digest, tool_host_probe_tool_schema_digest,
+    CancellationToken, DiagnosticSummary, InvocationRequest, ModelSpend, ProbeReport,
+    ProbeTransportIdentity, Readiness, RuntimeDriver, RuntimeError, RuntimeEvent, RuntimeEventKind,
+    RuntimeFailureKind, RuntimeKind, RuntimeSession, TOOL_HOST_PROBE_ENVIRONMENT,
+    TOOL_HOST_PROBE_INTERNAL_ARGUMENTS, TOOL_HOST_PROBE_INTERNAL_SUBCOMMAND,
+    TOOL_HOST_PROBE_MCP_PROTOCOL_VERSION, TOOL_HOST_PROBE_SCHEMA_VERSION,
+    TOOL_HOST_PROBE_SERVER_VERSION, TOOL_HOST_PROBE_WORKSPACE_SERVER,
+    ToolHostProbeCostAvailability, ToolHostProbeEffect, ToolHostProbeError,
+    ToolHostProbeInvocation, ToolHostProbeRequest, ToolHostProbeResourceVector,
+    ToolHostProbeRuntimeIdentity, ToolHostProbeTerminalFailure, ToolHostProbeTool,
+    ToolHostProbeTrust, Usage, evidence_digest, probe_transport_digest,
+    tool_host_probe_tool_schema_digest,
 };
 use ymp_runtime_codex::{PINNED_CODEX_PROMPT_POLICY, codex_compatibility_contract_digest};
 use ymp_runtime_supervisor::execute_tool_host_probe;
@@ -195,6 +199,9 @@ enum Scenario {
     ExtraOutput,
     WrongReadback,
     ReportedCost,
+    TerminalFailureWithDiagnostic,
+    TerminalFailureWithoutDiagnostic,
+    RustError,
     Forbidden(ToolHostProbeEffect),
 }
 
@@ -356,6 +363,29 @@ impl RuntimeDriver for ScriptedDriver {
                 };
                 *result = Some(json!({"content": "wrong-nonce"}));
             }
+            Scenario::TerminalFailureWithDiagnostic
+            | Scenario::TerminalFailureWithoutDiagnostic => {
+                let diagnostic = matches!(self.scenario, Scenario::TerminalFailureWithDiagnostic)
+                    .then(|| DiagnosticSummary::from_bytes(b"bounded terminal diagnostic", true));
+                events.clear();
+                events.push_back(event(
+                    &request.invocation_id,
+                    1,
+                    RuntimeEventKind::Started {
+                        opaque_session_id: "fake-session".to_owned(),
+                    },
+                ));
+                events.push_back(event(
+                    &request.invocation_id,
+                    2,
+                    RuntimeEventKind::Failed {
+                        kind: RuntimeFailureKind::ProcessExit,
+                        usage: usage.clone(),
+                        diagnostic,
+                    },
+                ));
+            }
+            Scenario::RustError => events.clear(),
             Scenario::Forbidden(effect) => {
                 let (server, tool) = match effect {
                     ToolHostProbeEffect::Board => ("ymp.board", "board_publish"),
@@ -385,13 +415,19 @@ impl RuntimeDriver for ScriptedDriver {
                 ));
             }
         }
-        Ok(Box::new(ScriptedSession { events, usage }))
+        Ok(Box::new(ScriptedSession {
+            events,
+            usage,
+            next_error: matches!(self.scenario, Scenario::RustError)
+                .then(|| "fixture next_event Rust error".to_owned()),
+        }))
     }
 }
 
 struct ScriptedSession {
     events: VecDeque<RuntimeEvent>,
     usage: Usage,
+    next_error: Option<String>,
 }
 
 struct CompatibleCodexDriver {
@@ -439,18 +475,19 @@ impl RuntimeDriver for CompatibleCodexDriver {
         Ok(Box::new(ScriptedSession {
             events: successful_events(&request, &usage),
             usage,
+            next_error: None,
         }))
     }
 }
 
-fn codex_identity(executable: &Path, workspace: &Path) -> ToolHostProbeRuntimeIdentity {
+fn current_probe_transport(workspace: &Path) -> ProbeTransportIdentity {
     let current_exe = std::env::current_exe()
         .expect("current executable")
         .canonicalize()
         .expect("canonical current executable");
     let current_digest = evidence_digest(&fs::read(current_exe).expect("current executable bytes"));
     let workspace = workspace.canonicalize().expect("canonical workspace");
-    let probe_transport = ProbeTransportIdentity {
+    ProbeTransportIdentity {
         mcp_protocol_version: TOOL_HOST_PROBE_MCP_PROTOCOL_VERSION.to_owned(),
         server_name: TOOL_HOST_PROBE_WORKSPACE_SERVER.to_owned(),
         server_version: TOOL_HOST_PROBE_SERVER_VERSION.to_owned(),
@@ -471,7 +508,11 @@ fn codex_identity(executable: &Path, workspace: &Path) -> ToolHostProbeRuntimeId
             .map(|name| (*name).to_owned())
             .collect(),
         canonical_workspace_root_digest: evidence_digest(workspace.as_os_str().as_encoded_bytes()),
-    };
+    }
+}
+
+fn codex_identity(executable: &Path, workspace: &Path) -> ToolHostProbeRuntimeIdentity {
+    let probe_transport = current_probe_transport(workspace);
     ToolHostProbeRuntimeIdentity {
         runtime_kind: RuntimeKind::Codex,
         route: "openai_responses_chatgpt".to_owned(),
@@ -496,6 +537,9 @@ fn codex_request(executable: &Path, workspace: &Path) -> ToolHostProbeRequest {
 
 impl RuntimeSession for ScriptedSession {
     fn next_event(&mut self) -> Result<Option<RuntimeEvent>, RuntimeError> {
+        if let Some(error) = self.next_error.take() {
+            return Err(RuntimeError::MalformedEvent(error));
+        }
         Ok(self.events.pop_front())
     }
 
@@ -720,6 +764,133 @@ fn malformed_terminal_tool_usage_and_output_return_no_trace() {
         let result = execute_tool_host_probe(&driver, &workspace, request(executable));
         assert_eq!(result, Err(expected));
     }
+}
+
+#[test]
+fn terminal_failure_preserves_kind_usage_diagnostic_and_event_identity_without_attestation() {
+    let root = TempDir::new().expect("root");
+    let workspace = root.path().join("workspace");
+    fs::create_dir(&workspace).expect("workspace");
+    let executable = Path::new("/bin/sh");
+    let raw_diagnostic = b"bounded terminal diagnostic";
+
+    for (scenario, diagnostic) in [
+        (
+            Scenario::TerminalFailureWithDiagnostic,
+            Some(DiagnosticSummary::from_bytes(raw_diagnostic, true)),
+        ),
+        (Scenario::TerminalFailureWithoutDiagnostic, None),
+    ] {
+        let driver = ScriptedDriver::new(executable, scenario);
+        let expected = ToolHostProbeTerminalFailure {
+            kind: RuntimeFailureKind::ProcessExit,
+            usage: complete_usage(),
+            diagnostic,
+            event_id: "invocation-fixture-1.event-2".to_owned(),
+            sequence: 2,
+        };
+        let error = execute_tool_host_probe(&driver, &workspace, request(executable))
+            .expect_err("terminal failure returns no successful trace");
+        assert_eq!(
+            error,
+            ToolHostProbeError::RuntimeTerminalFailed(Box::new(expected.clone()))
+        );
+        let serialized = serde_json::to_string(&expected).expect("serialize terminal failure");
+        let display = error.to_string();
+        assert!(!serialized.contains("bounded terminal diagnostic"));
+        assert!(!display.contains("bounded terminal diagnostic"));
+        assert!(display.contains("kind=ProcessExit"));
+        assert!(display.contains("event_id=invocation-fixture-1.event-2"));
+        assert!(display.contains("sequence=2"));
+        match &expected.diagnostic {
+            Some(diagnostic) => {
+                assert!(display.contains(&diagnostic.digest));
+                assert!(display.contains("truncated=true"));
+            }
+            None => assert!(display.contains("diagnostic=none")),
+        }
+        assert!(
+            !root.path().join("runtime-evidence").exists(),
+            "the runtime-only supervisor path cannot create an attestation"
+        );
+    }
+}
+
+#[test]
+fn controller_reservation_retains_terminal_failure_but_creates_no_attestation() {
+    let root = TempDir::new().expect("root");
+    let data_root = root.path().join("store");
+    let mut application =
+        Application::create(&data_root, "run-terminal-failure", Budget::new(1, 0))
+            .expect("application");
+    let prepared = application
+        .prepare_controller_tool_host_probe("a".repeat(64), DEADLINE_MS, reservation())
+        .expect("prepare controller probe");
+    let workspace = prepared.workspace_root().to_path_buf();
+    let executable = Path::new("/bin/sh");
+    let mut driver = ScriptedDriver::new(executable, Scenario::TerminalFailureWithDiagnostic);
+    let transport = current_probe_transport(&workspace);
+    driver.identity = driver
+        .identity
+        .clone()
+        .with_probe_transport(transport.clone());
+    let request = prepared
+        .bind_expected_transport(driver.identity.clone(), transport)
+        .expect("bind controller measurement");
+
+    let error = application
+        .controller_tool_host_probe(request, |workspace, request| {
+            execute_tool_host_probe(&driver, workspace, request)
+        })
+        .expect_err("terminal failure cannot create an attestation");
+    let ToolHostProbeAttestationError::Runtime(ToolHostProbeError::RuntimeTerminalFailed(failure)) =
+        error
+    else {
+        panic!("unexpected controller error: {error}");
+    };
+    assert_eq!(failure.kind, RuntimeFailureKind::ProcessExit);
+    assert_eq!(failure.usage, complete_usage());
+    assert_eq!(failure.sequence, 2);
+    assert!(failure.event_id.ends_with(".event-2"));
+    assert_eq!(
+        failure.diagnostic,
+        Some(DiagnosticSummary::from_bytes(
+            b"bounded terminal diagnostic",
+            true,
+        ))
+    );
+
+    let probes = data_root.join("runtime-evidence/tool-host-probes");
+    let entries: Vec<_> = fs::read_dir(&probes)
+        .expect("spent probe directory")
+        .collect::<Result<_, _>>()
+        .expect("probe entries");
+    assert_eq!(entries.len(), 1);
+    let probe = entries[0].path();
+    assert!(probe.join("reservation.json").is_file());
+    assert!(!probe.join("attestation.ref").exists());
+    assert!(
+        !application
+            .attested_tool_host_probe_handle_export_path()
+            .exists()
+    );
+}
+
+#[test]
+fn next_event_rust_error_without_terminal_event_keeps_the_legacy_runtime_failed_variant() {
+    let root = TempDir::new().expect("root");
+    let workspace = root.path().join("workspace");
+    fs::create_dir(&workspace).expect("workspace");
+    let executable = Path::new("/bin/sh");
+    let driver = ScriptedDriver::new(executable, Scenario::RustError);
+
+    assert_eq!(
+        execute_tool_host_probe(&driver, &workspace, request(executable)),
+        Err(ToolHostProbeError::RuntimeFailed {
+            detail: "runtime emitted a malformed event: fixture next_event Rust error".to_owned(),
+        })
+    );
+    assert!(!root.path().join("runtime-evidence").exists());
 }
 
 #[test]
