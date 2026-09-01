@@ -10,7 +10,7 @@ relation: required
 depends_on: [W1-EVL-04l, W1-EVL-04o, W1-EVL-04p, W1-EVL-04q]
 blocks: [W1-EVL-04m]
 created_at: 2026-09-01T17:17:30+08:00
-updated_at: 2026-09-01T20:13:34+08:00
+updated_at: 2026-09-01T20:15:00+08:00
 started_at: 2026-09-01T20:13:34+08:00
 accepted_at:
 candidate_commit:
@@ -54,8 +54,10 @@ observed version and executable digest are evidence, not an acceptance selector.
   only the existing `UntrustedRuntimeTrace`; it gains no controller read-back, private attestation or
   `model_ready` authority.
 - Focused tests may be added only under
-  `ymp-rust/crates/ymp-runtime-{codex,supervisor}/tests/**`; mechanically forced changes are allowed
-  only in those two package manifests and `ymp-rust/Cargo.lock`.
+  `ymp-rust/crates/ymp-runtime-{codex,supervisor}/tests/**`. One optional test-only
+  `ymp-rust/crates/ymp-cli/tests/live_tool_host_probe.rs` may create the isolated Application store
+  and spawn `CARGO_BIN_EXE_ymp internal tool-host-probe`; it may not change CLI production code.
+  Mechanically forced changes are allowed only in those package manifests and `ymp-rust/Cargo.lock`.
 - One admitted live probe uses the additive W1-EVL-04q v2 manifest and separate stage-two budget: exactly
   one model request, no task/arm output, no board/recruitment/candidate tool, and one ordered
   write/read exchange in a fresh disposable root. The W1-EVL-04l controller independently reads and
@@ -66,7 +68,7 @@ observed version and executable digest are evidence, not an acceptance selector.
 
 ### Out
 
-- No-touch: `ymp-runtime-api/**`, `ymp-application/**`, `ymp-agent-mcp/**`, `ymp-cli/**`,
+- No-touch: `ymp-runtime-api/**`, `ymp-application/**`, `ymp-agent-mcp/**`, `ymp-cli/src/**`,
   `ymp-corpus/**`, admission
   manifest/digest, Claude runtime, TUI, research and calibration records, task prompts, experimental
   arms, primary/development seeds and budgets, real user HOME, arbitrary network tools and any model
@@ -131,6 +133,8 @@ dispatch one Sol xhigh builder and one frozen live probe only after deterministi
 - Final pre-dispatch review confirmed that the only missing code is exactly this task's two-file
   outcome: Codex probe methods and removal of the Fake-only supervisor guard. CTO accepted dispatch;
   no additional dependency or write-zone expansion was identified.
+- The live consumer check must execute the actual `ymp` binary so its private MCP child is reachable;
+  the optional CLI integration test owns only disposable-store bootstrap and process observation.
 
 ## Review rounds
 
