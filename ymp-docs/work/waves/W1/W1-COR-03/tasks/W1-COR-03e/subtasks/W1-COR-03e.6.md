@@ -11,7 +11,7 @@ relation: required
 depends_on: []
 blocks: [W1-COR-03e.2]
 created_at: 2026-09-01T22:52:28+08:00
-updated_at: 2026-09-01T23:19:13+08:00
+updated_at: 2026-09-01T23:30:29+08:00
 started_at: 2026-09-01T22:52:28+08:00
 accepted_at:
 candidate_commit:
@@ -63,6 +63,9 @@ interaction model be translated into screens.
 - Let the person read the shared board and communication flow. A user-authored board message is an
   explicit, attributed intervention with visible scope; it cannot silently become a task assignment,
   capability or proof that another participant listened.
+- Keep internal requirement/check preparation visible in the main conversation as dim, collapsible
+  system trace — project analysis, clarification, prepared checks and work start — without a blocking
+  contract-authorization ceremony or typed internal identifier.
 - Define the interaction grammar without drawing it: normal conversation, optional expert command,
   inspectable detail, and consequence-bearing decision. A UI surface is chosen later from this
   grammar rather than from system components.
@@ -73,6 +76,17 @@ interaction model be translated into screens.
   communication and artifact movement are product-level facts; contracts, budget vectors, routes,
   oracles, attestations, digests, leases and experimental apparatus remain diagnostic details unless
   their consequence directly requires a user decision.
+- Distinguish provider permission from readiness. The journey uses `off`, `not configured`,
+  `configured — sign-in unverified`, `checking`, `ready` and `error`; `ready` requires an observed
+  successful sign-in/capability check, not merely an executable and credential source.
+- Give `/agents`, `/pool` and `/board` distinct jobs: current participants and declared work; future
+  eligible provider/profile/model resources and ceilings; full scoped communication and attributed
+  human intervention. The main conversation carries only a compact team summary and latest material
+  board fact.
+- Treat Russian free-form intent normalization as a product prerequisite, not user ceremony. The
+  current ASCII-English check derivation is a declared gap; a Russian goal must become a structured
+  artifact/result contract internally, asking one outcome question only when platform or behavior is
+  materially ambiguous.
 - Map each promised step to current accepted product behavior or mark it explicitly as an
   implementation gap; separate the production-foundation POC journey from later MVP breadth.
 - Exclusive write zone: new `ymp-docs/USER_JOURNEY.md` and its single index entry in
@@ -106,6 +120,17 @@ interaction model be translated into screens.
 - [ ] Conversation, optional command, detail inspection and consequence-bearing decision have one
       clear use rule each. Slash commands and modals are possible implementations, not mandatory
       steps in the story.
+- [ ] Contract/check preparation appears only as non-blocking system trace; no primary-path action
+      asks the person to authorize a contract or type an internal identifier.
+- [ ] `/agents`, `/pool` and `/board` are not aliases: the first observes the current team, the second
+      configures future eligibility and ceilings, and the third reads scoped communication or posts
+      an attributed human intervention.
+- [ ] A provider cannot be labelled `ready` from configuration presence alone; the current missing
+      managed sign-in verification is explicit and the story names whether start is blocked or a
+      real check is run before team formation.
+- [ ] The Battleship story begins with the Russian phrase unchanged. It records structured intent
+      normalization/check derivation as an implementation prerequisite instead of requiring English
+      artifact keywords from the person.
 - [ ] Every promised capability is linked to accepted current behavior or labelled a gap; POC and
       MVP are separated without presenting future behavior as implemented.
 - [ ] A protocol-derived control inventory classifies provider/pool eligibility, participant and
@@ -145,6 +170,9 @@ present it before drafting `USER_JOURNEY.md` or any UI contract.
   Battleship game”, not “operate a multi-agent experiment”.
 - Owner decision: external design skills remain reference-only; a correct user story is a mandatory
   prerequisite and cannot be reconstructed from layout patterns.
+- Owner decisions: contract preparation is a dim system trace, not a ceremony; `/agents` and `/pool`
+  are separate current-versus-future views; `/board` is a separate communication view; Russian intent
+  normalization is a backend prerequisite rather than a wording burden on the user.
 
 ## Review rounds
 
