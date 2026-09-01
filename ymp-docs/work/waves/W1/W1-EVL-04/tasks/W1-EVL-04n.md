@@ -7,10 +7,10 @@ state: ready
 risk: critical
 maturity: BUILD
 relation: required
-depends_on: [W1-EVL-04k, W1-EVL-04l]
+depends_on: [W1-EVL-04k, W1-EVL-04l, W1-EVL-04o]
 blocks: [W1-EVL-04m]
 created_at: 2026-09-01T17:17:30+08:00
-updated_at: 2026-09-01T17:17:30+08:00
+updated_at: 2026-09-01T18:08:00+08:00
 started_at:
 accepted_at:
 candidate_commit:
@@ -29,9 +29,10 @@ escalation_decision:
 
 ## Outcome
 
-The exact manifest-bound Codex 0.151 profile can execute one controller-created no-task-output probe
-through the W1-EVL-04j runtime seam and return a trace that W1-EVL-04l attests; no other live runtime,
-task output, collaboration authority or repeated invocation becomes reachable.
+The exact manifest-bound Codex 0.151 profile can execute one no-task-output compatibility probe
+through the W1-EVL-04o two-tool MCP transport and return an explicitly untrusted trace that only the
+W1-EVL-04l Application controller can attest; no other live runtime, task output, collaboration
+authority or repeated admitted invocation becomes reachable.
 
 ## Scope
 
@@ -39,12 +40,14 @@ task output, collaboration authority or repeated invocation becomes reachable.
 
 - Implement `RuntimeDriver::tool_host_probe_identity` and `start_tool_host_probe` for the exact
   accepted Codex 0.151 tuple in `ymp-rust/crates/ymp-runtime-codex/src/lib.rs`, using the fixed
-  `workspace_write` then `workspace_read` schema, the controller-supplied path and nonce, and no
-  ordinary task prompt or output.
+  W1-EVL-04o server, `workspace_write` then `workspace_read`, the controller-supplied path and nonce,
+  and a fixed compatibility directive that is not a user task or experimental arm. Nonempty ordinary
+  output remains an error rather than hidden evidence.
 - Replace the fake-only guard in `ymp-rust/crates/ymp-runtime-supervisor/src/lib.rs` with an exact
-  allowlist of `Fake` for deterministic tests and the accepted Codex identity only when invoked by
-  the W1-EVL-04l controller path. A normal managed invocation or direct caller cannot mint that
-  controller binding.
+  allowlist of `Fake` for deterministic tests and the exact Codex runtime plus probe transport
+  identity. A public direct caller may receive only the existing `UntrustedRuntimeTrace`; it gains no
+  controller read-back, private attestation or `model_ready` authority. Trusted local code already
+  owns ordinary runtime starts, so preventing it from spending its own call is not a new POC gate.
 - Focused tests may be added only under
   `ymp-rust/crates/ymp-runtime-{codex,supervisor}/tests/**`; mechanically forced changes are allowed
   only in those two package manifests and `ymp-rust/Cargo.lock`.
@@ -52,45 +55,50 @@ task output, collaboration authority or repeated invocation becomes reachable.
   one model request, no task/arm output, no board/recruitment/candidate tool, and one ordered
   write/read exchange in a fresh disposable root. The W1-EVL-04l controller independently reads and
   attests it before the model gate can open.
+- The W1-EVL-04k manifest continues to bind the collaboration MCP digest. The opaque attestation
+  independently binds the probe tool-schema digest and the W1-EVL-04o `probe_transport_digest`; no
+  manifest byte changes in this task.
 
 ### Out
 
-- No-touch: `ymp-runtime-api/**`, `ymp-application/**`, `ymp-cli/**`, `ymp-corpus/**`, admission
+- No-touch: `ymp-runtime-api/**`, `ymp-application/**`, `ymp-agent-mcp/**`, `ymp-cli/**`,
+  `ymp-corpus/**`, admission
   manifest/digest, Claude runtime, TUI, research and calibration records, task prompts, experimental
   arms, primary/development seeds and budgets, real user HOME, arbitrary network tools and any model
   call beyond the single frozen probe.
 
 ## Acceptance
 
-- [ ] Exact fake Codex 0.151 discovery plus a controller-bound probe exposes only workspace write and
-      read, carries the manifest route/profile/CLI/driver/tool-schema tuple, writes then reads the
-      supplied relative path, reports complete usage/cost/terminal evidence and yields an
-      W1-EVL-04l attestation with `model_calls=1` and `model_ready=false` until W1-EVL-04m consumes it.
-- [ ] Direct, unbound, stale 0.147, future 0.152, wrong route/profile/schema, absolute/traversing
-      path, missing or reordered tool event, output, extra effect, timeout/cancellation, incomplete
-      usage or budget overflow returns a typed refusal and creates no attestation.
+- [ ] Exact fake Codex 0.151 discovery plus the probe run exposes only W1-EVL-04o workspace write and
+      read, carries the manifest route/profile/CLI/driver, probe schema and transport digests, writes
+      then reads the supplied relative path, reports complete usage/cost/terminal evidence and yields
+      a W1-EVL-04l attestation with `model_calls=1` and `model_ready=false` until W1-EVL-04m consumes it.
+- [ ] A direct caller can obtain at most `UntrustedRuntimeTrace`; presenting it or a raw request to
+      Application/04m creates no attestation. Stale 0.147, future 0.152, wrong route/profile/schema/
+      transport, absolute/traversing path, missing/reordered tool event, output, extra effect,
+      timeout/cancellation, incomplete usage or budget overflow returns a typed refusal.
 - [ ] The live run starts only after zero-model readiness and all deterministic mutations pass. It
       uses one fresh short root with separate project, `HOME`, `YMP_HOME`, `TMPDIR`, build and export;
       it performs exactly one provider request within the frozen stage-two vector and is never
       continued or selectively retried after any failure.
 - [ ] The controller proves the destination absent before launch and its independent read-back equals
-      the nonce after the ordered tool events. A `Fake` trace may test mechanics but can never satisfy
-      the live admission evidence consumed by W1-EVL-04m.
+      the nonce after the ordered tool events. A `Fake` trace, schema-identical substitute server or
+      mismatched transport digest may test mechanics but can never satisfy the live admission
+      evidence consumed by W1-EVL-04m.
 - [ ] Focused Codex/supervisor/controller-bound tests, strict affected-package Clippy, formatting and
       `git diff --check` pass. The real repository, current directory and real `~/.ymp` remain
       byte-identical; the disposable root is removed after evidence capture.
 
 ## Current state
 
-The accepted runtime seam intentionally rejects every non-Fake driver, so the controller mechanism
-can be tested but no real profile can yet produce admissible evidence. Codex 0.151 conformance and
-the exact admission tuple are accepted; W1-EVL-04l will own the private controller binding. Without
-this narrow bridge the first model gate is unconditionally closed.
+Codex 0.151 conformance, the admission tuple and private Application attestation are accepted. The
+runtime still rejects every non-Fake probe, and W1-EVL-04o must first provide an exact two-tool MCP
+server plus transport digest. Until both are accepted, the live gate is unconditionally closed.
 
 ## Next action
 
-After W1-EVL-04l is accepted, run a Critical contract check that this two-package bridge exposes no
-new general runtime authority and fixes exactly one live probe budget.
+After W1-EVL-04o is accepted, repeat the Critical contract check of this two-package bridge, then
+dispatch one Sol xhigh builder and one frozen live probe only after deterministic negatives pass.
 
 ## Guardrails
 
@@ -103,6 +111,10 @@ new general runtime authority and fixes exactly one live probe budget.
 - Scientific peer review found that W1-EVL-04j plus W1-EVL-04l could otherwise never produce a
   positive real-profile attestation. This task is the minimal bridge rather than a relaxation of the
   fake seam for arbitrary drivers.
+- R1 contract review found no controller marker in the public trace API, no private two-tool MCP
+  server, no dedicated probe launch mode and ambiguity between collaboration and probe schema
+  digests. The corrected graph assigns the exact transport to W1-EVL-04o, keeps public traces
+  untrusted and binds both schema domains without changing the manifest.
 
 ## Review rounds
 

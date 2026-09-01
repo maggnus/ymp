@@ -10,7 +10,7 @@ relation: required
 depends_on: [W1-EVL-04k, W1-EVL-04l, W1-EVL-04n]
 blocks: [W1-EVL-04e]
 created_at: 2026-09-01T15:57:45+08:00
-updated_at: 2026-09-01T17:24:00+08:00
+updated_at: 2026-09-01T18:08:00+08:00
 started_at:
 accepted_at:
 candidate_commit:
@@ -59,8 +59,9 @@ remains fail-closed.
 
 - [ ] A controller-attested non-Fake record with matching manifest digest, runtime tuple,
       invocation/probe
-      identity, nonce read-back digest, route/schema, complete usage, separate budget, event/output
-      digests and honest terminal makes stage two pass and `model_ready=true` exactly once.
+      identity, nonce read-back digest, collaboration schema digest, probe schema digest, exact
+      W1-EVL-04o `probe_transport_digest`, complete usage, separate budget, event/output digests and
+      honest terminal makes stage two pass and `model_ready=true` exactly once.
 - [ ] A raw or Fake `ToolHostProbeTrace`, the former schema-valid `ProbeEvidence`, model-authored JSON,
       missing controller binding, stale/replayed identity, mismatched manifest/runtime/route/schema,
       incomplete usage, extra effect or budget overflow each leaves `model_ready=false` with its own
@@ -93,6 +94,8 @@ After W1-EVL-04n is accepted, run a Critical contract check of the single-file c
 - A syntactically correct evidence file is not proof of controller nonce ownership or read-back.
 - A handle is an untrusted locator; only verified reload from the matching Application store returns
   the opaque attestation consumed here.
+- A schema-identical substitute probe server is not equivalent transport; its executable or launch
+  digest mismatch keeps the gate closed.
 - This node opens only the development model gate and changes no experimental arm or metric.
 
 ## Findings

@@ -8,9 +8,9 @@ risk: critical
 maturity: BUILD
 relation: required
 depends_on: [W1-EVL-04j]
-blocks: [W1-EVL-04n]
+blocks: [W1-EVL-04o]
 created_at: 2026-09-01T15:57:45+08:00
-updated_at: 2026-09-01T17:59:33+08:00
+updated_at: 2026-09-01T18:08:00+08:00
 started_at: 2026-09-01T17:24:36+08:00
 accepted_at: 2026-09-01T17:59:33+08:00
 candidate_commit: https://github.com/maggnus/ymp/commit/3295bfe34f794723bba4f3a2aace2923911370b8
@@ -118,8 +118,8 @@ private attestation. Only W1-EVL-04n may add the exact live Codex bridge.
 
 ## Next action
 
-Run the Critical contract check and implementation of W1-EVL-04n, then one separately budgeted live
-Codex probe in a disposable root.
+Run W1-EVL-04o to bind an exact two-tool MCP transport into this attestation, then W1-EVL-04n for
+one separately budgeted live Codex probe in a disposable root.
 
 ## Guardrails
 
