@@ -114,8 +114,8 @@ part of POC, MVP, or Alpha, and MCP is not their internal protocol.
 | [DECISIONS.md](DECISIONS.md) | Settled decisions, rejected mechanisms, research applicability, and open experiments |
 | [ROADMAP.md](ROADMAP.md) | POC, MVP, Alpha, causal communication audit, and shipping criteria |
 | [INVARIANTS.md](INVARIANTS.md) | POC contracts that no implementation change may weaken silently |
-| [CALIBRATION.md](CALIBRATION.md) | Development agent ladder, pinned low-effort profiles, measured runs, and remaining blockers |
 | [research/README.md](research/README.md) | Research index and boundary between scientific prose and executable study artifacts |
+| [research/CALIBRATION.md](research/CALIBRATION.md) | Development agent ladder, pinned low-effort profiles, measured runs, and remaining blockers |
 | [research/WEAK_DIAGNOSTIC.md](research/WEAK_DIAGNOSTIC.md) | Matched-budget weak-participant diagnostic protocol, stop/go rule, and implementation boundary |
 | [VISUAL_CONCEPT.md](VISUAL_CONCEPT.md) | Chat-first composition, operator path, semantic constraints, and known implementation gaps |
 | [design/ymp_chat_tui.dc.html](design/ymp_chat_tui.dc.html) | Exact terminal screens, state variants, fixtures, and reusable-structure handoff |

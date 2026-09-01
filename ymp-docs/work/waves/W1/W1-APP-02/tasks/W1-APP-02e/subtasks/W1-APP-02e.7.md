@@ -81,6 +81,6 @@ None recorded.
 
 - the request stays verbatim and the publication instruction follows as the product's own line only
   when the bridge is attached; contract bytes and intent digest untouched; live Claude run with no
-  publication mention published a candidate (118783 microusd, recorded in CALIBRATION.md); reviewer
+  publication mention published a candidate (118783 microusd, recorded in research/CALIBRATION.md); reviewer
   fault injections reproduced the historic no-candidate outcome; prompt-policy pins bumped to v2 by
   a disclosed CTO fix with the boundary recorded

@@ -10,6 +10,8 @@ Rust tool; research prose links to their exact evidence instead of copying it.
 
 ## Current protocols
 
+- [CALIBRATION.md](CALIBRATION.md) — development profile ladder, measured runs, and promotion
+  boundary.
 - [WEAK_DIAGNOSTIC.md](WEAK_DIAGNOSTIC.md) — diagnostic matched-budget comparison using weak
   participant profiles before the frozen primary study.
 - [MECHANISM_MAP.md](MECHANISM_MAP.md) — falsifiable coordination mechanisms, interventions,
