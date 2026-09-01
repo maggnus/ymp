@@ -21,26 +21,30 @@ This map refines the behavioural hypotheses in [CONCEPT.md](../CONCEPT.md), the 
 
 ## Expected null and harmful strata
 
-No benefit, or a negative effect, is expected on local L1-like repairs, strongly sequential
-L3-like work, tasks with a high single-agent ceiling, tightly globally coupled changes, and work
-whose merge or communication cost consumes the available reasoning budget. These strata are
-required controls, not inconvenient exclusions. A weak oracle invalidates the whole experiment
-rather than forming another outcome category.
+L1-L3 are calibration instruments, not experimental null strata. The separately frozen held-out
+L4+ set contains sequential/null tasks on which no benefit or a negative effect is expected, as
+well as decomposable tasks on which the mechanism could be visible. High single-agent ceilings,
+tightly globally coupled changes, and merge or communication costs that consume the available
+reasoning budget remain plausible null conditions. They are required controls, not inconvenient
+exclusions. A weak oracle invalidates the whole experiment rather than forming another outcome
+category.
 
 ## Spend-minimizing sequence
 
-1. Without model calls, validate the oracle, planted defects, assignment, budget conservation, and
-   evidence accounting.
-2. Run one exact weak-profile cohort through the three-arm protocol in
-   [prt-001-weak-diagnostic.md](prt-001-weak-diagnostic.md).
-3. Stop before message interventions if coordination does not exceed both the single and independent
-   controls under the predefined diagnostic rule.
-4. Freeze eligible message episodes before inspecting intervention outcomes. Start with absence and
-   neutral replacement.
-5. Only after positive listening is observed, add shuffling and direct-evidence controls; only then
-   test false information, delay, and participant removal.
-6. Repeat any development effect on held-out decomposable tasks and a stronger profile. The frozen
-   primary comparison remains unchanged.
+1. Validate L1-L3 oracles, planted defects, profile admission, assignment, budget conservation, and
+   evidence accounting without treating any result as a three-arm observation.
+2. Freeze the held-out L4+ decomposable and sequential/null task set before any diagnostic model
+   call.
+3. Run one exact weak-profile cohort through the three-arm protocol in
+   [prt-001-weak-diagnostic.md](prt-001-weak-diagnostic.md), then stop negatively unless it exceeds
+   both controls under the frozen diagnostic rule.
+4. Repeat a qualifying weak effect on the same held-out task set with a stronger admitted profile;
+   failure to transfer is an explicit weak-only stop.
+5. Only after transfer, freeze eligible message episodes before inspecting intervention outcomes.
+   Start with absence and neutral replacement; after positive listening, add shuffling and
+   direct-evidence controls, then false information, delay, and participant removal.
+6. Keep the frozen primary comparison, its strong-single baseline, outcomes, thresholds, seeds, and
+   budgets unchanged.
 
 ## Change and stop rules
 
@@ -51,8 +55,11 @@ data, under a new version and fresh tasks. It is never tuned after seeing primar
   rejects the reliability mechanism claim.
 - No positive listening rejects the communication-use claim.
 - Listening without task value rejects the collective-reasoning claim.
-- Improvement restricted to weak participants remains a bounded weak-profile finding until it
-  transfers to a stronger profile.
+- Improvement restricted to weak participants records a bounded weak-profile result and stops
+  before message interventions.
+
+The accepted ordering and ownership boundary are recorded in
+[rdr-001-evaluation-stage-boundaries.md](rdr-001-evaluation-stage-boundaries.md).
 
 No intervention stand, sampled episode set, or outcome evidence exists yet. The current status is
 therefore a falsifiable research design, not evidence that self-organization occurs.

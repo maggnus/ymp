@@ -37,10 +37,17 @@ record also updates this index.
 
 - [cal-001-calibration.md](cal-001-calibration.md) — development profile ladder, measured runs, and promotion
   boundary.
-- [prt-001-weak-diagnostic.md](prt-001-weak-diagnostic.md) — diagnostic matched-budget comparison using weak
-  participant profiles before the frozen primary study.
+- [prt-001-weak-diagnostic.md](prt-001-weak-diagnostic.md) — diagnostic matched-budget comparison on a
+  separately frozen held-out L4+ set using weak participant profiles before the frozen primary
+  study.
 - [map-001-mechanism-map.md](map-001-mechanism-map.md) — falsifiable coordination mechanisms, interventions,
   expected null strata, and scientific stop rules.
+
+## Research decisions
+
+- [rdr-001-evaluation-stage-boundaries.md](rdr-001-evaluation-stage-boundaries.md) — accepted separation of
+  calibration, held-out weak diagnosis, stronger-profile transfer, interventions, and the frozen
+  primary comparison.
 
 ## Standing review rule
 

@@ -26,29 +26,37 @@ the source worktree and never reads or writes the operator's real `~/.ymp`.
 | L2 | `L2-size-parser` | Strict grammar across two source files | Case, whitespace, Unicode, invalid suffixes, parse and multiplication overflow |
 | L3 | `L3-command-ledger` | Result identity across intervening state changes | Rejected-result replay, conflicting key reuse, overflow replay, empty-key non-allocation |
 
-The next level must add repository-scale decomposition and bounded coordination. It must not weaken
-the first three levels or expose their protected tests to producing attempts.
+L1-L3 end at profile and oracle calibration. They never contribute an observation to a
+single-participant, independent-selection, or coordinated arm. The next level must add
+repository-scale decomposition and bounded coordination without weakening L1-L3 or exposing their
+protected tests to producing attempts.
 
 ## Weak-participant mechanism-visibility ladder
 
 Before spending the frozen primary-comparison budget, development experiments deliberately use a
-weaker admitted profile on elementary and then increasingly decomposable repository tasks. Each
-level compares the same profile in three matched-budget conditions: one participant, independent
+weaker admitted profile on a separately frozen held-out L4+ task set. That set contains
+decomposable and sequential/null tasks; `W1-EXP-01e` owns its exact task identifiers, count,
+contract and oracle digests, all frozen before any model call under the diagnostic. Each task
+compares the same profile in three matched-budget conditions: one participant, independent
 best-of-`n`, and local coordination. The purpose is to make a coordination effect, or its absence,
 large enough to diagnose before stronger executors approach the oracle ceiling.
 
 The exact first development protocol is recorded in
 [prt-001-weak-diagnostic.md](prt-001-weak-diagnostic.md).
 
-A coordinated result advances this diagnostic ladder only when it repeatedly exceeds both the
-single-participant and independent-selection conditions, combines attributable non-redundant work,
-and survives removal or replacement of the messages claimed to matter. Fluent transcripts, more
-participants, or beating only one weak participant do not advance it.
+A coordinated result leaves the weak-profile stage only when it repeatedly exceeds both the
+single-participant and independent-selection conditions and combines attributable non-redundant
+work. It then enters stronger-profile transfer rather than message intervention. Fluent
+transcripts, more participants, or beating only one weak participant do not advance it.
 
 This ladder is development evidence. It does not replace the preregistered primary comparison or
-the required strong-single-agent baseline. A mechanism that helps weak participants but fails to
-transfer to stronger profiles remains a bounded finding about weak-agent coordination rather than
-the product's reliability claim.
+the required strong-single-agent baseline. A weak-profile effect authorizes neither message
+interventions nor a product claim: it first transfers on the held-out task set to a stronger
+admitted profile, or produces an explicit negative stop. A mechanism that fails that transfer
+remains a bounded finding about weak-agent coordination.
+
+The accepted stage boundary and its plan consequences are recorded in
+[rdr-001-evaluation-stage-boundaries.md](rdr-001-evaluation-stage-boundaries.md).
 
 The first provisional profile cohorts are evaluated separately rather than mixed inside one arm:
 

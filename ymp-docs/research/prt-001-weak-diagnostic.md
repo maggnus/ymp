@@ -6,17 +6,23 @@ comparison, its strong-single-agent baseline, or its inference thresholds.
 
 ## Design
 
-One exact weak runtime/profile cohort is completed before another family begins. A cohort runs the
-existing calibration cases in order `L1-line-endings` → `L2-size-parser` → `L3-command-ledger`, with
-three fresh repetitions per case and three matched-budget conditions per repetition:
+L1-L3 are prerequisite profile and oracle calibration only; they never enter this protocol as arm
+observations. `W1-EXP-01e` separately freezes a held-out L4+ task set containing decomposable and
+sequential/null tasks. Its exact task identifiers, count, contract and oracle digests freeze before
+any model call under `weak-diagnostic-v1`; this protocol does not invent them.
+
+One exact weak runtime/profile cohort is completed before another family begins. Every frozen L4+
+task receives three fresh repetitions and three matched-budget conditions per repetition:
 
 1. one weak participant;
 2. two independent weak participants plus a blinded best-of-2 selector; and
 3. two locally coordinated weak participants.
 
-The 27 conditions are ordered by SHA-256 over cohort, case, repetition, and arm rather than by an
-operator choice. Their seeds use the separate namespace `ymp-weak-diagnostic-v1`; no frozen primary
-seed is consumed. The profile candidates and evidence boundary are defined in
+The complete schedule contains three conditions times three repetitions times the task count that
+`W1-EXP-01e` froze. Conditions are ordered by SHA-256 over cohort, frozen task identifier,
+repetition, and arm rather than by an operator choice. Their seeds retain the separate namespace
+`ymp-weak-diagnostic-v1`; no frozen primary seed is consumed. The profile candidates and evidence
+boundary are defined in
 [cal-001-calibration.md](cal-001-calibration.md).
 
 ## Matched budget
@@ -36,7 +42,7 @@ best-of-11, twelve-quantum, five-repetition comparison remains unchanged in the
 Every condition receives a new root:
 
 ```text
-<cohort>/<case>/<repetition>/<arm>/
+<cohort>/<task-id>/<repetition>/<arm>/
   project/
   home/
   ymp-home/
@@ -63,27 +69,33 @@ failure is never recoded as candidate failure.
 
 ## Diagnostic decision
 
-Proceed to stronger profiles only if all 27 conditions are compliant and coordination beats both
-controls in at least two of the three case blocks, produces at least two attributable
-non-redundant contributions, and survives preregistered message removal or neutral replacement at
-the same total budget. Otherwise record that this cohort supplies no diagnostic support for the
-coordination mechanism. Three repetitions are a development signal, not a statistical product
-claim.
+After the task-set freeze exists, the separate diagnostic-runner owner must freeze an executable
+aggregation and minimum diagnostic signal before any model call; this record does not invent a
+numeric rule before the task count exists. Proceed to a stronger admitted profile only if every
+scheduled condition is compliant, coordination repeatedly exceeds both controls under that frozen
+rule, and accepted candidates contain at least two attributable non-redundant contributions.
+Otherwise record an explicit negative stop. A weak-only result cannot authorize message
+interventions. Three repetitions characterize development variation and never become a statistical
+product claim.
 
 ## Current implementation boundary
 
-Implemented now: preparation and protected verification of L1–L3, their seeded negative controls,
-the managed single-participant path, persistent obligations, candidates, and collaboration board.
+Implemented now: preparation and protected verification of L1-L3, their seeded negative controls,
+the managed single-participant path, persistent obligations, candidates, collaboration board, and
+agent-facing collaboration tools.
 
-Missing before execution: a multi-participant product path, agent-facing collaboration tools,
+Missing before execution: the frozen held-out L4+ task set, a model-callable recruitment path,
 blinded best-of-2 selection, the diagnostic manifest/scheduler/compliance record, weak-profile
 admission and complete enforced budget accounting. The immediate product path is therefore:
 
 ```text
-board payload seam → agent collaboration tools → TUI messages → two-participant run
-→ diagnostic scheduler and compliance dry run
+accepted collaboration tools → agent recruitment → two-participant run
+→ held-out task-set freeze → diagnostic scheduler and compliance dry run
 ```
 
-The protocol was derived read-only on 2026-09-01 by the standing Sol max scientific researcher. Its
-next executable decision is a Sol-authored diagnostic scheduler only after the two-participant path
-exists; before any model call, that scheduler must pass a deterministic fake-runtime compliance run.
+The protocol was derived on 2026-09-01 under standing Sol max scientific review. Its next executable
+decision is a Sol-authored diagnostic scheduler only after the two-participant path and held-out
+task-set freeze exist; before any model call, that scheduler must pass a deterministic fake-runtime
+compliance run. TUI rendering is a product and observatory obligation, not a prerequisite for this
+headless comparison. The complete stage boundary is recorded in
+[rdr-001-evaluation-stage-boundaries.md](rdr-001-evaluation-stage-boundaries.md).
