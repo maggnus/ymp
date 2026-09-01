@@ -104,8 +104,12 @@ interaction model be translated into screens.
   materially ambiguous.
 - Map each promised step to current accepted product behavior or mark it explicitly as an
   implementation gap; separate the production-foundation POC journey from later MVP breadth.
-- Exclusive write zone: new `ymp-docs/USER_JOURNEY.md` and its single index entry in
-  `ymp-docs/README.md`; no visual or implementation files.
+- Exclusive delegated-author write zone: new `ymp-docs/USER_JOURNEY.md` and its single index entry
+  in `ymp-docs/README.md`; no visual or implementation files.
+- CTO-owned lifecycle exception: only the coordinator may later edit this existing W1-COR-03e.6 task
+  file and generated work index to record `SCIENTIFIC CONFIRMED <hash>`,
+  `OWNER APPROVED <hash>`, review/acceptance state and closure. This exception grants no author,
+  researcher, reviewer or UI worker permission to set either approval marker.
 
 ### Out
 
@@ -194,6 +198,8 @@ the journey, run the provenance-aware readiness check and accept this task befor
   set those states.
 - Approval sources are prior commits, never the final document's own commit, a branch, a short SHA,
   an agent report or conversation prose. Both approvals bind the same computed story-body hash.
+- CTO lifecycle writes cannot alter the journey body or delegated author zone; they only persist the
+  two externally supplied decisions and task state needed by the provenance check.
 
 ## Findings
 
