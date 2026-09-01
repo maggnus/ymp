@@ -1,154 +1,90 @@
-# HANDOFF — состояние проекта ymp
+# HANDOFF — backend development
 
-Актуально на 2 сентября 2026 года. Это краткая точка входа для владельца и следующего агента.
-Авторитетны текущий `main`, документы и исполняемые доказательства; старые отчёты агентов и
-неинтегрированные ветки авторитетом не являются.
+Короткая точка продолжения для следующего разработчика. Продуктовые этапы и общая матрица вынесены
+в [`STAGES.md`](STAGES.md).
 
-## Коротко
+## Состояние репозитория
 
-- Репозиторий: `https://github.com/maggnus/ymp.git`.
-- Ветка выпуска: `main`.
-- База, с которой собран этот handoff: опубликованный `main@0fc77c9`; после коммита самого файла
-  актуальный HEAD следует проверять через `git rev-parse HEAD`.
-- Версия рабочего пространства: `1.0.7`.
-- Рабочее дерево и `origin/main` синхронизированы.
-- Расчётный прогресс: **POC 70%** — POC-0 25/25, POC-1 25/25, POC-2 20/25, POC-3 0/25.
-- Техническая основа сильнее пользовательского продукта: ядро, одиночный управляемый участник,
-  кандидаты, проверка и значительная часть коллективного протокола существуют; целевой путь
-  пользователя и контролируемые эксперименты ещё не реализованы сквозным образом.
-- Научного доказательства полезной координации, listening, task value или самоорганизации пока нет.
+- Ветка: `main`, синхронизирована с `origin/main`.
+- Версия workspace: `1.0.7`.
+- Основной код: Rust workspace в `ymp-rust/`.
+- Поставка: один executable `ymp`.
+- Принятый целевой путь пользователя: `ymp-docs/USER_JOURNEY.md`.
+- Краткий контекст будущего интерфейса: `ymp-docs/DESIGN_CONTEXT.md`.
 
-## Этапы POC
+## Что уже реализовано в backend
 
-| Этап | Продуктовый результат | Состояние | Что уже доказано | Что ещё не доказано / не работает |
-|---|---|---:|---|---|
-| **POC-0 — контракт продукта и эксперимента** | Понятно, что строится, как проверяется и какие утверждения допустимы | ✅ **Готово — 25/25** | Контракт проекта, инварианты, защищённая проверка, отрицательные контроли, корпус и правила matched-budget сравнения зафиксированы | Это ещё не доказывает, что реальная многоагентная работа полезна |
-| **POC-1 — один управляемый участник** | Один установленный `ymp` запускает агента, получает кандидат, проверяет и экспортирует результат | ✅ **Готово — 25/25** | Один Rust executable, журнал, объекты, изолированная попытка, Codex и Claude Code, resume/cancel, точный кандидат, verifier evidence и экспорт | Текущий интерфейс остаётся системоцентричным; целевой User Journey не реализован |
-| **POC-2 — минимальный коллектив** | Несколько участников договариваются, обмениваются инертными сообщениями и создают проверяемый результат | 🟡 **Частично — 20/25** | Бюджетно-консервативные обязательства, конечность, recruitment gate, board, атрибуция, аудитория, неизменяемые ветви кандидатов, provenance | Сквозной пользовательский путь нескольких участников не доказан; TUI не показывает целевую команду/доску; запись человека на доску отсутствует |
-| **POC-3 — контролируемое сравнение** | Данные решают, улучшает ли координация результат и используются ли сообщения причинно | ⛔ **Не начато — 0/25** | План, страты, вмешательства, бюджеты и правила решения подготовлены | Инфраструктурный допуск модели закрыт; matched-budget arms и message interventions не запускались; научного результата нет |
-
-## Продуктовая матрица
-
-Обозначения: ✅ работает и подтверждено; 🟡 работает частично или только как техническая основа;
-⛔ отсутствует либо закрыто безопасным отказом; 📐 принят дизайн, но нет реализации.
-
-| Область продукта | Статус | Работает сейчас | Не работает / разрыв | Следующий доказуемый шаг |
-|---|---:|---|---|---|
-| **Один устанавливаемый продукт** | ✅ | Один Rust executable `ymp`; foreground Ratatui; частные child modes; без обязательного daemon/БД/Paseo | Обычная машина не считается безопасной песочницей для враждебного кода | Сохранять одноисполняемую границу при новом UX |
-| **Журнал, объекты и восстановление** | ✅ | Digest-linked JSONL journal, атомарные метаданные, CAS-объекты, восстановление состояния, честные терминалы | Полный production backup/migration/restore относится к более позднему этапу | Не ослаблять при изменении интерфейса |
-| **Кандидат и проверка** | ✅ | Изолированная попытка, неизменяемый кандидат, точная привязка verifier evidence, отрицательные контроли, экспорт выбранной версии | Сила проверки зависит от задачи; впечатление пользователя не является автоматическим доказательством | В интерфейсе всегда разделять «проверено» и «оценено человеком» |
-| **Codex и Claude Code runtime** | ✅ | Управляемый запуск, события, usage, resume, interrupt/cancel, завершение потомков, поведенческая совместимость Codex | Реальная совместимость среды всё ещё может отказать; macOS POC best-effort | Проверять конкретный доступный runtime перед реальным запуском |
-| **Поставщики и каталог моделей** | 🟡 | Включение/выключение, согласие на раскрытие данных, фоновое измерение и каталог; ошибка оставляет provider включённым без моделей | Управляемый sign-in не завершён; ошибки всех последующих операций ещё не проведены единообразно | Реализовать честный setup path и повтор каталога без ложного `ready` |
-| **AgentPool** | 🟡 | Допустимые provider/model/profile записи, автоматический `default`, снимок пула на run, пределы в записи | Полное проведение ceilings через start/recruitment/spend не доказано; выключение не отзывает доступ у текущего run | Замкнуть ограничения на продуктовый путь и показать влияние только на будущие запуски |
-| **Одиночный путь goal → result** | 🟡 | Typed prompt может создать внутренний contract и запустить run; один участник может выдать и проверить кандидат | Пользователь всё ещё проходит `/authorize` и внутренние идентификаторы; это противоречит принятому User Journey | Убрать церемонию из основного пути, оставив внутреннюю строгость и приглушённый system trace |
-| **Русская цель** | ⛔ | Исходная фраза может быть сохранена | Текущий вывод проверки ищет ASCII/английские основы; `Сделай игру «Морской бой»` не превращается в структурированные проверки | Реализовать внутреннюю нормализацию намерения и задавать только материально необходимое уточнение |
-| **Коллектив и recruitment** | 🟡 | Origin participant, механический recruitment gate, ограничения и протокольные факты существуют | Основной продуктовый путь достоверно доказан только для одного участника; команда из нескольких не прошла сквозной сценарий | Доказать свежий end-to-end run с несколькими участниками без ручного назначения |
-| **Общая доска** | 🟡 | Agent-facing publish/read через Application; инертные байты, автор, область, audience; operator projection существует | TUI-read не завершён; пользователь не может опубликовать приписанное человеческое вмешательство | Провести projection в `/board`, затем добавить отдельный user-authored inert message path |
-| **Цитирование и пересмотр** | 📐 | Протокол и принятый User Journey различают publication, availability, delivery, citation, revision и later action | Целевой пользовательский observatory ещё не реализован | Показывать факты раздельно, не выводя listening, agreement, influence или task value |
-| **Прозрачность команды** | 📐 | Принят точный продуктовый договор: состав, provider/model/profile, объявленная работа, состояние и provenance должны быть видимы | Текущий TUI не реализует эту картину; нельзя рисовать несколько участников до их фактического появления | Новый дизайн должен честно показывать одного участника или unavailable recruitment state |
-| **Результат и ручная оценка** | 📐 | User Journey закрепляет внешний run/open path и отдельные автоматические доказательства | Игра/приложение не должны встраиваться и тестироваться вручную внутри TUI; целевой flow ещё не реализован | Дать внешнюю команду/путь, принимать отзыв обратно в разговор, применять кандидат только явно |
-| **Изменение результата** | 🟡 | Кандидаты и ancestry позволяют сохранить версии | Текущий POC ограничен одним run на store; плавный conversational revision не доказан | Честно начинать новый run/версию и сохранять provenance до реализации продолжения |
-| **Текущий TUI** | 🟡 | Существующий Ratatui технически работает и покрыт детерминированными состояниями | Его информационная архитектура отклонена как системоцентричная; старые HTML/PDF и `893a7d1` не авторитетны | Проектировать заново только из User Journey и Design Context |
-| **Инфраструктурный live admission** | ⛔ | Нулевые проверки, compatibility, probe transport, controller evidence и диагностика реализованы | W1-EVL-04s остановился до model call: process-cleanup conformance не доказана; attestation отсутствует; `model_ready=false` | Новая попытка только по отдельному owner gate после доказанного preflight route |
-| **Matched-budget эксперимент** | ⛔ | Протокол, корпус и decision rules подготовлены | Strong/independent/coordinated arms не выполнены | Сначала открыть инфраструктурный gate, затем провести один замороженный study без post-hoc изменений |
-| **Причинная проверка сообщений** | ⛔ | Interventions и запрещённые ложные метрики определены | No-message/neutral/shuffled/direct-evidence arms не выполнялись | Запускать только после transfer gate и принятого instrumental result |
-
-## Принятая пользовательская модель
-
-Главный документ: [`ymp-docs/USER_JOURNEY.md`](ymp-docs/USER_JOURNEY.md).
-
-Опорный сценарий:
-
-> Пользователь запускает ymp и пишет: «Сделай игру “Морской бой”». ymp сам готовит внутренние
-> требования и проверки, формирует допустимую команду, показывает фактический ход работы, создаёт и
-> проверяет результат. Пользователь запускает игру вне TUI, возвращает отзыв, просит изменение и
-> явно применяет выбранный кандидат к проекту.
-
-Непосредственно передавать Claude Design следует только:
-
-1. [`ymp-docs/USER_JOURNEY.md`](ymp-docs/USER_JOURNEY.md) — пользовательский путь и текущие GAP;
-2. [`ymp-docs/DESIGN_CONTEXT.md`](ymp-docs/DESIGN_CONTEXT.md) — краткая суть продукта и ограничения.
-
-Существующие `VISUAL_CONCEPT.md`, `COLLECTIVE-TUI.md`, HTML/PDF-макеты и кандидат `893a7d1`
-не являются дизайн-авторитетом.
-
-## Что делать дальше
-
-1. **Claude Design:** получить новую информационную архитектуру и визуальную концепцию только из
-   `USER_JOURNEY.md` и `DESIGN_CONTEXT.md`.
-2. **Выбор владельца:** принять один дизайн-направление до написания Ratatui-кода.
-3. **Перепланировать W1-COR-03e.2:** старый transcript-only контракт не реализовывать вслепую;
-   заменить его минимальным end-to-end UI slice нового дизайна.
-4. **Закрыть backend GAP первого slice:** русская нормализация, provider setup, team projection,
-   `/board`, внешний result launch и явное application decision — только то, что требуется выбранному
-   пути.
-5. **Доказать несколько участников:** свежий одноразовый сценарий с реальными observed facts, без
-   иллюстрации гипотетической команды.
-6. **Вернуться к evaluation gate:** исправить process-cleanup preflight; новая live попытка требует
-   отдельного разрешения владельца.
-7. **Провести POC-3:** matched-budget comparison, затем причинные message interventions и итоговое
-   решение о продуктовой гипотезе.
-
-## Текущие блокировки и owner gates
-
-| Блокировка | Следствие | Что открывает |
+| Подсистема | Что работает | Основные точки входа |
 |---|---|---|
-| Новый дизайн ещё не создан и не выбран | W1-COR-03e.2 остаётся deferred | Результат Claude Design и явное решение владельца |
-| Русская нормализация и сильная проверка Battleship отсутствуют | Сценарий остаётся DESIGN-эталоном, не доказанной функцией | Отдельный BUILD slice с различающей проверкой |
-| Process-cleanup preflight не доказан | W1-EVL-04m и model gate закрыты | Новый owner-gated diagnostic node; не retry W1-EVL-04s |
-| Нет controller attestation | Weak participant experiment запрещён | Принятый новый live admission result |
-| Нет matched-budget данных | Нельзя утверждать reliability/self-organization | Завершённые и замороженные POC-3 arms |
+| Application core | Типизированные команды, один доверенный writer, восстановление из журнала, пути к приватным workspace/evidence | `ymp-rust/crates/ymp-application/` |
+| Хранение | Digest-linked JSONL journal, атомарные метаданные, content-addressed objects, один run на store | `ymp-storage`, `ymp-application` |
+| Runtime supervisor | Запуск, события, usage, resume, cancel/interrupt, bounded shutdown, завершение потомков | `ymp-runtime-api`, `ymp-runtime-supervisor` |
+| Runtime drivers | Управляемые Codex и Claude Code профили; поведенческая совместимость Codex | `ymp-runtime-codex`, `ymp-runtime-claude` |
+| Providers/models | Сохранённое enable/disable, фоновое измерение, model catalog, ошибки каталога | `ymp-runtime-registry`, `ymp-application/src/provider.rs` |
+| AgentPool | Автоматический `default`, допустимые provider/model/profile entries, freeze по значению на run | `ymp-domain/src/pool.rs`, `ymp-application/src/pool.rs` |
+| Participants | Origin participant и механический recruitment gate | `ymp-application/src/participant.rs`, recruitment/application commands |
+| Commitments | Offers, bids, task contracts, obligations, budgets, finite terminal transitions | `ymp-domain`, `ymp-kernel`, `ymp-protocol` |
+| Collaboration board | Agent publish/read, inert payload, author, scope/audience, operator projection | `ymp-board`, `ymp-application` board projection |
+| Candidates | Изолированные попытки, immutable candidate ancestry, competing branches | `ymp-candidate`, `ymp-application` |
+| Verification | Независимый verifier, exact evidence binding, negative controls, accepted export | `ymp-verifier`, `ymp-application`, `ymp-cli` |
+| TUI backend | Foreground session, typed Application projection, существующие runtime/provider/pool/run страницы | `ymp-rust/crates/ymp-tui/` |
 
-## Ключевые документы
+## Что осталось реализовать
 
-Читать в этом порядке:
+Работать сверху вниз: каждый пункт должен давать новый сквозной продуктовый результат, а не только
+новый тип или экран.
 
-1. [`AGENTS.md`](AGENTS.md) — правила работы с репозиторием.
-2. [`ymp-docs/README.md`](ymp-docs/README.md) — индекс продукта.
-3. [`ymp-docs/USER_JOURNEY.md`](ymp-docs/USER_JOURNEY.md) — принятый пользовательский путь.
-4. [`ymp-docs/DESIGN_CONTEXT.md`](ymp-docs/DESIGN_CONTEXT.md) — краткий handoff для Claude Design.
-5. [`ymp-docs/PROJECT-CONTRACT.md`](ymp-docs/PROJECT-CONTRACT.md) — требования и oracle boundary.
-6. [`ymp-docs/ROADMAP.md`](ymp-docs/ROADMAP.md) — POC/MVP/Alpha и критерии решения.
-7. [`ymp-docs/INVARIANTS.md`](ymp-docs/INVARIANTS.md) и
-   [`ymp-docs/SECURITY.md`](ymp-docs/SECURITY.md) — запреты и остаточный риск.
-8. [`ymp-docs/ARCHITECTURE.md`](ymp-docs/ARCHITECTURE.md) и
-   [`ymp-docs/PROTOCOL.md`](ymp-docs/PROTOCOL.md) — внутренняя система и семантика фактов.
-9. [`ymp-docs/work/STATUS.md`](ymp-docs/work/STATUS.md) — текущие задачи и их состояния.
-10. [`ymp-docs/research/README.md`](ymp-docs/research/README.md) — научные записи и принятые STOP.
+| Приоритет | Backend-результат | Текущее ограничение | Точки входа |
+|---:|---|---|---|
+| **1** | Русская цель превращается во внутреннее структурированное намерение и различающие проверки | `derive_check` использует ASCII/английские основы; «Сделай игру “Морской бой”» не получает содержательной проверки | `ymp-application/src/answer.rs` |
+| **2** | Provider setup честно проводит enable → background model catalog → models или точную ошибку | Управляемый sign-in отсутствует; ошибки поздних операций не везде привязаны к конкретному start/invocation | `ymp-runtime-registry/src/provider.rs`, provider Application API |
+| **3** | Pool ceilings реально ограничивают participant starts, recruitment и расход | Freeze существует, но пределы не проведены через весь исполняемый путь | `ymp-domain/src/pool.rs`, `ymp-application/src/pool.rs`, participant/recruitment path |
+| **4** | Несколько участников проходят один настоящий product run | Origin и recruitment реализованы отдельно, но основной путь доказан только с одним участником | `ymp-application/src/participant.rs`, runtime supervisor, recruitment tool |
+| **5** | Пользователь читает `/board` через Application projection | Operator projection готова, но не проведена в целевой TUI/session | `Application::operator_board_projection`, `ymp-tui` session/projection |
+| **6** | Пользователь публикует на board инертное приписанное вмешательство | Agent publish существует; отдельного user-authored command/path нет | board command types, `ymp-application`, `ymp-tui` input path |
+| **7** | Team projection показывает только фактически запущенных участников и объявленную работу | Целевой `/agents` ещё не связан со сквозным multi-participant run | Application participant/task projections, `ymp-tui` |
+| **8** | Результат открывается внешней командой/путём, отзыв возвращается в разговор, применение явно | Export работает, но полный external run → feedback → revision → apply flow не замкнут | result/export Application commands, CLI/TUI foreground session |
+| **9** | Изменение результата создаёт новую версию с сохранённым provenance | Один store содержит один run; продолжение и история ограничены | storage root/run model, candidate ancestry, Application session |
+| **10** | Model admission получает controller attestation и открывает gate | Последний preflight остановился на process-cleanup conformance; `model_ready=false` | `ymp-runtime-supervisor`, tool-host probe, `ymp-corpus/src/admission.rs` |
 
-## Правила для следующего агента
+## Первая рекомендуемая задача
 
-- Не запускать агентов с глубиной `max`; потолок — `xhigh`.
-- Не восстанавливать и не интегрировать отклонённый дизайн `893a7d1`.
-- Не устанавливать внешние UI/UX skills; использовать их только как справочные материалы.
-- Не давать Claude Design старые экраны как авторитет.
-- Не рисовать несколько участников, сообщения, budget или readiness, если текущие факты этого не
-  подтверждают.
-- Не запускать model/provider/live evaluation без отдельного owner gate.
-- Behavioral/e2e проверки выполнять только в свежем disposable root с отдельными
-  `project`, `HOME`, `YMP_HOME`, `TMPDIR`, `build` и `export`.
-- Каждый delegated write получает независимую проверку; не повторять полные проверки без новой
-  гипотезы.
-- Сохранять standing scientific researcher `W1-EVL-04a`: full-access, `gpt-5.6-sol`, `xhigh`.
-- Не изменять сгенерированные `STATUS.md` и `WAVES.md` вручную.
-- Не делать push, deploy, платный вызов или необратимое действие без явного разрешения владельца.
+Начать с **русской нормализации намерения**, потому что без неё главный пользовательский сценарий не
+может честно перейти от фразы к проверяемой работе.
 
-## Git и рабочая среда
+Минимальный результат:
 
-- Перед добавлением `HANDOFF.md` было `main == origin/main == 0fc77c9`; сам handoff добавляется
-  следующим коммитом и отправляется в `origin/main`.
-- Версия workspace — `1.0.7`.
-- Рабочее дерево чистое.
-- Завершённые агенты и рабочие области архивированы; постоянный исследователь сохранён.
-- Heartbeat удалён после закрытия активного цикла.
+1. Ввод `Сделай игру «Морской бой»` сохраняется дословно.
+2. Backend формирует структурированный результат: тип приложения, среда запуска, основные
+   наблюдаемые требования и человеческий остаток.
+3. Если среда действительно неоднозначна, задаётся один блокирующий вопрос; следующий вопрос не
+   появляется до ответа.
+4. Проверяющий план не зависит от требования пользователю писать английское имя файла.
+5. Изменённые требования имеют различающий отрицательный пример.
 
-## Научный статус
+Начать чтение с:
 
-- `RUN-001`: ручной файловый пилот — infrastructure-invalid, коммуникация не наблюдалась.
-- `RUN-002`: первый разрешённый live probe — `ProcessExit`, фаза не локализована.
-- `RUN-003`: второй разрешённый процесс остановился на deterministic preflight; live/model/provider
-  calls — 0; process-cleanup conformance не доказана.
-- Ни один run не дал данных о публикации сообщения, доставке другому участнику, listening, task value
-  или причинной самоорганизации.
-- До POC-3 допустимы только утверждения о реализованных механизмах и наблюдаемых фактах, не о пользе
-  коллективного поведения.
+- `ymp-rust/crates/ymp-application/src/answer.rs`;
+- тестов `answer`/drafting в `ymp-application` и `ymp-tui`;
+- разделов «Непрерывная история» и «Текущая реализация и разрывы» в
+  `ymp-docs/USER_JOURNEY.md`.
+
+Не менять TUI-композицию в этой задаче. Сначала нужен типизированный Application-результат и его
+исполняемая отрицательная проверка.
+
+## Проверки для backend-карточек
+
+- Узкие тесты изменённых packages и отрицательная половина load-bearing поведения.
+- Строгий Clippy только затронутых packages.
+- `cargo fmt --all -- --check`.
+- `git diff --check`.
+- Полный workspace suite — только на интеграционном/release gate.
+- Behavioral/e2e запуск — только в свежем disposable root с отдельными `project`, `HOME`,
+  `YMP_HOME`, `TMPDIR`, `build`, `export`.
+
+## Не начинать без отдельного решения владельца
+
+- новый live/model/provider admission run;
+- matched-budget POC-3;
+- message-intervention experiment;
+- push/deploy/необратимую внешнюю операцию.
