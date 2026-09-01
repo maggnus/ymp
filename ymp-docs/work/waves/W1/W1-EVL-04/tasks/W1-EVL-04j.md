@@ -7,10 +7,10 @@ state: ready
 risk: critical
 maturity: BUILD
 relation: required
-depends_on: [W1-EVL-04h, W1-EVL-04i]
+depends_on: [W1-EVL-04h, W1-EVL-04i, W1-EVL-04k]
 blocks: [W1-EVL-04e]
 created_at: 2026-09-01T15:41:48+08:00
-updated_at: 2026-09-01T15:41:48+08:00
+updated_at: 2026-09-01T15:50:30+08:00
 started_at:
 accepted_at:
 candidate_commit:
