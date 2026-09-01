@@ -3,22 +3,23 @@ id: W1-COR-03e
 kind: task
 wave: W1
 card: W1-COR-03
-state: deferred
+state: active
 risk: significant
 maturity: BUILD
 relation: required
 depends_on: [W0-UX-01c, W1-APP-02e, W1-COR-03c, W1-COR-03d]
 blocks: [W1-EVL-04b]
 created_at: 2026-08-10T21:23:34+08:00
-updated_at: 2026-08-18T10:00:00+08:00
+updated_at: 2026-09-01T21:45:00+08:00
+started_at: 2026-09-01T21:41:03+08:00
 accepted_at:
 candidate_commit:
 closure_commit:
 evidence:
 duration_minutes: 0
 blocker:
-pause_reason: owner review 2026-09-01 — preserved scaffold independently rejected and branch deleted; re-dispatch fresh from current main
-return_trigger: owner explicitly requests a fresh W1-COR-03e implementation from current main
+pause_reason:
+return_trigger:
 deliberate_partial: false
 ---
 
@@ -69,17 +70,14 @@ acting as a dispatcher or labelling temporal association as collective reasoning
 
 ## Current state
 
-The design sources and accepted collaboration and candidate mechanics exist, but no production
-W1-COR-03e interface implementation exists. The preserved scaffold was independently
-rejected on 2026-09-01: it was unreachable from the TUI, read ledgers instead of application
-projections, supplied no route, rendering or tests, and failed locked-build and formatting checks.
-Its branch was deleted rather than integrated.
+The rejected scaffold remains deleted. Accepted 03e.1 supplies resolved Application messages;
+03e.2 is implementing their reachable transcript route from current main. Required 03e.3 is already
+defined for commitments and candidate provenance on existing pages. No discarded code is reused.
 
 ## Next action
 
-Re-dispatch from current `main`: first map the accepted application projections to the current
-POC-2 screen-state contract, then implement the reachable TUI route, rendering and deterministic
-acceptance tests as one reviewable vertical slice.
+Accept 03e.2, then implement sequential 03e.3 in the same TUI projection/render boundary; close the
+parent only when all five observatory acceptance criteria are demonstrated together.
 
 ## Guardrails
 
@@ -94,6 +92,8 @@ acceptance tests as one reviewable vertical slice.
 - The discarded scaffold cannot seed the next implementation: its direct ledger reads violated the
   application-projection boundary, and its semantic label scan did not cover the data it claimed to
   protect.
+- The owner's continuing POC objective and explicit parallelization instruction satisfied the return
+  trigger; fresh work began from current main with disjoint runtime/TUI write zones.
 
 ## Closure
 

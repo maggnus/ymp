@@ -60,7 +60,7 @@
 | `[x]` | [`W1-COR-03b`](waves/W1/W1-COR-03/tasks/W1-COR-03b.md) | Yielded participants resume finitely and runs terminate honestly | [`ca529942`](https://github.com/maggnus/ymp/commit/ca5299420f40d3ebf9b83faeae4e79614ebecc4d) | — | 14/08 04:06 (0m) |
 | `[x]` | [`W1-COR-03c`](waves/W1/W1-COR-03/tasks/W1-COR-03c.md) | Scoped board preserves attribution without carrying authority | [`7f0f0141`](https://github.com/maggnus/ymp/commit/7f0f01411db2f20ff4eba7a66a373d73d7fd065e) | 16/08 01:03 | 16/08 02:45 (1h40m) |
 | `[x]` | [`W1-COR-03d`](waves/W1/W1-COR-03/tasks/W1-COR-03d.md) | Competing submissions preserve immutable candidate ancestry | [`f4e9fbf8`](https://github.com/maggnus/ymp/commit/f4e9fbf89e869e2505ba642784a145d598f66fd3) | 15/08 16:45 | 15/08 18:40 (0m) |
-| `[=]` | [`W1-COR-03e`](waves/W1/W1-COR-03/tasks/W1-COR-03e/TASK.md) | TUI exposes local commitments and communication evidence | — | — | — |
+| `[~]` | [`W1-COR-03e`](waves/W1/W1-COR-03/tasks/W1-COR-03e/TASK.md) | TUI exposes local commitments and communication evidence | — | 01/09 21:41 | 01/09 21:45 (0m) |
 | `[x]` | [`W1-COR-03e.1`](waves/W1/W1-COR-03/tasks/W1-COR-03e/subtasks/W1-COR-03e.1.md) | Application persists and resolves inert board payloads | [`40315e29`](https://github.com/maggnus/ymp/commit/40315e299729ecdd4b3683c473fd42c5e93e57b7) | 01/09 12:15 | 01/09 13:00 (45m) |
 | `[~]` | [`W1-COR-03e.2`](waves/W1/W1-COR-03/tasks/W1-COR-03e/subtasks/W1-COR-03e.2.md) | TUI renders resolved participant messages through Application | — | 01/09 21:41 | 01/09 21:41 (0m) |
 | `[ ]` | [`W1-COR-03e.3`](waves/W1/W1-COR-03/tasks/W1-COR-03e/subtasks/W1-COR-03e.3.md) | TUI traces commitments and candidate provenance without causation | — | — | — |
