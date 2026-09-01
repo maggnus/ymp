@@ -3,14 +3,14 @@ id: W1-EVL-04m
 kind: task
 wave: W1
 card: W1-EVL-04
-state: ready
+state: deferred
 risk: critical
 maturity: BUILD
 relation: required
 depends_on: [W1-EVL-04l, W1-EVL-04q, W1-EVL-04s]
 blocks: [W1-EVL-04e]
 created_at: 2026-09-01T15:57:45+08:00
-updated_at: 2026-09-01T21:14:37+08:00
+updated_at: 2026-09-01T23:14:47+08:00
 started_at:
 accepted_at:
 candidate_commit:
@@ -18,8 +18,8 @@ closure_commit:
 evidence:
 duration_minutes: 0
 blocker:
-pause_reason:
-return_trigger:
+pause_reason: W1-EVL-04s stopped before a live call and produced no controller attestation
+return_trigger: a separately owner-authorized live-admission task produces an accepted controller attestation
 deliberate_partial: false
 review_rounds: 0
 escalation_decision:
@@ -81,14 +81,14 @@ evidence remains fail-closed.
 ## Current state
 
 W1-EVL-04j owns the untrusted trace, W1-EVL-04l owns controller authority, and W1-EVL-04q freezes the
-behavioral consumer. The first W1-EVL-04n live attempt failed without attestation; only the separately
-budgeted W1-EVL-04s outcome may provide consumable evidence. Raw, Fake or failure records cannot open
+behavioral consumer. W1-EVL-04n failed without attestation and W1-EVL-04s stopped during zero-model
+preflight. No consumable controller evidence exists; raw, Fake, STOP or failure records cannot open
 this consumer.
 
 ## Next action
 
-After W1-EVL-04s produces a complete attestation, run a Critical contract check of the single-file
-consumer boundary. A failure result keeps this node blocked.
+Do not dispatch. Resume only after a separately owner-authorized live-admission task produces an
+independently accepted controller attestation.
 
 ## Guardrails
 
@@ -104,6 +104,8 @@ consumer boundary. A failure result keeps this node blocked.
 
 - Created by R1 decomposition of W1-EVL-04j to isolate the policy decision from execution,
   controller authority and persistence.
+- [RUN-003](https://github.com/maggnus/ymp/blob/ce1f63a5e749286f581dca48b0d904a0d109331f/ymp-docs/research/run-003-w1-evl-04s-prelive-stop.md)
+  records zero live calls and no attestation; model readiness remains closed.
 
 ## Review rounds
 

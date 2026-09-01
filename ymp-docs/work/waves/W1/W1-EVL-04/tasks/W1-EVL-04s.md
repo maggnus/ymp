@@ -3,25 +3,25 @@ id: W1-EVL-04s
 kind: task
 wave: W1
 card: W1-EVL-04
-state: active
+state: rejected
 risk: critical
 maturity: OPERATIONALIZATION
 relation: required
 depends_on: [W1-EVL-04n, W1-EVL-04r]
 blocks: [W1-EVL-04m]
 created_at: 2026-09-01T21:14:37+08:00
-updated_at: 2026-09-01T22:30:22+08:00
+updated_at: 2026-09-01T23:14:47+08:00
 started_at: 2026-09-01T22:30:22+08:00
 accepted_at:
-candidate_commit:
+candidate_commit: https://github.com/maggnus/ymp/commit/c8b07befe8baca30e77c932d4bc7e96892f45d88
 closure_commit:
-evidence:
-duration_minutes: 0
+evidence: ["[RUN-003](https://github.com/maggnus/ymp/blob/ce1f63a5e749286f581dca48b0d904a0d109331f/ymp-docs/research/run-003-w1-evl-04s-prelive-stop.md)"]
+duration_minutes: 45
 blocker:
 pause_reason:
-return_trigger:
+return_trigger: owner authorizes a separate live-admission task with a new namespace and a proven process-cleanup preflight route
 deliberate_partial: false
-review_rounds: 0
+review_rounds: 2
 escalation_decision:
 ---
 
@@ -85,14 +85,14 @@ or contamination of any experimental arm.
 
 ## Current state
 
-W1-EVL-04r is accepted on integrated main and the final read-only gate confirms all six diagnostic
-criteria, the unchanged v2 vector and an existing source-complete harness. The first 04n attempt
-remains spent and unlocalized; it cannot be retried or imported.
+Rejected without a live command. The deterministic preflight could not prove process-termination and
+reparenting conformance in its execution environment; `model_calls=0`, provider state remained
+`not_started`, no attestation exists and the one-call vector cannot be retried in this task.
 
 ## Next action
 
-Run the deterministic zero-model preflight, then execute the existing consumer exactly once in a
-fresh external root; stop permanently on its first terminal outcome.
+Keep W1-EVL-04m deferred. A future live admission requires a new owner-gated task, namespace and
+budget plus a preflight route that can prove process cleanup before any provider request.
 
 ## Guardrails
 
@@ -106,6 +106,12 @@ fresh external root; stop permanently on its first terminal outcome.
   localize whether a provider request occurred.
 - Final gate ACCEPT on 01/09 confirmed accepted 04r evidence, unchanged one-call budget and no source
   change required by the existing live harness.
+- Preflight completed 14 Application checks and 11 runtime-API checks, but four process-termination
+  cases failed with `Operation not permitted` or unconfirmed reparenting; the live line was never
+  reached.
+- Immutable STOP evidence and its correction distinguish unproven product cleanup conformance from
+  the later observed absence of residual processes. The accepted record is
+  [RUN-003](https://github.com/maggnus/ymp/blob/ce1f63a5e749286f581dca48b0d904a0d109331f/ymp-docs/research/run-003-w1-evl-04s-prelive-stop.md).
 
 ## Review rounds
 
@@ -115,18 +121,25 @@ marker carries the reviewer's ten-point score and the local moment of the verdic
 escalation, one `- CTO <decision> <dd/mm hh:mm> — <reason>` line records what was decided. The review
 dialogue itself stays in the reports and the evidence package.
 
-## Closure
+- R1(6/10) RETURN 01/09 22:42 — STOP evidence conflated unproven process conformance with later
+  cleanup observation → original evidence preserved → immutable correction sidecar added
+- R2(9/10) ACCEPT 01/09 23:00 — original and correction hashes matched → the two cleanup facts were
+  separated and zero live/model/provider calls confirmed → infrastructure STOP accepted
 
-Filled when the task is accepted. Until then this section stays as written.
+## Closure
 
 ### Accepted outcome
 
-What was actually accepted.
+Not accepted: the authorized task stopped during deterministic preflight and never invoked the live
+consumer.
 
 ### Residuals
 
-Honestly retained limitations, each with an exact return trigger. Empty when there are none.
+Process-cleanup conformance remains unproven in the available execution route. The live vector was
+not spent on a provider call, but this task forbids retry; a new task requires the owner gate named
+in `return_trigger`.
 
 ### Evidence
 
-- Commit, evidence package, or durable document of record, each as a Markdown link.
+- [RUN-003](https://github.com/maggnus/ymp/blob/ce1f63a5e749286f581dca48b0d904a0d109331f/ymp-docs/research/run-003-w1-evl-04s-prelive-stop.md)
+  — durable accepted record of the prelive infrastructure STOP and its bounded evidence.
