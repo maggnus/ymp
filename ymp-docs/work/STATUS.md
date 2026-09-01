@@ -64,7 +64,7 @@
 | `[x]` | [`W1-COR-03e.1`](waves/W1/W1-COR-03/tasks/W1-COR-03e/subtasks/W1-COR-03e.1.md) | Application persists and resolves inert board payloads | [`40315e29`](https://github.com/maggnus/ymp/commit/40315e299729ecdd4b3683c473fd42c5e93e57b7) | 01/09 12:15 | 01/09 13:00 (45m) |
 | `[=]` | [`W1-COR-03e.2`](waves/W1/W1-COR-03/tasks/W1-COR-03e/subtasks/W1-COR-03e.2.md) | TUI renders resolved participant messages through Application | — | 01/09 21:41 | 01/09 21:48 (0m) |
 | `[ ]` | [`W1-COR-03e.3`](waves/W1/W1-COR-03/tasks/W1-COR-03e/subtasks/W1-COR-03e.3.md) | TUI traces commitments and candidate provenance without causation | — | — | — |
-| `[ ]` | [`W1-COR-03e.4`](waves/W1/W1-COR-03/tasks/W1-COR-03e/subtasks/W1-COR-03e.4.md) | Operator projection preserves exact message audience | — | — | — |
+| `[~]` | [`W1-COR-03e.4`](waves/W1/W1-COR-03/tasks/W1-COR-03e/subtasks/W1-COR-03e.4.md) | Operator projection preserves exact message audience | — | 01/09 21:52 | 01/09 21:52 (0m) |
 | `[x]` | [`W1-COR-03f`](waves/W1/W1-COR-03/tasks/W1-COR-03f.md) | Commitment facts are durable and visible, not only in memory | [`8f5b8155`](https://github.com/maggnus/ymp/commit/8f5b81551599c0ef61edf80e9379369dfd8b2120) | 15/08 15:07 | 15/08 16:40 (0m) |
 | `[x]` | [`W1-COR-03g`](waves/W1/W1-COR-03/tasks/W1-COR-03g.md) | Settlement returns escrow only to an account that can still spend it | [`2b390922`](https://github.com/maggnus/ymp/commit/2b390922667426a48b01c9225ccee08c7d8e81f8) | 13/08 16:47 | 13/08 18:43 (1h36m) |
 | `[x]` | [`W1-COR-03h`](waves/W1/W1-COR-03/tasks/W1-COR-03h.md) | Conservation and ownership checks fail on the mutants they name | [`ce0aeecb`](https://github.com/maggnus/ymp/commit/ce0aeecbcdbf598b4badc72529873748efe3d966) | 13/08 18:52 | 13/08 20:02 (48m) |
