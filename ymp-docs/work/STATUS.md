@@ -83,7 +83,7 @@
 | `[x]` | [`W1-COR-03w`](waves/W1/W1-COR-03/tasks/W1-COR-03w.md) | Shutdown edge cases keep the journal and the finished run honest | [`904cac0f`](https://github.com/maggnus/ymp/commit/904cac0f27d069c7a4ad326fd60816607639e206) | 15/08 13:44 | 15/08 14:14 (0m) |
 | `[x]` | [`W1-COR-03x`](waves/W1/W1-COR-03/tasks/W1-COR-03x.md) | The run's commitment kernel journals through the durable path | [`eb0fdd34`](https://github.com/maggnus/ymp/commit/eb0fdd34f3564eaf05c6a2e6b02b6d9eb3cbfc65) | 15/08 16:45 | 15/08 19:30 (0m) |
 | `[x]` | [`W1-COR-03y`](waves/W1/W1-COR-03/tasks/W1-COR-03y.md) | The live controller submits bundles; the durable path guards its terminal | [`acdf9f82`](https://github.com/maggnus/ymp/commit/acdf9f82df02a65a7cf8d8612c17e43e5e91e804) | 15/08 19:35 | 15/08 23:00 (0m) |
-| `[~]` | [`W1-COR-03z`](waves/W1/W1-COR-03/tasks/W1-COR-03z.md) | Agent tools publish and read collaboration through Application | [`0571ced1`](https://github.com/maggnus/ymp/commit/0571ced10cb84c8b07990dc5cec5aae391b7b30a) | 01/09 13:02 | 01/09 13:36 (0m) |
+| `[x]` | [`W1-COR-03z`](waves/W1/W1-COR-03/tasks/W1-COR-03z.md) | Agent tools publish and read collaboration through Application | [`80202fe0`](https://github.com/maggnus/ymp/commit/80202fe07b9c3b231654eac99f05594555ee2acd) | 01/09 13:02 | 01/09 13:37 (35m) |
 | `[ ]` | [`W1-EVL-04`](waves/W1/W1-EVL-04/CARD.md) | Controlled evidence decides both POC hypotheses | — | — | — |
 | `[=]` | [`W1-EVL-04a`](waves/W1/W1-EVL-04/tasks/W1-EVL-04a.md) | Matched-budget arms produce comparable acceptance evidence | — | 01/09 12:18 | 01/09 12:22 (0m) |
 | `[ ]` | [`W1-EVL-04b`](waves/W1/W1-EVL-04/tasks/W1-EVL-04b.md) | Message interventions separate appearance from causal use | — | — | — |

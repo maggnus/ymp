@@ -3,20 +3,20 @@ id: W1-COR-03z
 kind: task
 wave: W1
 card: W1-COR-03
-state: review
+state: accepted
 risk: significant
 maturity: BUILD
 relation: required
 depends_on: [W1-COR-03c, W1-COR-03e.1]
 blocks: [W1-EVL-04a, W1-EVL-04b]
 created_at: 2026-09-01T12:20:00+08:00
-updated_at: 2026-09-01T13:36:00+08:00
+updated_at: 2026-09-01T13:37:00+08:00
 started_at: 2026-09-01T13:02:00+08:00
-accepted_at:
+accepted_at: 2026-09-01T13:37:00+08:00
 candidate_commit: https://github.com/maggnus/ymp/commit/0571ced10cb84c8b07990dc5cec5aae391b7b30a
-closure_commit:
-evidence:
-duration_minutes: 0
+closure_commit: https://github.com/maggnus/ymp/commit/80202fe07b9c3b231654eac99f05594555ee2acd
+evidence: ["[80202fe](https://github.com/maggnus/ymp/commit/80202fe07b9c3b231654eac99f05594555ee2acd)"]
+duration_minutes: 35
 blocker:
 pause_reason:
 return_trigger:
@@ -58,33 +58,34 @@ caller identity, scope, budgets, payload storage, and authority remain controlle
 
 ## Acceptance
 
-- [ ] An authorized participant publishes exact bytes, the board records their digest and
+- [x] An authorized participant publishes exact bytes, the board records their digest and
       attribution, and a bound live reader receives the same owned UTF-8 bytes only when
       `BoardLedger::may_read` admits its project-discovery, scope, or named audience.
-- [ ] Tool arguments contain no caller-selected author/reader/principal, capability, payload digest
+- [x] Tool arguments contain no caller-selected author/reader/principal, capability, payload digest
       or length, filesystem/workspace path, protected-oracle reference, generic command, or URL;
       unknown fields such as `author`, `reader`, `payload_digest`, or `payload_bytes` are rejected.
-- [ ] A 513-byte project-discovery payload and an 8193-byte detailed payload are rejected against
+- [x] A 513-byte project-discovery payload and an 8193-byte detailed payload are rejected against
       `MAX_DISCOVERY_PAYLOAD_BYTES` and `MAX_PAYLOAD_BYTES`; the handler, not the model, computes the
       digest and byte length from the accepted UTF-8 content.
-- [ ] Publishing to a scope or named audience without publish rights, calling from an unbound or
+- [x] Publishing to a scope or named audience without publish rights, calling from an unbound or
       non-live endpoint, repeating one `command_id`, reading with 0 or 32769 bytes, and a delivery
       exceeding the reader's `DeliveredBytes` allowance fail or stop at the existing board limit
       without duplicate publication, cursor corruption, unpaid bytes, or control-plane disclosure.
-- [ ] A participant outside a scope or named audience does not receive that message; a member with
+- [x] A participant outside a scope or named audience does not receive that message; a member with
       a valid read grant does, through the same `read_board { limit_bytes }` schema.
-- [ ] Codex and Claude generated configurations expose the new tools only for a contract that grants
+- [x] Codex and Claude generated configurations expose the new tools only for a contract that grants
       them; focused binding tests, strict affected-package Clippy, formatting, and diff-check pass.
 
 ## Current state
 
-R4 accepted candidate [0571ced](https://github.com/maggnus/ymp/commit/0571ced10cb84c8b07990dc5cec5aae391b7b30a)
-after the exact MCP→RPC→Application path passed in a short disposable root. R1–R3 were infrastructure
-failures before product observation; no code finding remains open.
+Accepted and integrated as
+[80202fe](https://github.com/maggnus/ymp/commit/80202fe07b9c3b231654eac99f05594555ee2acd).
+Managed participants now publish and read collaboration through the typed production path; no code
+finding remains open.
 
 ## Next action
 
-Integrate the accepted candidate into current main without semantic conflict.
+Use the accepted collaboration path in the participant-recruitment and diagnostic-runner slices.
 
 ## Guardrails
 
@@ -128,16 +129,19 @@ dialogue itself stays in the reports and the evidence package.
 
 ## Closure
 
-Filled when the task is accepted. Until then this section stays as written.
-
 ### Accepted outcome
 
-What was actually accepted.
+Strict `publish` and `read_board` schemas traverse MCP, private RPC, endpoint-bound Application
+identity, durable payload storage and board accounting. Unknown identity claims fail before effect;
+authorized reads return exact owned UTF-8 bytes, digest, length and attribution. Codex and Claude
+receive the tools only when the generated invocation grants collaboration MCP.
 
 ### Residuals
 
-Honestly retained limitations, each with an exact return trigger. Empty when there are none.
+None.
 
 ### Evidence
 
-- Commit, evidence package, or durable document of record, each as a Markdown link.
+- [80202fe](https://github.com/maggnus/ymp/commit/80202fe07b9c3b231654eac99f05594555ee2acd)
+  — integrated code, byte-identical `ymp-rust` tree to reviewed candidate
+  [0571ced](https://github.com/maggnus/ymp/commit/0571ced10cb84c8b07990dc5cec5aae391b7b30a).
