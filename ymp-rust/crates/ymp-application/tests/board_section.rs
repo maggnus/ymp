@@ -22,7 +22,7 @@ use std::fs;
 use std::path::Path;
 
 use tempfile::tempdir;
-use ymp_application::{Application, ApplicationError, BOARD_SECTION};
+use ymp_application::{Application, ApplicationConfig, ApplicationError, BOARD_SECTION};
 use ymp_board::store::{FACT_RECORD, OPENING_RECORD};
 use ymp_board::{
     Audience, BOARD_RECORD_KIND, BOARD_SCHEMA_VERSION, BoardCommand, BoardEvent, MessageKind,
@@ -131,6 +131,53 @@ fn reopening_the_same_run_restores_the_board() {
         matches!(Application::open(root), Err(ApplicationError::BoardSectionUnusable(reason)) if reason.contains("incomplete line")),
         "a corrupted section file reopened a board instead of refusing"
     );
+}
+
+#[test]
+fn reopening_uses_the_board_terms_recorded_at_creation() {
+    let temporary = tempdir().expect("temporary directory");
+    let root = temporary.path();
+    let mut creation = ApplicationConfig::default();
+    creation.board.controller = "recorded-controller".to_owned();
+    let mut app = Application::create_with_config(root, "run-1", Budget::new(2, 1), creation)
+        .expect("create run");
+    app.record_board(&BoardCommand::Publish(publication("message-1")))
+        .expect("a publication is recorded");
+    let facts_before = app.board().ledger().facts().to_vec();
+    let state_before = app.board().ledger().snapshot();
+    drop(app);
+
+    let mut current = ApplicationConfig::default();
+    current.board.controller = "current-controller".to_owned();
+    let reopened = Application::open_with_config(root, current)
+        .expect("reopen from the board's recorded terms");
+    assert_eq!(reopened.board().ledger().facts(), facts_before.as_slice());
+    assert_eq!(reopened.board().ledger().snapshot(), state_before);
+}
+
+#[test]
+fn a_board_write_error_leaves_the_live_ledger_unchanged() {
+    let temporary = tempdir().expect("temporary directory");
+    let root = temporary.path();
+    let mut app = Application::create(root, "run-1", Budget::new(2, 1)).expect("create run");
+    let ledger_before = app.board().ledger().clone();
+    let bytes_before = serde_json::to_vec(&ledger_before).expect("serialize the live ledger");
+    let recorded_before = app.board().recorded_facts();
+
+    let fact_record = root.join(BOARD_SECTION).join(FACT_RECORD);
+    fs::remove_file(&fact_record).expect("remove the fact record");
+    fs::create_dir(&fact_record).expect("put an unwritable target at the fact-record path");
+
+    assert!(matches!(
+        app.record_board(&BoardCommand::Publish(publication("message-1"))),
+        Err(ApplicationError::BoardSectionUnusable(_))
+    ));
+    assert_eq!(app.board().ledger(), &ledger_before);
+    assert_eq!(
+        serde_json::to_vec(app.board().ledger()).expect("serialize the live ledger after refusal"),
+        bytes_before
+    );
+    assert_eq!(app.board().recorded_facts(), recorded_before);
 }
 
 #[test]

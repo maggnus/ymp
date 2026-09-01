@@ -14,7 +14,7 @@ use ymp_agent_api::{
 };
 use ymp_artifacts::{ArtifactError, ArtifactStore, CandidateRef, FileEntry, SubmissionRef};
 use ymp_board::budget::{Allowance as BoardAllowance, CommunicationAllowance};
-use ymp_board::{BoardCommand, BoardEvent, BoardLedger, BoardStore, OPENING_RECORD};
+use ymp_board::{BoardCommand, BoardEvent, BoardLedger, BoardStore};
 use ymp_domain::commitment::{
     BudgetVector, BundleChange, CommitmentCommand, CommitmentError, CommitmentEvent,
     CommitmentLedger, PathChange,
@@ -323,16 +323,11 @@ impl BoardSection {
     /// so a store that holds none is a store whose section was lost or never written, and it is
     /// refused by name: restoring nothing would hand the run an empty board and read the absence
     /// of every recorded fact as evidence that nothing was ever said.
-    fn reopen(data_root: &Path, config: &DefaultBoardConfig) -> Result<Self, ApplicationError> {
+    fn reopen(data_root: &Path) -> Result<Self, ApplicationError> {
         let directory = data_root.join(BOARD_SECTION);
-        if !directory.join(OPENING_RECORD).is_file() {
-            return Err(ApplicationError::BoardSectionUnusable(format!(
-                "this run's store holds no board section at {}; a section is lost rather than \
-                 empty, and no board is restored from its absence",
-                directory.display()
-            )));
-        }
-        Self::open(data_root, config)
+        let (store, ledger) = BoardStore::restore(directory)
+            .map_err(|error| ApplicationError::BoardSectionUnusable(error.to_string()))?;
+        Ok(Self { store, ledger })
     }
 
     /// The section directory, for the acceptance that names it.
@@ -546,7 +541,7 @@ impl Application {
         let first = events.first().ok_or(ApplicationError::NotInitialized)?;
         let state = RunState::from_start(first).ok_or(ApplicationError::InvalidFirstEvent)?;
         let object_store = ObjectStore::open(data_root.join("objects/sha256"))?;
-        let board = BoardSection::reopen(&data_root, &config.board)?;
+        let board = BoardSection::reopen(&data_root)?;
         let command_results = HashMap::from([(
             first.command_id.clone(),
             RecordedCommandResult {
@@ -1043,14 +1038,15 @@ impl Application {
         command: &BoardCommand,
     ) -> Result<Vec<BoardEvent>, ApplicationError> {
         let section = &mut self.board;
-        let facts = section
-            .ledger
+        let mut staged = section.ledger.clone();
+        let facts = staged
             .execute(command)
             .map_err(|error| ApplicationError::BoardSectionUnusable(error.to_string()))?;
         section
             .store
-            .record(&section.ledger)
+            .record(&staged)
             .map_err(|error| ApplicationError::BoardSectionUnusable(error.to_string()))?;
+        section.ledger = staged;
         Ok(facts)
     }
 
