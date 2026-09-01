@@ -21,19 +21,28 @@ use ymp_board::{
 use ymp_domain::{Budget, Command as DomainCommand};
 use ymp_runtime_api::{
     InvocationRequest, Readiness, RuntimeDriver, RuntimeEvent, RuntimeEventKind, RuntimeSession,
-    Usage,
+    Usage, tool_host_probe_tool_schema_digest,
 };
 use ymp_runtime_codex::{
     CodexRuntime, PINNED_CODEX_API_ORIGIN, PINNED_CODEX_MODEL, PINNED_CODEX_PROMPT_POLICY,
-    PINNED_CODEX_VERSION,
+    PINNED_CODEX_VERSION, codex_compatibility_contract_digest,
 };
 use ymp_runtime_fake::{FakeRuntime, ScriptStep};
 
-use crate::report_json;
+use crate::{report_json, sha256_file, tree_digest};
 
 const ADMISSION_ID: &str = "weak-diagnostic-admission-v1";
 const FROZEN_MANIFEST_SHA256: &str =
     "48f6107e12764b40f508b0f07ec75156735739750d43f4872278b2b39947e24b";
+const ADMISSION_V2_ID: &str = "weak-diagnostic-admission-v2";
+const FROZEN_V2_MANIFEST_SHA256: &str =
+    "d354f20c8482cd5df7e33fab70dcd267befb621ef09647d430dc40f3924b8ea2";
+const ACCEPTED_V1_DIGEST_FILE_SHA256: &str =
+    "bcbf9475e3da84f4bdfb6e1de54a8a98f5624a49a28d2d86a917c55b0058c59b";
+const ACCEPTED_V1_TREE_SHA256: &str =
+    "d71bf20aae0ab369544dbdbd3cd96b47fb510547a908beb531388954c4999abe";
+const ACCEPTED_COMPATIBILITY_CONTRACT_SHA256: &str =
+    "65894b25843beae807ef3337867ba4886e8c8e392fcf637678f16be309034e77";
 const ROOT_PARTICIPANT: &str = "participant-root";
 const READER: &str = "reader-b";
 const OUTSIDER: &str = "unauthorized-reader";
@@ -65,37 +74,83 @@ impl AdmissionCommand {
     pub fn execute(&self) -> Result<()> {
         match self {
             Self::Check { manifest, digest } => {
-                let loaded = load_manifest(manifest, digest)?;
                 let current = std::env::current_dir().context("resolve admission working root")?;
-                let stage_one = evaluate_stage_one(&loaded.manifest, Path::new("codex"), &current);
-                let report = AdmissionReport::check(&loaded, stage_one);
-                println!("{}", report_json(&report)?);
-                ensure!(
-                    report.stage_one.compatible,
-                    "installed route is incompatible: {}",
-                    report.stage_one.issues.join("; ")
-                );
+                match load_admission(manifest, digest)? {
+                    LoadedAdmission::HistoricalV1(loaded) => {
+                        let stage_one =
+                            evaluate_stage_one(&loaded.manifest, Path::new("codex"), &current);
+                        let report = AdmissionReport::check(&loaded, stage_one);
+                        println!("{}", report_json(&report)?);
+                        ensure!(
+                            report.stage_one.compatible,
+                            "installed historical v1 route is incompatible: {}",
+                            report.stage_one.issues.join("; ")
+                        );
+                    }
+                    LoadedAdmission::BehavioralV2(loaded) => {
+                        let stage_one =
+                            evaluate_stage_one_v2(&loaded.manifest, Path::new("codex"), &current);
+                        let report = AdmissionReportV2::check(&loaded, stage_one);
+                        validate_report_claims_v2(&loaded.manifest, &report)?;
+                        println!("{}", report_json(&report)?);
+                        ensure!(
+                            report.stage_one.compatible,
+                            "installed route is behaviorally incompatible: {}",
+                            report.stage_one.issues.join("; ")
+                        );
+                    }
+                }
             }
             Self::Rehearse {
                 manifest,
                 digest,
                 root,
             } => {
-                let loaded = load_manifest(manifest, digest)?;
                 let roots = EvaluationRoots::prepare(root, manifest)?;
-                let stage_one =
-                    evaluate_stage_one(&loaded.manifest, Path::new("codex"), &roots.project);
-                let transport = rehearse_transport(&loaded.manifest, &roots)?;
-                let stage_two = evaluate_probe(&loaded, &roots.export.join(PROBE_FILE));
-                let report = AdmissionReport::rehearsal(&loaded, stage_one, stage_two, transport);
-                validate_report_claims(&loaded.manifest, &report)?;
-                write_immutable_report(&roots.export, &report)?;
-                println!("{}", report_json(&report)?);
-                ensure!(
-                    report.stage_one.compatible,
-                    "installed route is incompatible: {}",
-                    report.stage_one.issues.join("; ")
-                );
+                match load_admission(manifest, digest)? {
+                    LoadedAdmission::HistoricalV1(loaded) => {
+                        let stage_one = evaluate_stage_one(
+                            &loaded.manifest,
+                            Path::new("codex"),
+                            &roots.project,
+                        );
+                        let transport = rehearse_transport(&loaded.manifest, &roots)?;
+                        let stage_two = evaluate_probe(&loaded, &roots.export.join(PROBE_FILE));
+                        let report =
+                            AdmissionReport::rehearsal(&loaded, stage_one, stage_two, transport);
+                        validate_report_claims(&loaded.manifest, &report)?;
+                        write_immutable_report(&roots.export, &report)?;
+                        println!("{}", report_json(&report)?);
+                        ensure!(
+                            report.stage_one.compatible,
+                            "installed historical v1 route is incompatible: {}",
+                            report.stage_one.issues.join("; ")
+                        );
+                    }
+                    LoadedAdmission::BehavioralV2(loaded) => {
+                        let transport_manifest = loaded.transport_manifest();
+                        let stage_one = evaluate_stage_one_v2(
+                            &loaded.manifest,
+                            Path::new("codex"),
+                            &roots.project,
+                        );
+                        let transport = rehearse_transport(&transport_manifest, &roots)?;
+                        let report = AdmissionReportV2::rehearsal(
+                            &loaded,
+                            stage_one,
+                            StageTwoReport::awaiting_attestation(),
+                            transport,
+                        );
+                        validate_report_claims_v2(&loaded.manifest, &report)?;
+                        write_immutable_report(&roots.export, &report)?;
+                        println!("{}", report_json(&report)?);
+                        ensure!(
+                            report.stage_one.compatible,
+                            "installed route is behaviorally incompatible: {}",
+                            report.stage_one.issues.join("; ")
+                        );
+                    }
+                }
             }
         }
         Ok(())
@@ -146,6 +201,63 @@ pub struct ToolHostContract {
     pub endpoint_scope: String,
     pub mcp_protocol_version: String,
     pub tool_schema_sha256: String,
+    pub required_tools: Vec<String>,
+    pub request_participant_capability_gated: bool,
+}
+
+/// Additive admission revision that binds the accepted behavioral contract while preserving the
+/// complete v1 transport and budget policy. The parent fields identify immutable historical
+/// evidence; they do not migrate or reinterpret it.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct AdmissionManifestV2 {
+    pub schema_version: u32,
+    pub admission_id: String,
+    pub artifact_role: String,
+    pub freeze_state: String,
+    pub model_calls_at_freeze: u64,
+    pub accepted_v1_schema_version: u32,
+    pub accepted_v1_admission_id: String,
+    pub accepted_v1_manifest_sha256: String,
+    pub accepted_v1_digest_file_sha256: String,
+    pub accepted_v1_tree_sha256: String,
+    pub runtime: RuntimeContractV2,
+    pub tool_host: ToolHostContractV2,
+    pub git_trust: GitTrustPolicy,
+    pub read_limits: ReadLimits,
+    pub transport_schedules: Vec<TransportSchedule>,
+    pub stage_two: ProbeBudget,
+    pub report: ReportContract,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct RuntimeContractV2 {
+    pub driver_crate: String,
+    pub driver_version: String,
+    pub cli_program: String,
+    pub reference_cli_version: String,
+    pub compatibility_contract_sha256: String,
+    pub model: String,
+    pub route: String,
+    pub api_origin: String,
+    pub reasoning_effort: String,
+    pub approval_policy: String,
+    pub prompt_policy: String,
+    pub sandbox: String,
+    pub wall_time_limit_ms: u64,
+    pub output_limit_bytes: u64,
+    pub required_exec_flags: Vec<String>,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct ToolHostContractV2 {
+    pub transport: String,
+    pub binding_required: bool,
+    pub endpoint_scope: String,
+    pub mcp_protocol_version: String,
+    pub collaboration_mcp_schema_sha256: String,
     pub required_tools: Vec<String>,
     pub request_participant_capability_gated: bool,
 }
@@ -303,6 +415,68 @@ struct LoadedManifest {
     digest: String,
 }
 
+#[derive(Clone, Debug)]
+struct LoadedManifestV2 {
+    manifest: AdmissionManifestV2,
+    digest: String,
+    parent: AdmissionManifest,
+}
+
+impl LoadedManifestV2 {
+    fn transport_manifest(&self) -> AdmissionManifest {
+        AdmissionManifest {
+            schema_version: self.parent.schema_version,
+            admission_id: self.parent.admission_id.clone(),
+            artifact_role: self.manifest.artifact_role.clone(),
+            freeze_state: self.manifest.freeze_state.clone(),
+            model_calls_at_freeze: self.manifest.model_calls_at_freeze,
+            runtime: RuntimeContract {
+                driver_crate: self.manifest.runtime.driver_crate.clone(),
+                driver_version: self.manifest.runtime.driver_version.clone(),
+                cli_program: self.manifest.runtime.cli_program.clone(),
+                cli_version: self.manifest.runtime.reference_cli_version.clone(),
+                model: self.manifest.runtime.model.clone(),
+                route: self.manifest.runtime.route.clone(),
+                api_origin: self.manifest.runtime.api_origin.clone(),
+                reasoning_effort: self.manifest.runtime.reasoning_effort.clone(),
+                approval_policy: self.manifest.runtime.approval_policy.clone(),
+                prompt_policy: self.manifest.runtime.prompt_policy.clone(),
+                sandbox: self.manifest.runtime.sandbox.clone(),
+                wall_time_limit_ms: self.manifest.runtime.wall_time_limit_ms,
+                output_limit_bytes: self.manifest.runtime.output_limit_bytes,
+                required_exec_flags: self.manifest.runtime.required_exec_flags.clone(),
+            },
+            tool_host: ToolHostContract {
+                transport: self.manifest.tool_host.transport.clone(),
+                binding_required: self.manifest.tool_host.binding_required,
+                endpoint_scope: self.manifest.tool_host.endpoint_scope.clone(),
+                mcp_protocol_version: self.manifest.tool_host.mcp_protocol_version.clone(),
+                tool_schema_sha256: self
+                    .manifest
+                    .tool_host
+                    .collaboration_mcp_schema_sha256
+                    .clone(),
+                required_tools: self.manifest.tool_host.required_tools.clone(),
+                request_participant_capability_gated: self
+                    .manifest
+                    .tool_host
+                    .request_participant_capability_gated,
+            },
+            git_trust: self.manifest.git_trust.clone(),
+            read_limits: self.manifest.read_limits.clone(),
+            transport_schedules: self.manifest.transport_schedules.clone(),
+            stage_two: self.manifest.stage_two.clone(),
+            report: self.manifest.report.clone(),
+        }
+    }
+}
+
+#[derive(Clone, Debug)]
+enum LoadedAdmission {
+    HistoricalV1(Box<LoadedManifest>),
+    BehavioralV2(Box<LoadedManifestV2>),
+}
+
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct AdmissionReport {
@@ -326,6 +500,39 @@ pub struct StageOneReport {
     pub driver_version: String,
     pub route: String,
     pub tool_schema_sha256: String,
+    pub git_repository: bool,
+    pub binding_required: bool,
+    pub model_calls: u64,
+    pub issues: Vec<String>,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct AdmissionReportV2 {
+    pub schema_version: u32,
+    pub admission_id: String,
+    pub manifest_sha256: String,
+    pub accepted_v1_manifest_sha256: String,
+    pub accepted_v1_tree_sha256: String,
+    pub model_calls: u64,
+    pub stage_one: StageOneReportV2,
+    pub stage_two: StageTwoReport,
+    pub transport: Option<TransportReport>,
+    pub model_ready: bool,
+    pub arm_schedule: Option<Vec<String>>,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct StageOneReportV2 {
+    pub compatible: bool,
+    pub observed_cli_version: Option<String>,
+    pub reference_cli_version: String,
+    pub observed_executable_sha256: Option<String>,
+    pub compatibility_contract_sha256: String,
+    pub driver_version: String,
+    pub route: String,
+    pub collaboration_mcp_schema_sha256: String,
     pub git_repository: bool,
     pub binding_required: bool,
     pub model_calls: u64,
@@ -416,6 +623,45 @@ impl AdmissionReport {
     }
 }
 
+impl AdmissionReportV2 {
+    fn check(loaded: &LoadedManifestV2, stage_one: StageOneReportV2) -> Self {
+        Self {
+            schema_version: 2,
+            admission_id: ADMISSION_V2_ID.to_owned(),
+            manifest_sha256: loaded.digest.clone(),
+            accepted_v1_manifest_sha256: loaded.manifest.accepted_v1_manifest_sha256.clone(),
+            accepted_v1_tree_sha256: loaded.manifest.accepted_v1_tree_sha256.clone(),
+            model_calls: 0,
+            stage_one,
+            stage_two: StageTwoReport::awaiting_attestation(),
+            transport: None,
+            model_ready: false,
+            arm_schedule: None,
+        }
+    }
+
+    fn rehearsal(
+        loaded: &LoadedManifestV2,
+        stage_one: StageOneReportV2,
+        stage_two: StageTwoReport,
+        transport: TransportReport,
+    ) -> Self {
+        Self {
+            schema_version: 2,
+            admission_id: ADMISSION_V2_ID.to_owned(),
+            manifest_sha256: loaded.digest.clone(),
+            accepted_v1_manifest_sha256: loaded.manifest.accepted_v1_manifest_sha256.clone(),
+            accepted_v1_tree_sha256: loaded.manifest.accepted_v1_tree_sha256.clone(),
+            model_calls: 0,
+            stage_one,
+            stage_two,
+            transport: Some(transport),
+            model_ready: false,
+            arm_schedule: None,
+        }
+    }
+}
+
 impl StageTwoReport {
     fn missing() -> Self {
         Self {
@@ -425,6 +671,77 @@ impl StageTwoReport {
             can_open_model_gate: false,
         }
     }
+
+    fn awaiting_attestation() -> Self {
+        Self {
+            status: StageTwoStatus::Missing,
+            evidence_digest: None,
+            reason: "controller-attested stage-two evidence is not consumed until W1-EVL-04m"
+                .to_owned(),
+            can_open_model_gate: false,
+        }
+    }
+}
+
+fn load_admission(manifest_path: &Path, digest_path: &Path) -> Result<LoadedAdmission> {
+    let bytes = fs::read(manifest_path)
+        .with_context(|| format!("read admission manifest {}", manifest_path.display()))?;
+    let value: Value =
+        serde_json::from_slice(&bytes).context("parse admission schema discriminator")?;
+    match value.get("schema_version").and_then(Value::as_u64) {
+        Some(1) => load_manifest(manifest_path, digest_path)
+            .map(Box::new)
+            .map(LoadedAdmission::HistoricalV1),
+        Some(2) => load_manifest_v2(manifest_path, digest_path)
+            .map(Box::new)
+            .map(LoadedAdmission::BehavioralV2),
+        _ => bail!("unsupported admission schema"),
+    }
+}
+
+fn load_manifest_v2(manifest_path: &Path, digest_path: &Path) -> Result<LoadedManifestV2> {
+    let bytes = fs::read(manifest_path)
+        .with_context(|| format!("read admission-v2 manifest {}", manifest_path.display()))?;
+    let supplied = fs::read_to_string(digest_path)
+        .with_context(|| format!("read admission-v2 digest {}", digest_path.display()))?;
+    let digest = sha256_bytes(&bytes);
+    validate_sha256(supplied.trim(), "admission-v2 manifest sidecar")?;
+    ensure!(
+        supplied.trim() == digest,
+        "admission-v2 manifest digest mismatch"
+    );
+    ensure!(
+        digest == FROZEN_V2_MANIFEST_SHA256,
+        "admission-v2 manifest changed after freeze"
+    );
+    let manifest: AdmissionManifestV2 =
+        serde_json::from_slice(&bytes).context("parse strict admission-v2 manifest")?;
+
+    let v2_root = manifest_path
+        .parent()
+        .context("admission-v2 manifest has no package root")?;
+    let development_root = v2_root
+        .parent()
+        .context("admission-v2 package has no development root")?;
+    let v1_root = development_root.join("weak-diagnostic-admission-v1");
+    let parent = load_manifest(
+        &v1_root.join("manifest.json"),
+        &v1_root.join("manifest.sha256"),
+    )?;
+    ensure!(
+        sha256_file(&v1_root.join("manifest.sha256"))? == ACCEPTED_V1_DIGEST_FILE_SHA256,
+        "PARENT_V1_DIGEST_CHANGED: accepted v1 digest file bytes changed"
+    );
+    ensure!(
+        tree_digest(&v1_root)? == ACCEPTED_V1_TREE_SHA256,
+        "PARENT_V1_MUTATED: accepted v1 tree bytes changed"
+    );
+    validate_manifest_v2(&manifest, &parent.manifest)?;
+    Ok(LoadedManifestV2 {
+        manifest,
+        digest,
+        parent: parent.manifest,
+    })
 }
 
 fn load_manifest(manifest_path: &Path, digest_path: &Path) -> Result<LoadedManifest> {
@@ -601,6 +918,146 @@ fn validate_manifest(manifest: &AdmissionManifest) -> Result<()> {
     Ok(())
 }
 
+fn validate_manifest_v2(manifest: &AdmissionManifestV2, parent: &AdmissionManifest) -> Result<()> {
+    ensure!(
+        manifest.schema_version == 2,
+        "unsupported admission-v2 schema"
+    );
+    ensure!(
+        manifest.admission_id == ADMISSION_V2_ID,
+        "admission-v2 identity changed"
+    );
+    ensure!(
+        manifest.artifact_role == "development_only_zero_model_admission",
+        "admission-v2 artifact claims an unsupported role"
+    );
+    ensure!(
+        manifest.freeze_state == "frozen_before_model_call" && manifest.model_calls_at_freeze == 0,
+        "admission-v2 was not frozen before model use"
+    );
+    ensure!(
+        manifest.accepted_v1_schema_version == 1
+            && manifest.accepted_v1_schema_version == parent.schema_version,
+        "PARENT_V1_SCHEMA_CHANGED: accepted v1 schema binding changed"
+    );
+    ensure!(
+        manifest.accepted_v1_admission_id == ADMISSION_ID
+            && manifest.accepted_v1_admission_id == parent.admission_id,
+        "PARENT_V1_IDENTITY_CHANGED: accepted v1 identity binding changed"
+    );
+    ensure!(
+        manifest.accepted_v1_manifest_sha256 == FROZEN_MANIFEST_SHA256,
+        "PARENT_V1_DIGEST_CHANGED: accepted v1 manifest binding changed"
+    );
+    ensure!(
+        manifest.accepted_v1_digest_file_sha256 == ACCEPTED_V1_DIGEST_FILE_SHA256,
+        "PARENT_V1_DIGEST_CHANGED: accepted v1 digest-file binding changed"
+    );
+    ensure!(
+        manifest.accepted_v1_tree_sha256 == ACCEPTED_V1_TREE_SHA256,
+        "PARENT_V1_MUTATED: accepted v1 tree binding changed"
+    );
+    for (digest, label) in [
+        (
+            manifest.accepted_v1_manifest_sha256.as_str(),
+            "accepted v1 manifest digest",
+        ),
+        (
+            manifest.accepted_v1_digest_file_sha256.as_str(),
+            "accepted v1 digest-file digest",
+        ),
+        (
+            manifest.accepted_v1_tree_sha256.as_str(),
+            "accepted v1 tree digest",
+        ),
+        (
+            manifest.runtime.compatibility_contract_sha256.as_str(),
+            "compatibility contract digest",
+        ),
+        (
+            manifest.tool_host.collaboration_mcp_schema_sha256.as_str(),
+            "collaboration MCP schema digest",
+        ),
+    ] {
+        validate_sha256(digest, label)?;
+    }
+    ensure!(
+        manifest.runtime.compatibility_contract_sha256 == ACCEPTED_COMPATIBILITY_CONTRACT_SHA256
+            && manifest.runtime.compatibility_contract_sha256
+                == codex_compatibility_contract_digest(),
+        "compatibility contract digest is missing, stale or wrong"
+    );
+    ensure!(
+        manifest.runtime.reference_cli_version == parent.runtime.cli_version
+            && !manifest.runtime.reference_cli_version.is_empty(),
+        "historical reference CLI version changed"
+    );
+
+    let inherited_runtime = RuntimeContract {
+        driver_crate: manifest.runtime.driver_crate.clone(),
+        driver_version: manifest.runtime.driver_version.clone(),
+        cli_program: manifest.runtime.cli_program.clone(),
+        cli_version: manifest.runtime.reference_cli_version.clone(),
+        model: manifest.runtime.model.clone(),
+        route: manifest.runtime.route.clone(),
+        api_origin: manifest.runtime.api_origin.clone(),
+        reasoning_effort: manifest.runtime.reasoning_effort.clone(),
+        approval_policy: manifest.runtime.approval_policy.clone(),
+        prompt_policy: manifest.runtime.prompt_policy.clone(),
+        sandbox: manifest.runtime.sandbox.clone(),
+        wall_time_limit_ms: manifest.runtime.wall_time_limit_ms,
+        output_limit_bytes: manifest.runtime.output_limit_bytes,
+        required_exec_flags: manifest.runtime.required_exec_flags.clone(),
+    };
+    ensure!(
+        inherited_runtime == parent.runtime,
+        "admission-v2 changed v1 runtime semantics beyond compatibility authority"
+    );
+    let inherited_tool_host = ToolHostContract {
+        transport: manifest.tool_host.transport.clone(),
+        binding_required: manifest.tool_host.binding_required,
+        endpoint_scope: manifest.tool_host.endpoint_scope.clone(),
+        mcp_protocol_version: manifest.tool_host.mcp_protocol_version.clone(),
+        tool_schema_sha256: manifest.tool_host.collaboration_mcp_schema_sha256.clone(),
+        required_tools: manifest.tool_host.required_tools.clone(),
+        request_participant_capability_gated: manifest
+            .tool_host
+            .request_participant_capability_gated,
+    };
+    ensure!(
+        inherited_tool_host == parent.tool_host,
+        "admission-v2 changed the collaboration MCP contract"
+    );
+    ensure!(
+        manifest.tool_host.collaboration_mcp_schema_sha256 != tool_host_probe_tool_schema_digest()
+            && manifest.tool_host.collaboration_mcp_schema_sha256
+                != manifest.runtime.compatibility_contract_sha256,
+        "collaboration MCP digest was conflated with a runtime or probe digest"
+    );
+    ensure!(
+        manifest.git_trust == parent.git_trust,
+        "admission-v2 changed the Git/config trust policy"
+    );
+    ensure!(
+        manifest.read_limits == parent.read_limits,
+        "admission-v2 changed read limits"
+    );
+    ensure!(
+        manifest.transport_schedules == parent.transport_schedules
+            && manifest.transport_schedules == expected_schedules(),
+        "admission-v2 changed the S1-S3 transport schedules"
+    );
+    ensure!(
+        manifest.stage_two == parent.stage_two,
+        "admission-v2 changed the stage-two budget or outcome boundary"
+    );
+    ensure!(
+        manifest.report == parent.report,
+        "admission-v2 changed the immutable report contract"
+    );
+    Ok(())
+}
+
 fn expected_schedules() -> Vec<TransportSchedule> {
     vec![
         schedule(
@@ -675,8 +1132,7 @@ fn evaluate_stage_one(
     let runtime = CodexRuntime::new(executable);
     let profile = runtime.profile();
     let mut issues = Vec::new();
-    if profile.expected_version != manifest.runtime.cli_version
-        || profile.model != manifest.runtime.model
+    if profile.model != manifest.runtime.model
         || profile.reasoning_effort != manifest.runtime.reasoning_effort
         || profile.approval_policy != manifest.runtime.approval_policy
         || profile.prompt_policy != manifest.runtime.prompt_policy
@@ -701,6 +1157,9 @@ fn evaluate_stage_one(
             (None, Readiness::Unavailable)
         }
     };
+    if installed_cli_version.as_deref() != Some(manifest.runtime.cli_version.as_str()) {
+        issues.push("historical v1 CLI version differs from its frozen reference".to_owned());
+    }
     let help = Command::new(runtime.executable())
         .args(["exec", "--help"])
         .stdin(Stdio::null())
@@ -740,6 +1199,110 @@ fn evaluate_stage_one(
         driver_version: manifest.runtime.driver_version.clone(),
         route: manifest.runtime.route.clone(),
         tool_schema_sha256,
+        git_repository,
+        binding_required: manifest.tool_host.binding_required,
+        model_calls: 0,
+        issues,
+    }
+}
+
+fn evaluate_stage_one_v2(
+    manifest: &AdmissionManifestV2,
+    executable: &Path,
+    git_root: &Path,
+) -> StageOneReportV2 {
+    let runtime = CodexRuntime::new(executable);
+    let profile = runtime.profile();
+    let mut issues = Vec::new();
+    if profile.model != manifest.runtime.model
+        || profile.reasoning_effort != manifest.runtime.reasoning_effort
+        || profile.approval_policy != manifest.runtime.approval_policy
+        || profile.prompt_policy != manifest.runtime.prompt_policy
+        || profile.wall_time_limit_ms != manifest.runtime.wall_time_limit_ms
+        || profile.output_limit_bytes as u64 != manifest.runtime.output_limit_bytes
+    {
+        issues.push("manifest does not match the production Codex profile".to_owned());
+    }
+    let probe = runtime.probe();
+    let (observed_cli_version, readiness) = match probe {
+        Ok(probe) => {
+            if probe.readiness != Readiness::Ready {
+                issues.push(format!(
+                    "runtime behavioral probe {:?}: {}",
+                    probe.readiness, probe.detail
+                ));
+            }
+            (probe.version, probe.readiness)
+        }
+        Err(error) => {
+            issues.push(format!("runtime behavioral probe failed: {error}"));
+            (None, Readiness::Unavailable)
+        }
+    };
+    let observed_executable_sha256 = if readiness == Readiness::Ready {
+        match runtime.executable_digest() {
+            Ok(digest) => {
+                if let Err(error) = validate_sha256(&digest, "observed executable digest") {
+                    issues.push(error.to_string());
+                    None
+                } else {
+                    Some(digest)
+                }
+            }
+            Err(error) => {
+                issues.push(format!("runtime executable digest failed: {error}"));
+                None
+            }
+        }
+    } else {
+        None
+    };
+    let help = Command::new(runtime.executable())
+        .args(["exec", "--help"])
+        .stdin(Stdio::null())
+        .output();
+    match help {
+        Ok(output) if output.status.success() => {
+            let text = String::from_utf8_lossy(&output.stdout);
+            for flag in &manifest.runtime.required_exec_flags {
+                if !text.contains(flag) {
+                    issues.push(format!("required Codex flag is unavailable: {flag}"));
+                }
+            }
+        }
+        Ok(output) => issues.push(format!("Codex help probe exited with {}", output.status)),
+        Err(error) => issues.push(format!("Codex help probe failed: {error}")),
+    }
+    let collaboration_mcp_schema_sha256 = sha256_bytes(
+        &serde_json::to_vec(&tool_catalog()).expect("tool catalog serialization cannot fail"),
+    );
+    if collaboration_mcp_schema_sha256 != manifest.tool_host.collaboration_mcp_schema_sha256 {
+        issues.push("production collaboration MCP schema digest changed".to_owned());
+    }
+    let git_repository = Command::new("git")
+        .args(["-C"])
+        .arg(git_root)
+        .args(["rev-parse", "--is-inside-work-tree"])
+        .stdin(Stdio::null())
+        .output()
+        .is_ok_and(|output| output.status.success() && output.stdout == b"true\n");
+    if manifest.git_trust.repository_required && !git_repository {
+        issues.push("Git trust requirement is missing: project is not a Git repository".to_owned());
+    }
+    StageOneReportV2 {
+        compatible: issues.is_empty()
+            && readiness == Readiness::Ready
+            && observed_cli_version
+                .as_deref()
+                .is_some_and(|version| !version.is_empty())
+            && observed_executable_sha256.is_some(),
+        observed_cli_version,
+        reference_cli_version: manifest.runtime.reference_cli_version.clone(),
+        observed_executable_sha256,
+        compatibility_contract_sha256: codex_compatibility_contract_digest(),
+        driver_version: manifest.runtime.driver_version.clone(),
+        route: manifest.runtime.route.clone(),
+        collaboration_mcp_schema_sha256,
         git_repository,
         binding_required: manifest.tool_host.binding_required,
         model_calls: 0,
@@ -1482,9 +2045,122 @@ fn validate_report_claims(manifest: &AdmissionManifest, report: &AdmissionReport
         "model gate opened without stage-two evidence"
     );
     ensure!(!report.model_ready, "unattested model gate opened");
-    let Some(transport) = &report.transport else {
-        return Ok(());
-    };
+    if let Some(transport) = &report.transport {
+        validate_transport_claims(manifest, transport)?;
+    }
+    Ok(())
+}
+
+fn validate_report_claims_v2(
+    manifest: &AdmissionManifestV2,
+    report: &AdmissionReportV2,
+) -> Result<()> {
+    ensure!(
+        report.schema_version == 2,
+        "admission-v2 report schema changed"
+    );
+    ensure!(
+        report.admission_id == ADMISSION_V2_ID,
+        "admission-v2 report identity changed"
+    );
+    ensure!(
+        report.manifest_sha256 == FROZEN_V2_MANIFEST_SHA256,
+        "admission-v2 report lost its frozen manifest binding"
+    );
+    ensure!(
+        report.accepted_v1_manifest_sha256 == FROZEN_MANIFEST_SHA256
+            && report.accepted_v1_tree_sha256 == ACCEPTED_V1_TREE_SHA256,
+        "admission-v2 report lost its exact parent binding"
+    );
+    ensure!(report.model_calls == 0, "admission-v2 made a model call");
+    ensure!(
+        report.arm_schedule.is_none(),
+        "admission-v2 emitted an arm schedule"
+    );
+    ensure!(
+        report.stage_one.model_calls == 0
+            && report.stage_one.reference_cli_version == manifest.runtime.reference_cli_version
+            && report.stage_one.compatibility_contract_sha256
+                == manifest.runtime.compatibility_contract_sha256
+            && report.stage_one.route == manifest.runtime.route
+            && report.stage_one.collaboration_mcp_schema_sha256
+                == manifest.tool_host.collaboration_mcp_schema_sha256
+            && report.stage_one.binding_required,
+        "admission-v2 stage-one report changed a decisive compatibility claim"
+    );
+    if let Some(version) = report.stage_one.observed_cli_version.as_deref() {
+        ensure!(
+            !version.is_empty() && version.len() <= 4096,
+            "observed CLI version is malformed"
+        );
+    }
+    if let Some(digest) = report.stage_one.observed_executable_sha256.as_deref() {
+        validate_sha256(digest, "observed executable digest")?;
+    }
+    if report.stage_one.compatible {
+        ensure!(
+            report.stage_one.observed_cli_version.is_some()
+                && report.stage_one.observed_executable_sha256.is_some(),
+            "compatible admission-v2 report omitted observed runtime identity"
+        );
+    }
+    ensure!(
+        !report.stage_two.can_open_model_gate,
+        "W1-EVL-04m has not authorized the stage-two gate"
+    );
+    ensure!(
+        !report.model_ready && report.arm_schedule.is_none(),
+        "admission-v2 opened the model gate before W1-EVL-04m"
+    );
+    if let Some(transport) = &report.transport {
+        let transport_manifest = AdmissionManifest {
+            schema_version: 1,
+            admission_id: ADMISSION_ID.to_owned(),
+            artifact_role: manifest.artifact_role.clone(),
+            freeze_state: manifest.freeze_state.clone(),
+            model_calls_at_freeze: manifest.model_calls_at_freeze,
+            runtime: RuntimeContract {
+                driver_crate: manifest.runtime.driver_crate.clone(),
+                driver_version: manifest.runtime.driver_version.clone(),
+                cli_program: manifest.runtime.cli_program.clone(),
+                cli_version: manifest.runtime.reference_cli_version.clone(),
+                model: manifest.runtime.model.clone(),
+                route: manifest.runtime.route.clone(),
+                api_origin: manifest.runtime.api_origin.clone(),
+                reasoning_effort: manifest.runtime.reasoning_effort.clone(),
+                approval_policy: manifest.runtime.approval_policy.clone(),
+                prompt_policy: manifest.runtime.prompt_policy.clone(),
+                sandbox: manifest.runtime.sandbox.clone(),
+                wall_time_limit_ms: manifest.runtime.wall_time_limit_ms,
+                output_limit_bytes: manifest.runtime.output_limit_bytes,
+                required_exec_flags: manifest.runtime.required_exec_flags.clone(),
+            },
+            tool_host: ToolHostContract {
+                transport: manifest.tool_host.transport.clone(),
+                binding_required: manifest.tool_host.binding_required,
+                endpoint_scope: manifest.tool_host.endpoint_scope.clone(),
+                mcp_protocol_version: manifest.tool_host.mcp_protocol_version.clone(),
+                tool_schema_sha256: manifest.tool_host.collaboration_mcp_schema_sha256.clone(),
+                required_tools: manifest.tool_host.required_tools.clone(),
+                request_participant_capability_gated: manifest
+                    .tool_host
+                    .request_participant_capability_gated,
+            },
+            git_trust: manifest.git_trust.clone(),
+            read_limits: manifest.read_limits.clone(),
+            transport_schedules: manifest.transport_schedules.clone(),
+            stage_two: manifest.stage_two.clone(),
+            report: manifest.report.clone(),
+        };
+        validate_transport_claims(&transport_manifest, transport)?;
+    }
+    Ok(())
+}
+
+fn validate_transport_claims(
+    manifest: &AdmissionManifest,
+    transport: &TransportReport,
+) -> Result<()> {
     ensure!(
         transport.model_calls == 0,
         "transport rehearsal made a model call"
@@ -1584,7 +2260,7 @@ fn validate_report_claims(manifest: &AdmissionManifest, report: &AdmissionReport
     Ok(())
 }
 
-fn write_immutable_report(export: &Path, report: &AdmissionReport) -> Result<()> {
+fn write_immutable_report<T: Serialize>(export: &Path, report: &T) -> Result<()> {
     let bytes = format!("{}\n", report_json(report)?).into_bytes();
     let report_path = export.join(REPORT_FILE);
     let digest_path = export.join(REPORT_DIGEST_FILE);
@@ -1652,6 +2328,21 @@ mod tests {
             .join("corpus/development/weak-diagnostic-admission-v1");
         load_manifest(&root.join("manifest.json"), &root.join("manifest.sha256"))
             .expect("load frozen admission")
+    }
+
+    fn loaded_v2() -> super::LoadedManifestV2 {
+        let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("corpus/development/weak-diagnostic-admission-v2");
+        super::load_manifest_v2(&root.join("manifest.json"), &root.join("manifest.sha256"))
+            .expect("load frozen admission v2")
+    }
+
+    fn copy_admission_package(source: &std::path::Path, destination: &std::path::Path) {
+        fs::create_dir_all(destination).expect("create copied admission package");
+        for name in ["manifest.json", "manifest.sha256"] {
+            fs::copy(source.join(name), destination.join(name))
+                .expect("copy admission package file");
+        }
     }
 
     fn fake_probe(loaded: &LoadedManifest) -> ProbeEvidence {
@@ -1730,6 +2421,279 @@ mod tests {
             ),
             loaded.manifest.tool_host.tool_schema_sha256
         );
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn behavioral_v2_accepts_distinct_observed_versions_and_records_runtime_identity() {
+        let loaded = loaded_v2();
+        let directory = tempdir().expect("temporary directory");
+        let project = directory.path().join("project");
+        fs::create_dir(&project).expect("project");
+        assert!(
+            std::process::Command::new("git")
+                .args(["-C"])
+                .arg(&project)
+                .args(["init", "--quiet"])
+                .status()
+                .expect("Git init")
+                .success()
+        );
+
+        let mut observed = Vec::new();
+        for (name, version) in [
+            ("reference", "codex-cli 0.151.0"),
+            ("different", "codex-cli 9.7.3"),
+        ] {
+            let executable = directory.path().join(format!("codex-{name}"));
+            write_codex_fixture(&executable, version, true, true);
+            let stage = super::evaluate_stage_one_v2(&loaded.manifest, &executable, &project);
+            assert!(stage.compatible, "{version}: {:?}", stage.issues);
+            assert_eq!(stage.observed_cli_version.as_deref(), Some(version));
+            assert_eq!(
+                stage.compatibility_contract_sha256,
+                super::ACCEPTED_COMPATIBILITY_CONTRACT_SHA256
+            );
+            assert_eq!(stage.model_calls, 0);
+            let report = super::AdmissionReportV2::check(&loaded, stage.clone());
+            super::validate_report_claims_v2(&loaded.manifest, &report).expect("strict v2 report");
+            assert!(!report.model_ready);
+            assert_eq!(report.model_calls, 0);
+            assert!(report.arm_schedule.is_none());
+            observed.push((
+                stage.observed_cli_version.expect("observed version"),
+                stage
+                    .observed_executable_sha256
+                    .expect("observed executable digest"),
+            ));
+        }
+        assert_ne!(observed[0].0, observed[1].0);
+        assert_ne!(observed[0].1, observed[1].1);
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn behavior_drift_fails_even_at_the_reference_version() {
+        let loaded = loaded_v2();
+        let directory = tempdir().expect("temporary directory");
+        let project = directory.path().join("project");
+        fs::create_dir(&project).expect("project");
+        assert!(
+            std::process::Command::new("git")
+                .args(["-C"])
+                .arg(&project)
+                .args(["init", "--quiet"])
+                .status()
+                .expect("Git init")
+                .success()
+        );
+        for (name, version) in [
+            ("same-version", "codex-cli 0.151.0"),
+            ("future-version", "codex-cli 99.0.0"),
+        ] {
+            let executable = directory.path().join(format!("codex-{name}"));
+            write_codex_fixture(&executable, version, true, false);
+            let stage = super::evaluate_stage_one_v2(&loaded.manifest, &executable, &project);
+            assert!(!stage.compatible, "accepted {name} behavior drift");
+            assert_eq!(stage.observed_cli_version.as_deref(), Some(version));
+            assert!(stage.observed_executable_sha256.is_none());
+            assert_eq!(stage.model_calls, 0);
+        }
+    }
+
+    #[test]
+    fn v2_inherits_v1_schedules_caps_budgets_and_outcomes_exactly() {
+        let loaded = loaded_v2();
+        let inherited = loaded.transport_manifest();
+        assert_eq!(inherited.runtime, loaded.parent.runtime);
+        assert_eq!(inherited.tool_host, loaded.parent.tool_host);
+        assert_eq!(inherited.git_trust, loaded.parent.git_trust);
+        assert_eq!(inherited.read_limits, loaded.parent.read_limits);
+        assert_eq!(
+            inherited.transport_schedules,
+            loaded.parent.transport_schedules
+        );
+        assert_eq!(inherited.stage_two, loaded.parent.stage_two);
+        assert_eq!(inherited.report, loaded.parent.report);
+        assert_ne!(loaded.digest, super::FROZEN_MANIFEST_SHA256);
+        assert_ne!(
+            loaded.manifest.tool_host.collaboration_mcp_schema_sha256,
+            ymp_runtime_api::tool_host_probe_tool_schema_digest()
+        );
+        let value = serde_json::to_value(&loaded.manifest).expect("v2 manifest value");
+        assert!(value.pointer("/stage_two/probe_transport_digest").is_none());
+        assert!(value.pointer("/stage_two/tool_schema_digest").is_none());
+    }
+
+    #[test]
+    fn strict_v2_rejects_stale_parent_contract_digest_schedule_and_budget_mutations() {
+        let loaded = loaded_v2();
+        let mut unknown_field = serde_json::to_value(&loaded.manifest).expect("v2 value");
+        unknown_field["unknown"] = json!(true);
+        assert!(serde_json::from_value::<super::AdmissionManifestV2>(unknown_field).is_err());
+        let v1_root = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("corpus/development/weak-diagnostic-admission-v1");
+        let stale = super::load_manifest_v2(
+            &v1_root.join("manifest.json"),
+            &v1_root.join("manifest.sha256"),
+        )
+        .expect_err("stale v1 was passed to the v2 loader");
+        assert!(stale.to_string().contains("admission-v2 manifest changed"));
+
+        let mut missing_contract = serde_json::to_value(&loaded.manifest).expect("v2 value");
+        missing_contract["runtime"]
+            .as_object_mut()
+            .expect("runtime object")
+            .remove("compatibility_contract_sha256");
+        assert!(serde_json::from_value::<super::AdmissionManifestV2>(missing_contract).is_err());
+        let mut wrong_contract = loaded.manifest.clone();
+        wrong_contract.runtime.compatibility_contract_sha256 = "0".repeat(64);
+        assert!(super::validate_manifest_v2(&wrong_contract, &loaded.parent).is_err());
+
+        let mut parent = loaded.manifest.clone();
+        parent.accepted_v1_tree_sha256 = "1".repeat(64);
+        assert!(super::validate_manifest_v2(&parent, &loaded.parent).is_err());
+        let mut schedule = loaded.manifest.clone();
+        schedule.transport_schedules[0].windows.swap(0, 1);
+        assert!(super::validate_manifest_v2(&schedule, &loaded.parent).is_err());
+        let mut budget = loaded.manifest.clone();
+        budget.stage_two.max_model_calls += 1;
+        assert!(super::validate_manifest_v2(&budget, &loaded.parent).is_err());
+    }
+
+    #[test]
+    fn v2_loader_rejects_parent_bytes_and_every_digest_file_mutation() {
+        let source = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("corpus/development");
+        let directory = tempdir().expect("temporary directory");
+        let development = directory.path().join("development");
+        let copied_v1 = development.join("weak-diagnostic-admission-v1");
+        let copied_v2 = development.join("weak-diagnostic-admission-v2");
+        copy_admission_package(&source.join("weak-diagnostic-admission-v1"), &copied_v1);
+        copy_admission_package(&source.join("weak-diagnostic-admission-v2"), &copied_v2);
+        super::load_manifest_v2(
+            &copied_v2.join("manifest.json"),
+            &copied_v2.join("manifest.sha256"),
+        )
+        .expect("copied v2 package");
+
+        let mut parent_bytes = fs::read(copied_v1.join("manifest.json")).expect("parent bytes");
+        parent_bytes.push(b'\n');
+        fs::write(copied_v1.join("manifest.json"), parent_bytes).expect("mutate parent manifest");
+        assert!(
+            super::load_manifest_v2(
+                &copied_v2.join("manifest.json"),
+                &copied_v2.join("manifest.sha256")
+            )
+            .is_err()
+        );
+
+        fs::copy(
+            source.join("weak-diagnostic-admission-v1/manifest.json"),
+            copied_v1.join("manifest.json"),
+        )
+        .expect("restore parent manifest");
+        let mut sidecar = fs::read(copied_v1.join("manifest.sha256")).expect("parent sidecar");
+        sidecar.push(b'\n');
+        fs::write(copied_v1.join("manifest.sha256"), sidecar).expect("mutate parent sidecar");
+        let parent_digest_error = super::load_manifest_v2(
+            &copied_v2.join("manifest.json"),
+            &copied_v2.join("manifest.sha256"),
+        )
+        .expect_err("mutated parent digest file");
+        assert!(
+            parent_digest_error
+                .to_string()
+                .contains("PARENT_V1_DIGEST_CHANGED")
+        );
+
+        fs::write(
+            copied_v2.join("manifest.sha256"),
+            format!("{}\n", "0".repeat(64)),
+        )
+        .expect("mutate v2 sidecar");
+        assert!(
+            super::load_manifest_v2(
+                &copied_v2.join("manifest.json"),
+                &copied_v2.join("manifest.sha256")
+            )
+            .is_err()
+        );
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn malformed_observed_version_and_executable_digest_are_rejected() {
+        let loaded = loaded_v2();
+        let directory = tempdir().expect("temporary directory");
+        let project = directory.path().join("project");
+        fs::create_dir(&project).expect("project");
+        assert!(
+            std::process::Command::new("git")
+                .args(["-C"])
+                .arg(&project)
+                .args(["init", "--quiet"])
+                .status()
+                .expect("Git init")
+                .success()
+        );
+        let empty_version = directory.path().join("codex-empty-version");
+        write_codex_fixture(&empty_version, "", true, true);
+        let stage = super::evaluate_stage_one_v2(&loaded.manifest, &empty_version, &project);
+        assert!(!stage.compatible);
+        let malformed_version = super::AdmissionReportV2::check(&loaded, stage);
+        assert!(super::validate_report_claims_v2(&loaded.manifest, &malformed_version).is_err());
+
+        let compatible = directory.path().join("codex-compatible");
+        write_codex_fixture(&compatible, "codex-cli 9.7.3", true, true);
+        let stage = super::evaluate_stage_one_v2(&loaded.manifest, &compatible, &project);
+        assert!(stage.compatible, "{:?}", stage.issues);
+        let mut malformed_digest = super::AdmissionReportV2::check(&loaded, stage);
+        malformed_digest.stage_one.observed_executable_sha256 = Some("not-a-digest".to_owned());
+        assert!(super::validate_report_claims_v2(&loaded.manifest, &malformed_digest).is_err());
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn deliberate_exact_version_equality_mutation_is_caught() {
+        if std::env::var("YMP_ADMISSION_V2_MUTATION_CHILD").as_deref() == Ok("version-equality") {
+            let loaded = loaded_v2();
+            let directory = tempdir().expect("temporary directory");
+            let project = directory.path().join("project");
+            fs::create_dir(&project).expect("project");
+            assert!(
+                std::process::Command::new("git")
+                    .args(["-C"])
+                    .arg(&project)
+                    .args(["init", "--quiet"])
+                    .status()
+                    .expect("Git init")
+                    .success()
+            );
+            let executable = directory.path().join("codex-different-version");
+            write_codex_fixture(&executable, "codex-cli 9.7.3", true, true);
+            let stage = super::evaluate_stage_one_v2(&loaded.manifest, &executable, &project);
+            assert!(stage.compatible, "{:?}", stage.issues);
+            assert_eq!(
+                stage.observed_cli_version.as_deref(),
+                Some(loaded.manifest.runtime.reference_cli_version.as_str()),
+                "deliberate mutation restored exact version equality"
+            );
+            return;
+        }
+        let output = std::process::Command::new(std::env::current_exe().expect("test executable"))
+            .args([
+                "--exact",
+                "admission::tests::deliberate_exact_version_equality_mutation_is_caught",
+                "--nocapture",
+            ])
+            .env("YMP_ADMISSION_V2_MUTATION_CHILD", "version-equality")
+            .output()
+            .expect("run exact-version mutation child");
+        assert!(
+            !output.status.success(),
+            "exact-version mutation returned a false green"
+        );
+        eprintln!("FALSIFIER version-equality exit={:?}", output.status.code());
     }
 
     #[test]

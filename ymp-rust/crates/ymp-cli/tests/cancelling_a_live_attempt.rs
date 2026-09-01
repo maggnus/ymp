@@ -28,7 +28,7 @@ use ymp_tui::{Session, app::AttemptProgress};
 /// so the only thing that can end this run is the cancellation.
 const WAITING_FIXTURE: &str = r##"#!/bin/sh
 if [ "$1" = "--version" ]; then
-  printf '%s\n' 'codex-cli 0.151.0'
+  printf '%s\n' 'codex-cli 9.7.3'
 elif [ "$1" = "exec" ] && [ "$2" = "--help" ]; then
   printf '%s\n' 'resume --json --ignore-user-config --ignore-rules'
 elif [ "$1" = "exec" ] && [ "$2" = "resume" ] && [ "$3" = "--help" ]; then

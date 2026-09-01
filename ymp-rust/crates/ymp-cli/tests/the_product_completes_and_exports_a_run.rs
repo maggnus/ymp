@@ -34,9 +34,8 @@ use tempfile::TempDir;
 use ymp_domain::RunStatus;
 use ymp_tui::Session;
 
-/// The version the shipped Codex profile is pinned to. A fixture that answered anything else
-/// would be refused by the product's own probe, which is the point of stating it here.
-const PINNED: &str = "codex-cli 0.151.0";
+/// A non-reference version whose required behavior is identical to the accepted contract.
+const OBSERVED_COMPATIBLE_VERSION: &str = "codex-cli 9.7.3";
 
 struct Fixture {
     root: TempDir,
@@ -357,6 +356,14 @@ fn the_attempt_is_done_judged_and_exported_through_the_product_alone() {
         .path();
     assert!(attempt.join("profile.json").is_file());
     assert!(attempt.join("events.jsonl").is_file());
+    let profile: serde_json::Value = serde_json::from_slice(
+        &fs::read(attempt.join("profile.json")).expect("runtime profile evidence"),
+    )
+    .expect("parse runtime profile evidence");
+    assert_eq!(
+        profile["profile"]["probe"]["version"],
+        OBSERVED_COMPATIBLE_VERSION
+    );
 
     // An export exists to leave the store, so it is written where the operator names it.
     let export = fixture.store("evidence");
@@ -565,7 +572,7 @@ fn a_rejected_candidate_with_no_attempt_left_exhausts_the_run() {
 /// journal.
 const CODEX_FIXTURE: &str = r##"#!/bin/sh
 if [ "$1" = "--version" ]; then
-  printf '%s\n' 'codex-cli 0.151.0'
+  printf '%s\n' 'codex-cli 9.7.3'
 elif [ "$1" = "exec" ] && [ "$2" = "--help" ]; then
   printf '%s\n' 'resume --json --ignore-user-config --ignore-rules'
 elif [ "$1" = "exec" ] && [ "$2" = "resume" ] && [ "$3" = "--help" ]; then
@@ -613,11 +620,13 @@ else
 fi
 "##;
 
-/// The fixture answers the version the shipped profile is pinned to. Stating it twice — once in
-/// the program, once here — is what makes a change to the pin fail this check rather than silently
-/// turn the run below into a refusal.
+/// The observed release is reproducibility evidence only; compatibility is established by the
+/// fixture's behavior and the product's automatic discovery.
 #[test]
-fn the_fixture_answers_the_version_the_shipped_profile_requires() {
-    assert!(CODEX_FIXTURE.contains(PINNED));
-    assert_eq!(PINNED, ymp_runtime_codex::PINNED_CODEX_VERSION);
+fn the_fixture_records_a_nonreference_compatible_observed_version() {
+    assert!(CODEX_FIXTURE.contains(OBSERVED_COMPATIBLE_VERSION));
+    assert_ne!(
+        OBSERVED_COMPATIBLE_VERSION,
+        ymp_runtime_codex::PINNED_CODEX_VERSION
+    );
 }

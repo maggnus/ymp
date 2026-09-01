@@ -1,0 +1,128 @@
+{
+  "schema_version": 2,
+  "admission_id": "weak-diagnostic-admission-v2",
+  "artifact_role": "development_only_zero_model_admission",
+  "freeze_state": "frozen_before_model_call",
+  "model_calls_at_freeze": 0,
+  "accepted_v1_schema_version": 1,
+  "accepted_v1_admission_id": "weak-diagnostic-admission-v1",
+  "accepted_v1_manifest_sha256": "48f6107e12764b40f508b0f07ec75156735739750d43f4872278b2b39947e24b",
+  "accepted_v1_digest_file_sha256": "bcbf9475e3da84f4bdfb6e1de54a8a98f5624a49a28d2d86a917c55b0058c59b",
+  "accepted_v1_tree_sha256": "d71bf20aae0ab369544dbdbd3cd96b47fb510547a908beb531388954c4999abe",
+  "runtime": {
+    "driver_crate": "ymp-runtime-codex",
+    "driver_version": "1.0.6",
+    "cli_program": "codex",
+    "reference_cli_version": "codex-cli 0.151.0",
+    "compatibility_contract_sha256": "65894b25843beae807ef3337867ba4886e8c8e392fcf637678f16be309034e77",
+    "model": "gpt-5.6-terra",
+    "route": "openai_responses_chatgpt",
+    "api_origin": "https://api.openai.com/v1",
+    "reasoning_effort": "low",
+    "approval_policy": "never",
+    "prompt_policy": "ymp-codex-low-v2",
+    "sandbox": "workspace-write",
+    "wall_time_limit_ms": 600000,
+    "output_limit_bytes": 16777216,
+    "required_exec_flags": [
+      "--json",
+      "--ignore-user-config",
+      "--ignore-rules",
+      "--sandbox",
+      "--model",
+      "--disable",
+      "--cd"
+    ]
+  },
+  "tool_host": {
+    "transport": "stdio_mcp_private_rpc_application",
+    "binding_required": true,
+    "endpoint_scope": "attempt_scoped_unix_socket",
+    "mcp_protocol_version": "2025-11-25",
+    "collaboration_mcp_schema_sha256": "b961a2e7e13fb00d535b54f50b19482c48a7e899b34d1b7312b09011c6b6b9be",
+    "required_tools": [
+      "read_control",
+      "read_events",
+      "read_board",
+      "publish",
+      "request_participant",
+      "yield",
+      "submit"
+    ],
+    "request_participant_capability_gated": true
+  },
+  "git_trust": {
+    "repository_required": true,
+    "skip_repository_check": false,
+    "user_config": "ignored",
+    "project_rules": "ignored"
+  },
+  "read_limits": {
+    "max_reads_per_reader": 2,
+    "max_reads_unauthorized_reader": 1,
+    "max_bytes_per_read": 1024,
+    "schedule_content_independent": true,
+    "polling_until_success": false
+  },
+  "transport_schedules": [
+    {
+      "scenario": "s1",
+      "reader_read_cap": 1,
+      "windows": [
+        { "ordinal": 1, "actor": "a", "action": "start_fake" },
+        { "ordinal": 2, "actor": "a", "action": "publish" },
+        { "ordinal": 3, "actor": "a", "action": "complete_fake" },
+        { "ordinal": 4, "actor": "b", "action": "start_fake" },
+        { "ordinal": 5, "actor": "b", "action": "read_board" },
+        { "ordinal": 6, "actor": "u", "action": "unauthorized_read" },
+        { "ordinal": 7, "actor": "b", "action": "complete_fake" }
+      ]
+    },
+    {
+      "scenario": "s2",
+      "reader_read_cap": 2,
+      "windows": [
+        { "ordinal": 1, "actor": "b", "action": "start_fake" },
+        { "ordinal": 2, "actor": "b", "action": "read_board" },
+        { "ordinal": 3, "actor": "a", "action": "start_fake" },
+        { "ordinal": 4, "actor": "a", "action": "publish" },
+        { "ordinal": 5, "actor": "a", "action": "complete_fake" },
+        { "ordinal": 6, "actor": "b", "action": "read_board" },
+        { "ordinal": 7, "actor": "u", "action": "unauthorized_read" },
+        { "ordinal": 8, "actor": "b", "action": "complete_fake" }
+      ]
+    },
+    {
+      "scenario": "s3",
+      "reader_read_cap": 1,
+      "windows": [
+        { "ordinal": 1, "actor": "b", "action": "start_fake" },
+        { "ordinal": 2, "actor": "b", "action": "read_board" },
+        { "ordinal": 3, "actor": "b", "action": "yield_fake_and_tool" },
+        { "ordinal": 4, "actor": "a", "action": "start_fake" },
+        { "ordinal": 5, "actor": "a", "action": "publish" },
+        { "ordinal": 6, "actor": "a", "action": "complete_fake" },
+        { "ordinal": 7, "actor": "controller", "action": "assert_no_board_wake" },
+        { "ordinal": 8, "actor": "u", "action": "unauthorized_read" }
+      ]
+    }
+  ],
+  "stage_two": {
+    "evidence_file": "stage-two-probe.json",
+    "stage": "no_task_output_nonce_tool_host",
+    "budget_source": "admission_probe",
+    "max_model_calls": 1,
+    "max_input_tokens": 32768,
+    "max_cached_input_tokens": 32768,
+    "max_output_tokens": 1024,
+    "max_reasoning_tokens": 1024,
+    "max_wall_time_ms": 120000,
+    "task_output_forbidden": true,
+    "arm_observation_forbidden": true
+  },
+  "report": {
+    "file": "admission-report.json",
+    "digest_file": "admission-report.sha256",
+    "immutable_create_new": true
+  }
+}

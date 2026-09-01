@@ -383,7 +383,7 @@ fn codex_fixture(path: &Path, pid_file: &Path, gate_file: &Path) -> PathBuf {
         format!(
             r##"#!/bin/sh
 if [ "$1" = "--version" ]; then
-  printf '%s\n' 'codex-cli 0.151.0'
+  printf '%s\n' 'codex-cli 9.7.3'
 elif [ "$1" = "exec" ] && [ "$2" = "--help" ]; then
   printf '%s\n' 'resume --json --ignore-user-config --ignore-rules'
 elif [ "$1" = "exec" ] && [ "$2" = "resume" ] && [ "$3" = "--help" ]; then

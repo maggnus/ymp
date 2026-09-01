@@ -6,11 +6,55 @@ use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 use ymp_application::Application;
 use ymp_domain::{Budget, EventKind};
-use ymp_runtime_api::{InFlightExcess, RuntimeEventKind};
+use ymp_runtime_api::{InFlightExcess, Readiness, RuntimeDriver, RuntimeEventKind};
 use ymp_runtime_codex::{CodexProfile, CodexRuntime};
 use ymp_runtime_supervisor::{
     ManagedCandidateRequest, ManagedContract, ManagedRunEvent, start_managed_candidate,
 };
+
+#[test]
+fn reference_version_with_behavior_drift_is_refused_before_launch() {
+    let temporary = tempfile::tempdir().expect("temporary directory");
+    let executable = temporary.path().join("codex-reference-with-drift");
+    fs::write(
+        &executable,
+        r##"#!/bin/sh
+if [ "$1" = "--version" ]; then
+  printf '%s\n' 'codex-cli 0.151.0'
+elif [ "$1" = "exec" ] && [ "$2" = "--help" ]; then
+  printf '%s\n' 'resume --json --ignore-user-config --ignore-rules --sandbox --model --disable --cd'
+elif [ "$1" = "exec" ] && [ "$2" = "resume" ] && [ "$3" = "--help" ]; then
+  printf '%s\n' 'SESSION_ID --json --ignore-user-config --ignore-rules'
+elif [ "$1" = "features" ] && [ "$2" = "list" ]; then
+  printf '%s\n' 'hooks stable true' 'multi_agent stable true' 'multi_agent_v2 stable false' 'plugins stable true' 'remote_plugin stable true' 'shell_snapshot stable true' 'enable_fanout removed false' 'remote_control removed false' 'remote_models removed false'
+elif [ "$1" = "app-server" ] && [ "$2" = "--help" ]; then
+  printf '%s\n' 'generate-json-schema --listen <URL> stdio://'
+elif [ "$1" = "app-server" ] && [ "$2" = "generate-json-schema" ]; then
+  mkdir -p "$4"
+  printf '\173"definitions":\173"v2":\173"TokenUsageBreakdown":\173"required":["cachedInputTokens","inputTokens","outputTokens","reasoningOutputTokens","totalTokens"]\175\175\175,"items":[\173"title":"McpToolCallThreadItem","required":["id","server","status","tool","type"]\175],"methods":["thread/resume","turn/interrupt","thread/tokenUsage/updated","turn/completed"]\175\n' > "$4/codex_app_server_protocol.schemas.json"
+elif [ "$1" = "login" ]; then
+  exit 0
+else
+  exit 97
+fi
+"##,
+    )
+    .expect("write drift fixture");
+    let mut permissions = fs::metadata(&executable).expect("metadata").permissions();
+    permissions.set_mode(0o700);
+    fs::set_permissions(&executable, permissions).expect("make executable");
+
+    let probe = CodexRuntime::new(&executable)
+        .probe()
+        .expect("behavioral probe result");
+    assert_eq!(probe.version.as_deref(), Some("codex-cli 0.151.0"));
+    assert_eq!(probe.readiness, Readiness::Incompatible);
+    assert!(
+        probe.detail.contains("tool_schema_mismatch"),
+        "{}",
+        probe.detail
+    );
+}
 
 #[test]
 fn generated_codex_environment_completes_a_candidate_through_product_mcp() {
@@ -24,7 +68,7 @@ fn generated_codex_environment_completes_a_candidate_through_product_mcp() {
         &executable,
         r##"#!/bin/sh
 if [ "$1" = "--version" ]; then
-  printf '%s\n' 'codex-cli 0.151.0'
+  printf '%s\n' 'codex-cli 9.7.3'
 elif [ "$1" = "exec" ] && [ "$2" = "--help" ]; then
   printf '%s\n' 'resume --json --ignore-user-config --ignore-rules'
 elif [ "$1" = "exec" ] && [ "$2" = "resume" ] && [ "$3" = "--help" ]; then
@@ -180,7 +224,7 @@ fi
     .expect("parse runtime profile evidence");
     assert_eq!(profile["profile"]["schema_version"], 3);
     assert_eq!(profile["profile"]["runtime_kind"], "codex");
-    assert_eq!(profile["profile"]["probe"]["version"], "codex-cli 0.151.0");
+    assert_eq!(profile["profile"]["probe"]["version"], "codex-cli 9.7.3");
     assert!(
         profile["profile"]["probe"]["detail"]
             .as_str()
@@ -279,7 +323,7 @@ fn child_stderr_cannot_persist_its_mcp_token_or_raw_diagnostic() {
         &executable,
         r##"#!/bin/sh
 if [ "$1" = "--version" ]; then
-  printf '%s\n' 'codex-cli 0.151.0'
+  printf '%s\n' 'codex-cli 9.7.3'
 elif [ "$1" = "exec" ] && [ "$2" = "--help" ]; then
   printf '%s\n' 'resume --json --ignore-user-config --ignore-rules'
 elif [ "$1" = "exec" ] && [ "$2" = "resume" ] && [ "$3" = "--help" ]; then
@@ -388,7 +432,7 @@ fn durable_accounting_covers_success_error_cancel_and_timeout() {
         &executable,
         r##"#!/bin/sh
 if [ "$1" = "--version" ]; then
-  printf '%s\n' 'codex-cli 0.151.0'
+  printf '%s\n' 'codex-cli 9.7.3'
 elif [ "$1" = "exec" ] && [ "$2" = "--help" ]; then
   printf '%s\n' 'resume --json --ignore-user-config --ignore-rules'
 elif [ "$1" = "exec" ] && [ "$2" = "resume" ] && [ "$3" = "--help" ]; then
@@ -670,7 +714,7 @@ fn a_run_whose_runtime_states_no_excess_records_none() {
         &executable,
         r##"#!/bin/sh
 if [ "$1" = "--version" ]; then
-  printf '%s\n' 'codex-cli 0.151.0'
+  printf '%s\n' 'codex-cli 9.7.3'
 elif [ "$1" = "exec" ] && [ "$2" = "--help" ]; then
   printf '%s\n' 'resume --json --ignore-user-config --ignore-rules'
 elif [ "$1" = "exec" ] && [ "$2" = "resume" ] && [ "$3" = "--help" ]; then
@@ -798,7 +842,7 @@ fn fabricated_stdout_lifecycle_cannot_submit_or_yield() {
         &executable,
         r##"#!/bin/sh
 if [ "$1" = "--version" ]; then
-  printf '%s\n' 'codex-cli 0.151.0'
+  printf '%s\n' 'codex-cli 9.7.3'
 elif [ "$1" = "exec" ] && [ "$2" = "--help" ]; then
   printf '%s\n' 'resume --json --ignore-user-config --ignore-rules'
 elif [ "$1" = "exec" ] && [ "$2" = "resume" ] && [ "$3" = "--help" ]; then
@@ -933,7 +977,7 @@ fn managed_codex_yield_wake_resume_keeps_one_identity_and_effect() {
         &executable,
         r##"#!/bin/sh
 if [ "$1" = "--version" ]; then
-  printf '%s\n' 'codex-cli 0.151.0'
+  printf '%s\n' 'codex-cli 9.7.3'
 elif [ "$1" = "exec" ] && [ "$2" = "--help" ]; then
   printf '%s\n' 'resume --json --ignore-user-config --ignore-rules'
 elif [ "$1" = "exec" ] && [ "$2" = "resume" ] && [ "$3" = "--help" ]; then

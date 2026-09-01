@@ -26,7 +26,7 @@ use ymp_tui::{Session, projection};
 /// records the run as an infrastructure failure; the worker is still on its way out.
 const DYING_FIXTURE: &str = r##"#!/bin/sh
 if [ "$1" = "--version" ]; then
-  printf '%s\n' 'codex-cli 0.151.0'
+  printf '%s\n' 'codex-cli 8.6.2'
 elif [ "$1" = "exec" ] && [ "$2" = "--help" ]; then
   printf '%s\n' 'resume --json --ignore-user-config --ignore-rules'
 elif [ "$1" = "exec" ] && [ "$2" = "resume" ] && [ "$3" = "--help" ]; then
