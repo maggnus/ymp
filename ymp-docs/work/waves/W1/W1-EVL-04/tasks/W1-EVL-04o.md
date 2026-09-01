@@ -10,7 +10,7 @@ relation: required
 depends_on: [W1-EVL-04l]
 blocks: [W1-EVL-04n]
 created_at: 2026-09-01T18:09:44+08:00
-updated_at: 2026-09-01T18:09:44+08:00
+updated_at: 2026-09-01T18:14:00+08:00
 started_at:
 accepted_at:
 candidate_commit:
@@ -44,6 +44,11 @@ workspace root rather than trusting a server that merely advertises matching JSO
   contract and canonical workspace-root digest. The exact identity is part of
   `ToolHostProbeRuntimeIdentity`, and therefore of the accepted trace and opaque Application
   attestation.
+- The trusted foreground `ymp internal tool-host-probe` controller independently hashes its own
+  admitted `current_exe` bytes and canonical probe child configuration before any child starts,
+  using the same measured-executable rule as accepted `LaunchDescriptor` evidence. It passes this
+  expected identity into `ControllerToolHostProbeRequest`; Application stores it in the immutable
+  reservation before execution. The child/server cannot choose or rewrite the expected digest.
 - Add a separate `WorkspaceProbeMcpServer` in `ymp-agent-mcp/src/lib.rs`; it is not an agent tool
   mode and advertises only the fixed `workspace_write(path, content)` and `workspace_read(path)`
   schemas from `TOOL_HOST_PROBE_TOOL_SCHEMA`. Unknown fields, wrong path/content, extra/reordered
@@ -52,14 +57,15 @@ workspace root rather than trusting a server that merely advertises matching JSO
   controller-set private environment, resolves the one canonical workspace root, refuses symlinks,
   absolute/traversing paths and pre-existing destination, writes exactly the nonce once and reads
   the same bytes once. It has no Application, board, task, recruitment, candidate or network access.
-- Exclusive write zone: the three files above, plus mechanically forced struct-literal/fixture
-  updates only in `ymp-application/src/tool_host_probe.rs` and
+- Exclusive write zone: the three files above, plus the narrow expected-transport field,
+  reservation/attestation comparison and fixtures in `ymp-application/src/tool_host_probe.rs`, and
+  mechanically forced fixture updates only in
   `ymp-runtime-supervisor/tests/tool_host_probe.rs`. No other production behavior may change.
 
 ### Out
 
 - No-touch: runtime-codex and runtime-supervisor production code, agent API/RPC, Application logic
-  beyond the forced transport field binding, CLI lib/main/public surface, Cargo manifests/lockfile,
+  beyond the explicit expected-transport binding above, CLI lib/main/public surface, Cargo manifests/lockfile,
   corpus/manifest, TUI, research/calibration, real models/network/money and real user state.
 
 ## Acceptance
@@ -69,10 +75,15 @@ workspace root rather than trusting a server that merely advertises matching JSO
       relative path and no file elsewhere.
 - [ ] The canonical `probe_transport_digest` changes when server/launcher executable bytes, internal
       command/configuration, protocol/name/version, tool schema/order or canonical workspace root
-      changes. A schema-identical substitute executable is therefore rejected.
+      changes. A schema-identical substitute child or path changed after the controller's prelaunch
+      measurement therefore differs from the reservation and is rejected.
 - [ ] `ToolHostProbeTrace` and recovered `AttestedToolHostProbe` bind the exact transport identity;
       missing/default/altered transport identity, a copied root or mismatched executable/configuration
       fails before attestation or `model_ready`.
+- [ ] The expected executable/configuration digest is measured and fsynced by the foreground
+      controller before child creation, not self-reported by the MCP child. Replacing only the child
+      while retaining its JSON schema fails; replacing the entire trusted foreground executable is
+      explicitly the signed-release/TCB boundary, not a claim of this probe.
 - [ ] Absolute/traversing/symlink/pre-existing paths, wrong nonce, duplicate/reordered/extra calls,
       unknown fields, additional tools and inherited unapproved environment each fail without an
       accepted read-back or file outside the disposable workspace.
@@ -98,12 +109,17 @@ builder; W1-EVL-04n remains blocked until this identity and server are accepted.
 - This is a two-tool compatibility fixture, not a general filesystem or agent MCP API.
 - The server implementation is evidence only when independently hashed by the launcher/controller;
   self-reported identity is not authority.
+- The trust anchor is the already trusted foreground product process, matching existing measured
+  launch evidence; this task does not invent signing or defend against replacement of the whole TCB.
 - Transport reachability is not communication, listening, task value or self-organization.
 
 ## Findings
 
 - Scientific peer review required implementation/configuration binding in addition to JSON schema,
   because a substituted server can otherwise manufacture expected bytes.
+- R1 contract review required an independent expected digest. The corrected source is the foreground
+  controller's prelaunch measurement persisted in the Application reservation, never the child
+  server's self-report.
 
 ## Review rounds
 
