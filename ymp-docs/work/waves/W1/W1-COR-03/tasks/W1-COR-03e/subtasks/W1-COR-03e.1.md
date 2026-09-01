@@ -4,15 +4,15 @@ kind: subtask
 wave: W1
 card: W1-COR-03
 parent: W1-COR-03e
-state: ready
+state: active
 risk: significant
 maturity: BUILD
 relation: required
 depends_on: []
 blocks: []
 created_at: 2026-09-01T12:14:00+08:00
-updated_at: 2026-09-01T12:14:00+08:00
-started_at:
+updated_at: 2026-09-01T12:15:03+08:00
+started_at: 2026-09-01T12:15:03+08:00
 accepted_at:
 candidate_commit:
 closure_commit:
@@ -59,13 +59,13 @@ without exposing storage, a mutable board, or authority to the TUI.
 
 ## Current state
 
-The application owns and persists the board and exposes an owned operator `ViewState`. Message
-records still carry only payload digest and byte count; no typed application operation yet binds
-the exact bytes to publication or resolves them for a consumer.
+Active on `codex/gpt-5.6-sol` at `xhigh`. The application owns and persists the board and exposes an
+owned operator `ViewState`; this subtask now binds exact payload bytes to publication and resolves
+them through an owned consumer projection.
 
 ## Next action
 
-Implement and verify the application-owned publish/resolve seam from current `main`.
+Return the reviewed publish/resolve candidate and its focused evidence.
 
 ## Guardrails
 
