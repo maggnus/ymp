@@ -4,25 +4,25 @@ kind: subtask
 wave: W1
 card: W1-COR-03
 parent: W1-COR-03e
-state: active
+state: accepted
 risk: significant
 maturity: BUILD
 relation: required
 depends_on: [W1-COR-03e.1, W1-COR-03z]
 blocks: [W1-COR-03e.2]
 created_at: 2026-09-01T21:48:42+08:00
-updated_at: 2026-09-01T21:57:00+08:00
+updated_at: 2026-09-01T22:06:36+08:00
 started_at: 2026-09-01T21:52:00+08:00
-accepted_at:
-candidate_commit:
-closure_commit:
-evidence:
-duration_minutes: 0
+accepted_at: 2026-09-01T22:06:36+08:00
+candidate_commit: https://github.com/maggnus/ymp/commit/11be98c5edbb0bc2cdd7b4aa29bdbe89c401a250
+closure_commit: https://github.com/maggnus/ymp/commit/aa0ef505407bea398105067113880eadfcf7c76d
+evidence: ["[aa0ef50](https://github.com/maggnus/ymp/commit/aa0ef505407bea398105067113880eadfcf7c76d)"]
+duration_minutes: 15
 blocker:
 pause_reason:
 return_trigger:
 deliberate_partial: false
-review_rounds: 0
+review_rounds: 1
 escalation_decision:
 ---
 
@@ -60,29 +60,29 @@ payload bytes, without exposing board/storage authority or letting a reader/TUI 
 
 ## Acceptance
 
-- [ ] Project-discovery, scope and named-recipient messages each emerge from the operator projection
+- [x] Project-discovery, scope and named-recipient messages each emerge from the operator projection
       with an audience exactly equal to the committed record, exact author/kind/order and payload.
-- [ ] Reopen returns the same audience; mutating any returned owned audience/recipient vector cannot
+- [x] Reopen returns the same audience; mutating any returned owned audience/recipient vector cannot
       affect later reads, audit order or durable state.
-- [ ] Missing/corrupt/mismatched payload still fails before returning a partial projection; audience
+- [x] Missing/corrupt/mismatched payload still fails before returning a partial projection; audience
       presence cannot mask object failure or fabricate placeholder content.
-- [ ] A mutation omitting audience, deriving it from reader/text/relation or collapsing named/scope
+- [x] A mutation omitting audience, deriving it from reader/text/relation or collapsing named/scope
       variants fails focused tests. No public ledger/store/root/mutable accessor appears.
-- [ ] Application exposes only the owned audience enum needed to inspect the projection; no board
+- [x] Application exposes only the owned audience enum needed to inspect the projection; no board
       command, ledger, store or direct TUI dependency crosses the boundary.
-- [ ] Focused board/application tests, strict Clippy for both packages, formatting and
+- [x] Focused board/application tests, strict Clippy for both packages, formatting and
       `git diff --check` pass with no model/network/TUI run.
 
 ## Current state
 
-Committed `MessageRecord` already stores exact audience, but `MessageView/view_of` drops it and
-Application consequently cannot expose it. Payload persistence and the model-facing publish/read
-seam are accepted; only this owned read projection is incomplete.
+Accepted on integrated main
+[aa0ef50](https://github.com/maggnus/ymp/commit/aa0ef505407bea398105067113880eadfcf7c76d).
+The owned operator projection now preserves the exact committed audience without exposing board or
+storage authority.
 
 ## Next action
 
-Run a Significant contract check of the two-package type propagation, then dispatch one Sol high
-builder; resume the retained W1-COR-03e.2 author only after integration.
+Resume W1-COR-03e.2 from the integrated audience-preserving projection.
 
 ## Guardrails
 
@@ -102,18 +102,23 @@ marker carries the reviewer's ten-point score and the local moment of the verdic
 escalation, one `- CTO <decision> <dd/mm hh:mm> — <reason>` line records what was decided. The review
 dialogue itself stays in the reports and the evidence package.
 
-## Closure
+- R1(9/10) ACCEPT 01/09 22:06 — exact owned audience propagation and scope were confirmed → an
+  independent omission mutation failed at the production mapping → candidate integrated unchanged
 
-Filled when the subtask is accepted.
+## Closure
 
 ### Accepted outcome
 
-What was actually accepted.
+`MessageView` and the Application operator projection preserve exact owned `ProjectDiscovery`,
+`Scope` and `Named` audience values, including reopen and mutation isolation. Missing, corrupt and
+mismatched payloads still fail before a partial projection is returned.
 
 ### Residuals
 
-Honestly retained limitations, each with an exact return trigger.
+None.
 
 ### Evidence
 
-- Commit, evidence package, or durable document of record, each as a Markdown link.
+- [aa0ef50](https://github.com/maggnus/ymp/commit/aa0ef505407bea398105067113880eadfcf7c76d)
+  — integrated code; its changed bytes are identical to reviewed candidate
+  [11be98c](https://github.com/maggnus/ymp/commit/11be98c5edbb0bc2cdd7b4aa29bdbe89c401a250).
