@@ -226,6 +226,9 @@ present the same bytes to the owner for explicit approval.
   blocking clarification at a time, single-executable scope limited to ymp delivery, and distinct
   inert citation/revision facts that create no action, authority or capability. Result execution and
   human evaluation are explicitly outside ymp.
+- OWNER APPROVED bb91b3879d6db257185e78d8c416b130a0b75202319f1667eff3ea663dc6f1ce —
+  the owner ordered the corrected journey updated and released without another full review; future
+  design receives this journey plus a short project essence, not the rejected screen inventory.
 
 ## Review rounds
 
