@@ -11,7 +11,7 @@ relation: required
 depends_on: [W1-COR-03e.1, W1-COR-03z]
 blocks: [W1-COR-03e.2]
 created_at: 2026-09-01T21:48:42+08:00
-updated_at: 2026-09-01T21:52:00+08:00
+updated_at: 2026-09-01T21:57:00+08:00
 started_at: 2026-09-01T21:52:00+08:00
 accepted_at:
 candidate_commit:
@@ -43,6 +43,9 @@ payload bytes, without exposing board/storage authority or letting a reader/TUI 
 - Preserve the same value through `ymp-application::ResolvedMessageView` and
   `Application::operator_board_projection()` while retaining object length/digest verification and
   owned-copy isolation.
+- Re-export the owned `Audience` type narrowly from `ymp-application` for operator-projection
+  consumers. `ymp-tui` must not add a direct `ymp-board` dependency or recover variants from text;
+  this is type visibility, not storage/ledger authority.
 - Focused board/application tests for all audience variants, reopen, mutation isolation and order;
   compile-fail/static checks keep ledger/store/root and mutation authority private.
 - Exclusive write zone: `ymp-board/src/observatory.rs`, narrow `ymp-application/src/lib.rs` projection
@@ -65,6 +68,8 @@ payload bytes, without exposing board/storage authority or letting a reader/TUI 
       presence cannot mask object failure or fabricate placeholder content.
 - [ ] A mutation omitting audience, deriving it from reader/text/relation or collapsing named/scope
       variants fails focused tests. No public ledger/store/root/mutable accessor appears.
+- [ ] Application exposes only the owned audience enum needed to inspect the projection; no board
+      command, ledger, store or direct TUI dependency crosses the boundary.
 - [ ] Focused board/application tests, strict Clippy for both packages, formatting and
       `git diff --check` pass with no model/network/TUI run.
 
