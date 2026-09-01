@@ -7,7 +7,7 @@ state: ready
 risk: critical
 maturity: OPERATIONALIZATION
 relation: required
-depends_on: [W1-EXP-01e, W1-COR-03z, W1-PRD-05j.1]
+depends_on: [W1-EXP-01e, W1-COR-03z, W1-PRD-05j.1, W1-EVL-04h]
 blocks: [W1-EVL-04f, W1-EVL-04a]
 created_at: 2026-09-01T13:41:52+08:00
 updated_at: 2026-09-01T14:28:10+08:00
@@ -78,15 +78,16 @@ decision that is not primary evidence.
 
 ## Current state
 
-The protocol and pull-transport seam are specified; `publish/read_board` is accepted. Recruitment
-has a candidate under review and the L4+ corpus is being implemented, while the diagnostic
-scheduler, selector, compliance runner and the required two-participant transport schedules remain
-absent. No weak model observation has been admitted or paid for.
+The transport, recruitment and L4+ freeze are accepted, but admission/S1-S3 conformance moved to
+W1-EVL-04h. The current freeze assigns the sole decomposable task to development and the sole
+sequential/null task to transfer; this task therefore cannot yet compare both promised strata, and
+W1-EVL-04f cannot transfer the same positive mechanism to a fresh task. No weak model observation
+has been admitted or paid for.
 
 ## Next action
 
-After W1-EXP-01e and W1-PRD-05j.1 are accepted, implement S1-S3 and the complete fake-runtime path
-with a frozen content-independent schedule and read cap before opening any model or monetary gate.
+Complete W1-EVL-04h and resolve the frozen task allocation without mutating the accepted v1 freeze;
+then issue a new exact runner write zone and repeat the Critical contract check.
 
 ## Guardrails
 
@@ -106,6 +107,9 @@ with a frozen content-independent schedule and read cap before opening any model
 - Peer scientific review resolved the pull-transport boundary by retaining S3 as a valid negative
   outcome instead of excluding it through scheduling. Only missing promised mechanics invalidate a
   condition; participant choices do not.
+- Pre-dispatch review returned the missing runner write zone. Engineering admission and S1-S3 were
+  split into W1-EVL-04h; the remaining runner stays undispatched until both strata have independent
+  development and transfer coverage under a new immutable allocation.
 
 ## Review rounds
 
