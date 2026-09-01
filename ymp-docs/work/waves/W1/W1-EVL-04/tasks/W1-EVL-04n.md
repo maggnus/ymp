@@ -10,7 +10,7 @@ relation: required
 depends_on: [W1-EVL-04l, W1-EVL-04o, W1-EVL-04p, W1-EVL-04q]
 blocks: [W1-EVL-04m]
 created_at: 2026-09-01T17:17:30+08:00
-updated_at: 2026-09-01T20:15:00+08:00
+updated_at: 2026-09-01T20:20:00+08:00
 started_at: 2026-09-01T20:13:34+08:00
 accepted_at:
 candidate_commit:
@@ -58,6 +58,10 @@ observed version and executable digest are evidence, not an acceptance selector.
   `ymp-rust/crates/ymp-cli/tests/live_tool_host_probe.rs` may create the isolated Application store
   and spawn `CARGO_BIN_EXE_ymp internal tool-host-probe`; it may not change CLI production code.
   Mechanically forced changes are allowed only in those package manifests and `ymp-rust/Cargo.lock`.
+- A narrow typed change in `ymp-runtime-api/src/lib.rs` may replace the lossy
+  `ToolHostProbeError::RuntimeFailed { detail }` with structured failure evidence containing
+  `RuntimeFailureKind`, complete terminal `Usage`, optional bounded `DiagnosticSummary`, terminal
+  event id and sequence. Its display may expose only those sanitized fields, never raw stderr.
 - One admitted live probe uses the additive W1-EVL-04q v2 manifest and separate stage-two budget: exactly
   one model request, no task/arm output, no board/recruitment/candidate tool, and one ordered
   write/read exchange in a fresh disposable root. The W1-EVL-04l controller independently reads and
@@ -68,7 +72,7 @@ observed version and executable digest are evidence, not an acceptance selector.
 
 ### Out
 
-- No-touch: `ymp-runtime-api/**`, `ymp-application/**`, `ymp-agent-mcp/**`, `ymp-cli/src/**`,
+- No-touch: all other `ymp-runtime-api` behavior, `ymp-application/**`, `ymp-agent-mcp/**`, `ymp-cli/src/**`,
   `ymp-corpus/**`, admission
   manifest/digest, Claude runtime, TUI, research and calibration records, task prompts, experimental
   arms, primary/development seeds and budgets, real user HOME, arbitrary network tools and any model
@@ -92,6 +96,9 @@ observed version and executable digest are evidence, not an acceptance selector.
 - [ ] A schema-identical child measured correctly and then replaced or reconfigured before spawn is
       refused by the immediate runtime/supervisor recheck with `model_calls=0`, no attestation and no
       reservation refund.
+- [ ] Every terminal runtime failure preserves failure kind, terminal sequence/id, complete `Usage`
+      and optional diagnostic digest/size/truncation through the public error and CLI display. Raw
+      stderr is absent; missing statistics are explicit rather than silently replaced with zeros.
 - [ ] The controller proves the destination absent before launch and its independent read-back equals
       the nonce after the ordered tool events. A `Fake` trace, schema-identical substitute server or
       mismatched transport digest may test mechanics but can never satisfy the live admission
@@ -135,6 +142,9 @@ dispatch one Sol xhigh builder and one frozen live probe only after deterministi
   no additional dependency or write-zone expansion was identified.
 - The live consumer check must execute the actual `ymp` binary so its private MCP child is reachable;
   the optional CLI integration test owns only disposable-store bootstrap and process observation.
+- The first and only live attempt stopped with `ProcessExit` after 47.65 s and produced no
+  attestation. R1 code review found `RuntimeEventKind::Failed` discarded its `Usage` and
+  `DiagnosticSummary`; this must be fixed deterministically before any separately authorized run.
 
 ## Review rounds
 
