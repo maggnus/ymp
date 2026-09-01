@@ -38,7 +38,7 @@ best-of-`n`, and local coordination. The purpose is to make a coordination effec
 large enough to diagnose before stronger executors approach the oracle ceiling.
 
 The exact first development protocol is recorded in
-[RES-002-weak-diagnostic.md](RES-002-weak-diagnostic.md).
+[prt-001-weak-diagnostic.md](prt-001-weak-diagnostic.md).
 
 A coordinated result advances this diagnostic ladder only when it repeatedly exceeds both the
 single-participant and independent-selection conditions, combines attributable non-redundant work,

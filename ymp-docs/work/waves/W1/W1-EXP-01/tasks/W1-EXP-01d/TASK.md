@@ -79,7 +79,7 @@ new exact managed probes through the product. Do not reopen either research evid
 
 ## Findings
 
-- `ymp-docs/research/RES-001-calibration.md`
+- `ymp-docs/research/cal-001-calibration.md`
 - `ymp-rust/tools/ymp-calibration/results/2026-08-12-smoke.json`
 - Both provider-specific subtasks ended with independent non-admission evidence and no observed
   pressure, concealment, verdict negotiation, or author-reviewer coordination.

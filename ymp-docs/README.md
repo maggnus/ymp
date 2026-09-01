@@ -115,9 +115,9 @@ part of POC, MVP, or Alpha, and MCP is not their internal protocol.
 | [ROADMAP.md](ROADMAP.md) | POC, MVP, Alpha, causal communication audit, and shipping criteria |
 | [INVARIANTS.md](INVARIANTS.md) | POC contracts that no implementation change may weaken silently |
 | [research/README.md](research/README.md) | Research index and boundary between scientific prose and executable study artifacts |
-| [research/RES-001-calibration.md](research/RES-001-calibration.md) | Development agent ladder, pinned low-effort profiles, measured runs, and remaining blockers |
-| [research/RES-002-weak-diagnostic.md](research/RES-002-weak-diagnostic.md) | Matched-budget weak-participant diagnostic protocol, stop/go rule, and implementation boundary |
-| [research/RES-003-mechanism-map.md](research/RES-003-mechanism-map.md) | Falsifiable coordination mechanisms, interventions, expected null strata, and scientific stop rules |
+| [research/cal-001-calibration.md](research/cal-001-calibration.md) | Development agent ladder, pinned low-effort profiles, measured runs, and remaining blockers |
+| [research/prt-001-weak-diagnostic.md](research/prt-001-weak-diagnostic.md) | Matched-budget weak-participant diagnostic protocol, stop/go rule, and implementation boundary |
+| [research/map-001-mechanism-map.md](research/map-001-mechanism-map.md) | Falsifiable coordination mechanisms, interventions, expected null strata, and scientific stop rules |
 | [VISUAL_CONCEPT.md](VISUAL_CONCEPT.md) | Chat-first composition, operator path, semantic constraints, and known implementation gaps |
 | [design/ymp_chat_tui.dc.html](design/ymp_chat_tui.dc.html) | Exact terminal screens, state variants, fixtures, and reusable-structure handoff |
 | [design/ymp_chat_tui.pdf](design/ymp_chat_tui.pdf) | Primary fixed-layout review and reading version of the terminal-interface concept |

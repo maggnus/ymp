@@ -10,23 +10,36 @@ Rust tool; research prose links to their exact evidence instead of copying it.
 
 ## File numbering
 
-`README.md` is the only unclassified file. Every record uses `TYPE-NNN-kebab-title.md`, where the
-three-digit number is the next unused index inside its type and is never reused:
+`README.md` is the sole exception. Every record uses `ccc-NNN-kebab-title.md`: a lowercase category
+first for sorting, followed by the next unused three-digit index in that category. Each category has
+its own permanent, non-reusable `001`–`999` sequence. Before creation, inspect current `main`; one
+document has exactly one immutable primary category, and this index records its exact link and full
+identifier.
 
-- `RES-NNN-*` — research ideas, hypotheses, protocols, analyses, and results in this directory;
-- `ADR-NNN-*` — accepted architecture decision records, reserved for a future ADR directory.
+The closed research categories are:
 
-The scientific researcher creates only `RES-*` records. `DECISIONS.md` remains the canonical
-decision log until an explicit migration; this naming rule does not silently turn research into an
-architecture decision. Creating any record also updates its directory index.
+- `rdr` — research decision record;
+- `hyp` — falsifiable hypothesis or counterhypothesis;
+- `prt` — experimental protocol;
+- `exp` — experiment design;
+- `run` — one execution record;
+- `ana` — analysis of observations;
+- `res` — synthesized result or conclusion;
+- `lit` — literature review;
+- `cal` — calibration method or evidence;
+- `map` — mechanism map or scientific taxonomy.
+
+Architecture `adr` and general product `rfc` records remain outside this research directory.
+`DECISIONS.md` stays canonical until an explicit architecture-record migration. Creating a research
+record also updates this index.
 
 ## Current protocols
 
-- [RES-001-calibration.md](RES-001-calibration.md) — development profile ladder, measured runs, and promotion
+- [cal-001-calibration.md](cal-001-calibration.md) — development profile ladder, measured runs, and promotion
   boundary.
-- [RES-002-weak-diagnostic.md](RES-002-weak-diagnostic.md) — diagnostic matched-budget comparison using weak
+- [prt-001-weak-diagnostic.md](prt-001-weak-diagnostic.md) — diagnostic matched-budget comparison using weak
   participant profiles before the frozen primary study.
-- [RES-003-mechanism-map.md](RES-003-mechanism-map.md) — falsifiable coordination mechanisms, interventions,
+- [map-001-mechanism-map.md](map-001-mechanism-map.md) — falsifiable coordination mechanisms, interventions,
   expected null strata, and scientific stop rules.
 
 ## Standing review rule
