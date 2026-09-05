@@ -1,352 +1,197 @@
-# Visual concept
+# Визуальная концепция
 
-This document states the shape of the ymp terminal interface: what the operator sees, in what
-order, and why the composition is arranged this way. It governs composition and operator path.
-Exact screens, state variants, deterministic fixtures, and the reusable structure handoff are owned
-by [`design/ymp_chat_tui.dc.html`](design/ymp_chat_tui.dc.html). The primary fixed-layout review
-version is [`design/ymp_chat_tui.pdf`](design/ymp_chat_tui.pdf). Together they supersede the earlier
-dashboard artifact `ymp_k9s_tui.dc.html`; the constraints that no composition may violate remain
-owned by [`INVARIANTS.md`](INVARIANTS.md) and [`PROTOCOL.md`](PROTOCOL.md).
+Терминальный интерфейс ymp ведёт одну цельную работу: точная цель человека, одно необходимое
+уточнение, ненавязчивая подготовка, наблюдаемая работа, независимо проверенный результат, внешний
+запуск, отзыв, новая версия и явное применение. Основная область — разговор и поле ввода.
+Технические страницы открываются по требованию и не становятся обязательными этапами.
 
-## Why the composition changes
+Точное соответствие экранов, состояний и фиксированных данных определяет только
+[`design/ymp_chat_tui.dc.html`](design/ymp_chat_tui.dc.html). Локально сформированный
+[`design/ymp_chat_tui.pdf`](design/ymp_chat_tui.pdf) предназначен для чтения и визуальной проверки;
+его нельзя цитировать как источник конкретного экрана или набора данных.
 
-The first interface was derived from the architecture rather than from the operator's path. Every
-domain distinction — trust planes, budget dimensions, verification digests, freshness, assurance —
-became a mandatory screen element, and the rule that a trust-critical fact must not be hidden was
-read as a rule that every fact must be shown at once. The reference frame carries a six-line header
-with twelve hotkeys above a twelve-row table of areas, at a moment when the operator is asking one
-question: is it working, and do I need to step in.
+## Результат, вокруг которого построен интерфейс
 
-Density was not an implementation accident. Any faithful rendering of that composition is
-overloaded, which is why successive implementation attempts produced the same result. The artifact
-itself contains the exit: the narrow-terminal frame demonstrates that the substance of each screen
-is an identifier, a state, a next action, and one limiting fact, and the detail template explicitly
-permits a list to omit values as long as a visible path to full depth exists. The invariants demand
-honesty — do not display a falsehood, do not invent semantics, do not hide the path to a fact —
-not simultaneity.
+Нормальный путь начинается точной фразой:
 
-## Product shape
+> Сделай игру «Морской бой»
 
-The operator's path has three stages:
+Он заканчивается не убедительной стенограммой и не остановкой процесса, а точной версией,
+независимыми результатами автоматических проверок, отдельно указанной человеческой оценкой,
+внешней командой или путём запуска и явным решением применить выбранные байты к проекту.
 
-```
-intent  →  contract  →  collective
-```
+Путь состоит из девяти наблюдаемых переходов:
 
-A human states an intent in ordinary prose. A contract package is drafted from it through
-repository analysis and structured interview, as required by
-[`PROJECT-CONTRACT.md`](PROJECT-CONTRACT.md). The human authorizes the package, which grants
-authority and reserves budget. Participants then work under that contract, publish candidates, and
-a protected oracle decides acceptance.
+1. фраза сохраняется без перевода и подмены;
+2. задаётся не более одного вопроса, если ответ существенно меняет результат;
+3. подготовка показывается приглушённым сворачиваемым следом и не требует подтверждения;
+4. ход работы сообщает существенные факты и фактический состав;
+5. результат отделяет автоматическую проверку от оценки человека;
+6. игра запускается во внешнем браузере, терминале или процессе;
+7. отзыв возвращается в основной разговор обычной фразой;
+8. новая версия сохраняет происхождение и повторяет прежние и новые проверки;
+9. локальное применение выполняется только после отдельного решения с последствиями.
 
-The interface follows that path rather than the component diagram. Drafting is a conversation,
-authorization is a decision, and execution is observation — three different activities that the
-previous composition tried to serve with one dashboard.
+Настройка поставщика возникает только при отсутствии доступного маршрута либо по желанию человека.
+Внутренний договор, идентификатор запуска, ручное назначение участника, выбор модели и устройство
+проверяющей программы не входят в нормальный путь.
 
-## The main screen is a conversation
+## Одна композиция
 
-A single scrolling transcript fills the screen, with an input line at the bottom, a thin context
-header, and a status line. Data views — runtimes, providers, provider properties, pools, agents,
-candidates, events, budgets, object detail — are full-screen pages opened on demand through a `/`
-command line and closed with `Esc`.
+Каждая полноэкранная область использует один каркас:
 
-The opening screen is a three-line banner: a one-line logo carrying version, project and store, the
-invitation to state a goal, and a line naming the two doors out (`/providers` with its state
-counters, and the key map). A five-line logo was considered and rejected.
+- однострочный заголовок с проектом и временем;
+- разговор либо одна информационная страница;
+- одна строка текущего материального состояния;
+- поле ввода или контекстная подсказка;
+- единственная постоянная дверь навигации — `/ команды`.
 
-The three stages are one continuous transcript, not three screens. The transcript is interrupted
-exactly once, by contract authorization, because that decision is irreversible and begins spending
-money.
+Состояние не дублируется между заголовком, разговором и нижней строкой. Заголовок отвечает «где»,
+разговор — «что произошло», строка состояния — «что истинно сейчас». Нет постоянной стены
+сочетаний клавиш и нет словаря, который меняется от экрана к экрану.
 
-Transcript entries are heterogeneous and must remain distinguishable at a glance: human turns,
-application replies, run events, and — from POC-2 — collaboration board messages, each attributed
-to a participant and typed with the message kinds already defined in `PROTOCOL.md`. The entry model
-separates origin from body precisely so that board messages differ by author and kind rather than
-by structure, and arrive without reshaping the transcript.
+Три плотности задаются содержанием, а не простым масштабированием:
 
-This also answers what the operator does during a two-hour run. Reading an event table is not an
-activity; reading a conversation and intervening when the collective goes astray is.
-
-### One turn, one reply
-
-One operator turn produces exactly one application reply. The interface may not stack several
-replies that narrate its own machinery — pool state, contract assembly, verifier derivation —
-around a single question that asked for none of it.
-
-A refusal is bound by the same discipline. It occupies at most two lines, its first line opens with
-the verb of the operator's next action, and the reason follows after a dash on that same line. The
-mechanics of the decision live behind `/describe refusal`, not in the transcript.
-
-Entry text starts in a fixed column that does not depend on the content — column 20 for a run
-event, column 8 for a reply — and a wrapped line resumes exactly under that column. A digest is
-shown as six characters without an algorithm prefix; the full form appears only in `describe`.
-
-### Reference points
-
-The closest reference for the main screen is Claude Code: the transcript is the product and the
-input line is always ready. Two things differ.
-
-The operator enters structured data, not only prose: scoping answers during the interview, a budget
-vector across independent dimensions, runtime profiles and model routes, the starting roster of
-participants and the ceiling on further recruitment, and explicit confirmation text for
-irreversible commands. These require real input affordances inside a transcript-first layout.
-
-Behind the conversation there are full pages of data. Journals, candidate lists and budget tables
-are too large to live as inline replies, so they are separate navigable pages in the k9s tradition:
-one dense list per page, filter, selection, drill-down, `Esc` back. Navigable data pages and
-decision modals behave differently and must not look alike.
-
-### Inertness
-
-Board messages are inert data. Nothing in the transcript is executable in one keypress: acting on
-a suggestion always requires a separate command issued under the operator's own authority. This is
-INV-4 expressed as layout, and it is the reason a suggestion from a participant can never become a
-button. The same rule reaches into the tables: the `↳` line under an untrusted collaboration-plane
-row carries no action key and stays data.
-
-## Action classes
-
-Three classes of action are distinguished, and the affordance follows the class rather than the
-screen.
-
-- **Reversible** — a single key, no confirmation, because the same key undoes the result:
-  `d disable`, `r measure again`, `F follow`, `/ filter`.
-- **Consent** — a modal in which the consequence is stated on the line directly above the key that
-  takes the decision.
-- **Irreversible** — a modal with a preview of the consequences and a typed confirmation of the
-  exact identifier: authorizing a contract, cancelling a run.
-
-A key never takes a decision whose consequence is not stated on screen, and a modal never stands
-where one key already undoes the action.
-
-Enabling a provider has exactly one form. It is the consent to disclose repository content, so it
-is reached only through the provider's own properties page: list, `Enter`, properties, `e`. No
-enable key exists in the list. The consent modal states, once and in one place, that enabling
-permits repository content of any workspace on this host to reach that provider — asked once, never
-per project and never per run — and it carries the pool selection alongside, since that choice is
-reversible.
-
-## State vocabulary
-
-One vocabulary of entity states — `off`, `ready`, `measuring`, `error` — applies identically to a
-provider, a pool and a run. `off` means the operator never enabled it and nothing is measured or
-spent. `ready` means the measurement succeeded and the age of the last measurement is named.
-`measuring` means the measurement is running now, and the cell is never left empty. `error` means
-the measurement happened and failed, with the reason and the next action on the `↳` line.
-
-*Enabled* is therefore not a state: enabling is an operator action, and what follows it is `ready`,
-`measuring` or `error`. A header counts in that one vocabulary, and the counters sum to the number
-of rows.
-
-A run that has finished leaves this vocabulary: its state is `ended`, and which end it was is named
-by exactly one of the five terminal outcomes. A run whose state is `error` failed to start; that
-word never stands in for `infrastructure_error`, which terminates a run that had already begun.
-
-Surface state — `loading`, `empty`, `stale`, `degraded`, `error` — is a separate axis from entity
-state. Both markers may appear on one screen, they mean different things, and neither substitutes
-for the other. Every such marker is textual and survives the absence of colour.
-
-## Table discipline
-
-A data page is drawn by fixed rules rather than per-screen judgement. A column is as wide as the
-larger of its header and its longest value plus two, up to its own cap; the leftover width goes to
-the last text column instead of being spread across all of them. A truncated value is cut with an
-ellipsis inside its own cell, and at least one space always remains before the next column.
-
-Numbers are aligned to the right by digit position. An em dash marks a quantity that was not
-measured, and never a measured quantity equal to zero.
-
-A reason that is the same for every row stands once in the header, not repeated under each row. A
-note under a table is at most one line; everything longer lives behind `?`. Key hints occupy a
-single line at the right of the status line. Filtering is `/` across all columns, or `/state:ready`
-against one, and the header names the active filter together with the way back.
-
-## Contract authorization
-
-This is the most consequential screen in the product, because contract and oracle quality is the
-decision that can sink a run and no later mechanism repairs it.
-
-It shows a requirement-to-evidence coverage map rather than contract prose: each public
-requirement, what checks it, and how many deliberately broken versions of the code that check
-rejected. Requirements with no mechanical check are shown as such and remain for a human judge.
-Blocking items disable authorization. Price, runtime routes and assurance profile are visible.
-
-Human approval establishes authority, not validity. The screen therefore exposes gaps —
-unresolved ambiguities, requirements without checks, external effects, oracle coverage holes —
-instead of presenting a generated document as finished.
-
-## Naming model
-
-The interface borrows the navigation model of k9s: a `/` command line instead of numbered screens,
-`Enter` to descend, `Esc` to return, `/` to filter, and a thin header. The provider and pool screens
-follow the product's list, select, properties, action path.
-
-| Kubernetes | ymp | Note |
+| Размер | Компоновка | Сохраняемые факты |
 |---|---|---|
-| namespace | project | determined by the launch directory; a header fact, not an entry screen |
-| pod | agent | the primary resource of the lists |
-| Job | run | creates agents, owns their lifetime, immutable after start |
+| `80×24` | Один столбец; путь проекта и вторичные счётчики скрыты | состояние, число участников, проверка |
+| `120×40` | Основной одноколоночный разговор | состояние, участники, версия, проверка |
+| `180×50` | Разговор занимает не менее двух третей; справа краткий снимок «Сейчас» | заявленная работа, версия, проверка, время и доступный учёт |
 
-Two naming constraints are load-bearing. The word *workspace* is already owned by
-[`ARCHITECTURE.md`](ARCHITECTURE.md) for the private writable copy of one attempt and cannot also
-name the enclosing scope. Isolation is not an operator-facing choice: workspaces share no writable
-Git metadata, which excludes `git worktree` as an isolation mode regardless of convenience.
+На ширине меньше 160 столбцов боковой снимок исчезает целиком, а его материальные факты переходят
+в нижнюю строку. Строка сообщения ограничена 96 столбцами в основной компоновке и 112 в широкой.
+Продолжение переносится под текстом, а не под именем автора. Кириллица, длинное слово и путь сначала
+переносятся; усечение применяется только внутри ограниченной ячейки таблицы.
 
-## Roster and recruitment
+## Фокус, выбор и возврат
 
-The operator sets the starting roster of participants and a ceiling on how many more may be
-recruited, before authorization. Participants then recruit one another within budget:
-`request_participant` spends offer-stage budget, and participant starts are a budget dimension.
-The agent list therefore changes during a run, and the remaining funded starts are visible next to
-the ceiling.
+После запуска и после отправки реплики фокус находится во вводе. `↑`, `↓`, `PageUp` и `PageDown`
+прокручивают разговор; `End` возвращает наблюдение к последней записи. `Esc` очищает непустой ввод,
+но не изменяет уже сохранённую цель.
 
-## Contract drafting is a run
+Клавиша `/` открывает палитру над текущей областью. Верхний слой единолично получает клавиатуру;
+фон приглушён и не реагирует. Выделение означает только положение курсора, а не рекомендацию,
+качество или намерение выполнить действие.
 
-Drafting is not performed by a privileged agent standing outside the collective. A privileged role
-would contradict the protocol, where a role is a position inside a contract rather than a property
-of an agent, and where authority is granted per task, short-lived and revocable.
+Палитра имеет три явных состояния:
 
-Drafting is therefore a run under a built-in contract package that ships with the product and is
-approved once, because it describes the procedure rather than the user's project. The authority to
-read the whole repository and to write protected cases is granted to a task inside that run. The
-conversation with the human is an ordinary board exchange; the intervention marker is normal here,
-since this run is never compared against others in an experiment. Its acceptance is mechanical in
-the same sense as any other: the package is accepted when its negative controls reject deliberately
-broken versions of the code.
+- **выбрано:** `Enter` открывает доступную информационную страницу;
+- **недоступно:** причина видна рядом, `Enter` ничего не меняет;
+- **нет совпадений:** `Enter` отправляет введённую строку в разговор как обычную реплику, что
+  соответствует существующему поведению палитры и сохраняет возможность вводить абсолютный путь.
 
-Protection of the hidden oracle is enforced by the boundary between two runs — different budgets,
-audiences and capabilities — not by a special class of agent.
+`Esc` всегда снимает только верхний слой. Палитра над доской возвращает на доску, следующий `Esc` —
+в разговор. Диалог применения возвращает к выбранной версии, не отменяя работу и не меняя выбор.
+Подробность возвращает к родительскому списку, список — к разговору.
 
-## Storage boundary
+## Информация и последствия
 
-The public part of a contract — specification, visible checks, environment manifest — lives in the
-project directory and is committed with the code, where ordinary review applies. Protected oracle
-bytes never enter the source snapshot: agents work from a copy of the repository, so anything
-committed there stops being hidden. Runs, journals, objects, protected material and transcript
-history live in the ymp store.
+Информационные области `/providers`, `/pool`, `/agents`, `/board`, результат и доказательства не
+имеют побочных эффектов. Выбор строки только перемещает фокус, `Enter` раскрывает подробность.
+Сообщение доски остаётся приписанными инертными байтами: просмотр, цитирование и положение в списке
+не создают действие, полномочие, доставку, чтение, согласие или влияние.
 
-## Semantic constraints
+Отдельный диалог требуется только перед последствием для данных, денег, проекта или внешнего
+получателя:
 
-The composition may not introduce what the kernel refuses to do.
+- включение поставщика и связанное с ним раскрытие данных;
+- существенный расход сверх принятого предела;
+- локальное применение точной версии;
+- внешняя публикация или необратимое действие.
 
-- No ranking, scoring, grading, or recommendation of agents, bids, or candidates anywhere; sorting
-  uses raw mechanical fields only (INV-1).
-- No lead agent, no hierarchy, no assignment. Indentation expresses recorded parentage, never
-  priority.
-- The control, untrusted collaboration, and verification planes stay visually distinct wherever
-  they appear together (INV-4, PLN-001…PLN-004).
-- Every view holds its own event cursor and recovers from the journal; lag is a visible state, not
-  a silent divergence (INV-6).
-- Quiescence is not acceptance. The five terminal outcomes are always named exactly (INV-7).
-- Budget dimensions never trade against one another: spare capacity in one never authorizes an
-  action blocked by another (INV-2).
-- The assurance profile is stated plainly, including that `poc_process_isolation` provides no
-  hostile-code containment (INV-8).
-- No candidate is ever presented as ready to apply to the user's working tree.
+Такой диалог имеет янтарную рамку и до `Enter` называет назначение, изменяемые файлы или данные,
+замену существующего содержимого и поведение при расхождении. `Esc` закрывает его без изменения.
+Экран применения оборачивает уже существующую операцию
+[`Application::apply_candidate`](https://github.com/maggnus/ymp/blob/98c1dcb2be70f1c03d2d4a1df9460469b0b6ada6/ymp-rust/crates/ymp-application/src/lib.rs#L1677-L1764)
+и команду
+[`ymp export --apply`](https://github.com/maggnus/ymp/blob/98c1dcb2be70f1c03d2d4a1df9460469b0b6ada6/ymp-rust/crates/ymp-cli/src/surface.rs#L93-L121),
+а не создаёт новый прикладной эффект или несуществующую команду.
 
-## Phase honesty
+## Состояния и следующие действия
 
-POC-1 has a single participant. Offers, bids, work obligations, the collaboration board and
-multiple agents belong to POC-2, and the current domain has no participants, messages, board, or
-contract package as objects. The budget carries two dimensions today.
+Каждое нетиповое состояние отвечает на три вопроса: что произошло, что сохранилось и что можно
+сделать дальше.
 
-The transcript must be honest at both stages: it may not imply a crowd that is not there, and it
-must not require redrawing when the crowd arrives. Concretely, a human turn is marked as local and
-not recorded in the journal until a message command exists, and the budget page shows the two real
-dimensions rather than a rehearsal of the full vector.
+| Состояние | Точная трактовка | Следующий ход |
+|---|---|---|
+| `empty` | Подходящих записей нет; это не ошибка | вернуться или дождаться факта |
+| `loading` | Идёт конкретная операция, интерфейс продолжает обновляться | вернуться либо дождаться |
+| `error` | Не удалась названная операция | исправить причину и повторить эту операцию |
+| `cancelled` | Человек остановил работу; полученное сохранено | осмотреть сохранённое или начать новый запуск |
+| `ended` | Показан один точный терминальный исход | применить, выгрузить, продолжить или закрыть |
 
-## Relation to the design artifacts
+Ошибка модели не означает нерешаемую задачу, исчерпание не означает проверенный результат,
+инфраструктурная ошибка не означает отказ кандидата. Терминальное состояние запуска использует
+точный исход `accepted`, `exhausted`, `abstained`, `cancelled` или `infrastructure_error`.
 
-`design/ymp_chat_tui.dc.html` draws this composition, while `design/ymp_chat_tui.pdf` is its primary
-fixed-layout review version: seven transcript states, nine full-screen data pages — runtimes,
-candidates, events, budgets, describe, agents, providers, provider properties, pools — two decision
-modals, one consent picker modal, a key overlay and a size guard, at 80×24, 120×40 and 180×50, with
-a state-kind matrix, deterministic fixtures sharing one set of identifiers, and a handoff naming the
-reusable structures (`AppFrame`, `TranscriptEntry`, `FieldRow`, `DataPage`, `DescribeGroups`,
-`DecisionModal`, `TypedConfirm`, `PickerModal`, `SelectColumn`, `ColumnWidths`, `FooterHints`,
-`ActionClass`, `RefusalReply`, `HelpOverlay`, `SizeGuard`, `StateKind`, `EntityState`).
-Implementation follows those names and metrics rather than inventing its own.
+## Достоверность данных и зрелость функций
 
-Revision 1 of the artifact answers five recorded interface failures taken from a running build and
-reproduced verbatim in
-[`work/backlog/TUI-OWNER-FIXTURES-20260816.md`](work/backlog/TUI-OWNER-FIXTURES-20260816.md):
-transcript density, the shape of a refusal, table rules, the state vocabulary, and the separation of
-providers from pools. It introduces the provider, provider-properties and pool screens, and for each
-theme it names the rejected form beside the adopted one, because the rejected form is what explains
-the adopted one. The `/runtimes` page stays separate from `/providers` — an engine is the CLI
-installed on this host, a provider is the account whose models are measured.
+HTML помечает каждую возможность одним из трёх состояний: **реализовано**, **первый срез** или
+**позже**. Все данные «Морского боя», один участник, две версии и пути вывода помечены как
+фиксированный эталон дизайна, а не как свидетельство текущей поддержки. Значения поставщика,
+модели и профиля должны приходить из замороженного снимка запуска; тестовые данные не выбирают и
+не рекомендуют технологию.
 
-The earlier artifact `ymp_k9s_tui.dc.html` has been removed from the working tree. Its dashboard
-composition and numbered destinations are superseded. Every retained template family, projection,
-region rule, and vocabulary constraint needed by the current concept must be present in the three
-current sources; implementations must not depend on the removed file. The old artifact remains
-readable in history at the revision pinned by work card `W0-UX-01`,
-[`35cc659`](https://github.com/maggnus/ymp/commit/35cc659981f73700296c9ed37b378e59eabff4a1).
-Because that card is accepted, this supersession is recorded as a new design revision in
-`W1-APP-02e.2` rather than as an unreviewed implementation liberty.
+Достоверная граница выглядит так:
 
-## Divergence from the current implementation
+| Возможность | Источник | Зрелость |
+|---|---|---|
+| Разговор, ввод, прокрутка, палитра и текущие страницы | текущая TUI | реализовано |
+| Поставщики, модели, пулы, попытки, кандидаты, события, бюджеты | текущая `Projection` | реализовано |
+| Компактный статус, три плотности и единая оболочка состояний | только существующие факты | первый срез |
+| Чтение доски с точными проверенными байтами | [`Application::operator_board_projection`](https://github.com/maggnus/ymp/blob/98c1dcb2be70f1c03d2d4a1df9460469b0b6ada6/ymp-rust/crates/ymp-application/src/lib.rs#L1176-L1205) | первый срез |
+| Полная `/agents` с поставщиком, моделью, профилем и заявленной работой | текущая TUI проецирует попытки, а не все эти поля | позже |
+| Русская цель → требования и проверки; материальное уточнение; продолжение версии | прикладной проекции нет | позже |
+| Несколько участников в основном пути | не доказано; экран показывает одного | позже |
+| Накопленное знание и перенос | доменной проекции нет | недоступно |
 
-The new artifact draws the target system, and the domain lags behind it. These gaps are known and
-must not be closed by pretending in the interface.
+`/providers` отвечает о разрешении внешнего доступа и состоянии каталога. `/pool` отвечает о
+допустимых ресурсах будущих запусков и объявленных пределах. `/agents` отвечает только о фактически
+наблюдаемых участниках текущей работы. `/board` отвечает о сообщениях, областях и отдельных фактах
+публикации, доступности, доставки и последующего действия. Эти страницы нельзя смешивать.
 
-| Drawn | Present today |
-|---|---|
-| Assurance profile `poc_disposable` | `poc_process_isolation` in `PROJECT-CONTRACT.md` and code; decided below in favour of the recorded name |
-| Event kinds `workspace.fact`, `budget.reserve`, `budget.use`, `candidate.published`, `verification.started/check`, `board.message.*` | eight kinds in `ymp-domain`, none of them these |
-| Budget of five dimensions, with enforced / observed / estimated classes | two dimensions: remaining attempts and remaining verification queries |
-| Intent, contract package, interview, board messages, participants | absent from the domain |
-| Runtime profiles `rp-gemini` and `rp-opencode` | drivers for fake, Codex and Claude Code only (`ymp-runtime-fake`, `ymp-runtime-codex`, `ymp-runtime-claude`) |
-| Observed workspace facts — files touched, test runs, diff size | not collected |
-| `ymp apply cd-32` as a separate CLI command | no such command |
+Представление `/knowledge` остаётся недоступным, пока домен не выдаёт происхождение, замороженный
+снимок и состояние переноса. Архив, заметка, стенограмма или размер хранилища не изображаются как
+знание.
 
-The last row resolves a real gap rather than creating one: the previous contract forbade applying a
-candidate from the TUI without naming any path at all, leaving the cycle open. An explicit CLI
-command under the operator's own authority keeps the interface boundary intact while giving the
-result somewhere to go.
+## Внешний результат
 
-## Open questions
+ymp не встраивает созданную игру или ручную оценку в TUI. Экран результата сначала предлагает
+существующую команду `ymp export --to DIR`, затем показывает точную команду либо путь открытия,
+который принадлежит выгруженному результату. Автоматически проверенные свойства перечисляются
+отдельно от понятности, темпа, управления и визуального впечатления.
 
-1. Whether an oracle that misses a deliberate break is a blocking item or a warning. The artifact
-   answers it as a warning that stays visible (`R2`, `2/3 killed ▲`), while a test failing on a
-   clean base blocks (`R5`).
+Фиксированные семь или десять проверок экранов «Морского боя» — целевой набор данных уровня DESIGN.
+Он не утверждает, что текущая русская нормализация уже способна создать такой проверяющий пакет.
 
-## Interface decisions
+## Первый производственный срез
 
-Two questions that the design left open are decided here, because only an implementation can
-answer them, and each is shown by a screen rather than only stated.
+Первый срез ограничен восемью существующими файлами и не меняет прикладные полномочия:
 
-### The authoritative assurance-profile name is `poc_process_isolation`
+1. [`state.rs`](https://github.com/maggnus/ymp/blob/98c1dcb2be70f1c03d2d4a1df9460469b0b6ada6/ymp-rust/crates/ymp-tui/src/state.rs) — доступность пунктов, верхний слой и маршрут возврата;
+2. [`projection.rs`](https://github.com/maggnus/ymp/blob/98c1dcb2be70f1c03d2d4a1df9460469b0b6ada6/ymp-rust/crates/ymp-tui/src/projection.rs) — компактное состояние только из реальных фактов;
+3. [`app.rs`](https://github.com/maggnus/ymp/blob/98c1dcb2be70f1c03d2d4a1df9460469b0b6ada6/ymp-rust/crates/ymp-tui/src/app.rs) — сборка страниц и чтение существующей проекции доски;
+4. [`ui.rs`](https://github.com/maggnus/ymp/blob/98c1dcb2be70f1c03d2d4a1df9460469b0b6ada6/ymp-rust/crates/ymp-tui/src/ui.rs) — единый каркас и три плотности;
+5. [`transcript.rs`](https://github.com/maggnus/ymp/blob/98c1dcb2be70f1c03d2d4a1df9460469b0b6ada6/ymp-rust/crates/ymp-tui/src/transcript.rs) — реплики, существенные факты и перенос продолжения;
+6. [`text.rs`](https://github.com/maggnus/ymp/blob/98c1dcb2be70f1c03d2d4a1df9460469b0b6ada6/ymp-rust/crates/ymp-tui/src/text.rs) — корректная ширина и перенос кириллицы, путей и длинных слов;
+7. [`overlay.rs`](https://github.com/maggnus/ymp/blob/98c1dcb2be70f1c03d2d4a1df9460469b0b6ada6/ymp-rust/crates/ymp-tui/src/overlay.rs) — состояния палитры и снятие верхнего слоя;
+8. [`pages.rs`](https://github.com/maggnus/ymp/blob/98c1dcb2be70f1c03d2d4a1df9460469b0b6ada6/ymp-rust/crates/ymp-tui/src/pages.rs) — таблица только для чтения и состояния `empty`, `loading`, `error`, `unavailable`.
 
-The drawn name `poc_disposable` is superseded. `PROJECT-CONTRACT.md` states that the first release
-uses `poc_process_isolation`, the code uses that name, and it describes the mechanism the product
-actually applies: each attempt runs in a separate process against a private copy of the code.
-`poc_disposable` describes the environment the experiment must be run in, which `INV-8` already
-owns; using it as the profile name would name the wrong thing and, worse, would suggest a
-containment property the profile does not provide.
+Срез даёт оболочку разговора, читаемую кириллицу, навигацию через `/`, компактное состояние и
+доступные информационные представления, включая прикладную проекцию доски. Русская нормализация,
+материальное уточнение, запись человека на доску, автоматический набор, знание, полный пересмотр,
+перерасход и новые серверные эффекты остаются отдельными задачами.
 
-Wherever the profile appears with room for prose it is followed by its limit — that it provides
-no hostile-code containment and that agents run with the operator's own permissions. The header
-glyph is the compact form; the full sentence lives in the key map and on `/runtimes`. This follows
-the owner decision of 2026-08-15 that the opening transcript stays a three-line banner: the
-one-line logo already carries the profile with its glyph, and the remaining two lines are the
-invitation and the doors out.
+## Договор отрицательного примера
 
-Shown by: the opening transcript, the wide context header, and the `assurance` row of the contract
-authorization surface.
+Независимое чтение обязано отклонить макет, если выполняется хотя бы одно условие:
 
-### A run the operator ends is recorded as `cancelled`
+- показаны два работающих участника при одном наблюдаемом исходном запуске;
+- выделение или открытие сообщения доски запускает изменение;
+- до обычной цели требуется утвердить внутренний договор, выбрать модель или ввести идентификатор;
+- автоматическая проверка смешана с оценкой человека;
+- недоступное знание заполнено архивом, заметками или вымышленными фактами;
+- применение происходит вследствие просмотра, принятия или выбора строки без отдельного решения.
 
-`cancelled` and `infrastructure_error` are different facts and are never substituted for one
-another. `cancelled` records a decision by the operator; `infrastructure_error` records a failure
-of the machinery. When the operator confirms a cancellation, the interface issues the domain's
-cancel command, the journal records the cancellation with its reason, and the run reaches the
-terminal outcome `cancelled`. A runtime that dies while being stopped is a consequence of that
-decision and does not change the outcome the operator is shown.
-
-The confirmation is typed: the exact run identifier must be entered before the action becomes
-available, and the screen states beforehand which attempts are interrupted, that consumed budget
-is not returned, that the journal and every published candidate stay readable, and that the
-recorded outcome will be `cancelled`.
-
-Shown by: the cancel confirmation surface and the terminal transcript that follows it.
+Такой пример не является вариантом оформления: он нарушает полномочия, достоверность данных или
+основной пользовательский путь и потому должен завершить проверку дизайна ошибкой.
