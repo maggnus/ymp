@@ -6,18 +6,17 @@ closure evidence live only in this tree.
 
 ## Product clock
 
-**Nearest shippable outcome.** A controlled, matched-budget experiment can decide whether local
-self-organization improves independently accepted results and whether any observed communication
-is causally useful.
+**Nearest shippable outcome.** W2 delivers a coherent first terminal interaction slice and a
+feasible cumulative-knowledge POC direction under
+[the current owner instruction](backlog/OWNER-DIRECTION-20260906.md).
 
-**Scientific critical path.** `W1-EXP-01` → `W1-APP-02` → `W1-COR-03` →
-`W1-EVL-04`.
+**Current critical path.** W2-DEF-01 → W2-UX-02 → W2-TUI-03. Read-only research may run
+alongside preparation. Canonical-contract writers run alone; independent acceptance and review
+capacity decide concurrency. The previous W1 path is retained as implementation/evidence history
+and supplies components to the revised POC; it is not an automatic same-budget experimental gate.
 
-**Interface-design path.** `W0-UX-01` → `W1-APP-02e` → `W1-COR-03e`. `W0` may proceed in
-parallel with the falsification package but must be accepted before either POC screen task starts.
-
-Only the current critical-path head is eligible for execution. Parallel work is admitted only when
-it has disjoint write zones, independent acceptance, and available non-author review capacity.
+The complete goal remains a coherent end-to-end TUI and a valid empirical POC conclusion. W2 is an
+intermediate visible increment, and its closure does not claim that real transfer has been tested.
 
 ## Sources of truth
 
@@ -62,7 +61,7 @@ The initial implementation validation ladder is:
 6. the complete controlled POC procedure only at the `W1-EVL-04` and wave acceptance boundaries.
 
 The work-tree generator and validator are supplied by the pinned `paseo-cto` plugin rather than a
-repository-local `work.py` copy. Use version `10.8.2` installed from
+repository-local `work.py` copy. Use version `11.0.1` installed from
 `https://github.com/maggnus/agentic-plugins`.
 
 Every acceptance check includes a negative control. A check whose deliberately invalid case has

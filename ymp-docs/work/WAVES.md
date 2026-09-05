@@ -6,4 +6,5 @@
 |---|---|---|---|---|---|
 | `[x]` | [`W0`](waves/W0/WAVE.md) | Terminal interface design readiness | An independently reviewed screen and state contract makes the POC terminal interface implementable | 1/1 | 100% |
 | `[~]` | [`W1`](waves/W1/WAVE.md) | POC decision readiness | A controlled, matched-budget study can decide whether locally negotiated self-organization | 1/5 | 20% |
-| — | — | **Total** | — | 2/6 | 33% |
+| `[ ]` | [`W2`](waves/W2/WAVE.md) | Coherent research TUI and a feasible knowledge-transfer POC | A first coherent production-rendered terminal experience makes the intended product inspectable and usable for its implemented conversation/navigation path, while a current contract gives the remaining knowledge-transfer POC a feasible evidence path. This wave is an observable intermediate release; it cannot claim a completed live multi-participant or memory experiment. | 0/3 | 0% |
+| — | — | **Total** | — | 2/9 | 22% |

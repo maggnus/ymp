@@ -130,4 +130,7 @@
 | `[x]` | [`W1-PRD-05j`](waves/W1/W1-PRD-05/tasks/W1-PRD-05j/TASK.md) | P10: recruitment through the kernel's mechanical gate | [`da1ad180`](https://github.com/maggnus/ymp/commit/da1ad180f94965d304082c0fc4a4735d6b56ef14) | 16/08 09:50 | 16/08 12:10 (2h20m) |
 | `[x]` | [`W1-PRD-05j.1`](waves/W1/W1-PRD-05/tasks/W1-PRD-05j/subtasks/W1-PRD-05j.1.md) | Agent tool recruits through the accepted Application gate | [`ec9a7928`](https://github.com/maggnus/ymp/commit/ec9a792888782fe1cd43a70bbae6361733a37f56) | 01/09 14:00 | 01/09 14:43 (44m) |
 | `[x]` | [`W1-PRD-05k`](waves/W1/W1-PRD-05/tasks/W1-PRD-05k.md) | P11: the origin participant starts through the product surface | [`30d8e1c3`](https://github.com/maggnus/ymp/commit/30d8e1c39e96f1f9252554050d06c8b3dc36ef78) | 16/08 12:25 | 16/08 15:10 (2h45m) |
+| `[ ]` | [`W2-DEF-01`](waves/W2/W2-DEF-01/CARD.md) | The current contract tests cumulative knowledge without an equal-budget victory gate | — | — | — |
+| `[ ]` | [`W2-TUI-03`](waves/W2/W2-TUI-03/CARD.md) | The production TUI exposes the first coherent conversation and inspection path | — | — | — |
+| `[ ]` | [`W2-UX-02`](waves/W2/W2-UX-02/CARD.md) | The complete user journey has one coherent terminal interaction design | — | — | — |
 | `[x]` | [`W1-APP-02aa`](waves/W1/W1-APP-02/tasks/W1-APP-02aa.md) | Quitting kills a probe that outlives the 5 s bound | [`a19c4807`](https://github.com/maggnus/ymp/commit/a19c480742f44b13021aab9c47cb149635024d92) | 16/08 09:30 | 16/08 11:45 (2h15m) |

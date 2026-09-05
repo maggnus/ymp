@@ -91,7 +91,7 @@ installation source.
 Claude Code:
 
 ```sh
-PASEO_CTO_TAG=v10.8.2
+PASEO_CTO_TAG=v11.0.1
 claude plugin marketplace add "maggnus/agentic-plugins@${PASEO_CTO_TAG}"
 claude plugin install paseo-cto@maggnus
 claude plugin install russian-speech@maggnus
@@ -100,7 +100,7 @@ claude plugin install russian-speech@maggnus
 Codex:
 
 ```sh
-PASEO_CTO_TAG=v10.8.2
+PASEO_CTO_TAG=v11.0.1
 codex plugin marketplace add maggnus/agentic-plugins --ref "$PASEO_CTO_TAG"
 codex plugin add paseo-cto@maggnus
 codex plugin add russian-speech@maggnus
@@ -116,7 +116,7 @@ codex plugin list
 ```
 
 The required source is GitHub `maggnus/agentic-plugins`; the required `paseo-cto` version is
-`10.8.2`.
+`11.0.1`.
 
 ## work.py
 
@@ -127,21 +127,23 @@ inside the installed plugin:
 - Codex: `~/.codex/plugins/cache/maggnus/paseo-cto/*/skills/paseo-cto/templates/work.py`;
 - Claude Code: `~/.claude/plugins/cache/maggnus/paseo-cto/*/skills/paseo-cto/templates/work.py`.
 
-If several versions are present, use the copy from `paseo-cto` version `10.8.2` installed from the
+If several versions are present, use the copy from `paseo-cto` version `11.0.1` installed from the
 GitHub source above.
 
 ## Change and validation rules
 
-- Repository code is written only by `codex/gpt-5.6-sol`: use `high` for local, mechanically
-  bounded changes and `xhigh` for architecture, state, security, concurrency, and cross-component
-  boundaries. Research, architecture analysis, and experiment design use `codex/gpt-5.6-sol` at
-  `max`. Weaker GPT, GLM, and Claude profiles may run tests, search for counterexamples, review
-  results, or participate in controlled POC experiments, but they do not author repository code,
-  test code, research conclusions, or plans; any resulting fix returns to a Sol author.
-- Keep one read-only `codex/gpt-5.6-sol` `max` researcher attached to the scientific component
-  across experiment-design and interpretation work. Consult it before changing a hypothesis,
-  oracle regime, arm definition, budget comparison, metric, causal claim, or POC conclusion. Its
-  report informs the CTO contract but never substitutes for executable or controlled evidence.
+- Development and independent review use `codex/gpt-5.6-sol` at `medium` through `xhigh` or
+  `claude/claude-opus-5` at `high` through `xhigh`, selected by the CTO according to the outcome
+  and risk. Prefer a reviewer from the other family. The current CTO uses `codex/gpt-6-astra`.
+- Keep one read-only scientific researcher attached across experiment design and interpretation:
+  `claude/claude-fable-5-1` at `xhigh` by default; use `codex/gpt-6-astra` when a named scientific
+  or architecture question needs it. Consult the researcher before changing a hypothesis, oracle
+  regime, experimental condition, metric, causal claim, or POC conclusion. Its report informs the
+  contract and never replaces executable or controlled evidence.
+- This is a research project. Good code supports short, observable product increments. Start from
+  an end-to-end proving path, retain independent review and critical integrity boundaries, and
+  defer depth that does not change the next product or scientific decision. The current owner
+  direction is recorded in `ymp-docs/work/backlog/OWNER-DIRECTION-20260906.md`.
 - GPT, GLM, and Claude are the only model families executed for development, testing, review, or
   POC participation. Other model routes may remain documented as possible integrations, but they
   are not run unless the owner explicitly changes this allowlist.
