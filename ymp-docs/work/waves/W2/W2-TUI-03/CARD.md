@@ -38,7 +38,7 @@ No kernel, budget, authorization, verifier or provider-disclosure semantics chan
 
 Read the accepted W2-UX-02 handoff, USER_JOURNEY, ymp-tui state/projection/render/session modules and tests. Exclusive zone: ymp-rust/crates/ymp-tui/ and its production-preview example. No Application, domain, storage, runtime, verifier, Cargo lockfile, design or research changes.
 
-Before dispatch the CTO and author bind the exact first slice to at most ten named existing files in this crate. If the accepted design cannot be implemented within this bound, split along the rendering/navigation or projection boundary before coding. Preserve supported commands; future capabilities stay expressly unavailable.
+The accepted eight-production-file handoff is implemented in three observable atoms: frame/text, navigation/focus, and Application-backed board reading. Test and preview updates count in each explicit task zone (at most ten files). Shared source files make the sequence serial. Preserve supported commands; future capabilities stay expressly unavailable.
 
 ## Aggregate acceptance
 
@@ -55,7 +55,10 @@ Awaiting the reviewed interaction design and exact file binding. This card canno
 
 ## Tasks
 
-One bounded implementation atom, split before dispatch if the accepted design requires independent outcomes.
+Three required implementation tasks. Each can be observed and reviewed independently; this card closes only when all3 tasks and its aggregate acceptance hold. No extra architecture study is introduced.
+- [W2-TUI-03a](tasks/W2-TUI-03a.md) — required
+- [W2-TUI-03b](tasks/W2-TUI-03b.md) — required
+- [W2-TUI-03c](tasks/W2-TUI-03c.md) — required
 
 ## Review rounds
 

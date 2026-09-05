@@ -2,7 +2,7 @@
 id: W2-UX-02
 kind: card
 wave: W2
-state: ready
+state: rework
 risk: significant
 maturity: DESIGN
 relation: required
@@ -10,9 +10,9 @@ depends_on: [W2-DEF-01]
 blocks: [W2-TUI-03]
 created_at: 2026-09-06T02:26:51+08:00
 updated_at: 2026-09-06T02:26:51+08:00
-started_at:
+started_at: 2026-09-06T03:11:50+08:00
 accepted_at:
-candidate_commit:
+candidate_commit: https://github.com/maggnus/ymp/commit/61ad762b21cf700f505908519b05b52aff311393
 closure_commit:
 evidence:
 duration_minutes: 0
@@ -20,7 +20,7 @@ blocker:
 pause_reason:
 return_trigger:
 deliberate_partial: false
-review_rounds: 0
+review_rounds: 1
 escalation_decision:
 ---
 
@@ -62,6 +62,7 @@ One design atom. No full workspace suite or model experiment. Return changed scr
 ## Review rounds
 
 Recorded by the CTO ledger.
+- R1(6/10) RETURN 06/09 03:44 — Внутри терминальных кадров остались комментарии о зрелости реализации и калька «материальный». Первый срез в8 файлах исполним; геометрия принята.
 
 ## Closure
 

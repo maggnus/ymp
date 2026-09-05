@@ -132,5 +132,8 @@
 | `[x]` | [`W1-PRD-05k`](waves/W1/W1-PRD-05/tasks/W1-PRD-05k.md) | P11: the origin participant starts through the product surface | [`30d8e1c3`](https://github.com/maggnus/ymp/commit/30d8e1c39e96f1f9252554050d06c8b3dc36ef78) | 16/08 12:25 | 16/08 15:10 (2h45m) |
 | `[x]` | [`W2-DEF-01`](waves/W2/W2-DEF-01/CARD.md) | The current contract tests cumulative knowledge without an equal-budget victory gate | [`6cc81764`](https://github.com/maggnus/ymp/commit/6cc81764989887e3ec7ffd0ec8580ea6db389c45) | 06/09 02:45 | 06/09 03:07 (0m) |
 | `[ ]` | [`W2-TUI-03`](waves/W2/W2-TUI-03/CARD.md) | The production TUI exposes the first coherent conversation and inspection path | — | — | — |
-| `[ ]` | [`W2-UX-02`](waves/W2/W2-UX-02/CARD.md) | The complete user journey has one coherent terminal interaction design | — | — | — |
+| `[ ]` | [`W2-TUI-03a`](waves/W2/W2-TUI-03/tasks/W2-TUI-03a.md) | Conversation frame and Cyrillic text remain readable at three terminal sizes | — | — | — |
+| `[ ]` | [`W2-TUI-03b`](waves/W2/W2-TUI-03/tasks/W2-TUI-03b.md) | Slash navigation preserves input and performs no action while browsing | — | — | — |
+| `[ ]` | [`W2-TUI-03c`](waves/W2/W2-TUI-03/tasks/W2-TUI-03c.md) | Operator reads attributed inert board messages through Application | — | — | — |
+| `[~]` | [`W2-UX-02`](waves/W2/W2-UX-02/CARD.md) | The complete user journey has one coherent terminal interaction design | [`61ad762b`](https://github.com/maggnus/ymp/commit/61ad762b21cf700f505908519b05b52aff311393) | 06/09 03:11 | 06/09 02:26 (0m) |
 | `[x]` | [`W1-APP-02aa`](waves/W1/W1-APP-02/tasks/W1-APP-02aa.md) | Quitting kills a probe that outlives the 5 s bound | [`a19c4807`](https://github.com/maggnus/ymp/commit/a19c480742f44b13021aab9c47cb149635024d92) | 16/08 09:30 | 16/08 11:45 (2h15m) |
