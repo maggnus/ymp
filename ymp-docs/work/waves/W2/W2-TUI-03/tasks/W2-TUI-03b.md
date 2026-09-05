@@ -7,7 +7,7 @@ state: ready
 risk: significant
 maturity: BUILD
 relation: required
-depends_on: [W2-TUI-03a]
+depends_on: [W2-TUI-03a, W2-TUI-03d]
 blocks: [W2-TUI-03c]
 created_at: 2026-09-06T03:49:08+08:00
 updated_at: 2026-09-06T03:49:08+08:00

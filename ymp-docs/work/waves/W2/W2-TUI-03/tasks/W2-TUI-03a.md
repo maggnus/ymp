@@ -3,7 +3,7 @@ id: W2-TUI-03a
 kind: task
 wave: W2
 card: W2-TUI-03
-state: ready
+state: rework
 risk: significant
 maturity: BUILD
 relation: required
@@ -11,9 +11,9 @@ depends_on: [W2-UX-02]
 blocks: [W2-TUI-03b]
 created_at: 2026-09-06T03:49:08+08:00
 updated_at: 2026-09-06T03:49:08+08:00
-started_at:
+started_at: 2026-09-06T04:05:04+08:00
 accepted_at:
-candidate_commit:
+candidate_commit: https://github.com/maggnus/ymp/commit/8348652d7caad00058a114bb1f944d19817a3641
 closure_commit:
 evidence:
 duration_minutes: 0
@@ -21,7 +21,7 @@ blocker:
 pause_reason:
 return_trigger:
 deliberate_partial: false
-review_rounds: 0
+review_rounds: 1
 escalation_decision:
 ---
 
@@ -70,6 +70,7 @@ None yet. A newly necessary independent outcome is reported before scope grows.
 ## Review rounds
 
 Recorded by the CTO ledger.
+- R1(5/10) RETURN 06/09 04:47 — Стартовое приглашение скрывает реальные реплики; на широком экране теряется текущая операция; длинная причина invalid выходит за границу. Независимый исполняемый пример ещё не запущен.
 
 ## Closure
 

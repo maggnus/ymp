@@ -55,10 +55,11 @@ Awaiting the reviewed interaction design and exact file binding. This card canno
 
 ## Tasks
 
-Three required implementation tasks. Each can be observed and reviewed independently; this card closes only when all3 tasks and its aggregate acceptance hold. No extra architecture study is introduced.
+Four required outcomes: the original three implementation slices plus the bounded pre-existing field-sanitization defect discovered in a’s review. The new d outcome is batched with a’s correction and changes no new subsystem; a/d precede b, then c. Each retains its own acceptance. No extra architecture study is introduced.
 - [W2-TUI-03a](tasks/W2-TUI-03a.md) — required
 - [W2-TUI-03b](tasks/W2-TUI-03b.md) — required
 - [W2-TUI-03c](tasks/W2-TUI-03c.md) — required
+- [W2-TUI-03d](tasks/W2-TUI-03d.md) — required
 
 ## Review rounds
 
