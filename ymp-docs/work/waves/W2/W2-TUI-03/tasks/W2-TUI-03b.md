@@ -63,7 +63,7 @@ No Application/domain/runtime/verifier/storage/dependency or protected-oracle ch
 
 ## Findings
 
-None yet. A newly necessary independent outcome is reported before scope grows.
+UX-02 review minor: the /pool fixture says that complete limit enforcement is not yet promised. When this page is implemented, show available facts/actions without speaking in roadmap or implementation terms. This is an authorized bounded wording correction; do not change real limit semantics.
 
 ## Review rounds
 

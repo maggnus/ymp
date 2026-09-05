@@ -35,7 +35,7 @@ The production conversation frame becomes the first visible implementation of th
 
 ### In
 
-Read AGENTS, the accepted W2-UX-02 source revision named at dispatch, VISUAL_CONCEPT and the current TUI test helpers. The geometry/contrast already accepted by the design review is the reference.
+Read AGENTS, accepted W2-UX-02 source `e1d6afa71190221e2d52fa2d129d05b865466d37` (integrated at `5d29f0d1d8242b14d1ecd6905f4c6f673661993f`), VISUAL_CONCEPT and the current TUI test helpers. The geometry/contrast already accepted by the design review is the reference.
 
 Exclusive files under ymp-rust/crates/ymp-tui: src/ui.rs, src/projection.rs, src/transcript.rs, src/text.rs; tests/surfaces.rs, tests/live_session.rs, tests/support/mod.rs, tests/framework_inventory.rs, tests/state_binding.rs; examples/preview.rs. Ten files maximum, only those actually needed. Preserve stable API fields where possible. Update tests only for intentional changed behavior and retain independent semantic assertions.
 
@@ -53,7 +53,7 @@ Slash-command state changes and a new board page belong to b/c. Application-gene
 
 ## Current state
 
-Awaiting UX-02 acceptance. First implementation atom; the whole TUI card remains open until b/c.
+UX-02 is accepted; Opus independently accepted this first code contract in the same handoff review. Start only this atom. The whole TUI card remains open until b/c.
 
 ## Next action
 

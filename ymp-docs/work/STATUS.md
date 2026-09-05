@@ -135,5 +135,5 @@
 | `[ ]` | [`W2-TUI-03a`](waves/W2/W2-TUI-03/tasks/W2-TUI-03a.md) | Conversation frame and Cyrillic text remain readable at three terminal sizes | — | — | — |
 | `[ ]` | [`W2-TUI-03b`](waves/W2/W2-TUI-03/tasks/W2-TUI-03b.md) | Slash navigation preserves input and performs no action while browsing | — | — | — |
 | `[ ]` | [`W2-TUI-03c`](waves/W2/W2-TUI-03/tasks/W2-TUI-03c.md) | Operator reads attributed inert board messages through Application | — | — | — |
-| `[~]` | [`W2-UX-02`](waves/W2/W2-UX-02/CARD.md) | The complete user journey has one coherent terminal interaction design | [`61ad762b`](https://github.com/maggnus/ymp/commit/61ad762b21cf700f505908519b05b52aff311393) | 06/09 03:11 | 06/09 02:26 (0m) |
+| `[x]` | [`W2-UX-02`](waves/W2/W2-UX-02/CARD.md) | The complete user journey has one coherent terminal interaction design | [`5d29f0d1`](https://github.com/maggnus/ymp/commit/5d29f0d1d8242b14d1ecd6905f4c6f673661993f) | 06/09 03:11 | 06/09 04:00 (0m) |
 | `[x]` | [`W1-APP-02aa`](waves/W1/W1-APP-02/tasks/W1-APP-02aa.md) | Quitting kills a probe that outlives the 5 s bound | [`a19c4807`](https://github.com/maggnus/ymp/commit/a19c480742f44b13021aab9c47cb149635024d92) | 16/08 09:30 | 16/08 11:45 (2h15m) |

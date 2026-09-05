@@ -2,7 +2,7 @@
 id: W2-UX-02
 kind: card
 wave: W2
-state: rework
+state: accepted
 risk: significant
 maturity: DESIGN
 relation: required
@@ -11,16 +11,17 @@ blocks: [W2-TUI-03]
 created_at: 2026-09-06T02:26:51+08:00
 updated_at: 2026-09-06T02:26:51+08:00
 started_at: 2026-09-06T03:11:50+08:00
-accepted_at:
-candidate_commit: https://github.com/maggnus/ymp/commit/61ad762b21cf700f505908519b05b52aff311393
-closure_commit:
+accepted_at: 2026-09-06T04:00:27+08:00
+candidate_commit: https://github.com/maggnus/ymp/commit/e1d6afa71190221e2d52fa2d129d05b865466d37
+closure_commit: https://github.com/maggnus/ymp/commit/5d29f0d1d8242b14d1ecd6905f4c6f673661993f
 evidence:
+  - [Candidate e1d6afa71190](https://github.com/maggnus/ymp/commit/e1d6afa71190221e2d52fa2d129d05b865466d37)
 duration_minutes: 0
 blocker:
 pause_reason:
-return_trigger:
-deliberate_partial: false
-review_rounds: 1
+return_trigger: Implement W2-TUI-03b.
+deliberate_partial: true
+review_rounds: 2
 escalation_decision:
 ---
 
@@ -44,16 +45,16 @@ Design a complete sequence and explicitly mark implemented, first-slice and late
 
 ## Aggregate acceptance
 
-- [ ] A complete readable journey from the exact Russian goal to a result and revision exists; technical settings are on demand.
-- [ ] 80x24, 120x40 and 180x50 have a deliberate layout with readable Cyrillic, bounded chrome, no overlap and consistent navigation/focus rules.
-- [ ] Empty, active, failure, cancellation and terminal result states show truthful next actions; data fixtures map to real or expressly unavailable projections.
-- [ ] HTML is the exact screen/state/fixture authority; PDF is generated locally without network assets and visually inspected. VISUAL_CONCEPT states the same semantics.
-- [ ] First implementation slice is named precisely: conversation shell, slash navigation, compact status and existing read-only inspection; unavailable intent/knowledge/multi-participant behavior is labelled.
-- [ ] Read-only independent review walks the screens and a contrary fixture (fabricated active team or selection causing a mutation) is rejected by the documented interaction contract. Link/path and diff checks pass.
+- [x] A complete readable journey from the exact Russian goal to a result and revision exists; technical settings are on demand.
+- [x] 80x24, 120x40 and 180x50 have a deliberate layout with readable Cyrillic, bounded chrome, no overlap and consistent navigation/focus rules.
+- [x] Empty, active, failure, cancellation and terminal result states show truthful next actions; data fixtures map to real or expressly unavailable projections.
+- [x] HTML is the exact screen/state/fixture authority; PDF is generated locally without network assets and visually inspected. VISUAL_CONCEPT states the same semantics.
+- [x] First implementation slice is named precisely: conversation shell, slash navigation, compact status and existing read-only inspection; unavailable intent/knowledge/multi-participant behavior is labelled.
+- [x] Read-only independent review walks the screens and a contrary fixture (fabricated active team or selection causing a mutation) is rejected by the documented interaction contract. Link/path and diff checks pass.
 
 ## Current state
 
-The revised definition is accepted at 6cc8176. Opus confirmed this UX contract can start without another overview round. The user journey is ahead of the TUI; rejected design must not be cosmetically relabelled.
+Accepted after Opus delta review9/10 at e1d6afa, integrated at5d29f0d. The design is an18-sheet reference with20 required states and5 variants; production code and empirical POC are not accepted by this card.
 
 ## Tasks
 
@@ -63,17 +64,18 @@ One design atom. No full workspace suite or model experiment. Return changed scr
 
 Recorded by the CTO ledger.
 - R1(6/10) RETURN 06/09 03:44 — Внутри терминальных кадров остались комментарии о зрелости реализации и калька «материальный». Первый срез в8 файлах исполним; геометрия принята.
+- R2(9/10) ACCEPT 06/09 03:58 — [delta] Служебный текст и кальки удалены; геометрия и точные PNG сохранены. Первый договор03a стартуем; остаток страницы пула передан03b.
 
 ## Closure
 
 ### Accepted outcome
 
-Pending.
+Independent Opus delta ACCEPT9/10:20 states plus5 variants on18 sheets, coherent user journey and8-file handoff. Internal implementation text and calques removed. DESIGN only; no implemented TUI claim.
 
 ### Residuals
 
-Pending.
+- Minor /pool wording is carried by W2-TUI-03b; production implementation and empirical POC remain unverified.
 
 ### Evidence
 
-Pending.
+- [Candidate e1d6afa71190](https://github.com/maggnus/ymp/commit/e1d6afa71190221e2d52fa2d129d05b865466d37)
