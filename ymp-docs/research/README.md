@@ -85,3 +85,7 @@ The read-only Sol max scientific researcher is consulted before a hypothesis, or
 budget comparison, metric, causal claim, or POC conclusion changes. Its analysis informs a work
 contract but cannot substitute for executable checks, controlled interventions, or accepted
 artifacts.
+
+## Current literature consultations
+
+- **LIT-001** — [lit-001-cumulative-knowledge-minimum.md](lit-001-cumulative-knowledge-minimum.md) — Fable 5.1 advisory input for the revised cumulative-knowledge POC; no frozen experiment or observed result.

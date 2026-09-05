@@ -7,7 +7,7 @@ risk: significant
 maturity: DESIGN
 relation: required
 depends_on: [W2-DEF-01]
-blocks: []
+blocks: [W2-TUI-03]
 created_at: 2026-09-06T02:26:51+08:00
 updated_at: 2026-09-06T02:26:51+08:00
 started_at:

@@ -3,7 +3,7 @@ id: W2
 kind: wave
 state: ready
 areas: [DEF, UX, TUI]
-plan_review_state: pending
+plan_review_state: returned
 plan_review_evidence:
 plan_review_at:
 created_at: 2026-09-06T02:26:51+08:00
@@ -33,3 +33,5 @@ After this wave, the CTO opens the next bounded slice for the remaining Russian 
 ## Plan review
 
 Pending independent review before the first builder. Attack scope, closure, dependencies and whether the first visible increment is actually reachable. The review also covers the first DEF contract; do not create a second review merely to restate it.
+
+- R1(8/10) RETURN 06/09 02:34 — the scientific consultation lacked an explicit supplying role → CTO owns collection and freezes the source before dispatch → no builder must create an agent; old out-of-zone comparison prose is an explicit residue, and reverse dependency links are recorded.

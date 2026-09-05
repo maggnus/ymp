@@ -7,7 +7,7 @@ risk: significant
 maturity: RESEARCH
 relation: required
 depends_on: []
-blocks: []
+blocks: [W2-UX-02]
 created_at: 2026-09-06T02:26:51+08:00
 updated_at: 2026-09-06T02:26:51+08:00
 started_at:
@@ -28,7 +28,7 @@ escalation_decision:
 
 ## Outcome
 
-A new contributor reads the current entry points and understands that ymp aims to accumulate transferable knowledge, that coherent TUI quality is required, and that a bounded empirical conclusion can be positive, negative or inconclusive. The old same-budget, best-of-11 and thousands-of-tasks requirements are historical and do not gate current delivery.
+A new contributor reads the nine named current entry points and understands that ymp aims to accumulate transferable knowledge, that coherent TUI quality is required, and that a bounded empirical conclusion can be positive, negative or inconclusive. The old same-budget, best-of-11 and thousands-of-tasks requirements are historical and do not gate current delivery.
 
 ## Invariants
 
@@ -36,7 +36,7 @@ Preserve exact independent acceptance, immutable evidence, finite authorized res
 
 ## Scope
 
-Read AGENTS, OWNER-DIRECTION-20260906, USER_JOURNEY, the previous study PROTOCOL, and current research records. Obtain the standing researcher's bounded recommendation before writing the scientific reformulation.
+Read AGENTS, OWNER-DIRECTION-20260906, USER_JOURNEY, the previous study PROTOCOL, and current research records. The CTO has persisted the standing researcher's bounded recommendation in `ymp-docs/research/lit-001-cumulative-knowledge-minimum.md`; the dispatch binds that source to its exact Git baseline. The builder never contacts or creates an agent. The consultation is advisory: suggested task pairs and the note carrier are not frozen experimental decisions.
 
 Exclusive write zone: ymp-docs/README.md, CONCEPT.md, ROADMAP.md, PROJECT-CONTRACT.md, DECISIONS.md; ymp-docs/research/README.md and new rdr-002-cumulative-knowledge-poc.md; root STAGES.md and HANDOFF.md. Nine files maximum. No Rust, dependencies, old frozen manifests, accepted task records, settings or work-tree mutations. The CTO updates operational work records.
 
@@ -52,7 +52,7 @@ The new research record separates candidate knowledge, demonstrated transfer, co
 
 ## Current state
 
-Owner changed the objective before new collection. Current entry points still carry the old claim. No new causal result exists.
+Owner changed the objective before new collection. Current entry points still carry the old claim. No new causal result exists. The Fable consultation is persisted; implementation awaits the corrected plan review.
 
 ## Tasks
 
@@ -70,7 +70,7 @@ Pending.
 
 ### Residuals
 
-Pending.
+ARCHITECTURE, PROTOCOL and REPUTATION may retain old comparative-method passages outside this nine-file atom. The new current entry points must explicitly supersede those passages for product gating. Harmonize the remaining prose when its owning implementation or research slice next changes; no old passage can restore the abandoned gate.
 
 ### Evidence
 
