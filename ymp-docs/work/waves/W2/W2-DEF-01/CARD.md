@@ -44,7 +44,7 @@ The new research record separates candidate knowledge, demonstrated transfer, co
 
 ## Aggregate acceptance
 
-- [ ] Current README/CONCEPT/ROADMAP name cumulative transfer and coherent user experience as the goal; same-budget superiority and the old corpus size are not current product gates.
+- [ ] Current README/CONCEPT/ROADMAP name cumulative transfer and coherent user experience as the goal; same-budget superiority and the old corpus size are not current product gates. They explicitly supersede conflicting comparative-method passages retained in ARCHITECTURE, PROTOCOL and REPUTATION.
 - [ ] A source-linked research decision states what counts as candidate knowledge, transfer, negative findings and an honest POC conclusion. A failed runtime alone cannot be called a negative transfer result.
 - [ ] The first exploratory path is feasible to prepare without launching models; live task set and limits are frozen before live collection. Cost is recorded, not a required equal-cost victory.
 - [ ] STAGES and HANDOFF distinguish implemented, designed and untested behavior and prioritize one first visible increment. Remove misleading inherited completion percentages unless computable under the revised criteria.
@@ -52,7 +52,7 @@ The new research record separates candidate knowledge, demonstrated transfer, co
 
 ## Current state
 
-Owner changed the objective before new collection. Current entry points still carry the old claim. No new causal result exists. The Fable consultation is persisted; implementation awaits the corrected plan review.
+Owner changed the objective before new collection. Current entry points still carry the old claim. No new causal result exists. The Fable consultation is persisted; the corrected plan and contract review is accepted.
 
 ## Tasks
 
