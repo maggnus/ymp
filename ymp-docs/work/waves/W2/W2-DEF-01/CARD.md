@@ -2,7 +2,7 @@
 id: W2-DEF-01
 kind: card
 wave: W2
-state: ready
+state: accepted
 risk: significant
 maturity: RESEARCH
 relation: required
@@ -10,17 +10,18 @@ depends_on: []
 blocks: [W2-UX-02]
 created_at: 2026-09-06T02:26:51+08:00
 updated_at: 2026-09-06T02:26:51+08:00
-started_at:
-accepted_at:
-candidate_commit:
-closure_commit:
+started_at: 2026-09-06T02:45:21+08:00
+accepted_at: 2026-09-06T03:07:38+08:00
+candidate_commit: https://github.com/maggnus/ymp/commit/6cc81764989887e3ec7ffd0ec8580ea6db389c45
+closure_commit: https://github.com/maggnus/ymp/commit/6cc81764989887e3ec7ffd0ec8580ea6db389c45
 evidence:
+  - [Candidate 6cc817649898](https://github.com/maggnus/ymp/commit/6cc81764989887e3ec7ffd0ec8580ea6db389c45)
 duration_minutes: 0
 blocker:
 pause_reason:
-return_trigger:
-deliberate_partial: false
-review_rounds: 0
+return_trigger: Harmonize the three documents at their next owning implementation/research change.
+deliberate_partial: true
+review_rounds: 1
 escalation_decision:
 ---
 
@@ -44,15 +45,15 @@ The new research record separates candidate knowledge, demonstrated transfer, co
 
 ## Aggregate acceptance
 
-- [ ] Current README/CONCEPT/ROADMAP name cumulative transfer and coherent user experience as the goal; same-budget superiority and the old corpus size are not current product gates. They explicitly supersede conflicting comparative-method passages retained in ARCHITECTURE, PROTOCOL and REPUTATION.
-- [ ] A source-linked research decision states what counts as candidate knowledge, transfer, negative findings and an honest POC conclusion. A failed runtime alone cannot be called a negative transfer result.
-- [ ] The first exploratory path is feasible to prepare without launching models; live task set and limits are frozen before live collection. Cost is recorded, not a required equal-cost victory.
-- [ ] STAGES and HANDOFF distinguish implemented, designed and untested behavior and prioritize one first visible increment. Remove misleading inherited completion percentages unless computable under the revised criteria.
-- [ ] Verify changed Markdown links/paths and git diff --check. Adversarial reading: an old frozen protocol, a large archive or a fluent transcript cannot independently close the new POC.
+- [x] Current README/CONCEPT/ROADMAP name cumulative transfer and coherent user experience as the goal; same-budget superiority and the old corpus size are not current product gates. They explicitly supersede conflicting comparative-method passages retained in ARCHITECTURE, PROTOCOL and REPUTATION.
+- [x] A source-linked research decision states what counts as candidate knowledge, transfer, negative findings and an honest POC conclusion. A failed runtime alone cannot be called a negative transfer result.
+- [x] The first exploratory path is feasible to prepare without launching models; live task set and limits are frozen before live collection. Cost is recorded, not a required equal-cost victory.
+- [x] STAGES and HANDOFF distinguish implemented, designed and untested behavior and prioritize one first visible increment. Remove misleading inherited completion percentages unless computable under the revised criteria.
+- [x] Verify changed Markdown links/paths and git diff --check. Adversarial reading: an old frozen protocol, a large archive or a fluent transcript cannot independently close the new POC.
 
 ## Current state
 
-Owner changed the objective before new collection. Current entry points still carry the old claim. No new causal result exists. The Fable consultation is persisted; the corrected plan and contract review is accepted.
+Accepted at 6cc8176 after independent Opus review (9/10). The nine current entry points and RDR-002 carry the revised goal; no product or empirical result is claimed. Remaining back-links are recorded below.
 
 ## Tasks
 
@@ -61,17 +62,18 @@ This card is one documentation/research atom. Builder returns a local commit and
 ## Review rounds
 
 Recorded by the CTO ledger.
+- R1(9/10) ACCEPT 06/09 03:06 — Девять точек входа соответствуют цели накопления и переноса; ложное закрытие POC исключено. Остаток: обратные ссылки в трёх старых документах.
 
 ## Closure
 
 ### Accepted outcome
 
-Pending.
+Current product entry points and RDR-002 define cumulative knowledge/transfer, coherent TUI and bounded POC conclusions; old comparison gates are historical. Opus independent ACCEPT 9/10; documentation-only change.
 
 ### Residuals
 
-ARCHITECTURE, PROTOCOL and REPUTATION may retain old comparative-method passages outside this nine-file atom. The new current entry points must explicitly supersede those passages for product gating. Harmonize the remaining prose when its owning implementation or research slice next changes; no old passage can restore the abandoned gate.
+- Current nine-file outcome met; reverse links in three historical comparison documents remain. No runtime, transfer effect or complete POC accepted.
 
 ### Evidence
 
-Pending.
+- [Candidate 6cc817649898](https://github.com/maggnus/ymp/commit/6cc81764989887e3ec7ffd0ec8580ea6db389c45)

@@ -1,7 +1,7 @@
 ---
 id: W2
 kind: wave
-state: ready
+state: active
 areas: [DEF, UX, TUI]
 plan_review_state: accepted
 plan_review_evidence: https://github.com/maggnus/ymp/commit/420401cee719c85c4533be6f907371873b97e63a

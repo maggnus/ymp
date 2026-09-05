@@ -36,7 +36,7 @@ The main surface is a conversation and compact observed progress. No mandatory i
 
 ## Scope
 
-Read USER_JOURNEY, DESIGN_CONTEXT, revised CONCEPT, current VISUAL_CONCEPT and HTML/PDF, existing TUI state/projection/navigation, and Application::operator_board_projection. The rejected 893a7d1 is not a starting template.
+Read USER_JOURNEY, DESIGN_CONTEXT, revised CONCEPT (definition accepted at `6cc81764989887e3ec7ffd0ec8580ea6db389c45`), current VISUAL_CONCEPT and HTML/PDF, existing TUI state/projection/navigation, and Application::operator_board_projection. The rejected 893a7d1 is not a starting template.
 
 Exclusive write zone: ymp-docs/VISUAL_CONCEPT.md, ymp-docs/design/ymp_chat_tui.dc.html, ymp-docs/design/ymp_chat_tui.pdf. Temporary local render evidence may be outside the repository. No product code, research decisions, work records or new runtime authority.
 
@@ -53,7 +53,7 @@ Design a complete sequence and explicitly mark implemented, first-slice and late
 
 ## Current state
 
-The approved user journey is ahead of the current TUI. Existing rejected design must not be cosmetically relabelled.
+The revised definition is accepted at 6cc8176. Opus confirmed this UX contract can start without another overview round. The user journey is ahead of the TUI; rejected design must not be cosmetically relabelled.
 
 ## Tasks
 
