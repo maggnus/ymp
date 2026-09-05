@@ -6,53 +6,61 @@ composition and independent evaluation.
 
 ## Product goal
 
-A person writes a prompt. ymp turns it into an approved contract with a checkable acceptance
-condition, raises several agents that divide the work among themselves with no assigner above them,
-and returns a result an independent verifier accepted. What separates this from one strong agent is
-not the interface but the absence of a single executor and of a central assigner deciding what was
-produced.
+A person writes an ordinary goal. ymp turns it into a checkable contract, uses bounded agent work,
+preserves reusable candidate knowledge with provenance, and returns an exact result with independent
+evidence. On later tasks it can expose a frozen memory and test whether prior knowledge transfers
+without leaking the target or rewriting history after seeing the outcome. One or several agents may
+perform the work; agent count is not the product goal.
+
+The terminal interface is part of that result. Its main path is a coherent conversation from goal
+through progress, evidence, revision, and explicit application. Internal contracts, identifiers,
+budgets, and collaboration details remain inspectable, but the person does not operate the protocol
+to obtain a result.
 
 Every mechanical and protective decision in this project exists to make that sentence trustworthy,
 not to constrain it. The single kernel writer, the append-only control ledger, the private
 per-attempt workspaces, the invocation-scoped tool bridge, and the protected acceptance bundle are
-there so that a result can be believed and two ways of producing it can be compared. A decision that
+there so that a result can be believed and knowledge use can be tested. A decision that
 hardens the system while making that path impossible has misread its purpose: it is recorded as a
 divergence and resolved, not preserved as design.
 
 The claim below is the falsifiable half of the same goal. The goal says what the product does; the
-claim says what must be measured before the product may assert that doing it this way is better.
+claim says what must be measured before the product may assert that retained knowledge transferred.
 
 ## The bounded claim
 
-An agent is a stochastic, fallible executor. A collection of agents is not automatically more
-capable or more reliable than its strongest member. ymp therefore makes a comparative claim,
-scoped to an evaluated project class:
+An agent is a stochastic, fallible executor. A memory item is not automatically correct, useful, or
+understood. ymp therefore makes a transfer claim scoped to a frozen task and oracle regime:
 
-> Under the same total resource budget, locally coordinated search should produce a higher
-> independently accepted-result rate than both a strong single-agent baseline and independent
-> best-of-`n` search when the task is sufficiently decomposable and the acceptance oracle is valid.
+> Provenance-bound knowledge accumulated across source tasks should produce an independently
+> observable benefit on genuinely new target tasks when the memory, task sequence, receiver, and
+> acceptance oracle are frozen before collection.
 
 The claim has three explicit boundaries:
 
 1. It is **empirical**, not a theorem derived from agent count or topology.
-2. It is **class-specific**, not a promise for arbitrary projects.
+2. It is **regime-specific**, not a promise for arbitrary projects, memories, or agents.
 3. It is **oracle-relative**: `accepted` means that the exact candidate passed the approved
    observations. It does not certify unspecified intent or quality.
 
-The system must be allowed to organize into one effective worker. Research on language-model
-agents shows that communication can consume reasoning budget and amplify errors, especially on
-sequential tasks or when a strong single-agent baseline is already high. Forcing collaboration
-would contradict both the evidence and the self-organization goal.
+The result may be positive, negative, or inconclusive. A stored note, larger archive, successful
+source task, fluent transcript, or byte echo is not demonstrated transfer. Cost is recorded as an
+outcome and constraint, not used as a required equal-budget victory threshold.
+
+[RDR-002](research/rdr-002-cumulative-knowledge-poc.md) is the current research decision. It
+supersedes comparison passages retained in [ARCHITECTURE.md](ARCHITECTURE.md),
+[PROTOCOL.md](PROTOCOL.md), and [REPUTATION.md](REPUTATION.md) wherever they appear to require
+same-budget superiority, best-of-`n`, the old corpus size, or a weak-to-strong sequence for current
+delivery. Those documents continue to define valid mechanisms and possible later studies.
 
 ## Two falsifiable hypotheses
 
-ymp separates a product hypothesis from an observational research hypothesis:
+ymp separates its current product hypothesis from a possible later collective claim:
 
-1. **Instrumental reliability.** For some declared task classes, local coordination improves the
-   independently accepted-result rate over both one strong agent and independent best-of-`n`
-   search under the same total budget.
-2. **Collective reasoning.** In some runs, participants form useful coordination patterns that
-   were not prescribed by the kernel, use one another's messages causally, contribute
+1. **Cumulative knowledge.** Across an ordered source-task sequence, provenance-bound memory can
+   accumulate and produce useful transfer on genuinely new tasks under independent verification.
+2. **Collective reasoning.** In some runs, several participants may form useful coordination
+   patterns that were not prescribed by the kernel, use one another's messages causally, contribute
    complementary information, revise decisions for evidential reasons, preserve warranted
    dissent, and recover from perturbations.
 
@@ -71,11 +79,15 @@ A candidate **collective-reasoning episode** has all of the following observable
 5. the exchange improves accepted outcome, cost, calibration, or error recovery relative to an
    appropriate control.
 
-One transcript is an anecdote. Causal use requires repeated matched-budget runs in which the
+One transcript is an anecdote. Causal use requires predeclared controlled runs in which the
 message is removed, replaced by a neutral payload, shuffled across tasks, or replaced with the same
 underlying evidence delivered without another participant. The observatory records published
 summaries and externally visible actions; it neither requests nor claims access to private
 chain-of-thought.
+
+Collective benefit is not required for the current POC. Any later claim must compare the
+multi-participant condition with one agent using the same receiver profile and exact memory bytes;
+otherwise a memory benefit could be mislabelled as a collective benefit.
 
 ## What selection can and cannot do
 
@@ -258,37 +270,28 @@ not hidden rules in the first implementation.
 
 ## Falsifiability
 
-The first evaluation compares, at matched total cost:
+The cumulative-knowledge POC first prepares an executable, zero-model chain for memory digests,
+provenance, target separation, condition assignment, promised observations, honest terminal states,
+and cost accounting. Live tasks, representation, sample, budget, and decision rule are frozen only
+after that preparation and before collection.
 
-- one strong agent;
-- independent attempts plus a blinded candidate selector and the same verifier; and
-- locally negotiated self-organization.
+The first live carrier probe may compare one experience-derived item with no memory and a similarly
+sized generic memory in fresh sessions of the same receiver profile. It tests feasibility, not the
+whole POC. The later cumulative sequence must show attributable knowledge from more than one earlier
+point in a frozen memory and test it on targets that did not shape that memory. A disjoint or
+irrelevant-memory control checks susceptibility to negative transfer.
 
-Tasks are stratified by decomposability and sequential dependence. Acceptance uses protected
-checks plus a blinded human audit sample. Coordination is useful only if it improves the true
-accepted-result rate beyond independent selection by enough to justify its overhead. If it does
-not, the board is an observability feature rather than the claimed reliability mechanism.
+The claim fails when valid controlled observations show no useful transfer or show harm. It remains
+inconclusive when the planned observations or admissible sample cannot distinguish the outcomes.
+Runtime, isolation, digest, candidate, oracle, or evidence failure invalidates the affected
+observation and remains in the outcome and cost record; it is not a negative capability result. A
+participant may validly choose not to read available memory, but read-back or echo establishes only
+byte access, not understanding.
 
-The separate collective-reasoning analysis measures:
+Collective-reasoning analyses remain possible later. They require message interventions and the
+identical-memory single-agent control, and they cannot alter candidate acceptance. A general
+collective-intelligence claim cannot be inferred from a single successful run.
 
-- **positive signaling:** whether a message reflects information available to its sender;
-- **positive listening:** whether a receiver's later action changes when the message changes;
-- **task value:** whether correct messages outperform absent, neutral, or shuffled messages;
-- **separate-participant value:** whether another participant adds value beyond exposing the same
-  raw evidence to one executor;
-- **complementarity:** whether the accepted artifact causally combines non-redundant contributions
-  and beats the strongest individual and independent-selection baselines;
-- **revision quality:** whether verified evidence changes decisions while unsupported social
-  pressure does not erase a correct independent view;
-- **adaptive organization:** whether unprompted roles and communication topology change usefully
-  after task or participant perturbations; and
-- **efficiency and resilience:** outcome gain per communication cost and recovery after delayed,
-  missing, false, or conflicting messages.
-
-These are experimental measurements, not rewards or admission rules. Optimizing message count,
-agreement, self-reported confidence, eloquence, or influence would invite performance theatre and
-manipulation. A general collective-intelligence claim requires repeated out-of-sample performance
-across many tasks and groups; it cannot be inferred from a single successful run.
-
-The protocol and evaluation plan are detailed in [PROTOCOL.md](PROTOCOL.md) and
-[ROADMAP.md](ROADMAP.md).
+The current evaluation decision is detailed in
+[RDR-002](research/rdr-002-cumulative-knowledge-poc.md). [PROTOCOL.md](PROTOCOL.md) defines the
+mechanical substrate, and [ROADMAP.md](ROADMAP.md) defines the product sequence.

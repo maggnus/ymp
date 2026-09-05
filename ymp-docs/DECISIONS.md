@@ -2,20 +2,35 @@
 
 This record replaces the intuition-led first draft. It separates constitutional mechanisms from
 semantic work policy, states what evidence supports each choice, and records where transfer from a
-different research domain is only a hypothesis. Recorded 2026-08-10.
+different research domain is only a hypothesis. First recorded 2026-08-10; current objective
+revised 2026-09-06.
 
-## Product and research objectives
+## Current product and research objectives
 
-ymp has two separate falsifiable objectives:
+The owner decision of 6 September 2026 makes accumulation and transfer of reusable knowledge the
+primary scientific objective. ymp now has two coupled objectives:
 
-1. improve independently accepted results over strong single-agent and independent-search
-   baselines under the same total budget for a declared task class; and
-2. make any unprescribed collective reasoning behaviour observable and causally testable without
-   calling fluent dialogue consciousness, understanding, or a group mind.
+1. accumulate provenance-bound candidate knowledge across an ordered task sequence and test its
+   transfer to genuinely new tasks under independent verification; and
+2. provide a coherent chat-first terminal experience from an ordinary goal to an exact result,
+   its evidence, remaining uncertainty, revision, and explicit application.
 
-Failure of the second objective does not invalidate an accepted artifact. An interesting transcript
-does not rescue a rejected artifact. Neither objective permits the kernel to prescribe a semantic
-plan.
+The empirical conclusion may be positive, negative, or inconclusive for the frozen regime. A
+stored note, larger archive, fluent transcript, fake runtime, or old frozen study cannot establish
+transfer. Failure of the interface objective is a product defect even when the experimental
+substrate is sound. Neither objective permits the kernel to prescribe a semantic plan.
+
+[RDR-002](research/rdr-002-cumulative-knowledge-poc.md) records the operational definitions,
+controls, staged preparation, and decision boundary. It supersedes same-budget superiority,
+independent best-of-`n`, the old corpus threshold, and the mandatory weak-to-strong sequence as
+current POC or delivery gates. Comparison passages retained in
+[ARCHITECTURE.md](ARCHITECTURE.md), [PROTOCOL.md](PROTOCOL.md), and
+[REPUTATION.md](REPUTATION.md) describe historical or separately approved later studies and cannot
+restore those gates. Existing frozen manifests, protocols, and results remain immutable history.
+
+Collective reasoning remains a possible later research claim. It requires causal controls,
+including one agent with the same receiver profile and exact memory bytes; multiple participants
+are not required for the current cumulative-knowledge POC.
 
 ## Settled design choices
 
@@ -215,7 +230,7 @@ uncontrolled semantic search converges. Finite budgets guarantee stopping, not p
 
 | Primary source | Result used | Design consequence | Transfer limit |
 |---|---|---|---|
-| [Kim et al., “Capable language models can outgrow the benefits of collaboration”](https://www.nature.com/articles/s42256-026-01268-y) | Under fixed compute, collaboration gains depend strongly on task structure and can become negative for strong models and sequential work. | Compare one strong agent, independent best-of-`n`, and coordination at matched cost; stratify by decomposability. | Published tasks and topologies do not identify the best ymp policy on repository work. |
+| [Kim et al., “Capable language models can outgrow the benefits of collaboration”](https://www.nature.com/articles/s42256-026-01268-y) | Under fixed compute, collaboration gains depend strongly on task structure and can become negative for strong models and sequential work. | Record cost and task structure; use matched comparisons only for a separately approved collective-superiority claim. | Published tasks and topologies do not identify the best ymp policy on repository work or establish cumulative transfer. |
 | [Lorenz et al., “How social influence can undermine the wisdom of crowd effect”](https://www.pnas.org/doi/10.1073/pnas.1008636108) | Social information can reduce diversity without improving accuracy. | Commit independent first assessments before discussion. | Human estimation groups are not language-model reviewers; the mechanism remains experimental. |
 | [Kohli et al., “Nine Judges, Two Effective Votes”](https://arxiv.org/abs/2605.29800) | Nominally distinct language-model judges can have highly correlated errors. | Record independence lineage; never equate model count with independent verification. | This is a recent preprint and does not estimate every executor or task class. |
 | [Gao et al., “Scaling Laws for Reward Model Overoptimization”](https://proceedings.mlr.press/v202/gao23h.html) | Repeated optimization against a proxy can degrade the true objective. | Validate negative controls and limit adaptive oracle feedback. | Reward-model optimization is an analogy; each acceptance oracle needs its own attack study. |
@@ -339,15 +354,18 @@ wrapped producer certify its own candidate.
 
 ### 6. Budget denomination
 
-**Recommendation:** retain a vector. Use actual provider cost as the primary matched-comparison
-quantity, with wall time, model tokens, CPU, memory, disk, messages, starts, queries, and authority
-reported separately. Call a ceiling hard only when the provider or broker can enforce it.
+**Recommendation:** retain a vector. Record actual provider cost, wall time, model tokens, CPU,
+memory, disk, messages, starts, queries, and authority separately. Freeze limits for each
+experimental condition before collection and call a ceiling hard only when the provider or broker
+can enforce it. Cost informs interpretation; equal-cost superiority is not a current POC gate.
 
 ### 7. Collective-reasoning threshold
 
-**Recommendation:** preregister the primary causal contrast and minimum useful effect before data
-collection. Require replication across task and group samples. Treat information-theoretic synergy
-as exploratory until it predicts accepted outcomes beyond simpler ablations.
+**Recommendation for a later collective claim:** preregister the primary causal contrast and
+minimum useful effect before data collection. Include one agent with the exact same memory bytes,
+and require replication across task and group samples. Treat information-theoretic synergy as
+exploratory until it predicts accepted outcomes beyond simpler ablations. This is not a completion
+condition for the current cumulative-knowledge POC.
 
 ### 8. Local state and cluster evolution
 
@@ -470,5 +488,6 @@ interface that fabricates a value corrupts the judgement the comparison depends 
 ## Change rule
 
 A semantic allocation mechanism does not enter the trusted kernel. A new mechanical mechanism must
-state its invariant, fault assumptions, security effect, and a preregistered matched-budget ablation.
-If the same benefit can be obtained as a participant-local policy, it remains outside the kernel.
+state its invariant, fault assumptions, security effect, and a bounded evaluation appropriate to
+the claim, with resource use reported. If the same benefit can be obtained as a participant-local
+policy, it remains outside the kernel.

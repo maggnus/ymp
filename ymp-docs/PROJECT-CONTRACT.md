@@ -9,6 +9,12 @@ executable checks, environment definitions, and review procedures are separate a
 their own digests. Calling the prose file the “sole definition of done” hid this distinction and
 made oracle integrity impossible to reason about.
 
+For the current POC, a contract package may also govern a sequence of source and genuinely new
+target tasks used to test cumulative knowledge. [RDR-002](research/rdr-002-cumulative-knowledge-poc.md)
+defines that research boundary. The coherent chat-first terminal path is a separate product
+requirement: experimental rigor cannot compensate for an interface that makes a person operate the
+internal protocol or confuses implemented, designed, and untested behaviour.
+
 ## Package contents
 
 An approved package contains:
@@ -136,29 +142,36 @@ The kernel does not choose a candidate to test. A participant spends a scarce qu
 an exact candidate. A failed query does not automatically reveal raw hidden-test output or fund a
 retry.
 
-## Coordination-study protocol
+## Cumulative-knowledge study protocol
 
-Runs used to evaluate collective reasoning require a study specification approved separately from
-the candidate oracle. It declares:
+Runs used to evaluate accumulated knowledge require a study specification approved separately from
+each candidate oracle. Before live collection it declares:
 
-- task-class and decomposability strata;
-- single-agent, independent-search, and locally coordinated conditions;
-- matched agent-runtime, harness-policy, model-route, execution, communication, and verification
-  budgets;
-- which messages may be absent, replaced, shuffled, delayed, or delivered as raw evidence;
-- randomization unit, stochastic repetitions, exclusions, stopping rule, and primary outcomes;
-- the minimum effect considered practically useful before results are observed; and
-- retention, redaction, and publication rules for repository data and collaboration messages.
+- the ordered source tasks and genuinely new target tasks, including overlap and leakage checks;
+- candidate-knowledge extraction, representation, provenance, snapshot, and digest rules;
+- experience-derived memory, no-memory, similarly sized generic-memory, and any disjoint or
+  irrelevant-memory conditions;
+- receiver and runtime profiles, fresh-session policy, condition assignment, exact sample,
+  resource limits, stopping rule, exclusions, and primary outcomes;
+- observations promised for delivery, availability, read or tool access, candidate production,
+  independent verification, cost, and every terminal state; and
+- retention, redaction, and publication rules for repository data and memory items.
 
-The study records intentionally published summaries, artifacts, decisions, capability-boundary
-actions, and verifier evidence. It does not request private chain-of-thought. A message that sounds
-insightful is not labelled causally useful unless the preregistered intervention changes subsequent
-behaviour or outcome. Conversely, an efficient coordination pattern may be useful even when its
-messages are terse.
+The study records exact memory bytes and provenance, artifacts, decisions, boundary actions, and
+verifier evidence. It does not request private chain-of-thought. Mechanical availability, voluntary
+non-use, actual access, target outcome, and missing instrumentation are separate observations.
+Read-back proves bytes, not understanding. Infrastructure failure remains in cost and outcome logs
+and invalidates only the affected observation; it is not negative transfer or a failed solution.
 
-Communication measures never feed candidate acceptance, participant eligibility, resource
-allocation, or an intrinsic reward during the run being measured. This avoids selecting for
-agreement, verbosity, performative explanations, or manipulation of other participants.
+Cost is recorded and allowed resources are frozen per condition, but an equal-cost victory is not a
+current delivery condition. A later collective-benefit study additionally compares multiple
+participants with one agent using the same receiver profile and exact memory bytes. Communication
+measures never feed candidate acceptance, participant eligibility, resource allocation, or an
+intrinsic reward during the run being measured.
+
+The old strong-single-agent, independent-search, and coordinated matched-budget design remains a
+frozen historical protocol. It does not supply the task set, sample size, budget, decision rule, or
+completion condition for this cumulative POC.
 
 ## Oracle validation before agent search
 

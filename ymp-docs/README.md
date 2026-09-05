@@ -1,21 +1,37 @@
 # ymp
 
-A local terminal system for bounded, self-organizing work by coding agents.
+A local terminal system that helps coding agents accumulate reusable knowledge and apply it to new,
+bounded software tasks.
 
 Point ymp at a repository and give it an approved project contract. Wrapped agent runtimes may
 work alone, advertise work, accept locally negotiated commitments, decompose goals, challenge
 findings, and submit competing candidates. A small trusted kernel preserves the conditions
 under which this search remains finite, attributable, isolated, and independently testable.
 
-The instrumental product claim is deliberately bounded:
+The primary product and research claim is deliberately bounded:
 
-> For a declared class of reproducible software tasks with a validated acceptance oracle, ymp
-> aims to increase the independently accepted-result rate over both a strong single-agent
-> baseline and independent best-of-`n` search under the same total resource budget.
+> For a declared sequence of reproducible software tasks with a validated acceptance oracle, ymp
+> aims to preserve provenance-bound candidate knowledge and determine whether a frozen memory
+> transfers usefully to genuinely new tasks.
 
-This is a hypothesis to be tested, not a consequence of using more agents. Multi-agent systems
-can improve decomposable work and degrade sequential work; strong agents can also exhaust the
-benefit of collaboration. A passing candidate proves only what the approved oracle observes.
+This is a hypothesis to be tested, not a consequence of storing more notes or using more agents.
+Candidate knowledge, accumulated memory, demonstrated transfer, negative transfer, and collective
+benefit are separate claims. A passing candidate proves only what the approved oracle observes.
+The bounded POC may conclude positively, negatively, or inconclusively for its frozen regime.
+
+A coherent chat-first terminal experience is a product requirement, not presentation deferred
+until after the research. A person must be able to state an ordinary goal and understand progress,
+evidence, uncertainty, the exact result, and the next consequential decision without operating the
+internal protocol.
+
+[RDR-002](research/rdr-002-cumulative-knowledge-poc.md) defines the current scientific boundary.
+It supersedes same-budget superiority, independent best-of-`n`, the old corpus-size threshold, and
+the mandatory weak-to-strong sequence as current delivery gates. Conflicting comparison language
+retained in [ARCHITECTURE.md](ARCHITECTURE.md), [PROTOCOL.md](PROTOCOL.md), and
+[REPUTATION.md](REPUTATION.md) is historical or applies only to a separately approved later claim;
+it cannot restore those gates. Frozen study artifacts and results remain evidence of what was
+designed or observed. Cost is always recorded, but better results at the same cost are not required
+to complete the current POC.
 
 ymp has a second, observational research goal:
 
@@ -23,11 +39,11 @@ ymp has a second, observational research goal:
 > complementary contributions, evidence-driven revision, preserved justified disagreement, and
 > recovery after misleading messages or participant loss.
 
-Fluent dialogue is not evidence for this claim. The wrapped models already speak human language,
-and a persuasive transcript can be causally irrelevant to the result. ymp therefore calls these
+Fluent dialogue is not evidence for this secondary claim. The wrapped models already speak human
+language, and a persuasive transcript can be causally irrelevant to the result. ymp therefore calls these
 **behavioural signs of collective reasoning**, not proof of consciousness, understanding, or a
-group mind. Message-removal and message-replacement experiments, matched-budget baselines, and
-accepted artifacts determine whether an exchange was useful.
+group mind. Message-removal and message-replacement experiments, an identical-memory single-agent
+control, and accepted artifacts would be required before such a later claim.
 
 ## Constitution, not choreography
 
@@ -114,11 +130,12 @@ part of POC, MVP, or Alpha, and MCP is not their internal protocol.
 | [REPUTATION.md](REPUTATION.md) | Why grade was removed; contextual evidence, uncertainty, cold start, and diversity |
 | [SECURITY.md](SECURITY.md) | Threat actors, trust boundaries, enforceable containment, and residual risk |
 | [DECISIONS.md](DECISIONS.md) | Settled decisions, rejected mechanisms, research applicability, and open experiments |
-| [ROADMAP.md](ROADMAP.md) | POC, MVP, Alpha, causal communication audit, and shipping criteria |
+| [ROADMAP.md](ROADMAP.md) | POC, MVP, Alpha, cumulative transfer, and shipping criteria |
 | [INVARIANTS.md](INVARIANTS.md) | POC contracts that no implementation change may weaken silently |
 | [research/README.md](research/README.md) | Research index and boundary between scientific prose and executable study artifacts |
+| [research/rdr-002-cumulative-knowledge-poc.md](research/rdr-002-cumulative-knowledge-poc.md) | Current cumulative-knowledge POC decision, staged preparation, controls, and honest conclusions |
 | [research/cal-001-calibration.md](research/cal-001-calibration.md) | Development agent ladder, pinned low-effort profiles, measured runs, and remaining blockers |
-| [research/prt-001-weak-diagnostic.md](research/prt-001-weak-diagnostic.md) | Matched-budget weak-participant diagnostic protocol, stop/go rule, and implementation boundary |
+| [research/prt-001-weak-diagnostic.md](research/prt-001-weak-diagnostic.md) | Historical matched-budget weak-participant protocol retained as frozen research history |
 | [research/map-001-mechanism-map.md](research/map-001-mechanism-map.md) | Falsifiable coordination mechanisms, interventions, expected null strata, and scientific stop rules |
 | [VISUAL_CONCEPT.md](VISUAL_CONCEPT.md) | Chat-first composition, operator path, semantic constraints, and known implementation gaps |
 | [design/ymp_chat_tui.dc.html](design/ymp_chat_tui.dc.html) | Exact terminal screens, state variants, fixtures, and reusable-structure handoff |
@@ -133,8 +150,9 @@ core, append-only digest-linked journal, content-addressed objects, pinned Codex
 process drivers, protected development-calibration oracles, opaque digest-bound verifier evidence,
 a deterministic protocol model, and k9s-style Ratatui runtime and run views. The POC is an early
 feature stage of the production codebase rather than a disposable
-implementation. The Ratatui interface is present from the first executable because observing and
-controlling agent interaction is part of the product hypothesis. Reproducible automated tests call
+implementation. The Ratatui interface is present, but its current system-centred composition does
+not yet satisfy the approved chat-first user journey. No cumulative-memory transfer result has been
+collected. Reproducible automated tests call
 the same application core without becoming a second public interface. Strict execution initially
 targets supported Linux hosts; native macOS execution is
 explicitly best-effort in the initial one-executable release. Documents of record are in English.

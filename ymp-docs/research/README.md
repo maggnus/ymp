@@ -33,22 +33,43 @@ Architecture `adr` and general product `rfc` records remain outside this researc
 `DECISIONS.md` stays canonical until an explicit architecture-record migration. Creating a research
 record also updates this index.
 
-## Current protocols and calibration
+## Current cumulative-knowledge decision
+
+- **RDR-002** —
+  [rdr-002-cumulative-knowledge-poc.md](rdr-002-cumulative-knowledge-poc.md) — current definitions,
+  staged executable preparation, transfer and negative-transfer controls, honest outcome classes,
+  and unapproved choices for the cumulative-knowledge POC.
+
+No live cumulative-memory result exists yet. Exact tasks, corpus reuse, memory representation,
+sample, budget, and decision rule remain open until the zero-model executable preparation is
+complete and a new live authorization is granted.
+
+## Historical protocols and calibration
+
+The following records and their executable artifacts are immutable research history. They may
+supply mechanisms or prior observations, but their same-budget, best-of-`11`, corpus-size, or
+weak-to-strong requirements do not gate the current POC.
 
 - **CAL-001** — [cal-001-calibration.md](cal-001-calibration.md) — development profile ladder,
   measured runs, and promotion boundary.
 - **PRT-001** — [prt-001-weak-diagnostic.md](prt-001-weak-diagnostic.md) — diagnostic matched-budget
-  comparison on a separately frozen held-out L4+ set using weak participant profiles before the
-  frozen primary study.
+  comparison on a separately frozen held-out L4+ set using weak participant profiles before its
+  frozen historical primary study.
 
-## Current hypotheses
+## Supporting hypotheses
+
+These hypotheses remain available for future bounded studies. They do not replace RDR-002 or set a
+current delivery sequence.
 
 - **HYP-001** —
   [hyp-001-model-dependent-communication-representation.md](hyp-001-model-dependent-communication-representation.md)
   — directional sender-profile × representation × receiver-profile hypothesis, typed research
   envelope, counterhypotheses, and transfer boundary.
 
-## Current mechanism maps
+## Supporting mechanism maps
+
+These maps preserve earlier coordination questions and stop rules as research context. Any new
+experiment selects only the part needed for the next cumulative-knowledge decision.
 
 - **MAP-001** — [map-001-mechanism-map.md](map-001-mechanism-map.md) — falsifiable coordination
   mechanisms, interventions, expected null strata, and scientific stop rules.
@@ -57,12 +78,12 @@ record also updates this index.
   coordination questions, transport and profile-admission gates, observable predictions, and
   scientific stops.
 
-## Research decisions
+## Earlier research decisions
 
 - **RDR-001** —
   [rdr-001-evaluation-stage-boundaries.md](rdr-001-evaluation-stage-boundaries.md) — accepted
   separation of calibration, held-out weak diagnosis, stronger-profile transfer, interventions,
-  and the frozen primary comparison.
+  and the frozen primary comparison; superseded as a current delivery sequence by RDR-002.
 
 ## Execution records
 
@@ -81,10 +102,10 @@ record also updates this index.
 
 ## Standing review rule
 
-The read-only Sol max scientific researcher is consulted before a hypothesis, oracle regime, arm,
-budget comparison, metric, causal claim, or POC conclusion changes. Its analysis informs a work
-contract but cannot substitute for executable checks, controlled interventions, or accepted
-artifacts.
+The read-only scientific researcher selected by current project instructions is consulted before a
+hypothesis, oracle regime, experimental condition, metric, causal claim, or POC conclusion changes.
+Its analysis informs a work contract but cannot substitute for executable checks, controlled
+observations, or accepted artifacts.
 
 ## Current literature consultations
 
