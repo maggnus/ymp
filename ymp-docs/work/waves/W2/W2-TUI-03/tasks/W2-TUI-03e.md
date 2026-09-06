@@ -3,7 +3,7 @@ id: W2-TUI-03e
 kind: task
 wave: W2
 card: W2-TUI-03
-state: ready
+state: review
 risk: routine
 maturity: BUILD
 relation: required
@@ -11,9 +11,9 @@ depends_on: []
 blocks: []
 created_at: 2026-09-06T10:00:29+08:00
 updated_at: 2026-09-06T10:00:29+08:00
-started_at:
+started_at: 2026-09-06T10:08:35+08:00
 accepted_at:
-candidate_commit:
+candidate_commit: https://github.com/maggnus/ymp/commit/a432a40271be5c18e6a757ff62448a5432d7a67b
 closure_commit:
 evidence:
 duration_minutes: 0
@@ -21,7 +21,7 @@ blocker:
 pause_reason:
 return_trigger:
 deliberate_partial: false
-review_rounds: 0
+review_rounds: 1
 escalation_decision:
 ---
 
@@ -69,6 +69,7 @@ Source mismatch is a diagnosis to verify, not a permission to force tests green.
 ## Review rounds
 
 Recorded by the CTO ledger.
+- R1(9/10) ACCEPT 06/09 10:31 — Routine CTO non-author review: one test constant adds read_board and publish; strict production catalogue validation and capability-dependent request_participant exclusion unchanged. Author reports seven fixture tests plus stale-negative and corrected control, fmt an…
 
 ## Closure
 

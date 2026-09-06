@@ -2,7 +2,7 @@
 id: W2-TUI-03
 kind: card
 wave: W2
-state: ready
+state: active
 risk: significant
 maturity: BUILD
 relation: required
@@ -10,7 +10,7 @@ depends_on: [W2-UX-02, W2-UX-02a]
 blocks: []
 created_at: 2026-09-06T02:26:51+08:00
 updated_at: 2026-09-06T02:26:51+08:00
-started_at:
+started_at: 2026-09-06T04:05:04+08:00
 accepted_at:
 candidate_commit:
 closure_commit:
@@ -51,7 +51,7 @@ The accepted eight-production-file handoff is implemented in three observable at
 
 ## Current state
 
-Awaiting the reviewed interaction design and exact file binding. This card cannot claim completion of the overall POC.
+The English visual reference is integrated. Frame a and sanitation d have independent acceptance; fixture e has scoped CTO acceptance. Their combined integration check is running before serial navigation b and board c. This card cannot claim completion of the overall POC.
 
 ## Tasks
 
