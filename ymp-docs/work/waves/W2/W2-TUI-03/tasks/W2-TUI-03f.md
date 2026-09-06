@@ -3,7 +3,7 @@ id: W2-TUI-03f
 kind: task
 wave: W2
 card: W2-TUI-03
-state: active
+state: review
 risk: significant
 maturity: BUILD
 relation: required
@@ -13,7 +13,7 @@ created_at: 2026-09-06T10:41:19+08:00
 updated_at: 2026-09-06T10:41:19+08:00
 started_at: 2026-09-06T10:45:28+08:00
 accepted_at:
-candidate_commit:
+candidate_commit: https://github.com/maggnus/ymp/commit/3fa266e98914d3b904d4a9fc8a8ab54b87a8fc7b
 closure_commit:
 evidence:
 duration_minutes: 0
@@ -55,11 +55,11 @@ No changed domain effects, authorization, budget, provider readiness/disclosure,
 
 ## Current state
 
-Ready for one isolated author. a/d remain independently accepted but unmerged; no concurrent writer remains in ui.rs. Navigation b waits for this consumer regression to close.
+Candidate 3fa266e is under independent review after the complete-output positive/negative proof, twelve pool/state tests and narrow TUI checks passed. The pre-existing standing-hint assertion remains a separate failure. a has a second substantive return queued after f; no concurrent writer remains in ui.rs.
 
 ## Next action
 
-Implement the minimal complete-output path and prove that long responses no longer lose their beginning.
+Complete independent review of 774f476..3fa266e, then supply the accepted candidate to the queued a status correction.
 
 ## Guardrails
 

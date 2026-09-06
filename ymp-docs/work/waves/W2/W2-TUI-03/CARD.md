@@ -51,7 +51,7 @@ The accepted eight-production-file handoff is implemented in three observable at
 
 ## Current state
 
-The English visual reference is integrated. Frame a and sanitation d have independent acceptance; fixture e has scoped CTO acceptance. Their combined integration check is running before serial navigation b and board c. This card cannot claim completion of the overall POC.
+The English visual reference is integrated. Full candidate and baseline checks are complete with recorded failures. a is returned for no-run operation visibility; d and fixture e retain scoped acceptance. f is under independent review for complete CLI output, then a correction precedes navigation b and board c. This card cannot claim completion of the overall POC.
 
 ## Tasks
 
