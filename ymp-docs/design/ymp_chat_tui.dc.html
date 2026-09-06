@@ -231,7 +231,7 @@
     <table class="matrix" style="margin-top:5mm">
       <tr><th>Возможность</th><th>Состояние</th><th>Как показана</th></tr>
       <tr><td>Разговорный каркас, ввод, прокрутка, палитра, текущие страницы</td><td><span class="tag implemented">реализовано</span></td><td>Существующие <code>state.rs</code>, <code>ui.rs</code>, <code>projection.rs</code>, <code>app.rs</code>.</td></tr>
-      <tr><td>Отзывчивая русская оболочка, компактный статус, читаемая доска</td><td><span class="tag slice">первый срез</span></td><td>Восемь существующих файлов; без изменения серверной семантики.</td></tr>
+      <tr><td>Отзывчивая англоязычная оболочка с поддержкой Unicode, компактный статус, читаемая доска</td><td><span class="tag slice">первый срез</span></td><td>Восемь существующих файлов; без изменения серверной семантики.</td></tr>
       <tr><td>Русская нормализация цели, уточнение, знание, полный пересмотр</td><td><span class="tag future">позже</span></td><td>Экран существует как целевой дизайн, но сообщает о недоступности, пока нет проекции.</td></tr>
     </table>
     <p class="subtle" style="margin-top:3mm">25 терминальных кадров показывают 20 обязательных состояний и областей. Ещё пять кадров — диалог применения, итог после применения и три повторения рабочего состояния для разных размеров; это варианты, а не новые состояния.</p>
@@ -244,13 +244,13 @@
       <div class="caption-note">В холодном состоянии нет заставки на пять строк и нет стены сочетаний клавиш. Указан проект, готовность и один вход в навигацию.</div>
     </div>
     <div class="terminal size80">
-      <div class="term-head"><span><strong>ymp</strong> · морской-бой</span><span>новая работа</span></div>
+      <div class="term-head"><span><strong>ymp</strong> · морской-бой</span><span>new task</span></div>
       <div class="thread">
-        <div class="msg app"><span class="who">ymp</span><div class="body"><p>Что требуется сделать в этом проекте?</p><p class="muted">Можно описать результат обычными словами.</p></div></div>
-        <div class="notice"><b>Готово к началу</b> · доступен один маршрут выполнения.<br><span class="dim">Подробности и настройка: /providers</span></div>
+        <div class="msg app"><span class="who">ymp</span><div class="body"><p>What should be done in this project?</p><p class="muted">Describe the result in your own words.</p></div></div>
+        <div class="notice"><b>Ready to start</b> · one execution route is available.<br><span class="dim">Details and setup: /providers</span></div>
       </div>
-      <div class="status"><span><span class="state">ожидается цель</span> · ничего не запущено</span><span>поставщик готов</span></div>
-      <div class="prompt"><span><span class="chev">›</span> <span class="cursor">▋</span></span><span class="hint">/ команды</span></div>
+      <div class="status"><span><span class="state">waiting for a goal</span> · nothing started</span><span>provider ready</span></div>
+      <div class="prompt"><span><span class="chev">›</span> <span class="cursor">▋</span></span><span class="hint">/ commands</span></div>
     </div>
     <div class="grid3" style="margin-top:5mm">
       <div class="card"><h3>80 столбцов</h3><p>Заголовок — одна строка. Путь проекта и подробные счётчики скрыты, но доступны через палитру.</p></div>
@@ -266,15 +266,15 @@
       <div class="caption-note">Исходная фраза не превращается в имя файла, английский запрос или технический договор.</div>
     </div>
     <div class="terminal size120">
-      <div class="term-head"><span><strong>ymp</strong> · морской-бой</span><span>06 сентября · 12:31</span></div>
+      <div class="term-head"><span><strong>ymp</strong> · морской-бой</span><span>06 September · 12:31</span></div>
       <div class="thread">
-        <div class="msg app"><span class="who">ymp</span><div class="body">Что требуется сделать в этом проекте?</div></div>
-        <div class="msg user"><span class="who">вы</span><div class="body">Сделай игру «Морской бой»</div></div>
-        <div class="msg app"><span class="who">ymp</span><div class="body"><p>Цель сохранена без изменений.</p><p class="muted">Проект осматривается локально; наружу пока ничего не отправлено.</p></div></div>
-        <div class="trace"><span class="good">✓</span> проект доступен · <span class="good">✓</span> маршрут выполнения доступен</div>
+        <div class="msg app"><span class="who">ymp</span><div class="body">What should be done in this project?</div></div>
+        <div class="msg user"><span class="who">you</span><div class="body">Сделай игру «Морской бой»</div></div>
+        <div class="msg app"><span class="who">ymp</span><div class="body"><p>Goal saved without changes.</p><p class="muted">The project is being inspected locally; nothing has been sent outside.</p></div></div>
+        <div class="trace"><span class="good">✓</span> project available · <span class="good">✓</span> execution route available</div>
       </div>
-      <div class="status"><span><span class="state">цель принята</span> · следующий шаг: одно уточнение</span><span>0 участников · 0 версий</span></div>
-      <div class="prompt"><span><span class="chev">›</span> <span class="cursor">▋</span></span><span class="hint">/ команды</span></div>
+      <div class="status"><span><span class="state">goal accepted</span> · next: one clarification</span><span>0 participants · 0 versions</span></div>
+      <div class="prompt"><span><span class="chev">›</span> <span class="cursor">▋</span></span><span class="hint">/ commands</span></div>
     </div>
     <div class="grid2" style="margin-top:5mm">
       <div class="card"><h3>Точная формулировка</h3><p>Экран повторяет ровно <b>«Сделай игру „Морской бой“»</b>. Технические имена не требуются.</p></div>
@@ -289,14 +289,14 @@
       <div class="caption-note">Одновременно задан только один блокирующий вопрос. Ответ остаётся обычной репликой.</div>
     </div>
     <div class="terminal size120">
-      <div class="term-head"><span><strong>ymp</strong> · морской-бой</span><span>06 сентября · 12:32</span></div>
+      <div class="term-head"><span><strong>ymp</strong> · морской-бой</span><span>06 September · 12:32</span></div>
       <div class="thread">
-        <div class="msg user"><span class="who">вы</span><div class="body">Сделай игру «Морской бой»</div></div>
-        <div class="msg app"><span class="who">ymp</span><div class="body"><p>Игра должна запускаться в браузере или в терминале?</p><p class="muted">Это меняет способ запуска и набор проверок. Остальные правила можно принять стандартными.</p></div></div>
-        <div class="notice warn"><b>Нужно уточнение</b> · работа не начата, цель сохранена.<br><span class="dim">Ожидается один ответ; новое техническое подтверждение не требуется.</span></div>
+        <div class="msg user"><span class="who">you</span><div class="body">Сделай игру «Морской бой»</div></div>
+        <div class="msg app"><span class="who">ymp</span><div class="body"><p>Should the game run in a browser or in the terminal?</p><p class="muted">This changes how it is launched and which checks are required. The remaining rules can use standard defaults.</p></div></div>
+        <div class="notice warn"><b>Clarification needed</b> · work has not started; the goal is saved.<br><span class="dim">One answer is expected; no additional technical confirmation is required.</span></div>
       </div>
-      <div class="status"><span><span class="warn">нужно уточнение</span> · расход не начат</span><span>вопрос 1 из 1</span></div>
-      <div class="prompt"><span><span class="chev">›</span> в браузере<span class="cursor">▋</span></span><span class="hint">Enter ответить · Esc очистить</span></div>
+      <div class="status"><span><span class="warn">clarification needed</span> · no spend yet</span><span>question 1 of 1</span></div>
+      <div class="prompt"><span><span class="chev">›</span> в браузере<span class="cursor">▋</span></span><span class="hint">Enter send · Esc clear</span></div>
     </div>
     <div class="grid3" style="margin-top:5mm">
       <div class="card"><h3>Enter</h3><p>Отправляет ответ. Внутренний идентификатор не вводится.</p></div>
@@ -312,14 +312,14 @@
       <div class="caption-note">Подготовка наблюдаема, но не перекрывает разговор и не требует утверждения внутреннего договора.</div>
     </div>
     <div class="terminal size120">
-      <div class="term-head"><span><strong>ymp</strong> · морской-бой</span><span>06 сентября · 12:34</span></div>
+      <div class="term-head"><span><strong>ymp</strong> · морской-бой</span><span>06 September · 12:34</span></div>
       <div class="thread">
-        <div class="msg user"><span class="who">вы</span><div class="body">в браузере</div></div>
-        <div class="msg app"><span class="who">ymp</span><div class="body"><p>Будет подготовлена браузерная игра со стандартными правилами.</p><p class="muted">Автоматически проверяются запуск, расстановка без пересечений, ходы, попадания, промахи, завершение и новая партия. Удобство и внешний вид остаются вашей оценкой.</p></div></div>
-        <div class="trace"><b>Подготовка · 3 из 4</b><br><span class="good">✓</span> проект изучен<br><span class="good">✓</span> ожидаемый результат подготовлен<br><span class="good">✓</span> проверки подготовлены<br><span class="amber">…</span> изолированная работа создаётся</div>
+        <div class="msg user"><span class="who">you</span><div class="body">в браузере</div></div>
+        <div class="msg app"><span class="who">ymp</span><div class="body"><p>A browser game with standard rules will be prepared.</p><p class="muted">Automated checks cover launch, non-overlapping placement, turns, hits, misses, completion, and a new game. Usability and appearance remain for your evaluation.</p></div></div>
+        <div class="trace"><b>Preparing · 3 of 4</b><br><span class="good">✓</span> project inspected<br><span class="good">✓</span> expected result prepared<br><span class="good">✓</span> checks prepared<br><span class="amber">…</span> isolated work is being created</div>
       </div>
-      <div class="status"><span><span class="state">подготовка</span> · 3/4 · можно продолжать разговор</span><span>0 участников · 0 версий</span></div>
-      <div class="prompt"><span><span class="chev">›</span> <span class="cursor">▋</span></span><span class="hint">/ подробности</span></div>
+      <div class="status"><span><span class="state">preparing</span> · 3/4 · conversation remains available</span><span>0 participants · 0 versions</span></div>
+      <div class="prompt"><span><span class="chev">›</span> <span class="cursor">▋</span></span><span class="hint">/ details</span></div>
     </div>
     <div class="grid2" style="margin-top:5mm">
       <div class="card"><h3>Сворачивание</h3><p>После начала работы след заменяется одной строкой «Подготовка завершена · 4/4». Раскрытие — информационное.</p></div>
@@ -334,31 +334,31 @@
       <div class="caption-note">Ширина не расходуется на постоянную панель подсистем: справа остаётся только краткий снимок текущего состояния.</div>
     </div>
     <div class="terminal size180">
-      <div class="term-head"><span><strong>ymp</strong> · морской-бой · /Users/demo/sea-battle</span><span>06 сентября · 12:41</span></div>
+      <div class="term-head"><span><strong>ymp</strong> · морской-бой · /Users/demo/sea-battle</span><span>06 September · 12:41</span></div>
       <div class="thread split">
         <div>
-          <div class="msg app"><span class="who">ymp</span><div class="body"><p>Работа началась.</p></div></div>
-          <div class="trace"><span class="good">✓</span> Подготовка завершена · 4/4</div>
-          <div class="msg app"><span class="who">12:36</span><div class="body">Участник 1 начал работу над запускаемой браузерной версией.</div></div>
-          <div class="msg app"><span class="who">12:39</span><div class="body">Опубликована версия 1 · 6 файлов · проверка запущена независимо.</div></div>
-          <div class="msg app"><span class="who">12:41</span><div class="body"><p>Проверка версии 1 завершилась ошибкой: корабли можно поставить с пересечением.</p><p class="muted">Участник продолжает от той же версии; кандидат не принят.</p></div></div>
+          <div class="msg app"><span class="who">ymp</span><div class="body"><p>Work started.</p></div></div>
+          <div class="trace"><span class="good">✓</span> Preparation complete · 4/4</div>
+          <div class="msg app"><span class="who">12:36</span><div class="body">Participant 1 started work on a runnable browser version.</div></div>
+          <div class="msg app"><span class="who">12:39</span><div class="body">Version 1 published · 6 files · independent verification started.</div></div>
+          <div class="msg app"><span class="who">12:41</span><div class="body"><p>Version 1 verification failed: ships can overlap.</p><p class="muted">The participant continues from the same version; the candidate was not accepted.</p></div></div>
         </div>
         <aside class="side">
-          <h4>Сейчас</h4>
+          <h4>Now</h4>
           <dl>
-            <dt>состояние</dt><dd>работа идёт</dd>
-            <dt>участники</dt><dd>1 работает</dd>
-            <dt>заявлено</dt><dd>исправление расстановки</dd>
-            <dt>версия</dt><dd>1 · не принята</dd>
-            <dt>проверка</dt><dd class="bad">1 из 7 не пройдена</dd>
-            <dt>прошло</dt><dd>00:07:18</dd>
-            <dt>пределы</dt><dd>/budgets</dd>
+            <dt>state</dt><dd>work in progress</dd>
+            <dt>participants</dt><dd>1 working</dd>
+            <dt>claimed</dt><dd>placement fix</dd>
+            <dt>version</dt><dd>1 · not accepted</dd>
+            <dt>verification</dt><dd class="bad">1 of 7 failed</dd>
+            <dt>elapsed</dt><dd>00:07:18</dd>
+            <dt>limits</dt><dd>/budgets</dd>
           </dl>
-          <div class="detail"><strong>/agents</strong> · участник и заявленная работа<br><br><strong>/board</strong> · сообщения этой работы</div>
+          <div class="detail"><strong>/agents</strong> · participant and claimed work<br><br><strong>/board</strong> · messages from this work</div>
         </aside>
       </div>
-      <div class="status"><span>текущий снимок показан справа</span><span>следить: включено</span></div>
-      <div class="prompt"><span><span class="chev">›</span> <span class="cursor">▋</span></span><span class="hint">/ команды</span></div>
+      <div class="status"><span>current snapshot shown on the right</span><span>follow: on</span></div>
+      <div class="prompt"><span><span class="chev">›</span> <span class="cursor">▋</span></span><span class="hint">/ commands</span></div>
     </div>
     <p class="subtle" style="margin-top:4mm">На 180 столбцах разговор занимает не менее двух третей ширины. Боковая область не повторяет историю: она отвечает только «что истинно сейчас». На 120 столбцах эти факты сворачиваются в строку состояния; на 80 остаются состояние, число участников и проверка. Граница реализации: фиксированные данные показывают одного участника; текущая TUI предоставляет <code>/attempts</code>, чтение доски входит в первый срез, полный расход пока не доступен.</p>
     <div class="folio"></div>
@@ -370,14 +370,14 @@
       <div class="caption-note">Команда запуска обычная и внешняя. В TUI не встраиваются браузер и ручная проверка.</div>
     </div>
     <div class="terminal size120">
-      <div class="term-head"><span><strong>ymp</strong> · морской-бой</span><span>06 сентября · 12:48</span></div>
+      <div class="term-head"><span><strong>ymp</strong> · морской-бой</span><span>06 September · 12:48</span></div>
       <div class="thread">
-        <div class="msg app"><span class="who">ymp</span><div class="body"><p>Версия 1 прошла независимую автоматическую проверку.</p><p class="muted">Для внешней оценки сначала выгрузите точные байты, затем откройте файл в браузере.</p></div></div>
-        <div class="notice"><b>Выгрузить доказательства и кандидат</b><br><span class="amber">ymp export --to /tmp/ymp-sea-battle-v1</span><br><br><b>Открыть результат вне ymp</b><br><span class="amber">open /tmp/ymp-sea-battle-v1/candidate/index.html</span></div>
-        <div class="msg app"><span class="who">проверка</span><div class="body"><p class="good">7 из 7 автоматических проверок пройдены</p><p>Запуск · расстановка · ходы · попадание · промах · завершение · новая партия</p><p class="muted">Оставлено человеку: понятность, темп, управление и визуальное впечатление.</p></div></div>
+        <div class="msg app"><span class="who">ymp</span><div class="body"><p>Version 1 passed independent automated verification.</p><p class="muted">For external evaluation, export the exact bytes first, then open the file in a browser.</p></div></div>
+        <div class="notice"><b>Export evidence and candidate</b><br><span class="amber">ymp export --to /tmp/ymp-sea-battle-v1</span><br><br><b>Open the result outside ymp</b><br><span class="amber">open /tmp/ymp-sea-battle-v1/candidate/index.html</span></div>
+        <div class="msg app"><span class="who">verification</span><div class="body"><p class="good">7 of 7 automated checks passed</p><p>Launch · placement · turns · hit · miss · completion · new game</p><p class="muted">Left for human evaluation: clarity, pace, controls, and visual impression.</p></div></div>
       </div>
-      <div class="status"><span><span class="ok">проверено автоматически</span> · версия 1 · внешняя оценка ожидается</span><span>/result подробнее</span></div>
-      <div class="prompt"><span><span class="chev">›</span> <span class="cursor">▋</span></span><span class="hint">опишите впечатление или изменение</span></div>
+      <div class="status"><span><span class="ok">automatically verified</span> · version 1 · awaiting external evaluation</span><span>/result details</span></div>
+      <div class="prompt"><span><span class="chev">›</span> <span class="cursor">▋</span></span><span class="hint">describe your impression or a change</span></div>
     </div>
     <div class="grid2" style="margin-top:5mm">
       <div class="card"><h3>Существующий эффект</h3><p><code>ymp export --to DIR</code> — реальная команда. Путь открытия берётся из выгруженного результата, а не сочиняется слоем отрисовки.</p></div>
@@ -392,15 +392,15 @@
       <div class="caption-note">Отзыв человека остаётся отзывом, а не автоматически установленным фактом.</div>
     </div>
     <div class="terminal size120">
-      <div class="term-head"><span><strong>ymp</strong> · морской-бой</span><span>изменение · от версии 1</span></div>
+      <div class="term-head"><span><strong>ymp</strong> · морской-бой</span><span>revision · from version 1</span></div>
       <div class="thread">
-        <div class="msg user"><span class="who">вы</span><div class="body">Сделайте расстановку кораблей перетаскиванием и яснее покажите, чей ход.</div></div>
-        <div class="msg app"><span class="who">ymp</span><div class="body"><p>Изменение принято: перетаскивание и явный указатель хода.</p><p class="muted">Версия 1 сохранена. Будут повторены прежние обязательные проверки и проверки нового поведения.</p></div></div>
-        <div class="trace"><span class="good">✓</span> версия 2 создана от версии 1<br><span class="good">✓</span> прежние проверки · 7/7<br><span class="good">✓</span> перетаскивание · 2/2<br><span class="good">✓</span> указатель хода · 1/1</div>
-        <div class="msg app"><span class="who">ymp</span><div class="body"><p>Версия 2 готова к внешней оценке.</p><p class="muted">Автоматически проверено 10 требований. Удобство перетаскивания остаётся вашей оценкой.</p></div></div>
+        <div class="msg user"><span class="who">you</span><div class="body">Сделайте расстановку кораблей перетаскиванием и яснее покажите, чей ход.</div></div>
+        <div class="msg app"><span class="who">ymp</span><div class="body"><p>Revision accepted: drag-and-drop placement and a clear turn indicator.</p><p class="muted">Version 1 is preserved. Existing mandatory checks and checks for the new behavior will be repeated.</p></div></div>
+        <div class="trace"><span class="good">✓</span> version 2 created from version 1<br><span class="good">✓</span> previous checks · 7/7<br><span class="good">✓</span> drag and drop · 2/2<br><span class="good">✓</span> turn indicator · 1/1</div>
+        <div class="msg app"><span class="who">ymp</span><div class="body"><p>Version 2 is ready for external evaluation.</p><p class="muted">10 requirements were verified automatically. Drag-and-drop usability remains for your evaluation.</p></div></div>
       </div>
-      <div class="status"><span><span class="ok">версия 2 проверена</span> · происхождение: версия 1</span><span>оценка человека ожидается</span></div>
-      <div class="prompt"><span><span class="chev">›</span> <span class="cursor">▋</span></span><span class="hint">опишите изменение или «применить»</span></div>
+      <div class="status"><span><span class="ok">version 2 verified</span> · based on version 1</span><span>awaiting human evaluation</span></div>
+      <div class="prompt"><span><span class="chev">›</span> <span class="cursor">▋</span></span><span class="hint">describe a change or enter “apply”</span></div>
     </div>
     <div class="grid3" style="margin-top:5mm">
       <div class="card"><h3>Исходная цель</h3><p>Не переписывается и остаётся в истории.</p></div>
@@ -417,28 +417,28 @@
     </div>
     <div class="grid2">
       <div class="terminal compact">
-        <div class="term-head"><span><strong>ymp</strong> · морской-бой</span><span>версия 2</span></div>
+        <div class="term-head"><span><strong>ymp</strong> · морской-бой</span><span>version 2</span></div>
         <div class="thread modal-wrap">
-          <div class="under"><div class="msg user"><span class="who">вы</span><div class="body">применить эту версию</div></div></div>
+          <div class="under"><div class="msg user"><span class="who">you</span><div class="body">применить эту версию</div></div></div>
           <div class="modal consequence">
-            <h4>Применить версию 2 <span>ИЗМЕНЕНИЕ ПРОЕКТА</span></h4>
-            <p>Будут записаны точные проверенные байты в <b>/Users/demo/sea-battle</b>.</p>
-            <p>Добавятся 6 файлов; существующие файлы не заменяются. Если дерево изменилось, применение будет остановлено.</p>
-            <p class="muted">Эквивалентная существующая команда: ymp export --apply</p>
-            <div class="keys"><b>Enter</b> применить · <b>Esc</b> вернуться без изменений</div>
+            <h4>Apply version 2 <span>PROJECT CHANGE</span></h4>
+            <p>Exact verified bytes will be written to <b>/Users/demo/sea-battle</b>.</p>
+            <p>6 files will be added; existing files will not be replaced. If the tree has changed, application will stop.</p>
+            <p class="muted">Equivalent existing command: ymp export --apply</p>
+            <div class="keys"><b>Enter</b> apply · <b>Esc</b> return without changes</div>
           </div>
         </div>
-        <div class="status"><span class="warn">решение с последствиями</span><span>ввод приостановлен</span></div>
-        <div class="prompt"><span class="dim">› решение открыто</span><span class="hint">Esc закрыть верхний слой</span></div>
+        <div class="status"><span class="warn">consequential decision</span><span>input paused</span></div>
+        <div class="prompt"><span class="dim">› decision open</span><span class="hint">Esc close top layer</span></div>
       </div>
       <div class="terminal compact">
-        <div class="term-head"><span><strong>ymp</strong> · морской-бой</span><span>06 сентября · 13:12</span></div>
+        <div class="term-head"><span><strong>ymp</strong> · морской-бой</span><span>06 September · 13:12</span></div>
         <div class="thread">
-          <div class="msg app"><span class="who">ymp</span><div class="body"><p>Версия 2 применена к проекту.</p><p class="muted">Записано 6 файлов. Применённые байты соответствуют независимо проверенному кандидату.</p></div></div>
-          <div class="notice"><b>Внешний запуск</b><br><span class="amber">open /Users/demo/sea-battle/index.html</span><br><br><span class="good">Принято</span> · автоматические проверки 10/10<br><span class="muted">Оценено человеком: управление и ясность хода.</span></div>
+          <div class="msg app"><span class="who">ymp</span><div class="body"><p>Version 2 was applied to the project.</p><p class="muted">6 files written. The applied bytes match the independently verified candidate.</p></div></div>
+          <div class="notice"><b>External launch</b><br><span class="amber">open /Users/demo/sea-battle/index.html</span><br><br><span class="good">Accepted</span> · automated checks 10/10<br><span class="muted">Human-evaluated: controls and turn clarity.</span></div>
         </div>
-        <div class="status"><span><span class="ok">завершено · принято</span> · версия 2 применена</span><span>отчёт сохранён</span></div>
-        <div class="prompt"><span><span class="chev">›</span> <span class="cursor">▋</span></span><span class="hint">новая цель или /result</span></div>
+        <div class="status"><span><span class="ok">ended · accepted</span> · version 2 applied</span><span>report saved</span></div>
+        <div class="prompt"><span><span class="chev">›</span> <span class="cursor">▋</span></span><span class="hint">new goal or /result</span></div>
       </div>
     </div>
     <div class="grid3" style="margin-top:5mm">
@@ -457,8 +457,8 @@
         <div class="caption-title">80 × 24 · минимум</div>
         <div class="terminal micro">
           <div class="term-head"><span><strong>ymp</strong> · морской-бой</span><span>12:41</span></div>
-          <div class="thread"><div class="msg app"><span class="who">ymp</span><div class="body">Работа идёт. Исправляется ошибка расстановки.</div></div><div class="trace">1 участник · версия 1 · проверка 6/7</div></div>
-          <div class="status"><span>работа идёт · 1 участник</span><span>проверка 6/7</span></div>
+          <div class="thread"><div class="msg app"><span class="who">ymp</span><div class="body">Work in progress. The placement error is being fixed.</div></div><div class="trace">1 participant · version 1 · verification 6/7</div></div>
+          <div class="status"><span>work in progress · 1 participant</span><span>verification 6/7</span></div>
           <div class="prompt"><span><span class="chev">›</span> <span class="cursor">▋</span></span><span class="hint">/</span></div>
         </div>
         <p class="subtle">Путь и вторичные счётчики скрыты. След подготовки свёрнут. Ничто не перекрывает ввод.</p>
@@ -466,10 +466,10 @@
       <div>
         <div class="caption-title">120 × 40 · основной</div>
         <div class="terminal micro">
-          <div class="term-head"><span><strong>ymp</strong> · морской-бой</span><span>06 сентября · 12:41</span></div>
-          <div class="thread"><div class="msg app"><span class="who">12:41</span><div class="body">Проверка версии 1 обнаружила пересечение кораблей. Участник продолжает исправление.</div></div><div class="trace"><span class="good">✓</span> подготовка · 4/4</div></div>
-          <div class="status"><span>работа идёт · 1 участник · версия 1</span><span>проверка: исправляется</span></div>
-          <div class="prompt"><span><span class="chev">›</span> <span class="cursor">▋</span></span><span class="hint">/ команды</span></div>
+          <div class="term-head"><span><strong>ymp</strong> · морской-бой</span><span>06 September · 12:41</span></div>
+          <div class="thread"><div class="msg app"><span class="who">12:41</span><div class="body">Version 1 verification found overlapping ships. The participant continues the fix.</div></div><div class="trace"><span class="good">✓</span> preparation · 4/4</div></div>
+          <div class="status"><span>work in progress · 1 participant · version 1</span><span>verification: fixing</span></div>
+          <div class="prompt"><span><span class="chev">›</span> <span class="cursor">▋</span></span><span class="hint">/ commands</span></div>
         </div>
         <p class="subtle">Одноколоночный разговор. Строка состояния несёт только текущие существенные факты.</p>
       </div>
@@ -477,9 +477,9 @@
         <div class="caption-title">180 × 50 · широкий</div>
         <div class="terminal micro">
           <div class="term-head"><span><strong>ymp</strong> · морской-бой · /Users/demo/sea-battle</span><span>12:41</span></div>
-          <div class="thread split"><div><div class="msg app"><span class="who">12:41</span><div class="body">Проверка обнаружила пересечение кораблей. Участник продолжает исправление.</div></div></div><aside class="side"><h4>Сейчас</h4><dl><dt>участник</dt><dd>1</dd><dt>версия</dt><dd>1</dd><dt>проверка</dt><dd>6/7</dd></dl></aside></div>
-          <div class="status"><span>текущий снимок показан справа</span><span>следить: включено</span></div>
-          <div class="prompt"><span><span class="chev">›</span> <span class="cursor">▋</span></span><span class="hint">/ команды</span></div>
+          <div class="thread split"><div><div class="msg app"><span class="who">12:41</span><div class="body">Verification found overlapping ships. The participant continues the fix.</div></div></div><aside class="side"><h4>Now</h4><dl><dt>participant</dt><dd>1</dd><dt>version</dt><dd>1</dd><dt>verification</dt><dd>6/7</dd></dl></aside></div>
+          <div class="status"><span>current snapshot shown on the right</span><span>follow: on</span></div>
+          <div class="prompt"><span><span class="chev">›</span> <span class="cursor">▋</span></span><span class="hint">/ commands</span></div>
         </div>
         <p class="subtle">Разговор остаётся шире бокового снимка. Боковая область исчезает целиком ниже 160 столбцов.</p>
       </div>
@@ -501,24 +501,24 @@
         <div class="caption-title">Выбрана информационная команда</div>
         <div class="terminal micro">
           <div class="term-head"><span><strong>ymp</strong> · морской-бой</span><span>12:41</span></div>
-          <div class="thread modal-wrap"><div class="under"><div class="msg app"><span class="who">12:41</span><div class="body">Работа продолжается.</div></div></div><div class="modal palette"><div class="palette-query"><span class="amber">/</span>bo<span class="cursor">▋</span></div><div class="palette-list"><div class="palette-row sel"><b>/board</b><span>прочитать сообщения текущей работы</span><span class="phase">только чтение</span></div><div class="palette-row"><b>/budgets</b><span>прочитать текущие пределы</span><span class="phase">только чтение</span></div></div><div class="keys">↑↓ выбрать · <b>Enter</b> открыть · <b>Esc</b> закрыть</div></div></div>
-          <div class="status"><span>работа идёт</span><span>палитра открыта</span></div><div class="prompt"><span class="dim">› ввод приостановлен</span><span></span></div>
+          <div class="thread modal-wrap"><div class="under"><div class="msg app"><span class="who">12:41</span><div class="body">Work continues.</div></div></div><div class="modal palette"><div class="palette-query"><span class="amber">/</span>bo<span class="cursor">▋</span></div><div class="palette-list"><div class="palette-row sel"><b>/board</b><span>read messages from the current work</span><span class="phase">read only</span></div><div class="palette-row"><b>/budgets</b><span>read current limits</span><span class="phase">read only</span></div></div><div class="keys">↑↓ select · <b>Enter</b> open · <b>Esc</b> close</div></div></div>
+          <div class="status"><span>work in progress</span><span>palette open</span></div><div class="prompt"><span class="dim">› input paused</span><span></span></div>
         </div>
       </div>
       <div>
         <div class="caption-title">Команда известна, но недоступна</div>
         <div class="terminal micro">
           <div class="term-head"><span><strong>ymp</strong> · морской-бой</span><span>12:41</span></div>
-          <div class="thread modal-wrap"><div class="under"></div><div class="modal palette"><div class="palette-query"><span class="amber">/</span>knowledge<span class="cursor">▋</span></div><div class="palette-list"><div class="palette-row off"><b>/knowledge</b><span>данных о знаниях пока нет</span><span class="phase">недоступно</span></div><div class="detail">Enter ничего не меняет. Esc возвращает без действия.</div></div><div class="keys"><b>Esc</b> закрыть · Backspace изменить запрос</div></div></div>
-          <div class="status"><span>работа идёт</span><span>команда недоступна</span></div><div class="prompt"><span class="dim">› ввод приостановлен</span><span></span></div>
+          <div class="thread modal-wrap"><div class="under"></div><div class="modal palette"><div class="palette-query"><span class="amber">/</span>knowledge<span class="cursor">▋</span></div><div class="palette-list"><div class="palette-row off"><b>/knowledge</b><span>no knowledge data yet</span><span class="phase">unavailable</span></div><div class="detail">Enter does nothing. Esc returns without action.</div></div><div class="keys"><b>Esc</b> close · Backspace edit query</div></div></div>
+          <div class="status"><span>work in progress</span><span>command unavailable</span></div><div class="prompt"><span class="dim">› input paused</span><span></span></div>
         </div>
       </div>
       <div>
         <div class="caption-title">Нет совпадений</div>
         <div class="terminal micro">
           <div class="term-head"><span><strong>ymp</strong> · морской-бой</span><span>12:41</span></div>
-          <div class="thread modal-wrap"><div class="under"></div><div class="modal palette"><div class="palette-query"><span class="amber">/</span>покажи-ход<span class="cursor">▋</span></div><div class="empty-state" style="height:10em"><b>Команд нет</b><span>Enter отправит эту строку как обычную реплику.<br>Никакое действие не выбрано.</span></div><div class="keys"><b>Enter</b> в разговор · <b>Esc</b> закрыть</div></div></div>
-          <div class="status"><span>работа идёт</span><span>0 совпадений</span></div><div class="prompt"><span class="dim">› ввод приостановлен</span><span></span></div>
+          <div class="thread modal-wrap"><div class="under"></div><div class="modal palette"><div class="palette-query"><span class="amber">/</span>покажи-ход<span class="cursor">▋</span></div><div class="empty-state" style="height:10em"><b>No commands</b><span>Enter will send this text as a normal message.<br>No action is selected.</span></div><div class="keys"><b>Enter</b> send to conversation · <b>Esc</b> close</div></div></div>
+          <div class="status"><span>work in progress</span><span>0 matches</span></div><div class="prompt"><span class="dim">› input paused</span><span></span></div>
         </div>
       </div>
     </div>
@@ -533,17 +533,17 @@
       <div>
         <div class="caption"><div><div class="caption-title">/providers · реализовано</div><div class="tags"><span class="tag implemented">чтение</span></div></div></div>
         <div class="terminal compact">
-          <div class="term-head"><span>разговор › поставщики</span><span>Esc назад</span></div>
-          <div class="thread"><div class="page-title"><b>Поставщики</b><span>1 включён · 1 выключен</span></div><table class="table"><tr><th>поставщик</th><th>состояние</th><th>каталог</th><th>наблюдение</th></tr><tr class="selected"><td>поставщик 1</td><td>включён</td><td>доступен</td><td>12:30</td></tr><tr><td>поставщик 2</td><td>выключен</td><td>—</td><td>—</td></tr></table><div class="detail"><strong>Enter</strong> открывает свойства. Включение — отдельное решение о раскрытии данных; выбор строки ничего не меняет.</div></div>
-          <div class="status"><span>факты конфигурации · текущий запуск не меняется</span><span>Enter открыть</span></div><div class="prompt"><span></span><span>/ команды</span></div>
+          <div class="term-head"><span>conversation › providers</span><span>Esc back</span></div>
+          <div class="thread"><div class="page-title"><b>Providers</b><span>1 enabled · 1 disabled</span></div><table class="table"><tr><th>provider</th><th>state</th><th>catalog</th><th>observed</th></tr><tr class="selected"><td>provider 1</td><td>enabled</td><td>available</td><td>12:30</td></tr><tr><td>provider 2</td><td>disabled</td><td>—</td><td>—</td></tr></table><div class="detail"><strong>Enter</strong> opens properties. Enabling requires a separate data-disclosure decision; selecting a row changes nothing.</div></div>
+          <div class="status"><span>configuration facts · current run unchanged</span><span>Enter open</span></div><div class="prompt"><span></span><span>/ commands</span></div>
         </div>
       </div>
       <div>
         <div class="caption"><div><div class="caption-title">/pool · реализовано как /pools + свойства</div><div class="tags"><span class="tag implemented">проекция</span><span class="tag slice">единое имя</span></div></div></div>
         <div class="terminal compact">
-          <div class="term-head"><span>разговор › пул</span><span>Esc назад</span></div>
-          <div class="thread"><div class="page-title"><b>Будущие запуски</b><span>снимок текущего запуска заморожен</span></div><table class="table"><tr><th>запись</th><th>допустима</th><th>источник</th><th>предел</th></tr><tr class="selected"><td>маршрут из каталога</td><td>да</td><td>поставщик 1</td><td>2 запуска</td></tr><tr><td>участники</td><td>—</td><td>объявлено</td><td>2</td></tr><tr><td>параллельно</td><td>—</td><td>объявлено</td><td>1</td></tr></table><div class="detail">Изменение относится только к будущим снимкам. Полное проведение всех пределов через набор и расход пока не обещано.</div></div>
-          <div class="status"><span>будущая допустимость · не состав команды</span><span>Enter открыть</span></div><div class="prompt"><span></span><span>/ команды</span></div>
+          <div class="term-head"><span>conversation › pool</span><span>Esc back</span></div>
+          <div class="thread"><div class="page-title"><b>Future runs</b><span>current run snapshot is frozen</span></div><table class="table"><tr><th>entry</th><th>eligible</th><th>source</th><th>limit</th></tr><tr class="selected"><td>catalog route</td><td>yes</td><td>provider 1</td><td>2 runs</td></tr><tr><td>participants</td><td>—</td><td>declared</td><td>2</td></tr><tr><td>concurrent</td><td>—</td><td>declared</td><td>1</td></tr></table><div class="detail">Changes apply only to future snapshots. Full enforcement of every recruitment and spend limit is not yet available.</div></div>
+          <div class="status"><span>future eligibility · not team composition</span><span>Enter open</span></div><div class="prompt"><span></span><span>/ commands</span></div>
         </div>
       </div>
     </div>
@@ -562,27 +562,27 @@
       <div>
         <div class="caption-title">/agents · позже</div>
         <div class="terminal micro">
-          <div class="term-head"><span>разговор › участники</span><span>Esc назад</span></div>
-          <div class="thread"><div class="page-title"><b>Текущая работа</b><span>1 участник</span></div><table class="table"><tr><th>участник</th><th>состояние</th></tr><tr class="selected"><td>Участник 1</td><td>работает</td></tr></table><div class="detail">Происхождение: исходный запуск<br>Заявлено: исправление расстановки<br>Маршрут: значения из снимка запуска</div></div>
-          <div class="status"><span>1 участник · работает</span><span>Esc назад</span></div><div class="prompt"><span></span><span>/</span></div>
+          <div class="term-head"><span>conversation › participants</span><span>Esc back</span></div>
+          <div class="thread"><div class="page-title"><b>Current work</b><span>1 participant</span></div><table class="table"><tr><th>participant</th><th>state</th></tr><tr class="selected"><td>Participant 1</td><td>working</td></tr></table><div class="detail">Origin: initial run<br>Claimed: placement fix<br>Route: values from the run snapshot</div></div>
+          <div class="status"><span>1 participant · working</span><span>Esc back</span></div><div class="prompt"><span></span><span>/</span></div>
         </div>
         <p class="subtle">Текущая TUI достоверно проецирует попытки, а не полный набор полей участника. Второй участник не показан.</p>
       </div>
       <div>
         <div class="caption-title">/board · первый срез</div>
         <div class="terminal micro">
-          <div class="term-head"><span>разговор › доска</span><span>Esc назад</span></div>
-          <div class="thread"><div class="page-title"><b>Сообщения этой работы</b><span>1 опубликовано</span></div><table class="table"><tr><th>время</th><th>автор</th><th>вид</th></tr><tr class="selected"><td>12:40</td><td>Участник 1</td><td>наблюдение</td></tr></table><div class="detail"><strong>Точные инертные байты:</strong> проверка обнаружила пересечение при повороте.<br>Область: текущая работа · опубликовано: да · доставлено: не установлено · действие: не установлено.</div></div>
-          <div class="status"><span>только чтение · 0 действий</span><span>Enter подробнее</span></div><div class="prompt"><span></span><span>/</span></div>
+          <div class="term-head"><span>conversation › board</span><span>Esc back</span></div>
+          <div class="thread"><div class="page-title"><b>Messages from this work</b><span>1 published</span></div><table class="table"><tr><th>time</th><th>author</th><th>kind</th></tr><tr class="selected"><td>12:40</td><td>Participant 1</td><td>observation</td></tr></table><div class="detail"><strong>Exact inert bytes:</strong> проверка обнаружила пересечение при повороте.<br>Scope: current work · published: yes · delivered: unknown · action: unknown.</div></div>
+          <div class="status"><span>read only · 0 actions</span><span>Enter details</span></div><div class="prompt"><span></span><span>/</span></div>
         </div>
         <p class="subtle"><code>Application::operator_board_projection</code> уже возвращает проверенные байты и факты; TUI ещё не проводит эту проекцию.</p>
       </div>
       <div>
         <div class="caption-title">/knowledge · недоступно</div>
         <div class="terminal micro">
-          <div class="term-head"><span>разговор › знания</span><span>Esc назад</span></div>
-          <div class="thread"><div class="empty-state"><b>Знания пока недоступны</b><span>Данных о накопленном знании пока нет.<br><br>Следующее: вернуться к разговору<br>или открыть другую информационную страницу.</span></div></div>
-          <div class="status"><span>данных нет · ничего не выведено</span><span>Esc назад</span></div><div class="prompt"><span></span><span>/</span></div>
+          <div class="term-head"><span>conversation › knowledge</span><span>Esc back</span></div>
+          <div class="thread"><div class="empty-state"><b>Knowledge is unavailable</b><span>No accumulated knowledge data is available yet.<br><br>Next: return to the conversation<br>or open another information page.</span></div></div>
+          <div class="status"><span>no data · nothing inferred</span><span>Esc back</span></div><div class="prompt"><span></span><span>/</span></div>
         </div>
         <p class="subtle">Архив, заметки или стенограмма не выдаются за знание и перенос.</p>
       </div>
@@ -594,11 +594,11 @@
     <div class="eyebrow">Честные состояния</div>
     <h2>Пусто, загрузка, ошибка, отмена и завершение</h2>
     <div class="grid5">
-      <div><div class="caption-title">EMPTY</div><div class="terminal micro"><div class="term-head"><span>/board</span><span>Esc</span></div><div class="thread"><div class="empty-state"><b>Сообщений нет</b><span>Работа может идти без публикаций.<br>Следующее: вернуться к разговору.</span></div></div><div class="status"><span>0 сообщений</span><span>только чтение</span></div><div class="prompt"></div></div></div>
-      <div><div class="caption-title">LOADING</div><div class="terminal micro"><div class="term-head"><span>/providers</span><span>Esc</span></div><div class="thread"><div class="empty-state"><b><span class="amber">…</span> Каталог загружается</b><span>Поставщик остаётся включённым.<br>Можно вернуться; загрузка продолжится.</span></div></div><div class="status"><span>загрузка</span><span>следующий повтор: вручную</span></div><div class="prompt"></div></div></div>
-      <div><div class="caption-title">ERROR</div><div class="terminal micro"><div class="term-head"><span>/providers</span><span>Esc</span></div><div class="thread"><div class="empty-state"><b class="bad">Каталог не получен</b><span>Ошибка входа поставщика.<br>Поставщик включён; моделей 0.<br><br>Следующее: выполнить внешний вход<br>и повторить запрос каталога.</span></div></div><div class="status"><span class="bad">ошибка операции</span><span>r повторить</span></div><div class="prompt"></div></div></div>
-      <div><div class="caption-title">CANCELLED</div><div class="terminal micro"><div class="term-head"><span>морской-бой</span><span>завершено</span></div><div class="thread"><div class="empty-state"><b>Работа отменена</b><span>Новые расходы и управляемые процессы остановлены.<br>Версия 1 и записанные факты сохранены.<br><br>Следующее: открыть результат<br>или начать новый запуск.</span></div></div><div class="status"><span>завершено · отменено</span><span>0 процессов</span></div><div class="prompt"></div></div></div>
-      <div><div class="caption-title">ENDED</div><div class="terminal micro"><div class="term-head"><span>морской-бой</span><span>завершено</span></div><div class="thread"><div class="empty-state"><b class="good">Результат принят</b><span>Версия 2 · проверка 10/10.<br>Применение — отдельный факт.<br><br>Следующее: применить, выгрузить<br>или начать новую цель.</span></div></div><div class="status"><span class="good">завершено · принято</span><span>версия 2</span></div><div class="prompt"></div></div></div>
+      <div><div class="caption-title">EMPTY</div><div class="terminal micro"><div class="term-head"><span>/board</span><span>Esc</span></div><div class="thread"><div class="empty-state"><b>No messages</b><span>Work may continue without publications.<br>Next: return to the conversation.</span></div></div><div class="status"><span>0 messages</span><span>read only</span></div><div class="prompt"></div></div></div>
+      <div><div class="caption-title">LOADING</div><div class="terminal micro"><div class="term-head"><span>/providers</span><span>Esc</span></div><div class="thread"><div class="empty-state"><b><span class="amber">…</span> Catalog loading</b><span>The provider remains enabled.<br>You can return; loading will continue.</span></div></div><div class="status"><span>loading</span><span>next retry: manual</span></div><div class="prompt"></div></div></div>
+      <div><div class="caption-title">ERROR</div><div class="terminal micro"><div class="term-head"><span>/providers</span><span>Esc</span></div><div class="thread"><div class="empty-state"><b class="bad">Catalog unavailable</b><span>Provider sign-in failed.<br>The provider is enabled; 0 models.<br><br>Next: sign in externally<br>and retry the catalog request.</span></div></div><div class="status"><span class="bad">operation failed</span><span>r retry</span></div><div class="prompt"></div></div></div>
+      <div><div class="caption-title">CANCELLED</div><div class="terminal micro"><div class="term-head"><span>морской-бой</span><span>ended</span></div><div class="thread"><div class="empty-state"><b>Work cancelled</b><span>New spend and managed processes stopped.<br>Version 1 and recorded facts were preserved.<br><br>Next: open the result<br>or start a new run.</span></div></div><div class="status"><span>ended · cancelled</span><span>0 processes</span></div><div class="prompt"></div></div></div>
+      <div><div class="caption-title">ENDED</div><div class="terminal micro"><div class="term-head"><span>морской-бой</span><span>ended</span></div><div class="thread"><div class="empty-state"><b class="good">Result accepted</b><span>Version 2 · verification 10/10.<br>Applying it is recorded separately.<br><br>Next: apply, export,<br>or start a new goal.</span></div></div><div class="status"><span class="good">ended · accepted</span><span>version 2</span></div><div class="prompt"></div></div></div>
     </div>
     <div class="card" style="margin-top:5mm"><p><b>Единое правило:</b> каждое нетиповое состояние отвечает на три вопроса: что произошло, что сохранилось, что можно сделать дальше. Ошибка модели не означает нерешаемую цель; исчерпание не означает проверенный результат; инфраструктурная ошибка не означает отказ кандидата.</p></div>
     <div class="folio"></div>
