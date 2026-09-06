@@ -3,7 +3,7 @@ id: W2-TUI-03d
 kind: task
 wave: W2
 card: W2-TUI-03
-state: active
+state: review
 risk: significant
 maturity: BUILD
 relation: required
@@ -13,7 +13,7 @@ created_at: 2026-09-06T04:47:56+08:00
 updated_at: 2026-09-06T04:47:56+08:00
 started_at: 2026-09-06T04:51:54+08:00
 accepted_at:
-candidate_commit:
+candidate_commit: https://github.com/maggnus/ymp/commit/0af2354b15c91abc728c82e1cf315be3c9dd2a24
 closure_commit:
 evidence:
 duration_minutes: 0
@@ -21,7 +21,7 @@ blocker:
 pause_reason:
 return_trigger:
 deliberate_partial: false
-review_rounds: 0
+review_rounds: 1
 escalation_decision:
 ---
 
@@ -69,6 +69,7 @@ The source-level observation remains separate from any claim about physical term
 ## Review rounds
 
 Recorded by the CTO ledger.
+- R1(9/10) ACCEPT 06/09 10:00 — Sanitized fields используются до измерения и выбора обеих ветвей; regression proof достаточен.
 
 ## Closure
 

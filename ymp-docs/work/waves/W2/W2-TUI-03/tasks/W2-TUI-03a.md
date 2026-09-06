@@ -3,7 +3,7 @@ id: W2-TUI-03a
 kind: task
 wave: W2
 card: W2-TUI-03
-state: rework
+state: review
 risk: significant
 maturity: BUILD
 relation: required
@@ -13,7 +13,7 @@ created_at: 2026-09-06T03:49:08+08:00
 updated_at: 2026-09-06T03:49:08+08:00
 started_at: 2026-09-06T04:05:04+08:00
 accepted_at:
-candidate_commit: https://github.com/maggnus/ymp/commit/8348652d7caad00058a114bb1f944d19817a3641
+candidate_commit: https://github.com/maggnus/ymp/commit/0af2354b15c91abc728c82e1cf315be3c9dd2a24
 closure_commit:
 evidence:
 duration_minutes: 0
@@ -21,7 +21,7 @@ blocker:
 pause_reason:
 return_trigger:
 deliberate_partial: false
-review_rounds: 1
+review_rounds: 2
 escalation_decision:
 ---
 
@@ -74,6 +74,7 @@ None yet. A newly necessary independent outcome is reported before scope grows.
 
 Recorded by the CTO ledger.
 - R1(5/10) RETURN 06/09 04:47 — Стартовое приглашение скрывает реальные реплики; на широком экране теряется текущая операция; длинная причина invalid выходит за границу. Независимый исполняемый пример ещё не запущен.
+- R2(9/10) ACCEPT 06/09 10:00 — [delta] Независимый неизменённый пример перешёл от exit1 на8348652 к exit0 на0af2354; диалог и wide busy сохранены. Интеграция отдельно ожидает проверки.
 
 ## Closure
 
