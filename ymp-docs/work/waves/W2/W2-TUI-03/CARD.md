@@ -36,7 +36,7 @@ No kernel, budget, authorization, verifier or provider-disclosure semantics chan
 
 ## Scope
 
-Read the accepted W2-UX-02 handoff, USER_JOURNEY, ymp-tui state/projection/render/session modules and tests. Exclusive zone: ymp-rust/crates/ymp-tui/ and its production-preview example. No Application, domain, storage, runtime, verifier, Cargo lockfile, design or research changes. Validation-only child e owns one CLI test fixture that was found stale during integration; production scope remains TUI.
+Read the accepted W2-UX-02 handoff, USER_JOURNEY, ymp-tui state/projection/render/session modules and tests. Exclusive zone: ymp-rust/crates/ymp-tui/ and its production-preview example. No Application, domain, storage, runtime, verifier, Cargo lockfile, design or research changes. Validation-only child e owns one stale CLI test fixture. Child f owns the explicitly named CLI/shared-render boundary where the narrower transcript exposed silent clipping; it changes output composition only, not command semantics.
 
 The accepted eight-production-file handoff is implemented in three observable atoms: frame/text, navigation/focus, and Application-backed board reading. Test and preview updates count in each explicit task zone (at most ten files). Shared source files make the sequence serial. Preserve supported commands; future capabilities stay expressly unavailable.
 
@@ -55,12 +55,14 @@ The English visual reference is integrated. Frame a and sanitation d have indepe
 
 ## Tasks
 
-Five required outcomes: the original three implementation slices plus the bounded pre-existing field-sanitization defect discovered in a’s review. The new d outcome is batched with a’s correction and changes no new subsystem; a/d precede b, then c. Each retains its own acceptance. Child e restores the unchanged driver’s valid test input before combined integration. No extra architecture study is introduced.
+Six required outcomes: the original three implementation slices plus the bounded pre-existing field-sanitization defect discovered in a’s review. The new d outcome is batched with a’s correction and changes no new subsystem; a/d precede b, then c. Each retains its own acceptance. Child e restores the unchanged driver’s valid test input before combined integration. Child f removes the discovered CLI viewport loss before navigation starts. No extra architecture study is introduced.
 - [W2-TUI-03a](tasks/W2-TUI-03a.md) — required
 - [W2-TUI-03b](tasks/W2-TUI-03b.md) — required
 - [W2-TUI-03c](tasks/W2-TUI-03c.md) — required
 - [W2-TUI-03d](tasks/W2-TUI-03d.md) — required
 - [W2-TUI-03e](tasks/W2-TUI-03e.md) — required
+- [W2-TUI-03f](tasks/W2-TUI-03f.md) — required
+- [W2-TUI-03f](tasks/W2-TUI-03f.md) — required
 
 ## Review rounds
 
