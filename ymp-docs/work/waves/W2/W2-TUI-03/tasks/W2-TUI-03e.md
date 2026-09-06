@@ -3,7 +3,7 @@ id: W2-TUI-03e
 kind: task
 wave: W2
 card: W2-TUI-03
-state: review
+state: deferred
 risk: routine
 maturity: BUILD
 relation: required
@@ -18,8 +18,8 @@ closure_commit:
 evidence:
 duration_minutes: 0
 blocker:
-pause_reason:
-return_trigger:
+pause_reason: Owner rejected the current UI direction and closed this work
+return_trigger: Only a new explicit owner instruction with revised direction; queued automation does not resume work
 deliberate_partial: false
 review_rounds: 1
 escalation_decision:
@@ -52,11 +52,11 @@ No production Rust changes, gate weakening, skipped assertions, real provider/mo
 
 ## Current state
 
-Ready. This validation-only child unblocks the combined integration; it adds no product subsystem to the TUI implementation.
+Stopped by the owner after rejection of the current design direction. Code and review evidence are preserved; this outcome is not claimed complete or integrated.
 
 ## Next action
 
-Correct only the stale initialized-tool fixture and prove the positive/negative pair.
+None under the closed instruction. Only a new explicit owner request may authorize a revised direction.
 
 ## Guardrails
 

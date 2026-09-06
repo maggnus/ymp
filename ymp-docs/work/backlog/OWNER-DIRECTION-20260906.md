@@ -23,3 +23,7 @@ input semantics. CTO reports to the owner remain Russian.
 ## Installed executable
 
 The owner requires `/Users/maggnus/.local/bin/ymp` to be updated after each successful build of the current product executable. The CTO installs the normal product build atomically and records its exact revision/digest; parallel diagnostic, historical-baseline and mutation builds do not replace the operator's executable. This installation is for trying the current product and does not claim independent acceptance, integration or POC completion.
+
+## Owner closure
+
+The owner rejected the current TUI design as based on the old implementation and said to close the work. The CTO run is stopped, its recurring schedule is removed and its agents are archived. Code, workspaces and evidence are preserved. Queued schedule or integration-completion prompts do not override this instruction. A new explicit owner request is required before any continuation, and the rejected design must not be treated as the approved target. No POC completion or new TUI integration is claimed.

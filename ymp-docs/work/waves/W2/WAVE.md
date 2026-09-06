@@ -1,13 +1,15 @@
 ---
 id: W2
 kind: wave
-state: active
+state: deferred
 areas: [DEF, UX, TUI]
 plan_review_state: accepted
 plan_review_evidence: https://github.com/maggnus/ymp/commit/420401cee719c85c4533be6f907371873b97e63a
 plan_review_at: 2026-09-06T02:43:17+08:00
 created_at: 2026-09-06T02:26:51+08:00
 updated_at: 2026-09-06T02:26:51+08:00
+pause_reason: Owner rejected the current UI direction and closed this work
+return_trigger: Only a new explicit owner instruction with revised direction; queued automation does not resume work
 ---
 
 # W2 — Coherent research TUI and a feasible knowledge-transfer POC
@@ -17,6 +19,8 @@ updated_at: 2026-09-06T02:26:51+08:00
 A first coherent production-rendered terminal experience makes the intended product inspectable and usable for its implemented conversation/navigation path, while a current contract gives the remaining knowledge-transfer POC a feasible evidence path. This wave is an observable intermediate release; it cannot claim a completed live multi-participant or memory experiment.
 
 ## Scope
+
+Owner stop: The owner rejected this TUI direction as too dependent on the previous implementation and requested closure. Execution is stopped; earlier design acceptance is historical evidence, not renewed owner approval. No automatic resumption, new merge, build or model experiment is authorized by queued completion messages.
 
 Owner direction: [OWNER-DIRECTION-20260906](../../backlog/OWNER-DIRECTION-20260906.md). Product source: [USER_JOURNEY](https://github.com/maggnus/ymp/blob/756f7bbae5ecb4b45a16c83faddd7de05155df7e/ymp-docs/USER_JOURNEY.md). Preserve all accepted W0/W1 evidence; uncompleted W1 work remains available for reuse after scope review, never automatically relabelled complete.
 

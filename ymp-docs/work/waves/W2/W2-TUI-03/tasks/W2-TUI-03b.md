@@ -3,7 +3,7 @@ id: W2-TUI-03b
 kind: task
 wave: W2
 card: W2-TUI-03
-state: ready
+state: deferred
 risk: significant
 maturity: BUILD
 relation: required
@@ -18,8 +18,8 @@ closure_commit:
 evidence:
 duration_minutes: 0
 blocker:
-pause_reason:
-return_trigger:
+pause_reason: Owner rejected the current UI direction and closed this work
+return_trigger: Only a new explicit owner instruction with revised direction; queued automation does not resume work
 deliberate_partial: false
 review_rounds: 0
 escalation_decision:
@@ -54,11 +54,11 @@ No new authorization, provider-disclosure, cancellation, verification or apply s
 
 ## Current state
 
-Awaiting a's integrated frame. The existing navigation is retained until this bounded replacement is reviewed.
+Stopped by the owner after rejection of the current design direction. Code and review evidence are preserved; this outcome is not claimed complete or integrated.
 
 ## Next action
 
-Implement the accepted navigation/focus contract on the integrated frame.
+None under the closed instruction. Only a new explicit owner request may authorize a revised direction.
 
 ## Guardrails
 

@@ -3,7 +3,7 @@ id: W2-TUI-03g
 kind: task
 wave: W2
 card: W2-TUI-03
-state: ready
+state: deferred
 risk: routine
 maturity: BUILD
 relation: required
@@ -11,17 +11,17 @@ depends_on: []
 blocks: [W2-TUI-03b]
 created_at: 2026-09-06T12:52:44+08:00
 updated_at: 2026-09-06T12:52:44+08:00
-started_at:
+started_at: 2026-09-06T12:55:41+08:00
 accepted_at:
-candidate_commit:
+candidate_commit: https://github.com/maggnus/ymp/commit/30e9d69f83645c275e752c94c41d526a143d820f
 closure_commit:
 evidence:
 duration_minutes: 0
 blocker:
-pause_reason:
-return_trigger:
+pause_reason: Owner rejected the current UI direction and closed this work
+return_trigger: Only a new explicit owner instruction with revised direction; queued automation does not resume work
 deliberate_partial: false
-review_rounds: 0
+review_rounds: 1
 escalation_decision:
 ---
 
@@ -52,11 +52,11 @@ No new state derivation, authorization, provider readiness, application/domain/r
 
 ## Current state
 
-Ready for the same retained Sol author as a R2. f has finished writing and has independent acceptance. a/g will be the sole writers of their explicit combined zones.
+Stopped by the owner after rejection of the current design direction. Code and review evidence are preserved; this outcome is not claimed complete or integrated.
 
 ## Next action
 
-Restore the omitted status row and demonstrate it through command output.
+None under the closed instruction. Only a new explicit owner request may authorize a revised direction.
 
 ## Guardrails
 
@@ -69,6 +69,7 @@ This was classified independent-defect minor by f's reviewer. It is a separately
 ## Review rounds
 
 Recorded by the CTO ledger.
+- R1(5/10) RETURN 06/09 13:41 — Printing status_right appends /commands after the CLI prompt and violates accepted f ends_with assertion in the unexecuted complete generated-verifier test. Run that exact consumer and reconcile prompt/footer boundary while preserving body completeness; unchanged old…
 
 ## Closure
 

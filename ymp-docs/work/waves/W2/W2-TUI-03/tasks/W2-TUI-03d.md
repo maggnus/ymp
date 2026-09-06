@@ -3,7 +3,7 @@ id: W2-TUI-03d
 kind: task
 wave: W2
 card: W2-TUI-03
-state: review
+state: deferred
 risk: significant
 maturity: BUILD
 relation: required
@@ -18,8 +18,8 @@ closure_commit:
 evidence:
 duration_minutes: 0
 blocker:
-pause_reason:
-return_trigger:
+pause_reason: Owner rejected the current UI direction and closed this work
+return_trigger: Only a new explicit owner instruction with revised direction; queued automation does not resume work
 deliberate_partial: false
 review_rounds: 1
 escalation_decision:
@@ -52,11 +52,11 @@ No Application, domain, provider, storage, runtime or authority change; no other
 
 ## Current state
 
-Ready as a same-author batch with a's R1 correction. It must not be silently absorbed into a's original review verdict.
+Stopped by the owner after rejection of the current design direction. Code and review evidence are preserved; this outcome is not claimed complete or integrated.
 
 ## Next action
 
-Correct the field sanitation boundary and provide its separately attributable regression proof.
+None under the closed instruction. Only a new explicit owner request may authorize a revised direction.
 
 ## Guardrails
 

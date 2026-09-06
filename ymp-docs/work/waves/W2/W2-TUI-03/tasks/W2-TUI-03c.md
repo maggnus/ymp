@@ -3,7 +3,7 @@ id: W2-TUI-03c
 kind: task
 wave: W2
 card: W2-TUI-03
-state: ready
+state: deferred
 risk: significant
 maturity: BUILD
 relation: required
@@ -18,8 +18,8 @@ closure_commit:
 evidence:
 duration_minutes: 0
 blocker:
-pause_reason:
-return_trigger:
+pause_reason: Owner rejected the current UI direction and closed this work
+return_trigger: Only a new explicit owner instruction with revised direction; queued automation does not resume work
 deliberate_partial: false
 review_rounds: 0
 escalation_decision:
@@ -56,11 +56,11 @@ No human board publishing, automatic actions from messages, additional audience 
 
 ## Current state
 
-Awaiting b. Backend projection availability is checked; user-facing wiring has not been implemented.
+Stopped by the owner after rejection of the current design direction. Code and review evidence are preserved; this outcome is not claimed complete or integrated.
 
 ## Next action
 
-Connect the typed operator board projection to the accepted read-only page.
+None under the closed instruction. Only a new explicit owner request may authorize a revised direction.
 
 ## Guardrails
 

@@ -2,7 +2,7 @@
 id: W2-TUI-03
 kind: card
 wave: W2
-state: active
+state: deferred
 risk: significant
 maturity: BUILD
 relation: required
@@ -17,8 +17,8 @@ closure_commit:
 evidence:
 duration_minutes: 0
 blocker:
-pause_reason:
-return_trigger:
+pause_reason: Owner rejected the current UI direction and closed this work
+return_trigger: Only a new explicit owner instruction with revised direction; queued automation does not resume work
 deliberate_partial: false
 review_rounds: 0
 escalation_decision:
@@ -51,7 +51,7 @@ The accepted eight-production-file handoff is implemented in three observable at
 
 ## Current state
 
-The English visual reference is integrated. Full candidate and baseline checks are complete with recorded failures. a is returned for no-run operation visibility; d and fixture e retain scoped acceptance. f is under independent review for complete CLI output, then a correction precedes navigation b and board c. This card cannot claim completion of the overall POC.
+Stopped by the owner after rejection of the current design direction. Code and review evidence are preserved; this outcome is not claimed complete or integrated.
 
 ## Tasks
 

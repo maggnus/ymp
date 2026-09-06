@@ -3,7 +3,7 @@ id: W2-TUI-03a
 kind: task
 wave: W2
 card: W2-TUI-03
-state: ready
+state: deferred
 risk: significant
 maturity: BUILD
 relation: required
@@ -13,13 +13,13 @@ created_at: 2026-09-06T03:49:08+08:00
 updated_at: 2026-09-06T03:49:08+08:00
 started_at: 2026-09-06T04:05:04+08:00
 accepted_at:
-candidate_commit: https://github.com/maggnus/ymp/commit/0af2354b15c91abc728c82e1cf315be3c9dd2a24
+candidate_commit: https://github.com/maggnus/ymp/commit/acaf81b92c2c333a7ba57e17d6f60d0b1f9a7b4d
 closure_commit:
 evidence:
 duration_minutes: 0
 blocker:
-pause_reason:
-return_trigger:
+pause_reason: Owner rejected the current UI direction and closed this work
+return_trigger: Only a new explicit owner instruction with revised direction; queued automation does not resume work
 deliberate_partial: false
 review_rounds: 2
 escalation_decision:
@@ -56,11 +56,11 @@ Slash-command state changes and a new board page belong to b/c. Application-gene
 
 ## Current state
 
-Second substantive RETURN after complete integration exposed loss of no-run working status, animation and the actual Esc cancellation hint. The previous acceptance is superseded for a only; d and already closed findings remain accepted. f has finished and has independent acceptance. The retained author may now receive a serial a/g correction on the CTO-supplied combined revision.
+Stopped by the owner after rejection of the current design direction. Code and review evidence are preserved; this outcome is not claimed complete or integrated.
 
 ## Next action
 
-After f finishes and the CTO supplies its exact combined revision, restore truthful operation status regardless of run presence. Both existing entry-check and provider-measurement tests must pass without edits.
+None under the closed instruction. Only a new explicit owner request may authorize a revised direction.
 
 ## Guardrails
 
@@ -72,11 +72,10 @@ R2 outcome-defect: conversation_status reads working only when run is Some. Befo
 
 ## Review rounds
 
-Recorded by the CTO ledger.
-- R1(5/10) RETURN 06/09 04:47 — Стартовое приглашение скрывает реальные реплики; на широком экране теряется текущая операция; длинная причина invalid выходит за границу. Независимый исполняемый пример ещё не запущен.
-- R2(9/10) ACCEPT 06/09 10:00 — [delta] Независимый неизменённый пример перешёл от exit1 на8348652 к exit0 на0af2354; диалог и wide busy сохранены. Интеграция отдельно ожидает проверки.
+One record per substantive correction round, including its return and accepted delta. The original reports and pre-canonicalization record remain retained; ACCEPT deltas do not grant or consume an extra return.
 
-Second substantive RETURN recorded 06/09 10:51; no numeric score supplied. No-run operation, animation and real cancellation hint are lost. Correct serially after f; preserve both existing consumer tests. The historical R2(9/10) line above was an accepted delta of the first return, not an additional spent return. Two substantive returns are now spent; an unmet convergence condition escalates rather than resets the loop.
+- R1(9/10) ACCEPT 06/09 10:00 — Initial RETURN5 found hidden conversation, lost wide operation and invalid-width overflow. Corrected at cd5dbf6/0af2354; the unchanged independent example switched from failure to success and the three findings closed.
+- R2(9/10) ACCEPT 06/09 13:41 — No-run work hid operation, animation and Esc. acaf81b passes both unchanged consumers, the negative variant and three rendered sizes. Two substantive returns spent; no further a correction.
 
 ## Closure
 

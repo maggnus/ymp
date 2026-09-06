@@ -3,7 +3,7 @@ id: W2-TUI-03f
 kind: task
 wave: W2
 card: W2-TUI-03
-state: review
+state: deferred
 risk: significant
 maturity: BUILD
 relation: required
@@ -18,8 +18,8 @@ closure_commit:
 evidence:
 duration_minutes: 0
 blocker:
-pause_reason:
-return_trigger:
+pause_reason: Owner rejected the current UI direction and closed this work
+return_trigger: Only a new explicit owner instruction with revised direction; queued automation does not resume work
 deliberate_partial: false
 review_rounds: 1
 escalation_decision:
@@ -55,11 +55,11 @@ No changed domain effects, authorization, budget, provider readiness/disclosure,
 
 ## Current state
 
-Candidate 3fa266e is under independent review after the complete-output positive/negative proof, twelve pool/state tests and narrow TUI checks passed. The pre-existing standing-hint assertion remains a separate failure. a has a second substantive return queued after f; no concurrent writer remains in ui.rs.
+Stopped by the owner after rejection of the current design direction. Code and review evidence are preserved; this outcome is not claimed complete or integrated.
 
 ## Next action
 
-Complete independent review of 774f476..3fa266e, then supply the accepted candidate to the queued a status correction.
+None under the closed instruction. Only a new explicit owner request may authorize a revised direction.
 
 ## Guardrails
 
