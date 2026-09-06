@@ -172,4 +172,10 @@ GitHub source above.
 - The full workspace suite is an integration check, not a card check: it runs once before a
   merge into the release branch. A worker does not run it at the end of its card, and a
   reviewer runs it only to settle a stated hypothesis the combined tree alone can answer.
+- After each successful build of the current product executable, update
+  `/Users/maggnus/.local/bin/ymp`. The CTO owns this installation step so parallel workers do not
+  overwrite it with different revisions. Builders report the exact executable path and source
+  revision. Install the normal restored product build; never install a test harness, historical
+  baseline or deliberate mutation. Replace the binary atomically after verification and record
+  its source revision and digest in the runtime state.
 - Report completed checks, anything not verified, and the next concrete step.

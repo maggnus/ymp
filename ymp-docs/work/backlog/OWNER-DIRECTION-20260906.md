@@ -19,3 +19,7 @@ superseded; geometry and interaction rules remain the design reference. Verbatim
 project/file names, quoted source and attributed external content retain their language. Unicode
 support and the ability to state a goal in Russian remain; this changes interface language, not
 input semantics. CTO reports to the owner remain Russian.
+
+## Installed executable
+
+The owner requires `/Users/maggnus/.local/bin/ymp` to be updated after each successful build of the current product executable. The CTO installs the normal product build atomically and records its exact revision/digest; parallel diagnostic, historical-baseline and mutation builds do not replace the operator's executable. This installation is for trying the current product and does not claim independent acceptance, integration or POC completion.
