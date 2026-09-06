@@ -3,7 +3,7 @@ id: W2-TUI-03a
 kind: task
 wave: W2
 card: W2-TUI-03
-state: blocked
+state: ready
 risk: significant
 maturity: BUILD
 relation: required
@@ -17,7 +17,7 @@ candidate_commit: https://github.com/maggnus/ymp/commit/0af2354b15c91abc728c82e1
 closure_commit:
 evidence:
 duration_minutes: 0
-blocker: Serial shared-ui handoff awaits completion of W2-TUI-03f
+blocker:
 pause_reason:
 return_trigger:
 deliberate_partial: false
@@ -56,7 +56,7 @@ Slash-command state changes and a new board page belong to b/c. Application-gene
 
 ## Current state
 
-Second substantive RETURN after complete integration exposed loss of no-run working status, animation and the actual Esc cancellation hint. The previous acceptance is superseded for a only; d and already closed findings remain accepted. Author rework is queued until f releases the shared ui.rs writer slot.
+Second substantive RETURN after complete integration exposed loss of no-run working status, animation and the actual Esc cancellation hint. The previous acceptance is superseded for a only; d and already closed findings remain accepted. f has finished and has independent acceptance. The retained author may now receive a serial a/g correction on the CTO-supplied combined revision.
 
 ## Next action
 
