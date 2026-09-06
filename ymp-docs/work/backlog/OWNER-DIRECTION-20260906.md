@@ -10,3 +10,12 @@ These are direct owner decisions from the current project-leadership conversatio
 - Existing explicit limits on live experiments, external publication and irreversible effects remain. Preparation, local implementation, disposable validation and independent review are authorized. No completed single-use experiment authorization is reused.
 
 The detailed scientific reformulation belongs under `ymp-docs/research/` and is owned by W2-DEF-01. The approved `USER_JOURNEY.md` remains the starting point for the new interface; no request is sent to Claude Design.
+
+## Interface-language clarification
+
+The owner explicitly requires a fully English TUI. Application-authored labels, menu entries, help,
+statuses, errors, confirmations and replies use English. The earlier Russian screen copy is
+superseded; geometry and interaction rules remain the design reference. Verbatim user input,
+project/file names, quoted source and attributed external content retain their language. Unicode
+support and the ability to state a goal in Russian remain; this changes interface language, not
+input semantics. CTO reports to the owner remain Russian.

@@ -3,7 +3,7 @@ id: W2-TUI-03d
 kind: task
 wave: W2
 card: W2-TUI-03
-state: ready
+state: active
 risk: significant
 maturity: BUILD
 relation: required
@@ -11,7 +11,7 @@ depends_on: [W2-UX-02]
 blocks: [W2-TUI-03b]
 created_at: 2026-09-06T04:47:56+08:00
 updated_at: 2026-09-06T04:47:56+08:00
-started_at:
+started_at: 2026-09-06T04:51:54+08:00
 accepted_at:
 candidate_commit:
 closure_commit:

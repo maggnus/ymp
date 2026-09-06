@@ -43,6 +43,9 @@ No new authorization, provider-disclosure, cancellation, verification or apply s
 
 ## Acceptance
 
+- [ ] All application-authored interface text in this slice is English. User input, filenames,
+      source quotations and attributed external content remain verbatim; Unicode is not banned.
+
 - [ ] The slash palette handles empty/filter/selected/unavailable/no-match states consistently. Selection/filtering alone returns no mutating Action.
 - [ ] Esc removes only the top layer and restores focus and text; data-page return goes to the recorded source. Enter executes only the explicit supported choice.
 - [ ] Unknown/unavailable inputs preserve the draft and show one concise useful reply. Existing supported commands remain reachable; future features do not receive a fake success path.

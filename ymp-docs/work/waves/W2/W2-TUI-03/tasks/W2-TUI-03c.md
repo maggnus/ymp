@@ -45,6 +45,9 @@ No human board publishing, automatic actions from messages, additional audience 
 
 ## Acceptance
 
+- [ ] All application-authored interface text in this slice is English. User input, filenames,
+      source quotations and attributed external content remain verbatim; Unicode is not banned.
+
 - [ ] /board reads the production Application projection and shows exact attributable content/audience, with readable long text and explicit empty/unavailable/error states.
 - [ ] Opening, filtering, selecting and closing the page changes no domain state or permissions. Untrusted message bytes cannot create terminal controls, links that execute or commands.
 - [ ] An Application-backed test creates genuine board evidence and reaches it through Session and the page; unauthorized/invalid or control-character payload cases remain bounded and inert.

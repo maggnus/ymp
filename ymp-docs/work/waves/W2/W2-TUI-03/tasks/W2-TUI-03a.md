@@ -45,6 +45,9 @@ Slash-command state changes and a new board page belong to b/c. Application-gene
 
 ## Acceptance
 
+- [ ] All application-authored interface text in this slice is English. User input, filenames,
+      source quotations and attributed external content remain verbatim; Unicode is not banned.
+
 - [ ] Production rendering gives conversation/input prominence, a bounded context header and compact truthful status; no technical maturity commentary or invented work appears.
 - [ ] Empty, working and terminal views are readable at all3 sizes; Cyrillic, paths and long words neither overlap nor disappear, and input remains visible.
 - [ ] Dynamic content stays derived from the existing projection. Unknown cost/status is not displayed as zero or success. Control characters cannot turn content into terminal instructions.

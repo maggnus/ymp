@@ -43,6 +43,14 @@ tools live under `ymp-rust/tools/`. Do not create root-level `ymp-tui`, `ymp-run
 `ymp-verifier`, or similar Rust projects. Do not create nested Git repositories. Every future root
 repository or subproject must use the `ymp-<name>` prefix.
 
+## Product language
+
+All application-authored TUI text is English: menus, labels, help, statuses, errors, confirmations
+and application replies. This owner decision supersedes Russian interface copy in earlier design
+fixtures. Preserve Unicode support and render user input, paths, identifiers, quoted source text
+and attributed third-party content verbatim; never translate evidence silently. Project-leadership
+reports to the owner remain in Russian. This is not an English-only input restriction.
+
 ## Current visual-design sources
 
 The current chat-first visual concept has three authoritative sources with distinct roles:
