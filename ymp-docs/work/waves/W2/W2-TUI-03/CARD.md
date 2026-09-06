@@ -6,7 +6,7 @@ state: ready
 risk: significant
 maturity: BUILD
 relation: required
-depends_on: [W2-UX-02]
+depends_on: [W2-UX-02, W2-UX-02a]
 blocks: []
 created_at: 2026-09-06T02:26:51+08:00
 updated_at: 2026-09-06T02:26:51+08:00

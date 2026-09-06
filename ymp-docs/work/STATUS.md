@@ -137,4 +137,5 @@
 | `[ ]` | [`W2-TUI-03c`](waves/W2/W2-TUI-03/tasks/W2-TUI-03c.md) | Operator reads attributed inert board messages through Application | — | — | — |
 | `[~]` | [`W2-TUI-03d`](waves/W2/W2-TUI-03/tasks/W2-TUI-03d.md) | Structured field values remain inert in both column and stacked layouts | — | 06/09 04:51 | 06/09 04:47 (0m) |
 | `[x]` | [`W2-UX-02`](waves/W2/W2-UX-02/CARD.md) | The complete user journey has one coherent terminal interaction design | [`5d29f0d1`](https://github.com/maggnus/ymp/commit/5d29f0d1d8242b14d1ecd6905f4c6f673661993f) | 06/09 03:11 | 06/09 04:00 (0m) |
+| `[ ]` | [`W2-UX-02a`](waves/W2/W2-UX-02/tasks/W2-UX-02a.md) | English interface copy carries the accepted terminal screen contract | — | — | — |
 | `[x]` | [`W1-APP-02aa`](waves/W1/W1-APP-02/tasks/W1-APP-02aa.md) | Quitting kills a probe that outlives the 5 s bound | [`a19c4807`](https://github.com/maggnus/ymp/commit/a19c480742f44b13021aab9c47cb149635024d92) | 16/08 09:30 | 16/08 11:45 (2h15m) |

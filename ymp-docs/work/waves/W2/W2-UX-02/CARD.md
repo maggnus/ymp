@@ -59,6 +59,7 @@ Accepted after Opus delta review9/10 at e1d6afa, integrated at5d29f0d. The desig
 ## Tasks
 
 One design atom. No full workspace suite or model experiment. Return changed screen images and a precise production-slice handoff.
+- [W2-UX-02a](tasks/W2-UX-02a.md) — expansion
 
 ## Review rounds
 
