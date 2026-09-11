@@ -1,0 +1,282 @@
+pub mod discovery;
+mod rpc;
+pub mod supervisor;
+
+use anyhow::{bail, Context, Result};
+use rpc::RpcProcess;
+use serde::{Deserialize, Serialize};
+use serde_json::{json, Value};
+use std::path::PathBuf;
+use tokio::sync::mpsc;
+use tokio_util::sync::CancellationToken;
+use ymp_core::{AgentProfile, ProviderConfig, ProviderKind};
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct McpEndpoint {
+    pub command: String,
+    pub args: Vec<String>,
+    pub token: String,
+}
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TurnRequest {
+    pub profile: AgentProfile,
+    pub provider: ProviderConfig,
+    pub cwd: PathBuf,
+    pub prompt: String,
+    pub purpose: String,
+    pub read_only: bool,
+    pub resume: Option<String>,
+    pub mcp: Option<McpEndpoint>,
+    pub timeout_secs: u64,
+    pub bridge: PathBuf,
+}
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TurnResult {
+    pub text: String,
+    pub session_id: String,
+    pub usage: Option<Value>,
+}
+#[derive(Debug, Clone)]
+pub enum ProviderEvent {
+    Delta(String),
+    Session(String),
+    Tool(String),
+}
+
+pub async fn run_turn(
+    req: TurnRequest,
+    cancel: CancellationToken,
+    events: mpsc::UnboundedSender<ProviderEvent>,
+) -> Result<TurnResult> {
+    if req.provider.kind == ProviderKind::Mock {
+        return mock_turn(&req, cancel, events).await;
+    }
+    let timeout = req.timeout_secs;
+    let work = run_native(req, events);
+    tokio::select! {
+        _=cancel.cancelled()=>bail!("Turn cancelled; process resources released"),
+        result=tokio::time::timeout(std::time::Duration::from_secs(timeout),work)=>result.context("Provider turn timed out; outcome may be incomplete")?,
+    }
+}
+
+async fn run_native(
+    req: TurnRequest,
+    events: mpsc::UnboundedSender<ProviderEvent>,
+) -> Result<TurnResult> {
+    let mut proc = RpcProcess::spawn(&req).await?;
+    let result = match req.provider.kind {
+        ProviderKind::Codex => codex(&mut proc, &req, &events).await,
+        ProviderKind::Claude => claude(&mut proc, &req, &events).await,
+        ProviderKind::Acp => acp(&mut proc, &req, &events).await,
+        ProviderKind::Mock => unreachable!(),
+    };
+    proc.close().await;
+    result
+}
+
+async fn codex(
+    proc: &mut RpcProcess,
+    req: &TurnRequest,
+    events: &mpsc::UnboundedSender<ProviderEvent>,
+) -> Result<TurnResult> {
+    proc.request(
+        "initialize",
+        json!({"clientInfo":{"name":"ymp","version":"0.1.0"},"capabilities":{}}),
+        events,
+    )
+    .await?;
+    proc.notify("initialized", json!({})).await?;
+    let mut params = json!({"cwd":req.cwd,"approvalPolicy":"never","sandbox":if req.read_only{"read-only"}else{"danger-full-access"},"developerInstructions":format!("{}\nAll responses, documentation, comments, and artifacts in ymp must be in English.",req.profile.instructions)});
+    if let Some(model) = &req.profile.model {
+        params["model"] = json!(model);
+    }
+    let response = if let Some(id) = &req.resume {
+        params["threadId"] = json!(id);
+        proc.request("thread/resume", params, events).await?
+    } else {
+        proc.request("thread/start", params, events).await?
+    };
+    let session = response
+        .pointer("/thread/id")
+        .and_then(Value::as_str)
+        .context("Codex did not return a thread id")?
+        .to_owned();
+    let _ = events.send(ProviderEvent::Session(session.clone()));
+    let response = proc
+        .request(
+            "turn/start",
+            json!({"threadId":session,"input":[{"type":"text","text":req.prompt}]}),
+            events,
+        )
+        .await?;
+    let turn = response
+        .pointer("/turn/id")
+        .and_then(Value::as_str)
+        .context("Codex did not return a turn id")?
+        .to_owned();
+    let mut text = String::new();
+    let mut usage = None;
+    loop {
+        let msg = proc.next().await?;
+        if proc.respond_server(&msg).await? {
+            continue;
+        }
+        let p = &msg["params"];
+        if p.get("threadId")
+            .and_then(Value::as_str)
+            .is_some_and(|id| id != session)
+        {
+            continue;
+        }
+        if p.get("turnId")
+            .and_then(Value::as_str)
+            .is_some_and(|id| id != turn)
+        {
+            continue;
+        }
+        match msg["method"].as_str().unwrap_or("") {
+            "item/agentMessage/delta" => {
+                if let Some(delta) = p["delta"].as_str() {
+                    let _ = events.send(ProviderEvent::Delta(delta.into()));
+                }
+            }
+            "item/completed" => {
+                if p.pointer("/item/type").and_then(Value::as_str) == Some("agentMessage") {
+                    if let Some(t) = p.pointer("/item/text").and_then(Value::as_str) {
+                        text = t.into();
+                    }
+                }
+            }
+            "thread/tokenUsage/updated" => {
+                usage = p.get("tokenUsage").cloned();
+            }
+            "turn/completed" => {
+                if p.pointer("/turn/id").and_then(Value::as_str) != Some(&turn) {
+                    continue;
+                }
+                if p.pointer("/turn/status").and_then(Value::as_str) != Some("completed") {
+                    bail!("Codex turn did not complete: {}", p["turn"]);
+                }
+                break;
+            }
+            "error" => bail!("Codex error: {}", p["error"]),
+            _ => {}
+        }
+    }
+    if text.is_empty() {
+        bail!("Codex completed without a final response");
+    }
+    Ok(TurnResult {
+        text,
+        session_id: session,
+        usage,
+    })
+}
+
+async fn claude(
+    proc: &mut RpcProcess,
+    req: &TurnRequest,
+    events: &mpsc::UnboundedSender<ProviderEvent>,
+) -> Result<TurnResult> {
+    let response = proc
+        .request("run", serde_json::to_value(req)?, events)
+        .await?;
+    Ok(serde_json::from_value(response)?)
+}
+
+async fn acp(
+    proc: &mut RpcProcess,
+    req: &TurnRequest,
+    events: &mpsc::UnboundedSender<ProviderEvent>,
+) -> Result<TurnResult> {
+    let init=proc.request("initialize",json!({"protocolVersion":1,"clientCapabilities":{},"clientInfo":{"name":"ymp","version":"0.1.0"}}),events).await?;
+    let mcp=req.mcp.as_ref().map(|m|vec![json!({"name":"ymp","command":m.command,"args":m.args,"env":[{"name":"YMP_MCP_TOKEN","value":m.token}]})]).unwrap_or_default();
+    let params = json!({"cwd":req.cwd,"mcpServers":mcp});
+    let response = if let Some(id) = &req.resume {
+        if init
+            .pointer("/agentCapabilities/loadSession")
+            .and_then(Value::as_bool)
+            != Some(true)
+        {
+            bail!("ACP agent cannot restore sessions");
+        }
+        let mut p = params;
+        p["sessionId"] = json!(id);
+        proc.request("session/load", p, events).await?
+    } else {
+        proc.request("session/new", params, events).await?
+    };
+    let session = response["sessionId"]
+        .as_str()
+        .map(str::to_owned)
+        .or_else(|| req.resume.clone())
+        .context("ACP session id missing")?;
+    let _ = events.send(ProviderEvent::Session(session.clone()));
+    if let Some(model) = &req.profile.model {
+        proc.request(
+            "session/set_model",
+            json!({"sessionId":session,"modelId":model}),
+            events,
+        )
+        .await?;
+    }
+    if !req.read_only {
+        proc.request(
+            "session/set_mode",
+            json!({"sessionId":session,"modeId":"bypass_permissions"}),
+            events,
+        )
+        .await?;
+    }
+    let prompt = format!(
+        "{}\n\n{}\n\n{}",
+        req.profile.instructions,
+        if req.read_only {
+            "Read-only task. Do not modify files or run commands that change state."
+        } else {
+            ""
+        },
+        req.prompt
+    );
+    proc.acp_text.clear();
+    let result = proc
+        .request(
+            "session/prompt",
+            json!({"sessionId":session,"prompt":[{"type":"text","text":prompt}]}),
+            events,
+        )
+        .await?;
+    if result["stopReason"].as_str() != Some("end_turn") {
+        bail!("ACP turn stopped: {}", result["stopReason"]);
+    }
+    if proc.acp_text.is_empty() {
+        bail!("ACP completed without a response");
+    }
+    Ok(TurnResult {
+        text: proc.acp_text.clone(),
+        session_id: session,
+        usage: result.get("usage").cloned(),
+    })
+}
+
+async fn mock_turn(
+    req: &TurnRequest,
+    cancel: CancellationToken,
+    events: mpsc::UnboundedSender<ProviderEvent>,
+) -> Result<TurnResult> {
+    tokio::select! {_=cancel.cancelled()=>bail!("Cancelled"),_=tokio::time::sleep(std::time::Duration::from_millis(30))=>{}}
+    let text=match req.purpose.as_str(){
+        "plan"=>json!({"summary":"Create and verify a small deliverable","tasks":[{"title":"Create a greeting","description":"Write greeting.txt containing Hello from ymp","competence":"implementation","difficulty":"simple","dependencies":[],"checks":["test -f greeting.txt && grep -q 'Hello from ymp' greeting.txt"]}]}).to_string(),
+        "review_plan"|"review"|"final_review"|"review_memory"=>json!({"approved":true,"reason":"The stated acceptance criteria are satisfied.","lesson":"Check the produced artifact against the requested content."}).to_string(),
+        "bid"=>json!({"willing":true,"approach":"Inspect the task, implement, and verify."}).to_string(),
+        "execute"=>{tokio::fs::write(req.cwd.join("greeting.txt"),if req.profile.instructions.contains("[mock:broken-output]"){ "wrong output\n" }else{"Hello from ymp\n"}).await?;"Created greeting.txt and verified its content.".into()},
+        "learn"=>json!({"useful":true,"title":"Verify file-producing tasks","content":"For file-producing tasks, check both existence and requested content. Run the check on the final integrated artifact."}).to_string(),
+        _=>"The requested artifact is complete and independently verified.".into(),
+    };
+    let _ = events.send(ProviderEvent::Delta(text.clone()));
+    Ok(TurnResult {
+        text,
+        session_id: req.resume.clone().unwrap_or_else(ymp_core::new_id),
+        usage: None,
+    })
+}

@@ -1,0 +1,12 @@
+CREATE TABLE projects(id TEXT PRIMARY KEY,path TEXT NOT NULL UNIQUE,data TEXT NOT NULL);
+CREATE TABLE sessions(id TEXT PRIMARY KEY,project_id TEXT NOT NULL REFERENCES projects(id),data TEXT NOT NULL);
+CREATE TABLE messages(seq INTEGER PRIMARY KEY AUTOINCREMENT,session_id TEXT NOT NULL REFERENCES sessions(id),author TEXT NOT NULL,recipient TEXT,kind TEXT NOT NULL,text TEXT NOT NULL,created_at TEXT NOT NULL);
+CREATE INDEX messages_session ON messages(session_id,seq);
+CREATE TABLE events(seq INTEGER PRIMARY KEY AUTOINCREMENT,session_id TEXT NOT NULL,kind TEXT NOT NULL,data TEXT NOT NULL,created_at TEXT NOT NULL);
+CREATE TABLE tasks(id TEXT PRIMARY KEY,session_id TEXT NOT NULL REFERENCES sessions(id),data TEXT NOT NULL);
+CREATE INDEX tasks_session ON tasks(session_id);
+CREATE TABLE kv(key TEXT PRIMARY KEY,value TEXT NOT NULL);
+CREATE TABLE observations(id TEXT PRIMARY KEY,agent_version TEXT NOT NULL,competence TEXT NOT NULL,difficulty TEXT NOT NULL,success INTEGER NOT NULL,data TEXT NOT NULL);
+CREATE INDEX observations_category ON observations(agent_version,competence,difficulty);
+CREATE TABLE memory(id TEXT PRIMARY KEY,project_id TEXT,status TEXT NOT NULL,data TEXT NOT NULL);
+CREATE VIRTUAL TABLE memory_search USING fts5(id UNINDEXED,title,content);

@@ -1,0 +1,387 @@
+use anyhow::{bail, Context, Result};
+use fs2::FileExt;
+use rusqlite::{params, Connection, OptionalExtension};
+use std::{
+    fs::File,
+    path::{Path, PathBuf},
+    sync::{Arc, Mutex, MutexGuard},
+};
+use ymp_core::*;
+
+#[derive(Clone)]
+pub struct Store {
+    conn: Arc<Mutex<Connection>>,
+    pub home: PathBuf,
+}
+
+impl Store {
+    pub fn open(home: &Path) -> Result<Self> {
+        std::fs::create_dir_all(home)?;
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            std::fs::set_permissions(home, std::fs::Permissions::from_mode(0o700))?;
+        }
+        let mut conn = Connection::open(home.join("state.sqlite"))?;
+        conn.busy_timeout(std::time::Duration::from_secs(5))?;
+        conn.execute_batch("PRAGMA journal_mode=WAL; PRAGMA foreign_keys=ON;")?;
+        let version: u32 = conn.query_row("PRAGMA user_version", [], |r| r.get(0))?;
+        if version > 1 {
+            bail!("This database was created by a newer ymp version");
+        }
+        if version == 0 {
+            let tx = conn.transaction()?;
+            tx.execute_batch(include_str!("schema.sql"))?;
+            tx.execute_batch("PRAGMA user_version=1")?;
+            tx.commit()?;
+        }
+        Ok(Self {
+            conn: Arc::new(Mutex::new(conn)),
+            home: home.to_owned(),
+        })
+    }
+    fn db(&self) -> Result<MutexGuard<'_, Connection>> {
+        self.conn
+            .lock()
+            .map_err(|_| anyhow::anyhow!("Database lock poisoned"))
+    }
+    pub fn project(&self, path: &Path) -> Result<Project> {
+        let path = path.canonicalize()?;
+        let db = self.db()?;
+        let found: Option<String> = db
+            .query_row(
+                "SELECT data FROM projects WHERE path=?",
+                [path.to_string_lossy().as_ref()],
+                |r| r.get(0),
+            )
+            .optional()?;
+        if let Some(data) = found {
+            return Ok(serde_json::from_str(&data)?);
+        }
+        let p = Project {
+            id: new_id(),
+            name: path
+                .file_name()
+                .unwrap_or_default()
+                .to_string_lossy()
+                .into(),
+            path,
+        };
+        db.execute(
+            "INSERT INTO projects(id,path,data) VALUES (?,?,?)",
+            params![p.id, p.path.to_string_lossy(), serde_json::to_string(&p)?],
+        )?;
+        Ok(p)
+    }
+    pub fn get_project(&self, id: &str) -> Result<Project> {
+        let data: String =
+            self.db()?
+                .query_row("SELECT data FROM projects WHERE id=?", [id], |r| r.get(0))?;
+        Ok(serde_json::from_str(&data)?)
+    }
+    pub fn relocate_project(&self, id: &str, path: &Path) -> Result<()> {
+        let mut project = self.get_project(id)?;
+        project.path = path.canonicalize()?;
+        self.db()?.execute(
+            "UPDATE projects SET path=?,data=? WHERE id=?",
+            params![
+                project.path.to_string_lossy(),
+                serde_json::to_string(&project)?,
+                id
+            ],
+        )?;
+        Ok(())
+    }
+    pub fn save_session(&self, s: &Session) -> Result<()> {
+        self.db()?.execute("INSERT INTO sessions(id,project_id,data) VALUES (?,?,?) ON CONFLICT(id) DO UPDATE SET data=excluded.data",params![s.id,s.project_id,serde_json::to_string(s)?])?;
+        Ok(())
+    }
+    pub fn session(&self, id: &str) -> Result<Session> {
+        let data: String =
+            self.db()?
+                .query_row("SELECT data FROM sessions WHERE id=?", [id], |r| r.get(0))?;
+        Ok(serde_json::from_str(&data)?)
+    }
+    pub fn sessions(&self, project: Option<&str>) -> Result<Vec<Session>> {
+        let db = self.db()?;
+        let mut q = db.prepare(
+            "SELECT data FROM sessions WHERE (?1 IS NULL OR project_id=?1) ORDER BY rowid DESC",
+        )?;
+        let values = q
+            .query_map([project], |r| r.get::<_, String>(0))?
+            .collect::<rusqlite::Result<Vec<_>>>()?;
+        values
+            .into_iter()
+            .map(|s| Ok(serde_json::from_str(&s)?))
+            .collect()
+    }
+    pub fn session_dir(&self, s: &Session) -> PathBuf {
+        self.home
+            .join("projects")
+            .join(&s.project_id)
+            .join("sessions")
+            .join(&s.id)
+    }
+    pub fn lock_session(&self, s: &Session) -> Result<File> {
+        let dir = self.session_dir(s);
+        std::fs::create_dir_all(&dir)?;
+        let file = std::fs::OpenOptions::new()
+            .create(true)
+            .truncate(false)
+            .read(true)
+            .write(true)
+            .open(dir.join("session.lock"))?;
+        file.try_lock_exclusive()
+            .context("This session is already running in another ymp process")?;
+        Ok(file)
+    }
+    pub fn message(
+        &self,
+        session: &str,
+        author: &str,
+        recipient: Option<&str>,
+        kind: &str,
+        text: &str,
+    ) -> Result<Message> {
+        let mut db = self.db()?;
+        let tx = db.transaction()?;
+        let created = now();
+        tx.execute("INSERT INTO messages(session_id,author,recipient,kind,text,created_at) VALUES (?,?,?,?,?,?)",params![session,author,recipient,kind,text,created])?;
+        let msg = Message {
+            seq: tx.last_insert_rowid(),
+            session_id: session.into(),
+            author: author.into(),
+            recipient: recipient.map(str::to_owned),
+            kind: kind.into(),
+            text: text.into(),
+            created_at: created,
+        };
+        tx.execute(
+            "INSERT INTO events(session_id,kind,data,created_at) VALUES (?,?,?,?)",
+            params![session, "message", serde_json::to_string(&msg)?, now()],
+        )?;
+        tx.commit()?;
+        Ok(msg)
+    }
+    pub fn messages(&self, session: &str, after: i64, limit: usize) -> Result<Vec<Message>> {
+        let db = self.db()?;
+        let mut q=db.prepare("SELECT seq,session_id,author,recipient,kind,text,created_at FROM messages WHERE session_id=? AND seq>? ORDER BY seq LIMIT ?")?;
+        let items = q
+            .query_map(params![session, after, limit.min(10000)], |r| {
+                Ok(Message {
+                    seq: r.get(0)?,
+                    session_id: r.get(1)?,
+                    author: r.get(2)?,
+                    recipient: r.get(3)?,
+                    kind: r.get(4)?,
+                    text: r.get(5)?,
+                    created_at: r.get(6)?,
+                })
+            })?
+            .collect::<rusqlite::Result<_>>()?;
+        Ok(items)
+    }
+    pub fn event(&self, session: &str, kind: &str, data: &serde_json::Value) -> Result<()> {
+        self.db()?.execute(
+            "INSERT INTO events(session_id,kind,data,created_at) VALUES (?,?,?,?)",
+            params![session, kind, data.to_string(), now()],
+        )?;
+        Ok(())
+    }
+    pub fn save_task(&self, t: &Task) -> Result<()> {
+        let mut db = self.db()?;
+        let tx = db.transaction()?;
+        let data = serde_json::to_string(t)?;
+        tx.execute("INSERT INTO tasks(id,session_id,data) VALUES (?,?,?) ON CONFLICT(id) DO UPDATE SET data=excluded.data",params![t.id,t.session_id,data])?;
+        tx.execute(
+            "INSERT INTO events(session_id,kind,data,created_at) VALUES (?,?,?,?)",
+            params![t.session_id, "task", data, now()],
+        )?;
+        tx.commit()?;
+        Ok(())
+    }
+    pub fn tasks(&self, session: &str) -> Result<Vec<Task>> {
+        let db = self.db()?;
+        let mut q = db.prepare("SELECT data FROM tasks WHERE session_id=? ORDER BY rowid")?;
+        let values = q
+            .query_map([session], |r| r.get::<_, String>(0))?
+            .collect::<rusqlite::Result<Vec<_>>>()?;
+        values
+            .into_iter()
+            .map(|s| Ok(serde_json::from_str(&s)?))
+            .collect()
+    }
+    /// Publish a complete accepted plan atomically. Recovery must never see only
+    /// the first half of a dependency graph.
+    pub fn save_plan(&self, tasks: &[Task]) -> Result<()> {
+        let mut db = self.db()?;
+        let tx = db.transaction()?;
+        for task in tasks {
+            let data = serde_json::to_string(task)?;
+            tx.execute(
+                "INSERT INTO tasks(id,session_id,data) VALUES (?,?,?)",
+                params![task.id, task.session_id, data],
+            )?;
+            tx.execute(
+                "INSERT INTO events(session_id,kind,data,created_at) VALUES (?,?,?,?)",
+                params![task.session_id, "task", data, now()],
+            )?;
+        }
+        tx.commit()?;
+        Ok(())
+    }
+    pub fn proposed_memory(&self, session: &str) -> Result<Vec<MemoryEntry>> {
+        let db = self.db()?;
+        let mut q = db.prepare("SELECT data FROM memory WHERE status='proposed' AND json_extract(data,'$.source_session')=? ORDER BY rowid LIMIT 5")?;
+        let values = q
+            .query_map([session], |r| r.get::<_, String>(0))?
+            .collect::<rusqlite::Result<Vec<_>>>()?;
+        values
+            .into_iter()
+            .map(|s| Ok(serde_json::from_str(&s)?))
+            .collect()
+    }
+    pub fn put_value(&self, key: &str, value: &serde_json::Value) -> Result<()> {
+        self.db()?.execute("INSERT INTO kv(key,value) VALUES (?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value",params![key,value.to_string()])?;
+        Ok(())
+    }
+    pub fn value(&self, key: &str) -> Result<Option<serde_json::Value>> {
+        let data: Option<String> = self
+            .db()?
+            .query_row("SELECT value FROM kv WHERE key=?", [key], |r| r.get(0))
+            .optional()?;
+        data.map(|s| serde_json::from_str(&s).map_err(Into::into))
+            .transpose()
+    }
+    pub fn observe(&self, o: &Observation) -> Result<bool> {
+        Ok(self.db()?.execute("INSERT OR IGNORE INTO observations(id,agent_version,competence,difficulty,success,data) VALUES (?,?,?,?,?,?)",params![o.id,o.agent_version,o.competence,o.difficulty,o.success,serde_json::to_string(o)?])?==1)
+    }
+    pub fn reputation(
+        &self,
+        version: &str,
+        competence: &str,
+        difficulty: &str,
+    ) -> Result<Reputation> {
+        let db = self.db()?;
+        let mut q=db.prepare("SELECT success FROM observations WHERE agent_version=? AND competence=? AND difficulty=? ORDER BY rowid DESC LIMIT 100")?;
+        let values = q
+            .query_map(params![version, competence, difficulty], |r| {
+                r.get::<_, bool>(0)
+            })?
+            .collect::<rusqlite::Result<Vec<_>>>()?;
+        Ok(Reputation {
+            successes: values.iter().filter(|&&v| v).count() as u32,
+            failures: values.iter().filter(|&&v| !v).count() as u32,
+        })
+    }
+    pub fn observations(&self) -> Result<Vec<Observation>> {
+        let db = self.db()?;
+        let mut q = db.prepare("SELECT data FROM observations ORDER BY rowid DESC LIMIT 500")?;
+        let values = q
+            .query_map([], |r| r.get::<_, String>(0))?
+            .collect::<rusqlite::Result<Vec<_>>>()?;
+        values
+            .into_iter()
+            .map(|s| Ok(serde_json::from_str(&s)?))
+            .collect()
+    }
+    pub fn save_memory(&self, m: &MemoryEntry) -> Result<()> {
+        if m.project_id.is_none()
+            && m.status == "active"
+            && (m.reviewer.is_none() || m.reviewer.as_deref() == Some(&m.author))
+        {
+            bail!("Global memory requires independent review");
+        }
+        let mut db = self.db()?;
+        let tx = db.transaction()?;
+        tx.execute("INSERT INTO memory(id,project_id,status,data) VALUES (?,?,?,?) ON CONFLICT(id) DO UPDATE SET status=excluded.status,data=excluded.data",params![m.id,m.project_id,m.status,serde_json::to_string(m)?])?;
+        tx.execute("DELETE FROM memory_search WHERE id=?", [&m.id])?;
+        tx.execute(
+            "INSERT INTO memory_search(id,title,content) VALUES (?,?,?)",
+            params![m.id, m.title, m.content],
+        )?;
+        tx.commit()?;
+        Ok(())
+    }
+    pub fn memory(&self, project: Option<&str>, query: &str) -> Result<Vec<MemoryEntry>> {
+        let db = self.db()?;
+        let terms = query
+            .split_whitespace()
+            .take(12)
+            .map(|s| format!("\"{}\"", s.replace('"', "\"\"")))
+            .collect::<Vec<_>>()
+            .join(" OR ");
+        let sql = if terms.is_empty() {
+            "SELECT data FROM memory WHERE status='active' AND (project_id IS NULL OR project_id=?1) ORDER BY rowid DESC LIMIT 20"
+        } else {
+            "SELECT m.data FROM memory m JOIN memory_search f ON f.id=m.id WHERE m.status='active' AND (m.project_id IS NULL OR m.project_id=?1) AND memory_search MATCH ?2 ORDER BY rank LIMIT 10"
+        };
+        let mut q = db.prepare(sql)?;
+        let values = if terms.is_empty() {
+            q.query_map([project], |r| r.get::<_, String>(0))?
+                .collect::<rusqlite::Result<Vec<_>>>()?
+        } else {
+            q.query_map(params![project, terms], |r| r.get::<_, String>(0))?
+                .collect::<rusqlite::Result<Vec<_>>>()?
+        };
+        values
+            .into_iter()
+            .map(|s| Ok(serde_json::from_str(&s)?))
+            .collect()
+    }
+    pub fn forget_memory(&self, id: &str) -> Result<()> {
+        let data: String =
+            self.db()?
+                .query_row("SELECT data FROM memory WHERE id=?", [id], |r| r.get(0))?;
+        let mut m: MemoryEntry = serde_json::from_str(&data)?;
+        m.status = "retired".into();
+        self.save_memory(&m)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn observations_are_idempotent_and_memory_is_scoped() {
+        let dir = tempfile::tempdir().unwrap();
+        let store = Store::open(dir.path()).unwrap();
+        let o = Observation {
+            id: "attempt".into(),
+            agent_version: "v".into(),
+            agent_name: "a".into(),
+            competence: "analysis".into(),
+            difficulty: "simple".into(),
+            success: true,
+            evidence: "checks".into(),
+            created_at: now(),
+        };
+        assert!(store.observe(&o).unwrap());
+        assert!(!store.observe(&o).unwrap());
+        assert_eq!(
+            store
+                .reputation("v", "analysis", "simple")
+                .unwrap()
+                .successes,
+            1
+        );
+        let m = MemoryEntry {
+            id: new_id(),
+            project_id: Some("a".into()),
+            kind: "procedure".into(),
+            title: "Rust".into(),
+            content: "Run cargo test".into(),
+            source_session: "s".into(),
+            author: "a".into(),
+            reviewer: Some("b".into()),
+            status: "active".into(),
+            created_at: now(),
+            supersedes: None,
+        };
+        store.save_memory(&m).unwrap();
+        assert_eq!(store.memory(Some("a"), "cargo").unwrap().len(), 1);
+        assert!(store.memory(Some("b"), "cargo").unwrap().is_empty());
+        store.forget_memory(&m.id).unwrap();
+        assert!(store.memory(Some("a"), "").unwrap().is_empty());
+    }
+}

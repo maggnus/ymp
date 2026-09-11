@@ -1,0 +1,10 @@
+{
+  "id": "greeting",
+  "split": "adaptation",
+  "prompt": "Create greeting.py with greet(name) returning Hello, NAME! and standard-library unit tests for Ada and the empty string. Run python3 -m unittest.",
+  "acceptance": [
+    "python3 -m unittest",
+    "python3 -c \"from greeting import greet; assert greet('Ada') == 'Hello, Ada!'; assert greet('') == 'Hello, !'\""
+  ],
+  "notes": "A functionality smoke test, not evidence of a learning advantage."
+}

@@ -1,0 +1,88 @@
+import { createInterface } from "node:readline";
+import { query, type Options, type Query } from "@anthropic-ai/claude-agent-sdk";
+
+interface Request {
+  id: number;
+  method: string;
+  params: {
+    profile: { model?: string; instructions: string };
+    provider: { command: string };
+    cwd: string;
+    prompt: string;
+    read_only: boolean;
+    resume?: string;
+    mcp?: { command: string; args: string[]; token: string };
+  };
+}
+
+function send(value: unknown): void { process.stdout.write(`${JSON.stringify(value)}\n`); }
+let active: Query | undefined;
+let running = false;
+
+async function execute(request: Request): Promise<void> {
+  if (request.method !== "run") throw new Error("Unknown method");
+  if (running) throw new Error("Only one turn may run per bridge");
+  running = true;
+  const p = request.params;
+  const env = { ...process.env };
+  delete env.CLAUDECODE;
+  delete env.CLAUDE_CODE_ENTRYPOINT;
+  const options: Options = {
+    cwd: p.cwd,
+    pathToClaudeCodeExecutable: p.provider.command,
+    settingSources: ["user", "project", "local"],
+    systemPrompt: { type: "preset", preset: "claude_code", append: `${p.profile.instructions}\nAll responses, documentation, comments, and artifacts in ymp must be in English.` },
+    // Native plan mode prohibits even authorized team-chat tools. Limit the
+    // filesystem tool surface instead, while allowing the local coordination API.
+    permissionMode: p.read_only ? "default" : "bypassPermissions",
+    ...(p.read_only ? { tools: ["Read", "Glob", "Grep"] } : {}),
+    allowDangerouslySkipPermissions: true,
+    includePartialMessages: true,
+    persistSession: true,
+    env,
+    ...(p.profile.model ? { model: p.profile.model } : {}),
+    ...(p.resume ? { resume: p.resume } : {}),
+    ...(p.mcp ? { mcpServers: { ymp: { type: "stdio" as const, command: p.mcp.command, args: p.mcp.args, env: { YMP_MCP_TOKEN: p.mcp.token } } } } : {}),
+    // Team tools are allowed even during read-only planning; they cannot edit files.
+    allowedTools: ["mcp__ymp"],
+    canUseTool: async (name, input) => {
+      if (name.startsWith("mcp__ymp__") || !p.read_only) {
+        return { behavior: "allow", updatedInput: input };
+      }
+      return { behavior: "deny", message: "This turn permits reading files and communicating with the ymp team only." };
+    },
+    stderr: () => {},
+  };
+  let result: { text: string; session_id: string; usage: unknown } | undefined;
+  active = query({ prompt: p.prompt, options });
+  try {
+    for await (const event of active) {
+      if (event.type === "system" && event.subtype === "init") {
+        send({ method: "session", params: { id: event.session_id } });
+      }
+      if (event.type === "stream_event" && event.event.type === "content_block_delta" && event.event.delta.type === "text_delta") {
+        send({ method: "delta", params: { text: event.event.delta.text } });
+      }
+      if (event.type === "result") {
+        if (event.subtype !== "success" || event.is_error) throw new Error(`Claude turn failed (${event.subtype})`);
+        result = { text: event.result, session_id: event.session_id, usage: event.usage };
+      }
+    }
+    if (!result) throw new Error("Claude exited without a final result");
+    send({ jsonrpc: "2.0", id: request.id, result });
+  } finally {
+    active?.close();
+    active = undefined;
+    running = false;
+  }
+}
+
+const input = createInterface({ input: process.stdin });
+input.on("line", line => {
+  let request: Request;
+  try { request = JSON.parse(line) as Request; }
+  catch { send({ jsonrpc: "2.0", id: null, error: { code: -32700, message: "Invalid JSON" } }); return; }
+  void execute(request).catch(error => send({ jsonrpc: "2.0", id: request.id, error: { code: -32000, message: error instanceof Error ? error.message : "Bridge failure" } }));
+});
+input.on("close", () => { active?.close(); });
+process.on("SIGTERM", () => { active?.close(); process.exit(0); });
