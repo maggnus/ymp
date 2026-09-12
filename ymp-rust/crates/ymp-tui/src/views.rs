@@ -470,7 +470,17 @@ fn tasks(ctx: &Ctx) -> Page {
                 ));
             }
             detail.extend(board_task_lines(ctx, &task.id));
-            for (_, wait) in ctx.records.waits_for_task(&task.id) {
+            let deferred = ctx
+                .records
+                .deferrals_for_task(&task.id)
+                .into_iter()
+                .map(|(decision, _)| decision.id.clone())
+                .collect::<Vec<_>>();
+            for (decision, wait) in ctx.records.waits_for_task(&task.id) {
+                // A deferral is a wait too, and it is already named above as what was put off.
+                if deferred.contains(&decision.id) {
+                    continue;
+                }
                 detail.extend(field(theme, "waited", &wait_words(wait), ctx.width));
             }
             if task.interrupted {
@@ -4215,7 +4225,7 @@ fn proposal_row(ctx: &Ctx, proposal: &BoardProposal) -> Item {
     ));
     detail.extend(field(
         theme,
-        "against members",
+        "membership",
         &format!(
             "{} · a proposal made against other membership cannot be committed",
             text::short_id(&proposal.team_version)
@@ -4307,7 +4317,15 @@ fn board_decision_lines(ctx: &Ctx, proposal: &BoardProposal) -> Vec<Line<'static
         ));
     }
     lines.push(Line::default());
-    lines.extend(paragraph(theme, &board.reason, ctx.width));
+    if board.reason == proposal.rationale {
+        lines.extend(paragraph(
+            theme,
+            "The reason it recorded is the one the proposal gave, above.",
+            ctx.width,
+        ));
+    } else {
+        lines.extend(paragraph(theme, &board.reason, ctx.width));
+    }
     lines
 }
 

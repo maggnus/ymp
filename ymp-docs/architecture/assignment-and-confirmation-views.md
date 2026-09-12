@@ -114,6 +114,57 @@ location is historical: changing the project's current path does not move it, an
 states that ymp keeps no copy of the artifact anywhere else. Artifact paths are shown in full
 and wrapped when they are longer than the pane, never truncated.
 
+## The shared plan, and what was retained
+
+Two more record sets reach these pages, and both follow the rules above rather than adding
+their own.
+
+The plan is read with the rest of a session's records, through `Store::board`, so the tasks
+page presents a snapshot and still reads nothing while it paints. A task shows its own version,
+the commitment on it, and the turns the runtime put off. A commitment names a member and the
+model and effort it was committed under; the storage keeps it only while the task is ready, so
+a task already running or accepted has none, and the page says nobody holds it rather than
+inventing a holder. The proposals an agent made are rows under the tasks they are about, in the
+typed terms of `BoardChange`: taking a task on, giving it to a member, revising it, adding one,
+or changing membership. Each names the plan and membership version it was made against, because
+a proposal made against another version cannot be committed.
+
+What became of a proposal is read from the decision the runtime wrote, never from the
+proposal's own stored status. The two are written in one transaction and agree, but only the
+decision carries the reason, the resulting plan version and the commitment, and only the
+decision is the runtime's own statement. A proposal no decision answers is described as
+proposed and as waiting for the next work boundary; a proposal whose stored status has moved
+without a readable decision says that what the runtime decided was not read. The count of
+waiting proposals in the page's subtitle means the same thing as the rows, so the two cannot
+disagree. A revision is described as only ever adding, because the storage refuses one that
+removes an objective, a check, a dependency or an authority restriction.
+
+A deferral is a recorded wait, never a silent skip. `commitment_busy` means the member
+responsible for a task was already working in that wave and the commitment was kept for the
+next boundary; `agent_busy` means no member was free. The task names the wait as what was put
+off, and the general wait list does not repeat it.
+
+Retained knowledge is read through `Store::inspect_knowledge`, which answers for every entry
+the project holds: its standing now, what replaced it, and the correction that touched it. The
+memory page presents that answer and adds no judgement of its own. Current means the default
+retrieval of a run accepts the entry under the conditions in force; everything else is readable
+and is not offered, and the reason is named rather than flattened into absence. Superseded,
+retired and rejected are the entry's own lifecycle; recorded for other conditions, a source
+that moved on, and nothing confirming it are reasons a live entry is not current here.
+
+An accepted correction keeps both sides. The superseded entry names its replacement, the
+replacement names what it replaced, and both name the acceptance, the trusted contract and the
+policy the correction was authorised by. Each side keeps its own source, so the evidence behind
+the claim before the correction and the evidence behind the claim after it are both readable,
+and they are different acceptances. The page states that a correction does not delete what it
+corrects.
+
+The conditions matter as much as the entry. Applicability is matched exactly, so the page asks
+with the configured `knowledge_scope`, which is the scope a run asks under, and every entry
+says what that scope was and what the entry itself requires. Asking with no conditions while
+reporting whether a run would be given the entry would have answered a different question from
+the one a run asks.
+
 ## What these pages will not say
 
 - A grant is permission to use one coordination call for one assignment. It is never
@@ -253,6 +304,42 @@ rather than that nothing was read; the record each page opens with Enter, wrappe
 surface that shows it; and all five palettes, with the default still painting a pure black
 background.
 
+Eleven tests cover the plan and what was retained, and each runs against records the real
+runtime wrote. The plan fixture is a scripted offline executor that coordinates through the team
+API during its turn: it reads the board and asks three times, so the runtime commits one change,
+rejects the repeat with its own `stale_task` reason, commits the third, and then defers a
+committed task with `commitment_busy` because the member responsible is already working. The
+tests assert the proposal rows and their records, the responsibility and the deferral on the
+task, the responsibility on the member, and the decision page's own block. Two are controls: the
+stored status put back to pending must not change any outcome, and dropping the decisions must
+make every row read as waiting with the subtitle agreeing.
+
+The correction fixture is two runs of the real runtime over the observation fixtures in
+`ymp-evals/fixtures/universal/inputs`. The first records 95 percent from one declared input under
+a trusted contract whose check is a real command; the second records 60 percent from the
+corrected input under a contract bound to the first entry, and the runtime applies the
+correction. The tests assert that both sides are listed, that each says which side it is and
+names the other, that the acceptance, contract and policy are named, that each side keeps its
+own evidence and that the two acceptances differ, that retiring the replacement through the page
+keeps it and stops offering it, and that the explanatory row is not something the retire action
+applies to. One is a control: with the reader configured for another site, both entries read as
+recorded for other conditions although their stored status has not changed.
+
+Each of those claims was inverted in a scratch copy of the source, outside the repository: the
+row reading the stored status, the deferral lines removed, the standing ignored and the page
+asking with no conditions each made a named test fail, and each was restored and verified by
+hash.
+
+The interface was then walked in a pseudo-terminal over both fixtures, at 80x24 and then at
+120x40, starting no run and sending no prompt. The walk opened the saved session from the
+sessions page, read the plan with its three proposals, opened the committed and the rejected one
+and read the runtime's reason in each, read the task that still owes a responsibility with its
+deferral, read the member responsible, and opened a plan change decision. It then read what was
+retained: both sides of the correction listed at once, the superseded entry naming its
+replacement and the replacement naming its predecessor, with the acceptance, the contract and
+the policy on both. Every row the walk looked for was reachable by moving the selection, at both
+sizes.
+
 ## Limits
 
 - Scoped access is shown as the records carry it, and no backend in this release declares one:
@@ -276,3 +363,14 @@ background.
   not read.
 - `Store::result_is_current` is a read of the files as they are now. A page that has not been
   refreshed states the time of its read rather than implying the answer is current.
+- A commitment is kept by the storage only for a ready task, so a finished session shows no
+  responsibility on its tasks. The responsibility it created is still readable on the proposal
+  and on the decision that committed it, and those are where a finished session's record of it
+  is.
+- The inputs a correction replaced are named in the acceptance contract and not in the
+  correction record. The page names each side's own acceptance, result and criteria version,
+  which is the evidence each claim rests on; which file each read is in the result record and
+  is not shown here.
+- `Store::inspect_knowledge` answers for one project and for entries shared globally with it.
+  An entry of another project is not listed, and the page does not imply that it lists every
+  entry in the store.

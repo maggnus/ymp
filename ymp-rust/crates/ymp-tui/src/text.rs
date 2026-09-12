@@ -118,7 +118,11 @@ pub fn first_line(text: &str) -> String {
 
 /// The leading characters of an identifier, enough to recognise it without filling a row.
 pub fn short_id(id: &str) -> String {
-    id.chars().take(8).collect()
+    // A stored id may carry what it is as a prefix, as a retained entry's does. Eight characters
+    // of that prefix name the kind and not the record, so the prefix is dropped first and two
+    // entries of the same kind stay told apart.
+    let body = id.split_once(':').map(|(_, rest)| rest).unwrap_or(id);
+    body.chars().take(8).collect()
 }
 
 /// Wrap `text` to `width` cells on word boundaries, splitting words too long to fit.
