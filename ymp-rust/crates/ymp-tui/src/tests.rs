@@ -3946,3 +3946,25 @@ fn a_read_only_task_is_shown_as_declared_and_never_as_measured() {
         "a writing task is not distinguished from a declared one:\n{writes}"
     );
 }
+
+#[test]
+fn an_agent_held_up_by_coordination_is_not_reported_as_working() {
+    let fixture = fixture();
+    let mut app = fixture.app();
+    let member = app.config.members()[0].id.clone();
+    // What the runtime sends while a turn cannot start: the wait and the code it recorded.
+    app.event(ymp_core::UiEvent::AgentStatus {
+        agent: member.clone(),
+        status: "waiting: resource_conflict".into(),
+    });
+    // The sidebar, which is where a live state is read: the whole screen, not one column.
+    let screen = draw(&mut app, 100, 30);
+    assert!(
+        screen.contains("waiting"),
+        "a waiting agent is not reported as waiting:\n{screen}"
+    );
+    assert!(
+        !screen.contains("busy"),
+        "a waiting agent is reported as work in flight:\n{screen}"
+    );
+}

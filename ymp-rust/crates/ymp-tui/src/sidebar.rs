@@ -347,6 +347,9 @@ fn team(app: &App, width: usize) -> Section {
         let marker = match raw {
             Some("idle") | None => theme.markers.idle,
             Some("error") => theme.markers.fail,
+            // A turn held up by coordination is not work in flight, and the two must not
+            // share a marker. Why it waits is on the task and the decision that recorded it.
+            Some(status) if status.starts_with("waiting") => theme.markers.paused,
             Some(_) => theme.markers.busy,
         };
         lines.push(text::row(
@@ -378,6 +381,7 @@ fn activity(status: Option<&str>, theme: &Theme) -> (&'static str, ratatui::styl
         Some("synthesis") => ("summarising", theme.accent()),
         Some("learn") => ("learning", theme.accent()),
         Some("conversation") => ("answering", theme.accent()),
+        Some(status) if status.starts_with("waiting") => ("waiting", theme.muted()),
         Some(_) => ("busy", theme.warn()),
     }
 }

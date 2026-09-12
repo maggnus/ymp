@@ -43,6 +43,10 @@ An execution turn is labelled an execution report, because such a turn may concl
 nothing needed changing. Code keeps its exact spacing and indentation, so a rendered message
 can be compared against a file.
 
+A member the runtime reports as waiting is shown as waiting and not as busy: a turn held up
+by coordination is not work in flight, and the code it waited under is on the task and on the
+decision that recorded it.
+
 The sidebar's team section names the profiles the loaded session captured when it started,
 and says so. With no session loaded it describes the team the next run would use instead; the
 two are never presented as the same thing. The turn counter works the same way: a loaded
