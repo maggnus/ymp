@@ -1542,7 +1542,7 @@ fn team(ctx: &Ctx) -> Page {
 /// failing that what was sent to the installation. A turn whose model nothing recorded is
 /// counted as such rather than filled in from the profile, because a spent turn may have run
 /// under a different model than the one configured now.
-fn models_used(ctx: &Ctx, agent: &str) -> String {
+fn recorded_models(ctx: &Ctx, agent: &str) -> (Vec<String>, usize) {
     let records = ctx.records;
     let mut names: Vec<String> = Vec::new();
     let mut unrecorded = 0usize;
@@ -1567,6 +1567,12 @@ fn models_used(ctx: &Ctx, agent: &str) -> String {
             }
         }
     }
+    (names, unrecorded)
+}
+
+/// The same read, in words.
+fn models_used(ctx: &Ctx, agent: &str) -> String {
+    let (names, unrecorded) = recorded_models(ctx, agent);
     match (names.is_empty(), unrecorded) {
         (true, 0) => "no turn of this agent was recorded".to_owned(),
         (true, turns) => format!("unknown · {turns} recorded turn(s) named no model"),
@@ -1574,6 +1580,32 @@ fn models_used(ctx: &Ctx, agent: &str) -> String {
         (false, turns) => format!(
             "{} · {turns} further recorded turn(s) named no model",
             names.join(", ")
+        ),
+    }
+}
+
+/// What a member of a session that is already over ran as.
+///
+/// A catalog read today says nothing about a turn that ran yesterday, so a captured member is
+/// never resolved against the present catalog: the answer comes from the profile the session
+/// captured, or from the turns the session itself recorded, or it stays missing.
+fn captured_model_row_words(ctx: &Ctx, profile: &AgentProfile) -> String {
+    if let Some(id) = profile.model.as_deref() {
+        return id.to_owned();
+    }
+    recorded_models(ctx, &profile.id)
+        .0
+        .first()
+        .cloned()
+        .unwrap_or_else(|| "model not recorded".to_owned())
+}
+
+fn captured_model_detail_words(ctx: &Ctx, profile: &AgentProfile) -> String {
+    match profile.model.as_deref() {
+        Some(id) => format!("{id} · the profile this session captured pins it"),
+        None => format!(
+            "{} · read from the turns this session recorded, not from the catalog as it stands now",
+            models_used(ctx, &profile.id)
         ),
     }
 }
@@ -1763,8 +1795,22 @@ fn member_row(ctx: &Ctx, profile: &AgentProfile) -> Item {
         }
     };
     let resolved = resolved_model(ctx, profile);
+    let (model_row, model_detail) = if ctx.team_captured {
+        (
+            captured_model_row_words(ctx, profile),
+            captured_model_detail_words(ctx, profile),
+        )
+    } else {
+        (
+            resolved
+                .id()
+                .map(|id| id.to_owned())
+                .unwrap_or_else(|| resolved.row_words().to_owned()),
+            resolved.detail_words(),
+        )
+    };
     let mut detail = field(theme, "profile", &profile.id, ctx.width);
-    detail.extend(field(theme, "model", &resolved.detail_words(), ctx.width));
+    detail.extend(field(theme, "model", &model_detail, ctx.width));
     detail.extend(field(theme, "provider", &profile.provider, ctx.width));
     detail.extend(field(
         theme,
@@ -1830,13 +1876,7 @@ fn member_row(ctx: &Ctx, profile: &AgentProfile) -> Item {
                 style,
             ),
             Span::styled(profile.name.clone(), theme.text()),
-            Span::styled(
-                format!(
-                    " · {}",
-                    resolved.id().unwrap_or_else(|| resolved.row_words())
-                ),
-                theme.muted(),
-            ),
+            Span::styled(format!(" · {model_row}"), theme.muted()),
             Span::styled(format!(" · {}", profile.provider), theme.faint()),
         ],
     )

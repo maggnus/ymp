@@ -117,3 +117,65 @@ session, which is the re-read doing what its notice says. The capture is at
 The interface session has no direct channel to the catalog author: the agents it can message are
 other sessions of this work, not `/root/native_catalog_127`. These needs therefore go through the
 parent.
+
+## Against the finalized DTO
+
+13/09/2026 03:08 HKT. The finalized additions answer three of the four needs above, and they
+found a defect in what this worktree had already written.
+
+**Answered.** `AgentIdentityStatus` of `Native`, `Stale`, `Unknown`, `Unresolved` and `Local`
+covers need A, and with two states this side had no way to express: `Stale` and `Local`.
+`PoolAgent.identity` carrying the same structure covers need D, as long as the rule that a
+configuration-written catalog stays configured is kept where the pool is built.
+`NativeControl.display_name` and `value_names` give the exact returned labels, so no control or
+value has to be named by this side.
+
+**Still open: need C, narrowed.** The control labels solve how to print a control; they do not
+give a recorded value a place to live. `ExecutionSettings` still has one `effort: Option<String>`,
+so an assignment can record one value under a name that may not be the control the installation
+used. A map of control id to recorded value in `sent` and `reported` is what `/assignments` needs
+to say `thought_level max` instead of `effort max`. Until it exists, that page will keep printing
+the recorded `effort` field as the recorded `effort` field and claim nothing more.
+
+**Need B, restated.** `AgentIdentity.source` has to carry the method and the observation time, or
+`Stale` and `Native` cannot be explained on the row that shows them. A status without its
+observation time can be displayed, but not justified.
+
+**What this side will do with `picker_id`.** Nothing, on any row that names a model to call. It is
+a selector identity, not a callable alias, so it will appear only where the page is explicitly
+describing how an offering is chosen, and never as the model an agent runs as.
+
+### The defect the finalized DTO exposed here
+
+`AssignmentRecord.agent_identity` being captured at admission, with the instruction never to
+resolve past labels against a refreshed catalog, is the rule the team page had just broken. For a
+loaded session the page lists the profiles that session captured, and a captured profile that
+pinned no model was falling through to the default of the catalog as it stands now. A catalog
+refreshed after the session would therefore have relabelled a finished run.
+
+Corrected: a captured member is read from the profile the session captured, or from the models its
+own recorded turns ran with, and otherwise reads `model not recorded`. The present catalog is used
+only for the team a next run would form. `a_captured_member_is_not_relabelled_by_the_catalog_as_it_stands_now`
+supplies a catalog naming `GPT-6-Astra` after a finished mock session and asserts that neither the
+row nor the record shows it; the mutation that restores the fall-through fails it.
+
+### The mapping to swap, once the backend is committed
+
+| This side now | Becomes |
+| --- | --- |
+| `Pinned(id)` | `AgentIdentityStatus::Local`, with the pinned identifier |
+| `ScannedDefault { id, method, observed_at }` | `Native`, name from `display_name` and identifier from `model` |
+| `ScannedWithoutDefault` | `Unresolved` |
+| `Configured` | `Unknown`, a catalog that no scan stands behind |
+| `Unscanned` | `Unknown`, nothing read for this provider |
+| `Unread` | kept: the pool itself could not be read, which is this side's own state |
+| no equivalent | `Stale`, which needs the observation time to be worth showing |
+
+`PoolExclusion::NativeModelUnresolved` needs one word on the pool page beside the existing
+exclusions; it cannot be matched before the variant exists. `Config::agent_identity` and
+`Config::provider_capabilities` will replace this side's `resolved_model` and `pool_catalog`, which
+are the only two readers to change.
+
+The observed names in the candidate scan, `GPT-6-Astra`, `GPT-5.6-Sol`, `Default (recommended)`,
+`Opus (1M context)`, `Fable`, `Sonnet`, `Haiku` and `GLM-5.2`, appear in this worktree only in the
+one test that supplies a catalog snapshot. No name is compiled into a page, a table or a fallback.

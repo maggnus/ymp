@@ -4495,3 +4495,37 @@ fn re_reading_the_catalog_is_an_action_that_asks_no_provider_anything() {
         "the action is not offered on the page: {hints:?}"
     );
 }
+
+#[tokio::test]
+async fn a_captured_member_is_not_relabelled_by_the_catalog_as_it_stands_now() {
+    let run = mock_run("Create a greeting", |_| {}).await;
+    let mut app = run.app();
+    app.load_session(&run.session).unwrap();
+    app.command("/team", 100);
+    // A catalog read after the session ended. It says nothing about a turn that already ran,
+    // and a member of a finished session must not be relabelled by it.
+    app.pool = pool_with_catalog("mock", scanned_catalog(Some("GPT-6-Astra")));
+
+    let agent = run.store.trace(&run.session).unwrap().assignments[0]
+        .agent_id
+        .clone();
+    let row = left_of_key(&mut app, 65, &agent);
+    assert!(
+        !row.contains("GPT-6-Astra"),
+        "a finished session's member was relabelled by a later catalog: {row}"
+    );
+    assert!(
+        row.contains("model not recorded"),
+        "the row does not say that the session recorded no model for it: {row}"
+    );
+    let detail = detail_of_key(&mut app, 65, &agent);
+    assert!(
+        detail.contains("read from the turns this session recorded")
+            && detail.contains("not from the catalog as it stands now"),
+        "the page does not say where its answer came from:\n{detail}"
+    );
+    assert!(
+        !detail.contains("GPT-6-Astra"),
+        "the later catalog reached a captured member's record:\n{detail}"
+    );
+}
