@@ -417,7 +417,7 @@
     "unattended": "cargo fmt --all --check; cargo clippy --workspace --all-targets -- -D warnings; cargo test --workspace",
     "claude_bridge": "npm run check; npm test; npm run build",
     "explicit_native_fixtures": "cargo test -p ymp-cli --test native_catalog -- --include-ignored",
-    "native_fixture_tests": 8,
+    "native_fixture_tests": 10,
     "bridge_tests": 14
   },
   "old_failure_controls": [
@@ -430,6 +430,35 @@
       "control": "catalog-does-not-populate-pool",
       "expected_old_behavior_fails": true,
       "exit": 101
+    },
+    {
+      "control": "first-migration-qualified-experience",
+      "base_commit": "efd6fe16163e4315b0050860f1cb7f5d2a3c3fb8",
+      "command": "cargo test -p ymp-cli --test native_catalog first_scan_",
+      "expected_old_behavior_fails": true,
+      "exit": 101,
+      "failed_tests": 2,
+      "assertion": "Fresh-session candidate.experience.successes was 0 instead of 1 for both fixed and defaulted model policies."
     }
-  ]
+  ],
+  "review_correction": {
+    "reviewed_commit": "efd6fe16163e4315b0050860f1cb7f5d2a3c3fb8",
+    "finding": "First migration redundantly materialized a fixed/defaulted policy model into AgentProfile.model, changing the execution identity for unchanged effective settings.",
+    "correction": "Keep the raw profile unchanged when an explicit execution policy already supplies its effective model; register the native binding once without rewriting history or changing version formulas.",
+    "regressions": [
+      "first_scan_preserves_fixed_model_policy_qualified_experience",
+      "first_scan_preserves_defaulted_model_policy_qualified_experience"
+    ],
+    "experience_evidence": "Each fixture creates a confirmed producing outcome through the public runtime, verifies its existing qualified success, performs the first catalog refresh through the real executable with scripted native metadata, and verifies that fresh-session allocation finds that exact prior execution version with one success.",
+    "history_preserved": true,
+    "genuine_unknown_to_concrete_execution_remains_distinct": true,
+    "new_real_provider_queries": 0,
+    "validation": {
+      "cargo_fmt_all_check": "passed",
+      "cargo_clippy_workspace_all_targets_deny_warnings": "passed",
+      "cargo_test_workspace": "passed",
+      "explicit_native_fixture_suite": "10 passed, 0 failed, 0 ignored",
+      "claude_bridge": "unchanged; reused independently verified 14 passing tests and build"
+    }
+  }
 }
