@@ -1,6 +1,6 @@
 # Task details and evidence
 
-Updated: 2026-09-12 22:58 UTC.
+Updated: 2026-09-12 23:23 UTC.
 
 Use the [delivery plan](plan.md) to follow progress. This generated register contains full acceptance criteria, dependencies and evidence. [tasks.json](tasks.json) is the single source; [manage.py](manage.py) updates both pages.
 
@@ -46,9 +46,9 @@ A planned task is not implemented functionality. Completed research and planning
 | `[=]` | [YMP-301](#ymp-301) | P2 | Confirm the initial success class and intended audience | 2026-09-12 09:35 |
 | `[x]` | [YMP-109](#ymp-109) | P0 | Expose the provider-backed agent pool with stable individual identities | 2026-09-12 10:56 |
 | `[x]` | [YMP-110](#ymp-110) | P0 | Select session teams and execution settings within user constraints | 2026-09-12 20:43 |
-| `[~]` | [YMP-112](#ymp-112) | P0 | Coordinate commitments, plan revisions and reassignment through the board | 2026-09-12 22:27 |
+| `[~]` | [YMP-112](#ymp-112) | P0 | Coordinate commitments, plan revisions and reassignment through the board | 2026-09-12 23:23 |
 | `[x]` | [YMP-113](#ymp-113) | P0 | Accumulate general knowledge and verified experience incrementally | 2026-09-12 20:43 |
-| `[~]` | [YMP-114](#ymp-114) | P0 | Correct and supersede knowledge with newer verified evidence | 2026-09-12 22:27 |
+| `[~]` | [YMP-114](#ymp-114) | P0 | Correct and supersede knowledge with newer verified evidence | 2026-09-12 23:23 |
 | `[x]` | [YMP-009](#ymp-009) | P0 | Align the product definition, research conclusions and backlog with final intent | 2026-09-12 09:15 |
 | `[x]` | [YMP-115](#ymp-115) | P0 | Enable useful concurrent execution of independent assignments | 2026-09-12 17:00 |
 | `[x]` | [YMP-010](#ymp-010) | P0 | Approve product goals and core protocol constraints | 2026-09-12 09:06 |
@@ -59,7 +59,7 @@ A planned task is not implemented functionality. Completed research and planning
 | `[x]` | [YMP-120](#ymp-120) | P0 | Enforce assignment-scoped permissions and runtime-only state transitions | 2026-09-12 13:46 |
 | `[x]` | [YMP-118](#ymp-118) | P0 | Integrate core assignment, budget and confirmation visibility | 2026-09-12 20:43 |
 | `[x]` | [YMP-119](#ymp-119) | P0 | Prepare universal acceptance scenarios and independent validators | 2026-09-12 10:56 |
-| `[=]` | [YMP-121](#ymp-121) | P1 | Verify the integrated application and package a local release | 2026-09-12 22:58 |
+| `[=]` | [YMP-121](#ymp-121) | P1 | Verify the integrated application and package a local release | 2026-09-12 23:23 |
 | `[x]` | [YMP-013](#ymp-013) | P0 | Review plan coherence and simplify progress tracking | 2026-09-12 09:46 |
 | `[x]` | [YMP-122](#ymp-122) | P1 | Expose replaceable execution backends behind runtime-owned controls | 2026-09-12 15:23 |
 | `[x]` | [YMP-123](#ymp-123) | P1 | Expose a public local MCP facade over stdio | 2026-09-12 18:22 |
@@ -851,9 +851,9 @@ Coordinate commitments, plan revisions and reassignment through the board
 
 **State:** `[~]` (in_progress) · **Type:** implementation · **Priority:** P0
 
-**Last update (UTC):** 2026-09-12 22:27
+**Last update (UTC):** 2026-09-12 23:23
 
-**Current reason:** Independent Opus review accepts completed board/knowledge compositionf6b58fa (9/10), including actual terminal walks and5 discriminating controls. Accepted views are integrated; main checks run with accepted runtime reservations. Two local follow-ups remain before closure: use the actual board/correction outcome in decision list rows, and expose declared contract input/source-replacement paths. Opus also adds visibility for new captured budget fields. The stopped Paseo daemon was authoritatively diagnosed and restarted; the same author session resumed.
+**Current reason:** Final Opus sourceb6eb516 closes decision row/detail outcome and contract source-path findings, and displays requested/inherited token allowances, protected review tokens and captured accounting policy. Author419 tests/13 mutation controls/78-screen walk are recorded at e9c0214. Independent final Opus follow-up is running on immutable source; versioned0.4.0 candidate already passes all required checks.
 
 **Owner:** Maintainer; application UI by Claude Code claude-opus-5 with thinking max via Paseo
 
@@ -929,9 +929,9 @@ Correct and supersede knowledge with newer verified evidence
 
 **State:** `[~]` (in_progress) · **Type:** implementation · **Priority:** P0
 
-**Last update (UTC):** 2026-09-12 22:27
+**Last update (UTC):** 2026-09-12 23:23
 
-**Current reason:** Current/superseded knowledge views and real95-to60 terminal walkthrough independently accepted by Opus (9/10), now integrated with board views. Both sides retain acceptance, result and policy links. Final local UI correction must show declared input and old/new source paths in the captured contract; author is completing it with the other bounded UI follow-ups.
+**Current reason:** Actual declared input and old/new source-replacement paths are now visible in captured contracts (ab4697c), and row/detail outcomes share one reader. Author evidence is complete and the independent Opus follow-up is exercising correction and budget views at representative sizes. Closure awaits that verdict, not implementation or backend work.
 
 **Owner:** Maintainer; application UI by Claude Code claude-opus-5 with thinking max via Paseo
 
@@ -1316,7 +1316,7 @@ Verify the integrated application and package a local release
 
 **State:** `[=]` (planned) · **Type:** verification · **Priority:** P1
 
-**Last update (UTC):** 2026-09-12 22:58
+**Last update (UTC):** 2026-09-12 23:23
 
 **Current reason:** Needs YMP-112, YMP-114
 
@@ -1328,7 +1328,7 @@ Verify the integrated application and package a local release
 
 A local release needs a reproducible install and truthful compatibility evidence for the configured native providers.
 
-**Latest progress note:** Current main413-test build also passes the complete official MCP SDK1.28.1 walk:331 calls, maximum normal reply73149 bytes, fixed mock/low, including lifecycle, scoped authority, configured contracts, SIGKILL recovery and blocked-output shutdown. Fresh max review accepts full126; final0.4.0 packaging/review waits for the last Opus UI visibility corrections, whose actual terminal walk is being prepared.
+**Latest progress note:** Exact0.4.0 candidatec3758aa passes419 Rust tests,14 bridge tests,10 explicit native fixtures, release build, all17 scenarios and official SDK checks. Exact-version installer preflight passes backup/repeat/demo; real SDK version/interpreter verified independently. Max audit covers164 criteria across all26 tasks with no backend blocker. Final UI verdict, durable-main staged binary and post-acceptance publication remain.
 
 **Acceptance criteria:**
 
@@ -1351,6 +1351,8 @@ A local release needs a reproducible install and truthful compatibility evidence
 - [Test inference audit and probe distinction](../research/evidence/test-inference-audit.json)
 - [Local release verification procedure](../guides/release-verification.md)
 - [Release notes draft](../releases/0.4.0.md)
+- [Versioned candidate verification](../research/evidence/release-040-candidate.json)
+- [Versioned installer preflight](../research/evidence/release-040-installer.json)
 
 **Quota:** Not allocated. Prepare a concrete bounded smoke-check proposal before any real-provider inference.
 
