@@ -1,6 +1,22 @@
 use super::tests::RunFixture;
 use super::*;
 
+async fn await_phase(fixture: &mut RunFixture, phase: &str) {
+    loop {
+        let event = tokio::time::timeout(std::time::Duration::from_secs(10), fixture.events.recv())
+            .await
+            .expect("Run stopped producing events before the tested phase")
+            .expect("Run event channel closed before the tested phase");
+        if matches!(event, UiEvent::AgentStatus { ref status, .. } if status == phase) {
+            return;
+        }
+        assert!(
+            !matches!(event, UiEvent::Finished { .. }),
+            "Run finished before phase {phase}"
+        );
+    }
+}
+
 pub(super) fn exact_contract() -> AcceptanceContract {
     AcceptanceContract {
         task_title: "Create a greeting".into(),
@@ -255,16 +271,12 @@ async fn confirmation_stale_artifact_requires_a_new_attempt_and_new_review() {
     let engine = fixture.engine.clone();
     let project = fixture.project.clone();
     let run = tokio::spawn(async move { engine.run(&project, "Create a greeting", None).await });
-    while let Some(event) = fixture.events.recv().await {
-        if matches!(event, UiEvent::AgentStatus { ref status, .. } if status == "review") {
-            std::fs::write(
-                fixture.project.join("greeting.txt"),
-                "changed after checking\n",
-            )
-            .unwrap();
-            break;
-        }
-    }
+    await_phase(&mut fixture, "review").await;
+    std::fs::write(
+        fixture.project.join("greeting.txt"),
+        "changed after checking\n",
+    )
+    .unwrap();
     let outcome = run.await.unwrap().unwrap();
     assert_eq!(outcome.session.status, "completed", "{}", outcome.summary);
     let trace = fixture.store.trace(&outcome.session.id).unwrap();
@@ -596,17 +608,12 @@ async fn confirmation_delivery_rechecks_files_after_normal_and_failed_narration(
                         .await
                         .unwrap()
                 });
-                while let Some(event) = fixture.events.recv().await {
-                    if matches!(event, UiEvent::AgentStatus { ref status, .. } if status == "synthesis")
-                    {
-                        std::fs::write(
-                            fixture.project.join(changed_file),
-                            "changed during narration\n",
-                        )
-                        .unwrap();
-                        break;
-                    }
-                }
+                await_phase(&mut fixture, "synthesis").await;
+                std::fs::write(
+                    fixture.project.join(changed_file),
+                    "changed during narration\n",
+                )
+                .unwrap();
                 let outcome = run.await.unwrap();
                 assert_eq!(outcome.session.status, "blocked", "{}", outcome.summary);
                 assert!(outcome

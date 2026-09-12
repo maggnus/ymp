@@ -343,3 +343,23 @@ pub struct SessionTrace {
     pub budget: Option<crate::SessionBudget>,
     pub history: Vec<HistoryEvent>,
 }
+
+#[cfg(test)]
+mod execution_version_tests {
+    use super::*;
+
+    #[test]
+    fn historical_observation_identity_survives_absent_backend_metadata() {
+        let invocation: InvocationRecord = serde_json::from_value(serde_json::json!({
+            "id":"invocation", "session_id":"session", "assignment_id":"assignment",
+            "turn":1, "requested":{}, "sent":{}, "reported":{},
+            "state":"completed", "started_at":"2026-09-12T00:00:00Z"
+        }))
+        .unwrap();
+        assert!(invocation.execution_backend.is_none());
+        assert_eq!(
+            effective_execution_version("historical-config", &invocation).unwrap(),
+            "ca91aef9422e5f35948eaf04"
+        );
+    }
+}
