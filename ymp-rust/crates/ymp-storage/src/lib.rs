@@ -7,6 +7,7 @@ use std::{
     sync::{Arc, Mutex, MutexGuard},
 };
 use ymp_core::*;
+mod allocation;
 mod authority;
 mod budget;
 mod confirmation;
@@ -151,6 +152,11 @@ impl Store {
             bail!("Session belongs to another project");
         }
         let mut current = s.clone();
+        if allocation::state(&tx, &s.id)?.is_some() {
+            if let Some(old) = &old {
+                current.team = old.team.clone();
+            }
+        }
         let historical = old.as_ref().map_or(0, |old| old.turns_used as u64);
         let count = usage::invocation_count(&tx, &s.id, historical.max(s.turns_used as u64))?;
         current.turns_used =

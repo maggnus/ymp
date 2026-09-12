@@ -51,6 +51,8 @@ pub struct SessionPolicy {
     pub eligible_pool: Vec<AgentProfile>,
     pub captured_team: Vec<AgentProfile>,
     #[serde(default)]
+    pub team_constraints: Option<crate::TeamConstraints>,
+    #[serde(default)]
     pub execution: std::collections::BTreeMap<String, crate::AgentExecutionPolicy>,
     #[serde(default)]
     pub assignment_settings: Vec<crate::AssignmentSettingsRule>,
@@ -249,6 +251,10 @@ pub struct RecordLinks {
     pub check: Option<crate::CheckEvidence>,
     #[serde(default)]
     pub observation_id: Option<String>,
+    #[serde(default)]
+    pub allocation: Option<Box<crate::AllocationDecision>>,
+    #[serde(default)]
+    pub resource_allocation: Option<Box<crate::ResourceAllocationDecision>>,
 }
 
 /// A concise runtime decision with explicit supporting record identities. Future
@@ -341,6 +347,8 @@ pub struct SessionTrace {
     pub usage: SessionUsage,
     #[serde(default)]
     pub budget: Option<crate::SessionBudget>,
+    #[serde(default)]
+    pub team_state: Option<crate::TeamState>,
     pub history: Vec<HistoryEvent>,
 }
 

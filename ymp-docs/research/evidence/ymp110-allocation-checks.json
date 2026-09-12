@@ -1,0 +1,64 @@
+{
+  "recorded_at": "2026-09-12T14:35:40.659288+00:00",
+  "task": "YMP-110",
+  "scope": "Offline consumer checks; no native inference or credentials. Every temporary mutation was restored.",
+  "baseline_red": {
+    "command": "cargo test -p ymp-runtime allocation_startup_is_bounded_and_never_requires_pool_bids -- --nocapture",
+    "exit_code": 101,
+    "output": "Default execution must not solicit pool-wide bids"
+  },
+  "mutations": [
+    {
+      "name": "Runtime allocation validation disabled",
+      "command": "cargo test -p ymp-runtime allocation_contract_tests -- --nocapture",
+      "exit_code": 101,
+      "output": "thread 'engine::tests::allocation_contract_tests::allocation_contradictions_and_unavailable_pins_never_invoke' panicked at ymp-rust/crates/ymp-runtime/src/allocation_tests.rs:147:13:\ntest engine::tests::allocation_contract_tests::allocation_contradictions_and_unavailable_pins_never_invoke ... FAILED\nthread 'engine::tests::allocation_contract_tests::allocation_infeasible_final_review_is_explicit_even_for_a_dishonest_policy' panicked at ymp-rust/crates/ymp-runtime/src/allocation_tests.rs:254:124:\ncalled `Result::unwrap_err()` on an `Ok` value: AllocationProposal { members: [\"one\", \"two\"], executor: Some(ExecutionOption { agent_id: \"two\", settings: ModelEffort { model: None, effort: None }, configuration_version: \"6b805db11a2499f4f2d9e016\", experience: Reputation { successes: 0, failures: 0 } }), reserved_final_reviewer: Some(\"two\"), method: \"direct_and_check\", rationale: \"Bounded execute work at WorkReady; complexity=standard, risk=Standard, ready=1; preserve an independent final reviewer; rank exact native configurations by qualified experience. Failure requires reconsidering evidence, not automatic escalation.\" }\ntest engine::tests::allocation_contract_tests::allocation_infeasible_final_review_is_explicit_even_for_a_dishonest_policy ... FAILED\nthread 'engine::tests::allocation_contract_tests::allocation_dynamic_ceiling_and_fixed_roster_are_distinct' panicked at ymp-rust/crates/ymp-runtime/src/allocation_tests.rs:75:123:\ncalled `Result::unwrap_err()` on an `Ok` value: AllocationProposal { members: [\"one\", \"two\", \"three\"], executor: None, reserved_final_reviewer: Some(\"three\"), method: \"direct_and_check\", rationale: \"Idle boundary changes membership without invoking participants\" }\ntest engine::tests::allocation_contract_tests::allocation_dynamic_ceiling_and_fixed_roster_are_distinct ... FAILED\nthread 'engine::tests::allocation_contract_tests::allocation_policy_cannot_override_captured_effort_pins' panicked at ymp-rust/crates/ymp-runtime/src/allocation_tests.rs:231:126:\ncalled `Result::unwrap_err()` on an `Ok` value: AllocationProposal { members: [\"one\", \"two\"], executor: Some(ExecutionOption { agent_id: \"one\", settings: ModelEffort { model: Some(\"model-a\"), effort: Some(\"deliberate\") }, configuration_version: \"40dfc59e0854950919210744\", experience: Reputation { successes: 0, failures: 0 } }), reserved_final_reviewer: Some(\"two\"), method: \"native_control_experiment\", rationale: \"Use exact model-a labels for this assignment only\" }\ntest engine::tests::allocation_contract_tests::allocation_policy_cannot_override_captured_effort_pins ... FAILED\nthread 'engine::tests::allocation_contract_tests::allocation_fixed_size_replacement_preserves_history_and_rejects_retired_admission' panicked at ymp-rust/crates/ymp-runtime/src/allocation_tests.rs:61:105:\ncalled `Result::unwrap_err()` on an `Ok` value: AllocationProposal { members: [\"one\", \"two\", \"three\"], executor: None, reserved_final_reviewer: Some(\"three\"), method: \"direct_and_check\", rationale: \"Idle boundary changes membership without invoking participants\" }\ntest engine::tests::allocation_contract_tests::allocation_fixed_size_replacement_preserves_history_and_rejects_retired_admission ... FAILED\ntest result: FAILED. 7 passed; 5 failed; 0 ignored; 0 measured; 69 filtered out; finished in 0.77s"
+    },
+    {
+      "name": "Native effort forwarding removed",
+      "command": "cargo test -p ymp-runtime allocation_policy_substitution_reaches_native_settings -- --nocapture",
+      "exit_code": 101,
+      "output": "thread 'engine::tests::allocation_contract_tests::allocation_policy_substitution_reaches_native_settings_without_a_universal_effort_ladder' panicked at ymp-rust/crates/ymp-runtime/src/allocation_tests.rs:214:9:\nassertion `left == right` failed\n  left: None\n right: Some(\"brief\")\ntest engine::tests::allocation_contract_tests::allocation_policy_substitution_reaches_native_settings_without_a_universal_effort_ladder ... FAILED\ntest result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 80 filtered out; finished in 0.21s"
+    },
+    {
+      "name": "Qualified experience removed from selection",
+      "command": "cargo test -p ymp-runtime allocation_verified_experience_changes_native_choice -- --nocapture",
+      "exit_code": 101,
+      "output": "thread 'engine::tests::allocation_contract_tests::allocation_verified_experience_changes_native_choice_but_unconfirmed_claims_do_not' panicked at ymp-rust/crates/ymp-runtime/src/allocation_tests.rs:280:9:\nassertion `left == right` failed\n  left: Some(\"model-a\")\n right: Some(\"model-b\")\ntest engine::tests::allocation_contract_tests::allocation_verified_experience_changes_native_choice_but_unconfirmed_claims_do_not ... FAILED\ntest result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 80 filtered out; finished in 0.69s"
+    },
+    {
+      "name": "Current membership admission guard removed",
+      "command": "cargo test -p ymp-runtime allocation_fixed_size_replacement_preserves_history -- --nocapture",
+      "exit_code": 101,
+      "output": "thread 'engine::tests::allocation_contract_tests::allocation_fixed_size_replacement_preserves_history_and_rejects_retired_admission' panicked at ymp-rust/crates/ymp-runtime/src/allocation_tests.rs:58:95:\nAn ineligible participant received admission (synthetic assignment capability redacted)\ntest engine::tests::allocation_contract_tests::allocation_fixed_size_replacement_preserves_history_and_rejects_retired_admission ... FAILED\ntest result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 80 filtered out; finished in 0.38s"
+    },
+    {
+      "name": "Resource policy output not forwarded",
+      "command": "cargo test -p ymp-runtime allocation_resource_substitution_changes_actual_controls -- --nocapture",
+      "exit_code": 101,
+      "output": "thread 'engine::tests::allocation_contract_tests::allocation_resource_substitution_changes_actual_controls_with_the_same_admission_ledger' panicked at ymp-rust/crates/ymp-runtime/src/allocation_tests.rs:345:9:\nassertion failed: backend.requests.lock().unwrap().iter().all(|r|\ntest engine::tests::allocation_contract_tests::allocation_resource_substitution_changes_actual_controls_with_the_same_admission_ledger ... FAILED\ntest result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 80 filtered out; finished in 0.20s"
+    }
+  ],
+  "final_verified_at": "2026-09-12T14:44:21.628035+00:00",
+  "final_checks": [
+    {
+      "command": "cargo fmt --all --check",
+      "exit_code": 0
+    },
+    {
+      "command": "cargo clippy --workspace --all-targets -- -D warnings",
+      "exit_code": 0
+    },
+    {
+      "command": "cargo test --workspace",
+      "exit_code": 0,
+      "passed_tests": 243
+    }
+  ],
+  "limits": [
+    "No live provider inference or credential access.",
+    "No bridge code changed; bridge checks were not run.",
+    "TUI source is owned by the parallel Claude Opus 5 max YMP-118 implementation.",
+    "Coordination revisions, knowledge lifecycle and concurrent task execution are separate outcomes."
+  ]
+}

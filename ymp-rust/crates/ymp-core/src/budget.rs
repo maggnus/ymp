@@ -69,7 +69,7 @@ pub struct NativeResourceControls {
     pub max_turns: Option<u64>,
     pub max_output_chars: Option<u64>,
 }
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SessionBudget {
     pub limits: Limits,
     pub admitted_invocations: u64,

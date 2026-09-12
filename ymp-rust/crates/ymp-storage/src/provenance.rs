@@ -419,6 +419,13 @@ impl Store {
                     && agent.provider == assignment.provider_id),
             "Assignment agent/provider is not in the captured session team"
         );
+        if let Some(team) = super::allocation::state(&tx, &assignment.session_id)? {
+            ensure!(
+                team.current_members.contains(&assignment.agent_id)
+                    && team.eligible_agents.contains(&assignment.agent_id),
+                "ineligible_member: assignment requires current admitted membership"
+            );
+        }
         if let Some(task) = &assignment.task {
             validate_task(&tx, &assignment.session_id, task, true)?;
         }
@@ -811,6 +818,7 @@ impl Store {
             decisions: records(&tx, "decisions", session)?,
             usage: super::usage::session_usage(&tx, session)?,
             budget: super::budget::snapshot(&tx, session)?,
+            team_state: super::allocation::state(&tx, session)?,
             history,
         };
         drop(rows);

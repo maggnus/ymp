@@ -373,25 +373,27 @@ async fn confirmation_storage_rejects_forged_result_review_and_credit_links() {
 async fn confirmation_final_review_excludes_all_aggregate_producers() {
     let fixture = RunFixture::new("[mock:split-writers]", false);
     let outcome = fixture.run().await;
-    assert_eq!(outcome.session.status, "blocked");
-    assert!(outcome
-        .summary
-        .contains("Independent final review is pending"));
+    assert_eq!(outcome.session.status, "completed", "{}", outcome.summary);
     let trace = fixture.store.trace(&outcome.session.id).unwrap();
     assert_eq!(trace.tasks.len(), 2);
     assert!(trace.tasks.iter().all(|t| t.state == TaskState::Accepted));
-    assert_ne!(trace.tasks[0].assignee, trace.tasks[1].assignee);
-    assert!(!trace
+    let final_review = trace
         .assignments
         .iter()
-        .any(|a| a.purpose == "final_review"));
-    let pending = trace
+        .find(|a| a.purpose == "final_review")
+        .unwrap();
+    assert!(trace
+        .assignments
+        .iter()
+        .filter(|a| a.purpose == "execute")
+        .all(|a| a.agent_id != final_review.agent_id));
+    let accepted = trace
         .decisions
         .iter()
-        .find(|d| d.kind == "final_review_pending")
+        .find(|d| d.kind == "final_accepted")
         .unwrap();
     assert_eq!(
-        pending
+        accepted
             .links
             .result
             .as_ref()
