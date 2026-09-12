@@ -26,4 +26,12 @@ Memory records project/global applicability, source/result versions, evidence, a
 
 `YMP_HOME` or `--home` overrides only ymp storage. `HOME`, `CODEX_HOME`, and native provider credential locations are not repurposed. Environment references in configuration name variables rather than storing their values.
 
+Internal team socket files stay in the metadata home's `run` directory. If its
+absolute path exceeds the Unix socket address limit, a private `0700` temporary
+directory under `/tmp` provides a short symlink address; it contains no task data.
+The socket remains `0600` and stays in metadata. Normal shutdown removes the owned
+socket and alias while preserving a replacement listener. Abrupt termination can
+leave stale transport entries; no crash-cleanup sweep is claimed. The public MCP
+interface continues to use stdio.
+
 Token snapshots are keyed by session and invocation, with the assigned agent ID. Updating a snapshot replaces its previous value. Statistics are summed across distinct invocations, so repeated provider notifications and reopening a session cannot add the same usage again. Schema version 2 backfills available historical events as partial data.

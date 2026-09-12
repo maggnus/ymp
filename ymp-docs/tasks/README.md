@@ -1,6 +1,6 @@
 # Task details and evidence
 
-Updated: 2026-09-12 21:14 UTC.
+Updated: 2026-09-12 21:24 UTC.
 
 Use the [delivery plan](plan.md) to follow progress. This generated register contains full acceptance criteria, dependencies and evidence. [tasks.json](tasks.json) is the single source; [manage.py](manage.py) updates both pages.
 
@@ -14,7 +14,7 @@ A planned task is not implemented functionality. Completed research and planning
 | design | 1 | 1 |
 | documentation | 4 | 4 |
 | experiment | 0 | 4 |
-| implementation | 19 | 25 |
+| implementation | 20 | 25 |
 | research | 8 | 8 |
 | verification | 1 | 2 |
 
@@ -59,7 +59,7 @@ A planned task is not implemented functionality. Completed research and planning
 | `[x]` | [YMP-120](#ymp-120) | P0 | Enforce assignment-scoped permissions and runtime-only state transitions | 2026-09-12 13:46 |
 | `[x]` | [YMP-118](#ymp-118) | P0 | Integrate core assignment, budget and confirmation visibility | 2026-09-12 20:43 |
 | `[x]` | [YMP-119](#ymp-119) | P0 | Prepare universal acceptance scenarios and independent validators | 2026-09-12 10:56 |
-| `[=]` | [YMP-121](#ymp-121) | P1 | Verify the integrated application and package a local release | 2026-09-12 20:08 |
+| `[=]` | [YMP-121](#ymp-121) | P1 | Verify the integrated application and package a local release | 2026-09-12 21:24 |
 | `[x]` | [YMP-013](#ymp-013) | P0 | Review plan coherence and simplify progress tracking | 2026-09-12 09:46 |
 | `[x]` | [YMP-122](#ymp-122) | P1 | Expose replaceable execution backends behind runtime-owned controls | 2026-09-12 15:23 |
 | `[x]` | [YMP-123](#ymp-123) | P1 | Expose a public local MCP facade over stdio | 2026-09-12 18:22 |
@@ -67,7 +67,7 @@ A planned task is not implemented functionality. Completed research and planning
 | `[x]` | [YMP-125](#ymp-125) | P0 | Expose trusted acceptance contracts to executable users | 2026-09-12 17:54 |
 | `[~]` | [YMP-126](#ymp-126) | P1 | Execute universal acceptance scenarios through a trusted runtime driver | 2026-09-12 21:07 |
 | `[x]` | [YMP-127](#ymp-127) | P0 | Build and display the agent pool from provider-returned native names | 2026-09-12 20:43 |
-| `[~]` | [YMP-128](#ymp-128) | P1 | Support internal team transport with long metadata paths | 2026-09-12 21:14 |
+| `[x]` | [YMP-128](#ymp-128) | P1 | Support internal team transport with long metadata paths | 2026-09-12 21:24 |
 
 ## YMP-001
 
@@ -1314,9 +1314,9 @@ Verify the integrated application and package a local release
 
 **State:** `[=]` (planned) · **Type:** verification · **Priority:** P1
 
-**Last update (UTC):** 2026-09-12 20:08
+**Last update (UTC):** 2026-09-12 21:24
 
-**Current reason:** Needs YMP-112, YMP-114, YMP-126, YMP-128
+**Current reason:** Needs YMP-112, YMP-114, YMP-126
 
 **Owner:** Independent final reviewer at max reasoning; maintainer integrates and packages
 
@@ -1326,7 +1326,7 @@ Verify the integrated application and package a local release
 
 A local release needs a reproducible install and truthful compatibility evidence for the configured native providers.
 
-**Latest progress note:** Release verification procedure now records packaging paths, exact offline checks, native metadata versus inference boundaries, and a bounded optional two-invocation minimal-effort proposal. No inference quota requested or consumed. Final execution/review/version/install still depend on complete delivery tasks.
+**Latest progress note:** Installer preflight passes on accepted sourceaf6a4dc at version0.3.0, including long-home mock demo, backup and repeat-install behavior; user installation is unchanged. All advertised subsystem consumers are mapped, and successful alternate workspace-policy behavior is independently accepted. Remaining126 runtime/driver and112/114 UI work still block final-version verification, max review and release installation.
 
 **Acceptance criteria:**
 
@@ -1588,11 +1588,11 @@ Native metadata readers discard display names and selectable profiles remain pro
 
 Support internal team transport with long metadata paths
 
-**State:** `[~]` (in_progress) · **Type:** implementation · **Priority:** P1
+**State:** `[x]` (done) · **Type:** implementation · **Priority:** P1
 
-**Last update (UTC):** 2026-09-12 21:14
+**Last update (UTC):** 2026-09-12 21:24
 
-**Current reason:** Candidate af6a4dc passes the exact original long-home demo, four transport/cleanup controls, formatting, Clippy and all382 workspace tests. Socket files remain under metadata; private short aliases handle Unix path limits, and inode checks preserve replacement listeners. The original before-failure and a failing ownership-removal mutation are retained. Independent review is running before integration and the complete installer rerun.
+**Current reason:** Independent review accepts af6a4dc (9/10);26 focused socket/MCP/executable checks pass. Integrated as235d0a with all125 reviewed source hashes preserved; main formatting, Clippy,382 tests and build pass. The complete isolated installer workflow now passes installation, version/help, mock demo in the long metadata path, backup preservation and repeat installation. Artifacts stay in the selected directory; owner installation remains unchanged. Final-version packaging remains121.
 
 **Owner:** Maintainer and independent xhigh reviewer
 

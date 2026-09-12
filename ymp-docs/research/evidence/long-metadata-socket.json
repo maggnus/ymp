@@ -1,5 +1,5 @@
 {
-  "scope": "YMP-128 candidate; independent review pending",
+  "scope": "Independently accepted and integrated YMP-128 correction; final release still pending.",
   "source_manifest": "/tmp/ymp128-final/source-files.json",
   "source_manifest_sha256": "87248fdcfae803db2806c39c36d565dac2441103038dc7e142f1a48e7f72f75e",
   "source_file_count": 125,
@@ -40,5 +40,46 @@
     "ignore_replacement_owner": "/tmp/ymp128-replacement-control.log"
   },
   "same_setup_after": "/tmp/ymp128-original-install-demo-after.log",
-  "native_inference_calls": 0
+  "native_inference_calls": 0,
+  "independent_review": {
+    "source": "af6a4dc8e73bf6a203a96785742c65a89b895824",
+    "verdict": "ACCEPT",
+    "score": "9/10",
+    "report": "ymp-evals/reports/long-metadata-socket-independent-review.md"
+  },
+  "main_integration": {
+    "source": "235d0a001d3731bd9559f1df607f9897e9bcb193",
+    "checks": [
+      {
+        "step": "fmt",
+        "exit": 0,
+        "seconds": 0.58,
+        "log": "/tmp/ymp-main-128/fmt.log",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "step": "clippy",
+        "exit": 0,
+        "seconds": 6.63,
+        "log": "/tmp/ymp-main-128/clippy.log",
+        "sha256": "df014f2b547aed17087ca9d8c9a8daaf938fdd991c9e5db0460ba68c295c78b2"
+      },
+      {
+        "step": "workspace",
+        "exit": 0,
+        "seconds": 89.75,
+        "log": "/tmp/ymp-main-128/workspace.log",
+        "sha256": "a9df66c4072078b43948292a2c0fa89d1a7eda67befd60aa54ef1aaa9e9a6c11"
+      },
+      {
+        "step": "build",
+        "exit": 0,
+        "seconds": 0.14,
+        "log": "/tmp/ymp-main-128/build.log",
+        "sha256": "a5f4c585ee974ca44916ac30a98bbc189e067a7e0a6bc6d2e8d6bc525be724af"
+      }
+    ],
+    "source_bytes_match": true
+  },
+  "installer_preflight": "ymp-docs/research/evidence/installer-preflight.json"
 }
