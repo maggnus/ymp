@@ -79,15 +79,7 @@ struct NativeContinuation {
 }
 
 fn effective_version(config_version: &str, invocation: &InvocationRecord) -> Result<String> {
-    Ok(content_digest(&serde_json::to_string(&(
-        "effective-execution-v2",
-        config_version,
-        &invocation.execution_backend,
-        &invocation.sent,
-        &invocation.reported,
-        &invocation.native_version,
-    ))?)[..24]
-        .to_owned())
+    effective_execution_version(config_version, invocation)
 }
 
 struct InvocationGuard {
