@@ -5,6 +5,7 @@ effort = 'high'
 def send(v):
     print(json.dumps(v), flush=True)
 def options():
+    if variant == 'no-controls': return []
     return [{'id':'thought_level','type':'select','currentValue':effort,'options':[{'value':v} for v in (['high','max'] if model == 'model-a' else ['none','on'])]}]
 for line in sys.stdin:
     q=json.loads(line)

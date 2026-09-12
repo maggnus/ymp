@@ -97,3 +97,27 @@ async fn acp_unknown_model_can_use_observed_controls_but_stale_controls_cannot_v
     assert!(r.is_err());
     assert!(!w.iter().any(|q| q["method"] == "session/prompt"));
 }
+
+#[tokio::test]
+async fn missing_and_explicitly_absent_controls_have_distinct_no_prompt_diagnostics() {
+    for (variant, expected) in [
+        (
+            "no-controls",
+            "Model model-b does not support native thought_level control",
+        ),
+        (
+            "no-refresh",
+            "Native thought_level support was not observed for model-b",
+        ),
+    ] {
+        let (result, wire, _) = run("acp", Some("model-b"), Some("none"), variant).await;
+        let error = result.unwrap_err();
+        assert_eq!(error.to_string(), expected);
+        assert!(
+            !wire
+                .iter()
+                .any(|q| q["method"] == "session/prompt"
+                    || q["method"] == "session/set_config_option")
+        );
+    }
+}

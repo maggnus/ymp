@@ -95,13 +95,18 @@ pub(crate) fn validate_choice(
         .model(model)
         .with_context(|| format!("Model {model} is not advertised by native metadata"))?;
     if let Some(effort) = effort {
-        let control = model
-            .controls
-            .as_ref()
-            .and_then(|c| c.iter().find(|c| c.id == control_id))
+        let controls = model.controls.as_ref().with_context(|| {
+            format!(
+                "Native {control_id} support was not observed for {}",
+                model.id
+            )
+        })?;
+        let control = controls
+            .iter()
+            .find(|c| c.id == control_id)
             .with_context(|| {
                 format!(
-                    "Native {control_id} support was not observed for {}",
+                    "Model {} does not support native {control_id} control",
                     model.id
                 )
             })?;
