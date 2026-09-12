@@ -18,7 +18,7 @@ Historical entries deserialize with absent provenance, meaning unknown confirmat
 
 `Store.search_memory` has two typed modes: `Supported` is the default used by `Store.memory` and automatic context; `IncludeUnconfirmed` is an explicit inspection choice for candidates and historical unknown entries. Inspection still enforces project/applicability and retirement constraints and labels confirmation in assembled prompts. `memory_search` exposes `include_unconfirmed` for a team member to inspect candidates; proposing and inspecting never activate them. Full inventory includes rejected and retired records for UI inspection.
 
-YMP-114 can use the immutable source reference, retained lifecycle event, deterministic entry identity and existing `supersedes` field to implement correction. YMP-113 filters changed source versions but does not implement correction, semantic scope inference, cross-file source replacement or a general natural-language router.
+YMP-114 extends these seams with [explicit correction contracts and atomic supersession](knowledge-correction.md), including captured cross-file source replacement. YMP-113 itself filters changed source versions; neither task introduces semantic scope inference or a general natural-language router.
 
 ## Replaceable policies and retrieval accounting
 
