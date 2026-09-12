@@ -10,6 +10,7 @@ pub fn bytes_digest(bytes: &[u8]) -> String {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct AcceptanceCriterion {
     pub id: String,
     pub description: String,
@@ -17,6 +18,7 @@ pub struct AcceptanceCriterion {
 
 /// Installed by the trusted client before a run, never parsed from model text.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct AcceptanceContract {
     pub task_title: String,
     pub criteria: Vec<AcceptanceCriterion>,
@@ -25,7 +27,42 @@ pub struct AcceptanceContract {
     pub checks: Vec<TrustedCheck>,
 }
 
+/// Validate the set before capturing any authority or admitting an invocation.
+pub fn validate_contract_targets(contracts: &[AcceptanceContract]) -> Result<()> {
+    let mut targets = std::collections::HashSet::new();
+    for contract in contracts {
+        ensure!(
+            !contract.task_title.trim().is_empty() && targets.insert(&contract.task_title),
+            "Duplicate or empty acceptance contract target: {}",
+            contract.task_title
+        );
+    }
+    Ok(())
+}
+
+/// The only contract projection included in agent prompts. Assertions and
+/// captured bytes/code are deliberately absent from this type.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct AcceptanceRequirements {
+    pub task_title: String,
+    pub criteria: Vec<AcceptanceCriterion>,
+    pub artifacts: Vec<PathBuf>,
+    pub inputs: Vec<PathBuf>,
+}
+
+impl From<&AcceptanceContract> for AcceptanceRequirements {
+    fn from(contract: &AcceptanceContract) -> Self {
+        Self {
+            task_title: contract.task_title.clone(),
+            criteria: contract.criteria.clone(),
+            artifacts: contract.artifacts.clone(),
+            inputs: contract.inputs.clone(),
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct TrustedCheck {
     pub id: String,
     pub criterion_ids: Vec<String>,
@@ -33,7 +70,7 @@ pub struct TrustedCheck {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(tag = "kind", rename_all = "snake_case")]
+#[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
 pub enum CheckAssertion {
     ExactBytes {
         artifact: PathBuf,

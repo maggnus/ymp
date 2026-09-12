@@ -1,0 +1,98 @@
+{
+  "recorded_at": "2026-09-12T17:11:37.765201+00:00",
+  "base_revision": "3145f5f8bdfb57366c4065d077b761de7e9604e0",
+  "execution_kind": "actual-executable-built-in-mock",
+  "real_provider_inference": false,
+  "configuration_source": "TOML example in architecture/executable-acceptance-contracts.md",
+  "status": "completed",
+  "session_id": "f1e53624-e39a-4d81-a787-29bc9de940ab",
+  "effort": "low",
+  "captured_contracts": 1,
+  "check_observations": 1,
+  "acceptances": [
+    {
+      "kind": "task_accepted",
+      "outcome": {
+        "decision": "accepted",
+        "confirmation": "confirmed"
+      }
+    },
+    {
+      "kind": "final_accepted",
+      "outcome": {
+        "decision": "accepted",
+        "confirmation": "confirmed"
+      }
+    }
+  ],
+  "observations_in_database": 1,
+  "artifact_sha256": "67b63638f5cf6adcdea67af75aee1086192da26aaf575687ea4ecd5c05b90a4f",
+  "later_session": {
+    "session_id": "fdea6d57-e614-48ea-bf40-1e7681e1daaa",
+    "status": "blocked",
+    "supported_retrieved_source_ids": [
+      "knowledge:3781bc3697e68abca03dec8b8a21fd2c8f79022c04235b2092d27f47e39b2b76"
+    ],
+    "supported_retrieved_source_session": "f1e53624-e39a-4d81-a787-29bc9de940ab",
+    "purpose": "Fail only after observing supported retrieval at planning admission"
+  },
+  "trace_artifacts": [
+    {
+      "path": "/tmp/y125-1uh0h60n/first-trace.json",
+      "sha256": "48bebf8bd83824b2dc0cb3f49d27291a2e3c3361874d0357677b48b6189717f3"
+    },
+    {
+      "path": "/tmp/y125-1uh0h60n/later-trace.json",
+      "sha256": "6bf6442719a50cc6d9d17e29c48aab2335988642b050ac0ccee2bea07a98649f"
+    }
+  ],
+  "old_failure_control": {
+    "test": "executable_contract_confirms_and_supplies_supported_knowledge_to_a_later_session",
+    "revision": "3145f5f8bdfb57366c4065d077b761de7e9604e0",
+    "exit_code": 101,
+    "actual": "Unconfirmed",
+    "expected": "Confirmed"
+  },
+  "mutation_controls": [
+    {
+      "control": "binding_validation_removed",
+      "test": "configured_missing_and_ambiguous_plan_targets_are_rejected_including_revisions",
+      "exit_code": 101,
+      "expected_failure": true
+    },
+    {
+      "control": "resume_replacement_guard_removed",
+      "test": "configured_resume_preserves_capture_and_rejects_replacement_before_invocation",
+      "exit_code": 101,
+      "expected_failure": true
+    },
+    {
+      "control": "planning_requirements_removed",
+      "test": "configured_requirements_reach_planning_revisions_without_reference_or_verifier_bytes",
+      "exit_code": 101,
+      "expected_failure": true
+    }
+  ],
+  "limitation": "Deterministic executable integration and authority controls; no claim of model quality improvement or filesystem isolation.",
+  "validation": {
+    "cargo_fmt_all_check": "passed",
+    "cargo_clippy_workspace_all_targets_deny_warnings": "passed",
+    "cargo_test_workspace": {
+      "result": "passed",
+      "passed": 280,
+      "failed": 0,
+      "log_path": "/tmp/ymp125-workspace-tests.log",
+      "log_sha256": "e7f24ef2e2a9de257eb2d910578e467698e479db446e4491010b5c525dbf619d"
+    },
+    "new_tests": {
+      "executable": 5,
+      "runtime_ingress": 7,
+      "storage_atomic_capture": 1
+    },
+    "build_settings": {
+      "jobs": 3,
+      "incremental": false,
+      "debug_info": false
+    }
+  }
+}

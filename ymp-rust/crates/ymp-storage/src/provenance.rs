@@ -276,6 +276,17 @@ pub(super) fn decision(tx: &Transaction<'_>, value: &DecisionRecord) -> Result<(
 impl Store {
     /// Create a session and its immutable input capture in one transaction.
     pub fn create_session(&self, session: &Session, policy: &SessionPolicy) -> Result<()> {
+        self.create_session_with_contracts(session, policy, &[])
+    }
+
+    /// A recoverable session must contain its complete initial check authority.
+    /// Failed validation or a crash cannot leave only part of the contract set.
+    pub fn create_session_with_contracts(
+        &self,
+        session: &Session,
+        policy: &SessionPolicy,
+        contracts: &[CapturedAcceptanceContract],
+    ) -> Result<()> {
         ensure!(
             session.id == policy.session_id,
             "Session policy identity mismatch"
@@ -316,6 +327,14 @@ impl Store {
                 policy: Box::new(policy.clone()),
             },
         )?;
+        for captured in contracts {
+            decision(&tx, &DecisionRecord {
+                id: new_id(), session_id: session.id.clone(),
+                kind: "acceptance_contract_captured".into(), actor: None,
+                reason: "Trusted client supplied acceptance criteria and check bindings before execution".into(),
+                outcome: None, links: RecordLinks { acceptance_contract: Some(captured.clone()), ..Default::default() }, created_at: now(),
+            })?;
+        }
         tx.commit()?;
         Ok(())
     }

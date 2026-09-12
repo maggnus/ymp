@@ -335,7 +335,9 @@ async fn entry() -> Result<()> {
             println!("Project path updated; history and memory retained.");
         }
         Some(Command::Demo { tui }) => {
-            let config = demo_config();
+            let mut demo = demo_config();
+            demo.acceptance_contracts = config.acceptance_contracts;
+            let config = demo;
             if tui {
                 ymp_tui::run(store, config, path, None).await?;
             } else {

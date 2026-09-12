@@ -86,6 +86,10 @@ impl Default for Limits {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Config {
     pub version: u32,
+    /// Trusted checks for every new team session using this configuration.
+    /// On resume, None keeps captured authority; Some must match it exactly.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub acceptance_contracts: Option<Vec<crate::AcceptanceContract>>,
     #[serde(default)]
     pub limits: Limits,
     pub providers: Vec<ProviderConfig>,
@@ -105,6 +109,7 @@ impl Default for Config {
     fn default() -> Self {
         Self {
             version: 1,
+            acceptance_contracts: None,
             team_constraints: crate::TeamConstraints::default(),
             limits: Limits::default(),
             capabilities: BTreeMap::new(),
@@ -168,6 +173,7 @@ impl Default for Config {
 
 impl Config {
     pub fn validate(&self) -> Result<()> {
+        crate::validate_contract_targets(self.acceptance_contracts.as_deref().unwrap_or_default())?;
         self.team_constraints.validate()?;
         if self.version != 1 {
             bail!("Unsupported configuration version {}", self.version);
