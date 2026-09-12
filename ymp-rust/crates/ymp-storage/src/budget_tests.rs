@@ -206,3 +206,76 @@ fn joint_grant_and_budget_events_roll_back_as_one_admission() {
     assert_eq!(f.store.session_budget(&f.session.id).unwrap().unwrap().reserved_tokens,Some(20));
     assert!(f.store.team_grant(&f.session.id,&grant.id).unwrap().revoked_at.is_none());
 }
+
+#[test]
+fn explicit_storage_wrappers_cannot_replace_unknown_history_or_skip_allowance() {
+    for with_grants in [false, true] {
+        for sparse in [false, true] {
+            for legacy in [false, true] {
+                let limits = Limits { turns: 3, parallel: 3, resources: None, ..Default::default() };
+                let mut f = Fixture::with_limits(limits.clone());
+                f.session.turns_used = 2;
+                f.store.save_session(&f.session).unwrap();
+                if legacy {
+                    f.store.db().unwrap().execute("DELETE FROM session_policies WHERE session_id=?", [&f.session.id]).unwrap();
+                    f.store.capture_legacy_budget_limits(&f.session.id, &limits).unwrap();
+                }
+                if sparse {
+                    f.store.begin_usage(&f.session.id, 1, "writer").unwrap();
+                    f.store.finish_usage(&f.session.id, 1, "interrupted").unwrap();
+                }
+                for turn in [1, 2, 4] {
+                    let (mut a, mut i) = budget_assignment(&f, "review");
+                    i.turn = turn;
+                    let grant = GrantRecord::for_assignment(&a, &i, TeamOperation::coordination());
+                    let result = if with_grants {
+                        a.grant_ids.push(grant.id.clone());
+                        f.store.begin_invocation_with_grants(&a, &i, std::slice::from_ref(&grant))
+                    } else { f.store.begin_invocation(&a, &i) };
+                    assert!(result.is_err(), "accepted historical or skipped ordinal {turn}; grants={with_grants}, sparse={sparse}, legacy={legacy}");
+                    assert!(f.store.team_grant(&f.session.id, &grant.id).is_err());
+                    assert!(f.store.trace(&f.session.id).unwrap().invocations.is_empty());
+                    assert_eq!(f.store.session_usage(&f.session.id).unwrap().total.calls, 2);
+                }
+                let barrier = std::sync::Arc::new(std::sync::Barrier::new(3));
+                let jobs: Vec<_> = ["writer", "reviewer"].into_iter().map(|agent| {
+                    let store = Store::open(&f.store.home).unwrap();
+                    let (mut a, mut i) = budget_assignment(&f, "review");
+                    a.agent_id = agent.into();
+                    i.turn = 3;
+                    let grant = GrantRecord::for_assignment(&a, &i, TeamOperation::coordination());
+                    let barrier = barrier.clone();
+                    std::thread::spawn(move || {
+                        barrier.wait();
+                        let result = if with_grants {
+                            a.grant_ids.push(grant.id.clone());
+                            store.begin_invocation_with_grants(&a, &i, std::slice::from_ref(&grant))
+                        } else { store.begin_invocation(&a, &i) };
+                        (a, i, result)
+                    })
+                }).collect();
+                barrier.wait();
+                let results: Vec<_> = jobs.into_iter().map(|job|job.join().unwrap()).collect();
+                assert_eq!(results.iter().filter(|(_,_,r)|r.is_ok()).count(), 1);
+                let (_, invocation, _) = results.into_iter().find(|(_,_,r)|r.is_ok()).unwrap();
+                budget_observe(&f, &invocation, 9, false);
+                f.store.finish_invocation(&f.session.id, &invocation.id, InvocationState::Cancelled, None).unwrap();
+                let reopened = Store::open(&f.store.home).unwrap();
+                let usage = reopened.session_usage(&f.session.id).unwrap().total;
+                assert_eq!(usage.calls, 3);
+                assert_eq!(usage.reported, 1);
+                assert_eq!(usage.known_total(), Some(9));
+                assert!(usage.is_partial());
+                let (mut a, mut i) = budget_assignment(&f, "review");
+                i.turn = 4;
+                let grant = GrantRecord::for_assignment(&a, &i, TeamOperation::coordination());
+                let result = if with_grants {
+                    a.grant_ids.push(grant.id.clone());
+                    reopened.begin_invocation_with_grants(&a, &i, std::slice::from_ref(&grant))
+                } else { reopened.begin_invocation(&a, &i) };
+                assert!(result.is_err());
+                assert!(reopened.team_grant(&f.session.id, &grant.id).is_err());
+            }
+        }
+    }
+}

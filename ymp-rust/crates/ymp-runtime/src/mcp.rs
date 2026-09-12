@@ -74,7 +74,8 @@ impl TeamServer {
         })
     }
 
-    /// Admit a fresh assignment and return its secret to the native adapter only.
+    /// Admit the next unspent explicit ordinal and return its secret only to the
+    /// native adapter. Use `admit_reserved` when admission order is uncertain.
     /// Never serialize, log, or persist this return value.
     pub fn admit(
         &self,

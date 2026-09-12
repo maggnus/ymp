@@ -610,11 +610,14 @@ fn stale_task_decisions_cannot_rewind_attempts_or_overwrite_a_later_state() {
 }
 
 #[test]
-fn out_of_order_admissions_do_not_rewind_the_durable_turn_counter() {
+fn explicit_admissions_require_the_next_unspent_ordinal() {
     let f = Fixture::new();
-    for turn in [2, 1] {
+    for (turn, allowed) in [(2, false), (1, true), (3, false), (2, true), (1, false)] {
         let (assignment, invocation) = f.invocation(turn);
-        f.store.begin_invocation(&assignment, &invocation).unwrap();
+        assert_eq!(
+            f.store.begin_invocation(&assignment, &invocation).is_ok(),
+            allowed
+        );
     }
     assert_eq!(
         f.store.value(&format!("turns:{}", f.session.id)).unwrap(),

@@ -494,7 +494,7 @@ async fn probe_team_tools(
         status: "diagnostic".into(),
         created_at: now(),
         team: vec![profile.clone()],
-        turns_used: 1,
+        turns_used: 0,
     };
     store.save_session(&session)?;
     let (ui, _rx) = mpsc::unbounded_channel();
@@ -599,4 +599,44 @@ async fn probe_team_tools(
         bail!("Agent returned without actually invoking team_post");
     }
     Ok("YMP_OK; team_post delivery independently confirmed".into())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn team_probe_charges_its_first_explicit_invocation_at_admission() {
+        let temp = tempfile::tempdir().unwrap();
+        let project = temp.path().join("project");
+        std::fs::create_dir(&project).unwrap();
+        let store = Store::open(&temp.path().join("state")).unwrap();
+        let config: Config = serde_json::from_value(json!({
+            "version":1,"providers":[{"id":"mock","kind":"mock","command":"internal"}],
+            "agents":[{"id":"probe","name":"Probe","provider":"mock","instructions":"[mock:usage]"}],
+            "team":["probe"]
+        })).unwrap();
+        let error = probe_team_tools(&config, &store, &project, &config.agents[0])
+            .await
+            .unwrap_err();
+        // Mock emits a native result but no team_post. Reaching that diagnostic
+        // proves admission worked without precharging the same ordinal.
+        assert_eq!(
+            error.to_string(),
+            "Agent returned without actually invoking team_post"
+        );
+        let sessions = store.sessions(None).unwrap();
+        assert_eq!(sessions.len(), 1);
+        assert_eq!(sessions[0].turns_used, 1);
+        let trace = store.trace(&sessions[0].id).unwrap();
+        assert_eq!(trace.invocations.len(), 1);
+        assert_eq!(trace.invocations[0].turn, 1);
+        assert_eq!(trace.usage.total.known_total(), Some(120));
+        assert_eq!(trace.assignments[0].grant_ids.len(), 1);
+        assert!(store
+            .team_grant(&sessions[0].id, &trace.assignments[0].grant_ids[0])
+            .unwrap()
+            .revoked_at
+            .is_some());
+    }
 }

@@ -11,6 +11,12 @@ transaction without granting team permissions. Independent
 connections cannot reserve the same remaining allowance. A denied admission
 records a stable code and message without creating an invocation or charging a
 turn. `begin_invocation` retains its explicit-ordinal API and uses the same guard.
+All fresh admissions consume the next unspent ordinal. Explicit admission must
+supply exactly that ordinal: historical holes and skipped ordinals are rejected
+inside the transaction before grant issuance. These APIs do not import or backfill
+historical usage. Callers with concurrent or uncertain admission order use the
+automatically allocated `admit_invocation` or `admit_reserved` path. The CLI team
+probe starts with zero spent invocations and charges its first call at admission.
 The durable cumulative ordinal, saved session count and highest detailed ordinal
 supply one monotonic invocation total. Missing historical ordinals remain unknown
 calls alongside newly admitted work; new rows cannot replace historical spend.

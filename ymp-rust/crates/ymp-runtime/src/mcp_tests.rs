@@ -375,9 +375,10 @@ async fn grant_event_rolls_back_when_later_invocation_insert_fails() {
     assignment.id = new_id();
     assignment.grant_ids.clear();
     let mut invocation = f.invocation.clone();
-    invocation.id = new_id();
+    invocation.turn = 2;
     invocation.assignment_id = assignment.id.clone();
-    // The old usage ordinal collides after the grant write in the transaction.
+    // The next ordinal is valid; the reused invocation ID collides only after
+    // grant issuance and assignment insertion inside the transaction.
     let grant =
         GrantRecord::for_assignment(&assignment, &invocation, TeamOperation::coordination());
     assignment.grant_ids.push(grant.id.clone());

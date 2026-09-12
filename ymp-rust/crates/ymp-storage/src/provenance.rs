@@ -332,7 +332,8 @@ impl Store {
     }
 
     /// Start one outer invocation and its assignment; no live permission is
-    /// granted by this API. Identities and usage ordinals must be fresh.
+    /// granted by this API. Identities must be fresh and the supplied ordinal
+    /// must be exactly the next unspent one.
     pub fn begin_invocation(
         &self,
         assignment: &AssignmentRecord,
@@ -341,7 +342,8 @@ impl Store {
         self.begin_invocation_with_grants(assignment, invocation, &[])
     }
 
-    /// Commit explicit invocation identities and grants together.
+    /// Commit explicit invocation identities and grants together. The ordinal
+    /// must be exactly the next unspent one; this API does not import history.
     pub fn begin_invocation_with_grants(
         &self,
         assignment: &AssignmentRecord,
@@ -454,14 +456,17 @@ impl Store {
             tx.commit()?;
             return Err(denial.into());
         }
+        let next_turn =
+            super::usage::invocation_count(&tx, &assignment.session_id, session.turns_used as u64)?
+                .checked_add(1)
+                .context("Invocation ordinal exhausted")?;
         if allocate_turn {
-            invocation.turn = super::usage::invocation_count(
-                &tx,
-                &assignment.session_id,
-                session.turns_used as u64,
-            )?
-            .checked_add(1)
-            .context("Invocation ordinal exhausted")?;
+            invocation.turn = next_turn;
+        } else {
+            ensure!(
+                invocation.turn == next_turn,
+                "invocation_ordinal: explicit admission requires next unspent ordinal {next_turn}"
+            );
         }
         for grant in grants {
             super::authority::issue(&tx, assignment, invocation, grant)?;

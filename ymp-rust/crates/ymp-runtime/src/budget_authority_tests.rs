@@ -6,6 +6,12 @@ struct BudgetAuthorityFixture {
 }
 impl BudgetAuthorityFixture {
     fn new() -> Self {
+        Self::with_limits(Limits { parallel: 3, resources: Some(ResourceLimits {
+            observed_tokens: Some(100), invocation_tokens: Some(30), required_review_invocations: 1,
+            ..Default::default()
+        }), ..Default::default() }, false)
+    }
+    fn with_limits(limits: Limits, legacy: bool) -> Self {
         let dir = tempfile::tempdir().unwrap();
         let store = Store::open(&dir.path().join("state")).unwrap();
         let project = store.project(dir.path()).unwrap();
@@ -15,16 +21,15 @@ impl BudgetAuthorityFixture {
         }).collect();
         let session = Session { id: new_id(), project_id: project.id, title: "Budget and authority".into(),
             status: "running".into(), created_at: now(), team: team.clone(), turns_used: 0 };
-        let limits = Limits { parallel: 3, resources: Some(ResourceLimits {
-            observed_tokens: Some(100), invocation_tokens: Some(30), required_review_invocations: 1,
-            ..Default::default()
-        }), ..Default::default() };
-        store.create_session(&session, &SessionPolicy {
+        if legacy {
+            store.save_session(&session).unwrap();
+            store.capture_legacy_budget_limits(&session.id, &limits).unwrap();
+        } else { store.create_session(&session, &SessionPolicy {
             session_id: session.id.clone(), goal: "Inspect a bounded result".into(), constraints: None,
             cwd: dir.path().into(), limits, eligible_pool: team.clone(), captured_team: team,
             execution: Default::default(), assignment_settings: vec![], parent_session_id: None,
             evaluation: None, captured_at: now(),
-        }).unwrap();
+        }).unwrap(); }
         Self { _dir: dir, store, session }
     }
     async fn server(&self) -> Arc<TeamServer> {
@@ -125,5 +130,65 @@ async fn joint_terminal_and_restart_release_reservations_and_reject_capabilities
         let error = restarted.admit_reserved(&mut next,&mut invocation,TeamOperation::coordination()).unwrap_err();
         assert_eq!(error.downcast_ref::<BudgetDenial>().unwrap().code,"unknown_usage");
         assert!(restarted.active.lock().unwrap().is_empty());
+    }
+}
+
+#[tokio::test]
+async fn explicit_server_admission_rejects_historical_ordinals_before_issuing_capabilities() {
+    for sparse in [false, true] {
+        for legacy in [false, true] {
+            let mut f = BudgetAuthorityFixture::with_limits(Limits { turns: 3, parallel: 3, resources: None, ..Default::default() }, legacy);
+            f.session.turns_used = 2;
+            f.store.save_session(&f.session).unwrap();
+            if sparse {
+                f.store.begin_usage(&f.session.id, 1, &f.session.team[0].id).unwrap();
+                f.store.finish_usage(&f.session.id, 1, "interrupted").unwrap();
+            }
+            let mut servers = vec![];
+            for _ in 0..3 { servers.push(f.server().await); }
+            for turn in [1, 2, 4] {
+                let (mut a, mut i) = f.pair(0);
+                i.turn = turn;
+                assert!(servers[0].admit(&mut a, &i, TeamOperation::coordination()).is_err(), "historical/skipped ordinal {turn} issued a capability");
+                assert!(a.grant_ids.is_empty());
+                assert!(servers[0].active.lock().unwrap().is_empty());
+                assert!(f.store.trace(&f.session.id).unwrap().invocations.is_empty());
+            }
+            let barrier = Arc::new(std::sync::Barrier::new(4));
+            let jobs: Vec<_> = servers.iter().enumerate().map(|(n,server)| {
+                let server = server.clone();
+                let barrier = barrier.clone();
+                let (mut a, mut i) = f.pair(n);
+                i.turn = 3;
+                std::thread::spawn(move || { barrier.wait(); let result = server.admit(&mut a,&i,TeamOperation::coordination()); (a,i,result) })
+            }).collect();
+            barrier.wait();
+            let results: Vec<_> = jobs.into_iter().map(|j|j.join().unwrap()).collect();
+            assert_eq!(results.iter().filter(|(_,_,r)|r.is_ok()).count(), 1);
+            for (n,(a,i,result)) in results.into_iter().enumerate() {
+                if let Ok(token) = result {
+                    assert_eq!(call(&servers[n].socket,json!({"token":token,"request_id":"fresh","name":"team_read","arguments":{}})).await["ok"],true);
+                    f.store.observe_invocation(&f.session.id,&i.id,&InvocationObservation { usage:Some(UsageSnapshot {
+                        counts:TokenCounts { input:Some(9),output:Some(0),..Default::default() },finalized:true,..Default::default()
+                    }),..Default::default() }).unwrap();
+                    servers[n].finish(&i.id,InvocationState::Completed,None).unwrap();
+                    assert_eq!(call(&servers[n].socket,json!({"token":token,"request_id":"terminal","name":"team_read","arguments":{}})).await["ok"],false);
+                    assert!(f.store.team_grant(&f.session.id,&a.grant_ids[0]).unwrap().revoked_at.is_some());
+                } else { assert!(a.grant_ids.is_empty()); }
+                assert!(servers[n].active.lock().unwrap().is_empty());
+            }
+            let reopened = Store::open(&f.store.home).unwrap();
+            let trace = reopened.trace(&f.session.id).unwrap();
+            assert_eq!(trace.invocations.len(),1);
+            assert_eq!(trace.usage.total.calls,3);
+            assert_eq!(trace.usage.total.known_total(),Some(9));
+            assert!(trace.usage.total.is_partial());
+            assert_eq!(trace.history.iter().filter(|e|e.data["change"]=="grant_issued").count(),1);
+            let restarted = f.server().await;
+            let (mut a,mut i) = f.pair(0);
+            i.turn=4;
+            assert!(restarted.admit(&mut a,&i,TeamOperation::coordination()).is_err());
+            assert!(restarted.active.lock().unwrap().is_empty());
+        }
     }
 }
