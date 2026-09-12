@@ -583,3 +583,137 @@ the public MCP work and the lock release, `9ad43dc` for the typed contracts, and
 `314dc8a` for the native catalog. Unmet criteria that this task owns: none known. The two defects
 reported in earlier rounds still belong to other layers, and the Claude bridge is not built in
 this worktree, which is why one installation could not be read here.
+
+## Round six: the shared plan and the correction views, and the composition they sit on
+
+13/09/2026 05:16 HKT. Head `bc14229`. This round adds the YMP-112 plan views and the YMP-114
+knowledge views to the pages that already existed, closes the two findings of the independent
+native name review, and closes two findings of the native UI review. No page, command or
+navigation entry was added.
+
+### The composition
+
+| Source | How it arrived |
+| --- | --- |
+| catalog lock correction `5415392` | merged, one mechanical resolution in `config.rs` |
+| board and knowledge backend `afede54` (picks `23298ac`, `52345d5`, `187b67c`) | merged, same resolution plus three missing interface labels |
+| accepted main `b249195` | merged at `47dfc8a`; it carries the production equivalents, so only documents and the task register arrived with it |
+
+The merge of main changed no source file, which is the check that the direct merges and the
+production picks are the same work. The one conflict was the owner home refresh paragraph in the
+catalog document, and the parent's text is kept verbatim.
+
+### What the pages now say
+
+The tasks page carries the plan: each task's own version, the member the plan holds responsible
+with the model and effort that responsibility was committed under, the proposal that committed
+it, and any turn the runtime put off. The proposals are rows under the tasks they are about, in
+the typed terms they were made in, each with the plan and membership version it was made
+against, its rationale, and the runtime's decision with the reason it recorded. The decision is
+the authority: a proposal nothing answered reads as proposed, and a proposal whose stored status
+moved without a readable decision says that what the runtime decided was not read. The team page
+says what each member is responsible for; the decisions page carries the same block for a change
+to the plan; a plan that could not be read is reported as unavailable.
+
+The memory page carries the standing the store gives every entry, the correction on both sides
+with the acceptance, the trusted contract and the policy that authorised it, and the conditions
+it read under. It now asks with the configured `knowledge_scope`, which is the scope a run asks
+under; it used to ask with none while reporting whether a run would be given the entry.
+
+### The fixtures, which are the real runtime
+
+The plan fixture is a scripted offline executor that coordinates through the team API during its
+turn. It reads the board and asks three times, and the runtime commits one change, rejects the
+repeated one with its own `stale_task` reason, commits the third, and then defers a committed
+task with `commitment_busy` because the member responsible is already working in that wave. Every
+decision and every deferral these views show is written by the runtime, not by the test.
+
+The correction fixture runs the runtime twice over `ymp-evals/fixtures/universal/inputs`: 95
+percent from `observations.csv` under a trusted contract whose check is a real command, then 60
+percent from `observations-corrected.csv` under a contract bound to the first entry. The runtime
+applies the correction, and both entries are retained with their own evidence.
+
+### Failing-before controls, round six
+
+| What was inverted | What failed |
+| --- | --- |
+| the proposal row reads the stored status instead of the decision | `the_decision_and_not_the_stored_status_says_what_became_of_a_proposal` |
+| the task no longer names what was put off | `a_task_says_who_is_responsible_for_it_and_what_was_put_off` |
+| the row word ignores the standing the store answered with | `both_sides_of_a_correction_are_kept_and_each_says_which_it_is` and two more |
+| the memory page asks with no conditions of its own | `both_sides_of_a_correction_are_kept_and_each_says_which_it_is` |
+| the first clause of the naming rule is deleted | `a_finished_session_is_named_by_the_identity_its_turns_captured` |
+
+Each inversion was made in the working source, the named test was run, and the source was
+restored and verified with `shasum -a 256 -c`.
+
+### The walk
+
+One walk in a pseudo-terminal over both fixtures, at 80x24 and then at 120x40, starting no run
+and sending no prompt. It opened the saved session from the sessions page, read the plan with its
+three proposals, opened the committed and the rejected one and read the runtime's reason in each,
+read the task that still owes a responsibility together with its deferral, read the member
+responsible, and opened a plan change decision. It then read what was retained: both sides of the
+correction listed at once, the superseded entry naming its replacement, the replacement naming
+its predecessor, and the acceptance, contract and policy on both. The walk reports anything it
+could not reach; it reached every row it looked for at both sizes. Captures are in
+`/tmp/118-walk/walk_board_knowledge.txt`, and the fixtures are kept by an ignored test so the
+walk reads the same records the tests read.
+
+The walk found four things to correct, all of them in what a reader sees, and all corrected: a
+deferral printed twice, a committed change repeating the proposal's own words as the runtime's
+reason, a label longer than its column, and a short id that took the first eight characters of a
+retained entry's id, which is the word `knowledge` every time, so both sides of a correction read
+as the same record.
+
+### The native review's findings
+
+Two from the independent native name review. The coordination labels named the team chat as the
+board, and all three now say which thing they mean. The whole window is now covered by a
+historical naming regression whose fixture actually differs: a turn captured as GPT-5.6-Terra
+while the configuration still reads `one`, asserted in the right panel, the assignment row and
+the team page. Under the exact mutation the review used, that test fails.
+
+Two from the native UI review. A fresh configuration scanned for 11.5 seconds with nothing on the
+screen; the command now says what it is about to do, how many installations it will ask, the
+deadline for each, and that it asks for names and settings only, and the message was measured to
+appear 11.5 seconds before the result. The report said actors were renamed from a placeholder;
+nothing was renamed, the stored configuration still reads `name = "Codex"`, and both the command's
+summary and the window's notice now say that an actor gained a model the installation named.
+
+### The Claude bridge
+
+`npm ci`, `npm run check`, `npm test` and `npm run build` all pass in `ymp-bridges/claude`; 14
+bridge tests. With `dist/index.js` present, a metadata-only reading of the installed systems
+through the accepted command read all three installations in a temporary home, including Claude's
+own `Default (recommended)`, `Opus (1M context)`, `Fable`, `Sonnet` and `Haiku`, with the resolved
+model kept separate from the selector. The gap reported in round five is closed. That reading
+asked no model anything and did not touch the real application home.
+
+### Commands and results, round six
+
+| Command | Exit |
+| --- | --- |
+| `cargo fmt --all --check` | 0 |
+| `cargo clippy --workspace --all-targets -- -D warnings` | 0, no warning |
+| `cargo test --workspace` | 0, 387 tests passed, 133 of them in `ymp-tui` |
+| `npm ci && npm run check && npm test && npm run build` in `ymp-bridges/claude` | 0, 14 tests |
+| walk over both fixtures at 80x24 and 120x40 | every row reachable, no unreached row |
+
+Source hashes at this head: `views.rs` `1f73ef7962e5036a`, `provenance.rs` `cc25fe6e8befea56`,
+`tests.rs` `2186fb7a50a5dc42`.
+
+### Limits of this round, stated plainly
+
+- A commitment is kept by the storage only while a task is ready, so a finished session shows no
+  responsibility on its tasks. The responsibility is still readable on the proposal and on the
+  decision that committed it, and the documents say so.
+- The inputs a correction replaced are named in the acceptance contract, not in the correction
+  record, so the page names each side's own acceptance, result and criteria version rather than
+  the file each read.
+- `Store::inspect_knowledge` answers for one project and the entries shared globally with it.
+- The walk drives the real interface over stores the real runtime wrote, but the runs themselves
+  were started by the test harness rather than from inside the window, because a scripted
+  execution backend cannot be installed through the command line. No run was started during the
+  walk, which is what keeps it a pure read.
+- Nothing in this round reads a credential, asks a model anything, or edits the real application
+  home, the task register or the intent.

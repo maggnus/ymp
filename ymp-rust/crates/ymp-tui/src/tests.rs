@@ -2615,7 +2615,7 @@ fn mock_config() -> Config {
 }
 
 struct Run {
-    _home: TempDir,
+    home: TempDir,
     project: TempDir,
     store: Store,
     config: Config,
@@ -2654,7 +2654,7 @@ async fn mock_run(prompt: &str, prepare: impl FnOnce(&mut ymp_runtime::Engine)) 
     prepare(&mut engine);
     let outcome = engine.run(project.path(), prompt, None).await.unwrap();
     Run {
-        _home: home,
+        home,
         project,
         store,
         config: engine.config.clone(),
@@ -3469,9 +3469,23 @@ async fn a_confirmed_projection_and_a_candidate_are_not_shown_as_the_same_thing(
     }
     let confirmed = supported[0].id.clone();
     assert!(
-        right_of_key(&mut app, 65, &confirmed).contains("supported"),
-        "a confirmed projection is not named as support: {}",
+        right_of_key(&mut app, 65, &confirmed).contains("current"),
+        "a confirmed projection is not named as current: {}",
         right_of_key(&mut app, 65, &confirmed)
+    );
+    let candidate = inventory
+        .iter()
+        .find(|entry| !supported.iter().any(|offered| offered.id == entry.id))
+        .expect("the run recorded a candidate");
+    assert_ne!(
+        right_of_key(&mut app, 65, &candidate.id),
+        right_of_key(&mut app, 65, &confirmed),
+        "a candidate and a confirmed projection read the same"
+    );
+    assert!(
+        detail_of_key(&mut app, 65, &confirmed)
+            .contains("yes, as support under the default retrieval"),
+        "the page no longer says whether a run would be given this entry"
     );
     let detail = detail_of_key(&mut app, 65, &confirmed);
     assert!(
@@ -3548,7 +3562,10 @@ async fn knowledge_a_run_recorded_without_evidence_is_listed_rather_than_hidden(
     let mut app = run.app();
     app.command("/memory", 100);
 
-    let keys = keys_of(&mut app, 65);
+    let keys = keys_of(&mut app, 65)
+        .into_iter()
+        .filter(|key| key != crate::views::ABOUT_KEY)
+        .collect::<Vec<_>>();
     assert_eq!(
         keys.len(),
         inventory.len(),
@@ -3819,10 +3836,12 @@ async fn the_record_pages_paint_their_statements_whole_at_every_supported_size()
         );
 
         app.set_view(View::Memory);
+        app.on_key(key(KeyCode::Down), width);
         let prose = main_prose(&mut app, width, height);
         assert!(
             prose.contains("no passing evidence is attached")
-                || prose.contains("carried passing checks"),
+                || prose.contains("carried passing checks")
+                || prose.contains("recorded without a grade"),
             "at {width}x{height} the memory page lost words from an entry's basis:\n{prose}"
         );
 
@@ -5116,4 +5135,967 @@ async fn no_row_puts_more_in_its_right_column_than_the_narrowest_column_holds() 
         "no row carried the pool's own refusal, so the narrowest case went unchecked"
     );
     assert!(checked > 40, "only {checked} rows were checked");
+}
+
+// ---------------------------------------------------------------------------
+// The shared plan, as the runtime itself writes it
+// ---------------------------------------------------------------------------
+
+/// A scripted backend that coordinates through the real team API while its turn runs.
+///
+/// Nothing here is asked of a model. The plan is a fixed list of independent notes, and the
+/// proposals are the ones these tests mean to read back: one that the runtime commits, one
+/// repeated against a version the commitment has already moved, and one more that commits so
+/// that two tasks end up owed to the same agent. Every other purpose is left to the offline
+/// fixture executor underneath.
+struct Coordinating {
+    proposed: std::sync::Mutex<Vec<serde_json::Value>>,
+    asked_once: std::sync::atomic::AtomicBool,
+    /// Stop the notes the commitments are for, so a reader can be shown a responsibility that
+    /// is still owed rather than one a finished session has already discharged.
+    stall: bool,
+}
+
+async fn team_call(
+    request: &ymp_providers::TurnRequest,
+    name: &str,
+    arguments: serde_json::Value,
+) -> anyhow::Result<serde_json::Value> {
+    use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
+    let endpoint = request
+        .mcp
+        .as_ref()
+        .expect("the turn carries a team endpoint");
+    let socket = endpoint.args.last().expect("the endpoint names its socket");
+    let mut stream = tokio::net::UnixStream::connect(socket).await?;
+    stream
+        .write_all(
+            format!(
+                "{}\n",
+                serde_json::json!({"token": endpoint.token, "request_id": new_id(), "name": name, "arguments": arguments})
+            )
+            .as_bytes(),
+        )
+        .await?;
+    let mut line = String::new();
+    BufReader::new(stream).read_line(&mut line).await?;
+    Ok(serde_json::from_str(&line)?)
+}
+
+const NOTES: [&str; 4] = ["Alpha note", "Beta note", "Gamma note", "Delta note"];
+
+impl ymp_providers::ExecutionBackend for Coordinating {
+    fn identity(&self) -> ymp_core::ExecutionBackendIdentity {
+        ymp_core::ExecutionBackendIdentity {
+            id: "test.board-views".into(),
+            version: "1".into(),
+        }
+    }
+    fn execute(
+        &self,
+        request: ymp_providers::TurnRequest,
+        events: tokio::sync::mpsc::UnboundedSender<ymp_providers::ProviderEvent>,
+    ) -> ymp_providers::ExecutionFuture<'_> {
+        Box::pin(async move {
+            assert_eq!(
+                request.provider.kind,
+                ymp_core::ProviderKind::Mock,
+                "no native inference in an interface test"
+            );
+            let purpose = request.purpose.clone();
+            // The prompt carries the whole plan, so the task this turn is for is the one named
+            // under its own assignment heading and not merely one the prompt mentions.
+            let marker = format!("Your current assignment ({purpose}):\n");
+            let assignment = request
+                .prompt
+                .rsplit(&marker)
+                .next()
+                .unwrap_or("")
+                .to_owned();
+            // Only the turn that actually runs the first note asks, and only once: a bid or a
+            // review for the same task names it too.
+            let first = purpose == "execute"
+                && assignment.contains(NOTES[0])
+                && !self
+                    .asked_once
+                    .swap(true, std::sync::atomic::Ordering::SeqCst);
+            if self.stall
+                && purpose == "execute"
+                && (assignment.contains(NOTES[2]) || assignment.contains(NOTES[3]))
+            {
+                anyhow::bail!("Scripted stop before the committed notes run");
+            }
+            if first {
+                let read = team_call(&request, "board_read", serde_json::json!({})).await?;
+                assert_eq!(read["ok"], true, "{read}");
+                let board = &read["value"];
+                let reference = |title: &str| {
+                    let entry = board["tasks"]
+                        .as_array()
+                        .unwrap()
+                        .iter()
+                        .find(|entry| entry["task"]["title"] == title)
+                        .unwrap_or_else(|| panic!("the plan has no task called {title}"));
+                    serde_json::json!({"task_id": entry["task"]["id"], "version": entry["version"]})
+                };
+                for (target, rationale) in [
+                    (
+                        NOTES[2],
+                        "Take the third note on, having produced the first",
+                    ),
+                    (
+                        NOTES[2],
+                        "Take the third note on again, against the version this turn read",
+                    ),
+                    (NOTES[3], "Take the fourth note on as well, to hold both"),
+                ] {
+                    let asked = team_call(
+                        &request,
+                        "task_propose",
+                        serde_json::json!({
+                            "plan_version": board["plan_version"],
+                            "change": {"kind": "assign", "task": reference(target), "agent_id": "one", "settings": {"model": "small", "effort": "low"}},
+                            "rationale": rationale,
+                        }),
+                    )
+                    .await?;
+                    self.proposed.lock().unwrap().push(asked);
+                }
+            }
+            let mut result = ymp_providers::NativeExecutionBackend
+                .execute(request, events)
+                .await?;
+            if purpose == "plan" {
+                let mut plan: serde_json::Value = serde_json::from_str(&result.text)?;
+                let checks = plan["tasks"][0]["checks"].clone();
+                plan["tasks"] = serde_json::Value::Array(
+                    NOTES
+                        .iter()
+                        .map(|title| {
+                            serde_json::json!({
+                                "title": title,
+                                "description": "Write greeting.txt containing Hello from ymp",
+                                "competence": "implementation",
+                                "difficulty": "simple",
+                                "dependencies": [],
+                                "checks": checks,
+                            })
+                        })
+                        .collect(),
+                );
+                result.text = plan.to_string();
+            }
+            Ok(result)
+        })
+    }
+}
+
+/// The configuration the coordination fixture runs under: two mock actors with fixed settings,
+/// so the settings a proposal names are exactly the ones the runtime will validate.
+fn board_config() -> Config {
+    let mut config = mock_config();
+    config.limits.turns = 120;
+    config.limits.parallel = 2;
+    for id in ["one", "two"] {
+        config.execution.insert(
+            id.into(),
+            ymp_core::AgentExecutionPolicy {
+                fixed: ymp_core::ModelEffort {
+                    model: Some("small".into()),
+                    effort: Some("low".into()),
+                },
+                ..Default::default()
+            },
+        );
+    }
+    config
+}
+
+/// One run of the real runtime whose agents coordinated through the team API.
+async fn board_run(stall: bool) -> Run {
+    let home = TempDir::new().unwrap();
+    let project = TempDir::new().unwrap();
+    let store = Store::open(home.path()).unwrap();
+    let (tx, _events) = tokio::sync::mpsc::unbounded_channel();
+    let backend = std::sync::Arc::new(Coordinating {
+        proposed: std::sync::Mutex::new(Vec::new()),
+        asked_once: std::sync::atomic::AtomicBool::new(false),
+        stall,
+    });
+    let mut config = board_config();
+    if stall {
+        config.limits.attempts = 1;
+    }
+    let mut engine = ymp_runtime::Engine::new(
+        store.clone(),
+        config,
+        tx,
+        tokio_util::sync::CancellationToken::new(),
+    )
+    .unwrap()
+    .with_execution_backend(backend.clone())
+    .unwrap();
+    engine.use_memory = false;
+    let outcome = engine
+        .run(project.path(), "Write the notes this plan names", None)
+        .await
+        .unwrap();
+    assert_eq!(
+        backend.proposed.lock().unwrap().len(),
+        3,
+        "the fixture did not ask for what these tests read back"
+    );
+    Run {
+        home,
+        project,
+        store,
+        config: engine.config.clone(),
+        session: outcome.session.id,
+        status: outcome.session.status,
+    }
+}
+
+/// The run the board tests read: its plan, its proposals and the decisions on them.
+struct Board {
+    run: Run,
+    committed: String,
+    rejected: String,
+    /// The task a commitment is still owed on when the run stopped.
+    owed: String,
+}
+
+async fn board_views() -> Board {
+    let run = board_run(true).await;
+    let board = run.store.board(&run.session).unwrap();
+    let decided = |accepted: bool| {
+        run.store
+            .trace(&run.session)
+            .unwrap()
+            .decisions
+            .into_iter()
+            .filter_map(|decision| decision.links.board)
+            .find(|board| board.accepted == accepted)
+            .map(|board| board.proposal.id.clone())
+            .expect("the fixture recorded a decision of each kind")
+    };
+    let owed = board
+        .tasks
+        .iter()
+        .find(|entry| entry.commitment.is_some())
+        .expect("the fixture left a commitment owed")
+        .task
+        .id
+        .clone();
+    Board {
+        committed: decided(true),
+        rejected: decided(false),
+        owed,
+        run,
+    }
+}
+
+#[tokio::test]
+async fn a_plan_change_an_agent_asked_for_is_listed_with_its_outcome_and_reason() {
+    let board = board_views().await;
+    let mut app = board.run.app();
+    app.load_session(&board.run.session).unwrap();
+    app.command("/tasks", 100);
+
+    let keys = keys_of(&mut app, 100);
+    assert!(
+        keys.contains(&board.committed) && keys.contains(&board.rejected),
+        "the plan's own proposals are not on the page"
+    );
+    let row = right_of_key(&mut app, 100, &board.committed);
+    assert!(
+        row.contains("committed"),
+        "a committed proposal does not say so: {row}"
+    );
+    let left = left_of_key(&mut app, 100, &board.committed);
+    assert!(
+        left.contains("give") && left.contains("note"),
+        "the row does not say what the proposal asks for: {left}"
+    );
+    let detail = detail_of_key(&mut app, 100, &board.committed);
+    for expected in [
+        "asked by",
+        "committed · the plan now carries it",
+        "decided by",
+        "ymp.ordered-board",
+        "the runtime, not an agent",
+        "resulting plan",
+        "the version the plan took on",
+        "responsibility",
+        "small at low",
+        "against plan",
+        "membership",
+        "Take the third note on",
+    ] {
+        assert!(
+            detail.contains(expected),
+            "the committed proposal's record does not carry {expected:?}:\n{detail}"
+        );
+    }
+
+    let row = right_of_key(&mut app, 100, &board.rejected);
+    assert!(
+        row.contains("rejected"),
+        "a rejected proposal does not say so: {row}"
+    );
+    let detail = detail_of_key(&mut app, 100, &board.rejected);
+    assert!(
+        detail.contains("rejected · the plan was not changed")
+            && detail.contains("stale_task")
+            && detail.contains("unchanged by this proposal"),
+        "the rejected proposal does not carry the runtime's own reason:\n{detail}"
+    );
+    assert!(
+        !detail.contains("responsibility"),
+        "a rejected proposal was shown as creating a responsibility:\n{detail}"
+    );
+}
+
+#[tokio::test]
+async fn a_task_says_who_is_responsible_for_it_and_what_was_put_off() {
+    let board = board_views().await;
+    let mut app = board.run.app();
+    app.load_session(&board.run.session).unwrap();
+    app.command("/tasks", 100);
+
+    let detail = detail_of_key(&mut app, 100, &board.owed);
+    for expected in [
+        "task version",
+        "responsibility",
+        "small at low",
+        "against task version",
+        "committed by",
+        "put off",
+        "commitment_busy",
+        "the agent responsible for it was already working",
+    ] {
+        assert!(
+            detail.contains(expected),
+            "the task does not carry {expected:?}:\n{detail}"
+        );
+    }
+    let right = right_of_key(&mut app, 100, &board.owed);
+    assert!(
+        right.contains("one"),
+        "the row does not name who is responsible for the task: {right}"
+    );
+
+    // The same responsibility, from the member's side.
+    app.command("/team", 100);
+    let member = detail_of_key(&mut app, 100, "one");
+    assert!(
+        member.contains("responsible for")
+            && member.contains("note")
+            && member.contains("small at low"),
+        "the team page does not say what this member is responsible for:\n{member}"
+    );
+    let other = detail_of_key(&mut app, 100, "two");
+    assert!(
+        other.contains("no task on the plan is committed to this member"),
+        "a member with no commitment is not said to have none:\n{other}"
+    );
+}
+
+#[tokio::test]
+async fn the_decision_and_not_the_stored_status_says_what_became_of_a_proposal() {
+    // The negative control for the board outcome. A proposal's stored status and its decision
+    // are written in one transaction, so they agree; only the decision carries the reason, and
+    // only the decision is the runtime's own statement. Here the status is put back to pending
+    // while the rejection stands, and the page must still read the decision.
+    let board = board_views().await;
+    let mut app = board.run.app();
+    app.load_session(&board.run.session).unwrap();
+    app.command("/tasks", 100);
+    let mut snapshot = app.records.board.take().expect("the plan was read");
+    for proposal in &mut snapshot.proposals {
+        proposal.status = ymp_core::BoardProposalStatus::Pending;
+    }
+    app.records.board = Some(snapshot);
+
+    let row = right_of_key(&mut app, 100, &board.rejected);
+    assert!(
+        row.contains("rejected"),
+        "the page read the stored status instead of the decision: {row}"
+    );
+    let row = right_of_key(&mut app, 100, &board.committed);
+    assert!(
+        row.contains("committed"),
+        "the page read the stored status instead of the decision: {row}"
+    );
+    assert!(
+        !app.page(100).subtitle.contains("waiting"),
+        "decided proposals were counted as waiting: {}",
+        app.page(100).subtitle
+    );
+}
+
+#[tokio::test]
+async fn a_proposal_no_decision_answered_is_not_shown_as_refused() {
+    let board = board_views().await;
+    let mut app = board.run.app();
+    app.load_session(&board.run.session).unwrap();
+    // What the page must show between a turn asking and the next work boundary: the decisions
+    // this session read are dropped, and the proposals stand as asked.
+    app.command("/tasks", 100);
+    let mut snapshot = app.records.board.take().expect("the plan was read");
+    for proposal in &mut snapshot.proposals {
+        proposal.status = ymp_core::BoardProposalStatus::Pending;
+    }
+    app.records.board = Some(snapshot);
+    if let Some(trace) = app.records.trace.as_mut() {
+        trace
+            .decisions
+            .retain(|decision| decision.links.board.is_none());
+    }
+
+    let row = right_of_key(&mut app, 100, &board.rejected);
+    assert!(
+        row.contains("proposed") && !row.contains("rejected"),
+        "a proposal nothing answered was shown as refused: {row}"
+    );
+    let detail = detail_of_key(&mut app, 100, &board.rejected);
+    assert!(
+        detail.contains("The runtime answers a proposal at a work boundary"),
+        "the page does not say when a proposal is answered:\n{detail}"
+    );
+    assert!(
+        app.page(100).subtitle.contains("3 proposals waiting"),
+        "the page does not say how many proposals are still waiting: {}",
+        app.page(100).subtitle
+    );
+}
+
+#[tokio::test]
+async fn a_plan_that_could_not_be_read_is_not_shown_as_a_plan_with_nothing_on_it() {
+    let board = board_views().await;
+    let mut app = board.run.app();
+    app.load_session(&board.run.session).unwrap();
+    app.command("/tasks", 100);
+    app.records.board = None;
+    app.records.board_unreadable = Some("board_unreadable: disk error".into());
+
+    let right = right_of_key(&mut app, 100, "board-unreadable");
+    assert!(
+        right.contains("unavailable"),
+        "a failed read of the plan is not reported: {right}"
+    );
+    let detail = detail_of_key(&mut app, 100, "board-unreadable");
+    assert!(
+        detail.contains("board_unreadable: disk error") && detail.contains("which proposals exist"),
+        "the page does not say what a failed read of the plan costs:\n{detail}"
+    );
+    let task = detail_of_key(&mut app, 100, &board.owed);
+    assert!(
+        !task.contains("responsibility"),
+        "a task claimed a responsibility with no plan read:\n{task}"
+    );
+}
+
+#[tokio::test]
+async fn a_decision_that_changed_the_plan_reads_as_its_own_outcome() {
+    let board = board_views().await;
+    let mut app = board.run.app();
+    app.load_session(&board.run.session).unwrap();
+    app.command("/decisions", 100);
+
+    let committed = app
+        .records
+        .decisions()
+        .iter()
+        .find(|decision| decision.kind == "board_committed")
+        .map(|decision| decision.id.clone())
+        .expect("the fixture recorded a committed plan change");
+    let detail = detail_of_key(&mut app, 100, &text::short_id(&committed));
+    for expected in [
+        "plan change committed",
+        "the plan took the change on",
+        "proposal",
+        "asked by",
+        "resulting",
+        "responsibility",
+    ] {
+        assert!(
+            detail.contains(expected),
+            "the decision does not carry {expected:?}:\n{detail}"
+        );
+    }
+    let rejected = app
+        .records
+        .decisions()
+        .iter()
+        .find(|decision| decision.kind == "board_rejected")
+        .map(|decision| decision.id.clone())
+        .expect("the fixture recorded a rejected plan change");
+    let detail = detail_of_key(&mut app, 100, &text::short_id(&rejected));
+    assert!(
+        detail.contains("plan change rejected") && detail.contains("the plan was left unchanged"),
+        "a rejected plan change does not read as one:\n{detail}"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// A correction to what was retained
+// ---------------------------------------------------------------------------
+
+/// A scripted backend that records one observation from a declared input file.
+///
+/// The value it records is the one this fixture sets, and the file it writes is named after it,
+/// so the correction this test reads back is a real change of claim with its own evidence. No
+/// model is asked anything: every purpose below the rewriting is the offline fixture executor.
+struct Observing {
+    value: std::sync::atomic::AtomicUsize,
+}
+
+impl ymp_providers::ExecutionBackend for Observing {
+    fn identity(&self) -> ymp_core::ExecutionBackendIdentity {
+        ymp_core::ExecutionBackendIdentity {
+            id: "test.knowledge-views".into(),
+            version: "1".into(),
+        }
+    }
+    fn execute(
+        &self,
+        request: ymp_providers::TurnRequest,
+        events: tokio::sync::mpsc::UnboundedSender<ymp_providers::ProviderEvent>,
+    ) -> ymp_providers::ExecutionFuture<'_> {
+        Box::pin(async move {
+            assert_eq!(
+                request.provider.kind,
+                ymp_core::ProviderKind::Mock,
+                "no native inference in an interface test"
+            );
+            let purpose = request.purpose.clone();
+            let directory = request.cwd.clone();
+            let mut result = ymp_providers::NativeExecutionBackend
+                .execute(request, events)
+                .await?;
+            if purpose == "plan" {
+                let mut plan: serde_json::Value = serde_json::from_str(&result.text)?;
+                plan["tasks"][0]["title"] = serde_json::json!("Record observation");
+                plan["tasks"][0]["description"] = serde_json::json!(
+                    "Record the O04 completion percentage for Hill in 2026-W36 from the declared input"
+                );
+                result.text = plan.to_string();
+            }
+            if purpose == "execute" {
+                let value = self.value.load(std::sync::atomic::Ordering::SeqCst);
+                std::fs::write(
+                    directory.join(format!("claim-{value}.json")),
+                    serde_json::to_vec(
+                        &serde_json::json!({"row":"O04","site":"Hill","week":"2026-W36","value":value}),
+                    )?,
+                )?;
+                result.text = format!("Recorded observation O04 at Hill: {value} percent");
+            }
+            Ok(result)
+        })
+    }
+}
+
+/// The conditions this project's knowledge is recorded and looked up against.
+fn observation_scope() -> std::collections::BTreeMap<String, String> {
+    [
+        ("dataset", "observations"),
+        ("site", "Hill"),
+        ("week", "2026-W36"),
+    ]
+    .into_iter()
+    .map(|(key, value)| (key.to_owned(), value.to_owned()))
+    .collect()
+}
+
+struct Correction {
+    home: TempDir,
+    _temp: TempDir,
+    directory: PathBuf,
+    store: Store,
+    config: Config,
+    /// The entry the first run retained, and the one that replaced it.
+    old: String,
+    new: String,
+}
+
+impl Correction {
+    fn app(&self) -> App {
+        App::new(
+            self.store.clone(),
+            self.config.clone(),
+            self.directory.clone(),
+        )
+    }
+}
+
+/// Two runs of the real runtime: one that records 95 percent, and one whose accepted correction
+/// replaces it with 60 percent read from a different declared input.
+async fn correction_run() -> Correction {
+    let home = TempDir::new().unwrap();
+    let temp = TempDir::new().unwrap();
+    let directory = temp.path().join("project");
+    std::fs::create_dir_all(directory.join("inputs")).unwrap();
+    let directory = directory.canonicalize().unwrap();
+    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .ancestors()
+        .nth(3)
+        .unwrap()
+        .to_owned();
+    for name in ["observations.csv", "observations-corrected.csv"] {
+        std::fs::copy(
+            root.join("ymp-evals/fixtures/universal/inputs").join(name),
+            directory.join("inputs").join(name),
+        )
+        .unwrap();
+    }
+    let verifier = temp.path().join("check_observation.py");
+    std::fs::write(&verifier, "import csv,json,sys\nfrom pathlib import Path\nroot=Path(sys.argv[1])\nrows=list(csv.DictReader((root/sys.argv[2]).open()))\nrow=next(r for r in rows if r['row_id']=='O04')\nassert row['site']=='Hill' and row['week']=='2026-W36'\nexpected={'row':'O04','site':'Hill','week':'2026-W36','value':100*int(row['completed'])/int(row['scheduled'])}\nassert json.loads((root/sys.argv[3]).read_text())==expected\n").unwrap();
+    let store = Store::open(home.path()).unwrap();
+    let mut config = mock_config();
+    config.knowledge_scope = observation_scope();
+    config.limits.attempts = 1;
+    for id in ["one", "two"] {
+        if let Some(agent) = config.agents.iter_mut().find(|agent| agent.id == id) {
+            agent.instructions = "[mock:no-checks]".into();
+        }
+    }
+    let backend = std::sync::Arc::new(Observing {
+        value: std::sync::atomic::AtomicUsize::new(95),
+    });
+    let (tx, _events) = tokio::sync::mpsc::unbounded_channel();
+    let mut engine = ymp_runtime::Engine::new(
+        store.clone(),
+        config.clone(),
+        tx,
+        tokio_util::sync::CancellationToken::new(),
+    )
+    .unwrap()
+    .with_execution_backend(backend.clone())
+    .unwrap();
+    let contract = |value: usize, target: Option<&ymp_core::MemoryEntry>| {
+        let input = if value == 95 {
+            "inputs/observations.csv"
+        } else {
+            "inputs/observations-corrected.csv"
+        };
+        let artifact = format!("claim-{value}.json");
+        ymp_core::AcceptanceContract {
+            knowledge_correction: target.map(|old| ymp_core::KnowledgeCorrectionBinding {
+                projection: ymp_core::KnowledgeProjection::ProjectOutcome,
+                target: ymp_core::KnowledgeRef {
+                    id: old.id.clone(),
+                    version: ymp_core::content_digest(&serde_json::to_string(old).unwrap()),
+                },
+                applicability: observation_scope(),
+                criterion_ids: vec!["observation-value".into()],
+                source_replacement: Some(ymp_core::KnowledgeSourceReplacement {
+                    previous_input: "inputs/observations.csv".into(),
+                    replacement_input: input.into(),
+                }),
+            }),
+            task_title: "Record observation".into(),
+            criteria: vec![ymp_core::AcceptanceCriterion {
+                id: "observation-value".into(),
+                description: "The O04 claim for Hill in 2026-W36 matches the declared source"
+                    .into(),
+            }],
+            artifacts: vec![artifact.clone().into()],
+            inputs: vec![input.into()],
+            checks: vec![ymp_core::TrustedCheck {
+                id: "actual-observation".into(),
+                criterion_ids: vec!["observation-value".into()],
+                assertion: ymp_core::CheckAssertion::Command {
+                    program: "/usr/bin/python3".into(),
+                    args: vec![
+                        verifier.to_string_lossy().into(),
+                        "{workdir}".into(),
+                        input.into(),
+                        artifact,
+                    ],
+                    verifier_files: vec![verifier.clone()],
+                },
+            }],
+        }
+    };
+    engine.config.acceptance_contracts = Some(vec![contract(95, None)]);
+    let first = engine
+        .run(&directory, "Record the observation", None)
+        .await
+        .unwrap();
+    assert_eq!(first.session.status, "completed", "{}", first.summary);
+    let project = store.project(&directory).unwrap().id;
+    let entry_of = |session: &str| {
+        store
+            .memory_inventory(Some(&project))
+            .unwrap()
+            .into_iter()
+            .find(|entry| entry.source_session == session && entry.kind == "outcome")
+            .unwrap_or_else(|| panic!("the run retained no outcome of its own"))
+    };
+    let old = entry_of(&first.session.id);
+    assert!(old.content.contains("95"), "{}", old.content);
+    backend.value.store(60, std::sync::atomic::Ordering::SeqCst);
+    engine.config.acceptance_contracts = Some(vec![contract(60, Some(&old))]);
+    let second = engine
+        .run(&directory, "Record the observation again", None)
+        .await
+        .unwrap();
+    assert_eq!(second.session.status, "completed", "{}", second.summary);
+    let new = entry_of(&second.session.id);
+    assert!(new.content.contains("60"), "{}", new.content);
+    Correction {
+        home,
+        _temp: temp,
+        directory,
+        store,
+        config: engine.config.clone(),
+        old: old.id,
+        new: new.id,
+    }
+}
+
+#[test]
+fn a_short_id_names_the_record_and_not_the_kind_it_is() {
+    // Retained entries carry their kind in the id. Two of them must not read as the same record.
+    let old = "knowledge:90a7f01d692667e5f373357a967907677455261c6c22ea9b7dea00003ac430ff";
+    let new = "knowledge:ef37f436789fe7909e46a0187260d9e1823b7cfb773887e48acabd41dd511fe6";
+    assert_ne!(
+        text::short_id(old),
+        text::short_id(new),
+        "two entries of the same kind read as one record"
+    );
+    // An id with no kind in it is unchanged.
+    assert_eq!(
+        text::short_id("7ea8f187-2f8d-4bf1-b0c1-49aa14151a73"),
+        "7ea8f187"
+    );
+}
+
+#[tokio::test]
+async fn both_sides_of_a_correction_are_kept_and_each_says_which_it_is() {
+    let run = correction_run().await;
+    let mut app = run.app();
+    app.command("/memory", 100);
+
+    let keys = keys_of(&mut app, 100);
+    assert!(
+        keys.contains(&run.old) && keys.contains(&run.new),
+        "a correction did not keep both sides on the page"
+    );
+
+    let right = right_of_key(&mut app, 100, &run.old);
+    assert!(
+        right.contains("superseded"),
+        "the corrected entry does not say it was superseded: {right}"
+    );
+    let detail = detail_of_key(&mut app, 100, &run.old);
+    for expected in [
+        "superseded: an accepted correction replaced this entry",
+        "replaced by",
+        "Record observation",
+        "this entry is the one that was corrected",
+        "authorised by",
+        "under trusted contract",
+        "corrected by",
+        "ymp.bound-correction",
+        "Both are kept",
+        "95",
+    ] {
+        assert!(
+            detail.contains(expected),
+            "the corrected entry does not carry {expected:?}:\n{detail}"
+        );
+    }
+    assert!(
+        !detail.contains("yes, as support under the default retrieval"),
+        "a superseded entry is still offered to a run:\n{detail}"
+    );
+
+    let right = right_of_key(&mut app, 100, &run.new);
+    assert!(
+        right.contains("current"),
+        "the replacement does not read as current: {right}"
+    );
+    let detail = detail_of_key(&mut app, 100, &run.new);
+    for expected in [
+        "current: the default retrieval of a run accepts this entry",
+        "replaces",
+        "this entry is the correction",
+        "yes, as support under the default retrieval",
+        "60",
+    ] {
+        assert!(
+            detail.contains(expected),
+            "the replacement does not carry {expected:?}:\n{detail}"
+        );
+    }
+
+    // Each side keeps the evidence it was accepted on, and they are not the same acceptance. The
+    // record names two: the one that authorised the correction, which both sides share, and the
+    // entry's own source, which is the last one on the record and is its own.
+    let acceptance = |app: &mut App, key: &str| {
+        let detail = detail_of_key(app, 100, key);
+        let (_, rest) = detail
+            .split_once("source ")
+            .expect("the record names where its entry came from");
+        let (_, rest) = rest
+            .split_once("acceptance ")
+            .expect("the source names its acceptance");
+        rest.split(' ').next().unwrap_or_default().to_owned()
+    };
+    let before = acceptance(&mut app, &run.old);
+    let after = acceptance(&mut app, &run.new);
+    assert!(
+        !before.is_empty() && !after.is_empty() && before != after,
+        "both sides of the correction point at the same evidence: {before} and {after}"
+    );
+}
+
+#[tokio::test]
+async fn an_entry_recorded_for_other_conditions_is_not_current_here() {
+    // The negative control for the scope. Both entries are recorded for Hill, and this reader is
+    // configured for Harbor. Their stored status has not changed, so a page that read the status,
+    // or that asked with no conditions at all, would call them current.
+    let run = correction_run().await;
+    let mut app = run.app();
+    app.config
+        .knowledge_scope
+        .insert("site".into(), "Harbor".into());
+    app.command("/memory", 100);
+
+    let right = right_of_key(&mut app, 100, &run.new);
+    assert!(
+        right.contains("other scope"),
+        "an entry recorded for other conditions reads as current here: {right}"
+    );
+    let detail = detail_of_key(&mut app, 100, &run.new);
+    assert!(
+        detail.contains("recorded for other conditions than the ones in force here"),
+        "the page does not say why the entry is not current:\n{detail}"
+    );
+    assert!(
+        detail.contains("site is Harbor"),
+        "the page does not say what conditions it read under:\n{detail}"
+    );
+    assert!(
+        detail.contains("applies only where") && detail.contains("site is Hill"),
+        "the page does not say what the entry itself requires:\n{detail}"
+    );
+    assert!(
+        !detail.contains("yes, as support under the default retrieval"),
+        "an entry out of scope is reported as support:\n{detail}"
+    );
+    assert!(
+        app.page(100).subtitle.contains("0 current"),
+        "the page counts entries as current that are not: {}",
+        app.page(100).subtitle
+    );
+}
+
+#[tokio::test]
+async fn a_retired_entry_is_kept_and_is_never_offered() {
+    let run = correction_run().await;
+    let mut app = run.app();
+    app.command("/memory", 100);
+    // The action the page offers on an entry, taken through the interface itself.
+    let page_keys = keys_of(&mut app, 100);
+    let index = page_keys
+        .iter()
+        .position(|key| key == &run.new)
+        .expect("the replacement is on the page");
+    for _ in 0..index {
+        app.on_key(key(KeyCode::Down), 100);
+    }
+    app.on_key(key(KeyCode::Char('f')), 100);
+    app.on_key(key(KeyCode::Enter), 100);
+    app.command("/memory", 100);
+
+    let right = right_of_key(&mut app, 100, &run.new);
+    assert!(
+        right.contains("retired"),
+        "a retired entry does not say so: {right}"
+    );
+    let detail = detail_of_key(&mut app, 100, &run.new);
+    assert!(
+        detail.contains("retired: this entry was withdrawn")
+            && detail.contains("no; the entry is retired"),
+        "a retired entry is not reported as withdrawn and unoffered:\n{detail}"
+    );
+    assert!(
+        detail.contains("60"),
+        "a retired entry lost the text it recorded:\n{detail}"
+    );
+}
+
+#[tokio::test]
+async fn the_row_that_explains_the_page_is_not_something_an_action_applies_to() {
+    let run = correction_run().await;
+    let mut app = run.app();
+    app.command("/memory", 100);
+    assert_eq!(
+        keys_of(&mut app, 100).first().map(String::as_str),
+        Some(crate::views::ABOUT_KEY),
+        "the page does not open with what its words mean"
+    );
+    app.on_key(key(KeyCode::Char('f')), 100);
+    assert!(
+        app.overlay.is_none(),
+        "retiring was offered for a row that is not an entry"
+    );
+}
+
+/// Keep both coordination fixtures where an interface walk can open them.
+///
+/// It exists so a walk in a real terminal reads the same records these tests read, written by the
+/// same runtime rather than by a second fixture kept in step by hand. Nothing is copied or moved:
+/// the temporary directories the run actually used are kept instead of removed, so the files a
+/// result was accepted against are still where its record says they are. It is ignored by default
+/// because leaving directories behind is not something a test suite should do.
+#[tokio::test]
+#[ignore]
+async fn keep_the_fixtures_an_interface_walk_reads() {
+    let Ok(target) = std::env::var("YMP_WALK_FIXTURE") else {
+        println!("YMP_WALK_FIXTURE is not set, so nothing was kept");
+        return;
+    };
+    let mut manifest = serde_json::Map::new();
+
+    let board = board_views().await;
+    let mut config = board.run.config.clone();
+    config.acceptance_contracts = None;
+    let home = board.run.home.keep();
+    let project = board.run.project.keep();
+    config.save(&home).unwrap();
+    manifest.insert(
+        "board".into(),
+        serde_json::json!({
+            "home": home, "project": project,
+            "session": board.run.session, "status": board.run.status,
+            "committed": board.committed, "rejected": board.rejected, "owed": board.owed,
+        }),
+    );
+
+    let correction = correction_run().await;
+    let mut config = correction.config.clone();
+    // The contracts did their work and are recorded. Their verifier is kept with the rest, and a
+    // walk starts no run, so the configuration it opens does not carry them.
+    config.acceptance_contracts = None;
+    let home = correction.home.keep();
+    let root = correction._temp.keep();
+    config.save(&home).unwrap();
+    manifest.insert(
+        "knowledge".into(),
+        serde_json::json!({
+            "home": home, "project": correction.directory, "root": root,
+            "old": correction.old, "new": correction.new,
+        }),
+    );
+
+    std::fs::write(
+        PathBuf::from(&target).join("manifest.json"),
+        serde_json::to_string_pretty(&manifest).unwrap(),
+    )
+    .unwrap();
+    println!("manifest written under {target}");
 }
