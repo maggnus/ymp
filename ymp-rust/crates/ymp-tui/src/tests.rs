@@ -3968,3 +3968,44 @@ fn an_agent_held_up_by_coordination_is_not_reported_as_working() {
         "a waiting agent is reported as work in flight:\n{screen}"
     );
 }
+
+#[tokio::test]
+async fn a_captured_acceptance_contract_is_shown_as_a_binding_and_not_as_a_result() {
+    let run = mock_run("Create a greeting", |engine| {
+        engine.acceptance_contracts.push(exact_greeting_contract())
+    })
+    .await;
+    let trace = run.store.trace(&run.session).unwrap();
+    let captured = trace
+        .decisions
+        .iter()
+        .find(|decision| decision.links.acceptance_contract.is_some())
+        .expect("the run captured the contract it was given");
+    let mut app = run.app();
+    app.load_session(&run.session).unwrap();
+    app.command("/decisions", 100);
+
+    let key = text::short_id(&captured.id);
+    assert!(
+        right_of_key(&mut app, 65, &key).contains("criteria captured"),
+        "a captured contract is reported as an ungraded decision: {}",
+        right_of_key(&mut app, 65, &key)
+    );
+    let detail = detail_of_key(&mut app, 65, &key);
+    for expected in [
+        "greeting-content",
+        "exact-greeting-v1",
+        "greeting.txt",
+        "checker",
+        "inputs recorded",
+    ] {
+        assert!(
+            detail.contains(expected),
+            "the contract does not name {expected:?}:\n{detail}"
+        );
+    }
+    assert!(
+        detail.contains("It is a binding and not a result"),
+        "a captured contract could be read as evidence:\n{detail}"
+    );
+}

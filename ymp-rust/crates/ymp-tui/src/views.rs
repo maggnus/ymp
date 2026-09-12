@@ -3193,6 +3193,104 @@ fn settings_lines(
     lines
 }
 
+/// What an acceptance contract binds, as it was captured before the work ran.
+///
+/// The contract is what a result is judged against: its criteria, the artifacts it names,
+/// the inputs whose bytes were recorded, and the checker that will run its checks. Nothing
+/// here says a check passed; a passing check is a record of its own.
+fn contract_detail(
+    ctx: &Ctx,
+    captured: &ymp_core::CapturedAcceptanceContract,
+) -> Vec<Line<'static>> {
+    let theme = ctx.theme;
+    let contract = &captured.contract;
+    let mut lines = field(theme, "for the task", &contract.task_title, ctx.width);
+    lines.extend(field(
+        theme,
+        "criteria",
+        &if contract.criteria.is_empty() {
+            "none".to_owned()
+        } else {
+            contract
+                .criteria
+                .iter()
+                .map(|criterion| criterion.id.clone())
+                .collect::<Vec<_>>()
+                .join(", ")
+        },
+        ctx.width,
+    ));
+    for criterion in &contract.criteria {
+        lines.extend(field(
+            theme,
+            &criterion.id,
+            &criterion.description,
+            ctx.width,
+        ));
+    }
+    lines.extend(field(
+        theme,
+        "checks bound",
+        &format!(
+            "{} · {}",
+            contract.checks.len(),
+            contract
+                .checks
+                .iter()
+                .map(|check| check.id.clone())
+                .collect::<Vec<_>>()
+                .join(", ")
+        ),
+        ctx.width,
+    ));
+    lines.extend(field(
+        theme,
+        "artifacts named",
+        &if contract.artifacts.is_empty() {
+            "none".to_owned()
+        } else {
+            contract
+                .artifacts
+                .iter()
+                .map(|path| path.display().to_string())
+                .collect::<Vec<_>>()
+                .join(", ")
+        },
+        ctx.width,
+    ));
+    lines.extend(field(
+        theme,
+        "inputs recorded",
+        &format!("{} file(s) by digest", captured.inputs.len()),
+        ctx.width,
+    ));
+    lines.extend(field(
+        theme,
+        "checker",
+        &format!("{} {}", captured.checker.id, captured.checker.version),
+        ctx.width,
+    ));
+    lines.extend(field(
+        theme,
+        "contract version",
+        &text::short_id(&captured.version),
+        ctx.width,
+    ));
+    lines.extend(field(
+        theme,
+        "checker code recorded",
+        &format!("{} path(s) by digest", captured.verifier_digests.len()),
+        ctx.width,
+    ));
+    lines.push(Line::default());
+    lines.extend(paragraph(
+        theme,
+        "This is what a result will be judged against, captured before the work ran. It is a binding and not a result: whether each check then passed is a record of its own, and an acceptance states which criteria the evidence covered.",
+        ctx.width,
+    ));
+    lines
+}
+
 /// The access a task declares, which is a declaration and not a measurement.
 ///
 /// Write is the default, so a task that declares nothing is a writing task. A read-only
@@ -3673,6 +3771,9 @@ fn decision_row(ctx: &Ctx, decision: &DecisionRecord) -> Item {
     if let Some(resource) = decision.links.resource_allocation.as_deref() {
         detail.extend(bound_detail(ctx, resource));
     }
+    if let Some(captured) = decision.links.acceptance_contract.as_ref() {
+        detail.extend(contract_detail(ctx, captured));
+    }
     if let Some(wait) = decision.links.workspace_wait.as_ref() {
         detail.extend(field(theme, "waited because", &wait_words(wait), ctx.width));
         detail.extend(field(
@@ -3742,6 +3843,9 @@ fn decision_row(ctx: &Ctx, decision: &DecisionRecord) -> Item {
         (_, Some(resource), _) if resource.accepted => ("bound set".to_owned(), theme.good()),
         (_, Some(_), _) => ("bound refused".to_owned(), theme.bad()),
         (_, _, Some(wait)) => (format!("waited · {}", wait.code), theme.warn()),
+        _ if decision.links.acceptance_contract.is_some() => {
+            ("criteria captured".to_owned(), theme.info())
+        }
         _ if decision.kind == "workspace_access_acquired" => {
             ("directory reserved".to_owned(), theme.info())
         }
@@ -3941,6 +4045,7 @@ fn decision_kind(kind: &str) -> String {
         "reputation_observed" => "competence credited".into(),
         "final_review_pending" => "final review required".into(),
         "result_invalidated" => "result invalidated".into(),
+        "acceptance_contract_captured" => "acceptance criteria captured".into(),
         "workspace_access_acquired" => "directory reserved".into(),
         "workspace_access_admitted" => "turn admitted".into(),
         "workspace_access_released" => "reservation ended".into(),

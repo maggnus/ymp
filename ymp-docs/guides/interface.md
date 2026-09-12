@@ -125,8 +125,10 @@ selected row underneath it, and states its own keys in the status row.
   effort and permission mode that were requested, sent and reported. A turn still open is separated from the turns that
   finished, and the coordination permissions an assignment held are named with it.
 - **Decisions** — the plans, reviews, acceptances, rejections, competence credit, membership
-  changes, per-turn bounds and directory reservations the session recorded, each with its
-  actor, its time and the records it links. A record that carries its own outcome, such as a
+  changes, per-turn bounds, captured acceptance criteria and directory reservations the session
+  recorded, each with its actor, its time and the records it links. A captured contract shows
+  what a result will be judged against, its checker and the inputs recorded by digest, and says
+  that it is a binding rather than a result. A record that carries its own outcome, such as a
   membership change, a turn bound or a wait, reads from that outcome and not from a grade it
   never had. An acceptance
   states whether it rests on passing evidence for every criterion or on an independent
