@@ -1,6 +1,6 @@
 # Task details and evidence
 
-Updated: 2026-09-12 18:22 UTC.
+Updated: 2026-09-12 18:46 UTC.
 
 Use the [delivery plan](plan.md) to follow progress. This generated register contains full acceptance criteria, dependencies and evidence. [tasks.json](tasks.json) is the single source; [manage.py](manage.py) updates both pages.
 
@@ -14,7 +14,7 @@ A planned task is not implemented functionality. Completed research and planning
 | design | 1 | 1 |
 | documentation | 4 | 4 |
 | experiment | 0 | 4 |
-| implementation | 15 | 23 |
+| implementation | 15 | 24 |
 | research | 8 | 8 |
 | verification | 1 | 2 |
 
@@ -57,15 +57,16 @@ A planned task is not implemented functionality. Completed research and planning
 | `[x]` | [YMP-116](#ymp-116) | P0 | Define the minimal runtime transition and authority contract | 2026-09-12 10:07 |
 | `[x]` | [YMP-117](#ymp-117) | P0 | Separate acceptance from confirmation and gate reputation on evidence | 2026-09-12 13:59 |
 | `[x]` | [YMP-120](#ymp-120) | P0 | Enforce assignment-scoped permissions and runtime-only state transitions | 2026-09-12 13:46 |
-| `[~]` | [YMP-118](#ymp-118) | P0 | Integrate core assignment, budget and confirmation visibility | 2026-09-12 18:12 |
+| `[~]` | [YMP-118](#ymp-118) | P0 | Integrate core assignment, budget and confirmation visibility | 2026-09-12 18:46 |
 | `[x]` | [YMP-119](#ymp-119) | P0 | Prepare universal acceptance scenarios and independent validators | 2026-09-12 10:56 |
-| `[=]` | [YMP-121](#ymp-121) | P1 | Verify the integrated application and package a local release | 2026-09-12 18:22 |
+| `[=]` | [YMP-121](#ymp-121) | P1 | Verify the integrated application and package a local release | 2026-09-12 18:46 |
 | `[x]` | [YMP-013](#ymp-013) | P0 | Review plan coherence and simplify progress tracking | 2026-09-12 09:46 |
 | `[x]` | [YMP-122](#ymp-122) | P1 | Expose replaceable execution backends behind runtime-owned controls | 2026-09-12 15:23 |
 | `[x]` | [YMP-123](#ymp-123) | P1 | Expose a public local MCP facade over stdio | 2026-09-12 18:22 |
 | `[=]` | [YMP-124](#ymp-124) | P1 | Add isolated execution and recoverable publication for larger projects | 2026-09-12 15:31 |
 | `[x]` | [YMP-125](#ymp-125) | P0 | Expose trusted acceptance contracts to executable users | 2026-09-12 17:54 |
 | `[~]` | [YMP-126](#ymp-126) | P1 | Execute universal acceptance scenarios through a trusted runtime driver | 2026-09-12 18:22 |
+| `[~]` | [YMP-127](#ymp-127) | P0 | Build and display the agent pool from provider-returned native names | 2026-09-12 18:46 |
 
 ## YMP-001
 
@@ -1243,9 +1244,9 @@ Integrate core assignment, budget and confirmation visibility
 
 **State:** `[~]` (in_progress) · **Type:** implementation · **Priority:** P0
 
-**Last update (UTC):** 2026-09-12 18:12
+**Last update (UTC):** 2026-09-12 18:46
 
-**Current reason:** Independent Opus core review ACCEPT8/10 at7038a4c confirms110/113 corresponding views. Before final118 closure the author is fixing remaining narrow header/requested-settings/credit wording issues (detail outcome already corrected), preserving review history, and integrating accepted125 configuration for a real typed-check TUI walk.
+**Current reason:** Owner correction127 makes native scan results the source of primary agent names. Core118 fixes continue, but final catalog/name integration and its UI verification are owned by127 and remain a release requirement.
 
 **Owner:** Claude Code claude-opus-5 with thinking max via Paseo; maintainer integrates and verifies
 
@@ -1308,19 +1309,19 @@ Verify the integrated application and package a local release
 
 **State:** `[=]` (planned) · **Type:** verification · **Priority:** P1
 
-**Last update (UTC):** 2026-09-12 18:22
+**Last update (UTC):** 2026-09-12 18:46
 
-**Current reason:** Needs YMP-112, YMP-114, YMP-118, YMP-110, YMP-113, YMP-126
+**Current reason:** Needs YMP-112, YMP-114, YMP-118, YMP-110, YMP-113, YMP-126, YMP-127
 
 **Owner:** Independent final reviewer at max reasoning; maintainer integrates and packages
 
 **Authorization:** Offline packaging and check preparation follow the approved delivery plan. Actual native inference requires its explicit bounded quota authorization; none is granted by this planning task.
 
-**Depends on:** [YMP-119](#ymp-119), [YMP-103](#ymp-103), [YMP-105](#ymp-105), [YMP-107](#ymp-107), [YMP-112](#ymp-112), [YMP-115](#ymp-115), [YMP-114](#ymp-114), [YMP-118](#ymp-118), [YMP-122](#ymp-122), [YMP-123](#ymp-123), [YMP-125](#ymp-125), [YMP-110](#ymp-110), [YMP-113](#ymp-113), [YMP-126](#ymp-126)
+**Depends on:** [YMP-119](#ymp-119), [YMP-103](#ymp-103), [YMP-105](#ymp-105), [YMP-107](#ymp-107), [YMP-112](#ymp-112), [YMP-115](#ymp-115), [YMP-114](#ymp-114), [YMP-118](#ymp-118), [YMP-122](#ymp-122), [YMP-123](#ymp-123), [YMP-125](#ymp-125), [YMP-110](#ymp-110), [YMP-113](#ymp-113), [YMP-126](#ymp-126), [YMP-127](#ymp-127)
 
 A local release needs a reproducible install and truthful compatibility evidence for the configured native providers.
 
-**Latest progress note:** Driver/exporter implementation is tracked in126 for parallel progress. Final121 still reruns the full integrated acceptance evidence and performs independent max review, packaging and release; no scenario or release requirement is removed.
+**Latest progress note:** Final release explicitly requires127: native scan-derived agent names and actual selectable pool, per the owner correction. Existing provider placeholders are not an acceptable final product.
 
 **Acceptance criteria:**
 
@@ -1543,6 +1544,38 @@ YMP-119 supplies discriminating fixtures, but the production-boundary driver and
 - [Universal integration contract](../../ymp-evals/README.md)
 - [Workflow scenarios](../../ymp-evals/scenarios/universal-workflows.json)
 - [Protocol scenarios](../../ymp-evals/scenarios/universal-protocol.json)
+
+## YMP-127
+
+Build and display the agent pool from provider-returned native names
+
+**State:** `[~]` (in_progress) · **Type:** implementation · **Priority:** P0
+
+**Last update (UTC):** 2026-09-12 18:46
+
+**Current reason:** Owner reiterated the missed requirement. Actual config still has Codex/Claude/GLM with model=None; native metadata queries already return gpt-5.6-sol, Claude native aliases/models and glm-5.2 with thought_level choices. Capture/selection/display must use those provider results, not manual names.
+
+**Owner:** Maintainer; all UI by Claude Opus 5 max via Paseo
+
+**Authorization:** Owner explicitly reiterated that team members must use the real names returned by provider systems after scanning. Correct the missed product requirement autonomously; metadata-only native queries are allowed, model inference remains separate.
+
+**Depends on:** [YMP-109](#ymp-109), [YMP-111](#ymp-111)
+
+Native metadata readers discard display names and selectable profiles remain provider-labelled placeholders with no model. The owner directly rejected this behavior.
+
+**Acceptance criteria:**
+
+- Preserve provider-returned model/agent identifiers, display names and available effort/control names and values, with native source provenance; no hardcoded replacement name table or invented setting support.
+- Populate the actual selectable pool from native discovery, including multiple concrete configurations from one provider. Provider identity stays a separate field, and refreshing does not automatically activate every offering.
+- Expose a bounded scan/refresh and stored catalog shared by executable clients; native metadata calls send no model prompt, and painting/ordinary inspection do not repeatedly launch discovery.
+- Provide a supported upgrade path for generated provider-only placeholders while preserving custom profiles, stable actor IDs, instructions, pins, existing team constraints, historical sessions and qualified experience.
+- Use actual native names for current effective model/settings in team, pool, assignment and usage views, including changed settings and unknown/legacy cases; all TUI implementation and review use Claude Opus 5 max.
+- Verify distinctive native labels, aliases, partial failures, repeat scans, multiple agents on one provider, stale/unknown metadata and history through real executable paths with scripted native fixtures, then metadata-only installed-provider scanning.
+- After independent acceptance, refresh the local application configuration/catalog through the implemented path and build a current executable whose selectable agents carry the returned names. Never read/log/copy credential values or use real model inference for these checks.
+
+**Evidence:**
+
+- [Owner clarification and catalog contract](../architecture/provider-named-agent-catalog.md)
 
 ## Intent coverage
 
