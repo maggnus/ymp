@@ -1,6 +1,6 @@
 # Task details and evidence
 
-Updated: 2026-09-12 13:59 UTC.
+Updated: 2026-09-12 14:36 UTC.
 
 Use the [delivery plan](plan.md) to follow progress. This generated register contains full acceptance criteria, dependencies and evidence. [tasks.json](tasks.json) is the single source; [manage.py](manage.py) updates both pages.
 
@@ -45,9 +45,9 @@ A planned task is not implemented functionality. Completed research and planning
 | `[=]` | [YMP-204](#ymp-204) | P1 | Evaluate a project-scoped prior-outcome router | 2026-09-12 09:35 |
 | `[=]` | [YMP-301](#ymp-301) | P2 | Confirm the initial success class and intended audience | 2026-09-12 09:35 |
 | `[x]` | [YMP-109](#ymp-109) | P0 | Expose the provider-backed agent pool with stable individual identities | 2026-09-12 10:56 |
-| `[ ]` | [YMP-110](#ymp-110) | P0 | Select session teams and execution settings within user constraints | 2026-09-12 12:46 |
+| `[~]` | [YMP-110](#ymp-110) | P0 | Select session teams and execution settings within user constraints | 2026-09-12 14:16 |
 | `[=]` | [YMP-112](#ymp-112) | P0 | Coordinate commitments, plan revisions and reassignment through the board | 2026-09-12 12:46 |
-| `[ ]` | [YMP-113](#ymp-113) | P0 | Accumulate general knowledge and verified experience incrementally | 2026-09-12 12:46 |
+| `[~]` | [YMP-113](#ymp-113) | P0 | Accumulate general knowledge and verified experience incrementally | 2026-09-12 14:16 |
 | `[=]` | [YMP-114](#ymp-114) | P0 | Correct and supersede knowledge with newer verified evidence | 2026-09-12 12:46 |
 | `[x]` | [YMP-009](#ymp-009) | P0 | Align the product definition, research conclusions and backlog with final intent | 2026-09-12 09:15 |
 | `[?]` | [YMP-115](#ymp-115) | P0 | Enable useful concurrent execution of independent assignments | 2026-09-12 12:25 |
@@ -57,11 +57,11 @@ A planned task is not implemented functionality. Completed research and planning
 | `[x]` | [YMP-116](#ymp-116) | P0 | Define the minimal runtime transition and authority contract | 2026-09-12 10:07 |
 | `[x]` | [YMP-117](#ymp-117) | P0 | Separate acceptance from confirmation and gate reputation on evidence | 2026-09-12 13:59 |
 | `[x]` | [YMP-120](#ymp-120) | P0 | Enforce assignment-scoped permissions and runtime-only state transitions | 2026-09-12 13:46 |
-| `[ ]` | [YMP-118](#ymp-118) | P0 | Integrate core assignment, budget and confirmation visibility | 2026-09-12 12:20 |
+| `[~]` | [YMP-118](#ymp-118) | P0 | Integrate core assignment, budget and confirmation visibility | 2026-09-12 14:16 |
 | `[x]` | [YMP-119](#ymp-119) | P0 | Prepare universal acceptance scenarios and independent validators | 2026-09-12 10:56 |
 | `[=]` | [YMP-121](#ymp-121) | P1 | Verify the integrated application and package a local release | 2026-09-12 13:00 |
 | `[x]` | [YMP-013](#ymp-013) | P0 | Review plan coherence and simplify progress tracking | 2026-09-12 09:46 |
-| `[~]` | [YMP-122](#ymp-122) | P1 | Expose replaceable execution backends behind runtime-owned controls | 2026-09-12 13:46 |
+| `[~]` | [YMP-122](#ymp-122) | P1 | Expose replaceable execution backends behind runtime-owned controls | 2026-09-12 14:36 |
 | `[+]` | [YMP-123](#ymp-123) | P1 | Expose a public local MCP facade over stdio | 2026-09-12 13:00 |
 
 ## YMP-001
@@ -803,11 +803,11 @@ Available agents are working units supplied through providers. The eligible pool
 
 Select session teams and execution settings within user constraints
 
-**State:** `[ ]` (planned) · **Type:** implementation · **Priority:** P0
+**State:** `[~]` (in_progress) · **Type:** implementation · **Priority:** P0
 
-**Last update (UTC):** 2026-09-12 12:46
+**Last update (UTC):** 2026-09-12 14:16
 
-**Current reason:** Ready to start
+**Current reason:** Dynamic membership and joint team/model/effort policies assigned at xhigh. Typed proposals remain separate from runtime commitment; historical membership must not authorize current grants. Implementation preserves fixed constraints, qualified experience and independent final review eligibility.
 
 **Owner:** Maintainer; application UI by Claude Code claude-opus-5 with thinking max via Paseo
 
@@ -816,8 +816,6 @@ Select session teams and execution settings within user constraints
 **Depends on:** [YMP-111](#ymp-111), [YMP-102](#ymp-102), [YMP-117](#ymp-117)
 
 The owner requested bounded dynamic teams by default, optional fixed size or roster, and joint selection of team size, executors, models and effort.
-
-**Latest progress note:** Owner extension requirement added: Provide injectable typed policies for team/model/effort proposals and resource allocation, with runtime validation of pins, capabilities, independence and ceilings outside the policies.
 
 **Acceptance criteria:**
 
@@ -886,11 +884,11 @@ Required directly by the final product intent; design and implementation are pen
 
 Accumulate general knowledge and verified experience incrementally
 
-**State:** `[ ]` (planned) · **Type:** implementation · **Priority:** P0
+**State:** `[~]` (in_progress) · **Type:** implementation · **Priority:** P0
 
-**Last update (UTC):** 2026-09-12 12:46
+**Last update (UTC):** 2026-09-12 14:16
 
-**Current reason:** Ready to start
+**Current reason:** Incremental knowledge and outcome inspection assigned at xhigh. Candidates remain explicitly unconfirmed; supported source-bound projections can survive later failure and be reused under applicability constraints. Retrieval/proposal policies are replaceable and runtime retains source/scope/activation control.
 
 **Owner:** Maintainer; application UI by Claude Code claude-opus-5 with thinking max via Paseo
 
@@ -899,8 +897,6 @@ Accumulate general knowledge and verified experience incrementally
 **Depends on:** [YMP-106](#ymp-106), [YMP-117](#ymp-117)
 
 Required directly by the final product intent; design and implementation are pending.
-
-**Latest progress note:** Owner extension requirement added: Expose replaceable knowledge retrieval/proposal policies; runtime resolves actual source versions, enforces scope/context limits and controls activation.
 
 **Acceptance criteria:**
 
@@ -1240,11 +1236,11 @@ Current team-tool credentials identify an agent and session but not an assignmen
 
 Integrate core assignment, budget and confirmation visibility
 
-**State:** `[ ]` (planned) · **Type:** implementation · **Priority:** P0
+**State:** `[~]` (in_progress) · **Type:** implementation · **Priority:** P0
 
-**Last update (UTC):** 2026-09-12 12:20
+**Last update (UTC):** 2026-09-12 14:16
 
-**Current reason:** Ready to start
+**Current reason:** Claude Opus5 max is implementing core state/constraint/confirmation views and correcting shared-frame clipping in an isolated checkout. The UI will use actual captured records and integrate committed110/113 projections as available. Black theme, typography and sidebar behavior are preserved.
 
 **Owner:** Claude Code claude-opus-5 with thinking max via Paseo; maintainer integrates and verifies
 
@@ -1253,8 +1249,6 @@ Integrate core assignment, budget and confirmation visibility
 **Depends on:** [YMP-111](#ymp-111), [YMP-102](#ymp-102), [YMP-117](#ymp-117), [YMP-120](#ymp-120)
 
 The approved protocol needs observable identities, settings, authority and evidence without requiring the user to manage internal work.
-
-**Latest progress note:** Alongside core assignment/budget/confirmation views, fix independently reproduced shared-frame text clipping: inline wrapping uses two columns more than the paint area and modal wrapping uses full terminal width. YMP-107 review demonstrated lost words on both checks and the existing memory page; Opus5 max owns UI correction.
 
 **Acceptance criteria:**
 
@@ -1381,9 +1375,9 @@ Expose replaceable execution backends behind runtime-owned controls
 
 **State:** `[~]` (in_progress) · **Type:** implementation · **Priority:** P1
 
-**Last update (UTC):** 2026-09-12 13:46
+**Last update (UTC):** 2026-09-12 14:36
 
-**Current reason:** Candidate c322649 adds the execution backend interface, recorded implementation ID/version and backend-scoped continuation/usage/competence. Native and scripted execution share common guards. Author reports217 tests and discriminating negative controls; independent xhigh review is running.
+**Current reason:** Standalone R1(9/10) accepted. Combined confirmation/backend integration exposed producer-v2 versus storage-v1 attribution mismatch; shared core version calculation fixes the unchanged failing consumer, preserves historical identity and passes 230 tests. Independent integration review is next; code remains outside main.
 
 **Owner:** Maintainer
 

@@ -1261,7 +1261,7 @@
       "title": "Select session teams and execution settings within user constraints",
       "type": "implementation",
       "priority": "P0",
-      "status": "planned",
+      "status": "in_progress",
       "owner": "Maintainer; application UI by Claude Code claude-opus-5 with thinking max via Paseo",
       "authorization": "Planned delivery derived from the owner-approved intent and standing autonomous-development direction. Follow dependencies and acceptance criteria; separate real-provider quota is required where stated.",
       "depends_on": [
@@ -1325,6 +1325,11 @@
           "at": "2026-09-12T12:46:29.117507+00:00",
           "status": "planned",
           "note": "Owner extension requirement added: Provide injectable typed policies for team/model/effort proposals and resource allocation, with runtime validation of pins, capabilities, independence and ceilings outside the policies."
+        },
+        {
+          "at": "2026-09-12T14:16:57.448421+00:00",
+          "status": "in_progress",
+          "note": "Dynamic membership and joint team/model/effort policies assigned at xhigh. Typed proposals remain separate from runtime commitment; historical membership must not authorize current grants. Implementation preserves fixed constraints, qualified experience and independent final review eligibility."
         }
       ]
     },
@@ -1403,7 +1408,7 @@
       "title": "Accumulate general knowledge and verified experience incrementally",
       "type": "implementation",
       "priority": "P0",
-      "status": "planned",
+      "status": "in_progress",
       "owner": "Maintainer; application UI by Claude Code claude-opus-5 with thinking max via Paseo",
       "authorization": "Planned delivery derived from the owner-approved intent and standing autonomous-development direction. Follow dependencies and acceptance criteria; separate real-provider quota is required where stated.",
       "depends_on": [
@@ -1457,6 +1462,11 @@
           "at": "2026-09-12T12:46:29.117507+00:00",
           "status": "planned",
           "note": "Owner extension requirement added: Expose replaceable knowledge retrieval/proposal policies; runtime resolves actual source versions, enforces scope/context limits and controls activation."
+        },
+        {
+          "at": "2026-09-12T14:16:57.549928+00:00",
+          "status": "in_progress",
+          "note": "Incremental knowledge and outcome inspection assigned at xhigh. Candidates remain explicitly unconfirmed; supported source-bound projections can survive later failure and be reused under applicability constraints. Retrieval/proposal policies are replaceable and runtime retains source/scope/activation control."
         }
       ]
     },
@@ -1973,7 +1983,7 @@
       "title": "Integrate core assignment, budget and confirmation visibility",
       "type": "implementation",
       "priority": "P0",
-      "status": "planned",
+      "status": "in_progress",
       "owner": "Claude Code claude-opus-5 with thinking max via Paseo; maintainer integrates and verifies",
       "authorization": "Derived from the owner-approved intent and work-plan request. Follow recorded dependencies; real-provider quota remains separately authorized.",
       "depends_on": [
@@ -2010,6 +2020,11 @@
           "at": "2026-09-12T12:20:54.627364+00:00",
           "status": "planned",
           "note": "Alongside core assignment/budget/confirmation views, fix independently reproduced shared-frame text clipping: inline wrapping uses two columns more than the paint area and modal wrapping uses full terminal width. YMP-107 review demonstrated lost words on both checks and the existing memory page; Opus5 max owns UI correction."
+        },
+        {
+          "at": "2026-09-12T14:16:57.664228+00:00",
+          "status": "in_progress",
+          "note": "Claude Opus5 max is implementing core state/constraint/confirmation views and correcting shared-frame clipping in an isolated checkout. The UI will use actual captured records and integrate committed110/113 projections as available. Black theme, typography and sidebar behavior are preserved."
         }
       ]
     },
@@ -2210,6 +2225,11 @@
           "at": "2026-09-12T13:46:30.437275+00:00",
           "status": "in_progress",
           "note": "Candidate c322649 adds the execution backend interface, recorded implementation ID/version and backend-scoped continuation/usage/competence. Native and scripted execution share common guards. Author reports217 tests and discriminating negative controls; independent xhigh review is running."
+        },
+        {
+          "at": "2026-09-12T14:36:46.296272+00:00",
+          "status": "in_progress",
+          "note": "Standalone R1(9/10) accepted. Combined confirmation/backend integration exposed producer-v2 versus storage-v1 attribution mismatch; shared core version calculation fixes the unchanged failing consumer, preserves historical identity and passes 230 tests. Independent integration review is next; code remains outside main."
         }
       ]
     },
@@ -2247,7 +2267,7 @@
       ]
     }
   ],
-  "updated_at": "2026-09-12T13:59:23.759206+00:00",
+  "updated_at": "2026-09-12T14:36:46.296272+00:00",
   "delivery_order": [
     "YMP-116",
     "YMP-103",
