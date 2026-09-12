@@ -179,3 +179,93 @@ are the only two readers to change.
 The observed names in the candidate scan, `GPT-6-Astra`, `GPT-5.6-Sol`, `Default (recommended)`,
 `Opus (1M context)`, `Fable`, `Sonnet`, `Haiku` and `GLM-5.2`, appear in this worktree only in the
 one test that supplies a catalog snapshot. No name is compiled into a page, a table or a fallback.
+
+## Integrated, and read from the installed systems
+
+13/09/2026 03:51 HKT. The catalog candidate `efd6fe1` and its correction `314dc8a` are merged
+into this branch, and the interface now reads the shared accessors rather than its own resolver.
+Nothing of the backend was reimplemented here: no parser, no cache, no scan logic.
+
+### What the interface reads now
+
+`PoolAgent.identity`, which `Config::agent_identity` computed from the effective settings, is the
+one source for a row's label. `Config::provider_capabilities` is the one source for what a
+provider offers. The status is authoritative: an empty `model` on a profile is never read as an
+unresolved agent, because a model can reach a turn from an execution policy, which the correction
+deliberately leaves in place to keep a qualified actor's experience.
+
+| Status | The row reads | The record says |
+| --- | --- | --- |
+| `Native` | the installation's own name, then the exact identifier | the method and observation time the name was read by |
+| `Stale` | the name, then `not read recently` | the reading's time and that it is no longer current |
+| `Unknown` | the configured label, then `not in the catalog` | that no stored reading lists this model |
+| `Unresolved` | the configured label, then `no native model` | that no model is set and no reading names a default |
+| `Local` | the profile's name, then `a local provider` | that a local provider has no native identity |
+
+A record also names what the identifier resolved to, the advertised aliases, the picker identity
+as a selector and never as something to send, and each control by the label and value names the
+installation returned. `/usage` names the models an agent's turns actually ran with. A captured
+member is read from its own session: the identity its assignment recorded at admission, then what
+its turns ran with, then the profile field.
+
+`R` on the pool pages asks the installations, through `discovery::refresh_catalog`, and reports
+what was stored. It is refused while a run is active and refused for a disabled provider, with
+the reason. `r` still re-reads only what is stored. The scan runs as its own task, so the window
+keeps painting while a provider takes its time.
+
+### The reading, through the executable
+
+A temporary home, no prompt typed, so no model was asked anything. The first launch of a fresh
+home performs the startup reading; the page action was then used to read one installation again.
+
+```
+ Agent profiles  /agents                 15 profiles
+ › GPT-6-Astra · gpt-6-astra · codex ✓ on  in team
+   Claude · no native model · claude ✓ on  in team
+   GLM-5.2 · glm-5.2 · glm                    ✓ on
+   GPT-Reserve · gpt-reserve · codex          ✓ on
+   GPT-5.6-Sol · gpt-5.6-sol · codex          ✓ on
+   GPT-5.6-Terra · gpt-5.6-terra · codex      ✓ on
+   GPT-5.6-Luna · gpt-5.6-luna · codex        ✓ on
+   GPT-5.5 · gpt-5.5 · codex                  ✓ on
+   GPT-5.3-Codex-Spark · gpt-5.3-codex-spark  ✓ on
+```
+
+The remaining rows, read at 120x40, are `Codex Auto Review`, `GLM-5.1`, `GLM-5 Turbo`,
+`GLM-5V Turbo`, `GLM-4.7` and `GLM-4.5 Air`. Fourteen offerings from two installations, each row
+carrying the name that installation returned, the exact identifier beside it and the provider
+after it. The stored snapshot says where each came from: `model/list` for one installation,
+`session/new` for the other, with the observation time, and one list marked complete and the
+other not known to be complete. The opened record of `GPT-6-Astra` reads
+`name from the installation, read by model/list at 2026-09-12T19:38:35`.
+
+The third installation could not be read here: its stored entry is
+`failure: native_metadata_unavailable`, and the page says `not read · the attempt at ... ended as
+native_metadata_unavailable`, while its legacy profile reads `Claude · no native model`. The cause
+is local and not the installation: this worktree has no built Claude bridge, `ymp-bridges/claude/
+dist/index.js` does not exist, so the query had nothing to run. That is the failure path working
+as specified, and the names of that installation's offerings are evidenced by the catalog author's
+own run rather than by this one.
+
+The explicit action was exercised on that same installation: the conversation recorded
+`Read 0 of 1 installation(s): 0 offering(s) stored, 0 agent(s) added, 0 renamed from a
+placeholder`, which is what a failed reading should say.
+
+### Two defects the reading found here, both corrected
+
+The status line lost its text at 80 columns once the hint list grew, because that row gave its
+width to the keys first. It now keeps what the window is doing and truncates hints instead, which
+is the same rule the page header already follows.
+
+The team page broke its own list: the pool's reason for refusing a profile was written long
+enough to overflow the right-hand side, and an overflowing right side wraps rather than
+truncating. The short reason is on the row, the sentence is in the record, and a new invariant
+sweeps every page with a session loaded and with the shipped configuration, failing if any row's
+state word needs more than the narrowest column can give it.
+
+### What is not claimed
+
+The catalog is integrated and read, and the real `~/.ymp2` is untouched: every reading here used
+a temporary home. The migration of the user's own configuration waits for accepted integration.
+No name appears in this side's source: the names above exist only in captures and in test
+fixtures that supply a reading.

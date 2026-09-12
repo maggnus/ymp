@@ -557,3 +557,29 @@ whose every reading is cross-checked against an interface test.
 so. Typed check outcomes and recorded shell checks are not joined on one page. No surface
 proposes or edits membership, access or criteria. YMP-112 board proposals and YMP-114 knowledge
 inspection are later feature work on these same views, read for planning only.
+
+## Round five: the native catalog composed into this candidate
+
+13/09/2026 03:51 HKT. Head `99a9689`. The catalog candidate `efd6fe1` and its correction
+`314dc8a` are merged here, and the interface reads the shared accessors: every row that
+identifies an agent carries the name its installation returned, or the configured label with the
+exact unresolved state beside it. The full record of that work, including the reading through the
+executable and the two defects it found in this side, is
+`ymp-evals/reports/ymp-127-ui-field-needs.md`.
+
+The rounds before this one are unchanged: the six findings of the independent core review are
+closed, the typed-contract walk stands, and nothing in the catalog work touched those surfaces
+beyond the pool and team pages it was meant to.
+
+| Command | Exit |
+| --- | --- |
+| `cargo fmt --all --check` | 0 |
+| `cargo clippy --workspace --all-targets -- -D warnings` | 0, no warning |
+| `cargo test --workspace` | 0, 352 tests passed over 26 binaries, 119 of them in `ymp-tui` |
+| reading of the installed systems through the executable, temporary home, no prompt | two installations read, the third reported as not read |
+
+Composed sources: `1b76133` for YMP-110 and YMP-113, main `f02a8c2` for YMP-115, `3b4045f` for
+the public MCP work and the lock release, `9ad43dc` for the typed contracts, and `efd6fe1` with
+`314dc8a` for the native catalog. Unmet criteria that this task owns: none known. The two defects
+reported in earlier rounds still belong to other layers, and the Claude bridge is not built in
+this worktree, which is why one installation could not be read here.
