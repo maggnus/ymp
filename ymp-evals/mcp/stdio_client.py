@@ -234,6 +234,112 @@ async def sdk_walk(home, a, b):
         assert all(i["state"] != "running" for i in invocations)
 
 
+def session_records(home, session_id):
+    """Read-only exact comparison of captured session authority and execution records."""
+    with sqlite3.connect(home / "state.sqlite") as db:
+        result = {}
+        for table in ("sessions", "session_policies", "assignments", "invocations", "decisions", "tasks"):
+            key = "id" if table == "sessions" else "session_id"
+            result[table] = db.execute(f"SELECT data FROM {table} WHERE {key}=? ORDER BY rowid", (session_id,)).fetchall()
+        return result
+
+
+async def contract_walk():
+    # Short paths also exercise the real internal Unix socket without SUN_LEN overflow.
+    with tempfile.TemporaryDirectory(prefix="ymc-", dir="/tmp") as tmp:
+        root = Path(tmp)
+        home, project, foreign = root / "state", root / "project", root / "foreign"
+        project.mkdir(); foreign.mkdir(); config(home)
+        config_path = home / "config.toml"
+        base = config_path.read_text().replace("[mock:usage]", "[mock:usage][mock:no-checks]")
+        document = Path(__file__).resolve().parents[2] / "ymp-docs/architecture/executable-acceptance-contracts.md"
+        contract = document.read_text().split("```toml\n", 1)[1].split("```", 1)[0]
+        configured = base + "\n" + contract
+        config_path.write_text(configured)
+        async with client(home, project, True) as session:
+            # Tool arguments are untrusted even when this launcher permits execution.
+            before = count(home)
+            for field in ("acceptance_contracts", "acceptance_contract", "config"):
+                rejected = await tool(session, "ymp_run_v1", {**start_args("injected-" + field), field: []}, error=True)
+                assert "unknown field" in rejected["message"], rejected
+            assert count(home) == before == 0 and count(home, "sessions") == 0
+            # A running facade uses its trusted launch snapshot, not a changing file.
+            config_path.write_text(base)
+            started = await tool(session, "ymp_run_v1", start_args("configured-confirmation"))
+            source_session = started["operation"]["session_id"]
+            done = await terminal(session, "configured-confirmation")
+            assert done["operation"]["status"] == "completed", done
+            assert (project / "greeting.txt").read_bytes() == b"Hello from ymp\n"
+            results = await inspect(session, "results", session_id=source_session)
+            assert results["items"] and all(row["value"]["confirmation"] == "confirmed" for row in results["items"]), results
+            assert all(row["value"]["source_session"] == source_session for row in results["items"])
+            evidence = await inspect(session, "evidence", session_id=source_session, limit=25)
+            kinds = [row["value"]["kind"] for row in evidence["items"]]
+            assert "acceptance_contract_captured" in kinds and "check_observed" in kinds, evidence
+            assert '"bytes"' not in json.dumps(evidence) and '"expected"' not in json.dumps(evidence)
+            before = count(home)
+            pending = await tool(session, "ymp_run_v1", start_args("captured-before-cancel"))
+            resume_session = pending["operation"]["session_id"]
+            deadline = time.monotonic() + 3
+            while count(home) == before:
+                assert time.monotonic() < deadline
+                await asyncio.sleep(0.001)
+            await tool(session, "ymp_cancel_v1", {"request_id": "captured-before-cancel"})
+            paused = await terminal(session, "captured-before-cancel")
+            assert paused["operation"]["status"] == "paused", paused
+        captured = session_records(home, resume_session)
+        assert any(json.loads(row[0])["kind"] == "acceptance_contract_captured" for row in captured["decisions"])
+        # Restarting loads an explicit attempted replacement, rejected by Engine.
+        replacement = configured.replace("expected = [72,", "expected = [0,")
+        assert replacement != configured
+        config_path.write_text(replacement)
+        spent = count(home)
+        async with client(home, project, True) as session:
+            await tool(session, "ymp_run_v1", {"request_id": "replace-captured-contract", "action": "resume", "session_id": resume_session, "max_seconds": 10})
+            rejected = await terminal(session, "replace-captured-contract")
+            assert rejected["operation"]["status"] == "interrupted", rejected
+            assert "immutable on resume" in rejected["operation"]["error"], rejected
+            assert count(home) == spent
+            assert session_records(home, resume_session) == captured
+        # Omission keeps the capture, including after a different facade rejected replacement.
+        config_path.write_text(base)
+        async with client(home, project, True) as session:
+            await tool(session, "ymp_run_v1", {"request_id": "resume-original-capture", "action": "resume", "session_id": resume_session, "max_seconds": 10})
+            resumed = await terminal(session, "resume-original-capture")
+            assert resumed["operation"]["status"] == "completed", resumed
+            results = await inspect(session, "results", session_id=resume_session)
+            assert results["items"] and all(row["value"]["confirmation"] == "confirmed" for row in results["items"]), results
+        spent = count(home)
+        async with client(home, project) as session:
+            assert (await inspect(session, "scope"))["actions"] == ["read"]
+            results = await inspect(session, "results", session_id=source_session)
+            assert results["items"] and all(row["value"]["confirmation"] == "confirmed" for row in results["items"])
+            knowledge = await tool(session, "ymp_knowledge_v1", {"query": "greeting"})
+            supported = [row["value"] for row in knowledge["items"] if row["value"]["entry"]["source_session"] == source_session]
+            assert supported, knowledge
+            assert all(row["entry"]["provenance"]["confirmation"] == "confirmed" for row in supported)
+            for row in supported:
+                resolved = await tool(session, "ymp_knowledge_v1", {"id": row["id"], "version": row["version"]})
+                assert resolved["items"][0]["value"]["entry"]["source_session"] == source_session
+            assert count(home) == spent
+        async with client(home, foreign) as session:
+            assert (await tool(session, "ymp_knowledge_v1", {"query": "greeting"}))["items"] == []
+            await tool(session, "ymp_inspect_v1", {"kind": "results", "session_id": source_session}, error=True)
+            assert count(home) == spent and not (foreign / "greeting.txt").exists()
+        # A later MCP-started session consumes the supported entry before a mock planning failure.
+        config_path.write_text(base.replace("[mock:no-checks]", "[mock:no-checks][mock:fail:plan]"))
+        async with client(home, project, True) as session:
+            later = await tool(session, "ymp_run_v1", start_args("later-supported-context"))
+            later_session = later["operation"]["session_id"]
+            assert (await terminal(session, "later-supported-context"))["operation"]["status"] == "blocked"
+        with sqlite3.connect(home / "state.sqlite") as db:
+            retrievals = [json.loads(row[0]) for row in db.execute("SELECT data FROM events WHERE session_id=? AND kind='memory_retrieval'", (later_session,))]
+            assert any(entry["source_session"] == source_session and entry["confirmation"] == "confirmed" for event in retrievals for entry in event["entries"]), retrievals
+            invocations = [json.loads(row[0]) for row in db.execute("SELECT data FROM invocations")]
+            assert invocations and all(i["requested"]["effort"] == "low" and i["requested"]["model"] == "mock" for i in invocations)
+        print(json.dumps({"contract_ingress":"passed", "source_session":source_session, "resumed_session":resume_session, "later_session":later_session, "supported_knowledge_ids":[row["id"] for row in supported], "tool_authority_injections_rejected":3, "replacement_resume_added_invocations":0, "read_only_added_invocations":0, "launch_configuration_snapshot_preserved":True}, sort_keys=True), flush=True)
+
+
 async def wire_edges(home, project):
     p = params(home, project)
     process = await asyncio.create_subprocess_exec(p.command, *p.args, env=p.env, stdin=asyncio.subprocess.PIPE, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
@@ -359,10 +465,14 @@ async def signal_exit_walk():
 
 
 async def main():
+    if "--contracts-only" in sys.argv[2:]:
+        await contract_walk()
+        return
     if "--signals-only" in sys.argv[2:]:
         await signal_exit_walk()
         return
     await signal_exit_walk()
+    await contract_walk()
     with tempfile.TemporaryDirectory(prefix="ymp-mcp-client-") as tmp:
         root = Path(tmp)
         home, a, b = root / "metadata", root / "a", root / "b"
@@ -370,7 +480,7 @@ async def main():
         await sdk_walk(home, a, b)
         await wire_edges(home, a)
         await hard_exit_and_bridge(home, a)
-    print(json.dumps({"client":"official mcp Python SDK 1.28.1","protocol":"2025-06-18","provider":"mock only, fixed mock/low","checks":"discovery, read-only admission, bounds, continuation, versions, no inference reads, scoped execution, conflicts, progress, usage, result/evidence, cancel/resume, foreign refs, disconnect/reopen, SIGKILL recovery, internal bridge lifecycle, malformed frames","largest_reply_bytes":max(SEEN_BYTES),"tool_calls":len(SEEN_BYTES)}, indent=2))
+    print(json.dumps({"client":"official mcp Python SDK 1.28.1","protocol":"2025-06-18","provider":"mock only, fixed mock/low","checks":"discovery, read-only admission, bounds, continuation, versions, no inference reads, scoped execution, configured contracts, confirmed knowledge, immutable resume, rejected tool authority, conflicts, progress, usage, result/evidence, cancel/resume, foreign refs, disconnect/reopen, SIGKILL recovery, internal bridge lifecycle, malformed frames","largest_reply_bytes":max(SEEN_BYTES),"tool_calls":len(SEEN_BYTES)}, indent=2))
 
 
 if __name__ == "__main__":

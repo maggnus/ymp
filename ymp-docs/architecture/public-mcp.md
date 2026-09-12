@@ -98,10 +98,24 @@ Pool and usage identities are agent IDs; providers/models are execution backends
 Results retain source session, immutable captured directory/artifact paths, result
 ID/version and current confirmation grade. Accepted-but-unconfirmed results remain
 unconfirmed, without reputation credit. Evidence inspection projects existing
-runtime decisions and check captures; it does not run checks. Starting through this
-v1 tool uses ordinary runtime acceptance and does not install new objective acceptance
-contracts. Resuming preserves any objective contracts already captured by another
-trusted client.
+runtime decisions and check captures; it does not run checks. Tool arguments cannot
+install or replace objective acceptance contracts. The trusted launch configuration
+can supply `acceptance_contracts` through the same [typed configuration](executable-acceptance-contracts.md)
+used by CLI and TUI. Each new session started by this facade captures that complete
+set before planning; ordinary runtime binding and confirmation guards still apply.
+
+The facade holds the configuration loaded at process launch. Editing `config.toml`
+does not change that running facade; restart it to select configuration for subsequent
+starts. Activation is configuration-wide across new team sessions using that home,
+while each MCP process remains restricted to its launch project. Use a dedicated
+`--home` for project-specific or workflow-specific contracts. There is no implicit
+project-file discovery or contract field in the public tool schema.
+
+Resuming preserves the session's captured contracts. Explicit changed definitions in
+a replacement facade's launch configuration are rejected by Engine before another
+invocation; the durable operation records the failure. Omitting the configuration
+field uses the capture, including contracts originally captured through CLI or TUI.
+Resume never refreshes original input bytes or verifier digests from changed files.
 
 For example, after enabling execution:
 
@@ -205,9 +219,13 @@ python3 -m venv /tmp/ymp-mcp-client
 The test isolates HOME/metadata/projects, configures only mock providers with explicit
 `mock` model and `low` effort, and never invokes a real provider. It covers discovery,
 reads without invocation growth, scoped mutations, durable IDs, conflict denial,
-progress/usage, qualitative acceptance/evidence, cancellation/resume, foreign project
+progress/usage, qualitative acceptance/evidence, configured confirmed output and
+supported knowledge, launch snapshot retention, changed-contract resume rejection
+without invocation growth, rejected tool-argument authority, cancellation/resume, foreign project
 and client references, oversized knowledge with continuation/version checks,
 disconnect/reopen, SIGKILL recovery, malformed wire requests and stdout framing. Internal socket/grant
 compatibility and the shared memory projection are covered by runtime MCP tests.
 See the [delivery evidence](../../ymp-evals/reports/ymp-123-stdio-verification.md) for
-commands, failing controls and limitations. YMP-121 owns integrated release verification.
+commands, failing controls and limitations, and the [contract integration report](../../ymp-evals/reports/ymp-125-mcp-integration.md)
+for the configured-contract consumer (`--contracts-only` selects that walk).
+YMP-121 owns integrated release verification.
