@@ -1,4 +1,8 @@
+mod confirmation;
+#[cfg(test)]
+mod confirmation_tests;
 use crate::mcp::TeamServer;
+use crate::{BuiltinConfirmationChecker, ConfirmationChecker};
 use anyhow::{bail, Context, Result};
 use serde_json::{json, Value};
 use std::{
@@ -31,6 +35,10 @@ pub struct Engine {
     pub executable: PathBuf,
     pub use_memory: bool,
     pub adaptive: bool,
+    /// Trusted client contracts, captured before the first invocation of a new run.
+    /// Agent plan/check text never installs or changes these contracts.
+    pub acceptance_contracts: Vec<AcceptanceContract>,
+    pub confirmation_checker: Arc<dyn ConfirmationChecker>,
     usage_publication: Arc<Mutex<()>>,
     assignment_settings: Arc<Mutex<Option<Vec<AssignmentSettingsRule>>>>,
 }
@@ -121,6 +129,8 @@ impl Engine {
             executable: std::env::current_exe()?,
             use_memory: true,
             adaptive: true,
+            acceptance_contracts: Vec::new(),
+            confirmation_checker: Arc::new(BuiltinConfirmationChecker),
             usage_publication: Arc::new(Mutex::new(())),
             assignment_settings: Arc::new(Mutex::new(None)),
         })
@@ -460,6 +470,7 @@ impl Engine {
                     captured_at: now(),
                 },
             )?;
+            self.capture_contracts(&s, &project.path)?;
             if let Some(parent) = &parent_session {
                 self.store
                     .put_value(&format!("parent:{}", s.id), &json!(parent.id))?;
@@ -1066,7 +1077,7 @@ impl Engine {
             reason: review.reason.clone(),
             outcome: Some(if review.approved {
                 DecisionOutcome::Accepted {
-                    confirmation: ConfirmationStatus::Unknown,
+                    confirmation: ConfirmationStatus::Unconfirmed,
                 }
             } else {
                 DecisionOutcome::Rejected
@@ -1168,33 +1179,6 @@ impl Engine {
         self.store.event(&ctx.session.id,"assignment_choice",&json!({"reason":reason,"competence":competence,"difficulty":difficulty,"selected":chosen.id,"scores":scores.iter().map(|(a,s,r)|json!({"agent":a.id,"sample":s,"successes":r.successes,"failures":r.failures})).collect::<Vec<_>>()}))?;
         Ok(chosen)
     }
-    #[allow(clippy::too_many_arguments)]
-    fn observe(
-        &self,
-        agent: &AgentProfile,
-        id: &str,
-        competence: &str,
-        difficulty: &str,
-        success: bool,
-        evidence: &str,
-        version: Option<String>,
-    ) -> Result<()> {
-        let Some(version) = version else {
-            return Ok(());
-        };
-        self.store.observe(&Observation {
-            id: id.into(),
-            agent_version: version,
-            agent_name: agent.name.clone(),
-            competence: competence.into(),
-            difficulty: difficulty.into(),
-            success,
-            evidence: evidence.into(),
-            created_at: now(),
-        })?;
-        Ok(())
-    }
-
     async fn execute(&self, ctx: &RunContext, prompt: &str) -> Result<String> {
         let mut tasks = self.store.tasks(&ctx.session.id)?;
         if tasks.is_empty() {
@@ -1308,9 +1292,28 @@ impl Engine {
         let check_log = self
             .checks(ctx, &ctx.workspace.directory, &checks, None)
             .await?;
+        let aggregate = self.aggregate_result(ctx, &tasks)?;
+        let trace = self.store.trace(&ctx.session.id)?;
+        let producers = trace
+            .assignments
+            .iter()
+            .filter(|a| aggregate.producer_assignment_ids.contains(&a.id))
+            .map(|a| &a.agent_id)
+            .collect::<HashSet<_>>();
+        let peers = ctx
+            .session
+            .team
+            .iter()
+            .filter(|a| !producers.contains(&a.id))
+            .cloned()
+            .collect::<Vec<_>>();
+        if peers.is_empty() {
+            self.store.record_decision(&DecisionRecord { id: new_id(), session_id: ctx.session.id.clone(), kind: "final_review_pending".into(), actor: None, reason: "Every available agent produced part of the result; an independent final reviewer is required".into(), outcome: None, links: RecordLinks { result: Some(aggregate.clone()), ..Default::default() }, created_at: now() })?;
+            bail!("Independent final review is pending: every available agent produced part of the result");
+        }
         let verifier = self.choose(
             ctx,
-            &ctx.session.team,
+            &peers,
             "verification",
             "standard",
             "final review",
@@ -1319,31 +1322,48 @@ impl Engine {
         )?;
         let response=self.ask_scoped(ctx,&verifier,&ctx.workspace.directory,"final_review",&format!("Independently inspect the final result against the ORIGINAL REQUEST:\n{prompt}\nAll listed checks were run by ymp. Return only JSON {{\"approved\":true|false,\"reason\":\"specific evidence and any gaps\"}}. Do not approve based solely on peer claims."),true,None).await?;
         let review: Review = parse_response(&response.text)?;
-        self.record_review(
+        let review_id = self.record_review(
             ctx,
             &verifier.id,
             &response,
             &review,
-            RecordLinks::default(),
+            RecordLinks {
+                result: Some(aggregate.clone()),
+                ..Default::default()
+            },
             "final_review",
         )?;
-        if !review.approved {
+        let (confirmation, confirmation_ids, failed) =
+            self.store.confirmation_grade(&ctx.session.id, &aggregate)?;
+        let approved = review.approved && !failed;
+        self.store.record_decision(&DecisionRecord {
+            id: new_id(),
+            session_id: ctx.session.id.clone(),
+            kind: if approved {
+                "final_accepted"
+            } else {
+                "final_rejected"
+            }
+            .into(),
+            actor: Some(verifier.id.clone()),
+            reason: review.reason.clone(),
+            outcome: Some(if approved {
+                DecisionOutcome::Accepted { confirmation }
+            } else {
+                DecisionOutcome::Rejected
+            }),
+            links: RecordLinks {
+                result: Some(aggregate),
+                assignment_id: Some(response.assignment_id.clone()),
+                invocation_id: Some(response.invocation_id.clone()),
+                review_ids: vec![review_id],
+                confirmation_ids,
+                ..Default::default()
+            },
+            created_at: now(),
+        })?;
+        if !approved {
             bail!("Final review rejected the result: {}", review.reason);
-        }
-        if let Some(value) = self
-            .store
-            .value(&format!("plan_author:{}", ctx.session.id))?
-        {
-            let author: AgentProfile = serde_json::from_value(value)?;
-            self.observe(
-                &author,
-                &format!("plan:{}", ctx.session.id),
-                "planning",
-                "standard",
-                true,
-                &review.reason,
-                self.observed_version(ctx, &author, "plan", None)?,
-            )?;
         }
         if self.use_memory && ctx.turns.load(Ordering::SeqCst) + 2 < ctx.limits.turns {
             // Learning is an optional post-success operation. A provider outage here
@@ -1359,7 +1379,13 @@ impl Engine {
         }
         let synthesis=self.ask(ctx,&verifier,&ctx.workspace.directory,"synthesis",&format!("Summarize the completed work for the user. State what changed, how it was checked, and remaining limitations. Original request: {prompt}"),true).await;
         match synthesis {
-            Ok(text) => Ok(text),
+            Ok(text) => Ok(format!(
+                "{text}\n\nAcceptance: accepted; confirmation: {}.",
+                match confirmation {
+                    ConfirmationStatus::Confirmed => "confirmed",
+                    _ => "unconfirmed",
+                }
+            )),
             Err(error) if self.cancel.is_cancelled() => Err(error),
             Err(error) => {
                 // Only narration is optional here: task acceptance, final checks
@@ -1379,7 +1405,7 @@ impl Engine {
                     .collect::<Vec<_>>()
                     .join("\n");
                 Ok(format!(
-                    "{notice}\n\nAccepted task results:\n{results}\n\nFinal checks run by ymp:\n{check_log}\nFinal review by {}:\n{}",
+                    "{notice}\n\nAccepted task results:\n{results}\n\nConfirmation: {confirmation:?}\n\nFinal checks run by ymp:\n{check_log}\nFinal review by {}:\n{}",
                     verifier.id, review.reason
                 ))
             }
@@ -1600,7 +1626,8 @@ impl Engine {
         }
         let (author, proposal, (review_response, review_id, review_reason)) =
             selected.context("No proposed plan passed independent review")?;
-        // Planning credit is deferred until the whole plan succeeds (recorded below).
+        // Preserve the selected author as provenance; checked execution does not
+        // establish an objective planning competence outcome.
         self.store
             .put_value(&format!("plan_author:{}", ctx.session.id), &json!(author))?;
         let ids = proposal
@@ -1726,6 +1753,7 @@ impl Engine {
             )
             .await?;
         task.submit(&agent.id, text.text)?;
+        let result = self.candidate_result(ctx, &task, &text.assignment_id)?;
         self.store.save_task_with_decision(
             &task,
             &DecisionRecord {
@@ -1737,6 +1765,7 @@ impl Engine {
                 outcome: None,
                 links: RecordLinks {
                     task: Some(TaskAttemptRef::from(&task)),
+                    result: Some(result),
                     assignment_id: Some(text.assignment_id),
                     invocation_id: Some(text.invocation_id),
                     ..Default::default()
@@ -1759,6 +1788,18 @@ impl Engine {
             .iter()
             .find(|a| Some(&a.id) == task.assignee.as_ref())
             .context("Missing assignee")?;
+        let result = self.submitted_result(ctx, task)?;
+        let trusted_log = self.confirm_result(ctx, &result).await?;
+        let (confirmation, confirmation_ids, failed_evidence) =
+            self.store.confirmation_grade(&ctx.session.id, &result)?;
+        let evidence_ids = self
+            .store
+            .trace(&ctx.session.id)?
+            .decisions
+            .into_iter()
+            .filter(|d| d.kind == "check_observed" && d.links.result.as_ref() == Some(&result))
+            .map(|d| d.id)
+            .collect::<Vec<_>>();
         let check_result = self
             .checks(ctx, &path, &task.checks, Some(TaskAttemptRef::from(&*task)))
             .await;
@@ -1778,10 +1819,11 @@ impl Engine {
             "review",
             Some(&task.id),
         )?;
-        let evidence = match &check_result {
+        let mut evidence = match &check_result {
             Ok(log) => log.clone(),
             Err(e) => format!("Acceptance checks failed: {e:#}"),
         };
+        evidence.push_str(&trusted_log);
         let response=self.ask_scoped(ctx,&reviewer,&path,"review",&format!("Independently inspect this candidate. You did not implement it. Task: {}\n{}\nOriginal request: {prompt}\nExecutor report: {}\nActual check output:\n{evidence}\nReturn ONLY JSON {{\"approved\":true|false,\"reason\":\"concrete evidence\",\"lesson\":\"optional concise reusable lesson without project-specific data\"}}. A passing command is not enough if the task is incomplete. Do not modify files.",task.title,task.description,task.result.as_deref().unwrap_or("missing")),true,Some(TaskAttemptRef::from(&*task))).await?;
         let mut review: Review = parse_response(&response.text)?;
         let mut review_ids = vec![self.record_review(
@@ -1791,6 +1833,8 @@ impl Engine {
             &review,
             RecordLinks {
                 task: Some(TaskAttemptRef::from(&*task)),
+                result: Some(result.clone()),
+                evidence_ids: evidence_ids.clone(),
                 ..Default::default()
             },
             "candidate_review",
@@ -1798,14 +1842,20 @@ impl Engine {
         let mut review_response = response;
         let mut decision_actor = reviewer.id.clone();
         // Deterministic checks cannot be overruled by an approving language model.
-        review.approved &= check_result.is_ok();
+        review.approved &= check_result.is_ok() && !failed_evidence;
+        if failed_evidence {
+            review.reason = format!(
+                "Runtime observed failed applicable evidence. Reviewer assessment: {}",
+                review.reason
+            );
+        }
         if let Err(error) = &check_result {
             review.reason = format!(
                 "Runtime acceptance checks failed: {error:#}. Reviewer assessment: {}",
                 review.reason
             );
         }
-        if !review.approved && peers.len() > 1 && check_result.is_ok() {
+        if !review.approved && peers.len() > 1 && check_result.is_ok() && !failed_evidence {
             let arbiter = peers
                 .iter()
                 .find(|a| a.id != reviewer.id)
@@ -1819,52 +1869,33 @@ impl Engine {
                 &arbitration,
                 RecordLinks {
                     task: Some(TaskAttemptRef::from(&*task)),
+                    result: Some(result.clone()),
+                    evidence_ids: evidence_ids.clone(),
                     ..Default::default()
                 },
                 "candidate_arbitration",
             )?);
             review_response = response;
             decision_actor = arbiter.id.clone();
-            self.observe(
-                &reviewer,
-                &format!("review:{}:{}", task.id, task.attempts),
-                "verification",
-                &task.difficulty,
-                arbitration.approved == review.approved,
-                &arbitration.reason,
-                self.observed_version(
-                    ctx,
-                    &reviewer,
-                    "review",
-                    Some(TaskAttemptRef::from(&*task)),
-                )?,
-            )?;
             review = arbitration;
         }
-        if !task.interrupted || review.approved {
-            self.observe(
-                assignee,
-                &format!("task:{}:{}", task.id, task.attempts),
-                &task.competence,
-                &task.difficulty,
-                review.approved,
-                &review.reason,
-                self.observed_version(
-                    ctx,
-                    assignee,
-                    "execute",
-                    Some(TaskAttemptRef::from(&*task)),
-                )?,
-            )?;
+        if !result
+            .artifacts
+            .iter()
+            .all(|a| a.current(&ctx.workspace.directory))
+        {
+            review.approved = false;
+            review.reason = "Candidate artifact version changed during review; fresh execution and review are required".into();
         }
         task.review(&decision_actor, review.approved, ctx.limits.attempts)?;
         if !review.approved {
             task.result = Some(format!("Revision required: {}\n{evidence}", review.reason));
         }
+        let acceptance_id = new_id();
         self.store.save_task_with_decision(
             task,
             &DecisionRecord {
-                id: new_id(),
+                id: acceptance_id.clone(),
                 session_id: ctx.session.id.clone(),
                 kind: if review.approved {
                     "task_accepted"
@@ -1875,9 +1906,7 @@ impl Engine {
                 actor: Some(decision_actor.clone()),
                 reason: review.reason.clone(),
                 outcome: Some(if review.approved {
-                    DecisionOutcome::Accepted {
-                        confirmation: ConfirmationStatus::Unknown,
-                    }
+                    DecisionOutcome::Accepted { confirmation }
                 } else {
                     DecisionOutcome::Rejected
                 }),
@@ -1886,11 +1915,34 @@ impl Engine {
                     assignment_id: Some(review_response.assignment_id),
                     invocation_id: Some(review_response.invocation_id),
                     review_ids,
+                    evidence_ids,
+                    confirmation_ids,
+                    result: Some(result.clone()),
                     ..Default::default()
                 },
                 created_at: now(),
             },
         )?;
+        if review.approved && confirmation == ConfirmationStatus::Confirmed && !task.interrupted {
+            if let Some(version) =
+                self.observed_version(ctx, assignee, "execute", Some(TaskAttemptRef::from(&*task)))?
+            {
+                self.store.observe_confirmed(
+                    &Observation {
+                        confirmation: ConfirmationStatus::Confirmed,
+                        id: format!("result:{}:{}:{}", result.id, result.version, assignee.id),
+                        agent_version: version,
+                        agent_name: assignee.name.clone(),
+                        competence: task.competence.clone(),
+                        difficulty: task.difficulty.clone(),
+                        success: true,
+                        evidence: acceptance_id.clone(),
+                        created_at: now(),
+                    },
+                    &acceptance_id,
+                )?;
+            }
+        }
         let _ = self.events.send(UiEvent::Task(task.clone()));
         if review.approved && self.use_memory {
             if let Some(lesson) = review.lesson.filter(|s| !s.trim().is_empty()) {
@@ -1993,16 +2045,16 @@ mod tests {
         }
     }
 
-    struct RunFixture {
+    pub(super) struct RunFixture {
         _temp: tempfile::TempDir,
-        project: PathBuf,
-        store: Store,
-        engine: Engine,
-        events: mpsc::UnboundedReceiver<UiEvent>,
+        pub(super) project: PathBuf,
+        pub(super) store: Store,
+        pub(super) engine: Engine,
+        pub(super) events: mpsc::UnboundedReceiver<UiEvent>,
     }
 
     impl RunFixture {
-        fn new(instructions: &str, use_memory: bool) -> Self {
+        pub(super) fn new(instructions: &str, use_memory: bool) -> Self {
             let temp = tempfile::tempdir().unwrap();
             let project = temp.path().join("project");
             std::fs::create_dir(&project).unwrap();
@@ -2024,7 +2076,7 @@ mod tests {
             }
         }
 
-        async fn run(&self) -> RunOutcome {
+        pub(super) async fn run(&self) -> RunOutcome {
             self.engine
                 .run(&self.project, "Create a greeting", None)
                 .await
@@ -2520,6 +2572,11 @@ mod tests {
     #[tokio::test]
     async fn provenance_uses_task_id_and_captured_limits_across_resume() {
         let mut fixture = RunFixture::new("[mock:usage]", false);
+        let mut third = fixture.engine.config.agents[0].clone();
+        third.id = "three".into();
+        third.name = "three".into();
+        fixture.engine.config.agents.push(third);
+        fixture.engine.config.team.push("three".into());
         let first = fixture.run().await;
         let mut second_task = fixture.store.tasks(&first.session.id).unwrap().remove(0);
         let first_task_id = second_task.id.clone();
@@ -2580,7 +2637,7 @@ mod tests {
             assert_eq!(
                 accepted.outcome,
                 Some(DecisionOutcome::Accepted {
-                    confirmation: ConfirmationStatus::Unknown
+                    confirmation: ConfirmationStatus::Unconfirmed
                 })
             );
         }
@@ -2670,8 +2727,7 @@ mod tests {
             .any(|m| m.kind == "summary" && m.text.starts_with(&outcome.summary)));
         assert!(!messages.iter().any(|m| m.kind == "synthesis"));
         let observations = fixture.store.observations().unwrap();
-        assert_eq!(observations.len(), 2);
-        assert!(observations.iter().all(|o| o.success));
+        assert!(observations.is_empty());
         let usage = fixture.store.session_usage(&outcome.session.id).unwrap();
         assert_eq!(usage.total.calls, outcome.session.turns_used as u64);
         assert_eq!(usage.total.open_calls, 0);
@@ -2825,7 +2881,7 @@ mod tests {
                 && m.text.contains("Mock provider failure")));
             assert!(messages
                 .iter()
-                .any(|m| m.kind == "synthesis" && m.text == outcome.summary));
+                .any(|m| m.kind == "synthesis" && outcome.summary.starts_with(&m.text)));
             assert!(fixture.store.memory(None, "").unwrap().is_empty());
             let usage = fixture.store.session_usage(&outcome.session.id).unwrap();
             assert_eq!(usage.total.calls, outcome.session.turns_used as u64);
@@ -2866,8 +2922,7 @@ mod tests {
                 TaskState::Accepted
             );
             let observations = fixture.store.observations().unwrap();
-            assert_eq!(observations.len(), 2);
-            assert!(observations.iter().all(|o| o.success));
+            assert!(observations.is_empty());
             let usage = fixture.store.session_usage(&outcome.session.id).unwrap();
             assert_eq!(usage.total.calls, outcome.session.turns_used as u64);
             assert_eq!(usage.total.open_calls, 0);
@@ -2920,11 +2975,7 @@ mod tests {
         assert_eq!(tasks.len(), 1);
         assert_eq!(tasks[0].state, TaskState::Accepted);
         assert_ne!(tasks[0].assignee, tasks[0].reviewer);
-        assert!(store
-            .observations()
-            .unwrap()
-            .iter()
-            .any(|o| o.competence == "planning"));
+        assert!(store.observations().unwrap().is_empty());
         assert!(
             !store.memory(None, "file").unwrap().is_empty(),
             "verified procedures should transfer between projects"

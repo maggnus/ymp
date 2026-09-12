@@ -253,12 +253,13 @@ fn validate_plan_version(
     Ok(())
 }
 
-fn decision(tx: &Transaction<'_>, value: &DecisionRecord) -> Result<()> {
+pub(super) fn decision(tx: &Transaction<'_>, value: &DecisionRecord) -> Result<()> {
     ensure!(
         !value.id.is_empty() && !value.kind.is_empty() && !value.reason.trim().is_empty(),
         "Decision needs an identity, kind and reason"
     );
     validate_links(tx, value)?;
+    super::confirmation::validate(tx, value)?;
     tx.execute(
         "INSERT INTO decisions(id,session_id,data) VALUES (?,?,?)",
         params![value.id, value.session_id, serde_json::to_string(value)?],
@@ -649,6 +650,10 @@ impl Store {
     }
 
     pub fn record_decision(&self, value: &DecisionRecord) -> Result<()> {
+        ensure!(
+            value.kind != "reputation_observed",
+            "Reputation records require the qualified observation API"
+        );
         let mut db = self.db()?;
         let tx = db.transaction()?;
         decision(&tx, value)?;
@@ -657,6 +662,13 @@ impl Store {
     }
 
     pub fn save_plan_with_decision(&self, tasks: &[Task], value: &DecisionRecord) -> Result<()> {
+        ensure!(
+            value.kind == "plan_committed"
+                && tasks
+                    .iter()
+                    .all(|t| t.state == TaskState::Ready && t.attempts == 0),
+            "Plan commitment requires unexecuted ready tasks and a plan decision"
+        );
         let mut db = self.db()?;
         let tx = db.transaction()?;
         ensure!(
@@ -737,6 +749,24 @@ impl Store {
                     )
             ),
             "Task state changed before the decision was committed"
+        );
+        ensure!(
+            matches!(
+                (task.state, value.kind.as_str()),
+                (TaskState::Review, "result_submitted")
+                    | (TaskState::Accepted, "task_accepted")
+                    | (TaskState::Ready | TaskState::Blocked, "task_rejected")
+            ),
+            "Task state and decision kind disagree"
+        );
+        ensure!(
+            task.state != TaskState::Accepted
+                || matches!(value.outcome, Some(DecisionOutcome::Accepted { .. })),
+            "Accepted state requires accepted outcome"
+        );
+        ensure!(
+            task.state != TaskState::Accepted || task.reviewer == value.actor,
+            "Accepted state reviewer mismatch"
         );
         validate_links(&tx, value)?;
         super::write_task(&tx, task)?;

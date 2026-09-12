@@ -245,6 +245,10 @@ pub struct MemoryEntry {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Observation {
+    /// Older records lack objective provenance; deserialization preserves that
+    /// distinction instead of treating historical success as confirmation.
+    #[serde(default = "unknown_confirmation")]
+    pub confirmation: crate::ConfirmationStatus,
     pub id: String,
     pub agent_version: String,
     pub agent_name: String,
@@ -253,6 +257,10 @@ pub struct Observation {
     pub success: bool,
     pub evidence: String,
     pub created_at: String,
+}
+
+fn unknown_confirmation() -> crate::ConfirmationStatus {
+    crate::ConfirmationStatus::Unknown
 }
 
 #[derive(Debug, Clone)]

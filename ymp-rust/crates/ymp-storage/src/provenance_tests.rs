@@ -540,7 +540,51 @@ fn stale_task_decisions_cannot_rewind_attempts_or_overwrite_a_later_state() {
     candidate.state = TaskState::Review;
     candidate.result = Some("attempt-one candidate".into());
     f.store.save_task(&candidate).unwrap();
-    let (mut assignment, invocation) = f.invocation(1);
+    let (producer, production) = f.invocation(1);
+    f.store.begin_invocation(&producer, &production).unwrap();
+    f.store
+        .finish_invocation(
+            &f.session.id,
+            &production.id,
+            InvocationState::Completed,
+            None,
+        )
+        .unwrap();
+    let criteria = vec![AcceptanceCriterion {
+        id: "quality".into(),
+        description: candidate.description.clone(),
+    }];
+    let result = ResultVersion {
+        id: candidate.id.clone(),
+        version: 1,
+        task: Some(TaskAttemptRef::from(&candidate)),
+        summary: candidate.result.clone().unwrap(),
+        criteria_version: content_digest(&serde_json::to_string(&criteria).unwrap()),
+        criteria,
+        contract_id: None,
+        producer_assignment_ids: vec![producer.id.clone()],
+        artifacts: vec![],
+        component_ids: vec![],
+    };
+    f.store
+        .record_decision(&DecisionRecord {
+            id: new_id(),
+            session_id: f.session.id.clone(),
+            kind: "result_submitted".into(),
+            actor: Some("writer".into()),
+            reason: "Actual candidate from the producing invocation".into(),
+            outcome: None,
+            links: RecordLinks {
+                task: result.task.clone(),
+                result: Some(result.clone()),
+                assignment_id: Some(producer.id),
+                invocation_id: Some(production.id),
+                ..Default::default()
+            },
+            created_at: now(),
+        })
+        .unwrap();
+    let (mut assignment, invocation) = f.invocation(2);
     assignment.agent_id = "reviewer".into();
     assignment.purpose = "review".into();
     f.store.begin_invocation(&assignment, &invocation).unwrap();
@@ -552,6 +596,27 @@ fn stale_task_decisions_cannot_rewind_attempts_or_overwrite_a_later_state() {
             None,
         )
         .unwrap();
+    let review_id = new_id();
+    f.store
+        .record_decision(&DecisionRecord {
+            id: review_id.clone(),
+            session_id: f.session.id.clone(),
+            kind: "candidate_review".into(),
+            actor: Some("reviewer".into()),
+            reason: "Independent acceptance without objective confirmation".into(),
+            outcome: Some(DecisionOutcome::Accepted {
+                confirmation: ConfirmationStatus::Unconfirmed,
+            }),
+            links: RecordLinks {
+                task: result.task.clone(),
+                result: Some(result.clone()),
+                assignment_id: Some(assignment.id.clone()),
+                invocation_id: Some(invocation.id.clone()),
+                ..Default::default()
+            },
+            created_at: now(),
+        })
+        .unwrap();
     let mut accepted = candidate.clone();
     accepted.state = TaskState::Accepted;
     accepted.reviewer = Some("reviewer".into());
@@ -562,10 +627,12 @@ fn stale_task_decisions_cannot_rewind_attempts_or_overwrite_a_later_state() {
         actor: Some("reviewer".into()),
         reason: "Acceptance of attempt one".into(),
         outcome: Some(DecisionOutcome::Accepted {
-            confirmation: ConfirmationStatus::Unknown,
+            confirmation: ConfirmationStatus::Unconfirmed,
         }),
         links: RecordLinks {
             task: Some(TaskAttemptRef::from(&accepted)),
+            result: Some(result),
+            review_ids: vec![review_id],
             assignment_id: Some(assignment.id),
             invocation_id: Some(invocation.id),
             ..Default::default()
@@ -584,7 +651,13 @@ fn stale_task_decisions_cannot_rewind_attempts_or_overwrite_a_later_state() {
         current.attempts = attempts;
         current.state = state;
         current.result = Some("current result must survive".into());
-        f.store.save_task(&current).unwrap();
+        // Seed the prior state directly in this storage test, including a
+        // historical acceptance; production save_task cannot accept results.
+        let mut db = f.store.db().unwrap();
+        let tx = db.transaction().unwrap();
+        super::write_task(&tx, &current).unwrap();
+        tx.commit().unwrap();
+        drop(db);
         let before = serde_json::to_value(f.store.trace(&f.session.id).unwrap()).unwrap();
         assert!(
             f.store

@@ -13,3 +13,6 @@ pub use model::*;
 pub use provenance::*;
 pub use reputation::*;
 pub use usage::*;
+
+pub mod confirmation;
+pub use confirmation::*;

@@ -644,6 +644,13 @@ async fn mock_turn(
     } else {
         vec!["test -f greeting.txt && grep -q 'Hello from ymp' greeting.txt"]
     };
+    let split_writers = req.profile.instructions.contains("[mock:split-writers]");
+    let mut plan_tasks = vec![
+        json!({"title":"Create a greeting","description":"Write greeting.txt containing Hello from ymp","competence":"implementation","difficulty":"simple","dependencies":[],"checks":acceptance_checks}),
+    ];
+    if split_writers {
+        plan_tasks.push(json!({"title":"Create another greeting","description":"Inspect and complete the second component","competence":"implementation","difficulty":"simple","dependencies":[0],"checks":[]}));
+    }
     let text=match req.purpose.as_str(){
         "conversation" => {
             if !req.prompt.contains("Original request:") || !req.prompt.contains("Previous outcome:") {
@@ -652,15 +659,15 @@ async fn mock_turn(
             let path = req.cwd.join("greeting.txt");
             json!({"action":"answer","answer":if path.exists() {format!("The file is located at {}",path.display())} else {"The earlier run did not create a file.".into()}}).to_string()
         },
-        "plan"=>json!({"summary":if revise_plan && assignment.starts_with("Revise your plan") {"Revised mock plan"} else {"Create and verify a small deliverable"},"tasks":[{"title":"Create a greeting","description":"Write greeting.txt containing Hello from ymp","competence":"implementation","difficulty":"simple","dependencies":[],"checks":acceptance_checks}]}).to_string(),
+        "plan"=>json!({"summary":if revise_plan && assignment.starts_with("Revise your plan") {"Revised mock plan"} else {"Create and verify a small deliverable"},"tasks":plan_tasks}).to_string(),
         "review_plan"|"review"|"final_review"|"review_memory"=>{
-            if req.profile.instructions.contains(&format!("[mock:reject:{}]",req.purpose)) || (revise_plan && req.purpose == "review_plan" && !assignment.contains("Revised mock plan")) {
+            if (req.profile.instructions.contains("[mock:dispute]") && req.purpose == "review" && assignment.starts_with("Independently inspect")) || req.profile.instructions.contains(&format!("[mock:reject:{}]",req.purpose)) || (revise_plan && req.purpose == "review_plan" && !assignment.contains("Revised mock plan")) {
                 json!({"approved":false,"reason":"The requested result is incomplete."}).to_string()
             } else {
                 json!({"approved":true,"reason":"The stated acceptance criteria are satisfied.","lesson":"Check the produced artifact against the requested content."}).to_string()
             }
         },
-        "bid"=>json!({"willing":true,"approach":"Inspect the task, implement, and verify."}).to_string(),
+        "bid"=>json!({"willing":!split_writers || (assignment.contains("Create another greeting") == (req.profile.id == "two")),"approach":"Inspect the task, implement, and verify."}).to_string(),
         "execute"=>{tokio::fs::write(req.cwd.join("greeting.txt"),if req.profile.instructions.contains("[mock:broken-output]"){ "wrong output\n" }else{"Hello from ymp\n"}).await?;"Created greeting.txt and verified its content.".into()},
         "learn"=>json!({"useful":true,"title":"Verify file-producing tasks","content":"For file-producing tasks, check both existence and requested content. Run the check on the final integrated artifact."}).to_string(),
         _=>"The requested artifact is complete and independently verified.".into(),

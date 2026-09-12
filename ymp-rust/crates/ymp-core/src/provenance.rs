@@ -188,6 +188,14 @@ pub struct RecordLinks {
     pub evidence_ids: Vec<String>,
     #[serde(default)]
     pub plan_proposal: Option<PlanVersion>,
+    #[serde(default)]
+    pub acceptance_contract: Option<crate::CapturedAcceptanceContract>,
+    #[serde(default)]
+    pub result: Option<crate::ResultVersion>,
+    #[serde(default)]
+    pub check: Option<crate::CheckEvidence>,
+    #[serde(default)]
+    pub observation_id: Option<String>,
 }
 
 /// A concise runtime decision with explicit supporting record identities. Future

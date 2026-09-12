@@ -70,7 +70,8 @@ async fn captured_pins_reject_conflicting_overrides_before_invocation_and_surviv
 
 #[tokio::test]
 async fn competence_lookup_and_updates_share_the_original_execution_configuration() {
-    let fixture = RunFixture::new("",false);
+    let mut fixture = RunFixture::new("",false);
+    fixture.engine.acceptance_contracts.push(super::confirmation_tests::exact_contract());
     let outcome = fixture.run().await;
     let trace = fixture.store.trace(&outcome.session.id).unwrap();
     let ctx = settings_context(&fixture,outcome.session).await;
@@ -78,7 +79,7 @@ async fn competence_lookup_and_updates_share_the_original_execution_configuratio
     let agent = ctx.session.team.iter().find(|a|Some(&a.id)==task.assignee.as_ref()).unwrap();
     let producing_version = fixture.engine.observed_version(&ctx,agent,"execute",Some(TaskAttemptRef::from(task))).unwrap().unwrap();
     assert_eq!(fixture.engine.selection_version(&ctx,agent,"execute",Some(&task.id)).unwrap(),producing_version);
-    let observation = fixture.store.observations().unwrap().into_iter().find(|o|o.id==format!("task:{}:{}",task.id,task.attempts)).unwrap();
+    let observation = fixture.store.observations().unwrap().into_iter().find(|o|o.id==format!("result:{}:{}:{}",task.id,task.attempts,agent.id)).unwrap();
     assert_eq!(observation.agent_version,producing_version);
     assert_ne!(producing_version,agent.version(fixture.engine.config.provider(&agent.provider).unwrap()));
     fixture.engine.set_assignment_settings(vec![settings_rule(agent,"review",Some("other-model"),Some("max"))]).unwrap();

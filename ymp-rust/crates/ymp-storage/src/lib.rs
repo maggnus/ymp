@@ -9,6 +9,7 @@ use std::{
 use ymp_core::*;
 mod authority;
 mod budget;
+mod confirmation;
 mod provenance;
 #[cfg(test)]
 mod provenance_tests;
@@ -318,6 +319,11 @@ impl Store {
             .collect())
     }
     pub fn save_task(&self, t: &Task) -> Result<()> {
+        if t.state == TaskState::Accepted {
+            bail!(
+                "Task acceptance requires save_task_with_decision and independent evidence binding"
+            );
+        }
         let mut db = self.db()?;
         let tx = db.transaction()?;
         write_task(&tx, t)?;
@@ -338,6 +344,9 @@ impl Store {
     /// Publish a complete accepted plan atomically. Recovery must never see only
     /// the first half of a dependency graph.
     pub fn save_plan(&self, tasks: &[Task]) -> Result<()> {
+        if tasks.iter().any(|t| t.state == TaskState::Accepted) {
+            bail!("A plan cannot install accepted results");
+        }
         let mut db = self.db()?;
         let tx = db.transaction()?;
         write_plan(&tx, tasks)?;
@@ -368,6 +377,9 @@ impl Store {
             .transpose()
     }
     pub fn observe(&self, o: &Observation) -> Result<bool> {
+        if o.confirmation != ConfirmationStatus::Unknown {
+            bail!("Qualified observations require observe_confirmed");
+        }
         Ok(self.db()?.execute("INSERT OR IGNORE INTO observations(id,agent_version,competence,difficulty,success,data) VALUES (?,?,?,?,?,?)",params![o.id,o.agent_version,o.competence,o.difficulty,o.success,serde_json::to_string(o)?])?==1)
     }
     pub fn reputation(
@@ -377,7 +389,7 @@ impl Store {
         difficulty: &str,
     ) -> Result<Reputation> {
         let db = self.db()?;
-        let mut q=db.prepare("SELECT success FROM observations WHERE agent_version=? AND competence=? AND difficulty=? ORDER BY rowid DESC LIMIT 100")?;
+        let mut q=db.prepare("SELECT o.success FROM observations o WHERE o.agent_version=? AND o.competence=? AND o.difficulty=? AND EXISTS(SELECT 1 FROM decisions d WHERE json_extract(d.data,'$.kind')='reputation_observed' AND json_extract(d.data,'$.links.observation_id')=o.id) ORDER BY o.rowid DESC LIMIT 100")?;
         let values = q
             .query_map(params![version, competence, difficulty], |r| {
                 r.get::<_, bool>(0)
@@ -574,6 +586,7 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let store = Store::open(dir.path()).unwrap();
         let o = Observation {
+            confirmation: ConfirmationStatus::Unknown,
             id: "attempt".into(),
             agent_version: "v".into(),
             agent_name: "a".into(),
@@ -586,11 +599,19 @@ mod tests {
         assert!(store.observe(&o).unwrap());
         assert!(!store.observe(&o).unwrap());
         assert_eq!(
+            store.observations().unwrap()[0].confirmation,
+            ConfirmationStatus::Unknown
+        );
+        let mut historical = serde_json::to_value(&o).unwrap();
+        historical.as_object_mut().unwrap().remove("confirmation");
+        let decoded: Observation = serde_json::from_value(historical).unwrap();
+        assert_eq!(decoded.confirmation, ConfirmationStatus::Unknown);
+        assert_eq!(
             store
                 .reputation("v", "analysis", "simple")
                 .unwrap()
                 .successes,
-            1
+            0 // Legacy observations are inspectable but not evidence-qualified.
         );
         let m = MemoryEntry {
             id: new_id(),
