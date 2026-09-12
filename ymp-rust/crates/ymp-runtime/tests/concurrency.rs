@@ -1,10 +1,13 @@
 //! Public Engine consumer walks. All execution is scripted and offline.
-use anyhow::{bail, Result};
+use anyhow::{bail, ensure, Result};
 use serde_json::json;
 use std::{
     collections::HashMap,
     path::PathBuf,
-    sync::{Arc, Mutex},
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        Arc, Mutex,
+    },
     time::Duration,
 };
 use tokio::sync::{mpsc, Semaphore};
@@ -30,6 +33,7 @@ struct Script {
     started: mpsc::UnboundedSender<String>,
     release: HashMap<String, Arc<Semaphore>>,
     requests: Mutex<Vec<TurnRequest>>,
+    fail_planning: AtomicBool,
 }
 fn label(request: &TurnRequest) -> String {
     request
@@ -87,7 +91,14 @@ impl ExecutionBackend for Script {
         events: mpsc::UnboundedSender<ProviderEvent>,
     ) -> ExecutionFuture<'_> {
         Box::pin(async move {
+            ensure!(
+                request.provider.kind == ProviderKind::Mock,
+                "Only mock execution is allowed"
+            );
             self.requests.lock().unwrap().push(request.clone());
+            if request.purpose == "plan" && self.fail_planning.load(Ordering::SeqCst) {
+                bail!("Scripted later-session planning failure");
+            }
             let text = match request.purpose.as_str() {
                 "plan" => {
                     json!({"summary":"Independent bounded contributions","tasks":self.tasks()})
@@ -168,6 +179,7 @@ fn fixture(mode: Mode) -> Fixture {
             .map(|id| (id.into(), Arc::new(Semaphore::new(0))))
             .collect(),
         requests: Mutex::new(vec![]),
+        fail_planning: AtomicBool::new(false),
     });
     let config = Config {
         providers: vec![ProviderConfig {
@@ -525,6 +537,8 @@ async fn failed_sibling_preserves_completed_work_review_usage_and_restart_inspec
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn independent_probe_two_failed_siblings_keep_eligible_review_reachable() {
     let mut f = fixture(Mode::TwoFailures);
+    f.path = f.path.canonicalize().unwrap();
+    f.engine.use_memory = true;
     f.engine.config.team_constraints = TeamConstraints::default();
     f.engine.config.team = vec!["one".into(), "two".into()];
     f.engine.config.capabilities.insert(
@@ -698,6 +712,134 @@ async fn independent_probe_two_failed_siblings_keep_eligible_review_reachable() 
             .members,
         already_occupied.occupied_agent_ids,
         "An already retained reviewer must not inflate the membership target"
+    );
+    assert_closed(&f, &outcome);
+
+    // The same public run combines occupied-actor review with knowledge retention.
+    // There is no final learning turn or fabricated completion/acceptance record.
+    assert!(trace.assignments.iter().all(|a| a.purpose != "learn"));
+    let acceptance = trace
+        .decisions
+        .iter()
+        .find(|d| d.kind == "task_accepted")
+        .unwrap();
+    let result = acceptance.links.result.as_ref().unwrap();
+    let outcomes = f.store.outcomes(&outcome.session.id).unwrap();
+    assert_eq!(outcomes.len(), 1);
+    assert_eq!(outcomes[0].confirmation, ConfirmationStatus::Confirmed);
+    assert!(outcomes[0].current);
+    assert_eq!(outcomes[0].artifacts[0].path, f.path.join("outputs/A.txt"));
+    let memory = f
+        .store
+        .memory(Some(&outcome.session.project_id), "Contribution")
+        .unwrap()
+        .into_iter()
+        .find(|entry| entry.kind == "outcome")
+        .unwrap();
+    let source = memory.provenance.as_ref().unwrap().source.as_ref().unwrap();
+    assert_eq!(source.acceptance_id, acceptance.id);
+    assert_eq!(source.result_id, result.id);
+    assert_eq!(source.result_version, result.version);
+    assert_eq!(source.confirmation_ids, acceptance.links.confirmation_ids);
+    assert_eq!(memory.author, *completed.assignee.as_ref().unwrap());
+    assert!(memory.content.contains("Contribution A"));
+    let observations = f.store.observations().unwrap();
+    assert_eq!(
+        observations.len(),
+        1,
+        "Failed siblings must not gain supported credit"
+    );
+    assert_eq!(observations[0].evidence, acceptance.id);
+    assert_eq!(
+        observations[0].id,
+        format!("result:{}:{}:{}", result.id, result.version, memory.author)
+    );
+
+    let reopened = Store::open(&f.store.home).unwrap();
+    assert!(reopened
+        .memory(Some(&outcome.session.project_id), "Contribution")
+        .unwrap()
+        .iter()
+        .any(|entry| entry.id == memory.id));
+    let (events, _) = mpsc::unbounded_channel();
+    let mut later_engine = Engine::new(
+        reopened.clone(),
+        f.engine.config.clone(),
+        events,
+        CancellationToken::new(),
+    )
+    .unwrap()
+    .with_execution_backend(f.script.clone())
+    .unwrap();
+    later_engine.use_memory = true;
+    f.script.fail_planning.store(true, Ordering::SeqCst);
+    let later = later_engine
+        .run(&f.path, "Find Contribution content", None)
+        .await
+        .unwrap();
+    assert_ne!(later.session.id, outcome.session.id);
+    assert_eq!(later.session.status, "blocked");
+    let later_trace = reopened.trace(&later.session.id).unwrap();
+    assert!(later_trace
+        .history
+        .iter()
+        .any(|event| event.kind == "memory_retrieval"
+            && event.data["entries"]
+                .as_array()
+                .is_some_and(
+                    |entries| entries.iter().any(|entry| entry["id"] == memory.id
+                        && entry["source_session"] == outcome.session.id
+                        && entry["version"]
+                            == content_digest(&serde_json::to_string(&memory).unwrap()))
+                )));
+    assert!(
+        f.script
+            .requests
+            .lock()
+            .unwrap()
+            .last()
+            .unwrap()
+            .prompt
+            .contains("Contribution A"),
+        "A later public session must receive the captured supported excerpt"
+    );
+
+    let relocated = f._temp.path().join("relocated-empty");
+    std::fs::create_dir(&relocated).unwrap();
+    reopened
+        .relocate_project(&outcome.session.project_id, &relocated)
+        .unwrap();
+    assert_eq!(reopened.outcomes(&outcome.session.id).unwrap(), outcomes);
+    let mut before = reopened.trace(&outcome.session.id).unwrap();
+    before.history.clear(); // Conversation messages may be appended without inference.
+    let requests = f.script.requests.lock().unwrap().len();
+    let answer = later_engine
+        .follow_up(&relocated, "Where did you save it?", &outcome.session.id)
+        .await
+        .unwrap();
+    assert_eq!(answer.workspace, f.path);
+    assert!(answer
+        .summary
+        .contains(&f.path.join("outputs/A.txt").display().to_string()));
+    assert!(!answer
+        .summary
+        .contains(&relocated.join("outputs/A.txt").display().to_string()));
+    assert_eq!(reopened.outcomes(&outcome.session.id).unwrap(), outcomes);
+    let mut after = reopened.trace(&outcome.session.id).unwrap();
+    after.history.clear();
+    assert!(
+        serde_json::to_value(after).unwrap() == serde_json::to_value(before).unwrap(),
+        "Location-only follow-up must preserve tasks, assignments, invocations, decisions and spend"
+    );
+    assert_eq!(f.script.requests.lock().unwrap().len(), requests);
+    assert_eq!(
+        std::fs::read(f.path.join("outputs/A.txt")).unwrap(),
+        b"Contribution A"
+    );
+    assert_eq!(std::fs::read_dir(&relocated).unwrap().count(), 0);
+    assert_eq!(
+        serde_json::to_value(reopened.observations().unwrap()).unwrap(),
+        serde_json::to_value(observations).unwrap()
     );
     assert_closed(&f, &outcome);
 }

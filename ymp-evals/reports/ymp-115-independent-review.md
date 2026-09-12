@@ -134,3 +134,42 @@ Minor documentation residue: `ymp-docs/architecture/allocation-implementation.md
 No real-provider quality, native narrow-path sandbox, multi-process nested-root containment, production publication, recovery of external side effects, or UI experience claim is established. A direct MVP workspace cannot promise rollback. Only this English report was written in the candidate; intent, task registry and source were left unchanged.
 
 Round ledger: 13/09 00:19 HKT — `R1(5/10) RETURN`: two failed occupied actors plus a distinct viable reviewer exceed the heuristic target despite a larger actual ceiling; public probe fails, disposable sizing correction passes; production correction remains required.
+
+
+## R2 — F1 closed
+
+13/09 00:35 HKT — **ACCEPT R2(9/10)** for corrected candidate `ecf12787043861964dc18ef47d9d397cf94c9c41`. Code 9/10; evidence 9/10; public Engine experience 9/10. No contracted defect remains open in this bounded correction. The R1 report above is preserved verbatim; its SHA-256 before this appendix was `13ca6f34411f1a8facd8933e772addf03f99b14583f2c13b471650bb7f30af44`.
+
+The complete correction from `32624efd0b666e442068601c0828aeb174735542` was inspected: the twelve-line allocation change, separate `TwoFailures` fixture and regression assertions, both implementation-note updates, correction report and evidence JSON. Runtime/storage admission, occupied-actor derivation, final-review validation, native adapters, workspace coordination, grants and UI code are unchanged. The earlier allocation-policy version mismatch is corrected to version 2.
+
+`required_members` now counts retained occupied identities plus the selected identity only when distinct. Actual member and eligible-pool ceilings still cap the target; fixed roster/size handling and downstream runtime/storage validation still apply. This supplies the third member needed to review A without discarding B/C's unresolved responsibilities or enlarging a captured constraint.
+
+The retained public consumer observes all three production barriers, completes B/C failures before releasing A, and then establishes:
+
+- A is accepted with exact-byte confirmation and its requested file retained in the same run.
+- Both sibling invocations remain failed, their task responsibilities remain unresolved, and the run remains blocked for the actual scripted failure.
+- Both occupied actors remain in the committed review membership; the distinct fourth identity receives the independent review assignment using the permitted inherited model setting.
+- The recorded 14 input tokens and two partial calls remain; review uses available budget, with no budget denial.
+- All invocations and grants close, and workspace acquisition/release counts balance.
+- The same captured input rejects an actual `max_members=2` or `fixed_size=2`; selecting an already occupied reviewer does not add a member.
+
+The original one-failure/restart fixture retains its two tasks and was exercised again. Ordinary default-policy read-only overlap, scoped and whole-directory exclusion, unsupported scope rejection, public read-only authority protection, cancellation before admission and inspection without uncertain replay also remain covered by the ten-test consumer suite.
+
+### Independent R2 commands and failing control
+
+| Command/source | Actual exit and result |
+| --- | --- |
+| `cargo test -p ymp-runtime --test concurrency -- --nocapture` on exact corrected candidate | **0**, all 10 tests passed |
+| `cargo test -p ymp-runtime --test concurrency independent_probe_two_failed_siblings_keep_eligible_review_reachable -- --nocapture` in disposable exact candidate with only original allocation source restored | **101**, A remained `Review` instead of `Accepted` |
+| Identical command and test bytes after restoring corrected allocation source | **0**, A accepted and the original sibling failure retained |
+| Working-tree comparison against exact HEAD for `Cargo.toml`, `Cargo.lock`, `ymp-rust`, and `ymp-bridges` | **0** for each; no source changes during review |
+
+The same regression bytes were used for both independent failing and passing runs: SHA-256 `b97139dae556ac86c0833e0bd37a047e599d80dcb074ec83a29b089ea9ff11d1`. The original allocation source hash was `4ca035ea313b1e019c5662070ae1d44c8b36ee870d5d5af8f636876d7cee2883`; the corrected hash was `ccf094b921c8aff197c565845590a01299e307d8058de607ad6195fd56c00848`. These independently match the final author control and current candidate files. The earlier compiler/assertion construction failures are labeled accurately in the author's evidence and are not relied on as behavioral falsifiers.
+
+Independent logs and `results.json` are in `/var/folders/cw/7pn8sb3x6bj69g7j2d8f_ss00000gn/T/ymp115-r2-independent-t28qk8h4`. Its corrected source was restored after the control; candidate source was never mutated.
+
+The exact-source required-check evidence in `ymp-docs/research/evidence/ymp115-r1-correction-checks.json` records `cargo fmt --all --check` **0**, `cargo clippy --workspace --all-targets -- -D warnings` **0**, and `cargo test --workspace` **0**, with 268 tests. Source/test hashes and the bounded diff were checked; these unchanged full checks were reused rather than rerun in R2. The unchanged bridge likewise retains R1's independent type check and 13 passing scripted SDK transport tests, plus its prior offline execution-purpose authority checks. No bridge or provider inference check was repeated or needed for this membership-only correction.
+
+This acceptance applies to the stated isolated candidate. It does not claim verification of the later combined integration with main `5834e7f`. The direct-directory MVP limitations and deferred YMP-124 production work remain exactly as in R1. All R2 workloads were offline mock/scripted; no credentials, source, main, intent, task registry or UI were edited, and no commit was made. Only this appendix was written.
+
+Round ledger: 13/09 00:35 HKT — `R2(9/10) ACCEPT`: F1 answered by counting a distinct selected reviewer alongside retained actors; the identical public test fails under old sizing and passes corrected; actual ceilings, accounting, grants and resource scope remain intact.

@@ -267,6 +267,51 @@ async fn membership_changes_preserve_supported_knowledge_and_original_locations(
         .clone()
         .with_allocation_policy(Arc::new(ReplaceMembers(members.clone())))
         .unwrap();
+    // The producer still owns its failed second task. The combined runtime
+    // must retain that responsibility until real recovery inspection completes.
+    let denied = replacement
+        .reconsider_allocation(
+            &source.session.id,
+            AllocationBoundary::ResultAvailable,
+            idle(),
+        )
+        .unwrap_err();
+    assert!(denied.to_string().contains("active_responsibility"));
+    assert_eq!(
+        store.team_state(&source.session.id).unwrap(),
+        before.team_state
+    );
+    assert_eq!(
+        store.session_usage(&source.session.id).unwrap(),
+        before.usage
+    );
+    let recovered = engine
+        .run(
+            &directory,
+            "Inspect interrupted work",
+            Some(&source.session.id),
+        )
+        .await
+        .unwrap();
+    assert_eq!(
+        recovered.session.status, "completed",
+        "{}",
+        recovered.summary
+    );
+    let before = store.trace(&source.session.id).unwrap();
+    assert_eq!(
+        before
+            .assignments
+            .iter()
+            .filter(|a| a.purpose == "execute")
+            .count(),
+        2,
+        "Recovery must inspect uncertain work without replaying production"
+    );
+    assert!(before
+        .tasks
+        .iter()
+        .any(|task| task.interrupted && task.state == TaskState::Accepted));
     replacement
         .reconsider_allocation(
             &source.session.id,
@@ -293,7 +338,12 @@ async fn membership_changes_preserve_supported_knowledge_and_original_locations(
         .unwrap()
         .contains(&producer));
     let outcome = store.outcomes(&source.session.id).unwrap();
-    assert_eq!(outcome[0].artifacts[0].path, directory.join("greeting.txt"));
+    let confirmed = outcome
+        .iter()
+        .find(|item| item.acceptance_id == accepted.id)
+        .unwrap();
+    assert_eq!(confirmed.artifacts[0].path, directory.join("greeting.txt"));
+    assert_eq!(confirmed.confirmation, ConfirmationStatus::Confirmed);
     let memory = store
         .memory(Some(&source.session.project_id), "greeting")
         .unwrap()
