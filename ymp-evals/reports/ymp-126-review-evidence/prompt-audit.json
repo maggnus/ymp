@@ -1,0 +1,16 @@
+{
+  "prompt_count": 50,
+  "characters": 183984,
+  "files": [
+    "document/native.json",
+    "grounded/native.json",
+    "knowledge-correction/native.json",
+    "location-retrieval/native.json",
+    "qualitative/native.json",
+    "restart-inspection/native.json",
+    "restart-inspection/recovery-native.json",
+    "transform/native.json"
+  ],
+  "all_declared_prompt_digests_match": true,
+  "reference_or_expected_trace_in_prompt": false
+}

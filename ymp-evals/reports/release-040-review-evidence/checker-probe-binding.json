@@ -1,0 +1,6 @@
+{
+  "release_source": "c3758aa6fc6fba620c9b703a9dab1acd623066a1",
+  "original_probe_source_sha256": "0adb00cc79ab3d18695fa35a7a1f8943836da8b21f8696084172b9a626094313",
+  "copied_probe_source_sha256": "0adb00cc79ab3d18695fa35a7a1f8943836da8b21f8696084172b9a626094313",
+  "changed_files": "Only path dependencies and five corresponding workspace package versions in the probe lockfile; workload and assertions unchanged."
+}

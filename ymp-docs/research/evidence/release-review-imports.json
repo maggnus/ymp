@@ -1,0 +1,18 @@
+[
+  {
+    "original_report": "/tmp/ymp126-max-review/YMP-126-independent-max-review.md",
+    "original_sha256": "0e73357a536797479f0125fd2b6fd0060c5a40c2deb711cd42bcb6c028f8962d",
+    "repository_report": "ymp-evals/reports/ymp-126-independent-max-review.md",
+    "repository_sha256": "17924660b1214fcd9f90aa21bd53a4e4f59d64f941d39e7e606fdc30754a48dc",
+    "only_report_change": "Relative evidence link targets updated; copied evidence bytes are identical",
+    "evidence_directory": "ymp-evals/reports/ymp-126-review-evidence"
+  },
+  {
+    "original_report": "/tmp/ymp040-max-review/YMP-121-independent-max-review.md",
+    "original_sha256": "afe696719a9638e5d2d594e281f7fb8424921c60c54aa57b4523561a77c93e58",
+    "repository_report": "ymp-evals/reports/ymp-121-independent-max-review.md",
+    "repository_sha256": "27200f7b3ad9d8bfe14619e53c7929b3afb48bb8b7d5b865ffa335ef3563ffb4",
+    "only_report_change": "Relative evidence link targets updated; copied evidence bytes are identical",
+    "evidence_directory": "ymp-evals/reports/release-040-review-evidence"
+  }
+]

@@ -1,0 +1,17 @@
+    Finished `test` profile [unoptimized] target(s) in 0.20s
+     Running tests/native_catalog.rs (target/debug/deps/native_catalog-9b7a38f5c819f329)
+
+running 10 tests
+test simultaneous_scans_are_serialized_and_edits_during_discovery_are_preserved ... ok
+test failed_initial_and_bounded_scans_leave_explicit_unresolved_state ... ok
+test init_upgrades_existing_generated_placeholders_and_keeps_disabled_custom_actors ... ok
+test executable_claude_sdk_scan_preserves_native_alias_names_and_selects_offerings ... ok
+test first_scan_preserves_fixed_model_policy_qualified_experience ... ok
+test first_scan_preserves_defaulted_model_policy_qualified_experience ... ok
+test effective_overrides_use_native_aliases_and_unknown_claims_never_become_native ... ok
+test executable_runtime_captures_the_effective_native_assignment_identity ... ok
+test executable_scan_populates_native_names_and_selection_without_enrolling_the_catalog ... ok
+test repeat_change_and_partial_failure_preserve_actor_pins_custom_profiles_and_history ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 13.03s
+

@@ -1,0 +1,47 @@
+{
+  "at": "2026-09-12T23:14:41.842779+00:00",
+  "scope": "Packaging preflight of current source; final release version and final-source checks are still pending.",
+  "source": "c3758aa6fc6fba620c9b703a9dab1acd623066a1",
+  "version": "ymp 0.4.0",
+  "run_directory": "/var/folders/cw/7pn8sb3x6bj69g7j2d8f_ss00000gn/T/ymp-install-preflight-fcz46ozc",
+  "checks": [
+    {
+      "name": "install",
+      "exit": 0,
+      "log": "/var/folders/cw/7pn8sb3x6bj69g7j2d8f_ss00000gn/T/ymp-install-preflight-fcz46ozc/install.log",
+      "sha256": "1970bad6d93c526a861dacceba37cac302070498657df67e942965cbadfd5d01"
+    },
+    {
+      "name": "version",
+      "exit": 0,
+      "log": "/var/folders/cw/7pn8sb3x6bj69g7j2d8f_ss00000gn/T/ymp-install-preflight-fcz46ozc/version.log",
+      "sha256": "201cbae19a703244b3905110df904e5de410f9442c757b17b8e3886a901c143e"
+    },
+    {
+      "name": "help",
+      "exit": 0,
+      "log": "/var/folders/cw/7pn8sb3x6bj69g7j2d8f_ss00000gn/T/ymp-install-preflight-fcz46ozc/help.log",
+      "sha256": "c4f474311cf06896a02e65c29cd7aef214e3752a997ea8baa007a604b0a4257a"
+    },
+    {
+      "name": "demo",
+      "exit": 0,
+      "log": "/var/folders/cw/7pn8sb3x6bj69g7j2d8f_ss00000gn/T/ymp-install-preflight-fcz46ozc/demo.log",
+      "sha256": "8b861edbcf1ce3de797c8d09136953a4b4a178e4639e38e5c454f337452ff4e4"
+    },
+    {
+      "name": "repeat-install",
+      "exit": 0,
+      "log": "/var/folders/cw/7pn8sb3x6bj69g7j2d8f_ss00000gn/T/ymp-install-preflight-fcz46ozc/repeat-install.log",
+      "sha256": "7ef8e1c9cc93059f34cbef711d343da9f83d95efbaae3276287e5d8f86507269"
+    }
+  ],
+  "regular_file_backup_preserved": true,
+  "repeat_install_preserved_backup": true,
+  "selected_directory_contains_demo_artifact": true,
+  "metadata_contains_no_demo_artifact": true,
+  "owner_installation_unchanged": true,
+  "native_inference_calls": 0,
+  "binary_sha256": "3595d2b5dce3d59604533c8c03c660b8355d4a0a8ff75fe89ac5f41c468f2b2e",
+  "bridge_sha256": "002c8b154f8b5b9b8b2f2bf67ca02cff25dc8dcee3d994ae798f3b46753f3165"
+}

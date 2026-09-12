@@ -1,0 +1,11 @@
+--- a/ymp-evals/driver/artifact_writer.py
++++ b/ymp-evals/driver/artifact_writer.py
+@@ -16,7 +16,7 @@
+     output.mkdir(exist_ok=True)
+     if case == "document":
+         data = json.loads((root / "inputs/document.json").read_text())
+-        agenda = ["# " + data["title"], "", "Date: " + data["date"],
++        agenda = ["# " + "Incorrect adversarial title", "", "Date: " + data["date"],
+                   "Location: " + data["location"], "", "| Time | Activity | Owner |",
+                   "| --- | --- | --- |"]
+         for item in data["items"]:

@@ -1,0 +1,74 @@
+{
+  "source": "c3758aa6fc6fba620c9b703a9dab1acd623066a1",
+  "verified_source_files": 158,
+  "checks": [
+    {
+      "step": "fmt",
+      "exit": 0,
+      "seconds": 0.58,
+      "log": "/tmp/ymp040-final-checks/fmt.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "step": "clippy",
+      "exit": 0,
+      "seconds": 53.64,
+      "log": "/tmp/ymp040-final-checks/clippy.log",
+      "sha256": "21e379a6aa4ae15eeb7290c22bdb8dab1f5ef319f0ff10104018b25634ba9ea9"
+    },
+    {
+      "step": "workspace",
+      "exit": 0,
+      "seconds": 114.54,
+      "log": "/tmp/ymp040-final-checks/workspace.log",
+      "sha256": "d79ab4034dd6fed0626105a590019a87f3742302dfc5969995c808f6480b4e09",
+      "test_totals": [
+        419,
+        0,
+        2
+      ]
+    },
+    {
+      "step": "bridge-install",
+      "exit": 0,
+      "seconds": 1.95,
+      "log": "/tmp/ymp040-final-checks/bridge-install.log",
+      "sha256": "2bd15434e08cefaf716515eabac088d4e2c5ee7ac5c5d25118891d329b9accd2"
+    },
+    {
+      "step": "bridge-check",
+      "exit": 0,
+      "seconds": 0.89,
+      "log": "/tmp/ymp040-final-checks/bridge-check.log",
+      "sha256": "0e2731dd88a26e6fefd98927034c2fd0548d7965a615ebf520215e01e8a19303"
+    },
+    {
+      "step": "bridge-test",
+      "exit": 0,
+      "seconds": 3.16,
+      "log": "/tmp/ymp040-final-checks/bridge-test.log",
+      "sha256": "7463d79a6c0f08c0bdb2136e5a16b39451d64f46bea71ffb3e6035bb69001dd8"
+    },
+    {
+      "step": "bridge-build",
+      "exit": 0,
+      "seconds": 0.6,
+      "log": "/tmp/ymp040-final-checks/bridge-build.log",
+      "sha256": "7fed0dfdc721af25a17c124197ff65c4bc2c53d187206d86798d24abdaac8537"
+    },
+    {
+      "step": "native-fixtures",
+      "exit": 0,
+      "seconds": 13.29,
+      "log": "/tmp/ymp040-final-checks/native-fixtures.log",
+      "sha256": "27ee9d859f013f9185f162522704f5d8156c4168a8db6527414c0c772d3402ef"
+    },
+    {
+      "step": "release-build",
+      "exit": 0,
+      "seconds": 122.29,
+      "log": "/tmp/ymp040-final-checks/release-build.log",
+      "sha256": "d659ab58cc920360adc7675c91a78154114a91c68e4606a76ca0640bf8a2da3c"
+    }
+  ]
+}

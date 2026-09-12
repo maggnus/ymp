@@ -1,0 +1,9 @@
+{
+  "ymp-evals/mcp/stdio_client.py": "4ee0069c216e82d7a84b9cfc0b6202ff2029a8616e1847f07c460e7e35c7dff1",
+  "ymp-evals/mcp/requirements.txt": "59f9f112b90ea7b1a4ec255972de0a673f3aecbb93a8f924cac1a8fe1f5e184f",
+  "ymp-evals/validators/universal.py": "cf050b78d847bbd7f5386c1336d2cef43f089f2b5082ebb54408e4b61e1e1bf1",
+  "ymp-scripts/install.sh": "cfb9198fd9fbcb94cdc54379c2ffd7f51b38c7eb89afc08a6a44bed428cf3c74",
+  "ymp-docs/releases/0.4.0.md": "c4da7f144c8b3a6907de45e178f7bd6a6f3a487d07840e5290b4bdb308dd9147",
+  "ymp-docs/guides/release-verification.md": "c086d98ed42e983162c33a2d4338330b900a6711ddaf292284b39b9ef3c476e8",
+  "intent.md": "4479e919c5b47934e69e81ac493d16e90a0dc420a9a370382e79bca3f3c754d9"
+}

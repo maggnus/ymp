@@ -1,0 +1,5 @@
+{
+  "returncode": 1,
+  "stderr": "Error: Evaluation fixtures/checkers differ from the compiled build; rebuild before running\n",
+  "any_case_started": false
+}

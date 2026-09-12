@@ -1,0 +1,27 @@
+{
+  "source": "baf85540e3130227c1a4942fd17301bd039b7996",
+  "installed_at": "2026-09-12T23:40:12.912127+00:00",
+  "installed_command": "/Users/maggnus/.local/bin/ymp",
+  "resolved_binary": "/Users/maggnus/Code/ymp2/target/release/ymp",
+  "binary_sha256": "cc8ed8a755b9778a2cfcad6460880730167e0dd39ce075543ddad25cb4278f14",
+  "driver_sha256": "37372dad0628e5e561a8b8c32e139b9df858203c8eb25cb84f611c27b16d0204",
+  "default_bridge": "/Users/maggnus/Code/ymp2/ymp-bridges/claude/dist/index.js",
+  "bridge_sha256": "002c8b154f8b5b9b8b2f2bf67ca02cff25dc8dcee3d994ae798f3b46753f3165",
+  "independent_version_output": "ymp 0.4.0",
+  "independent_installed_target_and_hash_match": true,
+  "all158_accepted_source_hashes_unchanged": true,
+  "backup": "/Users/maggnus/.ymp2/backups/release-0.4.0-20260912T234012Z",
+  "backup_binary_sha256": "9490cc05a74e0f7544316de5ceeeeeabc53e5ca4cc098f9a9208c16567af6849",
+  "post_install_demo_artifact_bytes": "Hello from ymp\n",
+  "post_install_demo_runtime_invocations": 8,
+  "post_install_demo_providers": [
+    "demo"
+  ],
+  "post_install_sqlite_integrity": "ok",
+  "native_inference_calls": 0,
+  "post_install_log_hashes": {
+    "version": "201cbae19a703244b3905110df904e5de410f9442c757b17b8e3886a901c143e",
+    "help": "c4f474311cf06896a02e65c29cd7aef214e3752a997ea8baa007a604b0a4257a",
+    "demo": "952d6297775f60cdbd4c5d33bc2829a35bb9c815519c5a8c582e1fba094374a4"
+  }
+}

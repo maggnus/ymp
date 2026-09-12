@@ -1,0 +1,55 @@
+   Compiling libc v0.2.189
+   Compiling syn v3.0.5
+   Compiling getrandom v0.2.17
+   Compiling rand_core v0.6.4
+   Compiling errno v0.3.14
+   Compiling serde_derive v1.0.229
+   Compiling rand_chacha v0.3.1
+   Compiling getrandom v0.4.3
+   Compiling rand v0.8.8
+   Compiling parking_lot_core v0.9.12
+   Compiling cpufeatures v0.2.17
+   Compiling sha2 v0.10.9
+   Compiling parking_lot v0.12.5
+   Compiling rand_distr v0.4.3
+   Compiling serde v1.0.229
+   Compiling uuid v1.26.1
+   Compiling signal-hook-registry v1.4.8
+   Compiling tokio-macros v2.7.2
+   Compiling mio v1.2.3
+   Compiling socket2 v0.6.5
+   Compiling serde_spanned v0.6.9
+   Compiling toml_datetime v0.6.11
+   Compiling toml_edit v0.22.27
+   Compiling chrono v0.4.45
+   Compiling fs2 v0.4.3
+   Compiling toml v0.8.23
+   Compiling tokio v1.53.1
+   Compiling ymp-core v0.3.0 (/private/tmp/ymp126-max-review/ymp-rust/crates/ymp-core)
+   Compiling futures-macro v0.3.34
+   Compiling rustix v1.1.4
+   Compiling futures-util v0.3.34
+   Compiling tempfile v3.27.0
+   Compiling async-trait v0.1.92
+   Compiling clap_derive v4.6.4
+   Compiling tokio-util v0.7.19
+   Compiling ymp-providers v0.3.0 (/private/tmp/ymp126-max-review/ymp-rust/crates/ymp-providers)
+   Compiling ymp-workspace v0.3.0 (/private/tmp/ymp126-max-review/ymp-rust/crates/ymp-workspace)
+   Compiling ymp-storage v0.3.0 (/private/tmp/ymp126-max-review/ymp-rust/crates/ymp-storage)
+   Compiling clap v4.6.6
+   Compiling ymp-runtime v0.3.0 (/private/tmp/ymp126-max-review/ymp-rust/crates/ymp-runtime)
+   Compiling ymp-eval-driver v0.3.0 (/private/tmp/ymp126-max-review/ymp-rust/crates/ymp-eval-driver)
+    Finished `test` profile [unoptimized] target(s) in 15.51s
+     Running unittests src/main.rs (/tmp/ymp126-max-review-target/debug/deps/ymp_eval_driver-265aada83cfc9c30)
+
+running 7 tests
+test driver_controls::qualitative_rubric_rejects_well_formatted_unrelated_content ... ok
+test driver_controls::actual_workflow_export_rejects_missing_acceptance_and_retains_extra_usage_and_credit ... ok
+test export::tests::build_binding_rejects_source_and_checker_drift_and_unknown_backends_stay_unknown ... ok
+test export::tests::effort_projection_preserves_extra_early_unattributed_and_duplicate_runtime_events ... ok
+test export::tests::location_projection_preserves_extra_answers_outcomes_and_query_results ... ok
+test driver_controls::actual_knowledge_export_retains_duplicates_order_and_rejects_missing_sources ... ok
+test export::tests::partial_projection_uses_causal_sequence_and_maps_the_guarantee_read ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 10.80s
+

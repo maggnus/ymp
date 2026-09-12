@@ -1,0 +1,2378 @@
+{
+  "schema_version": 1,
+  "source": "c3758aa6fc6fba620c9b703a9dab1acd623066a1",
+  "draft": false,
+  "requirements": [
+    {
+      "requirement": "YMP-101.1",
+      "task": "YMP-101",
+      "criterion": "Incrementally record goal constraints, participants, task commitments, plan revisions, chosen executors/models/effort and concise decision reasons with evidence links.",
+      "source": "c3758aa6fc6fba620c9b703a9dab1acd623066a1",
+      "evidence": [
+        "ymp-rust/crates/ymp-storage/src/provenance.rs",
+        "ymp-rust/crates/ymp-storage/src/provenance_tests.rs",
+        "ymp-rust/crates/ymp-runtime/src/engine.rs",
+        "All universal runtime.json journals"
+      ],
+      "status": "satisfied_on_accepted_source",
+      "final_checks": "Durable main preserves all158 accepted source files and passes419 workspace tests, native10, all17 scenarios, official SDK, version/help/demo; bridge14 candidate tests/modules preserved."
+    },
+    {
+      "requirement": "YMP-101.2",
+      "task": "YMP-101",
+      "criterion": "Link assignment IDs, grants, attempts, review decisions and confirmation evidence. Preserve accepted-but-unconfirmed outcomes distinctly from confirmed work, rejection and missing evidence.",
+      "source": "c3758aa6fc6fba620c9b703a9dab1acd623066a1",
+      "evidence": [
+        "ymp-rust/crates/ymp-storage/src/provenance.rs",
+        "ymp-rust/crates/ymp-storage/src/provenance_tests.rs",
+        "ymp-rust/crates/ymp-runtime/src/engine.rs",
+        "All universal runtime.json journals"
+      ],
+      "status": "satisfied_on_accepted_source",
+      "final_checks": "Durable main preserves all158 accepted source files and passes419 workspace tests, native10, all17 scenarios, official SDK, version/help/demo; bridge14 candidate tests/modules preserved."
+    },
+    {
+      "requirement": "YMP-101.3",
+      "task": "YMP-101",
+      "criterion": "Retain canonical usage and coverage, requested/reported execution settings and native versions when available.",
+      "source": "c3758aa6fc6fba620c9b703a9dab1acd623066a1",
+      "evidence": [
+        "ymp-rust/crates/ymp-storage/src/provenance.rs",
+        "ymp-rust/crates/ymp-storage/src/provenance_tests.rs",
+        "ymp-rust/crates/ymp-runtime/src/engine.rs",
+        "All universal runtime.json journals"
+      ],
+      "status": "satisfied_on_accepted_source",
+      "final_checks": "Durable main preserves all158 accepted source files and passes419 workspace tests, native10, all17 scenarios, official SDK, version/help/demo; bridge14 candidate tests/modules preserved."
+    },
+    {
+      "requirement": "YMP-101.4",
+      "task": "YMP-101",
+      "criterion": "Provide structured state/history exports consumed by TUI and headless clients; UI presentation is tracked in YMP-118. Do not expose private reasoning traces.",
+      "source": "c3758aa6fc6fba620c9b703a9dab1acd623066a1",
+      "evidence": [
+        "ymp-rust/crates/ymp-storage/src/provenance.rs",
+        "ymp-rust/crates/ymp-storage/src/provenance_tests.rs",
+        "ymp-rust/crates/ymp-runtime/src/engine.rs",
+        "All universal runtime.json journals"
+      ],
+      "status": "satisfied_on_accepted_source",
+      "final_checks": "Durable main preserves all158 accepted source files and passes419 workspace tests, native10, all17 scenarios, official SDK, version/help/demo; bridge14 candidate tests/modules preserved."
+    },
+    {
+      "requirement": "YMP-101.5",
+      "task": "YMP-101",
+      "criterion": "Include evaluation provenance when applicable, while keeping normal task solving the primary workflow.",
+      "source": "c3758aa6fc6fba620c9b703a9dab1acd623066a1",
+      "evidence": [
+        "ymp-rust/crates/ymp-storage/src/provenance.rs",
+        "ymp-rust/crates/ymp-storage/src/provenance_tests.rs",
+        "ymp-rust/crates/ymp-runtime/src/engine.rs",
+        "All universal runtime.json journals"
+      ],
+      "status": "satisfied_on_accepted_source",
+      "final_checks": "Durable main preserves all158 accepted source files and passes419 workspace tests, native10, all17 scenarios, official SDK, version/help/demo; bridge14 candidate tests/modules preserved."
+    },
+    {
+      "requirement": "YMP-102.1",
+      "task": "YMP-102",
+      "criterion": "Start with clearly named supported resource limits, simple session counters and in-flight reservations. Report observed token coverage; currency estimates and a general accounting framework are outside this task.",
+      "source": "c3758aa6fc6fba620c9b703a9dab1acd623066a1",
+      "evidence": [
+        "ymp-rust/crates/ymp-storage/src/budget.rs",
+        "ymp-rust/crates/ymp-runtime/src/engine/allocation.rs",
+        "ymp-docs/architecture/session-resource-budgets.md",
+        "budget-reservations/partial-usage/restart-inspection actual scenarios"
+      ],
+      "status": "satisfied_on_accepted_source",
+      "final_checks": "Durable main preserves all158 accepted source files and passes419 workspace tests, native10, all17 scenarios, official SDK, version/help/demo; bridge14 candidate tests/modules preserved."
+    },
+    {
+      "requirement": "YMP-102.2",
+      "task": "YMP-102",
+      "criterion": "Record bounded initial work and a protected verification allowance. Account for native internal loops and context costs; low effort alone is not a spending limit.",
+      "source": "c3758aa6fc6fba620c9b703a9dab1acd623066a1",
+      "evidence": [
+        "ymp-rust/crates/ymp-storage/src/budget.rs",
+        "ymp-rust/crates/ymp-runtime/src/engine/allocation.rs",
+        "ymp-docs/architecture/session-resource-budgets.md",
+        "budget-reservations/partial-usage/restart-inspection actual scenarios"
+      ],
+      "status": "satisfied_on_accepted_source",
+      "final_checks": "Durable main preserves all158 accepted source files and passes419 workspace tests, native10, all17 scenarios, official SDK, version/help/demo; bridge14 candidate tests/modules preserved."
+    },
+    {
+      "requirement": "YMP-102.3",
+      "task": "YMP-102",
+      "criterion": "Account for concurrent in-flight work and preserve usage when stopping; prevent further admission after exhaustion.",
+      "source": "c3758aa6fc6fba620c9b703a9dab1acd623066a1",
+      "evidence": [
+        "ymp-rust/crates/ymp-storage/src/budget.rs",
+        "ymp-rust/crates/ymp-runtime/src/engine/allocation.rs",
+        "ymp-docs/architecture/session-resource-budgets.md",
+        "budget-reservations/partial-usage/restart-inspection actual scenarios"
+      ],
+      "status": "satisfied_on_accepted_source",
+      "final_checks": "Durable main preserves all158 accepted source files and passes419 workspace tests, native10, all17 scenarios, official SDK, version/help/demo; bridge14 candidate tests/modules preserved."
+    },
+    {
+      "requirement": "YMP-102.4",
+      "task": "YMP-102",
+      "criterion": "Reserve resources atomically across concurrent admissions; stopping, replacing participants or reassigning tasks does not reset spend or attempt history.",
+      "source": "c3758aa6fc6fba620c9b703a9dab1acd623066a1",
+      "evidence": [
+        "ymp-rust/crates/ymp-storage/src/budget.rs",
+        "ymp-rust/crates/ymp-runtime/src/engine/allocation.rs",
+        "ymp-docs/architecture/session-resource-budgets.md",
+        "budget-reservations/partial-usage/restart-inspection actual scenarios"
+      ],
+      "status": "satisfied_on_accepted_source",
+      "final_checks": "Durable main preserves all158 accepted source files and passes419 workspace tests, native10, all17 scenarios, official SDK, version/help/demo; bridge14 candidate tests/modules preserved."
+    },
+    {
+      "requirement": "YMP-102.5",
+      "task": "YMP-102",
+      "criterion": "Document and test the overshoot bound or limitation. Refuse a strict equal-budget claim when usage coverage cannot support it.",
+      "source": "c3758aa6fc6fba620c9b703a9dab1acd623066a1",
+      "evidence": [
+        "ymp-rust/crates/ymp-storage/src/budget.rs",
+        "ymp-rust/crates/ymp-runtime/src/engine/allocation.rs",
+        "ymp-docs/architecture/session-resource-budgets.md",
+        "budget-reservations/partial-usage/restart-inspection actual scenarios"
+      ],
+      "status": "satisfied_on_accepted_source",
+      "final_checks": "Durable main preserves all158 accepted source files and passes419 workspace tests, native10, all17 scenarios, official SDK, version/help/demo; bridge14 candidate tests/modules preserved."
+    },
+    {
+      "requirement": "YMP-102.6",
+      "task": "YMP-102",
+      "criterion": "Provide the captured limits and stopping reason for the existing clients; core UI integration is in YMP-118. Missing usage must never become guessed zero.",
+      "source": "c3758aa6fc6fba620c9b703a9dab1acd623066a1",
+      "evidence": [
+        "ymp-rust/crates/ymp-storage/src/budget.rs",
+        "ymp-rust/crates/ymp-runtime/src/engine/allocation.rs",
+        "ymp-docs/architecture/session-resource-budgets.md",
+        "budget-reservations/partial-usage/restart-inspection actual scenarios"
+      ],
+      "status": "satisfied_on_accepted_source",
+      "final_checks": "Durable main preserves all158 accepted source files and passes419 workspace tests, native10, all17 scenarios, official SDK, version/help/demo; bridge14 candidate tests/modules preserved."
+    },
+    {
+      "requirement": "YMP-103.1",
+      "task": "YMP-103",
+      "criterion": "A willRetry=true notification followed by turn completion finishes the same invocation without an application-level replay.",
+      "source": "c3758aa6fc6fba620c9b703a9dab1acd623066a1",
+      "evidence": [
+        "ymp-rust/crates/ymp-providers/src/lib.rs",
+        "ymp-rust/crates/ymp-providers/tests/codex_retry.rs"
+      ],
+      "status": "satisfied_on_accepted_source",
+      "final_checks": "Durable main preserves all158 accepted source files and passes419 workspace tests, native10, all17 scenarios, official SDK, version/help/demo; bridge14 candidate tests/modules preserved."
+    },
+    {
+      "requirement": "YMP-103.2",
+      "task": "YMP-103",
+      "criterion": "Terminal failure still stops; cancellation and timeout remain effective while native retries are pending.",
+      "source": "c3758aa6fc6fba620c9b703a9dab1acd623066a1",
+      "evidence": [
+        "ymp-rust/crates/ymp-providers/src/lib.rs",
+        "ymp-rust/crates/ymp-providers/tests/codex_retry.rs"
+      ],
+      "status": "satisfied_on_accepted_source",
+      "final_checks": "Durable main preserves all158 accepted source files and passes419 workspace tests, native10, all17 scenarios, official SDK, version/help/demo; bridge14 candidate tests/modules preserved."
+    },
+    {
+      "requirement": "YMP-103.3",
+      "task": "YMP-103",
+      "criterion": "Preserve usage and failure/retry evidence without incrementing task attempts or awarding competence credit for the retry itself.",
+      "source": "c3758aa6fc6fba620c9b703a9dab1acd623066a1",
+      "evidence": [
+        "ymp-rust/crates/ymp-providers/src/lib.rs",
+        "ymp-rust/crates/ymp-providers/tests/codex_retry.rs"
+      ],
+      "status": "satisfied_on_accepted_source",
+      "final_checks": "Durable main preserves all158 accepted source files and passes419 workspace tests, native10, all17 scenarios, official SDK, version/help/demo; bridge14 candidate tests/modules preserved."
+    },
+    {
+      "requirement": "YMP-103.4",
+      "task": "YMP-103",
+      "criterion": "Use offline protocol tests; real provider checks remain separate.",
+      "source": "c3758aa6fc6fba620c9b703a9dab1acd623066a1",
+      "evidence": [
+        "ymp-rust/crates/ymp-providers/src/lib.rs",
+        "ymp-rust/crates/ymp-providers/tests/codex_retry.rs"
+      ],
+      "status": "satisfied_on_accepted_source",
+      "final_checks": "Durable main preserves all158 accepted source files and passes419 workspace tests, native10, all17 scenarios, official SDK, version/help/demo; bridge14 candidate tests/modules preserved."
+    },
+    {
+      "requirement": "YMP-104.1",
+      "task": "YMP-104",
+      "criterion": "Return a factual fallback using the stored outcome and review basis when only final synthesis fails; preserve any existing confirmation grade without inventing one.",
+      "source": "c3758aa6fc6fba620c9b703a9dab1acd623066a1",
+      "evidence": [
+        "ymp-rust/crates/ymp-runtime/src/engine.rs",
+        "ymp-rust/crates/ymp-runtime/src/engine/confirmation_tests.rs",
+        "ymp-evals/reports/ymp-117-integration-review.md"
+      ],
+      "status": "satisfied_on_accepted_source",
+      "final_checks": "Durable main preserves all158 accepted source files and passes419 workspace tests, native10, all17 scenarios, official SDK, version/help/demo; bridge14 candidate tests/modules preserved."
+    },
+    {
+      "requirement": "YMP-104.2",
+      "task": "YMP-104",
+      "criterion": "Preserve accepted confirmed and accepted unconfirmed outcomes distinctly from reporting or optional-learning errors; never upgrade confirmation while producing a fallback summary.",
+      "source": "c3758aa6fc6fba620c9b703a9dab1acd623066a1",
+      "evidence": [
+        "ymp-rust/crates/ymp-runtime/src/engine.rs",
+        "ymp-rust/crates/ymp-runtime/src/engine/confirmation_tests.rs",
+        "ymp-evals/reports/ymp-117-integration-review.md"
+      ],
+      "status": "satisfied_on_accepted_source",
+      "final_checks": "Durable main preserves all158 accepted source files and passes419 workspace tests, native10, all17 scenarios, official SDK, version/help/demo; bridge14 candidate tests/modules preserved."
+    },
+    {
+      "requirement": "YMP-104.3",
+      "task": "YMP-104",
+      "criterion": "Do not promote rejected, unchecked or incomplete work into an accepted outcome; preserve documented cancellation semantics.",
+      "source": "c3758aa6fc6fba620c9b703a9dab1acd623066a1",
+      "evidence": [
+        "ymp-rust/crates/ymp-runtime/src/engine.rs",
+        "ymp-rust/crates/ymp-runtime/src/engine/confirmation_tests.rs",
+        "ymp-evals/reports/ymp-117-integration-review.md"
+      ],
+      "status": "satisfied_on_accepted_source",
+      "final_checks": "Durable main preserves all158 accepted source files and passes419 workspace tests, native10, all17 scenarios, official SDK, version/help/demo; bridge14 candidate tests/modules preserved."
+    },
+    {
+      "requirement": "YMP-104.4",
+      "task": "YMP-104",
+      "criterion": "Cover synthesis failure, failed final review, and optional-learning failure with deterministic tests.",
+      "source": "c3758aa6fc6fba620c9b703a9dab1acd623066a1",
+      "evidence": [
+        "ymp-rust/crates/ymp-runtime/src/engine.rs",
+        "ymp-rust/crates/ymp-runtime/src/engine/confirmation_tests.rs",
+        "ymp-evals/reports/ymp-117-integration-review.md"
+      ],
+      "status": "satisfied_on_accepted_source",
+      "final_checks": "Durable main preserves all158 accepted source files and passes419 workspace tests, native10, all17 scenarios, official SDK, version/help/demo; bridge14 candidate tests/modules preserved."
+    },
+    {
+      "requirement": "YMP-105.1",
+      "task": "YMP-105",
+      "criterion": "Preserve the same sorted path set, ignore rules, metadata exclusions, symlink behavior, and filename validation for readable fixtures.",
+      "source": "c3758aa6fc6fba620c9b703a9dab1acd623066a1",
+      "evidence": [
+        "ymp-rust/crates/ymp-workspace/src/lib.rs",
+        "ymp-docs/research/evidence/ymp-105-workspace-files.json"
+      ],
+      "status": "satisfied_on_accepted_source",
+      "final_checks": "Durable main preserves all158 accepted source files and passes419 workspace tests, native10, all17 scenarios, official SDK, version/help/demo; bridge14 candidate tests/modules preserved."
+    },
+    {
+      "requirement": "YMP-105.2",
+      "task": "YMP-105",
+      "criterion": "File enumeration does not read regular-file contents; change verification continues to use hashes.",
+      "source": "c3758aa6fc6fba620c9b703a9dab1acd623066a1",
+      "evidence": [
+        "ymp-rust/crates/ymp-workspace/src/lib.rs",
+        "ymp-docs/research/evidence/ymp-105-workspace-files.json"
+      ],
+      "status": "satisfied_on_accepted_source",
+      "final_checks": "Durable main preserves all158 accepted source files and passes419 workspace tests, native10, all17 scenarios, official SDK, version/help/demo; bridge14 candidate tests/modules preserved."
+    },
+    {
+      "requirement": "YMP-105.3",
+      "task": "YMP-105",
+      "criterion": "Repeat the release-profile 10k-file and large-file measurements and retain set-equality controls.",
+      "source": "c3758aa6fc6fba620c9b703a9dab1acd623066a1",
+      "evidence": [
+        "ymp-rust/crates/ymp-workspace/src/lib.rs",
+        "ymp-docs/research/evidence/ymp-105-workspace-files.json"
+      ],
+      "status": "satisfied_on_accepted_source",
+      "final_checks": "Durable main preserves all158 accepted source files and passes419 workspace tests, native10, all17 scenarios, official SDK, version/help/demo; bridge14 candidate tests/modules preserved."
+    },
+    {
+      "requirement": "YMP-105.4",
+      "task": "YMP-105",
+      "criterion": "Keep all application metadata under the configured home and preserve direct working-directory behavior.",
+      "source": "c3758aa6fc6fba620c9b703a9dab1acd623066a1",
+      "evidence": [
+        "ymp-rust/crates/ymp-workspace/src/lib.rs",
+        "ymp-docs/research/evidence/ymp-105-workspace-files.json"
+      ],
+      "status": "satisfied_on_accepted_source",
+      "final_checks": "Durable main preserves all158 accepted source files and passes419 workspace tests, native10, all17 scenarios, official SDK, version/help/demo; bridge14 candidate tests/modules preserved."
+    },
+    {
+      "requirement": "YMP-106.1",
+      "task": "YMP-106",
+      "criterion": "Build the retrieval query from active task/request content rather than role boilerplate.",
+      "source": "c3758aa6fc6fba620c9b703a9dab1acd623066a1",
+      "evidence": [
+        "ymp-rust/crates/ymp-runtime/src/engine.rs",
+        "ymp-rust/crates/ymp-runtime/src/engine/knowledge_tests.rs",
+        "ymp-evals/reports/ymp-106-independent-review.md"
+      ],
+      "status": "satisfied_on_accepted_source",
+      "final_checks": "Durable main preserves all158 accepted source files and passes419 workspace tests, native10, all17 scenarios, official SDK, version/help/demo; bridge14 candidate tests/modules preserved."
+    },
+    {
+      "requirement": "YMP-106.2",
+      "task": "YMP-106",
+      "criterion": "Retain project/global scope, active-status filtering, and an explicit context allowance.",
+      "source": "c3758aa6fc6fba620c9b703a9dab1acd623066a1",
+      "evidence": [
+        "ymp-rust/crates/ymp-runtime/src/engine.rs",
+        "ymp-rust/crates/ymp-runtime/src/engine/knowledge_tests.rs",
+        "ymp-evals/reports/ymp-106-independent-review.md"
+      ],
+      "status": "satisfied_on_accepted_source",
+      "final_checks": "Durable main preserves all158 accepted source files and passes419 workspace tests, native10, all17 scenarios, official SDK, version/help/demo; bridge14 candidate tests/modules preserved."
+    },
+    {
+      "requirement": "YMP-106.3",
+      "task": "YMP-106",
+      "criterion": "Record retrieved entry IDs/versions and the effective query so relevance and downstream outcomes can be evaluated.",
+      "source": "c3758aa6fc6fba620c9b703a9dab1acd623066a1",
+      "evidence": [
+        "ymp-rust/crates/ymp-runtime/src/engine.rs",
+        "ymp-rust/crates/ymp-runtime/src/engine/knowledge_tests.rs",
+        "ymp-evals/reports/ymp-106-independent-review.md"
+      ],
+      "status": "satisfied_on_accepted_source",
+      "final_checks": "Durable main preserves all158 accepted source files and passes419 workspace tests, native10, all17 scenarios, official SDK, version/help/demo; bridge14 candidate tests/modules preserved."
+    },
+    {
+      "requirement": "YMP-106.4",
+      "task": "YMP-106",
+      "criterion": "The invoice-memory control returns the relevant entry; irrelevant, retired, and other-project entries do not bypass scope.",
+      "source": "c3758aa6fc6fba620c9b703a9dab1acd623066a1",
+      "evidence": [
+        "ymp-rust/crates/ymp-runtime/src/engine.rs",
+        "ymp-rust/crates/ymp-runtime/src/engine/knowledge_tests.rs",
+        "ymp-evals/reports/ymp-106-independent-review.md"
+      ],
+      "status": "satisfied_on_accepted_source",
+      "final_checks": "Durable main preserves all158 accepted source files and passes419 workspace tests, native10, all17 scenarios, official SDK, version/help/demo; bridge14 candidate tests/modules preserved."
+    },
+    {
+      "requirement": "YMP-106.5",
+      "task": "YMP-106",
+      "criterion": "Do not add an embedding service or rewrite storage.",
+      "source": "c3758aa6fc6fba620c9b703a9dab1acd623066a1",
+      "evidence": [
+        "ymp-rust/crates/ymp-runtime/src/engine.rs",
+        "ymp-rust/crates/ymp-runtime/src/engine/knowledge_tests.rs",
+        "ymp-evals/reports/ymp-106-independent-review.md"
+      ],
+      "status": "satisfied_on_accepted_source",
+      "final_checks": "Durable main preserves all158 accepted source files and passes419 workspace tests, native10, all17 scenarios, official SDK, version/help/demo; bridge14 candidate tests/modules preserved."
+    },
+    {
+      "requirement": "YMP-107.1",
+      "task": "YMP-107",
+      "criterion": "Show recorded check commands and outcomes for the selected session, with no claim of sandboxing or approval.",
+      "source": "c3758aa6fc6fba620c9b703a9dab1acd623066a1",
+      "evidence": [
+        "ymp-evals/reports/ymp-107-independent-review.md",
+        "ymp-docs/architecture/recorded-checks-and-recovery.md",
+        "ymp-rust/crates/ymp-workspace/src/repository.rs",
+        "Final Opus UI review and terminal records"
+      ],
+      "status": "satisfied_on_accepted_source",
+      "final_checks": "Durable main preserves all158 accepted source files and passes419 workspace tests, native10, all17 scenarios, official SDK, version/help/demo; bridge14 candidate tests/modules preserved."
+    },
+    {
+      "requirement": "YMP-107.2",
+      "task": "YMP-107",
+      "criterion": "Explain recovery limits in the change view without promising rollback or adding mandatory confirmation.",
+      "source": "c3758aa6fc6fba620c9b703a9dab1acd623066a1",
+      "evidence": [
+        "ymp-evals/reports/ymp-107-independent-review.md",
+        "ymp-docs/architecture/recorded-checks-and-recovery.md",
+        "ymp-rust/crates/ymp-workspace/src/repository.rs",
+        "Final Opus UI review and terminal records"
+      ],
+      "status": "satisfied_on_accepted_source",
+      "final_checks": "Durable main preserves all158 accepted source files and passes419 workspace tests, native10, all17 scenarios, official SDK, version/help/demo; bridge14 candidate tests/modules preserved."
+    },
+    {
+      "requirement": "YMP-107.3",
+      "task": "YMP-107",
+      "criterion": "Do not infer repository absence from cwd/.git; any repository discovery must handle nested directories, worktrees, and unknown state.",
+      "source": "c3758aa6fc6fba620c9b703a9dab1acd623066a1",
+      "evidence": [
+        "ymp-evals/reports/ymp-107-independent-review.md",
+        "ymp-docs/architecture/recorded-checks-and-recovery.md",
+        "ymp-rust/crates/ymp-workspace/src/repository.rs",
+        "Final Opus UI review and terminal records"
+      ],
+      "status": "satisfied_on_accepted_source",
+      "final_checks": "Durable main preserves all158 accepted source files and passes419 workspace tests, native10, all17 scenarios, official SDK, version/help/demo; bridge14 candidate tests/modules preserved."
+    },
+    {
+      "requirement": "YMP-107.4",
+      "task": "YMP-107",
+      "criterion": "Keep project data in the working directory and application metadata in its home; all UI changes use the requested Claude model.",
+      "source": "c3758aa6fc6fba620c9b703a9dab1acd623066a1",
+      "evidence": [
+        "ymp-evals/reports/ymp-107-independent-review.md",
+        "ymp-docs/architecture/recorded-checks-and-recovery.md",
+        "ymp-rust/crates/ymp-workspace/src/repository.rs",
+        "Final Opus UI review and terminal records"
+      ],
+      "status": "satisfied_on_accepted_source",
+      "final_checks": "Durable main preserves all158 accepted source files and passes419 workspace tests, native10, all17 scenarios, official SDK, version/help/demo; bridge14 candidate tests/modules preserved."
+    },
+    {
+      "requirement": "YMP-109.1",
+      "task": "YMP-109",
+      "criterion": "Discover or configure individually identified agents and their native model/capability offerings through enabled providers.",
+      "source": "c3758aa6fc6fba620c9b703a9dab1acd623066a1",
+      "evidence": [
+        "ymp-rust/crates/ymp-core/src/config/pool.rs",
+        "ymp-rust/crates/ymp-core/src/config/catalog.rs",
+        "ymp-rust/crates/ymp-cli/tests/native_catalog.rs",
+        "Native catalog metadata refresh audit"
+      ],
+      "status": "satisfied_on_accepted_source",
+      "final_checks": "Durable main preserves all158 accepted source files and passes419 workspace tests, native10, all17 scenarios, official SDK, version/help/demo; bridge14 candidate tests/modules preserved."
+    },
+    {
+      "requirement": "YMP-109.2",
+      "task": "YMP-109",
+      "criterion": "Allow several agents to share a provider/model while preserving separate native contexts, history and usage.",
+      "source": "c3758aa6fc6fba620c9b703a9dab1acd623066a1",
+      "evidence": [
+        "ymp-rust/crates/ymp-core/src/config/pool.rs",
+        "ymp-rust/crates/ymp-core/src/config/catalog.rs",
+        "ymp-rust/crates/ymp-cli/tests/native_catalog.rs",
+        "Native catalog metadata refresh audit"
+      ],
+      "status": "satisfied_on_accepted_source",
+      "final_checks": "Durable main preserves all158 accepted source files and passes419 workspace tests, native10, all17 scenarios, official SDK, version/help/demo; bridge14 candidate tests/modules preserved."
+    },
+    {
+      "requirement": "YMP-109.3",
+      "task": "YMP-109",
+      "criterion": "Distinguish the eligible pool, current session membership, historical participants and active invocations. Discovering or inspecting the pool requires no inference.",
+      "source": "c3758aa6fc6fba620c9b703a9dab1acd623066a1",
+      "evidence": [
+        "ymp-rust/crates/ymp-core/src/config/pool.rs",
+        "ymp-rust/crates/ymp-core/src/config/catalog.rs",
+        "ymp-rust/crates/ymp-cli/tests/native_catalog.rs",
+        "Native catalog metadata refresh audit"
+      ],
+      "status": "satisfied_on_accepted_source",
+      "final_checks": "Durable main preserves all158 accepted source files and passes419 workspace tests, native10, all17 scenarios, official SDK, version/help/demo; bridge14 candidate tests/modules preserved."
+    },
+    {
+      "requirement": "YMP-109.4",
+      "task": "YMP-109",
+      "criterion": "Preserve existing identities and attribution, including captured names in chat and tasks. Do not silently rename existing profiles.",
+      "source": "c3758aa6fc6fba620c9b703a9dab1acd623066a1",
+      "evidence": [
+        "ymp-rust/crates/ymp-core/src/config/pool.rs",
+        "ymp-rust/crates/ymp-core/src/config/catalog.rs",
+        "ymp-rust/crates/ymp-cli/tests/native_catalog.rs",
+        "Native catalog metadata refresh audit"
+      ],
+      "status": "satisfied_on_accepted_source",
+      "final_checks": "Durable main preserves all158 accepted source files and passes419 workspace tests, native10, all17 scenarios, official SDK, version/help/demo; bridge14 candidate tests/modules preserved."
+    },
+    {
+      "requirement": "YMP-109.5",
+      "task": "YMP-109",
+      "criterion": "Agents have no permanent hierarchy. Roles and authority are assignment-scoped, do not transfer to later work and are not implied by provider identity.",
+      "source": "c3758aa6fc6fba620c9b703a9dab1acd623066a1",
+      "evidence": [
+        "ymp-rust/crates/ymp-core/src/config/pool.rs",
+        "ymp-rust/crates/ymp-core/src/config/catalog.rs",
+        "ymp-rust/crates/ymp-cli/tests/native_catalog.rs",
+        "Native catalog metadata refresh audit"
+      ],
+      "status": "satisfied_on_accepted_source",
+      "final_checks": "Durable main preserves all158 accepted source files and passes419 workspace tests, native10, all17 scenarios, official SDK, version/help/demo; bridge14 candidate tests/modules preserved."
+    },
+    {
+      "requirement": "YMP-109.6",
+      "task": "YMP-109",
+      "criterion": "Expose backend pool and identity data using existing profiles; core presentation is tracked in YMP-118 and all application UI work uses Claude Opus 5 max.",
+      "source": "c3758aa6fc6fba620c9b703a9dab1acd623066a1",
+      "evidence": [
+        "ymp-rust/crates/ymp-core/src/config/pool.rs",
+        "ymp-rust/crates/ymp-core/src/config/catalog.rs",
+        "ymp-rust/crates/ymp-cli/tests/native_catalog.rs",
+        "Native catalog metadata refresh audit"
+      ],
+      "status": "satisfied_on_accepted_source",
+      "final_checks": "Durable main preserves all158 accepted source files and passes419 workspace tests, native10, all17 scenarios, official SDK, version/help/demo; bridge14 candidate tests/modules preserved."
+    },
+    {
+      "requirement": "YMP-110.1",
+      "task": "YMP-110",
+      "criterion": "Create one session for each distinct user task; retain clarifications and steering within its conversation.",
+      "source": "c3758aa6fc6fba620c9b703a9dab1acd623066a1",
+      "evidence": [
+        "ymp-rust/crates/ymp-runtime/src/allocation.rs",
+        "ymp-rust/crates/ymp-runtime/src/engine/allocation.rs",
+        "ymp-rust/crates/ymp-runtime/src/allocation_tests.rs",
+        "fixed-size/fixed-roster/adaptive-team actual scenarios",
+        "Accepted Opus existing-view review"
+      ],
+      "status": "satisfied_on_accepted_source",
+      "final_checks": "Durable main preserves all158 accepted source files and passes419 workspace tests, native10, all17 scenarios, official SDK, version/help/demo; bridge14 candidate tests/modules preserved."
+    },
+    {
+      "requirement": "YMP-110.2",
+      "task": "YMP-110",
+      "criterion": "Use bounded dynamic membership by default. Distinguish a fixed team size, a pinned roster, an eligible-pool restriction and an active-invocation limit.",
+      "source": "c3758aa6fc6fba620c9b703a9dab1acd623066a1",
+      "evidence": [
+        "ymp-rust/crates/ymp-runtime/src/allocation.rs",
+        "ymp-rust/crates/ymp-runtime/src/engine/allocation.rs",
+        "ymp-rust/crates/ymp-runtime/src/allocation_tests.rs",
+        "fixed-size/fixed-roster/adaptive-team actual scenarios",
+        "Accepted Opus existing-view review"
+      ],
+      "status": "satisfied_on_accepted_source",
+      "final_checks": "Durable main preserves all158 accepted source files and passes419 workspace tests, native10, all17 scenarios, official SDK, version/help/demo; bridge14 candidate tests/modules preserved."
+    },
+    {
+      "requirement": "YMP-110.3",
+      "task": "YMP-110",
+      "criterion": "Select method, team size, executors, models and effort jointly using task complexity, risk, resources and verified experience; agent proposals inform the policy.",
+      "source": "c3758aa6fc6fba620c9b703a9dab1acd623066a1",
+      "evidence": [
+        "ymp-rust/crates/ymp-runtime/src/allocation.rs",
+        "ymp-rust/crates/ymp-runtime/src/engine/allocation.rs",
+        "ymp-rust/crates/ymp-runtime/src/allocation_tests.rs",
+        "fixed-size/fixed-roster/adaptive-team actual scenarios",
+        "Accepted Opus existing-view review"
+      ],
+      "status": "satisfied_on_accepted_source",
+      "final_checks": "Durable main preserves all158 accepted source files and passes419 workspace tests, native10, all17 scenarios, official SDK, version/help/demo; bridge14 candidate tests/modules preserved."
+    },
+    {
+      "requirement": "YMP-110.4",
+      "task": "YMP-110",
+      "criterion": "Reject contradictory constraints without silently adding participants, changing pinned settings or waiving required independent verification.",
+      "source": "c3758aa6fc6fba620c9b703a9dab1acd623066a1",
+      "evidence": [
+        "ymp-rust/crates/ymp-runtime/src/allocation.rs",
+        "ymp-rust/crates/ymp-runtime/src/engine/allocation.rs",
+        "ymp-rust/crates/ymp-runtime/src/allocation_tests.rs",
+        "fixed-size/fixed-roster/adaptive-team actual scenarios",
+        "Accepted Opus existing-view review"
+      ],
+      "status": "satisfied_on_accepted_source",
+      "final_checks": "Durable main preserves all158 accepted source files and passes419 workspace tests, native10, all17 scenarios, official SDK, version/help/demo; bridge14 candidate tests/modules preserved."
+    },
+    {
+      "requirement": "YMP-110.5",
+      "task": "YMP-110",
+      "criterion": "Start with bounded useful work and no mandatory all-pool proposal or bidding round. A fixed roster does not require continuous activity by every member.",
+      "source": "c3758aa6fc6fba620c9b703a9dab1acd623066a1",
+      "evidence": [
+        "ymp-rust/crates/ymp-runtime/src/allocation.rs",
+        "ymp-rust/crates/ymp-runtime/src/engine/allocation.rs",
+        "ymp-rust/crates/ymp-runtime/src/allocation_tests.rs",
+        "fixed-size/fixed-roster/adaptive-team actual scenarios",
+        "Accepted Opus existing-view review"
+      ],
+      "status": "satisfied_on_accepted_source",
+      "final_checks": "Durable main preserves all158 accepted source files and passes419 workspace tests, native10, all17 scenarios, official SDK, version/help/demo; bridge14 candidate tests/modules preserved."
+    },
+    {
+      "requirement": "YMP-110.6",
+      "task": "YMP-110",
+      "criterion": "Reconsider allocations on meaningful work boundaries and evidence; no model invocation is needed merely to inspect a pool or enforce a runtime limit.",
+      "source": "c3758aa6fc6fba620c9b703a9dab1acd623066a1",
+      "evidence": [
+        "ymp-rust/crates/ymp-runtime/src/allocation.rs",
+        "ymp-rust/crates/ymp-runtime/src/engine/allocation.rs",
+        "ymp-rust/crates/ymp-runtime/src/allocation_tests.rs",
+        "fixed-size/fixed-roster/adaptive-team actual scenarios",
+        "Accepted Opus existing-view review"
+      ],
+      "status": "satisfied_on_accepted_source",
+      "final_checks": "Durable main preserves all158 accepted source files and passes419 workspace tests, native10, all17 scenarios, official SDK, version/help/demo; bridge14 candidate tests/modules preserved."
+    },
+    {
+      "requirement": "YMP-110.7",
+      "task": "YMP-110",
+      "criterion": "Agents propose and negotiate work; the trusted runtime commits method, membership and assignment decisions. A planning agent has no standing authority beyond its current assignment.",
+      "source": "c3758aa6fc6fba620c9b703a9dab1acd623066a1",
+      "evidence": [
+        "ymp-rust/crates/ymp-runtime/src/allocation.rs",
+        "ymp-rust/crates/ymp-runtime/src/engine/allocation.rs",
+        "ymp-rust/crates/ymp-runtime/src/allocation_tests.rs",
+        "fixed-size/fixed-roster/adaptive-team actual scenarios",
+        "Accepted Opus existing-view review"
+      ],
+      "status": "satisfied_on_accepted_source",
+      "final_checks": "Durable main preserves all158 accepted source files and passes419 workspace tests, native10, all17 scenarios, official SDK, version/help/demo; bridge14 candidate tests/modules preserved."
+    },
+    {
+      "requirement": "YMP-110.8",
+      "task": "YMP-110",
+      "criterion": "Keep the corresponding existing views consistent with the new state using Claude Opus 5 max and shared runtime data contracts; coordinate with YMP-118 without requiring a separate dashboard or a completed later feature.",
+      "source": "c3758aa6fc6fba620c9b703a9dab1acd623066a1",
+      "evidence": [
+        "ymp-rust/crates/ymp-runtime/src/allocation.rs",
+        "ymp-rust/crates/ymp-runtime/src/engine/allocation.rs",
+        "ymp-rust/crates/ymp-runtime/src/allocation_tests.rs",
+        "fixed-size/fixed-roster/adaptive-team actual scenarios",
+        "Accepted Opus existing-view review"
+      ],
+      "status": "satisfied_on_accepted_source",
+      "final_checks": "Durable main preserves all158 accepted source files and passes419 workspace tests, native10, all17 scenarios, official SDK, version/help/demo; bridge14 candidate tests/modules preserved."
+    },
+    {
+      "requirement": "YMP-110.9",
+      "task": "YMP-110",
+      "criterion": "Provide injectable typed policies for team/model/effort proposals and resource allocation, with runtime validation of pins, capabilities, independence and ceilings outside the policies.",
+      "source": "c3758aa6fc6fba620c9b703a9dab1acd623066a1",
+      "evidence": [
+        "ymp-rust/crates/ymp-runtime/src/allocation.rs",
+        "ymp-rust/crates/ymp-runtime/src/engine/allocation.rs",
+        "ymp-rust/crates/ymp-runtime/src/allocation_tests.rs",
+        "fixed-size/fixed-roster/adaptive-team actual scenarios",
+        "Accepted Opus existing-view review"
+      ],
+      "status": "satisfied_on_accepted_source",
+      "final_checks": "Durable main preserves all158 accepted source files and passes419 workspace tests, native10, all17 scenarios, official SDK, version/help/demo; bridge14 candidate tests/modules preserved."
+    },
+    {
+      "requirement": "YMP-111.1",
+      "task": "YMP-111",
+      "criterion": "Expose actual provider/model choices and native effort/thinking capabilities to the planning policy.",
+      "source": "c3758aa6fc6fba620c9b703a9dab1acd623066a1",
+      "evidence": [
+        "ymp-rust/crates/ymp-core/src/config/execution.rs",
+        "ymp-rust/crates/ymp-providers/tests/settings.rs",
+        "ymp-bridges/claude/src/settings.ts",
+        "ymp-rust/crates/ymp-runtime/src/allocation_tests.rs",
+        "effort-support actual scenario"
+      ],
+      "status": "satisfied_on_accepted_source",
+      "final_checks": "Durable main preserves all158 accepted source files and passes419 workspace tests, native10, all17 scenarios, official SDK, version/help/demo; bridge14 candidate tests/modules preserved."
+    },
+    {
+      "requirement": "YMP-111.2",
+      "task": "YMP-111",
+      "criterion": "Validate and transmit each assignment choice; unsupported choices are rejected or revised without silent substitution.",
+      "source": "c3758aa6fc6fba620c9b703a9dab1acd623066a1",
+      "evidence": [
+        "ymp-rust/crates/ymp-core/src/config/execution.rs",
+        "ymp-rust/crates/ymp-providers/tests/settings.rs",
+        "ymp-bridges/claude/src/settings.ts",
+        "ymp-rust/crates/ymp-runtime/src/allocation_tests.rs",
+        "effort-support actual scenario"
+      ],
+      "status": "satisfied_on_accepted_source",
+      "final_checks": "Durable main preserves all158 accepted source files and passes419 workspace tests, native10, all17 scenarios, official SDK, version/help/demo; bridge14 candidate tests/modules preserved."
+    },
+    {
+      "requirement": "YMP-111.3",
+      "task": "YMP-111",
+      "criterion": "Keep requested, sent/acknowledged and provider-reported settings distinguishable; record changes per invocation.",
+      "source": "c3758aa6fc6fba620c9b703a9dab1acd623066a1",
+      "evidence": [
+        "ymp-rust/crates/ymp-core/src/config/execution.rs",
+        "ymp-rust/crates/ymp-providers/tests/settings.rs",
+        "ymp-bridges/claude/src/settings.ts",
+        "ymp-rust/crates/ymp-runtime/src/allocation_tests.rs",
+        "effort-support actual scenario"
+      ],
+      "status": "satisfied_on_accepted_source",
+      "final_checks": "Durable main preserves all158 accepted source files and passes419 workspace tests, native10, all17 scenarios, official SDK, version/help/demo; bridge14 candidate tests/modules preserved."
+    },
+    {
+      "requirement": "YMP-111.4",
+      "task": "YMP-111",
+      "criterion": "Treat explicit model/effort pins as singleton allowed sets. Configured or native defaults only supply missing values and cannot override pins or valid assignment choices.",
+      "source": "c3758aa6fc6fba620c9b703a9dab1acd623066a1",
+      "evidence": [
+        "ymp-rust/crates/ymp-core/src/config/execution.rs",
+        "ymp-rust/crates/ymp-providers/tests/settings.rs",
+        "ymp-bridges/claude/src/settings.ts",
+        "ymp-rust/crates/ymp-runtime/src/allocation_tests.rs",
+        "effort-support actual scenario"
+      ],
+      "status": "satisfied_on_accepted_source",
+      "final_checks": "Durable main preserves all158 accepted source files and passes419 workspace tests, native10, all17 scenarios, official SDK, version/help/demo; bridge14 candidate tests/modules preserved."
+    },
+    {
+      "requirement": "YMP-111.5",
+      "task": "YMP-111",
+      "criterion": "Apply changes to the appropriate subsequent invocation without assuming native mid-turn reconfiguration or restarting unrelated work.",
+      "source": "c3758aa6fc6fba620c9b703a9dab1acd623066a1",
+      "evidence": [
+        "ymp-rust/crates/ymp-core/src/config/execution.rs",
+        "ymp-rust/crates/ymp-providers/tests/settings.rs",
+        "ymp-bridges/claude/src/settings.ts",
+        "ymp-rust/crates/ymp-runtime/src/allocation_tests.rs",
+        "effort-support actual scenario"
+      ],
+      "status": "satisfied_on_accepted_source",
+      "final_checks": "Durable main preserves all158 accepted source files and passes419 workspace tests, native10, all17 scenarios, official SDK, version/help/demo; bridge14 candidate tests/modules preserved."
+    },
+    {
+      "requirement": "YMP-111.6",
+      "task": "YMP-111",
+      "criterion": "Preserve stable agent attribution while versioning competence observations by the relevant effective execution configuration.",
+      "source": "c3758aa6fc6fba620c9b703a9dab1acd623066a1",
+      "evidence": [
+        "ymp-rust/crates/ymp-core/src/config/execution.rs",
+        "ymp-rust/crates/ymp-providers/tests/settings.rs",
+        "ymp-bridges/claude/src/settings.ts",
+        "ymp-rust/crates/ymp-runtime/src/allocation_tests.rs",
+        "effort-support actual scenario"
+      ],
+      "status": "satisfied_on_accepted_source",
+      "final_checks": "Durable main preserves all158 accepted source files and passes419 workspace tests, native10, all17 scenarios, official SDK, version/help/demo; bridge14 candidate tests/modules preserved."
+    },
+    {
+      "requirement": "YMP-111.7",
+      "task": "YMP-111",
+      "criterion": "Verify differing models/efforts and changing assignments with offline adapter fixtures. Particular optimization-policy experiments remain in YMP-203.",
+      "source": "c3758aa6fc6fba620c9b703a9dab1acd623066a1",
+      "evidence": [
+        "ymp-rust/crates/ymp-core/src/config/execution.rs",
+        "ymp-rust/crates/ymp-providers/tests/settings.rs",
+        "ymp-bridges/claude/src/settings.ts",
+        "ymp-rust/crates/ymp-runtime/src/allocation_tests.rs",
+        "effort-support actual scenario"
+      ],
+      "status": "satisfied_on_accepted_source",
+      "final_checks": "Durable main preserves all158 accepted source files and passes419 workspace tests, native10, all17 scenarios, official SDK, version/help/demo; bridge14 candidate tests/modules preserved."
+    },
+    {
+      "requirement": "YMP-111.8",
+      "task": "YMP-111",
+      "criterion": "Do not add persistent work-role privileges through native session reuse. YMP-120 enforces assignment authority; YMP-121 checks integration with changing settings.",
+      "source": "c3758aa6fc6fba620c9b703a9dab1acd623066a1",
+      "evidence": [
+        "ymp-rust/crates/ymp-core/src/config/execution.rs",
+        "ymp-rust/crates/ymp-providers/tests/settings.rs",
+        "ymp-bridges/claude/src/settings.ts",
+        "ymp-rust/crates/ymp-runtime/src/allocation_tests.rs",
+        "effort-support actual scenario"
+      ],
+      "status": "satisfied_on_accepted_source",
+      "final_checks": "Durable main preserves all158 accepted source files and passes419 workspace tests, native10, all17 scenarios, official SDK, version/help/demo; bridge14 candidate tests/modules preserved."
+    },
+    {
+      "requirement": "YMP-112.1",
+      "task": "YMP-112",
+      "criterion": "Let participants propose work, accept responsibility, distribute and reassign subtasks through validated shared-board decisions.",
+      "source": "c3758aa6fc6fba620c9b703a9dab1acd623066a1",
+      "evidence": [
+        "ymp-rust/crates/ymp-runtime/src/engine/board.rs",
+        "ymp-rust/crates/ymp-storage/src/board.rs",
+        "ymp-rust/crates/ymp-runtime/tests/board_coordination.rs",
+        "adaptive-team/restart-inspection actual scenarios",
+        "Final Opus UI review and terminal records"
+      ],
+      "status": "satisfied_on_accepted_source",
+      "final_checks": "Durable main preserves all158 accepted source files and passes419 workspace tests, native10, all17 scenarios, official SDK, version/help/demo; bridge14 candidate tests/modules preserved."
+    },
+    {
+      "requirement": "YMP-112.2",
+      "task": "YMP-112",
+      "criterion": "Support team-wide and addressed communication, temporary work responsibilities and permitted membership changes, preserving historical participants and their contributions.",
+      "source": "c3758aa6fc6fba620c9b703a9dab1acd623066a1",
+      "evidence": [
+        "ymp-rust/crates/ymp-runtime/src/engine/board.rs",
+        "ymp-rust/crates/ymp-storage/src/board.rs",
+        "ymp-rust/crates/ymp-runtime/tests/board_coordination.rs",
+        "adaptive-team/restart-inspection actual scenarios",
+        "Final Opus UI review and terminal records"
+      ],
+      "status": "satisfied_on_accepted_source",
+      "final_checks": "Durable main preserves all158 accepted source files and passes419 workspace tests, native10, all17 scenarios, official SDK, version/help/demo; bridge14 candidate tests/modules preserved."
+    },
+    {
+      "requirement": "YMP-112.3",
+      "task": "YMP-112",
+      "criterion": "Apply plan/model/effort changes explicitly at work boundaries with evidence, history and admission. A failure does not unconditionally raise effort or expand the team.",
+      "source": "c3758aa6fc6fba620c9b703a9dab1acd623066a1",
+      "evidence": [
+        "ymp-rust/crates/ymp-runtime/src/engine/board.rs",
+        "ymp-rust/crates/ymp-storage/src/board.rs",
+        "ymp-rust/crates/ymp-runtime/tests/board_coordination.rs",
+        "adaptive-team/restart-inspection actual scenarios",
+        "Final Opus UI review and terminal records"
+      ],
+      "status": "satisfied_on_accepted_source",
+      "final_checks": "Durable main preserves all158 accepted source files and passes419 workspace tests, native10, all17 scenarios, official SDK, version/help/demo; bridge14 candidate tests/modules preserved."
+    },
+    {
+      "requirement": "YMP-112.4",
+      "task": "YMP-112",
+      "criterion": "Require independent review before runtime acceptance, with the basis and confirmation grade from YMP-117. A producer cannot approve its own result; preserved accepted-but-unconfirmed work does not earn reputation.",
+      "source": "c3758aa6fc6fba620c9b703a9dab1acd623066a1",
+      "evidence": [
+        "ymp-rust/crates/ymp-runtime/src/engine/board.rs",
+        "ymp-rust/crates/ymp-storage/src/board.rs",
+        "ymp-rust/crates/ymp-runtime/tests/board_coordination.rs",
+        "adaptive-team/restart-inspection actual scenarios",
+        "Final Opus UI review and terminal records"
+      ],
+      "status": "satisfied_on_accepted_source",
+      "final_checks": "Durable main preserves all158 accepted source files and passes419 workspace tests, native10, all17 scenarios, official SDK, version/help/demo; bridge14 candidate tests/modules preserved."
+    },
+    {
+      "requirement": "YMP-112.5",
+      "task": "YMP-112",
+      "criterion": "Preserve verified work on individual agent failure; inspect uncertain side effects before replay or reassignment.",
+      "source": "c3758aa6fc6fba620c9b703a9dab1acd623066a1",
+      "evidence": [
+        "ymp-rust/crates/ymp-runtime/src/engine/board.rs",
+        "ymp-rust/crates/ymp-storage/src/board.rs",
+        "ymp-rust/crates/ymp-runtime/tests/board_coordination.rs",
+        "adaptive-team/restart-inspection actual scenarios",
+        "Final Opus UI review and terminal records"
+      ],
+      "status": "satisfied_on_accepted_source",
+      "final_checks": "Durable main preserves all158 accepted source files and passes419 workspace tests, native10, all17 scenarios, official SDK, version/help/demo; bridge14 candidate tests/modules preserved."
+    },
+    {
+      "requirement": "YMP-112.6",
+      "task": "YMP-112",
+      "criterion": "Use explicit task ownership and validated state transitions. Workspace execution follows the applicable workspace policy; this coordination task does not select a new isolation mechanism.",
+      "source": "c3758aa6fc6fba620c9b703a9dab1acd623066a1",
+      "evidence": [
+        "ymp-rust/crates/ymp-runtime/src/engine/board.rs",
+        "ymp-rust/crates/ymp-storage/src/board.rs",
+        "ymp-rust/crates/ymp-runtime/tests/board_coordination.rs",
+        "adaptive-team/restart-inspection actual scenarios",
+        "Final Opus UI review and terminal records"
+      ],
+      "status": "satisfied_on_accepted_source",
+      "final_checks": "Durable main preserves all158 accepted source files and passes419 workspace tests, native10, all17 scenarios, official SDK, version/help/demo; bridge14 candidate tests/modules preserved."
+    },
+    {
+      "requirement": "YMP-112.7",
+      "task": "YMP-112",
+      "criterion": "Keep the corresponding existing views consistent with the new state using Claude Opus 5 max and shared runtime data contracts; coordinate with YMP-118 without requiring a separate dashboard or a completed later feature.",
+      "source": "c3758aa6fc6fba620c9b703a9dab1acd623066a1",
+      "evidence": [
+        "ymp-rust/crates/ymp-runtime/src/engine/board.rs",
+        "ymp-rust/crates/ymp-storage/src/board.rs",
+        "ymp-rust/crates/ymp-runtime/tests/board_coordination.rs",
+        "adaptive-team/restart-inspection actual scenarios",
+        "Final Opus UI review and terminal records",
+        "review-evidence/ui-acceptance-binding.json"
+      ],
+      "status": "satisfied_on_accepted_source",
+      "final_checks": "Durable main preserves all158 accepted source files and passes419 workspace tests, native10, all17 scenarios, official SDK, version/help/demo; bridge14 candidate tests/modules preserved."
+    },
+    {
+      "requirement": "YMP-112.8",
+      "task": "YMP-112",
+      "criterion": "Keep commitment/replanning strategy replaceable through a typed proposal interface; runtime validates and commits transitions independently of the proposing strategy.",
+      "source": "c3758aa6fc6fba620c9b703a9dab1acd623066a1",
+      "evidence": [
+        "ymp-rust/crates/ymp-runtime/src/engine/board.rs",
+        "ymp-rust/crates/ymp-storage/src/board.rs",
+        "ymp-rust/crates/ymp-runtime/tests/board_coordination.rs",
+        "adaptive-team/restart-inspection actual scenarios",
+        "Final Opus UI review and terminal records"
+      ],
+      "status": "satisfied_on_accepted_source",
+      "final_checks": "Durable main preserves all158 accepted source files and passes419 workspace tests, native10, all17 scenarios, official SDK, version/help/demo; bridge14 candidate tests/modules preserved."
+    },
+    {
+      "requirement": "YMP-112.9",
+      "task": "YMP-112",
+      "criterion": "Close the nonblocking shared-interface review follow-ups: distinguish team-chat and board permissions in labels, and add a discriminating captured-name regression where current and historical agent names differ.",
+      "source": "c3758aa6fc6fba620c9b703a9dab1acd623066a1",
+      "evidence": [
+        "ymp-rust/crates/ymp-runtime/src/engine/board.rs",
+        "ymp-rust/crates/ymp-storage/src/board.rs",
+        "ymp-rust/crates/ymp-runtime/tests/board_coordination.rs",
+        "adaptive-team/restart-inspection actual scenarios",
+        "Final Opus UI review and terminal records",
+        "review-evidence/ui-acceptance-binding.json"
+      ],
+      "status": "satisfied_on_accepted_source",
+      "final_checks": "Durable main preserves all158 accepted source files and passes419 workspace tests, native10, all17 scenarios, official SDK, version/help/demo; bridge14 candidate tests/modules preserved."
+    },
+    {
+      "requirement": "YMP-113.1",
+      "task": "YMP-113",
+      "criterion": "Persist task data, events and useful findings during execution, including partial progress when work stops.",
+      "source": "c3758aa6fc6fba620c9b703a9dab1acd623066a1",
+      "evidence": [
+        "ymp-rust/crates/ymp-runtime/src/knowledge.rs",
+        "ymp-rust/crates/ymp-runtime/src/engine/knowledge_tests.rs",
+        "ymp-rust/crates/ymp-storage/src/knowledge.rs",
+        "knowledge-correction actual scenario",
+        "Accepted Opus existing-view review"
+      ],
+      "status": "satisfied_on_accepted_source",
+      "final_checks": "Durable main preserves all158 accepted source files and passes419 workspace tests, native10, all17 scenarios, official SDK, version/help/demo; bridge14 candidate tests/modules preserved."
+    },
+    {
+      "requirement": "YMP-113.2",
+      "task": "YMP-113",
+      "criterion": "Make confirmed general knowledge and evidence-backed reputation available to later sessions without depending exclusively on a final learning phase; accepted-but-unconfirmed outcomes earn no reputation.",
+      "source": "c3758aa6fc6fba620c9b703a9dab1acd623066a1",
+      "evidence": [
+        "ymp-rust/crates/ymp-runtime/src/knowledge.rs",
+        "ymp-rust/crates/ymp-runtime/src/engine/knowledge_tests.rs",
+        "ymp-rust/crates/ymp-storage/src/knowledge.rs",
+        "knowledge-correction actual scenario",
+        "Accepted Opus existing-view review"
+      ],
+      "status": "satisfied_on_accepted_source",
+      "final_checks": "Durable main preserves all158 accepted source files and passes419 workspace tests, native10, all17 scenarios, official SDK, version/help/demo; bridge14 candidate tests/modules preserved."
+    },
+    {
+      "requirement": "YMP-113.3",
+      "task": "YMP-113",
+      "criterion": "Retain origin, applicability, verification state and supporting result links.",
+      "source": "c3758aa6fc6fba620c9b703a9dab1acd623066a1",
+      "evidence": [
+        "ymp-rust/crates/ymp-runtime/src/knowledge.rs",
+        "ymp-rust/crates/ymp-runtime/src/engine/knowledge_tests.rs",
+        "ymp-rust/crates/ymp-storage/src/knowledge.rs",
+        "knowledge-correction actual scenario",
+        "Accepted Opus existing-view review"
+      ],
+      "status": "satisfied_on_accepted_source",
+      "final_checks": "Durable main preserves all158 accepted source files and passes419 workspace tests, native10, all17 scenarios, official SDK, version/help/demo; bridge14 candidate tests/modules preserved."
+    },
+    {
+      "requirement": "YMP-113.4",
+      "task": "YMP-113",
+      "criterion": "Retain unconfirmed candidate findings and project-specific facts with explicit provenance and status; never present agent agreement alone as confirmed general knowledge.",
+      "source": "c3758aa6fc6fba620c9b703a9dab1acd623066a1",
+      "evidence": [
+        "ymp-rust/crates/ymp-runtime/src/knowledge.rs",
+        "ymp-rust/crates/ymp-runtime/src/engine/knowledge_tests.rs",
+        "ymp-rust/crates/ymp-storage/src/knowledge.rs",
+        "knowledge-correction actual scenario",
+        "Accepted Opus existing-view review"
+      ],
+      "status": "satisfied_on_accepted_source",
+      "final_checks": "Durable main preserves all158 accepted source files and passes419 workspace tests, native10, all17 scenarios, official SDK, version/help/demo; bridge14 candidate tests/modules preserved."
+    },
+    {
+      "requirement": "YMP-113.5",
+      "task": "YMP-113",
+      "criterion": "Prove that verified knowledge from an intermediate outcome is retrievable by a later session even if a subsequent agent in the source session fails.",
+      "source": "c3758aa6fc6fba620c9b703a9dab1acd623066a1",
+      "evidence": [
+        "ymp-rust/crates/ymp-runtime/src/knowledge.rs",
+        "ymp-rust/crates/ymp-runtime/src/engine/knowledge_tests.rs",
+        "ymp-rust/crates/ymp-storage/src/knowledge.rs",
+        "knowledge-correction actual scenario",
+        "Accepted Opus existing-view review"
+      ],
+      "status": "satisfied_on_accepted_source",
+      "final_checks": "Durable main preserves all158 accepted source files and passes419 workspace tests, native10, all17 scenarios, official SDK, version/help/demo; bridge14 candidate tests/modules preserved."
+    },
+    {
+      "requirement": "YMP-113.6",
+      "task": "YMP-113",
+      "criterion": "Keep the corresponding existing views consistent with the new state using Claude Opus 5 max and shared runtime data contracts; coordinate with YMP-118 without requiring a separate dashboard or a completed later feature.",
+      "source": "c3758aa6fc6fba620c9b703a9dab1acd623066a1",
+      "evidence": [
+        "ymp-rust/crates/ymp-runtime/src/knowledge.rs",
+        "ymp-rust/crates/ymp-runtime/src/engine/knowledge_tests.rs",
+        "ymp-rust/crates/ymp-storage/src/knowledge.rs",
+        "knowledge-correction actual scenario",
+        "Accepted Opus existing-view review"
+      ],
+      "status": "satisfied_on_accepted_source",
+      "final_checks": "Durable main preserves all158 accepted source files and passes419 workspace tests, native10, all17 scenarios, official SDK, version/help/demo; bridge14 candidate tests/modules preserved."
+    },
+    {
+      "requirement": "YMP-113.7",
+      "task": "YMP-113",
+      "criterion": "Expose replaceable knowledge retrieval/proposal policies; runtime resolves actual source versions, enforces scope/context limits and controls activation.",
+      "source": "c3758aa6fc6fba620c9b703a9dab1acd623066a1",
+      "evidence": [
+        "ymp-rust/crates/ymp-runtime/src/knowledge.rs",
+        "ymp-rust/crates/ymp-runtime/src/engine/knowledge_tests.rs",
+        "ymp-rust/crates/ymp-storage/src/knowledge.rs",
+        "knowledge-correction actual scenario",
+        "Accepted Opus existing-view review"
+      ],
+      "status": "satisfied_on_accepted_source",
+      "final_checks": "Durable main preserves all158 accepted source files and passes419 workspace tests, native10, all17 scenarios, official SDK, version/help/demo; bridge14 candidate tests/modules preserved."
+    },
+    {
+      "requirement": "YMP-114.1",
+      "task": "YMP-114",
+      "criterion": "Allow newer verified information to correct or supersede an incorrect or outdated knowledge entry.",
+      "source": "c3758aa6fc6fba620c9b703a9dab1acd623066a1",
+      "evidence": [
+        "ymp-rust/crates/ymp-storage/src/knowledge_correction.rs",
+        "ymp-rust/crates/ymp-runtime/tests/knowledge_correction.rs",
+        "knowledge-correction actual scenario",
+        "Final Opus UI review and terminal records"
+      ],
+      "status": "satisfied_on_accepted_source",
+      "final_checks": "Durable main preserves all158 accepted source files and passes419 workspace tests, native10, all17 scenarios, official SDK, version/help/demo; bridge14 candidate tests/modules preserved."
+    },
+    {
+      "requirement": "YMP-114.2",
+      "task": "YMP-114",
+      "criterion": "Preserve history, provenance and replacement links while excluding superseded claims from normal current-knowledge retrieval.",
+      "source": "c3758aa6fc6fba620c9b703a9dab1acd623066a1",
+      "evidence": [
+        "ymp-rust/crates/ymp-storage/src/knowledge_correction.rs",
+        "ymp-rust/crates/ymp-runtime/tests/knowledge_correction.rs",
+        "knowledge-correction actual scenario",
+        "Final Opus UI review and terminal records"
+      ],
+      "status": "satisfied_on_accepted_source",
+      "final_checks": "Durable main preserves all158 accepted source files and passes419 workspace tests, native10, all17 scenarios, official SDK, version/help/demo; bridge14 candidate tests/modules preserved."
+    },
+    {
+      "requirement": "YMP-114.3",
+      "task": "YMP-114",
+      "criterion": "Resolve correction proposals using relevant confirmation evidence and independent review; consensus or a newer timestamp alone cannot confirm a replacement.",
+      "source": "c3758aa6fc6fba620c9b703a9dab1acd623066a1",
+      "evidence": [
+        "ymp-rust/crates/ymp-storage/src/knowledge_correction.rs",
+        "ymp-rust/crates/ymp-runtime/tests/knowledge_correction.rs",
+        "knowledge-correction actual scenario",
+        "Final Opus UI review and terminal records"
+      ],
+      "status": "satisfied_on_accepted_source",
+      "final_checks": "Durable main preserves all158 accepted source files and passes419 workspace tests, native10, all17 scenarios, official SDK, version/help/demo; bridge14 candidate tests/modules preserved."
+    },
+    {
+      "requirement": "YMP-114.4",
+      "task": "YMP-114",
+      "criterion": "Keep these changes within the existing metadata storage; no automatic time-decay policy or storage rewrite is required.",
+      "source": "c3758aa6fc6fba620c9b703a9dab1acd623066a1",
+      "evidence": [
+        "ymp-rust/crates/ymp-storage/src/knowledge_correction.rs",
+        "ymp-rust/crates/ymp-runtime/tests/knowledge_correction.rs",
+        "knowledge-correction actual scenario",
+        "Final Opus UI review and terminal records"
+      ],
+      "status": "satisfied_on_accepted_source",
+      "final_checks": "Durable main preserves all158 accepted source files and passes419 workspace tests, native10, all17 scenarios, official SDK, version/help/demo; bridge14 candidate tests/modules preserved."
+    },
+    {
+      "requirement": "YMP-114.5",
+      "task": "YMP-114",
+      "criterion": "Keep the corresponding existing views consistent with the new state using Claude Opus 5 max and shared runtime data contracts; coordinate with YMP-118 without requiring a separate dashboard or a completed later feature.",
+      "source": "c3758aa6fc6fba620c9b703a9dab1acd623066a1",
+      "evidence": [
+        "ymp-rust/crates/ymp-storage/src/knowledge_correction.rs",
+        "ymp-rust/crates/ymp-runtime/tests/knowledge_correction.rs",
+        "knowledge-correction actual scenario",
+        "Final Opus UI review and terminal records",
+        "review-evidence/ui-acceptance-binding.json"
+      ],
+      "status": "satisfied_on_accepted_source",
+      "final_checks": "Durable main preserves all158 accepted source files and passes419 workspace tests, native10, all17 scenarios, official SDK, version/help/demo; bridge14 candidate tests/modules preserved."
+    },
+    {
+      "requirement": "YMP-114.6",
+      "task": "YMP-114",
+      "criterion": "Support a replaceable correction proposal policy while runtime independently enforces evidence, applicability, supersession and observation idempotence.",
+      "source": "c3758aa6fc6fba620c9b703a9dab1acd623066a1",
+      "evidence": [
+        "ymp-rust/crates/ymp-storage/src/knowledge_correction.rs",
+        "ymp-rust/crates/ymp-runtime/tests/knowledge_correction.rs",
+        "knowledge-correction actual scenario",
+        "Final Opus UI review and terminal records"
+      ],
+      "status": "satisfied_on_accepted_source",
+      "final_checks": "Durable main preserves all158 accepted source files and passes419 workspace tests, native10, all17 scenarios, official SDK, version/help/demo; bridge14 candidate tests/modules preserved."
+    },
+    {
+      "requirement": "YMP-115.1",
+      "task": "YMP-115",
+      "criterion": "Support useful concurrent work when constraints permit it. Agent utilization or extra planning/bidding traffic alone is not an acceptance result.",
+      "source": "c3758aa6fc6fba620c9b703a9dab1acd623066a1",
+      "evidence": [
+        "ymp-rust/crates/ymp-runtime/tests/concurrency.rs",
+        "ymp-rust/crates/ymp-runtime/src/engine/workspace_access.rs",
+        "ymp-docs/architecture/workspace-policy.md",
+        "concurrency-conflicts actual scenario"
+      ],
+      "status": "satisfied_on_accepted_source",
+      "final_checks": "Durable main preserves all158 accepted source files and passes419 workspace tests, native10, all17 scenarios, official SDK, version/help/demo; bridge14 candidate tests/modules preserved."
+    },
+    {
+      "requirement": "YMP-115.2",
+      "task": "YMP-115",
+      "criterion": "Execute independent ready assignments concurrently within agent occupancy, dependency and enforceable resource scopes. Serialize conflicting writes/publication and verification against changing results; removing take(1) alone is insufficient.",
+      "source": "c3758aa6fc6fba620c9b703a9dab1acd623066a1",
+      "evidence": [
+        "ymp-rust/crates/ymp-runtime/tests/concurrency.rs",
+        "ymp-rust/crates/ymp-runtime/src/engine/workspace_access.rs",
+        "ymp-docs/architecture/workspace-policy.md",
+        "concurrency-conflicts actual scenario"
+      ],
+      "status": "satisfied_on_accepted_source",
+      "final_checks": "Durable main preserves all158 accepted source files and passes419 workspace tests, native10, all17 scenarios, official SDK, version/help/demo; bridge14 candidate tests/modules preserved."
+    },
+    {
+      "requirement": "YMP-115.3",
+      "task": "YMP-115",
+      "criterion": "Reserve shared resources atomically for in-flight work and retain usage and attempt history on cancellation or reassignment.",
+      "source": "c3758aa6fc6fba620c9b703a9dab1acd623066a1",
+      "evidence": [
+        "ymp-rust/crates/ymp-runtime/tests/concurrency.rs",
+        "ymp-rust/crates/ymp-runtime/src/engine/workspace_access.rs",
+        "ymp-docs/architecture/workspace-policy.md",
+        "concurrency-conflicts actual scenario"
+      ],
+      "status": "satisfied_on_accepted_source",
+      "final_checks": "Durable main preserves all158 accepted source files and passes419 workspace tests, native10, all17 scenarios, official SDK, version/help/demo; bridge14 candidate tests/modules preserved."
+    },
+    {
+      "requirement": "YMP-115.4",
+      "task": "YMP-115",
+      "criterion": "Process each completed result independently so an unrelated failure cannot prevent its review or erase accepted work.",
+      "source": "c3758aa6fc6fba620c9b703a9dab1acd623066a1",
+      "evidence": [
+        "ymp-rust/crates/ymp-runtime/tests/concurrency.rs",
+        "ymp-rust/crates/ymp-runtime/src/engine/workspace_access.rs",
+        "ymp-docs/architecture/workspace-policy.md",
+        "concurrency-conflicts actual scenario"
+      ],
+      "status": "satisfied_on_accepted_source",
+      "final_checks": "Durable main preserves all158 accepted source files and passes419 workspace tests, native10, all17 scenarios, official SDK, version/help/demo; bridge14 candidate tests/modules preserved."
+    },
+    {
+      "requirement": "YMP-115.5",
+      "task": "YMP-115",
+      "criterion": "Use an offline synchronization fixture to demonstrate overlap of independent work and non-overlap of conflicting work; provider inference is not required for scheduler correctness.",
+      "source": "c3758aa6fc6fba620c9b703a9dab1acd623066a1",
+      "evidence": [
+        "ymp-rust/crates/ymp-runtime/tests/concurrency.rs",
+        "ymp-rust/crates/ymp-runtime/src/engine/workspace_access.rs",
+        "ymp-docs/architecture/workspace-policy.md",
+        "concurrency-conflicts actual scenario"
+      ],
+      "status": "satisfied_on_accepted_source",
+      "final_checks": "Durable main preserves all158 accepted source files and passes419 workspace tests, native10, all17 scenarios, official SDK, version/help/demo; bridge14 candidate tests/modules preserved."
+    },
+    {
+      "requirement": "YMP-115.6",
+      "task": "YMP-115",
+      "criterion": "Record why otherwise ready work waits and distinguish meaningful contributions from planning/bidding traffic.",
+      "source": "c3758aa6fc6fba620c9b703a9dab1acd623066a1",
+      "evidence": [
+        "ymp-rust/crates/ymp-runtime/tests/concurrency.rs",
+        "ymp-rust/crates/ymp-runtime/src/engine/workspace_access.rs",
+        "ymp-docs/architecture/workspace-policy.md",
+        "concurrency-conflicts actual scenario"
+      ],
+      "status": "satisfied_on_accepted_source",
+      "final_checks": "Durable main preserves all158 accepted source files and passes419 workspace tests, native10, all17 scenarios, official SDK, version/help/demo; bridge14 candidate tests/modules preserved."
+    },
+    {
+      "requirement": "YMP-115.7",
+      "task": "YMP-115",
+      "criterion": "Use the owner-approved direct-directory policy only for the 0.4.0 MVP. Expose a narrow workspace/access-policy boundary; serialize whole-workspace writes when scoped enforcement is unavailable, and do not claim production isolation or rollback.",
+      "source": "c3758aa6fc6fba620c9b703a9dab1acd623066a1",
+      "evidence": [
+        "ymp-rust/crates/ymp-runtime/tests/concurrency.rs",
+        "ymp-rust/crates/ymp-runtime/src/engine/workspace_access.rs",
+        "ymp-docs/architecture/workspace-policy.md",
+        "concurrency-conflicts actual scenario"
+      ],
+      "status": "satisfied_on_accepted_source",
+      "final_checks": "Durable main preserves all158 accepted source files and passes419 workspace tests, native10, all17 scenarios, official SDK, version/help/demo; bridge14 candidate tests/modules preserved."
+    },
+    {
+      "requirement": "YMP-116.1",
+      "task": "YMP-116",
+      "criterion": "Extend the existing records only where needed: define one transition table for task, assignment, review and confirmation state, with required event links.",
+      "source": "c3758aa6fc6fba620c9b703a9dab1acd623066a1",
+      "evidence": [
+        "ymp-docs/architecture/runtime-contract.md",
+        "ymp-docs/architecture/subsystem-interfaces.md",
+        "ymp-rust/crates/ymp-core/src/authority.rs",
+        "ymp-rust/crates/ymp-storage/src/provenance.rs",
+        "ymp-rust/crates/ymp-storage/src/confirmation.rs",
+        "Universal authority/recovery/confirmation scenarios"
+      ],
+      "status": "satisfied_documentary_design",
+      "classification": "documentary design; not counted as implemented functionality",
+      "final_checks": "Durable main preserves all158 accepted source files and passes419 workspace tests, native10, all17 scenarios, official SDK, version/help/demo; bridge14 candidate tests/modules preserved."
+    },
+    {
+      "requirement": "YMP-116.2",
+      "task": "YMP-116",
+      "criterion": "Specify assignment identity, allowed operations and authority expiry using the existing runtime, local team API and SQLite; no new identity service or distributed lease system.",
+      "source": "c3758aa6fc6fba620c9b703a9dab1acd623066a1",
+      "evidence": [
+        "ymp-docs/architecture/runtime-contract.md",
+        "ymp-docs/architecture/subsystem-interfaces.md",
+        "ymp-rust/crates/ymp-core/src/authority.rs",
+        "ymp-rust/crates/ymp-storage/src/provenance.rs",
+        "ymp-rust/crates/ymp-storage/src/confirmation.rs",
+        "Universal authority/recovery/confirmation scenarios"
+      ],
+      "status": "satisfied_documentary_design",
+      "classification": "documentary design; not counted as implemented functionality",
+      "final_checks": "Durable main preserves all158 accepted source files and passes419 workspace tests, native10, all17 scenarios, official SDK, version/help/demo; bridge14 candidate tests/modules preserved."
+    },
+    {
+      "requirement": "YMP-116.3",
+      "task": "YMP-116",
+      "criterion": "Keep acceptance separate from confirmation. Record the review basis and ensure accepted-but-unconfirmed work earns no reputation.",
+      "source": "c3758aa6fc6fba620c9b703a9dab1acd623066a1",
+      "evidence": [
+        "ymp-docs/architecture/runtime-contract.md",
+        "ymp-docs/architecture/subsystem-interfaces.md",
+        "ymp-rust/crates/ymp-core/src/authority.rs",
+        "ymp-rust/crates/ymp-storage/src/provenance.rs",
+        "ymp-rust/crates/ymp-storage/src/confirmation.rs",
+        "Universal authority/recovery/confirmation scenarios"
+      ],
+      "status": "satisfied_documentary_design",
+      "classification": "documentary design; not counted as implemented functionality",
+      "final_checks": "Durable main preserves all158 accepted source files and passes419 workspace tests, native10, all17 scenarios, official SDK, version/help/demo; bridge14 candidate tests/modules preserved."
+    },
+    {
+      "requirement": "YMP-116.4",
+      "task": "YMP-116",
+      "criterion": "Specify the minimal admission contract: bounded initial work, shared counters/reservations, verification allowance and honestly supported native limits.",
+      "source": "c3758aa6fc6fba620c9b703a9dab1acd623066a1",
+      "evidence": [
+        "ymp-docs/architecture/runtime-contract.md",
+        "ymp-docs/architecture/subsystem-interfaces.md",
+        "ymp-rust/crates/ymp-core/src/authority.rs",
+        "ymp-rust/crates/ymp-storage/src/provenance.rs",
+        "ymp-rust/crates/ymp-storage/src/confirmation.rs",
+        "Universal authority/recovery/confirmation scenarios"
+      ],
+      "status": "satisfied_documentary_design",
+      "classification": "documentary design; not counted as implemented functionality",
+      "final_checks": "Durable main preserves all158 accepted source files and passes419 workspace tests, native10, all17 scenarios, official SDK, version/help/demo; bridge14 candidate tests/modules preserved."
+    },
+    {
+      "requirement": "YMP-116.5",
+      "task": "YMP-116",
+      "criterion": "State working-directory ownership and handling of conflicting work under the current workspace policy; this task does not introduce worktrees or a publication subsystem.",
+      "source": "c3758aa6fc6fba620c9b703a9dab1acd623066a1",
+      "evidence": [
+        "ymp-docs/architecture/runtime-contract.md",
+        "ymp-docs/architecture/subsystem-interfaces.md",
+        "ymp-rust/crates/ymp-core/src/authority.rs",
+        "ymp-rust/crates/ymp-storage/src/provenance.rs",
+        "ymp-rust/crates/ymp-storage/src/confirmation.rs",
+        "Universal authority/recovery/confirmation scenarios"
+      ],
+      "status": "satisfied_documentary_design",
+      "classification": "documentary design; not counted as implemented functionality",
+      "final_checks": "Durable main preserves all158 accepted source files and passes419 workspace tests, native10, all17 scenarios, official SDK, version/help/demo; bridge14 candidate tests/modules preserved."
+    },
+    {
+      "requirement": "YMP-116.6",
+      "task": "YMP-116",
+      "criterion": "Walk through one normal result, accepted-without-confirmation and interrupted/reassigned work. Leave numerical optimization and detailed future feature schemas to their implementation tasks.",
+      "source": "c3758aa6fc6fba620c9b703a9dab1acd623066a1",
+      "evidence": [
+        "ymp-docs/architecture/runtime-contract.md",
+        "ymp-docs/architecture/subsystem-interfaces.md",
+        "ymp-rust/crates/ymp-core/src/authority.rs",
+        "ymp-rust/crates/ymp-storage/src/provenance.rs",
+        "ymp-rust/crates/ymp-storage/src/confirmation.rs",
+        "Universal authority/recovery/confirmation scenarios"
+      ],
+      "status": "satisfied_documentary_design",
+      "classification": "documentary design; not counted as implemented functionality",
+      "final_checks": "Durable main preserves all158 accepted source files and passes419 workspace tests, native10, all17 scenarios, official SDK, version/help/demo; bridge14 candidate tests/modules preserved."
+    },
+    {
+      "requirement": "YMP-117.1",
+      "task": "YMP-117",
+      "criterion": "Persist review decision and its basis separately from confirmation, with result/criteria version, reviewer, source and coverage.",
+      "source": "c3758aa6fc6fba620c9b703a9dab1acd623066a1",
+      "evidence": [
+        "ymp-rust/crates/ymp-runtime/src/engine/confirmation.rs",
+        "ymp-rust/crates/ymp-storage/src/confirmation.rs",
+        "ymp-rust/crates/ymp-runtime/src/engine/confirmation_tests.rs",
+        "review-evidence/checker-substitution.log",
+        "artifact-version/evidence-boundaries/qualitative actual scenarios"
+      ],
+      "status": "satisfied_on_accepted_source",
+      "final_checks": "Durable main preserves all158 accepted source files and passes419 workspace tests, native10, all17 scenarios, official SDK, version/help/demo; bridge14 candidate tests/modules preserved."
+    },
+    {
+      "requirement": "YMP-117.2",
+      "task": "YMP-117",
+      "criterion": "Allow independent acceptance without external confirmation, label it unconfirmed and award no positive reputation for it.",
+      "source": "c3758aa6fc6fba620c9b703a9dab1acd623066a1",
+      "evidence": [
+        "ymp-rust/crates/ymp-runtime/src/engine/confirmation.rs",
+        "ymp-rust/crates/ymp-storage/src/confirmation.rs",
+        "ymp-rust/crates/ymp-runtime/src/engine/confirmation_tests.rs",
+        "review-evidence/checker-substitution.log",
+        "artifact-version/evidence-boundaries/qualitative actual scenarios"
+      ],
+      "status": "satisfied_on_accepted_source",
+      "final_checks": "Durable main preserves all158 accepted source files and passes419 workspace tests, native10, all17 scenarios, official SDK, version/help/demo; bridge14 candidate tests/modules preserved."
+    },
+    {
+      "requirement": "YMP-117.3",
+      "task": "YMP-117",
+      "criterion": "Require relevant deterministic check results or inspectable external data for confirmation; a passed irrelevant command, invented citation or agent agreement is insufficient.",
+      "source": "c3758aa6fc6fba620c9b703a9dab1acd623066a1",
+      "evidence": [
+        "ymp-rust/crates/ymp-runtime/src/engine/confirmation.rs",
+        "ymp-rust/crates/ymp-storage/src/confirmation.rs",
+        "ymp-rust/crates/ymp-runtime/src/engine/confirmation_tests.rs",
+        "review-evidence/checker-substitution.log",
+        "artifact-version/evidence-boundaries/qualitative actual scenarios"
+      ],
+      "status": "satisfied_on_accepted_source",
+      "final_checks": "Durable main preserves all158 accepted source files and passes419 workspace tests, native10, all17 scenarios, official SDK, version/help/demo; bridge14 candidate tests/modules preserved."
+    },
+    {
+      "requirement": "YMP-117.4",
+      "task": "YMP-117",
+      "criterion": "Enforce independent eligibility for candidate and final review. Failed applicable checks cannot be overruled by model approval.",
+      "source": "c3758aa6fc6fba620c9b703a9dab1acd623066a1",
+      "evidence": [
+        "ymp-rust/crates/ymp-runtime/src/engine/confirmation.rs",
+        "ymp-rust/crates/ymp-storage/src/confirmation.rs",
+        "ymp-rust/crates/ymp-runtime/src/engine/confirmation_tests.rs",
+        "review-evidence/checker-substitution.log",
+        "artifact-version/evidence-boundaries/qualitative actual scenarios"
+      ],
+      "status": "satisfied_on_accepted_source",
+      "final_checks": "Durable main preserves all158 accepted source files and passes419 workspace tests, native10, all17 scenarios, official SDK, version/help/demo; bridge14 candidate tests/modules preserved."
+    },
+    {
+      "requirement": "YMP-117.5",
+      "task": "YMP-117",
+      "criterion": "Apply reputation updates only to supported, attributable outcomes and once per observation; do not award reviewer credit for agreement alone.",
+      "source": "c3758aa6fc6fba620c9b703a9dab1acd623066a1",
+      "evidence": [
+        "ymp-rust/crates/ymp-runtime/src/engine/confirmation.rs",
+        "ymp-rust/crates/ymp-storage/src/confirmation.rs",
+        "ymp-rust/crates/ymp-runtime/src/engine/confirmation_tests.rs",
+        "review-evidence/checker-substitution.log",
+        "artifact-version/evidence-boundaries/qualitative actual scenarios"
+      ],
+      "status": "satisfied_on_accepted_source",
+      "final_checks": "Durable main preserves all158 accepted source files and passes419 workspace tests, native10, all17 scenarios, official SDK, version/help/demo; bridge14 candidate tests/modules preserved."
+    },
+    {
+      "requirement": "YMP-117.6",
+      "task": "YMP-117",
+      "criterion": "Preserve historical observations and acceptance records with legacy/unknown evidence status; do not silently promote them into confirmed training data.",
+      "source": "c3758aa6fc6fba620c9b703a9dab1acd623066a1",
+      "evidence": [
+        "ymp-rust/crates/ymp-runtime/src/engine/confirmation.rs",
+        "ymp-rust/crates/ymp-storage/src/confirmation.rs",
+        "ymp-rust/crates/ymp-runtime/src/engine/confirmation_tests.rs",
+        "review-evidence/checker-substitution.log",
+        "artifact-version/evidence-boundaries/qualitative actual scenarios"
+      ],
+      "status": "satisfied_on_accepted_source",
+      "final_checks": "Durable main preserves all158 accepted source files and passes419 workspace tests, native10, all17 scenarios, official SDK, version/help/demo; bridge14 candidate tests/modules preserved."
+    },
+    {
+      "requirement": "YMP-117.7",
+      "task": "YMP-117",
+      "criterion": "Demonstrate offline cases for approved-without-checks, agreement-without-evidence, confirmed success, contradictory evidence, irrelevant passing checks and replay without duplicate credit.",
+      "source": "c3758aa6fc6fba620c9b703a9dab1acd623066a1",
+      "evidence": [
+        "ymp-rust/crates/ymp-runtime/src/engine/confirmation.rs",
+        "ymp-rust/crates/ymp-storage/src/confirmation.rs",
+        "ymp-rust/crates/ymp-runtime/src/engine/confirmation_tests.rs",
+        "review-evidence/checker-substitution.log",
+        "artifact-version/evidence-boundaries/qualitative actual scenarios"
+      ],
+      "status": "satisfied_on_accepted_source",
+      "final_checks": "Durable main preserves all158 accepted source files and passes419 workspace tests, native10, all17 scenarios, official SDK, version/help/demo; bridge14 candidate tests/modules preserved."
+    },
+    {
+      "requirement": "YMP-117.8",
+      "task": "YMP-117",
+      "criterion": "Keep the narration-failure fallback from YMP-104 consistent when adding confirmation metadata; final integration checks both accepted grades.",
+      "source": "c3758aa6fc6fba620c9b703a9dab1acd623066a1",
+      "evidence": [
+        "ymp-rust/crates/ymp-runtime/src/engine/confirmation.rs",
+        "ymp-rust/crates/ymp-storage/src/confirmation.rs",
+        "ymp-rust/crates/ymp-runtime/src/engine/confirmation_tests.rs",
+        "review-evidence/checker-substitution.log",
+        "artifact-version/evidence-boundaries/qualitative actual scenarios"
+      ],
+      "status": "satisfied_on_accepted_source",
+      "final_checks": "Durable main preserves all158 accepted source files and passes419 workspace tests, native10, all17 scenarios, official SDK, version/help/demo; bridge14 candidate tests/modules preserved."
+    },
+    {
+      "requirement": "YMP-117.9",
+      "task": "YMP-117",
+      "criterion": "Expose an injectable typed confirmation-check executor with implementation ID/version; runtime/storage retain input/result capture, coverage/freshness, grading and reputation authority.",
+      "source": "c3758aa6fc6fba620c9b703a9dab1acd623066a1",
+      "evidence": [
+        "ymp-rust/crates/ymp-runtime/src/engine/confirmation.rs",
+        "ymp-rust/crates/ymp-storage/src/confirmation.rs",
+        "ymp-rust/crates/ymp-runtime/src/engine/confirmation_tests.rs",
+        "review-evidence/checker-substitution.log",
+        "artifact-version/evidence-boundaries/qualitative actual scenarios"
+      ],
+      "status": "satisfied_on_accepted_source",
+      "final_checks": "Durable main preserves all158 accepted source files and passes419 workspace tests, native10, all17 scenarios, official SDK, version/help/demo; bridge14 candidate tests/modules preserved."
+    },
+    {
+      "requirement": "YMP-118.1",
+      "task": "YMP-118",
+      "criterion": "Distinguish pool, current and historical membership, active assignments and their temporary roles/permissions.",
+      "source": "c3758aa6fc6fba620c9b703a9dab1acd623066a1",
+      "evidence": [
+        "ymp-evals/reports/ymp-118-native-independent-review.md",
+        "ymp-docs/architecture/assignment-and-confirmation-views.md",
+        "Final Opus UI review and terminal records"
+      ],
+      "status": "satisfied_on_accepted_source",
+      "final_checks": "Durable main preserves all158 accepted source files and passes419 workspace tests, native10, all17 scenarios, official SDK, version/help/demo; bridge14 candidate tests/modules preserved."
+    },
+    {
+      "requirement": "YMP-118.2",
+      "task": "YMP-118",
+      "criterion": "Show requested/applied/reported model and effort settings and explain fixed constraints versus allowed adaptation.",
+      "source": "c3758aa6fc6fba620c9b703a9dab1acd623066a1",
+      "evidence": [
+        "ymp-evals/reports/ymp-118-native-independent-review.md",
+        "ymp-docs/architecture/assignment-and-confirmation-views.md",
+        "Final Opus UI review and terminal records"
+      ],
+      "status": "satisfied_on_accepted_source",
+      "final_checks": "Durable main preserves all158 accepted source files and passes419 workspace tests, native10, all17 scenarios, official SDK, version/help/demo; bridge14 candidate tests/modules preserved."
+    },
+    {
+      "requirement": "YMP-118.3",
+      "task": "YMP-118",
+      "criterion": "Present accepted-but-unconfirmed results distinctly from confirmed results, with their review basis and reputation eligibility.",
+      "source": "c3758aa6fc6fba620c9b703a9dab1acd623066a1",
+      "evidence": [
+        "ymp-evals/reports/ymp-118-native-independent-review.md",
+        "ymp-docs/architecture/assignment-and-confirmation-views.md",
+        "Final Opus UI review and terminal records"
+      ],
+      "status": "satisfied_on_accepted_source",
+      "final_checks": "Durable main preserves all158 accepted source files and passes419 workspace tests, native10, all17 scenarios, official SDK, version/help/demo; bridge14 candidate tests/modules preserved."
+    },
+    {
+      "requirement": "YMP-118.4",
+      "task": "YMP-118",
+      "criterion": "Attribute live usage to session and agent IDs, preserve incomplete coverage and show limits captured for that session rather than current edited defaults.",
+      "source": "c3758aa6fc6fba620c9b703a9dab1acd623066a1",
+      "evidence": [
+        "ymp-evals/reports/ymp-118-native-independent-review.md",
+        "ymp-docs/architecture/assignment-and-confirmation-views.md",
+        "Final Opus UI review and terminal records",
+        "review-evidence/ui-acceptance-binding.json"
+      ],
+      "status": "satisfied_on_accepted_source",
+      "final_checks": "Durable main preserves all158 accepted source files and passes419 workspace tests, native10, all17 scenarios, official SDK, version/help/demo; bridge14 candidate tests/modules preserved."
+    },
+    {
+      "requirement": "YMP-118.5",
+      "task": "YMP-118",
+      "criterion": "Expose the core decision and assignment records through existing views without private reasoning traces. Dynamic membership and knowledge features extend those same views in YMP-110/YMP-112/YMP-113/YMP-114.",
+      "source": "c3758aa6fc6fba620c9b703a9dab1acd623066a1",
+      "evidence": [
+        "ymp-evals/reports/ymp-118-native-independent-review.md",
+        "ymp-docs/architecture/assignment-and-confirmation-views.md",
+        "Final Opus UI review and terminal records"
+      ],
+      "status": "satisfied_on_accepted_source",
+      "final_checks": "Durable main preserves all158 accepted source files and passes419 workspace tests, native10, all17 scenarios, official SDK, version/help/demo; bridge14 candidate tests/modules preserved."
+    },
+    {
+      "requirement": "YMP-118.6",
+      "task": "YMP-118",
+      "criterion": "Update the earlier UI contract against the approved intent; verify actual state transitions and representative terminal sizes, including reopening a historical session.",
+      "source": "c3758aa6fc6fba620c9b703a9dab1acd623066a1",
+      "evidence": [
+        "ymp-evals/reports/ymp-118-native-independent-review.md",
+        "ymp-docs/architecture/assignment-and-confirmation-views.md",
+        "Final Opus UI review and terminal records"
+      ],
+      "status": "satisfied_on_accepted_source",
+      "final_checks": "Durable main preserves all158 accepted source files and passes419 workspace tests, native10, all17 scenarios, official SDK, version/help/demo; bridge14 candidate tests/modules preserved."
+    },
+    {
+      "requirement": "YMP-119.1",
+      "task": "YMP-119",
+      "criterion": "Prepare deterministic inputs and externally checkable expected outputs for document creation/location follow-up, data transformation, grounded analysis and a qualitative unconfirmed result.",
+      "source": "c3758aa6fc6fba620c9b703a9dab1acd623066a1",
+      "evidence": [
+        "ymp-evals/scenarios/universal-workflows.json",
+        "ymp-evals/scenarios/universal-protocol.json",
+        "ymp-evals/validators/universal.py",
+        "ymp-evals/tests/test_universal.py"
+      ],
+      "status": "satisfied_on_accepted_source",
+      "final_checks": "Durable main preserves all158 accepted source files and passes419 workspace tests, native10, all17 scenarios, official SDK, version/help/demo; bridge14 candidate tests/modules preserved."
+    },
+    {
+      "requirement": "YMP-119.2",
+      "task": "YMP-119",
+      "criterion": "Provide scripted provider cases for fixed/changing teams, effort support, independent/conflicting work, budget exhaustion, interrupted execution and stale permissions.",
+      "source": "c3758aa6fc6fba620c9b703a9dab1acd623066a1",
+      "evidence": [
+        "ymp-evals/scenarios/universal-workflows.json",
+        "ymp-evals/scenarios/universal-protocol.json",
+        "ymp-evals/validators/universal.py",
+        "ymp-evals/tests/test_universal.py"
+      ],
+      "status": "satisfied_on_accepted_source",
+      "final_checks": "Durable main preserves all158 accepted source files and passes419 workspace tests, native10, all17 scenarios, official SDK, version/help/demo; bridge14 candidate tests/modules preserved."
+    },
+    {
+      "requirement": "YMP-119.3",
+      "task": "YMP-119",
+      "criterion": "Include later-session retrieval and stale-knowledge controls; specify expected attribution and confirmation grades without requiring a paid model.",
+      "source": "c3758aa6fc6fba620c9b703a9dab1acd623066a1",
+      "evidence": [
+        "ymp-evals/scenarios/universal-workflows.json",
+        "ymp-evals/scenarios/universal-protocol.json",
+        "ymp-evals/validators/universal.py",
+        "ymp-evals/tests/test_universal.py"
+      ],
+      "status": "satisfied_on_accepted_source",
+      "final_checks": "Durable main preserves all158 accepted source files and passes419 workspace tests, native10, all17 scenarios, official SDK, version/help/demo; bridge14 candidate tests/modules preserved."
+    },
+    {
+      "requirement": "YMP-119.4",
+      "task": "YMP-119",
+      "criterion": "Demonstrate that validators accept correct artifacts and reject corrupted, missing or irrelevant results. Agent agreement cannot make an invalid fixture pass.",
+      "source": "c3758aa6fc6fba620c9b703a9dab1acd623066a1",
+      "evidence": [
+        "ymp-evals/scenarios/universal-workflows.json",
+        "ymp-evals/scenarios/universal-protocol.json",
+        "ymp-evals/validators/universal.py",
+        "ymp-evals/tests/test_universal.py"
+      ],
+      "status": "satisfied_on_accepted_source",
+      "final_checks": "Durable main preserves all158 accepted source files and passes419 workspace tests, native10, all17 scenarios, official SDK, version/help/demo; bridge14 candidate tests/modules preserved."
+    },
+    {
+      "requirement": "YMP-119.5",
+      "task": "YMP-119",
+      "criterion": "Define comparable solo, independent-attempt and cooperating-team inputs and separate quality/resource metrics. Synthetic outputs do not establish model superiority.",
+      "source": "c3758aa6fc6fba620c9b703a9dab1acd623066a1",
+      "evidence": [
+        "ymp-evals/scenarios/universal-workflows.json",
+        "ymp-evals/scenarios/universal-protocol.json",
+        "ymp-evals/validators/universal.py",
+        "ymp-evals/tests/test_universal.py"
+      ],
+      "status": "satisfied_on_accepted_source",
+      "final_checks": "Durable main preserves all158 accepted source files and passes419 workspace tests, native10, all17 scenarios, official SDK, version/help/demo; bridge14 candidate tests/modules preserved."
+    },
+    {
+      "requirement": "YMP-119.6",
+      "task": "YMP-119",
+      "criterion": "This task delivers fixtures and validators, not a claim that unfinished runtime features pass. YMP-121 runs the complete suite against the integrated application.",
+      "source": "c3758aa6fc6fba620c9b703a9dab1acd623066a1",
+      "evidence": [
+        "ymp-evals/scenarios/universal-workflows.json",
+        "ymp-evals/scenarios/universal-protocol.json",
+        "ymp-evals/validators/universal.py",
+        "ymp-evals/tests/test_universal.py"
+      ],
+      "status": "satisfied_on_accepted_source",
+      "final_checks": "Durable main preserves all158 accepted source files and passes419 workspace tests, native10, all17 scenarios, official SDK, version/help/demo; bridge14 candidate tests/modules preserved."
+    },
+    {
+      "requirement": "YMP-120.1",
+      "task": "YMP-120",
+      "criterion": "Bind coordination authority to the actual session, agent, assignment and allowed operation; caller arguments cannot forge those bindings.",
+      "source": "c3758aa6fc6fba620c9b703a9dab1acd623066a1",
+      "evidence": [
+        "ymp-rust/crates/ymp-runtime/src/mcp.rs",
+        "ymp-rust/crates/ymp-storage/src/authority.rs",
+        "assignment-authority/restart-inspection actual scenarios",
+        "Official MCP SDK lifecycle walk"
+      ],
+      "status": "satisfied_on_accepted_source",
+      "final_checks": "Durable main preserves all158 accepted source files and passes419 workspace tests, native10, all17 scenarios, official SDK, version/help/demo; bridge14 candidate tests/modules preserved."
+    },
+    {
+      "requirement": "YMP-120.2",
+      "task": "YMP-120",
+      "criterion": "Commit assignment claims and permission grants atomically with their events; reject duplicate or stale competing claims.",
+      "source": "c3758aa6fc6fba620c9b703a9dab1acd623066a1",
+      "evidence": [
+        "ymp-rust/crates/ymp-runtime/src/mcp.rs",
+        "ymp-rust/crates/ymp-storage/src/authority.rs",
+        "assignment-authority/restart-inspection actual scenarios",
+        "Official MCP SDK lifecycle walk"
+      ],
+      "status": "satisfied_on_accepted_source",
+      "final_checks": "Durable main preserves all158 accepted source files and passes419 workspace tests, native10, all17 scenarios, official SDK, version/help/demo; bridge14 candidate tests/modules preserved."
+    },
+    {
+      "requirement": "YMP-120.3",
+      "task": "YMP-120",
+      "criterion": "End or revoke grants on assignment completion, cancellation and reassignment. A resumed native context cannot inherit prior privileged work roles.",
+      "source": "c3758aa6fc6fba620c9b703a9dab1acd623066a1",
+      "evidence": [
+        "ymp-rust/crates/ymp-runtime/src/mcp.rs",
+        "ymp-rust/crates/ymp-storage/src/authority.rs",
+        "assignment-authority/restart-inspection actual scenarios",
+        "Official MCP SDK lifecycle walk"
+      ],
+      "status": "satisfied_on_accepted_source",
+      "final_checks": "Durable main preserves all158 accepted source files and passes419 workspace tests, native10, all17 scenarios, official SDK, version/help/demo; bridge14 candidate tests/modules preserved."
+    },
+    {
+      "requirement": "YMP-120.4",
+      "task": "YMP-120",
+      "criterion": "Require runtime validation for proposed plan changes, acceptance and knowledge activation; ordinary board messages cannot grant authority.",
+      "source": "c3758aa6fc6fba620c9b703a9dab1acd623066a1",
+      "evidence": [
+        "ymp-rust/crates/ymp-runtime/src/mcp.rs",
+        "ymp-rust/crates/ymp-storage/src/authority.rs",
+        "assignment-authority/restart-inspection actual scenarios",
+        "Official MCP SDK lifecycle walk"
+      ],
+      "status": "satisfied_on_accepted_source",
+      "final_checks": "Durable main preserves all158 accepted source files and passes419 workspace tests, native10, all17 scenarios, official SDK, version/help/demo; bridge14 candidate tests/modules preserved."
+    },
+    {
+      "requirement": "YMP-120.5",
+      "task": "YMP-120",
+      "criterion": "Transmit native tool/permission limits where supported and reject incompatible requested guarantees; distinguish team-API enforcement from native filesystem/process isolation.",
+      "source": "c3758aa6fc6fba620c9b703a9dab1acd623066a1",
+      "evidence": [
+        "ymp-rust/crates/ymp-runtime/src/mcp.rs",
+        "ymp-rust/crates/ymp-storage/src/authority.rs",
+        "assignment-authority/restart-inspection actual scenarios",
+        "Official MCP SDK lifecycle walk"
+      ],
+      "status": "satisfied_on_accepted_source",
+      "final_checks": "Durable main preserves all158 accepted source files and passes419 workspace tests, native10, all17 scenarios, official SDK, version/help/demo; bridge14 candidate tests/modules preserved."
+    },
+    {
+      "requirement": "YMP-120.6",
+      "task": "YMP-120",
+      "criterion": "Use offline negative controls for stale tokens, cross-assignment actions, self-granted permissions and restart/replay. Never copy or expose provider credentials.",
+      "source": "c3758aa6fc6fba620c9b703a9dab1acd623066a1",
+      "evidence": [
+        "ymp-rust/crates/ymp-runtime/src/mcp.rs",
+        "ymp-rust/crates/ymp-storage/src/authority.rs",
+        "assignment-authority/restart-inspection actual scenarios",
+        "Official MCP SDK lifecycle walk"
+      ],
+      "status": "satisfied_on_accepted_source",
+      "final_checks": "Durable main preserves all158 accepted source files and passes419 workspace tests, native10, all17 scenarios, official SDK, version/help/demo; bridge14 candidate tests/modules preserved."
+    },
+    {
+      "requirement": "YMP-121.1",
+      "task": "YMP-121",
+      "criterion": "Run all universal workflows and protocol controls from YMP-119 against the integrated application after the listed feature dependencies are complete; all required runtime checks must pass.",
+      "source": "c3758aa6fc6fba620c9b703a9dab1acd623066a1",
+      "status": "satisfied",
+      "evidence": [
+        "YMP-121-independent-max-review.md",
+        "review-evidence/durable-main-verification.json",
+        "review-evidence/durable-prepublication-audit.json",
+        "review-evidence/installed-release-audit.json"
+      ]
+    },
+    {
+      "requirement": "YMP-121.2",
+      "task": "YMP-121",
+      "criterion": "Build the release binary and Claude bridge, verify headless help/demo and installation in a clean temporary setup, and document the absolute executable and bridge paths.",
+      "source": "c3758aa6fc6fba620c9b703a9dab1acd623066a1",
+      "status": "satisfied",
+      "evidence": [
+        "YMP-121-independent-max-review.md",
+        "review-evidence/durable-main-verification.json",
+        "review-evidence/durable-prepublication-audit.json",
+        "review-evidence/installed-release-audit.json"
+      ]
+    },
+    {
+      "requirement": "YMP-121.3",
+      "task": "YMP-121",
+      "criterion": "Prepare a bounded provider smoke-check procedure with exact versions, expected settings, native auth, resource ceilings and cancellation handling before requesting any quota.",
+      "source": "c3758aa6fc6fba620c9b703a9dab1acd623066a1",
+      "status": "satisfied",
+      "evidence": [
+        "YMP-121-independent-max-review.md",
+        "review-evidence/durable-main-verification.json",
+        "review-evidence/durable-prepublication-audit.json",
+        "review-evidence/installed-release-audit.json"
+      ]
+    },
+    {
+      "requirement": "YMP-121.4",
+      "task": "YMP-121",
+      "criterion": "Run real-provider checks only under explicit recorded quota authorization; record requested/applied effort and usage coverage without exposing credentials.",
+      "source": "c3758aa6fc6fba620c9b703a9dab1acd623066a1",
+      "status": "satisfied",
+      "evidence": [
+        "YMP-121-independent-max-review.md",
+        "review-evidence/durable-main-verification.json",
+        "review-evidence/durable-prepublication-audit.json",
+        "review-evidence/installed-release-audit.json"
+      ]
+    },
+    {
+      "requirement": "YMP-121.5",
+      "task": "YMP-121",
+      "criterion": "Distinguish offline fixture coverage from verified native behavior and unsupported capabilities in release notes.",
+      "source": "c3758aa6fc6fba620c9b703a9dab1acd623066a1",
+      "status": "satisfied",
+      "evidence": [
+        "YMP-121-independent-max-review.md",
+        "review-evidence/durable-main-verification.json",
+        "review-evidence/durable-prepublication-audit.json",
+        "review-evidence/installed-release-audit.json"
+      ]
+    },
+    {
+      "requirement": "YMP-121.6",
+      "task": "YMP-121",
+      "criterion": "Document migration/recovery behavior and output locations; announce completion only after all required release checks pass.",
+      "source": "c3758aa6fc6fba620c9b703a9dab1acd623066a1",
+      "status": "satisfied",
+      "evidence": [
+        "YMP-121-independent-max-review.md",
+        "review-evidence/durable-main-verification.json",
+        "review-evidence/durable-prepublication-audit.json",
+        "review-evidence/installed-release-audit.json"
+      ]
+    },
+    {
+      "requirement": "YMP-121.7",
+      "task": "YMP-121",
+      "criterion": "Perform the final requirement-by-requirement release review with an independent max-reasoning agent; xhigh is the minimum for other delegated engineering work.",
+      "source": "c3758aa6fc6fba620c9b703a9dab1acd623066a1",
+      "status": "satisfied",
+      "evidence": [
+        "YMP-121-independent-max-review.md",
+        "review-evidence/durable-main-verification.json",
+        "review-evidence/durable-prepublication-audit.json",
+        "review-evidence/installed-release-audit.json"
+      ]
+    },
+    {
+      "requirement": "YMP-121.8",
+      "task": "YMP-121",
+      "criterion": "Verify implementation substitution through the public engine and owning subsystem interfaces, preserving runtime constraints and recorded implementation identities.",
+      "source": "c3758aa6fc6fba620c9b703a9dab1acd623066a1",
+      "status": "satisfied",
+      "evidence": [
+        "YMP-121-independent-max-review.md",
+        "review-evidence/durable-main-verification.json",
+        "review-evidence/durable-prepublication-audit.json",
+        "review-evidence/installed-release-audit.json"
+      ]
+    },
+    {
+      "requirement": "YMP-121.9",
+      "task": "YMP-121",
+      "criterion": "Verify public stdio MCP interoperability and lifecycle against shared runtime controls using a real client and scripted execution; provider inference checks retain separate quota authorization.",
+      "source": "c3758aa6fc6fba620c9b703a9dab1acd623066a1",
+      "status": "satisfied",
+      "evidence": [
+        "YMP-121-independent-max-review.md",
+        "review-evidence/durable-main-verification.json",
+        "review-evidence/durable-prepublication-audit.json",
+        "review-evidence/installed-release-audit.json"
+      ]
+    },
+    {
+      "requirement": "YMP-121.10",
+      "task": "YMP-121",
+      "criterion": "Unattended tests never run real models at max/xhigh; real-provider checks use explicit minimal supported effort and recorded settings rather than expensive inherited defaults. The independent release reviewer reasoning remains max.",
+      "source": "c3758aa6fc6fba620c9b703a9dab1acd623066a1",
+      "status": "satisfied",
+      "evidence": [
+        "YMP-121-independent-max-review.md",
+        "review-evidence/durable-main-verification.json",
+        "review-evidence/durable-prepublication-audit.json",
+        "review-evidence/installed-release-audit.json"
+      ]
+    },
+    {
+      "requirement": "YMP-122.1",
+      "task": "YMP-122",
+      "criterion": "Expose a narrow typed Rust execution interface and engine injection with the existing native implementation as the default; retain native authentication and current behavior.",
+      "source": "c3758aa6fc6fba620c9b703a9dab1acd623066a1",
+      "evidence": [
+        "ymp-rust/crates/ymp-providers/src/backend.rs",
+        "ymp-rust/crates/ymp-runtime/src/backend_tests.rs",
+        "ymp-docs/architecture/execution-backends.md",
+        "All universal driver distinct implementations"
+      ],
+      "status": "satisfied_on_accepted_source",
+      "final_checks": "Durable main preserves all158 accepted source files and passes419 workspace tests, native10, all17 scenarios, official SDK, version/help/demo; bridge14 candidate tests/modules preserved."
+    },
+    {
+      "requirement": "YMP-122.2",
+      "task": "YMP-122",
+      "criterion": "Record selected implementation ID/version in execution provenance so alternative backends remain attributable.",
+      "source": "c3758aa6fc6fba620c9b703a9dab1acd623066a1",
+      "evidence": [
+        "ymp-rust/crates/ymp-providers/src/backend.rs",
+        "ymp-rust/crates/ymp-runtime/src/backend_tests.rs",
+        "ymp-docs/architecture/execution-backends.md",
+        "All universal driver distinct implementations"
+      ],
+      "status": "satisfied_on_accepted_source",
+      "final_checks": "Durable main preserves all158 accepted source files and passes419 workspace tests, native10, all17 scenarios, official SDK, version/help/demo; bridge14 candidate tests/modules preserved."
+    },
+    {
+      "requirement": "YMP-122.3",
+      "task": "YMP-122",
+      "criterion": "Keep runtime admission, captured limits, cancellation/output handling, assignment grants and capability-safe errors around replaceable execution. An injected implementation cannot bypass these contracts through its return value.",
+      "source": "c3758aa6fc6fba620c9b703a9dab1acd623066a1",
+      "evidence": [
+        "ymp-rust/crates/ymp-providers/src/backend.rs",
+        "ymp-rust/crates/ymp-runtime/src/backend_tests.rs",
+        "ymp-docs/architecture/execution-backends.md",
+        "All universal driver distinct implementations"
+      ],
+      "status": "satisfied_on_accepted_source",
+      "final_checks": "Durable main preserves all158 accepted source files and passes419 workspace tests, native10, all17 scenarios, official SDK, version/help/demo; bridge14 candidate tests/modules preserved."
+    },
+    {
+      "requirement": "YMP-122.4",
+      "task": "YMP-122",
+      "criterion": "Exercise a distinct scripted implementation through the public engine and adverse cancellation/output/error cases without provider inference. Preserve the built-in native adapter checks.",
+      "source": "c3758aa6fc6fba620c9b703a9dab1acd623066a1",
+      "evidence": [
+        "ymp-rust/crates/ymp-providers/src/backend.rs",
+        "ymp-rust/crates/ymp-runtime/src/backend_tests.rs",
+        "ymp-docs/architecture/execution-backends.md",
+        "All universal driver distinct implementations"
+      ],
+      "status": "satisfied_on_accepted_source",
+      "final_checks": "Durable main preserves all158 accepted source files and passes419 workspace tests, native10, all17 scenarios, official SDK, version/help/demo; bridge14 candidate tests/modules preserved."
+    },
+    {
+      "requirement": "YMP-122.5",
+      "task": "YMP-122",
+      "criterion": "Document the extension contract and ownership of policy, retrieval and confirmation interfaces without introducing a dynamic plugin ABI, plugin service or generic container. Those interfaces are delivered in their owning tasks and verified by final integration.",
+      "source": "c3758aa6fc6fba620c9b703a9dab1acd623066a1",
+      "evidence": [
+        "ymp-rust/crates/ymp-providers/src/backend.rs",
+        "ymp-rust/crates/ymp-runtime/src/backend_tests.rs",
+        "ymp-docs/architecture/execution-backends.md",
+        "All universal driver distinct implementations"
+      ],
+      "status": "satisfied_on_accepted_source",
+      "final_checks": "Durable main preserves all158 accepted source files and passes419 workspace tests, native10, all17 scenarios, official SDK, version/help/demo; bridge14 candidate tests/modules preserved."
+    },
+    {
+      "requirement": "YMP-123.1",
+      "task": "YMP-123",
+      "criterion": "Expose a standards-compatible public stdio MCP process with declared protocol revisions, versioned tool schemas and a runnable client configuration example; stdout contains only protocol messages.",
+      "source": "c3758aa6fc6fba620c9b703a9dab1acd623066a1",
+      "evidence": [
+        "ymp-rust/crates/ymp-runtime/src/public_mcp.rs",
+        "ymp-docs/architecture/public-mcp-tools-v1.json",
+        "ymp-docs/architecture/public-mcp.md",
+        "ymp-evals/mcp/stdio_client.py",
+        "Official MCP SDK lifecycle walk"
+      ],
+      "status": "satisfied_on_accepted_source",
+      "final_checks": "Durable main preserves all158 accepted source files and passes419 workspace tests, native10, all17 scenarios, official SDK, version/help/demo; bridge14 candidate tests/modules preserved."
+    },
+    {
+      "requirement": "YMP-123.2",
+      "task": "YMP-123",
+      "criterion": "Provide project-scoped knowledge/session/task/result/evidence inspection; read-only tools never start agents.",
+      "source": "c3758aa6fc6fba620c9b703a9dab1acd623066a1",
+      "evidence": [
+        "ymp-rust/crates/ymp-runtime/src/public_mcp.rs",
+        "ymp-docs/architecture/public-mcp-tools-v1.json",
+        "ymp-docs/architecture/public-mcp.md",
+        "ymp-evals/mcp/stdio_client.py",
+        "Official MCP SDK lifecycle walk"
+      ],
+      "status": "satisfied_on_accepted_source",
+      "final_checks": "Durable main preserves all158 accepted source files and passes419 workspace tests, native10, all17 scenarios, official SDK, version/help/demo; bridge14 candidate tests/modules preserved."
+    },
+    {
+      "requirement": "YMP-123.3",
+      "task": "YMP-123",
+      "criterion": "Support explicit bounded start/resume, progress and cancellation through the same runtime. Define disconnect/process-exit behavior and preserve interrupted work and usage.",
+      "source": "c3758aa6fc6fba620c9b703a9dab1acd623066a1",
+      "evidence": [
+        "ymp-rust/crates/ymp-runtime/src/public_mcp.rs",
+        "ymp-docs/architecture/public-mcp-tools-v1.json",
+        "ymp-docs/architecture/public-mcp.md",
+        "ymp-evals/mcp/stdio_client.py",
+        "Official MCP SDK lifecycle walk"
+      ],
+      "status": "satisfied_on_accepted_source",
+      "final_checks": "Durable main preserves all158 accepted source files and passes419 workspace tests, native10, all17 scenarios, official SDK, version/help/demo; bridge14 candidate tests/modules preserved."
+    },
+    {
+      "requirement": "YMP-123.4",
+      "task": "YMP-123",
+      "criterion": "Distinguish external client requests and project/action scope from internal agent assignment grants. Reject foreign-project references and do not disclose provider credentials or live assignment capabilities.",
+      "source": "c3758aa6fc6fba620c9b703a9dab1acd623066a1",
+      "evidence": [
+        "ymp-rust/crates/ymp-runtime/src/public_mcp.rs",
+        "ymp-docs/architecture/public-mcp-tools-v1.json",
+        "ymp-docs/architecture/public-mcp.md",
+        "ymp-evals/mcp/stdio_client.py",
+        "Official MCP SDK lifecycle walk"
+      ],
+      "status": "satisfied_on_accepted_source",
+      "final_checks": "Durable main preserves all158 accepted source files and passes419 workspace tests, native10, all17 scenarios, official SDK, version/help/demo; bridge14 candidate tests/modules preserved."
+    },
+    {
+      "requirement": "YMP-123.5",
+      "task": "YMP-123",
+      "criterion": "Run the real stdio process with an MCP client and scripted provider through discovery, read/write lifecycle, cancellation, malformed requests, scope denial, disconnect and reopen. Final release verifies actual interoperability.",
+      "source": "c3758aa6fc6fba620c9b703a9dab1acd623066a1",
+      "evidence": [
+        "ymp-rust/crates/ymp-runtime/src/public_mcp.rs",
+        "ymp-docs/architecture/public-mcp-tools-v1.json",
+        "ymp-docs/architecture/public-mcp.md",
+        "ymp-evals/mcp/stdio_client.py",
+        "Official MCP SDK lifecycle walk"
+      ],
+      "status": "satisfied_on_accepted_source",
+      "final_checks": "Durable main preserves all158 accepted source files and passes419 workspace tests, native10, all17 scenarios, official SDK, version/help/demo; bridge14 candidate tests/modules preserved."
+    },
+    {
+      "requirement": "YMP-123.6",
+      "task": "YMP-123",
+      "criterion": "Keep the facade thin and transport replaceable; no second orchestrator, shared daemon requirement, HTTP service or remote authentication system is introduced.",
+      "source": "c3758aa6fc6fba620c9b703a9dab1acd623066a1",
+      "evidence": [
+        "ymp-rust/crates/ymp-runtime/src/public_mcp.rs",
+        "ymp-docs/architecture/public-mcp-tools-v1.json",
+        "ymp-docs/architecture/public-mcp.md",
+        "ymp-evals/mcp/stdio_client.py",
+        "Official MCP SDK lifecycle walk"
+      ],
+      "status": "satisfied_on_accepted_source",
+      "final_checks": "Durable main preserves all158 accepted source files and passes419 workspace tests, native10, all17 scenarios, official SDK, version/help/demo; bridge14 candidate tests/modules preserved."
+    },
+    {
+      "requirement": "YMP-123.7",
+      "task": "YMP-123",
+      "criterion": "Bound and paginate knowledge/history/result payloads with explicit truncation or continuation. Reuse bounded projections for internal agent MCP memory search, whose full candidate results can otherwise exceed useful context limits; do not confuse this with the separate automatic prompt excerpt cap.",
+      "source": "c3758aa6fc6fba620c9b703a9dab1acd623066a1",
+      "evidence": [
+        "ymp-rust/crates/ymp-runtime/src/public_mcp.rs",
+        "ymp-docs/architecture/public-mcp-tools-v1.json",
+        "ymp-docs/architecture/public-mcp.md",
+        "ymp-evals/mcp/stdio_client.py",
+        "Official MCP SDK lifecycle walk"
+      ],
+      "status": "satisfied_on_accepted_source",
+      "final_checks": "Durable main preserves all158 accepted source files and passes419 workspace tests, native10, all17 scenarios, official SDK, version/help/demo; bridge14 candidate tests/modules preserved."
+    },
+    {
+      "requirement": "YMP-125.1",
+      "task": "YMP-125",
+      "criterion": "Expose explicit user-controlled typed contract input through a common executable configuration/loading path, with a clear activation scope and the existing runtime-owned confirmation guards.",
+      "source": "c3758aa6fc6fba620c9b703a9dab1acd623066a1",
+      "evidence": [
+        "ymp-rust/crates/ymp-cli/tests/acceptance_contracts.rs",
+        "ymp-rust/crates/ymp-runtime/src/engine/confirmation.rs",
+        "ymp-docs/architecture/executable-acceptance-contracts.md",
+        "Official MCP SDK configured-contract walk"
+      ],
+      "status": "satisfied_on_accepted_source",
+      "final_checks": "Durable main preserves all158 accepted source files and passes419 workspace tests, native10, all17 scenarios, official SDK, version/help/demo; bridge14 candidate tests/modules preserved."
+    },
+    {
+      "requirement": "YMP-125.2",
+      "task": "YMP-125",
+      "criterion": "Communicate declared target titles, criteria and artifact/input paths to planning without leaking expected bytes, reference outputs or verifier contents. Reject duplicate and unmatched or ambiguous targets before production; replanning retains the obligations.",
+      "source": "c3758aa6fc6fba620c9b703a9dab1acd623066a1",
+      "evidence": [
+        "ymp-rust/crates/ymp-cli/tests/acceptance_contracts.rs",
+        "ymp-rust/crates/ymp-runtime/src/engine/confirmation.rs",
+        "ymp-docs/architecture/executable-acceptance-contracts.md",
+        "Official MCP SDK configured-contract walk"
+      ],
+      "status": "satisfied_on_accepted_source",
+      "final_checks": "Durable main preserves all158 accepted source files and passes419 workspace tests, native10, all17 scenarios, official SDK, version/help/demo; bridge14 candidate tests/modules preserved."
+    },
+    {
+      "requirement": "YMP-125.3",
+      "task": "YMP-125",
+      "criterion": "Capture selected contracts before prompting and preserve their source/bindings on resume; mutable configuration or manifest edits cannot replace a captured contract.",
+      "source": "c3758aa6fc6fba620c9b703a9dab1acd623066a1",
+      "evidence": [
+        "ymp-rust/crates/ymp-cli/tests/acceptance_contracts.rs",
+        "ymp-rust/crates/ymp-runtime/src/engine/confirmation.rs",
+        "ymp-docs/architecture/executable-acceptance-contracts.md",
+        "Official MCP SDK configured-contract walk"
+      ],
+      "status": "satisfied_on_accepted_source",
+      "final_checks": "Durable main preserves all158 accepted source files and passes419 workspace tests, native10, all17 scenarios, official SDK, version/help/demo; bridge14 candidate tests/modules preserved."
+    },
+    {
+      "requirement": "YMP-125.4",
+      "task": "YMP-125",
+      "criterion": "Verify an actual executable confirmed outcome and supported retrieval in a later session, while absent-contract qualitative runs remain accepted/unconfirmed with no reputation.",
+      "source": "c3758aa6fc6fba620c9b703a9dab1acd623066a1",
+      "evidence": [
+        "ymp-rust/crates/ymp-cli/tests/acceptance_contracts.rs",
+        "ymp-rust/crates/ymp-runtime/src/engine/confirmation.rs",
+        "ymp-docs/architecture/executable-acceptance-contracts.md",
+        "Official MCP SDK configured-contract walk"
+      ],
+      "status": "satisfied_on_accepted_source",
+      "final_checks": "Durable main preserves all158 accepted source files and passes419 workspace tests, native10, all17 scenarios, official SDK, version/help/demo; bridge14 candidate tests/modules preserved."
+    },
+    {
+      "requirement": "YMP-125.5",
+      "task": "YMP-125",
+      "criterion": "Exercise failing/partial checks, changed inputs/artifacts/verifiers, target-binding failures and resumed configuration changes through production boundaries using mock/scripted providers.",
+      "source": "c3758aa6fc6fba620c9b703a9dab1acd623066a1",
+      "evidence": [
+        "ymp-rust/crates/ymp-cli/tests/acceptance_contracts.rs",
+        "ymp-rust/crates/ymp-runtime/src/engine/confirmation.rs",
+        "ymp-docs/architecture/executable-acceptance-contracts.md",
+        "Official MCP SDK configured-contract walk"
+      ],
+      "status": "satisfied_on_accepted_source",
+      "final_checks": "Durable main preserves all158 accepted source files and passes419 workspace tests, native10, all17 scenarios, official SDK, version/help/demo; bridge14 candidate tests/modules preserved."
+    },
+    {
+      "requirement": "YMP-125.6",
+      "task": "YMP-125",
+      "criterion": "Keep current CLI/TUI consumers consistent with shared runtime records. Delegate any TUI implementation to Claude Opus 5 max; no new confirmation semantics or general plugin framework is required.",
+      "source": "c3758aa6fc6fba620c9b703a9dab1acd623066a1",
+      "evidence": [
+        "ymp-rust/crates/ymp-cli/tests/acceptance_contracts.rs",
+        "ymp-rust/crates/ymp-runtime/src/engine/confirmation.rs",
+        "ymp-docs/architecture/executable-acceptance-contracts.md",
+        "Official MCP SDK configured-contract walk"
+      ],
+      "status": "satisfied_on_accepted_source",
+      "final_checks": "Durable main preserves all158 accepted source files and passes419 workspace tests, native10, all17 scenarios, official SDK, version/help/demo; bridge14 candidate tests/modules preserved."
+    },
+    {
+      "requirement": "YMP-126.1",
+      "task": "YMP-126",
+      "criterion": "Implement the YMP-evals integration contract against actual runtime admission, execution, storage, tool and confirmation boundaries; scripted backends may control workload and barriers but may not fabricate completion receipts.",
+      "source": "c3758aa6fc6fba620c9b703a9dab1acd623066a1",
+      "evidence": [
+        "ymp-evals/reports/ymp-126-independent-max-review.md",
+        "ymp-rust/crates/ymp-eval-driver/src",
+        "All 17 final-source runtime cases"
+      ],
+      "status": "satisfied_on_accepted_source",
+      "final_checks": "Durable main preserves all158 accepted source files and passes419 workspace tests, native10, all17 scenarios, official SDK, version/help/demo; bridge14 candidate tests/modules preserved."
+    },
+    {
+      "requirement": "YMP-126.2",
+      "task": "YMP-126",
+      "criterion": "Run all four universal workflows and all thirteen named protocol scenarios. Pending feature adapters and skipped cases remain incomplete; board112 and correction114 must be exercised when their accepted implementations are available.",
+      "source": "c3758aa6fc6fba620c9b703a9dab1acd623066a1",
+      "evidence": [
+        "ymp-evals/reports/ymp-126-independent-max-review.md",
+        "ymp-rust/crates/ymp-eval-driver/src",
+        "All 17 final-source runtime cases"
+      ],
+      "status": "satisfied_on_accepted_source",
+      "final_checks": "Durable main preserves all158 accepted source files and passes419 workspace tests, native10, all17 scenarios, official SDK, version/help/demo; bridge14 candidate tests/modules preserved."
+    },
+    {
+      "requirement": "YMP-126.3",
+      "task": "YMP-126",
+      "criterion": "Derive normalized observations from actual records and measured counters, retain raw journals and an ID alias map, preserve unexpected occurrences/order, and bind source/fixture/provider/exporter revisions and hashes.",
+      "source": "c3758aa6fc6fba620c9b703a9dab1acd623066a1",
+      "evidence": [
+        "ymp-evals/reports/ymp-126-independent-max-review.md",
+        "ymp-rust/crates/ymp-eval-driver/src",
+        "All 17 final-source runtime cases"
+      ],
+      "status": "satisfied_on_accepted_source",
+      "final_checks": "Durable main preserves all158 accepted source files and passes419 workspace tests, native10, all17 scenarios, official SDK, version/help/demo; bridge14 candidate tests/modules preserved."
+    },
+    {
+      "requirement": "YMP-126.4",
+      "task": "YMP-126",
+      "criterion": "Keep authoritative validators, reference outputs and expected traces outside agent context and memory; use genuine non-Git selected task directories and metadata-only application homes.",
+      "source": "c3758aa6fc6fba620c9b703a9dab1acd623066a1",
+      "evidence": [
+        "ymp-evals/reports/ymp-126-independent-max-review.md",
+        "ymp-rust/crates/ymp-eval-driver/src",
+        "All 17 final-source runtime cases"
+      ],
+      "status": "satisfied_on_accepted_source",
+      "final_checks": "Durable main preserves all158 accepted source files and passes419 workspace tests, native10, all17 scenarios, official SDK, version/help/demo; bridge14 candidate tests/modules preserved."
+    },
+    {
+      "requirement": "YMP-126.5",
+      "task": "YMP-126",
+      "criterion": "Verify the independent validators against actual artifacts and relevant captured evidence, including qualitative accepted/unconfirmed outcomes, resource coverage, durable paths, recovery and policy substitution.",
+      "source": "c3758aa6fc6fba620c9b703a9dab1acd623066a1",
+      "evidence": [
+        "ymp-evals/reports/ymp-126-independent-max-review.md",
+        "ymp-rust/crates/ymp-eval-driver/src",
+        "All 17 final-source runtime cases"
+      ],
+      "status": "satisfied_on_accepted_source",
+      "final_checks": "Durable main preserves all158 accepted source files and passes419 workspace tests, native10, all17 scenarios, official SDK, version/help/demo; bridge14 candidate tests/modules preserved."
+    },
+    {
+      "requirement": "YMP-126.6",
+      "task": "YMP-126",
+      "criterion": "Retain discriminating negative controls and complete per-case evidence bundles as specified by ymp-evals/README.md; no model quality or efficiency claim follows from scripted runs.",
+      "source": "c3758aa6fc6fba620c9b703a9dab1acd623066a1",
+      "evidence": [
+        "ymp-evals/reports/ymp-126-independent-max-review.md",
+        "ymp-rust/crates/ymp-eval-driver/src",
+        "All 17 final-source runtime cases"
+      ],
+      "status": "satisfied_on_accepted_source",
+      "final_checks": "Durable main preserves all158 accepted source files and passes419 workspace tests, native10, all17 scenarios, official SDK, version/help/demo; bridge14 candidate tests/modules preserved."
+    },
+    {
+      "requirement": "YMP-126.7",
+      "task": "YMP-126",
+      "criterion": "Run required Cargo and validator checks, obtain independent review, and provide a reproducible command for the final121 release verification. All workloads remain mock/scripted; no native inference or UI implementation is authorized here.",
+      "source": "c3758aa6fc6fba620c9b703a9dab1acd623066a1",
+      "evidence": [
+        "ymp-evals/reports/ymp-126-independent-max-review.md",
+        "ymp-rust/crates/ymp-eval-driver/src",
+        "All 17 final-source runtime cases"
+      ],
+      "status": "satisfied_on_accepted_source",
+      "final_checks": "Durable main preserves all158 accepted source files and passes419 workspace tests, native10, all17 scenarios, official SDK, version/help/demo; bridge14 candidate tests/modules preserved."
+    },
+    {
+      "requirement": "YMP-127.1",
+      "task": "YMP-127",
+      "criterion": "Preserve provider-returned model/agent identifiers, display names and available effort/control names and values, with native source provenance; no hardcoded replacement name table or invented setting support.",
+      "source": "c3758aa6fc6fba620c9b703a9dab1acd623066a1",
+      "evidence": [
+        "ymp-rust/crates/ymp-cli/tests/native_catalog.rs",
+        "ymp-rust/crates/ymp-core/src/config/catalog.rs",
+        "ymp-docs/research/evidence/native-catalog-owner-refresh.json",
+        "Accepted Opus native-name view review"
+      ],
+      "status": "satisfied_on_accepted_source",
+      "final_checks": "Durable main preserves all158 accepted source files and passes419 workspace tests, native10, all17 scenarios, official SDK, version/help/demo; bridge14 candidate tests/modules preserved."
+    },
+    {
+      "requirement": "YMP-127.2",
+      "task": "YMP-127",
+      "criterion": "Populate the actual selectable pool from native discovery, including multiple concrete configurations from one provider. Provider identity stays a separate field, and refreshing does not automatically activate every offering.",
+      "source": "c3758aa6fc6fba620c9b703a9dab1acd623066a1",
+      "evidence": [
+        "ymp-rust/crates/ymp-cli/tests/native_catalog.rs",
+        "ymp-rust/crates/ymp-core/src/config/catalog.rs",
+        "ymp-docs/research/evidence/native-catalog-owner-refresh.json",
+        "Accepted Opus native-name view review"
+      ],
+      "status": "satisfied_on_accepted_source",
+      "final_checks": "Durable main preserves all158 accepted source files and passes419 workspace tests, native10, all17 scenarios, official SDK, version/help/demo; bridge14 candidate tests/modules preserved."
+    },
+    {
+      "requirement": "YMP-127.3",
+      "task": "YMP-127",
+      "criterion": "Expose a bounded scan/refresh and stored catalog shared by executable clients; native metadata calls send no model prompt, and painting/ordinary inspection do not repeatedly launch discovery.",
+      "source": "c3758aa6fc6fba620c9b703a9dab1acd623066a1",
+      "evidence": [
+        "ymp-rust/crates/ymp-cli/tests/native_catalog.rs",
+        "ymp-rust/crates/ymp-core/src/config/catalog.rs",
+        "ymp-docs/research/evidence/native-catalog-owner-refresh.json",
+        "Accepted Opus native-name view review"
+      ],
+      "status": "satisfied_on_accepted_source",
+      "final_checks": "Durable main preserves all158 accepted source files and passes419 workspace tests, native10, all17 scenarios, official SDK, version/help/demo; bridge14 candidate tests/modules preserved."
+    },
+    {
+      "requirement": "YMP-127.4",
+      "task": "YMP-127",
+      "criterion": "Provide a supported upgrade path for generated provider-only placeholders while preserving custom profiles, stable actor IDs, instructions, pins, existing team constraints, historical sessions and qualified experience.",
+      "source": "c3758aa6fc6fba620c9b703a9dab1acd623066a1",
+      "evidence": [
+        "ymp-rust/crates/ymp-cli/tests/native_catalog.rs",
+        "ymp-rust/crates/ymp-core/src/config/catalog.rs",
+        "ymp-docs/research/evidence/native-catalog-owner-refresh.json",
+        "Accepted Opus native-name view review"
+      ],
+      "status": "satisfied_on_accepted_source",
+      "final_checks": "Durable main preserves all158 accepted source files and passes419 workspace tests, native10, all17 scenarios, official SDK, version/help/demo; bridge14 candidate tests/modules preserved."
+    },
+    {
+      "requirement": "YMP-127.5",
+      "task": "YMP-127",
+      "criterion": "Use actual native names for current effective model/settings in team, pool, assignment and usage views, including changed settings and unknown/legacy cases; all TUI implementation and review use Claude Opus 5 max.",
+      "source": "c3758aa6fc6fba620c9b703a9dab1acd623066a1",
+      "evidence": [
+        "ymp-rust/crates/ymp-cli/tests/native_catalog.rs",
+        "ymp-rust/crates/ymp-core/src/config/catalog.rs",
+        "ymp-docs/research/evidence/native-catalog-owner-refresh.json",
+        "Accepted Opus native-name view review"
+      ],
+      "status": "satisfied_on_accepted_source",
+      "final_checks": "Durable main preserves all158 accepted source files and passes419 workspace tests, native10, all17 scenarios, official SDK, version/help/demo; bridge14 candidate tests/modules preserved."
+    },
+    {
+      "requirement": "YMP-127.6",
+      "task": "YMP-127",
+      "criterion": "Verify distinctive native labels, aliases, partial failures, repeat scans, multiple agents on one provider, stale/unknown metadata and history through real executable paths with scripted native fixtures, then metadata-only installed-provider scanning.",
+      "source": "c3758aa6fc6fba620c9b703a9dab1acd623066a1",
+      "evidence": [
+        "ymp-rust/crates/ymp-cli/tests/native_catalog.rs",
+        "ymp-rust/crates/ymp-core/src/config/catalog.rs",
+        "ymp-docs/research/evidence/native-catalog-owner-refresh.json",
+        "Accepted Opus native-name view review"
+      ],
+      "status": "satisfied_on_accepted_source",
+      "final_checks": "Durable main preserves all158 accepted source files and passes419 workspace tests, native10, all17 scenarios, official SDK, version/help/demo; bridge14 candidate tests/modules preserved."
+    },
+    {
+      "requirement": "YMP-127.7",
+      "task": "YMP-127",
+      "criterion": "After independent acceptance, refresh the local application configuration/catalog through the implemented path and build a current executable whose selectable agents carry the returned names. Never read/log/copy credential values or use real model inference for these checks.",
+      "source": "c3758aa6fc6fba620c9b703a9dab1acd623066a1",
+      "evidence": [
+        "ymp-rust/crates/ymp-cli/tests/native_catalog.rs",
+        "ymp-rust/crates/ymp-core/src/config/catalog.rs",
+        "ymp-docs/research/evidence/native-catalog-owner-refresh.json",
+        "Accepted Opus native-name view review"
+      ],
+      "status": "satisfied_on_accepted_source",
+      "final_checks": "Durable main preserves all158 accepted source files and passes419 workspace tests, native10, all17 scenarios, official SDK, version/help/demo; bridge14 candidate tests/modules preserved."
+    },
+    {
+      "requirement": "YMP-128.1",
+      "task": "YMP-128",
+      "criterion": "Keep application data and the actual socket in the selected metadata home while using a private short transport alias when the Unix address cannot represent that path; never change the process working directory.",
+      "source": "c3758aa6fc6fba620c9b703a9dab1acd623066a1",
+      "evidence": [
+        "ymp-rust/crates/ymp-runtime/src/mcp.rs",
+        "ymp-rust/crates/ymp-cli/tests/long_metadata_home.rs",
+        "ymp-evals/reports/long-metadata-socket-independent-review.md",
+        "Final isolated install and long-home mock demo"
+      ],
+      "status": "satisfied_on_accepted_source",
+      "final_checks": "Durable main preserves all158 accepted source files and passes419 workspace tests, native10, all17 scenarios, official SDK, version/help/demo; bridge14 candidate tests/modules preserved."
+    },
+    {
+      "requirement": "YMP-128.2",
+      "task": "YMP-128",
+      "criterion": "Preserve assignment capability validation, native authentication, socket permissions, public stdio behavior and independent concurrent server identities.",
+      "source": "c3758aa6fc6fba620c9b703a9dab1acd623066a1",
+      "evidence": [
+        "ymp-rust/crates/ymp-runtime/src/mcp.rs",
+        "ymp-rust/crates/ymp-cli/tests/long_metadata_home.rs",
+        "ymp-evals/reports/long-metadata-socket-independent-review.md",
+        "Final isolated install and long-home mock demo"
+      ],
+      "status": "satisfied_on_accepted_source",
+      "final_checks": "Durable main preserves all158 accepted source files and passes419 workspace tests, native10, all17 scenarios, official SDK, version/help/demo; bridge14 candidate tests/modules preserved."
+    },
+    {
+      "requirement": "YMP-128.3",
+      "task": "YMP-128",
+      "criterion": "Release the owned socket and temporary alias on normal shutdown and failed setup, without deleting another listener or application data.",
+      "source": "c3758aa6fc6fba620c9b703a9dab1acd623066a1",
+      "evidence": [
+        "ymp-rust/crates/ymp-runtime/src/mcp.rs",
+        "ymp-rust/crates/ymp-cli/tests/long_metadata_home.rs",
+        "ymp-evals/reports/long-metadata-socket-independent-review.md",
+        "Final isolated install and long-home mock demo"
+      ],
+      "status": "satisfied_on_accepted_source",
+      "final_checks": "Durable main preserves all158 accepted source files and passes419 workspace tests, native10, all17 scenarios, official SDK, version/help/demo; bridge14 candidate tests/modules preserved."
+    },
+    {
+      "requirement": "YMP-128.4",
+      "task": "YMP-128",
+      "criterion": "Reproduce the original long-home failure, pass a real executable mock demo in that same setup, and exercise transport round trips, isolation and cleanup with deterministic offline controls.",
+      "source": "c3758aa6fc6fba620c9b703a9dab1acd623066a1",
+      "evidence": [
+        "ymp-rust/crates/ymp-runtime/src/mcp.rs",
+        "ymp-rust/crates/ymp-cli/tests/long_metadata_home.rs",
+        "ymp-evals/reports/long-metadata-socket-independent-review.md",
+        "Final isolated install and long-home mock demo"
+      ],
+      "status": "satisfied_on_accepted_source",
+      "final_checks": "Durable main preserves all158 accepted source files and passes419 workspace tests, native10, all17 scenarios, official SDK, version/help/demo; bridge14 candidate tests/modules preserved."
+    },
+    {
+      "requirement": "YMP-128.5",
+      "task": "YMP-128",
+      "criterion": "Run required Rust checks and obtain independent review, then repeat the existing isolated install, help, demo and backup/idempotence checks. No native model calls are permitted.",
+      "source": "c3758aa6fc6fba620c9b703a9dab1acd623066a1",
+      "evidence": [
+        "ymp-rust/crates/ymp-runtime/src/mcp.rs",
+        "ymp-rust/crates/ymp-cli/tests/long_metadata_home.rs",
+        "ymp-evals/reports/long-metadata-socket-independent-review.md",
+        "Final isolated install and long-home mock demo"
+      ],
+      "status": "satisfied_on_accepted_source",
+      "final_checks": "Durable main preserves all158 accepted source files and passes419 workspace tests, native10, all17 scenarios, official SDK, version/help/demo; bridge14 candidate tests/modules preserved."
+    }
+  ],
+  "paused_outside_release": [
+    {
+      "task": "YMP-108",
+      "title": "Evaluate an optional usage estimate with explicit price provenance",
+      "status": "paused"
+    },
+    {
+      "task": "YMP-201",
+      "title": "Calibrate and run the paired solo/team pilot",
+      "status": "paused"
+    },
+    {
+      "task": "YMP-202",
+      "title": "Test memory and adaptive assignment on held-out tasks",
+      "status": "paused"
+    },
+    {
+      "task": "YMP-203",
+      "title": "Test effort, reduced preparation and low-effort ensembles separately",
+      "status": "paused"
+    },
+    {
+      "task": "YMP-204",
+      "title": "Evaluate a project-scoped prior-outcome router",
+      "status": "paused"
+    },
+    {
+      "task": "YMP-301",
+      "title": "Confirm the initial success class and intended audience",
+      "status": "paused"
+    },
+    {
+      "task": "YMP-124",
+      "title": "Add isolated execution and recoverable publication for larger projects",
+      "status": "paused"
+    }
+  ],
+  "task_classification": {
+    "canonical_release_plan_tasks": 26,
+    "implementation_or_verification_tasks": 25,
+    "design_tasks": 1
+  },
+  "source_acceptance": {
+    "candidate": "c3758aa6fc6fba620c9b703a9dab1acd623066a1",
+    "durable_main": "baf85540e3130227c1a4942fd17301bd039b7996",
+    "source_hashes_preserved": 158,
+    "ui_verdict": "Independent Opus5max ACCEPT9/10",
+    "remaining": "None in independent release review; parent records final completion and evidence-only documentation updates."
+  },
+  "prepublication_verdict": "ACCEPT9/10",
+  "publication": "complete; independent installed-byte and target verification passed",
+  "final_verdict": "ACCEPT for installed local0.4.0,9/10"
+}

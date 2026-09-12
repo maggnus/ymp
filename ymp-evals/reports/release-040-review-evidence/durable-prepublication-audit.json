@@ -1,0 +1,17 @@
+{
+  "source": "baf85540e3130227c1a4942fd17301bd039b7996",
+  "binary": "/Users/maggnus/Code/ymp2/target/ymp040-staging/release/ymp",
+  "binary_sha256": "cc8ed8a755b9778a2cfcad6460880730167e0dd39ce075543ddad25cb4278f14",
+  "driver_sha256": "37372dad0628e5e561a8b8c32e139b9df858203c8eb25cb84f611c27b16d0204",
+  "bridge": "/Users/maggnus/Code/ymp2/ymp-bridges/claude/dist/index.js",
+  "bridge_sha256": "002c8b154f8b5b9b8b2f2bf67ca02cff25dc8dcee3d994ae798f3b46753f3165",
+  "source_files_verified": 158,
+  "all17_complete": true,
+  "sqlite_integrity_databases": 18,
+  "durable_record_parity": 682,
+  "sdk_calls": 245,
+  "sdk_largest_reply_bytes": 73149,
+  "old_owner_installation_verified_unchanged": true,
+  "independent_version_command": "ymp 0.4.0",
+  "verdict": "ACCEPT for local publication,9/10; append installation confirmation after atomic publication"
+}

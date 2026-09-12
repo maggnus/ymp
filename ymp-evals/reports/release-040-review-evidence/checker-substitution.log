@@ -1,0 +1,33 @@
+   Compiling ymp-core v0.4.0 (/tmp/ymp040-max-review/ymp-rust/crates/ymp-core)
+   Compiling ymp-storage v0.4.0 (/tmp/ymp040-max-review/ymp-rust/crates/ymp-storage)
+   Compiling ymp-providers v0.4.0 (/tmp/ymp040-max-review/ymp-rust/crates/ymp-providers)
+   Compiling ymp-workspace v0.4.0 (/tmp/ymp040-max-review/ymp-rust/crates/ymp-workspace)
+   Compiling ymp-runtime v0.4.0 (/tmp/ymp040-max-review/ymp-rust/crates/ymp-runtime)
+   Compiling ymp-current-checker-probe v0.1.0 (/tmp/ymp040-max-review/review-evidence/checker-probe)
+warning: field `events` is never read
+ --> src/lib.rs:8:92
+  |
+8 | struct Fixture { _temp: tempfile::TempDir, project: PathBuf, store: Store, engine: Engine, events: mpsc::UnboundedReceiver<UiEvent> }
+  |        ------- field in this struct                                                        ^^^^^^
+  |
+  = note: `#[warn(dead_code)]` on by default
+
+warning: `ymp-current-checker-probe` (lib test) generated 1 warning
+    Finished `test` profile [unoptimized] target(s) in 6.20s
+     Running unittests src/lib.rs (/tmp/ymp126-max-review-target/debug/deps/ymp_current_checker_probe-86476d2c81c9829e)
+
+running 1 test
+alternative mode=raw-success status=completed observations=1 check=Some(Passed)
+alternative mode=unknown status=completed observations=0 check=Some(Inconclusive)
+alternative mode=mutate-input status=blocked observations=0 check=Some(Inconclusive)
+alternative mode=mutate-artifact status=blocked observations=0 check=Some(Inconclusive)
+test alternative_checker_changes_execution_but_not_scope_and_freshness ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.70s
+
+   Doc-tests ymp_current_checker_probe
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+

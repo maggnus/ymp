@@ -1,0 +1,95 @@
+{
+  "source": "c3758aa6fc6fba620c9b703a9dab1acd623066a1",
+  "source_tree_sha256": "9e3ede2c66c71d2a51fa6fb8cc9d47fd124bb52a6366cf617b7f10c65ad0bb39",
+  "complete": true,
+  "cases": [
+    {
+      "case": "adaptive-team",
+      "invocations": 1,
+      "sqlite_and_journal_parity": true
+    },
+    {
+      "case": "artifact-version",
+      "invocations": 4,
+      "sqlite_and_journal_parity": true
+    },
+    {
+      "case": "assignment-authority",
+      "invocations": 2,
+      "sqlite_and_journal_parity": true
+    },
+    {
+      "case": "budget-reservations",
+      "invocations": 4,
+      "sqlite_and_journal_parity": true
+    },
+    {
+      "case": "concurrency-conflicts",
+      "invocations": 3,
+      "sqlite_and_journal_parity": true
+    },
+    {
+      "case": "document",
+      "invocations": 6,
+      "sqlite_and_journal_parity": true
+    },
+    {
+      "case": "effort-support",
+      "invocations": 1,
+      "sqlite_and_journal_parity": true
+    },
+    {
+      "case": "evidence-boundaries",
+      "invocations": 7,
+      "sqlite_and_journal_parity": true
+    },
+    {
+      "case": "fixed-roster",
+      "invocations": 4,
+      "sqlite_and_journal_parity": true
+    },
+    {
+      "case": "fixed-size",
+      "invocations": 0,
+      "sqlite_and_journal_parity": true
+    },
+    {
+      "case": "grounded",
+      "invocations": 6,
+      "sqlite_and_journal_parity": true
+    },
+    {
+      "case": "knowledge-correction",
+      "invocations": 14,
+      "sqlite_and_journal_parity": true
+    },
+    {
+      "case": "location-retrieval",
+      "invocations": 6,
+      "sqlite_and_journal_parity": true
+    },
+    {
+      "case": "partial-usage",
+      "invocations": 1,
+      "sqlite_and_journal_parity": true
+    },
+    {
+      "case": "qualitative",
+      "invocations": 6,
+      "sqlite_and_journal_parity": true
+    },
+    {
+      "case": "restart-inspection",
+      "invocations": 6,
+      "sqlite_and_journal_parity": true
+    },
+    {
+      "case": "transform",
+      "invocations": 6,
+      "sqlite_and_journal_parity": true
+    }
+  ],
+  "record_count": 682,
+  "projection_count": 79,
+  "db_count": 18
+}

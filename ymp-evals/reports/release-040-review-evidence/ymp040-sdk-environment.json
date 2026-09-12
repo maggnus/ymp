@@ -1,0 +1,8 @@
+{
+  "interpreter": "/private/tmp/ymp-mcp123-sdk/bin/python",
+  "resolved_interpreter": "/opt/homebrew/Cellar/python@3.14/3.14.3_1/Frameworks/Python.framework/Versions/3.14/bin/python3.14",
+  "python": "3.14.3",
+  "mcp_package_version": "1.28.1",
+  "interpreter_sha256": "cbf84109626aa1013bbe408fbb9590bd0f1c1548f038b2221c6b8b87de26ca43",
+  "mcp_package_path": "/private/tmp/ymp-mcp123-sdk/lib/python3.14/site-packages/mcp"
+}

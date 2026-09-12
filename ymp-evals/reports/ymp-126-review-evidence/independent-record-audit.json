@@ -1,0 +1,45 @@
+{
+  "sqlite": [
+    "adaptive-team/metadata/state.sqlite",
+    "artifact-version/metadata/state.sqlite",
+    "assignment-authority/metadata/state.sqlite",
+    "budget-reservations/metadata/state.sqlite",
+    "concurrency-conflicts/metadata/state.sqlite",
+    "document/metadata/state.sqlite",
+    "effort-support/metadata/state.sqlite",
+    "evidence-boundaries/aggregate/metadata/state.sqlite",
+    "evidence-boundaries/metadata/state.sqlite",
+    "fixed-roster/metadata/state.sqlite",
+    "fixed-size/metadata/state.sqlite",
+    "grounded/metadata/state.sqlite",
+    "knowledge-correction/metadata/state.sqlite",
+    "location-retrieval/metadata/state.sqlite",
+    "partial-usage/metadata/state.sqlite",
+    "qualitative/metadata/state.sqlite",
+    "restart-inspection/metadata/state.sqlite",
+    "transform/metadata/state.sqlite"
+  ],
+  "trace_records": 682,
+  "projection_sources": 79,
+  "source_order": [
+    "adaptive-team",
+    "artifact-version",
+    "assignment-authority",
+    "budget-reservations",
+    "concurrency-conflicts",
+    "effort-support",
+    "evidence-boundaries",
+    "fixed-roster",
+    "fixed-size",
+    "knowledge-correction",
+    "location-retrieval",
+    "partial-usage",
+    "restart-inspection"
+  ],
+  "artifact_identity": [
+    "document",
+    "transform",
+    "grounded",
+    "qualitative"
+  ]
+}

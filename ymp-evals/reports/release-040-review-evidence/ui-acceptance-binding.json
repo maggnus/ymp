@@ -1,0 +1,76 @@
+{
+  "reviewer": "Independent Claude Opus 5 max via parent delegated review4618183f",
+  "reviewed_ui_source": "b6eb516e45dab307b9647c8f863d7a9f787ca845",
+  "accepted_ui_tree": "80cfb28a75868debfa0ff613e19c305f59cbe2d1",
+  "durable_main": "baf85540e3130227c1a4942fd17301bd039b7996",
+  "verdict": "ACCEPT for0.4.0,9/10",
+  "review_report_sha256": "1638e3a929e13c06193088dcb744004d7bb4eb73e76ce79709d2b1e974cd2bf2",
+  "followup_evidence_files_verified": [
+    {
+      "path": "/tmp/b6eb-ymp",
+      "sha256": "abb0897f7bda7c8288a12da9ce491f1ee41d00d5087f69a6a8fabedcc6ad26ff"
+    },
+    {
+      "path": "/tmp/b6eb-walk/manifest.json",
+      "sha256": "ddfc6b9563c2329c0f6dccee1d5fc892d17a451ad3ae14ccd69551d799c5e8ae"
+    },
+    {
+      "path": "/tmp/b6eb-tui-tests.log",
+      "sha256": "ca93bd34ebe3d11dd9b33b45c710826710de3462fab8b6f8b56923df5dcb06d3"
+    },
+    {
+      "path": "/tmp/b6eb-fmt.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/tmp/b6eb-mutate.py",
+      "sha256": "112dce76f8a5a0c0b13ef2d6e9a3dcadd5f386aac1fbb9dfcb04ed95d8b832e4"
+    },
+    {
+      "path": "/tmp/b6eb-mutations.json",
+      "sha256": "8243ab207d0c478058f9f0a572870d2ae56613e2b354a565c13ceb90172ea5fe"
+    },
+    {
+      "path": "/tmp/b6eb-mutations.log",
+      "sha256": "e45f07c5fae2602e84982239d7dad28699ebabd31262784b48fe095be3320413"
+    },
+    {
+      "path": "/tmp/board-walk.py",
+      "sha256": "3dabc8648062c71c840607e836b6995979368134282316c0ed8b5b3a14be766d"
+    },
+    {
+      "path": "/tmp/b6eb-stopped120.txt",
+      "sha256": "9a36fdf216c997933a3e88384ad0c9dff74a24ecc79983a5eb08a6cec83db797"
+    },
+    {
+      "path": "/tmp/b6eb-bounded120.txt",
+      "sha256": "68e387507104fb537e1efa29fa922c644dfd05db26e53ba86537e4b16a111bd0"
+    },
+    {
+      "path": "/tmp/b6eb-boarddec120.txt",
+      "sha256": "e53b13ab4d17f3c1cb65ba77dd2b1d63ac7f4f0618b011733736232aa0602981"
+    },
+    {
+      "path": "/tmp/b6eb-assign120.txt",
+      "sha256": "1514d508f13432b28436aa9f3a01d16dab08c7f7ec8b94d7fbb1ba300a9c39a2"
+    },
+    {
+      "path": "/tmp/b6eb-know80.txt",
+      "sha256": "29d20c6cdeddc1ada7d59e562964d008b50bcc9e38a13b0aabe974ca4920b5a0"
+    },
+    {
+      "path": "/tmp/b6eb-bounded80.txt",
+      "sha256": "6b024b90c6152eb97142dbd3750087b26f6a65f3f71623f59cd106697ee5e484"
+    },
+    {
+      "path": "/tmp/b6eb-assign80.txt",
+      "sha256": "6393e5515c46469705f6f498d16d34fc4dc0c1cae39c7bd0812dc8aa57c2c1de"
+    }
+  ],
+  "nonblocking_limits": [
+    "Observed tokens helper includes0 past the bound wording",
+    "Strict-bound true branch unreachable in0.4.0",
+    "Ordinary Engine uses inherited token reservation; explicit path is public trusted admission",
+    "Three knowledge availability wording variants are not terminal-walk covered"
+  ]
+}

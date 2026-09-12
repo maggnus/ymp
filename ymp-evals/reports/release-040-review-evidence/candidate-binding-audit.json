@@ -1,0 +1,23 @@
+{
+  "candidate": "c3758aa6fc6fba620c9b703a9dab1acd623066a1",
+  "all_candidate_log_hashes_match": true,
+  "all_candidate_artifact_hashes_match": true,
+  "source_manifest_hash_matches": true,
+  "tui_source_identical_to_pending_opus_candidate": "b6eb516",
+  "sdk_interpreter_package_independently_verified": {
+    "python": "3.14.3",
+    "mcp": "1.28.1",
+    "sha256": "cbf84109626aa1013bbe408fbb9590bd0f1c1548f038b2221c6b8b87de26ca43"
+  },
+  "temporary_installer_raw_verification": {
+    "logs_match": true,
+    "symlink_targets_candidate": true,
+    "greeting_bytes": "Hello from ymp\n",
+    "metadata_integrity": "ok",
+    "reported_provider_ids": [
+      "demo"
+    ],
+    "regular_file_backup_bytes_preserved": true
+  },
+  "scope": "No final UI acceptance or durable staged binary yet"
+}

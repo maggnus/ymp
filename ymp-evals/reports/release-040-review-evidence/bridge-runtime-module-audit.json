@@ -1,0 +1,15 @@
+{
+  "source": "c3758aa6fc6fba620c9b703a9dab1acd623066a1",
+  "candidate_bridge_directory": "/var/folders/cw/7pn8sb3x6bj69g7j2d8f_ss00000gn/T/ymp-release-work-h6oq_rys/release_040/ymp-bridges/claude",
+  "runtime_module_hashes": {
+    "dist/index.js": "002c8b154f8b5b9b8b2f2bf67ca02cff25dc8dcee3d994ae798f3b46753f3165",
+    "dist/settings.js": "df647d25243ad034c8747d5fcd8ccbc08f7e40afd33a2d57103354d3446f4ca8",
+    "dist/resources.js": "a4a3e96434a7e7035cddde2baa0db0d03f11f7c3b896fd53338da61de7cb73cc",
+    "dist/usage.js": "01e350f8f83a5ebe9db0bf46eac0e0340ddc139ab8ca9847f4e4e300c37d3627",
+    "package.json": "1887c2195a9932d638d02c1adcebb214b3955c972c63053a33fc7223b09a7ac7",
+    "package-lock.json": "d80236512da115a0d7c2211cd0a54985861c68ab2a0bdbf18a3a4b53338b8f57"
+  },
+  "sdk_package": "0.3.246",
+  "typescript_package": "5.9.3",
+  "scope": "Runtime bridge modules inspected after candidate build/SDK fixture tests; durable-main modules pending comparison."
+}

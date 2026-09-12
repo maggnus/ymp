@@ -1,0 +1,70 @@
+{
+  "candidate": "a04aef41e003609c42c81ac5b698c0ca2a208274",
+  "compiled_source_tree_sha256": "535a26d0c3e1d885072a134f93677056ec3548a6115df907970ba9f151f759db",
+  "original_intent_sha256": "4479e919c5b47934e69e81ac493d16e90a0dc420a9a370382e79bca3f3c754d9",
+  "fresh_run": {
+    "started_at": "2026-09-12T22:34:44.420815+00:00",
+    "finished_at": "2026-09-12T22:35:15.430332+00:00",
+    "application_revision": "a04aef41e003609c42c81ac5b698c0ca2a208274",
+    "complete": true,
+    "executable": {
+      "build_revision": "a04aef41e003609c42c81ac5b698c0ca2a208274",
+      "path": "/tmp/ymp126-max-review-target/debug/ymp-eval-driver",
+      "sha256": "86c1b61159f56c2c78ccf9210a2578994daa9065a4ea30c9baf7385c55094307",
+      "source_tree_sha256": "535a26d0c3e1d885072a134f93677056ec3548a6115df907970ba9f151f759db"
+    }
+  },
+  "case_ids": [
+    "document",
+    "grounded",
+    "qualitative",
+    "transform",
+    "adaptive-team",
+    "artifact-version",
+    "assignment-authority",
+    "budget-reservations",
+    "concurrency-conflicts",
+    "effort-support",
+    "evidence-boundaries",
+    "fixed-roster",
+    "fixed-size",
+    "knowledge-correction",
+    "location-retrieval",
+    "partial-usage",
+    "restart-inspection"
+  ],
+  "stdio_bridge": {
+    "path": "/tmp/ymp126-max-review-target/debug/ymp",
+    "sha256": "a0d98cc6e0e829a348a0c279914cb56e3d2c67500bf1fd79292d09264e110b3f"
+  },
+  "logs": {
+    "/tmp/ymp126-max-review-build.log": {
+      "sha256": "e5194affa0ba43be043abe072fd483c1f22d05539a6ef60344a86c85f092620f",
+      "bytes": 4882
+    },
+    "/tmp/ymp126-max-review-run.log": {
+      "sha256": "f46fdd92c28bb728c85723b5bdc3fa69a508d0aed671042d4800ecff57eb48be",
+      "bytes": 402
+    },
+    "/tmp/ymp126-max-review-controls.log": {
+      "sha256": "20b20b69a0d732fb132aac81bea58a33148a2a0c4805aa2ae32918b5b4b99b4c",
+      "bytes": 2630
+    },
+    "/tmp/ymp126-max-review-validators.log": {
+      "sha256": "da4e0742bd2005004a0060af522600cbb183b146e1312157121e6739e99af718",
+      "bytes": 4181
+    },
+    "/tmp/ymp126-max-review-restart-controls.log": {
+      "sha256": "fd554f0d8466c5632719c4a3da2071330ea86ccac3bb69573231268eacd66703",
+      "bytes": 462
+    },
+    "/tmp/ymp126-max-review-mutant-build.log": {
+      "sha256": "5a5e53c2c4391d847e9d9e029ae1315830d74198383d4c3d82045e3e75e44718",
+      "bytes": 161
+    },
+    "/tmp/ymp126-max-review-restored-build.log": {
+      "sha256": "d59065c839d8c070a4382d816e7cb6424c84e4151e20ae7f04236cd6403f2910",
+      "bytes": 161
+    }
+  }
+}

@@ -1,0 +1,19 @@
+{"signal": "SIGINT", "active": true, "stdin_open": true, "exit": 0, "elapsed_seconds": 0.004, "terminal_accounting": true, "invocations": 1}
+{"signal": "SIGTERM", "active": true, "stdin_open": true, "exit": 0, "elapsed_seconds": 0.006, "terminal_accounting": true, "invocations": 1}
+{"signal": "SIGINT", "active": false, "stdin_open": true, "exit": 0, "elapsed_seconds": 0.003, "terminal_accounting": true, "invocations": 0}
+{"signal": "SIGTERM", "active": false, "stdin_open": true, "exit": 0, "elapsed_seconds": 0.005, "terminal_accounting": true, "invocations": 0}
+{"signal": "SIGINT", "active": false, "stdout_undrained": true, "stdin_open": true, "broken_pipe": false, "slow_drain_eof": false, "exit": 0, "elapsed_seconds": 0.003, "terminal_accounting": true, "invocations": 0, "grants_revoked": true}
+{"signal": "SIGTERM", "active": false, "stdout_undrained": true, "stdin_open": true, "broken_pipe": false, "slow_drain_eof": false, "exit": 0, "elapsed_seconds": 0.005, "terminal_accounting": true, "invocations": 0, "grants_revoked": true}
+{"signal": "SIGINT", "active": true, "stdout_undrained": true, "stdin_open": true, "broken_pipe": false, "slow_drain_eof": false, "exit": 0, "elapsed_seconds": 0.007, "terminal_accounting": true, "invocations": 2, "grants_revoked": true}
+{"signal": "SIGTERM", "active": true, "stdout_undrained": true, "stdin_open": true, "broken_pipe": false, "slow_drain_eof": false, "exit": 0, "elapsed_seconds": 0.007, "terminal_accounting": true, "invocations": 2, "grants_revoked": true}
+{"signal": null, "active": false, "stdout_undrained": false, "stdin_open": false, "broken_pipe": false, "slow_drain_eof": true, "exit": 0, "elapsed_seconds": 0.0, "terminal_accounting": true, "invocations": 0, "grants_revoked": true}
+{"signal": null, "active": true, "stdout_undrained": false, "stdin_open": true, "broken_pipe": true, "slow_drain_eof": false, "exit": 1, "elapsed_seconds": 0.005, "terminal_accounting": true, "invocations": 1, "grants_revoked": true}
+{"contract_ingress": "passed", "later_session": "4b014592-31bb-4f3f-893f-3d4751aac6b8", "launch_configuration_snapshot_preserved": true, "read_only_added_invocations": 0, "replacement_resume_added_invocations": 0, "resumed_session": "99267f3f-a2b8-43ac-aad8-201a5bdad21d", "source_session": "cff8259e-93d7-4f90-bffc-d63df637ce5b", "supported_knowledge_ids": ["knowledge:7e7399db62abcaaaf9c1182ae6f341281a47ce3aef9f9495264adb731a9e8dae"], "tool_authority_injections_rejected": 3}
+{
+  "client": "official mcp Python SDK 1.28.1",
+  "protocol": "2025-06-18",
+  "provider": "mock only, fixed mock/low",
+  "checks": "discovery, read-only admission, bounds, continuation, versions, no inference reads, scoped execution, configured contracts, confirmed knowledge, immutable resume, rejected tool authority, conflicts, progress, usage, result/evidence, cancel/resume, foreign refs, disconnect/reopen, SIGKILL recovery, internal bridge lifecycle, malformed frames",
+  "largest_reply_bytes": 73149,
+  "tool_calls": 245
+}

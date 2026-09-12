@@ -1,0 +1,108 @@
+{
+  "artifact_bundle_files": 232,
+  "artifact_bundle_bytes": 14653503,
+  "cases": [
+    {
+      "case": "adaptive-team",
+      "databases": 1,
+      "traces": 1,
+      "runtime_invocations": 1
+    },
+    {
+      "case": "artifact-version",
+      "databases": 1,
+      "traces": 1,
+      "runtime_invocations": 4
+    },
+    {
+      "case": "assignment-authority",
+      "databases": 1,
+      "traces": 1,
+      "runtime_invocations": 2
+    },
+    {
+      "case": "budget-reservations",
+      "databases": 1,
+      "traces": 1,
+      "runtime_invocations": 4
+    },
+    {
+      "case": "concurrency-conflicts",
+      "databases": 1,
+      "traces": 1,
+      "runtime_invocations": 3
+    },
+    {
+      "case": "document",
+      "databases": 1,
+      "traces": 1,
+      "runtime_invocations": 6
+    },
+    {
+      "case": "effort-support",
+      "databases": 1,
+      "traces": 2,
+      "runtime_invocations": 1
+    },
+    {
+      "case": "evidence-boundaries",
+      "databases": 2,
+      "traces": 2,
+      "runtime_invocations": 7
+    },
+    {
+      "case": "fixed-roster",
+      "databases": 1,
+      "traces": 1,
+      "runtime_invocations": 4
+    },
+    {
+      "case": "fixed-size",
+      "databases": 1,
+      "traces": 1,
+      "runtime_invocations": 0
+    },
+    {
+      "case": "grounded",
+      "databases": 1,
+      "traces": 1,
+      "runtime_invocations": 6
+    },
+    {
+      "case": "knowledge-correction",
+      "databases": 1,
+      "traces": 3,
+      "runtime_invocations": 14
+    },
+    {
+      "case": "location-retrieval",
+      "databases": 1,
+      "traces": 2,
+      "runtime_invocations": 6
+    },
+    {
+      "case": "partial-usage",
+      "databases": 1,
+      "traces": 1,
+      "runtime_invocations": 1
+    },
+    {
+      "case": "qualitative",
+      "databases": 1,
+      "traces": 1,
+      "runtime_invocations": 6
+    },
+    {
+      "case": "restart-inspection",
+      "databases": 1,
+      "traces": 1,
+      "runtime_invocations": 6
+    },
+    {
+      "case": "transform",
+      "databases": 1,
+      "traces": 1,
+      "runtime_invocations": 6
+    }
+  ]
+}

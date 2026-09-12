@@ -1,0 +1,53 @@
+{
+  "compiled_binary_rejects_writer_drift": {
+    "returncode": 1,
+    "stderr": "Error: Evaluation source differs from the compiled build; rebuild before running\n",
+    "any_case_started": false
+  },
+  "actual_incorrect_artifact": {
+    "returncode": 1,
+    "complete": false,
+    "case": {
+      "case_id": "document",
+      "complete": false,
+      "error": "Location follow-up has no stored artifact"
+    },
+    "failed_checks": 2,
+    "positive_reviews": 2,
+    "actual_acceptances": 0,
+    "decisions": [
+      [
+        "candidate_review",
+        {
+          "decision": "accepted",
+          "confirmation": "unconfirmed"
+        }
+      ],
+      [
+        "task_rejected",
+        {
+          "decision": "rejected"
+        }
+      ],
+      [
+        "candidate_review",
+        {
+          "decision": "accepted",
+          "confirmation": "unconfirmed"
+        }
+      ],
+      [
+        "task_rejected",
+        {
+          "decision": "rejected"
+        }
+      ]
+    ],
+    "executable": {
+      "build_revision": "a04aef41e003609c42c81ac5b698c0ca2a208274",
+      "path": "/tmp/ymp126-max-review-target/debug/ymp-eval-driver",
+      "sha256": "f78be7daf566f0b8b3f4e0c4322c7c045e459da297a7c4912564c71bf24e8973",
+      "source_tree_sha256": "e6f635348c85b31d004b5ee41de2f34b5a1c559e94188d94d6fc4049325b52f6"
+    }
+  }
+}

@@ -1,0 +1,9 @@
+   Compiling ymp-eval-driver v0.3.0 (/private/tmp/ymp126-max-review/ymp-rust/crates/ymp-eval-driver)
+    Finished `test` profile [unoptimized] target(s) in 4.43s
+     Running tests/restart.rs (/tmp/ymp126-max-review-target/debug/deps/restart-dd3c7ea36ad924c0)
+
+running 1 test
+test real_process_recovery_projection_preserves_extra_closure_revocation_and_order ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.48s
+

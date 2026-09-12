@@ -1,0 +1,88 @@
+{
+  "source": "baf85540e3130227c1a4942fd17301bd039b7996",
+  "version": "0.4.0",
+  "source_matches_candidate": "c3758aa6fc6fba620c9b703a9dab1acd623066a1",
+  "staged_binary": "/Users/maggnus/Code/ymp2/target/ymp040-staging/release/ymp",
+  "staged_driver": "/Users/maggnus/Code/ymp2/target/ymp040-staging/release/ymp-eval-driver",
+  "binary_sha256": "cc8ed8a755b9778a2cfcad6460880730167e0dd39ce075543ddad25cb4278f14",
+  "driver_sha256": "37372dad0628e5e561a8b8c32e139b9df858203c8eb25cb84f611c27b16d0204",
+  "default_bridge": "/Users/maggnus/Code/ymp2/ymp-bridges/claude/dist/index.js",
+  "bridge_sha256": "002c8b154f8b5b9b8b2f2bf67ca02cff25dc8dcee3d994ae798f3b46753f3165",
+  "checks": [
+    {
+      "step": "fmt",
+      "exit": 0,
+      "seconds": 0.54,
+      "log": "/tmp/ymp040-durable-main/fmt.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "step": "clippy",
+      "exit": 0,
+      "seconds": 39.04,
+      "log": "/tmp/ymp040-durable-main/clippy.log",
+      "sha256": "b1b84e22448ac38f10d50b9e1701b8d0ae55484606dadc88fb7085ffe31b4f74"
+    },
+    {
+      "step": "workspace",
+      "exit": 0,
+      "seconds": 116.33,
+      "log": "/tmp/ymp040-durable-main/workspace.log",
+      "sha256": "669992f7df85692c1d2c517a05aee544b4bc1a8d8e8f017c96a6318cba966428"
+    },
+    {
+      "step": "native-fixtures",
+      "exit": 0,
+      "seconds": 13.18,
+      "log": "/tmp/ymp040-durable-main/native-fixtures.log",
+      "sha256": "5ea644392d695ccba1120ec8b7b4f292cf6d308ab44c7937e9be364c20a57f8d"
+    },
+    {
+      "step": "release-build",
+      "exit": 0,
+      "seconds": 120.18,
+      "log": "/tmp/ymp040-durable-main/release-build.log",
+      "sha256": "28e511e7c4e5721023cc89487b2d71a0031764b9d92b8e9a0fa32e43c7c45c7e"
+    },
+    {
+      "step": "all17",
+      "exit": 0,
+      "seconds": 14.94,
+      "log": "/tmp/ymp040-durable-main/all17.log",
+      "sha256": "f46fdd92c28bb728c85723b5bdc3fa69a508d0aed671042d4800ecff57eb48be"
+    },
+    {
+      "step": "mcp-sdk",
+      "exit": 0,
+      "seconds": 3.11,
+      "log": "/tmp/ymp040-durable-main/mcp-sdk.log",
+      "sha256": "2b2a78449f4587c2d998b6ac10ed3f372d7d32f05758248b3b2fa494869d73d7"
+    },
+    {
+      "step": "version",
+      "exit": 0,
+      "seconds": 0.01,
+      "log": "/tmp/ymp040-durable-main/version.log",
+      "sha256": "201cbae19a703244b3905110df904e5de410f9442c757b17b8e3886a901c143e"
+    },
+    {
+      "step": "help",
+      "exit": 0,
+      "seconds": 0.0,
+      "log": "/tmp/ymp040-durable-main/help.log",
+      "sha256": "c4f474311cf06896a02e65c29cd7aef214e3752a997ea8baa007a604b0a4257a"
+    },
+    {
+      "step": "demo",
+      "exit": 0,
+      "seconds": 0.35,
+      "log": "/tmp/ymp040-durable-main/demo.log",
+      "sha256": "df5c9491a8170489c79b53b7b0b65c15287f9edc091495b08e08c847f3066c89"
+    }
+  ],
+  "evidence": "/tmp/ymp040-durable-w6qrx948/evidence",
+  "demo_work": "/tmp/ymp040-durable-w6qrx948/selected-work",
+  "owner_installation_unchanged": true,
+  "native_inference_calls": 0,
+  "publication": "pending final max verdict"
+}

@@ -1,0 +1,30 @@
+
+> @ymp/claude-bridge@0.1.0 test
+> npm run build && node --test dist/*.test.js
+
+
+> @ymp/claude-bridge@0.1.0 build
+> tsc
+
+✔ physical SDK transport receives assignment settings, and metadata precedes prompt (1025.438917ms)
+✔ unsupported model effort never releases a user prompt (478.888333ms)
+✔ metadata-only discovery never releases a prompt and native defaults remain omitted (243.453334ms)
+✔ plain Opus 5 retains its exact version pin against a native 1m catalog row (121.636375ms)
+✔ an incomplete native list does not forbid an unlisted explicit model (122.28475ms)
+✔ native resume receives a fresh MCP credential and read tool restriction each time (242.272209ms)
+✔ captured native loop allowance reaches the physical SDK transport (123.731291ms)
+✔ native loop limit is passed to SDK without inventing token controls (0.709875ms)
+✔ Claude efforts use advertised model capabilities, including xhigh/max (1.652583ms)
+✔ native labels and resolved aliases survive without duplicate selectable rows (0.130291ms)
+✔ stream counters are cumulative per API response and repeated blocks do not add (0.71475ms)
+✔ parallel streams and final whole-query totals replace partial counts (0.133375ms)
+✔ a zeroed crash result does not erase observed usage (0.558041ms)
+✔ a missing counter in one model is partial even if another model reports it (0.076958ms)
+ℹ tests 14
+ℹ suites 0
+ℹ pass 14
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2403.731

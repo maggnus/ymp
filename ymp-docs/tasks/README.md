@@ -1,6 +1,6 @@
 # Task details and evidence
 
-Updated: 2026-09-12 23:29 UTC.
+Updated: 2026-09-12 23:45 UTC.
 
 Use the [delivery plan](plan.md) to follow progress. This generated register contains full acceptance criteria, dependencies and evidence. [tasks.json](tasks.json) is the single source; [manage.py](manage.py) updates both pages.
 
@@ -16,7 +16,7 @@ A planned task is not implemented functionality. Completed research and planning
 | experiment | 0 | 4 |
 | implementation | 23 | 25 |
 | research | 8 | 8 |
-| verification | 1 | 2 |
+| verification | 2 | 2 |
 
 ## Index
 
@@ -59,7 +59,7 @@ A planned task is not implemented functionality. Completed research and planning
 | `[x]` | [YMP-120](#ymp-120) | P0 | Enforce assignment-scoped permissions and runtime-only state transitions | 2026-09-12 13:46 |
 | `[x]` | [YMP-118](#ymp-118) | P0 | Integrate core assignment, budget and confirmation visibility | 2026-09-12 20:43 |
 | `[x]` | [YMP-119](#ymp-119) | P0 | Prepare universal acceptance scenarios and independent validators | 2026-09-12 10:56 |
-| `[~]` | [YMP-121](#ymp-121) | P1 | Verify the integrated application and package a local release | 2026-09-12 23:29 |
+| `[x]` | [YMP-121](#ymp-121) | P1 | Verify the integrated application and package a local release | 2026-09-12 23:45 |
 | `[x]` | [YMP-013](#ymp-013) | P0 | Review plan coherence and simplify progress tracking | 2026-09-12 09:46 |
 | `[x]` | [YMP-122](#ymp-122) | P1 | Expose replaceable execution backends behind runtime-owned controls | 2026-09-12 15:23 |
 | `[x]` | [YMP-123](#ymp-123) | P1 | Expose a public local MCP facade over stdio | 2026-09-12 18:22 |
@@ -1314,11 +1314,11 @@ Delivery must work for documents, data and evidence-based tasks as well as softw
 
 Verify the integrated application and package a local release
 
-**State:** `[~]` (in_progress) · **Type:** verification · **Priority:** P1
+**State:** `[x]` (done) · **Type:** verification · **Priority:** P1
 
-**Last update (UTC):** 2026-09-12 23:29
+**Last update (UTC):** 2026-09-12 23:45
 
-**Current reason:** All delivery dependencies are complete. Accepted0.4.0 UI and driver are integrated as495502f, matching158 checked candidate source hashes.419 tests, bridge14/native10, release17 scenarios, SDK and exact-version installer preflight pass. Final max review now awaits durable-main staged binary/bridge binding and publication confirmation; current installed release is still preserved.
+**Current reason:** Installed local ymp0.4.0 independently accepted by max reviewer (9/10), covering164 criteria across all26 delivery tasks. Durable main sourcebaf8554 matches accepted candidate;419 Rust tests,14 bridge tests,10 native fixtures,17 scenarios, official MCP SDK and installation checks pass. Published executable SHA256cc8ed8a755b9778a2cfcad6460880730167e0dd39ce075543ddad25cb4278f14; PATH command, driver, durable bridge and original backup independently verified. Reports/evidence imported with valid relative links. Native compatibility is metadata-only;7 paused studies/post-MVP tasks remain outside release.
 
 **Owner:** Independent final reviewer at max reasoning; maintainer integrates and packages
 
@@ -1351,6 +1351,9 @@ A local release needs a reproducible install and truthful compatibility evidence
 - [Release notes draft](../releases/0.4.0.md)
 - [Versioned candidate verification](../research/evidence/release-040-candidate.json)
 - [Versioned installer preflight](../research/evidence/release-040-installer.json)
+- [Final independent max release review](../../ymp-evals/reports/ymp-121-independent-max-review.md)
+- [Installed publication](../research/evidence/release-040-publication.json)
+- [Durable main verification](../research/evidence/release-040-durable-main.json)
 
 **Quota:** Not allocated. Prepare a concrete bounded smoke-check proposal before any real-provider inference.
 
