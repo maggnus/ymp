@@ -93,7 +93,7 @@ async fn confirmation_success_is_attributed_once_and_survives_narration_failure(
             .iter()
             .find_map(|d| d.links.check.as_ref())
             .unwrap();
-        assert_eq!(check.outcome, CheckOutcome::Passed);
+        assert_eq!(check.outcome, ConfirmationCheckOutcome::Passed);
         assert_eq!(
             check.artifacts_after[0].bytes.as_deref(),
             Some(b"Hello from ymp\n".as_slice())
@@ -175,7 +175,7 @@ async fn confirmation_failed_applicable_assertion_overrides_every_approving_agen
         .decisions
         .iter()
         .filter_map(|d| d.links.check.as_ref())
-        .all(|c| c.outcome == CheckOutcome::Failed));
+        .all(|c| c.outcome == ConfirmationCheckOutcome::Failed));
     assert!(fixture.store.observations().unwrap().is_empty());
 }
 

@@ -262,7 +262,7 @@ pub struct ResultVersion {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
-pub enum CheckOutcome {
+pub enum ConfirmationCheckOutcome {
     Passed,
     Failed,
     Inconclusive,
@@ -274,7 +274,7 @@ pub struct CheckEvidence {
     pub check_id: String,
     pub contract_id: String,
     pub criterion_ids: Vec<String>,
-    pub outcome: CheckOutcome,
+    pub outcome: ConfirmationCheckOutcome,
     pub inputs: Vec<FileSnapshot>,
     pub artifacts_after: Vec<FileSnapshot>,
     pub stdout: Vec<u8>,

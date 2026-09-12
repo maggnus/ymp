@@ -161,12 +161,12 @@ pub(super) fn grade(
                 .as_ref()
                 .context("Check record has no evidence")?;
             match check.outcome {
-                CheckOutcome::Failed => failed = true,
-                CheckOutcome::Passed => {
+                ConfirmationCheckOutcome::Failed => failed = true,
+                ConfirmationCheckOutcome::Passed => {
                     covered.extend(check.criterion_ids.iter().cloned());
                     ids.push(record.id.clone());
                 }
-                CheckOutcome::Inconclusive => {}
+                ConfirmationCheckOutcome::Inconclusive => {}
             }
         }
     }
@@ -602,7 +602,7 @@ pub(super) fn validate(db: &Connection, value: &DecisionRecord) -> Result<()> {
                     .eq(contract.inputs.iter().map(|s| &s.path)),
             "Check capture scope mismatch"
         );
-        if evidence.outcome == CheckOutcome::Passed {
+        if evidence.outcome == ConfirmationCheckOutcome::Passed {
             let asserted = match &check.assertion {
                 CheckAssertion::ExactBytes { artifact, expected } => {
                     result

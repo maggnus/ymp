@@ -133,7 +133,7 @@ impl Engine {
                     .iter()
                     .all(|(p, d)| std::fs::read(p).is_ok_and(|b| bytes_digest(&b) == *d))
             };
-            let mut outcome = CheckOutcome::Inconclusive;
+            let mut outcome = ConfirmationCheckOutcome::Inconclusive;
             let mut stdout = Vec::new();
             let mut stderr;
             let mut exit_code = None;
@@ -146,9 +146,9 @@ impl Engine {
                         stdout = output.stdout;
                         stderr = output.stderr;
                         outcome = match exit_code {
-                            Some(0) => CheckOutcome::Passed,
-                            Some(_) => CheckOutcome::Failed,
-                            None => CheckOutcome::Inconclusive,
+                            Some(0) => ConfirmationCheckOutcome::Passed,
+                            Some(_) => ConfirmationCheckOutcome::Failed,
+                            None => ConfirmationCheckOutcome::Inconclusive,
                         };
                     }
                     _ => {
@@ -168,10 +168,10 @@ impl Engine {
                 || !contract.inputs.iter().all(|s| s.current(directory))
                 || !code_current()
             {
-                outcome = CheckOutcome::Inconclusive;
+                outcome = ConfirmationCheckOutcome::Inconclusive;
             }
             if stdout.len() + stderr.len() > 4 * 1024 * 1024 {
-                outcome = CheckOutcome::Inconclusive;
+                outcome = ConfirmationCheckOutcome::Inconclusive;
                 stdout.truncate(2 * 1024 * 1024);
                 stderr.truncate(2 * 1024 * 1024);
             }
