@@ -1,6 +1,6 @@
 # Task details and evidence
 
-Updated: 2026-09-12 20:21 UTC.
+Updated: 2026-09-12 20:32 UTC.
 
 Use the [delivery plan](plan.md) to follow progress. This generated register contains full acceptance criteria, dependencies and evidence. [tasks.json](tasks.json) is the single source; [manage.py](manage.py) updates both pages.
 
@@ -66,7 +66,7 @@ A planned task is not implemented functionality. Completed research and planning
 | `[=]` | [YMP-124](#ymp-124) | P1 | Add isolated execution and recoverable publication for larger projects | 2026-09-12 15:31 |
 | `[x]` | [YMP-125](#ymp-125) | P0 | Expose trusted acceptance contracts to executable users | 2026-09-12 17:54 |
 | `[~]` | [YMP-126](#ymp-126) | P1 | Execute universal acceptance scenarios through a trusted runtime driver | 2026-09-12 20:21 |
-| `[~]` | [YMP-127](#ymp-127) | P0 | Build and display the agent pool from provider-returned native names | 2026-09-12 20:20 |
+| `[~]` | [YMP-127](#ymp-127) | P0 | Build and display the agent pool from provider-returned native names | 2026-09-12 20:32 |
 
 ## YMP-001
 
@@ -1552,9 +1552,9 @@ Build and display the agent pool from provider-returned native names
 
 **State:** `[~]` (in_progress) · **Type:** implementation · **Priority:** P0
 
-**Last update (UTC):** 2026-09-12 20:20
+**Last update (UTC):** 2026-09-12 20:32
 
-**Current reason:** Independent Opus checkpoint on08fcbf6: fmt/clippy352workspace and built Claude bridge pass; actual UI reads all3 installations and19 offerings, exact Claude label/resolution and native GLM control labels. No blocker so far. History/usage/team-selection checks and selected negative controls remain before final verdict. Cold-start scan lacks visible progress and migration notice wording is imprecise; bounded Opus corrections requested without startup redesign.
+**Current reason:** Final native-only composition762b636 matches Opus sourceba08ea9 and passes formatting, Clippy, all375 workspace tests, bridge checks and10 explicit native fixtures. It includes native names in the sidebar, opening summary and transcript, visible startup scan progress, and accurate migration wording. Three mechanical UI type/fixture adjustments were authored by Opus. Independent final history, usage and team-selection checks remain before integration; evidence native-ui-composition-checks.json.
 
 **Owner:** Maintainer; all UI by Claude Opus 5 max via Paseo
 

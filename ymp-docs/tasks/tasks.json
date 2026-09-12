@@ -2787,11 +2787,16 @@
           "at": "2026-09-12T20:20:20.827143+00:00",
           "status": "in_progress",
           "note": "Independent Opus checkpoint on08fcbf6: fmt/clippy352workspace and built Claude bridge pass; actual UI reads all3 installations and19 offerings, exact Claude label/resolution and native GLM control labels. No blocker so far. History/usage/team-selection checks and selected negative controls remain before final verdict. Cold-start scan lacks visible progress and migration notice wording is imprecise; bounded Opus corrections requested without startup redesign."
+        },
+        {
+          "at": "2026-09-12T20:32:57.006633+00:00",
+          "status": "in_progress",
+          "note": "Final native-only composition762b636 matches Opus sourceba08ea9 and passes formatting, Clippy, all375 workspace tests, bridge checks and10 explicit native fixtures. It includes native names in the sidebar, opening summary and transcript, visible startup scan progress, and accurate migration wording. Three mechanical UI type/fixture adjustments were authored by Opus. Independent final history, usage and team-selection checks remain before integration; evidence native-ui-composition-checks.json."
         }
       ]
     }
   ],
-  "updated_at": "2026-09-12T20:21:56.530003+00:00",
+  "updated_at": "2026-09-12T20:32:57.006633+00:00",
   "delivery_order": [
     "YMP-116",
     "YMP-103",
