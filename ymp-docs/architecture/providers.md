@@ -14,9 +14,9 @@ Codex team MCP tools have explicit approval configuration for the launched proce
 
 GLM discovery resolves an already cached local npm package to its entry point. It does not run `npx -y` or download an agent during startup. The discovered path is written to the application's provider configuration and can be replaced by the user.
 
-Provider availability and authentication are different checks. `doctor` locates executables; `doctor --probe` makes a small real request. A successful configuration read does not imply a valid subscription, key, or remaining quota.
+Provider availability, native metadata and authentication are different checks. `doctor` locates executables; `catalog --refresh` queries native offerings without inference. `doctor --probe` attempts a real request for every enabled profile matching its optional provider filter; several profiles may use the same provider. Use a separate configuration with only the intended test actors to bound a probe. A successful configuration read or metadata scan does not establish valid authentication or remaining quota.
 
-The backend [agent pool API](agent-pool.md) exposes individual profiles and configured native model/control offerings without inference. Pool discovery does not change the configured starting roster or infer live session membership.
+The backend [agent pool API](agent-pool.md) reads configured actors and stored native offerings without starting discovery. [Native catalog refresh](provider-named-agent-catalog.md) populates the actual pool and preserves the installation's model identifiers, display names, aliases and controls. Provider identity remains separate from selectable agent identity. Unknown or stale native metadata stays explicit; refresh does not add every offering to the starting team or rewrite historical session names/settings.
 
 Model and effort settings are validated and transmitted [per assignment](assignment-settings.md). `ymp capabilities AGENT` queries native metadata without inference; `ymp ask --model/--effort` and `ymp run --assignment-settings` supply concrete choices.
 

@@ -3,6 +3,9 @@
 ```text
 ~/.ymp2/
   config.toml
+  configuration.lock
+  provider-catalog.json
+  catalog-scan.lock
   state.sqlite
   projects/<project-id>/
     workspace.lock
@@ -13,13 +16,13 @@
   run/<instance-id>.sock
 ```
 
-Project and session directories use UUIDs. Display names and canonical source paths live in SQLite. `ymp relocate PROJECT_ID PATH` changes the registered source path without discarding project history. The workspace metadata contains the real directory path and initial file hashes. Changes contain paths and statuses, not source copies.
+Project and session directories use UUIDs. Captured names and canonical source paths live in SQLite; the native catalog cache holds observed offerings separately from editable configuration claims. `ymp relocate PROJECT_ID PATH` changes only the registered association: it moves no files and cannot rewrite historical output locations. Workspace metadata records the original directory and file hashes; result evidence may include bounded captured bytes. The [direct-directory policy](workspace-policy.md) applies only to the 0.4.0 MVP and provides no source-tree copy or rollback guarantee.
 
 SQLite stores projects, sessions, task state, messages, domain events, native-session handles, per-invocation token usage, observations, and memory. WAL allows readers during writes. Schema versioning uses `PRAGMA user_version`; a newer unsupported database is rejected. Task snapshots and their transition events commit together.
 
-Observations have unique attempt identifiers, so replaying an outcome cannot increase reputation twice. Reputation reads the last 100 resolved outcomes for the profile version, competence, and difficulty. The complete observations remain available for inspection.
+Qualified observations are keyed by result/version/producing agent, so replay cannot add credit. The runtime requires current confirmed independent acceptance and a completed producing invocation; accepted-but-unconfirmed outcomes, planning agreement and provider failures earn no competence credit. Reputation uses at most the latest 100 qualified observations for the effective execution version, competence and difficulty. Historical observation records remain stored separately from this selection window; the ordinary inspection method returns at most 500.
 
-Memory has project/global scope, provenance, author, reviewer, status, and optional predecessor. FTS5 searches only active records visible in the current scope. Retirement removes a record from retrieval without erasing its history. Global activation requires a reviewer other than its author.
+Memory records project/global applicability, source/result versions, evidence, authorship, lifecycle and replacement links. Supported retrieval resolves current confirmation and source freshness; an active historical label or another agent's approval is insufficient. Free-text lessons remain unconfirmed candidates. Confirmed shared procedures come from runtime-projected passing check evidence. Scoped correction can atomically supersede an exact predecessor without deleting its history. Explicit candidate/history inspection stays distinct from supported automatic retrieval; see [incremental knowledge](incremental-knowledge.md) and [correction](knowledge-correction.md).
 
 `YMP_HOME` or `--home` overrides only ymp storage. `HOME`, `CODEX_HOME`, and native provider credential locations are not repurposed. Environment references in configuration name variables rather than storing their values.
 
