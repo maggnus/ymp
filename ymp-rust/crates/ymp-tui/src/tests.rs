@@ -4056,7 +4056,7 @@ async fn a_captured_acceptance_contract_is_shown_as_a_binding_and_not_as_a_resul
         "exact-greeting-v1",
         "greeting.txt",
         "checker",
-        "inputs recorded",
+        "declared input none",
     ] {
         assert!(
             detail.contains(expected),
@@ -4096,6 +4096,12 @@ async fn a_record_that_carries_its_own_outcome_never_reads_as_ungraded() {
         assert!(
             !detail.contains("recorded without an outcome"),
             "{} reads as ungraded while its row states an outcome:\n{detail}",
+            decision.kind
+        );
+        let row = right_of_key(&mut app, 65, &key);
+        assert!(
+            !row.contains("recorded without an outcome"),
+            "{} reads as ungraded in its row while its record states an outcome: {row}",
             decision.kind
         );
         checked += 1;
@@ -5609,7 +5615,8 @@ async fn a_decision_that_changed_the_plan_reads_as_its_own_outcome() {
         .find(|decision| decision.kind == "board_committed")
         .map(|decision| decision.id.clone())
         .expect("the fixture recorded a committed plan change");
-    let detail = detail_of_key(&mut app, 100, &text::short_id(&committed));
+    let key = text::short_id(&committed);
+    let detail = detail_of_key(&mut app, 100, &key);
     for expected in [
         "plan change committed",
         "the plan took the change on",
@@ -5623,6 +5630,17 @@ async fn a_decision_that_changed_the_plan_reads_as_its_own_outcome() {
             "the decision does not carry {expected:?}:\n{detail}"
         );
     }
+    // The list row is what a reader sees first, and it must not say less than the record.
+    let row = right_of_key(&mut app, 100, &key);
+    assert!(
+        row == "committed",
+        "the row of a committed plan change contradicts the record it opens: {row:?}"
+    );
+    assert!(
+        left_of_key(&mut app, 100, &key).starts_with(crate::theme::UNICODE.ok),
+        "the row of a committed plan change is not marked as done: {}",
+        left_of_key(&mut app, 100, &key)
+    );
     let rejected = app
         .records
         .decisions()
@@ -5630,10 +5648,21 @@ async fn a_decision_that_changed_the_plan_reads_as_its_own_outcome() {
         .find(|decision| decision.kind == "board_rejected")
         .map(|decision| decision.id.clone())
         .expect("the fixture recorded a rejected plan change");
-    let detail = detail_of_key(&mut app, 100, &text::short_id(&rejected));
+    let key = text::short_id(&rejected);
+    let detail = detail_of_key(&mut app, 100, &key);
     assert!(
         detail.contains("plan change rejected") && detail.contains("the plan was left unchanged"),
         "a rejected plan change does not read as one:\n{detail}"
+    );
+    let row = right_of_key(&mut app, 100, &key);
+    assert!(
+        row == "rejected",
+        "the row of a rejected plan change contradicts the record it opens: {row:?}"
+    );
+    assert!(
+        left_of_key(&mut app, 100, &key).starts_with(crate::theme::UNICODE.fail),
+        "the row of a rejected plan change is not marked as refused: {}",
+        left_of_key(&mut app, 100, &key)
     );
 }
 
@@ -5950,6 +5979,146 @@ async fn both_sides_of_a_correction_are_kept_and_each_says_which_it_is() {
         !before.is_empty() && !after.is_empty() && before != after,
         "both sides of the correction point at the same evidence: {before} and {after}"
     );
+}
+
+/// The session a correction was applied in, and the record that applied it.
+fn applied_correction(run: &Correction) -> (String, ymp_core::DecisionRecord) {
+    run.store
+        .sessions(None)
+        .unwrap()
+        .into_iter()
+        .find_map(|session| {
+            run.store
+                .trace(&session.id)
+                .unwrap()
+                .decisions
+                .into_iter()
+                .find(|decision| decision.links.knowledge_correction.is_some())
+                .map(|decision| (session.id, decision))
+        })
+        .expect("the second run recorded the correction it applied")
+}
+
+#[tokio::test]
+async fn a_correction_reads_as_applied_in_its_row_and_in_its_record() {
+    let run = correction_run().await;
+    let (session, correction) = applied_correction(&run);
+    let mut app = run.app();
+    app.load_session(&session).unwrap();
+    app.command("/decisions", 100);
+
+    let key = text::short_id(&correction.id);
+    let row = right_of_key(&mut app, 100, &key);
+    assert!(
+        row == "entry replaced",
+        "the row of an applied correction contradicts the record it opens: {row:?}"
+    );
+    assert!(
+        left_of_key(&mut app, 100, &key).starts_with(crate::theme::UNICODE.ok),
+        "the row of an applied correction is marked as a decision without an outcome: {}",
+        left_of_key(&mut app, 100, &key)
+    );
+    let detail = detail_of_key(&mut app, 100, &key);
+    for expected in [
+        "retained knowledge corrected".to_owned(),
+        "outcome what was retained was replaced".to_owned(),
+        format!("replaced retained entry {}", text::short_id(&run.old)),
+        format!("replacement retained entry {}", text::short_id(&run.new)),
+        "corrected by policy ymp.bound-correction".to_owned(),
+    ] {
+        assert!(
+            detail.contains(&expected),
+            "the correction's record does not carry {expected:?}:\n{detail}"
+        );
+    }
+    assert!(
+        !detail.contains("recorded without an outcome"),
+        "an applied correction reads as ungraded when opened:\n{detail}"
+    );
+}
+
+#[tokio::test]
+async fn a_contract_names_the_inputs_it_declares_and_the_source_a_correction_replaced() {
+    let run = correction_run().await;
+    // Each run captured its own contract, and only the second one binds a correction.
+    let mut contracts = Vec::new();
+    for session in run.store.sessions(None).unwrap() {
+        for decision in run.store.trace(&session.id).unwrap().decisions {
+            if let Some(captured) = decision.links.acceptance_contract.as_ref() {
+                let corrects = captured.contract.knowledge_correction.is_some();
+                contracts.push((session.id.clone(), decision.id.clone(), corrects));
+            }
+        }
+    }
+    assert_eq!(
+        contracts
+            .iter()
+            .filter(|(_, _, corrects)| *corrects)
+            .count(),
+        1,
+        "the fixture should hold one correcting contract: {contracts:?}"
+    );
+    assert_eq!(contracts.len(), 2, "each run should capture one contract");
+
+    for (session, id, corrects) in contracts {
+        let mut app = run.app();
+        app.load_session(&session).unwrap();
+        app.command("/decisions", 100);
+        let key = text::short_id(&id);
+        let detail = detail_of_key(&mut app, 100, &key);
+        if corrects {
+            for expected in [
+                "declared input inputs/observations-corrected.csv · captured at sha256".to_owned(),
+                format!("corrects retained entry {}", text::short_id(&run.old)),
+                "source change inputs/observations.csv replaced by inputs/observations-corrected.csv"
+                    .to_owned(),
+                "established by observation-value".to_owned(),
+                "It also binds a correction".to_owned(),
+            ] {
+                assert!(
+                    detail.contains(&expected),
+                    "the correcting contract does not carry {expected:?}:\n{detail}"
+                );
+            }
+        } else {
+            assert!(
+                detail.contains("declared input inputs/observations.csv · captured at sha256"),
+                "the first contract does not name the file it declared:\n{detail}"
+            );
+            assert!(
+                !detail.contains("source change") && !detail.contains("It also binds a correction"),
+                "a contract that binds no correction reads as one:\n{detail}"
+            );
+        }
+
+        // A narrow pane wraps a path under its label: no line runs past the width the detail
+        // was built for, and no character of a path is lost to the wrapping.
+        for width in [44u16, 30] {
+            let page = app.page(width);
+            let item = page
+                .items
+                .iter()
+                .find(|item| item.key == key)
+                .expect("the contract row is on the page");
+            let text = lines_text(&item.detail);
+            for line in text.lines() {
+                assert!(
+                    line.chars().count() <= width as usize,
+                    "at {width} a line of the contract runs past its pane: {line:?}"
+                );
+            }
+            let squeezed: String = text.chars().filter(|ch| !ch.is_whitespace()).collect();
+            let path = if corrects {
+                "inputs/observations.csvreplacedbyinputs/observations-corrected.csv"
+            } else {
+                "declaredinputinputs/observations.csv·capturedatsha256"
+            };
+            assert!(
+                squeezed.contains(path),
+                "at {width} the declared paths lost characters:\n{text}"
+            );
+        }
+    }
 }
 
 #[tokio::test]

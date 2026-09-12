@@ -51,12 +51,13 @@ active in this window. In a stored session the same record means a turn that was
 which is what an interrupted run leaves behind, and the page says so in those words.
 
 **Committed against graded.** Several records decide inside themselves, and no grade is ever
-written for them: a membership change, a per-turn resource bound, a wait, the three records of a
-directory reservation, and a captured acceptance contract. Both the row and the record it opens
-read the outcome from that field, and they read it from the same one, so a row cannot state an
-outcome the record then denies: committed or refused, set or refused, waited under its own code,
-reserved, admitted, ended, or captured before the work. None of them is reported as a decision
-recorded without an outcome, and the grade words below are not applied to them.
+written for them: a membership change, a per-turn resource bound, a wait, a change to the shared
+plan, a correction to what was retained, the three records of a directory reservation, and a
+captured acceptance contract. The row and the record it opens read the outcome from one place,
+so a row cannot state an outcome the record then denies, or deny one the record states:
+committed or refused, set or refused, waited under its own code, committed or rejected, entry
+replaced, reserved, admitted, ended, or captured before the work. None of them is reported as a
+decision recorded without an outcome, and the grade words below are not applied to them.
 
 **Accepted, unconfirmed, confirmed, unknown.** An acceptance carries a grade. Confirmed means
 the evidence the acceptance bound passed for every criterion it applies to. Unconfirmed means
@@ -368,9 +369,11 @@ sizes.
   and on the decision that committed it, and those are where a finished session's record of it
   is.
 - The inputs a correction replaced are named in the acceptance contract and not in the
-  correction record. The page names each side's own acceptance, result and criteria version,
-  which is the evidence each claim rests on; which file each read is in the result record and
-  is not shown here.
+  correction record, so they are read where the contract is shown: each declared input with
+  the digest it was captured at, and which declared source replaced which. The earlier input
+  is named by path alone, because its digest belongs to the earlier contract, whose own record
+  shows it. The memory page names each side's own acceptance, result and criteria version,
+  which is the evidence each claim rests on.
 - `Store::inspect_knowledge` answers for one project and for entries shared globally with it.
   An entry of another project is not listed, and the page does not imply that it lists every
   entry in the store.

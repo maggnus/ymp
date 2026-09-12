@@ -280,7 +280,9 @@ fn page(view: View, subtitle: &str, items: Vec<Item>, _ctx: &Ctx) -> Page {
 // ---------------------------------------------------------------------------
 
 fn field(theme: &Theme, label: &str, value: &str, width: usize) -> Vec<Line<'static>> {
-    let label_width = 14usize.min(width.saturating_sub(4));
+    // A label longer than the usual column pushes its value right, so the value is wrapped to
+    // the room actually left beside it rather than running past the width.
+    let label_width = 14usize.max(text::width(label)).min(width.saturating_sub(4));
     let room = width.saturating_sub(label_width + 1).max(8);
     let mut lines = Vec::new();
     for (index, piece) in text::wrap(&text::sanitize(value), room)
@@ -3952,12 +3954,58 @@ fn contract_detail(
         },
         ctx.width,
     ));
-    lines.extend(field(
-        theme,
-        "inputs recorded",
-        &format!("{} file(s) by digest", captured.inputs.len()),
-        ctx.width,
-    ));
+    // Each declared input is named with the digest it was captured at. A criterion that says a
+    // claim matches the declared source says nothing to a reader who cannot see which file
+    // that was.
+    if contract.inputs.is_empty() {
+        lines.extend(field(theme, "declared input", "none", ctx.width));
+    }
+    for input in &contract.inputs {
+        let digest = captured
+            .inputs
+            .iter()
+            .find(|snapshot| &snapshot.path == input)
+            .and_then(|snapshot| snapshot.sha256.as_deref())
+            .map(|digest| format!("captured at sha256 {}", text::short_id(digest)))
+            .unwrap_or_else(|| "no digest was captured".to_owned());
+        lines.extend(field(
+            theme,
+            "declared input",
+            &format!("{} · {digest}", input.display()),
+            ctx.width,
+        ));
+    }
+    if let Some(binding) = &contract.knowledge_correction {
+        lines.extend(field(
+            theme,
+            "corrects",
+            &format!(
+                "retained entry {} at version {}",
+                text::short_id(&binding.target.id),
+                text::short_id(&binding.target.version)
+            ),
+            ctx.width,
+        ));
+        lines.extend(field(
+            theme,
+            "source change",
+            &match &binding.source_replacement {
+                Some(source) => format!(
+                    "{} replaced by {}",
+                    source.previous_input.display(),
+                    source.replacement_input.display()
+                ),
+                None => "none declared".to_owned(),
+            },
+            ctx.width,
+        ));
+        lines.extend(field(
+            theme,
+            "established by",
+            &binding.criterion_ids.join(", "),
+            ctx.width,
+        ));
+    }
     lines.extend(field(
         theme,
         "checker",
@@ -3982,6 +4030,14 @@ fn contract_detail(
         "This is what a result will be judged against, captured before the work ran. It is a binding and not a result: whether each check then passed is a record of its own, and an acceptance states which criteria the evidence covered.",
         ctx.width,
     ));
+    if contract.knowledge_correction.is_some() {
+        lines.push(Line::default());
+        lines.extend(paragraph(
+            theme,
+            "It also binds a correction. The entry it names is replaced only if a result is accepted with passing evidence for the criteria it is established by, and that replacement is a record of its own.",
+            ctx.width,
+        ));
+    }
     lines
 }
 
@@ -4812,12 +4868,8 @@ fn decision_row(ctx: &Ctx, decision: &DecisionRecord) -> Item {
     ));
     detail.extend(field(theme, "actor", &actor, ctx.width));
     detail.extend(field(theme, "recorded", &decision.created_at, ctx.width));
-    detail.extend(field(
-        theme,
-        "outcome",
-        &recorded_outcome(decision, &acceptance),
-        ctx.width,
-    ));
+    let (outcome_word, outcome) = recorded_outcome(decision, &acceptance);
+    detail.extend(field(theme, "outcome", &outcome, ctx.width));
     if acceptance.accepted == Some(true) {
         detail.extend(field(
             theme,
@@ -4937,6 +4989,48 @@ fn decision_row(ctx: &Ctx, decision: &DecisionRecord) -> Item {
             ));
         }
     }
+    // The chain from a correction to the two entries it concerns, so the record says what it
+    // replaced without sending the reader to the memory page for it.
+    if let Some(correction) = decision.links.knowledge_correction.as_ref() {
+        detail.extend(field(
+            theme,
+            "replaced",
+            &format!(
+                "retained entry {} at version {}",
+                text::short_id(&correction.target.id),
+                text::short_id(&correction.target.version)
+            ),
+            ctx.width,
+        ));
+        detail.extend(field(
+            theme,
+            "replacement",
+            &format!(
+                "retained entry {}",
+                text::short_id(&correction.replacement_id)
+            ),
+            ctx.width,
+        ));
+        detail.extend(field(
+            theme,
+            "authorised by",
+            &format!(
+                "acceptance {} under trusted contract {}",
+                text::short_id(&correction.acceptance_id),
+                text::short_id(&correction.contract_id)
+            ),
+            ctx.width,
+        ));
+        detail.extend(field(
+            theme,
+            "corrected by",
+            &format!(
+                "policy {} version {}",
+                correction.policy.id, correction.policy.version
+            ),
+            ctx.width,
+        ));
+    }
     if let Some(allocation) = decision.links.allocation.as_deref() {
         detail.extend(membership_detail(ctx, allocation));
     }
@@ -5000,34 +5094,13 @@ fn decision_row(ctx: &Ctx, decision: &DecisionRecord) -> Item {
         theme.muted(),
     )));
     detail.extend(paragraph(theme, &decision.reason, ctx.width));
-    // A membership or resource decision records its own outcome inside the record it
-    // carries, not in the decision's grade field, so its word comes from there and never
-    // from a grade that was never written.
-    let (right, right_style) = match (
-        decision.links.allocation.as_deref(),
-        decision.links.resource_allocation.as_deref(),
-        decision.links.workspace_wait.as_ref(),
-    ) {
-        (Some(allocation), _, _) if allocation.accepted => {
-            ("membership committed".to_owned(), theme.good())
-        }
-        (Some(_), _, _) => ("membership refused".to_owned(), theme.bad()),
-        (_, Some(resource), _) if resource.accepted => ("bound set".to_owned(), theme.good()),
-        (_, Some(_), _) => ("bound refused".to_owned(), theme.bad()),
-        (_, _, Some(wait)) => (format!("waited · {}", wait.code), theme.warn()),
-        _ if decision.links.acceptance_contract.is_some() => {
-            ("criteria captured".to_owned(), theme.info())
-        }
-        _ if decision.kind == "workspace_access_acquired" => {
-            ("directory reserved".to_owned(), theme.info())
-        }
-        _ if decision.kind == "workspace_access_admitted" => {
-            ("turn admitted".to_owned(), theme.info())
-        }
-        _ if decision.kind == "workspace_access_released" => {
-            ("reservation ended".to_owned(), theme.muted())
-        }
-        _ => (acceptance.word().to_owned(), style),
+    // The row's word is read where the record's outcome is read, so the list cannot say that a
+    // record has no outcome while the record it opens states one. Its colour is the marker's,
+    // except that a reservation which ended is not news.
+    let right_style = if decision.kind == "workspace_access_released" {
+        theme.muted()
+    } else {
+        style
     };
     Item::row(
         text::short_id(&decision.id),
@@ -5037,7 +5110,7 @@ fn decision_row(ctx: &Ctx, decision: &DecisionRecord) -> Item {
             Span::styled(format!(" · {actor}"), theme.faint()),
         ],
     )
-    .with_right(vec![Span::styled(right, right_style)])
+    .with_right(vec![Span::styled(outcome_word, right_style)])
     .with_detail(detail)
 }
 
@@ -5112,52 +5185,71 @@ fn membership_detail(ctx: &Ctx, allocation: &AllocationDecision) -> Vec<Line<'st
     lines
 }
 
-/// The outcome a record carries, read from the field that actually holds it.
+/// The outcome a record carries, read from the field that actually holds it: the word its row
+/// shows, and the sentence its record states.
 ///
-/// A membership change, a per-turn bound, a wait and the three reservation records decide
-/// inside the record they carry, and no grade is ever written for them. Reading the grade
-/// field would report them as decisions recorded without an outcome while the row beside them
-/// says what they did, so this reads the same field the row does.
-fn recorded_outcome(decision: &DecisionRecord, acceptance: &Acceptance) -> String {
+/// A membership change, a per-turn bound, a wait, a change to the shared plan, a correction to
+/// what was retained, a captured contract and the three reservation records decide inside the
+/// record they carry, and no grade is ever written for them. Reading the grade field would
+/// report them as decisions recorded without an outcome, so the row and the record both read
+/// from here and cannot say different things.
+fn recorded_outcome(decision: &DecisionRecord, acceptance: &Acceptance) -> (String, String) {
+    let pair = |word: &str, sentence: &str| (word.to_owned(), sentence.to_owned());
     if let Some(allocation) = decision.links.allocation.as_deref() {
         return if allocation.accepted {
-            "the membership was committed".to_owned()
+            pair("membership committed", "the membership was committed")
         } else {
-            "the membership was refused".to_owned()
+            pair("membership refused", "the membership was refused")
         };
     }
     if let Some(resource) = decision.links.resource_allocation.as_deref() {
         return if resource.accepted {
-            "the bound was set".to_owned()
+            pair("bound set", "the bound was set")
         } else {
-            "the bound was refused".to_owned()
+            pair("bound refused", "the bound was refused")
         };
     }
     if let Some(wait) = decision.links.workspace_wait.as_ref() {
-        return format!("the turn waited · {}", wait.code);
+        return (
+            format!("waited · {}", wait.code),
+            format!("the turn waited · {}", wait.code),
+        );
     }
     if let Some(board) = decision.links.board.as_deref() {
         return if board.accepted {
-            "the plan took the change on".to_owned()
+            pair("committed", "the plan took the change on")
         } else {
-            "the plan was left unchanged".to_owned()
+            pair("rejected", "the plan was left unchanged")
         };
     }
     if decision.links.knowledge_correction.is_some() {
-        return "what was retained was replaced".to_owned();
+        return pair("entry replaced", "what was retained was replaced");
+    }
+    if decision.links.acceptance_contract.is_some() {
+        return pair(
+            "criteria captured",
+            "criteria were captured before the work",
+        );
     }
     match decision.kind.as_str() {
-        "workspace_access_acquired" => "the directory was reserved".to_owned(),
-        "workspace_access_admitted" => "the turn was admitted under that reservation".to_owned(),
-        "workspace_access_released" => "the reservation ended".to_owned(),
-        "acceptance_contract_captured" => "criteria were captured before the work".to_owned(),
-        _ => acceptance.word().to_owned(),
+        "workspace_access_acquired" => pair("directory reserved", "the directory was reserved"),
+        "workspace_access_admitted" => pair(
+            "turn admitted",
+            "the turn was admitted under that reservation",
+        ),
+        "workspace_access_released" => pair("reservation ended", "the reservation ended"),
+        "acceptance_contract_captured" => pair(
+            "criteria captured",
+            "criteria were captured before the work",
+        ),
+        _ => pair(acceptance.word(), acceptance.word()),
     }
 }
 
 /// Whether a decision carries its own outcome, for records the grade field was never
-/// written for: membership, per-turn resource bounds and changes to the shared plan all decide
-/// inside their own record.
+/// written for: membership, per-turn resource bounds, changes to the shared plan and
+/// corrections to what was retained all decide inside their own record. A correction is
+/// written only once it has been applied, so there is no refused one to mark.
 fn bounded_outcome(decision: &DecisionRecord) -> Option<bool> {
     decision
         .links
@@ -5172,6 +5264,7 @@ fn bounded_outcome(decision: &DecisionRecord) -> Option<bool> {
                 .map(|resource| resource.accepted)
         })
         .or_else(|| decision.links.board.as_deref().map(|board| board.accepted))
+        .or_else(|| decision.links.knowledge_correction.as_ref().map(|_| true))
 }
 
 /// What one turn was actually allowed to consume, and who decided it.

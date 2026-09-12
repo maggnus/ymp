@@ -136,12 +136,16 @@ selected row underneath it, and states its own keys in the status row.
 - **Decisions** — the plans, reviews, acceptances, rejections, competence credit, membership
   changes, per-turn bounds, captured acceptance criteria and directory reservations the session
   recorded, each with its actor, its time and the records it links. A captured contract shows
-  what a result will be judged against, its checker and the inputs recorded by digest, and says
-  that it is a binding rather than a result. A record that carries its own outcome, such as a
-  membership change, a change to the shared plan, a turn bound or a wait, reads from that
-  outcome and not from a grade it never had. A decision that changed the plan names the
-  proposal behind it, who asked, the version the plan took on, and the responsibility it
-  created. An acceptance
+  what a result will be judged against, its checker, and each input it declares with the
+  digest it was captured at; a contract that binds a correction also names the entry it
+  corrects and which declared source replaced which. It says that it is a binding rather than
+  a result. A record that carries its own outcome, such as a membership change, a change to the
+  shared plan, a correction to what was retained, a turn bound or a wait, reads from that
+  outcome in its row and in its record alike, and not from a grade it never had. A decision
+  that changed the plan names the proposal behind it, who asked, the version the plan took on,
+  and the responsibility it created; a correction names the entry it replaced, its
+  replacement, the acceptance and contract that authorised it and the policy it was applied
+  under. An acceptance
   states whether it rests on passing evidence for every criterion or on an independent
   review alone, and says when the files it was accepted against have changed since.
 - **Team**, **Agent profiles**, **Providers** — membership and configuration. The team page
