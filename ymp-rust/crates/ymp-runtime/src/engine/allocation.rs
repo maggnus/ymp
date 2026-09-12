@@ -89,6 +89,7 @@ impl Engine {
         constraints: &TeamConstraints,
     ) -> Result<Vec<AgentProfile>> {
         constraints.validate()?;
+        self.validate_known_pins(config, constraints)?;
         let pool = ymp_providers::discovery::inspect_pool(config)?;
         let mut eligible = pool
             .eligible()
@@ -115,6 +116,108 @@ impl Engine {
                 .unwrap_or(usize::MAX)
         });
         Ok(eligible)
+    }
+
+    /// Only complete, applicable metadata can prove a pin contradictory. An
+    /// unlisted model in an incomplete catalog or absent controls stay unknown.
+    fn validate_known_pins(&self, config: &Config, constraints: &TeamConstraints) -> Result<()> {
+        for agent in config.agents.iter().filter(|a| {
+            a.enabled
+                && config.provider(&a.provider).is_ok_and(|p| p.enabled)
+                && constraints
+                    .eligible_agents
+                    .as_ref()
+                    .is_none_or(|ids| ids.contains(&a.id))
+                && constraints
+                    .fixed_roster
+                    .as_ref()
+                    .is_none_or(|ids| ids.contains(&a.id))
+        }) {
+            let Some(policy) = config.execution.get(&agent.id) else {
+                continue;
+            };
+            let Some(catalog) = config.capabilities.get(&agent.provider) else {
+                continue;
+            };
+            let fixed = &policy.fixed;
+            if let Some(model) = &fixed.model {
+                ensure!(!catalog.models_complete || catalog.model(model).is_some(),
+                    "unsupported_model: agent {} pins model {}, absent from the complete native catalog", agent.id, model);
+            }
+            let Some(effort) = &fixed.effort else {
+                continue;
+            };
+            let models = if let Some(model) = &fixed.model {
+                catalog.model(model).into_iter().collect::<Vec<_>>()
+            } else if catalog.models_complete {
+                catalog.models.iter().collect()
+            } else {
+                continue;
+            };
+            let possible = models.is_empty()
+                || models.iter().any(|model| {
+                    model.controls.as_ref().is_none_or(|controls| {
+                        controls.iter().any(|control| {
+                            ["effort", "thought_level"].contains(&control.id.as_str())
+                                && control
+                                    .values
+                                    .contains(&NativeControlValue::Choice(effort.clone()))
+                        })
+                    })
+                });
+            ensure!(possible,
+                "unsupported_effort: agent {} pins model {} and effort {}, unsupported by the applicable native model controls",
+                agent.id, fixed.model.as_deref().unwrap_or("(adaptive model selection)"), effort);
+        }
+        Ok(())
+    }
+
+    fn validate_review_configuration(&self, input: &AllocationInput, reviewer: &str) -> Result<()> {
+        let agent = input.eligible.iter().find(|a| a.id == reviewer).context(
+            "no_independent_eligible_reviewer: reserved reviewer is not in the eligible pool",
+        )?;
+        let candidate_review = if input.demand.purpose == "plan" {
+            "review_plan"
+        } else {
+            "review"
+        };
+        for purpose in [candidate_review, "final_review"] {
+            let mut demand = input.demand.clone();
+            demand.purpose = purpose.into();
+            if purpose == "final_review" {
+                demand.task_id = None;
+            }
+            if self
+                .execution_options(&input.session_id, std::slice::from_ref(agent), &demand)?
+                .is_empty()
+            {
+                let captured = self.store.session_policy(&input.session_id)?;
+                let execution = captured
+                    .as_ref()
+                    .map(|p| &p.execution)
+                    .unwrap_or(&self.config.execution);
+                let rule = self.assignment_rule(
+                    &input.session_id,
+                    agent,
+                    purpose,
+                    demand.task_id.as_deref(),
+                )?;
+                let settings = execution
+                    .get(&agent.id)
+                    .cloned()
+                    .unwrap_or_default()
+                    .resolve(agent, rule.as_ref().unwrap_or(&ModelEffort::default()))?;
+                self.validate_native_settings(agent, &settings)
+                    .with_context(|| {
+                        format!(
+                            "Agent {} requires {purpose} with model {:?} and effort {:?}",
+                            agent.id, settings.model, settings.effort
+                        )
+                    })?;
+                bail!("no_independent_eligible_reviewer: agent {} has no usable {purpose} configuration under the captured settings", agent.id);
+            }
+        }
+        Ok(())
     }
 
     pub(super) fn current_team(&self, session: &str) -> Result<Vec<AgentProfile>> {
@@ -438,6 +541,7 @@ impl Engine {
                 && !input.producer_ids.contains(reviewer),
             "no_independent_eligible_reviewer: final reviewer must remain eligible and independent"
         );
+        self.validate_review_configuration(input, reviewer)?;
         if let Some(choice) = &proposal.executor {
             ensure!(
                 ids.contains(&choice.agent_id),

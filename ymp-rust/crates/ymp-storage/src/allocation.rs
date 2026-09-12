@@ -99,8 +99,25 @@ impl Store {
             "stale_allocation: team changed since proposal"
         );
         let members = &allocation.proposal.members;
+        let reviewer = allocation
+            .proposal
+            .reserved_final_reviewer
+            .as_ref()
+            .context(
+                "no_independent_eligible_reviewer: membership requires a reserved final reviewer",
+            )?;
+        ensure!(
+            allocation.input.eligible.iter().any(|a| &a.id == reviewer),
+            "no_independent_eligible_reviewer: reserved final reviewer is not eligible"
+        );
         for assignment in provenance::records::<AssignmentRecord>(&tx, "assignments", &session.id)?
         {
+            // Admission can advance after the policy's snapshot without changing
+            // membership revision. Recheck producers under this same write lock.
+            ensure!(
+                assignment.purpose != "execute" || &assignment.agent_id != reviewer,
+                "no_independent_eligible_reviewer: reserved final reviewer became a producer after allocation input was captured"
+            );
             ensure!(
                 assignment.state != InvocationState::Running
                     || members.contains(&assignment.agent_id),
