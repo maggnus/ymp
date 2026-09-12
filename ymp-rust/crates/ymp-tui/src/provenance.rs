@@ -14,7 +14,8 @@ use std::collections::{BTreeMap, BTreeSet};
 use ymp_core::{
     now, AgentPool, AssignmentRecord, Config, ConfirmationStatus, DecisionOutcome, DecisionRecord,
     GrantRecord, InvocationRecord, InvocationState, PoolAgent, ResultVersion, SessionPolicy,
-    SessionTrace, StoredOutcome, TeamConstraints, TeamState,
+    SessionTrace, StoredOutcome, TeamConstraints, TeamState, WorkspaceAccessDecision,
+    WorkspaceWait,
 };
 use ymp_providers::discovery::ProviderHealth;
 use ymp_storage::Store;
@@ -162,6 +163,67 @@ impl Records {
 
     pub fn policy(&self) -> Option<&SessionPolicy> {
         self.trace.as_ref().and_then(|trace| trace.policy.as_ref())
+    }
+
+    /// What the run recorded about one reservation of the working directory.
+    ///
+    /// A turn's reservation carries the assignment's own id, which is how the two records
+    /// meet. A session that recorded no reservation for an assignment has none, which is
+    /// not the same as a turn that held nothing.
+    pub fn reservation(&self, reservation_id: &str) -> Option<Reservation<'_>> {
+        let of_kind = |kind: &'static str| {
+            self.decisions().iter().find(|decision| {
+                decision.kind == kind
+                    && decision
+                        .links
+                        .workspace_access
+                        .as_ref()
+                        .is_some_and(|access| access.reservation_id == reservation_id)
+            })
+        };
+        let acquired = of_kind("workspace_access_acquired")?;
+        Some(Reservation {
+            access: acquired.links.workspace_access.as_ref()?,
+            acquired,
+            admitted: of_kind("workspace_access_admitted"),
+            released: of_kind("workspace_access_released"),
+        })
+    }
+
+    /// Every wait the run recorded, in the order it recorded them.
+    pub fn waits(&self) -> Vec<(&DecisionRecord, &WorkspaceWait)> {
+        self.decisions()
+            .iter()
+            .filter_map(|decision| {
+                decision
+                    .links
+                    .workspace_wait
+                    .as_ref()
+                    .map(|wait| (decision, wait))
+            })
+            .collect()
+    }
+
+    /// Waits recorded for one agent, which is what a turn waited through before it ran.
+    pub fn waits_of(&self, agent: &str) -> Vec<(&DecisionRecord, &WorkspaceWait)> {
+        self.waits()
+            .into_iter()
+            .filter(|(decision, _)| decision.actor.as_deref() == Some(agent))
+            .collect()
+    }
+
+    /// Waits recorded against one task, including the ones no agent was named for.
+    pub fn waits_for_task(&self, task_id: &str) -> Vec<(&DecisionRecord, &WorkspaceWait)> {
+        self.waits()
+            .into_iter()
+            .filter(|(decision, _)| {
+                decision
+                    .links
+                    .task
+                    .as_ref()
+                    .is_some_and(|task| task.task_id == task_id)
+            })
+            .collect()
     }
 
     pub fn assignments(&self) -> &[AssignmentRecord] {
@@ -330,6 +392,16 @@ impl Acceptance<'_> {
     pub fn confirmed(&self) -> bool {
         self.confirmation == Some(ConfirmationStatus::Confirmed)
     }
+}
+
+/// One recorded reservation of the working directory, as the run wrote it.
+pub struct Reservation<'a> {
+    pub access: &'a WorkspaceAccessDecision,
+    pub acquired: &'a DecisionRecord,
+    /// The record that ties the reservation to the turn that actually ran under it.
+    pub admitted: Option<&'a DecisionRecord>,
+    /// A reservation with no release record was still held when the records were read.
+    pub released: Option<&'a DecisionRecord>,
 }
 
 /// The locally eligible pool, as the controller last inspected it.

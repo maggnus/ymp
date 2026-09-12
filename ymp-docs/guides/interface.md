@@ -95,7 +95,8 @@ Every destination in the sidebar is a read-only projection. Opening one never st
 agent and never writes to your working directory. Each page is a list with the detail of the
 selected row underneath it, and states its own keys in the status row.
 
-- **Tasks** — the task graph, with state, assignee, reviewer, attempts, checks and results.
+- **Tasks** — the task graph, with state, assignee, reviewer, attempts, checks, results, the
+  access each task declared, and any wait the runtime recorded against it.
 - **Token usage** — what the loaded session spent, for the session as a whole and for each
   agent in it. Described in its own section below.
 - **Sessions** — saved sessions for this project. `Enter` loads one for reading; `r`
@@ -105,20 +106,25 @@ selected row underneath it, and states its own keys in the status row.
   Stop the run with `/stop` first.
 - **Files** and **Changed files** — the working directory, and the changes recorded for the
   loaded session. The change page opens on how the directory is used: agents work in it
-  directly, one run holds it at a time, nothing is staged or copied, and ymp cannot put an
-  earlier version of a file back, because it recorded a path, a status and a content hash
-  rather than a copy. It also names the version control found at or above the directory, and
+  directly, what a turn may do is the access its backend enforces, turns overlap only where
+  that access does not conflict, one run holds the directory at a time, nothing is staged or
+  copied, and ymp cannot put an earlier version of a file back, because it recorded a path, a
+  status and a content hash rather than a copy. It also names the version control found at or above the directory, and
   lists the accepted results of the session with the directory each was recorded in.
 - **Recorded checks** — the acceptance commands ymp ran itself for the loaded session, with
   the directory, the recorded outcome and the captured output. A command the plan declared
   that has no recorded run is listed apart from the runs, because it is not a result. See
   [recorded checks and recovery limits](../architecture/recorded-checks-and-recovery.md).
 - **Assignments** — the turns the run assigned for the loaded session: the agent, the
-  purpose, the task attempt, the directory, and the model, effort and permission mode that
-  were requested, sent and reported. A turn still open is separated from the turns that
+  purpose, the task attempt, the directory, the access the execution backend enforced for the
+  turn with the reservation it was admitted under and any wait it went through, and the model,
+  effort and permission mode that were requested, sent and reported. A turn still open is separated from the turns that
   finished, and the coordination permissions an assignment held are named with it.
-- **Decisions** — the plans, reviews, acceptances, rejections and competence credit the
-  session recorded, each with its actor, its time and the records it links. An acceptance
+- **Decisions** — the plans, reviews, acceptances, rejections, competence credit, membership
+  changes, per-turn bounds and directory reservations the session recorded, each with its
+  actor, its time and the records it links. A record that carries its own outcome, such as a
+  membership change, a turn bound or a wait, reads from that outcome and not from a grade it
+  never had. An acceptance
   states whether it rests on passing evidence for every criterion or on an independent
   review alone, and says when the files it was accepted against have changed since.
 - **Team**, **Agent profiles**, **Providers** — membership and configuration. The team page

@@ -3583,9 +3583,10 @@ async fn an_accepted_outcome_names_the_directory_it_was_recorded_in() {
     let leading = detail_of_key(&mut app, 65, "recovery");
     for statement in [
         "Agents work in this directory itself",
-        "Only a turn that executes a task is asked with permission to change files",
-        "it is not isolation",
-        "One task is executed at a time",
+        "the access its execution backend actually enforces",
+        "a mode name is not a filesystem guarantee",
+        "A task declared read-only in the plan is asked read-only",
+        "Turns overlap only where their recorded access does not conflict",
         "exclusive lock",
         "cannot restore a previous version of a file",
         "Isolated execution with a reviewed publication step is not part of this release",
@@ -3796,10 +3797,152 @@ async fn the_record_pages_paint_their_statements_whole_at_every_supported_size()
         app.on_key(key(KeyCode::Enter), width);
         let prose = modal_prose(&mut app, width, height);
         assert!(
-            prose.contains(
-                "Only a turn that executes a task is asked with permission to change files"
-            ),
+            prose.contains("the access its execution backend actually enforces"),
             "at {width}x{height} the workspace statement lost words:\n{prose}"
         );
     }
+}
+
+#[tokio::test]
+async fn the_access_a_turn_held_is_shown_as_the_backend_enforced_it() {
+    let run = mock_run("Create a greeting", |_| {}).await;
+    let trace = run.store.trace(&run.session).unwrap();
+    let writing = trace
+        .assignments
+        .iter()
+        .find(|assignment| assignment.purpose == "execute")
+        .expect("the run executed a task");
+    let reading = trace
+        .assignments
+        .iter()
+        .find(|assignment| assignment.purpose == "final_review")
+        .expect("the run reviewed the result");
+    let mut app = run.app();
+    app.load_session(&run.session).unwrap();
+    app.command("/assignments", 100);
+
+    let write = detail_of_key(&mut app, 65, &text::short_id(&writing.id));
+    assert!(
+        write.contains("may write anywhere in the directory"),
+        "the access a writing turn held is not stated:\n{write}"
+    );
+    assert!(
+        write.contains("ymp.native"),
+        "the page does not name what enforced the access:\n{write}"
+    );
+    assert!(
+        write.contains("turn admitted") && write.contains("until"),
+        "the reservation lifecycle is incomplete:\n{write}"
+    );
+    assert!(
+        write.contains("A coordination policy may describe it as broader and never as narrower"),
+        "the page does not say what the recorded access is:\n{write}"
+    );
+
+    let read = detail_of_key(&mut app, 65, &text::short_id(&reading.id));
+    assert!(
+        read.contains("reads the directory and writes nothing"),
+        "a read-only turn is not distinguished from a writing one:\n{read}"
+    );
+}
+
+#[tokio::test]
+async fn a_task_that_waited_says_what_it_waited_for() {
+    // Two tasks, the second depending on the first, which is the runtime's own reason for a
+    // recorded wait: the wave cannot admit a task whose dependency is not accepted yet.
+    let run = mock_run("Create a greeting", |engine| {
+        for agent in &mut engine.config.agents {
+            agent.instructions.push_str(" [mock:split-writers]");
+        }
+    })
+    .await;
+    let trace = run.store.trace(&run.session).unwrap();
+    let waits = trace
+        .decisions
+        .iter()
+        .filter_map(|decision| {
+            decision
+                .links
+                .workspace_wait
+                .as_ref()
+                .map(|wait| (decision, wait))
+        })
+        .collect::<Vec<_>>();
+    assert!(
+        !waits.is_empty(),
+        "the run recorded no wait, so this case is untested"
+    );
+    let (record, wait) = waits[0];
+    let task_id = record
+        .links
+        .task
+        .as_ref()
+        .expect("the wait names the task that waited")
+        .task_id
+        .clone();
+
+    let mut app = run.app();
+    app.load_session(&run.session).unwrap();
+    app.command("/tasks", 100);
+    let task = run
+        .store
+        .tasks(&run.session)
+        .unwrap()
+        .into_iter()
+        .find(|task| task.id == task_id)
+        .expect("the task that waited is still recorded");
+    let detail = row_prose(&mut app, 65, &task.title);
+    assert!(
+        detail.contains(&wait.code),
+        "the task does not say it waited, or under which code:\n{detail}"
+    );
+
+    app.command("/decisions", 100);
+    let key = text::short_id(&record.id);
+    assert!(
+        right_of_key(&mut app, 65, &key).contains(&format!("waited · {}", wait.code)),
+        "a wait is not reported as one: {}",
+        right_of_key(&mut app, 65, &key)
+    );
+    let recorded = detail_of_key(&mut app, 65, &key);
+    assert!(
+        recorded.contains("waited because") && recorded.contains("holder"),
+        "the wait record does not say what held it up:\n{recorded}"
+    );
+}
+
+#[test]
+fn a_read_only_task_is_shown_as_declared_and_never_as_measured() {
+    let fixture = fixture();
+    let id = fixture.seed_session("Build a landing page");
+    let writing = fixture.seed_task(&id, "Write the page", &[]);
+    let reading = fixture.seed_task(&id, "Read the existing page", &[]);
+    let mut task = fixture
+        .store
+        .tasks(&id)
+        .unwrap()
+        .into_iter()
+        .find(|task| task.id == reading)
+        .unwrap();
+    // What the store holds for a task a plan declared read-only.
+    task.access = ymp_core::TaskAccess::ReadOnly;
+    fixture.store.save_task(&task).unwrap();
+
+    let mut app = fixture.app();
+    app.load_session(&id).unwrap();
+    app.command("/tasks", 100);
+    let read_only = detail_of_key(&mut app, 65, &reading);
+    assert!(
+        read_only.contains("read-only, declared in the plan"),
+        "a declared read-only task does not say so:\n{read_only}"
+    );
+    assert!(
+        read_only.contains("the turn is asked read-only"),
+        "the page does not say what the declaration does:\n{read_only}"
+    );
+    let writes = detail_of_key(&mut app, 65, &writing);
+    assert!(
+        writes.contains("may write; this is the default where a plan declares nothing"),
+        "a writing task is not distinguished from a declared one:\n{writes}"
+    );
 }

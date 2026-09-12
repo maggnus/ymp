@@ -100,6 +100,12 @@ the source record, so an entry recorded as confirmed reads as confirmed and not 
 the task, the files or the criteria behind it change. The page lists retired entries too,
 labelled, rather than letting them disappear.
 
+**Declared against enforced.** A task declares whether it may write; a backend enforces what
+a turn can actually do. The page keeps the two apart: the declaration is shown on the task as
+declared in the plan, the enforced access is shown on the assignment as what the backend
+enforces, and a coordination policy may describe the enforced access as broader but never as
+narrower, because the runtime refuses a policy that claims to narrow it.
+
 **Recorded location.** An accepted result names the directory it was accepted in. That
 location is historical: changing the project's current path does not move it, and the page
 states that ymp keeps no copy of the artifact anywhere else. Artifact paths are shown in full
@@ -127,16 +133,25 @@ a run works directly in the selected directory: files agents create, change or d
 real ones, nothing is staged or copied, and there is no review step between a turn and the
 directory.
 
-Three bounds on that are real, so the page states them and states what they are not. Only a
-turn whose purpose is to execute a task is asked with permission to change files; planning,
-review, final review, summary and knowledge turns are asked in the provider's own read-only
-mode where it advertises one, and the adapter declines the permission requests such a turn
-makes. That is what ymp asks for and answers, not isolation it enforces. One task is executed
-at a time, because the scheduler takes one ready task per round, so a run does not start two
-writing turns at once. One run uses a project's directory at a time, because a run holds an
-exclusive lock in ymp's metadata home and another run refuses to start while it is held; the
-page says that this lock is about ymp and says nothing about other programs or a command run
-by hand.
+What bounds that is the access each turn actually holds, and the run records it. The page
+states the three facts behind it.
+
+The access is the execution backend's own, not a purpose the interface reads. The native
+adapter enforces read-only access for a turn it asks read-only, except over the ACP protocol,
+where a mode name is not a filesystem guarantee and the turn is therefore recorded as writing
+the whole directory; any other backend is taken to write the whole directory unless it states
+otherwise. A task declared read-only in the plan is asked read-only, a task that declares
+nothing may write, and the declaration is explicit rather than concluded from the work.
+
+Turns overlap only where their recorded access does not conflict. A turn that writes the whole
+directory excludes every other turn in it, two readers do not exclude each other, and declared
+disjoint paths do not. A run admits at most as many turns at once as its own parallelism
+allows, every turn that waits records why it waited, and the checks and the acceptance that
+judge a candidate hold the whole directory while they run.
+
+One run uses a project's directory at a time, because a run holds an exclusive lock in ymp's
+metadata home and another run refuses to start while it is held; the page says that this lock
+is about ymp and says nothing about other programs or a command run by hand.
 
 ymp keeps its own metadata and evidence in its home directory and the deliverables in the
 working directory, and it does not create a hidden copy of the tree or move the directory that
@@ -150,12 +165,21 @@ The opening screen carries the short form: where a run works, that no copy is ke
 action, a confirmation or a block, and nothing recurring was introduced: the statements are
 read where the reader already is.
 
-Per-turn access is disclosed where the records carry it. The permission mode an assignment
-requested, the adapter sent and the installation reported is one field of the assignment
-detail, with the same three-column honesty as model and effort. The runtime also decides per
-turn whether a provider is asked in its read-only mode, and that flag is not written to the
-records, so no page states it: a turn whose record carries no permission mode is shown as one
-where nothing was requested and the installation used its own default.
+Per-turn access is disclosed from the records, not inferred. Each assignment carries the
+access the run recorded for it: what the backend enforces, what the coordination policy used
+where the two differ, which backend and which policy, when the reservation was taken, when the
+turn was admitted under it, and when it ended. A reservation with no release record was still
+held when the records were read, and a turn with no access record says that instead of showing
+a default. Waits are listed with the code the runtime recorded them under, and they are
+recorded against the agent, so the page says that a wait belongs to the agent and not
+necessarily to the turn it is listed with. The permission mode an assignment requested, the
+adapter sent and the installation reported stays a separate field, with the same three-column
+honesty as model and effort, because a mode name is not an enforcement guarantee.
+
+The four lifecycle records are kept apart and named in their own words: a turn waited, the
+directory was reserved, the turn was admitted under that reservation, the reservation ended.
+None of them carries a grade, so none of them is reported as a decision recorded without an
+outcome.
 
 ## One width per page
 
@@ -203,6 +227,15 @@ the reviewer it kept free and the moment it was taken; the same test asserts tha
 per-turn bound reports what it allowed and says that an allowance is not a measurement. One asserts the opening screen states
 how the directory is used and what cannot be put back, at 80x24.
 
+Three more cover the access records. A mock run's own turns give both kinds of access: the
+executing turn is recorded as writing the whole directory and the final review as reading it
+and writing nothing, and the test asserts both, the backend that enforced them, and the
+reservation from its admission to its end. A plan of two tasks where the second depends on the
+first is the runtime's own reason for a wait, so that run records one, and the test asserts
+that the task says it waited under the code the runtime recorded and that the decision reads
+as a wait rather than as an ungraded decision. A task declared read-only is asserted to read
+as declared in the plan, beside a task that declares nothing and may write.
+
 Each of those claims was also inverted in a scratch copy of the source, outside the
 repository, and the test that covers it failed in the expected direction.
 
@@ -219,10 +252,12 @@ background.
 
 ## Limits
 
-- Task-level access is not shown, because it is not recorded yet. YMP-115 adds a declared
-  read-only or writing access to a task; until it lands, the only access the interface can
-  state is the permission mode an invocation recorded, and the whole-directory reality of the
-  turn that runs.
+- Scoped access is shown as the records carry it, and no backend in this release declares one:
+  the native adapter records either the whole directory or read-only, so the scoped rows are
+  reachable only through another execution backend. The words and the path lists are in place
+  for one.
+- A wait is recorded against an agent or a task, never against an assignment, so the page
+  cannot say which turn a wait delayed. It says so rather than implying the pairing.
 - Isolated execution and a recoverable publication step are YMP-124. The pages state that they
   are absent rather than describing the direct mode as a protection.
 - `Store::outcomes` answers for a whole session. One accepted result whose captured directory

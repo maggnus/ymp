@@ -20,7 +20,8 @@ use ymp_core::{
     AgentProfile, AllocationBoundary, AllocationDecision, AssignmentRecord, CheckOutcome, CheckRun,
     Config, ConfirmationStatus, DecisionRecord, ExecutionSettings, GrantRecord, InvocationRecord,
     InvocationState, KnowledgeRetrievalMode, Limits, MemoryEntry, ModelEffort, PoolAgent,
-    PoolExclusion, PoolModelStatus, Session, SessionBudget, Task, TaskState, UsageTotals,
+    PoolExclusion, PoolModelStatus, Session, SessionBudget, Task, TaskAccess, TaskState,
+    UsageTotals, WorkspaceAccess, WorkspaceWait,
 };
 use ymp_storage::Store;
 use ymp_workspace::repository::Repository;
@@ -427,6 +428,12 @@ fn tasks(ctx: &Ctx) -> Page {
             ));
             detail.extend(field(
                 theme,
+                "declared access",
+                declared_access_words(task.access),
+                ctx.width,
+            ));
+            detail.extend(field(
+                theme,
                 "attempts",
                 &task.attempts.to_string(),
                 ctx.width,
@@ -459,6 +466,9 @@ fn tasks(ctx: &Ctx) -> Page {
                     &workspace.display().to_string(),
                     ctx.width,
                 ));
+            }
+            for (_, wait) in ctx.records.waits_for_task(&task.id) {
+                detail.extend(field(theme, "waited", &wait_words(wait), ctx.width));
             }
             if task.interrupted {
                 detail.extend(field(theme, "interrupted", "yes", ctx.width));
@@ -902,8 +912,9 @@ const NO_EARLIER_CONTENT: &str = "ymp cannot restore a previous version of a fil
 /// run holds, and nothing is staged, copied or published anywhere else.
 const DIRECT_WORKSPACE: &[&str] = &[
     "Agents work in this directory itself. Files they create, change or delete are the real ones, there is no staging copy and no review step between a turn and the directory.",
-    "Only a turn that executes a task is asked with permission to change files. Planning, review, final review and summary turns are asked in the provider's own read-only mode where it advertises one, and the permission requests they make are declined. That is what ymp asks for and answers; it is not isolation, and a program that writes without asking is not stopped by it.",
-    "One task is executed at a time. The scheduler takes one ready task per round, so a run does not start two writing turns at once, while the reading turns of a round can run together.",
+    "What a turn may do here is the access its execution backend actually enforces, and the run records that access per turn. The native adapter enforces read-only access for a turn it asks read-only, with one exception it records rather than hides: over the ACP protocol a mode name is not a filesystem guarantee, so such a turn is recorded as writing the whole directory. Any other execution backend is taken to write the whole directory unless it states otherwise.",
+    "A task declared read-only in the plan is asked read-only, and a task that declares nothing may write. The declaration is explicit and is never concluded from what the work looks like.",
+    "Turns overlap only where their recorded access does not conflict. A turn that writes the whole directory excludes every other turn here, two readers do not exclude each other, and declared disjoint paths do not. Every turn that waits records why, and the checks and the acceptance that judge a candidate hold the whole directory while they run.",
     "One ymp run uses a project's directory at a time: a run holds an exclusive lock in ymp's own metadata home and another run refuses to start while it is held. That lock says nothing about other programs, or about a command run by hand, which can write here at any time.",
     "ymp keeps its own metadata and evidence in its home directory and the deliverables here. It does not create a hidden copy of this tree, and it does not move or rename the directory you selected.",
     "Isolated execution with a reviewed publication step is not part of this release. What a run writes here is applied as it works, so interrupting one leaves whatever it had already written.",
@@ -2597,7 +2608,7 @@ fn limits(ctx: &Ctx) -> Page {
         (
             "parallel",
             limits.parallel.to_string(),
-            "Turns that may run at the same time. One task writes at a time regardless.",
+            "Turns that may be admitted at the same time. Whether two of them overlap is decided by their recorded access, not by this number.",
         ),
         (
             "turns",
@@ -2982,6 +2993,12 @@ fn assignment_row(ctx: &Ctx, assignment: &AssignmentRecord, live: bool) -> Item 
     ));
     detail.push(Line::default());
     detail.push(Line::from(Span::styled(
+        "Access to the directory".to_owned(),
+        theme.muted(),
+    )));
+    detail.extend(access_lines(ctx, assignment));
+    detail.push(Line::default());
+    detail.push(Line::from(Span::styled(
         "Model and effort".to_owned(),
         theme.muted(),
     )));
@@ -3173,6 +3190,159 @@ fn settings_lines(
     }
     let (source, fixed) = pinned(ctx, &assignment.agent_id);
     lines.extend(field(theme, "fixed", &pin_words(&fixed, source), ctx.width));
+    lines
+}
+
+/// The access a task declares, which is a declaration and not a measurement.
+///
+/// Write is the default, so a task that declares nothing is a writing task. A read-only
+/// task is one the plan said so about, and the runtime then asks its backend for read-only
+/// access; it is never concluded from what the work appears to need.
+fn declared_access_words(access: TaskAccess) -> &'static str {
+    match access {
+        TaskAccess::ReadOnly => "read-only, declared in the plan; the turn is asked read-only",
+        TaskAccess::Write => "may write; this is the default where a plan declares nothing",
+    }
+}
+
+/// What one access actually permits, in words, without naming a protection.
+fn access_words(access: &WorkspaceAccess) -> String {
+    match access {
+        WorkspaceAccess::WriteAll => "may write anywhere in the directory".to_owned(),
+        WorkspaceAccess::ReadAll => "reads the directory and writes nothing".to_owned(),
+        WorkspaceAccess::Scoped { reads, writes } if writes.is_empty() => {
+            format!("reads {} declared path(s) and writes nothing", reads.len())
+        }
+        WorkspaceAccess::Scoped { reads, writes } => format!(
+            "writes {} declared path(s), reads {}",
+            writes.len(),
+            reads.len()
+        ),
+    }
+}
+
+/// The paths a scoped access names, so a reader can see what was declared.
+fn access_paths(theme: &Theme, access: &WorkspaceAccess, width: usize) -> Vec<Line<'static>> {
+    let mut lines = Vec::new();
+    if let WorkspaceAccess::Scoped { reads, writes } = access {
+        for (label, paths) in [("writes", writes), ("reads", reads)] {
+            if !paths.is_empty() {
+                lines.extend(field(
+                    theme,
+                    label,
+                    &paths
+                        .iter()
+                        .map(|path| path.display().to_string())
+                        .collect::<Vec<_>>()
+                        .join(", "),
+                    width,
+                ));
+            }
+        }
+    }
+    lines
+}
+
+/// A wait the runtime recorded, in its own words, with the code it recorded it under.
+fn wait_words(wait: &WorkspaceWait) -> String {
+    let reason = match wait.code.as_str() {
+        "resource_conflict" => "another turn held access that conflicts with this one",
+        "agent_busy" => "the agent already had an active assignment",
+        "concurrency_limit" => "the run's own ceiling on active turns was occupied",
+        "dependencies" => "a task it depends on was not accepted yet",
+        _ => "the runtime recorded this code",
+    };
+    format!("{} · {reason}", wait.code)
+}
+
+/// What the records say about the access one turn held, and what it waited for.
+///
+/// Access here is what the execution backend actually enforces for the turn. A policy may
+/// describe it as broader, never as narrower: the runtime refuses a policy that claims to
+/// narrow what the backend can do. Nothing is inferred from the purpose of the turn.
+fn access_lines(ctx: &Ctx, assignment: &AssignmentRecord) -> Vec<Line<'static>> {
+    let theme = ctx.theme;
+    let mut lines = Vec::new();
+    match ctx.records.reservation(&assignment.id) {
+        Some(reservation) => {
+            let access = reservation.access;
+            lines.extend(field(
+                theme,
+                "effective",
+                &access_words(&access.effective_access),
+                ctx.width,
+            ));
+            lines.extend(access_paths(theme, &access.effective_access, ctx.width));
+            if access.backend_access != access.effective_access {
+                lines.extend(field(
+                    theme,
+                    "backend enforces",
+                    &access_words(&access.backend_access),
+                    ctx.width,
+                ));
+                lines.extend(access_paths(theme, &access.backend_access, ctx.width));
+            }
+            lines.extend(field(
+                theme,
+                "enforced by",
+                &format!("{} {}", access.backend.id, access.backend.version),
+                ctx.width,
+            ));
+            lines.extend(field(
+                theme,
+                "coordinated by",
+                &format!("{} {}", access.policy.id, access.policy.version),
+                ctx.width,
+            ));
+            lines.extend(field(
+                theme,
+                "turn admitted",
+                &match reservation.admitted {
+                    Some(admitted) => text::clock(&admitted.created_at),
+                    None => "no admission was recorded under this reservation".to_owned(),
+                },
+                ctx.width,
+            ));
+            lines.extend(field(
+                theme,
+                "held",
+                &match reservation.released {
+                    Some(released) => format!(
+                        "from {} until {}",
+                        text::clock(&reservation.acquired.created_at),
+                        text::clock(&released.created_at)
+                    ),
+                    None => format!(
+                        "from {}; no release was recorded",
+                        text::clock(&reservation.acquired.created_at)
+                    ),
+                },
+                ctx.width,
+            ));
+        }
+        None => {
+            lines.extend(field(
+                theme,
+                "effective",
+                "no access record was read for this turn",
+                ctx.width,
+            ));
+        }
+    }
+    let waits = ctx.records.waits_of(&assignment.agent_id);
+    if waits.is_empty() {
+        lines.extend(field(theme, "waited", "no wait was recorded", ctx.width));
+    } else {
+        for (_, wait) in &waits {
+            lines.extend(field(theme, "waited", &wait_words(wait), ctx.width));
+        }
+    }
+    lines.push(Line::default());
+    lines.extend(paragraph(
+        theme,
+        "This is the access the execution backend enforces for the turn, as the run recorded it. A coordination policy may describe it as broader and never as narrower, so a turn recorded as writing the whole directory could write any file in it whatever its purpose was. Waits are recorded against the agent, so a wait listed here belongs to this agent and not necessarily to this turn.",
+        ctx.width,
+    ));
     lines
 }
 
@@ -3391,6 +3561,12 @@ fn decision_row(ctx: &Ctx, decision: &DecisionRecord) -> Item {
     let (marker, style) = match bounded_outcome(decision) {
         Some(true) => (theme.markers.ok.to_owned(), theme.good()),
         Some(false) => (theme.markers.fail.to_owned(), theme.bad()),
+        None if decision.links.workspace_wait.is_some() => {
+            (theme.markers.paused.to_owned(), theme.warn())
+        }
+        None if decision.links.workspace_access.is_some() => {
+            (theme.markers.activity.to_owned(), theme.info())
+        }
         None => decision_marker(&acceptance, theme),
     };
     let actor = decision
@@ -3497,6 +3673,50 @@ fn decision_row(ctx: &Ctx, decision: &DecisionRecord) -> Item {
     if let Some(resource) = decision.links.resource_allocation.as_deref() {
         detail.extend(bound_detail(ctx, resource));
     }
+    if let Some(wait) = decision.links.workspace_wait.as_ref() {
+        detail.extend(field(theme, "waited because", &wait_words(wait), ctx.width));
+        detail.extend(field(
+            theme,
+            "holder",
+            wait.holder.as_deref().unwrap_or("none was named"),
+            ctx.width,
+        ));
+    }
+    if let Some(access) = decision.links.workspace_access.as_ref() {
+        detail.extend(field(
+            theme,
+            "reservation",
+            &text::short_id(&access.reservation_id),
+            ctx.width,
+        ));
+        detail.extend(field(
+            theme,
+            "directory",
+            &access.directory.display().to_string(),
+            ctx.width,
+        ));
+        detail.extend(field(
+            theme,
+            "effective",
+            &access_words(&access.effective_access),
+            ctx.width,
+        ));
+        detail.extend(access_paths(theme, &access.effective_access, ctx.width));
+        if access.backend_access != access.effective_access {
+            detail.extend(field(
+                theme,
+                "backend enforces",
+                &access_words(&access.backend_access),
+                ctx.width,
+            ));
+        }
+        detail.extend(field(
+            theme,
+            "enforced by",
+            &format!("{} {}", access.backend.id, access.backend.version),
+            ctx.width,
+        ));
+    }
     detail.push(Line::default());
     detail.push(Line::from(Span::styled(
         if decision.actor.is_some() {
@@ -3513,13 +3733,24 @@ fn decision_row(ctx: &Ctx, decision: &DecisionRecord) -> Item {
     let (right, right_style) = match (
         decision.links.allocation.as_deref(),
         decision.links.resource_allocation.as_deref(),
+        decision.links.workspace_wait.as_ref(),
     ) {
-        (Some(allocation), _) if allocation.accepted => {
+        (Some(allocation), _, _) if allocation.accepted => {
             ("membership committed".to_owned(), theme.good())
         }
-        (Some(_), _) => ("membership refused".to_owned(), theme.bad()),
-        (_, Some(resource)) if resource.accepted => ("bound set".to_owned(), theme.good()),
-        (_, Some(_)) => ("bound refused".to_owned(), theme.bad()),
+        (Some(_), _, _) => ("membership refused".to_owned(), theme.bad()),
+        (_, Some(resource), _) if resource.accepted => ("bound set".to_owned(), theme.good()),
+        (_, Some(_), _) => ("bound refused".to_owned(), theme.bad()),
+        (_, _, Some(wait)) => (format!("waited · {}", wait.code), theme.warn()),
+        _ if decision.kind == "workspace_access_acquired" => {
+            ("directory reserved".to_owned(), theme.info())
+        }
+        _ if decision.kind == "workspace_access_admitted" => {
+            ("turn admitted".to_owned(), theme.info())
+        }
+        _ if decision.kind == "workspace_access_released" => {
+            ("reservation ended".to_owned(), theme.muted())
+        }
         _ => (acceptance.word().to_owned(), style),
     };
     Item::row(
@@ -3710,6 +3941,10 @@ fn decision_kind(kind: &str) -> String {
         "reputation_observed" => "competence credited".into(),
         "final_review_pending" => "final review required".into(),
         "result_invalidated" => "result invalidated".into(),
+        "workspace_access_acquired" => "directory reserved".into(),
+        "workspace_access_admitted" => "turn admitted".into(),
+        "workspace_access_released" => "reservation ended".into(),
+        "assignment_waiting" => "a turn waited".into(),
         other => other.replace('_', " "),
     }
 }
