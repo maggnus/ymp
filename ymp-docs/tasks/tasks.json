@@ -1497,6 +1497,16 @@
           "at": "2026-09-12T16:17:26.617750+00:00",
           "status": "in_progress",
           "note": "Combined candidate addba63 answers location questions from immutable stored outcomes before workspace validation. The joint public consumer failed 101 before correction and passes 0 afterward. Independent integration review is running; UI118 visibility remains required."
+        },
+        {
+          "at": "2026-09-12T16:24:14.177628+00:00",
+          "status": "in_progress",
+          "note": "Combined R1(7/10) RETURN found one location-consumer contradiction: summary retained the original artifact but RunOutcome.workspace pointed to empty relocated registration. The backend correction now returns captured outcome/workspace/policy location, with explicit unknown legacy state. Extended zero-inference consumer fails101 before correction and passes0 after; required checks and independent re-review follow."
+        },
+        {
+          "at": "2026-09-12T16:29:19.936732+00:00",
+          "status": "in_progress",
+          "note": "Combined location correction1b76133 preserves captured structured and textual locations, including workspace/policy fallback and explicit unknown legacy state. Exact public consumer fails101 before correction and passes0 after. Fmt/clippy and final267-test suite pass; one earlier redaction setup failure passed targeted and unchanged full reruns and remains disclosed for review. Independent R2 is running; UI118 visibility remains required."
         }
       ]
     },
@@ -1689,6 +1699,11 @@
           "at": "2026-09-12T16:17:26.661114+00:00",
           "status": "in_progress",
           "note": "Independent review reproduced a default allocation failure: two failed concurrent producers can prevent review of a completed sibling despite an eligible reserved reviewer and remaining capacity. Exact public consumer exits101. Candidate is not accepted; bounded correction and re-review are next."
+        },
+        {
+          "at": "2026-09-12T16:24:14.128363+00:00",
+          "status": "in_progress",
+          "note": "R1(5/10) RETURN: two failed occupied actors can prevent a feasible completed-sibling review. Exact public consumer fails101; correction now accounts for a distinct reviewer without removing occupied actors or exceeding pins. The author is retaining the regression and checking the bounded change."
         }
       ]
     },
@@ -2346,6 +2361,11 @@
           "at": "2026-09-12T16:17:26.704109+00:00",
           "status": "in_progress",
           "note": "Candidate1fa6f735 is committed. Official MCP SDK verification includes SIGKILL recovery and internal --socket compatibility (176 tool calls; largest reply73149 bytes); five removed-guard controls fail. Author fmt/clippy,270 Rust tests and13 bridge tests pass. Independent xhigh review is running; all execution workloads are mock/low without model inference."
+        },
+        {
+          "at": "2026-09-12T16:29:19.892236+00:00",
+          "status": "in_progress",
+          "note": "R1(8/10) requests changes: SIGTERM closes mock invocations and pauses the operation but the process remains alive while stdin stays open. The independent seven-second subprocess control fails; EOF then exits0. Author is correcting input shutdown and adding open-pipe SIGTERM/SIGINT controls. Shared runtime authority, deduplication and bounded projection checks passed."
         }
       ]
     },
@@ -2380,7 +2400,7 @@
       ]
     }
   ],
-  "updated_at": "2026-09-12T16:17:26.704109+00:00",
+  "updated_at": "2026-09-12T16:29:19.936732+00:00",
   "delivery_order": [
     "YMP-116",
     "YMP-103",

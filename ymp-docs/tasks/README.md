@@ -1,6 +1,6 @@
 # Task details and evidence
 
-Updated: 2026-09-12 16:17 UTC.
+Updated: 2026-09-12 16:29 UTC.
 
 Use the [delivery plan](plan.md) to follow progress. This generated register contains full acceptance criteria, dependencies and evidence. [tasks.json](tasks.json) is the single source; [manage.py](manage.py) updates both pages.
 
@@ -47,10 +47,10 @@ A planned task is not implemented functionality. Completed research and planning
 | `[x]` | [YMP-109](#ymp-109) | P0 | Expose the provider-backed agent pool with stable individual identities | 2026-09-12 10:56 |
 | `[~]` | [YMP-110](#ymp-110) | P0 | Select session teams and execution settings within user constraints | 2026-09-12 16:17 |
 | `[=]` | [YMP-112](#ymp-112) | P0 | Coordinate commitments, plan revisions and reassignment through the board | 2026-09-12 12:46 |
-| `[~]` | [YMP-113](#ymp-113) | P0 | Accumulate general knowledge and verified experience incrementally | 2026-09-12 16:17 |
+| `[~]` | [YMP-113](#ymp-113) | P0 | Accumulate general knowledge and verified experience incrementally | 2026-09-12 16:29 |
 | `[=]` | [YMP-114](#ymp-114) | P0 | Correct and supersede knowledge with newer verified evidence | 2026-09-12 12:46 |
 | `[x]` | [YMP-009](#ymp-009) | P0 | Align the product definition, research conclusions and backlog with final intent | 2026-09-12 09:15 |
-| `[~]` | [YMP-115](#ymp-115) | P0 | Enable useful concurrent execution of independent assignments | 2026-09-12 16:17 |
+| `[~]` | [YMP-115](#ymp-115) | P0 | Enable useful concurrent execution of independent assignments | 2026-09-12 16:24 |
 | `[x]` | [YMP-010](#ymp-010) | P0 | Approve product goals and core protocol constraints | 2026-09-12 09:06 |
 | `[x]` | [YMP-011](#ymp-011) | P0 | Document bounded dynamic teams and assignment-level effort | 2026-09-12 08:41 |
 | `[x]` | [YMP-012](#ymp-012) | P0 | Establish the delivery plan and traceable backlog for the approved intent | 2026-09-12 09:15 |
@@ -62,7 +62,7 @@ A planned task is not implemented functionality. Completed research and planning
 | `[=]` | [YMP-121](#ymp-121) | P1 | Verify the integrated application and package a local release | 2026-09-12 14:50 |
 | `[x]` | [YMP-013](#ymp-013) | P0 | Review plan coherence and simplify progress tracking | 2026-09-12 09:46 |
 | `[x]` | [YMP-122](#ymp-122) | P1 | Expose replaceable execution backends behind runtime-owned controls | 2026-09-12 15:23 |
-| `[~]` | [YMP-123](#ymp-123) | P1 | Expose a public local MCP facade over stdio | 2026-09-12 16:17 |
+| `[~]` | [YMP-123](#ymp-123) | P1 | Expose a public local MCP facade over stdio | 2026-09-12 16:29 |
 | `[=]` | [YMP-124](#ymp-124) | P1 | Add isolated execution and recoverable publication for larger projects | 2026-09-12 15:31 |
 
 ## YMP-001
@@ -887,9 +887,9 @@ Accumulate general knowledge and verified experience incrementally
 
 **State:** `[~]` (in_progress) · **Type:** implementation · **Priority:** P0
 
-**Last update (UTC):** 2026-09-12 16:17
+**Last update (UTC):** 2026-09-12 16:29
 
-**Current reason:** Combined candidate addba63 answers location questions from immutable stored outcomes before workspace validation. The joint public consumer failed 101 before correction and passes 0 afterward. Independent integration review is running; UI118 visibility remains required.
+**Current reason:** Combined location correction1b76133 preserves captured structured and textual locations, including workspace/policy fallback and explicit unknown legacy state. Exact public consumer fails101 before correction and passes0 after. Fmt/clippy and final267-test suite pass; one earlier redaction setup failure passed targeted and unchanged full reruns and remains disclosed for review. Independent R2 is running; UI118 visibility remains required.
 
 **Owner:** Maintainer; application UI by Claude Code claude-opus-5 with thinking max via Paseo
 
@@ -995,9 +995,9 @@ Enable useful concurrent execution of independent assignments
 
 **State:** `[~]` (in_progress) · **Type:** implementation · **Priority:** P0
 
-**Last update (UTC):** 2026-09-12 16:17
+**Last update (UTC):** 2026-09-12 16:24
 
-**Current reason:** Independent review reproduced a default allocation failure: two failed concurrent producers can prevent review of a completed sibling despite an eligible reserved reviewer and remaining capacity. Exact public consumer exits101. Candidate is not accepted; bounded correction and re-review are next.
+**Current reason:** R1(5/10) RETURN: two failed occupied actors can prevent a feasible completed-sibling review. Exact public consumer fails101; correction now accounts for a distinct reviewer without removing occupied actors or exceeding pins. The author is retaining the regression and checking the bounded change.
 
 **Owner:** Maintainer
 
@@ -1413,9 +1413,9 @@ Expose a public local MCP facade over stdio
 
 **State:** `[~]` (in_progress) · **Type:** implementation · **Priority:** P1
 
-**Last update (UTC):** 2026-09-12 16:17
+**Last update (UTC):** 2026-09-12 16:29
 
-**Current reason:** Candidate1fa6f735 is committed. Official MCP SDK verification includes SIGKILL recovery and internal --socket compatibility (176 tool calls; largest reply73149 bytes); five removed-guard controls fail. Author fmt/clippy,270 Rust tests and13 bridge tests pass. Independent xhigh review is running; all execution workloads are mock/low without model inference.
+**Current reason:** R1(8/10) requests changes: SIGTERM closes mock invocations and pauses the operation but the process remains alive while stdin stays open. The independent seven-second subprocess control fails; EOF then exits0. Author is correcting input shutdown and adding open-pipe SIGTERM/SIGINT controls. Shared runtime authority, deduplication and bounded projection checks passed.
 
 **Owner:** Maintainer
 
