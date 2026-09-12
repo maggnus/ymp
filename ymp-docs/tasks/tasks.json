@@ -2365,7 +2365,7 @@
       "title": "Expose a public local MCP facade over stdio",
       "type": "implementation",
       "priority": "P1",
-      "status": "in_progress",
+      "status": "done",
       "owner": "Maintainer",
       "authorization": "Owner discussion on2026-09-12 requested external MCP availability and selected stdio; standing autonomous delivery authorization applies.",
       "depends_on": [
@@ -2384,7 +2384,11 @@
         "Bound and paginate knowledge/history/result payloads with explicit truncation or continuation. Reuse bounded projections for internal agent MCP memory search, whose full candidate results can otherwise exceed useful context limits; do not confuse this with the separate automatic prompt excerpt cap."
       ],
       "evidence": [
-        "[Public MCP scope and transport decision](../architecture/public-mcp.md)"
+        "[Public MCP scope and transport decision](../architecture/public-mcp.md)",
+        "[Published tool schemas](../architecture/public-mcp-tools-v1.json)",
+        "[Standalone independent R1/R2 review](../../ymp-evals/reports/ymp-123-independent-review.md)",
+        "[Combined MCP/concurrency/lock verification](../../ymp-evals/reports/mcp-concurrency-lock-integration.md)",
+        "[Independent combined acceptance](../../ymp-evals/reports/mcp-concurrency-lock-independent-review.md)"
       ],
       "history": [
         {
@@ -2426,6 +2430,11 @@
           "at": "2026-09-12T17:18:28.523110+00:00",
           "status": "in_progress",
           "note": "Combined candidate376cdc4 includes independently accepted MCP, concurrency/state and explicit StoreLock release. All284 Rust tests, fmt/clippy/build and official SDK walk pass (171 calls; maximum73149-byte response). Open-pipe signals preserve terminal accounting. Independent combined review is running before main integration."
+        },
+        {
+          "at": "2026-09-12T17:24:49.906750+00:00",
+          "status": "done",
+          "note": "Standalone R2(9.5/10) and combined independent review(9.5/10) ACCEPT. Merged as3b4045f; main source matches376cdc4. Main fmt/clippy,284 Rust tests, build and actual official MCP SDK walk pass. Scope, bounded projections, reconnect/cancel and open-pipe signal exit use shared runtime controls; explicit StoreLock release closes reproduced false contention. Mock/low workloads only."
         }
       ]
     },
@@ -2498,11 +2507,16 @@
           "at": "2026-09-12T17:18:28.479463+00:00",
           "status": "in_progress",
           "note": "Candidate ef9a125 implements shared typed config ingress, sanitized exact task binding, atomic capture and immutable resume. Actual mock/low executable output is confirmed and reused in a later session; original behavior and three removed-guard controls fail101. Author fmt/clippy and280 tests pass. Independent review is running; no TUI code or real inference was used."
+        },
+        {
+          "at": "2026-09-12T17:24:49.951216+00:00",
+          "status": "in_progress",
+          "note": "Standalone R1(9/10) ACCEPT at ef9a125. Independent documented-config executable consumer confirms output, supported later retrieval, immutable resume and stale-source rejection;13 focused controls and author280-test evidence pass. Integration with accepted main concurrency/MCP/StoreLock is assigned, including trusted launch configuration through public stdio."
         }
       ]
     }
   ],
-  "updated_at": "2026-09-12T17:18:28.523110+00:00",
+  "updated_at": "2026-09-12T17:24:49.951216+00:00",
   "delivery_order": [
     "YMP-116",
     "YMP-103",

@@ -1,6 +1,6 @@
 # Task details and evidence
 
-Updated: 2026-09-12 17:18 UTC.
+Updated: 2026-09-12 17:24 UTC.
 
 Use the [delivery plan](plan.md) to follow progress. This generated register contains full acceptance criteria, dependencies and evidence. [tasks.json](tasks.json) is the single source; [manage.py](manage.py) updates both pages.
 
@@ -14,7 +14,7 @@ A planned task is not implemented functionality. Completed research and planning
 | design | 1 | 1 |
 | documentation | 4 | 4 |
 | experiment | 0 | 4 |
-| implementation | 13 | 22 |
+| implementation | 14 | 22 |
 | research | 8 | 8 |
 | verification | 1 | 2 |
 
@@ -62,9 +62,9 @@ A planned task is not implemented functionality. Completed research and planning
 | `[=]` | [YMP-121](#ymp-121) | P1 | Verify the integrated application and package a local release | 2026-09-12 16:52 |
 | `[x]` | [YMP-013](#ymp-013) | P0 | Review plan coherence and simplify progress tracking | 2026-09-12 09:46 |
 | `[x]` | [YMP-122](#ymp-122) | P1 | Expose replaceable execution backends behind runtime-owned controls | 2026-09-12 15:23 |
-| `[~]` | [YMP-123](#ymp-123) | P1 | Expose a public local MCP facade over stdio | 2026-09-12 17:18 |
+| `[x]` | [YMP-123](#ymp-123) | P1 | Expose a public local MCP facade over stdio | 2026-09-12 17:24 |
 | `[=]` | [YMP-124](#ymp-124) | P1 | Add isolated execution and recoverable publication for larger projects | 2026-09-12 15:31 |
-| `[~]` | [YMP-125](#ymp-125) | P0 | Expose trusted acceptance contracts to executable users | 2026-09-12 17:18 |
+| `[~]` | [YMP-125](#ymp-125) | P0 | Expose trusted acceptance contracts to executable users | 2026-09-12 17:24 |
 
 ## YMP-001
 
@@ -1313,7 +1313,7 @@ Verify the integrated application and package a local release
 
 **Last update (UTC):** 2026-09-12 16:52
 
-**Current reason:** Needs YMP-112, YMP-114, YMP-118, YMP-123, YMP-125
+**Current reason:** Needs YMP-112, YMP-114, YMP-118, YMP-125
 
 **Owner:** Independent final reviewer at max reasoning; maintainer integrates and packages
 
@@ -1416,11 +1416,11 @@ A direct built-in provider call couples engine orchestration to one execution im
 
 Expose a public local MCP facade over stdio
 
-**State:** `[~]` (in_progress) · **Type:** implementation · **Priority:** P1
+**State:** `[x]` (done) · **Type:** implementation · **Priority:** P1
 
-**Last update (UTC):** 2026-09-12 17:18
+**Last update (UTC):** 2026-09-12 17:24
 
-**Current reason:** Combined candidate376cdc4 includes independently accepted MCP, concurrency/state and explicit StoreLock release. All284 Rust tests, fmt/clippy/build and official SDK walk pass (171 calls; maximum73149-byte response). Open-pipe signals preserve terminal accounting. Independent combined review is running before main integration.
+**Current reason:** Standalone R2(9.5/10) and combined independent review(9.5/10) ACCEPT. Merged as3b4045f; main source matches376cdc4. Main fmt/clippy,284 Rust tests, build and actual official MCP SDK walk pass. Scope, bounded projections, reconnect/cancel and open-pipe signal exit use shared runtime controls; explicit StoreLock release closes reproduced false contention. Mock/low workloads only.
 
 **Owner:** Maintainer
 
@@ -1443,6 +1443,10 @@ External clients should be able to use YMP knowledge and bounded team execution 
 **Evidence:**
 
 - [Public MCP scope and transport decision](../architecture/public-mcp.md)
+- [Published tool schemas](../architecture/public-mcp-tools-v1.json)
+- [Standalone independent R1/R2 review](../../ymp-evals/reports/ymp-123-independent-review.md)
+- [Combined MCP/concurrency/lock verification](../../ymp-evals/reports/mcp-concurrency-lock-integration.md)
+- [Independent combined acceptance](../../ymp-evals/reports/mcp-concurrency-lock-independent-review.md)
 
 ## YMP-124
 
@@ -1480,9 +1484,9 @@ Expose trusted acceptance contracts to executable users
 
 **State:** `[~]` (in_progress) · **Type:** implementation · **Priority:** P0
 
-**Last update (UTC):** 2026-09-12 17:18
+**Last update (UTC):** 2026-09-12 17:24
 
-**Current reason:** Candidate ef9a125 implements shared typed config ingress, sanitized exact task binding, atomic capture and immutable resume. Actual mock/low executable output is confirmed and reused in a later session; original behavior and three removed-guard controls fail101. Author fmt/clippy and280 tests pass. Independent review is running; no TUI code or real inference was used.
+**Current reason:** Standalone R1(9/10) ACCEPT at ef9a125. Independent documented-config executable consumer confirms output, supported later retrieval, immutable resume and stale-source rejection;13 focused controls and author280-test evidence pass. Integration with accepted main concurrency/MCP/StoreLock is assigned, including trusted launch configuration through public stdio.
 
 **Owner:** Maintainer; any TUI implementation by Claude Opus 5 max via Paseo
 
