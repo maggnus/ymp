@@ -16,7 +16,7 @@ ymp  project  /path/to/project      3fa27c81  ✓ completed  154.9k+ tokens  12 
                                                                    │   …
   ◆ Codex · final result                                    12:09  │ SESSION
     Added `validate_row` and six tests. `cargo test` passes.       │ 3fa27c81 ✓ completed
-                                                                   │ turns      12 / 200
+                                                                   │ turns this session 12 / 200
                                                                    │ dir  …/project
                                                                    │ TOKENS       154.9k+
                                                                    │ Codex         131.8k
@@ -43,9 +43,14 @@ An execution turn is labelled an execution report, because such a turn may concl
 nothing needed changing. Code keeps its exact spacing and indentation, so a rendered message
 can be compared against a file.
 
+A member the runtime reports as waiting is shown as waiting and not as busy: a turn held up
+by coordination is not work in flight, and the code it waited under is on the task and on the
+decision that recorded it.
+
 The sidebar's team section names the profiles the loaded session captured when it started,
-and says so. The team page describes the configuration for the next run instead, which may
-have been edited since; the two are never presented as the same thing.
+and says so. With no session loaded it describes the team the next run would use instead; the
+two are never presented as the same thing. The turn counter works the same way: a loaded
+session is measured against the limit it captured, not against a limit edited afterwards.
 
 - `Tab` moves the focus into the transcript, then `Up`/`Down` select an entry.
 - `Enter` opens the complete attributed message, with its author, kind and timestamp.
@@ -94,7 +99,8 @@ Every destination in the sidebar is a read-only projection. Opening one never st
 agent and never writes to your working directory. Each page is a list with the detail of the
 selected row underneath it, and states its own keys in the status row.
 
-- **Tasks** — the task graph, with state, assignee, reviewer, attempts, checks and results.
+- **Tasks** — the task graph, with state, assignee, reviewer, attempts, checks, results, the
+  access each task declared, and any wait the runtime recorded against it.
 - **Token usage** — what the loaded session spent, for the session as a whole and for each
   agent in it. Described in its own section below.
 - **Sessions** — saved sessions for this project. `Enter` loads one for reading; `r`
@@ -103,22 +109,74 @@ selected row underneath it, and states its own keys in the status row.
   next message is delivered to, so replacing it would send that message to the wrong run.
   Stop the run with `/stop` first.
 - **Files** and **Changed files** — the working directory, and the changes recorded for the
-  loaded session. The change page states what was recorded, namely a path, a status and a
-  content hash rather than a copy, what version control was found at or above the working
-  directory, and that no earlier file content was kept anywhere.
+  loaded session. The change page opens on how the directory is used: agents work in it
+  directly, what a turn may do is the access its backend enforces, turns overlap only where
+  that access does not conflict, one run holds the directory at a time, nothing is staged or
+  copied, and ymp cannot put an earlier version of a file back, because it recorded a path, a
+  status and a content hash rather than a copy. It also names the version control found at or above the directory, and
+  lists the accepted results of the session with the directory each was recorded in.
 - **Recorded checks** — the acceptance commands ymp ran itself for the loaded session, with
   the directory, the recorded outcome and the captured output. A command the plan declared
   that has no recorded run is listed apart from the runs, because it is not a result. See
   [recorded checks and recovery limits](../architecture/recorded-checks-and-recovery.md).
-- **Team**, **Agent profiles**, **Providers** — membership and configuration. On Agent
-  profiles, `m` edits the model and `i` edits the instructions; `Space` enables a profile
-  and `t` toggles membership. Changes are validated and saved to `config.toml`; a rejected
-  change is reverted and reported.
-- **Memory** — verified project and global knowledge. `/` searches, `f` retires an entry
-  after a confirmation.
-- **Reputation** — the observations behind competence estimates, with their evidence.
-- **Limits** — turn budget and parallelism. `+` and `-` adjust; `Enter` types a value.
+- **Assignments** — the turns the run assigned for the loaded session: the agent, the
+  purpose, the task attempt, the directory, the access the execution backend enforced for the
+  turn with the reservation it was admitted under and any wait it went through, and the model,
+  effort and permission mode that were requested, sent and reported. A turn still open is separated from the turns that
+  finished, and the coordination permissions an assignment held are named with it.
+- **Decisions** — the plans, reviews, acceptances, rejections, competence credit, membership
+  changes, per-turn bounds, captured acceptance criteria and directory reservations the session
+  recorded, each with its actor, its time and the records it links. A captured contract shows
+  what a result will be judged against, its checker and the inputs recorded by digest, and says
+  that it is a binding rather than a result. A record that carries its own outcome, such as a
+  membership change, a turn bound or a wait, reads from that outcome and not from a grade it
+  never had. An acceptance
+  states whether it rests on passing evidence for every criterion or on an independent
+  review alone, and says when the files it was accepted against have changed since.
+- **Team**, **Agent profiles**, **Providers** — membership and configuration. The team page
+  shows the members of the loaded session, any identity the session captured that its roster
+  no longer lists, the agents that worked in it, the roster record itself with the final
+  reviewer it keeps free, the bounds the roster was formed under, and the pool that is
+  eligible on this machine, with the reason any profile is excluded. Each row names the model the
+  agent would actually run as: the one its profile pins, or the default a catalog read from the
+  installation reports. Where no catalog has been read, the row says so rather than showing the
+  provider's label in place of a model, and the profile's detail says why the name is not known.
+  The Providers page shows, per provider, where its catalog came from, what it lists and which
+  default it reported. On Agent profiles, `m` edits the model and `i` edits the instructions;
+  `Space` enables a profile and `t` toggles membership; `r` re-reads what is installed and the
+  catalog already stored, which asks no provider anything. Changes are validated and saved to
+  `config.toml`; a rejected change is reverted and reported.
+- **Memory** — every entry recorded for this project and as shared procedure, including
+  candidates and retired ones, each labelled. An entry is either a projection of a result
+  this project accepted or a candidate a run proposed: confirmed means the acceptance it
+  names carried passing checks, unconfirmed means no passing evidence is attached, and an
+  entry written before provenance was recorded says its confirmation is unknown. The page
+  also says, per entry, whether a run assembling a prompt would actually be given it, which
+  is decided by re-reading the source record and not by the text of the entry. `/` searches,
+  `f` retires an entry after a confirmation.
+- **Reputation** — the observations behind competence estimates, with their evidence, their
+  evidence status, and what credit toward selection requires.
+- **Limits** — the limits the loaded session captured, shown apart from the ones the next run
+  would use. `+` and `-` adjust the next run; `Enter` types a value. A captured limit is a
+  record and cannot be edited.
 - **Help** — every command and key, generated from the command registry.
+
+## What a run recorded
+
+`/assignments` and `/decisions` read the records a run writes as it works, and they keep apart
+the things that are easy to confuse. Requested, sent and reported are three separate columns: a
+value that was sent and never reported back is shown as unconfirmed, never as applied. A record
+with no end is a turn in flight only while a run is active in this window; in a stored session
+the same record means a turn that was left open. An acceptance is either confirmed, meaning the
+evidence it bound passed for every criterion it applies to, or unconfirmed, meaning it rests on
+an independent review, or unknown, which is never read as a pass. Accepted work stays accepted
+even after the files it named change, and the page says that they changed. The vocabulary and
+its limits are written out in
+[assignment, budget and confirmation views](../architecture/assignment-and-confirmation-views.md).
+
+These pages read a snapshot the controller takes when the window opens, when a session is
+loaded, when a run reports while one of them is open, and when the page itself is opened. Each
+page states when its records were read, because a run still working writes more of them.
 
 ## Token usage
 

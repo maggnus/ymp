@@ -382,6 +382,49 @@ pub fn row(width: usize, left: Vec<Span<'static>>, right: Vec<Span<'static>>) ->
     Line::from(spans)
 }
 
+/// Compose the header of a page: its own name on the left, its summary on the right.
+///
+/// `row` spends the width on the right side first, which is right for a record row, where a
+/// value matters more than a long key. A page header is the opposite. The title and the
+/// command are how a reader knows which page they are reading, and the summary can carry a
+/// captured count of any size, so here it is the right side that gives way.
+pub fn header_row(
+    width: usize,
+    left: Vec<Span<'static>>,
+    right: Vec<Span<'static>>,
+) -> Line<'static> {
+    let left_width: usize = left.iter().map(|s| self::width(&s.content)).sum();
+    let right_width: usize = right.iter().map(|s| self::width(&s.content)).sum();
+    if left_width + right_width < width {
+        return row(width, left, right);
+    }
+    if left_width + 1 >= width {
+        // Narrower than the name itself: the name is what is left to keep.
+        return row(width, left, Vec::new());
+    }
+    let budget = width - left_width - 1;
+    let mut spans = left;
+    let mut kept: Vec<Span<'static>> = Vec::new();
+    let mut used = 0usize;
+    for span in right {
+        let piece = self::width(&span.content);
+        if used + piece <= budget {
+            used += piece;
+            kept.push(span);
+        } else {
+            let room = budget - used;
+            if room > 1 {
+                kept.push(Span::styled(truncate(&span.content, room), span.style));
+                used += room;
+            }
+            break;
+        }
+    }
+    spans.push(Span::raw(" ".repeat(width - left_width - used)));
+    spans.extend(kept);
+    Line::from(spans)
+}
+
 /// `HH:MM` extracted from an RFC 3339 timestamp, or an empty string.
 pub fn clock(timestamp: &str) -> String {
     timestamp
