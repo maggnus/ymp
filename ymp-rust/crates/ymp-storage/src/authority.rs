@@ -151,7 +151,9 @@ impl Store {
                 "change",
                 "rationale",
             ],
-            TeamOperation::MemorySearch => &["query", "include_unconfirmed", "scope", "cursor", "limit"],
+            TeamOperation::MemorySearch => {
+                &["query", "include_unconfirmed", "scope", "cursor", "limit"]
+            }
             TeamOperation::MemoryPropose => &["title", "content"],
         };
         ensure!(
