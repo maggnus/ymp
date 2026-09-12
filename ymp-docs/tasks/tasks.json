@@ -640,7 +640,7 @@
       "title": "Use task-specific memory queries and record retrieval evidence",
       "type": "implementation",
       "priority": "P1",
-      "status": "in_progress",
+      "status": "done",
       "owner": "Maintainer",
       "authorization": "Planned delivery derived from the owner-approved intent and standing autonomous-development direction. Follow dependencies and acceptance criteria; separate real-provider quota is required where stated.",
       "depends_on": [
@@ -656,7 +656,9 @@
       ],
       "evidence": [
         "[FTS5 control](../research/evidence/context-probe.json)",
-        "[Delivery plan](plan.md)"
+        "[Delivery plan](plan.md)",
+        "[Retrieval contract](../architecture/memory-retrieval.md)",
+        "[Independent review and adverse controls](../../ymp-evals/reports/ymp-106-independent-review.md)"
       ],
       "history": [
         {
@@ -688,6 +690,11 @@
           "at": "2026-09-12T12:18:55.315304+00:00",
           "status": "in_progress",
           "note": "Candidate6e5aa6a passed138 Rust tests and is now under independent xhigh review. Invoice, follow-up, global scope, quoted query, source digest/allowance and disabled-memory cases are covered; not yet integrated."
+        },
+        {
+          "at": "2026-09-12T12:33:34.752341+00:00",
+          "status": "done",
+          "note": "R1(9/10) ACCEPT by independent xhigh review; integrated3e14c8e. Seven adverse variants and the original role-query regression fail exit101; captured prompts match scoped source IDs, versions, excerpt hashes and8000-character allowance. Integrated fmt/clippy and150 Rust tests exit0. No model-quality gain claimed."
         }
       ]
     },
@@ -1789,6 +1796,11 @@
           "at": "2026-09-12T12:25:03.063843+00:00",
           "status": "in_progress",
           "note": "Production Engine::run control reproduced unconfirmed reputation growth: a mock plan with no checks completed and created2 positive observations (executor and planner). Regression accepting_without_confirmation_never_awards_reputation exits101 in development worktree117. Evidence-qualified acceptance implementation is next."
+        },
+        {
+          "at": "2026-09-12T12:33:34.844920+00:00",
+          "status": "in_progress",
+          "note": "Implementation delegated at xhigh atop baseline57c325b. The no-checks public-engine regression exits101 with2 unsupported positive observations. Work adds version-bound reviews/confirmation, trusted check contracts, independent final eligibility and idempotent qualified reputation; general qualitative results remain usable and unconfirmed."
         }
       ]
     },
@@ -2029,7 +2041,7 @@
       ]
     }
   ],
-  "updated_at": "2026-09-12T12:25:03.163058+00:00",
+  "updated_at": "2026-09-12T12:33:34.844920+00:00",
   "delivery_order": [
     "YMP-116",
     "YMP-103",

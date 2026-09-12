@@ -1,6 +1,6 @@
 # Task details and evidence
 
-Updated: 2026-09-12 12:25 UTC.
+Updated: 2026-09-12 12:33 UTC.
 
 Use the [delivery plan](plan.md) to follow progress. This generated register contains full acceptance criteria, dependencies and evidence. [tasks.json](tasks.json) is the single source; [manage.py](manage.py) updates both pages.
 
@@ -14,7 +14,7 @@ A planned task is not implemented functionality. Completed research and planning
 | design | 1 | 1 |
 | documentation | 4 | 4 |
 | experiment | 0 | 4 |
-| implementation | 6 | 18 |
+| implementation | 7 | 18 |
 | research | 8 | 8 |
 | verification | 1 | 2 |
 
@@ -35,7 +35,7 @@ A planned task is not implemented functionality. Completed research and planning
 | `[x]` | [YMP-103](#ymp-103) | P0 | Honor Codex nonterminal retry notifications | 2026-09-12 10:16 |
 | `[x]` | [YMP-104](#ymp-104) | P0 | Preserve accepted outcomes and confirmation status when final narration fails | 2026-09-12 10:16 |
 | `[x]` | [YMP-105](#ymp-105) | P1 | Enumerate file names without reading file contents | 2026-09-12 10:16 |
-| `[~]` | [YMP-106](#ymp-106) | P1 | Use task-specific memory queries and record retrieval evidence | 2026-09-12 12:18 |
+| `[x]` | [YMP-106](#ymp-106) | P1 | Use task-specific memory queries and record retrieval evidence | 2026-09-12 12:33 |
 | `[~]` | [YMP-107](#ymp-107) | P1 | Expose recorded checks and factual recovery limits | 2026-09-12 12:20 |
 | `[=]` | [YMP-108](#ymp-108) | P2 | Evaluate an optional usage estimate with explicit price provenance | 2026-09-12 09:35 |
 | `[x]` | [YMP-111](#ymp-111) | P0 | Apply native models and reasoning settings per assignment | 2026-09-12 12:18 |
@@ -55,7 +55,7 @@ A planned task is not implemented functionality. Completed research and planning
 | `[x]` | [YMP-011](#ymp-011) | P0 | Document bounded dynamic teams and assignment-level effort | 2026-09-12 08:41 |
 | `[x]` | [YMP-012](#ymp-012) | P0 | Establish the delivery plan and traceable backlog for the approved intent | 2026-09-12 09:15 |
 | `[x]` | [YMP-116](#ymp-116) | P0 | Define the minimal runtime transition and authority contract | 2026-09-12 10:07 |
-| `[~]` | [YMP-117](#ymp-117) | P0 | Separate acceptance from confirmation and gate reputation on evidence | 2026-09-12 12:25 |
+| `[~]` | [YMP-117](#ymp-117) | P0 | Separate acceptance from confirmation and gate reputation on evidence | 2026-09-12 12:33 |
 | `[~]` | [YMP-120](#ymp-120) | P0 | Enforce assignment-scoped permissions and runtime-only state transitions | 2026-09-12 12:18 |
 | `[=]` | [YMP-118](#ymp-118) | P0 | Integrate core assignment, budget and confirmation visibility | 2026-09-12 12:20 |
 | `[x]` | [YMP-119](#ymp-119) | P0 | Prepare universal acceptance scenarios and independent validators | 2026-09-12 10:56 |
@@ -460,11 +460,11 @@ Workspace::files invokes fingerprint and rehashes every regular file even when t
 
 Use task-specific memory queries and record retrieval evidence
 
-**State:** `[~]` (in_progress) · **Type:** implementation · **Priority:** P1
+**State:** `[x]` (done) · **Type:** implementation · **Priority:** P1
 
-**Last update (UTC):** 2026-09-12 12:18
+**Last update (UTC):** 2026-09-12 12:33
 
-**Current reason:** Candidate6e5aa6a passed138 Rust tests and is now under independent xhigh review. Invoice, follow-up, global scope, quoted query, source digest/allowance and disabled-memory cases are covered; not yet integrated.
+**Current reason:** R1(9/10) ACCEPT by independent xhigh review; integrated3e14c8e. Seven adverse variants and the original role-query regression fail exit101; captured prompts match scoped source IDs, versions, excerpt hashes and8000-character allowance. Integrated fmt/clippy and150 Rust tests exit0. No model-quality gain claimed.
 
 **Owner:** Maintainer
 
@@ -486,6 +486,8 @@ The first twelve words of a role instruction can contain no task terms, and the 
 
 - [FTS5 control](../research/evidence/context-probe.json)
 - [Delivery plan](plan.md)
+- [Retrieval contract](../architecture/memory-retrieval.md)
+- [Independent review and adverse controls](../../ymp-evals/reports/ymp-106-independent-review.md)
 
 ## YMP-107
 
@@ -876,7 +878,7 @@ Accumulate general knowledge and verified experience incrementally
 
 **Last update (UTC):** 2026-09-12 09:35
 
-**Current reason:** Needs YMP-106, YMP-117
+**Current reason:** Needs YMP-117
 
 **Owner:** Maintainer; application UI by Claude Code claude-opus-5 with thinking max via Paseo
 
@@ -1150,9 +1152,9 @@ Separate acceptance from confirmation and gate reputation on evidence
 
 **State:** `[~]` (in_progress) · **Type:** implementation · **Priority:** P0
 
-**Last update (UTC):** 2026-09-12 12:25
+**Last update (UTC):** 2026-09-12 12:33
 
-**Current reason:** Production Engine::run control reproduced unconfirmed reputation growth: a mock plan with no checks completed and created2 positive observations (executor and planner). Regression accepting_without_confirmation_never_awards_reputation exits101 in development worktree117. Evidence-qualified acceptance implementation is next.
+**Current reason:** Implementation delegated at xhigh atop baseline57c325b. The no-checks public-engine regression exits101 with2 unsupported positive observations. Work adds version-bound reviews/confirmation, trusted check contracts, independent final eligibility and idempotent qualified reputation; general qualitative results remain usable and unconfirmed.
 
 **Owner:** Maintainer
 
