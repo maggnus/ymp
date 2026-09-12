@@ -48,3 +48,9 @@ The variable reservation additions and universal driver under YMP-126 are still 
 Two active-doc residues do not indicate absent interfaces: `architecture/execution-backends.md:3` says ExecutionBackend has two methods although `workspace_access` is now a third method with a conservative default; `architecture/confirmation.md:9` says there is no CLI configuration surface although accepted contract ingress supplies one. The final reviewer should use current code and executable-contract docs for those details. No documentation was edited here.
 
 Final action list: retain the existing evidence above, review the parent's positive workspace-policy control, optionally rebind the stronger external checker probe to the final head, and keep reservation/driver126 acceptance pending. No main, intent, registry, UI, application-home, credential or inference changes occurred.
+
+## Later current-head checks
+
+The successful alternate workspace policy was independently accepted at `d4550eb` and integrated with the long-home correction as `235d0a`. It changes actual overlap from two held readers to one under a stricter policy while keeping the backend and workload identical.
+
+The retained nondelegating `DifferentChecker` was also replayed against current main after integration. The original four modes and assertions were retained; only additive fixture fields received defaults. Raw success still produces one qualified observation; missing exit, changed input and changed artifact produce none and no confirmed acceptance. Source, manifest and output hashes are in [the current checker evidence](../../ymp-docs/research/evidence/current-confirmation-substitution.json). This is a current-head check, distinct from the earlier117 log. Variable-reservation and full driver acceptance remain pending.

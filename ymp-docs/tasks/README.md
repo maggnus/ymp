@@ -1,6 +1,6 @@
 # Task details and evidence
 
-Updated: 2026-09-12 21:24 UTC.
+Updated: 2026-09-12 22:17 UTC.
 
 Use the [delivery plan](plan.md) to follow progress. This generated register contains full acceptance criteria, dependencies and evidence. [tasks.json](tasks.json) is the single source; [manage.py](manage.py) updates both pages.
 
@@ -65,7 +65,7 @@ A planned task is not implemented functionality. Completed research and planning
 | `[x]` | [YMP-123](#ymp-123) | P1 | Expose a public local MCP facade over stdio | 2026-09-12 18:22 |
 | `[=]` | [YMP-124](#ymp-124) | P1 | Add isolated execution and recoverable publication for larger projects | 2026-09-12 15:31 |
 | `[x]` | [YMP-125](#ymp-125) | P0 | Expose trusted acceptance contracts to executable users | 2026-09-12 17:54 |
-| `[~]` | [YMP-126](#ymp-126) | P1 | Execute universal acceptance scenarios through a trusted runtime driver | 2026-09-12 21:07 |
+| `[~]` | [YMP-126](#ymp-126) | P1 | Execute universal acceptance scenarios through a trusted runtime driver | 2026-09-12 22:17 |
 | `[x]` | [YMP-127](#ymp-127) | P0 | Build and display the agent pool from provider-returned native names | 2026-09-12 20:43 |
 | `[x]` | [YMP-128](#ymp-128) | P1 | Support internal team transport with long metadata paths | 2026-09-12 21:24 |
 
@@ -1523,9 +1523,9 @@ Execute universal acceptance scenarios through a trusted runtime driver
 
 **State:** `[~]` (in_progress) · **Type:** implementation · **Priority:** P1
 
-**Last update (UTC):** 2026-09-12 21:07
+**Last update (UTC):** 2026-09-12 22:17
 
-**Current reason:** Driver preparation now passes11 of17 cases, including fixed roster, and accepted main897b4eb is composed as812b101. Independent runtime-delta review requests changes (7/10): a caller can understate context size and execute an oversized prompt; a second process can reserve conflicting work despite the project lock. Both exact public controls fail as expected, while3 storage and4 existing public tests pass. The unaccepted delta remains outside main; author is correcting both enforced boundaries before resubmission.
+**Current reason:** All17 scenarios now have actual preparation passes; a single-build combined run is underway. Exporter corrections independently accepted by parent after4 discriminating controls. Accepted runtime-only compositionfcbe5add is integrated and being checked on main; full driver and captured unknown-usage/restart policy still require independent acceptance. A disk-full compilation interruption was preserved as an environment failure; completed caches were reclaimed without deleting source, reports or accepted binaries.
 
 **Owner:** Maintainer and delegated xhigh implementation/review agents
 

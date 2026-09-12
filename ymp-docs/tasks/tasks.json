@@ -2759,6 +2759,11 @@
           "at": "2026-09-12T21:07:10.808655+00:00",
           "status": "in_progress",
           "note": "Driver preparation now passes11 of17 cases, including fixed roster, and accepted main897b4eb is composed as812b101. Independent runtime-delta review requests changes (7/10): a caller can understate context size and execute an oversized prompt; a second process can reserve conflicting work despite the project lock. Both exact public controls fail as expected, while3 storage and4 existing public tests pass. The unaccepted delta remains outside main; author is correcting both enforced boundaries before resubmission."
+        },
+        {
+          "at": "2026-09-12T22:17:53.608461+00:00",
+          "status": "in_progress",
+          "note": "All17 scenarios now have actual preparation passes; a single-build combined run is underway. Exporter corrections independently accepted by parent after4 discriminating controls. Accepted runtime-only compositionfcbe5add is integrated and being checked on main; full driver and captured unknown-usage/restart policy still require independent acceptance. A disk-full compilation interruption was preserved as an environment failure; completed caches were reclaimed without deleting source, reports or accepted binaries."
         }
       ]
     },
@@ -2892,7 +2897,7 @@
       ]
     }
   ],
-  "updated_at": "2026-09-12T21:24:46.062254+00:00",
+  "updated_at": "2026-09-12T22:17:53.608461+00:00",
   "delivery_order": [
     "YMP-116",
     "YMP-103",
