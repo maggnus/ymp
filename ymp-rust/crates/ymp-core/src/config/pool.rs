@@ -19,6 +19,7 @@ impl AgentPool {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PoolAgent {
+    pub identity: super::AgentIdentity,
     pub profile: AgentProfile,
     pub profile_version: String,
     pub exclusions: Vec<PoolExclusion>,
@@ -33,6 +34,7 @@ pub enum PoolExclusion {
     ExecutableMissing,
     ModelUnlisted,
     NoModelsAvailable,
+    NativeModelUnresolved,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]

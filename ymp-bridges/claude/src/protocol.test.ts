@@ -50,6 +50,10 @@ test("unsupported model effort never releases a user prompt", async () => {
 test("metadata-only discovery never releases a prompt and native defaults remain omitted", async () => {
   const { response, wire } = await run({}, "capabilities");
   assert.equal(response.result.source.kind, "native_metadata");
+  assert.equal(response.result.models[0].id, "opus[1m]");
+  assert.equal(response.result.models[0].display_name, "Fixture");
+  assert.equal(response.result.models[0].resolved_model, "claude-opus-5[1m]");
+  assert.equal(response.result.models.length, 2);
   assert.ok(!wire.some(q => q.type === "user"));
   assert.ok(!wire[0].argv.includes("--model")); assert.ok(!wire[0].argv.includes("--effort"));
   const defaults = await run({});

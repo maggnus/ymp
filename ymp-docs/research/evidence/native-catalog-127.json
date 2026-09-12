@@ -1,0 +1,435 @@
+{
+  "task": "YMP-127",
+  "scope": "Backend native catalog capture, cache, migration, executable selection and assignment identity; UI acceptance is separate.",
+  "native_inference_calls": 0,
+  "credential_values_read_logged_or_copied_by_ymp": false,
+  "real_application_home_modified": false,
+  "metadata_scan": {
+    "temporary_application_home": "/var/folders/cw/7pn8sb3x6bj69g7j2d8f_ss00000gn/T/ymp-native127-h6jmia1t",
+    "command": "ymp --home <temporary application home> --cwd /Users/maggnus/Code/ymp2 catalog --refresh --timeout-secs 30",
+    "report": {
+      "created_agents": [
+        "native-fa5f009357515b39ba12b578",
+        "native-1a743836f5904424d842fed1",
+        "native-22d7fb25f3fb42cb0d5e3d9e",
+        "native-8da25f68f3db71627485cedf",
+        "native-20dc9050d97f52ae674d9b45",
+        "native-2656374064ccc5ed422e1db4",
+        "native-973e14f9339e781940d66be9",
+        "native-da23d17e6626db3ad421b1f3",
+        "native-5fb3211536168f27b16f0894",
+        "native-0e430d170a75b84ec2a93d8f",
+        "native-8ba4431681681ea7524803b9",
+        "native-d36e4cb4c407c227bbcfe023",
+        "native-5ce2f2f5f13d641a52554706",
+        "native-b047ba99590e586b06d2fd15",
+        "native-a92bbe8e959d7a1d33bf552c",
+        "native-860a623b4a10a3f133a4b478"
+      ],
+      "migrated_agents": [
+        "codex",
+        "claude",
+        "glm"
+      ],
+      "providers": [
+        {
+          "model_count": 8,
+          "provider": "codex",
+          "retained_previous": false,
+          "status": "updated"
+        },
+        {
+          "model_count": 5,
+          "provider": "claude",
+          "retained_previous": false,
+          "status": "updated"
+        },
+        {
+          "model_count": 6,
+          "provider": "glm",
+          "retained_previous": false,
+          "status": "updated"
+        }
+      ]
+    },
+    "catalogs": {
+      "claude": {
+        "default_model": "default",
+        "models": [
+          {
+            "controls": [
+              {
+                "id": "effort",
+                "values": {
+                  "kind": "choices",
+                  "options": [
+                    "low",
+                    "medium",
+                    "high",
+                    "xhigh",
+                    "max"
+                  ]
+                }
+              }
+            ],
+            "display_name": "Default (recommended)",
+            "id": "default",
+            "resolved_model": "claude-opus-5[1m]"
+          },
+          {
+            "controls": [
+              {
+                "id": "effort",
+                "values": {
+                  "kind": "choices",
+                  "options": [
+                    "low",
+                    "medium",
+                    "high",
+                    "xhigh",
+                    "max"
+                  ]
+                }
+              }
+            ],
+            "display_name": "Opus (1M context)",
+            "id": "opus[1m]",
+            "resolved_model": "claude-opus-5[1m]"
+          },
+          {
+            "controls": [
+              {
+                "id": "effort",
+                "values": {
+                  "kind": "choices",
+                  "options": [
+                    "low",
+                    "medium",
+                    "high",
+                    "xhigh",
+                    "max"
+                  ]
+                }
+              }
+            ],
+            "display_name": "Fable",
+            "id": "claude-fable-5-1[1m]",
+            "resolved_model": "claude-fable-5-1"
+          },
+          {
+            "controls": [
+              {
+                "id": "effort",
+                "values": {
+                  "kind": "choices",
+                  "options": [
+                    "low",
+                    "medium",
+                    "high",
+                    "xhigh",
+                    "max"
+                  ]
+                }
+              }
+            ],
+            "display_name": "Sonnet",
+            "id": "sonnet",
+            "resolved_model": "claude-sonnet-5"
+          },
+          {
+            "display_name": "Haiku",
+            "id": "haiku",
+            "resolved_model": "claude-haiku-4-5-20251001"
+          }
+        ],
+        "models_complete": false,
+        "source": {
+          "kind": "native_metadata",
+          "method": "Claude Query.supportedModels()",
+          "observed_at": "2026-09-12T19:12:34.111Z"
+        }
+      },
+      "codex": {
+        "default_model": "gpt-6-astra",
+        "models": [
+          {
+            "controls": [
+              {
+                "default": "medium",
+                "id": "effort",
+                "values": {
+                  "kind": "choices",
+                  "options": [
+                    "low",
+                    "medium",
+                    "high",
+                    "xhigh",
+                    "max",
+                    "ultra"
+                  ]
+                }
+              }
+            ],
+            "display_name": "GPT-6-Astra",
+            "id": "gpt-6-astra",
+            "picker_id": "gpt-6-astra"
+          },
+          {
+            "controls": [
+              {
+                "default": "medium",
+                "id": "effort",
+                "values": {
+                  "kind": "choices",
+                  "options": [
+                    "low",
+                    "medium",
+                    "high",
+                    "xhigh",
+                    "max"
+                  ]
+                }
+              }
+            ],
+            "display_name": "GPT-Reserve",
+            "id": "gpt-reserve",
+            "picker_id": "gpt-reserve"
+          },
+          {
+            "controls": [
+              {
+                "default": "low",
+                "id": "effort",
+                "values": {
+                  "kind": "choices",
+                  "options": [
+                    "low",
+                    "medium",
+                    "high",
+                    "xhigh",
+                    "max",
+                    "ultra"
+                  ]
+                }
+              }
+            ],
+            "display_name": "GPT-5.6-Sol",
+            "id": "gpt-5.6-sol",
+            "picker_id": "gpt-5.6-sol"
+          },
+          {
+            "controls": [
+              {
+                "default": "medium",
+                "id": "effort",
+                "values": {
+                  "kind": "choices",
+                  "options": [
+                    "low",
+                    "medium",
+                    "high",
+                    "xhigh",
+                    "max",
+                    "ultra"
+                  ]
+                }
+              }
+            ],
+            "display_name": "GPT-5.6-Terra",
+            "id": "gpt-5.6-terra",
+            "picker_id": "gpt-5.6-terra"
+          },
+          {
+            "controls": [
+              {
+                "default": "medium",
+                "id": "effort",
+                "values": {
+                  "kind": "choices",
+                  "options": [
+                    "low",
+                    "medium",
+                    "high",
+                    "xhigh",
+                    "max"
+                  ]
+                }
+              }
+            ],
+            "display_name": "GPT-5.6-Luna",
+            "id": "gpt-5.6-luna",
+            "picker_id": "gpt-5.6-luna"
+          },
+          {
+            "controls": [
+              {
+                "default": "medium",
+                "id": "effort",
+                "values": {
+                  "kind": "choices",
+                  "options": [
+                    "low",
+                    "medium",
+                    "high",
+                    "xhigh"
+                  ]
+                }
+              }
+            ],
+            "display_name": "GPT-5.5",
+            "id": "gpt-5.5",
+            "picker_id": "gpt-5.5"
+          },
+          {
+            "controls": [
+              {
+                "default": "high",
+                "id": "effort",
+                "values": {
+                  "kind": "choices",
+                  "options": [
+                    "low",
+                    "medium",
+                    "high",
+                    "xhigh"
+                  ]
+                }
+              }
+            ],
+            "display_name": "GPT-5.3-Codex-Spark",
+            "id": "gpt-5.3-codex-spark",
+            "picker_id": "gpt-5.3-codex-spark"
+          },
+          {
+            "controls": [
+              {
+                "default": "medium",
+                "id": "effort",
+                "values": {
+                  "kind": "choices",
+                  "options": [
+                    "low",
+                    "medium",
+                    "high",
+                    "xhigh",
+                    "max"
+                  ]
+                }
+              }
+            ],
+            "display_name": "Codex Auto Review",
+            "id": "codex-auto-review",
+            "picker_id": "codex-auto-review"
+          }
+        ],
+        "models_complete": true,
+        "source": {
+          "kind": "native_metadata",
+          "method": "model/list",
+          "observed_at": "2026-09-12T19:12:26.720202+00:00"
+        }
+      },
+      "glm": {
+        "default_model": "glm-5.2",
+        "models": [
+          {
+            "controls": [
+              {
+                "default": "max",
+                "display_name": "Thinking",
+                "id": "thought_level",
+                "value_names": {
+                  "high": "High",
+                  "max": "Max",
+                  "none": "Off"
+                },
+                "values": {
+                  "kind": "choices",
+                  "options": [
+                    "none",
+                    "high",
+                    "max"
+                  ]
+                }
+              }
+            ],
+            "display_name": "GLM-5.2",
+            "id": "glm-5.2"
+          },
+          {
+            "display_name": "GLM-5.1",
+            "id": "glm-5.1"
+          },
+          {
+            "display_name": "GLM-5 Turbo",
+            "id": "glm-5-turbo"
+          },
+          {
+            "display_name": "GLM-5V Turbo",
+            "id": "glm-5v-turbo"
+          },
+          {
+            "display_name": "GLM-4.7",
+            "id": "glm-4.7"
+          },
+          {
+            "display_name": "GLM-4.5 Air",
+            "id": "glm-4.5-air"
+          }
+        ],
+        "models_complete": false,
+        "source": {
+          "kind": "native_metadata",
+          "method": "session/new",
+          "observed_at": "2026-09-12T19:12:36.258339+00:00"
+        }
+      }
+    },
+    "starting_roster_size": 2,
+    "selectable_profiles": 19,
+    "repeat_scan_report": {
+      "created_agents": [],
+      "migrated_agents": [],
+      "providers": [
+        {
+          "model_count": 8,
+          "provider": "codex",
+          "retained_previous": false,
+          "status": "updated"
+        },
+        {
+          "model_count": 5,
+          "provider": "claude",
+          "retained_previous": false,
+          "status": "updated"
+        },
+        {
+          "model_count": 6,
+          "provider": "glm",
+          "retained_previous": false,
+          "status": "updated"
+        }
+      ]
+    },
+    "repeat_scan_preserved_configuration": true
+  },
+  "verification": {
+    "unattended": "cargo fmt --all --check; cargo clippy --workspace --all-targets -- -D warnings; cargo test --workspace",
+    "claude_bridge": "npm run check; npm test; npm run build",
+    "explicit_native_fixtures": "cargo test -p ymp-cli --test native_catalog -- --include-ignored",
+    "native_fixture_tests": 8,
+    "bridge_tests": 14
+  },
+  "old_failure_controls": [
+    {
+      "control": "discarded-native-display-name",
+      "expected_old_behavior_fails": true,
+      "exit": 101
+    },
+    {
+      "control": "catalog-does-not-populate-pool",
+      "expected_old_behavior_fails": true,
+      "exit": 101
+    }
+  ]
+}

@@ -8,6 +8,7 @@ import os
 from pathlib import Path
 import sqlite3
 import signal
+import select
 import subprocess
 import sys
 import tempfile
@@ -464,7 +465,110 @@ async def signal_exit_walk():
     assert all(r["exit"] == 0 and r["elapsed_seconds"] < 5 and r["terminal_accounting"] for r in results), results
 
 
+async def output_backpressure_walk():
+    def scenario(sig=None, active=False, drain=False, broken_pipe=False):
+        with tempfile.TemporaryDirectory(prefix="ymp-mcp-output-") as tmp:
+            root = Path(tmp)
+            home, project = root / "metadata", root / "project"
+            project.mkdir(); config(home)
+            if active:
+                # Keep deterministic execution pending while the output pipe fills.
+                path = home / "config.toml"
+                path.write_text(path.read_text().replace("attempts = 2", "attempts = 20").replace("[mock:usage]", "[mock:usage][mock:reject:review]"))
+            p = params(home, project, active)
+            process = subprocess.Popen([p.command, *p.args], env=p.env, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            def send(value):
+                process.stdin.write(json.dumps(value, ensure_ascii=False).encode() + b"\n")
+                process.stdin.flush()
+            def records():
+                with sqlite3.connect(home / "state.sqlite") as db:
+                    operations = [json.loads(v) for v, in db.execute("SELECT value FROM kv WHERE key LIKE 'public_mcp:v1:%'")]
+                    invocations = [json.loads(v) for v, in db.execute("SELECT data FROM invocations")]
+                    grants = [json.loads(v) for v, in db.execute("SELECT value FROM kv WHERE key LIKE 'team_grant:v1:%'")]
+                return operations, invocations, grants
+            try:
+                send({"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"output-backpressure","version":"1"}}})
+                assert json.loads(process.stdout.readline())["id"] == 1
+                send({"jsonrpc":"2.0","method":"notifications/initialized"})
+                if active:
+                    send({"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"ymp_run_v1","arguments":start_args("output-signal")}})
+                    assert not json.loads(process.stdout.readline())["result"]["isError"]
+                    deadline = time.monotonic() + 3
+                    while not records()[1]:
+                        assert time.monotonic() < deadline
+                        time.sleep(0.001)
+                if broken_pipe:
+                    process.stdout.close()
+                    send({"jsonrpc":"2.0","id":3,"method":"tools/list"})
+                else:
+                    # Input stays below pipe capacity; responses exceed output capacity.
+                    for request_id in range(3, 103):
+                        send({"jsonrpc":"2.0","id":f"reply-\U0001f310-{request_id}","method":"tools/list"})
+                    time.sleep(0.03)
+                if drain:
+                    # EOF must wait for every acknowledged frame. Small reads force partial
+                    # writes/backpressure while preserving complete UTF-8 response bytes.
+                    process.stdin.close()
+                    output = bytearray()
+                    while True:
+                        assert select.select([process.stdout], [], [], 5)[0], "Output drain stalled"
+                        chunk = os.read(process.stdout.fileno(), 1024)
+                        if not chunk:
+                            break
+                        output.extend(chunk)
+                        assert len(output) <= 16 * 1024 * 1024, "Unexpected output growth"
+                        time.sleep(0.0001)
+                    responses = [json.loads(line) for line in output.splitlines()]
+                    assert [r["id"] for r in responses] == [f"reply-\U0001f310-{n}" for n in range(3,103)]
+                    assert all(len(r["result"]["tools"]) == 5 for r in responses)
+                started = time.monotonic()
+                if sig is not None:
+                    if active:
+                        deadline = time.monotonic() + 3
+                        while True:
+                            operations, invocations, _ = records()
+                            assert operations[0]["ended_at"] is None, operations[0]
+                            if any(i["state"] == "running" for i in invocations):
+                                break
+                            assert time.monotonic() < deadline, "No active mock invocation before signal"
+                            time.sleep(0.001)
+                    process.send_signal(sig)
+                try:
+                    code = process.wait(timeout=5)
+                except subprocess.TimeoutExpired:
+                    code = None
+                elapsed = time.monotonic() - started
+                if not drain:
+                    assert not process.stdin.closed
+                if not broken_pipe:
+                    assert not process.stdout.closed
+                operations, invocations, grants = records()
+                accounting = (len(operations) == 1 and operations[0]["status"] == "paused" and operations[0]["ended_at"] is not None and bool(invocations) and all(i["state"] != "running" and i["ended_at"] is not None for i in invocations) and bool(grants) and all(g["revoked_at"] is not None for g in grants)) if active else not operations and not invocations and not grants
+                result = {"signal":sig.name if sig else None,"active":active,"stdout_undrained":not drain and not broken_pipe,"stdin_open":not process.stdin.closed,"broken_pipe":broken_pipe,"slow_drain_eof":drain,"exit":code,"elapsed_seconds":round(elapsed,3),"terminal_accounting":accounting,"invocations":len(invocations),"grants_revoked":all(g["revoked_at"] is not None for g in grants)}
+                print(json.dumps(result), flush=True)
+                expected = 1 if broken_pipe else 0
+                return code == expected and elapsed < 5 and accounting
+            finally:
+                if process.poll() is None:
+                    process.kill(); process.wait(timeout=3)
+                process.stdin.close()
+                process.stdout.close()
+                stderr = process.stderr.read()
+                process.stderr.close()
+                if broken_pipe:
+                    assert b"Broken pipe" in stderr, stderr
+                else:
+                    assert not stderr, stderr
+    results = await asyncio.gather(*(asyncio.to_thread(scenario, sig, active) for sig in (signal.SIGTERM, signal.SIGINT) for active in (False, True)))
+    assert all(results), "Signal exit still depends on draining stdout"
+    assert await asyncio.to_thread(scenario, drain=True)
+    assert await asyncio.to_thread(scenario, active=True, broken_pipe=True)
+
+
 async def main():
+    if "--output-only" in sys.argv[2:]:
+        await output_backpressure_walk()
+        return
     if "--contracts-only" in sys.argv[2:]:
         await contract_walk()
         return
@@ -472,6 +576,7 @@ async def main():
         await signal_exit_walk()
         return
     await signal_exit_walk()
+    await output_backpressure_walk()
     await contract_walk()
     with tempfile.TemporaryDirectory(prefix="ymp-mcp-client-") as tmp:
         root = Path(tmp)

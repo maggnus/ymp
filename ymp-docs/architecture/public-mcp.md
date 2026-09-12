@@ -168,6 +168,15 @@ unfinished futures; cancellation never rolls back writes in the selected directo
 SIGKILL, machine failure or grace expiry may leave a pending operation or saved
 `running` state. Such records are not treated as live authority.
 
+Signal handling covers output queueing and delivery acknowledgement as well as input.
+Both stdio workers use dedicated threads outside Tokio's blocking pool. The output
+queue holds at most one bounded frame, and the protocol waits for its complete write
+and flush before advancing. Slow readers therefore apply backpressure without an
+unbounded queue. Ordinary EOF preserves the final response; a signal can abandon an
+undelivered response, then cancel owned execution and exit even if stdout is not being
+read. A broken output pipe also runs owned-execution cleanup and reports a nonzero
+process exit. Durable request/result IDs retain their existing recovery semantics.
+
 A replacement process reports `interrupted_or_running_elsewhere` for a nonterminal
 operation that it does not own. This explicitly leaves another process's liveness
 unknown. It does not cancel a different process's run. Inspect session/task/results,
