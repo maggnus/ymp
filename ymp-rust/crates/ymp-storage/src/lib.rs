@@ -135,6 +135,19 @@ impl Store {
             .context("This session is already running in another ymp process")?;
         Ok(file)
     }
+    pub fn lock_project(&self, project_id: &str) -> Result<File> {
+        let dir = self.home.join("projects").join(project_id);
+        std::fs::create_dir_all(&dir)?;
+        let file = std::fs::OpenOptions::new()
+            .create(true)
+            .truncate(false)
+            .read(true)
+            .write(true)
+            .open(dir.join("workspace.lock"))?;
+        file.try_lock_exclusive()
+            .context("Another ymp run is already using this working directory")?;
+        Ok(file)
+    }
     pub fn message(
         &self,
         session: &str,
@@ -383,5 +396,15 @@ mod tests {
         assert!(store.memory(Some("b"), "cargo").unwrap().is_empty());
         store.forget_memory(&m.id).unwrap();
         assert!(store.memory(Some("a"), "").unwrap().is_empty());
+    }
+    #[test]
+    fn only_one_session_may_own_a_project_writer_lock() {
+        let temp = tempfile::tempdir().unwrap();
+        let store = Store::open(&temp.path().join("state")).unwrap();
+        let first = store.lock_project("project").unwrap();
+        assert!(store.lock_project("project").is_err());
+        assert!(store.lock_project("other-project").is_ok());
+        drop(first);
+        assert!(store.lock_project("project").is_ok());
     }
 }

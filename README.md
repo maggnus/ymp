@@ -2,7 +2,7 @@
 
 A terminal workspace for a self-organizing team of local AI agents. Written in Rust with Ratatui, with a small official-SDK bridge for Claude Code.
 
-Give the team a task. Participants propose a plan, bid for work, implement in isolated working copies, review each other's results, and verify the integrated deliverable. Verified experience informs later assignments and supplies reusable project knowledge.
+Give the team a task. Participants propose a plan, bid for work, implement in the current working directory, review each other's results, and verify the deliverable. Verified experience informs later assignments and supplies reusable project knowledge.
 
 **Status:** initial working implementation. Quality improvements from memory and adaptive assignment are hypotheses to evaluate, not a measured product claim.
 
@@ -50,11 +50,21 @@ ymp ask codex 'Summarize the entry points'
 
 ## Working with a team
 
-The TUI supports `/providers`, `/agents`, `/agent`, `/team`, `/new`, `/sessions`, `/resume`, `/tasks`, `/diff`, `/reputation`, `/memory`, `/limits`, `/pause`, `/stop`, and `/quit`. Use `/help` for arguments.
+The interface is chat-first with a right sidebar that carries navigation, live team activity, and the current session's context. The sidebar appears from 80 columns; hide it with `Ctrl+B`.
 
-Enter sends, Ctrl+J inserts a newline, Tab completes command names, and PageUp/PageDown scroll. Ctrl+C stops an active run; when idle, it exits. Messages entered during execution are delivered at the next turn boundary.
+Commands: `/chat`, `/help`, `/tasks`, `/sessions`, `/files`, `/diff`, `/providers`, `/agents`, `/agent`, `/team`, `/limits`, `/memory`, `/reputation`, `/theme`, `/sidebar`, `/details`, `/new`, `/resume`, `/pause`, `/stop`, and `/quit`. `Ctrl+P` opens the command palette, and `/help` lists every command and key.
 
-Work is produced in a session's isolated integration directory. The final source snapshot includes the user's uncommitted files, while the original source directory, Git index, and branches remain unchanged. Each stopped run writes `artifacts/result.patch`. Review that patch before applying it to the source project.
+Enter sends, Ctrl+J inserts a newline, and Tab completes a command name or moves the focus to the next region. Esc removes the topmost surface and eventually returns to the composer. Ctrl+C stops an active run; when idle, it exits. Messages entered during execution are delivered at the next turn boundary.
+
+Your prompts and the team's final answers are the content of the transcript; routine plan, bid and review payloads are collapsed into one readable line each, and `Enter` on an entry shows the complete attributed message. `/details` switches to full messages. Scrolling up pauses auto-follow, which the status row reports along with the key that returns to the newest message.
+
+Five colour themes ship with ymp, including a light one, a high-contrast one, and one that inherits your terminal's own palette. `/theme` or `Ctrl+T` opens a chooser that previews as you move; the choice is remembered. No state is shown by colour alone.
+
+Every destination in the sidebar is read-only: opening one never starts an agent and never writes to your working directory. See the [interface guide](ymp-docs/guides/interface.md).
+
+Files are created and modified directly in the directory where you start `ymp` (or the directory selected with `-C`). Only metadata lives under `~/.ymp2`; no source copies or hidden Git repositories are created. One task writes at a time, while planning and discussion can run in parallel. `/diff` lists files changed during the session.
+
+After a run finishes or stops, the next message continues that conversation. A question such as ‘Where is the file?’ receives the previous outcome and actual file paths without restarting execution. Use `/new` for an unrelated task.
 
 ## Repository
 
@@ -63,7 +73,7 @@ Work is produced in a session's isolated integration directory. The final source
 - `ymp-docs/`: product requirements, architecture, protocols, research, and user guides.
 - `ymp-evals/`: quality-evaluation scenarios and report specifications.
 
-See [architecture](ymp-docs/architecture/system.md), [team protocol](ymp-docs/protocols/team.md), [provider integration](ymp-docs/architecture/providers.md), [storage](ymp-docs/architecture/storage.md), and [usage](ymp-docs/guides/usage.md).
+See [architecture](ymp-docs/architecture/system.md), [team protocol](ymp-docs/protocols/team.md), [provider integration](ymp-docs/architecture/providers.md), [storage](ymp-docs/architecture/storage.md), [usage](ymp-docs/guides/usage.md), and the [interface guide](ymp-docs/guides/interface.md).
 
 ## Development checks
 

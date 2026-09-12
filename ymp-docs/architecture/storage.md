@@ -4,17 +4,16 @@
 ~/.ymp2/
   config.toml
   state.sqlite
-  projects/<project-id>/sessions/<session-id>/
-    session.lock
-    artifacts/result.patch
-    workspaces/
-      workspace.json
-      integration/
-      <task-id>-<attempt>/
+  projects/<project-id>/
+    workspace.lock
+    sessions/<session-id>/
+      session.lock
+      workspace/workspace.json
+      workspace/changes.json
   run/<instance-id>.sock
 ```
 
-Project and session directories use UUIDs. Display names and canonical source paths live in SQLite. `ymp relocate PROJECT_ID PATH` changes the registered source path without discarding project history. Worktrees are execution artifacts of an existing project, not new project identities.
+Project and session directories use UUIDs. Display names and canonical source paths live in SQLite. `ymp relocate PROJECT_ID PATH` changes the registered source path without discarding project history. The workspace metadata contains the real directory path and initial file hashes. Changes contain paths and statuses, not source copies.
 
 SQLite stores projects, sessions, task state, messages, domain events, native-session handles, observations, and memory. WAL allows readers during writes. Schema versioning uses `PRAGMA user_version`; a newer unsupported database is rejected. Task snapshots and their transition events commit together.
 

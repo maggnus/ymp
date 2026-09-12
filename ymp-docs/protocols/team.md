@@ -6,11 +6,11 @@ The application combines a shared discussion channel with explicit task state. A
 2. Select a plan using the author's planning statistics.
 3. Require independent review; revise a rejected plan within the attempt limit.
 4. Collect bids for ready tasks, then select available executors by competence.
-5. Execute in separate working copies.
+5. Execute one writing task at a time in the user’s working directory.
 6. Run acceptance commands and independently inspect the actual result.
 7. Resolve disputed reviews with a third participant when available.
-8. Integrate accepted changes and rerun the combined acceptance checks.
-9. Review the integrated result against the original request.
+8. Rerun the combined acceptance checks on the working directory.
+9. Review the final result against the original request.
 10. Record resolved outcomes and independently reviewed reusable knowledge.
 
 Tasks move through `ready`, `running`, `review`, and `accepted`; failed attempts return to `ready` or become `blocked`. A task cannot be assigned twice, execute before its dependencies are accepted, or be accepted by its executor. A failed acceptance command cannot be overruled by an approving model.
@@ -37,3 +37,7 @@ For each profile-version × competence × difficulty category, maintain successe
 Competences are analysis, planning, implementation, verification, and synthesis. Difficulty is simple, standard, or complex. Profile versions include the provider configuration, model, and instructions. Resolved task outcomes update execution statistics. A plan receives credit after the integrated result succeeds. Reviewer observations require independently adjudicated outcomes; agreement alone is not evidence of correctness.
 
 This is a practical bandit policy. Dependent reviews, subjective outcomes, model alias changes, and small samples violate idealized assumptions; no optimality guarantee is claimed.
+
+## Structured responses
+
+A provider may emit commentary before its final JSON decision. The parser accepts one complete final object, including a Markdown fence, then validates the required fields. Multiple objects, incomplete JSON, and trailing prose are rejected rather than guessed.

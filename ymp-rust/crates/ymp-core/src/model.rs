@@ -233,8 +233,9 @@ pub enum UiEvent {
     Finished { session_id: String, status: String },
 }
 
-/// Accept a complete JSON object or one enclosing fenced block, never silently pick
-/// a substring from prose (which could make an invalid plan appear valid).
+/// Providers may stream commentary before their final structured response. Accept
+/// one complete final JSON object, but reject ambiguous objects, malformed outer
+/// objects, and contradictory trailing prose. Schema validation still happens in T.
 pub fn parse_response<T: serde::de::DeserializeOwned>(text: &str) -> Result<T> {
     let trimmed = text.trim();
     let payload = if trimmed.starts_with("```") && trimmed.ends_with("```") {
@@ -245,12 +246,89 @@ pub fn parse_response<T: serde::de::DeserializeOwned>(text: &str) -> Result<T> {
     } else {
         trimmed
     };
-    Ok(serde_json::from_str(payload)?)
+    if let Ok(value) = serde_json::from_str(payload) {
+        return Ok(value);
+    }
+
+    let mut depth = 0usize;
+    let mut start = 0;
+    let mut quoted = false;
+    let mut escaped = false;
+    let mut object = None;
+    for (index, ch) in trimmed.char_indices() {
+        if depth == 0 {
+            if ch == '{' {
+                start = index;
+                depth = 1;
+                quoted = false;
+            }
+            continue;
+        }
+        if quoted {
+            if escaped {
+                escaped = false;
+            } else if ch == '\\' {
+                escaped = true;
+            } else if ch == '"' {
+                quoted = false;
+            }
+            continue;
+        }
+        match ch {
+            '"' => quoted = true,
+            '{' => depth += 1,
+            '}' => {
+                depth -= 1;
+                if depth == 0 {
+                    if object.is_some() {
+                        bail!("Agent returned multiple JSON objects; the decision is ambiguous");
+                    }
+                    let end = index + 1;
+                    let candidate = &trimmed[start..end];
+                    serde_json::from_str::<serde_json::Value>(candidate)
+                        .map_err(|e| anyhow::anyhow!("Agent returned malformed JSON: {e}"))?;
+                    object = Some((candidate, end));
+                }
+            }
+            _ => {}
+        }
+    }
+    if depth != 0 {
+        bail!("Agent returned an incomplete JSON object");
+    }
+    let (candidate, end) =
+        object.ok_or_else(|| anyhow::anyhow!("Agent did not return a complete JSON object"))?;
+    let suffix = trimmed[end..].trim();
+    if !suffix.is_empty() && suffix != "```" {
+        bail!(
+            "Agent returned text after its JSON decision; a final unambiguous response is required"
+        );
+    }
+    Ok(serde_json::from_str(candidate)?)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn parses_review_after_streamed_commentary() {
+        let response = "The revised plan addresses my prior feedback. I verified the checks by inspection.\n\n{\"approved\":true,\"reason\":\"One self-contained index.html; checks cover required markup.\"}";
+        let review: Review = parse_response(response).unwrap();
+        assert!(review.approved);
+        let fenced = "Inspection complete.\n```json\n{\"approved\":false,\"reason\":\"Missing <title>; braces {inside strings} are text.\"}\n```";
+        let review: Review = parse_response(fenced).unwrap();
+        assert!(!review.approved);
+    }
+    #[test]
+    fn rejects_ambiguous_malformed_or_wrong_schema_responses() {
+        for text in [
+            "First: {\"approved\":true,\"reason\":\"pass\"} Then: {\"approved\":false,\"reason\":\"fail\"}",
+            "Result: {\"nested\":{\"approved\":true,\"reason\":\"pass\"}",
+            "Result: {\"approved\":true}",
+            "Result: {\"approved\":true,\"reason\":\"pass\"} Actually, reject this result.",
+            "No structured decision.",
+        ] { assert!(parse_response::<Review>(text).is_err(), "accepted {text}"); }
+    }
     #[test]
     fn rejects_cycles() {
         let mut plan = Plan {

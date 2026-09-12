@@ -266,6 +266,13 @@ async fn mock_turn(
 ) -> Result<TurnResult> {
     tokio::select! {_=cancel.cancelled()=>bail!("Cancelled"),_=tokio::time::sleep(std::time::Duration::from_millis(30))=>{}}
     let text=match req.purpose.as_str(){
+        "conversation" => {
+            if !req.prompt.contains("Original request:") || !req.prompt.contains("Previous outcome:") {
+                bail!("Follow-up context is missing");
+            }
+            let path = req.cwd.join("greeting.txt");
+            json!({"action":"answer","answer":if path.exists() {format!("The file is located at {}",path.display())} else {"The earlier run did not create a file.".into()}}).to_string()
+        },
         "plan"=>json!({"summary":"Create and verify a small deliverable","tasks":[{"title":"Create a greeting","description":"Write greeting.txt containing Hello from ymp","competence":"implementation","difficulty":"simple","dependencies":[],"checks":["test -f greeting.txt && grep -q 'Hello from ymp' greeting.txt"]}]}).to_string(),
         "review_plan"|"review"|"final_review"|"review_memory"=>json!({"approved":true,"reason":"The stated acceptance criteria are satisfied.","lesson":"Check the produced artifact against the requested content."}).to_string(),
         "bid"=>json!({"willing":true,"approach":"Inspect the task, implement, and verify."}).to_string(),

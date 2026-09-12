@@ -3,7 +3,7 @@ resolver = "2"
 members = ["ymp-rust/crates/*"]
 
 [workspace.package]
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 rust-version = "1.89"
 license = "MIT"
@@ -33,7 +33,7 @@ async-trait = "0.1"
 libc = "0.2"
 walkdir = "2"
 tempfile = "3"
-ratatui = "0.29"
+ratatui = { version = "0.29", features = ["unstable-rendered-line-info"] }
 crossterm = { version = "0.28", features = ["event-stream"] }
 unicode-width = "0.2"
 clap = { version = "4", features = ["derive"] }

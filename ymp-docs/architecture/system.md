@@ -1,13 +1,13 @@
 # System architecture
 
-The root Cargo workspace contains seven packages. `ymp-core` defines profiles, tasks, plans, memory, and reputation without dependencies on terminal rendering or providers. `ymp-storage` owns SQLite and migrations. `ymp-providers` implements native process protocols. `ymp-workspace` manages isolated source snapshots. `ymp-runtime` coordinates these components. `ymp-tui` presents events and user actions; `ymp-cli` composes the application and exposes headless commands.
+The root Cargo workspace contains seven packages. `ymp-core` defines profiles, tasks, plans, memory, and reputation without dependencies on terminal rendering or providers. `ymp-storage` owns SQLite and migrations. `ymp-providers` implements native process protocols. `ymp-workspace` tracks the current working directory and file changes. `ymp-runtime` coordinates these components. `ymp-tui` presents events and user actions; `ymp-cli` composes the application and exposes headless commands.
 
 ```mermaid
 flowchart TD
   User[User] --> CLI[CLI / Ratatui TUI]
   CLI --> Runtime[Team runtime]
   Runtime --> Store[SQLite event journal and memory]
-  Runtime --> Workspace[Isolated source snapshot and worktrees]
+  Runtime --> Workspace[Working directory and change metadata]
   Runtime --> Providers[Native provider adapters]
   Providers --> Codex[Codex App Server]
   Providers --> Bridge[Claude SDK bridge]
@@ -23,11 +23,13 @@ Profiles and tasks are different entities. A profile may execute, plan, or revie
 
 ## Workspaces
 
-A run copies tracked and non-ignored untracked source files into an application-owned snapshot repository. Deleted source files remain deleted in the snapshot. Git history and provider credentials are not copied. For ordinary directories, generated directories such as `node_modules` and `target` are excluded.
+A run works directly in the user's selected directory. Files are immediately visible there. The application does not initialize Git, create worktrees, or copy source files into its home. It records initial file hashes and later changes as metadata; file contents remain in the working directory.
 
-Each execution attempt receives a detached worktree based on the current integrated result. Independent attempts may execute concurrently. Results are integrated sequentially, including all commits made by the agent since the attempt's base. A conflict preserves the candidate and requests a revision against the updated integrated base. The source repository is never reset, stashed, or rewritten.
+A project lock prevents two ymp runs from writing to the same project. Within a run, execution, verification, and revisions are sequential. Planning and bids can run concurrently with read-only tools. Failed checks leave the actual files in place for inspection and revision; they do not cause an automatic rollback.
 
-Snapshot worktrees separate ordinary file changes; they are not OS sandboxes. Provider permission modes determine available operations. Review/planning turns request read-only behavior, while execution turns use unattended permissions. External side effects cannot be rolled back by Git.
+The next idle chat message retains the current session's history, outcome, and file paths. A read-only conversational turn answers questions directly. Only an explicit request for more implementation starts a new task run, linked to its parent conversation and using the same working directory. `/new` starts an unrelated conversation.
+
+Legacy isolated directories from older versions are retained for recovery, but new runs and follow-ups use the user's working directory.
 
 ## Stopping and recovery
 

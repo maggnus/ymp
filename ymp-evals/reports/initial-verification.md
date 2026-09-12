@@ -1,6 +1,6 @@
 # Initial implementation verification
 
-Date: 2026-09-12. Platform: macOS arm64.
+Date: 2026-09-12. Platform: macOS arm64. This report describes the original 0.1.0 behavior; the later working-directory change supersedes its isolation details.
 
 ## Automated checks
 
