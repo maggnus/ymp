@@ -6,6 +6,7 @@ use std::path::Path;
 
 pub async fn run(root: &Path, directory: &Path, case: &str, spec: &Value) -> Result<Value> {
     match case {
+        "restart-inspection" => crate::restart_protocol::run(root, directory).await,
         "assignment-authority" => crate::authority_protocol::run(root, directory).await,
         "knowledge-correction" => crate::knowledge_protocol::run(root, directory, spec).await,
         "adaptive-team" => crate::adaptive_protocol::run(root, directory, spec).await,

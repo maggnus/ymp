@@ -515,6 +515,15 @@ impl TaskHarness {
         let captured = contract.links.acceptance_contract.unwrap();
         let mut records = Vec::new();
         for check in &captured.contract.checks {
+            let verifier_current = || {
+                captured.verifier_digests.iter().all(|(path, digest)| {
+                    std::fs::read(path).is_ok_and(|bytes| bytes_digest(&bytes) == *digest)
+                })
+            };
+            ensure!(
+                verifier_current(),
+                "Captured verifier changed before checking"
+            );
             let inputs = captured
                 .contract
                 .inputs
@@ -544,6 +553,10 @@ impl TaskHarness {
                 .iter()
                 .map(|a| FileSnapshot::capture(&self.directory, &a.path))
                 .collect::<Result<Vec<_>>>()?;
+            ensure!(
+                verifier_current(),
+                "Captured verifier changed while checking"
+            );
             let evidence = CheckEvidence {
                 checker: captured.checker.clone(),
                 check_id: check.id.clone(),

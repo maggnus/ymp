@@ -110,14 +110,26 @@ pub(crate) async fn execute_reserved_with_allowance(
     store: Store,
     server: Arc<TeamServer>,
     backend: Arc<dyn ExecutionBackend>,
-    mut lease: Box<WorkspaceReservation>,
-    mut request: TurnRequest,
+    lease: Box<WorkspaceReservation>,
+    request: TurnRequest,
     session: String,
     token_reservation: Option<u64>,
 ) -> Result<()> {
-    execute_reserved_with_operations(store, server, backend, lease, request, session, token_reservation, vec![TeamOperation::TeamRead]).await
+    execute_reserved_with_operations(
+        store,
+        server,
+        backend,
+        lease,
+        request,
+        session,
+        token_reservation,
+        vec![TeamOperation::TeamRead],
+    )
+    .await
 }
 
+// This fixture helper passes each existing production boundary object unchanged.
+#[allow(clippy::too_many_arguments)]
 pub(crate) async fn execute_reserved_with_operations(
     store: Store,
     server: Arc<TeamServer>,
@@ -182,12 +194,8 @@ pub(crate) async fn execute_reserved_with_operations(
         usage: None,
         terminal_reason: None,
     };
-    let token = lease.admit_reserved(
-        server.clone(),
-        &mut assignment,
-        &mut invocation,
-        operations,
-    )?;
+    let token =
+        lease.admit_reserved(server.clone(), &mut assignment, &mut invocation, operations)?;
     request.mcp = Some(ymp_providers::McpEndpoint {
         command: "unused-scripted-stdio".into(),
         args: vec![server.socket.display().to_string()],

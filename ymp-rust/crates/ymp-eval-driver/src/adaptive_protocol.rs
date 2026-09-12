@@ -1,54 +1,326 @@
-use crate::{concurrency_protocol::execute_reserved_with_operations,export,protocols,script::{team_call,NativeJournal},workflows,write_json};
-use anyhow::{ensure,Context,Result};
-use serde_json::{json,Value};
-use std::{path::Path,sync::{Arc,Mutex},time::Instant};
-use tokio::sync::{mpsc,Notify};
+use crate::{
+    concurrency_protocol::execute_reserved_with_operations,
+    export, protocols,
+    script::{team_call, NativeJournal},
+    workflows, write_json,
+};
+use anyhow::{ensure, Context, Result};
+use serde_json::{json, Value};
+use std::{
+    path::Path,
+    sync::{Arc, Mutex},
+    time::Instant,
+};
+use tokio::sync::{mpsc, Notify};
 use tokio_util::sync::CancellationToken;
 use ymp_core::*;
-use ymp_providers::{ExecutionBackend,ExecutionFuture,ProviderEvent,TurnRequest,TurnResult};
-use ymp_runtime::{mcp::TeamServer,AllocationPolicy,Engine,WorkspaceAdmission};
+use ymp_providers::{ExecutionBackend, ExecutionFuture, ProviderEvent, TurnRequest, TurnResult};
+use ymp_runtime::{mcp::TeamServer, AllocationPolicy, Engine, WorkspaceAdmission};
 use ymp_storage::Store;
 struct Policy(Mutex<Vec<String>>);
-impl AllocationPolicy for Policy{
-    fn identity(&self)->ExecutionBackendIdentity{ExecutionBackendIdentity{id:"ymp.evals.adaptive-proposal".into(),version:"1".into()}}
-    fn propose(&self,input:&AllocationInput)->Result<AllocationProposal>{Ok(AllocationProposal{members:self.0.lock().unwrap().clone(),executor:None,reserved_final_reviewer:input.current.as_ref().and_then(|s|s.reserved_final_reviewer.clone()).or_else(||input.eligible.last().map(|a|a.id.clone())),method:"bounded_metadata_probe".into(),rationale:"independent_ready_task".into()})}
-}
-struct Backend{gate:Arc<Notify>,started:mpsc::UnboundedSender<()>,journal:Arc<NativeJournal>,members:Vec<String>,reason:String}
-impl ExecutionBackend for Backend{
-    fn identity(&self)->ExecutionBackendIdentity{ExecutionBackendIdentity{id:"ymp.evals.board-membership".into(),version:"1".into()}}
-    fn workspace_access(&self,_:&TurnRequest)->WorkspaceAccess{WorkspaceAccess::ReadAll}
-    fn execute(&self,request:TurnRequest,events:mpsc::UnboundedSender<ProviderEvent>)->ExecutionFuture<'_>{Box::pin(async move{
-        let id=new_id();self.journal.push(json!({"type":"native_started","native_id":id,"agent_id":request.profile.id,"settings":request.settings}));events.send(ProviderEvent::Execution(Box::new(InvocationObservation{sent:Some(request.settings.clone()),reported:Some(request.settings.clone()),native_session_id:Some(id.clone()),native_turn_id:Some(id.clone()),native_version:Some("scripted-board-v1".into()),..Default::default()})))?;
-        let board=team_call(&request,"board_read",json!({})).await?;ensure!(board["ok"]==true,"Board read failed: {board}");let proposal=team_call(&request,"task_propose",json!({"plan_version":board["value"]["plan_version"],"rationale":self.reason,"change":{"kind":"membership","members":self.members}})).await?;self.journal.push(json!({"type":"team_response","native_id":id,"operation":"task_propose","response":proposal}));ensure!(proposal["ok"]==true,"Bound membership proposal was rejected: {proposal}");self.started.send(())?;self.gate.notified().await;
-        let usage=UsageSnapshot{counts:TokenCounts{input:Some(1),output:Some(0),..TokenCounts::zero()},finalized:true,partial:false,note:Some("Controlled board coordination".into()),native_total:None};events.send(ProviderEvent::Usage(usage.clone()))?;self.journal.push(json!({"type":"native_closed","native_id":id,"usage":usage}));Ok(TurnResult{text:"Bounded coordination contribution completed".into(),session_id:id,usage:None})
-    })}
-}
-pub async fn run(root:&Path,directory:&Path,spec:&Value)->Result<Value>{
-    let started=Instant::now();let work=directory.join("work");std::fs::create_dir(&work)?;let store=Store::open(&directory.join("metadata"))?;let mut config=workflows::config();let mut c=config.agents[0].clone();c.id="c".into();c.name="Scripted c".into();config.agents.push(c);config.team=vec!["a".into()];config.team_constraints.fixed_roster=None;config.team_constraints.max_members=spec["setup"]["max_members"].as_u64().unwrap() as usize;config.limits.parallel=spec["setup"]["max_active"].as_u64().unwrap() as usize;
-    let session=Session{id:new_id(),project_id:store.project(&work)?.id,title:spec["purpose"].as_str().unwrap().into(),status:"running".into(),created_at:now(),team:vec![config.agents[0].clone()],turns_used:0};store.create_session(&session,&SessionPolicy{session_id:session.id.clone(),goal:session.title.clone(),constraints:None,cwd:work.canonicalize()?,limits:config.limits.clone(),eligible_pool:config.agents.clone(),captured_team:session.team.clone(),team_constraints:Some(config.team_constraints.clone()),execution:config.execution.clone(),assignment_settings:vec![],parent_session_id:None,evaluation:None,captured_at:now()})?;
-    // Reviewed setup supplies pending board metadata, not a completion or grant.
-    store.save_task(&Task{id:new_id(),session_id:session.id.clone(),title:"Pending bounded inspection".into(),description:"Inspect future work when admitted; no result is produced by this setup".into(),competence:"verification".into(),difficulty:"simple".into(),access:TaskAccess::ReadOnly,dependencies:vec![],checks:vec![],state:TaskState::Ready,assignee:None,reviewer:None,attempts:0,result:None,workspace:None,base_commit:None,interrupted:false})?;
-    let removal=spec["script"].as_array().unwrap().iter().find(|a|a["action"]=="propose_remove").unwrap();let gate=Arc::new(Notify::new());let (notice,mut native_started)=mpsc::unbounded_channel();let journal=Arc::new(NativeJournal::default());let backend=Arc::new(Backend{gate:gate.clone(),started:notice,journal:journal.clone(),members:vec!["a".into()],reason:removal["reason"].as_str().unwrap().into()});let policy=Arc::new(Policy(Mutex::new(vec!["a".into()])));let(events,_)=mpsc::unbounded_channel();let engine=Engine::new(store.clone(),config,events.clone(),CancellationToken::new())?.with_execution_backend(backend.clone())?.with_allocation_policy(policy.clone())?;let owner=engine.acquire_workspace_owner(&session.id)?;let server=Arc::new(TeamServer::start(store.clone(),&session,events).await?);let demand=AllocationDemand{purpose:"conversation".into(),task_id:None,competence:"analysis".into(),difficulty:"simple".into(),risk:TaskRisk::Standard,ready_work:0};let mut pending=None;let mut alias_id=None;let mut responses=Vec::new();
-    for action in spec["script"].as_array().unwrap(){match action["action"].as_str().unwrap(){
-        "start_session"=>{engine.reconsider_allocation(&session.id,AllocationBoundary::Startup,demand.clone())?;},
-        "propose_add"=>{let mut members=store.team_state(&session.id)?.unwrap().current_members;members.push(action["agent"].as_str().unwrap().into());*policy.0.lock().unwrap()=members;let result=engine.reconsider_allocation(&session.id,AllocationBoundary::GoalChanged,demand.clone());responses.push(json!({"action":action,"error":result.err().map(|e|e.to_string())}));},
-        "admit_and_hold"=>{let request=TurnRequest{profile:engine.config.agent("b")?.clone(),provider:engine.config.providers[0].clone(),settings:ExecutionSettings{model:Some("scripted-small".into()),effort:Some("low".into()),permission_mode:Some("read_only".into())},cwd:work.clone(),prompt:"Inspect shared board metadata and propose a membership change for after this contribution ends".into(),purpose:"conversation".into(),read_only:true,resume:None,usage_baseline:None,mcp:None,resource_controls:NativeResourceControls{max_turns:Some(2),max_output_chars:Some(4000)},timeout_secs:10,bridge:Path::new("").into()};let WorkspaceAdmission::Acquired(lease)=engine.try_reserve_workspace(&owner,&session.id,&request,None)?else{anyhow::bail!("Useful read-only work was unexpectedly deferred")};alias_id=Some(lease.assignment_id().to_owned());let mut handle=tokio::spawn(execute_reserved_with_operations(store.clone(),server.clone(),backend.clone(),lease,request,session.id.clone(),None,TeamOperation::coordination()));tokio::select!{notice=native_started.recv()=>{ensure!(notice.is_some(),"Native start missing");},result=&mut handle=>{result??;anyhow::bail!("Native work ended before its barrier")}}pending=Some(handle);},
-        "finish_assignment"=>{gate.notify_one();pending.take().context("No active contribution")?.await??;},
-        "propose_remove"=>{let decisions=engine.commit_board_proposals(&session.id)?;responses.push(json!({"action":action,"decisions":decisions}));},
-        action=>anyhow::bail!("Unsupported adaptive action {action}"),
-    }}
-    let trace=store.trace(&session.id)?;let alias=|id:&str|if Some(id)==alias_id.as_deref(){"b1".to_owned()}else{id.into()};let mut rows=Vec::new();let mut sources=Vec::new();
-    for event in trace.history.iter().filter(|e|e.kind=="provenance"){
-        let row=match serde_json::from_value::<ProvenanceEvent>(event.data.clone())?{
-            ProvenanceEvent::SessionCaptured{policy}=>Some(json!({"type":"team_captured","session":"s1","members":policy.captured_team.iter().map(|a|a.id.clone()).collect::<Vec<_>>()})),
-            ProvenanceEvent::AssignmentStarted{assignment,..}=>Some(json!({"type":"assignment_started","assignment":alias(&assignment.id),"agent":assignment.agent_id})),
-            ProvenanceEvent::InvocationFinished{invocation}=>Some(json!({"type":"assignment_closed","assignment":alias(&invocation.assignment_id),"agent":trace.assignments.iter().find(|a|a.id==invocation.assignment_id).unwrap().agent_id})),
-            ProvenanceEvent::DecisionRecorded{decision}=>if let Some(allocation)=decision.links.allocation{
-                if !allocation.accepted{Some(json!({"type":"proposal_rejected","reason":allocation.reason.split(':').next().unwrap_or(&allocation.reason),"agent":allocation.proposal.members.iter().find(|id|!allocation.input.current.as_ref().unwrap().current_members.contains(id))}))}
-                else if allocation.input.current.as_ref().is_some_and(|s|s.current_members!=allocation.proposal.members){let reason=trace.decisions.iter().filter_map(|d|d.links.board.as_ref()).find(|b|b.accepted&&matches!(&b.proposal.change,BoardChange::Membership{members} if members==&allocation.proposal.members)).map(|b|b.proposal.rationale.clone()).unwrap_or(allocation.proposal.rationale);Some(json!({"type":"team_changed","session":"s1","members":allocation.proposal.members,"reason":reason}))}else{None}
-            }else{None},
-            _=>None,
-        };if let Some(row)=row{sources.push(json!({"projected_index":rows.len(),"runtime_event_seq":event.seq}));rows.push(row);}
+impl AllocationPolicy for Policy {
+    fn identity(&self) -> ExecutionBackendIdentity {
+        ExecutionBackendIdentity {
+            id: "ymp.evals.adaptive-proposal".into(),
+            version: "1".into(),
+        }
     }
-    let observed=json!({"schema_version":1,"case_id":"adaptive-team","events":rows,"final_state":{"members":trace.team_state.as_ref().unwrap().current_members,"historical_members":trace.session.team.iter().map(|a|a.id.clone()).collect::<Vec<_>>(),"completed_assignments":trace.assignments.iter().filter(|a|a.state==InvocationState::Completed).map(|a|alias(&a.id)).collect::<Vec<_>>()}});write_json(&directory.join("runtime.json"),&trace)?;journal.save(directory)?;write_json(&directory.join("observed.json"),&observed)?;write_json(&directory.join("boundary-actions.json"),&responses)?;write_json(&directory.join("alias-map.json"),&json!({"b1":alias_id,"s1":session.id,"projection_sources":sources}))?;let metrics=export::metrics(&trace,started.elapsed().as_secs_f64(),1)?;write_json(&directory.join("metrics.json"),&metrics)?;let validation=protocols::validate(root,directory,"adaptive-team").await?;Ok(json!({"case_id":"adaptive-team","complete":validation["validator_passed"]==true,"validator":validation,"metrics":metrics}))
+    fn propose(&self, input: &AllocationInput) -> Result<AllocationProposal> {
+        Ok(AllocationProposal {
+            members: self.0.lock().unwrap().clone(),
+            executor: None,
+            reserved_final_reviewer: input
+                .current
+                .as_ref()
+                .and_then(|s| s.reserved_final_reviewer.clone())
+                .or_else(|| input.eligible.last().map(|a| a.id.clone())),
+            method: "bounded_metadata_probe".into(),
+            rationale: "independent_ready_task".into(),
+        })
+    }
+}
+struct Backend {
+    gate: Arc<Notify>,
+    started: mpsc::UnboundedSender<()>,
+    journal: Arc<NativeJournal>,
+    members: Vec<String>,
+    reason: String,
+}
+impl ExecutionBackend for Backend {
+    fn identity(&self) -> ExecutionBackendIdentity {
+        ExecutionBackendIdentity {
+            id: "ymp.evals.board-membership".into(),
+            version: "1".into(),
+        }
+    }
+    fn workspace_access(&self, _: &TurnRequest) -> WorkspaceAccess {
+        WorkspaceAccess::ReadAll
+    }
+    fn execute(
+        &self,
+        request: TurnRequest,
+        events: mpsc::UnboundedSender<ProviderEvent>,
+    ) -> ExecutionFuture<'_> {
+        Box::pin(async move {
+            let id = new_id();
+            self.journal.push(json!({"type":"native_started","native_id":id,"agent_id":request.profile.id,"settings":request.settings}));
+            events.send(ProviderEvent::Execution(Box::new(InvocationObservation {
+                sent: Some(request.settings.clone()),
+                reported: Some(request.settings.clone()),
+                native_session_id: Some(id.clone()),
+                native_turn_id: Some(id.clone()),
+                native_version: Some("scripted-board-v1".into()),
+                ..Default::default()
+            })))?;
+            let board = team_call(&request, "board_read", json!({})).await?;
+            ensure!(board["ok"] == true, "Board read failed: {board}");
+            let proposal=team_call(&request,"task_propose",json!({"plan_version":board["value"]["plan_version"],"rationale":self.reason,"change":{"kind":"membership","members":self.members}})).await?;
+            self.journal.push(json!({"type":"team_response","native_id":id,"operation":"task_propose","response":proposal}));
+            ensure!(
+                proposal["ok"] == true,
+                "Bound membership proposal was rejected: {proposal}"
+            );
+            self.started.send(())?;
+            self.gate.notified().await;
+            let usage = UsageSnapshot {
+                counts: TokenCounts {
+                    input: Some(1),
+                    output: Some(0),
+                    ..TokenCounts::zero()
+                },
+                finalized: true,
+                partial: false,
+                note: Some("Controlled board coordination".into()),
+                native_total: None,
+            };
+            events.send(ProviderEvent::Usage(usage.clone()))?;
+            self.journal
+                .push(json!({"type":"native_closed","native_id":id,"usage":usage}));
+            Ok(TurnResult {
+                text: "Bounded coordination contribution completed".into(),
+                session_id: id,
+                usage: None,
+            })
+        })
+    }
+}
+pub async fn run(root: &Path, directory: &Path, spec: &Value) -> Result<Value> {
+    let started = Instant::now();
+    let work = directory.join("work");
+    std::fs::create_dir(&work)?;
+    let store = Store::open(&directory.join("metadata"))?;
+    let mut config = workflows::config();
+    let mut c = config.agents[0].clone();
+    c.id = "c".into();
+    c.name = "Scripted c".into();
+    config.agents.push(c);
+    config.team = vec!["a".into()];
+    config.team_constraints.fixed_roster = None;
+    config.team_constraints.max_members = spec["setup"]["max_members"].as_u64().unwrap() as usize;
+    config.limits.parallel = spec["setup"]["max_active"].as_u64().unwrap() as usize;
+    let session = Session {
+        id: new_id(),
+        project_id: store.project(&work)?.id,
+        title: spec["purpose"].as_str().unwrap().into(),
+        status: "running".into(),
+        created_at: now(),
+        team: vec![config.agents[0].clone()],
+        turns_used: 0,
+    };
+    store.create_session(
+        &session,
+        &SessionPolicy {
+            session_id: session.id.clone(),
+            goal: session.title.clone(),
+            constraints: None,
+            cwd: work.canonicalize()?,
+            limits: config.limits.clone(),
+            eligible_pool: config.agents.clone(),
+            captured_team: session.team.clone(),
+            team_constraints: Some(config.team_constraints.clone()),
+            execution: config.execution.clone(),
+            assignment_settings: vec![],
+            parent_session_id: None,
+            evaluation: None,
+            captured_at: now(),
+        },
+    )?;
+    // Reviewed setup supplies pending board metadata, not a completion or grant.
+    store.save_task(&Task {
+        id: new_id(),
+        session_id: session.id.clone(),
+        title: "Pending bounded inspection".into(),
+        description: "Inspect future work when admitted; no result is produced by this setup"
+            .into(),
+        competence: "verification".into(),
+        difficulty: "simple".into(),
+        access: TaskAccess::ReadOnly,
+        dependencies: vec![],
+        checks: vec![],
+        state: TaskState::Ready,
+        assignee: None,
+        reviewer: None,
+        attempts: 0,
+        result: None,
+        workspace: None,
+        base_commit: None,
+        interrupted: false,
+    })?;
+    let removal = spec["script"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|a| a["action"] == "propose_remove")
+        .unwrap();
+    let gate = Arc::new(Notify::new());
+    let (notice, mut native_started) = mpsc::unbounded_channel();
+    let journal = Arc::new(NativeJournal::default());
+    let backend = Arc::new(Backend {
+        gate: gate.clone(),
+        started: notice,
+        journal: journal.clone(),
+        members: vec!["a".into()],
+        reason: removal["reason"].as_str().unwrap().into(),
+    });
+    let policy = Arc::new(Policy(Mutex::new(vec!["a".into()])));
+    let (events, _) = mpsc::unbounded_channel();
+    let engine = Engine::new(
+        store.clone(),
+        config,
+        events.clone(),
+        CancellationToken::new(),
+    )?
+    .with_execution_backend(backend.clone())?
+    .with_allocation_policy(policy.clone())?;
+    let owner = engine.acquire_workspace_owner(&session.id)?;
+    let server = Arc::new(TeamServer::start(store.clone(), &session, events).await?);
+    let demand = AllocationDemand {
+        purpose: "conversation".into(),
+        task_id: None,
+        competence: "analysis".into(),
+        difficulty: "simple".into(),
+        risk: TaskRisk::Standard,
+        ready_work: 0,
+    };
+    let mut pending = None;
+    let mut alias_id = None;
+    let mut responses = Vec::new();
+    for action in spec["script"].as_array().unwrap() {
+        match action["action"].as_str().unwrap() {
+            "start_session" => {
+                engine.reconsider_allocation(
+                    &session.id,
+                    AllocationBoundary::Startup,
+                    demand.clone(),
+                )?;
+            }
+            "propose_add" => {
+                let mut members = store.team_state(&session.id)?.unwrap().current_members;
+                members.push(action["agent"].as_str().unwrap().into());
+                *policy.0.lock().unwrap() = members;
+                let result = engine.reconsider_allocation(
+                    &session.id,
+                    AllocationBoundary::GoalChanged,
+                    demand.clone(),
+                );
+                responses.push(json!({"action":action,"error":result.err().map(|e|e.to_string())}));
+            }
+            "admit_and_hold" => {
+                let request=TurnRequest{profile:engine.config.agent("b")?.clone(),provider:engine.config.providers[0].clone(),settings:ExecutionSettings{model:Some("scripted-small".into()),effort:Some("low".into()),permission_mode:Some("read_only".into())},cwd:work.clone(),prompt:"Inspect shared board metadata and propose a membership change for after this contribution ends".into(),purpose:"conversation".into(),read_only:true,resume:None,usage_baseline:None,mcp:None,resource_controls:NativeResourceControls{max_turns:Some(2),max_output_chars:Some(4000)},timeout_secs:10,bridge:Path::new("").into()};
+                let WorkspaceAdmission::Acquired(lease) =
+                    engine.try_reserve_workspace(&owner, &session.id, &request, None)?
+                else {
+                    anyhow::bail!("Useful read-only work was unexpectedly deferred")
+                };
+                alias_id = Some(lease.assignment_id().to_owned());
+                let mut handle = tokio::spawn(execute_reserved_with_operations(
+                    store.clone(),
+                    server.clone(),
+                    backend.clone(),
+                    lease,
+                    request,
+                    session.id.clone(),
+                    None,
+                    TeamOperation::coordination(),
+                ));
+                tokio::select! {notice=native_started.recv()=>{ensure!(notice.is_some(),"Native start missing");},result=&mut handle=>{result??;anyhow::bail!("Native work ended before its barrier")}}
+                pending = Some(handle);
+            }
+            "finish_assignment" => {
+                gate.notify_one();
+                pending.take().context("No active contribution")?.await??;
+            }
+            "propose_remove" => {
+                let decisions = engine.commit_board_proposals(&session.id)?;
+                responses.push(json!({"action":action,"decisions":decisions}));
+            }
+            action => anyhow::bail!("Unsupported adaptive action {action}"),
+        }
+    }
+    let trace = store.trace(&session.id)?;
+    let alias = |id: &str| {
+        if Some(id) == alias_id.as_deref() {
+            "b1".to_owned()
+        } else {
+            id.into()
+        }
+    };
+    let mut rows = Vec::new();
+    let mut sources = Vec::new();
+    for event in trace.history.iter().filter(|e| e.kind == "provenance") {
+        let row = match serde_json::from_value::<ProvenanceEvent>(event.data.clone())? {
+            ProvenanceEvent::SessionCaptured { policy } => Some(
+                json!({"type":"team_captured","session":"s1","members":policy.captured_team.iter().map(|a|a.id.clone()).collect::<Vec<_>>()}),
+            ),
+            ProvenanceEvent::AssignmentStarted { assignment, .. } => Some(
+                json!({"type":"assignment_started","assignment":alias(&assignment.id),"agent":assignment.agent_id}),
+            ),
+            ProvenanceEvent::InvocationFinished { invocation } => Some(
+                json!({"type":"assignment_closed","assignment":alias(&invocation.assignment_id),"agent":trace.assignments.iter().find(|a|a.id==invocation.assignment_id).unwrap().agent_id}),
+            ),
+            ProvenanceEvent::DecisionRecorded { decision } => {
+                if let Some(allocation) = decision.links.allocation {
+                    if !allocation.accepted {
+                        Some(
+                            json!({"type":"proposal_rejected","reason":allocation.reason.split(':').next().unwrap_or(&allocation.reason),"agent":allocation.proposal.members.iter().find(|id|!allocation.input.current.as_ref().unwrap().current_members.contains(id))}),
+                        )
+                    } else if allocation
+                        .input
+                        .current
+                        .as_ref()
+                        .is_some_and(|s| s.current_members != allocation.proposal.members)
+                    {
+                        let reason=trace.decisions.iter().filter_map(|d|d.links.board.as_ref()).find(|b|b.accepted&&matches!(&b.proposal.change,BoardChange::Membership{members} if members==&allocation.proposal.members)).map(|b|b.proposal.rationale.clone()).unwrap_or(allocation.proposal.rationale);
+                        Some(
+                            json!({"type":"team_changed","session":"s1","members":allocation.proposal.members,"reason":reason}),
+                        )
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                }
+            }
+            _ => None,
+        };
+        if let Some(row) = row {
+            sources.push(json!({"projected_index":rows.len(),"runtime_event_seq":event.seq}));
+            rows.push(row);
+        }
+    }
+    let observed = json!({"schema_version":1,"case_id":"adaptive-team","events":rows,"final_state":{"members":trace.team_state.as_ref().unwrap().current_members,"historical_members":trace.session.team.iter().map(|a|a.id.clone()).collect::<Vec<_>>(),"completed_assignments":trace.assignments.iter().filter(|a|a.state==InvocationState::Completed).map(|a|alias(&a.id)).collect::<Vec<_>>()}});
+    write_json(&directory.join("runtime.json"), &trace)?;
+    journal.save(directory)?;
+    write_json(&directory.join("observed.json"), &observed)?;
+    write_json(&directory.join("boundary-actions.json"), &responses)?;
+    write_json(
+        &directory.join("alias-map.json"),
+        &json!({"b1":alias_id,"s1":session.id,"projection_sources":sources}),
+    )?;
+    let metrics = export::metrics(&trace, started.elapsed().as_secs_f64(), 1)?;
+    write_json(&directory.join("metrics.json"), &metrics)?;
+    let validation = protocols::validate(root, directory, "adaptive-team").await?;
+    Ok(
+        json!({"case_id":"adaptive-team","complete":validation["validator_passed"]==true,"validator":validation,"metrics":metrics}),
+    )
 }

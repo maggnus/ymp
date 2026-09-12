@@ -1,16 +1,17 @@
 //! Trusted offline driver. Acceptance exports are derived from runtime records.
-mod artifact_protocol;
-mod budget_protocol;
 mod adaptive_protocol;
+mod artifact_protocol;
 mod authority_protocol;
-mod knowledge_protocol;
+mod budget_protocol;
 mod concurrency_protocol;
 mod effort_protocol;
 mod evidence_protocol;
 mod export;
+mod knowledge_protocol;
 mod location_protocol;
 mod partial_protocol;
 mod protocols;
+mod restart_protocol;
 mod roster_protocol;
 mod script;
 mod task_protocol;
@@ -30,6 +31,8 @@ struct Args {
     /// Run one named workflow/protocol, otherwise run all declared cases.
     #[arg(long)]
     case: Option<String>,
+    #[arg(long, hide = true)]
+    restart_stage: Option<String>,
 }
 fn root() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -58,6 +61,9 @@ fn require_non_git(path: &Path) -> Result<()> {
 #[tokio::main]
 async fn main() -> Result<()> {
     let args = Args::parse();
+    if let Some(stage) = &args.restart_stage {
+        return restart_protocol::worker(&root(), &args.output, stage).await;
+    }
     ensure!(
         !args.output.exists(),
         "Evidence directory must be fresh; existing evidence is never overwritten"

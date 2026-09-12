@@ -123,7 +123,7 @@ impl ExecutionBackend for ScriptedBackend {
                     let reply = team_call(&request,"team_post",json!({"text":"Producing the assigned artifact from the selected input files."})).await?;
                     self.journal.push(json!({"type":"team_response","native_id":id,"operation":"team_post","response":reply}));
                     ensure!(reply["ok"]==true, "Production team post was denied: {reply}");
-                    let output = tokio::process::Command::new("python3").arg(&self.writer).arg(&self.case).arg(&request.cwd).output().await?;
+                    let output = tokio::process::Command::new("python3").arg(&self.writer).arg(&self.case).arg(&request.cwd).kill_on_drop(true).output().await?;
                     self.journal.push(json!({"type":"script_process","native_id":id,"script_sha256":file_digest(&self.writer)?,"exit_code":output.status.code(),"stdout":String::from_utf8_lossy(&output.stdout),"stderr":String::from_utf8_lossy(&output.stderr)}));
                     ensure!(output.status.success(), "Scripted production failed: {}", String::from_utf8_lossy(&output.stderr));
                     format!("Created {} from the supplied task inputs; ready for independent review.",self.output)
