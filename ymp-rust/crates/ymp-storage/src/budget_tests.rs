@@ -186,3 +186,23 @@ fn budget_session_save_cannot_rewind_missing_historical_spend() {
     let (a, i) = budget_assignment(&f, "review");
     assert_eq!(f.store.admit_invocation(&a, i).unwrap().turn, 5);
 }
+
+#[test]
+fn joint_grant_and_budget_events_roll_back_as_one_admission() {
+    let f = budget_fixture(100, 20);
+    let (mut assignment, invocation) = budget_assignment(&f, "plan");
+    let grant = GrantRecord::for_assignment(&assignment,&invocation,TeamOperation::coordination());
+    assignment.grant_ids.push(grant.id.clone());
+    f.store.db().unwrap().execute_batch("CREATE TRIGGER fail_joint BEFORE INSERT ON events WHEN NEW.kind='budget_reserved' BEGIN SELECT RAISE(ABORT, 'injected budget event failure'); END;").unwrap();
+    assert!(f.store.admit_invocation_with_grants(&assignment,invocation.clone(),std::slice::from_ref(&grant)).is_err());
+    assert!(f.store.team_grant(&f.session.id,&grant.id).is_err());
+    let trace = f.store.trace(&f.session.id).unwrap();
+    assert!(trace.invocations.is_empty());
+    assert!(!trace.history.iter().any(|e|e.data["change"]=="grant_issued"));
+    assert_eq!(trace.budget.unwrap().reserved_tokens,Some(0));
+    f.store.db().unwrap().execute_batch("DROP TRIGGER fail_joint;").unwrap();
+    let invocation = f.store.admit_invocation_with_grants(&assignment,invocation,std::slice::from_ref(&grant)).unwrap();
+    assert_eq!(invocation.turn,1);
+    assert_eq!(f.store.session_budget(&f.session.id).unwrap().unwrap().reserved_tokens,Some(20));
+    assert!(f.store.team_grant(&f.session.id,&grant.id).unwrap().revoked_at.is_none());
+}

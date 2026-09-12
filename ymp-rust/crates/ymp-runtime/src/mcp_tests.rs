@@ -504,3 +504,5 @@ async fn memory_proposal_records_bound_origin_without_activation() {
     assert_eq!(event.data["assignment_id"], f.assignment.id);
     assert_eq!(event.data["invocation_id"], f.invocation.id);
 }
+
+include!("budget_authority_tests.rs");

@@ -99,3 +99,32 @@ async fn budget_public_resume_preserves_legacy_spend_with_missing_or_sparse_rows
         assert_eq!(fixture.store.trace(&session.id).unwrap().invocations.len(), 1);
     }
 }
+
+#[tokio::test]
+async fn joint_engine_budget_stops_never_leave_unaccounted_or_active_grants() {
+    for mode in ["context", "unknown", "output"] {
+        let mut fixture = RunFixture::new(if mode == "unknown" { "" } else { "[mock:usage]" }, false);
+        let resources = fixture.engine.config.limits.resources.as_mut().unwrap();
+        match mode {
+            "context" => resources.startup_context_chars = 100,
+            "unknown" => { resources.observed_tokens = Some(1000); resources.invocation_tokens = Some(100); }
+            _ => resources.max_output_chars = 1,
+        }
+        let outcome = fixture.run().await;
+        assert_eq!(outcome.session.status, "paused");
+        let trace = fixture.store.trace(&outcome.session.id).unwrap();
+        assert_eq!(trace.invocations.len(), if mode == "context" { 0 } else { 2 });
+        assert_eq!(trace.history.iter().filter(|e| e.data["change"] == "grant_issued").count(), trace.invocations.len());
+        assert_eq!(trace.history.iter().filter(|e| e.data["change"] == "grant_revoked").count(), trace.invocations.len());
+        assert_eq!(trace.history.iter().filter(|e| e.kind == "budget_reserved").count(), trace.invocations.len());
+        assert_eq!(trace.history.iter().filter(|e| e.kind == "budget_released").count(), trace.invocations.len());
+        for assignment in &trace.assignments {
+            assert_eq!(assignment.grant_ids.len(), 1);
+            assert!(fixture.store.team_grant(&outcome.session.id, &assignment.grant_ids[0]).unwrap().revoked_at.is_some());
+        }
+        let budget = trace.budget.unwrap();
+        assert_eq!(budget.admitted_invocations, trace.invocations.len() as u64);
+        assert_eq!(budget.in_flight_invocations, 0);
+        assert_eq!(budget.observed_usage.known_total(), match mode { "context" => Some(0), "unknown" => None, _ => Some(240) });
+    }
+}

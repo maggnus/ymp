@@ -1,8 +1,13 @@
 # Session resource budgets
 
-YMP-102 implements admission in `Store::admit_invocation`. One SQLite `IMMEDIATE`
-transaction checks captured limits, allocates the invocation ordinal, records the
-assignment and token-usage row, and publishes a reservation event. Independent
+The engine uses `TeamServer::admit_reserved`, which calls
+`Store::admit_invocation_with_grants`. One SQLite `IMMEDIATE` transaction validates
+authority and captured limits, allocates the invocation ordinal, records the
+assignment and token-usage row, issues grants and publishes reservation events.
+The server adds a live capability only after that durable transaction succeeds.
+Denied admissions and failed admission events create no usable capability or
+partial grant. The storage-only `admit_invocation` wrapper uses the same budget
+transaction without granting team permissions. Independent
 connections cannot reserve the same remaining allowance. A denied admission
 records a stable code and message without creating an invocation or charging a
 turn. `begin_invocation` retains its explicit-ordinal API and uses the same guard.
@@ -89,3 +94,12 @@ Disabling admission produced three concurrent admissions where only two fit, and
 allowed work after partial usage and overshoot. Removing native `maxTurns`
 forwarding failed the physical SDK argument assertion. No paid provider inference
 or credential reads are part of these checks.
+
+The combined authority and budget checks exercise concurrent admissions through
+separate SQLite connections, live socket calls, terminal/restart denial, and a
+forced reservation-event failure after grant issuance. A public engine check
+matches every admitted invocation to one issued and revoked grant for context,
+unknown-usage and output stops. Terminal accounting and durable revocation share
+one transaction; the server removes live authority before attempting that write.
+Provider error redaction remains outside timeout/output handling and its final
+event drain, preserving sanitization on every error path.
