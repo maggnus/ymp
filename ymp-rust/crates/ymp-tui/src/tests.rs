@@ -16,8 +16,8 @@ use ratatui::Terminal;
 use std::path::PathBuf;
 use tempfile::TempDir;
 use ymp_core::{
-    new_id, now, AgentProfile, Config, Message, Session, SessionUsage, TokenCounts, UiEvent,
-    UsageSnapshot,
+    new_id, now, AgentProfile, Config, Message, Session, SessionUsage, Task, TaskState,
+    TokenCounts, UiEvent, UsageSnapshot,
 };
 use ymp_storage::Store;
 
@@ -1899,4 +1899,279 @@ fn browsing_a_saved_session_reports_what_was_stored() {
     assert!(rendered.contains("completed"), "{rendered}");
     assert!(!rendered.contains("running"), "{rendered}");
     assert!(rendered.contains("1 / 200 turns"), "{rendered}");
+}
+
+// ---------------------------------------------------------------------------
+// Recorded checks and recovery limits
+// ---------------------------------------------------------------------------
+
+/// Wording that would promise something ymp cannot do. No previous file content is kept
+/// anywhere, so no surface may sound like an offer to put a file back, and no surface may
+/// describe a check as contained or agreed to.
+const FORBIDDEN: &[&str] = &[
+    "rollback",
+    "roll back",
+    "revert",
+    "undo",
+    "can restore",
+    "will restore",
+    "sandbox",
+    "approval",
+    "approved",
+    "permitted",
+    "allowlist",
+];
+
+fn forbidden(text: &str) -> Option<&'static str> {
+    let lowered = text.to_lowercase();
+    FORBIDDEN
+        .iter()
+        .copied()
+        .find(|word| lowered.contains(word))
+}
+
+/// The prose of the page's empty state.
+fn empty_prose(app: &mut App, width: u16) -> String {
+    lines_prose(&app.page(width).empty)
+}
+
+/// What the change page says about recovery, from whichever surface is carrying it: the
+/// leading row when the session recorded changes, the empty state when it did not.
+fn recovery_prose(app: &mut App, width: u16) -> String {
+    let page = app.page(width);
+    match page.items.iter().find(|item| item.key == "recovery") {
+        Some(item) => lines_prose(&item.detail),
+        None => lines_prose(&page.empty),
+    }
+}
+
+/// The prose of the detail of the row with this key.
+fn detail_prose(app: &mut App, width: u16, key: &str) -> String {
+    app.page(width)
+        .items
+        .iter()
+        .find(|item| item.key == key)
+        .map(|item| lines_prose(&item.detail))
+        .unwrap_or_else(|| panic!("no row keyed {key} on {:?}", app.view))
+}
+
+impl Fixture {
+    /// Record a check the way `Engine::checks` records one.
+    fn seed_check(&self, session: &str, command: &str, success: Option<bool>, output: &str) {
+        let mut data = serde_json::json!({
+            "cwd": self.project.path(),
+            "command": command,
+            "output": output,
+        });
+        if let Some(success) = success {
+            data["success"] = serde_json::json!(success);
+        }
+        self.store.event(session, "check", &data).unwrap();
+    }
+    /// A stored task that declares acceptance commands.
+    fn seed_task(&self, session: &str, title: &str, checks: &[&str]) -> String {
+        let task = Task {
+            id: new_id(),
+            session_id: session.to_owned(),
+            title: title.to_owned(),
+            description: "Fixture task".into(),
+            competence: "implementation".into(),
+            difficulty: "standard".into(),
+            dependencies: Vec::new(),
+            checks: checks.iter().map(|c| (*c).to_owned()).collect(),
+            state: TaskState::Accepted,
+            assignee: Some("codex".into()),
+            reviewer: Some("claude".into()),
+            attempts: 1,
+            result: Some("Done".into()),
+            workspace: Some(self.project.path().to_path_buf()),
+            base_commit: None,
+            interrupted: false,
+        };
+        self.store.save_task(&task).unwrap();
+        task.id
+    }
+}
+
+/// The changed-files page must say what was recorded and what was never recorded, in both
+/// its empty and its populated state. A reader cannot be left to infer from a list of
+/// paths that ymp is holding the previous versions of them.
+#[test]
+fn the_change_view_states_that_previous_content_was_never_recorded() {
+    let fixture = fixture();
+    let id = fixture.seed_session("Build a landing page");
+    let mut app = fixture.app();
+    app.load_session(&id).unwrap();
+    app.command("/diff", 100);
+
+    let empty = empty_prose(&mut app, 100);
+    assert!(
+        empty.contains("cannot restore"),
+        "the empty change view promised nothing about recovery:\n{empty}"
+    );
+    assert!(
+        empty.contains("hash"),
+        "the empty change view did not say what is recorded instead:\n{empty}"
+    );
+
+    // The statement is on the frame at the smallest supported size, not only in the data.
+    let rendered = draw(&mut app, 80, 24);
+    assert!(
+        rendered.contains("cannot restore"),
+        "the empty change view did not show the statement at 80x24:\n{rendered}"
+    );
+
+    // The same statement has to survive the page having rows to show.
+    let workspace = fixture
+        .store
+        .session_dir(&fixture.store.session(&id).unwrap())
+        .join("workspace");
+    std::fs::create_dir_all(&workspace).unwrap();
+    std::fs::write(
+        workspace.join("changes.json"),
+        serde_json::json!([{"path": fixture.project.path().join("index.html"), "status": "created"}])
+            .to_string(),
+    )
+    .unwrap();
+    app.set_view(View::Changes);
+    let keys = row_keys(&mut app, 100);
+    assert!(
+        keys.iter().any(|key| key.ends_with("index.html")),
+        "the recorded change is missing: {keys:?}"
+    );
+    let recovery = recovery_prose(&mut app, 100);
+    assert!(
+        recovery.contains("cannot restore"),
+        "the populated change view dropped the recovery statement:\n{recovery}"
+    );
+    let file = detail_prose(&mut app, 100, &keys[1]);
+    assert!(
+        file.contains("cannot restore"),
+        "a selected change did not state what ymp kept:\n{file}"
+    );
+    for text in [&empty, &recovery, &file] {
+        assert_eq!(forbidden(text), None, "in:\n{text}");
+    }
+
+    // At the smallest supported size the statement is on the first frame, unselected.
+    let rendered = draw(&mut app, 80, 24);
+    assert!(
+        rendered.contains("cannot restore"),
+        "the statement was not visible at 80x24:\n{rendered}"
+    );
+}
+
+/// Acceptance commands that ymp ran itself are evidence, and the only honest place to read
+/// them is the session that recorded them. A declared command that never ran must not be
+/// presented as one that did.
+#[test]
+fn recorded_checks_show_their_command_and_outcome_for_the_selected_session() {
+    let fixture = fixture();
+    let id = fixture.seed_session("Build a landing page");
+    fixture.seed_check(&id, "grep -q doctype index.html", Some(true), "exit: 0\n");
+    fixture.seed_check(
+        &id,
+        "cargo test --workspace",
+        Some(false),
+        "exit: 101\nfailed",
+    );
+    // A record written without an outcome is not a pass.
+    fixture.seed_check(&id, "npm run build", None, "");
+    fixture.seed_task(&id, "Write the page", &["grep -q doctype index.html"]);
+    fixture.seed_task(&id, "Check the layout", &["cargo fmt --check"]);
+
+    let mut app = fixture.app();
+    app.load_session(&id).unwrap();
+    app.command("/checks", 100);
+    assert_eq!(app.view, View::Checks, "/checks did not open the page");
+
+    let keys = row_keys(&mut app, 100);
+    for command in [
+        "grep -q doctype index.html",
+        "cargo test --workspace",
+        "npm run build",
+        "cargo fmt --check",
+    ] {
+        assert!(
+            keys.iter().any(|key| key.contains(command)),
+            "{command} is missing from {keys:?}"
+        );
+    }
+
+    let passed = detail_prose(&mut app, 100, "grep -q doctype index.html");
+    assert!(passed.contains("passed"), "{passed}");
+    let failed = detail_prose(&mut app, 100, "cargo test --workspace");
+    assert!(failed.contains("failed"), "{failed}");
+    assert!(
+        failed.contains("exit: 101"),
+        "the output is missing:\n{failed}"
+    );
+    let unknown = detail_prose(&mut app, 100, "npm run build");
+    assert!(
+        unknown.contains("no recorded outcome"),
+        "a record without an outcome was given one:\n{unknown}"
+    );
+    let planned = detail_prose(&mut app, 100, "cargo fmt --check");
+    assert!(
+        planned.contains("no recorded run"),
+        "a command that never ran looks like it ran:\n{planned}"
+    );
+
+    // The page explains how checks run, and claims nothing about containment.
+    let about = detail_prose(&mut app, 100, "how checks run");
+    assert!(about.contains("working directory"), "{about}");
+    for text in [&passed, &failed, &unknown, &planned, &about] {
+        assert_eq!(forbidden(text), None, "in:\n{text}");
+    }
+
+    let rendered = draw(&mut app, 80, 24);
+    assert!(rendered.contains("cargo test"), "{rendered}");
+    assert!(rendered.contains("failed"), "{rendered}");
+}
+
+/// A working directory nested below a repository root is still inside that repository, and
+/// a directory with no `.git` entry of its own proves nothing. The change view must report
+/// what was found, name what it inspected, and never conclude absence.
+#[test]
+fn repository_discovery_looks_above_the_working_directory_and_never_concludes_absence() {
+    let outer = TempDir::new().unwrap();
+    std::fs::create_dir_all(outer.path().join(".git/objects")).unwrap();
+    let nested = outer.path().join("service/web");
+    std::fs::create_dir_all(&nested).unwrap();
+    let home = TempDir::new().unwrap();
+    let store = Store::open(home.path()).unwrap();
+    let mut app = App::new(store, Config::default(), nested.clone());
+    app.command("/diff", 100);
+    let found = recovery_prose(&mut app, 100);
+    // The marker itself, not the working directory, which merely starts with the same path.
+    let marker = outer.path().canonicalize().unwrap().join(".git");
+    assert!(
+        found.contains("A Git repository directory is at"),
+        "the repository above the working directory was not reported:\n{found}"
+    );
+    assert!(
+        found.contains(&marker.display().to_string()),
+        "the marker {} was not named:\n{found}",
+        marker.display()
+    );
+
+    // Without a marker anywhere the wording stays a statement about what was inspected.
+    let bare = fixture();
+    let mut app = bare.app();
+    app.command("/diff", 100);
+    let unknown = recovery_prose(&mut app, 100);
+    assert!(
+        unknown.contains("inspected"),
+        "the bounds of discovery were not stated:\n{unknown}"
+    );
+    for claim in [
+        "not under version control",
+        "no repository",
+        "is not a repository",
+    ] {
+        assert!(
+            !unknown.to_lowercase().contains(claim),
+            "discovery concluded absence with {claim:?}:\n{unknown}"
+        );
+    }
 }

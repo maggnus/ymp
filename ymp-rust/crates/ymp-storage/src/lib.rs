@@ -265,6 +265,45 @@ impl Store {
             [session], |r| r.get(0),
         ).optional()?)
     }
+
+    /// Acceptance commands the runtime ran for this session, oldest first.
+    ///
+    /// This is a read of the session log, which is the only place the commands and their
+    /// results exist. A record is returned as it was written: a field the event does not
+    /// carry stays absent, so a view cannot present an unknown result as a pass.
+    pub fn checks(&self, session: &str) -> Result<Vec<CheckRun>> {
+        let db = self.db()?;
+        let mut q = db.prepare(
+            "SELECT seq,data,created_at FROM events WHERE session_id=? AND kind='check' ORDER BY seq",
+        )?;
+        let rows = q
+            .query_map([session], |r| {
+                Ok((
+                    r.get::<_, i64>(0)?,
+                    r.get::<_, String>(1)?,
+                    r.get::<_, String>(2)?,
+                ))
+            })?
+            .collect::<rusqlite::Result<Vec<_>>>()?;
+        Ok(rows
+            .into_iter()
+            .map(|(seq, data, recorded_at)| {
+                let data: serde_json::Value = serde_json::from_str(&data).unwrap_or_default();
+                CheckRun {
+                    seq,
+                    command: recorded_text(&data["command"]),
+                    directory: recorded_text(&data["cwd"]),
+                    outcome: match data["success"].as_bool() {
+                        Some(true) => CheckOutcome::Passed,
+                        Some(false) => CheckOutcome::Failed,
+                        None => CheckOutcome::Unrecorded,
+                    },
+                    output: recorded_text(&data["output"]),
+                    recorded_at,
+                }
+            })
+            .collect())
+    }
     pub fn save_task(&self, t: &Task) -> Result<()> {
         let mut db = self.db()?;
         let tx = db.transaction()?;
@@ -432,6 +471,16 @@ fn write_plan(tx: &rusqlite::Transaction<'_>, tasks: &[Task]) -> Result<()> {
     Ok(())
 }
 
+/// A recorded string, or nothing. A field that is absent, blank or not a string carries no
+/// information and must not become an empty value a reader could mistake for one.
+fn recorded_text(value: &serde_json::Value) -> Option<String> {
+    value
+        .as_str()
+        .map(str::trim_end)
+        .filter(|text| !text.trim().is_empty())
+        .map(str::to_owned)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -497,6 +546,70 @@ mod tests {
         store.forget_memory(&m.id).unwrap();
         assert!(store.memory(Some("a"), "").unwrap().is_empty());
     }
+    #[test]
+    fn recorded_checks_are_read_back_in_order_without_completing_missing_fields() {
+        let dir = tempfile::tempdir().unwrap();
+        let store = Store::open(dir.path()).unwrap();
+        assert!(store.checks("absent-session").unwrap().is_empty());
+        store
+            .event(
+                "s",
+                "check",
+                &serde_json::json!({"cwd":"/project","command":"cargo test","success":true,"output":"exit: 0\n"}),
+            )
+            .unwrap();
+        store
+            .event(
+                "s",
+                "check",
+                &serde_json::json!({"command":"cargo test","success":false,"output":"exit: 101"}),
+            )
+            .unwrap();
+        // An event written without a result, and one written with nothing usable at all.
+        store
+            .event(
+                "s",
+                "check",
+                &serde_json::json!({"command":"npm run build"}),
+            )
+            .unwrap();
+        store
+            .event(
+                "s",
+                "check",
+                &serde_json::json!({"command":"   ","output":""}),
+            )
+            .unwrap();
+        store
+            .event(
+                "s",
+                "message",
+                &serde_json::json!({"command":"not a check"}),
+            )
+            .unwrap();
+        store
+            .event("other", "check", &serde_json::json!({"command":"foreign"}))
+            .unwrap();
+
+        let checks = store.checks("s").unwrap();
+        assert_eq!(checks.len(), 4, "{checks:?}");
+        assert!(checks.windows(2).all(|pair| pair[0].seq < pair[1].seq));
+        assert_eq!(checks[0].command.as_deref(), Some("cargo test"));
+        assert_eq!(checks[0].directory.as_deref(), Some("/project"));
+        assert_eq!(checks[0].outcome, CheckOutcome::Passed);
+        assert_eq!(checks[0].output.as_deref(), Some("exit: 0"));
+        assert!(!checks[0].recorded_at.is_empty());
+        assert_eq!(checks[1].outcome, CheckOutcome::Failed);
+        assert_eq!(checks[1].directory, None, "a directory was invented");
+        assert_eq!(
+            checks[2].outcome,
+            CheckOutcome::Unrecorded,
+            "a missing result became a pass"
+        );
+        assert_eq!(checks[2].output, None);
+        assert_eq!(checks[3].command, None, "a blank command became a command");
+    }
+
     #[test]
     fn only_one_session_may_own_a_project_writer_lock() {
         let temp = tempfile::tempdir().unwrap();

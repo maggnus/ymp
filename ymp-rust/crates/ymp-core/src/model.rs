@@ -28,6 +28,34 @@ pub struct Session {
     pub turns_used: usize,
 }
 
+/// What a recorded check says about its own result.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum CheckOutcome {
+    Passed,
+    Failed,
+    /// The record carries no result. An older or partial record is not a pass.
+    Unrecorded,
+}
+
+/// One acceptance command the runtime ran itself, as a session recorded it.
+///
+/// Every field is read back from the stored event. A value the record does not carry stays
+/// absent instead of being replaced by a default, so a reader cannot mistake a missing
+/// result for a successful one.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CheckRun {
+    /// Position in the session log. Two runs of the same command stay distinguishable.
+    pub seq: i64,
+    pub command: Option<String>,
+    /// The directory the command ran in, when the record names one.
+    pub directory: Option<String>,
+    pub outcome: CheckOutcome,
+    /// Captured output, already truncated by the runtime that wrote it.
+    pub output: Option<String>,
+    pub recorded_at: String,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Message {
     pub seq: i64,

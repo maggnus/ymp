@@ -39,7 +39,7 @@ Profiles can also be edited from the pages: on `/agents`, `m` sets the model, `i
 
 ## Results and experience
 
-Files are written directly in the working directory. The final output names that directory, and `/diff` displays changed-file metadata. A failed or stopped run may leave partial changes for inspection.
+Files are written directly in the working directory. The final output names that directory, and `/diff` displays changed-file metadata. A failed or stopped run may leave partial changes for inspection. What `/diff` records is a path, a status and a content hash, never a copy, so ymp cannot restore an earlier version of a file; the page says so and reports what version control it found at or above the working directory. `/checks` lists the acceptance commands ymp ran itself, with the directory, the outcome and the output recorded for each, and a declared command with no recorded run separately. Checks run with no limit on what they may do and nothing is asked before they run, which [recorded checks and recovery limits](../architecture/recorded-checks-and-recovery.md) describes in full.
 
 `/memory QUERY` searches verified project knowledge and shared procedures; on the page, `/` searches and `f` retires the selected entry after a confirmation. `/memory forget ID` retires an entry by identifier. `/reputation` shows the observations underlying competence estimates; a high mean from a small number of observations should not be read as certainty.
 

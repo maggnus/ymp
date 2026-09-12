@@ -8,6 +8,7 @@ license.workspace = true
 [dependencies]
 ymp-core.workspace = true
 ymp-storage.workspace = true
+ymp-workspace.workspace = true
 ymp-runtime.workspace = true
 anyhow.workspace = true
 serde_json.workspace = true

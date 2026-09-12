@@ -20,6 +20,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::path::PathBuf;
 use ymp_core::{AgentProfile, Config, Message, SessionUsage, Task, UiEvent};
 use ymp_storage::Store;
+use ymp_workspace::repository::{self, Repository};
 
 /// The region that owns the keyboard. Exactly one is active at any moment.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -212,6 +213,10 @@ pub struct App {
     pub store: Store,
     pub config: Config,
     pub cwd: PathBuf,
+    /// What version control, if anything, was found at or above the working directory.
+    /// Discovered outside the drawing path: when the window opens, when the reader asks
+    /// for the change page, and after a run, which is when the answer can have changed.
+    pub repository: Repository,
     pub prefs: Prefs,
     pub theme: Theme,
 
@@ -268,6 +273,7 @@ impl App {
         Self {
             store,
             config,
+            repository: repository::discover(&cwd),
             cwd,
             prefs,
             theme,
@@ -403,6 +409,7 @@ impl App {
                     store: &self.store,
                     config: &self.config,
                     cwd: &self.cwd,
+                    repository: &self.repository,
                     theme: &theme,
                     session: self.session.as_deref(),
                     tasks: &self.tasks,
@@ -485,6 +492,9 @@ impl App {
                 self.session_status = status;
                 self.streams.clear();
                 self.refresh_session_facts();
+                // A run may have created or removed a repository in the directory it
+                // worked in, so what was discovered at startup is re-read here.
+                self.repository = repository::discover(&self.cwd);
             }
         }
         self.changed();
@@ -644,6 +654,9 @@ impl App {
     // -----------------------------------------------------------------------
 
     pub fn set_view(&mut self, view: View) {
+        if view == View::Changes {
+            self.repository = repository::discover(&self.cwd);
+        }
         self.view = view;
         self.page_selected = 0;
         self.page_top = 0;
@@ -1705,6 +1718,7 @@ impl App {
             "/sessions" => self.set_view(View::Sessions),
             "/files" => self.set_view(View::Files),
             "/diff" => self.set_view(View::Changes),
+            "/checks" => self.set_view(View::Checks),
             "/providers" => self.set_view(View::Providers),
             "/agents" => self.set_view(View::Agents),
             "/reputation" => self.set_view(View::Reputation),

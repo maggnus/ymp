@@ -135,6 +135,13 @@ pub const COMMANDS: &[Command] = &[
         args: Args::None,
     },
     Command {
+        name: "/checks",
+        usage: "/checks",
+        summary: "Commands ymp ran itself for the loaded session, and their outcome.",
+        group: Group::Navigate,
+        args: Args::None,
+    },
+    Command {
         name: "/providers",
         usage: "/providers",
         summary: "Configured local providers and their availability.",

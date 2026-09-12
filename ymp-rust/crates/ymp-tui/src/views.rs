@@ -15,8 +15,12 @@ use crate::usage::{self, Stats};
 use ratatui::style::Style;
 use ratatui::text::{Line, Span};
 use std::path::Path;
-use ymp_core::{AgentProfile, Config, MemoryEntry, Session, Task, TaskState, UsageTotals};
+use ymp_core::{
+    AgentProfile, CheckOutcome, CheckRun, Config, MemoryEntry, Session, Task, TaskState,
+    UsageTotals,
+};
 use ymp_storage::Store;
+use ymp_workspace::repository::Repository;
 
 /// Every destination the sidebar and the commands can reach.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -27,6 +31,7 @@ pub enum View {
     Sessions,
     Files,
     Changes,
+    Checks,
     Team,
     Agents,
     Providers,
@@ -44,6 +49,7 @@ pub const NAV: &[View] = &[
     View::Sessions,
     View::Files,
     View::Changes,
+    View::Checks,
     View::Team,
     View::Agents,
     View::Providers,
@@ -62,6 +68,7 @@ impl View {
             View::Sessions => "Sessions",
             View::Files => "Files",
             View::Changes => "Changed files",
+            View::Checks => "Recorded checks",
             View::Team => "Team",
             View::Agents => "Agent profiles",
             View::Providers => "Providers",
@@ -79,6 +86,7 @@ impl View {
             View::Sessions => "/sessions",
             View::Files => "/files",
             View::Changes => "/diff",
+            View::Checks => "/checks",
             View::Team => "/team",
             View::Agents => "/agents",
             View::Providers => "/providers",
@@ -157,6 +165,9 @@ pub struct Ctx<'a> {
     pub store: &'a Store,
     pub config: &'a Config,
     pub cwd: &'a Path,
+    /// What the controller discovered about version control for `cwd`. Pages present it;
+    /// they never look at the filesystem for it themselves.
+    pub repository: &'a Repository,
     pub theme: &'a Theme,
     pub session: Option<&'a str>,
     pub tasks: &'a [Task],
@@ -179,6 +190,7 @@ pub fn build(view: View, ctx: &Ctx) -> Page {
         View::Sessions => guard(view, sessions(ctx), ctx),
         View::Files => guard(view, files(ctx), ctx),
         View::Changes => guard(view, changes(ctx), ctx),
+        View::Checks => guard(view, checks(ctx), ctx),
         View::Team => team(ctx),
         View::Agents => agents(ctx),
         View::Providers => providers(ctx),
@@ -403,7 +415,12 @@ fn tasks(ctx: &Ctx) -> Page {
                 ));
             }
             if !task.checks.is_empty() {
-                detail.extend(field(theme, "checks", &task.checks.join(" ; "), ctx.width));
+                detail.extend(field(
+                    theme,
+                    "planned checks",
+                    &task.checks.join(" ; "),
+                    ctx.width,
+                ));
             }
             if let Some(workspace) = &task.workspace {
                 detail.extend(field(
@@ -801,9 +818,18 @@ fn size(bytes: u64) -> String {
     }
 }
 
+/// The statement the interface makes wherever a change is shown, because a list of paths
+/// otherwise reads like a list of backups. The two parts are shown together, except where
+/// the first is already the heading of what the reader is looking at.
+const NO_EARLIER_CONTENT: &str = "ymp cannot restore a previous version of a file.";
+const WHAT_WAS_RECORDED: &str =
+    "It recorded a path, a status and a content hash for each file, never a copy, so \
+     earlier content exists only where the working directory's own version control or a \
+     backup already kept it.";
+
 fn changes(ctx: &Ctx) -> anyhow::Result<Page> {
     let theme = ctx.theme;
-    let mut items = Vec::new();
+    let mut rows = Vec::new();
     let mut subtitle = "No session is loaded".to_owned();
     if let Some(id) = ctx.session {
         let session = ctx.store.session(id)?;
@@ -822,11 +848,17 @@ fn changes(ctx: &Ctx) -> anyhow::Result<Page> {
                     "deleted" => theme.bad(),
                     _ => theme.warn(),
                 };
-                let detail = field(theme, "path", &path, ctx.width)
+                let mut detail = field(theme, "path", &path, ctx.width)
                     .into_iter()
                     .chain(field(theme, "status", &status, ctx.width))
-                    .collect();
-                items.push(
+                    .collect::<Vec<_>>();
+                detail.push(Line::default());
+                detail.extend(paragraph(
+                    theme,
+                    &format!("{NO_EARLIER_CONTENT} {WHAT_WAS_RECORDED}"),
+                    ctx.width,
+                ));
+                rows.push(
                     Item::row(path.clone(), vec![Span::styled(path.clone(), theme.text())])
                         .with_right(vec![Span::styled(status, style)])
                         .with_detail(detail),
@@ -834,19 +866,293 @@ fn changes(ctx: &Ctx) -> anyhow::Result<Page> {
             }
         }
     }
+    // With nothing to list, the page is prose and the empty state carries the statement.
+    // With rows, it leads them, and opens selected, so the first frame already shows it.
+    let mut items = Vec::new();
+    if !rows.is_empty() {
+        items.push(recovery_row(ctx));
+        items.push(Item::heading("Recorded changes", theme));
+        items.append(&mut rows);
+    }
     Ok(Page {
         view: View::Changes,
         title: View::Changes.title().into(),
         subtitle,
         items,
-        empty: nothing(
-            theme,
-            "No recorded file changes",
-            "Change metadata is written when a run finishes or stops. Files themselves are created directly in the working directory.",
-            ctx.width,
-        ),
+        empty: {
+            let mut lines = nothing(
+                theme,
+                "No recorded file changes",
+                "Change metadata is written when a run finishes or stops. Files themselves are created directly in the working directory.",
+                ctx.width,
+            );
+            lines.push(Line::default());
+            lines.extend(paragraph(
+                theme,
+                &format!("{NO_EARLIER_CONTENT} {WHAT_WAS_RECORDED}"),
+                ctx.width,
+            ));
+            lines.push(Line::default());
+            lines.extend(recovery_lines(ctx));
+            lines
+        },
         hints: vec![("Enter", "show the full path"), ("Esc", "back")],
     })
+}
+
+/// The row that leads the change list: what was recorded, and what no longer exists.
+fn recovery_row(ctx: &Ctx) -> Item {
+    let theme = ctx.theme;
+    let mut detail = vec![
+        Line::from(Span::styled(NO_EARLIER_CONTENT.to_owned(), theme.bold())),
+        Line::default(),
+    ];
+    detail.extend(paragraph(theme, WHAT_WAS_RECORDED, ctx.width));
+    detail.push(Line::default());
+    detail.extend(recovery_lines(ctx));
+    Item::row(
+        "recovery",
+        vec![
+            Span::styled(format!("{} ", theme.markers.notice), theme.info()),
+            Span::styled(
+                "What was recorded, and what cannot be put back".to_owned(),
+                theme.text(),
+            ),
+        ],
+    )
+    .with_right(vec![Span::styled(
+        "metadata only".to_owned(),
+        theme.muted(),
+    )])
+    .with_detail(detail)
+}
+
+/// Version control as the controller found it, then the limits of the record itself.
+fn recovery_lines(ctx: &Ctx) -> Vec<Line<'static>> {
+    let theme = ctx.theme;
+    let mut lines = vec![Line::from(Span::styled(
+        "Version control".to_owned(),
+        theme.muted(),
+    ))];
+    for sentence in ctx.repository.describe() {
+        lines.extend(paragraph(theme, &sentence, ctx.width));
+    }
+    lines.push(Line::default());
+    lines.push(Line::from(Span::styled(
+        "Limits of the record".to_owned(),
+        theme.muted(),
+    )));
+    for sentence in [
+        "The walk skips .git, node_modules, target, __pycache__, .DS_Store, .ymp2 and ymp's own metadata directory, so a change inside one of those was not recorded.",
+        "A listed change means the file differed from the fingerprint taken when the session started. It does not say which agent or which other process wrote it.",
+        "The list is written once, when a run finishes or stops. A run still working, or one whose process ended before it could write, leaves nothing here to read.",
+    ] {
+        lines.extend(paragraph(theme, sentence, ctx.width));
+    }
+    lines
+}
+
+/// Commands ymp ran itself, read from the session log, with what the log recorded.
+///
+/// Two kinds of row, kept apart: a run the log recorded, and a command the accepted plan
+/// declared that the log has no run for. The second is not a result.
+fn checks(ctx: &Ctx) -> anyhow::Result<Page> {
+    let theme = ctx.theme;
+    let recorded = match ctx.session {
+        Some(id) => ctx.store.checks(id)?,
+        None => Vec::new(),
+    };
+    let mut planned: Vec<(String, Vec<String>)> = Vec::new();
+    for task in ctx.tasks {
+        for command in &task.checks {
+            if recorded
+                .iter()
+                .any(|run| run.command.as_deref() == Some(command.as_str()))
+            {
+                continue;
+            }
+            match planned.iter_mut().find(|(known, _)| known == command) {
+                Some((_, tasks)) => tasks.push(task.title.clone()),
+                None => planned.push((command.clone(), vec![task.title.clone()])),
+            }
+        }
+    }
+    let mut items = Vec::new();
+    if !recorded.is_empty() || !planned.is_empty() {
+        items.push(how_checks_run(ctx));
+    }
+    if !recorded.is_empty() {
+        items.push(Item::heading("Recorded runs", theme));
+        items.extend(recorded.iter().map(|run| recorded_check(ctx, run)));
+    }
+    if !planned.is_empty() {
+        items.push(Item::heading("Declared, without a recorded run", theme));
+        items.extend(
+            planned
+                .iter()
+                .map(|(command, tasks)| declared_check(ctx, command, tasks)),
+        );
+    }
+    Ok(Page {
+        view: View::Checks,
+        title: View::Checks.title().into(),
+        subtitle: match ctx.session {
+            None => "No session is loaded".to_owned(),
+            Some(_) => format!(
+                "{} recorded · {} declared without a run",
+                recorded.len(),
+                planned.len()
+            ),
+        },
+        items,
+        empty: {
+            let mut lines = nothing(
+                theme,
+                "No checks were recorded",
+                "ymp records a check when the accepted plan supplies an acceptance command and the run reaches it. A session without one was judged by inspection alone.",
+                ctx.width,
+            );
+            lines.push(Line::default());
+            lines.extend(paragraph(theme, HOW_CHECKS_RUN[0], ctx.width));
+            lines
+        },
+        hints: vec![("Enter", "show the whole record"), ("Esc", "back")],
+    })
+}
+
+/// How a check is executed and what is kept about it. Stated plainly, because the one
+/// thing the interface must not imply is that running it was constrained or agreed to.
+const HOW_CHECKS_RUN: &[&str] = &[
+    "ymp runs these commands itself, with /bin/sh in the working directory, after the \
+     agent's own turn in the same directory. It places no limit on what a check may do and \
+     asks nothing before running one.",
+    "Each run is recorded with its command, the directory, whether the command exited \
+     zero, and the first 20000 characters of its combined output. A check that timed out, \
+     or that was stopped with the run, leaves no record at all.",
+    "A command that exits non-zero keeps the task unaccepted whatever an agent reported \
+     about it. The reverse does not hold: a command that exits zero is evidence about that \
+     command, not about the task.",
+    "The commands come from the plan the session accepted. This page reads the log and \
+     runs nothing.",
+];
+
+fn how_checks_run(ctx: &Ctx) -> Item {
+    let theme = ctx.theme;
+    let mut detail = Vec::new();
+    for (index, sentence) in HOW_CHECKS_RUN.iter().enumerate() {
+        if index > 0 {
+            detail.push(Line::default());
+        }
+        detail.extend(paragraph(theme, sentence, ctx.width));
+    }
+    Item::row(
+        "how checks run",
+        vec![
+            Span::styled(format!("{} ", theme.markers.notice), theme.info()),
+            Span::styled("How checks run".to_owned(), theme.text()),
+        ],
+    )
+    .with_right(vec![Span::styled(
+        "read from the session log".to_owned(),
+        theme.muted(),
+    )])
+    .with_detail(detail)
+}
+
+/// Lines of recorded output shown before the rest is left to the full record.
+const OUTPUT_LINES: usize = 80;
+
+fn recorded_check(ctx: &Ctx, run: &CheckRun) -> Item {
+    let theme = ctx.theme;
+    let (marker, word, style) = match run.outcome {
+        CheckOutcome::Passed => (theme.markers.ok, "passed", theme.good()),
+        CheckOutcome::Failed => (theme.markers.fail, "failed", theme.bad()),
+        CheckOutcome::Unrecorded => (theme.markers.unknown, "no recorded outcome", theme.muted()),
+    };
+    let command = run
+        .command
+        .clone()
+        .unwrap_or_else(|| "command not recorded".to_owned());
+    let mut detail = field(theme, "command", &command, ctx.width);
+    detail.extend(field(theme, "outcome", word, ctx.width));
+    detail.extend(field(
+        theme,
+        "directory",
+        run.directory.as_deref().unwrap_or("not recorded"),
+        ctx.width,
+    ));
+    detail.extend(field(theme, "recorded", &run.recorded_at, ctx.width));
+    detail.push(Line::default());
+    match &run.output {
+        Some(output) => {
+            detail.push(Line::from(Span::styled(
+                "Recorded output".to_owned(),
+                theme.muted(),
+            )));
+            let wrapped = text::wrap(&text::sanitize(output), ctx.width.max(8));
+            let shown = wrapped.len().min(OUTPUT_LINES);
+            detail.extend(
+                wrapped[..shown]
+                    .iter()
+                    .map(|piece| Line::from(Span::styled(piece.clone(), theme.body()))),
+            );
+            if wrapped.len() > shown {
+                detail.extend(paragraph(
+                    theme,
+                    &format!(
+                        "{} further recorded lines are not shown here.",
+                        wrapped.len() - shown
+                    ),
+                    ctx.width,
+                ));
+            }
+        }
+        None => detail.extend(paragraph(
+            theme,
+            "No output was recorded for this run.",
+            ctx.width,
+        )),
+    }
+    Item::row(
+        command.clone(),
+        vec![
+            Span::styled(format!("{marker} "), style),
+            Span::styled(
+                text::truncate(&command, ctx.width.saturating_sub(24)),
+                theme.text(),
+            ),
+        ],
+    )
+    .with_right(vec![Span::styled(word.to_owned(), style)])
+    .with_detail(detail)
+}
+
+fn declared_check(ctx: &Ctx, command: &str, tasks: &[String]) -> Item {
+    let theme = ctx.theme;
+    let mut detail = field(theme, "command", command, ctx.width);
+    detail.extend(field(theme, "status", "no recorded run", ctx.width));
+    detail.extend(field(theme, "declared by", &tasks.join(" ; "), ctx.width));
+    detail.push(Line::default());
+    detail.extend(paragraph(
+        theme,
+        "The accepted plan declares this command and the session log has no run of it. It may not have been reached, or a run may have ended before it could be recorded. Either way it is not a result.",
+        ctx.width,
+    ));
+    Item::row(
+        command.to_owned(),
+        vec![
+            Span::styled(format!("{} ", theme.markers.idle), theme.faint()),
+            Span::styled(
+                text::truncate(command, ctx.width.saturating_sub(24)),
+                theme.muted(),
+            ),
+        ],
+    )
+    .with_right(vec![Span::styled(
+        "no recorded run".to_owned(),
+        theme.faint(),
+    )])
+    .with_detail(detail)
 }
 
 fn team(ctx: &Ctx) -> Page {

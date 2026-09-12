@@ -103,7 +103,13 @@ selected row underneath it, and states its own keys in the status row.
   next message is delivered to, so replacing it would send that message to the wrong run.
   Stop the run with `/stop` first.
 - **Files** and **Changed files** — the working directory, and the changes recorded for the
-  loaded session.
+  loaded session. The change page states what was recorded, namely a path, a status and a
+  content hash rather than a copy, what version control was found at or above the working
+  directory, and that no earlier file content was kept anywhere.
+- **Recorded checks** — the acceptance commands ymp ran itself for the loaded session, with
+  the directory, the recorded outcome and the captured output. A command the plan declared
+  that has no recorded run is listed apart from the runs, because it is not a result. See
+  [recorded checks and recovery limits](../architecture/recorded-checks-and-recovery.md).
 - **Team**, **Agent profiles**, **Providers** — membership and configuration. On Agent
   profiles, `m` edits the model and `i` edits the instructions; `Space` enables a profile
   and `t` toggles membership. Changes are validated and saved to `config.toml`; a rejected

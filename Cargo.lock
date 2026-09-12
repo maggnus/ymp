@@ -1595,6 +1595,7 @@ dependencies = [
  "ymp-core",
  "ymp-runtime",
  "ymp-storage",
+ "ymp-workspace",
 ]
 
 [[package]]
