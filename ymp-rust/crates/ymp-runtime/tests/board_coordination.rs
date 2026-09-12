@@ -30,6 +30,8 @@ enum Mode {
     Membership,
     ReviseResponsibility,
     StaleMembership,
+    ParallelCommitment,
+    ParallelSelectionFailure,
 }
 struct Script {
     mode: Mode,
@@ -92,7 +94,13 @@ impl ExecutionBackend for Script {
                     .iter()
                     .find(|t| {
                         t["task"]["title"]
-                            == if matches!(self.mode, Mode::Reassign | Mode::ReviseResponsibility) {
+                            == if matches!(
+                                self.mode,
+                                Mode::Reassign
+                                    | Mode::ReviseResponsibility
+                                    | Mode::ParallelCommitment
+                                    | Mode::ParallelSelectionFailure
+                            ) {
                                 "Third"
                             } else {
                                 "Second"
@@ -120,6 +128,8 @@ impl ExecutionBackend for Script {
                         let response = call(&req,"task_propose",json!({"plan_version":"stale","rationale":"stale","change":{"kind":"membership","members":["one","two","three"]}})).await?;
                         self.calls.lock().unwrap().push(response);
                     }
+                    Mode::ParallelSelectionFailure => self.propose(&req, board, json!({"kind":"assign","task":reference,"agent_id":"two","settings":{"model":"small","effort":"low"}})).await?,
+                    Mode::ParallelCommitment => self.propose(&req, board, json!({"kind":"assign","task":reference,"agent_id":"one","settings":{"model":"small","effort":"low"}})).await?,
                     Mode::Reassign => self.propose(&req, board, json!({"kind":"assign","task":reference,"agent_id":if first {"two"} else {"one"},"settings":{"model":"small","effort":"low"}})).await?,
                     Mode::ReviseResponsibility => {
                         let change = if first { json!({"kind":"assign", "task":reference, "agent_id":"two", "settings":{"model":"small", "effort":"low"}}) }
@@ -184,10 +194,15 @@ impl ExecutionBackend for Script {
                 purpose => bail!("Unexpected purpose {purpose}"),
             };
             let text = if req.purpose == "plan"
-                && matches!(self.mode, Mode::Reassign | Mode::ReviseResponsibility)
-            {
+                && matches!(
+                    self.mode,
+                    Mode::Reassign
+                        | Mode::ReviseResponsibility
+                        | Mode::ParallelCommitment
+                        | Mode::ParallelSelectionFailure
+                ) {
                 let mut plan: Value = serde_json::from_str(&text)?;
-                plan["tasks"].as_array_mut().unwrap().push(json!({"title":"Third", "description":"Complete the reassigned final responsibility", "competence":"implementation", "difficulty":"simple", "dependencies":[1], "checks":[]}));
+                plan["tasks"].as_array_mut().unwrap().push(json!({"title":"Third", "description":"Complete the reassigned final responsibility", "competence":"implementation", "difficulty":"simple", "dependencies":[if matches!(self.mode, Mode::ParallelCommitment | Mode::ParallelSelectionFailure) {0} else {1}], "checks":[]}));
                 plan.to_string()
             } else {
                 text
@@ -652,4 +667,133 @@ async fn an_approach_revision_keeps_responsibility_and_stale_membership_cannot_o
     assert_eq!(changes.len(), 2);
     assert!(changes[0].accepted);
     assert!(!changes[1].accepted && changes[1].reason.contains("stale_membership"));
+}
+
+#[tokio::test]
+async fn parallel_commitment_waits_for_busy_owner_and_keeps_prior_claims_running() {
+    for parallel in [2, 1] {
+        let mut f = fixture(Mode::ParallelCommitment);
+        f.engine.config.limits.parallel = parallel;
+        let out = run(&f).await;
+        let trace = f.store.trace(&out.session.id).unwrap();
+        assert_eq!(
+            out.session.status, "completed",
+            "parallel={parallel}: {}",
+            out.summary
+        );
+        assert_eq!(trace.tasks.len(), 3);
+        assert!(trace
+            .tasks
+            .iter()
+            .all(|task| task.state == TaskState::Accepted));
+        let third = trace
+            .tasks
+            .iter()
+            .find(|task| task.title == "Third")
+            .unwrap();
+        assert_eq!(third.assignee.as_deref(), Some("one"));
+        assert_eq!(third.attempts, 1);
+        assert_eq!(
+            trace
+                .assignments
+                .iter()
+                .filter(|a| a.purpose == "execute")
+                .count(),
+            3
+        );
+        assert!(trace
+            .invocations
+            .iter()
+            .all(|i| i.requested.effort.as_deref() == Some("low")));
+        if parallel == 2 {
+            assert!(trace
+                .decisions
+                .iter()
+                .any(|d| d.kind == "assignment_waiting"
+                    && d.links
+                        .task
+                        .as_ref()
+                        .is_some_and(|task| task.task_id == third.id)
+                    && d.links
+                        .workspace_wait
+                        .as_ref()
+                        .is_some_and(|wait| wait.code == "commitment_busy")));
+        }
+    }
+}
+
+struct FailRepeatedExecutionChoice(Mutex<std::collections::HashMap<String, usize>>);
+impl AllocationPolicy for FailRepeatedExecutionChoice {
+    fn identity(&self) -> ExecutionBackendIdentity {
+        ExecutionBackendIdentity {
+            id: "test.late-selection-error".into(),
+            version: "1".into(),
+        }
+    }
+    fn propose(&self, input: &AllocationInput) -> Result<AllocationProposal> {
+        if input.demand.purpose == "execute" {
+            if let Some(task) = &input.demand.task_id {
+                let mut counts = self.0.lock().unwrap();
+                let count = counts.entry(task.clone()).or_default();
+                *count += 1;
+                if *count > 1 {
+                    bail!("scripted_selection_error: configuration became unavailable after commitment");
+                }
+            }
+        }
+        BoundedAllocationPolicy.propose(input)
+    }
+}
+#[tokio::test]
+async fn later_selection_error_drains_and_reviews_already_claimed_work() {
+    let mut f = fixture(Mode::ParallelSelectionFailure);
+    f.engine.config.limits.parallel = 2;
+    f.engine = f
+        .engine
+        .with_allocation_policy(Arc::new(FailRepeatedExecutionChoice(Mutex::new(
+            Default::default(),
+        ))))
+        .unwrap();
+    let out = run(&f).await;
+    assert_eq!(out.session.status, "blocked");
+    assert!(out.summary.contains("scripted_selection_error"));
+    let trace = f.store.trace(&out.session.id).unwrap();
+    let second = trace
+        .tasks
+        .iter()
+        .find(|task| task.title == "Second")
+        .unwrap();
+    let third = trace
+        .tasks
+        .iter()
+        .find(|task| task.title == "Third")
+        .unwrap();
+    assert_eq!(second.state, TaskState::Accepted);
+    assert_eq!(third.state, TaskState::Ready);
+    assert!(!trace
+        .tasks
+        .iter()
+        .any(|task| task.state == TaskState::Running));
+    assert_eq!(
+        trace
+            .assignments
+            .iter()
+            .filter(|a| a.purpose == "execute")
+            .count(),
+        2
+    );
+    assert_eq!(
+        f.engine
+            .board(&out.session.id)
+            .unwrap()
+            .tasks
+            .iter()
+            .find(|t| t.task.id == third.id)
+            .unwrap()
+            .commitment
+            .as_ref()
+            .unwrap()
+            .agent_id,
+        "two"
+    );
 }
