@@ -2383,22 +2383,38 @@ fn eligibility_words(agent: Option<&PoolAgent>) -> String {
         Some(agent) => agent
             .exclusions
             .iter()
-            .map(|exclusion| exclusion_word(*exclusion))
+            .map(|exclusion| exclusion_sentence(*exclusion))
             .collect::<Vec<_>>()
             .join("; "),
     }
 }
 
+/// The same reason with room to state what it means for a turn.
+fn exclusion_sentence(exclusion: PoolExclusion) -> &'static str {
+    match exclusion {
+        PoolExclusion::AgentDisabled => "the profile is disabled, so no turn is given to it",
+        PoolExclusion::ProviderDisabled => "its provider is disabled, so it cannot be reached",
+        PoolExclusion::ExecutableMissing => "the provider's program was not found on PATH",
+        PoolExclusion::ModelUnlisted => {
+            "the catalog read for its provider does not list the model it asks for"
+        }
+        PoolExclusion::NoModelsAvailable => "the catalog for its provider lists no model at all",
+        PoolExclusion::NativeModelUnresolved => {
+            "no native model is resolved for it, so nothing would be sent"
+        }
+    }
+}
+
+/// Why the pool refuses a profile, short enough for the right-hand side of a row at the
+/// narrowest supported width. The sentence behind it belongs in the record.
 fn exclusion_word(exclusion: PoolExclusion) -> &'static str {
     match exclusion {
         PoolExclusion::AgentDisabled => "the profile is disabled",
         PoolExclusion::ProviderDisabled => "its provider is disabled",
-        PoolExclusion::ExecutableMissing => "the provider's program was not found",
-        PoolExclusion::ModelUnlisted => "the configured catalog does not list the model",
-        PoolExclusion::NoModelsAvailable => "the configured catalog lists no model",
-        PoolExclusion::NativeModelUnresolved => {
-            "no native model is resolved for it, so nothing would be sent"
-        }
+        PoolExclusion::ExecutableMissing => "its program was not found",
+        PoolExclusion::ModelUnlisted => "the model is not in the catalog",
+        PoolExclusion::NoModelsAvailable => "the catalog lists no model",
+        PoolExclusion::NativeModelUnresolved => "no native model",
     }
 }
 

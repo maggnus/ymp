@@ -4824,3 +4824,77 @@ fn asking_a_disabled_installation_is_refused_with_its_reason() {
         notice.text
     );
 }
+
+#[tokio::test]
+async fn no_row_puts_more_in_its_right_column_than_the_narrowest_column_holds() {
+    // The right-hand side of a row is never truncated: a row that cannot fit it wraps, which
+    // breaks the list. So every state word has to fit the narrowest supported column with room
+    // left for the row's own name.
+    let room = crate::frame::page_content_width(crate::frame::main_width(
+        80,
+        crate::frame::sidebar_width(80),
+    )) as usize;
+    let budget = room - 12;
+    let run = mock_run("Create a greeting", |_| {}).await;
+    let mut app = run.app();
+    app.load_session(&run.session).unwrap();
+    let mut checked = 0;
+    for view in crate::views::NAV.iter().copied() {
+        // Help is the one page whose right side is prose rather than a state word: it sizes a
+        // description to the column it was built for and truncates it itself.
+        if view == crate::views::View::Help {
+            continue;
+        }
+        app.set_view(view);
+        for item in app.page(80).items.iter() {
+            let right = item
+                .right
+                .iter()
+                .map(|span| span.content.as_ref())
+                .collect::<String>();
+            assert!(
+                text::width(&right) <= budget,
+                "{:?} has a row whose right side needs {} of {budget} cells: {right:?}",
+                view,
+                text::width(&right)
+            );
+            checked += 1;
+        }
+    }
+    // And again with the shipped configuration and no session, which is where the pool states
+    // its own reasons for refusing a profile.
+    let mut fresh = App::new(
+        run.store.clone(),
+        Config::default(),
+        PathBuf::from(run.project.path()),
+    );
+    let mut refusals = 0;
+    for view in crate::views::NAV.iter().copied() {
+        if view == crate::views::View::Help {
+            continue;
+        }
+        fresh.set_view(view);
+        for item in fresh.page(80).items.iter() {
+            let right = item
+                .right
+                .iter()
+                .map(|span| span.content.as_ref())
+                .collect::<String>();
+            assert!(
+                text::width(&right) <= budget,
+                "{:?} has a row whose right side needs {} of {budget} cells: {right:?}",
+                view,
+                text::width(&right)
+            );
+            if right.contains("no native model") {
+                refusals += 1;
+            }
+            checked += 1;
+        }
+    }
+    assert!(
+        refusals > 0,
+        "no row carried the pool's own refusal, so the narrowest case went unchecked"
+    );
+    assert!(checked > 40, "only {checked} rows were checked");
+}
