@@ -50,10 +50,13 @@ configuration as it stands now.
 active in this window. In a stored session the same record means a turn that was left open,
 which is what an interrupted run leaves behind, and the page says so in those words.
 
-**Committed against graded.** A membership decision and a per-turn resource bound record
-their own outcome inside the record they carry, and no grade is ever written for them. Those
-rows read committed, refused, set or refused from that field; they are never reported as
-decisions recorded without an outcome, and the grade words below are not applied to them.
+**Committed against graded.** Several records decide inside themselves, and no grade is ever
+written for them: a membership change, a per-turn resource bound, a wait, the three records of a
+directory reservation, and a captured acceptance contract. Both the row and the record it opens
+read the outcome from that field, and they read it from the same one, so a row cannot state an
+outcome the record then denies: committed or refused, set or refused, waited under its own code,
+reserved, admitted, ended, or captured before the work. None of them is reported as a decision
+recorded without an outcome, and the grade words below are not applied to them.
 
 **Accepted, unconfirmed, confirmed, unknown.** An acceptance carries a grade. Confirmed means
 the evidence the acceptance bound passed for every criterion it applies to. Unconfirmed means
