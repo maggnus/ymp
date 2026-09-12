@@ -1829,7 +1829,7 @@
       "title": "Separate acceptance from confirmation and gate reputation on evidence",
       "type": "implementation",
       "priority": "P0",
-      "status": "in_progress",
+      "status": "done",
       "owner": "Maintainer",
       "authorization": "Derived from the owner-approved intent and work-plan request. Follow recorded dependencies; real-provider quota remains separately authorized.",
       "depends_on": [
@@ -1850,7 +1850,10 @@
       "evidence": [
         "[Approved intent](../../intent.md)",
         "[Delivery plan](plan.md)",
-        "[Replaceable subsystem contracts](../architecture/subsystem-interfaces.md)"
+        "[Replaceable subsystem contracts](../architecture/subsystem-interfaces.md)",
+        "[Confirmation and reputation contract](../architecture/confirmation.md)",
+        "[Independent R1-R2 review](../../ymp-evals/reports/ymp-117-independent-review.md)",
+        "[Independent integration review](../../ymp-evals/reports/ymp-117-integration-review.md)"
       ],
       "history": [
         {
@@ -1892,6 +1895,11 @@
           "at": "2026-09-12T13:46:30.334672+00:00",
           "status": "in_progress",
           "note": "Standalone R2(9/10) ACCEPT closes F1-F4. Integration with accepted budget/authority and recorded-check UI is under independent review. A confirmation enum name collision was resolved without wire changes; Opus5 max corrected four UI fixtures to use valid Review state, preserving all assertions. Integrated candidate passes220 tests; not yet on main."
+        },
+        {
+          "at": "2026-09-12T13:59:23.759206+00:00",
+          "status": "done",
+          "note": "R2(9/10) ACCEPT and I1(9/10) integration ACCEPT. Integrated cad2218,4e3eff7,b900cf3,d2f0e50. Result-bound independent reviews, current evidence grades and idempotent confirmed credit hold across admission, grants and narration. Main matches reviewed source; fmt/clippy and 220 Rust tests exit 0. Historical unsupported observations remain unknown and excluded from qualified selection."
         }
       ]
     },
@@ -2239,7 +2247,7 @@
       ]
     }
   ],
-  "updated_at": "2026-09-12T13:46:30.437275+00:00",
+  "updated_at": "2026-09-12T13:59:23.759206+00:00",
   "delivery_order": [
     "YMP-116",
     "YMP-103",
