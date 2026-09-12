@@ -289,6 +289,7 @@ fn fixture(mode: Mode) -> Fixture {
         .unwrap();
     engine.use_memory = false;
     engine.acceptance_contracts.push(AcceptanceContract {
+        knowledge_correction: None,
         task_title: "First".into(),
         criteria: vec![AcceptanceCriterion {
             id: "exact".into(),
