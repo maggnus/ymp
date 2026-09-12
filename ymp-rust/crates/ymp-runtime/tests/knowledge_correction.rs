@@ -18,6 +18,9 @@ use ymp_providers::{
 use ymp_runtime::*;
 use ymp_storage::Store;
 
+#[path = "knowledge_correction/board_integration.rs"]
+mod board_integration;
+
 struct Scripted {
     value: AtomicUsize,
     fail_plan: AtomicBool,
