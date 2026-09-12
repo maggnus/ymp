@@ -1,6 +1,6 @@
 # Task details and evidence
 
-Updated: 2026-09-12 12:55 UTC.
+Updated: 2026-09-12 13:00 UTC.
 
 Use the [delivery plan](plan.md) to follow progress. This generated register contains full acceptance criteria, dependencies and evidence. [tasks.json](tasks.json) is the single source; [manage.py](manage.py) updates both pages.
 
@@ -14,7 +14,7 @@ A planned task is not implemented functionality. Completed research and planning
 | design | 1 | 1 |
 | documentation | 4 | 4 |
 | experiment | 0 | 4 |
-| implementation | 8 | 19 |
+| implementation | 8 | 20 |
 | research | 8 | 8 |
 | verification | 1 | 2 |
 
@@ -59,9 +59,10 @@ A planned task is not implemented functionality. Completed research and planning
 | `[~]` | [YMP-120](#ymp-120) | P0 | Enforce assignment-scoped permissions and runtime-only state transitions | 2026-09-12 12:55 |
 | `[=]` | [YMP-118](#ymp-118) | P0 | Integrate core assignment, budget and confirmation visibility | 2026-09-12 12:20 |
 | `[x]` | [YMP-119](#ymp-119) | P0 | Prepare universal acceptance scenarios and independent validators | 2026-09-12 10:56 |
-| `[=]` | [YMP-121](#ymp-121) | P1 | Verify the integrated application and package a local release | 2026-09-12 12:46 |
+| `[=]` | [YMP-121](#ymp-121) | P1 | Verify the integrated application and package a local release | 2026-09-12 13:00 |
 | `[x]` | [YMP-013](#ymp-013) | P0 | Review plan coherence and simplify progress tracking | 2026-09-12 09:46 |
 | `[+]` | [YMP-122](#ymp-122) | P1 | Expose replaceable execution backends behind runtime-owned controls | 2026-09-12 12:46 |
+| `[+]` | [YMP-123](#ymp-123) | P1 | Expose a public local MCP facade over stdio | 2026-09-12 13:00 |
 
 ## YMP-001
 
@@ -1299,19 +1300,19 @@ Verify the integrated application and package a local release
 
 **State:** `[=]` (planned) · **Type:** verification · **Priority:** P1
 
-**Last update (UTC):** 2026-09-12 12:46
+**Last update (UTC):** 2026-09-12 13:00
 
-**Current reason:** Needs YMP-112, YMP-115, YMP-114, YMP-118, YMP-122
+**Current reason:** Needs YMP-112, YMP-115, YMP-114, YMP-118, YMP-122, YMP-123
 
 **Owner:** Independent final reviewer at max reasoning; maintainer integrates and packages
 
 **Authorization:** Offline packaging and check preparation follow the approved delivery plan. Actual native inference requires its explicit bounded quota authorization; none is granted by this planning task.
 
-**Depends on:** [YMP-119](#ymp-119), [YMP-103](#ymp-103), [YMP-105](#ymp-105), [YMP-107](#ymp-107), [YMP-112](#ymp-112), [YMP-115](#ymp-115), [YMP-114](#ymp-114), [YMP-118](#ymp-118), [YMP-122](#ymp-122)
+**Depends on:** [YMP-119](#ymp-119), [YMP-103](#ymp-103), [YMP-105](#ymp-105), [YMP-107](#ymp-107), [YMP-112](#ymp-112), [YMP-115](#ymp-115), [YMP-114](#ymp-114), [YMP-118](#ymp-118), [YMP-122](#ymp-122), [YMP-123](#ymp-123)
 
 A local release needs a reproducible install and truthful compatibility evidence for the configured native providers.
 
-**Latest progress note:** Owner extension requirement added: Verify implementation substitution through the public engine and owning subsystem interfaces, preserving runtime constraints and recorded implementation identities.
+**Latest progress note:** Final release includes the owner-selected public stdio MCP interface through YMP-123.
 
 **Acceptance criteria:**
 
@@ -1323,6 +1324,7 @@ A local release needs a reproducible install and truthful compatibility evidence
 - Document migration/recovery behavior and output locations; announce completion only after all required release checks pass.
 - Perform the final requirement-by-requirement release review with an independent max-reasoning agent; xhigh is the minimum for other delegated engineering work.
 - Verify implementation substitution through the public engine and owning subsystem interfaces, preserving runtime constraints and recorded implementation identities.
+- Verify public stdio MCP interoperability and lifecycle against shared runtime controls using a real client and scripted execution; provider inference checks retain separate quota authorization.
 
 **Evidence:**
 
@@ -1393,6 +1395,37 @@ A direct built-in provider call couples engine orchestration to one execution im
 **Evidence:**
 
 - [Owner-directed subsystem interfaces](../architecture/subsystem-interfaces.md)
+
+## YMP-123
+
+Expose a public local MCP facade over stdio
+
+**State:** `[+]` (new) · **Type:** implementation · **Priority:** P1
+
+**Last update (UTC):** 2026-09-12 13:00
+
+**Current reason:** Added from owner MCP discussion and stdio selection. External access is a new delivery outcome; the existing internal socket bridge is not claimed as a public server.
+
+**Owner:** Maintainer
+
+**Authorization:** Owner discussion on2026-09-12 requested external MCP availability and selected stdio; standing autonomous delivery authorization applies.
+
+**Depends on:** [YMP-117](#ymp-117), [YMP-120](#ymp-120), [YMP-122](#ymp-122)
+
+External clients should be able to use YMP knowledge and bounded team execution through a stable interface that shares the CLI/TUI domain services.
+
+**Acceptance criteria:**
+
+- Expose a standards-compatible public stdio MCP process with declared protocol revisions, versioned tool schemas and a runnable client configuration example; stdout contains only protocol messages.
+- Provide project-scoped knowledge/session/task/result/evidence inspection; read-only tools never start agents.
+- Support explicit bounded start/resume, progress and cancellation through the same runtime. Define disconnect/process-exit behavior and preserve interrupted work and usage.
+- Distinguish external client requests and project/action scope from internal agent assignment grants. Reject foreign-project references and do not disclose provider credentials or live assignment capabilities.
+- Run the real stdio process with an MCP client and scripted provider through discovery, read/write lifecycle, cancellation, malformed requests, scope denial, disconnect and reopen. Final release verifies actual interoperability.
+- Keep the facade thin and transport replaceable; no second orchestrator, shared daemon requirement, HTTP service or remote authentication system is introduced.
+
+**Evidence:**
+
+- [Public MCP scope and transport decision](../architecture/public-mcp.md)
 
 ## Intent coverage
 

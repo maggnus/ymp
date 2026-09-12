@@ -2029,7 +2029,8 @@
         "YMP-115",
         "YMP-114",
         "YMP-118",
-        "YMP-122"
+        "YMP-122",
+        "YMP-123"
       ],
       "reason": "A local release needs a reproducible install and truthful compatibility evidence for the configured native providers.",
       "acceptance": [
@@ -2040,7 +2041,8 @@
         "Distinguish offline fixture coverage from verified native behavior and unsupported capabilities in release notes.",
         "Document migration/recovery behavior and output locations; announce completion only after all required release checks pass.",
         "Perform the final requirement-by-requirement release review with an independent max-reasoning agent; xhigh is the minimum for other delegated engineering work.",
-        "Verify implementation substitution through the public engine and owning subsystem interfaces, preserving runtime constraints and recorded implementation identities."
+        "Verify implementation substitution through the public engine and owning subsystem interfaces, preserving runtime constraints and recorded implementation identities.",
+        "Verify public stdio MCP interoperability and lifecycle against shared runtime controls using a real client and scripted execution; provider inference checks retain separate quota authorization."
       ],
       "evidence": [
         "[Approved intent](../../intent.md)",
@@ -2062,6 +2064,11 @@
           "at": "2026-09-12T12:46:29.117507+00:00",
           "status": "planned",
           "note": "Owner extension requirement added: Verify implementation substitution through the public engine and owning subsystem interfaces, preserving runtime constraints and recorded implementation identities."
+        },
+        {
+          "at": "2026-09-12T13:00:04.752401+00:00",
+          "status": "planned",
+          "note": "Final release includes the owner-selected public stdio MCP interface through YMP-123."
         }
       ],
       "budget": "Not allocated. Prepare a concrete bounded smoke-check proposal before any real-provider inference."
@@ -2141,9 +2148,42 @@
           "note": "Added from explicit owner steering: favor interfaces/plugins so alternative subsystem implementations can be evaluated. Native execution is the first common interface; related task criteria retain subsystem ownership."
         }
       ]
+    },
+    {
+      "id": "YMP-123",
+      "title": "Expose a public local MCP facade over stdio",
+      "type": "implementation",
+      "priority": "P1",
+      "status": "new",
+      "owner": "Maintainer",
+      "authorization": "Owner discussion on2026-09-12 requested external MCP availability and selected stdio; standing autonomous delivery authorization applies.",
+      "depends_on": [
+        "YMP-117",
+        "YMP-120",
+        "YMP-122"
+      ],
+      "reason": "External clients should be able to use YMP knowledge and bounded team execution through a stable interface that shares the CLI/TUI domain services.",
+      "acceptance": [
+        "Expose a standards-compatible public stdio MCP process with declared protocol revisions, versioned tool schemas and a runnable client configuration example; stdout contains only protocol messages.",
+        "Provide project-scoped knowledge/session/task/result/evidence inspection; read-only tools never start agents.",
+        "Support explicit bounded start/resume, progress and cancellation through the same runtime. Define disconnect/process-exit behavior and preserve interrupted work and usage.",
+        "Distinguish external client requests and project/action scope from internal agent assignment grants. Reject foreign-project references and do not disclose provider credentials or live assignment capabilities.",
+        "Run the real stdio process with an MCP client and scripted provider through discovery, read/write lifecycle, cancellation, malformed requests, scope denial, disconnect and reopen. Final release verifies actual interoperability.",
+        "Keep the facade thin and transport replaceable; no second orchestrator, shared daemon requirement, HTTP service or remote authentication system is introduced."
+      ],
+      "evidence": [
+        "[Public MCP scope and transport decision](../architecture/public-mcp.md)"
+      ],
+      "history": [
+        {
+          "at": "2026-09-12T13:00:04.752401+00:00",
+          "status": "new",
+          "note": "Added from owner MCP discussion and stdio selection. External access is a new delivery outcome; the existing internal socket bridge is not claimed as a public server."
+        }
+      ]
     }
   ],
-  "updated_at": "2026-09-12T12:55:53.775508+00:00",
+  "updated_at": "2026-09-12T13:00:04.752401+00:00",
   "delivery_order": [
     "YMP-116",
     "YMP-103",
@@ -2165,6 +2205,7 @@
     "YMP-114",
     "YMP-107",
     "YMP-118",
+    "YMP-123",
     "YMP-121"
   ],
   "intent": "intent.md",
@@ -2238,6 +2279,7 @@
       "task_ids": [
         "YMP-107",
         "YMP-118",
+        "YMP-123",
         "YMP-121"
       ]
     }
