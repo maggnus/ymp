@@ -1,6 +1,6 @@
 # Task details and evidence
 
-Updated: 2026-09-12 14:50 UTC.
+Updated: 2026-09-12 15:23 UTC.
 
 Use the [delivery plan](plan.md) to follow progress. This generated register contains full acceptance criteria, dependencies and evidence. [tasks.json](tasks.json) is the single source; [manage.py](manage.py) updates both pages.
 
@@ -14,7 +14,7 @@ A planned task is not implemented functionality. Completed research and planning
 | design | 1 | 1 |
 | documentation | 4 | 4 |
 | experiment | 0 | 4 |
-| implementation | 11 | 20 |
+| implementation | 12 | 20 |
 | research | 8 | 8 |
 | verification | 1 | 2 |
 
@@ -45,9 +45,9 @@ A planned task is not implemented functionality. Completed research and planning
 | `[=]` | [YMP-204](#ymp-204) | P1 | Evaluate a project-scoped prior-outcome router | 2026-09-12 09:35 |
 | `[=]` | [YMP-301](#ymp-301) | P2 | Confirm the initial success class and intended audience | 2026-09-12 09:35 |
 | `[x]` | [YMP-109](#ymp-109) | P0 | Expose the provider-backed agent pool with stable individual identities | 2026-09-12 10:56 |
-| `[~]` | [YMP-110](#ymp-110) | P0 | Select session teams and execution settings within user constraints | 2026-09-12 14:16 |
+| `[~]` | [YMP-110](#ymp-110) | P0 | Select session teams and execution settings within user constraints | 2026-09-12 15:23 |
 | `[=]` | [YMP-112](#ymp-112) | P0 | Coordinate commitments, plan revisions and reassignment through the board | 2026-09-12 12:46 |
-| `[~]` | [YMP-113](#ymp-113) | P0 | Accumulate general knowledge and verified experience incrementally | 2026-09-12 14:16 |
+| `[~]` | [YMP-113](#ymp-113) | P0 | Accumulate general knowledge and verified experience incrementally | 2026-09-12 15:23 |
 | `[=]` | [YMP-114](#ymp-114) | P0 | Correct and supersede knowledge with newer verified evidence | 2026-09-12 12:46 |
 | `[x]` | [YMP-009](#ymp-009) | P0 | Align the product definition, research conclusions and backlog with final intent | 2026-09-12 09:15 |
 | `[?]` | [YMP-115](#ymp-115) | P0 | Enable useful concurrent execution of independent assignments | 2026-09-12 12:25 |
@@ -61,7 +61,7 @@ A planned task is not implemented functionality. Completed research and planning
 | `[x]` | [YMP-119](#ymp-119) | P0 | Prepare universal acceptance scenarios and independent validators | 2026-09-12 10:56 |
 | `[=]` | [YMP-121](#ymp-121) | P1 | Verify the integrated application and package a local release | 2026-09-12 14:50 |
 | `[x]` | [YMP-013](#ymp-013) | P0 | Review plan coherence and simplify progress tracking | 2026-09-12 09:46 |
-| `[~]` | [YMP-122](#ymp-122) | P1 | Expose replaceable execution backends behind runtime-owned controls | 2026-09-12 14:36 |
+| `[x]` | [YMP-122](#ymp-122) | P1 | Expose replaceable execution backends behind runtime-owned controls | 2026-09-12 15:23 |
 | `[+]` | [YMP-123](#ymp-123) | P1 | Expose a public local MCP facade over stdio | 2026-09-12 13:00 |
 
 ## YMP-001
@@ -805,9 +805,9 @@ Select session teams and execution settings within user constraints
 
 **State:** `[~]` (in_progress) · **Type:** implementation · **Priority:** P0
 
-**Last update (UTC):** 2026-09-12 14:16
+**Last update (UTC):** 2026-09-12 15:23
 
-**Current reason:** Dynamic membership and joint team/model/effort policies assigned at xhigh. Typed proposals remain separate from runtime commitment; historical membership must not authorize current grants. Implementation preserves fixed constraints, qualified experience and independent final review eligibility.
+**Current reason:** R1(5/10) RETURN: public admission could turn the reserved final reviewer into a producer; a known unsupported pinned reviewer consumed startup work before rejection. Author is correcting shared admission and pre-start configuration validation with exact public controls. Normal Cargo and validator tests had passed.
 
 **Owner:** Maintainer; application UI by Claude Code claude-opus-5 with thinking max via Paseo
 
@@ -886,9 +886,9 @@ Accumulate general knowledge and verified experience incrementally
 
 **State:** `[~]` (in_progress) · **Type:** implementation · **Priority:** P0
 
-**Last update (UTC):** 2026-09-12 14:16
+**Last update (UTC):** 2026-09-12 15:23
 
-**Current reason:** Incremental knowledge and outcome inspection assigned at xhigh. Candidates remain explicitly unconfirmed; supported source-bound projections can survive later failure and be reused under applicability constraints. Retrieval/proposal policies are replaceable and runtime retains source/scope/activation control.
+**Current reason:** R1(6/10) RETURN: outcome paths were derived from mutable Project.path and could be invented after relocation. Author is binding location/freshness to immutable captured workspaces and returning unknown explicitly for unsupported legacy records. Unbounded MCP search payloads are separately tracked under YMP-123.
 
 **Owner:** Maintainer; application UI by Claude Code claude-opus-5 with thinking max via Paseo
 
@@ -1305,7 +1305,7 @@ Verify the integrated application and package a local release
 
 **Last update (UTC):** 2026-09-12 14:50
 
-**Current reason:** Needs YMP-112, YMP-115, YMP-114, YMP-118, YMP-122, YMP-123
+**Current reason:** Needs YMP-112, YMP-115, YMP-114, YMP-118, YMP-123
 
 **Owner:** Independent final reviewer at max reasoning; maintainer integrates and packages
 
@@ -1375,11 +1375,11 @@ The plan duplicates prose, delays independent work and does not yet expose owner
 
 Expose replaceable execution backends behind runtime-owned controls
 
-**State:** `[~]` (in_progress) · **Type:** implementation · **Priority:** P1
+**State:** `[x]` (done) · **Type:** implementation · **Priority:** P1
 
-**Last update (UTC):** 2026-09-12 14:36
+**Last update (UTC):** 2026-09-12 15:23
 
-**Current reason:** Standalone R1(9/10) accepted. Combined confirmation/backend integration exposed producer-v2 versus storage-v1 attribution mismatch; shared core version calculation fixes the unchanged failing consumer, preserves historical identity and passes 230 tests. Independent integration review is next; code remains outside main.
+**Current reason:** R1(9/10) ACCEPT and I1(9/10) integration ACCEPT. Integrated 11250c9,762b3d2,d8c284c. Native/scripted backends share guards; identity, continuation baselines and confirmed-credit validation agree, including historical v1 records. Main matches reviewed source; fmt/clippy and 230 Rust tests exit 0.
 
 **Owner:** Maintainer
 
@@ -1400,6 +1400,9 @@ A direct built-in provider call couples engine orchestration to one execution im
 **Evidence:**
 
 - [Owner-directed subsystem interfaces](../architecture/subsystem-interfaces.md)
+- [Execution backend interface](../architecture/execution-backends.md)
+- [Independent backend review](../../ymp-evals/reports/ymp-122-independent-review.md)
+- [Independent confirmation/backend integration review](../../ymp-evals/reports/ymp-122-integration-review.md)
 
 ## YMP-123
 
@@ -1427,6 +1430,7 @@ External clients should be able to use YMP knowledge and bounded team execution 
 - Distinguish external client requests and project/action scope from internal agent assignment grants. Reject foreign-project references and do not disclose provider credentials or live assignment capabilities.
 - Run the real stdio process with an MCP client and scripted provider through discovery, read/write lifecycle, cancellation, malformed requests, scope denial, disconnect and reopen. Final release verifies actual interoperability.
 - Keep the facade thin and transport replaceable; no second orchestrator, shared daemon requirement, HTTP service or remote authentication system is introduced.
+- Bound and paginate knowledge/history/result payloads with explicit truncation or continuation. Reuse bounded projections for internal agent MCP memory search, whose full candidate results can otherwise exceed useful context limits; do not confuse this with the separate automatic prompt excerpt cap.
 
 **Evidence:**
 

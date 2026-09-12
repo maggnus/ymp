@@ -1330,6 +1330,11 @@
           "at": "2026-09-12T14:16:57.448421+00:00",
           "status": "in_progress",
           "note": "Dynamic membership and joint team/model/effort policies assigned at xhigh. Typed proposals remain separate from runtime commitment; historical membership must not authorize current grants. Implementation preserves fixed constraints, qualified experience and independent final review eligibility."
+        },
+        {
+          "at": "2026-09-12T15:23:32.455382+00:00",
+          "status": "in_progress",
+          "note": "R1(5/10) RETURN: public admission could turn the reserved final reviewer into a producer; a known unsupported pinned reviewer consumed startup work before rejection. Author is correcting shared admission and pre-start configuration validation with exact public controls. Normal Cargo and validator tests had passed."
         }
       ]
     },
@@ -1467,6 +1472,11 @@
           "at": "2026-09-12T14:16:57.549928+00:00",
           "status": "in_progress",
           "note": "Incremental knowledge and outcome inspection assigned at xhigh. Candidates remain explicitly unconfirmed; supported source-bound projections can survive later failure and be reused under applicability constraints. Retrieval/proposal policies are replaceable and runtime retains source/scope/activation control."
+        },
+        {
+          "at": "2026-09-12T15:23:32.560823+00:00",
+          "status": "in_progress",
+          "note": "R1(6/10) RETURN: outcome paths were derived from mutable Project.path and could be invented after relocation. Author is binding location/freshness to immutable captured workspaces and returning unknown explicitly for unsupported legacy records. Unbounded MCP search payloads are separately tracked under YMP-123."
         }
       ]
     },
@@ -2194,7 +2204,7 @@
       "title": "Expose replaceable execution backends behind runtime-owned controls",
       "type": "implementation",
       "priority": "P1",
-      "status": "in_progress",
+      "status": "done",
       "owner": "Maintainer",
       "authorization": "Explicit owner request on2026-09-12 to favor interfaces/plugins and permit alternative subsystem implementations; standing autonomous delivery authorization applies.",
       "depends_on": [
@@ -2210,7 +2220,10 @@
         "Document the extension contract and ownership of policy, retrieval and confirmation interfaces without introducing a dynamic plugin ABI, plugin service or generic container. Those interfaces are delivered in their owning tasks and verified by final integration."
       ],
       "evidence": [
-        "[Owner-directed subsystem interfaces](../architecture/subsystem-interfaces.md)"
+        "[Owner-directed subsystem interfaces](../architecture/subsystem-interfaces.md)",
+        "[Execution backend interface](../architecture/execution-backends.md)",
+        "[Independent backend review](../../ymp-evals/reports/ymp-122-independent-review.md)",
+        "[Independent confirmation/backend integration review](../../ymp-evals/reports/ymp-122-integration-review.md)"
       ],
       "history": [
         {
@@ -2237,6 +2250,11 @@
           "at": "2026-09-12T14:36:46.296272+00:00",
           "status": "in_progress",
           "note": "Standalone R1(9/10) accepted. Combined confirmation/backend integration exposed producer-v2 versus storage-v1 attribution mismatch; shared core version calculation fixes the unchanged failing consumer, preserves historical identity and passes 230 tests. Independent integration review is next; code remains outside main."
+        },
+        {
+          "at": "2026-09-12T15:23:32.342294+00:00",
+          "status": "done",
+          "note": "R1(9/10) ACCEPT and I1(9/10) integration ACCEPT. Integrated 11250c9,762b3d2,d8c284c. Native/scripted backends share guards; identity, continuation baselines and confirmed-credit validation agree, including historical v1 records. Main matches reviewed source; fmt/clippy and 230 Rust tests exit 0."
         }
       ]
     },
@@ -2260,7 +2278,8 @@
         "Support explicit bounded start/resume, progress and cancellation through the same runtime. Define disconnect/process-exit behavior and preserve interrupted work and usage.",
         "Distinguish external client requests and project/action scope from internal agent assignment grants. Reject foreign-project references and do not disclose provider credentials or live assignment capabilities.",
         "Run the real stdio process with an MCP client and scripted provider through discovery, read/write lifecycle, cancellation, malformed requests, scope denial, disconnect and reopen. Final release verifies actual interoperability.",
-        "Keep the facade thin and transport replaceable; no second orchestrator, shared daemon requirement, HTTP service or remote authentication system is introduced."
+        "Keep the facade thin and transport replaceable; no second orchestrator, shared daemon requirement, HTTP service or remote authentication system is introduced.",
+        "Bound and paginate knowledge/history/result payloads with explicit truncation or continuation. Reuse bounded projections for internal agent MCP memory search, whose full candidate results can otherwise exceed useful context limits; do not confuse this with the separate automatic prompt excerpt cap."
       ],
       "evidence": [
         "[Public MCP scope and transport decision](../architecture/public-mcp.md)"
@@ -2274,7 +2293,7 @@
       ]
     }
   ],
-  "updated_at": "2026-09-12T14:50:45.441499+00:00",
+  "updated_at": "2026-09-12T15:23:32.560823+00:00",
   "delivery_order": [
     "YMP-116",
     "YMP-103",
