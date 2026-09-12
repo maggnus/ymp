@@ -1,6 +1,6 @@
 # Task details and evidence
 
-Updated: 2026-09-12 09:46 UTC.
+Updated: 2026-09-12 10:07 UTC.
 
 Use the [delivery plan](plan.md) to follow progress. This generated register contains full acceptance criteria, dependencies and evidence. [tasks.json](tasks.json) is the single source; [manage.py](manage.py) updates both pages.
 
@@ -11,7 +11,7 @@ A planned task is not implemented functionality. Completed research and planning
 | Type | Completed | Total |
 | --- | ---: | ---: |
 | decision | 1 | 2 |
-| design | 0 | 1 |
+| design | 1 | 1 |
 | documentation | 4 | 4 |
 | experiment | 0 | 4 |
 | implementation | 0 | 18 |
@@ -30,11 +30,11 @@ A planned task is not implemented functionality. Completed research and planning
 | `[x]` | [YMP-006](#ymp-006) | P0 | Review UI concentration and working-directory recovery communication | 2026-09-12 05:48 |
 | `[x]` | [YMP-007](#ymp-007) | P0 | Evaluate verification-grounded outcome reuse and lifecycle evidence | 2026-09-11 16:00 |
 | `[x]` | [YMP-008](#ymp-008) | P0 | Reconcile native and canonical usage and recompute weighted input | 2026-09-11 16:00 |
-| `[=]` | [YMP-101](#ymp-101) | P0 | Persist explainable session decisions and execution provenance | 2026-09-12 09:06 |
+| `[~]` | [YMP-101](#ymp-101) | P0 | Persist explainable session decisions and execution provenance | 2026-09-12 10:07 |
 | `[=]` | [YMP-102](#ymp-102) | P0 | Add explicit session resource budgets and unknown-usage policy | 2026-09-12 09:35 |
-| `[ ]` | [YMP-103](#ymp-103) | P0 | Honor Codex nonterminal retry notifications | 2026-09-12 09:06 |
-| `[ ]` | [YMP-104](#ymp-104) | P0 | Preserve accepted outcomes and confirmation status when final narration fails | 2026-09-12 09:35 |
-| `[ ]` | [YMP-105](#ymp-105) | P1 | Enumerate file names without reading file contents | 2026-09-12 09:06 |
+| `[~]` | [YMP-103](#ymp-103) | P0 | Honor Codex nonterminal retry notifications | 2026-09-12 09:58 |
+| `[~]` | [YMP-104](#ymp-104) | P0 | Preserve accepted outcomes and confirmation status when final narration fails | 2026-09-12 10:07 |
+| `[~]` | [YMP-105](#ymp-105) | P1 | Enumerate file names without reading file contents | 2026-09-12 10:07 |
 | `[=]` | [YMP-106](#ymp-106) | P1 | Use task-specific memory queries and record retrieval evidence | 2026-09-12 09:06 |
 | `[=]` | [YMP-107](#ymp-107) | P1 | Expose recorded checks and factual recovery limits | 2026-09-12 09:35 |
 | `[=]` | [YMP-108](#ymp-108) | P2 | Evaluate an optional usage estimate with explicit price provenance | 2026-09-12 09:35 |
@@ -54,11 +54,11 @@ A planned task is not implemented functionality. Completed research and planning
 | `[x]` | [YMP-010](#ymp-010) | P0 | Approve product goals and core protocol constraints | 2026-09-12 09:06 |
 | `[x]` | [YMP-011](#ymp-011) | P0 | Document bounded dynamic teams and assignment-level effort | 2026-09-12 08:41 |
 | `[x]` | [YMP-012](#ymp-012) | P0 | Establish the delivery plan and traceable backlog for the approved intent | 2026-09-12 09:15 |
-| `[ ]` | [YMP-116](#ymp-116) | P0 | Define the minimal runtime transition and authority contract | 2026-09-12 09:35 |
+| `[x]` | [YMP-116](#ymp-116) | P0 | Define the minimal runtime transition and authority contract | 2026-09-12 10:07 |
 | `[=]` | [YMP-117](#ymp-117) | P0 | Separate acceptance from confirmation and gate reputation on evidence | 2026-09-12 09:35 |
 | `[=]` | [YMP-120](#ymp-120) | P0 | Enforce assignment-scoped permissions and runtime-only state transitions | 2026-09-12 09:35 |
 | `[=]` | [YMP-118](#ymp-118) | P0 | Integrate core assignment, budget and confirmation visibility | 2026-09-12 09:35 |
-| `[=]` | [YMP-119](#ymp-119) | P0 | Prepare universal acceptance scenarios and independent validators | 2026-09-12 09:35 |
+| `[ ]` | [YMP-119](#ymp-119) | P0 | Prepare universal acceptance scenarios and independent validators | 2026-09-12 09:35 |
 | `[=]` | [YMP-121](#ymp-121) | P1 | Verify the integrated application and package a local release | 2026-09-12 09:35 |
 | `[x]` | [YMP-013](#ymp-013) | P0 | Review plan coherence and simplify progress tracking | 2026-09-12 09:46 |
 
@@ -294,11 +294,11 @@ H9 adds a proposed effective-token metric and alleges disagreements between usag
 
 Persist explainable session decisions and execution provenance
 
-**State:** `[=]` (planned) · **Type:** implementation · **Priority:** P0
+**State:** `[~]` (in_progress) · **Type:** implementation · **Priority:** P0
 
-**Last update (UTC):** 2026-09-12 09:06
+**Last update (UTC):** 2026-09-12 10:07
 
-**Current reason:** Needs YMP-116
+**Current reason:** Implementing typed assignment/invocation provenance and atomic records/events from the reviewed contract.
 
 **Owner:** Maintainer
 
@@ -307,8 +307,6 @@ Persist explainable session decisions and execution provenance
 **Depends on:** [YMP-116](#ymp-116)
 
 The final intent requires incremental records that reconstruct team decisions and keep work observable without user micromanagement.
-
-**Latest progress note:** Reconciled with approved intent and delivery milestones; superseded blanket pause removed. Dependencies and evidence requirements govern starting work.
 
 **Acceptance criteria:**
 
@@ -366,11 +364,11 @@ A shared budget and user constraints bound the autonomous team; budgeting is a c
 
 Honor Codex nonterminal retry notifications
 
-**State:** `[ ]` (planned) · **Type:** implementation · **Priority:** P0
+**State:** `[~]` (in_progress) · **Type:** implementation · **Priority:** P0
 
-**Last update (UTC):** 2026-09-12 09:06
+**Last update (UTC):** 2026-09-12 09:58
 
-**Current reason:** Ready to start
+**Current reason:** Assigned to an xhigh subagent in an isolated worktree; provider retry handling and offline regression proof.
 
 **Owner:** Maintainer
 
@@ -379,8 +377,6 @@ Honor Codex nonterminal retry notifications
 **Depends on:** [YMP-010](#ymp-010)
 
 The installed protocol declares willRetry, but the adapter treats every error notification as terminal. An offline native-retry notice followed by success currently blocks the session.
-
-**Latest progress note:** All recorded prerequisites are complete. This task is ready; no implementation has started in the planning turn.
 
 **Acceptance criteria:**
 
@@ -400,11 +396,11 @@ The installed protocol declares willRetry, but the adapter treats every error no
 
 Preserve accepted outcomes and confirmation status when final narration fails
 
-**State:** `[ ]` (planned) · **Type:** implementation · **Priority:** P0
+**State:** `[~]` (in_progress) · **Type:** implementation · **Priority:** P0
 
-**Last update (UTC):** 2026-09-12 09:35
+**Last update (UTC):** 2026-09-12 10:07
 
-**Current reason:** Ready to start
+**Current reason:** Fix committed in isolated worktree; failing-before regression and full checks passed. Independent review is in progress before integration.
 
 **Owner:** Maintainer
 
@@ -413,8 +409,6 @@ Preserve accepted outcomes and confirmation status when final narration fails
 **Depends on:** [YMP-010](#ymp-010)
 
 A synthesis failure currently blocks a session after the artifact, candidate review, and final review have succeeded.
-
-**Latest progress note:** The existing narration-failure defect can be fixed directly. Later confirmation changes must preserve the same fallback behavior.
 
 **Acceptance criteria:**
 
@@ -433,11 +427,11 @@ A synthesis failure currently blocks a session after the artifact, candidate rev
 
 Enumerate file names without reading file contents
 
-**State:** `[ ]` (planned) · **Type:** implementation · **Priority:** P1
+**State:** `[~]` (in_progress) · **Type:** implementation · **Priority:** P1
 
-**Last update (UTC):** 2026-09-12 09:06
+**Last update (UTC):** 2026-09-12 10:07
 
-**Current reason:** Ready to start
+**Current reason:** Fix and measurement evidence committed in isolated worktree; zero-content-read regression and full checks passed. Independent review is in progress.
 
 **Owner:** Maintainer
 
@@ -446,8 +440,6 @@ Enumerate file names without reading file contents
 **Depends on:** [YMP-010](#ymp-010)
 
 Workspace::files invokes fingerprint and rehashes every regular file even when the caller only needs paths.
-
-**Latest progress note:** All recorded prerequisites are complete. This task is ready; no implementation has started in the planning turn.
 
 **Acceptance criteria:**
 
@@ -1129,11 +1121,11 @@ The owner approved the final written intent and requested concrete tasks and a w
 
 Define the minimal runtime transition and authority contract
 
-**State:** `[ ]` (planned) · **Type:** design · **Priority:** P0
+**State:** `[x]` (done) · **Type:** design · **Priority:** P0
 
-**Last update (UTC):** 2026-09-12 09:35
+**Last update (UTC):** 2026-09-12 10:07
 
-**Current reason:** Ready to start
+**Current reason:** Runtime contract accepted by independent xhigh review R1(9/10): records, authority lifecycle, confirmation distinction and three walkthroughs match approved intent. Implementation proceeds in dependent tasks.
 
 **Owner:** Maintainer
 
@@ -1142,8 +1134,6 @@ Define the minimal runtime transition and authority contract
 **Depends on:** [YMP-010](#ymp-010)
 
 The approved intent fixes a trusted runtime and temporary assignment authority; implementation needs explicit state and interface contracts.
-
-**Latest progress note:** Reduced the design deliverable to the minimum executable contract instead of specifying every future subsystem in advance.
 
 **Acceptance criteria:**
 
@@ -1158,6 +1148,7 @@ The approved intent fixes a trusted runtime and temporary assignment authority; 
 
 - [Approved intent](../../intent.md)
 - [Delivery plan](plan.md)
+- [Reviewed runtime contract](../architecture/runtime-contract.md)
 
 ## YMP-117
 
@@ -1267,11 +1258,11 @@ The approved protocol needs observable identities, settings, authority and evide
 
 Prepare universal acceptance scenarios and independent validators
 
-**State:** `[=]` (planned) · **Type:** verification · **Priority:** P0
+**State:** `[ ]` (planned) · **Type:** verification · **Priority:** P0
 
 **Last update (UTC):** 2026-09-12 09:35
 
-**Current reason:** Needs YMP-116
+**Current reason:** Ready to start
 
 **Owner:** Maintainer
 
@@ -1307,7 +1298,7 @@ Verify the integrated application and package a local release
 
 **Current reason:** Needs YMP-119, YMP-103, YMP-105, YMP-107, YMP-112, YMP-115, YMP-114, YMP-118
 
-**Owner:** Maintainer
+**Owner:** Independent final reviewer at max reasoning; maintainer integrates and packages
 
 **Authorization:** Offline packaging and check preparation follow the approved delivery plan. Actual native inference requires its explicit bounded quota authorization; none is granted by this planning task.
 
@@ -1325,6 +1316,7 @@ A local release needs a reproducible install and truthful compatibility evidence
 - Run real-provider checks only under explicit recorded quota authorization; record requested/applied effort and usage coverage without exposing credentials.
 - Distinguish offline fixture coverage from verified native behavior and unsupported capabilities in release notes.
 - Document migration/recovery behavior and output locations; announce completion only after all required release checks pass.
+- Perform the final requirement-by-requirement release review with an independent max-reasoning agent; xhigh is the minimum for other delegated engineering work.
 
 **Evidence:**
 

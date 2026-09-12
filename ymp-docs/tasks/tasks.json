@@ -304,7 +304,7 @@
       "title": "Persist explainable session decisions and execution provenance",
       "type": "implementation",
       "priority": "P0",
-      "status": "planned",
+      "status": "in_progress",
       "owner": "Maintainer",
       "authorization": "Planned delivery derived from the owner-approved intent and standing autonomous-development direction. Follow dependencies and acceptance criteria; separate real-provider quota is required where stated.",
       "depends_on": [
@@ -349,6 +349,11 @@
           "at": "2026-09-12T09:06:33.727283+00:00",
           "status": "proposed",
           "note": "Reconciled with approved intent and delivery milestones; superseded blanket pause removed. Dependencies and evidence requirements govern starting work."
+        },
+        {
+          "at": "2026-09-12T10:07:54.563405+00:00",
+          "status": "in_progress",
+          "note": "Implementing typed assignment/invocation provenance and atomic records/events from the reviewed contract."
         }
       ]
     },
@@ -417,7 +422,7 @@
       "title": "Honor Codex nonterminal retry notifications",
       "type": "implementation",
       "priority": "P0",
-      "status": "planned",
+      "status": "in_progress",
       "owner": "Maintainer",
       "authorization": "Planned delivery derived from the owner-approved intent and standing autonomous-development direction. Follow dependencies and acceptance criteria; separate real-provider quota is required where stated.",
       "depends_on": [
@@ -461,6 +466,11 @@
           "at": "2026-09-12T09:06:33.727283+00:00",
           "status": "ready",
           "note": "All recorded prerequisites are complete. This task is ready; no implementation has started in the planning turn."
+        },
+        {
+          "at": "2026-09-12T09:58:18.814823+00:00",
+          "status": "in_progress",
+          "note": "Assigned to an xhigh subagent in an isolated worktree; provider retry handling and offline regression proof."
         }
       ]
     },
@@ -469,7 +479,7 @@
       "title": "Preserve accepted outcomes and confirmation status when final narration fails",
       "type": "implementation",
       "priority": "P0",
-      "status": "planned",
+      "status": "in_progress",
       "owner": "Maintainer",
       "authorization": "Planned delivery derived from the owner-approved intent and standing autonomous-development direction. Follow dependencies and acceptance criteria; separate real-provider quota is required where stated.",
       "depends_on": [
@@ -512,6 +522,16 @@
           "at": "2026-09-12T09:35:05.248513+00:00",
           "status": "planned",
           "note": "The existing narration-failure defect can be fixed directly. Later confirmation changes must preserve the same fallback behavior."
+        },
+        {
+          "at": "2026-09-12T09:58:18.864752+00:00",
+          "status": "in_progress",
+          "note": "Assigned to an xhigh subagent in an isolated worktree; preserve accepted outcomes when final narration fails."
+        },
+        {
+          "at": "2026-09-12T10:07:54.605827+00:00",
+          "status": "in_progress",
+          "note": "Fix committed in isolated worktree; failing-before regression and full checks passed. Independent review is in progress before integration."
         }
       ]
     },
@@ -520,7 +540,7 @@
       "title": "Enumerate file names without reading file contents",
       "type": "implementation",
       "priority": "P1",
-      "status": "planned",
+      "status": "in_progress",
       "owner": "Maintainer",
       "authorization": "Planned delivery derived from the owner-approved intent and standing autonomous-development direction. Follow dependencies and acceptance criteria; separate real-provider quota is required where stated.",
       "depends_on": [
@@ -557,6 +577,16 @@
           "at": "2026-09-12T09:06:33.727283+00:00",
           "status": "ready",
           "note": "All recorded prerequisites are complete. This task is ready; no implementation has started in the planning turn."
+        },
+        {
+          "at": "2026-09-12T09:58:18.907867+00:00",
+          "status": "in_progress",
+          "note": "Assigned to an xhigh subagent in an isolated worktree; names-only enumeration with no-content-read proof."
+        },
+        {
+          "at": "2026-09-12T10:07:54.651778+00:00",
+          "status": "in_progress",
+          "note": "Fix and measurement evidence committed in isolated worktree; zero-content-read regression and full checks passed. Independent review is in progress."
         }
       ]
     },
@@ -1559,7 +1589,7 @@
       "title": "Define the minimal runtime transition and authority contract",
       "type": "design",
       "priority": "P0",
-      "status": "planned",
+      "status": "done",
       "owner": "Maintainer",
       "authorization": "Derived from the owner-approved intent and work-plan request. Follow recorded dependencies; real-provider quota remains separately authorized.",
       "depends_on": [
@@ -1576,7 +1606,8 @@
       ],
       "evidence": [
         "[Approved intent](../../intent.md)",
-        "[Delivery plan](plan.md)"
+        "[Delivery plan](plan.md)",
+        "[Reviewed runtime contract](../architecture/runtime-contract.md)"
       ],
       "history": [
         {
@@ -1593,6 +1624,21 @@
           "at": "2026-09-12T09:35:05.248513+00:00",
           "status": "planned",
           "note": "Reduced the design deliverable to the minimum executable contract instead of specifying every future subsystem in advance."
+        },
+        {
+          "at": "2026-09-12T09:58:18.763532+00:00",
+          "status": "in_progress",
+          "note": "Preparing the minimal runtime contract while independent fixes run in isolated xhigh agent worktrees."
+        },
+        {
+          "at": "2026-09-12T10:04:09.001625+00:00",
+          "status": "in_progress",
+          "note": "Minimal contract written: authoritative records, assignment lifetime, acceptance/confirmation and three walkthroughs. Reviewing it against existing state/store/provider interfaces before completion."
+        },
+        {
+          "at": "2026-09-12T10:07:54.520336+00:00",
+          "status": "done",
+          "note": "Runtime contract accepted by independent xhigh review R1(9/10): records, authority lifecycle, confirmation distinction and three walkthroughs match approved intent. Implementation proceeds in dependent tasks."
         }
       ]
     },
@@ -1755,7 +1801,7 @@
       "type": "verification",
       "priority": "P1",
       "status": "planned",
-      "owner": "Maintainer",
+      "owner": "Independent final reviewer at max reasoning; maintainer integrates and packages",
       "authorization": "Offline packaging and check preparation follow the approved delivery plan. Actual native inference requires its explicit bounded quota authorization; none is granted by this planning task.",
       "depends_on": [
         "YMP-119",
@@ -1774,7 +1820,8 @@
         "Prepare a bounded provider smoke-check procedure with exact versions, expected settings, native auth, resource ceilings and cancellation handling before requesting any quota.",
         "Run real-provider checks only under explicit recorded quota authorization; record requested/applied effort and usage coverage without exposing credentials.",
         "Distinguish offline fixture coverage from verified native behavior and unsupported capabilities in release notes.",
-        "Document migration/recovery behavior and output locations; announce completion only after all required release checks pass."
+        "Document migration/recovery behavior and output locations; announce completion only after all required release checks pass.",
+        "Perform the final requirement-by-requirement release review with an independent max-reasoning agent; xhigh is the minimum for other delegated engineering work."
       ],
       "evidence": [
         "[Approved intent](../../intent.md)",
@@ -1840,7 +1887,7 @@
       ]
     }
   ],
-  "updated_at": "2026-09-12T09:46:03.748975+00:00",
+  "updated_at": "2026-09-12T10:07:54.651778+00:00",
   "delivery_order": [
     "YMP-116",
     "YMP-103",
@@ -2209,5 +2256,12 @@
     "Integrate core visibility as soon as the core records are available. Later features extend the same views as part of their own acceptance; all application UI work uses Claude Opus 5 max through Paseo.",
     "Preserve accepted-but-unconfirmed outcomes and award no reputation without confirmation. Keep native authentication and honest resource-coverage limits; an effort level is not a spending cap.",
     "Real-provider checks and experiments require their concrete quota authorization. Unattended checks use fixtures. After changes run cargo fmt, clippy with warnings denied and workspace tests; bridge changes also require bridge checks."
-  ]
+  ],
+  "release": {
+    "target_version": "0.4.0",
+    "delegated_reasoning_minimum": "xhigh",
+    "final_verification_task": "YMP-121",
+    "final_verification_reasoning": "max",
+    "status": "in_progress"
+  }
 }
