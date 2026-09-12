@@ -135,6 +135,7 @@ pub async fn run(root: &Path, directory: &Path, case: &str, spec: WorkflowSpec) 
         .into_iter()
         .collect();
     engine.acceptance_contracts.push(AcceptanceContract {
+        knowledge_correction: None,
         task_title,
         criteria: spec
             .criterion_ids

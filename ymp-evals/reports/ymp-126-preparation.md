@@ -25,3 +25,5 @@ The unchanged budget-reservations fixture requests different per-assignment allo
 An intermediate build lacked generated `libsqlite3-sys` `bindgen.rs`; `/tmp/ymp126-effort-first-20260912.log` retains the successful rebuild. No product conclusion or skipped case followed. `CARGO_TARGET_DIR` was unset, and Cargo used this checkout's own `sibling126/target`. Repair was limited to `cargo clean -p libsqlite3-sys --target-dir .../sibling126/target` (12.6 MiB). No other target directory was deleted.
 
 This checkpoint precedes composition with the accepted YMP-112/YMP-114 commits. Final task completion still requires all seventeen authentic scenarios, independent review, negative controls, complete required checks and the YMP-121 final release verification.
+
+Preparation composition: accepted picks `23298ac`, `52345d5`, `187b67c` were applied as `5aec032`, `115a224`, `823c1c3` after driver checkpoint `4634766`. The only conflict combined additive module exports; optional correction fields were added to the new driver and board test contract literals. Combined release acceptance remains pending.
