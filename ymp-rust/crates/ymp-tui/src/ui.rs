@@ -515,7 +515,7 @@ fn page_view(frame: &mut Frame, area: Rect, app: &mut App) {
         )
     };
 
-    frame::row(
+    frame::header(
         frame,
         split[0],
         vec![

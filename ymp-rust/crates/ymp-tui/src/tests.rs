@@ -3028,10 +3028,14 @@ async fn a_reopened_session_is_measured_against_the_limits_it_captured() {
         "the captured limits and the next run's are not kept apart: {keys:?}"
     );
     assert!(
-        app.page(65).subtitle.contains("this session: 80 turns")
-            && app.page(65).subtitle.contains("the next run: 7 turns"),
-        "the page does not separate the two: {}",
+        app.page(65).subtitle.contains("captured 80 turns"),
+        "the page does not name the bound this session captured: {}",
         app.page(65).subtitle
+    );
+    assert!(
+        right_of_key(&mut app, 65, "turns").contains('7'),
+        "the next run's own value is not shown beside the captured one: {}",
+        right_of_key(&mut app, 65, "turns")
     );
     let tokens = row_prose(&mut app, 65, "tokens observed");
     assert!(
@@ -3692,6 +3696,14 @@ async fn a_membership_decision_says_what_it_changed_and_what_it_reserved() {
     );
     let detail = detail_of_key(&mut app, 65, &key);
     assert!(
+        detail.contains("the membership was committed"),
+        "the opened record contradicts the row it was opened from:\n{detail}"
+    );
+    assert!(
+        !detail.contains("recorded without an outcome"),
+        "a committed membership reads as ungraded when opened:\n{detail}"
+    );
+    assert!(
         detail.contains("members proposed"),
         "the decision does not say who it admitted:\n{detail}"
     );
@@ -4054,5 +4066,173 @@ async fn a_record_that_carries_its_own_outcome_never_reads_as_ungraded() {
         detail_of_key(&mut app, 65, &text::short_id(&released.id))
             .contains("the reservation ended"),
         "a released reservation does not say so in its own record"
+    );
+}
+
+#[test]
+fn a_header_gives_up_its_summary_before_its_own_name() {
+    // A captured count has no width the page controls, so the header is built to lose the
+    // summary rather than the name of the page a reader is standing on.
+    use ratatui::text::Span;
+    let line = text::header_row(
+        53,
+        vec![
+            Span::raw(" ".to_owned()),
+            Span::raw("Limits".to_owned()),
+            Span::raw("  /limits".to_owned()),
+        ],
+        vec![Span::raw(
+            "captured 4294967295 turns, 4294967295 at a time ".to_owned(),
+        )],
+    );
+    let painted = line
+        .spans
+        .iter()
+        .map(|span| span.content.as_ref())
+        .collect::<String>();
+    assert_eq!(
+        text::width(&painted),
+        53,
+        "the header is not exactly one row wide: {painted:?}"
+    );
+    assert!(
+        painted.contains("Limits") && painted.contains("/limits"),
+        "the page lost its own name to a long summary: {painted:?}"
+    );
+    assert!(
+        painted.contains('…'),
+        "the summary was cut without saying so: {painted:?}"
+    );
+}
+
+#[tokio::test]
+async fn a_page_keeps_its_name_and_command_at_every_supported_size() {
+    // Bounds no reader would type, because the page cannot choose how wide a captured
+    // number is and the header must survive whatever it reads.
+    let run = mock_run("Create a greeting", |engine| {
+        engine.config.limits.turns = 987_654;
+        engine.config.limits.parallel = 321;
+    })
+    .await;
+    let mut app = run.app();
+    app.load_session(&run.session).unwrap();
+    app.command("/limits", 100);
+    for (width, height) in SUPPORTED_SIZES.iter().copied() {
+        let rows = screen_rows(&mut app, width, height);
+        let header = rows
+            .iter()
+            .find(|row| row.contains("/limits"))
+            .unwrap_or_else(|| {
+                panic!(
+                    "the page header is gone at {width}x{height}:\n{}",
+                    rows.join("\n")
+                )
+            })
+            .clone();
+        assert!(
+            header.contains("Limits"),
+            "the page lost its own name at {width}x{height}:\n{header}"
+        );
+        assert!(
+            header.contains("captured 987654 turns") || header.contains('…'),
+            "the captured bound was dropped without a mark at {width}x{height}:\n{header}"
+        );
+    }
+}
+
+#[tokio::test]
+async fn a_setting_rewritten_on_its_way_out_names_both_values() {
+    let run = mock_run("Create a greeting", |_| {}).await;
+    let trace = run.store.trace(&run.session).unwrap();
+    let previous = trace.assignments.last().unwrap().clone();
+    let mut assignment = ymp_core::AssignmentRecord {
+        id: ymp_core::new_id(),
+        grant_ids: Vec::new(),
+        state: ymp_core::InvocationState::Running,
+        started_at: ymp_core::now(),
+        ended_at: None,
+        ..previous.clone()
+    };
+    assignment.requested.permission_mode = Some("write".into());
+    // What a backend writes when it rewrites the request into its own vocabulary: the
+    // permission mode a transport names is not the word the runtime asked with.
+    let turn = ymp_core::InvocationRecord {
+        id: ymp_core::new_id(),
+        session_id: run.session.clone(),
+        assignment_id: assignment.id.clone(),
+        execution_backend: None,
+        turn: trace.invocations.len() as u64 + 1,
+        requested: assignment.requested.clone(),
+        sent: ymp_core::ExecutionSettings {
+            permission_mode: Some("danger-full-access".into()),
+            ..Default::default()
+        },
+        reported: Default::default(),
+        resumed_from: None,
+        native_session_id: None,
+        native_turn_id: None,
+        native_version: None,
+        state: ymp_core::InvocationState::Running,
+        started_at: ymp_core::now(),
+        ended_at: None,
+        usage: None,
+        terminal_reason: None,
+    };
+    let grants = vec![ymp_core::GrantRecord::for_assignment(
+        &assignment,
+        &turn,
+        ymp_core::TeamOperation::coordination(),
+    )];
+    assignment.grant_ids = grants.iter().map(|grant| grant.id.clone()).collect();
+    run.store
+        .begin_invocation_with_grants(&assignment, &turn, &grants)
+        .unwrap();
+
+    let mut app = run.app();
+    app.load_session(&run.session).unwrap();
+    app.command("/assignments", 110);
+    let detail = detail_of_key(&mut app, 110, &text::short_id(&assignment.id));
+    assert!(
+        detail.contains("write requested · danger-full-access sent"),
+        "the request disappeared behind the value that was sent:\n{detail}"
+    );
+    assert!(
+        detail.contains("unconfirmed, the installation reported nothing"),
+        "a value nothing reported was not kept unconfirmed:\n{detail}"
+    );
+}
+
+#[tokio::test]
+async fn credit_this_session_did_not_read_is_reported_and_not_asserted() {
+    // A confirmed acceptance in one session credits its producer there. Read from a window
+    // with that session not loaded, which is where a reader meets an earlier session's
+    // observation, the credit record is outside what this page read.
+    let run = mock_run("Create a greeting", |engine| {
+        engine.acceptance_contracts.push(exact_greeting_contract())
+    })
+    .await;
+    let producer = run
+        .store
+        .observations()
+        .unwrap()
+        .first()
+        .expect("a confirmed acceptance credits its producer")
+        .agent_name
+        .clone();
+    let mut app = run.app();
+    app.command("/reputation", 100);
+
+    let prose = row_prose(&mut app, 65, &producer);
+    assert!(
+        prose.contains("confirmed: evidence passed for every criterion"),
+        "the observation lost the evidence status it carries:\n{prose}"
+    );
+    assert!(
+        prose.contains("whether it was credited is recorded by"),
+        "the page states a credit it never read:\n{prose}"
+    );
+    assert!(
+        !prose.contains("this session recorded the credit for it"),
+        "a credit outside what was read is presented as read here:\n{prose}"
     );
 }

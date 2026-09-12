@@ -2,9 +2,14 @@
 //!
 //! The controller takes these at moments a reader can name: when the window opens, when a
 //! session is loaded, when a run reports that it finished or stopped, and when a page that
-//! presents them is opened. Pages then present the snapshot and never read the store, the
-//! filesystem or `PATH` while painting. That is what keeps browsing a pure read, and it is
-//! also why every page states when its records were read: what it shows was true then.
+//! presents them is opened. A page that presents a snapshot reads nothing else while
+//! painting, neither the store nor the filesystem nor `PATH`. That is what keeps browsing
+//! those pages a pure read, and it is also why each of them states when its records were
+//! read: what it shows was true then.
+//!
+//! The claim is about these snapshots and not about every page. `/sessions`, `/diff`,
+//! `/checks`, `/memory`, `/reputation` and `/files` read the store or the working directory
+//! inside their own build, so a read time stated here does not describe them.
 //!
 //! Nothing here grades or infers. A field the records do not carry stays missing, a status
 //! the runtime did not classify stays unknown, and an accepted result is never presented as

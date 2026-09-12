@@ -2533,7 +2533,7 @@ fn reputation(ctx: &Ctx) -> anyhow::Result<Page> {
                 if ctx.records.credited.contains(&observation.id) {
                     "this session recorded the credit for it"
                 } else if observation.confirmation == ConfirmationStatus::Confirmed {
-                    "credited by the session that accepted the work, which this page does not read"
+                    "whether it was credited is recorded by the session that accepted the work, which this page does not read"
                 } else {
                     "not eligible: only a confirmed outcome can be credited"
                 },
@@ -2642,12 +2642,14 @@ fn limits(ctx: &Ctx) -> Page {
     Page {
         view: View::Limits,
         title: View::Limits.title().into(),
+        // Both variants are short enough to leave the title and the command their cells at
+        // the smallest supported width. The two sections below carry the numbers in full.
         subtitle: match captured_limits(ctx) {
             Some((limits, _)) => format!(
-                "this session: {} turns, {} at a time · the next run: {} turns",
-                limits.turns, limits.parallel, ctx.config.limits.turns
+                "captured {} turns, {} at a time",
+                limits.turns, limits.parallel
             ),
-            None => "No captured limits were read · editing applies to the next run".into(),
+            None => "No captured limits were read".into(),
         },
         items,
         empty: Vec::new(),
@@ -3451,6 +3453,20 @@ fn access_lines(ctx: &Ctx, assignment: &AssignmentRecord) -> Vec<Line<'static>> 
 fn setting_state(requested: Option<&str>, sent: Option<&str>, reported: Option<&str>) -> String {
     match (requested, sent, reported) {
         (None, None, None) => "nothing requested; the installation used its own default".into(),
+        // A value can be rewritten on its way to the backend: a permission mode becomes the
+        // name that transport uses. Naming only what was sent would hide the request that
+        // produced it, so both ends are named, and what was reported stays separate.
+        (Some(requested), Some(sent), reported) if requested != sent => match reported {
+            Some(reported) if reported == sent => {
+                format!("{requested} requested · {sent} sent · the installation reported the same")
+            }
+            Some(reported) => {
+                format!("{requested} requested · {sent} sent · the installation reported {reported}")
+            }
+            None => format!(
+                "{requested} requested · {sent} sent · unconfirmed, the installation reported nothing"
+            ),
+        },
         (_, Some(sent), Some(reported)) if sent == reported => {
             format!("{sent} · the installation reported the same")
         }

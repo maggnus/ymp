@@ -195,6 +195,17 @@ pub fn row(frame: &mut Frame, area: Rect, left: Vec<Span<'static>>, right: Vec<S
     );
 }
 
+/// A page header, painted so that the page's own name survives a long summary.
+pub fn header(frame: &mut Frame, area: Rect, left: Vec<Span<'static>>, right: Vec<Span<'static>>) {
+    if area.height == 0 || area.width == 0 {
+        return;
+    }
+    frame.render_widget(
+        Paragraph::new(text::header_row(area.width as usize, left, right)),
+        area,
+    );
+}
+
 /// A `key label` run for a header or a status row.
 pub fn key_hints(hints: &[(&str, &str)], theme: &Theme) -> Vec<Span<'static>> {
     let mut spans = Vec::new();

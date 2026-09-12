@@ -31,13 +31,19 @@ All commands were run in the `118` worktree, on the merged tree, in this order.
 | --- | --- |
 | `cargo fmt --all --check` | exit 0 |
 | `cargo clippy --workspace --all-targets -- -D warnings` | exit 0, no diagnostics |
-| `cargo test --workspace` | exit 0, 289 passed, 0 failed |
+| `cargo test --workspace` | exit 0, 289 passed, 0 failed (miscounted, see below) |
 | `cargo test -p ymp-tui` | exit 0, 96 passed, 0 failed |
 | `cargo build --bin ymp` | exit 0 |
 | pseudo-terminal walk at 80x24 and 120x40 | completed, mock provider only |
 
 `cargo` was run without `--locked` and used the worktree's own ignored `target/`. `Cargo.lock`
 was not modified.
+
+The figure of 289 above is left as it was reported and is wrong. The independent review summed
+the per-binary results at the same commit `7038a4c` and got 290, and its arithmetic is right: one
+binary's result was dropped when this table was written. The `ymp-tui` figure of 96 at that commit
+is exact. The 307 reported in round three is a different and larger tree, not a restatement of
+this one, and the count of this round is stated with its own tree.
 
 ## Deterministic workloads only
 
