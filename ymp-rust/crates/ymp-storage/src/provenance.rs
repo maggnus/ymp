@@ -521,6 +521,8 @@ impl Store {
     }
 
     pub fn save_plan_with_decision(&self, tasks: &[Task], value: &DecisionRecord) -> Result<()> {
+        let mut db = self.db()?;
+        let tx = db.transaction()?;
         ensure!(
             !tasks.is_empty() && tasks.iter().all(|t| t.session_id == value.session_id),
             "Plan tasks must share the decision session"
@@ -528,13 +530,42 @@ impl Store {
         ensure!(
             tasks
                 .iter()
-                .map(|t| &t.id)
-                .collect::<std::collections::HashSet<_>>()
-                == value.links.related_task_ids.iter().collect(),
-            "Plan decision must link every committed task"
+                .map(|task| &task.id)
+                .eq(&value.links.related_task_ids),
+            "Plan decision must link every committed task in reviewed order"
         );
-        let mut db = self.db()?;
-        let tx = db.transaction()?;
+        let version = value
+            .links
+            .plan_proposal
+            .as_ref()
+            .context("Plan commitment requires the reviewed proposal version")?;
+        version.plan.validate()?;
+        ensure!(
+            tasks.len() == version.plan.tasks.len(),
+            "Committed task count differs from the reviewed plan"
+        );
+        for (index, (task, reviewed)) in tasks.iter().zip(&version.plan.tasks).enumerate() {
+            ensure!(
+                task.title == reviewed.title
+                    && task.description == reviewed.description
+                    && task.competence == reviewed.competence
+                    && task.difficulty == reviewed.difficulty,
+                "Committed task definition differs from reviewed task {index}"
+            );
+            ensure!(
+                task.checks == reviewed.checks,
+                "Committed checks differ from reviewed task {index}"
+            );
+            // Plan validation and the count check make every index valid. Map
+            // through this exact ordered task list, including forward edges.
+            ensure!(
+                task.dependencies.iter().eq(reviewed
+                    .dependencies
+                    .iter()
+                    .map(|&dependency| &tasks[dependency].id)),
+                "Committed dependencies differ from reviewed task {index}"
+            );
+        }
         super::write_plan(&tx, tasks)?;
         decision(&tx, value)?;
         tx.commit()?;

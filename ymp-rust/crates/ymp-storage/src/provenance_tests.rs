@@ -113,6 +113,260 @@ impl Fixture {
         };
         (assignment, invocation)
     }
+
+    fn reviewed_plan(&self) -> (Vec<Task>, DecisionRecord) {
+        let plan = Plan {
+            summary: "Inspect, draft, then integrate the result".into(),
+            tasks: vec![
+                PlanTask {
+                    title: "Integrate".into(),
+                    description: "Integrate the draft with source findings".into(),
+                    competence: "implementation".into(),
+                    difficulty: "complex".into(),
+                    dependencies: vec![2, 1],
+                    checks: vec![
+                        "check-integrated-content".into(),
+                        "check-source-attribution".into(),
+                    ],
+                },
+                PlanTask {
+                    title: "Inspect".into(),
+                    description: "Inspect the source material".into(),
+                    competence: "analysis".into(),
+                    difficulty: "simple".into(),
+                    dependencies: vec![],
+                    checks: vec!["check-source-findings".into()],
+                },
+                PlanTask {
+                    title: "Draft".into(),
+                    description: "Write a draft using the findings".into(),
+                    competence: "implementation".into(),
+                    difficulty: "standard".into(),
+                    dependencies: vec![1],
+                    checks: vec!["check-draft".into()],
+                },
+            ],
+        };
+        plan.validate().unwrap();
+        let (mut producer, producer_invocation) = self.invocation(1);
+        producer.task = None;
+        producer.purpose = "plan".into();
+        self.store
+            .begin_invocation(&producer, &producer_invocation)
+            .unwrap();
+        self.store
+            .finish_invocation(
+                &self.session.id,
+                &producer_invocation.id,
+                InvocationState::Completed,
+                None,
+            )
+            .unwrap();
+        let version = PlanVersion {
+            proposal_id: new_id(),
+            revision: 1,
+            producer_assignment_id: producer.id.clone(),
+            producer_invocation_id: producer_invocation.id.clone(),
+            plan,
+        };
+        self.store
+            .record_decision(&DecisionRecord {
+                id: new_id(),
+                session_id: self.session.id.clone(),
+                kind: "plan_proposed".into(),
+                actor: Some(producer.agent_id),
+                reason: version.plan.summary.clone(),
+                outcome: None,
+                links: RecordLinks {
+                    assignment_id: Some(producer.id),
+                    invocation_id: Some(producer_invocation.id),
+                    plan_proposal: Some(version.clone()),
+                    ..Default::default()
+                },
+                created_at: now(),
+            })
+            .unwrap();
+        let (mut reviewer, review_invocation) = self.invocation(2);
+        reviewer.task = None;
+        reviewer.agent_id = "reviewer".into();
+        reviewer.purpose = "review_plan".into();
+        self.store
+            .begin_invocation(&reviewer, &review_invocation)
+            .unwrap();
+        self.store
+            .finish_invocation(
+                &self.session.id,
+                &review_invocation.id,
+                InvocationState::Completed,
+                None,
+            )
+            .unwrap();
+        let review_id = new_id();
+        self.store
+            .record_decision(&DecisionRecord {
+                id: review_id.clone(),
+                session_id: self.session.id.clone(),
+                kind: "plan_review".into(),
+                actor: Some(reviewer.agent_id),
+                reason: "The tasks and dependency graph cover the requested result".into(),
+                outcome: Some(DecisionOutcome::Accepted {
+                    confirmation: ConfirmationStatus::Unknown,
+                }),
+                links: RecordLinks {
+                    assignment_id: Some(reviewer.id.clone()),
+                    invocation_id: Some(review_invocation.id.clone()),
+                    plan_proposal: Some(version.clone()),
+                    ..Default::default()
+                },
+                created_at: now(),
+            })
+            .unwrap();
+        let ids = [
+            "generated-integrate",
+            "generated-inspect",
+            "generated-draft",
+        ];
+        let tasks = version
+            .plan
+            .tasks
+            .iter()
+            .enumerate()
+            .map(|(index, definition)| Task {
+                id: ids[index].into(),
+                session_id: self.session.id.clone(),
+                title: definition.title.clone(),
+                description: definition.description.clone(),
+                competence: definition.competence.clone(),
+                difficulty: definition.difficulty.clone(),
+                checks: definition.checks.clone(),
+                dependencies: match index {
+                    0 => vec![ids[2].into(), ids[1].into()],
+                    1 => vec![],
+                    2 => vec![ids[1].into()],
+                    _ => unreachable!(),
+                },
+                state: TaskState::Ready,
+                assignee: None,
+                reviewer: None,
+                attempts: 0,
+                result: None,
+                workspace: None,
+                base_commit: None,
+                interrupted: false,
+            })
+            .collect::<Vec<_>>();
+        let commitment = DecisionRecord {
+            id: new_id(),
+            session_id: self.session.id.clone(),
+            kind: "plan_committed".into(),
+            actor: None,
+            reason: "Commit the independently reviewed plan".into(),
+            outcome: None,
+            links: RecordLinks {
+                assignment_id: Some(reviewer.id),
+                invocation_id: Some(review_invocation.id),
+                review_ids: vec![review_id],
+                related_task_ids: ids.iter().map(|id| (*id).into()).collect(),
+                plan_proposal: Some(version),
+                ..Default::default()
+            },
+            created_at: now(),
+        };
+        (tasks, commitment)
+    }
+}
+
+#[test]
+fn plan_commit_rejects_altered_task_bodies_without_state_or_event_changes() {
+    for alteration in [
+        "description",
+        "missing_checks",
+        "changed_checks",
+        "missing_dependencies",
+        "wrong_dependency",
+        "dependency_order",
+        "extra_task",
+        "missing_task",
+        "task_order",
+        "link_order",
+        "title",
+        "competence",
+        "difficulty",
+        "missing_version",
+    ] {
+        let f = Fixture::new();
+        let (mut tasks, mut decision) = f.reviewed_plan();
+        match alteration {
+            "description" => tasks[0].description = "Perform different work".into(),
+            "missing_checks" => tasks[0].checks.clear(),
+            "changed_checks" => tasks[0].checks[0] = "weaker-check".into(),
+            "missing_dependencies" => tasks[0].dependencies.clear(),
+            "wrong_dependency" => tasks[0].dependencies[0] = tasks[0].id.clone(),
+            "dependency_order" => tasks[0].dependencies.reverse(),
+            "extra_task" => {
+                let mut extra = tasks[1].clone();
+                extra.id = "unreviewed-extra-task".into();
+                tasks.push(extra);
+            }
+            "missing_task" => {
+                tasks.remove(0);
+            }
+            "task_order" => tasks.swap(0, 1),
+            "link_order" => {}
+            "title" => tasks[0].title = "Different title".into(),
+            "competence" => tasks[0].competence = "analysis".into(),
+            "difficulty" => tasks[0].difficulty = "simple".into(),
+            "missing_version" => decision.links.plan_proposal = None,
+            _ => unreachable!(),
+        }
+        decision.links.related_task_ids = tasks.iter().map(|task| task.id.clone()).collect();
+        if alteration == "link_order" {
+            decision.links.related_task_ids.reverse();
+        }
+        let before = serde_json::to_value(f.store.trace(&f.session.id).unwrap()).unwrap();
+        assert!(
+            f.store.save_plan_with_decision(&tasks, &decision).is_err(),
+            "committed unreviewed alteration: {alteration}"
+        );
+        assert_eq!(
+            serde_json::to_value(f.store.trace(&f.session.id).unwrap()).unwrap(),
+            before,
+            "rejected {alteration} changed tasks, decisions, or events"
+        );
+    }
+}
+
+#[test]
+fn plan_commit_preserves_reviewed_order_and_forward_dependency_mapping() {
+    let f = Fixture::new();
+    let (tasks, decision) = f.reviewed_plan();
+    f.store.save_plan_with_decision(&tasks, &decision).unwrap();
+    let trace = f.store.trace(&f.session.id).unwrap();
+    let committed = trace
+        .tasks
+        .iter()
+        .filter(|task| decision.links.related_task_ids.contains(&task.id))
+        .cloned()
+        .collect::<Vec<_>>();
+    assert_eq!(
+        serde_json::to_value(&committed).unwrap(),
+        serde_json::to_value(&tasks).unwrap()
+    );
+    assert_eq!(
+        committed[0].dependencies,
+        ["generated-draft", "generated-inspect"]
+    );
+    assert!(committed[1].dependencies.is_empty());
+    assert_eq!(committed[2].dependencies, ["generated-inspect"]);
+    assert_eq!(
+        trace.decisions.last().unwrap().links.plan_proposal,
+        decision.links.plan_proposal
+    );
+    let reopened = Store::open_read_only(&f.store.home).unwrap();
+    assert_eq!(
+        serde_json::to_value(reopened.trace(&f.session.id).unwrap()).unwrap(),
+        serde_json::to_value(trace).unwrap()
+    );
 }
 
 #[test]
