@@ -1,9 +1,10 @@
 # Local release verification
 
 This is the procedure for YMP-121, not a release-completion record. The
-[delivery plan](../tasks/plan.md) is the source of progress. The target release is
-0.4.0; the current package version remains 0.3.0 until the accepted changes are
-integrated. Preserve the approved intent and the owner's unrelated working changes.
+[delivery plan](../tasks/plan.md) is the source of progress. The candidate and
+workspace package version is 0.4.0. Final acceptance and publication are recorded
+separately from building the candidate. Preserve the approved intent and the
+owner's unrelated working changes.
 
 ## Integrated source and offline checks
 

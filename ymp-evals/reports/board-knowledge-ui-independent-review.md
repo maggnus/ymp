@@ -262,3 +262,229 @@ before and after every mutation and every probe.
 | walks at 80x24 | `/tmp/board80.txt`, `/tmp/know80.txt` |
 | mutation snapshot and restore proof | `/tmp/board-mut`, `/tmp/board-mut-baseline.sha` |
 | parent checks re-bound to source | `/tmp/ymp-board-ui-final/{checks.json,workspace.log,source-files.json}` |
+
+---
+
+# Follow-up review of `b6eb516`: both findings closed, reservation views accepted
+
+Reviewer: independent, not the author. Date: 2026-09-13, 07:24 HKT (2026-09-12T23:24Z).
+Subject: `b6eb516e45dab307b9647c8f863d7a9f787ca845`, read from a `git archive` snapshot. The
+author's worktree was not modified.
+
+**Verdict: ACCEPT for 0.4.0.** Score **9 / 10**.
+
+- F1 and F2 above are closed: in the list row, in the record, and with the actual source paths.
+- Every YMP-112 and YMP-114 interface criterion is complete.
+- The new visibility of token reservations and of the captured policy for incomplete counts is
+  complete for what the backend captures in 0.4.0.
+- Four residuals remain, none of them blocking.
+
+## Source and scope
+
+- `b6eb516` merges author `2302229` with main `c21f93c`. Of its 150 files under `ymp-rust` and
+  `ymp-bridges`, 123 are identical to both parents. Two come only from the author: `ymp-tui/src/views.rs`
+  and `ymp-tui/src/tests.rs`. Twenty-five come only from main, all in `ymp-eval-driver`. None
+  comes from anywhere else.
+- Since the accepted `f6b58fa`, only `ab4697c` (the two findings) and `2302229` (reservation views)
+  touch the interface: 2 files, 910 insertions, 95 deletions. The merges from main and the
+  cherry-picked backend commit `db13110` change nothing in `ymp-tui`.
+- `e9c0214` adds two commits that change only `ymp-evals/reports/ymp-118-reservation-views.md`.
+- The 0.4.0 candidate `c3758aa` merges `b6eb516` with `685d1ca`. It differs from `b6eb516` only in
+  `Cargo.toml` and `Cargo.lock`, and every differing line changes `version = "0.3.0"` to
+  `"0.4.0"`. The `ymp-tui` tree `80cfb28a` and the `ymp-bridges` tree `43b1c4ff` are identical in
+  `b6eb516`, `e9c0214` and `c3758aa`.
+- `views.rs` hashes to `da48d9e5…` and `tests.rs` to `e04ccc42…`, as the author's report states.
+
+## Checks reused and checks run
+
+| Check | Where | Result |
+| --- | --- | --- |
+| author evidence bindings | 9 files named in `ymp-118-reservation-views.md` | 9 of 9 SHA-256 match |
+| workspace tests at `b6eb516` | `/tmp/118-final/workspace.log`, `head.txt` reads `b6eb516` | 32 result sections (26 binaries, 6 doc-test), 419 passed, 0 failed, 2 ignored |
+| `ymp-tui` in that log | same | 139 passed, 0 failed, 1 ignored |
+| clippy and fmt in that run | `exit.txt`, `clippy.log`, `fmt.log` | exit 0; no warning line; empty format log |
+| `ymp-tui` on my archive | `cargo test -p ymp-tui --lib` | 139 passed, 0 failed, 1 ignored |
+| fmt on my archive | `cargo fmt --all --check` | exit 0 |
+
+The workspace suite was not repeated. The parent's results for `c3758aa` were reported to this
+review and were not hash-checked here; its interface and bridge bytes were verified identical.
+
+## F1 closed: the row and the record read one outcome
+
+- `recorded_outcome` now returns the row's word and the record's sentence together, and
+  `decision_row` uses both. The separate right-hand match is gone. `bounded_outcome` now also
+  marks an applied correction.
+- On screen at 120x40, the plan fixture's list reads `✓ plan change committed · the runtime …
+  committed` and `✗ plan change rejected · the runtime … rejected`.
+- On screen at 80x24, the correction fixture's list reads `✓ retained knowledge corrected …
+  entry replaced`. The record states `outcome what was retained was replaced`, `replaced retained
+  entry c632fabc at version 8d5dca3b`, `replacement retained entry f08e50cf`, `authorised by
+  acceptance f81bf255 under trusted contract c11e8d2f` and `corrected by policy
+  ymp.bound-correction version 1`.
+- The new order inside `recorded_outcome` cannot relabel an acceptance: only the
+  contract-captured decision carries `links.acceptance_contract` (`ymp-storage/src/provenance.rs`),
+  so acceptance decisions keep their grade words.
+
+## F2 closed: a contract names its declared and replaced sources
+
+On screen at 80x24, the correcting contract `c11e8d2f` states:
+
+```
+declared input inputs/observations-corrected.csv · captured at sha256 11a948d3
+corrects       retained entry c632fabc at version 8d5dca3b
+source change  inputs/observations.csv replaced by
+               inputs/observations-corrected.csv
+established by observation-value
+```
+
+It ends with "It also binds a correction…". Each value wraps under its label inside the record
+box. The first run's contract names `inputs/observations.csv` with its own digest and no source
+change; the test asserts that, and controls M4 to M6 below confirm it.
+
+## Reservations and the captured policy for incomplete counts
+
+**Semantics checked against the store, not only against the tests.**
+
+- The store recomputes the budget from records on every read. `budget::snapshot` serves both
+  `trace` and `session_budget`, so no stale stored figure or legacy field can reach the page.
+- Admission requires reported total, plus allowances held by open turns, plus the turn's own
+  allowance, to fit under the ceiling. Work other than review must also leave the protected
+  review tokens. The ceiling record states the first rule; the review row states the second.
+- `Stop` refuses only where both a ceiling and an allowance exist. The sentence "this policy had
+  nothing to act on" for a session without a ceiling is therefore true.
+- With a captured reserve, review protection is the reserve less review spend and live review
+  allowances while review is owed. Without one, it is `invocation_tokens ×
+  protected_review_invocations`. Both explanations read exactly those fields.
+- Storage and runtime always write `strict_token_bound: false`.
+
+**Captured versus current, in both directions, on screen at 120x40.** Each home is kept with a
+configuration that holds the opposite policy and a 50000 ceiling, a 2000 allowance and a 7000
+reserve. None of today's figures appears.
+
+| Row | captured `Stop`, paused | captured `BoundedNative`, completed |
+| --- | --- | --- |
+| incomplete counts | `stop admitting` | `admit on reported` |
+| token ceiling | `100000` | `100000` |
+| turn allowance | `4000` | `4000` |
+| review tokens | `10000`, from the captured reserve | `0`, as `4000 × 0 = 0` |
+| strict bound | `not proved` | `not proved` |
+| last stop | `unknown_usage` | none recorded |
+
+**Partial and strict-bound honesty.**
+
+- The `BoundedNative` ceiling record reads "By reported counts, 360 were spent and 1500 are held
+  for turns still open, which leaves 98140. Not every count is complete, so what is truly left is
+  not known: it is at most 98140." The arithmetic is 100000 − 360 − 1500 = 98140.
+- The `Stop` ceiling record reads "No turn reported a count, so no spending is known…".
+- Both strict bound records give the in-flight reason and the incomplete-count reason. The
+  `BoundedNative` one adds "Admitting on reported counts does not change that."
+
+**Protected review tokens.** A probe on a real mock run with no reserve and reviews still owed
+read `8000`, explained as `4000 × 2 = 8000`. The store's `protected_review_invocations` was 2.
+
+**Explicit and default reservations, on screen at 80x24.**
+
+- The turn admitted through the store reads `token allowance 1500 · requested by this assignment,
+  within the per-turn ceiling of 4000 the session captured`.
+- The runtime's plan turn reads `token allowance 4000 · inherited: this assignment requested
+  none, so it took the session's per-turn default`. Today's 2000 appears nowhere.
+
+**Absent and legacy fields.**
+
+- A capture without resource limits shows `token policy · not captured` and no token rows.
+- A session without a ceiling shows `none` for ceiling, allowance and review tokens, and says the
+  policy had nothing to act on.
+- Token fields absent from an older capture deserialise to `Stop` and `None`, which is what the
+  store enforces.
+- An assignment without `token_reservation` reads as inherited, which matches the store's own
+  `allowance()`.
+
+Every walk compared a SHA-256 of the store dump and of `config.toml` before and after. All were
+unchanged.
+
+## Controls
+
+Eighteen single inversions were applied, one at a time, to `views.rs` in a separate archive
+(`/tmp/b6eb-mut`). Each was run against its named tests, then restored and verified by SHA-256.
+All nine named tests pass unmutated. Every inversion failed.
+
+| Inversion | Failing test |
+| --- | --- |
+| M1 the row reads the grade instead of the recorded outcome | plan outcome; correction row |
+| M2 an applied correction gets no outcome marker | correction row |
+| M3 the correction record names the replacement as the replaced entry | correction row |
+| M4 declared inputs reduced to a count | contract sources |
+| M5 the source replacement direction swapped | contract sources |
+| M6 a digest looked up for a different input | contract sources |
+| M7 token rows read today's configuration | reopened policy |
+| M8 a captured `Stop` labelled as admitting on reported counts | reopened policy |
+| M9 a captured `BoundedNative` labelled as a stop | reopened policy |
+| M10 a reported remainder under incomplete counts read as known | reopened policy |
+| M11 the strict bound loses the incomplete-count reason | reopened policy |
+| M12 review protection multiplied by the configured, not the owed, count | reopened policy |
+| M13 an inherited allowance read as requested | allowance |
+| M14 allowances held by open turns ignored | allowance |
+| M15 a policy without a ceiling reads as if it acted | no ceiling |
+| M16 absent resource limits replaced by defaults | legacy capture |
+| M17 the captured-name clause deleted (earlier control) | captured name |
+| M18 a proposal outcome read from its stored status (earlier control) | board authority |
+
+## Residuals, none blocking
+
+1. **`0 past the bound` in the tokens observed record.** `observed_words` appends the overshoot
+   whenever a ceiling exists and any count is known, including when it is zero. It calls the
+   ceiling "the bound", on the page where this round reserved "strict bound" for a proved bound.
+   Under incomplete counts the figure is by reported counts and is not qualified. Seen on screen:
+   `at least 360 over 9 turn(s) · 6 reported nothing · 0 past the bound`. The helper predates this
+   round, and the new `observed_row` reuses it. Fix: omit it at zero, say "past the ceiling", and
+   add "by reported counts" where counts are incomplete.
+2. **A latent strict-bound branch.** `strict_row` would read `proved` without looking at
+   incomplete counts, while `SessionBudget::require_strict_token_bound` refuses a strict claim on
+   partial counts. It is unreachable in 0.4.0 because the flag is always written false.
+3. **No product path requests an allowance in 0.4.0.** The runtime writes `token_reservation:
+   None`, so the requested case exists only through `Store::admit_invocation`. The author states
+   this limit. It is also why the walked session shows 9 admitted turns against 8 session turns.
+4. **Carried over from the `f6b58fa` review.** The availability sentences `correction proposed`,
+   `source changed` and `source unavailable` are still asserted by no test and reached by no walk.
+
+## Criteria for 0.4.0
+
+- **YMP-112, existing views consistent with the new state.** The board views were accepted at
+  `f6b58fa`, and F1 removes the last disagreement between the decisions list and its records.
+  Complete.
+- **YMP-112, the shared-interface follow-ups.** At `b6eb516` the labels still read `post to the
+  team chat`, `read the team chat` and `read the shared board`. The captured-name regression is
+  still discriminating (M17). Complete.
+- **YMP-114, existing views consistent with the new state.** The current and superseded views
+  were accepted at `f6b58fa`, and F2 names the declared and replaced sources. Complete.
+- **Reservation-policy visibility.** Complete for every field the backend captures in 0.4.0, with
+  residuals 1 to 3 above.
+- The backend criteria of YMP-112 and YMP-114 were not judged here.
+
+No provider was asked anything and no credential was read. The real application home, main, the
+task register and the intent were not modified.
+
+## Evidence
+
+SHA-256 of the files this follow-up rests on, taken after the runs had finished:
+
+```
+abb0897f7bda7c8288a12da9ce491f1ee41d00d5087f69a6a8fabedcc6ad26ff  /tmp/b6eb-ymp
+ddfc6b9563c2329c0f6dccee1d5fc892d17a451ad3ae14ccd69551d799c5e8ae  /tmp/b6eb-walk/manifest.json
+ca93bd34ebe3d11dd9b33b45c710826710de3462fab8b6f8b56923df5dcb06d3  /tmp/b6eb-tui-tests.log
+e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  /tmp/b6eb-fmt.log
+112dce76f8a5a0c0b13ef2d6e9a3dcadd5f386aac1fbb9dfcb04ed95d8b832e4  /tmp/b6eb-mutate.py
+8243ab207d0c478058f9f0a572870d2ae56613e2b354a565c13ceb90172ea5fe  /tmp/b6eb-mutations.json
+e45f07c5fae2602e84982239d7dad28699ebabd31262784b48fe095be3320413  /tmp/b6eb-mutations.log
+3dabc8648062c71c840607e836b6995979368134282316c0ed8b5b3a14be766d  /tmp/board-walk.py
+9a36fdf216c997933a3e88384ad0c9dff74a24ecc79983a5eb08a6cec83db797  /tmp/b6eb-stopped120.txt
+68e387507104fb537e1efa29fa922c644dfd05db26e53ba86537e4b16a111bd0  /tmp/b6eb-bounded120.txt
+e53b13ab4d17f3c1cb65ba77dd2b1d63ac7f4f0618b011733736232aa0602981  /tmp/b6eb-boarddec120.txt
+1514d508f13432b28436aa9f3a01d16dab08c7f7ec8b94d7fbb1ba300a9c39a2  /tmp/b6eb-assign120.txt
+29d20c6cdeddc1ada7d59e562964d008b50bcc9e38a13b0aabe974ca4920b5a0  /tmp/b6eb-know80.txt
+6b024b90c6152eb97142dbd3750087b26f6a65f3f71623f59cd106697ee5e484  /tmp/b6eb-bounded80.txt
+6393e5515c46469705f6f498d16d34fc4dc0c1cae39c7bd0812dc8aa57c2c1de  /tmp/b6eb-assign80.txt
+```
+
+The binary is the one built from the archive of `b6eb516`. The fixtures were rebuilt through the
+real runtime by the author's ignored keeper, `keep_the_fixtures_an_interface_walk_reads`.

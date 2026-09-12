@@ -1364,7 +1364,7 @@
       "title": "Coordinate commitments, plan revisions and reassignment through the board",
       "type": "implementation",
       "priority": "P0",
-      "status": "in_progress",
+      "status": "done",
       "owner": "Maintainer; application UI by Claude Code claude-opus-5 with thinking max via Paseo",
       "authorization": "Planned delivery derived from the owner-approved intent and standing autonomous-development direction. Follow dependencies and acceptance criteria; separate real-provider quota is required where stated.",
       "depends_on": [
@@ -1485,6 +1485,11 @@
           "at": "2026-09-12T23:23:56.326109+00:00",
           "status": "in_progress",
           "note": "Final Opus sourceb6eb516 closes decision row/detail outcome and contract source-path findings, and displays requested/inherited token allowances, protected review tokens and captured accounting policy. Author419 tests/13 mutation controls/78-screen walk are recorded at e9c0214. Independent final Opus follow-up is running on immutable source; versioned0.4.0 candidate already passes all required checks."
+        },
+        {
+          "at": "2026-09-12T23:29:25.497908+00:00",
+          "status": "done",
+          "note": "Final independent Opus follow-up accepts b6eb516 for0.4.0 at9/10: all board UI criteria and reservation/policy visibility are complete. Decision rows and details share actual outcomes; captured contracts expose source paths.139 independent TUI tests,18 failing mutation controls and actual read-only terminal walks pass. Integrated versioned source495502f matches all158 candidate source hashes; no blocking UI finding remains."
         }
       ]
     },
@@ -1596,7 +1601,7 @@
       "title": "Correct and supersede knowledge with newer verified evidence",
       "type": "implementation",
       "priority": "P0",
-      "status": "in_progress",
+      "status": "done",
       "owner": "Maintainer; application UI by Claude Code claude-opus-5 with thinking max via Paseo",
       "authorization": "Planned delivery derived from the owner-approved intent and standing autonomous-development direction. Follow dependencies and acceptance criteria; separate real-provider quota is required where stated.",
       "depends_on": [
@@ -1696,6 +1701,11 @@
           "at": "2026-09-12T23:23:56.369773+00:00",
           "status": "in_progress",
           "note": "Actual declared input and old/new source-replacement paths are now visible in captured contracts (ab4697c), and row/detail outcomes share one reader. Author evidence is complete and the independent Opus follow-up is exercising correction and budget views at representative sizes. Closure awaits that verdict, not implementation or backend work."
+        },
+        {
+          "at": "2026-09-12T23:29:25.540790+00:00",
+          "status": "done",
+          "note": "Final independent Opus follow-up confirms all correction UI criteria for0.4.0: predecessor/replacement states, actual contract input/source-replacement paths, consistent outcomes and preserved history are visible. Read-only walks leave store/config unchanged; prior findings are closed. Backend and UI are integrated in495502f with exact accepted source bytes."
         }
       ]
     },
@@ -2332,7 +2342,7 @@
       "title": "Verify the integrated application and package a local release",
       "type": "verification",
       "priority": "P1",
-      "status": "planned",
+      "status": "in_progress",
       "owner": "Independent final reviewer at max reasoning; maintainer integrates and packages",
       "authorization": "Offline packaging and check preparation follow the approved delivery plan. Actual native inference requires its explicit bounded quota authorization; none is granted by this planning task.",
       "depends_on": [
@@ -2446,6 +2456,11 @@
           "at": "2026-09-12T23:23:56.414843+00:00",
           "status": "planned",
           "note": "Exact0.4.0 candidatec3758aa passes419 Rust tests,14 bridge tests,10 explicit native fixtures, release build, all17 scenarios and official SDK checks. Exact-version installer preflight passes backup/repeat/demo; real SDK version/interpreter verified independently. Max audit covers164 criteria across all26 tasks with no backend blocker. Final UI verdict, durable-main staged binary and post-acceptance publication remain."
+        },
+        {
+          "at": "2026-09-12T23:29:25.587013+00:00",
+          "status": "in_progress",
+          "note": "All delivery dependencies are complete. Accepted0.4.0 UI and driver are integrated as495502f, matching158 checked candidate source hashes.419 tests, bridge14/native10, release17 scenarios, SDK and exact-version installer preflight pass. Final max review now awaits durable-main staged binary/bridge binding and publication confirmation; current installed release is still preserved."
         }
       ],
       "budget": "Not allocated. Prepare a concrete bounded smoke-check proposal before any real-provider inference."
@@ -2956,7 +2971,7 @@
       ]
     }
   ],
-  "updated_at": "2026-09-12T23:23:56.414843+00:00",
+  "updated_at": "2026-09-12T23:29:25.587013+00:00",
   "delivery_order": [
     "YMP-116",
     "YMP-103",

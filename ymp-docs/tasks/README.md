@@ -1,6 +1,6 @@
 # Task details and evidence
 
-Updated: 2026-09-12 23:23 UTC.
+Updated: 2026-09-12 23:29 UTC.
 
 Use the [delivery plan](plan.md) to follow progress. This generated register contains full acceptance criteria, dependencies and evidence. [tasks.json](tasks.json) is the single source; [manage.py](manage.py) updates both pages.
 
@@ -14,7 +14,7 @@ A planned task is not implemented functionality. Completed research and planning
 | design | 1 | 1 |
 | documentation | 4 | 4 |
 | experiment | 0 | 4 |
-| implementation | 21 | 25 |
+| implementation | 23 | 25 |
 | research | 8 | 8 |
 | verification | 1 | 2 |
 
@@ -46,9 +46,9 @@ A planned task is not implemented functionality. Completed research and planning
 | `[=]` | [YMP-301](#ymp-301) | P2 | Confirm the initial success class and intended audience | 2026-09-12 09:35 |
 | `[x]` | [YMP-109](#ymp-109) | P0 | Expose the provider-backed agent pool with stable individual identities | 2026-09-12 10:56 |
 | `[x]` | [YMP-110](#ymp-110) | P0 | Select session teams and execution settings within user constraints | 2026-09-12 20:43 |
-| `[~]` | [YMP-112](#ymp-112) | P0 | Coordinate commitments, plan revisions and reassignment through the board | 2026-09-12 23:23 |
+| `[x]` | [YMP-112](#ymp-112) | P0 | Coordinate commitments, plan revisions and reassignment through the board | 2026-09-12 23:29 |
 | `[x]` | [YMP-113](#ymp-113) | P0 | Accumulate general knowledge and verified experience incrementally | 2026-09-12 20:43 |
-| `[~]` | [YMP-114](#ymp-114) | P0 | Correct and supersede knowledge with newer verified evidence | 2026-09-12 23:23 |
+| `[x]` | [YMP-114](#ymp-114) | P0 | Correct and supersede knowledge with newer verified evidence | 2026-09-12 23:29 |
 | `[x]` | [YMP-009](#ymp-009) | P0 | Align the product definition, research conclusions and backlog with final intent | 2026-09-12 09:15 |
 | `[x]` | [YMP-115](#ymp-115) | P0 | Enable useful concurrent execution of independent assignments | 2026-09-12 17:00 |
 | `[x]` | [YMP-010](#ymp-010) | P0 | Approve product goals and core protocol constraints | 2026-09-12 09:06 |
@@ -59,7 +59,7 @@ A planned task is not implemented functionality. Completed research and planning
 | `[x]` | [YMP-120](#ymp-120) | P0 | Enforce assignment-scoped permissions and runtime-only state transitions | 2026-09-12 13:46 |
 | `[x]` | [YMP-118](#ymp-118) | P0 | Integrate core assignment, budget and confirmation visibility | 2026-09-12 20:43 |
 | `[x]` | [YMP-119](#ymp-119) | P0 | Prepare universal acceptance scenarios and independent validators | 2026-09-12 10:56 |
-| `[=]` | [YMP-121](#ymp-121) | P1 | Verify the integrated application and package a local release | 2026-09-12 23:23 |
+| `[~]` | [YMP-121](#ymp-121) | P1 | Verify the integrated application and package a local release | 2026-09-12 23:29 |
 | `[x]` | [YMP-013](#ymp-013) | P0 | Review plan coherence and simplify progress tracking | 2026-09-12 09:46 |
 | `[x]` | [YMP-122](#ymp-122) | P1 | Expose replaceable execution backends behind runtime-owned controls | 2026-09-12 15:23 |
 | `[x]` | [YMP-123](#ymp-123) | P1 | Expose a public local MCP facade over stdio | 2026-09-12 18:22 |
@@ -849,11 +849,11 @@ The owner requested bounded dynamic teams by default, optional fixed size or ros
 
 Coordinate commitments, plan revisions and reassignment through the board
 
-**State:** `[~]` (in_progress) · **Type:** implementation · **Priority:** P0
+**State:** `[x]` (done) · **Type:** implementation · **Priority:** P0
 
-**Last update (UTC):** 2026-09-12 23:23
+**Last update (UTC):** 2026-09-12 23:29
 
-**Current reason:** Final Opus sourceb6eb516 closes decision row/detail outcome and contract source-path findings, and displays requested/inherited token allowances, protected review tokens and captured accounting policy. Author419 tests/13 mutation controls/78-screen walk are recorded at e9c0214. Independent final Opus follow-up is running on immutable source; versioned0.4.0 candidate already passes all required checks.
+**Current reason:** Final independent Opus follow-up accepts b6eb516 for0.4.0 at9/10: all board UI criteria and reservation/policy visibility are complete. Decision rows and details share actual outcomes; captured contracts expose source paths.139 independent TUI tests,18 failing mutation controls and actual read-only terminal walks pass. Integrated versioned source495502f matches all158 candidate source hashes; no blocking UI finding remains.
 
 **Owner:** Maintainer; application UI by Claude Code claude-opus-5 with thinking max via Paseo
 
@@ -927,11 +927,11 @@ Required directly by the final product intent; design and implementation are pen
 
 Correct and supersede knowledge with newer verified evidence
 
-**State:** `[~]` (in_progress) · **Type:** implementation · **Priority:** P0
+**State:** `[x]` (done) · **Type:** implementation · **Priority:** P0
 
-**Last update (UTC):** 2026-09-12 23:23
+**Last update (UTC):** 2026-09-12 23:29
 
-**Current reason:** Actual declared input and old/new source-replacement paths are now visible in captured contracts (ab4697c), and row/detail outcomes share one reader. Author evidence is complete and the independent Opus follow-up is exercising correction and budget views at representative sizes. Closure awaits that verdict, not implementation or backend work.
+**Current reason:** Final independent Opus follow-up confirms all correction UI criteria for0.4.0: predecessor/replacement states, actual contract input/source-replacement paths, consistent outcomes and preserved history are visible. Read-only walks leave store/config unchanged; prior findings are closed. Backend and UI are integrated in495502f with exact accepted source bytes.
 
 **Owner:** Maintainer; application UI by Claude Code claude-opus-5 with thinking max via Paseo
 
@@ -1314,11 +1314,11 @@ Delivery must work for documents, data and evidence-based tasks as well as softw
 
 Verify the integrated application and package a local release
 
-**State:** `[=]` (planned) · **Type:** verification · **Priority:** P1
+**State:** `[~]` (in_progress) · **Type:** verification · **Priority:** P1
 
-**Last update (UTC):** 2026-09-12 23:23
+**Last update (UTC):** 2026-09-12 23:29
 
-**Current reason:** Needs YMP-112, YMP-114
+**Current reason:** All delivery dependencies are complete. Accepted0.4.0 UI and driver are integrated as495502f, matching158 checked candidate source hashes.419 tests, bridge14/native10, release17 scenarios, SDK and exact-version installer preflight pass. Final max review now awaits durable-main staged binary/bridge binding and publication confirmation; current installed release is still preserved.
 
 **Owner:** Independent final reviewer at max reasoning; maintainer integrates and packages
 
@@ -1327,8 +1327,6 @@ Verify the integrated application and package a local release
 **Depends on:** [YMP-119](#ymp-119), [YMP-103](#ymp-103), [YMP-105](#ymp-105), [YMP-107](#ymp-107), [YMP-112](#ymp-112), [YMP-115](#ymp-115), [YMP-114](#ymp-114), [YMP-118](#ymp-118), [YMP-122](#ymp-122), [YMP-123](#ymp-123), [YMP-125](#ymp-125), [YMP-110](#ymp-110), [YMP-113](#ymp-113), [YMP-126](#ymp-126), [YMP-127](#ymp-127), [YMP-128](#ymp-128)
 
 A local release needs a reproducible install and truthful compatibility evidence for the configured native providers.
-
-**Latest progress note:** Exact0.4.0 candidatec3758aa passes419 Rust tests,14 bridge tests,10 explicit native fixtures, release build, all17 scenarios and official SDK checks. Exact-version installer preflight passes backup/repeat/demo; real SDK version/interpreter verified independently. Max audit covers164 criteria across all26 tasks with no backend blocker. Final UI verdict, durable-main staged binary and post-acceptance publication remain.
 
 **Acceptance criteria:**
 
