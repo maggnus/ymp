@@ -229,6 +229,8 @@ pub struct Review {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MemoryEntry {
+    #[serde(default)]
+    pub provenance: Option<crate::KnowledgeProvenance>,
     pub id: String,
     pub project_id: Option<String>,
     pub kind: String,

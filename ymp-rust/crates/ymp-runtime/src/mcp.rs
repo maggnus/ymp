@@ -256,8 +256,8 @@ pub fn tools() -> Value {
         {"name":"team_read","description":"Read the shared team chat, including peer findings. Use after to read newer messages.","inputSchema":{"type":"object","additionalProperties":false,"properties":{"after":{"type":"integer"},"limit":{"type":"integer"}}}},
         {"name":"tasks_list","description":"Inspect tasks, assignments, dependencies and outcomes.","inputSchema":{"type":"object","additionalProperties":false,"properties":{}}},
         {"name":"task_propose","description":"Suggest a new task or change in approach for team consideration.","inputSchema":{"type":"object","additionalProperties":false,"properties":{"title":{"type":"string"},"description":{"type":"string"}},"required":["title","description"]}},
-        {"name":"memory_search","description":"Find verified project knowledge and shared procedures.","inputSchema":{"type":"object","additionalProperties":false,"properties":{"query":{"type":"string"}},"required":["query"]}},
-        {"name":"memory_propose","description":"Propose a reusable lesson; it becomes active only after independent review.","inputSchema":{"type":"object","additionalProperties":false,"properties":{"title":{"type":"string"},"content":{"type":"string"}},"required":["title","content"]}}
+        {"name":"memory_search","description":"Find supported project knowledge and shared check experience; explicitly include unconfirmed candidates for inspection.","inputSchema":{"type":"object","additionalProperties":false,"properties":{"query":{"type":"string"},"include_unconfirmed":{"type":"boolean"}},"required":["query"]}},
+        {"name":"memory_propose","description":"Retain an unconfirmed lesson candidate with bound origin. Agent agreement cannot activate knowledge.","inputSchema":{"type":"object","additionalProperties":false,"properties":{"title":{"type":"string"},"content":{"type":"string"}},"required":["title","content"]}}
     ])
 }
 

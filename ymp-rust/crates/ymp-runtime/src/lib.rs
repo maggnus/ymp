@@ -7,3 +7,6 @@ pub use checker::*;
 
 mod allocation;
 pub use allocation::*;
+
+pub mod knowledge;
+pub use knowledge::*;

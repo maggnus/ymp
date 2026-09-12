@@ -12,7 +12,7 @@ fn root(db: &Connection, session: &str) -> Result<std::path::PathBuf> {
     Ok(project.path)
 }
 
-fn current_task(db: &Connection, result: &ResultVersion) -> Result<bool> {
+pub(super) fn current_task(db: &Connection, result: &ResultVersion) -> Result<bool> {
     let Some(reference) = &result.task else {
         return Ok(false);
     };
@@ -71,7 +71,11 @@ fn current_aggregate(db: &Connection, session: &str, result: &ResultVersion) -> 
     Ok(true)
 }
 
-fn current_files(db: &Connection, session: &str, result: &ResultVersion) -> Result<bool> {
+pub(super) fn current_files(
+    db: &Connection,
+    session: &str,
+    result: &ResultVersion,
+) -> Result<bool> {
     let directory = root(db, session)?;
     if !result.artifacts.iter().all(|a| a.current(&directory)) {
         return Ok(false);
