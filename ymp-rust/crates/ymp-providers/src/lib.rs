@@ -685,6 +685,7 @@ async fn mock_turn(
             }
         },
         "bid"=>json!({"willing":!split_writers || (assignment.contains("Create another greeting") == (req.profile.id == "two")),"approach":"Inspect the task, implement, and verify."}).to_string(),
+        "execute" if req.read_only => "Read-only analysis of the selected directory is complete.".into(),
         "execute"=>{tokio::fs::write(req.cwd.join("greeting.txt"),if req.profile.instructions.contains("[mock:broken-output]"){ "wrong output\n" }else{"Hello from ymp\n"}).await?;"Created greeting.txt and verified its content.".into()},
         "learn"=>json!({"useful":true,"title":"Verify file-producing tasks","content":"For file-producing tasks, check both existence and requested content. Run the check on the final integrated artifact."}).to_string(),
         _=>"The requested artifact is complete and independently verified.".into(),

@@ -4,6 +4,7 @@ mod confirmation;
 mod confirmation_tests;
 #[cfg(test)]
 mod knowledge_tests;
+mod workspace_access;
 use crate::mcp::TeamServer;
 use crate::{
     BuiltinConfirmationChecker, ConfirmationChecker, EvidenceKnowledgeProposals,
@@ -62,6 +63,9 @@ pub struct Engine {
     allocation_identity: ExecutionBackendIdentity,
     resource_policy: Arc<dyn crate::ResourceAllocationPolicy>,
     resource_identity: ExecutionBackendIdentity,
+    workspace_policy: Arc<dyn crate::WorkspaceAccessPolicy>,
+    workspace_policy_identity: ExecutionBackendIdentity,
+    workspace_parent: Option<String>,
 }
 #[derive(Clone)]
 struct RunContext {
@@ -80,6 +84,7 @@ pub struct RunOutcome {
 }
 
 struct RecordedResponse {
+    _access: Option<crate::workspace_access::AccessLease>,
     text: String,
     assignment_id: String,
     invocation_id: String,
@@ -145,6 +150,11 @@ impl Engine {
             executable: std::env::current_exe()?,
             use_memory: true,
             adaptive: true,
+            workspace_policy: Arc::new(crate::DirectWorkspaceAccessPolicy),
+            workspace_policy_identity: crate::WorkspaceAccessPolicy::identity(
+                &crate::DirectWorkspaceAccessPolicy,
+            ),
+            workspace_parent: None,
             acceptance_contracts: Vec::new(),
             confirmation_checker: Arc::new(BuiltinConfirmationChecker),
             knowledge_retrieval: Arc::new(FtsKnowledgeRetrieval),
@@ -390,6 +400,7 @@ impl Engine {
         if session.project_id != project.id {
             bail!("Session belongs to a different project");
         }
+        let project_lock = self.store.lock_project(&project.id)?;
         let lock = self.store.lock_session(&session)?;
         if [
             "where is the file?",
@@ -473,6 +484,7 @@ impl Engine {
             .context("Missing session admission limits")?
             .limits;
         self.store.interrupt_open_invocations(&session.id)?;
+        self.recover_workspace_access(&session.id)?;
         let ctx = RunContext {
             session: session.clone(),
             server,
@@ -545,6 +557,7 @@ impl Engine {
                     .to_owned();
                 drop(ctx);
                 drop(lock);
+                drop(project_lock);
                 self.run_internal(path, &task, None, Some(previous), None)
                     .await
             }
@@ -593,6 +606,7 @@ impl Engine {
                 ready_work: if difficulty == "complex" { 2 } else { 1 },
             };
             let input = AllocationInput {
+                occupied_agent_ids: vec![],
                 session_id: id.clone(),
                 boundary: AllocationBoundary::Startup,
                 goal: prompt.into(),
@@ -710,6 +724,7 @@ impl Engine {
             .context("Missing session admission limits")?
             .limits;
         self.store.interrupt_open_invocations(&session.id)?;
+        self.recover_workspace_access(&session.id)?;
         let ctx = RunContext {
             session: session.clone(),
             server,
@@ -841,7 +856,7 @@ impl Engine {
                 Some(std::slice::from_ref(&agent.id)),
             )?;
         }
-        let _permit = tokio::select! {_=self.cancel.cancelled()=>bail!("Cancelled"),p=ctx.permits.acquire()=>p?};
+
         let requested = self.requested_settings(
             ctx,
             agent,
@@ -859,12 +874,6 @@ impl Engine {
             if read_only { "read" } else { "write" }
         );
         let config_version = self.backend_config_version(agent, &provider, &requested)?;
-        let continuation = self
-            .store
-            .value(&key)?
-            .and_then(|v| serde_json::from_value::<NativeContinuation>(v).ok())
-            .filter(|saved| saved.config_version == config_version && saved.requested == requested);
-        let resume = continuation.as_ref().map(|saved| saved.session_id.clone());
         let messages = self.store.messages(&ctx.session.id, 0, 10000)?;
         let mut context = Vec::new();
         let recent = messages
@@ -996,12 +1005,63 @@ impl Engine {
             prompt: full.clone(),
             purpose: purpose.into(),
             read_only,
-            resume: resume.clone(),
-            usage_baseline: continuation.and_then(|saved| saved.usage_baseline),
+            resume: None,
+            usage_baseline: None,
             mcp: None,
             timeout_secs: allowance.timeout_secs,
             bridge: self.bridge.clone(),
         };
+        let assignment_id = new_id();
+        let task_value = task
+            .as_ref()
+            .map(|reference| {
+                self.store
+                    .tasks(&ctx.session.id)?
+                    .into_iter()
+                    .find(|t| t.id == reference.task_id && t.attempts == reference.attempt)
+                    .context("Workspace policy task is missing or stale")
+            })
+            .transpose()?;
+        let backend_access = self.execution_backend.workspace_access(&request);
+        let effective_access = self
+            .workspace_policy
+            .resolve(&crate::WorkspaceAccessInput {
+                directory: cwd,
+                purpose,
+                task: task_value.as_ref(),
+                backend_access: &backend_access,
+            })?;
+        anyhow::ensure!(
+            effective_access.covers(&backend_access),
+            "unsupported_workspace_guarantee: policy cannot narrow actual backend access"
+        );
+        crate::workspace_access::validate_access(cwd, &backend_access)?;
+        crate::workspace_access::validate_access(cwd, &effective_access)?;
+        let access_decision = WorkspaceAccessDecision {
+            reservation_id: assignment_id.clone(),
+            policy: self.workspace_policy_identity.clone(), backend: self.backend_identity.clone(),
+            directory: cwd.canonicalize()?, backend_access, effective_access,
+            rationale: "Direct MVP execution; access comes from the trusted backend. Unbounded writers own the whole directory. No rollback or source isolation is provided.".into(),
+        };
+        let access = self
+            .acquire_workspace(
+                ctx,
+                &assignment_id,
+                Some(&agent.id),
+                task.clone(),
+                &access_decision,
+            )
+            .await?;
+        // Existing per-run permits remain a secondary bound for legacy callers.
+        let _permit = tokio::select! {_=self.cancel.cancelled()=>bail!("Cancelled"),p=ctx.permits.acquire()=>p?};
+        let continuation = self
+            .store
+            .value(&key)?
+            .and_then(|v| serde_json::from_value::<NativeContinuation>(v).ok())
+            .filter(|saved| saved.config_version == config_version && saved.requested == requested);
+        let resume = continuation.as_ref().map(|saved| saved.session_id.clone());
+        request.resume = resume.clone();
+        request.usage_baseline = continuation.and_then(|saved| saved.usage_baseline);
         let started_at = now();
         context.push(ContextReference {
             kind: ContextKind::Prompt,
@@ -1060,7 +1120,7 @@ impl Engine {
             });
         }
         let mut assignment = AssignmentRecord {
-            id: new_id(),
+            id: assignment_id,
             session_id: ctx.session.id.clone(),
             task,
             agent_id: agent.id.clone(),
@@ -1108,6 +1168,22 @@ impl Engine {
             id: invocation.id.clone(),
             closed: false,
         };
+        self.store.record_decision(&DecisionRecord {
+            id: new_id(),
+            session_id: ctx.session.id.clone(),
+            kind: "workspace_access_admitted".into(),
+            actor: Some(agent.id.clone()),
+            reason: access_decision.rationale.clone(),
+            outcome: None,
+            links: RecordLinks {
+                task: assignment.task.clone(),
+                assignment_id: Some(assignment.id.clone()),
+                invocation_id: Some(invocation.id.clone()),
+                workspace_access: Some(access_decision),
+                ..Default::default()
+            },
+            created_at: now(),
+        })?;
         // A failure after resume invalidates the previously completed marker.
         self.store.put_value(&key, &Value::Null)?;
         self.store.event(
@@ -1323,6 +1399,7 @@ impl Engine {
                 )?;
                 self.post(&ctx.session.id, &agent.id, purpose, &result.text)?;
                 Ok(RecordedResponse {
+                    _access: (purpose == "execute").then_some(access),
                     text: result.text,
                     assignment_id: assignment.id,
                     invocation_id: invocation.id,
@@ -1494,7 +1571,20 @@ impl Engine {
         }
         // An interrupted turn is inspected before any continuation. No side-effecting
         // request is automatically replayed just because its final event is missing.
+        let prior_assignments = self.store.trace(&ctx.session.id)?.assignments;
         for task in &mut tasks {
+            if task.state == TaskState::Running
+                && !prior_assignments.iter().any(|a| {
+                    a.purpose == "execute" && a.task.as_ref() == Some(&TaskAttemptRef::from(&*task))
+                })
+            {
+                // Selection can be cancelled while waiting, before native admission.
+                // Retain the recorded attempt; there are no effects to inspect.
+                task.state = TaskState::Ready;
+                task.assignee = None;
+                task.result = Some("Previous selection ended before native admission; no execution effects were produced".into());
+                self.task_changed(task)?;
+            }
             if task.state == TaskState::Running {
                 task.state = TaskState::Review;
                 task.interrupted = true;
@@ -1529,14 +1619,25 @@ impl Engine {
                         || (t.state == TaskState::Ready
                             && t.dependencies.iter().all(|d| accepted.contains(d)))
                 })
-                .take(1)
+                .take(ctx.limits.parallel)
                 .cloned()
                 .collect::<Vec<_>>();
+            for waiting in tasks
+                .iter()
+                .filter(|t| t.state == TaskState::Ready && !ready.iter().any(|r| r.id == t.id))
+            {
+                let (code, detail) = if waiting.dependencies.iter().all(|d| accepted.contains(d)) {
+                    ("concurrency_limit", "The bounded work wave is full")
+                } else {
+                    ("dependencies", "Required task results are not yet accepted")
+                };
+                self.record_workspace_wait(ctx, waiting, code, detail)?;
+            }
             if ready.is_empty() {
                 bail!("No runnable tasks remain");
             }
-            // The existing workspace scheduler serializes execution and verification.
-            // Selection itself uses metadata and produces no bidding invocations.
+            // Select a bounded wave. Access admission below coordinates actual
+            // backend permissions, including whole-directory native writers.
             let mut assigned = Vec::new();
             let mut busy = HashSet::new();
             for mut task in ready {
@@ -1544,14 +1645,28 @@ impl Engine {
                     assigned.push(task);
                     continue;
                 }
-                let candidates = self
-                    .eligible_agents(&ctx.session.id)?
+                let reserved = self
+                    .store
+                    .team_state(&ctx.session.id)?
+                    .and_then(|s| s.reserved_final_reviewer);
+                let eligible = if busy.is_empty() {
+                    self.eligible_agents(&ctx.session.id)?
+                } else {
+                    self.current_team(&ctx.session.id)?
+                };
+                let candidates = eligible
                     .iter()
-                    .filter(|a| !busy.contains(&a.id))
+                    .filter(|a| !busy.contains(&a.id) && Some(&a.id) != reserved.as_ref())
                     .cloned()
                     .collect::<Vec<_>>();
                 if candidates.is_empty() {
-                    break;
+                    self.record_workspace_wait(
+                        ctx,
+                        &task,
+                        "agent_busy",
+                        "Current members are assigned or reserved for independent final review",
+                    )?;
+                    continue;
                 }
                 let agent = self.choose_executor(ctx, &task, &candidates)?;
                 busy.insert(agent.id.clone());
@@ -1567,11 +1682,16 @@ impl Engine {
                 let context = ctx.clone();
                 work.spawn(async move { engine.perform(&context, task).await });
             }
-            let mut finished = Vec::new();
             let mut error = None;
             while let Some(result) = work.join_next().await {
                 match result {
-                    Ok(Ok(task)) => finished.push(task),
+                    Ok(Ok(mut task)) => {
+                        if task.state == TaskState::Review {
+                            if let Err(e) = self.verify(ctx, &mut task, prompt).await {
+                                error = Some(e);
+                            }
+                        }
+                    }
                     Ok(Err(e)) => {
                         error = Some(e);
                     }
@@ -1582,11 +1702,6 @@ impl Engine {
             }
             if let Some(error) = error {
                 return Err(error);
-            }
-            for mut task in finished {
-                if task.state == TaskState::Review {
-                    self.verify(ctx, &mut task, prompt).await?;
-                }
             }
         }
         self.status("Checking the final result");
@@ -1798,7 +1913,7 @@ impl Engine {
 
     async fn plan(&self, ctx: &RunContext, prompt: &str) -> Result<Vec<Task>> {
         self.status("Collecting independent proposals");
-        let instruction=format!("Analyze this request and inspect the workspace without changing files:\n{prompt}\nPropose a concise plan with at most 8 independently checkable tasks. Include explicit shell acceptance checks where possible; do not weaken existing tests. Return ONLY JSON: {{\"summary\":\"...\",\"tasks\":[{{\"title\":\"...\",\"description\":\"...\",\"competence\":\"implementation\",\"difficulty\":\"standard\",\"dependencies\":[],\"checks\":[\"command\"]}}]}}. Dependencies are zero-based task indexes. Competences: analysis, planning, implementation, verification, synthesis. Difficulties: simple, standard, complex. Keep simple requests to one task.");
+        let instruction=format!("Analyze this request and inspect the workspace without changing files:\n{prompt}\nPropose a concise plan with at most 8 independently checkable tasks. Include explicit shell acceptance checks where possible; do not weaken existing tests. Return ONLY JSON: {{\"summary\":\"...\",\"tasks\":[{{\"title\":\"...\",\"description\":\"...\",\"competence\":\"implementation\",\"access\":\"write\",\"difficulty\":\"standard\",\"dependencies\":[],\"checks\":[\"command\"]}}]}}. Dependencies are zero-based task indexes. Competences: analysis, planning, implementation, verification, synthesis. Each task declares access as read_only or write independently of competence. Use read_only for returning findings in the response; use write for producing or changing files, including analysis and synthesis artifacts. Omitted access conservatively means write. Difficulties: simple, standard, complex. Keep simple requests to one task.");
         let mut work = JoinSet::new();
         // A bounded initial sample leaves startup room for independent review
         // and revision. Membership is not a mandate to solicit every member.
@@ -1965,6 +2080,7 @@ impl Engine {
         let mut tasks = Vec::new();
         for (i, t) in proposal.plan.tasks.clone().into_iter().enumerate() {
             let task = Task {
+                access: t.access,
                 id: ids[i].clone(),
                 session_id: ctx.session.id.clone(),
                 title: t.title,
@@ -2044,7 +2160,9 @@ impl Engine {
             .find(|a| Some(&a.id) == task.assignee.as_ref())
             .context("Missing assignee")?;
         let path = task.workspace.as_ref().context("Missing task workspace")?;
-        let request=format!("Execute this assigned task in the current working directory:\n{}\n{}\nAcceptance checks: {}\nPrevious result/review: {}\nRead relevant shared chat and share discoveries that affect other tasks. You may change files and run tools autonomously. Preserve existing behavior outside the task. Do not push or publish externally unless the original request explicitly requires it. Finish with a concrete summary of files and checks.",task.title,task.description,serde_json::to_string(&task.checks)?,task.result.as_deref().unwrap_or("none"));
+        let request=format!("Execute this assigned task in the current working directory:\n{}\n{}\nAcceptance checks: {}\nPrevious result/review: {}\nRead relevant shared chat and share discoveries that affect other tasks. Follow the enforced access recorded for this assignment. Return read-only findings in your response; write deliverables only when write permission is granted. Preserve existing behavior outside the task. Do not push or publish externally unless the original request explicitly requires it. Finish with a concrete summary of files and checks.",task.title,task.description,serde_json::to_string(&task.checks)?,task.result.as_deref().unwrap_or("none"));
+        let read_only = self.workspace_policy.execution_read_only(&task);
+        anyhow::ensure!(task.access != TaskAccess::ReadOnly || read_only, "unsupported_workspace_guarantee: policy cannot enlarge a read-only task's native authority");
         let text = self
             .ask_scoped(
                 ctx,
@@ -2052,7 +2170,7 @@ impl Engine {
                 path,
                 "execute",
                 &request,
-                false,
+                read_only,
                 Some(TaskAttemptRef::from(&task)),
             )
             .await?;
@@ -2081,7 +2199,12 @@ impl Engine {
         Ok(task)
     }
 
-    async fn verify(&self, ctx: &RunContext, task: &mut Task, prompt: &str) -> Result<()> {
+    async fn verify_protected(
+        &self,
+        ctx: &RunContext,
+        task: &mut Task,
+        prompt: &str,
+    ) -> Result<()> {
         let path = task
             .workspace
             .clone()
@@ -2473,6 +2596,7 @@ mod tests {
         };
         fixture.store.save_session(&session).unwrap();
         let task = Task {
+            access: ymp_core::TaskAccess::default(),
             id: new_id(),
             session_id: session.id.clone(),
             title: "Invoice totals".into(),

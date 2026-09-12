@@ -1,0 +1,22 @@
+   Compiling ymp-storage v0.3.0 (/private/var/folders/cw/7pn8sb3x6bj69g7j2d8f_ss00000gn/T/ymp-release-work-h6oq_rys/115/ymp-rust/crates/ymp-storage)
+   Compiling ymp-runtime v0.3.0 (/private/var/folders/cw/7pn8sb3x6bj69g7j2d8f_ss00000gn/T/ymp-release-work-h6oq_rys/115/ymp-rust/crates/ymp-runtime)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 2.99s
+     Running tests/concurrency.rs (target/debug/deps/concurrency-554b81c43e2a4a5d)
+
+running 1 test
+
+thread 'failed_sibling_preserves_completed_work_review_usage_and_restart_inspection' panicked at ymp-rust/crates/ymp-runtime/tests/concurrency.rs:288:5:
+assertion `left == right` failed: Resource ownership leaked past terminal accounting
+  left: 11
+ right: 10
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test failed_sibling_preserves_completed_work_review_usage_and_restart_inspection ... FAILED
+
+failures:
+
+failures:
+    failed_sibling_preserves_completed_work_review_usage_and_restart_inspection
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 8 filtered out; finished in 0.38s
+
+error: test failed, to rerun pass `-p ymp-runtime --test concurrency`

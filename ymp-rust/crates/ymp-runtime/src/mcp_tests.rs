@@ -281,6 +281,7 @@ async fn task_reassignment_revokes_the_previous_attempt_in_the_same_commit() {
         .finish(&f.invocation.id, InvocationState::Completed, None)
         .unwrap();
     let mut task = Task {
+        access: ymp_core::TaskAccess::default(),
         id: new_id(),
         session_id: f.session.id.clone(),
         title: "work".into(),

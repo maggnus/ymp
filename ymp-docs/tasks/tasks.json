@@ -1638,7 +1638,7 @@
       "title": "Enable useful concurrent execution of independent assignments",
       "type": "implementation",
       "priority": "P0",
-      "status": "in_progress",
+      "status": "done",
       "owner": "Maintainer",
       "authorization": "Planned delivery derived from the owner-approved intent and standing autonomous-development direction. Follow dependencies and acceptance criteria; separate real-provider quota is required where stated.",
       "depends_on": [
@@ -1662,7 +1662,11 @@
         "[Team and effort policy](../architecture/team-and-effort-policy.md)",
         "[Domain terminology](../product/entities.md)",
         "[Delivery plan](plan.md)",
-        "[MVP workspace decision and post-MVP boundary](../architecture/workspace-policy.md)"
+        "[MVP workspace decision and post-MVP boundary](../architecture/workspace-policy.md)",
+        "[Concurrency implementation](../architecture/concurrency-implementation.md)",
+        "[Standalone independent R1/R2 review](../../ymp-evals/reports/ymp-115-independent-review.md)",
+        "[Combined integration verification](../../ymp-evals/reports/ymp-115-combined-integration.md)",
+        "[Independent combined acceptance](../../ymp-evals/reports/ymp-115-combined-independent-review.md)"
       ],
       "history": [
         {
@@ -1719,6 +1723,16 @@
           "at": "2026-09-12T16:33:38.033566+00:00",
           "status": "in_progress",
           "note": "Correction ecf1278 retains the exact101-to-0 public regression: completed A reaches confirmation despite two failed occupied siblings; real ceilings and fixed size still reject impossible membership. Author fmt/clippy and268 tests pass. Independent R2 is running; original candidate remains unmerged."
+        },
+        {
+          "at": "2026-09-12T16:46:38.539879+00:00",
+          "status": "in_progress",
+          "note": "Standalone R2(9/10) ACCEPT at ecf1278. Combined consumers preserve confirmed sibling knowledge and require actual inspection before retiring an unresolved actor; three removed-guard controls fail101. Host disk exhaustion interrupted final compilation. Generated historical build caches are being reclaimed and the same source is being checked again; no product regression is inferred from ENOSPC."
+        },
+        {
+          "at": "2026-09-12T17:00:52.115183+00:00",
+          "status": "done",
+          "note": "Standalone R2(9/10) and combined R1(9/10) ACCEPT. Integrated cc62f8d,9bca1cc,6eaf6e8; main source matches reviewed b08eb57. Main fmt/clippy,278 Rust tests and13 bridge tests/check/build pass. Real public consumers prove useful overlap, conflict exclusion, retained responsibility and confirmed sibling knowledge/location preservation. Direct-directory behavior remains MVP-only."
         }
       ]
     },
@@ -2181,7 +2195,8 @@
         "YMP-114",
         "YMP-118",
         "YMP-122",
-        "YMP-123"
+        "YMP-123",
+        "YMP-125"
       ],
       "reason": "A local release needs a reproducible install and truthful compatibility evidence for the configured native providers.",
       "acceptance": [
@@ -2227,6 +2242,11 @@
           "at": "2026-09-12T14:50:45.441499+00:00",
           "status": "planned",
           "note": "Owner requested a check that tests do not use real max/xhigh agents. Source audit confirms mock/scripted unattended paths. Live compatibility probes must pin minimal supported effort; developer/reviewer model use is a separate resource category."
+        },
+        {
+          "at": "2026-09-12T16:52:30.502537+00:00",
+          "status": "planned",
+          "note": "YMP-125 makes the trusted-contract integration seam reachable from executable clients. Final verification must include this application route, not only direct Rust injection."
         }
       ],
       "budget": "Not allocated. Prepare a concrete bounded smoke-check proposal before any real-provider inference."
@@ -2386,6 +2406,16 @@
           "at": "2026-09-12T16:29:19.892236+00:00",
           "status": "in_progress",
           "note": "R1(8/10) requests changes: SIGTERM closes mock invocations and pauses the operation but the process remains alive while stdin stays open. The independent seven-second subprocess control fails; EOF then exits0. Author is correcting input shutdown and adding open-pipe SIGTERM/SIGINT controls. Shared runtime authority, deduplication and bounded projection checks passed."
+        },
+        {
+          "at": "2026-09-12T16:46:38.583231+00:00",
+          "status": "in_progress",
+          "note": "Standalone R2(9.5/10) ACCEPT at610f99d closes the open-pipe signal shutdown defect. Combined source preserves accepted location/allocation/knowledge behavior. Fmt/clippy pass; disk exhaustion interrupted workspace checks, which are rerunning after generated-cache cleanup before actual MCP-client verification."
+        },
+        {
+          "at": "2026-09-12T17:00:52.158442+00:00",
+          "status": "in_progress",
+          "note": "Standalone R2(9.5/10) ACCEPT; combined build and full official MCP client walk pass. After ENOSPC cleanup, a full runtime test exposed false session-lock contention from inherited descriptors; a separate bounded Store lock correction is underway. MCP source remains unmerged until shared-lock correction and combined verification complete."
         }
       ]
     },
@@ -2418,9 +2448,46 @@
           "note": "Explicitly deferred until after the 0.4.0 MVP. Direct execution is accepted only for that MVP; larger-project isolation/publication requires this separate outcome."
         }
       ]
+    },
+    {
+      "id": "YMP-125",
+      "title": "Expose trusted acceptance contracts to executable users",
+      "type": "implementation",
+      "priority": "P0",
+      "status": "in_progress",
+      "owner": "Maintainer; any TUI implementation by Claude Opus 5 max via Paseo",
+      "authorization": "Required release integration derived from the approved executable product and checked-experience goal; standing autonomous implementation authorization applies. No real-provider quota is granted.",
+      "depends_on": [
+        "YMP-117"
+      ],
+      "reason": "Independent rebuilt executable audit confirms that only Rust consumers can originate trusted contracts. Ordinary CLI/TUI runs cannot currently produce confirmed experience through application configuration.",
+      "acceptance": [
+        "Expose explicit user-controlled typed contract input through a common executable configuration/loading path, with a clear activation scope and the existing runtime-owned confirmation guards.",
+        "Communicate declared target titles, criteria and artifact/input paths to planning without leaking expected bytes, reference outputs or verifier contents. Reject duplicate and unmatched or ambiguous targets before production; replanning retains the obligations.",
+        "Capture selected contracts before prompting and preserve their source/bindings on resume; mutable configuration or manifest edits cannot replace a captured contract.",
+        "Verify an actual executable confirmed outcome and supported retrieval in a later session, while absent-contract qualitative runs remain accepted/unconfirmed with no reputation.",
+        "Exercise failing/partial checks, changed inputs/artifacts/verifiers, target-binding failures and resumed configuration changes through production boundaries using mock/scripted providers.",
+        "Keep current CLI/TUI consumers consistent with shared runtime records. Delegate any TUI implementation to Claude Opus 5 max; no new confirmation semantics or general plugin framework is required."
+      ],
+      "evidence": [
+        "[Executable integration gap and contract](../architecture/executable-acceptance-contracts.md)",
+        "[Independent executable audit measurements](../research/evidence/executable-confirmation-gap.json)"
+      ],
+      "history": [
+        {
+          "at": "2026-09-12T16:52:30.502537+00:00",
+          "status": "new",
+          "note": "Added after independent source and rebuilt mock-executable audit: correct output remained unconfirmed with no captured contracts/checks or observations. The existing Rust-only seam is insufficient for ordinary application use. Task-title binding must be addressed together with explicit contract ingress."
+        },
+        {
+          "at": "2026-09-12T16:53:01.470120+00:00",
+          "status": "in_progress",
+          "note": "Implementing explicit executable contract ingress and unambiguous plan binding through the existing trusted runtime. The independent audit establishes the missing application route; all automatic checks remain mock/scripted, and any TUI work stays with Claude Opus 5 max."
+        }
+      ]
     }
   ],
-  "updated_at": "2026-09-12T16:33:38.110325+00:00",
+  "updated_at": "2026-09-12T17:00:52.158442+00:00",
   "delivery_order": [
     "YMP-116",
     "YMP-103",
@@ -2441,6 +2508,7 @@
     "YMP-113",
     "YMP-114",
     "YMP-107",
+    "YMP-125",
     "YMP-118",
     "YMP-123",
     "YMP-121"
@@ -2515,6 +2583,7 @@
       "outcome": "Core state and recovery are visible; the integrated application passes the universal suite and release checks.",
       "task_ids": [
         "YMP-107",
+        "YMP-125",
         "YMP-118",
         "YMP-123",
         "YMP-121"

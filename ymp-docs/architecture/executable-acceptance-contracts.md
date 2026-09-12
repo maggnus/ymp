@@ -1,0 +1,13 @@
+# Executable access to trusted acceptance contracts
+
+YMP-125 closes a release integration gap found by an independent executable audit on 2026-09-13. YMP-117 already implements typed trusted contracts, captured inputs/checks and independent confirmation; its initial public entry point is `Engine.acceptance_contracts`. CLI and TUI construction currently leave that vector empty. A rebuilt mock `ymp demo` produced its greeting, but task and final acceptance remained unconfirmed, no check contract was captured and no reputation observation was created. This is correct behavior without evidence, but a Rust-only entry point leaves checked experience unreachable through ordinary application configuration.
+
+The implementation must expose an explicit user-controlled input for the existing typed contracts and share it across executable entry points. Its activation scope must be clear. Capture selected contracts before prompting, preserve that capture on resume and reject replacement of existing authority. A local configuration or manifest supplies declared check meaning; agent-generated commands and agreement cannot supply that authority.
+
+Contract input alone is insufficient: the current binding uses exact task titles. Planning needs target titles, criteria and declared artifact/input paths, while expected bytes, reference outputs and verifier contents remain outside agent context. Reject duplicate targets and require exactly one planned target for every supplied contract before production. Omitted or ambiguous targets must not silently become an apparently successful run that ignored its checks. Replanning and resume preserve the same obligations.
+
+Use the existing confirmation, storage and native-execution interfaces. This work does not change the meaning of confirmation or require automatic natural-language interpretation of trusted checks. Runs without declared objective checks still support accepted/unconfirmed qualitative results.
+
+Acceptance requires an actual executable run that creates a confirmed outcome and makes its supported experience available in a later session, plus absent-contract, unmatched/duplicate-target, failing/partial evidence, changed input/artifact/verifier and immutable-resume controls. All unattended examples use scripted or mock providers. Existing UI views must consume the resulting shared records; any TUI implementation is delegated to Claude Opus 5 max.
+
+Evidence and task status are tracked in [YMP-125](../tasks/README.md#ymp-125). The initial audit's compact measurements are in [executable-confirmation-gap.json](../research/evidence/executable-confirmation-gap.json). This document records the gap and required integration, not implemented functionality.

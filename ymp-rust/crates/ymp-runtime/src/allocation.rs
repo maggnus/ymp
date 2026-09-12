@@ -17,7 +17,7 @@ impl AllocationPolicy for BoundedAllocationPolicy {
     fn identity(&self) -> ExecutionBackendIdentity {
         ExecutionBackendIdentity {
             id: "ymp.bounded-allocation".into(),
-            version: "1".into(),
+            version: "2".into(),
         }
     }
     fn propose(&self, input: &AllocationInput) -> Result<AllocationProposal> {
@@ -77,6 +77,23 @@ impl AllocationPolicy for BoundedAllocationPolicy {
             } else {
                 2
             };
+        // Ordinary independent work can justify concurrent producers too. This
+        // bounded width is a heuristic; it does not claim optimal utilization.
+        let useful_width = if input.demand.purpose == "execute" {
+            (input.demand.ready_work + input.occupied_agent_ids.len())
+                .min(input.budget.as_ref().map_or(1, |b| b.limits.parallel))
+        } else {
+            0
+        };
+        // Retained responsibilities and a distinct selected actor both need a
+        // slot, including review after unrelated producers have failed.
+        let required_members = input.occupied_agent_ids.len()
+            + usize::from(
+                executor
+                    .as_ref()
+                    .is_some_and(|choice| !input.occupied_agent_ids.contains(&choice.agent_id)),
+            );
+        let minimum = minimum.max(useful_width + 1).max(required_members);
         let target = input
             .constraints
             .fixed_roster
@@ -90,9 +107,13 @@ impl AllocationPolicy for BoundedAllocationPolicy {
             );
         let mut members = input.constraints.fixed_roster.clone().unwrap_or_default();
         if input.constraints.fixed_roster.is_none() {
+            members.extend(input.occupied_agent_ids.iter().cloned());
             if let Some(choice) = &executor {
-                members.push(choice.agent_id.clone());
+                if !members.contains(&choice.agent_id) {
+                    members.push(choice.agent_id.clone());
+                }
             }
+            anyhow::ensure!(members.len() <= target, "active_responsibility: selected work cannot displace occupied members within the captured ceiling");
             if let Some(id) = &reserved {
                 if members.len() < target && !members.contains(id) {
                     members.push(id.clone());

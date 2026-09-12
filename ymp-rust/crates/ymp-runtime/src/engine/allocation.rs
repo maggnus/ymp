@@ -435,7 +435,23 @@ impl Engine {
             .collect::<Vec<_>>();
         producers.sort();
         producers.dedup();
+        let mut occupied_agent_ids = trace
+            .assignments
+            .iter()
+            .filter(|a| a.state == InvocationState::Running)
+            .map(|a| a.agent_id.clone())
+            .chain(
+                trace
+                    .tasks
+                    .iter()
+                    .filter(|t| t.state == TaskState::Running)
+                    .filter_map(|t| t.assignee.clone()),
+            )
+            .collect::<Vec<_>>();
+        occupied_agent_ids.sort();
+        occupied_agent_ids.dedup();
         Ok(AllocationInput {
+            occupied_agent_ids,
             session_id: session.into(),
             boundary,
             goal: policy.map(|p| p.goal).unwrap_or(trace.session.title),
@@ -502,6 +518,10 @@ impl Engine {
         input.constraints.validate()?;
         ensure!(input.eligible.len() >= 2, "no_independent_eligible_reviewer: at least two eligible identities are required for independent review");
         let ids = &proposal.members;
+        ensure!(
+            input.occupied_agent_ids.iter().all(|id| ids.contains(id)),
+            "active_responsibility: proposal cannot remove an active or committed participant"
+        );
         let unique: HashSet<_> = ids.iter().collect();
         ensure!(
             !ids.is_empty() && unique.len() == ids.len(),

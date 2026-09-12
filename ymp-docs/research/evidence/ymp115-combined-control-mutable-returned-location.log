@@ -1,0 +1,31 @@
+   Compiling ymp-runtime v0.3.0 (/private/var/folders/cw/7pn8sb3x6bj69g7j2d8f_ss00000gn/T/ymp-release-work-h6oq_rys/integrate_concurrency/ymp-rust/crates/ymp-runtime)
+warning: unused variable: `directory`
+   --> ymp-rust/crates/ymp-runtime/src/engine.rs:403:17
+    |
+403 |             let directory = outcomes
+    |                 ^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_directory`
+    |
+    = note: `#[warn(unused_variables)]` on by default
+
+warning: `ymp-runtime` (lib) generated 1 warning
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.66s
+     Running tests/concurrency.rs (target/debug/deps/concurrency-554b81c43e2a4a5d)
+
+running 1 test
+Outcome: blocked: Run blocked: Scripted sibling infrastructure failure
+
+thread 'independent_probe_two_failed_siblings_keep_eligible_review_reachable' panicked at ymp-rust/crates/ymp-runtime/tests/concurrency.rs:820:5:
+assertion `left == right` failed
+  left: "/private/var/folders/cw/7pn8sb3x6bj69g7j2d8f_ss00000gn/T/.tmp4F2aAs/relocated-empty"
+ right: "/private/var/folders/cw/7pn8sb3x6bj69g7j2d8f_ss00000gn/T/.tmp4F2aAs/work"
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test independent_probe_two_failed_siblings_keep_eligible_review_reachable ... FAILED
+
+failures:
+
+failures:
+    independent_probe_two_failed_siblings_keep_eligible_review_reachable
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 9 filtered out; finished in 0.30s
+
+error: test failed, to rerun pass `-p ymp-runtime --test concurrency`
