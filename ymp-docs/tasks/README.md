@@ -1,6 +1,6 @@
 # Task details and evidence
 
-Updated: 2026-09-12 20:08 UTC.
+Updated: 2026-09-12 20:12 UTC.
 
 Use the [delivery plan](plan.md) to follow progress. This generated register contains full acceptance criteria, dependencies and evidence. [tasks.json](tasks.json) is the single source; [manage.py](manage.py) updates both pages.
 
@@ -46,9 +46,9 @@ A planned task is not implemented functionality. Completed research and planning
 | `[=]` | [YMP-301](#ymp-301) | P2 | Confirm the initial success class and intended audience | 2026-09-12 09:35 |
 | `[x]` | [YMP-109](#ymp-109) | P0 | Expose the provider-backed agent pool with stable individual identities | 2026-09-12 10:56 |
 | `[~]` | [YMP-110](#ymp-110) | P0 | Select session teams and execution settings within user constraints | 2026-09-12 16:33 |
-| `[~]` | [YMP-112](#ymp-112) | P0 | Coordinate commitments, plan revisions and reassignment through the board | 2026-09-12 20:01 |
+| `[~]` | [YMP-112](#ymp-112) | P0 | Coordinate commitments, plan revisions and reassignment through the board | 2026-09-12 20:12 |
 | `[~]` | [YMP-113](#ymp-113) | P0 | Accumulate general knowledge and verified experience incrementally | 2026-09-12 16:33 |
-| `[~]` | [YMP-114](#ymp-114) | P0 | Correct and supersede knowledge with newer verified evidence | 2026-09-12 20:01 |
+| `[~]` | [YMP-114](#ymp-114) | P0 | Correct and supersede knowledge with newer verified evidence | 2026-09-12 20:12 |
 | `[x]` | [YMP-009](#ymp-009) | P0 | Align the product definition, research conclusions and backlog with final intent | 2026-09-12 09:15 |
 | `[x]` | [YMP-115](#ymp-115) | P0 | Enable useful concurrent execution of independent assignments | 2026-09-12 17:00 |
 | `[x]` | [YMP-010](#ymp-010) | P0 | Approve product goals and core protocol constraints | 2026-09-12 09:06 |
@@ -65,7 +65,7 @@ A planned task is not implemented functionality. Completed research and planning
 | `[x]` | [YMP-123](#ymp-123) | P1 | Expose a public local MCP facade over stdio | 2026-09-12 18:22 |
 | `[=]` | [YMP-124](#ymp-124) | P1 | Add isolated execution and recoverable publication for larger projects | 2026-09-12 15:31 |
 | `[x]` | [YMP-125](#ymp-125) | P0 | Expose trusted acceptance contracts to executable users | 2026-09-12 17:54 |
-| `[~]` | [YMP-126](#ymp-126) | P1 | Execute universal acceptance scenarios through a trusted runtime driver | 2026-09-12 20:01 |
+| `[~]` | [YMP-126](#ymp-126) | P1 | Execute universal acceptance scenarios through a trusted runtime driver | 2026-09-12 20:12 |
 | `[~]` | [YMP-127](#ymp-127) | P0 | Build and display the agent pool from provider-returned native names | 2026-09-12 20:03 |
 
 ## YMP-001
@@ -849,9 +849,9 @@ Coordinate commitments, plan revisions and reassignment through the board
 
 **State:** `[~]` (in_progress) · **Type:** implementation · **Priority:** P0
 
-**Last update (UTC):** 2026-09-12 20:01
+**Last update (UTC):** 2026-09-12 20:12
 
-**Current reason:** Combined112/114 backend afede54 independently accepted R1(9/10):17 focused tests and actual CLI/public-MCP correction consumer pass;100 source hashes and protected MCP/StoreLock sections match. Composition with native catalog127 is underway. Existing-page Opus UI delivery remains required.
+**Current reason:** Board/knowledge/native composition0e8059e accepted by parent (9/10), with122 independently verified source hashes,10 protected sections and17 focused tests. Integrated asb249195; main fmt/clippy327workspace/build pass. Backend complete; delegated Opus board views and executable UI walkthrough remain.
 
 **Owner:** Maintainer; application UI by Claude Code claude-opus-5 with thinking max via Paseo
 
@@ -924,9 +924,9 @@ Correct and supersede knowledge with newer verified evidence
 
 **State:** `[~]` (in_progress) · **Type:** implementation · **Priority:** P0
 
-**Last update (UTC):** 2026-09-12 20:01
+**Last update (UTC):** 2026-09-12 20:12
 
-**Current reason:** Combined112/114 backend afede54 independently accepted R1(9/10), including actual CLI/public-MCP correction-history consumer. Source/record bindings and scoped current knowledge verified. Composition with native catalog127 is underway; Opus knowledge-history view remains required.
+**Current reason:** Correction/board/native composition0e8059e accepted by parent (9/10) and integrated asb249195. Main exactly matches reviewed source; fmt/clippy327workspace/build pass. Evidence-bound correction and later scoped retrieval are implemented. Delegated Opus current/superseded knowledge view remains.
 
 **Owner:** Maintainer; application UI by Claude Code claude-opus-5 with thinking max via Paseo
 
@@ -1518,9 +1518,9 @@ Execute universal acceptance scenarios through a trusted runtime driver
 
 **State:** `[~]` (in_progress) · **Type:** implementation · **Priority:** P1
 
-**Last update (UTC):** 2026-09-12 20:01
+**Last update (UTC):** 2026-09-12 20:12
 
-**Current reason:** Actual driver now passes9 of17 cases, including all four workflows and partial-usage timeout/revocation. Accepted112/114 backends are composed for remaining adapters. The real budget case exposed missing variable per-assignment reservation and separately protected review allowance; narrow captured runtime correction authorized, fixture unchanged. All workloads remain scripted; no model-quality claim.
+**Current reason:** Independent exporter preflight confirms workflow receipts use actual runtime decisions and prompts exclude validator/reference data. Three concrete corrections identified: actual backend provenance, preserving extra occurrences/source order in location/effort projections, and complete partial-usage source mapping with deterministic ordering. Author acknowledged; this is preflight, not task acceptance. Remaining scenario adapters and reservation correction continue.
 
 **Owner:** Maintainer and delegated xhigh implementation/review agents
 

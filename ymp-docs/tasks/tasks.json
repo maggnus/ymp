@@ -1452,6 +1452,11 @@
           "at": "2026-09-12T20:01:24.226109+00:00",
           "status": "in_progress",
           "note": "Combined112/114 backend afede54 independently accepted R1(9/10):17 focused tests and actual CLI/public-MCP correction consumer pass;100 source hashes and protected MCP/StoreLock sections match. Composition with native catalog127 is underway. Existing-page Opus UI delivery remains required."
+        },
+        {
+          "at": "2026-09-12T20:12:36.150108+00:00",
+          "status": "in_progress",
+          "note": "Board/knowledge/native composition0e8059e accepted by parent (9/10), with122 independently verified source hashes,10 protected sections and17 focused tests. Integrated asb249195; main fmt/clippy327workspace/build pass. Backend complete; delegated Opus board views and executable UI walkthrough remain."
         }
       ]
     },
@@ -1641,6 +1646,11 @@
           "at": "2026-09-12T20:01:24.276600+00:00",
           "status": "in_progress",
           "note": "Combined112/114 backend afede54 independently accepted R1(9/10), including actual CLI/public-MCP correction-history consumer. Source/record bindings and scoped current knowledge verified. Composition with native catalog127 is underway; Opus knowledge-history view remains required."
+        },
+        {
+          "at": "2026-09-12T20:12:36.201969+00:00",
+          "status": "in_progress",
+          "note": "Correction/board/native composition0e8059e accepted by parent (9/10) and integrated asb249195. Main exactly matches reviewed source; fmt/clippy327workspace/build pass. Evidence-bound correction and later scoped retrieval are implemented. Delegated Opus current/superseded knowledge view remains."
         }
       ]
     },
@@ -2699,6 +2709,11 @@
           "at": "2026-09-12T20:01:24.182341+00:00",
           "status": "in_progress",
           "note": "Actual driver now passes9 of17 cases, including all four workflows and partial-usage timeout/revocation. Accepted112/114 backends are composed for remaining adapters. The real budget case exposed missing variable per-assignment reservation and separately protected review allowance; narrow captured runtime correction authorized, fixture unchanged. All workloads remain scripted; no model-quality claim."
+        },
+        {
+          "at": "2026-09-12T20:12:36.247825+00:00",
+          "status": "in_progress",
+          "note": "Independent exporter preflight confirms workflow receipts use actual runtime decisions and prompts exclude validator/reference data. Three concrete corrections identified: actual backend provenance, preserving extra occurrences/source order in location/effort projections, and complete partial-usage source mapping with deterministic ordering. Author acknowledged; this is preflight, not task acceptance. Remaining scenario adapters and reservation correction continue."
         }
       ]
     },
@@ -2766,7 +2781,7 @@
       ]
     }
   ],
-  "updated_at": "2026-09-12T20:08:34.271328+00:00",
+  "updated_at": "2026-09-12T20:12:36.247825+00:00",
   "delivery_order": [
     "YMP-116",
     "YMP-103",
