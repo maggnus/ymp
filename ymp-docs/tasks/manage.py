@@ -166,7 +166,8 @@ def render_plan(data):
              'Delivery counts exclude completed research and planning work. They are task counts, not an estimate of effort or time.', '']
     if release := data.get('release'):
         final_task = by_id[release['final_verification_task']]
-        lines += [f"Target release: **{release['target_version']}**. Final acceptance: {task_link(final_task, 'README.md')}, with independent review at **{release['final_verification_reasoning']}** reasoning. The version is not released until that task is complete.", '']
+        stage = f" ({release['stage']})" if release.get('stage') else ''
+        lines += [f"Target release: **{release['target_version']}{stage}**. Final acceptance: {task_link(final_task, 'README.md')}, with independent review at **{release['final_verification_reasoning']}** reasoning. The version is not released until that task is complete.", '']
     lines += ['## Status key', '', '| Marker | Meaning |', '| --- | --- |']
     lines += [f'| `{symbol}` | {meaning} |' for symbol, meaning in STATES.values()]
     lines += ['', 'A planned task automatically shows `[=]` while prerequisites remain unfinished and returns to `[ ]` when they are complete. `[?]` is reserved for an explicit unresolved owner question recorded in the latest note.', '',
@@ -199,7 +200,7 @@ def render_plan(data):
         done = sum(t['status'] == 'done' for t in group)
         lines += [f"{milestone['title']}: {done}/{len(group)} complete. " + ', '.join(task_link(t, 'README.md') for t in group) + '.']
     deferred = [t for t in data['tasks'] if t['status'] == 'paused' and t not in delivery]
-    lines += ['', 'Deferred options and quota-dependent studies:']
+    lines += ['', 'Deferred and post-MVP work:']
     lines += [f"- `[=]` {task_link(t, 'README.md')} — {t['title']}. {last_update(t)['note']}" for t in deferred] or ['None.']
     lines += ['', '## Recent updates', '', '| Time (UTC) | Task | State | Update |', '| --- | --- | --- | --- |']
     recent = sorted(data['tasks'], key=lambda t: last_update(t)['at'], reverse=True)[:5]

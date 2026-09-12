@@ -1,6 +1,6 @@
 # Task details and evidence
 
-Updated: 2026-09-12 15:23 UTC.
+Updated: 2026-09-12 15:34 UTC.
 
 Use the [delivery plan](plan.md) to follow progress. This generated register contains full acceptance criteria, dependencies and evidence. [tasks.json](tasks.json) is the single source; [manage.py](manage.py) updates both pages.
 
@@ -14,7 +14,7 @@ A planned task is not implemented functionality. Completed research and planning
 | design | 1 | 1 |
 | documentation | 4 | 4 |
 | experiment | 0 | 4 |
-| implementation | 12 | 20 |
+| implementation | 12 | 21 |
 | research | 8 | 8 |
 | verification | 1 | 2 |
 
@@ -50,7 +50,7 @@ A planned task is not implemented functionality. Completed research and planning
 | `[~]` | [YMP-113](#ymp-113) | P0 | Accumulate general knowledge and verified experience incrementally | 2026-09-12 15:23 |
 | `[=]` | [YMP-114](#ymp-114) | P0 | Correct and supersede knowledge with newer verified evidence | 2026-09-12 12:46 |
 | `[x]` | [YMP-009](#ymp-009) | P0 | Align the product definition, research conclusions and backlog with final intent | 2026-09-12 09:15 |
-| `[?]` | [YMP-115](#ymp-115) | P0 | Enable useful concurrent execution of independent assignments | 2026-09-12 12:25 |
+| `[~]` | [YMP-115](#ymp-115) | P0 | Enable useful concurrent execution of independent assignments | 2026-09-12 15:34 |
 | `[x]` | [YMP-010](#ymp-010) | P0 | Approve product goals and core protocol constraints | 2026-09-12 09:06 |
 | `[x]` | [YMP-011](#ymp-011) | P0 | Document bounded dynamic teams and assignment-level effort | 2026-09-12 08:41 |
 | `[x]` | [YMP-012](#ymp-012) | P0 | Establish the delivery plan and traceable backlog for the approved intent | 2026-09-12 09:15 |
@@ -63,6 +63,7 @@ A planned task is not implemented functionality. Completed research and planning
 | `[x]` | [YMP-013](#ymp-013) | P0 | Review plan coherence and simplify progress tracking | 2026-09-12 09:46 |
 | `[x]` | [YMP-122](#ymp-122) | P1 | Expose replaceable execution backends behind runtime-owned controls | 2026-09-12 15:23 |
 | `[+]` | [YMP-123](#ymp-123) | P1 | Expose a public local MCP facade over stdio | 2026-09-12 13:00 |
+| `[=]` | [YMP-124](#ymp-124) | P1 | Add isolated execution and recoverable publication for larger projects | 2026-09-12 15:31 |
 
 ## YMP-001
 
@@ -992,11 +993,11 @@ The earlier research framing treated some mandatory autonomous-team capabilities
 
 Enable useful concurrent execution of independent assignments
 
-**State:** `[?]` (owner_question) · **Type:** implementation · **Priority:** P0
+**State:** `[~]` (in_progress) · **Type:** implementation · **Priority:** P0
 
-**Last update (UTC):** 2026-09-12 12:25
+**Last update (UTC):** 2026-09-12 15:34
 
-**Current reason:** Owner question: chat-supplied AGENTS.md requires isolated working copies preserving the original directory, while repository AGENTS.md and prior product direction require direct work in the selected directory. Which workspace policy should govern the release? Asked asynchronously; budget, authority, confirmation and other independent work continue.
+**Current reason:** Owner approved direct execution for MVP only and the instruction conflict is resolved. Useful concurrency is assigned against the prepared allocation interface: independent safe work may overlap, conflicting or unbounded writes serialize, and effective access is recorded. Post-MVP isolation is YMP-124.
 
 **Owner:** Maintainer
 
@@ -1014,6 +1015,7 @@ The current ready-task selection uses take(1), so a larger pool or parallel limi
 - Process each completed result independently so an unrelated failure cannot prevent its review or erase accepted work.
 - Use an offline synchronization fixture to demonstrate overlap of independent work and non-overlap of conflicting work; provider inference is not required for scheduler correctness.
 - Record why otherwise ready work waits and distinguish meaningful contributions from planning/bidding traffic.
+- Use the owner-approved direct-directory policy only for the 0.4.0 MVP. Expose a narrow workspace/access-policy boundary; serialize whole-workspace writes when scoped enforcement is unavailable, and do not claim production isolation or rollback.
 
 **Evidence:**
 
@@ -1022,6 +1024,7 @@ The current ready-task selection uses take(1), so a larger pool or parallel limi
 - [Team and effort policy](../architecture/team-and-effort-policy.md)
 - [Domain terminology](../product/entities.md)
 - [Delivery plan](plan.md)
+- [MVP workspace decision and post-MVP boundary](../architecture/workspace-policy.md)
 
 ## YMP-010
 
@@ -1435,6 +1438,36 @@ External clients should be able to use YMP knowledge and bounded team execution 
 **Evidence:**
 
 - [Public MCP scope and transport decision](../architecture/public-mcp.md)
+
+## YMP-124
+
+Add isolated execution and recoverable publication for larger projects
+
+**State:** `[=]` (paused) · **Type:** implementation · **Priority:** P1
+
+**Last update (UTC):** 2026-09-12 15:31
+
+**Current reason:** Explicitly deferred until after the 0.4.0 MVP. Direct execution is accepted only for that MVP; larger-project isolation/publication requires this separate outcome.
+
+**Owner:** Maintainer
+
+**Authorization:** Owner explicitly accepted direct-directory execution only for the MVP and identified it as unsuitable protection for larger production projects. This is post-MVP work.
+
+**Depends on:** [YMP-121](#ymp-121)
+
+Production-scale parallel work needs isolated candidates and controlled, recoverable application of reviewed changes to the canonical user directory.
+
+**Acceptance criteria:**
+
+- Define and implement isolated working areas behind the workspace/access-policy boundary, with explicit storage, visibility and lifetime contracts.
+- Independently check exact candidate versions before controlled publication; detect conflicts and preserve user changes and prior accepted results.
+- Make publication interruption recoverable and retain the relationship between reviewed and delivered versions and actual artifact locations.
+- Support ordinary directories and non-software artifacts as well as optional Git-specific implementations.
+- State actual native filesystem/process guarantees and test conflict, stale-input, failure and recovery paths without claiming a file copy is a sandbox.
+
+**Evidence:**
+
+- [Owner-approved workspace policy](../architecture/workspace-policy.md)
 
 ## Intent coverage
 
