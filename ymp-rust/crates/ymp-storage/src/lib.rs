@@ -292,6 +292,7 @@ impl Store {
                 CheckRun {
                     seq,
                     command: recorded_text(&data["command"]),
+                    task: recorded_task(&data["task"]),
                     directory: recorded_text(&data["cwd"]),
                     outcome: match data["success"].as_bool() {
                         Some(true) => CheckOutcome::Passed,
@@ -471,6 +472,15 @@ fn write_plan(tx: &rusqlite::Transaction<'_>, tasks: &[Task]) -> Result<()> {
     Ok(())
 }
 
+/// The task attempt a record names, or nothing. A field that is absent, null or not a usable
+/// reference leaves the run unscoped, which is what the final pass and every record written
+/// before runs carried a task look like.
+fn recorded_task(value: &serde_json::Value) -> Option<TaskAttemptRef> {
+    serde_json::from_value::<TaskAttemptRef>(value.clone())
+        .ok()
+        .filter(|task| !task.task_id.trim().is_empty())
+}
+
 /// A recorded string, or nothing. A field that is absent, blank or not a string carries no
 /// information and must not become an empty value a reader could mistake for one.
 fn recorded_text(value: &serde_json::Value) -> Option<String> {
@@ -591,8 +601,56 @@ mod tests {
             .event("other", "check", &serde_json::json!({"command":"foreign"}))
             .unwrap();
 
+        // The shapes a task reference arrives in: scoped, explicitly null, absent, and
+        // unusable. Only the first names a task.
+        store
+            .event(
+                "s",
+                "check",
+                &serde_json::json!({"command":"scoped","task":{"task_id":"task-1","attempt":2},"success":true}),
+            )
+            .unwrap();
+        store
+            .event(
+                "s",
+                "check",
+                &serde_json::json!({"command":"final pass","task":null,"success":true}),
+            )
+            .unwrap();
+        store
+            .event(
+                "s",
+                "check",
+                &serde_json::json!({"command":"blank task","task":{"task_id":"  ","attempt":1},"success":true}),
+            )
+            .unwrap();
+        store
+            .event(
+                "s",
+                "check",
+                &serde_json::json!({"command":"partial task","task":{"task_id":"task-1"},"success":true}),
+            )
+            .unwrap();
+
         let checks = store.checks("s").unwrap();
-        assert_eq!(checks.len(), 4, "{checks:?}");
+        assert_eq!(checks.len(), 8, "{checks:?}");
+        assert_eq!(
+            checks[4].task,
+            Some(TaskAttemptRef {
+                task_id: "task-1".into(),
+                attempt: 2
+            })
+        );
+        assert_eq!(checks[5].task, None, "an explicit null became a task");
+        assert_eq!(checks[6].task, None, "a blank task id became a task");
+        assert_eq!(
+            checks[7].task, None,
+            "a reference missing its attempt became a task"
+        );
+        assert_eq!(
+            checks[0].task, None,
+            "a record written without the field became a task"
+        );
         assert!(checks.windows(2).all(|pair| pair[0].seq < pair[1].seq));
         assert_eq!(checks[0].command.as_deref(), Some("cargo test"));
         assert_eq!(checks[0].directory.as_deref(), Some("/project"));

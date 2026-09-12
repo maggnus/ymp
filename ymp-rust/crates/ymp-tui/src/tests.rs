@@ -16,8 +16,8 @@ use ratatui::Terminal;
 use std::path::PathBuf;
 use tempfile::TempDir;
 use ymp_core::{
-    new_id, now, AgentProfile, Config, Message, Session, SessionUsage, Task, TaskState,
-    TokenCounts, UiEvent, UsageSnapshot,
+    new_id, now, AgentProfile, Config, Message, Session, SessionUsage, Task, TaskAttemptRef,
+    TaskState, TokenCounts, UiEvent, UsageSnapshot,
 };
 use ymp_storage::Store;
 
@@ -1945,6 +1945,17 @@ fn recovery_prose(app: &mut App, width: u16) -> String {
     }
 }
 
+/// The detail prose of every row with this key, in page order. One command can be both a
+/// recorded run and a command another task is still waiting for.
+fn details_for(app: &mut App, width: u16, key: &str) -> Vec<String> {
+    app.page(width)
+        .items
+        .iter()
+        .filter(|item| item.key == key && item.kind == crate::views::ItemKind::Row)
+        .map(|item| lines_prose(&item.detail))
+        .collect()
+}
+
 /// The prose of the detail of the row with this key.
 fn detail_prose(app: &mut App, width: u16, key: &str) -> String {
     app.page(width)
@@ -1959,6 +1970,28 @@ impl Fixture {
     /// Record a check the way `Engine::checks` records one.
     fn seed_check(&self, session: &str, command: &str, success: Option<bool>, output: &str) {
         let mut data = serde_json::json!({
+            "cwd": self.project.path(),
+            "command": command,
+            "output": output,
+        });
+        if let Some(success) = success {
+            data["success"] = serde_json::json!(success);
+        }
+        self.store.event(session, "check", &data).unwrap();
+    }
+    /// Record a check the way `Engine::checks` records one for a task attempt, or for the
+    /// final pass over every declared command, which is recorded without a task.
+    fn seed_check_for(
+        &self,
+        session: &str,
+        task: Option<TaskAttemptRef>,
+        command: &str,
+        success: Option<bool>,
+        output: &str,
+    ) {
+        let mut data = serde_json::json!({
+            "id": new_id(),
+            "task": task,
             "cwd": self.project.path(),
             "command": command,
             "output": output,
@@ -2257,32 +2290,113 @@ fn the_checks_page_does_not_report_an_absent_session_as_an_absent_record() {
     assert!(empty.contains("No checks were recorded"), "{empty}");
 }
 
-/// Records carry no task identity, so the page matches declared commands by their text. The
-/// consequence is stated on the page rather than hidden behind a row that is simply absent.
+/// A record names the task attempt it was run for, so a run that belongs to one task says
+/// nothing about the same command declared by another. The second task's command is still
+/// waiting, and the page has to show it as waiting.
 #[test]
-fn the_page_states_that_declared_commands_are_matched_by_text_alone() {
+fn a_run_scoped_to_one_task_does_not_cover_the_same_command_in_another() {
     let fixture = fixture();
     let id = fixture.seed_session("Build a landing page");
-    fixture.seed_check(&id, "cargo fmt --check", Some(true), "exit: 0");
-    fixture.seed_task(&id, "Write the page", &["cargo fmt --check"]);
+    let first = fixture.seed_task(&id, "Write the page", &["cargo fmt --check"]);
     fixture.seed_task(&id, "Check the layout", &["cargo fmt --check"]);
+    fixture.seed_check_for(
+        &id,
+        Some(TaskAttemptRef {
+            task_id: first.clone(),
+            attempt: 1,
+        }),
+        "cargo fmt --check",
+        Some(true),
+        "exit: 0",
+    );
     let mut app = fixture.app();
     app.load_session(&id).unwrap();
     app.command("/checks", 100);
 
-    // One run, and no second row, because a record cannot name which task declared it.
-    let keys = row_keys(&mut app, 100);
+    let details = details_for(&mut app, 100, "cargo fmt --check");
     assert_eq!(
-        keys.iter()
-            .filter(|key| *key == "cargo fmt --check")
-            .count(),
-        1,
-        "{keys:?}"
+        details.len(),
+        2,
+        "the command is one recorded run and one task still waiting:\n{details:#?}"
+    );
+    let run = &details[0];
+    assert!(run.contains("passed"), "{run}");
+    assert!(
+        run.contains("Write the page") && run.contains("attempt 1"),
+        "the run did not name the task attempt it belongs to:\n{run}"
+    );
+    let waiting = &details[1];
+    assert!(waiting.contains("no recorded run"), "{waiting}");
+    assert!(
+        waiting.contains("Check the layout") && !waiting.contains("Write the page"),
+        "the waiting command named the wrong task:\n{waiting}"
+    );
+    assert_eq!(
+        app.page(100).subtitle,
+        "1 recorded · 1 declared without a run"
+    );
+}
+
+/// The final pass runs the union of every declared command and is recorded without a task.
+/// Such a run does cover each task that declared the command, and the page says on what
+/// basis, because the record itself cannot say which task it was for.
+#[test]
+fn a_run_recorded_without_a_task_covers_every_task_that_declared_the_command() {
+    let fixture = fixture();
+    let id = fixture.seed_session("Build a landing page");
+    fixture.seed_task(&id, "Write the page", &["cargo fmt --check"]);
+    fixture.seed_task(&id, "Check the layout", &["cargo fmt --check"]);
+    fixture.seed_check_for(&id, None, "cargo fmt --check", Some(true), "exit: 0");
+    let mut app = fixture.app();
+    app.load_session(&id).unwrap();
+    app.command("/checks", 100);
+
+    let details = details_for(&mut app, 100, "cargo fmt --check");
+    assert_eq!(details.len(), 1, "a covered command was listed as waiting");
+    assert!(
+        details[0].contains("no task recorded"),
+        "the run claimed a task the record does not name:\n{}",
+        details[0]
     );
     let about = detail_prose(&mut app, 100, "how checks run");
     assert!(
-        about.contains("not the task that declared it"),
-        "the page hides that commands are matched by text alone:\n{about}"
+        about.contains("matched by its command text alone"),
+        "the page does not say how an unscoped run is matched:\n{about}"
+    );
+    assert!(
+        about.contains("counts for every task that declared"),
+        "the page does not say what an unscoped run covers:\n{about}"
     );
     assert_eq!(forbidden(&about), None, "in:\n{about}");
+}
+
+/// Records written before runs carried a task have no task field at all. They must read as
+/// unscoped rather than as belonging to nothing, and they must still cover the commands they
+/// name, or reopening an old session would invent work that was already done.
+#[test]
+fn a_record_written_before_tasks_were_recorded_is_read_as_unscoped() {
+    let fixture = fixture();
+    let id = fixture.seed_session("Build a landing page");
+    fixture.seed_task(&id, "Write the page", &["cargo fmt --check"]);
+    // The older shape: no task key in the event at all.
+    fixture.seed_check(&id, "cargo fmt --check", Some(true), "exit: 0");
+    let mut app = fixture.app();
+    app.load_session(&id).unwrap();
+    app.command("/checks", 100);
+
+    let details = details_for(&mut app, 100, "cargo fmt --check");
+    assert_eq!(
+        details.len(),
+        1,
+        "an older record stopped covering its command"
+    );
+    assert!(
+        details[0].contains("no task recorded"),
+        "an older record was given a task:\n{}",
+        details[0]
+    );
+    assert!(
+        detail_prose(&mut app, 100, "how checks run").contains("before records carried one"),
+        "the page does not account for records written before tasks were recorded"
+    );
 }

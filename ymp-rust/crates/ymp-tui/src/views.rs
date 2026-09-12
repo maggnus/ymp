@@ -965,10 +965,18 @@ fn checks(ctx: &Ctx) -> anyhow::Result<Page> {
     let mut planned: Vec<(String, Vec<String>)> = Vec::new();
     for task in ctx.tasks {
         for command in &task.checks {
-            if recorded
-                .iter()
-                .any(|run| run.command.as_deref() == Some(command.as_str()))
-            {
+            // A run covers this command when the record names this task, and also when the
+            // record names no task at all: the final pass runs the union of every declared
+            // command, and a record written before runs carried a task names none either.
+            // Both are matched by command text, which is all such a record offers.
+            let covered = recorded.iter().any(|run| {
+                run.command.as_deref() == Some(command.as_str())
+                    && run
+                        .task
+                        .as_ref()
+                        .is_none_or(|attempt| attempt.task_id == task.id)
+            });
+            if covered {
                 continue;
             }
             match planned.iter_mut().find(|(known, _)| known == command) {
@@ -1044,9 +1052,11 @@ const HOW_CHECKS_RUN: &[&str] = &[
      command, not about the task.",
     "The commands come from the plan the session accepted. This page reads the log and \
      runs nothing.",
-    "A record names its command and not the task that declared it, so commands are matched \
-     here by their text alone. A command that two tasks declare and one run reaches appears \
-     as that one run, and not also as a command still waiting for the other task.",
+    "A run for one task records that task and its attempt, so it says nothing about the \
+     same command declared by another task. The final pass over every declared command is \
+     recorded without a task, as are runs from before records carried one, and such a run \
+     is matched by its command text alone and counts for every task that declared that \
+     command.",
 ];
 
 fn how_checks_run(ctx: &Ctx) -> Item {
@@ -1088,6 +1098,23 @@ fn recorded_check(ctx: &Ctx, run: &CheckRun) -> Item {
         .unwrap_or_else(|| "command not recorded".to_owned());
     let mut detail = field(theme, "command", &command, ctx.width);
     detail.extend(field(theme, "outcome", word, ctx.width));
+    detail.extend(field(
+        theme,
+        "task",
+        &match &run.task {
+            Some(attempt) => format!(
+                "{} · attempt {}",
+                ctx.tasks
+                    .iter()
+                    .find(|task| task.id == attempt.task_id)
+                    .map(|task| task.title.clone())
+                    .unwrap_or_else(|| text::short_id(&attempt.task_id)),
+                attempt.attempt
+            ),
+            None => "no task recorded".to_owned(),
+        },
+        ctx.width,
+    ));
     detail.extend(field(
         theme,
         "directory",
@@ -1148,7 +1175,7 @@ fn declared_check(ctx: &Ctx, command: &str, tasks: &[String]) -> Item {
     detail.push(Line::default());
     detail.extend(paragraph(
         theme,
-        "The accepted plan declares this command and the session log has no run of it. It may not have been reached, or a run may have ended before it could be recorded. Either way it is not a result.",
+        "The accepted plan declares this command for each task listed above, and the session log holds no run of it for those tasks and none recorded without a task. It may not have been reached, or a run may have ended before it could be recorded. Either way it is not a result.",
         ctx.width,
     ));
     Item::row(

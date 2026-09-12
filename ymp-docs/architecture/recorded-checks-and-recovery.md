@@ -25,12 +25,21 @@ as `no recorded run`, which is not a result. The task page labels a task's own c
 `planned checks` for the same reason. With no session open the page reports that nothing was
 read, which is not the same statement as a session having recorded nothing.
 
-A record names its command and not the task that declared it, because the runtime writes the
-command, the directory, the exit result and the output and nothing else. Declared commands are
-therefore matched against recorded runs by their text alone, and the page says so: a command
-that two tasks declare and one run reaches appears as that one run, and not also as a command
-still waiting for the other task. Matching on the pair of task and command would require the
-runtime to record a task identity with each check, which this work did not change.
+A run for one task records that task and its attempt, because `Engine::checks` is given a
+`TaskAttemptRef` and writes it with the event. The page shows that task on the row, by title
+when the session still holds the task and by shortened identifier otherwise, and matches a
+declared command against runs recorded for its own task. A command that two tasks declare and
+one run reaches is therefore one recorded run and one command still waiting for the other
+task.
+
+Two kinds of record name no task, and both are matched by command text alone, which is all
+such a record offers. The final pass runs the deduplicated union of every task's declared
+commands in the working directory and is recorded with a null task, so a run of it covers
+every task that declared that command. A record written before runs carried a task has no task
+field at all, and is read the same way, so reopening an older session does not present work
+that was already done as still waiting. The row for such a run reads `no task recorded`, and a
+reference that cannot be used, a blank identifier or one without an attempt, is read as
+unscoped rather than as a task.
 
 Only the first 20000 characters of a check's combined output are recorded by the runtime, and
 the page shows the first 80 display lines of that. The remainder is not reachable from the
@@ -81,8 +90,12 @@ Interface tests assert the recovery statement on the change page in both its emp
 populated state, the command and outcome of each recorded check at 80x24, a declared command
 without a run, and that no surface uses the words this contract forbids. They also assert what
 `Enter` opens for a record longer than the page shows, that the hint describes exactly that,
-that an unopened session is not reported as a session without checks, and that the page states
-the text-alone matching of declared commands.
+and that an unopened session is not reported as a session without checks. Three cover the task
+reference: a run scoped to one of two tasks declaring the same command leaves the other listed
+as waiting, a run recorded with a null task covers both, and a record written without the field
+is read as unscoped and still covers its command. The storage test reads back a scoped
+reference, an explicit null, an absent field, a blank identifier and a reference without an
+attempt.
 
 The interface was also walked in a pseudo-terminal against the deterministic demo agents,
 with the working directory two levels below a repository marker: the run completed, `/checks`
@@ -100,6 +113,11 @@ walk made no provider request.
   page hint, the `/checks` empty state no longer reports an unopened session as a session
   without checks, and the text-alone matching of declared commands is now stated on the page.
   No viewer for the remaining output was added, and no logic changed.
+- Round 3, integration onto main `5748512`: on the integration base `Engine::checks` takes a
+  `TaskAttemptRef` and writes it with each record, which made round 2's statement that records
+  carry no task identity false. `CheckRun` and `Store::checks` now read that optional
+  reference, declared commands are matched by task and command, and the page states what an
+  unscoped record covers. No engine, event schema, task register or intent change was needed.
 
 The exact limitation, stated once: of a check's recorded output, the interface shows the first
 80 display lines of the first 20000 characters the runtime kept, and the rest can be read only

@@ -48,6 +48,10 @@ pub struct CheckRun {
     /// Position in the session log. Two runs of the same command stay distinguishable.
     pub seq: i64,
     pub command: Option<String>,
+    /// The task attempt the run was recorded for. The final pass over every declared
+    /// command is recorded without one, and so is any record written before runs carried
+    /// one, so absence means unscoped rather than belonging to no task.
+    pub task: Option<crate::TaskAttemptRef>,
     /// The directory the command ran in, when the record names one.
     pub directory: Option<String>,
     pub outcome: CheckOutcome,
