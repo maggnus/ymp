@@ -1,0 +1,148 @@
+{
+  "task": "YMP-105",
+  "recorded_at": "2026-09-12T10:04:58.142312+00:00",
+  "build_profile": "release",
+  "command": "cargo run --offline --release --quiet -p ymp-workspace --example workspace_files_probe -- VARIANT",
+  "method": "The probe measured the actual public Workspace::files API. The original library source was read from the recorded Git revision, installed temporarily in this isolated worktree for the baseline run, and restored in a finally block before measuring the candidate. Both variants used the same probe and equivalent synthetic fixtures; each sample checked the complete sorted path list against generated fixture names, and fixture names were checked against the initial hash manifest.",
+  "baseline_revision": "d0b78e74dcc1ac8e0e1662e00448caf771843084",
+  "baseline_library_sha256": "934c25de8b443cead3e73fbfa43642997b3208b126f1b4739df5a624cbc1b66b",
+  "candidate_library_sha256": "6a55e443ec527f3d4fcfe41fa4fb7e7fee6582eed42ec00cff11b8a5be2338ca",
+  "probe_sha256": "4a04f9f5acded4b5d989fb3249862b9e3a9805c7c57cf66b9e8fa1c47e3fe844",
+  "environment": {
+    "system": "Darwin",
+    "release": "25.6.0",
+    "machine": "arm64",
+    "hardware_model": "Mac15,6",
+    "rustc": "rustc 1.89.0 (29483883e 2025-08-04)",
+    "cargo": "cargo 1.89.0 (c24e10642 2025-06-23)"
+  },
+  "negative_control": {
+    "test": "tests::listing_skips_regular_file_contents_but_change_detection_reads_them",
+    "command": "cargo test -p ymp-workspace listing_skips_regular_file_contents_but_change_detection_reads_them -- --exact tests::listing_skips_regular_file_contents_but_change_detection_reads_them",
+    "method": "A cfg(test) thread-local byte counter immediately after the actual regular-file read records bytes returned by read. The fixture crosses the 65536-byte hash buffer boundary. Workspace::open reads all fixture bytes; the counter is reset before files(). The same test verifies that changes() reads all bytes and detects a same-length edit.",
+    "original_exit_status": 101,
+    "original_failure": "assertion left == right failed: left 131073, right 0 at the files() byte-count assertion",
+    "candidate_exit_status": 0,
+    "candidate_enumeration_bytes_read": 0,
+    "candidate_same_length_change_bytes_read": 131073
+  },
+  "before": {
+    "caveat": "Offline warm-cache observations on one machine; no cache eviction, percentile guarantees, provider inference, or model-quality claims. Workspace open and hash verification occur before enumeration timing. Metadata and synthetic fixtures use a temporary directory that is removed on exit.",
+    "fixtures": [
+      {
+        "fixture": "10000 small files plus required artifact",
+        "measurement": {
+          "expected_sorted_paths_equal_every_sample": true,
+          "files": 10001,
+          "initial_fingerprint_path_set_equal": true,
+          "median_seconds": 0.252987583,
+          "regular_file_bytes": 10240024,
+          "relative_path_set_sha256": "4be547e34712cc25d5d9c1dd99c60fdb4ee20d7633bd242d17c6065479c4c37a",
+          "unchanged_hash_verification_passed": true,
+          "workspace_files_seconds": [
+            0.253013667,
+            0.252987583,
+            0.232640292,
+            0.185644417,
+            0.253517291
+          ]
+        }
+      },
+      {
+        "fixture": "64 MiB regular file plus required artifact",
+        "measurement": {
+          "expected_sorted_paths_equal_every_sample": true,
+          "files": 2,
+          "initial_fingerprint_path_set_equal": true,
+          "median_seconds": 0.149556333,
+          "regular_file_bytes": 67108888,
+          "relative_path_set_sha256": "2e3356f949b89bba29eaa4de0fcf848171633ba94f474dc28ac7ec5ea629345c",
+          "unchanged_hash_verification_passed": true,
+          "workspace_files_seconds": [
+            0.159356334,
+            0.149556333,
+            0.14945825,
+            0.150934042,
+            0.148400917
+          ]
+        }
+      }
+    ],
+    "samples_per_fixture": 5,
+    "variant": "original-hashing-enumeration"
+  },
+  "after": {
+    "caveat": "Offline warm-cache observations on one machine; no cache eviction, percentile guarantees, provider inference, or model-quality claims. Workspace open and hash verification occur before enumeration timing. Metadata and synthetic fixtures use a temporary directory that is removed on exit.",
+    "fixtures": [
+      {
+        "fixture": "10000 small files plus required artifact",
+        "measurement": {
+          "expected_sorted_paths_equal_every_sample": true,
+          "files": 10001,
+          "initial_fingerprint_path_set_equal": true,
+          "median_seconds": 0.008915334,
+          "regular_file_bytes": 10240024,
+          "relative_path_set_sha256": "4be547e34712cc25d5d9c1dd99c60fdb4ee20d7633bd242d17c6065479c4c37a",
+          "unchanged_hash_verification_passed": true,
+          "workspace_files_seconds": [
+            0.009241417,
+            0.008945833,
+            0.008915334,
+            0.008876958,
+            0.008776375
+          ]
+        }
+      },
+      {
+        "fixture": "64 MiB regular file plus required artifact",
+        "measurement": {
+          "expected_sorted_paths_equal_every_sample": true,
+          "files": 2,
+          "initial_fingerprint_path_set_equal": true,
+          "median_seconds": 1.7542e-05,
+          "regular_file_bytes": 67108888,
+          "relative_path_set_sha256": "2e3356f949b89bba29eaa4de0fcf848171633ba94f474dc28ac7ec5ea629345c",
+          "unchanged_hash_verification_passed": true,
+          "workspace_files_seconds": [
+            2.9584e-05,
+            1.925e-05,
+            1.7542e-05,
+            1.6917e-05,
+            1.6542e-05
+          ]
+        }
+      }
+    ],
+    "samples_per_fixture": 5,
+    "variant": "names-only-enumeration"
+  },
+  "matching_relative_path_sets_across_variants": true,
+  "limitations": [
+    "Five warm-cache observations per fixture and variant on one macOS ARM64 machine; baseline ran before candidate, without cache eviction or randomized scheduling. Concurrent host activity was not controlled.",
+    "No provider inference or credentials were read. These measurements establish filesystem work and path equivalence, not prompt-token or model-quality effects.",
+    "The byte-read counter covers the real regular-file fingerprint read path. It is omitted outside cfg(test).",
+    "This filesystem rejected non-UTF8 fixture creation with OS error 92, so the shared filename validator is tested on constructed invalid paths. Unix symlink and socket fixtures ran on this host; other platforms were not executed."
+  ],
+  "checks": [
+    {
+      "command": "cargo test -p ymp-workspace listing_skips_regular_file_contents_but_change_detection_reads_them -- --exact tests::listing_skips_regular_file_contents_but_change_detection_reads_them",
+      "exit_status": 0
+    },
+    {
+      "command": "cargo test -p ymp-workspace",
+      "exit_status": 0
+    },
+    {
+      "command": "cargo fmt --all --check",
+      "exit_status": 0
+    },
+    {
+      "command": "cargo clippy --workspace --all-targets -- -D warnings",
+      "exit_status": 0
+    },
+    {
+      "command": "cargo test --workspace",
+      "exit_status": 0
+    }
+  ]
+}
