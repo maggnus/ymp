@@ -1,6 +1,6 @@
 # Task details and evidence
 
-Updated: 2026-09-12 13:09 UTC.
+Updated: 2026-09-12 13:23 UTC.
 
 Use the [delivery plan](plan.md) to follow progress. This generated register contains full acceptance criteria, dependencies and evidence. [tasks.json](tasks.json) is the single source; [manage.py](manage.py) updates both pages.
 
@@ -31,7 +31,7 @@ A planned task is not implemented functionality. Completed research and planning
 | `[x]` | [YMP-007](#ymp-007) | P0 | Evaluate verification-grounded outcome reuse and lifecycle evidence | 2026-09-11 16:00 |
 | `[x]` | [YMP-008](#ymp-008) | P0 | Reconcile native and canonical usage and recompute weighted input | 2026-09-11 16:00 |
 | `[x]` | [YMP-101](#ymp-101) | P0 | Persist explainable session decisions and execution provenance | 2026-09-12 11:37 |
-| `[~]` | [YMP-102](#ymp-102) | P0 | Add explicit session resource budgets and unknown-usage policy | 2026-09-12 13:09 |
+| `[~]` | [YMP-102](#ymp-102) | P0 | Add explicit session resource budgets and unknown-usage policy | 2026-09-12 13:22 |
 | `[x]` | [YMP-103](#ymp-103) | P0 | Honor Codex nonterminal retry notifications | 2026-09-12 10:16 |
 | `[x]` | [YMP-104](#ymp-104) | P0 | Preserve accepted outcomes and confirmation status when final narration fails | 2026-09-12 10:16 |
 | `[x]` | [YMP-105](#ymp-105) | P1 | Enumerate file names without reading file contents | 2026-09-12 10:16 |
@@ -55,13 +55,13 @@ A planned task is not implemented functionality. Completed research and planning
 | `[x]` | [YMP-011](#ymp-011) | P0 | Document bounded dynamic teams and assignment-level effort | 2026-09-12 08:41 |
 | `[x]` | [YMP-012](#ymp-012) | P0 | Establish the delivery plan and traceable backlog for the approved intent | 2026-09-12 09:15 |
 | `[x]` | [YMP-116](#ymp-116) | P0 | Define the minimal runtime transition and authority contract | 2026-09-12 10:07 |
-| `[~]` | [YMP-117](#ymp-117) | P0 | Separate acceptance from confirmation and gate reputation on evidence | 2026-09-12 13:09 |
+| `[~]` | [YMP-117](#ymp-117) | P0 | Separate acceptance from confirmation and gate reputation on evidence | 2026-09-12 13:23 |
 | `[~]` | [YMP-120](#ymp-120) | P0 | Enforce assignment-scoped permissions and runtime-only state transitions | 2026-09-12 12:55 |
 | `[=]` | [YMP-118](#ymp-118) | P0 | Integrate core assignment, budget and confirmation visibility | 2026-09-12 12:20 |
 | `[x]` | [YMP-119](#ymp-119) | P0 | Prepare universal acceptance scenarios and independent validators | 2026-09-12 10:56 |
 | `[=]` | [YMP-121](#ymp-121) | P1 | Verify the integrated application and package a local release | 2026-09-12 13:00 |
 | `[x]` | [YMP-013](#ymp-013) | P0 | Review plan coherence and simplify progress tracking | 2026-09-12 09:46 |
-| `[+]` | [YMP-122](#ymp-122) | P1 | Expose replaceable execution backends behind runtime-owned controls | 2026-09-12 12:46 |
+| `[~]` | [YMP-122](#ymp-122) | P1 | Expose replaceable execution backends behind runtime-owned controls | 2026-09-12 13:22 |
 | `[+]` | [YMP-123](#ymp-123) | P1 | Expose a public local MCP facade over stdio | 2026-09-12 13:00 |
 
 ## YMP-001
@@ -333,9 +333,9 @@ Add explicit session resource budgets and unknown-usage policy
 
 **State:** `[~]` (in_progress) · **Type:** implementation · **Priority:** P0
 
-**Last update (UTC):** 2026-09-12 13:09
+**Last update (UTC):** 2026-09-12 13:22
 
-**Current reason:** Combined budget/authority candidate cd86d49 is under independent xhigh R2. Historical-spend correction and one atomic budget/ordinal/grant transaction passed205 author Rust tests,13 bridge tests and the5 preserved public probes. Three joint guard-removal controls fail101. Candidate remains unintegrated until review.
+**Current reason:** R2(6/10) RETURN: automatic admission is fixed, but explicit-ordinal wrappers still reuse historical allowance and issue extra usable grants. Parent grants one final allowance of at most two further returns, strictly to preserve spend on every admission path. Author is enforcing the next unspent ordinal atomically and preserving rollback controls.
 
 **Owner:** Maintainer
 
@@ -1165,9 +1165,9 @@ Separate acceptance from confirmation and gate reputation on evidence
 
 **State:** `[~]` (in_progress) · **Type:** implementation · **Priority:** P0
 
-**Last update (UTC):** 2026-09-12 13:09
+**Last update (UTC):** 2026-09-12 13:23
 
-**Current reason:** R1(2/10) RETURN reproduced4 acceptance-boundary defects: leaf result used as final acceptance, reused/contradictory review invocation bindings, accepted text replaced under old evidence, and stale confirmed grade after narration-time edits. Exact public probes retained; author is correcting F1-F4 within the same scope. Required tests alone had passed.
+**Current reason:** Correction 0af7287 addresses R1 F1-F4: aggregate scope, immutable result-bound reviews, accepted text/definition, and freshness after both narration paths. Exact ten public probes and author checks pass. Independent xhigh R2 is running against the correction; no completion claim yet.
 
 **Owner:** Maintainer
 
@@ -1370,17 +1370,17 @@ The plan duplicates prose, delays independent work and does not yet expose owner
 
 Expose replaceable execution backends behind runtime-owned controls
 
-**State:** `[+]` (new) · **Type:** implementation · **Priority:** P1
+**State:** `[~]` (in_progress) · **Type:** implementation · **Priority:** P1
 
-**Last update (UTC):** 2026-09-12 12:46
+**Last update (UTC):** 2026-09-12 13:22
 
-**Current reason:** Added from explicit owner steering: favor interfaces/plugins so alternative subsystem implementations can be evaluated. Native execution is the first common interface; related task criteria retain subsystem ownership.
+**Current reason:** Implementing the execution backend interface against the prepared common-control wrapper. Stable request/settings contracts are already accepted. Backend identity must scope provenance, continuation reuse and competence; injected execution stays inside cancellation, budget/output and capability-error controls.
 
 **Owner:** Maintainer
 
 **Authorization:** Explicit owner request on2026-09-12 to favor interfaces/plugins and permit alternative subsystem implementations; standing autonomous delivery authorization applies.
 
-**Depends on:** [YMP-102](#ymp-102), [YMP-120](#ymp-120)
+**Depends on:** [YMP-116](#ymp-116), [YMP-111](#ymp-111)
 
 A direct built-in provider call couples engine orchestration to one execution implementation and makes controlled experiments require changes inside the runtime.
 

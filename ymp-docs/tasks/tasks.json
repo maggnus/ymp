@@ -456,6 +456,11 @@
           "at": "2026-09-12T13:09:36.391192+00:00",
           "status": "in_progress",
           "note": "Combined budget/authority candidate cd86d49 is under independent xhigh R2. Historical-spend correction and one atomic budget/ordinal/grant transaction passed205 author Rust tests,13 bridge tests and the5 preserved public probes. Three joint guard-removal controls fail101. Candidate remains unintegrated until review."
+        },
+        {
+          "at": "2026-09-12T13:22:47.275495+00:00",
+          "status": "in_progress",
+          "note": "R2(6/10) RETURN: automatic admission is fixed, but explicit-ordinal wrappers still reuse historical allowance and issue extra usable grants. Parent grants one final allowance of at most two further returns, strictly to preserve spend on every admission path. Author is enforcing the next unspent ordinal atomically and preserving rollback controls."
         }
       ]
     },
@@ -1869,6 +1874,11 @@
           "at": "2026-09-12T13:09:36.483403+00:00",
           "status": "in_progress",
           "note": "R1(2/10) RETURN reproduced4 acceptance-boundary defects: leaf result used as final acceptance, reused/contradictory review invocation bindings, accepted text replaced under old evidence, and stale confirmed grade after narration-time edits. Exact public probes retained; author is correcting F1-F4 within the same scope. Required tests alone had passed."
+        },
+        {
+          "at": "2026-09-12T13:23:41.300438+00:00",
+          "status": "in_progress",
+          "note": "Correction 0af7287 addresses R1 F1-F4: aggregate scope, immutable result-bound reviews, accepted text/definition, and freshness after both narration paths. Exact ten public probes and author checks pass. Independent xhigh R2 is running against the correction; no completion claim yet."
         }
       ]
     },
@@ -2133,12 +2143,12 @@
       "title": "Expose replaceable execution backends behind runtime-owned controls",
       "type": "implementation",
       "priority": "P1",
-      "status": "new",
+      "status": "in_progress",
       "owner": "Maintainer",
       "authorization": "Explicit owner request on2026-09-12 to favor interfaces/plugins and permit alternative subsystem implementations; standing autonomous delivery authorization applies.",
       "depends_on": [
-        "YMP-102",
-        "YMP-120"
+        "YMP-116",
+        "YMP-111"
       ],
       "reason": "A direct built-in provider call couples engine orchestration to one execution implementation and makes controlled experiments require changes inside the runtime.",
       "acceptance": [
@@ -2156,6 +2166,16 @@
           "at": "2026-09-12T12:46:29.117507+00:00",
           "status": "new",
           "note": "Added from explicit owner steering: favor interfaces/plugins so alternative subsystem implementations can be evaluated. Native execution is the first common interface; related task criteria retain subsystem ownership."
+        },
+        {
+          "at": "2026-09-12T13:22:47.089374+00:00",
+          "status": "new",
+          "note": "Dependency refinement: the execution interface uses already accepted request, settings and provenance contracts. It can be implemented in an isolated development checkout against the prepared budget/authority candidate; integration acceptance still verifies those common controls. This avoids serializing independent interface work behind unrelated legacy-accounting corrections."
+        },
+        {
+          "at": "2026-09-12T13:22:47.183628+00:00",
+          "status": "in_progress",
+          "note": "Implementing the execution backend interface against the prepared common-control wrapper. Stable request/settings contracts are already accepted. Backend identity must scope provenance, continuation reuse and competence; injected execution stays inside cancellation, budget/output and capability-error controls."
         }
       ]
     },
@@ -2193,7 +2213,7 @@
       ]
     }
   ],
-  "updated_at": "2026-09-12T13:09:36.483403+00:00",
+  "updated_at": "2026-09-12T13:23:41.300438+00:00",
   "delivery_order": [
     "YMP-116",
     "YMP-103",
