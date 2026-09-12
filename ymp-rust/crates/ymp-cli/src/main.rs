@@ -525,6 +525,9 @@ async fn probe_team_tools(
         id: new_id(),
         session_id: session.id.clone(),
         assignment_id: assignment.id.clone(),
+        execution_backend: Some(ymp_providers::ExecutionBackend::identity(
+            &ymp_providers::NativeExecutionBackend,
+        )),
         turn: 1,
         requested: requested.clone(),
         sent: ExecutionSettings::default(),

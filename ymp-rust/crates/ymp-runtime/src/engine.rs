@@ -19,7 +19,10 @@ use tokio::{
 };
 use tokio_util::sync::CancellationToken;
 use ymp_core::*;
-use ymp_providers::{run_turn, McpEndpoint, ProviderEvent, TurnRequest};
+use ymp_providers::{
+    run_turn_with_backend, ExecutionBackend, McpEndpoint, NativeExecutionBackend, ProviderEvent,
+    TurnRequest,
+};
 use ymp_storage::Store;
 use ymp_workspace::Workspace;
 
@@ -41,6 +44,8 @@ pub struct Engine {
     pub confirmation_checker: Arc<dyn ConfirmationChecker>,
     usage_publication: Arc<Mutex<()>>,
     assignment_settings: Arc<Mutex<Option<Vec<AssignmentSettingsRule>>>>,
+    execution_backend: Arc<dyn ExecutionBackend>,
+    backend_identity: ExecutionBackendIdentity,
 }
 #[derive(Clone)]
 struct RunContext {
@@ -69,12 +74,15 @@ struct NativeContinuation {
     session_id: String,
     config_version: String,
     requested: ExecutionSettings,
+    #[serde(default)]
+    usage_baseline: Option<TokenCounts>,
 }
 
 fn effective_version(config_version: &str, invocation: &InvocationRecord) -> Result<String> {
     Ok(content_digest(&serde_json::to_string(&(
-        "effective-execution-v1",
+        "effective-execution-v2",
         config_version,
+        &invocation.execution_backend,
         &invocation.sent,
         &invocation.reported,
         &invocation.native_version,
@@ -133,7 +141,41 @@ impl Engine {
             confirmation_checker: Arc::new(BuiltinConfirmationChecker),
             usage_publication: Arc::new(Mutex::new(())),
             assignment_settings: Arc::new(Mutex::new(None)),
+            execution_backend: Arc::new(NativeExecutionBackend),
+            backend_identity: NativeExecutionBackend.identity(),
         })
+    }
+
+    /// Select a trusted compiled backend for this engine and subsequent clones.
+    /// Existing clones/active invocations keep their original implementation.
+    /// The captured identity scopes continuation compatibility and competence.
+    pub fn with_execution_backend(mut self, backend: Arc<dyn ExecutionBackend>) -> Result<Self> {
+        let identity = backend.identity();
+        identity.validate()?;
+        self.backend_identity = identity;
+        self.execution_backend = backend;
+        Ok(self)
+    }
+
+    fn backend_config_version(
+        &self,
+        agent: &AgentProfile,
+        provider: &ProviderConfig,
+        requested: &ExecutionSettings,
+    ) -> Result<String> {
+        let native = execution_config_version(
+            agent,
+            provider,
+            requested,
+            &ExecutionSettings::default(),
+            None,
+        );
+        Ok(content_digest(&serde_json::to_string(&(
+            "execution-backend-config-v1",
+            native,
+            &self.backend_identity,
+        ))?)[..24]
+            .to_owned())
     }
     /// Replace assignment choices for subsequent invocations only. Pins remain
     /// owned by the captured session policy; an active native turn is untouched.
@@ -230,13 +272,8 @@ impl Engine {
     ) -> Result<String> {
         let requested =
             self.requested_settings(ctx, agent, purpose, task_id, purpose != "execute")?;
-        let key = execution_config_version(
-            agent,
-            self.config.provider(&agent.provider)?,
-            &requested,
-            &ExecutionSettings::default(),
-            None,
-        );
+        let key =
+            self.backend_config_version(agent, self.config.provider(&agent.provider)?, &requested)?;
         Ok(self
             .store
             .value(&format!("effective_execution:{key}"))?
@@ -644,19 +681,13 @@ impl Engine {
             cwd.display(),
             if read_only { "read" } else { "write" }
         );
-        let config_version = execution_config_version(
-            agent,
-            &provider,
-            &requested,
-            &ExecutionSettings::default(),
-            None,
-        );
-        let resume = self
+        let config_version = self.backend_config_version(agent, &provider, &requested)?;
+        let continuation = self
             .store
             .value(&key)?
             .and_then(|v| serde_json::from_value::<NativeContinuation>(v).ok())
-            .filter(|saved| saved.config_version == config_version && saved.requested == requested)
-            .map(|saved| saved.session_id);
+            .filter(|saved| saved.config_version == config_version && saved.requested == requested);
+        let resume = continuation.as_ref().map(|saved| saved.session_id.clone());
         let messages = self.store.messages(&ctx.session.id, 0, 10000)?;
         let mut context = Vec::new();
         let recent = messages
@@ -739,14 +770,7 @@ impl Engine {
             purpose: purpose.into(),
             read_only,
             resume: resume.clone(),
-            usage_baseline: if resume.is_some() {
-                self.store
-                    .value(&format!("native_usage:{key}"))?
-                    .map(serde_json::from_value)
-                    .transpose()?
-            } else {
-                None
-            },
+            usage_baseline: continuation.and_then(|saved| saved.usage_baseline),
             mcp: None,
             timeout_secs: ctx.limits.turn_timeout_secs,
             bridge: self.bridge.clone(),
@@ -830,6 +854,7 @@ impl Engine {
             id: new_id(),
             session_id: ctx.session.id.clone(),
             assignment_id: assignment.id.clone(),
+            execution_backend: Some(self.backend_identity.clone()),
             turn: 1,
             requested: requested.clone(),
             sent: ExecutionSettings::default(),
@@ -888,12 +913,17 @@ impl Engine {
             "invocation_id": invocation.id,
             "requested": request.resource_controls,
             "timeout_secs": request.timeout_secs,
-            "native_max_turns_supported": provider.kind == ProviderKind::Claude,
-            "limitations": "Native token/context/output caps are unavailable; visible output is stopped after observation. Claude maxTurns bounds conversation turns, not native retries."
+            "native_max_turns_supported": (self.backend_identity == NativeExecutionBackend.identity()).then_some(provider.kind == ProviderKind::Claude),
+            "limitations": "The common wrapper stops visible output after observation. Native turn caps depend on the selected implementation; no hard token bound is established."
         }))?;
         let (tx, mut rx) = mpsc::unbounded_channel();
         let invocation_cancel = self.cancel.child_token();
-        let future = run_turn(request, invocation_cancel.clone(), tx);
+        let future = run_turn_with_backend(
+            self.execution_backend.as_ref(),
+            request,
+            invocation_cancel.clone(),
+            tx,
+        );
         tokio::pin!(future);
         let consume = |event: ProviderEvent| -> Result<()> {
             match event {
@@ -946,12 +976,6 @@ impl Engine {
                             ..Default::default()
                         },
                     )?;
-                    if let Some(total) = &snapshot.native_total {
-                        self.store.put_value(
-                            &format!("native_usage:{key}"),
-                            &serde_json::to_value(total)?,
-                        )?;
-                    }
                     self.publish_usage(&ctx.session.id)?;
                     if self
                         .store
@@ -1057,7 +1081,8 @@ impl Engine {
                     &json!(NativeContinuation {
                         session_id: result.session_id.clone(),
                         config_version,
-                        requested
+                        requested,
+                        usage_baseline: observed.usage.and_then(|usage| usage.native_total),
                     }),
                 )?;
                 self.store.event(
@@ -3230,5 +3255,6 @@ mod tests {
         assert_eq!(last.as_ref(), Some(&summary));
     }
     include!("assignment_settings_tests.rs");
+    include!("backend_tests.rs");
     include!("budget_tests.rs");
 }
