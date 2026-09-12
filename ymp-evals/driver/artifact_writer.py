@@ -55,6 +55,15 @@ def execute(case, root):
                            "source": "inputs/observations.csv",
                            "rows": sorted(r["row_id"] for r in supporting)})
         (output / "claims.json").write_text(json.dumps({"claims": claims}, indent=2) + "\n")
+    elif case in {"observation-original", "observation-corrected"}:
+        source_name = "observations.csv" if case.endswith("original") else "observations-corrected.csv"
+        with (root / "inputs" / source_name).open(newline="") as source:
+            row = next(r for r in csv.DictReader(source) if r["row_id"] == "O04")
+        numerator = 100 * int(row["completed"])
+        denominator = int(row["scheduled"])
+        assert numerator % denominator == 0
+        claim = {"row": row["row_id"], "site": row["site"], "week": row["week"], "value": numerator // denominator}
+        (output / (case + ".json")).write_text(json.dumps(claim) + "\n")
     elif case == "qualitative":
         (output / "ideas.md").write_text(
             "# Workshop opening\n\n"

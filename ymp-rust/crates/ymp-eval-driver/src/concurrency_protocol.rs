@@ -115,6 +115,19 @@ pub(crate) async fn execute_reserved_with_allowance(
     session: String,
     token_reservation: Option<u64>,
 ) -> Result<()> {
+    execute_reserved_with_operations(store, server, backend, lease, request, session, token_reservation, vec![TeamOperation::TeamRead]).await
+}
+
+pub(crate) async fn execute_reserved_with_operations(
+    store: Store,
+    server: Arc<TeamServer>,
+    backend: Arc<dyn ExecutionBackend>,
+    mut lease: Box<WorkspaceReservation>,
+    mut request: TurnRequest,
+    session: String,
+    token_reservation: Option<u64>,
+    operations: Vec<TeamOperation>,
+) -> Result<()> {
     let mut assignment = AssignmentRecord {
         token_reservation,
         agent_identity: None,
@@ -159,7 +172,7 @@ pub(crate) async fn execute_reserved_with_allowance(
         requested: request.settings.clone(),
         sent: Default::default(),
         reported: Default::default(),
-        resumed_from: None,
+        resumed_from: request.resume.clone(),
         native_session_id: None,
         native_turn_id: None,
         native_version: None,
@@ -173,7 +186,7 @@ pub(crate) async fn execute_reserved_with_allowance(
         server.clone(),
         &mut assignment,
         &mut invocation,
-        vec![TeamOperation::TeamRead],
+        operations,
     )?;
     request.mcp = Some(ymp_providers::McpEndpoint {
         command: "unused-scripted-stdio".into(),

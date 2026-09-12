@@ -105,7 +105,7 @@ pub async fn run(root: &Path, directory: &Path) -> Result<Value> {
         for event in &trace.history {
             let row = match event.kind.as_str() {
                 "eval_review_attempt" => Some(
-                    json!({"type":if event.data["accepted"]==true{"self_review_accepted"}else{"review_rejected"},"result":"r1","reason":if event.data["error"].as_str().is_some_and(|e|e.to_lowercase().contains("self")){"self_review"}else{"unexpected_review_error"}}),
+                    json!({"type":if event.data["accepted"]==true{"self_review_accepted"}else{"review_rejected"},"result":"r1","reason":if event.data["error"].as_str().is_some_and(|e|e.to_lowercase().contains("self") || e.contains("excludes every result producer")){"self_review"}else{"unexpected_review_error"}}),
                 ),
                 "eval_unrelated_check" => Some(
                     json!({"type":"check_recorded","check":event.data["check_id"],"exit_code":event.data["exit_code"],"applicable":!event.data["contract_id"].is_null()}),
