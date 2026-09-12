@@ -1,6 +1,6 @@
 # Task details and evidence
 
-Updated: 2026-09-12 16:53 UTC.
+Updated: 2026-09-12 17:00 UTC.
 
 Use the [delivery plan](plan.md) to follow progress. This generated register contains full acceptance criteria, dependencies and evidence. [tasks.json](tasks.json) is the single source; [manage.py](manage.py) updates both pages.
 
@@ -14,7 +14,7 @@ A planned task is not implemented functionality. Completed research and planning
 | design | 1 | 1 |
 | documentation | 4 | 4 |
 | experiment | 0 | 4 |
-| implementation | 12 | 22 |
+| implementation | 13 | 22 |
 | research | 8 | 8 |
 | verification | 1 | 2 |
 
@@ -50,7 +50,7 @@ A planned task is not implemented functionality. Completed research and planning
 | `[~]` | [YMP-113](#ymp-113) | P0 | Accumulate general knowledge and verified experience incrementally | 2026-09-12 16:33 |
 | `[=]` | [YMP-114](#ymp-114) | P0 | Correct and supersede knowledge with newer verified evidence | 2026-09-12 12:46 |
 | `[x]` | [YMP-009](#ymp-009) | P0 | Align the product definition, research conclusions and backlog with final intent | 2026-09-12 09:15 |
-| `[~]` | [YMP-115](#ymp-115) | P0 | Enable useful concurrent execution of independent assignments | 2026-09-12 16:46 |
+| `[x]` | [YMP-115](#ymp-115) | P0 | Enable useful concurrent execution of independent assignments | 2026-09-12 17:00 |
 | `[x]` | [YMP-010](#ymp-010) | P0 | Approve product goals and core protocol constraints | 2026-09-12 09:06 |
 | `[x]` | [YMP-011](#ymp-011) | P0 | Document bounded dynamic teams and assignment-level effort | 2026-09-12 08:41 |
 | `[x]` | [YMP-012](#ymp-012) | P0 | Establish the delivery plan and traceable backlog for the approved intent | 2026-09-12 09:15 |
@@ -62,7 +62,7 @@ A planned task is not implemented functionality. Completed research and planning
 | `[=]` | [YMP-121](#ymp-121) | P1 | Verify the integrated application and package a local release | 2026-09-12 16:52 |
 | `[x]` | [YMP-013](#ymp-013) | P0 | Review plan coherence and simplify progress tracking | 2026-09-12 09:46 |
 | `[x]` | [YMP-122](#ymp-122) | P1 | Expose replaceable execution backends behind runtime-owned controls | 2026-09-12 15:23 |
-| `[~]` | [YMP-123](#ymp-123) | P1 | Expose a public local MCP facade over stdio | 2026-09-12 16:46 |
+| `[~]` | [YMP-123](#ymp-123) | P1 | Expose a public local MCP facade over stdio | 2026-09-12 17:00 |
 | `[=]` | [YMP-124](#ymp-124) | P1 | Add isolated execution and recoverable publication for larger projects | 2026-09-12 15:31 |
 | `[~]` | [YMP-125](#ymp-125) | P0 | Expose trusted acceptance contracts to executable users | 2026-09-12 16:53 |
 
@@ -994,11 +994,11 @@ The earlier research framing treated some mandatory autonomous-team capabilities
 
 Enable useful concurrent execution of independent assignments
 
-**State:** `[~]` (in_progress) · **Type:** implementation · **Priority:** P0
+**State:** `[x]` (done) · **Type:** implementation · **Priority:** P0
 
-**Last update (UTC):** 2026-09-12 16:46
+**Last update (UTC):** 2026-09-12 17:00
 
-**Current reason:** Standalone R2(9/10) ACCEPT at ecf1278. Combined consumers preserve confirmed sibling knowledge and require actual inspection before retiring an unresolved actor; three removed-guard controls fail101. Host disk exhaustion interrupted final compilation. Generated historical build caches are being reclaimed and the same source is being checked again; no product regression is inferred from ENOSPC.
+**Current reason:** Standalone R2(9/10) and combined R1(9/10) ACCEPT. Integrated cc62f8d,9bca1cc,6eaf6e8; main source matches reviewed b08eb57. Main fmt/clippy,278 Rust tests and13 bridge tests/check/build pass. Real public consumers prove useful overlap, conflict exclusion, retained responsibility and confirmed sibling knowledge/location preservation. Direct-directory behavior remains MVP-only.
 
 **Owner:** Maintainer
 
@@ -1026,6 +1026,10 @@ The current ready-task selection uses take(1), so a larger pool or parallel limi
 - [Domain terminology](../product/entities.md)
 - [Delivery plan](plan.md)
 - [MVP workspace decision and post-MVP boundary](../architecture/workspace-policy.md)
+- [Concurrency implementation](../architecture/concurrency-implementation.md)
+- [Standalone independent R1/R2 review](../../ymp-evals/reports/ymp-115-independent-review.md)
+- [Combined integration verification](../../ymp-evals/reports/ymp-115-combined-integration.md)
+- [Independent combined acceptance](../../ymp-evals/reports/ymp-115-combined-independent-review.md)
 
 ## YMP-010
 
@@ -1309,7 +1313,7 @@ Verify the integrated application and package a local release
 
 **Last update (UTC):** 2026-09-12 16:52
 
-**Current reason:** Needs YMP-112, YMP-115, YMP-114, YMP-118, YMP-123, YMP-125
+**Current reason:** Needs YMP-112, YMP-114, YMP-118, YMP-123, YMP-125
 
 **Owner:** Independent final reviewer at max reasoning; maintainer integrates and packages
 
@@ -1414,9 +1418,9 @@ Expose a public local MCP facade over stdio
 
 **State:** `[~]` (in_progress) · **Type:** implementation · **Priority:** P1
 
-**Last update (UTC):** 2026-09-12 16:46
+**Last update (UTC):** 2026-09-12 17:00
 
-**Current reason:** Standalone R2(9.5/10) ACCEPT at610f99d closes the open-pipe signal shutdown defect. Combined source preserves accepted location/allocation/knowledge behavior. Fmt/clippy pass; disk exhaustion interrupted workspace checks, which are rerunning after generated-cache cleanup before actual MCP-client verification.
+**Current reason:** Standalone R2(9.5/10) ACCEPT; combined build and full official MCP client walk pass. After ENOSPC cleanup, a full runtime test exposed false session-lock contention from inherited descriptors; a separate bounded Store lock correction is underway. MCP source remains unmerged until shared-lock correction and combined verification complete.
 
 **Owner:** Maintainer
 

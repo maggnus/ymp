@@ -1638,7 +1638,7 @@
       "title": "Enable useful concurrent execution of independent assignments",
       "type": "implementation",
       "priority": "P0",
-      "status": "in_progress",
+      "status": "done",
       "owner": "Maintainer",
       "authorization": "Planned delivery derived from the owner-approved intent and standing autonomous-development direction. Follow dependencies and acceptance criteria; separate real-provider quota is required where stated.",
       "depends_on": [
@@ -1662,7 +1662,11 @@
         "[Team and effort policy](../architecture/team-and-effort-policy.md)",
         "[Domain terminology](../product/entities.md)",
         "[Delivery plan](plan.md)",
-        "[MVP workspace decision and post-MVP boundary](../architecture/workspace-policy.md)"
+        "[MVP workspace decision and post-MVP boundary](../architecture/workspace-policy.md)",
+        "[Concurrency implementation](../architecture/concurrency-implementation.md)",
+        "[Standalone independent R1/R2 review](../../ymp-evals/reports/ymp-115-independent-review.md)",
+        "[Combined integration verification](../../ymp-evals/reports/ymp-115-combined-integration.md)",
+        "[Independent combined acceptance](../../ymp-evals/reports/ymp-115-combined-independent-review.md)"
       ],
       "history": [
         {
@@ -1724,6 +1728,11 @@
           "at": "2026-09-12T16:46:38.539879+00:00",
           "status": "in_progress",
           "note": "Standalone R2(9/10) ACCEPT at ecf1278. Combined consumers preserve confirmed sibling knowledge and require actual inspection before retiring an unresolved actor; three removed-guard controls fail101. Host disk exhaustion interrupted final compilation. Generated historical build caches are being reclaimed and the same source is being checked again; no product regression is inferred from ENOSPC."
+        },
+        {
+          "at": "2026-09-12T17:00:52.115183+00:00",
+          "status": "done",
+          "note": "Standalone R2(9/10) and combined R1(9/10) ACCEPT. Integrated cc62f8d,9bca1cc,6eaf6e8; main source matches reviewed b08eb57. Main fmt/clippy,278 Rust tests and13 bridge tests/check/build pass. Real public consumers prove useful overlap, conflict exclusion, retained responsibility and confirmed sibling knowledge/location preservation. Direct-directory behavior remains MVP-only."
         }
       ]
     },
@@ -2402,6 +2411,11 @@
           "at": "2026-09-12T16:46:38.583231+00:00",
           "status": "in_progress",
           "note": "Standalone R2(9.5/10) ACCEPT at610f99d closes the open-pipe signal shutdown defect. Combined source preserves accepted location/allocation/knowledge behavior. Fmt/clippy pass; disk exhaustion interrupted workspace checks, which are rerunning after generated-cache cleanup before actual MCP-client verification."
+        },
+        {
+          "at": "2026-09-12T17:00:52.158442+00:00",
+          "status": "in_progress",
+          "note": "Standalone R2(9.5/10) ACCEPT; combined build and full official MCP client walk pass. After ENOSPC cleanup, a full runtime test exposed false session-lock contention from inherited descriptors; a separate bounded Store lock correction is underway. MCP source remains unmerged until shared-lock correction and combined verification complete."
         }
       ]
     },
@@ -2473,7 +2487,7 @@
       ]
     }
   ],
-  "updated_at": "2026-09-12T16:53:01.470120+00:00",
+  "updated_at": "2026-09-12T17:00:52.158442+00:00",
   "delivery_order": [
     "YMP-116",
     "YMP-103",
