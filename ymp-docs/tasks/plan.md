@@ -1,6 +1,6 @@
 # Delivery plan and progress
 
-Updated: 2026-09-12 12:33 UTC.
+Updated: 2026-09-12 12:35 UTC.
 
 [Approved intent](../../intent.md) · [Task details and evidence](README.md) · [Canonical register](tasks.json)
 
@@ -28,8 +28,8 @@ A planned task automatically shows `[=]` while prerequisites remain unfinished a
 
 ## Current work and owner questions
 
-- `[~]` [YMP-102](README.md#ymp-102) — Add explicit session resource budgets and unknown-usage policy (2026-09-12 12:12). Session budgets assigned to an xhigh subagent against reviewed provenance and native settings. Atomic reservations, bounded startup, protected verification and honest unknown-usage handling are the acceptance scope.
-- `[~]` [YMP-107](README.md#ymp-107) — Expose recorded checks and factual recovery limits (2026-09-12 12:20). R1 wording corrections68db7c8 are complete. Integration with provenance101 exposes task IDs in new check events; Opus5 max is updating the projection and task/command matching against current main before independent R2. Shared-frame clipping remains assigned to YMP-118.
+- `[~]` [YMP-102](README.md#ymp-102) — Add explicit session resource budgets and unknown-usage policy (2026-09-12 12:35). Candidate0f53ee7 implements atomic shared admission, preserved spend, verification reserves and supported native controls; mandatory author checks passed. Fresh independent xhigh review is running. Native token overshoot remains explicitly unbounded where no native hard cap exists; incomplete usage prevents further token-budgeted admission.
+- `[~]` [YMP-107](README.md#ymp-107) — Expose recorded checks and factual recovery limits (2026-09-12 12:34). Integrated candidate3540ecd now reads optional task/attempt references and fixes same-command cross-task display, with explicit legacy handling. Author reports161 passing Rust tests and a mock TUI walk; independent Claude Opus5 max R2 is running against this actual integration candidate.
 - `[?]` [YMP-115](README.md#ymp-115) — Enable useful concurrent execution of independent assignments (2026-09-12 12:25). Owner question: chat-supplied AGENTS.md requires isolated working copies preserving the original directory, while repository AGENTS.md and prior product direction require direct work in the selected directory. Which workspace policy should govern the release? Asked asynchronously; budget, authority, confirmation and other independent work continue.
 - `[~]` [YMP-117](README.md#ymp-117) — Separate acceptance from confirmation and gate reputation on evidence (2026-09-12 12:33). Implementation delegated at xhigh atop baseline57c325b. The no-checks public-engine regression exits101 with2 unsupported positive observations. Work adds version-bound reviews/confirmation, trusted check contracts, independent final eligibility and idempotent qualified reputation; general qualitative results remain usable and unconfirmed.
 - `[~]` [YMP-120](README.md#ymp-120) — Enforce assignment-scoped permissions and runtime-only state transitions (2026-09-12 12:18). R1(5/10) RETURN: independent consumer probe showed a native protocol error could persist a synthetic assignment capability in two board notices and two UI events (exit101). Author is correcting the error boundary; integration waits for the exact probe and R2.
@@ -58,7 +58,7 @@ No delivery task is ready. See the dependency reasons below.
 | --- | --- | --- | --- |
 | `[x]` | [YMP-109](README.md#ymp-109) — Expose the provider-backed agent pool with stable individual identities | 2026-09-12 10:56 | R1(9/10) ACCEPT by independent Claude Opus 5 max review; integrated f5573f6. Configured/unknown metadata, inference-free discovery, stable captured identities and activity controls pass, including mutation checks. Integrated Rust suite: 119 tests. |
 | `[x]` | [YMP-111](README.md#ymp-111) — Apply native models and reasoning settings per assignment | 2026-09-12 12:18 | R1(9/10) ACCEPT by independent xhigh review; integrated aad76b5 and 9eaf761. Assignment model/effort settings preserve pins and compatible continuations, reject unsupported controls before prompting, and record requested/sent/reported values. Integrated fmt/clippy and147 Rust tests, plus10 Claude bridge tests/check/build, all exit0; no native inference. |
-| `[~]` | [YMP-102](README.md#ymp-102) — Add explicit session resource budgets and unknown-usage policy | 2026-09-12 12:12 | Session budgets assigned to an xhigh subagent against reviewed provenance and native settings. Atomic reservations, bounded startup, protected verification and honest unknown-usage handling are the acceptance scope. |
+| `[~]` | [YMP-102](README.md#ymp-102) — Add explicit session resource budgets and unknown-usage policy | 2026-09-12 12:35 | Candidate0f53ee7 implements atomic shared admission, preserved spend, verification reserves and supported native controls; mandatory author checks passed. Fresh independent xhigh review is running. Native token overshoot remains explicitly unbounded where no native hard cap exists; incomplete usage prevents further token-budgeted admission. |
 | `[x]` | [YMP-103](README.md#ymp-103) — Honor Codex nonterminal retry notifications | 2026-09-12 10:16 | R1(9/10) ACCEPT from independent xhigh review; integrated 0468057. Old retry regression failed exit 101; nine provider cases and integrated workspace suite pass. Native retry evidence retains safe codes and IDs without replay/counter changes. |
 | `[x]` | [YMP-104](README.md#ymp-104) — Preserve accepted outcomes and confirmation status when final narration fails | 2026-09-12 10:16 | R1(9/10) ACCEPT from independent xhigh review; integrated 9f92751. Original synthesis-failure regression failed exit 101; fallback, cancellation, prior-check and optional-learning cases pass. |
 
@@ -89,7 +89,7 @@ No delivery task is ready. See the dependency reasons below.
 
 | State | Task | Last update | Dependency or note |
 | --- | --- | --- | --- |
-| `[~]` | [YMP-107](README.md#ymp-107) — Expose recorded checks and factual recovery limits | 2026-09-12 12:20 | R1 wording corrections68db7c8 are complete. Integration with provenance101 exposes task IDs in new check events; Opus5 max is updating the projection and task/command matching against current main before independent R2. Shared-frame clipping remains assigned to YMP-118. |
+| `[~]` | [YMP-107](README.md#ymp-107) — Expose recorded checks and factual recovery limits | 2026-09-12 12:34 | Integrated candidate3540ecd now reads optional task/attempt references and fixes same-command cross-task display, with explicit legacy handling. Author reports161 passing Rust tests and a mock TUI walk; independent Claude Opus5 max R2 is running against this actual integration candidate. |
 | `[=]` | [YMP-118](README.md#ymp-118) — Integrate core assignment, budget and confirmation visibility | 2026-09-12 12:20 | Needs YMP-102, YMP-117, YMP-120 |
 | `[=]` | [YMP-121](README.md#ymp-121) — Verify the integrated application and package a local release | 2026-09-12 09:35 | Needs YMP-107, YMP-112, YMP-115, YMP-114, YMP-118 |
 
@@ -119,11 +119,11 @@ Deferred options and quota-dependent studies:
 
 | Time (UTC) | Task | State | Update |
 | --- | --- | --- | --- |
+| 2026-09-12 12:35 | [YMP-102](README.md#ymp-102) | `[~]` | Candidate0f53ee7 implements atomic shared admission, preserved spend, verification reserves and supported native controls; mandatory author checks passed. Fresh independent xhigh review is running. Native token overshoot remains explicitly unbounded where no native hard cap exists; incomplete usage prevents further token-budgeted admission. |
+| 2026-09-12 12:34 | [YMP-107](README.md#ymp-107) | `[~]` | Integrated candidate3540ecd now reads optional task/attempt references and fixes same-command cross-task display, with explicit legacy handling. Author reports161 passing Rust tests and a mock TUI walk; independent Claude Opus5 max R2 is running against this actual integration candidate. |
 | 2026-09-12 12:33 | [YMP-117](README.md#ymp-117) | `[~]` | Implementation delegated at xhigh atop baseline57c325b. The no-checks public-engine regression exits101 with2 unsupported positive observations. Work adds version-bound reviews/confirmation, trusted check contracts, independent final eligibility and idempotent qualified reputation; general qualitative results remain usable and unconfirmed. |
 | 2026-09-12 12:33 | [YMP-106](README.md#ymp-106) | `[x]` | R1(9/10) ACCEPT by independent xhigh review; integrated3e14c8e. Seven adverse variants and the original role-query regression fail exit101; captured prompts match scoped source IDs, versions, excerpt hashes and8000-character allowance. Integrated fmt/clippy and150 Rust tests exit0. No model-quality gain claimed. |
 | 2026-09-12 12:25 | [YMP-115](README.md#ymp-115) | `[?]` | Owner question: chat-supplied AGENTS.md requires isolated working copies preserving the original directory, while repository AGENTS.md and prior product direction require direct work in the selected directory. Which workspace policy should govern the release? Asked asynchronously; budget, authority, confirmation and other independent work continue. |
-| 2026-09-12 12:20 | [YMP-118](README.md#ymp-118) | `[=]` | Alongside core assignment/budget/confirmation views, fix independently reproduced shared-frame text clipping: inline wrapping uses two columns more than the paint area and modal wrapping uses full terminal width. YMP-107 review demonstrated lost words on both checks and the existing memory page; Opus5 max owns UI correction. |
-| 2026-09-12 12:20 | [YMP-107](README.md#ymp-107) | `[~]` | R1 wording corrections68db7c8 are complete. Integration with provenance101 exposes task IDs in new check events; Opus5 max is updating the projection and task/command matching against current main before independent R2. Shared-frame clipping remains assigned to YMP-118. |
 
 ## Maintenance
 

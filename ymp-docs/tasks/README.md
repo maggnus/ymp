@@ -1,6 +1,6 @@
 # Task details and evidence
 
-Updated: 2026-09-12 12:33 UTC.
+Updated: 2026-09-12 12:35 UTC.
 
 Use the [delivery plan](plan.md) to follow progress. This generated register contains full acceptance criteria, dependencies and evidence. [tasks.json](tasks.json) is the single source; [manage.py](manage.py) updates both pages.
 
@@ -31,12 +31,12 @@ A planned task is not implemented functionality. Completed research and planning
 | `[x]` | [YMP-007](#ymp-007) | P0 | Evaluate verification-grounded outcome reuse and lifecycle evidence | 2026-09-11 16:00 |
 | `[x]` | [YMP-008](#ymp-008) | P0 | Reconcile native and canonical usage and recompute weighted input | 2026-09-11 16:00 |
 | `[x]` | [YMP-101](#ymp-101) | P0 | Persist explainable session decisions and execution provenance | 2026-09-12 11:37 |
-| `[~]` | [YMP-102](#ymp-102) | P0 | Add explicit session resource budgets and unknown-usage policy | 2026-09-12 12:12 |
+| `[~]` | [YMP-102](#ymp-102) | P0 | Add explicit session resource budgets and unknown-usage policy | 2026-09-12 12:35 |
 | `[x]` | [YMP-103](#ymp-103) | P0 | Honor Codex nonterminal retry notifications | 2026-09-12 10:16 |
 | `[x]` | [YMP-104](#ymp-104) | P0 | Preserve accepted outcomes and confirmation status when final narration fails | 2026-09-12 10:16 |
 | `[x]` | [YMP-105](#ymp-105) | P1 | Enumerate file names without reading file contents | 2026-09-12 10:16 |
 | `[x]` | [YMP-106](#ymp-106) | P1 | Use task-specific memory queries and record retrieval evidence | 2026-09-12 12:33 |
-| `[~]` | [YMP-107](#ymp-107) | P1 | Expose recorded checks and factual recovery limits | 2026-09-12 12:20 |
+| `[~]` | [YMP-107](#ymp-107) | P1 | Expose recorded checks and factual recovery limits | 2026-09-12 12:34 |
 | `[=]` | [YMP-108](#ymp-108) | P2 | Evaluate an optional usage estimate with explicit price provenance | 2026-09-12 09:35 |
 | `[x]` | [YMP-111](#ymp-111) | P0 | Apply native models and reasoning settings per assignment | 2026-09-12 12:18 |
 | `[=]` | [YMP-201](#ymp-201) | P2 | Calibrate and run the paired solo/team pilot | 2026-09-12 09:35 |
@@ -331,9 +331,9 @@ Add explicit session resource budgets and unknown-usage policy
 
 **State:** `[~]` (in_progress) · **Type:** implementation · **Priority:** P0
 
-**Last update (UTC):** 2026-09-12 12:12
+**Last update (UTC):** 2026-09-12 12:35
 
-**Current reason:** Session budgets assigned to an xhigh subagent against reviewed provenance and native settings. Atomic reservations, bounded startup, protected verification and honest unknown-usage handling are the acceptance scope.
+**Current reason:** Candidate0f53ee7 implements atomic shared admission, preserved spend, verification reserves and supported native controls; mandatory author checks passed. Fresh independent xhigh review is running. Native token overshoot remains explicitly unbounded where no native hard cap exists; incomplete usage prevents further token-budgeted admission.
 
 **Owner:** Maintainer
 
@@ -495,9 +495,9 @@ Expose recorded checks and factual recovery limits
 
 **State:** `[~]` (in_progress) · **Type:** implementation · **Priority:** P1
 
-**Last update (UTC):** 2026-09-12 12:20
+**Last update (UTC):** 2026-09-12 12:34
 
-**Current reason:** R1 wording corrections68db7c8 are complete. Integration with provenance101 exposes task IDs in new check events; Opus5 max is updating the projection and task/command matching against current main before independent R2. Shared-frame clipping remains assigned to YMP-118.
+**Current reason:** Integrated candidate3540ecd now reads optional task/attempt references and fixes same-command cross-task display, with explicit legacy handling. Author reports161 passing Rust tests and a mock TUI walk; independent Claude Opus5 max R2 is running against this actual integration candidate.
 
 **Owner:** Claude Code claude-opus-5 with thinking max via Paseo; maintainer integrates and verifies
 

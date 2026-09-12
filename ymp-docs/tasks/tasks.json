@@ -441,6 +441,11 @@
           "at": "2026-09-12T12:12:44.621677+00:00",
           "status": "in_progress",
           "note": "Session budgets assigned to an xhigh subagent against reviewed provenance and native settings. Atomic reservations, bounded startup, protected verification and honest unknown-usage handling are the acceptance scope."
+        },
+        {
+          "at": "2026-09-12T12:35:54.128079+00:00",
+          "status": "in_progress",
+          "note": "Candidate0f53ee7 implements atomic shared admission, preserved spend, verification reserves and supported native controls; mandatory author checks passed. Fresh independent xhigh review is running. Native token overshoot remains explicitly unbounded where no native hard cap exists; incomplete usage prevents further token-budgeted admission."
         }
       ]
     },
@@ -756,6 +761,11 @@
           "at": "2026-09-12T12:20:54.531792+00:00",
           "status": "in_progress",
           "note": "R1 wording corrections68db7c8 are complete. Integration with provenance101 exposes task IDs in new check events; Opus5 max is updating the projection and task/command matching against current main before independent R2. Shared-frame clipping remains assigned to YMP-118."
+        },
+        {
+          "at": "2026-09-12T12:34:13.307527+00:00",
+          "status": "in_progress",
+          "note": "Integrated candidate3540ecd now reads optional task/attempt references and fixes same-command cross-task display, with explicit legacy handling. Author reports161 passing Rust tests and a mock TUI walk; independent Claude Opus5 max R2 is running against this actual integration candidate."
         }
       ]
     },
@@ -2041,7 +2051,7 @@
       ]
     }
   ],
-  "updated_at": "2026-09-12T12:33:34.844920+00:00",
+  "updated_at": "2026-09-12T12:35:54.128079+00:00",
   "delivery_order": [
     "YMP-116",
     "YMP-103",
