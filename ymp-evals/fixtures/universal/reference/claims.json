@@ -1,0 +1,7 @@
+{
+  "claims": [
+    {"id": "harbor-w36-rate", "value": 80, "unit": "percent", "source": "inputs/observations.csv", "rows": ["O03"]},
+    {"id": "hill-w36-rate", "value": 95, "unit": "percent", "source": "inputs/observations.csv", "rows": ["O04"]},
+    {"id": "hill-w36-minus-w35", "value": 25, "unit": "percentage_points", "source": "inputs/observations.csv", "rows": ["O02", "O04"]}
+  ]
+}

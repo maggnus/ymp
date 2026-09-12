@@ -1,0 +1,105 @@
+{
+  "schema_version": 1,
+  "id": "universal-workflows",
+  "split": "acceptance",
+  "authority": "../../ymp-docs/architecture/runtime-contract.md",
+  "fixture_scope": "Offline fixture and validator preparation. No integrated runtime or native model result is claimed.",
+  "workflows": {
+    "document": {
+      "prompt": "In this non-Git working directory, read inputs/document.json and create outputs/workshop.md. Use the title as an H1, one blank line, Date: YYYY-MM-DD and Location: NAME on separate lines, one blank line, then the Markdown table | Time | Activity | Owner | with separator | --- | --- | --- | and one row per input item in input order. Preserve supplied text. Add no other content. Independently review the artifact against the input.",
+      "follow_up_prompt": "Where did you save it?",
+      "inputs": [
+        "inputs/document.json"
+      ],
+      "output": "outputs/workshop.md",
+      "reference": "workshop.md",
+      "criterion_ids": [
+        "agenda-content-and-location"
+      ],
+      "check_id": "ymp-evals.document.v1",
+      "expected_confirmation": "confirmed"
+    },
+    "transform": {
+      "prompt": "Read inputs/ledger.csv. For posted rows only, group by account and sum quantity * unit_cents using integers. Count all posted entries, including zero-quantity and negative-quantity entries. Exclude accounts with no posted rows. Write outputs/totals.csv with columns account,total_cents,posted_entries, sorted by account ascending. Preserve CSV quoting as needed; no currency conversion or rounding. Independently review the output against the input.",
+      "inputs": [
+        "inputs/ledger.csv"
+      ],
+      "output": "outputs/totals.csv",
+      "reference": "totals.csv",
+      "criterion_ids": [
+        "posted-account-totals"
+      ],
+      "check_id": "ymp-evals.transform.v1",
+      "expected_confirmation": "confirmed"
+    },
+    "grounded": {
+      "prompt": "Use only the supplied fictional external dataset inputs/observations.csv. Write outputs/claims.json with exactly one top-level claims array containing, in this order: harbor-w36-rate (Harbor completed/scheduled percent for W36), hill-w36-rate (Hill completed/scheduled percent for W36), hill-w36-minus-w35 (Hill W36 rate minus W35 rate, in percentage points). Each claim has exactly id, integer value, unit (percent or percentage_points), source (inputs/observations.csv), and rows (all supporting row IDs, sorted). Do not add unsupported causal claims or inferred data. Independently review the claims and resolve the actual supplied source bytes.",
+      "inputs": [
+        "inputs/observations.csv"
+      ],
+      "output": "outputs/claims.json",
+      "reference": "claims.json",
+      "criterion_ids": [
+        "rates-and-source-row-grounding"
+      ],
+      "check_id": "ymp-evals.grounded.v1",
+      "expected_confirmation": "confirmed"
+    },
+    "qualitative": {
+      "prompt": "Propose two welcoming opening activities for a workshop in outputs/ideas.md. Start with # Workshop opening, followed by two paragraphs separated by blank lines, each containing at least ten words. An independent reviewer should assess whether the ideas are usable and explain the decision. There is no external quality oracle for this task.",
+      "inputs": [],
+      "output": "outputs/ideas.md",
+      "reference": "ideas.md",
+      "criterion_ids": [
+        "usable-welcoming-activities"
+      ],
+      "check_id": null,
+      "expected_confirmation": "unconfirmed",
+      "notes": "The reference is a synthetic example, not a quality oracle. Format checks do not confirm usability. An independently accepted result remains unconfirmed and earns no reputation."
+    }
+  },
+  "comparison": {
+    "shared_inputs": [
+      "document",
+      "transform",
+      "grounded",
+      "qualitative"
+    ],
+    "shared_conditions": [
+      "identical prompts, source bytes and artifact validators",
+      "same total budget including planning, all attempts, communication and review",
+      "same eligible execution backends and frozen versions",
+      "fresh non-Git working directory and fresh metadata per treatment",
+      "external harness validators and any qualitative evaluator held fixed across treatments",
+      "reference outputs and assertions kept out of agent context and remembered knowledge"
+    ],
+    "treatments": [
+      {
+        "id": "solo",
+        "method": "One producing agent; independent external acceptance harness. No self-review credit."
+      },
+      {
+        "id": "independent-attempts",
+        "method": "Two isolated producing contexts receive identical inputs with no shared conclusions. A predeclared selector and independent external harness use the same total budget; charge both attempts and selection."
+      },
+      {
+        "id": "cooperating-team",
+        "method": "Two producing agents may exchange board messages and divide work; include coordination, synthesis and independent external acceptance in the same total budget."
+      }
+    ],
+    "quality_metrics": [
+      "objective artifact success per criterion",
+      "runtime accepted/confirmed/unconfirmed/rejected separately",
+      "qualitative rubric and independent assessor rationale without objective quality score",
+      "missing output and regression counts"
+    ],
+    "resource_metrics": [
+      "elapsed wall time measured by harness",
+      "tokens per agent_id/assignment_id/invocation_id and coverage",
+      "reported cost and coverage; missing cost is null",
+      "all invocation, attempt, coordination and review counts",
+      "peak active invocations"
+    ],
+    "interpretation": "Synthetic scripted runs test protocol and validator discrimination only. They cannot establish model quality, memory advantage, team superiority or resource savings. Any future comparison needs separately authorized inference, repeated runs and uncertainty estimates."
+  }
+}

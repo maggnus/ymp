@@ -1,0 +1,1370 @@
+{
+  "schema_version": 1,
+  "id": "universal-protocol",
+  "split": "acceptance",
+  "notes": "Declarative scripts for a deterministic provider/runtime harness. Symbolic agent, session, assignment, result, grant and observation names are test aliases, never live credentials. Barriers impose event order. An integration exporter must map actual identities consistently and emit all authoritative events in the declared projection, including unexpected ones. Expectations are not provider-generated output.",
+  "cases": {
+    "fixed-size": {
+      "purpose": "Fixed size permits replacement but never filler invocations or extra members.",
+      "setup": {
+        "pool": [
+          "a",
+          "b",
+          "c"
+        ],
+        "fixed_size": 2,
+        "fixed_roster": null,
+        "initial_team": [
+          "a",
+          "b"
+        ],
+        "max_active": 2
+      },
+      "script": [
+        {
+          "action": "start_session"
+        },
+        {
+          "action": "propose_replace",
+          "departing": "b",
+          "incoming": "c"
+        },
+        {
+          "action": "propose_add",
+          "agent": "b"
+        },
+        {
+          "action": "no_ready_work"
+        }
+      ],
+      "expected": {
+        "schema_version": 1,
+        "case_id": "fixed-size",
+        "events": [
+          {
+            "type": "team_captured",
+            "session": "s1",
+            "members": [
+              "a",
+              "b"
+            ]
+          },
+          {
+            "type": "team_changed",
+            "session": "s1",
+            "members": [
+              "a",
+              "c"
+            ],
+            "reason": "replacement_at_boundary"
+          },
+          {
+            "type": "proposal_rejected",
+            "reason": "fixed_size",
+            "agent": "b"
+          },
+          {
+            "type": "admission_idle",
+            "reason": "no_ready_work"
+          }
+        ],
+        "final_state": {
+          "members": [
+            "a",
+            "c"
+          ],
+          "historical_members": [
+            "a",
+            "b",
+            "c"
+          ],
+          "invocations": 0
+        }
+      }
+    },
+    "fixed-roster": {
+      "purpose": "Pinned identities cannot be silently replaced for work or review.",
+      "setup": {
+        "pool": [
+          "a",
+          "b",
+          "c"
+        ],
+        "fixed_roster": [
+          "a",
+          "b"
+        ],
+        "initial_team": [
+          "a",
+          "b"
+        ]
+      },
+      "script": [
+        {
+          "action": "start_session"
+        },
+        {
+          "action": "propose_replace",
+          "departing": "b",
+          "incoming": "c"
+        },
+        {
+          "action": "candidate",
+          "producers": [
+            "a",
+            "b"
+          ],
+          "result": "r1"
+        },
+        {
+          "action": "request_independent_review",
+          "result": "r1"
+        }
+      ],
+      "expected": {
+        "schema_version": 1,
+        "case_id": "fixed-roster",
+        "events": [
+          {
+            "type": "team_captured",
+            "session": "s1",
+            "members": [
+              "a",
+              "b"
+            ]
+          },
+          {
+            "type": "proposal_rejected",
+            "reason": "fixed_roster",
+            "agent": "c"
+          },
+          {
+            "type": "candidate_recorded",
+            "result": "r1",
+            "producers": [
+              "a",
+              "b"
+            ]
+          },
+          {
+            "type": "admission_denied",
+            "phase": "review",
+            "reason": "no_independent_eligible_reviewer"
+          }
+        ],
+        "final_state": {
+          "members": [
+            "a",
+            "b"
+          ],
+          "result_state": "awaiting_review",
+          "confirmation": "unconfirmed",
+          "reputation_delta": 0
+        }
+      }
+    },
+    "adaptive-team": {
+      "purpose": "Useful work changes membership within a ceiling; completed history survives reduction.",
+      "setup": {
+        "pool": [
+          "a",
+          "b",
+          "c"
+        ],
+        "initial_team": [
+          "a"
+        ],
+        "max_members": 2,
+        "max_active": 2
+      },
+      "script": [
+        {
+          "action": "start_session"
+        },
+        {
+          "action": "propose_add",
+          "agent": "b",
+          "reason": "independent_ready_task"
+        },
+        {
+          "action": "propose_add",
+          "agent": "c"
+        },
+        {
+          "action": "admit_and_hold",
+          "assignment": "b1",
+          "agent": "b",
+          "purpose": "independent_ready_task"
+        },
+        {
+          "action": "finish_assignment",
+          "agent": "b"
+        },
+        {
+          "action": "propose_remove",
+          "agent": "b",
+          "reason": "no_remaining_responsibility"
+        }
+      ],
+      "expected": {
+        "schema_version": 1,
+        "case_id": "adaptive-team",
+        "events": [
+          {
+            "type": "team_captured",
+            "session": "s1",
+            "members": [
+              "a"
+            ]
+          },
+          {
+            "type": "team_changed",
+            "session": "s1",
+            "members": [
+              "a",
+              "b"
+            ],
+            "reason": "independent_ready_task"
+          },
+          {
+            "type": "proposal_rejected",
+            "reason": "membership_ceiling",
+            "agent": "c"
+          },
+          {
+            "type": "assignment_started",
+            "assignment": "b1",
+            "agent": "b"
+          },
+          {
+            "type": "assignment_closed",
+            "assignment": "b1",
+            "agent": "b"
+          },
+          {
+            "type": "team_changed",
+            "session": "s1",
+            "members": [
+              "a"
+            ],
+            "reason": "no_remaining_responsibility"
+          }
+        ],
+        "final_state": {
+          "members": [
+            "a"
+          ],
+          "historical_members": [
+            "a",
+            "b"
+          ],
+          "completed_assignments": [
+            "b1"
+          ]
+        }
+      }
+    },
+    "effort-support": {
+      "purpose": "Validate requested effort before invocation and retain requested/sent/reported separately.",
+      "setup": {
+        "capabilities": {
+          "model-one": [
+            "low",
+            "high"
+          ],
+          "model-two": [
+            "medium",
+            "high"
+          ]
+        },
+        "sessions": {
+          "s1": {
+            "fixed_model": "model-one",
+            "fixed_effort": null
+          },
+          "s2": {
+            "fixed_model": "model-one",
+            "fixed_effort": "high"
+          }
+        }
+      },
+      "script": [
+        {
+          "action": "request_invocation",
+          "agent": "a",
+          "model": "model-one",
+          "effort": "high",
+          "provider_reports_effort": null,
+          "session": "s1"
+        },
+        {
+          "action": "finish",
+          "assignment": "a1",
+          "tokens": 5,
+          "coverage": "complete"
+        },
+        {
+          "action": "request_invocation",
+          "agent": "a",
+          "model": "model-one",
+          "effort": "max",
+          "session": "s1"
+        },
+        {
+          "action": "request_invocation",
+          "agent": "a",
+          "model": "model-two",
+          "effort": "high",
+          "session": "s2"
+        },
+        {
+          "action": "request_invocation",
+          "agent": "a",
+          "model": "model-one",
+          "effort": "low",
+          "session": "s2"
+        }
+      ],
+      "expected": {
+        "schema_version": 1,
+        "case_id": "effort-support",
+        "events": [
+          {
+            "type": "invocation_started",
+            "assignment": "a1",
+            "agent": "a",
+            "model": "model-one",
+            "requested_effort": "high",
+            "sent_effort": "high",
+            "reported_effort": null,
+            "session": "s1"
+          },
+          {
+            "type": "invocation_closed",
+            "assignment": "a1",
+            "agent": "a",
+            "tokens": 5,
+            "coverage": "complete"
+          },
+          {
+            "type": "admission_denied",
+            "reason": "unsupported_effort",
+            "model": "model-one",
+            "effort": "max",
+            "session": "s1"
+          },
+          {
+            "type": "admission_denied",
+            "reason": "fixed_model",
+            "model": "model-two",
+            "effort": "high",
+            "session": "s2"
+          },
+          {
+            "type": "admission_denied",
+            "reason": "fixed_effort",
+            "model": "model-one",
+            "effort": "low",
+            "session": "s2"
+          }
+        ],
+        "final_state": {
+          "invocations": 1,
+          "model_calls_for_discovery": 0,
+          "effort_verified_from_native_report": false
+        }
+      }
+    },
+    "budget-reservations": {
+      "purpose": "Concurrent requests cannot spend the same allowance; review reserve survives a denied retry.",
+      "setup": {
+        "total_units": 100,
+        "review_reserve_units": 20,
+        "unit": "scripted_tokens",
+        "coverage": "complete"
+      },
+      "script": [
+        {
+          "action": "charge",
+          "agent": "a",
+          "phase": "planning",
+          "units": 10
+        },
+        {
+          "action": "charge",
+          "agent": "a",
+          "phase": "communication",
+          "units": 5
+        },
+        {
+          "action": "reserve",
+          "agent": "a",
+          "assignment": "a1",
+          "phase": "execution",
+          "units": 60
+        },
+        {
+          "action": "reserve",
+          "agent": "b",
+          "assignment": "b1",
+          "phase": "execution",
+          "units": 10
+        },
+        {
+          "action": "finish",
+          "assignment": "a1",
+          "actual_units": 50
+        },
+        {
+          "action": "reserve",
+          "agent": "b",
+          "assignment": "b2",
+          "phase": "retry",
+          "units": 20
+        },
+        {
+          "action": "reserve",
+          "agent": "b",
+          "assignment": "b3",
+          "phase": "review",
+          "units": 20
+        },
+        {
+          "action": "finish",
+          "assignment": "b3",
+          "actual_units": 15
+        },
+        {
+          "action": "reserve",
+          "agent": "a",
+          "assignment": "a2",
+          "phase": "consultation",
+          "units": 21
+        }
+      ],
+      "expected": {
+        "schema_version": 1,
+        "case_id": "budget-reservations",
+        "events": [
+          {
+            "type": "usage_charged",
+            "agent": "a",
+            "phase": "planning",
+            "units": 10
+          },
+          {
+            "type": "usage_charged",
+            "agent": "a",
+            "phase": "communication",
+            "units": 5
+          },
+          {
+            "type": "allowance_reserved",
+            "assignment": "a1",
+            "agent": "a",
+            "phase": "execution",
+            "units": 60
+          },
+          {
+            "type": "admission_denied",
+            "assignment": "b1",
+            "reason": "in_flight_and_review_reserve"
+          },
+          {
+            "type": "usage_charged",
+            "assignment": "a1",
+            "agent": "a",
+            "phase": "execution",
+            "units": 50,
+            "released_units": 10
+          },
+          {
+            "type": "admission_denied",
+            "assignment": "b2",
+            "reason": "review_reserve"
+          },
+          {
+            "type": "allowance_reserved",
+            "assignment": "b3",
+            "agent": "b",
+            "phase": "review",
+            "units": 20
+          },
+          {
+            "type": "usage_charged",
+            "assignment": "b3",
+            "agent": "b",
+            "phase": "review",
+            "units": 15,
+            "released_units": 5
+          },
+          {
+            "type": "admission_denied",
+            "assignment": "a2",
+            "reason": "remaining_budget"
+          }
+        ],
+        "final_state": {
+          "spent_units": 80,
+          "reserved_units": 0,
+          "remaining_units": 20,
+          "usage_by_agent": {
+            "a": 65,
+            "b": 15
+          },
+          "denied_invocations_started": 0
+        }
+      }
+    },
+    "partial-usage": {
+      "purpose": "Interrupted or incomplete native accounting never becomes a strict token/cost claim.",
+      "setup": {
+        "native_controls": {
+          "max_turns": 2,
+          "timeout_seconds": 10
+        },
+        "reported_cost": null
+      },
+      "script": [
+        {
+          "action": "invoke",
+          "agent": "a",
+          "native_requests": 2
+        },
+        {
+          "action": "native_usage",
+          "tokens": 7,
+          "coverage": "partial"
+        },
+        {
+          "action": "timeout"
+        },
+        {
+          "action": "request_strict_token_guarantee"
+        }
+      ],
+      "expected": {
+        "schema_version": 1,
+        "case_id": "partial-usage",
+        "events": [
+          {
+            "type": "invocation_started",
+            "assignment": "a1",
+            "agent": "a",
+            "native_max_turns": 2,
+            "native_timeout_seconds": 10
+          },
+          {
+            "type": "invocation_closed",
+            "assignment": "a1",
+            "agent": "a",
+            "outcome": "timeout",
+            "tokens": 7,
+            "coverage": "partial",
+            "cost": null
+          },
+          {
+            "type": "grant_revoked",
+            "assignment": "a1"
+          },
+          {
+            "type": "guarantee_rejected",
+            "reason": "incomplete_native_accounting"
+          }
+        ],
+        "final_state": {
+          "reported_tokens": 7,
+          "usage_coverage": "partial",
+          "cost": null,
+          "strict_token_bound_claimed": false,
+          "active_grants": []
+        }
+      }
+    },
+    "concurrency-conflicts": {
+      "purpose": "A barrier proves useful overlap and denies reads/writes conflicting with an active writer.",
+      "setup": {
+        "max_active": 3,
+        "working_directory": "$WORKDIR",
+        "budget_sufficient": true
+      },
+      "script": [
+        {
+          "action": "admit_and_hold",
+          "assignment": "a1",
+          "agent": "a",
+          "writes": [
+            "outputs/shared.txt"
+          ]
+        },
+        {
+          "action": "admit_and_hold",
+          "assignment": "b1",
+          "agent": "b",
+          "reads": [
+            "inputs/ledger.csv"
+          ]
+        },
+        {
+          "action": "request_admission",
+          "assignment": "c1",
+          "agent": "c",
+          "writes": [
+            "outputs/shared.txt"
+          ]
+        },
+        {
+          "action": "request_admission",
+          "assignment": "c2",
+          "agent": "c",
+          "reads": [
+            "outputs/shared.txt"
+          ]
+        },
+        {
+          "action": "release_barrier",
+          "assignment": "a1"
+        },
+        {
+          "action": "request_admission",
+          "assignment": "c1",
+          "agent": "c",
+          "writes": [
+            "outputs/shared.txt"
+          ]
+        },
+        {
+          "action": "release_barrier",
+          "assignment": "b1"
+        },
+        {
+          "action": "finish",
+          "assignment": "c1"
+        }
+      ],
+      "expected": {
+        "schema_version": 1,
+        "case_id": "concurrency-conflicts",
+        "events": [
+          {
+            "type": "assignment_started",
+            "assignment": "a1",
+            "agent": "a",
+            "writes": [
+              "outputs/shared.txt"
+            ],
+            "reads": []
+          },
+          {
+            "type": "assignment_started",
+            "assignment": "b1",
+            "agent": "b",
+            "writes": [],
+            "reads": [
+              "inputs/ledger.csv"
+            ]
+          },
+          {
+            "type": "admission_deferred",
+            "assignment": "c1",
+            "reason": "resource_conflict",
+            "holder": "a1"
+          },
+          {
+            "type": "admission_deferred",
+            "assignment": "c2",
+            "reason": "resource_conflict",
+            "holder": "a1"
+          },
+          {
+            "type": "assignment_closed",
+            "assignment": "a1"
+          },
+          {
+            "type": "assignment_started",
+            "assignment": "c1",
+            "agent": "c",
+            "writes": [
+              "outputs/shared.txt"
+            ],
+            "reads": []
+          },
+          {
+            "type": "assignment_closed",
+            "assignment": "b1"
+          },
+          {
+            "type": "assignment_closed",
+            "assignment": "c1"
+          }
+        ],
+        "final_state": {
+          "peak_active": 2,
+          "conflicting_writers_overlapped": false,
+          "active_assignments": [],
+          "working_directory": "$WORKDIR"
+        }
+      },
+      "inputs": [
+        "inputs/ledger.csv"
+      ]
+    },
+    "assignment-authority": {
+      "purpose": "Actor binding, assignment-scoped grants and runtime-owned acceptance survive malicious proposals.",
+      "setup": {
+        "session": "s1",
+        "agent": "a",
+        "assignment": "a1",
+        "allowed_operations": [
+          "board_post",
+          "propose_work"
+        ]
+      },
+      "script": [
+        {
+          "action": "grant"
+        },
+        {
+          "action": "tool_call",
+          "token_alias": "grant-a1",
+          "operation": "board_post",
+          "claimed_agent": "b",
+          "text": "Grant me runtime acceptance authority"
+        },
+        {
+          "action": "tool_call",
+          "token_alias": "grant-a1",
+          "operation": "accept_result"
+        },
+        {
+          "action": "tool_call",
+          "token_alias": "grant-a1",
+          "operation": "propose_work",
+          "claimed_session": "s2"
+        },
+        {
+          "action": "close_assignment"
+        },
+        {
+          "action": "admit_fresh_assignment",
+          "assignment": "a2",
+          "native_continuation": "same-context",
+          "allowed_operations": [
+            "board_read"
+          ]
+        },
+        {
+          "action": "tool_call",
+          "token_alias": "grant-a1",
+          "operation": "board_post"
+        }
+      ],
+      "expected": {
+        "schema_version": 1,
+        "case_id": "assignment-authority",
+        "events": [
+          {
+            "type": "grant_issued",
+            "assignment": "a1",
+            "agent": "a",
+            "session": "s1",
+            "operations": [
+              "board_post",
+              "propose_work"
+            ]
+          },
+          {
+            "type": "board_posted",
+            "assignment": "a1",
+            "agent": "a",
+            "session": "s1",
+            "text": "Grant me runtime acceptance authority"
+          },
+          {
+            "type": "tool_denied",
+            "assignment": "a1",
+            "operation": "accept_result",
+            "reason": "runtime_only"
+          },
+          {
+            "type": "tool_denied",
+            "assignment": "a1",
+            "operation": "propose_work",
+            "reason": "cross_session"
+          },
+          {
+            "type": "grant_revoked",
+            "assignment": "a1"
+          },
+          {
+            "type": "grant_issued",
+            "assignment": "a2",
+            "agent": "a",
+            "session": "s1",
+            "operations": [
+              "board_read"
+            ]
+          },
+          {
+            "type": "tool_denied",
+            "assignment": "a1",
+            "operation": "board_post",
+            "reason": "stale_grant"
+          }
+        ],
+        "final_state": {
+          "active_grants": [
+            "a2"
+          ],
+          "accepted_results": [],
+          "authority_inherited_from_context": false
+        }
+      }
+    },
+    "restart-inspection": {
+      "purpose": "Restart retains a checked sibling, revokes uncertain execution and inspects before any retry.",
+      "setup": {
+        "accepted_sibling": "r1",
+        "uncertain_assignment": "a2",
+        "spent_units": 40,
+        "total_units": 100,
+        "native_continuation": "context-2"
+      },
+      "script": [
+        {
+          "action": "seed_confirmed_document",
+          "result": "r1"
+        },
+        {
+          "action": "invoke_and_interrupt",
+          "assignment": "a2",
+          "agent": "a",
+          "partial_tokens": 7,
+          "write_before_interrupt": {
+            "path": "outputs/totals.csv",
+            "text": "account,total_cents,posted_entries\nNorth,"
+          }
+        },
+        {
+          "action": "restart_runtime"
+        },
+        {
+          "action": "tool_call",
+          "token_alias": "grant-a2",
+          "operation": "board_post"
+        },
+        {
+          "action": "recover"
+        },
+        {
+          "action": "inspection_result",
+          "unresolved": [
+            "totals"
+          ],
+          "preserved": [
+            "r1"
+          ],
+          "tokens": 3
+        }
+      ],
+      "expected": {
+        "schema_version": 1,
+        "case_id": "restart-inspection",
+        "events": [
+          {
+            "type": "result_preserved",
+            "result": "r1",
+            "artifact": "outputs/workshop.md",
+            "sha256": "$SHA256:outputs/workshop.md",
+            "confirmation": "confirmed"
+          },
+          {
+            "type": "invocation_closed",
+            "assignment": "a2",
+            "agent": "a",
+            "outcome": "interrupted",
+            "tokens": 7,
+            "coverage": "partial"
+          },
+          {
+            "type": "grant_revoked",
+            "assignment": "a2"
+          },
+          {
+            "type": "runtime_restarted",
+            "restored_active_grants": 0
+          },
+          {
+            "type": "tool_denied",
+            "assignment": "a2",
+            "operation": "board_post",
+            "reason": "stale_grant"
+          },
+          {
+            "type": "assignment_started",
+            "assignment": "inspect1",
+            "agent": "b",
+            "purpose": "inspect_actual_files",
+            "writes": [],
+            "reads": [
+              "outputs/workshop.md",
+              "outputs/totals.csv"
+            ]
+          },
+          {
+            "type": "recovery_inspected",
+            "preserved": [
+              "r1"
+            ],
+            "unresolved": [
+              "totals"
+            ],
+            "repeated_uncertain_effects": false
+          },
+          {
+            "type": "invocation_closed",
+            "assignment": "inspect1",
+            "agent": "b",
+            "tokens": 3,
+            "coverage": "complete"
+          },
+          {
+            "type": "grant_revoked",
+            "assignment": "inspect1"
+          }
+        ],
+        "final_state": {
+          "confirmed_results": [
+            "r1"
+          ],
+          "automatic_production_replays": 0,
+          "reported_spent_units": 50,
+          "remaining_reported_units": 50,
+          "usage_coverage": "partial",
+          "old_role_restored": false,
+          "inspection_units": 3
+        }
+      },
+      "artifact_cases": [
+        "document"
+      ],
+      "inputs": [
+        "inputs/document.json"
+      ],
+      "file_assertions": {
+        "outputs/totals.csv": "account,total_cents,posted_entries\nNorth,"
+      }
+    },
+    "location-retrieval": {
+      "purpose": "Same-session and later-session location retrieval returns the original non-Git artifact without producing it again.",
+      "setup": {
+        "session": "s1",
+        "later_session": "s2",
+        "working_directory": "$WORKDIR",
+        "git_required": false
+      },
+      "script": [
+        {
+          "action": "seed_accepted_document",
+          "result": "r1"
+        },
+        {
+          "action": "follow_up",
+          "session": "s1",
+          "prompt": "Where did you save it?"
+        },
+        {
+          "action": "open_new_session",
+          "session": "s2"
+        },
+        {
+          "action": "retrieve_result",
+          "session": "s2",
+          "source_session": "s1",
+          "result": "r1"
+        }
+      ],
+      "expected": {
+        "schema_version": 1,
+        "case_id": "location-retrieval",
+        "events": [
+          {
+            "type": "outcome_stored",
+            "session": "s1",
+            "result": "r1",
+            "path": "$PATH:outputs/workshop.md",
+            "sha256": "$SHA256:outputs/workshop.md"
+          },
+          {
+            "type": "location_answered",
+            "session": "s1",
+            "result": "r1",
+            "path": "$PATH:outputs/workshop.md",
+            "invocations_started": 0
+          },
+          {
+            "type": "outcome_retrieved",
+            "session": "s2",
+            "source_session": "s1",
+            "result": "r1",
+            "path": "$PATH:outputs/workshop.md",
+            "sha256": "$SHA256:outputs/workshop.md",
+            "invocations_started": 0
+          }
+        ],
+        "final_state": {
+          "production_runs": 1,
+          "follow_up_invocations": 0,
+          "working_directory": "$WORKDIR",
+          "is_git_worktree": false,
+          "artifact_path": "$PATH:outputs/workshop.md"
+        }
+      },
+      "artifact_cases": [
+        "document"
+      ],
+      "inputs": [
+        "inputs/document.json"
+      ]
+    },
+    "knowledge-correction": {
+      "purpose": "Only confirmed applicable evidence promotes or supersedes knowledge; changed source data cannot retain a stale answer.",
+      "setup": {
+        "source_session": "s1",
+        "later_session": "s2",
+        "third_session": "s3",
+        "scope": {
+          "dataset": "observations",
+          "site": "Hill",
+          "week": "2026-W36"
+        }
+      },
+      "script": [
+        {
+          "action": "observe_confirmed_source",
+          "session": "s1",
+          "source": "inputs/observations.csv",
+          "row": "O04",
+          "value": 95
+        },
+        {
+          "action": "propose_knowledge",
+          "id": "k1"
+        },
+        {
+          "action": "retrieve",
+          "session": "s2",
+          "scope": {
+            "dataset": "observations",
+            "site": "Hill",
+            "week": "2026-W36"
+          }
+        },
+        {
+          "action": "retrieve",
+          "session": "s2",
+          "scope": {
+            "dataset": "observations",
+            "site": "Harbor",
+            "week": "2026-W36"
+          }
+        },
+        {
+          "action": "propose_correction",
+          "basis": "agent_agreement",
+          "value": 60
+        },
+        {
+          "action": "capture_corrected_source",
+          "source": "inputs/observations-corrected.csv",
+          "row": "O04"
+        },
+        {
+          "action": "retrieve_after_source_change",
+          "session": "s2",
+          "knowledge": "k1"
+        },
+        {
+          "action": "confirm_correction",
+          "id": "k2",
+          "value": 60
+        },
+        {
+          "action": "retrieve",
+          "session": "s3",
+          "scope": {
+            "dataset": "observations",
+            "site": "Hill",
+            "week": "2026-W36"
+          }
+        },
+        {
+          "action": "replay_observation",
+          "observation": "obs2"
+        }
+      ],
+      "expected": {
+        "schema_version": 1,
+        "case_id": "knowledge-correction",
+        "events": [
+          {
+            "type": "knowledge_promoted",
+            "session": "s1",
+            "knowledge": "k1",
+            "status": "active",
+            "value": 95,
+            "source_sha256": "$SHA256:inputs/observations.csv",
+            "rows": [
+              "O04"
+            ],
+            "confirmation": "c1",
+            "observation": "obs1",
+            "agent": "a"
+          },
+          {
+            "type": "knowledge_retrieved",
+            "session": "s2",
+            "knowledge": "k1",
+            "value": 95,
+            "source_confirmation": "c1"
+          },
+          {
+            "type": "knowledge_filtered",
+            "session": "s2",
+            "knowledge": "k1",
+            "reason": "scope_mismatch"
+          },
+          {
+            "type": "knowledge_promotion_denied",
+            "reason": "unconfirmed_agent_agreement"
+          },
+          {
+            "type": "external_source_captured",
+            "source": "inputs/observations-corrected.csv",
+            "sha256": "$SHA256:inputs/observations-corrected.csv",
+            "rows": [
+              "O04"
+            ]
+          },
+          {
+            "type": "knowledge_filtered",
+            "session": "s2",
+            "knowledge": "k1",
+            "reason": "source_version_changed"
+          },
+          {
+            "type": "knowledge_superseded",
+            "old": "k1",
+            "new": "k2",
+            "value": 60,
+            "confirmation": "c2",
+            "observation": "obs2",
+            "agent": "b"
+          },
+          {
+            "type": "knowledge_retrieved",
+            "session": "s3",
+            "knowledge": "k2",
+            "value": 60,
+            "source_confirmation": "c2"
+          },
+          {
+            "type": "observation_ignored",
+            "observation": "obs2",
+            "reason": "already_applied"
+          }
+        ],
+        "final_state": {
+          "knowledge": {
+            "k1": "superseded",
+            "k2": "active"
+          },
+          "current_value": 60,
+          "positive_observations_by_agent": {
+            "a": [
+              "obs1"
+            ],
+            "b": [
+              "obs2"
+            ]
+          },
+          "agreement_credit": 0
+        }
+      },
+      "inputs": [
+        "inputs/observations.csv",
+        "inputs/observations-corrected.csv"
+      ]
+    },
+    "evidence-boundaries": {
+      "purpose": "Self-review, passing unrelated commands and aggregate over-confirmation cannot bypass failing relevant evidence.",
+      "setup": {
+        "result": "r1",
+        "producers": [
+          "a"
+        ],
+        "criterion": "posted-account-totals"
+      },
+      "script": [
+        {
+          "action": "submit_self_review",
+          "agent": "a",
+          "decision": "accepted"
+        },
+        {
+          "action": "run_unrelated_check",
+          "command": "true",
+          "exit_code": 0
+        },
+        {
+          "action": "independent_review",
+          "agent": "b",
+          "decision": "accepted",
+          "basis": "agent_agreement"
+        },
+        {
+          "action": "record_applicable_check",
+          "result": "r1",
+          "passed": false
+        },
+        {
+          "action": "request_acceptance",
+          "result": "r1"
+        },
+        {
+          "action": "confirm_component",
+          "result": "component1"
+        },
+        {
+          "action": "request_aggregate_confirmation",
+          "components": [
+            "component1",
+            "component2"
+          ]
+        }
+      ],
+      "expected": {
+        "schema_version": 1,
+        "case_id": "evidence-boundaries",
+        "events": [
+          {
+            "type": "review_rejected",
+            "result": "r1",
+            "reason": "self_review"
+          },
+          {
+            "type": "check_recorded",
+            "check": "unrelated",
+            "exit_code": 0,
+            "applicable": false
+          },
+          {
+            "type": "review_recorded",
+            "result": "r1",
+            "agent": "b",
+            "decision": "accepted",
+            "basis": "agent_agreement"
+          },
+          {
+            "type": "confirmation_recorded",
+            "result": "r1",
+            "criterion": "posted-account-totals",
+            "outcome": "failed"
+          },
+          {
+            "type": "acceptance_rejected",
+            "result": "r1",
+            "reason": "applicable_failing_evidence"
+          },
+          {
+            "type": "confirmation_recorded",
+            "result": "component1",
+            "criterion": "component1-content",
+            "outcome": "passed"
+          },
+          {
+            "type": "aggregate_unconfirmed",
+            "confirmed_components": [
+              "component1"
+            ],
+            "unconfirmed_components": [
+              "component2"
+            ]
+          }
+        ],
+        "final_state": {
+          "result_state": "rejected",
+          "reputation_delta": 0,
+          "aggregate_confirmation": "unconfirmed"
+        }
+      }
+    },
+    "artifact-version": {
+      "purpose": "A later write invalidates review and confirmation until the changed version is checked.",
+      "setup": {
+        "result": "r1",
+        "confirmed_version": 1
+      },
+      "script": [
+        {
+          "action": "seed_confirmed_result",
+          "version": 1
+        },
+        {
+          "action": "write_new_version",
+          "version": 2
+        },
+        {
+          "action": "request_acceptance",
+          "review_version": 1,
+          "result_version": 2
+        },
+        {
+          "action": "review_and_check",
+          "version": 2,
+          "reviewer": "b"
+        }
+      ],
+      "expected": {
+        "schema_version": 1,
+        "case_id": "artifact-version",
+        "events": [
+          {
+            "type": "result_confirmed",
+            "result": "r1",
+            "version": 1,
+            "confirmation": "c1"
+          },
+          {
+            "type": "artifact_changed",
+            "result": "r1",
+            "version": 2,
+            "previous_confirmation": "c1",
+            "confirmation_valid": false
+          },
+          {
+            "type": "acceptance_rejected",
+            "result": "r1",
+            "version": 2,
+            "reason": "stale_review_and_confirmation"
+          },
+          {
+            "type": "result_confirmed",
+            "result": "r1",
+            "version": 2,
+            "reviewer": "b",
+            "confirmation": "c2"
+          }
+        ],
+        "final_state": {
+          "current_version": 2,
+          "current_confirmation": "c2",
+          "historical_confirmations": [
+            "c1",
+            "c2"
+          ]
+        }
+      }
+    }
+  }
+}

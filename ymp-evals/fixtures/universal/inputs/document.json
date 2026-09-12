@@ -1,0 +1,10 @@
+{
+  "title": "Harbor Workshop",
+  "date": "2026-10-15",
+  "location": "Room Cedar",
+  "items": [
+    {"time": "09:00", "activity": "Welcome", "owner": "Avery"},
+    {"time": "09:30", "activity": "Data review", "owner": "Blair"},
+    {"time": "10:15", "activity": "Next steps", "owner": "Casey"}
+  ]
+}
