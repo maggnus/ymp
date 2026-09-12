@@ -3110,7 +3110,7 @@ async fn membership_keeps_an_agent_that_worked_here_after_it_leaves_the_pool() {
     );
     let member = row_prose(&mut app, 65, "two");
     assert!(
-        member.contains("captured by this session when it started"),
+        member.contains("captured by this session and in the roster it holds now"),
         "the session's own membership is not named as captured:\n{member}"
     );
     assert!(
@@ -3268,5 +3268,497 @@ async fn a_budget_stop_is_named_on_the_limits_page() {
     assert!(
         admitted.contains("in flight only while a run is active"),
         "an open turn count was not qualified:\n{admitted}"
+    );
+}
+
+/// The headings of the page, in order, as one line each.
+fn headings_of(app: &mut App, width: u16) -> Vec<String> {
+    app.page(width)
+        .items
+        .iter()
+        .filter(|item| item.kind == crate::views::ItemKind::Heading)
+        .map(|item| lines_prose(&[ratatui::text::Line::from(item.left.clone())]))
+        .collect()
+}
+
+#[tokio::test]
+async fn a_member_the_roster_replaced_is_not_presented_as_one_and_keeps_its_records() {
+    // One member at a time is how the runtime reaches an independent reviewer: it replaces
+    // the member instead of adding one, so the session captures two identities and holds a
+    // roster of one. Nothing here is hand-written into the store.
+    let run = mock_run("Create a greeting", |engine| {
+        engine.config.team_constraints.fixed_size = Some(1);
+    })
+    .await;
+    let roster = run.store.team_state(&run.session).unwrap().unwrap();
+    let captured = run.store.session(&run.session).unwrap().team;
+    assert_eq!(
+        roster.current_members.len(),
+        1,
+        "the roster did not stay at one"
+    );
+    assert_eq!(captured.len(), 2, "the session captured only one identity");
+    let replaced = captured
+        .iter()
+        .find(|profile| !roster.current_members.contains(&profile.id))
+        .expect("one captured identity left the roster")
+        .id
+        .clone();
+
+    let mut app = run.app();
+    app.load_session(&run.session).unwrap();
+    app.command("/team", 100);
+    let headings = headings_of(&mut app, 65);
+    assert!(
+        headings
+            .iter()
+            .any(|heading| heading.contains("NO LONGER A MEMBER")),
+        "a replaced identity is presented among the members: {headings:?}"
+    );
+    let right = right_of_key(&mut app, 65, &replaced);
+    assert!(
+        right.contains("no longer a member"),
+        "a replaced identity is still described as a member: {right}"
+    );
+    let detail = detail_of_key(&mut app, 65, &replaced);
+    assert!(
+        detail.contains(&format!("revision {}", roster.revision)),
+        "the row does not name the roster it is measured against:\n{detail}"
+    );
+    assert!(
+        detail.contains("turns recorded here"),
+        "the work a replaced identity did is not counted:\n{detail}"
+    );
+    let member = roster.current_members[0].clone();
+    assert!(
+        detail_of_key(&mut app, 65, &member).contains("in the roster it holds now"),
+        "a current member is not distinguished from a replaced one:\n{}",
+        detail_of_key(&mut app, 65, &member)
+    );
+    assert!(
+        app.page(65).subtitle.contains("1 in the roster")
+            && app.page(65).subtitle.contains("2 captured by this session"),
+        "the page does not say which list is which: {}",
+        app.page(65).subtitle
+    );
+    let roster_row = detail_of_key(&mut app, 65, "roster");
+    assert!(
+        roster_row.contains("availability and not authority"),
+        "the reserved reviewer is presented as a rank:\n{roster_row}"
+    );
+    assert!(
+        roster_row.contains(&roster.method),
+        "the page does not name the method the runtime recorded:\n{roster_row}"
+    );
+}
+
+#[tokio::test]
+async fn a_session_that_recorded_no_roster_says_so_and_still_shows_its_records() {
+    let run = mock_run("Create a greeting", |_| {}).await;
+    // A record shape this version cannot write: the same assignment records, no captured
+    // team and no roster, which is what a session stored before membership was recorded
+    // reads like. The snapshot is replaced, not the store, because the page is a pure
+    // function of the snapshot the controller took.
+    let mut trace = run.store.trace(&run.session).unwrap();
+    trace.session.team.clear();
+    trace.team_state = None;
+    let worked = trace.assignments[0].agent_id.clone();
+    let mut config = run.config.clone();
+    config.team.clear();
+    let mut app = App::new(run.store.clone(), config, PathBuf::from(run.project.path()));
+    app.load_session(&run.session).unwrap();
+    app.command("/team", 100);
+    app.session_team.clear();
+    app.records = crate::provenance::Records {
+        session: Some(run.session.clone()),
+        read_at: ymp_core::now(),
+        trace: Some(trace),
+        ..Default::default()
+    };
+
+    // A width the page was not built at, so the injected snapshot is the one it reads.
+    let headings = headings_of(&mut app, 64);
+    assert!(
+        headings
+            .iter()
+            .any(|heading| heading.contains("WORKED HERE")),
+        "agents with records and no membership are not shown apart: {headings:?}"
+    );
+    let detail = detail_of_key(&mut app, 64, &worked);
+    assert!(
+        detail.contains("either it is no longer a member, or the list does not name it"),
+        "the page does not say what this row means:\n{detail}"
+    );
+    assert!(
+        detail.contains("turns recorded here"),
+        "the work this agent did is not counted:\n{detail}"
+    );
+    let roster_row = detail_of_key(&mut app, 64, "roster");
+    assert!(
+        roster_row.contains("recorded no roster of its own"),
+        "an absent roster is not stated as absent:\n{roster_row}"
+    );
+    assert!(
+        right_of_key(&mut app, 64, "roster").contains("none recorded"),
+        "an absent roster is reported as an empty one: {}",
+        right_of_key(&mut app, 64, "roster")
+    );
+}
+
+#[tokio::test]
+async fn a_confirmed_projection_and_a_candidate_are_not_shown_as_the_same_thing() {
+    let run = mock_run("Create a greeting", |engine| {
+        engine.acceptance_contracts.push(exact_greeting_contract())
+    })
+    .await;
+    let project = run.store.project(run.project.path()).unwrap();
+    let inventory = run.store.memory_inventory(Some(&project.id)).unwrap();
+    let supported = run
+        .store
+        .search_memory(
+            Some(&project.id),
+            "",
+            &Default::default(),
+            ymp_core::KnowledgeRetrievalMode::Supported,
+        )
+        .unwrap();
+    assert!(
+        !supported.is_empty() && inventory.len() > supported.len(),
+        "the run did not record both a supported projection and a candidate: {} of {}",
+        supported.len(),
+        inventory.len()
+    );
+    let mut app = run.app();
+    app.command("/memory", 100);
+
+    let keys = keys_of(&mut app, 65);
+    for entry in &inventory {
+        assert!(
+            keys.contains(&entry.id),
+            "an entry the store recorded is not on the page: {:?}",
+            entry.title
+        );
+    }
+    let confirmed = supported[0].id.clone();
+    assert!(
+        right_of_key(&mut app, 65, &confirmed).contains("supported"),
+        "a confirmed projection is not named as support: {}",
+        right_of_key(&mut app, 65, &confirmed)
+    );
+    let detail = detail_of_key(&mut app, 65, &confirmed);
+    assert!(
+        detail.contains("the acceptance it names carried passing checks"),
+        "the basis of a confirmed entry is not stated:\n{detail}"
+    );
+    assert!(
+        detail.contains("acceptance") && detail.contains("criteria"),
+        "a confirmed entry does not name the record it projects:\n{detail}"
+    );
+
+    // An entry a reviewer agreed with, without evidence, was previously labelled reviewed.
+    let candidate = inventory
+        .iter()
+        .find(|entry| {
+            entry.reviewer.is_some()
+                && entry.provenance.as_ref().is_some_and(|provenance| {
+                    provenance.confirmation != ymp_core::ConfirmationStatus::Confirmed
+                })
+        })
+        .expect("the run recorded a candidate a reviewer agreed with");
+    let right = right_of_key(&mut app, 65, &candidate.id);
+    assert!(
+        right.contains("unconfirmed") && !right.contains("supported"),
+        "a candidate with a reviewer is presented as checked: {right}"
+    );
+    let candidate_detail = detail_of_key(&mut app, 65, &candidate.id);
+    assert!(
+        candidate_detail.contains("no passing evidence is attached"),
+        "a candidate does not say what it lacks:\n{candidate_detail}"
+    );
+    assert!(
+        candidate_detail.contains("is not offered as support"),
+        "a candidate is not distinguished from context a run would be given:\n{candidate_detail}"
+    );
+    assert!(
+        app.page(65)
+            .subtitle
+            .contains(&format!("{} recorded", inventory.len()))
+            && app
+                .page(65)
+                .subtitle
+                .contains(&format!("{} supported", supported.len())),
+        "the page does not separate what is recorded from what is offered: {}",
+        app.page(65).subtitle
+    );
+
+    run.store.forget_memory(&confirmed).unwrap();
+    // A width this page was not built at, so the row is read again after the retirement.
+    assert!(
+        right_of_key(&mut app, 64, &confirmed).contains("retired"),
+        "a retired entry disappears instead of saying it was retired: {}",
+        right_of_key(&mut app, 64, &confirmed)
+    );
+    assert!(
+        detail_of_key(&mut app, 64, &confirmed).contains("the entry is retired"),
+        "a retired entry does not say it is no longer given to a run"
+    );
+}
+
+#[tokio::test]
+async fn knowledge_a_run_recorded_without_evidence_is_listed_rather_than_hidden() {
+    let run = mock_run("Create a greeting", |_| {}).await;
+    let project = run.store.project(run.project.path()).unwrap();
+    let inventory = run.store.memory_inventory(Some(&project.id)).unwrap();
+    assert!(
+        !inventory.is_empty(),
+        "the run recorded no knowledge at all, so this case is untested"
+    );
+    assert!(
+        run.store.memory(Some(&project.id), "").unwrap().is_empty(),
+        "a candidate was returned as support, which this test depends on not happening"
+    );
+    let mut app = run.app();
+    app.command("/memory", 100);
+
+    let keys = keys_of(&mut app, 65);
+    assert_eq!(
+        keys.len(),
+        inventory.len(),
+        "the page shows {} of the {} entries this project has recorded",
+        keys.len(),
+        inventory.len()
+    );
+    assert!(
+        app.page(65).subtitle.contains("0 supported as context"),
+        "the page does not say that none of it would be given to a run: {}",
+        app.page(65).subtitle
+    );
+    for entry in &inventory {
+        let detail = detail_of_key(&mut app, 65, &entry.id);
+        assert!(
+            detail.contains("is not offered as support"),
+            "an entry that is not support does not say so: {:?}\n{detail}",
+            entry.title
+        );
+    }
+}
+
+#[tokio::test]
+async fn an_accepted_outcome_names_the_directory_it_was_recorded_in() {
+    let run = mock_run("Create a greeting", |engine| {
+        engine.acceptance_contracts.push(exact_greeting_contract())
+    })
+    .await;
+    let recorded = run.store.outcomes(&run.session).unwrap();
+    assert!(
+        !recorded.is_empty(),
+        "the run accepted nothing, so this case is untested"
+    );
+    let mut app = run.app();
+    app.load_session(&run.session).unwrap();
+    app.command("/diff", 100);
+
+    let key = recorded[0].result_id.clone();
+    // A path longer than the detail is wrapped rather than cut, so the width used for the
+    // location assertions is one the whole path fits on.
+    let wide = detail_of_key(&mut app, 110, &key);
+    assert!(
+        wide.contains(&recorded[0].directory.display().to_string()),
+        "the outcome does not name the directory it was recorded in:\n{wide}"
+    );
+    let detail = detail_of_key(&mut app, 65, &key);
+    assert!(
+        detail.contains("ymp keeps no copy of the artifact anywhere else"),
+        "the page implies the artifact exists somewhere else as well:\n{detail}"
+    );
+    assert!(
+        right_of_key(&mut app, 65, &key).contains("confirmed"),
+        "a confirmed outcome is not named as one: {}",
+        right_of_key(&mut app, 65, &key)
+    );
+
+    // The effective mode and the recovery limit are in the leading row, which is the row the
+    // first frame opens, so neither is a keystroke away.
+    let leading = detail_of_key(&mut app, 65, "recovery");
+    for statement in [
+        "Agents work in this directory itself",
+        "Only a turn that executes a task is asked with permission to change files",
+        "it is not isolation",
+        "One task is executed at a time",
+        "exclusive lock",
+        "cannot restore a previous version of a file",
+        "Isolated execution with a reviewed publication step is not part of this release",
+    ] {
+        assert!(
+            leading.contains(statement),
+            "the page does not state {statement:?}:\n{leading}"
+        );
+    }
+    assert_eq!(
+        app.page(65).items[0].key,
+        "recovery",
+        "the statement is not the first row of the page"
+    );
+}
+
+#[tokio::test]
+async fn a_relocated_project_does_not_move_where_an_outcome_was_recorded() {
+    let run = mock_run("Create a greeting", |engine| {
+        engine.acceptance_contracts.push(exact_greeting_contract())
+    })
+    .await;
+    let recorded = run.store.outcomes(&run.session).unwrap();
+    let before = recorded[0].directory.clone();
+    let moved = TempDir::new().unwrap();
+    let project = run.store.project(run.project.path()).unwrap();
+    run.store
+        .relocate_project(&project.id, moved.path())
+        .unwrap();
+    let elsewhere = moved.path().canonicalize().unwrap();
+
+    // A reader opened after the project's current path changed.
+    let mut app = App::new(
+        run.store.clone(),
+        run.config.clone(),
+        PathBuf::from(&elsewhere),
+    );
+    app.load_session(&run.session).unwrap();
+    app.command("/diff", 100);
+
+    let detail = detail_of_key(&mut app, 110, &recorded[0].result_id);
+    assert!(
+        detail.contains(&before.display().to_string()),
+        "the recorded location moved with the project:\n{detail}"
+    );
+    assert!(
+        !detail.contains(&elsewhere.display().to_string()),
+        "the page reports the new path as where the result was recorded:\n{detail}"
+    );
+}
+
+#[test]
+fn the_first_screen_says_how_the_directory_is_used_and_what_cannot_be_undone() {
+    let fixture = fixture();
+    let mut app = fixture.app();
+    // The opening screen, at the smallest supported size, with no session yet.
+    let screen = main_prose(&mut app, 80, 24);
+    assert!(
+        screen.contains("create and change files in this directory itself"),
+        "the first screen does not say where a run works:\n{screen}"
+    );
+    assert!(
+        screen.contains("it cannot put a file back"),
+        "the first screen does not state the limit of what was recorded:\n{screen}"
+    );
+    assert!(
+        screen.contains("directly, no copy kept"),
+        "the first screen does not name the effective mode:\n{screen}"
+    );
+}
+
+#[tokio::test]
+async fn a_membership_decision_says_what_it_changed_and_what_it_reserved() {
+    let run = mock_run("Create a greeting", |_| {}).await;
+    let trace = run.store.trace(&run.session).unwrap();
+    let (record, allocation) = trace
+        .decisions
+        .iter()
+        .filter_map(|decision| {
+            decision
+                .links
+                .allocation
+                .as_deref()
+                .map(|allocation| (decision, allocation))
+        })
+        .next()
+        .expect("the run recorded a membership decision");
+    let key = text::short_id(&record.id);
+    let reviewer = allocation
+        .proposal
+        .reserved_final_reviewer
+        .clone()
+        .expect("the committed roster reserved a final reviewer");
+
+    let mut app = run.app();
+    app.load_session(&run.session).unwrap();
+    app.command("/decisions", 100);
+
+    assert!(
+        right_of_key(&mut app, 65, &key).contains("membership committed"),
+        "a committed membership decision is reported as ungraded: {}",
+        right_of_key(&mut app, 65, &key)
+    );
+    let detail = detail_of_key(&mut app, 65, &key);
+    assert!(
+        detail.contains("members proposed"),
+        "the decision does not say who it admitted:\n{detail}"
+    );
+    assert!(
+        detail.contains(&reviewer),
+        "the decision does not name the reviewer it kept free:\n{detail}"
+    );
+    assert!(
+        detail.contains("availability rather than authority"),
+        "the reserved reviewer reads like a rank:\n{detail}"
+    );
+    assert!(
+        detail.contains("the session started"),
+        "the decision does not say at which moment it was taken:\n{detail}"
+    );
+
+    // The per-turn resource bound is a record of the same shape: its outcome is inside it.
+    let bound = trace
+        .decisions
+        .iter()
+        .find(|decision| decision.links.resource_allocation.is_some())
+        .expect("the run recorded a resource bound");
+    let bound_key = text::short_id(&bound.id);
+    assert!(
+        right_of_key(&mut app, 65, &bound_key).contains("bound set"),
+        "a recorded turn bound is reported as ungraded: {}",
+        right_of_key(&mut app, 65, &bound_key)
+    );
+    let bound_detail = detail_of_key(&mut app, 65, &bound_key);
+    assert!(
+        bound_detail.contains("native turns allowed")
+            && bound_detail.contains("output characters allowed"),
+        "the bound does not say what it allowed:\n{bound_detail}"
+    );
+    assert!(
+        bound_detail.contains("a bound is not a report that it was reached"),
+        "an allowance reads like a measurement:\n{bound_detail}"
+    );
+}
+
+#[tokio::test]
+async fn locations_that_could_not_be_read_are_not_reported_as_none() {
+    let run = mock_run("Create a greeting", |engine| {
+        engine.acceptance_contracts.push(exact_greeting_contract())
+    })
+    .await;
+    let mut app = run.app();
+    app.load_session(&run.session).unwrap();
+    app.command("/diff", 100);
+    // What the controller holds when the store could not answer where an accepted result
+    // was recorded: a reason, and no locations. A session records this when its captured
+    // directory is missing, which this version no longer writes.
+    app.records.outcomes.clear();
+    app.records.outcomes_unreadable =
+        Some("outcome_location_unknown: captured directory is missing".to_owned());
+
+    // A width the page was not built at, so the replaced snapshot is the one it reads.
+    let right = right_of_key(&mut app, 64, "outcome locations");
+    assert!(
+        right.contains("could not be read"),
+        "a failed read is presented as an answer: {right}"
+    );
+    let detail = detail_of_key(&mut app, 64, "outcome locations");
+    assert!(
+        detail.contains("outcome_location_unknown"),
+        "the page does not report what the store said:\n{detail}"
+    );
+    assert!(
+        detail.contains("not a statement that the session accepted nothing"),
+        "a failed read is not distinguished from an absence of outcomes:\n{detail}"
     );
 }

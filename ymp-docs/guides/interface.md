@@ -104,9 +104,11 @@ selected row underneath it, and states its own keys in the status row.
   next message is delivered to, so replacing it would send that message to the wrong run.
   Stop the run with `/stop` first.
 - **Files** and **Changed files** — the working directory, and the changes recorded for the
-  loaded session. The change page states what was recorded, namely a path, a status and a
-  content hash rather than a copy, what version control was found at or above the working
-  directory, and that no earlier file content was kept anywhere.
+  loaded session. The change page opens on how the directory is used: agents work in it
+  directly, one run holds it at a time, nothing is staged or copied, and ymp cannot put an
+  earlier version of a file back, because it recorded a path, a status and a content hash
+  rather than a copy. It also names the version control found at or above the directory, and
+  lists the accepted results of the session with the directory each was recorded in.
 - **Recorded checks** — the acceptance commands ymp ran itself for the loaded session, with
   the directory, the recorded outcome and the captured output. A command the plan declared
   that has no recorded run is listed apart from the runs, because it is not a result. See
@@ -120,15 +122,21 @@ selected row underneath it, and states its own keys in the status row.
   states whether it rests on passing evidence for every criterion or on an independent
   review alone, and says when the files it was accepted against have changed since.
 - **Team**, **Agent profiles**, **Providers** — membership and configuration. The team page
-  shows the members of the loaded session, the agents that worked in it, and the pool that is
+  shows the members of the loaded session, any identity the session captured that its roster
+  no longer lists, the agents that worked in it, the roster record itself with the final
+  reviewer it keeps free, the bounds the roster was formed under, and the pool that is
   eligible on this machine, with the reason any profile is excluded. On Agent profiles, `m`
   edits the model and `i` edits the instructions; `Space` enables a profile and `t` toggles
   membership. Changes are validated and saved to `config.toml`; a rejected change is reverted
   and reported.
-- **Memory** — the knowledge recorded for this project and as shared procedure. Each entry
-  names its author, its reviewer when one was recorded, its origin session and what it
-  supersedes; an entry with no reviewer is marked a candidate rather than presented as
-  checked. `/` searches, `f` retires an entry after a confirmation.
+- **Memory** — every entry recorded for this project and as shared procedure, including
+  candidates and retired ones, each labelled. An entry is either a projection of a result
+  this project accepted or a candidate a run proposed: confirmed means the acceptance it
+  names carried passing checks, unconfirmed means no passing evidence is attached, and an
+  entry written before provenance was recorded says its confirmation is unknown. The page
+  also says, per entry, whether a run assembling a prompt would actually be given it, which
+  is decided by re-reading the source record and not by the text of the entry. `/` searches,
+  `f` retires an entry after a confirmation.
 - **Reputation** — the observations behind competence estimates, with their evidence, their
   evidence status, and what credit toward selection requires.
 - **Limits** — the limits the loaded session captured, shown apart from the ones the next run

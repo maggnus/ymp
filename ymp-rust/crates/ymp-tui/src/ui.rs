@@ -413,6 +413,7 @@ fn welcome_lines(app: &App, width: usize) -> Vec<Line<'static>> {
     };
     let facts = [
         ("working directory", app.cwd.display().to_string()),
+        ("how it is used", "directly, no copy kept".to_owned()),
         ("team", team),
         ("theme", theme.name.to_owned()),
     ];
@@ -436,7 +437,8 @@ fn welcome_lines(app: &App, width: usize) -> Vec<Line<'static>> {
     }
     lines.push(Line::default());
     for hint in [
-        "Describe a task and press Enter. Files are created here, not in a copy.",
+        "Describe a task and press Enter. Agents create and change files in this directory itself.",
+        "ymp records a path and a hash for each change, never earlier content, so it cannot put a file back. /diff states what a run recorded and where.",
         "Ctrl+P opens the command palette. Ctrl+T changes the colour theme.",
         "Every page reachable from the sidebar is read-only; none of them start an agent.",
     ] {

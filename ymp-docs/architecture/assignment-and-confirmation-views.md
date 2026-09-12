@@ -13,14 +13,23 @@ not belong there. Each page states when its records were read.
 
 | Snapshot | Read through | Taken when |
 | --- | --- | --- |
-| Session records | `Store::trace`, then `Store::team_grant` for each assignment's grants, and `Store::result_is_current` for each decision that carries a result | the window opens, a session is loaded, a run reports a task or a turn while a record page is open, a run finishes or stops, and a record page is opened |
+| Session records | `Store::trace`, which now also carries the session's roster, then `Store::team_grant` for each assignment's grants, `Store::result_is_current` for each decision that carries a result, and `Store::outcomes` for the accepted results and the directory each was recorded in | the window opens, a session is loaded, a run reports a task or a turn while a record page is open, a run finishes or stops, and a record page is opened |
 | Local pool | `ymp_providers::discovery::inspect_pool` and `::inspect` | the window opens, a configuration change is saved, and the team, profile or provider page is opened |
 
 `Store::trace` is a full read of one session's records. Refreshing it while a run reports is
 how `/assignments` stays live; the cost is a scan per reporting turn, which at present
 record counts is not measurable. `Store::result_is_current` compares recorded digests
 against the files on disk, which is why it is taken in the controller and stated as of the
-moment it was read.
+moment it was read. `Store::outcomes` does the same comparison and builds absolute artifact
+paths from the directory each result was captured in; it answers for a whole session or not
+at all, so a single unreadable location is reported as a failed read and never as an absence
+of accepted work.
+
+The memory page is the one page that reads the store while it is built, which it did before
+this work as well. It asks two questions: every entry this project has, through
+`Store::memory_inventory` or `Store::search_memory` with candidates included, and which of
+them a run would actually be given, through `Store::search_memory` in the supported mode with
+the default scope. Both are `SELECT`s over ymp's own storage.
 
 ## The vocabulary, and what each word is allowed to mean
 
@@ -40,6 +49,11 @@ configuration as it stands now.
 **Running against left open.** A record with no end is a turn in flight only while a run is
 active in this window. In a stored session the same record means a turn that was left open,
 which is what an interrupted run leaves behind, and the page says so in those words.
+
+**Committed against graded.** A membership decision and a per-turn resource bound record
+their own outcome inside the record they carry, and no grade is ever written for them. Those
+rows read committed, refused, set or refused from that field; they are never reported as
+decisions recorded without an outcome, and the grade words below are not applied to them.
 
 **Accepted, unconfirmed, confirmed, unknown.** An acceptance carries a grade. Confirmed means
 the evidence the acceptance bound passed for every criterion it applies to. Unconfirmed means
@@ -67,6 +81,30 @@ is who its run actually formed. An agent that worked in a session keeps its plac
 session's list after its profile leaves the pool, and an agent with records that the current
 list does not name is shown apart rather than dropped.
 
+**Roster against captured identities.** A session keeps every identity it ever admitted, and
+it holds a roster of the members a turn may be given to now. A run that replaces a member
+leaves both records, so the two lists are shown separately: the members, and the identities
+the roster no longer lists. An identity that left the roster keeps the turns recorded under
+it, and the page says which roster revision it is measured against. A session that recorded no
+roster at all says so, and every identity it captured is presented as a member, because that
+is what such a record states. The reserved final reviewer is named as availability: one
+eligible agent is kept out of production so that something other than the producer can review
+the result. It is not a rank, it carries no permission, and the page says so.
+
+**Supported, candidate, unknown.** A memory entry is a projection of a result this project
+accepted, or a candidate a run proposed. Confirmed means the acceptance it names carried
+passing checks; unconfirmed means no passing evidence is attached; unknown means the entry
+predates provenance entirely. Supported is a different question again, and the store answers
+it: whether a run assembling a prompt would be given the entry, which depends on re-reading
+the source record, so an entry recorded as confirmed reads as confirmed and not offered once
+the task, the files or the criteria behind it change. The page lists retired entries too,
+labelled, rather than letting them disappear.
+
+**Recorded location.** An accepted result names the directory it was accepted in. That
+location is historical: changing the project's current path does not move it, and the page
+states that ymp keeps no copy of the artifact anywhere else. Artifact paths are shown in full
+and wrapped when they are longer than the pane, never truncated.
+
 ## What these pages will not say
 
 - A grant is permission to use one coordination call for one assignment. It is never
@@ -81,6 +119,43 @@ list does not name is shown apart rather than dropped.
   records it links; no reasoning trace is stored, and none is reconstructed.
 - No acceptance, observation or grade is created by the interface. The pages read what the
   runtime wrote.
+
+## How the working directory is used
+
+The interface states the effective policy rather than implying a protection. For this release
+a run works directly in the selected directory: files agents create, change or delete are the
+real ones, nothing is staged or copied, and there is no review step between a turn and the
+directory.
+
+Three bounds on that are real, so the page states them and states what they are not. Only a
+turn whose purpose is to execute a task is asked with permission to change files; planning,
+review, final review, summary and knowledge turns are asked in the provider's own read-only
+mode where it advertises one, and the adapter declines the permission requests such a turn
+makes. That is what ymp asks for and answers, not isolation it enforces. One task is executed
+at a time, because the scheduler takes one ready task per round, so a run does not start two
+writing turns at once. One run uses a project's directory at a time, because a run holds an
+exclusive lock in ymp's metadata home and another run refuses to start while it is held; the
+page says that this lock is about ymp and says nothing about other programs or a command run
+by hand.
+
+ymp keeps its own metadata and evidence in its home directory and the deliverables in the
+working directory, and it does not create a hidden copy of the tree or move the directory that
+was selected. Isolated execution with a reviewed publication step is not part of this release,
+and the page says that too rather than leaving it to be assumed.
+
+These sentences are the first row of `/diff`, together with the statement that ymp cannot
+restore a previous version of a file, so they are what the first frame of that page shows.
+The opening screen carries the short form: where a run works, that no copy is kept, and that
+`/diff` is where the record and its limits are stated. None of this adds a question before an
+action, a confirmation or a block, and nothing recurring was introduced: the statements are
+read where the reader already is.
+
+Per-turn access is disclosed where the records carry it. The permission mode an assignment
+requested, the adapter sent and the installation reported is one field of the assignment
+detail, with the same three-column honesty as model and effort. The runtime also decides per
+turn whether a provider is asked in its read-only mode, and that flag is not written to the
+records, so no page states it: a turn whose record carries no permission mode is shown as one
+where nothing was requested and the installation used its own default.
 
 ## One width per page
 
@@ -106,6 +181,28 @@ profile leaves the pool, and that a turn left open is not called running until a
 active. Three further tests assert that prose is painted whole at 80x24, 100x30, 120x40 and
 160x48, in the detail pane, in the empty state and in the surface `Enter` opens.
 
+Nine tests cover what the merged membership and knowledge records added. A run constrained to
+one member at a time replaces its member to reach an independent reviewer, which is the
+runtime's own path to that state and needs nothing written by hand: the page then shows one
+member, shows the replaced identity apart with the turns recorded under it and the roster
+revision it is measured against, and its subtitle separates the roster from what the session
+captured. A snapshot with the same assignments, no captured team and no roster stands in for a
+record this version cannot write, and the page states the absence instead of presenting an
+empty roster. A run with a trusted check recorded both a confirmed projection and candidates:
+the page lists all of them, names the supported one as support, names the candidate a reviewer
+agreed with as unconfirmed and not offered, and reports a retired entry as retired instead of
+dropping it. A run without a contract recorded three candidates and no support at all, which
+the previous page would have shown as an empty memory; the test asserts every entry is listed
+and that the subtitle says none of it would be given to a run. One test reads the directory an
+accepted result was recorded in and the statement that no copy exists elsewhere, and another
+relocates the project and asserts that the recorded location does not move with it. One
+replaces the controller's snapshot with a failed read of those locations and asserts the page
+reports a failed read rather than an absence. One asserts that a committed membership decision
+is reported as committed rather than as ungraded, and that it names the members it admitted,
+the reviewer it kept free and the moment it was taken; the same test asserts that a recorded
+per-turn bound reports what it allowed and says that an allowance is not a measurement. One asserts the opening screen states
+how the directory is used and what cannot be put back, at 80x24.
+
 Each of those claims was also inverted in a scratch copy of the source, outside the
 repository, and the test that covers it failed in the expected direction.
 
@@ -122,13 +219,20 @@ background.
 
 ## Limits
 
-- Dynamic membership is not here yet. Until a run can change its team mid-session, the
-  "worked here" section appears only for records whose session captured no team, such as
-  older ones. The section and its wording are in place for YMP-110.
-- Knowledge has no provenance of its own yet. The memory page says what each entry records,
-  which is its author, its reviewer if one was recorded, its origin session and what it
-  supersedes, and it stops calling all memory verified. Source binding, applicability and
-  candidate states arrive with YMP-113.
+- Task-level access is not shown, because it is not recorded yet. YMP-115 adds a declared
+  read-only or writing access to a task; until it lands, the only access the interface can
+  state is the permission mode an invocation recorded, and the whole-directory reality of the
+  turn that runs.
+- Isolated execution and a recoverable publication step are YMP-124. The pages state that they
+  are absent rather than describing the direct mode as a protection.
+- `Store::outcomes` answers for a whole session. One accepted result whose captured directory
+  is missing makes the entire list unavailable, and the page then reports that failed read
+  instead of showing the other locations. The records behind it are not changed by the
+  attempt, and the fix belongs to the storage layer rather than here.
+- An agent with assignment records and no captured membership cannot be produced by this
+  version: the storage refuses an assignment for an agent outside the captured team. That
+  section remains for records written by earlier versions, and its test supplies such a record
+  as a controller snapshot rather than writing one into the store.
 - Competence credit recorded by another session is not read here. The reputation page says
   which observations this session credited and says plainly that credit recorded elsewhere is
   not read.

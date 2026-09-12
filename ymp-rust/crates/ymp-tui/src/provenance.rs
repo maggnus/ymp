@@ -13,7 +13,8 @@
 use std::collections::{BTreeMap, BTreeSet};
 use ymp_core::{
     now, AgentPool, AssignmentRecord, Config, ConfirmationStatus, DecisionOutcome, DecisionRecord,
-    GrantRecord, InvocationRecord, InvocationState, PoolAgent, ResultVersion, SessionTrace,
+    GrantRecord, InvocationRecord, InvocationState, PoolAgent, ResultVersion, SessionPolicy,
+    SessionTrace, StoredOutcome, TeamConstraints, TeamState,
 };
 use ymp_providers::discovery::ProviderHealth;
 use ymp_storage::Store;
@@ -53,6 +54,12 @@ pub struct Records {
     pub results: BTreeMap<String, ResultState>,
     /// Observations this session recorded competence credit for.
     pub credited: BTreeSet<String>,
+    /// Accepted results with the directory each was recorded in. Built from the captured
+    /// location, so it stays what the run recorded even after the project path changes.
+    pub outcomes: Vec<StoredOutcome>,
+    /// Why the recorded locations could not be listed, which is not the same as there
+    /// being none: one unreadable location leaves the whole answer unavailable.
+    pub outcomes_unreadable: Option<String>,
     /// Why there is nothing to show, when the reason is a failed read.
     pub unreadable: Option<String>,
 }
@@ -110,6 +117,12 @@ impl Records {
             .filter(|decision| decision.kind == "reputation_observed")
             .filter_map(|decision| decision.links.observation_id.clone())
             .collect();
+        // Locations are read here, with the rest: the call compares recorded digests against
+        // the working directory, which is not something a page may do while painting.
+        let (outcomes, outcomes_unreadable) = match store.outcomes(id) {
+            Ok(outcomes) => (outcomes, None),
+            Err(error) => (Vec::new(), Some(format!("{error:#}"))),
+        };
         Self {
             session: Some(id.to_owned()),
             read_at,
@@ -117,8 +130,38 @@ impl Records {
             grants,
             results,
             credited,
+            outcomes,
+            outcomes_unreadable,
             unreadable: None,
         }
+    }
+
+    /// The roster the runtime holds for this session: who a turn may be given to now.
+    ///
+    /// A session that recorded no roster has none, which is not the same as an empty one.
+    /// Membership is appended to the captured team, so an identity the session captured can
+    /// be absent from this list after a run replaced it.
+    pub fn roster(&self) -> Option<&TeamState> {
+        self.trace
+            .as_ref()
+            .and_then(|trace| trace.team_state.as_ref())
+    }
+
+    /// Whether the roster lists this agent: `None` where no roster was recorded at all.
+    pub fn in_roster(&self, agent: &str) -> Option<bool> {
+        self.roster()
+            .map(|state| state.current_members.iter().any(|id| id == agent))
+    }
+
+    /// The bounds a roster was formed under, as the session captured them. A session that
+    /// captured none would use the configuration of the run that resumes it.
+    pub fn captured_constraints(&self) -> Option<&TeamConstraints> {
+        self.policy()
+            .and_then(|policy| policy.team_constraints.as_ref())
+    }
+
+    pub fn policy(&self) -> Option<&SessionPolicy> {
+        self.trace.as_ref().and_then(|trace| trace.policy.as_ref())
     }
 
     pub fn assignments(&self) -> &[AssignmentRecord] {

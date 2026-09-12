@@ -17,10 +17,10 @@ use ratatui::style::Style;
 use ratatui::text::{Line, Span};
 use std::path::Path;
 use ymp_core::{
-    AgentProfile, AssignmentRecord, CheckOutcome, CheckRun, Config, ConfirmationStatus,
-    DecisionRecord, ExecutionSettings, GrantRecord, InvocationRecord, InvocationState, Limits,
-    MemoryEntry, ModelEffort, PoolAgent, PoolExclusion, PoolModelStatus, Session, SessionBudget,
-    Task, TaskState, UsageTotals,
+    AgentProfile, AllocationBoundary, AllocationDecision, AssignmentRecord, CheckOutcome, CheckRun,
+    Config, ConfirmationStatus, DecisionRecord, ExecutionSettings, GrantRecord, InvocationRecord,
+    InvocationState, KnowledgeRetrievalMode, Limits, MemoryEntry, ModelEffort, PoolAgent,
+    PoolExclusion, PoolModelStatus, Session, SessionBudget, Task, TaskState, UsageTotals,
 };
 use ymp_storage::Store;
 use ymp_workspace::repository::Repository;
@@ -897,6 +897,17 @@ fn size(bytes: u64) -> String {
 /// otherwise reads like a list of backups. The two parts are shown together, except where
 /// the first is already the heading of what the reader is looking at.
 const NO_EARLIER_CONTENT: &str = "ymp cannot restore a previous version of a file.";
+/// How a run uses the working directory in this release. Every sentence is about what the
+/// code does: the directory is the one that was selected, the only exclusion is the lock a
+/// run holds, and nothing is staged, copied or published anywhere else.
+const DIRECT_WORKSPACE: &[&str] = &[
+    "Agents work in this directory itself. Files they create, change or delete are the real ones, there is no staging copy and no review step between a turn and the directory.",
+    "Only a turn that executes a task is asked with permission to change files. Planning, review, final review and summary turns are asked in the provider's own read-only mode where it advertises one, and the permission requests they make are declined. That is what ymp asks for and answers; it is not isolation, and a program that writes without asking is not stopped by it.",
+    "One task is executed at a time. The scheduler takes one ready task per round, so a run does not start two writing turns at once, while the reading turns of a round can run together.",
+    "One ymp run uses a project's directory at a time: a run holds an exclusive lock in ymp's own metadata home and another run refuses to start while it is held. That lock says nothing about other programs, or about a command run by hand, which can write here at any time.",
+    "ymp keeps its own metadata and evidence in its home directory and the deliverables here. It does not create a hidden copy of this tree, and it does not move or rename the directory you selected.",
+    "Isolated execution with a reviewed publication step is not part of this release. What a run writes here is applied as it works, so interrupting one leaves whatever it had already written.",
+];
 const WHAT_WAS_RECORDED: &str =
     "It recorded a path, a status and a content hash for each file, never a copy, so \
      earlier content exists only where the working directory's own version control or a \
@@ -943,11 +954,27 @@ fn changes(ctx: &Ctx) -> anyhow::Result<Page> {
     }
     // With nothing to list, the page is prose and the empty state carries the statement.
     // With rows, it leads them, and opens selected, so the first frame already shows it.
+    let mut outcomes = Vec::new();
+    if let Some(reason) = &ctx.records.outcomes_unreadable {
+        outcomes.push(unreadable_outcomes_row(ctx, reason));
+    }
+    outcomes.extend(
+        ctx.records
+            .outcomes
+            .iter()
+            .map(|outcome| outcome_row(ctx, outcome)),
+    );
     let mut items = Vec::new();
-    if !rows.is_empty() {
+    if !rows.is_empty() || !outcomes.is_empty() {
         items.push(recovery_row(ctx));
+    }
+    if !rows.is_empty() {
         items.push(Item::heading("Recorded changes", theme));
         items.append(&mut rows);
+    }
+    if !outcomes.is_empty() {
+        items.push(Item::heading("Where accepted work was recorded", theme));
+        items.append(&mut outcomes);
     }
     Ok(Page {
         view: View::Changes,
@@ -968,6 +995,10 @@ fn changes(ctx: &Ctx) -> anyhow::Result<Page> {
                 ctx.width,
             ));
             lines.push(Line::default());
+            for sentence in DIRECT_WORKSPACE {
+                lines.extend(paragraph(theme, sentence, ctx.width));
+            }
+            lines.push(Line::default());
             lines.extend(recovery_lines(ctx));
             lines
         },
@@ -975,7 +1006,8 @@ fn changes(ctx: &Ctx) -> anyhow::Result<Page> {
     })
 }
 
-/// The row that leads the change list: what was recorded, and what no longer exists.
+/// The row that leads the change list: how the directory is used, what was recorded, and
+/// what no longer exists. It is the first row, so its detail is what the first frame shows.
 fn recovery_row(ctx: &Ctx) -> Item {
     let theme = ctx.theme;
     let mut detail = vec![
@@ -984,20 +1016,142 @@ fn recovery_row(ctx: &Ctx) -> Item {
     ];
     detail.extend(paragraph(theme, WHAT_WAS_RECORDED, ctx.width));
     detail.push(Line::default());
+    detail.push(Line::from(Span::styled(
+        "How this directory is used".to_owned(),
+        theme.muted(),
+    )));
+    for sentence in DIRECT_WORKSPACE {
+        detail.extend(paragraph(theme, sentence, ctx.width));
+    }
+    detail.push(Line::default());
     detail.extend(recovery_lines(ctx));
     Item::row(
         "recovery",
         vec![
             Span::styled(format!("{} ", theme.markers.notice), theme.info()),
             Span::styled(
-                "What was recorded, and what cannot be put back".to_owned(),
+                "How this directory is used, and what cannot be put back".to_owned(),
                 theme.text(),
             ),
         ],
     )
     .with_right(vec![Span::styled(
-        "metadata only".to_owned(),
+        "direct · metadata only".to_owned(),
         theme.muted(),
+    )])
+    .with_detail(detail)
+}
+
+/// One accepted result and the directory the run recorded it in.
+///
+/// The location is historical: it is the directory the result was accepted in, and moving
+/// the project afterwards does not move it. Nothing here re-reads the files.
+fn outcome_row(ctx: &Ctx, outcome: &ymp_core::StoredOutcome) -> Item {
+    let theme = ctx.theme;
+    let (word, style) = match (outcome.confirmation, outcome.current) {
+        (ConfirmationStatus::Confirmed, true) => ("confirmed".to_owned(), theme.good()),
+        (_, true) => ("accepted, unconfirmed".to_owned(), theme.info()),
+        (_, false) => ("superseded by later changes".to_owned(), theme.warn()),
+    };
+    let mut detail = field(
+        theme,
+        "recorded in",
+        &outcome.directory.display().to_string(),
+        ctx.width,
+    );
+    detail.extend(field(
+        theme,
+        "result",
+        &format!(
+            "{} · version {}",
+            text::short_id(&outcome.result_id),
+            outcome.result_version
+        ),
+        ctx.width,
+    ));
+    detail.extend(field(
+        theme,
+        "acceptance",
+        &text::short_id(&outcome.acceptance_id),
+        ctx.width,
+    ));
+    detail.extend(field(theme, "state", &word, ctx.width));
+    if outcome.artifacts.is_empty() {
+        detail.extend(field(theme, "artifacts", "none named", ctx.width));
+    }
+    for artifact in &outcome.artifacts {
+        detail.extend(field(
+            theme,
+            "artifact",
+            &format!(
+                "{} · {}",
+                artifact.path.display(),
+                match &artifact.sha256 {
+                    Some(digest) => format!("sha256 {}", text::short_id(digest)),
+                    None => "no digest recorded".to_owned(),
+                }
+            ),
+            ctx.width,
+        ));
+    }
+    detail.push(Line::default());
+    detail.extend(paragraph(
+        theme,
+        "This is the directory the run recorded when the result was accepted. It stays that directory: changing the project's path later does not move the record, and ymp keeps no copy of the artifact anywhere else. If a file was moved or deleted afterwards, the path is still the one that was recorded, and the digest is how that can be told.",
+        ctx.width,
+    ));
+    if !outcome.current {
+        detail.push(Line::default());
+        detail.extend(paragraph(
+            theme,
+            "The task or the files this result was accepted against have changed since, so the acceptance is reported as superseded rather than confirmed. The record is not rewritten and the evidence it names is still the evidence it named.",
+            ctx.width,
+        ));
+    }
+    Item::row(
+        outcome.result_id.clone(),
+        vec![
+            Span::styled(
+                format!(
+                    "{} ",
+                    if outcome.current {
+                        theme.markers.ok
+                    } else {
+                        theme.markers.warn
+                    }
+                ),
+                style,
+            ),
+            Span::styled(
+                text::truncate(&outcome.summary, ctx.width.saturating_sub(28)),
+                theme.text(),
+            ),
+        ],
+    )
+    .with_right(vec![Span::styled(word, style)])
+    .with_detail(detail)
+}
+
+/// Recorded locations could not be read. An absent answer, stated as one.
+fn unreadable_outcomes_row(ctx: &Ctx, reason: &str) -> Item {
+    let theme = ctx.theme;
+    let mut detail = field(theme, "reported", reason, ctx.width);
+    detail.push(Line::default());
+    detail.extend(paragraph(
+        theme,
+        "The accepted results of this session could not be listed with their locations, so this page shows none of them. That is a failed read and not a statement that the session accepted nothing: the records are in ymp's own storage either way, and nothing here was changed by the attempt.",
+        ctx.width,
+    ));
+    Item::row(
+        "outcome locations",
+        vec![
+            Span::styled(format!("{} ", theme.markers.warn), theme.warn()),
+            Span::styled("recorded locations".to_owned(), theme.text()),
+        ],
+    )
+    .with_right(vec![Span::styled(
+        "could not be read".to_owned(),
+        theme.warn(),
     )])
     .with_detail(detail)
 }
@@ -1272,6 +1426,8 @@ fn declared_check(ctx: &Ctx, command: &str, tasks: &[String]) -> Item {
 
 const WHAT_MEMBERSHIP_MEANS: &[&str] = &[
     "The pool is who may be drawn on; a session's team is who its run actually formed. Neither is assembled turn by turn by hand, and editing one does not rewrite the other.",
+    "A session holds a roster of the members a turn may be given to now, and keeps every identity it ever admitted. A run may replace a member, so those are two lists: both are shown, and an identity that left the roster keeps its records.",
+    "A reserved final reviewer is availability, not authority. The roster keeps one eligible agent out of production so that something other than the producer can review the result; it is not a rank and it grants nothing.",
     "What a session captured stays as captured. An agent that worked in it keeps its place in that record after it leaves the pool, and a profile edited afterwards does not change how the finished session reads.",
     "A role lasts as long as the assignment that created it. Planning, executing and reviewing are what an agent is doing in a turn, never a rank and never a standing permission.",
     "Eligibility below is about this machine: the profile is enabled, its provider is enabled, and the provider's program was found on PATH. Model lists come from the configuration, not from asking a provider. Whether an account may run a model is the installation's own business, and ymp reads no credential to build this page.",
@@ -1286,6 +1442,12 @@ fn team(ctx: &Ctx) -> Page {
         WHAT_MEMBERSHIP_MEANS,
     )];
     let members = ctx.team;
+    // The captured identities split into the roster a turn may be given to now and the ones
+    // a run replaced. Without a recorded roster there is nothing to split by, and every
+    // captured identity is presented as a member, which is what such a record says.
+    let (current, replaced): (Vec<&AgentProfile>, Vec<&AgentProfile>) = members
+        .iter()
+        .partition(|profile| ctx.records.in_roster(&profile.id) != Some(false));
     items.push(Item::heading(
         if ctx.team_captured {
             "Members of this session"
@@ -1294,21 +1456,30 @@ fn team(ctx: &Ctx) -> Page {
         },
         theme,
     ));
-    for profile in members {
+    for profile in &current {
         items.push(member_row(ctx, profile));
     }
-    let historical: Vec<String> = ctx
+    if !replaced.is_empty() {
+        items.push(Item::heading("Captured here, no longer a member", theme));
+        for profile in &replaced {
+            items.push(aside_row(ctx, &profile.id, Aside::Replaced));
+        }
+    }
+    let recorded_only: Vec<String> = ctx
         .records
         .agents()
         .into_iter()
         .filter(|id| !members.iter().any(|member| &member.id == id))
         .collect();
-    if !historical.is_empty() {
+    if !recorded_only.is_empty() {
         items.push(Item::heading("Worked here, not in this list", theme));
-        for id in &historical {
-            items.push(historical_row(ctx, id));
+        for id in &recorded_only {
+            items.push(aside_row(ctx, id, Aside::RecordsOnly));
         }
     }
+    items.push(Item::heading("How the roster is bounded", theme));
+    items.push(roster_row(ctx));
+    items.push(roster_rules_row(ctx));
     items.push(Item::heading("Available on this machine", theme));
     if ctx.pool.agents().is_empty() {
         items.push(pool_unavailable_row(ctx));
@@ -1321,17 +1492,22 @@ fn team(ctx: &Ctx) -> Page {
     Page {
         view: View::Team,
         title: View::Team.title().into(),
-        subtitle: match (ctx.team_captured, eligible) {
-            (true, Some(eligible)) => format!(
+        subtitle: match (ctx.team_captured, replaced.is_empty(), eligible) {
+            (true, false, _) => format!(
+                "{} in the roster · {} captured by this session",
+                current.len(),
+                members.len()
+            ),
+            (true, true, Some(eligible)) => format!(
                 "{} captured by this session · {eligible} eligible on this machine",
                 members.len()
             ),
-            (true, None) => format!("{} captured by this session", members.len()),
-            (false, Some(eligible)) => format!(
+            (true, true, None) => format!("{} captured by this session", members.len()),
+            (false, _, Some(eligible)) => format!(
                 "{} for the next run · {eligible} eligible on this machine",
                 members.len()
             ),
-            (false, None) => format!("{} for the next run", members.len()),
+            (false, _, None) => format!("{} for the next run", members.len()),
         },
         items,
         empty: nothing(
@@ -1391,12 +1567,8 @@ fn member_row(ctx: &Ctx, profile: &AgentProfile) -> Item {
     ));
     detail.extend(field(
         theme,
-        "source",
-        if ctx.team_captured {
-            "captured by this session when it started"
-        } else {
-            "the configuration as it stands now"
-        },
+        "membership",
+        &membership_words(ctx),
         ctx.width,
     ));
     detail.extend(field(
@@ -1464,8 +1636,32 @@ fn member_row(ctx: &Ctx, profile: &AgentProfile) -> Item {
     .with_detail(detail)
 }
 
-/// An agent the records show working in this session that the current team does not list.
-fn historical_row(ctx: &Ctx, id: &str) -> Item {
+/// How a member came to be in the list above, as the records have it.
+fn membership_words(ctx: &Ctx) -> String {
+    match (ctx.team_captured, ctx.records.roster()) {
+        (true, Some(state)) => format!(
+            "captured by this session and in the roster it holds now, revision {}",
+            state.revision
+        ),
+        (true, None) => "captured by this session, which recorded no roster of its own".into(),
+        (false, _) => "the configuration as it stands now".into(),
+    }
+}
+
+/// Why an agent is listed apart from the members.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Aside {
+    /// This session captured it as a member and the roster it holds now does not list it.
+    Replaced,
+    /// Assignment records name it and no captured membership does.
+    RecordsOnly,
+}
+
+/// An agent with records here that the list above does not present as a member.
+///
+/// Both cases state the same thing about the work: a membership that ended does not remove
+/// the turns that were recorded under it, and nothing here re-reads or re-grades them.
+fn aside_row(ctx: &Ctx, id: &str, aside: Aside) -> Item {
     let theme = ctx.theme;
     let turns = ctx
         .records
@@ -1489,20 +1685,199 @@ fn historical_row(ctx: &Ctx, id: &str) -> Item {
     detail.push(Line::default());
     detail.extend(paragraph(
         theme,
-        "This agent has assignment records in this session and is not in the list above: either it is no longer a member, or the list does not name it. The records stay as written either way, because membership that ended does not remove the work it did.",
+        &match aside {
+            Aside::Replaced => format!(
+                "This session captured this agent as a member, and the roster it holds now, revision {}, does not list it, so no further turn would be given to it here. The records stay as written, because membership that ended does not remove the work it did.",
+                ctx.records.roster().map_or(0, |state| state.revision)
+            ),
+            Aside::RecordsOnly => "This agent has assignment records in this session and is not in the list above: either it is no longer a member, or the list does not name it. The records stay as written either way, because membership that ended does not remove the work it did.".to_owned(),
+        },
         ctx.width,
     ));
+    let (right, style) = match aside {
+        Aside::Replaced => ("no longer a member".to_owned(), theme.muted()),
+        Aside::RecordsOnly => (format!("{turns} turn(s) recorded here"), theme.info()),
+    };
     Item::row(
         id.to_owned(),
         vec![
-            Span::styled(format!("{} ", theme.markers.activity), theme.info()),
+            Span::styled(
+                format!(
+                    "{} ",
+                    match aside {
+                        Aside::Replaced => theme.markers.notice,
+                        Aside::RecordsOnly => theme.markers.activity,
+                    }
+                ),
+                style,
+            ),
             Span::styled(display_name(ctx.config, id), theme.text()),
         ],
     )
+    .with_right(vec![Span::styled(right, style)])
+    .with_detail(detail)
+}
+
+/// The roster record itself: which revision the session holds, and what it reserves.
+fn roster_row(ctx: &Ctx) -> Item {
+    let theme = ctx.theme;
+    let Some(state) = ctx.records.roster() else {
+        let mut detail = paragraph(
+            theme,
+            match ctx.session {
+                None => "No session is loaded, so there is no roster to read. The list above is the team the next run would form from the configuration as it stands now.",
+                Some(_) => "This session recorded no roster of its own, so every identity it captured is presented as a member. A run that resumes it would form one and record it.",
+            },
+            ctx.width,
+        );
+        detail.push(Line::default());
+        detail.extend(paragraph(
+            theme,
+            "A roster is a record written when a run admits or replaces a member. Its absence is the absence of that record, not an empty team.",
+            ctx.width,
+        ));
+        return Item::row(
+            "roster".to_owned(),
+            vec![
+                Span::styled(format!("{} ", theme.markers.idle), theme.faint()),
+                Span::styled("roster".to_owned(), theme.muted()),
+            ],
+        )
+        .with_right(vec![Span::styled(
+            "none recorded".to_owned(),
+            theme.faint(),
+        )])
+        .with_detail(detail);
+    };
+    let mut detail = field(
+        theme,
+        "members now",
+        &if state.current_members.is_empty() {
+            "none".to_owned()
+        } else {
+            state
+                .current_members
+                .iter()
+                .map(|id| display_name(ctx.config, id))
+                .collect::<Vec<_>>()
+                .join(", ")
+        },
+        ctx.width,
+    );
+    detail.extend(field(
+        theme,
+        "revision",
+        &format!("{} · last changed {}", state.revision, state.updated_at),
+        ctx.width,
+    ));
+    detail.extend(field(
+        theme,
+        "final reviewer kept free",
+        &match &state.reserved_final_reviewer {
+            Some(id) => display_name(ctx.config, id),
+            None => "none reserved".to_owned(),
+        },
+        ctx.width,
+    ));
+    detail.extend(field(
+        theme,
+        "eligible when written",
+        &format!("{} profile(s)", state.eligible_agents.len()),
+        ctx.width,
+    ));
+    detail.extend(field(theme, "method", &state.method, ctx.width));
+    detail.push(Line::default());
+    detail.extend(paragraph(
+        theme,
+        "The roster is who a turn may be given to now. The reserved reviewer is held out of production so the result can be reviewed by something other than its producer; it is availability and not authority, and it carries no permission of its own.",
+        ctx.width,
+    ));
+    detail.push(Line::default());
+    detail.extend(paragraph(
+        theme,
+        "Eligibility was observed when this revision was written. What is installed on this machine now is listed further down, read at a different moment.",
+        ctx.width,
+    ));
+    Item::row(
+        "roster".to_owned(),
+        vec![
+            Span::styled(format!("{} ", theme.markers.ok), theme.good()),
+            Span::styled("roster".to_owned(), theme.text()),
+        ],
+    )
     .with_right(vec![Span::styled(
-        format!("{turns} turn(s) recorded here"),
-        theme.info(),
+        format!(
+            "{} member(s) · revision {}",
+            state.current_members.len(),
+            state.revision
+        ),
+        theme.muted(),
     )])
+    .with_detail(detail)
+}
+
+/// The bounds a roster is formed under: captured by the session, or configured for the next.
+fn roster_rules_row(ctx: &Ctx) -> Item {
+    let theme = ctx.theme;
+    let captured = ctx.records.captured_constraints();
+    let rules = captured.unwrap_or(&ctx.config.team_constraints);
+    let size = match (rules.fixed_size, &rules.fixed_roster) {
+        (Some(size), _) => format!("exactly {size}"),
+        (None, Some(roster)) => format!("exactly the {} named", roster.len()),
+        (None, None) => format!("up to {}", rules.max_members),
+    };
+    let mut detail = field(theme, "members allowed", &size, ctx.width);
+    detail.extend(field(
+        theme,
+        "named roster",
+        &match &rules.fixed_roster {
+            Some(roster) => roster.join(", "),
+            None => "none; the run forms one from the eligible profiles".to_owned(),
+        },
+        ctx.width,
+    ));
+    detail.extend(field(
+        theme,
+        "restricted to",
+        &match &rules.eligible_agents {
+            Some(ids) => ids.join(", "),
+            None => "no restriction beyond what is eligible here".to_owned(),
+        },
+        ctx.width,
+    ));
+    detail.extend(field(
+        theme,
+        "ceiling",
+        &format!("{} member(s)", rules.max_members),
+        ctx.width,
+    ));
+    detail.extend(field(
+        theme,
+        "read from",
+        match (ctx.session, captured) {
+            (Some(_), Some(_)) => "the bounds this session captured when it started",
+            (Some(_), None) => "the configuration now; this session captured no bounds",
+            (None, _) => "the configuration as it stands now",
+        },
+        ctx.width,
+    ));
+    detail.push(Line::default());
+    detail.extend(paragraph(
+        theme,
+        match captured {
+            Some(_) => "A session keeps the bounds it captured. Editing the configuration changes what the next run may form, and not the roster recorded here.",
+            None => "These bounds come from the configuration, which can still be edited. A session captures them when it starts, and a session that captured none would be resumed under whatever they are then.",
+        },
+        ctx.width,
+    ));
+    Item::row(
+        "roster rules".to_owned(),
+        vec![
+            Span::styled(format!("{} ", theme.markers.bullet), theme.faint()),
+            Span::styled("roster rules".to_owned(), theme.text()),
+        ],
+    )
+    .with_right(vec![Span::styled(size, theme.muted())])
     .with_detail(detail)
 }
 
@@ -1821,16 +2196,45 @@ fn providers(ctx: &Ctx) -> Page {
 /// What an entry here does and does not establish. Knowledge is not one status: an entry a
 /// reviewer accepted and an entry nobody reviewed are both kept, and the page says which is
 /// which rather than calling all of it verified.
-const MEMORY_BASIS: &str = "An entry records what a run proposed and who, if anyone, \
-     reviewed it. A reviewer named here accepted the entry; an entry with no reviewer is a \
-     candidate that was kept, not a checked fact. Nothing here re-checks an entry against \
-     the source it came from, so an entry can be true when it was written and out of date \
-     now.";
+const MEMORY_BASIS: &str = "An entry is either a projection of a result this project \
+     accepted, or a candidate a run proposed. Confirmed means the acceptance it names carried \
+     passing checks; unconfirmed means nobody's evidence is attached to it, and unknown means \
+     the entry was written before provenance was recorded at all. The text of an entry is not \
+     evidence for itself, whatever it claims.";
+
+const MEMORY_SUPPORT: &str = "Only supported entries are given to a run as context. That \
+     question is decided when a run assembles a prompt, by re-reading the source record, so an \
+     entry recorded as confirmed stops being offered once the task, the files or the criteria \
+     behind it change. This page lists every entry either way, because leaving one out would \
+     let a candidate read like a fact.";
 
 fn memory(ctx: &Ctx) -> anyhow::Result<Page> {
     let theme = ctx.theme;
     let project = ctx.store.project(ctx.cwd)?;
-    let entries: Vec<MemoryEntry> = ctx.store.memory(Some(&project.id), ctx.memory_query)?;
+    // Browsing lists every entry with its own label. Whether an entry would be given to a
+    // run is a separate question, and the store answers it here rather than the page: the
+    // supported set is exactly what the default retrieval of a run would accept.
+    let entries: Vec<MemoryEntry> = if ctx.memory_query.is_empty() {
+        ctx.store.memory_inventory(Some(&project.id))?
+    } else {
+        ctx.store.search_memory(
+            Some(&project.id),
+            ctx.memory_query,
+            &Default::default(),
+            KnowledgeRetrievalMode::IncludeUnconfirmed,
+        )?
+    };
+    let supported: Vec<String> = ctx
+        .store
+        .search_memory(
+            Some(&project.id),
+            ctx.memory_query,
+            &Default::default(),
+            KnowledgeRetrievalMode::Supported,
+        )?
+        .into_iter()
+        .map(|entry| entry.id)
+        .collect();
     let items = entries
         .iter()
         .map(|entry| {
@@ -1839,11 +2243,12 @@ fn memory(ctx: &Ctx) -> anyhow::Result<Page> {
             } else {
                 "global"
             };
-            let reviewed = entry.reviewer.is_some();
+            let offered = supported.contains(&entry.id);
             let mut detail = field(theme, "entry", &entry.id, ctx.width);
             detail.extend(field(theme, "scope", scope, ctx.width));
             detail.extend(field(theme, "kind", &entry.kind, ctx.width));
             detail.extend(field(theme, "status", &entry.status, ctx.width));
+            detail.extend(knowledge_basis(ctx, entry, offered));
             detail.extend(field(theme, "author", &entry.author, ctx.width));
             detail.extend(field(
                 theme,
@@ -1878,25 +2283,21 @@ fn memory(ctx: &Ctx) -> anyhow::Result<Page> {
             detail.push(Line::default());
             detail.extend(paragraph(theme, MEMORY_BASIS, ctx.width));
             detail.push(Line::default());
+            detail.extend(paragraph(theme, MEMORY_SUPPORT, ctx.width));
+            detail.push(Line::default());
             detail.extend(text::markdown(
                 &entry.content,
                 ctx.width,
                 theme,
                 theme.body(),
             ));
+            let (state, style) = entry_state(ctx, entry, offered);
             Item::row(
                 entry.id.clone(),
                 vec![Span::styled(entry.title.clone(), theme.text())],
             )
             .with_right(vec![
-                Span::styled(
-                    if reviewed {
-                        "reviewed  ".to_owned()
-                    } else {
-                        "candidate  ".to_owned()
-                    },
-                    if reviewed { theme.good() } else { theme.warn() },
-                ),
+                Span::styled(format!("{state}  "), style),
                 Span::styled(
                     scope.to_owned(),
                     if scope == "global" {
@@ -1914,22 +2315,29 @@ fn memory(ctx: &Ctx) -> anyhow::Result<Page> {
         title: View::Memory.title().into(),
         subtitle: if ctx.memory_query.is_empty() {
             format!(
-                "{} recorded for this project and as shared procedure",
-                entries.len()
+                "{} recorded · {} supported as context",
+                entries.len(),
+                supported.len()
             )
         } else {
-            format!("Matching \"{}\"", ctx.memory_query)
+            format!(
+                "Matching \"{}\" · {} supported as context",
+                ctx.memory_query,
+                supported.len()
+            )
         },
         items,
         empty: {
             let mut lines = nothing(
                 theme,
                 "No recorded memory matches",
-                "An entry is recorded when a run proposes one and that proposal is accepted. Search with /memory QUERY.",
+                "An entry is recorded when a run retains one against an accepted result. Search with /memory QUERY.",
                 ctx.width,
             );
             lines.push(Line::default());
             lines.extend(paragraph(theme, MEMORY_BASIS, ctx.width));
+            lines.push(Line::default());
+            lines.extend(paragraph(theme, MEMORY_SUPPORT, ctx.width));
             lines
         },
         hints: vec![
@@ -1939,6 +2347,110 @@ fn memory(ctx: &Ctx) -> anyhow::Result<Page> {
             ("Esc", "back"),
         ],
     })
+}
+
+/// The word for one entry's standing, which never upgrades a candidate into a fact.
+///
+/// Being offered as context is the store's answer, not a reading of the text: an entry whose
+/// source moved on is recorded as confirmed and is no longer supported, and both are said.
+fn entry_state(ctx: &Ctx, entry: &MemoryEntry, offered: bool) -> (String, Style) {
+    let theme = ctx.theme;
+    if entry.status == "retired" {
+        return ("retired".to_owned(), theme.faint());
+    }
+    match (&entry.provenance, offered) {
+        (_, true) => ("supported".to_owned(), theme.good()),
+        (Some(provenance), false) => match provenance.confirmation {
+            ConfirmationStatus::Confirmed => ("confirmed, not offered".to_owned(), theme.warn()),
+            ConfirmationStatus::Unconfirmed => ("unconfirmed".to_owned(), theme.warn()),
+            ConfirmationStatus::Unknown => ("confirmation unknown".to_owned(), theme.warn()),
+        },
+        (None, false) => ("provenance unknown".to_owned(), theme.warn()),
+    }
+}
+
+/// What one entry records about where it came from, field by field.
+fn knowledge_basis(ctx: &Ctx, entry: &MemoryEntry, offered: bool) -> Vec<Line<'static>> {
+    let theme = ctx.theme;
+    let mut lines = field(
+        theme,
+        "confirmation",
+        match &entry.provenance {
+            Some(provenance) => match provenance.confirmation {
+                ConfirmationStatus::Confirmed => {
+                    "confirmed: the acceptance it names carried passing checks"
+                }
+                ConfirmationStatus::Unconfirmed => "unconfirmed: no passing evidence is attached",
+                ConfirmationStatus::Unknown => "recorded without a grade",
+            },
+            None => "no provenance was recorded; this entry is context with unknown confirmation",
+        },
+        ctx.width,
+    );
+    lines.extend(field(
+        theme,
+        "given to a run",
+        if offered {
+            "yes, as support under the default retrieval"
+        } else if entry.status == "retired" {
+            "no; the entry is retired"
+        } else {
+            "no; it can be read here and is not offered as support"
+        },
+        ctx.width,
+    ));
+    let Some(provenance) = &entry.provenance else {
+        return lines;
+    };
+    lines.extend(field(
+        theme,
+        "source",
+        &match &provenance.source {
+            Some(source) => format!(
+                "acceptance {} · result {} version {} · criteria {} · {} confirmation(s)",
+                text::short_id(&source.acceptance_id),
+                text::short_id(&source.result_id),
+                source.result_version,
+                text::short_id(&source.criteria_version),
+                source.confirmation_ids.len()
+            ),
+            None => "none recorded, so nothing can be re-read to support it".to_owned(),
+        },
+        ctx.width,
+    ));
+    lines.extend(field(
+        theme,
+        "applies only where",
+        &if provenance.applicability.is_empty() {
+            "no further condition is recorded".to_owned()
+        } else {
+            provenance
+                .applicability
+                .iter()
+                .map(|(key, value)| format!("{key} is {value}"))
+                .collect::<Vec<_>>()
+                .join(", ")
+        },
+        ctx.width,
+    ));
+    lines.extend(field(
+        theme,
+        "retained by",
+        &format!(
+            "policy {} version {}",
+            provenance.policy.id, provenance.policy.version
+        ),
+        ctx.width,
+    ));
+    if let Some(assignment) = &provenance.assignment_id {
+        lines.extend(field(
+            theme,
+            "from assignment",
+            &text::short_id(assignment),
+            ctx.width,
+        ));
+    }
+    lines
 }
 
 const WHAT_AN_OBSERVATION_IS: &[&str] = &[
@@ -2876,7 +3388,11 @@ fn decisions(ctx: &Ctx) -> Page {
 fn decision_row(ctx: &Ctx, decision: &DecisionRecord) -> Item {
     let theme = ctx.theme;
     let acceptance = ctx.records.describe(decision);
-    let (marker, style) = decision_marker(&acceptance, theme);
+    let (marker, style) = match bounded_outcome(decision) {
+        Some(true) => (theme.markers.ok.to_owned(), theme.good()),
+        Some(false) => (theme.markers.fail.to_owned(), theme.bad()),
+        None => decision_marker(&acceptance, theme),
+    };
     let actor = decision
         .actor
         .as_deref()
@@ -2975,6 +3491,12 @@ fn decision_row(ctx: &Ctx, decision: &DecisionRecord) -> Item {
             ctx.width,
         ));
     }
+    if let Some(allocation) = decision.links.allocation.as_deref() {
+        detail.extend(membership_detail(ctx, allocation));
+    }
+    if let Some(resource) = decision.links.resource_allocation.as_deref() {
+        detail.extend(bound_detail(ctx, resource));
+    }
     detail.push(Line::default());
     detail.push(Line::from(Span::styled(
         if decision.actor.is_some() {
@@ -2985,6 +3507,21 @@ fn decision_row(ctx: &Ctx, decision: &DecisionRecord) -> Item {
         theme.muted(),
     )));
     detail.extend(paragraph(theme, &decision.reason, ctx.width));
+    // A membership or resource decision records its own outcome inside the record it
+    // carries, not in the decision's grade field, so its word comes from there and never
+    // from a grade that was never written.
+    let (right, right_style) = match (
+        decision.links.allocation.as_deref(),
+        decision.links.resource_allocation.as_deref(),
+    ) {
+        (Some(allocation), _) if allocation.accepted => {
+            ("membership committed".to_owned(), theme.good())
+        }
+        (Some(_), _) => ("membership refused".to_owned(), theme.bad()),
+        (_, Some(resource)) if resource.accepted => ("bound set".to_owned(), theme.good()),
+        (_, Some(_)) => ("bound refused".to_owned(), theme.bad()),
+        _ => (acceptance.word().to_owned(), style),
+    };
     Item::row(
         text::short_id(&decision.id),
         vec![
@@ -2993,8 +3530,164 @@ fn decision_row(ctx: &Ctx, decision: &DecisionRecord) -> Item {
             Span::styled(format!(" · {actor}"), theme.faint()),
         ],
     )
-    .with_right(vec![Span::styled(acceptance.word().to_owned(), style)])
+    .with_right(vec![Span::styled(right, right_style)])
     .with_detail(detail)
+}
+
+/// What one membership decision proposed, and what it was decided at.
+fn membership_detail(ctx: &Ctx, allocation: &AllocationDecision) -> Vec<Line<'static>> {
+    let theme = ctx.theme;
+    let names = |ids: &[String]| {
+        if ids.is_empty() {
+            "none".to_owned()
+        } else {
+            ids.iter()
+                .map(|id| display_name(ctx.config, id))
+                .collect::<Vec<_>>()
+                .join(", ")
+        }
+    };
+    let mut lines = field(
+        theme,
+        "members proposed",
+        &names(&allocation.proposal.members),
+        ctx.width,
+    );
+    lines.extend(field(
+        theme,
+        "was",
+        &match &allocation.input.current {
+            Some(state) => format!(
+                "revision {} · {}",
+                state.revision,
+                names(&state.current_members)
+            ),
+            None => "no roster yet".to_owned(),
+        },
+        ctx.width,
+    ));
+    lines.extend(field(
+        theme,
+        "final reviewer kept free",
+        &match &allocation.proposal.reserved_final_reviewer {
+            Some(id) => display_name(ctx.config, id),
+            None => "none reserved".to_owned(),
+        },
+        ctx.width,
+    ));
+    lines.extend(field(
+        theme,
+        "decided at",
+        boundary_word(allocation.input.boundary),
+        ctx.width,
+    ));
+    lines.extend(field(
+        theme,
+        "method",
+        &allocation.proposal.method,
+        ctx.width,
+    ));
+    lines.extend(field(
+        theme,
+        "decided by",
+        &format!(
+            "{} version {}",
+            allocation.implementation.id, allocation.implementation.version
+        ),
+        ctx.width,
+    ));
+    lines.push(Line::default());
+    lines.extend(paragraph(
+        theme,
+        "A committed membership decision changes who a turn may be given to from here on. It does not revisit the turns already recorded, and the reserved reviewer it names is availability rather than authority.",
+        ctx.width,
+    ));
+    lines
+}
+
+/// Whether a decision carries its own outcome, for records the grade field was never
+/// written for: membership and per-turn resource bounds both decide inside their own record.
+fn bounded_outcome(decision: &DecisionRecord) -> Option<bool> {
+    decision
+        .links
+        .allocation
+        .as_deref()
+        .map(|allocation| allocation.accepted)
+        .or_else(|| {
+            decision
+                .links
+                .resource_allocation
+                .as_deref()
+                .map(|resource| resource.accepted)
+        })
+}
+
+/// What one turn was actually allowed to consume, and who decided it.
+fn bound_detail(ctx: &Ctx, resource: &ymp_core::ResourceAllocationDecision) -> Vec<Line<'static>> {
+    let theme = ctx.theme;
+    let mut lines = field(
+        theme,
+        "for",
+        &display_name(ctx.config, &resource.input.agent_id),
+        ctx.width,
+    );
+    lines.extend(field(
+        theme,
+        "time allowed",
+        &format!("{} second(s)", resource.proposal.timeout_secs),
+        ctx.width,
+    ));
+    lines.extend(field(
+        theme,
+        "native turns allowed",
+        &resource.proposal.native_max_turns.to_string(),
+        ctx.width,
+    ));
+    lines.extend(field(
+        theme,
+        "output characters allowed",
+        &resource.proposal.max_output_chars.to_string(),
+        ctx.width,
+    ));
+    lines.extend(field(
+        theme,
+        "for the turn",
+        &format!(
+            "{} · {} work",
+            resource.input.demand.purpose, resource.input.demand.difficulty
+        ),
+        ctx.width,
+    ));
+    lines.extend(field(
+        theme,
+        "decided by",
+        &format!(
+            "{} version {}",
+            resource.implementation.id, resource.implementation.version
+        ),
+        ctx.width,
+    ));
+    lines.push(Line::default());
+    lines.extend(paragraph(
+        theme,
+        "This is the bound the runtime set for one turn, before it ran. What the turn then used is recorded with the turn itself, and a bound is not a report that it was reached.",
+        ctx.width,
+    ));
+    lines
+}
+
+/// The moment a membership decision was taken, in words the records define.
+fn boundary_word(boundary: AllocationBoundary) -> &'static str {
+    match boundary {
+        AllocationBoundary::Startup => "the session started",
+        AllocationBoundary::WorkReady => "work became ready",
+        AllocationBoundary::ResultAvailable => "a result arrived",
+        AllocationBoundary::CheckFailed => "a check failed",
+        AllocationBoundary::GoalChanged => "the goal changed",
+        AllocationBoundary::ParticipantUnavailable => "a participant became unavailable",
+        AllocationBoundary::ResourcesChanged => "the resources changed",
+        AllocationBoundary::Conversation => "the conversation asked for it",
+    }
 }
 
 fn decision_marker(acceptance: &Acceptance, theme: &Theme) -> (String, Style) {
