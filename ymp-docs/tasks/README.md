@@ -1,6 +1,6 @@
 # Task details and evidence
 
-Updated: 2026-09-12 17:38 UTC.
+Updated: 2026-09-12 17:45 UTC.
 
 Use the [delivery plan](plan.md) to follow progress. This generated register contains full acceptance criteria, dependencies and evidence. [tasks.json](tasks.json) is the single source; [manage.py](manage.py) updates both pages.
 
@@ -14,7 +14,7 @@ A planned task is not implemented functionality. Completed research and planning
 | design | 1 | 1 |
 | documentation | 4 | 4 |
 | experiment | 0 | 4 |
-| implementation | 14 | 22 |
+| implementation | 13 | 22 |
 | research | 8 | 8 |
 | verification | 1 | 2 |
 
@@ -62,7 +62,7 @@ A planned task is not implemented functionality. Completed research and planning
 | `[=]` | [YMP-121](#ymp-121) | P1 | Verify the integrated application and package a local release | 2026-09-12 16:52 |
 | `[x]` | [YMP-013](#ymp-013) | P0 | Review plan coherence and simplify progress tracking | 2026-09-12 09:46 |
 | `[x]` | [YMP-122](#ymp-122) | P1 | Expose replaceable execution backends behind runtime-owned controls | 2026-09-12 15:23 |
-| `[x]` | [YMP-123](#ymp-123) | P1 | Expose a public local MCP facade over stdio | 2026-09-12 17:24 |
+| `[~]` | [YMP-123](#ymp-123) | P1 | Expose a public local MCP facade over stdio | 2026-09-12 17:45 |
 | `[=]` | [YMP-124](#ymp-124) | P1 | Add isolated execution and recoverable publication for larger projects | 2026-09-12 15:31 |
 | `[~]` | [YMP-125](#ymp-125) | P0 | Expose trusted acceptance contracts to executable users | 2026-09-12 17:38 |
 
@@ -1313,7 +1313,7 @@ Verify the integrated application and package a local release
 
 **Last update (UTC):** 2026-09-12 16:52
 
-**Current reason:** Needs YMP-112, YMP-114, YMP-118, YMP-125
+**Current reason:** Needs YMP-112, YMP-114, YMP-118, YMP-123, YMP-125
 
 **Owner:** Independent final reviewer at max reasoning; maintainer integrates and packages
 
@@ -1416,11 +1416,11 @@ A direct built-in provider call couples engine orchestration to one execution im
 
 Expose a public local MCP facade over stdio
 
-**State:** `[x]` (done) · **Type:** implementation · **Priority:** P1
+**State:** `[~]` (in_progress) · **Type:** implementation · **Priority:** P1
 
-**Last update (UTC):** 2026-09-12 17:24
+**Last update (UTC):** 2026-09-12 17:45
 
-**Current reason:** Standalone R2(9.5/10) and combined independent review(9.5/10) ACCEPT. Merged as3b4045f; main source matches376cdc4. Main fmt/clippy,284 Rust tests, build and actual official MCP SDK walk pass. Scope, bounded projections, reconnect/cancel and open-pipe signal exit use shared runtime controls; explicit StoreLock release closes reproduced false contention. Mock/low workloads only.
+**Current reason:** R3(6/10) RETURN reopens process-exit acceptance: an actual read-only client stops draining stdout, keeps pipes open and sends SIGTERM; the process remains alive after7s (exit1 control). Parent authorized a bounded two-return extension for interruptible output/backpressure plus preserved terminal accounting and framing. No model invocation occurred.
 
 **Owner:** Maintainer
 

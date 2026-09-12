@@ -2380,7 +2380,7 @@
       "title": "Expose a public local MCP facade over stdio",
       "type": "implementation",
       "priority": "P1",
-      "status": "done",
+      "status": "in_progress",
       "owner": "Maintainer",
       "authorization": "Owner discussion on2026-09-12 requested external MCP availability and selected stdio; standing autonomous delivery authorization applies.",
       "depends_on": [
@@ -2450,6 +2450,11 @@
           "at": "2026-09-12T17:24:49.906750+00:00",
           "status": "done",
           "note": "Standalone R2(9.5/10) and combined independent review(9.5/10) ACCEPT. Merged as3b4045f; main source matches376cdc4. Main fmt/clippy,284 Rust tests, build and actual official MCP SDK walk pass. Scope, bounded projections, reconnect/cancel and open-pipe signal exit use shared runtime controls; explicit StoreLock release closes reproduced false contention. Mock/low workloads only."
+        },
+        {
+          "at": "2026-09-12T17:45:29.110651+00:00",
+          "status": "in_progress",
+          "note": "R3(6/10) RETURN reopens process-exit acceptance: an actual read-only client stops draining stdout, keeps pipes open and sends SIGTERM; the process remains alive after7s (exit1 control). Parent authorized a bounded two-return extension for interruptible output/backpressure plus preserved terminal accounting and framing. No model invocation occurred."
         }
       ]
     },
@@ -2536,7 +2541,7 @@
       ]
     }
   ],
-  "updated_at": "2026-09-12T17:38:50.225861+00:00",
+  "updated_at": "2026-09-12T17:45:29.110651+00:00",
   "delivery_order": [
     "YMP-116",
     "YMP-103",
