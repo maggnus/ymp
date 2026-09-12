@@ -25,10 +25,21 @@ pub struct ProviderCapabilities {
     pub default_model: Option<String>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ModelCapabilities {
     /// Exact native identifier, including a native alias when that is advertised.
     pub id: String,
+    /// Verbatim native picker label; absence falls back to the native identifier.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub display_name: Option<String>,
+    /// Native picker row identifier, which is not necessarily a wire model alias.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub picker_id: Option<String>,
+    /// Actual aliases explicitly advertised for this offering.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub aliases: Vec<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub resolved_model: Option<String>,
     /// None is unknown; an empty list explicitly advertises no controls.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub controls: Option<Vec<NativeControl>>,
@@ -36,6 +47,10 @@ pub struct ModelCapabilities {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct NativeControl {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub display_name: Option<String>,
+    #[serde(default, skip_serializing_if = "std::collections::BTreeMap::is_empty")]
+    pub value_names: std::collections::BTreeMap<String, String>,
     /// Exact native field/configuration-option name. No universal effort ladder.
     pub id: String,
     pub values: NativeControlValues,
@@ -76,7 +91,12 @@ impl NativeControlValues {
 
 impl ProviderCapabilities {
     pub fn model(&self, id: &str) -> Option<&ModelCapabilities> {
-        self.models.iter().find(|model| model.id == id)
+        self.models.iter().find(|model| model.id == id).or_else(|| {
+            self.models.iter().find(|model| {
+                model.resolved_model.as_deref() == Some(id)
+                    || model.aliases.iter().any(|alias| alias == id)
+            })
+        })
     }
 
     pub fn validate(&self) -> Result<()> {
@@ -95,6 +115,18 @@ impl ProviderCapabilities {
         for model in &self.models {
             if model.id.trim().is_empty() || !models.insert(&model.id) {
                 bail!("Duplicate or empty model id");
+            }
+            if model
+                .display_name
+                .as_ref()
+                .is_some_and(|name| name.trim().is_empty())
+                || model
+                    .resolved_model
+                    .as_ref()
+                    .is_some_and(|id| id.trim().is_empty())
+                || model.aliases.iter().any(|id| id.trim().is_empty())
+            {
+                bail!("Native labels and aliases cannot be empty");
             }
             let mut controls = HashSet::new();
             for control in model.controls.iter().flatten() {
