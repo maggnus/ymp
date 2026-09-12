@@ -401,7 +401,9 @@ directory makes the list unavailable and the page reports that failed read.
 ### Tested limitations, which are not unmet criteria
 
 1. **A captured acceptance contract cannot appear in a walk driven through the binary.** No
-   configuration this build accepts supplies typed criteria; that ingress is YMP-125. The walk
+   configuration this worktree's source accepts supplies typed criteria. That ingress is YMP-125,
+   which is accepted and in main at `9ad43dc`, so this limitation ends when main is merged here
+   and one walk is run against a configuration that declares criteria. The walk
    searched the whole list for such a record and reported its absence rather than passing over
    it: 120 `Down` presses from the top never selected one. The display path is covered by
    `a_captured_acceptance_contract_is_shown_as_a_binding_and_not_as_a_result` and by the test
@@ -425,3 +427,7 @@ outcomes and recorded shell checks are not joined on one page, and none claims t
 proposes or edits membership, access or criteria. Isolated execution and recoverable
 publication remain YMP-124. The shared lock release correction and the public MCP work are in
 main at `3b4045f` and are not duplicated here.
+
+Board proposals from YMP-112 and knowledge inspection from YMP-114 are later feature work on
+the same views, not YMP-118 criteria. Their author APIs were read for planning only, nothing was
+merged, and the small changes they need are reported to the parent rather than applied here.
