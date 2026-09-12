@@ -4043,11 +4043,11 @@ fn grant_detail(grant: &GrantRecord) -> String {
 
 fn operation_word(operation: ymp_core::TeamOperation) -> &'static str {
     match operation {
-        ymp_core::TeamOperation::TeamPost => "post to the board",
-        ymp_core::TeamOperation::TeamRead => "read the board",
+        ymp_core::TeamOperation::TeamPost => "post to the team chat",
+        ymp_core::TeamOperation::TeamRead => "read the team chat",
         ymp_core::TeamOperation::TasksList => "list tasks",
         ymp_core::TeamOperation::TaskPropose => "propose a task",
-        ymp_core::TeamOperation::BoardRead => "read the plan",
+        ymp_core::TeamOperation::BoardRead => "read the shared board",
         ymp_core::TeamOperation::MemorySearch => "search memory",
         ymp_core::TeamOperation::MemoryPropose => "propose memory",
     }

@@ -2818,8 +2818,8 @@ async fn an_assignment_shows_what_was_sent_and_never_claims_an_unreported_settin
         "the turn did not name the task attempt it belongs to:\n{execute}"
     );
     assert!(
-        execute.contains("post to the board"),
-        "the coordination permission the record grants is not named:\n{execute}"
+        execute.contains("post to the team chat") && execute.contains("read the shared board"),
+        "the coordination permissions the record grants are not named:\n{execute}"
     );
     assert!(
         execute.contains("completed"),
@@ -4400,6 +4400,95 @@ fn the_whole_window_names_a_member_by_what_the_installation_returned() {
     assert!(
         panel.contains("GPT-5.6-Sol"),
         "the right panel still presents the provider label as the actor:\n{panel}"
+    );
+}
+
+#[tokio::test]
+async fn a_finished_session_is_named_by_the_identity_its_turns_captured() {
+    // The identity a turn captured and the profile's name now are deliberately different here,
+    // which is what a session looks like after its actor was reconfigured or re-read. The whole
+    // window must name that session's actor as its turns ran, everywhere it names it at all.
+    let run = mock_run("Create a greeting", |_| {}).await;
+    let trace = run.store.trace(&run.session).unwrap();
+    let previous = trace.assignments.last().unwrap().clone();
+    let agent = previous.agent_id.clone();
+    let configured = mock_config().agent(&agent).unwrap().name.clone();
+    let assignment = ymp_core::AssignmentRecord {
+        id: ymp_core::new_id(),
+        grant_ids: Vec::new(),
+        agent_identity: Some(ymp_core::AgentIdentity {
+            name: "GPT-5.6-Terra".into(),
+            configured_name: configured.clone(),
+            model: Some("gpt-5.6-terra".into()),
+            effort: None,
+            resolved_model: None,
+            source: None,
+            status: ymp_core::AgentIdentityStatus::Native,
+        }),
+        state: ymp_core::InvocationState::Running,
+        started_at: ymp_core::now(),
+        ended_at: None,
+        ..previous.clone()
+    };
+    let turn = ymp_core::InvocationRecord {
+        id: ymp_core::new_id(),
+        session_id: run.session.clone(),
+        assignment_id: assignment.id.clone(),
+        execution_backend: None,
+        turn: trace.invocations.len() as u64 + 1,
+        requested: assignment.requested.clone(),
+        sent: Default::default(),
+        reported: Default::default(),
+        resumed_from: None,
+        native_session_id: None,
+        native_turn_id: None,
+        native_version: None,
+        state: ymp_core::InvocationState::Running,
+        started_at: ymp_core::now(),
+        ended_at: None,
+        usage: None,
+        terminal_reason: None,
+    };
+    run.store
+        .begin_invocation_with_grants(&assignment, &turn, &[])
+        .unwrap();
+    let mut app = run.app();
+    app.load_session(&run.session).unwrap();
+    assert_ne!(
+        configured, "GPT-5.6-Terra",
+        "the fixture must actually differ from the configured name"
+    );
+    assert_eq!(
+        app.config.agent(&agent).unwrap().name,
+        configured,
+        "the configuration must still carry the old name for this to be a regression"
+    );
+
+    // The window at large: the right panel lists this session's members.
+    let rendered = draw(&mut app, 100, 30);
+    let panel = rendered
+        .lines()
+        .skip_while(|line| !line.contains("TEAM"))
+        .take(4)
+        .collect::<Vec<_>>()
+        .join("\n");
+    assert!(
+        panel.contains("GPT-5.6-Terra"),
+        "the window does not name a finished session's actor as its turns captured it:\n{panel}"
+    );
+
+    // And every page that names the same actor agrees with the record.
+    app.command("/assignments", 100);
+    let row = left_of_key(&mut app, 100, &text::short_id(&assignment.id));
+    assert!(
+        row.contains("GPT-5.6-Terra"),
+        "the assignment row does not name the identity it captured: {row}"
+    );
+    app.command("/team", 100);
+    let member = left_of_key(&mut app, 100, &agent);
+    assert!(
+        member.contains("GPT-5.6-Terra"),
+        "the team page does not name the member as its turns captured it: {member}"
     );
 }
 
