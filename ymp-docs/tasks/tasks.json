@@ -304,7 +304,7 @@
       "title": "Persist explainable session decisions and execution provenance",
       "type": "implementation",
       "priority": "P0",
-      "status": "in_progress",
+      "status": "done",
       "owner": "Maintainer",
       "authorization": "Planned delivery derived from the owner-approved intent and standing autonomous-development direction. Follow dependencies and acceptance criteria; separate real-provider quota is required where stated.",
       "depends_on": [
@@ -322,7 +322,9 @@
         "[Journal audit](../research/evidence/journal-audit.json)",
         "[Usage reconciliation](../research/evidence/outcome-economics.json)",
         "[Final owner intent](../../intent.md)",
-        "[Delivery plan](plan.md)"
+        "[Delivery plan](plan.md)",
+        "[Provenance API and export](../architecture/provenance.md)",
+        "[Transactional provenance regressions](../../ymp-rust/crates/ymp-storage/src/provenance_tests.rs)"
       ],
       "history": [
         {
@@ -364,6 +366,16 @@
           "at": "2026-09-12T10:55:17.535398+00:00",
           "status": "in_progress",
           "note": "R1(7/10) RETURN: stale task acceptance could rewind a later attempt, and committed plans lacked producer/revision invocation links. Author is correcting both with negative regressions; not integrated."
+        },
+        {
+          "at": "2026-09-12T11:20:42.413830+00:00",
+          "status": "in_progress",
+          "note": "R2(8/10) RETURN exposed task bodies differing from the reviewed plan. Author added transactional exact body/dependency binding and 14 negative cases; R3 independent review is in progress within a narrowly extended review budget."
+        },
+        {
+          "at": "2026-09-12T11:37:58.752525+00:00",
+          "status": "done",
+          "note": "R3(9/10) ACCEPT; integrated 15c6be0, f233ae9 and eae5ad2. Exact stale-attempt and task/plan-content probes now reject without mutation. Captured policy, linked invocations/decisions, interruption and read-only trace are implemented. Integrated checks: 135 Rust tests and 4 bridge tests pass."
         }
       ]
     },
@@ -623,7 +635,7 @@
       "title": "Use task-specific memory queries and record retrieval evidence",
       "type": "implementation",
       "priority": "P1",
-      "status": "planned",
+      "status": "in_progress",
       "owner": "Maintainer",
       "authorization": "Planned delivery derived from the owner-approved intent and standing autonomous-development direction. Follow dependencies and acceptance criteria; separate real-provider quota is required where stated.",
       "depends_on": [
@@ -656,6 +668,11 @@
           "at": "2026-09-12T09:06:33.727283+00:00",
           "status": "proposed",
           "note": "Reconciled with approved intent and delivery milestones; superseded blanket pause removed. Dependencies and evidence requirements govern starting work."
+        },
+        {
+          "at": "2026-09-12T11:37:58.838027+00:00",
+          "status": "in_progress",
+          "note": "Implementing task-specific bounded memory retrieval and traceable query/source records on the integrated provenance layer."
         }
       ]
     },
@@ -1735,7 +1752,7 @@
       "title": "Enforce assignment-scoped permissions and runtime-only state transitions",
       "type": "implementation",
       "priority": "P0",
-      "status": "planned",
+      "status": "in_progress",
       "owner": "Maintainer",
       "authorization": "Derived from the owner-approved intent and work-plan request. Follow recorded dependencies; real-provider quota remains separately authorized.",
       "depends_on": [
@@ -1764,6 +1781,11 @@
           "at": "2026-09-12T09:35:05.248513+00:00",
           "status": "planned",
           "note": "Assignment permissions use existing agent IDs and the provenance contract; pool presentation is not a prerequisite."
+        },
+        {
+          "at": "2026-09-12T11:37:58.795564+00:00",
+          "status": "in_progress",
+          "note": "Assignment-scoped grant enforcement assigned to an xhigh subagent against reviewed provenance; native settings work is coordinated separately."
         }
       ]
     },
@@ -1947,7 +1969,7 @@
       ]
     }
   ],
-  "updated_at": "2026-09-12T10:56:22.436052+00:00",
+  "updated_at": "2026-09-12T11:37:58.838027+00:00",
   "delivery_order": [
     "YMP-116",
     "YMP-103",

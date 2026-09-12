@@ -1,6 +1,6 @@
 # Task details and evidence
 
-Updated: 2026-09-12 10:56 UTC.
+Updated: 2026-09-12 11:37 UTC.
 
 Use the [delivery plan](plan.md) to follow progress. This generated register contains full acceptance criteria, dependencies and evidence. [tasks.json](tasks.json) is the single source; [manage.py](manage.py) updates both pages.
 
@@ -14,7 +14,7 @@ A planned task is not implemented functionality. Completed research and planning
 | design | 1 | 1 |
 | documentation | 4 | 4 |
 | experiment | 0 | 4 |
-| implementation | 4 | 18 |
+| implementation | 5 | 18 |
 | research | 8 | 8 |
 | verification | 1 | 2 |
 
@@ -30,12 +30,12 @@ A planned task is not implemented functionality. Completed research and planning
 | `[x]` | [YMP-006](#ymp-006) | P0 | Review UI concentration and working-directory recovery communication | 2026-09-12 05:48 |
 | `[x]` | [YMP-007](#ymp-007) | P0 | Evaluate verification-grounded outcome reuse and lifecycle evidence | 2026-09-11 16:00 |
 | `[x]` | [YMP-008](#ymp-008) | P0 | Reconcile native and canonical usage and recompute weighted input | 2026-09-11 16:00 |
-| `[~]` | [YMP-101](#ymp-101) | P0 | Persist explainable session decisions and execution provenance | 2026-09-12 10:55 |
-| `[=]` | [YMP-102](#ymp-102) | P0 | Add explicit session resource budgets and unknown-usage policy | 2026-09-12 09:35 |
+| `[x]` | [YMP-101](#ymp-101) | P0 | Persist explainable session decisions and execution provenance | 2026-09-12 11:37 |
+| `[ ]` | [YMP-102](#ymp-102) | P0 | Add explicit session resource budgets and unknown-usage policy | 2026-09-12 09:35 |
 | `[x]` | [YMP-103](#ymp-103) | P0 | Honor Codex nonterminal retry notifications | 2026-09-12 10:16 |
 | `[x]` | [YMP-104](#ymp-104) | P0 | Preserve accepted outcomes and confirmation status when final narration fails | 2026-09-12 10:16 |
 | `[x]` | [YMP-105](#ymp-105) | P1 | Enumerate file names without reading file contents | 2026-09-12 10:16 |
-| `[=]` | [YMP-106](#ymp-106) | P1 | Use task-specific memory queries and record retrieval evidence | 2026-09-12 09:06 |
+| `[~]` | [YMP-106](#ymp-106) | P1 | Use task-specific memory queries and record retrieval evidence | 2026-09-12 11:37 |
 | `[~]` | [YMP-107](#ymp-107) | P1 | Expose recorded checks and factual recovery limits | 2026-09-12 10:23 |
 | `[=]` | [YMP-108](#ymp-108) | P2 | Evaluate an optional usage estimate with explicit price provenance | 2026-09-12 09:35 |
 | `[~]` | [YMP-111](#ymp-111) | P0 | Apply native models and reasoning settings per assignment | 2026-09-12 10:56 |
@@ -55,8 +55,8 @@ A planned task is not implemented functionality. Completed research and planning
 | `[x]` | [YMP-011](#ymp-011) | P0 | Document bounded dynamic teams and assignment-level effort | 2026-09-12 08:41 |
 | `[x]` | [YMP-012](#ymp-012) | P0 | Establish the delivery plan and traceable backlog for the approved intent | 2026-09-12 09:15 |
 | `[x]` | [YMP-116](#ymp-116) | P0 | Define the minimal runtime transition and authority contract | 2026-09-12 10:07 |
-| `[=]` | [YMP-117](#ymp-117) | P0 | Separate acceptance from confirmation and gate reputation on evidence | 2026-09-12 09:35 |
-| `[=]` | [YMP-120](#ymp-120) | P0 | Enforce assignment-scoped permissions and runtime-only state transitions | 2026-09-12 09:35 |
+| `[ ]` | [YMP-117](#ymp-117) | P0 | Separate acceptance from confirmation and gate reputation on evidence | 2026-09-12 09:35 |
+| `[~]` | [YMP-120](#ymp-120) | P0 | Enforce assignment-scoped permissions and runtime-only state transitions | 2026-09-12 11:37 |
 | `[=]` | [YMP-118](#ymp-118) | P0 | Integrate core assignment, budget and confirmation visibility | 2026-09-12 09:35 |
 | `[x]` | [YMP-119](#ymp-119) | P0 | Prepare universal acceptance scenarios and independent validators | 2026-09-12 10:56 |
 | `[=]` | [YMP-121](#ymp-121) | P1 | Verify the integrated application and package a local release | 2026-09-12 09:35 |
@@ -294,11 +294,11 @@ H9 adds a proposed effective-token metric and alleges disagreements between usag
 
 Persist explainable session decisions and execution provenance
 
-**State:** `[~]` (in_progress) · **Type:** implementation · **Priority:** P0
+**State:** `[x]` (done) · **Type:** implementation · **Priority:** P0
 
-**Last update (UTC):** 2026-09-12 10:55
+**Last update (UTC):** 2026-09-12 11:37
 
-**Current reason:** R1(7/10) RETURN: stale task acceptance could rewind a later attempt, and committed plans lacked producer/revision invocation links. Author is correcting both with negative regressions; not integrated.
+**Current reason:** R3(9/10) ACCEPT; integrated 15c6be0, f233ae9 and eae5ad2. Exact stale-attempt and task/plan-content probes now reject without mutation. Captured policy, linked invocations/decisions, interruption and read-only trace are implemented. Integrated checks: 135 Rust tests and 4 bridge tests pass.
 
 **Owner:** Maintainer
 
@@ -322,16 +322,18 @@ The final intent requires incremental records that reconstruct team decisions an
 - [Usage reconciliation](../research/evidence/outcome-economics.json)
 - [Final owner intent](../../intent.md)
 - [Delivery plan](plan.md)
+- [Provenance API and export](../architecture/provenance.md)
+- [Transactional provenance regressions](../../ymp-rust/crates/ymp-storage/src/provenance_tests.rs)
 
 ## YMP-102
 
 Add explicit session resource budgets and unknown-usage policy
 
-**State:** `[=]` (planned) · **Type:** implementation · **Priority:** P0
+**State:** `[ ]` (planned) · **Type:** implementation · **Priority:** P0
 
 **Last update (UTC):** 2026-09-12 09:35
 
-**Current reason:** Needs YMP-101
+**Current reason:** Ready to start
 
 **Owner:** Maintainer
 
@@ -460,11 +462,11 @@ Workspace::files invokes fingerprint and rehashes every regular file even when t
 
 Use task-specific memory queries and record retrieval evidence
 
-**State:** `[=]` (planned) · **Type:** implementation · **Priority:** P1
+**State:** `[~]` (in_progress) · **Type:** implementation · **Priority:** P1
 
-**Last update (UTC):** 2026-09-12 09:06
+**Last update (UTC):** 2026-09-12 11:37
 
-**Current reason:** Needs YMP-101
+**Current reason:** Implementing task-specific bounded memory retrieval and traceable query/source records on the integrated provenance layer.
 
 **Owner:** Maintainer
 
@@ -473,8 +475,6 @@ Use task-specific memory queries and record retrieval evidence
 **Depends on:** [YMP-101](#ymp-101)
 
 The first twelve words of a role instruction can contain no task terms, and the actual FTS5 probe retrieves generic memory while missing the relevant entry.
-
-**Latest progress note:** Reconciled with approved intent and delivery milestones; superseded blanket pause removed. Dependencies and evidence requirements govern starting work.
 
 **Acceptance criteria:**
 
@@ -1152,11 +1152,11 @@ The approved intent fixes a trusted runtime and temporary assignment authority; 
 
 Separate acceptance from confirmation and gate reputation on evidence
 
-**State:** `[=]` (planned) · **Type:** implementation · **Priority:** P0
+**State:** `[ ]` (planned) · **Type:** implementation · **Priority:** P0
 
 **Last update (UTC):** 2026-09-12 09:35
 
-**Current reason:** Needs YMP-101
+**Current reason:** Ready to start
 
 **Owner:** Maintainer
 
@@ -1188,11 +1188,11 @@ Current boolean approval can award positive observations with no automated check
 
 Enforce assignment-scoped permissions and runtime-only state transitions
 
-**State:** `[=]` (planned) · **Type:** implementation · **Priority:** P0
+**State:** `[~]` (in_progress) · **Type:** implementation · **Priority:** P0
 
-**Last update (UTC):** 2026-09-12 09:35
+**Last update (UTC):** 2026-09-12 11:37
 
-**Current reason:** Needs YMP-101
+**Current reason:** Assignment-scoped grant enforcement assigned to an xhigh subagent against reviewed provenance; native settings work is coordinated separately.
 
 **Owner:** Maintainer
 
@@ -1201,8 +1201,6 @@ Enforce assignment-scoped permissions and runtime-only state transitions
 **Depends on:** [YMP-101](#ymp-101)
 
 Current team-tool credentials identify an agent and session but not an assignment or expiring authority scope.
-
-**Latest progress note:** Assignment permissions use existing agent IDs and the provenance contract; pool presentation is not a prerequisite.
 
 **Acceptance criteria:**
 
