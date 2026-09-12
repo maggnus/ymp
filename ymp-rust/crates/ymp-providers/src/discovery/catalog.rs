@@ -202,15 +202,25 @@ fn reconcile_provider(
         for id in migrations {
             let profile = config.agent(&id)?.clone();
             let effective = config.execution_settings(&profile, &Default::default())?;
-            // User defaults and singleton pins retain precedence, even if the
-            // metadata cannot verify that explicit model yet.
-            let model = effective.model.unwrap_or_else(|| selected.id.clone());
-            let agent = config
-                .agents
-                .iter_mut()
-                .find(|a| a.id == id)
-                .expect("existing actor");
-            agent.model = Some(model.clone());
+            // An explicit policy already supplies a concrete execution model.
+            // Materializing it again in the raw profile would change the version
+            // of unchanged execution and disconnect its qualified experience.
+            let model = if let Some(model) = effective.model {
+                model
+            } else {
+                config
+                    .agents
+                    .iter_mut()
+                    .find(|a| a.id == id)
+                    .expect("existing actor")
+                    .model = Some(selected.id.clone());
+                selected.id.clone()
+            };
+            let changed = config
+                .native_catalog
+                .generated_agents
+                .get(&id)
+                .is_none_or(|binding| binding.provider != provider || binding.model != model);
             config.native_catalog.generated_agents.insert(
                 id.clone(),
                 NativeAgentBinding {
@@ -218,7 +228,9 @@ fn reconcile_provider(
                     model,
                 },
             );
-            report.migrated_agents.push(id);
+            if changed {
+                report.migrated_agents.push(id);
+            }
         }
     }
     for offering in &catalog.models {

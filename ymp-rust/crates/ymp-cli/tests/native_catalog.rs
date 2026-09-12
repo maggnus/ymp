@@ -97,6 +97,16 @@ impl Fixture {
 fn executable_scan_populates_native_names_and_selection_without_enrolling_the_catalog() {
     let f = Fixture::new();
     let before = f.json(&["catalog"]);
+    let unconfigured = Config::load(&f.home).unwrap();
+    let unknown_agent = unconfigured.agent("codex").unwrap();
+    let unknown_provider = unconfigured.provider("codex").unwrap();
+    let unknown_version = execution_config_version(
+        unknown_agent,
+        unknown_provider,
+        &ExecutionSettings::default(),
+        &ExecutionSettings::default(),
+        None,
+    );
     assert_eq!(
         before["pool"]["agents"][0]["identity"]["status"],
         "unresolved"
@@ -153,6 +163,25 @@ fn executable_scan_populates_native_names_and_selection_without_enrolling_the_ca
     let config = Config::load(&f.home).unwrap();
     assert_eq!(config.team, vec!["codex", "glm"]);
     assert!(config.agents.iter().all(|a| a.model.is_some()));
+    let concrete_agent = config.agent("codex").unwrap();
+    let concrete_settings = config
+        .execution_settings(concrete_agent, &Default::default())
+        .unwrap();
+    assert_ne!(
+        concrete_agent.version(config.provider("codex").unwrap()),
+        unknown_agent.version(unknown_provider)
+    );
+    assert_ne!(
+        execution_config_version(
+            concrete_agent,
+            config.provider("codex").unwrap(),
+            &concrete_settings,
+            &ExecutionSettings::default(),
+            None
+        ),
+        unknown_version,
+        "genuinely unknown-to-concrete execution must retain a distinct version"
+    );
     assert_eq!(
         config
             .agents
@@ -610,4 +639,226 @@ fn simultaneous_scans_are_serialized_and_edits_during_discovery_are_preserved() 
         1,
         "second scan never launched a native provider"
     );
+}
+
+/// Seed real qualified runtime history without invoking an installed provider.
+/// The original configured actor/provider identity remains bound at admission;
+/// only this injected fixture backend executes through the deterministic mock.
+struct QualifiedHistoryBackend;
+impl ymp_providers::ExecutionBackend for QualifiedHistoryBackend {
+    fn identity(&self) -> ExecutionBackendIdentity {
+        ExecutionBackendIdentity {
+            id: "catalog-qualified-history-fixture".into(),
+            version: "1".into(),
+        }
+    }
+    fn execute(
+        &self,
+        mut request: ymp_providers::TurnRequest,
+        events: tokio::sync::mpsc::UnboundedSender<ymp_providers::ProviderEvent>,
+    ) -> ymp_providers::ExecutionFuture<'_> {
+        request.provider.kind = ProviderKind::Mock;
+        ymp_providers::NativeExecutionBackend.execute(request, events)
+    }
+}
+
+fn history_engine(store: &Store, config: Config) -> ymp_runtime::Engine {
+    let (events, _) = tokio::sync::mpsc::unbounded_channel();
+    let mut engine = ymp_runtime::Engine::new(
+        store.clone(),
+        config,
+        events,
+        tokio_util::sync::CancellationToken::new(),
+    )
+    .unwrap()
+    .with_execution_backend(std::sync::Arc::new(QualifiedHistoryBackend))
+    .unwrap();
+    engine.use_memory = false;
+    engine.acceptance_contracts.push(AcceptanceContract {
+        task_title: "Create a greeting".into(),
+        criteria: vec![AcceptanceCriterion {
+            id: "exact-content".into(),
+            description: "The artifact contains the requested greeting".into(),
+        }],
+        artifacts: vec!["greeting.txt".into()],
+        inputs: vec![],
+        checks: vec![TrustedCheck {
+            id: "exact-greeting".into(),
+            criterion_ids: vec!["exact-content".into()],
+            assertion: CheckAssertion::ExactBytes {
+                artifact: "greeting.txt".into(),
+                expected: b"Hello from ymp\n".to_vec(),
+            },
+        }],
+    });
+    engine
+}
+
+async fn first_scan_preserves_qualified_policy_history(fixed: bool) {
+    let f = Fixture::new();
+    let mut config = Config::load(&f.home).unwrap();
+    config.providers.retain(|p| p.id == "codex");
+    config.agents.retain(|a| a.id == "codex");
+    let mut reviewer = config.agents[0].clone();
+    reviewer.id = "reviewer".into();
+    reviewer.name = "Independent fixture reviewer".into();
+    reviewer.model = Some("wire-a".into());
+    config.agents.push(reviewer);
+    config.team = vec!["codex".into(), "reviewer".into()];
+    config.team_constraints.fixed_roster = Some(config.team.clone());
+    config.limits.turns = 40;
+    let choice = ModelEffort {
+        model: Some("wire-a".into()),
+        effort: Some("quiet".into()),
+    };
+    let policy = if fixed {
+        AgentExecutionPolicy {
+            fixed: choice.clone(),
+            ..Default::default()
+        }
+    } else {
+        AgentExecutionPolicy {
+            defaults: choice.clone(),
+            ..Default::default()
+        }
+    };
+    config.execution.insert("codex".into(), policy);
+    config.execution.insert(
+        "reviewer".into(),
+        AgentExecutionPolicy {
+            fixed: choice,
+            ..Default::default()
+        },
+    );
+    config.save(&f.home).unwrap();
+    let before_profile = config.agent("codex").unwrap().clone();
+    assert!(before_profile.model.is_none());
+    let before_settings = config
+        .execution_settings(&before_profile, &Default::default())
+        .unwrap();
+    let before_version = execution_config_version(
+        &before_profile,
+        config.provider("codex").unwrap(),
+        &before_settings,
+        &before_settings,
+        Some("same-native-version"),
+    );
+    let store = Store::open(&f.home).unwrap();
+    let first = history_engine(&store, config.clone())
+        .run(&f.cwd, "Create a greeting", None)
+        .await
+        .unwrap();
+    assert_eq!(first.session.status, "completed", "{}", first.summary);
+    let first_trace = store.trace(&first.session.id).unwrap();
+    let producer = first_trace
+        .assignments
+        .iter()
+        .find(|a| a.purpose == "execute")
+        .unwrap();
+    assert_eq!(producer.agent_id, "codex");
+    let observed = store.observations().unwrap();
+    assert_eq!(observed.len(), 1);
+    let observation = &observed[0];
+    assert_eq!(observation.confirmation, ConfirmationStatus::Confirmed);
+    assert_eq!(
+        store
+            .reputation(
+                &observation.agent_version,
+                &observation.competence,
+                &observation.difficulty
+            )
+            .unwrap()
+            .successes,
+        1
+    );
+    let history = serde_json::to_value(&first_trace).unwrap();
+
+    // The first refresh goes through the public executable/native metadata
+    // protocol, after qualified experience already exists for this configuration.
+    let scan = f.scan();
+    assert_eq!(
+        scan["pool"]["agents"][0]["identity"]["name"],
+        "Orchid · native A"
+    );
+    assert_eq!(scan["pool"]["agents"][0]["identity"]["model"], "wire-a");
+    assert_eq!(scan["pool"]["agents"][0]["identity"]["status"], "native");
+    assert!(scan["pool"]["agents"][0]["exclusions"]
+        .as_array()
+        .unwrap()
+        .is_empty());
+    assert_eq!(
+        serde_json::to_value(store.trace(&first.session.id).unwrap()).unwrap(),
+        history,
+        "catalog migration must not rewrite qualified history"
+    );
+    let after = Config::load(&f.home).unwrap();
+    let after_profile = after.agent("codex").unwrap();
+    let after_settings = after
+        .execution_settings(after_profile, &Default::default())
+        .unwrap();
+    assert_eq!(after_settings, before_settings);
+    assert_eq!(after.execution, config.execution);
+
+    // Exercise the real allocation lookup in a fresh session. Reusing the first
+    // session would hide the defect behind its immutable captured profile.
+    let second = history_engine(&store, after.clone())
+        .run(&f.cwd, "Create a greeting", None)
+        .await
+        .unwrap();
+    assert_eq!(second.session.status, "completed", "{}", second.summary);
+    let decisions = store.allocation_decisions(&second.session.id).unwrap();
+    let execution = decisions
+        .iter()
+        .find(|d| d.input.demand.purpose == "execute")
+        .unwrap();
+    let candidate = execution
+        .input
+        .candidates
+        .iter()
+        .find(|c| {
+            c.agent_id == "codex"
+                && c.settings.model.as_deref() == Some("wire-a")
+                && c.settings.effort.as_deref() == Some("quiet")
+        })
+        .unwrap();
+    assert_eq!(candidate.experience.successes, 1, "first native scan disconnected existing qualified experience for the unchanged execution policy");
+    assert_eq!(candidate.configuration_version, observation.agent_version);
+    assert_eq!(
+        after_profile, &before_profile,
+        "an explicit policy already supplies the concrete model"
+    );
+    assert_eq!(
+        execution_config_version(
+            after_profile,
+            after.provider("codex").unwrap(),
+            &after_settings,
+            &after_settings,
+            Some("same-native-version")
+        ),
+        before_version
+    );
+    let mut genuinely_changed = after_settings.clone();
+    genuinely_changed.model = Some("wire-b".into());
+    assert_ne!(
+        execution_config_version(
+            after_profile,
+            after.provider("codex").unwrap(),
+            &genuinely_changed,
+            &genuinely_changed,
+            Some("same-native-version")
+        ),
+        before_version
+    );
+    let repeated = f.scan();
+    assert_eq!(repeated["scan"]["migrated_agents"], json!([]));
+}
+
+#[tokio::test]
+async fn first_scan_preserves_fixed_model_policy_qualified_experience() {
+    first_scan_preserves_qualified_policy_history(true).await;
+}
+
+#[tokio::test]
+async fn first_scan_preserves_defaulted_model_policy_qualified_experience() {
+    first_scan_preserves_qualified_policy_history(false).await;
 }
