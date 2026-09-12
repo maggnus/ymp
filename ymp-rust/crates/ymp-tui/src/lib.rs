@@ -121,7 +121,7 @@ pub async fn run(
                         app.adopt_config(config);
                         app.status = "Ready".into();
                         app.notice(format!(
-                            "Read {read} of {} installation(s): {offerings} offering(s) stored, {} agent(s) added, {} renamed from a placeholder. Nothing was asked of a model.",
+                            "Read {read} of {} installation(s): {offerings} offering(s) stored, {} actor(s) added, {} existing actor(s) now resolved to a model the installation named. No configured name was changed, and nothing was asked of a model.",
                             report.providers.len(),
                             report.created_agents.len(),
                             report.migrated_agents.len()
