@@ -4,6 +4,8 @@ mod artifact_protocol;
 mod authority_protocol;
 mod budget_protocol;
 mod concurrency_protocol;
+#[cfg(test)]
+mod driver_controls;
 mod effort_protocol;
 mod evidence_protocol;
 mod export;
@@ -11,6 +13,7 @@ mod knowledge_protocol;
 mod location_protocol;
 mod partial_protocol;
 mod protocols;
+mod restart_projection;
 mod restart_protocol;
 mod roster_protocol;
 mod script;

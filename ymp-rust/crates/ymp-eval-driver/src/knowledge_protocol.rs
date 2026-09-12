@@ -141,6 +141,11 @@ pub async fn run(root: &Path, directory: &Path, spec: &Value) -> Result<Value> {
         KnowledgeRetrievalMode::Supported,
     )?;
     boundary.push(json!({"operation":"resolve_memory","requesting_context":later_id,"scope":scope,"result":found}));
+    store.event(
+        &output.session.id,
+        "eval_knowledge_boundary",
+        &json!({"boundary_action":boundary.len()-1,"actual":boundary.last()}),
+    )?;
     if let Some(found) = found {
         rows.push(json!({"type":"knowledge_retrieved","session":"s2","knowledge":"k1","value":entry_value(&store,&found)?,"source_confirmation":"c1"}));
         sources.push(json!({"boundary_action":boundary.len()-1}));
@@ -162,6 +167,11 @@ pub async fn run(root: &Path, directory: &Path, spec: &Value) -> Result<Value> {
         .availability
         .clone();
     boundary.push(json!({"operation":"resolve_memory","requesting_context":later_id,"scope":harbor,"result":found,"availability":availability}));
+    store.event(
+        &output.session.id,
+        "eval_knowledge_boundary",
+        &json!({"boundary_action":boundary.len()-1,"actual":boundary.last()}),
+    )?;
     rows.push(json!({"type":if found.is_none(){"knowledge_filtered"}else{"unexpected_knowledge_retrieved"},"session":"s2","knowledge":"k1","reason":availability}));
     sources.push(json!({"boundary_action":boundary.len()-1}));
     let candidate = store.retain_knowledge(
@@ -178,6 +188,11 @@ pub async fn run(root: &Path, directory: &Path, spec: &Value) -> Result<Value> {
     promote.status = "active".into();
     let promoted = store.save_memory(&promote);
     boundary.push(json!({"operation":"save_memory","candidate":candidate,"requested_status":"active","error":promoted.as_ref().err().map(|e|e.to_string())}));
+    store.event(
+        &output.session.id,
+        "eval_knowledge_boundary",
+        &json!({"boundary_action":boundary.len()-1,"actual":boundary.last()}),
+    )?;
     rows.push(json!({"type":if promoted.is_err(){"knowledge_promotion_denied"}else{"unexpected_knowledge_promoted"},"reason":"unconfirmed_agent_agreement"}));
     sources.push(json!({"boundary_action":boundary.len()-1}));
     let agreement_credit = store.observations()?.len().saturating_sub(before);
@@ -227,6 +242,11 @@ pub async fn run(root: &Path, directory: &Path, spec: &Value) -> Result<Value> {
         .unwrap()
         .availability;
     boundary.push(json!({"operation":"resolve_memory","requesting_context":later_id,"scope":scope,"result":found,"availability":availability}));
+    store.event(
+        &output.session.id,
+        "eval_knowledge_boundary",
+        &json!({"boundary_action":boundary.len()-1,"actual":boundary.last()}),
+    )?;
     rows.push(json!({"type":if found.is_none(){"knowledge_filtered"}else{"unexpected_knowledge_retrieved"},"session":"s2","knowledge":"k1","reason":availability}));
     sources.push(json!({"boundary_action":boundary.len()-1}));
     let corrected = second
@@ -277,6 +297,11 @@ pub async fn run(root: &Path, directory: &Path, spec: &Value) -> Result<Value> {
         KnowledgeRetrievalMode::Supported,
     )?;
     boundary.push(json!({"operation":"resolve_memory","requesting_context":third_id,"scope":scope,"result":found}));
+    store.event(
+        &output.session.id,
+        "eval_knowledge_boundary",
+        &json!({"boundary_action":boundary.len()-1,"actual":boundary.last()}),
+    )?;
     if let Some(found) = found {
         rows.push(json!({"type":"knowledge_retrieved","session":"s3","knowledge":"k2","value":entry_value(&store,&found)?,"source_confirmation":"c2"}));
         sources.push(json!({"boundary_action":boundary.len()-1}));
@@ -289,6 +314,11 @@ pub async fn run(root: &Path, directory: &Path, spec: &Value) -> Result<Value> {
     let acceptance = observation.evidence.clone();
     let applied = store.observe_confirmed(&observation, &acceptance)?;
     boundary.push(json!({"operation":"observe_confirmed","observation_id":observation.id,"acceptance_id":acceptance,"applied":applied}));
+    store.event(
+        &output.session.id,
+        "eval_knowledge_boundary",
+        &json!({"boundary_action":boundary.len()-1,"actual":boundary.last()}),
+    )?;
     rows.push(json!({"type":if applied{"observation_applied"}else{"observation_ignored"},"observation":"obs2","reason":"already_applied"}));
     sources.push(json!({"boundary_action":boundary.len()-1}));
     let history = store.inspect_knowledge(Some(&project.id), &scope)?;
@@ -307,12 +337,17 @@ pub async fn run(root: &Path, directory: &Path, spec: &Value) -> Result<Value> {
                 .push(label.into());
         }
     }
-    let observed = json!({"schema_version":1,"case_id":"knowledge-correction","events":rows,"final_state":{"knowledge":{"k1":old_state.entry.status,"k2":new_state.entry.status},"current_value":entry_value(&store,&new)?,"positive_observations_by_agent":positive,"agreement_credit":agreement_credit}});
     let traces = store
         .sessions(None)?
         .iter()
         .map(|session| Ok((session.id.clone(), store.trace(&session.id)?)))
         .collect::<Result<BTreeMap<_, _>>>()?;
+    let projection = self::project(&traces, &rows, &sources, &boundary)?;
+    let observed = json!({"schema_version":1,"case_id":"knowledge-correction","events":projection.events,"final_state":{"knowledge":{"k1":old_state.entry.status,"k2":new_state.entry.status},"current_value":entry_value(&store,&new)?,"positive_observations_by_agent":positive,"agreement_credit":agreement_credit}});
+    write_json(
+        &directory.join("projection-bindings.json"),
+        &json!({"observed_values":rows,"source_bindings":sources}),
+    )?;
     write_json(&directory.join("runtime.json"), &traces)?;
     journal.save(directory)?;
     write_json(&directory.join("knowledge.json"), &history)?;
@@ -320,7 +355,7 @@ pub async fn run(root: &Path, directory: &Path, spec: &Value) -> Result<Value> {
     write_json(&directory.join("observed.json"), &observed)?;
     write_json(
         &directory.join("alias-map.json"),
-        &json!({"s1":output.session.id,"s2":later_id,"s3":third_id,"k1":old.id,"k2":new.id,"c1":old_source.confirmation_ids,"c2":new.provenance.as_ref().unwrap().source.as_ref().unwrap().confirmation_ids,"obs1":obs1.links.observation_id,"obs2":obs2.links.observation_id,"projection_sources":sources,"context_note":"The later query-only client context preallocates its eventual session ID; the session is atomically captured when correction admission begins."}),
+        &json!({"s1":output.session.id,"s2":later_id,"s3":third_id,"k1":old.id,"k2":new.id,"c1":old_source.confirmation_ids,"c2":new.provenance.as_ref().unwrap().source.as_ref().unwrap().confirmation_ids,"obs1":obs1.links.observation_id,"obs2":obs2.links.observation_id,"projection_sources":projection.sources,"context_note":"The later query-only client context preallocates its eventual session ID; the session is atomically captured when correction admission begins."}),
     )?;
     let metrics = traces
         .iter()
@@ -336,4 +371,92 @@ pub async fn run(root: &Path, directory: &Path, spec: &Value) -> Result<Value> {
     Ok(
         json!({"case_id":"knowledge-correction","complete":validation["validator_passed"]==true,"validator":validation,"metrics":metrics}),
     )
+}
+
+/// Values above are captured from returned records. This walk determines their
+/// occurrence and order from the complete durable journal, never the call script.
+pub(crate) fn project(
+    traces: &BTreeMap<String, SessionTrace>,
+    values: &[Value],
+    bindings: &[Value],
+    boundary: &[Value],
+) -> Result<export::Projection> {
+    ensure!(
+        values.len() == bindings.len(),
+        "Every knowledge value needs source binding"
+    );
+    let mut projection = export::Projection::default();
+    let mut used = vec![false; bindings.len()];
+    let mut observations = BTreeMap::<String, usize>::new();
+    for event in export::ordered_history(traces.values())? {
+        let decision = if event.kind == "provenance" {
+            match serde_json::from_value::<ProvenanceEvent>(event.data.clone())? {
+                ProvenanceEvent::DecisionRecorded { decision } => Some(decision),
+                _ => None,
+            }
+        } else {
+            None
+        };
+        let relevant = event.kind == "eval_knowledge_boundary"
+            || (event.kind == "knowledge_retained" && event.data["status"] == "active")
+            || decision.as_ref().is_some_and(|d| {
+                d.kind == "knowledge_superseded"
+                    || (d.kind == "acceptance_contract_captured"
+                        && d.links
+                            .acceptance_contract
+                            .as_ref()
+                            .is_some_and(|c| c.contract.knowledge_correction.is_some()))
+            });
+        if relevant {
+            let found = bindings.iter().position(|binding| {
+                if event.kind == "eval_knowledge_boundary" {
+                    return binding
+                        .get("boundary_action")
+                        .is_some_and(|index| *index == event.data["boundary_action"]);
+                }
+                if event.kind == "knowledge_retained" {
+                    return binding
+                        .get("knowledge_id")
+                        .is_some_and(|id| *id == event.data["id"]);
+                }
+                decision.as_ref().is_some_and(|d| {
+                    binding["correction_id"] == d.id || binding["contract_id"] == d.id
+                })
+            });
+            let source = export::event_source(event);
+            if let Some(index) = found {
+                if event.kind == "eval_knowledge_boundary" {
+                    let ordinal = event.data["boundary_action"]
+                        .as_u64()
+                        .context("Invalid actual boundary index")?
+                        as usize;
+                    ensure!(
+                        boundary.get(ordinal) == Some(&event.data["actual"]),
+                        "Durable boundary differs from retained actual response"
+                    );
+                }
+                used[index] = true;
+                projection.push(values[index].clone(), source);
+            } else {
+                projection.push(json!({"type":"unexpected_knowledge_transition","kind":event.kind,"data":event.data}),source);
+            }
+        }
+        if let Some(decision) = decision.filter(|d| d.kind == "reputation_observed") {
+            let id = decision
+                .links
+                .observation_id
+                .as_deref()
+                .context("Unbound observation")?;
+            let count = observations.entry(id.into()).or_default();
+            *count += 1;
+            if *count > 1 || !bindings.iter().any(|b| b["observation_id"] == id) {
+                projection.push(json!({"type":"observation_applied","observation_id":id,"agent":decision.actor}),export::event_source(event));
+            }
+        }
+    }
+    ensure!(
+        used.iter().all(|used| *used),
+        "Captured knowledge response has no durable source"
+    );
+    Ok(projection)
 }

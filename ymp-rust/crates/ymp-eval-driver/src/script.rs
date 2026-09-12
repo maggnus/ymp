@@ -130,9 +130,9 @@ impl ExecutionBackend for ScriptedBackend {
                 }
                 "review" | "final_review" => {
                     let bytes = std::fs::read(request.cwd.join(&self.output))?;
-                    let acceptable = !bytes.is_empty();
+                    let (acceptable, rationale) = if self.case=="qualitative" { qualitative_assessment(&bytes) } else { (!bytes.is_empty(), "Inspected the actual artifact and the runtime observed input-scoped check; the requested result is present".into()) };
                     self.journal.push(json!({"type":"scripted_review_inspection","native_id":id,"path":self.output,"sha256":bytes_digest(&bytes),"bytes":bytes,"independent_agent_id":request.profile.id}));
-                    json!({"approved":acceptable,"reason":if self.case=="qualitative" {"The two proposed activities give attendees a concrete, voluntary way to participate and are welcoming and usable; this is an independent scripted qualitative assessment, not external confirmation"} else {"Inspected the actual artifact and the runtime's observed input-scoped check; the requested result is present"}}).to_string()
+                    json!({"approved":acceptable,"reason":rationale}).to_string()
                 }
                 "synthesis" => format!("The accepted result is available at {}",request.cwd.join(&self.output).display()),
                 "learn" => json!({"useful":false}).to_string(),
@@ -160,4 +160,27 @@ impl ExecutionBackend for ScriptedBackend {
             })
         })
     }
+}
+
+/// Deterministic fixture reviewer rubric, deliberately separate from the writer.
+/// It can reject unrelated structure; it is not a model-quality measurement.
+pub(crate) fn qualitative_assessment(bytes: &[u8]) -> (bool, String) {
+    let text = String::from_utf8_lossy(bytes).to_lowercase();
+    let ideas = text
+        .split("\n\n")
+        .filter(|part| !part.trim().is_empty() && !part.trim_start().starts_with('#'))
+        .collect::<Vec<_>>();
+    let usable = ideas.len() == 2
+        && ideas.iter().all(|idea| {
+            ["participant", "attendee"]
+                .iter()
+                .any(|word| idea.contains(word))
+                && ["share", "discuss", "conversation"]
+                    .iter()
+                    .any(|word| idea.contains(word))
+                && ["invite", "choose", "volunteer", "optional", "comfortable"]
+                    .iter()
+                    .any(|word| idea.contains(word))
+        });
+    (usable,if usable{"Inspected both actual ideas: each offers participants a concrete, voluntary way to interact. This scripted usability assessment remains unconfirmed."}else{"The actual artifact does not supply two relevant, usable and voluntary participant activities; formatting alone is insufficient."}.into())
 }
