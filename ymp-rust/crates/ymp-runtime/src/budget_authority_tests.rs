@@ -38,7 +38,9 @@ impl BudgetAuthorityFixture {
         Arc::new(TeamServer::start(Store::open(&self.store.home).unwrap(), &self.session, tx).await.unwrap())
     }
     fn pair(&self, agent: usize) -> (AssignmentRecord, InvocationRecord) {
-        let assignment = AssignmentRecord { token_reservation: None,
+        let assignment = AssignmentRecord {
+            token_reservation: None,
+            agent_identity: None,
             id: new_id(), session_id: self.session.id.clone(), task: None,
             agent_id: self.session.team[agent].id.clone(), agent_config_version: "fixture".into(),
             provider_id: "mock".into(), purpose: "plan".into(), reason: "Bounded joint fixture".into(),

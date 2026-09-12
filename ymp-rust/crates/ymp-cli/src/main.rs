@@ -50,6 +50,15 @@ enum Command {
         #[arg(long)]
         assignment_settings: Option<PathBuf>,
     },
+    /// Read the stored selectable pool, or refresh native metadata without model prompts.
+    Catalog {
+        #[arg(long)]
+        refresh: bool,
+        #[arg(long, requires = "refresh")]
+        provider: Option<String>,
+        #[arg(long, default_value_t = 30, requires = "refresh")]
+        timeout_secs: u64,
+    },
     /// Inspect native models and controls without sending a model prompt.
     Capabilities {
         agent: String,
@@ -147,7 +156,8 @@ async fn entry() -> Result<()> {
     }
     let path = cli.cwd.unwrap_or(std::env::current_dir()?).canonicalize()?;
     let store = Store::open(&home)?;
-    if !home.join("config.toml").exists() {
+    let fresh = !home.join("config.toml").exists();
+    if fresh {
         let mut config = Config::default();
         let _ = discovery::discover_glm(&mut config)?;
         for provider in &mut config.providers {
@@ -157,7 +167,24 @@ async fn entry() -> Result<()> {
         }
         config.save(&home)?;
     }
-    let config = Config::load(&home)?;
+    let mut config = Config::load(&home)?;
+    if fresh && matches!(&cli.command, None | Some(Command::Run { .. })) {
+        let report = refresh_native_catalog(
+            &mut config,
+            &store,
+            &home,
+            &path,
+            discovery::ScanOptions::default(),
+        )
+        .await?;
+        eprintln!(
+            "Read {} installation(s): {} offering(s) stored, {} actor(s) added, {} existing actor(s) now resolved to a model the installation named. No configured name was changed. Use ymp catalog to inspect what was stored.",
+            report.providers.len(),
+            report.providers.iter().map(|p| p.model_count).sum::<usize>(),
+            report.created_agents.len(),
+            report.migrated_agents.len()
+        );
+    }
     match cli.command {
         None => ymp_tui::run(store, config, path, None).await?,
         Some(Command::Mcp {
@@ -169,6 +196,15 @@ async fn entry() -> Result<()> {
         }
         Some(Command::Trace { .. }) => unreachable!(),
         Some(Command::Init) => {
+            let report = refresh_native_catalog(
+                &mut config,
+                &store,
+                &home,
+                &path,
+                discovery::ScanOptions::default(),
+            )
+            .await?;
+            println!("{}", serde_json::to_string_pretty(&report)?);
             println!(
                 "Configuration: {}\nData: {}",
                 home.join("config.toml").display(),
@@ -216,6 +252,35 @@ async fn entry() -> Result<()> {
                     bail!("{failures} provider probe(s) failed");
                 }
             }
+        }
+        Some(Command::Catalog {
+            refresh,
+            provider,
+            timeout_secs,
+        }) => {
+            let report = if refresh {
+                Some(
+                    refresh_native_catalog(
+                        &mut config,
+                        &store,
+                        &home,
+                        &path,
+                        discovery::ScanOptions {
+                            provider,
+                            timeout_secs,
+                        },
+                    )
+                    .await?,
+                )
+            } else {
+                None
+            };
+            println!(
+                "{}",
+                serde_json::to_string_pretty(
+                    &json!({ "scan": report, "pool": discovery::inspect_pool(&config)?, "providers": config.native_catalog.providers })
+                )?
+            );
         }
         Some(Command::Capabilities { agent, model }) => {
             let profile = config.agent(&agent)?.clone();
@@ -396,6 +461,46 @@ async fn entry() -> Result<()> {
     Ok(())
 }
 
+async fn refresh_native_catalog(
+    config: &mut Config,
+    store: &Store,
+    home: &std::path::Path,
+    cwd: &std::path::Path,
+    options: discovery::ScanOptions,
+) -> Result<discovery::CatalogScanReport> {
+    // One installation is asked at a time, each under its own deadline, so the whole scan can
+    // take as long as the sum of those deadlines. Say so before it starts: a terminal with
+    // nothing on it cannot be told from one that has stopped.
+    let pending = config
+        .providers
+        .iter()
+        .filter(|provider| {
+            provider.enabled
+                && provider.kind != ProviderKind::Mock
+                && options
+                    .provider
+                    .as_ref()
+                    .is_none_or(|id| id == &provider.id)
+        })
+        .count();
+    eprintln!(
+        "Reading what each installation offers: {pending} to ask, one at a time, up to {}s each. This asks for names and settings only; no model is asked anything.",
+        options.timeout_secs
+    );
+    let (events, _) = mpsc::unbounded_channel();
+    let cancel = CancellationToken::new();
+    let engine = Engine::new(store.clone(), config.clone(), events, cancel.clone())?;
+    let scan =
+        discovery::refresh_catalog(config, home, cwd, &engine.bridge, options, cancel.clone());
+    tokio::pin!(scan);
+    loop {
+        tokio::select! {
+            result = &mut scan => return result,
+            _ = tokio::signal::ctrl_c() => cancel.cancel(),
+        }
+    }
+}
+
 fn print_health(config: &Config) {
     for health in discovery::inspect(config) {
         println!(
@@ -425,10 +530,13 @@ async fn ask(
     let cancel = CancellationToken::new();
     let engine = Engine::new(store.clone(), config.clone(), ui, cancel.clone())?;
     let provider = config.provider(&profile.provider)?.clone();
+    let settings = config.execution_settings(profile, choice)?;
+    let mut presented = profile.clone();
+    presented.name = config.agent_identity(profile, &settings).name;
     let request = TurnRequest {
         resource_controls: Default::default(),
-        settings: config.execution_settings(profile, choice)?,
-        profile: profile.clone(),
+        settings,
+        profile: presented,
         provider,
         cwd: path.into(),
         prompt: prompt.into(),
@@ -559,6 +667,7 @@ async fn probe_team_tools(
     let requested = config.execution_settings(profile, &ModelEffort::default())?;
     let mut assignment = AssignmentRecord {
         token_reservation: None,
+        agent_identity: None,
         id: new_id(),
         session_id: session.id.clone(),
         task: None,

@@ -32,6 +32,7 @@ impl Fixture {
             .unwrap();
         let mut assignment = AssignmentRecord {
             token_reservation: None,
+            agent_identity: None,
             id: new_id(),
             session_id: session.id.clone(),
             task: None,

@@ -142,7 +142,7 @@ impl Engine {
             let Some(policy) = config.execution.get(&agent.id) else {
                 continue;
             };
-            let Some(catalog) = config.capabilities.get(&agent.provider) else {
+            let Some(catalog) = config.provider_capabilities(&agent.provider) else {
                 continue;
             };
             let fixed = &policy.fixed;
@@ -306,7 +306,7 @@ impl Engine {
                 effort: default.effort,
             }];
             if rule.is_none() {
-                if let Some(catalog) = self.config.capabilities.get(&agent.provider) {
+                if let Some(catalog) = self.config.provider_capabilities(&agent.provider) {
                     for model in &catalog.models {
                         choices.push(ModelEffort {
                             model: Some(model.id.clone()),
@@ -385,7 +385,7 @@ impl Engine {
         agent: &AgentProfile,
         settings: &ExecutionSettings,
     ) -> Result<()> {
-        let Some(catalog) = self.config.capabilities.get(&agent.provider) else {
+        let Some(catalog) = self.config.provider_capabilities(&agent.provider) else {
             return Ok(());
         };
         let model = settings.model.as_ref().or(catalog.default_model.as_ref());

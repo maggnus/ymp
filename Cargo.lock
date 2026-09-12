@@ -1521,6 +1521,7 @@ version = "0.3.0"
 dependencies = [
  "anyhow",
  "chrono",
+ "fs2",
  "rand",
  "rand_distr",
  "serde",
@@ -1556,6 +1557,7 @@ version = "0.3.0"
 dependencies = [
  "anyhow",
  "async-trait",
+ "fs2",
  "libc",
  "serde",
  "serde_json",
@@ -1612,6 +1614,7 @@ dependencies = [
  "tokio-util",
  "unicode-width 0.2.0",
  "ymp-core",
+ "ymp-providers",
  "ymp-runtime",
  "ymp-storage",
  "ymp-workspace",

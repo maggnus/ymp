@@ -346,6 +346,7 @@ async fn lease_admission_binds_identity_and_drop_revokes_before_releasing_access
     );
     let mut assignment = AssignmentRecord {
         token_reservation: None,
+        agent_identity: None,
         id: lease.assignment_id().into(),
         session_id: f.session.id.clone(),
         task: None,

@@ -1,0 +1,313 @@
+{
+  "at": "2026-09-12T20:02:44.697813+00:00",
+  "source": "81b6208f29c918f9e00b180ff8f4fbbe1f816784",
+  "binary_sha256": "3a462d24e048b0c9832dc24337e371fda4de4eeb6ba2f3b3a01d6c2faf53f03d",
+  "mode": "installed-provider metadata only; no model prompt",
+  "command": [
+    "/Users/maggnus/Code/ymp2/target/debug/ymp",
+    "catalog",
+    "--refresh",
+    "--timeout-secs",
+    "30"
+  ],
+  "scan": {
+    "created_agents": [
+      "native-fa5f009357515b39ba12b578",
+      "native-1a743836f5904424d842fed1",
+      "native-22d7fb25f3fb42cb0d5e3d9e",
+      "native-8da25f68f3db71627485cedf",
+      "native-20dc9050d97f52ae674d9b45",
+      "native-2656374064ccc5ed422e1db4",
+      "native-973e14f9339e781940d66be9",
+      "native-da23d17e6626db3ad421b1f3",
+      "native-5fb3211536168f27b16f0894",
+      "native-0e430d170a75b84ec2a93d8f",
+      "native-8ba4431681681ea7524803b9",
+      "native-d36e4cb4c407c227bbcfe023",
+      "native-5ce2f2f5f13d641a52554706",
+      "native-b047ba99590e586b06d2fd15",
+      "native-a92bbe8e959d7a1d33bf552c",
+      "native-860a623b4a10a3f133a4b478"
+    ],
+    "migrated_agents": [
+      "codex",
+      "claude",
+      "glm"
+    ],
+    "providers": [
+      {
+        "model_count": 8,
+        "provider": "codex",
+        "retained_previous": false,
+        "status": "updated"
+      },
+      {
+        "model_count": 5,
+        "provider": "claude",
+        "retained_previous": false,
+        "status": "updated"
+      },
+      {
+        "model_count": 6,
+        "provider": "glm",
+        "retained_previous": false,
+        "status": "updated"
+      }
+    ]
+  },
+  "configuration_checks": {
+    "version": true,
+    "team": true,
+    "limits": true,
+    "providers": true,
+    "original_agents_preserved": true
+  },
+  "original_team": [
+    "codex",
+    "claude",
+    "glm"
+  ],
+  "current_team": [
+    "codex",
+    "claude",
+    "glm"
+  ],
+  "history": {
+    "session_policies": {
+      "baseline_rows": 2,
+      "preserved": true
+    },
+    "decisions": {
+      "baseline_rows": 107,
+      "preserved": true
+    },
+    "observations": {
+      "baseline_rows": 8,
+      "preserved": true
+    },
+    "messages": {
+      "baseline_rows": 159,
+      "preserved": true
+    },
+    "events": {
+      "baseline_rows": 927,
+      "preserved": true
+    },
+    "assignments": {
+      "baseline_rows": 17,
+      "preserved": true
+    },
+    "invocations": {
+      "baseline_rows": 17,
+      "preserved": true
+    }
+  },
+  "agents": [
+    {
+      "agent_id": "codex",
+      "provider": "codex",
+      "name": "GPT-6-Astra",
+      "model": "gpt-6-astra",
+      "effort": null,
+      "status": "native",
+      "starting_team": true
+    },
+    {
+      "agent_id": "claude",
+      "provider": "claude",
+      "name": "Default (recommended)",
+      "model": "default",
+      "effort": null,
+      "status": "native",
+      "starting_team": true
+    },
+    {
+      "agent_id": "glm",
+      "provider": "glm",
+      "name": "GLM-5.2",
+      "model": "glm-5.2",
+      "effort": null,
+      "status": "native",
+      "starting_team": true
+    },
+    {
+      "agent_id": "native-fa5f009357515b39ba12b578",
+      "provider": "codex",
+      "name": "GPT-Reserve",
+      "model": "gpt-reserve",
+      "effort": null,
+      "status": "native",
+      "starting_team": false
+    },
+    {
+      "agent_id": "native-1a743836f5904424d842fed1",
+      "provider": "codex",
+      "name": "GPT-5.6-Sol",
+      "model": "gpt-5.6-sol",
+      "effort": null,
+      "status": "native",
+      "starting_team": false
+    },
+    {
+      "agent_id": "native-22d7fb25f3fb42cb0d5e3d9e",
+      "provider": "codex",
+      "name": "GPT-5.6-Terra",
+      "model": "gpt-5.6-terra",
+      "effort": null,
+      "status": "native",
+      "starting_team": false
+    },
+    {
+      "agent_id": "native-8da25f68f3db71627485cedf",
+      "provider": "codex",
+      "name": "GPT-5.6-Luna",
+      "model": "gpt-5.6-luna",
+      "effort": null,
+      "status": "native",
+      "starting_team": false
+    },
+    {
+      "agent_id": "native-20dc9050d97f52ae674d9b45",
+      "provider": "codex",
+      "name": "GPT-5.5",
+      "model": "gpt-5.5",
+      "effort": null,
+      "status": "native",
+      "starting_team": false
+    },
+    {
+      "agent_id": "native-2656374064ccc5ed422e1db4",
+      "provider": "codex",
+      "name": "GPT-5.3-Codex-Spark",
+      "model": "gpt-5.3-codex-spark",
+      "effort": null,
+      "status": "native",
+      "starting_team": false
+    },
+    {
+      "agent_id": "native-973e14f9339e781940d66be9",
+      "provider": "codex",
+      "name": "Codex Auto Review",
+      "model": "codex-auto-review",
+      "effort": null,
+      "status": "native",
+      "starting_team": false
+    },
+    {
+      "agent_id": "native-da23d17e6626db3ad421b1f3",
+      "provider": "claude",
+      "name": "Opus (1M context)",
+      "model": "opus[1m]",
+      "effort": null,
+      "status": "native",
+      "starting_team": false
+    },
+    {
+      "agent_id": "native-5fb3211536168f27b16f0894",
+      "provider": "claude",
+      "name": "Fable",
+      "model": "claude-fable-5-1[1m]",
+      "effort": null,
+      "status": "native",
+      "starting_team": false
+    },
+    {
+      "agent_id": "native-0e430d170a75b84ec2a93d8f",
+      "provider": "claude",
+      "name": "Sonnet",
+      "model": "sonnet",
+      "effort": null,
+      "status": "native",
+      "starting_team": false
+    },
+    {
+      "agent_id": "native-8ba4431681681ea7524803b9",
+      "provider": "claude",
+      "name": "Haiku",
+      "model": "haiku",
+      "effort": null,
+      "status": "native",
+      "starting_team": false
+    },
+    {
+      "agent_id": "native-d36e4cb4c407c227bbcfe023",
+      "provider": "glm",
+      "name": "GLM-5.1",
+      "model": "glm-5.1",
+      "effort": null,
+      "status": "native",
+      "starting_team": false
+    },
+    {
+      "agent_id": "native-5ce2f2f5f13d641a52554706",
+      "provider": "glm",
+      "name": "GLM-5 Turbo",
+      "model": "glm-5-turbo",
+      "effort": null,
+      "status": "native",
+      "starting_team": false
+    },
+    {
+      "agent_id": "native-b047ba99590e586b06d2fd15",
+      "provider": "glm",
+      "name": "GLM-5V Turbo",
+      "model": "glm-5v-turbo",
+      "effort": null,
+      "status": "native",
+      "starting_team": false
+    },
+    {
+      "agent_id": "native-a92bbe8e959d7a1d33bf552c",
+      "provider": "glm",
+      "name": "GLM-4.7",
+      "model": "glm-4.7",
+      "effort": null,
+      "status": "native",
+      "starting_team": false
+    },
+    {
+      "agent_id": "native-860a623b4a10a3f133a4b478",
+      "provider": "glm",
+      "name": "GLM-4.5 Air",
+      "model": "glm-4.5-air",
+      "effort": null,
+      "status": "native",
+      "starting_team": false
+    }
+  ],
+  "required_checks": [
+    {
+      "step": "fmt",
+      "exit": 0,
+      "seconds": 0.5,
+      "log": "/tmp/ymp-main-native127-r4/fmt.log"
+    },
+    {
+      "step": "clippy",
+      "exit": 0,
+      "seconds": 6.36,
+      "log": "/tmp/ymp-main-native127-r4/clippy.log"
+    },
+    {
+      "step": "workspace",
+      "exit": 0,
+      "seconds": 75.44,
+      "log": "/tmp/ymp-main-native127-r4/workspace.log"
+    },
+    {
+      "step": "native-fixtures",
+      "exit": 0,
+      "seconds": 13.12,
+      "log": "/tmp/ymp-main-native127-r4/native-fixtures.log"
+    },
+    {
+      "step": "build",
+      "exit": 0,
+      "seconds": 0.1,
+      "log": "/tmp/ymp-main-native127-r4/build.log"
+    }
+  ],
+  "workspace_tests_passed": 308,
+  "native_fixture_tests_passed": 10,
+  "ui_state": "Independent review of08fcbf6 pending; this audit does not claim TUI or installed release completion."
+}

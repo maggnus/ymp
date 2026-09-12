@@ -274,6 +274,7 @@ impl TaskHarness {
         }
         let mut assignment = AssignmentRecord {
             token_reservation: None,
+            agent_identity: None,
             id: lease.assignment_id().into(),
             session_id: self.session.id.clone(),
             task,

@@ -67,6 +67,8 @@ pub async fn run(root: &Path, directory: &Path, spec: &Value) -> Result<Value> {
                     .map(|(model, efforts)| ModelCapabilities {
                         id: model.clone(),
                         controls: Some(vec![NativeControl {
+                            display_name: None,
+                            value_names: Default::default(),
                             id: "effort".into(),
                             values: NativeControlValues::Choices {
                                 options: efforts
@@ -78,6 +80,7 @@ pub async fn run(root: &Path, directory: &Path, spec: &Value) -> Result<Value> {
                             },
                             default: None,
                         }]),
+                        ..Default::default()
                     })
                     .collect(),
             },

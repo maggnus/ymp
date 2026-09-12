@@ -372,8 +372,11 @@ mod allocation_contract_tests {
                 models_complete: true,
                 models: vec![
                     ModelCapabilities {
+            picker_id: None,
+            display_name: None, aliases: vec![], resolved_model: None,
                         id: "model-a".into(),
                         controls: Some(vec![NativeControl {
+            display_name: None, value_names: Default::default(),
                             id: "effort".into(),
                             values: NativeControlValues::Choices {
                                 options: vec!["brief".into(), "deliberate".into()],
@@ -382,8 +385,11 @@ mod allocation_contract_tests {
                         }]),
                     },
                     ModelCapabilities {
+            picker_id: None,
+            display_name: None, aliases: vec![], resolved_model: None,
                         id: "model-b".into(),
                         controls: Some(vec![NativeControl {
+            display_name: None, value_names: Default::default(),
                             id: "effort".into(),
                             values: NativeControlValues::Choices {
                                 options: vec!["adaptive".into()],

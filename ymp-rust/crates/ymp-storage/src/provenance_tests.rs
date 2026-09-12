@@ -145,6 +145,7 @@ impl Fixture {
         };
         let assignment = AssignmentRecord {
             token_reservation: None,
+            agent_identity: None,
             id: new_id(),
             session_id: self.session.id.clone(),
             task: Some(TaskAttemptRef::from(&self.task)),

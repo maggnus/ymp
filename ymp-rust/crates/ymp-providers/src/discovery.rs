@@ -1,4 +1,6 @@
+mod catalog;
 use anyhow::Result;
+pub use catalog::*;
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 use ymp_core::{
@@ -64,6 +66,14 @@ pub fn inspect_pool(config: &Config) -> Result<AgentPool> {
     for catalog in capabilities.values_mut() {
         catalog.source = CapabilitySource::Configured;
     }
+    for provider in &config.providers {
+        if let Some(catalog) = config
+            .native_provider_snapshot(&provider.id)
+            .and_then(|entry| entry.catalog.as_ref())
+        {
+            capabilities.insert(provider.id.clone(), catalog.clone());
+        }
+    }
     let agents = config
         .agents
         .iter()
@@ -80,6 +90,10 @@ pub fn inspect_pool(config: &Config) -> Result<AgentPool> {
                 exclusions.push(PoolExclusion::ExecutableMissing);
             }
             let settings = config.execution_settings(profile, &Default::default())?;
+            let identity = config.agent_identity(profile, &settings);
+            if config.is_legacy_provider_placeholder(profile) && settings.model.is_none() {
+                exclusions.push(PoolExclusion::NativeModelUnresolved);
+            }
             let model_status = match (
                 settings.model.as_deref(),
                 capabilities.get(&profile.provider),
@@ -99,8 +113,11 @@ pub fn inspect_pool(config: &Config) -> Result<AgentPool> {
                 }
                 _ => PoolModelStatus::Unknown,
             };
+            let mut presented = profile.clone();
+            presented.name = identity.name.clone();
             Ok(PoolAgent {
-                profile: profile.clone(),
+                identity,
+                profile: presented,
                 profile_version: profile.version(provider),
                 exclusions,
                 model_status,
@@ -203,13 +220,23 @@ mod tests {
         config.save(temp.path()).unwrap();
         let loaded = Config::load(temp.path()).unwrap();
         let pool = inspect_pool(&loaded).unwrap();
-        assert_eq!(pool.eligible().count(), 2);
+        assert_eq!(pool.eligible().count(), 1);
+        assert!(pool.agents[0]
+            .exclusions
+            .contains(&PoolExclusion::NativeModelUnresolved));
         assert_eq!(
             pool.agents[0].profile.provider,
             pool.agents[1].profile.provider
         );
         assert_ne!(pool.agents[0].profile.id, pool.agents[1].profile.id);
-        assert_eq!(pool.agents[1].profile.name, "Existing second name");
+        assert_eq!(
+            pool.agents[1].identity.configured_name,
+            "Existing second name"
+        );
+        assert_eq!(
+            pool.agents[1].identity.status,
+            ymp_core::AgentIdentityStatus::Unresolved
+        );
         assert_eq!(
             pool.agents[0].model_status,
             PoolModelStatus::InheritedDefault
@@ -245,6 +272,10 @@ mod tests {
 
         let mut catalog = ProviderCapabilities::default();
         catalog.models.push(ModelCapabilities {
+            picker_id: None,
+            display_name: None,
+            aliases: vec![],
+            resolved_model: None,
             id: "other-fixture-model".into(),
             controls: None,
         });
@@ -355,6 +386,10 @@ mod tests {
             ProviderCapabilities {
                 models_complete: true,
                 models: vec![ModelCapabilities {
+                    picker_id: None,
+                    display_name: None,
+                    aliases: vec![],
+                    resolved_model: None,
                     id: "fixed-model".into(),
                     controls: None,
                 }],

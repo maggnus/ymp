@@ -6,6 +6,7 @@ rust-version.workspace = true
 license.workspace = true
 
 [dependencies]
+fs2.workspace = true
 ymp-core.workspace = true
 anyhow.workspace = true
 serde.workspace = true

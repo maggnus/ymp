@@ -117,6 +117,7 @@ pub(crate) async fn execute_reserved_with_allowance(
 ) -> Result<()> {
     let mut assignment = AssignmentRecord {
         token_reservation,
+        agent_identity: None,
         id: lease.assignment_id().into(),
         session_id: session.clone(),
         task: None,

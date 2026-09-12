@@ -118,6 +118,10 @@ pub struct AssignmentRecord {
     /// Runtime-requested accounting allowance; not a native hard token limit.
     #[serde(default)]
     pub token_reservation: Option<u64>,
+    /// Native presentation captured for these effective requested settings.
+    /// Historical records without a scan retain None.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub agent_identity: Option<crate::AgentIdentity>,
     pub id: String,
     pub session_id: String,
     pub task: Option<TaskAttemptRef>,

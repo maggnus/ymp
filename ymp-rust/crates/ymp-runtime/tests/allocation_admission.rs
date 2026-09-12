@@ -263,8 +263,14 @@ async fn invalid_pinned_reviewer_must_be_rejected_before_startup() {
             models_complete: true,
             default_model: Some("model-a".into()),
             models: vec![ModelCapabilities {
+                picker_id: None,
+                display_name: None,
+                aliases: vec![],
+                resolved_model: None,
                 id: "model-a".into(),
                 controls: Some(vec![NativeControl {
+                    display_name: None,
+                    value_names: Default::default(),
                     id: "effort".into(),
                     values: NativeControlValues::Choices {
                         options: vec!["brief".into()],
@@ -453,8 +459,14 @@ async fn invalid_pinned_reviewer_control_supported_effort_completes() {
             models_complete: true,
             default_model: Some("model-a".into()),
             models: vec![ModelCapabilities {
+                picker_id: None,
+                display_name: None,
+                aliases: vec![],
+                resolved_model: None,
                 id: "model-a".into(),
                 controls: Some(vec![NativeControl {
+                    display_name: None,
+                    value_names: Default::default(),
                     id: "effort".into(),
                     values: NativeControlValues::Choices {
                         options: vec!["brief".into()],
@@ -673,6 +685,10 @@ fn catalog(controls: Option<Vec<NativeControl>>, complete: bool) -> ProviderCapa
         models_complete: complete,
         default_model: Some("model-a".into()),
         models: vec![ModelCapabilities {
+            picker_id: None,
+            display_name: None,
+            aliases: vec![],
+            resolved_model: None,
             id: "model-a".into(),
             controls,
         }],
@@ -681,6 +697,8 @@ fn catalog(controls: Option<Vec<NativeControl>>, complete: bool) -> ProviderCapa
 }
 fn effort_control(value: &str) -> Vec<NativeControl> {
     vec![NativeControl {
+        display_name: None,
+        value_names: Default::default(),
         id: "effort".into(),
         values: NativeControlValues::Choices {
             options: vec![value.into()],
@@ -751,6 +769,10 @@ async fn an_effort_pin_can_choose_another_supported_model_without_changing_the_p
     let mut f = fixture();
     let mut offerings = catalog(Some(effort_control("brief")), true);
     offerings.models.push(ModelCapabilities {
+        picker_id: None,
+        display_name: None,
+        aliases: vec![],
+        resolved_model: None,
         id: "model-b".into(),
         controls: Some(effort_control("deep")),
     });

@@ -4,9 +4,11 @@ use sha2::{Digest, Sha256};
 use std::{collections::BTreeMap, path::PathBuf};
 
 mod capabilities;
+mod catalog;
 mod execution;
 mod pool;
 pub use capabilities::*;
+pub use catalog::*;
 pub use execution::*;
 pub use pool::*;
 
@@ -85,6 +87,9 @@ impl Default for Limits {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Config {
+    /// Loaded only from the application-owned scan cache; never trusted from TOML.
+    #[serde(skip)]
+    pub native_catalog: NativeCatalogSnapshot,
     /// Exact applicability for knowledge lookup and new retained findings.
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub knowledge_scope: BTreeMap<String, String>,
@@ -111,6 +116,7 @@ pub struct Config {
 impl Default for Config {
     fn default() -> Self {
         Self {
+            native_catalog: NativeCatalogSnapshot::default(),
             version: 1,
             acceptance_contracts: None,
             knowledge_scope: Default::default(),
@@ -249,11 +255,35 @@ impl Config {
             .collect()
     }
     pub fn load(home: &std::path::Path) -> Result<Self> {
-        let value: Self = toml::from_str(&std::fs::read_to_string(home.join("config.toml"))?)?;
+        let mut value: Self = toml::from_str(&std::fs::read_to_string(home.join("config.toml"))?)?;
         value.validate()?;
+        value.native_catalog = NativeCatalogSnapshot::load(home)?;
         Ok(value)
     }
     pub fn save(&self, home: &std::path::Path) -> Result<()> {
+        let _lock = configuration_lock(home)?;
+        self.save_configuration(home)
+    }
+    /// Publish a scan without overwriting configuration edited during discovery.
+    pub fn save_scanned_catalog(
+        &self,
+        home: &std::path::Path,
+        expected: Option<&[u8]>,
+    ) -> Result<()> {
+        let _lock = configuration_lock(home)?;
+        let actual = match std::fs::read(home.join("config.toml")) {
+            Ok(bytes) => Some(bytes),
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => None,
+            Err(error) => return Err(error.into()),
+        };
+        if actual.as_deref() != expected {
+            bail!("Configuration changed during native scan; refresh again to preserve the edit");
+        }
+        self.validate()?;
+        self.native_catalog.save(home)?;
+        self.save_configuration(home)
+    }
+    fn save_configuration(&self, home: &std::path::Path) -> Result<()> {
         self.validate()?;
         std::fs::create_dir_all(home)?;
         let tmp = home.join(format!("config.{}.tmp", uuid::Uuid::new_v4()));
@@ -263,9 +293,73 @@ impl Config {
     }
 }
 
+/// Release this save's ownership even if a fork-inherited descriptor remains
+/// open until its child reaches exec. Closing alone waits for that descriptor.
+struct ConfigurationLock {
+    file: std::fs::File,
+}
+
+impl Drop for ConfigurationLock {
+    fn drop(&mut self) {
+        let _ = fs2::FileExt::unlock(&self.file);
+    }
+}
+
+fn configuration_lock(home: &std::path::Path) -> Result<ConfigurationLock> {
+    std::fs::create_dir_all(home)?;
+    let file = std::fs::OpenOptions::new()
+        .create(true)
+        .truncate(false)
+        .read(true)
+        .write(true)
+        .open(home.join("configuration.lock"))?;
+    fs2::FileExt::try_lock_exclusive(&file)
+        .context("Another client is saving configuration; retry the edit")?;
+    Ok(ConfigurationLock { file })
+}
+
 pub fn default_home() -> Result<PathBuf> {
     if let Some(path) = std::env::var_os("YMP_HOME") {
         return Ok(path.into());
     }
     Ok(PathBuf::from(std::env::var_os("HOME").context("HOME is unavailable")?).join(".ymp2"))
+}
+
+#[cfg(all(test, unix))]
+mod lock_tests {
+    use super::*;
+
+    #[test]
+    fn completed_configuration_owner_releases_before_inherited_descriptor_closes() {
+        let temp = tempfile::tempdir().unwrap();
+        let home = temp.path();
+        let config = Config::default();
+        let owner = configuration_lock(home).unwrap();
+        // A cloned descriptor retains the owner's open file description just
+        // as an inherited descriptor can, without a timing-dependent fork.
+        let inherited = owner.file.try_clone().unwrap();
+        assert!(
+            config.save(home).is_err(),
+            "live configuration owner must exclude another save"
+        );
+        drop(owner);
+        let next = configuration_lock(home).expect(
+            "completed configuration owner must release before an inherited descriptor closes",
+        );
+        assert!(
+            config.save(home).is_err(),
+            "replacement owner must remain exclusive"
+        );
+        drop(inherited);
+        assert!(
+            config.save(home).is_err(),
+            "closing the old descriptor must not unlock the replacement owner"
+        );
+        drop(next);
+        config.save(home).unwrap();
+        assert_eq!(
+            serde_json::to_value(Config::load(home).unwrap()).unwrap(),
+            serde_json::to_value(config).unwrap()
+        );
+    }
 }
