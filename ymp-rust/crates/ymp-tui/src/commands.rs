@@ -142,6 +142,20 @@ pub const COMMANDS: &[Command] = &[
         args: Args::None,
     },
     Command {
+        name: "/assignments",
+        usage: "/assignments",
+        summary: "Turns the run assigned, with the settings each one actually used.",
+        group: Group::Navigate,
+        args: Args::None,
+    },
+    Command {
+        name: "/decisions",
+        usage: "/decisions",
+        summary: "Plans, reviews, acceptances and credit the session recorded.",
+        group: Group::Knowledge,
+        args: Args::None,
+    },
+    Command {
         name: "/providers",
         usage: "/providers",
         summary: "Configured local providers and their availability.",

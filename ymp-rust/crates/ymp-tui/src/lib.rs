@@ -21,6 +21,7 @@ use ymp_storage::Store;
 mod commands;
 mod frame;
 mod prefs;
+mod provenance;
 mod sidebar;
 mod state;
 mod terminal;
@@ -67,6 +68,11 @@ pub async fn run(
     let (events, mut runtime_events) = mpsc::unbounded_channel();
 
     let mut running: Option<JoinHandle<Result<RunOutcome>>> = None;
+    // A scan is not a run: it asks each installation what it offers and sends no prompt. It is
+    // spawned so the window keeps painting while a provider takes its time.
+    type ScanResult = Result<(Config, ymp_providers::discovery::CatalogScanReport)>;
+    let mut scanning: Option<JoinHandle<ScanResult>> = None;
+    let mut scan_cancel = CancellationToken::new();
     let mut cancel = CancellationToken::new();
     let mut ticker = tokio::time::interval(TICK);
     ticker.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
@@ -102,6 +108,38 @@ pub async fn run(
             }
         }
 
+        if scanning.as_ref().is_some_and(JoinHandle::is_finished) {
+            if let Some(handle) = scanning.take() {
+                match handle.await {
+                    Ok(Ok((config, report))) => {
+                        let read = report
+                            .providers
+                            .iter()
+                            .filter(|provider| provider.status == "updated")
+                            .count();
+                        let offerings: usize = report.providers.iter().map(|p| p.model_count).sum();
+                        app.adopt_config(config);
+                        app.status = "Ready".into();
+                        app.notice(format!(
+                            "Read {read} of {} installation(s): {offerings} offering(s) stored, {} actor(s) added, {} existing actor(s) now resolved to a model the installation named. No configured name was changed, and nothing was asked of a model.",
+                            report.providers.len(),
+                            report.created_agents.len(),
+                            report.migrated_agents.len()
+                        ));
+                    }
+                    Ok(Err(error)) => {
+                        app.status = "Ready".into();
+                        app.fail(format!("Nothing was read: {error:#}"));
+                    }
+                    Err(error) => {
+                        app.status = "Ready".into();
+                        app.fail(format!("The scan task failed: {error}"));
+                    }
+                }
+                app.dirty = true;
+            }
+        }
+
         if running.as_ref().is_some_and(JoinHandle::is_finished) {
             if let Some(handle) = running.take() {
                 app.active = false;
@@ -132,7 +170,49 @@ pub async fn run(
                 Action::Quit => quit = true,
                 Action::Cancel => {
                     cancel.cancel();
+                    scan_cancel.cancel();
                     app.status = "Stopping active turns".into();
+                }
+                Action::RefreshCatalog { provider } => {
+                    if scanning.is_some() {
+                        app.fail("A catalog reading is already running.");
+                        continue;
+                    }
+                    if running.is_some() {
+                        app.fail("A run is active. Stop it with /stop before reading catalogs.");
+                        continue;
+                    }
+                    scan_cancel = CancellationToken::new();
+                    let token = scan_cancel.clone();
+                    let mut config = app.config.clone();
+                    let home = store.home.clone();
+                    let cwd = path.clone();
+                    let store = store.clone();
+                    let options = ymp_providers::discovery::ScanOptions {
+                        provider: provider.clone(),
+                        ..Default::default()
+                    };
+                    app.status = match &provider {
+                        Some(id) => format!("Asking {id} what it offers"),
+                        None => "Asking the installations what they offer".into(),
+                    };
+                    app.dirty = true;
+                    scanning = Some(tokio::spawn(async move {
+                        // The bridge path the runtime resolves, so a scan reaches an
+                        // installation exactly the way a turn would.
+                        let (events, _ignored) = mpsc::unbounded_channel();
+                        let engine = Engine::new(store, config.clone(), events, token.clone())?;
+                        let report = ymp_providers::discovery::refresh_catalog(
+                            &mut config,
+                            &home,
+                            &cwd,
+                            &engine.bridge,
+                            options,
+                            token,
+                        )
+                        .await?;
+                        Ok((config, report))
+                    }));
                 }
                 Action::QueueMessage { session, text } => {
                     match store.message(&session, "you", None, "user", &text) {
@@ -204,6 +284,7 @@ pub async fn run(
 
         if quit {
             cancel.cancel();
+            scan_cancel.cancel();
             if let Some(handle) = running.take() {
                 let _ = tokio::time::timeout(Duration::from_secs(10), handle).await;
             }

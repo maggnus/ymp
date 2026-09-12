@@ -177,7 +177,13 @@ async fn entry() -> Result<()> {
             discovery::ScanOptions::default(),
         )
         .await?;
-        eprintln!("Native catalog: {} provider(s) inspected; {} actor(s) migrated. Use ymp catalog to inspect stored results.", report.providers.len(), report.migrated_agents.len());
+        eprintln!(
+            "Read {} installation(s): {} offering(s) stored, {} actor(s) added, {} existing actor(s) now resolved to a model the installation named. No configured name was changed. Use ymp catalog to inspect what was stored.",
+            report.providers.len(),
+            report.providers.iter().map(|p| p.model_count).sum::<usize>(),
+            report.created_agents.len(),
+            report.migrated_agents.len()
+        );
     }
     match cli.command {
         None => ymp_tui::run(store, config, path, None).await?,
@@ -462,6 +468,25 @@ async fn refresh_native_catalog(
     cwd: &std::path::Path,
     options: discovery::ScanOptions,
 ) -> Result<discovery::CatalogScanReport> {
+    // One installation is asked at a time, each under its own deadline, so the whole scan can
+    // take as long as the sum of those deadlines. Say so before it starts: a terminal with
+    // nothing on it cannot be told from one that has stopped.
+    let pending = config
+        .providers
+        .iter()
+        .filter(|provider| {
+            provider.enabled
+                && provider.kind != ProviderKind::Mock
+                && options
+                    .provider
+                    .as_ref()
+                    .is_none_or(|id| id == &provider.id)
+        })
+        .count();
+    eprintln!(
+        "Reading what each installation offers: {pending} to ask, one at a time, up to {}s each. This asks for names and settings only; no model is asked anything.",
+        options.timeout_secs
+    );
     let (events, _) = mpsc::unbounded_channel();
     let cancel = CancellationToken::new();
     let engine = Engine::new(store.clone(), config.clone(), events, cancel.clone())?;
