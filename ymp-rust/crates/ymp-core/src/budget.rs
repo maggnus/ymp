@@ -4,9 +4,21 @@ use crate::{Limits, UsageTotals};
 use anyhow::{ensure, Result};
 use serde::{Deserialize, Serialize};
 
+/// Captured policy for incomplete native accounting. BoundedNative permits
+/// further admission against reported spend only; it never promises a strict
+/// true-spend bound and all other native/admission limits remain applicable.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum UnknownUsagePolicy {
+    #[default]
+    Stop,
+    BoundedNative,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct ResourceLimits {
+    pub unknown_usage: UnknownUsagePolicy,
     pub startup_invocations: u64,
     pub required_review_invocations: u64,
     pub max_context_chars: u64,
@@ -24,6 +36,7 @@ pub struct ResourceLimits {
 impl Default for ResourceLimits {
     fn default() -> Self {
         Self {
+            unknown_usage: UnknownUsagePolicy::Stop,
             startup_invocations: 6,
             required_review_invocations: 2,
             max_context_chars: 128_000,
