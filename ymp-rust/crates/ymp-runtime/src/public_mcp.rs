@@ -8,7 +8,10 @@ use std::{
     path::PathBuf,
     time::Duration,
 };
-use tokio::{io::AsyncWriteExt, sync::mpsc, task::JoinHandle};
+use tokio::{
+    sync::{mpsc, oneshot},
+    task::JoinHandle,
+};
 use tokio_util::sync::CancellationToken;
 use ymp_core::*;
 use ymp_storage::{projection, Store};
@@ -505,7 +508,12 @@ pub async fn serve(
         execute,
         active: HashMap::new(),
     };
-    let result = exchange(&mut facade).await;
+    // Signal handling covers input, output queueing and output acknowledgement.
+    // Dropping exchange never leaves a Tokio-owned blocking stdio worker behind.
+    let result = tokio::select! {
+        _ = shutdown_signal() => Ok(()),
+        result = exchange(&mut facade) => result,
+    };
     facade.shutdown().await;
     result
 }
@@ -543,16 +551,62 @@ fn stdin_frames() -> Result<mpsc::Receiver<std::io::Result<Vec<u8>>>> {
     Ok(receiver)
 }
 
+/// Frames are written serially by a dedicated thread, outside Tokio's blocking
+/// pool. Each acknowledgement follows write_all AND flush, so ordinary EOF cannot
+/// exit ahead of the final response. A stalled peer holds at most one output frame;
+/// dropping an acknowledgement on signal does not make runtime teardown wait on it.
+struct StdoutFrames {
+    sender: mpsc::Sender<(Vec<u8>, oneshot::Sender<std::io::Result<()>>)>,
+}
+impl StdoutFrames {
+    fn start() -> Result<Self> {
+        let (sender, mut receiver) =
+            mpsc::channel::<(Vec<u8>, oneshot::Sender<std::io::Result<()>>)>(1);
+        std::thread::Builder::new()
+            .name("ymp-mcp-stdout".into())
+            .spawn(move || {
+                use std::io::Write;
+                let stdout = std::io::stdout();
+                let mut output = stdout.lock();
+                while let Some((frame, ack)) = receiver.blocking_recv() {
+                    if ack.is_closed() {
+                        break;
+                    }
+                    let result = output.write_all(&frame).and_then(|_| output.flush());
+                    let failed = result.is_err();
+                    let _ = ack.send(result);
+                    if failed {
+                        break;
+                    }
+                }
+            })?;
+        Ok(Self { sender })
+    }
+
+    async fn write_all(&self, frame: &[u8]) -> Result<()> {
+        ensure!(
+            frame.len() <= 128 * 1024 + 1,
+            "MCP output frame exceeds transport limit"
+        );
+        let (sender, ack) = oneshot::channel();
+        self.sender
+            .send((frame.to_vec(), sender))
+            .await
+            .map_err(|_| anyhow::anyhow!("MCP stdout worker stopped"))?;
+        ack.await
+            .context("MCP stdout acknowledgement unavailable")??;
+        Ok(())
+    }
+}
+
 async fn exchange(facade: &mut Facade) -> Result<()> {
     let mut input = stdin_frames()?;
-    let mut output = tokio::io::stdout();
+    let output = StdoutFrames::start()?;
     let mut initialized = false;
     let mut ready = false;
     let mut ids = HashSet::new();
-    let shutdown = shutdown_signal();
-    tokio::pin!(shutdown);
     loop {
-        let frame = tokio::select! { _ = &mut shutdown => break, frame = input.recv() => frame };
+        let frame = input.recv().await;
         let Some(frame) = frame else { break };
         let frame = frame?;
         if frame.len() as u64 > MAX_FRAME {
@@ -579,7 +633,6 @@ async fn exchange(facade: &mut Facade) -> Result<()> {
                         format!("{}\n", rpc_error(Value::Null, -32700, "Parse error")).as_bytes(),
                     )
                     .await?;
-                output.flush().await?;
                 continue;
             }
         };
@@ -595,7 +648,6 @@ async fn exchange(facade: &mut Facade) -> Result<()> {
                     format!("{}\n", rpc_error(Value::Null, -32600, "Invalid request")).as_bytes(),
                 )
                 .await?;
-            output.flush().await?;
             continue;
         }
         let method = req["method"].as_str().unwrap();
@@ -610,7 +662,6 @@ async fn exchange(facade: &mut Facade) -> Result<()> {
                         .as_bytes(),
                     )
                     .await?;
-                output.flush().await?;
             }
             continue;
         }
@@ -685,7 +736,6 @@ async fn exchange(facade: &mut Facade) -> Result<()> {
         }
         encoded.push(b'\n');
         output.write_all(&encoded).await?;
-        output.flush().await?;
     }
     Ok(())
 }

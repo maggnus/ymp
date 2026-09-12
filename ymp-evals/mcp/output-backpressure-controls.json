@@ -1,0 +1,164 @@
+{
+  "recorded_at": "2026-09-12T17:53:57.356040+00:00",
+  "base_commit": "3d9c5808020bb106cf6ae8f18535ef889b175af3",
+  "command": "python ymp-evals/mcp/stdio_client.py target/debug/ymp --output-only (official MCP SDK 1.28.1 environment)",
+  "broken_exit": 1,
+  "broken_cases": [
+    {
+      "signal": "SIGTERM",
+      "active": false,
+      "stdout_undrained": true,
+      "stdin_open": true,
+      "broken_pipe": false,
+      "slow_drain_eof": false,
+      "exit": null,
+      "elapsed_seconds": 5.001,
+      "terminal_accounting": true,
+      "invocations": 0,
+      "grants_revoked": true
+    },
+    {
+      "signal": "SIGINT",
+      "active": false,
+      "stdout_undrained": true,
+      "stdin_open": true,
+      "broken_pipe": false,
+      "slow_drain_eof": false,
+      "exit": null,
+      "elapsed_seconds": 5.001,
+      "terminal_accounting": true,
+      "invocations": 0,
+      "grants_revoked": true
+    },
+    {
+      "signal": "SIGTERM",
+      "active": true,
+      "stdout_undrained": true,
+      "stdin_open": true,
+      "broken_pipe": false,
+      "slow_drain_eof": false,
+      "exit": null,
+      "elapsed_seconds": 5.002,
+      "terminal_accounting": false,
+      "invocations": 29,
+      "grants_revoked": true
+    },
+    {
+      "signal": "SIGINT",
+      "active": true,
+      "stdout_undrained": true,
+      "stdin_open": true,
+      "broken_pipe": false,
+      "slow_drain_eof": false,
+      "exit": null,
+      "elapsed_seconds": 5.003,
+      "terminal_accounting": false,
+      "invocations": 29,
+      "grants_revoked": true
+    }
+  ],
+  "corrected_exit": 0,
+  "corrected_cases": [
+    {
+      "signal": "SIGTERM",
+      "active": false,
+      "stdout_undrained": true,
+      "stdin_open": true,
+      "broken_pipe": false,
+      "slow_drain_eof": false,
+      "exit": 0,
+      "elapsed_seconds": 0.004,
+      "terminal_accounting": true,
+      "invocations": 0,
+      "grants_revoked": true
+    },
+    {
+      "signal": "SIGINT",
+      "active": false,
+      "stdout_undrained": true,
+      "stdin_open": true,
+      "broken_pipe": false,
+      "slow_drain_eof": false,
+      "exit": 0,
+      "elapsed_seconds": 0.004,
+      "terminal_accounting": true,
+      "invocations": 0,
+      "grants_revoked": true
+    },
+    {
+      "signal": "SIGTERM",
+      "active": true,
+      "stdout_undrained": true,
+      "stdin_open": true,
+      "broken_pipe": false,
+      "slow_drain_eof": false,
+      "exit": 0,
+      "elapsed_seconds": 0.02,
+      "terminal_accounting": true,
+      "invocations": 2,
+      "grants_revoked": true
+    },
+    {
+      "signal": "SIGINT",
+      "active": true,
+      "stdout_undrained": true,
+      "stdin_open": true,
+      "broken_pipe": false,
+      "slow_drain_eof": false,
+      "exit": 0,
+      "elapsed_seconds": 0.038,
+      "terminal_accounting": true,
+      "invocations": 2,
+      "grants_revoked": true
+    },
+    {
+      "signal": null,
+      "active": false,
+      "stdout_undrained": false,
+      "stdin_open": false,
+      "broken_pipe": false,
+      "slow_drain_eof": true,
+      "exit": 0,
+      "elapsed_seconds": 0.0,
+      "terminal_accounting": true,
+      "invocations": 0,
+      "grants_revoked": true
+    },
+    {
+      "signal": null,
+      "active": true,
+      "stdout_undrained": false,
+      "stdin_open": true,
+      "broken_pipe": true,
+      "slow_drain_eof": false,
+      "exit": 1,
+      "elapsed_seconds": 0.009,
+      "terminal_accounting": true,
+      "invocations": 1,
+      "grants_revoked": true
+    }
+  ],
+  "parent_probe_command": "python /tmp/ymp-mcp-output-exit-probe.py target/debug/ymp",
+  "parent_before_exit": 1,
+  "parent_before": [
+    {
+      "stdin_open": true,
+      "stdout_open_and_not_drained": true,
+      "read_only": true,
+      "exit": null,
+      "timed_out": true,
+      "elapsed_seconds": 7.0
+    }
+  ],
+  "parent_after_exit": 0,
+  "parent_after": [
+    {
+      "stdin_open": true,
+      "stdout_open_and_not_drained": true,
+      "read_only": true,
+      "exit": 0,
+      "timed_out": false,
+      "elapsed_seconds": 0.004
+    }
+  ]
+}
