@@ -1,6 +1,6 @@
 # Task details and evidence
 
-Updated: 2026-09-12 19:12 UTC.
+Updated: 2026-09-12 19:33 UTC.
 
 Use the [delivery plan](plan.md) to follow progress. This generated register contains full acceptance criteria, dependencies and evidence. [tasks.json](tasks.json) is the single source; [manage.py](manage.py) updates both pages.
 
@@ -46,9 +46,9 @@ A planned task is not implemented functionality. Completed research and planning
 | `[=]` | [YMP-301](#ymp-301) | P2 | Confirm the initial success class and intended audience | 2026-09-12 09:35 |
 | `[x]` | [YMP-109](#ymp-109) | P0 | Expose the provider-backed agent pool with stable individual identities | 2026-09-12 10:56 |
 | `[~]` | [YMP-110](#ymp-110) | P0 | Select session teams and execution settings within user constraints | 2026-09-12 16:33 |
-| `[~]` | [YMP-112](#ymp-112) | P0 | Coordinate commitments, plan revisions and reassignment through the board | 2026-09-12 19:07 |
+| `[~]` | [YMP-112](#ymp-112) | P0 | Coordinate commitments, plan revisions and reassignment through the board | 2026-09-12 19:33 |
 | `[~]` | [YMP-113](#ymp-113) | P0 | Accumulate general knowledge and verified experience incrementally | 2026-09-12 16:33 |
-| `[~]` | [YMP-114](#ymp-114) | P0 | Correct and supersede knowledge with newer verified evidence | 2026-09-12 19:07 |
+| `[~]` | [YMP-114](#ymp-114) | P0 | Correct and supersede knowledge with newer verified evidence | 2026-09-12 19:33 |
 | `[x]` | [YMP-009](#ymp-009) | P0 | Align the product definition, research conclusions and backlog with final intent | 2026-09-12 09:15 |
 | `[x]` | [YMP-115](#ymp-115) | P0 | Enable useful concurrent execution of independent assignments | 2026-09-12 17:00 |
 | `[x]` | [YMP-010](#ymp-010) | P0 | Approve product goals and core protocol constraints | 2026-09-12 09:06 |
@@ -66,7 +66,7 @@ A planned task is not implemented functionality. Completed research and planning
 | `[=]` | [YMP-124](#ymp-124) | P1 | Add isolated execution and recoverable publication for larger projects | 2026-09-12 15:31 |
 | `[x]` | [YMP-125](#ymp-125) | P0 | Expose trusted acceptance contracts to executable users | 2026-09-12 17:54 |
 | `[~]` | [YMP-126](#ymp-126) | P1 | Execute universal acceptance scenarios through a trusted runtime driver | 2026-09-12 19:12 |
-| `[~]` | [YMP-127](#ymp-127) | P0 | Build and display the agent pool from provider-returned native names | 2026-09-12 19:07 |
+| `[~]` | [YMP-127](#ymp-127) | P0 | Build and display the agent pool from provider-returned native names | 2026-09-12 19:33 |
 
 ## YMP-001
 
@@ -849,9 +849,9 @@ Coordinate commitments, plan revisions and reassignment through the board
 
 **State:** `[~]` (in_progress) · **Type:** implementation · **Priority:** P0
 
-**Last update (UTC):** 2026-09-12 19:07
+**Last update (UTC):** 2026-09-12 19:33
 
-**Current reason:** R1(6/10) RETURN: valid committed work was treated as unavailable when its actor was already selected in a parallel wave. Author reproduced the public failure and corrected waiting/draining while preserving commitment; parallel/serial controls pass. Final checks and independent R2 follow; UI remains separate.
+**Current reason:** R2 independent ACCEPT9/10 at154ed3f7 closes valid committed work blocking a parallel wave. All11 board tests and the identical original public failure now pass; prior selected work is drained on later selection failure. Combined112/114 integration is assigned; corresponding Opus UI acceptance remains required.
 
 **Owner:** Maintainer; application UI by Claude Code claude-opus-5 with thinking max via Paseo
 
@@ -924,9 +924,9 @@ Correct and supersede knowledge with newer verified evidence
 
 **State:** `[~]` (in_progress) · **Type:** implementation · **Priority:** P0
 
-**Last update (UTC):** 2026-09-12 19:07
+**Last update (UTC):** 2026-09-12 19:33
 
-**Current reason:** Backend6ed96c8 independently ACCEPTED9/10; actual source replacement95-to60, CLI/public-MCP/internal scoped inspection, supersession/history and replay controls pass. Fmt/clippy304 tests pass independently. Integration and corresponding Opus UI remain before whole-task acceptance.
+**Current reason:** Standalone6ed96c8 independently ACCEPTED9/10 with304 tests and actual scoped CLI/MCP consumers. Combined integration with accepted112/125/current MCP is in progress, preserving correction review bindings, original sources, board versions and existing runtime guards. UI integration remains separate.
 
 **Owner:** Maintainer; application UI by Claude Code claude-opus-5 with thinking max via Paseo
 
@@ -1551,9 +1551,9 @@ Build and display the agent pool from provider-returned native names
 
 **State:** `[~]` (in_progress) · **Type:** implementation · **Priority:** P0
 
-**Last update (UTC):** 2026-09-12 19:07
+**Last update (UTC):** 2026-09-12 19:33
 
-**Current reason:** Backend native scan now preserves returned names/IDs/aliases/control labels, builds concrete pool profiles and captures effective assignment identity. Metadata-only installed scan succeeded for8 Codex,5 Claude and6 GLM offerings in a temporary home; real user configuration remains untouched pending integration. Seven executable fixture cases pass; final controls/review and Opus UI integration remain.
+**Current reason:** R1(8/10) requested changes for first-scan execution-version drift under existing fixed/default model policies. Correction314dc8a preserves exact version and qualified lookup without rewriting history or changing version formulas; both original failures now pass, with10 executable fixtures and required Rust checks. Independent R2 and Opus native-name integration are running; owner home remains untouched.
 
 **Owner:** Maintainer; all UI by Claude Opus 5 max via Paseo
 

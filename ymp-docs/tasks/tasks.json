@@ -1442,6 +1442,11 @@
           "at": "2026-09-12T19:07:48.849356+00:00",
           "status": "in_progress",
           "note": "R1(6/10) RETURN: valid committed work was treated as unavailable when its actor was already selected in a parallel wave. Author reproduced the public failure and corrected waiting/draining while preserving commitment; parallel/serial controls pass. Final checks and independent R2 follow; UI remains separate."
+        },
+        {
+          "at": "2026-09-12T19:33:07.858922+00:00",
+          "status": "in_progress",
+          "note": "R2 independent ACCEPT9/10 at154ed3f7 closes valid committed work blocking a parallel wave. All11 board tests and the identical original public failure now pass; prior selected work is drained on later selection failure. Combined112/114 integration is assigned; corresponding Opus UI acceptance remains required."
         }
       ]
     },
@@ -1621,6 +1626,11 @@
           "at": "2026-09-12T19:07:48.904687+00:00",
           "status": "in_progress",
           "note": "Backend6ed96c8 independently ACCEPTED9/10; actual source replacement95-to60, CLI/public-MCP/internal scoped inspection, supersession/history and replay controls pass. Fmt/clippy304 tests pass independently. Integration and corresponding Opus UI remain before whole-task acceptance."
+        },
+        {
+          "at": "2026-09-12T19:33:07.901366+00:00",
+          "status": "in_progress",
+          "note": "Standalone6ed96c8 independently ACCEPTED9/10 with304 tests and actual scoped CLI/MCP consumers. Combined integration with accepted112/125/current MCP is in progress, preserving correction review bindings, original sources, board versions and existing runtime guards. UI integration remains separate."
         }
       ]
     },
@@ -2701,11 +2711,21 @@
           "at": "2026-09-12T19:07:48.771329+00:00",
           "status": "in_progress",
           "note": "Backend native scan now preserves returned names/IDs/aliases/control labels, builds concrete pool profiles and captures effective assignment identity. Metadata-only installed scan succeeded for8 Codex,5 Claude and6 GLM offerings in a temporary home; real user configuration remains untouched pending integration. Seven executable fixture cases pass; final controls/review and Opus UI integration remain."
+        },
+        {
+          "at": "2026-09-12T19:19:54.563686+00:00",
+          "status": "in_progress",
+          "note": "Backend efd6fe1 is committed and in independent review. Native installed scans returned exact provider names and19 concrete offerings; repeat adds0 actors and preserves configuration. Eight executable fixtures and14 bridge tests pass, including picker-row IDs rejected as executable aliases. Opus is integrating the committed shared identity/cache APIs and metadata-only native UI walk; real user catalog refresh follows accepted integration."
+        },
+        {
+          "at": "2026-09-12T19:33:07.816094+00:00",
+          "status": "in_progress",
+          "note": "R1(8/10) requested changes for first-scan execution-version drift under existing fixed/default model policies. Correction314dc8a preserves exact version and qualified lookup without rewriting history or changing version formulas; both original failures now pass, with10 executable fixtures and required Rust checks. Independent R2 and Opus native-name integration are running; owner home remains untouched."
         }
       ]
     }
   ],
-  "updated_at": "2026-09-12T19:12:38.745707+00:00",
+  "updated_at": "2026-09-12T19:33:07.901366+00:00",
   "delivery_order": [
     "YMP-116",
     "YMP-103",
