@@ -7,6 +7,7 @@ use std::{
     sync::{Arc, Mutex, MutexGuard},
 };
 use ymp_core::*;
+mod authority;
 mod provenance;
 #[cfg(test)]
 mod provenance_tests;
@@ -407,24 +408,7 @@ impl Store {
     }
     pub fn memory(&self, project: Option<&str>, query: &str) -> Result<Vec<MemoryEntry>> {
         let db = self.db()?;
-        let terms = memory_search_query(query);
-        let sql = if terms.is_empty() {
-            "SELECT data FROM memory WHERE status='active' AND (project_id IS NULL OR project_id=?1) ORDER BY rowid DESC LIMIT 20"
-        } else {
-            "SELECT m.data FROM memory m JOIN memory_search f ON f.id=m.id WHERE m.status='active' AND (m.project_id IS NULL OR m.project_id=?1) AND memory_search MATCH ?2 ORDER BY rank LIMIT 10"
-        };
-        let mut q = db.prepare(sql)?;
-        let values = if terms.is_empty() {
-            q.query_map([project], |r| r.get::<_, String>(0))?
-                .collect::<rusqlite::Result<Vec<_>>>()?
-        } else {
-            q.query_map(params![project, terms], |r| r.get::<_, String>(0))?
-                .collect::<rusqlite::Result<Vec<_>>>()?
-        };
-        values
-            .into_iter()
-            .map(|s| Ok(serde_json::from_str(&s)?))
-            .collect()
+        read_memory(&db, project, query)
     }
     pub fn forget_memory(&self, id: &str) -> Result<()> {
         let data: String =
@@ -447,6 +431,45 @@ fn write_task(tx: &rusqlite::Transaction<'_>, task: &Task) -> Result<()> {
         .is_some_and(|session| session != &task.session_id)
     {
         bail!("Task belongs to another session");
+    }
+    // A task transition invalidates authority over the prior result/attempt in
+    // the same transaction, including cancellation and runtime reassignment.
+    if old.is_some() {
+        let prior: Task = provenance::record(tx, "tasks", &task.id)?;
+        if prior.attempts != task.attempts
+            || prior.assignee != task.assignee
+            || prior.state != task.state
+        {
+            for assignment in
+                provenance::records::<AssignmentRecord>(tx, "assignments", &task.session_id)?
+            {
+                if assignment.state == InvocationState::Running
+                    && !assignment.grant_ids.is_empty()
+                    && assignment
+                        .task
+                        .as_ref()
+                        .is_some_and(|reference| reference.task_id == task.id)
+                {
+                    let invocations = provenance::records::<InvocationRecord>(
+                        tx,
+                        "invocations",
+                        &task.session_id,
+                    )?;
+                    if let Some(invocation) = invocations
+                        .iter()
+                        .find(|v| v.assignment_id == assignment.id)
+                    {
+                        provenance::finish(
+                            tx,
+                            &task.session_id,
+                            &invocation.id,
+                            InvocationState::Interrupted,
+                            Some("Task authority changed"),
+                        )?;
+                    }
+                }
+            }
+        }
     }
     let data = serde_json::to_string(task)?;
     tx.execute("INSERT INTO tasks(id,session_id,data) VALUES (?,?,?) ON CONFLICT(id) DO UPDATE SET data=excluded.data",params![task.id,task.session_id,data])?;
@@ -489,6 +512,27 @@ fn recorded_text(value: &serde_json::Value) -> Option<String> {
         .map(str::trim_end)
         .filter(|text| !text.trim().is_empty())
         .map(str::to_owned)
+}
+
+fn read_memory(db: &Connection, project: Option<&str>, query: &str) -> Result<Vec<MemoryEntry>> {
+    let terms = memory_search_query(query);
+    let sql = if terms.is_empty() {
+        "SELECT data FROM memory WHERE status='active' AND (project_id IS NULL OR project_id=?1) ORDER BY rowid DESC LIMIT 20"
+    } else {
+        "SELECT m.data FROM memory m JOIN memory_search f ON f.id=m.id WHERE m.status='active' AND (m.project_id IS NULL OR m.project_id=?1) AND memory_search MATCH ?2 ORDER BY rank LIMIT 10"
+    };
+    let mut q = db.prepare(sql)?;
+    let values = if terms.is_empty() {
+        q.query_map([project], |r| r.get::<_, String>(0))?
+            .collect::<rusqlite::Result<Vec<_>>>()?
+    } else {
+        q.query_map(params![project, terms], |r| r.get::<_, String>(0))?
+            .collect::<rusqlite::Result<Vec<_>>>()?
+    };
+    values
+        .into_iter()
+        .map(|s| Ok(serde_json::from_str(&s)?))
+        .collect()
 }
 
 #[cfg(test)]

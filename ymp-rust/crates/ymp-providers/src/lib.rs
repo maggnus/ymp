@@ -16,11 +16,20 @@ use ymp_core::{
     TokenCounts, UsageSnapshot,
 };
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct McpEndpoint {
     pub command: String,
     pub args: Vec<String>,
     pub token: String,
+}
+impl std::fmt::Debug for McpEndpoint {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("McpEndpoint")
+            .field("command", &self.command)
+            .field("args", &self.args)
+            .field("token", &"[redacted]")
+            .finish()
+    }
 }
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TurnRequest {
@@ -70,6 +79,23 @@ pub async fn run_turn(
         effort: req.settings.effort.clone(),
     }
     .validate()?;
+    match req.settings.permission_mode.as_deref() {
+        None => {}
+        Some("read_only") if req.read_only => {}
+        Some("write") if !req.read_only => {}
+        _ => {
+            bail!("Requested permission guarantee is unsupported or disagrees with the assignment")
+        }
+    }
+    let _ = events.send(ProviderEvent::Execution(Box::new(InvocationObservation {
+        permission_limitations: vec![match req.provider.kind {
+            ProviderKind::Codex => "Codex receives the selected native sandbox and approval policy. Team API authorization does not contain host filesystem or process access.",
+            ProviderKind::Claude => "Claude receives native tool and permission settings. The SDK tool allowlist is not OS filesystem or process isolation.",
+            ProviderKind::Acp => "ACP receives an advertised permission mode and denies approval requests during read assignments. Approval callbacks and instructions are not OS filesystem or process isolation.",
+            ProviderKind::Mock => "Offline fixture execution has no native sandbox; team API checks cover coordination authority only.",
+        }.into()],
+        ..Default::default()
+    })));
     if req.provider.kind == ProviderKind::Mock {
         return mock_turn(&req, cancel, events).await;
     }
@@ -167,6 +193,14 @@ async fn codex(
     }
     if let Some(effort) = &req.settings.effort {
         params["config"] = json!({"model_reasoning_effort":effort});
+    }
+    if let Some(mcp) = &req.mcp {
+        // Explicitly replace any saved thread configuration on both start and
+        // resume. The secret travels only through the current process environment.
+        params["config"]["mcp_servers"]["ymp"] = json!({
+            "command":mcp.command, "args":mcp.args, "env_vars":["YMP_MCP_TOKEN"],
+            "required":true, "default_tools_approval_mode":"approve"
+        });
     }
     let response = if let Some(id) = &req.resume {
         params["threadId"] = json!(id);
@@ -464,14 +498,27 @@ async fn acp(
         }),
         ..Default::default()
     })));
-    if !req.read_only {
-        proc.request(
-            "session/set_mode",
-            json!({"sessionId":session,"modeId":"bypass_permissions"}),
-            events,
-        )
-        .await?;
-    }
+    let advertised = response
+        .pointer("/modes/availableModes")
+        .and_then(Value::as_array)
+        .context("ACP did not advertise permission modes; requested authority cannot be applied")?;
+    let candidates: &[&str] = if req.read_only {
+        &["read-only", "read_only", "plan", "default"]
+    } else {
+        &["bypass_permissions"]
+    };
+    let mode = candidates
+        .iter()
+        .find(|id| advertised.iter().any(|m| m["id"].as_str() == Some(**id)))
+        .context("ACP has no compatible advertised permission mode")?;
+    // Apply on every invocation, including restored native contexts that may
+    // have previously used bypass_permissions.
+    proc.request(
+        "session/set_mode",
+        json!({"sessionId":session,"modeId":mode}),
+        events,
+    )
+    .await?;
     let prompt = format!(
         "{}\n\n{}\n\n{}",
         req.profile.instructions,

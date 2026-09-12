@@ -26,7 +26,7 @@ Tasks move through `ready`, `running`, `review`, and `accepted`; failed attempts
 | `memory_search` | Retrieve verified knowledge in the current scope. |
 | `memory_propose` | Record an unverified knowledge proposal. |
 
-A per-process capability token binds tool calls to their actual participant and session. Tool arguments cannot override that identity. This prevents accidental cross-session attribution; it is not a security boundary against a process with unrestricted access to the user's account.
+A fresh capability token binds each admitted assignment to its session, agent, invocation and allowed operations. Terminal work revokes that authority; a saved native conversation cannot restore it. Tool arguments cannot override the binding, and replayed requests cannot repeat a committed operation. See [assignment authority](../architecture/assignment-authority.md) for transactional grants and the native permission boundary. Team API checks do not isolate a process with unrestricted access to the user's account.
 
 Notifications are delivered at turn boundaries. A posted message does not block waiting for a response, and peer messages do not trigger unbounded autonomous response loops. The default limit is 200 provider turns and three concurrent turns, with three attempts per task.
 

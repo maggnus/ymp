@@ -500,14 +500,51 @@ async fn probe_team_tools(
     let cancel = CancellationToken::new();
     let engine = Engine::new(store.clone(), config.clone(), ui, cancel.clone())?;
     let marker = format!("YMP_TOOL_OK_{}", new_id());
+    let requested = config.execution_settings(profile, &ModelEffort::default())?;
+    let mut assignment = AssignmentRecord {
+        id: new_id(),
+        session_id: session.id.clone(),
+        task: None,
+        agent_id: profile.id.clone(),
+        agent_config_version: profile.version(config.provider(&profile.provider)?),
+        provider_id: profile.provider.clone(),
+        purpose: "probe".into(),
+        reason: "Explicit team-tool diagnostic".into(),
+        cwd: path.into(),
+        requested: requested.clone(),
+        timeout_secs: 120,
+        grant_ids: vec![],
+        context: vec![],
+        state: InvocationState::Running,
+        started_at: now(),
+        ended_at: None,
+    };
+    let invocation = InvocationRecord {
+        id: new_id(),
+        session_id: session.id.clone(),
+        assignment_id: assignment.id.clone(),
+        turn: 1,
+        requested: requested.clone(),
+        sent: ExecutionSettings::default(),
+        reported: ExecutionSettings::default(),
+        resumed_from: None,
+        native_session_id: None,
+        native_turn_id: None,
+        native_version: None,
+        state: InvocationState::Running,
+        started_at: now(),
+        ended_at: None,
+        usage: None,
+        terminal_reason: None,
+    };
+    let token = server.admit(&mut assignment, &invocation, vec![TeamOperation::TeamPost])?;
     let request = TurnRequest {
         settings: config.execution_settings(profile, &ModelEffort::default())?,
         profile: profile.clone(), provider: config.provider(&profile.provider)?.clone(), cwd: path.into(),
         prompt: format!("Call the ymp MCP tool team_post with text exactly {marker}. Then return YMP_OK. This is an explicitly authorized local team-chat write. Do not modify files or use other tools. Respond in English."),
         purpose: "probe".into(), read_only: true, resume: None, usage_baseline: None, timeout_secs: 120, bridge: engine.bridge,
-        mcp: Some(ymp_providers::McpEndpoint { command: engine.executable.to_string_lossy().into(), args: vec!["mcp".into(), "--socket".into(), server.socket.to_string_lossy().into()], token: server.tokens[&profile.id].clone() }),
+        mcp: Some(ymp_providers::McpEndpoint { command: engine.executable.to_string_lossy().into(), args: vec!["mcp".into(), "--socket".into(), server.socket.to_string_lossy().into()], token }),
     };
-    store.begin_usage(&session.id, 1, &profile.id)?;
     let (tx, mut rx) = mpsc::unbounded_channel();
     let future = run_turn(request, cancel.clone(), tx);
     tokio::pin!(future);
@@ -515,26 +552,33 @@ async fn probe_team_tools(
         tokio::select! {
             result = &mut future => break result,
             Some(event) = rx.recv() => if let ProviderEvent::Usage(snapshot) = event {
-                store.update_usage(&session.id, 1, &snapshot)?;
+                store.observe_invocation(&session.id, &invocation.id, &InvocationObservation { usage: Some(snapshot), ..Default::default() })?;
             },
             _ = tokio::signal::ctrl_c() => cancel.cancel(),
         }
     };
     while let Ok(event) = rx.try_recv() {
         if let ProviderEvent::Usage(snapshot) = event {
-            store.update_usage(&session.id, 1, &snapshot)?;
+            store.observe_invocation(
+                &session.id,
+                &invocation.id,
+                &InvocationObservation {
+                    usage: Some(snapshot),
+                    ..Default::default()
+                },
+            )?;
         }
     }
-    store.finish_usage(
-        &session.id,
-        1,
+    server.finish(
+        &invocation.id,
         if result.is_ok() {
-            "completed"
+            InvocationState::Completed
         } else if cancel.is_cancelled() {
-            "cancelled"
+            InvocationState::Cancelled
         } else {
-            "failed"
+            InvocationState::Failed
         },
+        Some("Team-tool diagnostic ended"),
     )?;
     let seen = store
         .messages(&session.id, 0, 100)?

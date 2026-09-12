@@ -27,14 +27,18 @@ pub(super) fn event(tx: &Transaction<'_>, session: &str, value: &ProvenanceEvent
     Ok(())
 }
 
-fn record<T: DeserializeOwned>(db: &Connection, table: &str, id: &str) -> Result<T> {
+pub(super) fn record<T: DeserializeOwned>(db: &Connection, table: &str, id: &str) -> Result<T> {
     let raw: String = db.query_row(&format!("SELECT data FROM {table} WHERE id=?"), [id], |r| {
         r.get(0)
     })?;
     Ok(serde_json::from_str(&raw)?)
 }
 
-fn records<T: DeserializeOwned>(db: &Connection, table: &str, session: &str) -> Result<Vec<T>> {
+pub(super) fn records<T: DeserializeOwned>(
+    db: &Connection,
+    table: &str,
+    session: &str,
+) -> Result<Vec<T>> {
     let mut query = db.prepare(&format!(
         "SELECT data FROM {table} WHERE session_id=? ORDER BY rowid"
     ))?;
@@ -57,7 +61,7 @@ fn update<T: Serialize>(tx: &Transaction<'_>, table: &str, id: &str, value: &T) 
     Ok(())
 }
 
-fn validate_task(
+pub(super) fn validate_task(
     db: &Connection,
     session: &str,
     reference: &TaskAttemptRef,
@@ -143,6 +147,26 @@ fn validate_links(db: &Connection, decision: &DecisionRecord) -> Result<()> {
                 "Decision invocation and task disagree"
             );
         }
+    }
+    for id in &decision.links.grant_ids {
+        let grant = super::authority::grant(db, id)?;
+        ensure!(
+            grant.session_id == decision.session_id,
+            "Decision grant belongs to another session"
+        );
+        ensure!(
+            decision
+                .links
+                .assignment_id
+                .as_ref()
+                .is_none_or(|id| id == &grant.assignment_id)
+                && decision
+                    .links
+                    .invocation_id
+                    .as_ref()
+                    .is_none_or(|id| id == &grant.invocation_id),
+            "Decision grant belongs to another assignment or invocation"
+        );
     }
     if let Some(version) = &decision.links.plan_proposal {
         validate_plan_version(db, decision, version)?;
@@ -314,6 +338,21 @@ impl Store {
         assignment: &AssignmentRecord,
         invocation: &InvocationRecord,
     ) -> Result<()> {
+        self.begin_invocation_with_grants(assignment, invocation, &[])
+    }
+
+    /// Runtime-only admission: assignment, invocation, grants and their events
+    /// commit together. This does not recreate a process-owned capability.
+    pub fn begin_invocation_with_grants(
+        &self,
+        assignment: &AssignmentRecord,
+        invocation: &InvocationRecord,
+        grants: &[GrantRecord],
+    ) -> Result<()> {
+        ensure!(
+            assignment.grant_ids.iter().eq(grants.iter().map(|g| &g.id)),
+            "Assignment grant identities disagree"
+        );
         ensure!(
             !assignment.id.is_empty() && !invocation.id.is_empty() && invocation.turn > 0,
             "Missing invocation identity"
@@ -351,6 +390,39 @@ impl Store {
         );
         if let Some(task) = &assignment.task {
             validate_task(&tx, &assignment.session_id, task, true)?;
+        }
+        if !grants.is_empty() {
+            for current in records::<AssignmentRecord>(&tx, "assignments", &assignment.session_id)?
+            {
+                ensure!(
+                    current.state != InvocationState::Running
+                        || current.agent_id != assignment.agent_id,
+                    "Agent already has an active assignment"
+                );
+                ensure!(
+                    current.state != InvocationState::Running
+                        || assignment.purpose != "execute"
+                        || current.purpose != "execute"
+                        || assignment.task != current.task
+                        || assignment.task.is_none(),
+                    "Task attempt already has an executor"
+                );
+            }
+            if assignment.purpose == "execute" {
+                let reference = assignment
+                    .task
+                    .as_ref()
+                    .context("Execution assignment requires a task")?;
+                let task: Task = record(&tx, "tasks", &reference.task_id)?;
+                ensure!(
+                    task.state == TaskState::Running
+                        && task.assignee.as_ref() == Some(&assignment.agent_id),
+                    "Execution claim is stale or belongs to another agent"
+                );
+            }
+        }
+        for grant in grants {
+            super::authority::issue(&tx, assignment, invocation, grant)?;
         }
         tx.execute(
             "INSERT INTO assignments(id,session_id,data) VALUES (?,?,?)",
@@ -667,7 +739,7 @@ fn merge_settings(current: &mut ExecutionSettings, observed: &ExecutionSettings)
     }
 }
 
-fn finish(
+pub(super) fn finish(
     tx: &Transaction<'_>,
     session: &str,
     id: &str,
@@ -694,6 +766,7 @@ fn finish(
             usage.partial = true;
         }
     }
+    super::authority::revoke(tx, &assignment, state.as_str())?;
     assignment.state = state;
     assignment.ended_at.clone_from(&invocation.ended_at);
     update(tx, "invocations", id, &invocation)?;

@@ -1,3 +1,5 @@
+pub mod authority;
+pub use authority::*;
 pub mod config;
 pub mod model;
 pub mod provenance;

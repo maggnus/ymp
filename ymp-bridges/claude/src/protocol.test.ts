@@ -6,7 +6,7 @@ import { tmpdir } from "node:os";
 import { resolve, join } from "node:path";
 import { createInterface } from "node:readline";
 
-async function run(settings: object, method = "run") {
+async function run(settings: object, method = "run", overrides: object = {}) {
   const cwd = await mkdtemp(join(tmpdir(), "ymp-claude-settings-"));
   const command = resolve("tests/fixtures/claude.py");
   await chmod(command, 0o700);
@@ -20,7 +20,7 @@ async function run(settings: object, method = "run") {
       const input = createInterface({ input: child.stdout });
       input.on("line", line => { const value = JSON.parse(line); events.push(value); if (value.id === 1) resolve(value); });
     });
-    child.stdin.write(JSON.stringify({ id: 1, method, params: { settings, profile: { model: "stale-profile", instructions: "fixture" }, provider: { command }, cwd, prompt: "offline", read_only: true } }) + "\n");
+    child.stdin.write(JSON.stringify({ id: 1, method, params: { settings, profile: { model: "stale-profile", instructions: "fixture" }, provider: { command }, cwd, prompt: "offline", read_only: true, ...overrides } }) + "\n");
     const timeout = setTimeout(() => child.kill(), 10_000);
     let response: Record<string, any>;
     try { response = await result; } finally { clearTimeout(timeout); }
@@ -70,4 +70,21 @@ test("an incomplete native list does not forbid an unlisted explicit model", asy
   const { response, wire } = await run({ model: "custom-model" });
   assert.equal(response.result?.text, "done", JSON.stringify(response));
   assert.ok(wire.some(q => q.type === "user"));
+});
+
+
+test("native resume receives a fresh MCP credential and read tool restriction each time", async () => {
+  for (const token of ["synthetic-assignment-one", "synthetic-assignment-two"]) {
+    const { response, wire } = await run({}, "run", {
+      resume: "saved-conversation-context",
+      mcp: { command: "ymp-fixture", args: ["mcp", "--socket", "current.sock"], token },
+    });
+    assert.equal(response.result?.text, "done", JSON.stringify(response));
+    const argv = wire[0].argv as string[];
+    assert.ok(argv.includes("--resume=saved-conversation-context"));
+    assert.equal(argv[argv.indexOf("--permission-mode") + 1], "default");
+    assert.equal(argv[argv.indexOf("--tools") + 1], "Read,Glob,Grep");
+    const config = JSON.parse(argv[argv.indexOf("--mcp-config") + 1]);
+    assert.equal(config.mcpServers.ymp.env.YMP_MCP_TOKEN, token);
+  }
 });

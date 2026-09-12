@@ -153,6 +153,10 @@ pub struct InvocationRecord {
 /// deltas. Each observation is retained as an event, including changed settings.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct InvocationObservation {
+    /// Native tool/approval restrictions are not an OS containment guarantee.
+    /// Retained in typed observation events, without native configuration secrets.
+    #[serde(default)]
+    pub permission_limitations: Vec<String>,
     pub sent: Option<ExecutionSettings>,
     pub reported: Option<ExecutionSettings>,
     pub native_session_id: Option<String>,
@@ -233,6 +237,22 @@ pub enum ProvenanceEvent {
     },
     InvocationFinished {
         invocation: Box<InvocationRecord>,
+    },
+    GrantIssued {
+        grant: Box<crate::GrantRecord>,
+    },
+    GrantRevoked {
+        grant: Box<crate::GrantRecord>,
+    },
+    TeamOperationCommitted {
+        grant_id: String,
+        assignment_id: String,
+        invocation_id: String,
+        agent_id: String,
+        request_id: String,
+        operation: crate::TeamOperation,
+        message_seq: Option<i64>,
+        memory_id: Option<String>,
     },
     DecisionRecorded {
         decision: Box<DecisionRecord>,

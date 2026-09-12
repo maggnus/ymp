@@ -383,6 +383,7 @@ fn provenance_is_immutable_attributed_and_exportable_after_reopen() {
     assignment.requested.model = Some("different-model".into());
     assert!(f.store.begin_invocation(&assignment, &invocation).is_err());
     let observed = InvocationObservation {
+        permission_limitations: vec![],
         sent: Some(ExecutionSettings {
             model: Some("wire-model".into()),
             ..Default::default()

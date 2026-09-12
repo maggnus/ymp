@@ -21,7 +21,7 @@ for line in sys.stdin:
     elif method=='turn/start':
         result={'turn':{'id':'turn'}}
     elif method in ['session/new','session/load']:
-        result={'sessionId':'session','models':{'currentModelId':model,'availableModels':[{'modelId':m} for m in ['model-a','model-b']]},'configOptions':options()}
+        result={'sessionId':'session','modes':{'currentModeId':'bypass_permissions','availableModes':[{'id':id,'name':id} for id in (['bypass_permissions'] if variant=='unsafe-modes' else ['default','bypass_permissions'])]},'models':{'currentModelId':model,'availableModels':[{'modelId':m} for m in ['model-a','model-b']]},'configOptions':options()}
     elif method=='session/set_model':
         model=p['modelId']; effort='on' if model=='model-b' else 'high'
         if variant != 'no-refresh': send({'method':'session/update','params':{'sessionId':'session','update':{'sessionUpdate':'config_option_update','configOptions':options()}}})
