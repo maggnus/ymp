@@ -173,3 +173,120 @@ an interface test.
 - Competence credit recorded by another session is still not read, and the reputation page says
   so.
 - The public MCP work in YMP-123 touches no interface surface and was not read or relied upon.
+
+## Round two: declared access, enforced access and the coordination records
+
+Recorded 13 September 2026, 01:25 HKT, after the accepted concurrency work arrived. Same
+session and same settings as above.
+
+| Commit | What it is |
+| --- | --- |
+| `f034ddf` | Merge of integrated main `f02a8c2d`, the line YMP-115 was accepted on, keeping both ancestries. Ten conflicts were the same content arriving through two commit lines and were resolved by taking the integration side. |
+| `2c4a89b` | Declared task access, the enforced access and reservation lifecycle on each assignment, the four coordination records on the decisions page, and the corrected policy text on the change page, the limits page and the README. |
+| `5562495` | A member the runtime reports as waiting reads as waiting rather than as busy. |
+| `18bf72f` | The acceptance criteria a run captured before the work, on the decisions page. |
+
+| Command | Result |
+| --- | --- |
+| `cargo fmt --all --check` | exit 0 |
+| `cargo clippy --workspace --all-targets -- -D warnings` | exit 0, no diagnostics |
+| `cargo test --workspace` | exit 0, 306 passed, 0 failed |
+| pseudo-terminal walk at 80x24 and 120x40, two phases | completed, mock provider only |
+
+### What was corrected, and against what
+
+Two sentences this interface carried became false with the accepted concurrency work, and both
+were checked against the code rather than against a document before being rewritten.
+
+The claim that one task executes at a time is gone. The scheduler now takes up to the run's
+parallelism from the ready set, records a wait for every ready task it does not take, and lets
+the access coordinator decide what actually overlaps. The page says that turns overlap only
+where their recorded access does not conflict, that a turn writing the whole directory excludes
+every other turn, that readers and declared disjoint paths do not exclude each other, and that
+the checks and the acceptance that judge a candidate hold the whole directory.
+
+The claim that only a task-executing turn is asked with permission to change files is gone. The
+access a turn holds is the execution backend's own: the native adapter records read-only access
+for a turn it asks read-only, except over the ACP protocol, where a mode name is not a
+filesystem guarantee and the turn is recorded as writing the whole directory, and any other
+backend is taken to write the whole directory unless it states otherwise. A task declared
+read-only in the plan is asked read-only; the page names that as a declaration and never as a
+measurement. The same correction was made to the README sentence about one task writing at a
+time and to the parallelism description on the limits page.
+
+### What the records now show
+
+Each assignment carries the access the backend enforced, the paths a scoped access would name,
+the backend and the coordination policy, and the reservation from the moment it was taken,
+through the admission of the turn under it, to its end. A reservation with no release record is
+reported as one. A turn with no access record says so rather than showing a default. Waits are
+listed with the code the runtime recorded them under.
+
+The decisions page reads the four lifecycle records in their own words: a turn waited, the
+directory was reserved, the turn was admitted under that reservation, the reservation ended.
+None carries a grade, so none is reported as a decision recorded without an outcome. A captured
+acceptance contract reads the same way: the task it binds, each criterion, the checks bound to
+them, the artifacts named, the inputs recorded by digest, the checker and the contract version,
+and a statement that it is a binding rather than a result.
+
+### Failing-before controls, round two
+
+Nine further mutations were applied one at a time and reverted, with the sources checked byte
+for byte afterwards.
+
+| Mutation | Test | Result |
+| --- | --- | --- |
+| A writing access reads as read-only | `the_access_a_turn_held_is_shown_as_the_backend_enforced_it` | failed as intended |
+| The admission record is not shown | same | failed as intended |
+| A declared read-only task reads as writing | `a_read_only_task_is_shown_as_declared_and_never_as_measured` | failed as intended |
+| A task does not say it waited | `a_task_that_waited_says_what_it_waited_for` | failed as intended |
+| A wait takes its word from the absent grade | same | failed as intended |
+| The corrected policy text is reverted | `an_accepted_outcome_names_the_directory_it_was_recorded_in` | failed as intended |
+| A waiting member reads as busy | `an_agent_held_up_by_coordination_is_not_reported_as_working` | failed as intended |
+| A captured contract is not shown | `a_captured_acceptance_contract_is_shown_as_a_binding_and_not_as_a_result` | failed as intended |
+| A captured contract is described as evidence | same | failed as intended |
+
+### Walk, round two
+
+The second phase of the walk ran two dependent tasks, which is the runtime's own reason for a
+recorded wait. It shows the declared access on a task, the access block on an assignment with
+its backend, its coordination policy, the admission and the held window, and the reserved,
+admitted and ended records on the decisions page with their own words. Both phases used the
+in-process mock provider: no provider process started, no credential was read and no model was
+asked anything at any effort.
+
+## Remaining YMP-118 acceptance gaps
+
+Stated plainly, because none of them is covered by the work above.
+
+1. **Scoped access has no producer in this release.** The words and the path lists are in
+   place, and the native adapter records only the whole directory or read-only, so the scoped
+   rows are reachable on this build through another execution backend alone. The interface
+   tests therefore do not exercise them; the runtime's own fixture backend does.
+2. **A wait cannot be paired with the turn it delayed.** Waits are recorded against an agent or
+   a task, never against an assignment. The assignment page lists an agent's waits and says
+   exactly that rather than implying the pairing.
+3. **`Store::outcomes` answers for a whole session.** One accepted result whose captured
+   directory is missing makes the list unavailable, and the page reports that failed read. The
+   fix belongs to storage.
+4. **The section for records without captured membership is unreachable through supported
+   writes.** Storage refuses an assignment for an agent outside the captured team, so that part
+   of the team page exists for records written by earlier versions, and its test supplies such a
+   record as a controller snapshot rather than writing one into the store.
+5. **Competence credit recorded by another session is not read**, and the reputation page says
+   so.
+6. **Typed check outcomes and recorded shell checks are not joined on one page.** A captured
+   contract names its typed checks; their outcomes appear as check evidence on the acceptance
+   and rejection records; `/checks` lists the shell commands from the session log. No page
+   relates the two, and none claims to.
+7. **A long recorded path wraps across lines** in the detail pane rather than being truncated.
+   The whole path is present, but it is not one line at 80 columns.
+8. **The decision list is long.** A session records dozens of decisions, and a frame shows the
+   first screenful, so the coordination records in the middle of a run were asserted by test
+   rather than read on a captured frame in this round.
+9. **No surface proposes or edits membership, access or criteria.** That is by design for this
+   task: the pages read what a run recorded. Isolated execution and recoverable publication
+   remain YMP-124, and the pages state their absence rather than describing the direct mode as a
+   protection.
+10. **The shared lock release correction under separate review is not duplicated here**, and
+    nothing in these pages depends on it.
