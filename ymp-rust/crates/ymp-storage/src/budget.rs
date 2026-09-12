@@ -275,7 +275,9 @@ pub(super) fn denial(
                         || u.counts.output.is_none()
                 })
         });
-        if incomplete_closed || b.observed_usage.calls > invocations.len() as u64 {
+        if r.unknown_usage == UnknownUsagePolicy::Stop
+            && (incomplete_closed || b.observed_usage.calls > invocations.len() as u64)
+        {
             return Ok(fail(
                 "unknown_usage",
                 "Incomplete native accounting prevents further admission under the token policy",
