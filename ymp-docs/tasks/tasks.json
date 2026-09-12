@@ -1335,6 +1335,11 @@
           "at": "2026-09-12T15:23:32.455382+00:00",
           "status": "in_progress",
           "note": "R1(5/10) RETURN: public admission could turn the reserved final reviewer into a producer; a known unsupported pinned reviewer consumed startup work before rejection. Author is correcting shared admission and pre-start configuration validation with exact public controls. Normal Cargo and validator tests had passed."
+        },
+        {
+          "at": "2026-09-12T15:56:34.795903+00:00",
+          "status": "in_progress",
+          "note": "Standalone R2(9/10) ACCEPT closes both findings; public reservation/admission interleavings and known/unknown pin controls pass. Integration with accepted knowledge113 and UI118 is underway; historical/current membership must remain consistent across those consumers."
         }
       ]
     },
@@ -1477,6 +1482,11 @@
           "at": "2026-09-12T15:23:32.560823+00:00",
           "status": "in_progress",
           "note": "R1(6/10) RETURN: outcome paths were derived from mutable Project.path and could be invented after relocation. Author is binding location/freshness to immutable captured workspaces and returning unknown explicitly for unsupported legacy records. Unbounded MCP search payloads are separately tracked under YMP-123."
+        },
+        {
+          "at": "2026-09-12T15:56:34.926285+00:00",
+          "status": "in_progress",
+          "note": "Standalone R2(9/10) ACCEPT preserves captured locations after relocation. Joint110/113 consumer found the older deterministic follow-up path reopened workspace metadata at the relocated directory; integration is routing it through immutable Store.outcomes. UI118 consumes the same source/current-availability records."
         }
       ]
     },
@@ -2275,7 +2285,7 @@
       "title": "Expose a public local MCP facade over stdio",
       "type": "implementation",
       "priority": "P1",
-      "status": "new",
+      "status": "in_progress",
       "owner": "Maintainer",
       "authorization": "Owner discussion on2026-09-12 requested external MCP availability and selected stdio; standing autonomous delivery authorization applies.",
       "depends_on": [
@@ -2301,6 +2311,11 @@
           "at": "2026-09-12T13:00:04.752401+00:00",
           "status": "new",
           "note": "Added from owner MCP discussion and stdio selection. External access is a new delivery outcome; the existing internal socket bridge is not claimed as a public server."
+        },
+        {
+          "at": "2026-09-12T15:56:35.075371+00:00",
+          "status": "in_progress",
+          "note": "Public stdio facade is assigned at xhigh for development; all tests use scripted providers and a real MCP client without inference. Scope includes fixed project/action permissions, bounded start/resume/progress/cancel, stable IDs, and bounded knowledge/history/result projections shared with internal MCP."
         }
       ]
     },
@@ -2335,7 +2350,7 @@
       ]
     }
   ],
-  "updated_at": "2026-09-12T15:34:36.340125+00:00",
+  "updated_at": "2026-09-12T15:56:35.075371+00:00",
   "delivery_order": [
     "YMP-116",
     "YMP-103",

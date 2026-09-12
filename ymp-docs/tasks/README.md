@@ -1,6 +1,6 @@
 # Task details and evidence
 
-Updated: 2026-09-12 15:34 UTC.
+Updated: 2026-09-12 15:56 UTC.
 
 Use the [delivery plan](plan.md) to follow progress. This generated register contains full acceptance criteria, dependencies and evidence. [tasks.json](tasks.json) is the single source; [manage.py](manage.py) updates both pages.
 
@@ -45,9 +45,9 @@ A planned task is not implemented functionality. Completed research and planning
 | `[=]` | [YMP-204](#ymp-204) | P1 | Evaluate a project-scoped prior-outcome router | 2026-09-12 09:35 |
 | `[=]` | [YMP-301](#ymp-301) | P2 | Confirm the initial success class and intended audience | 2026-09-12 09:35 |
 | `[x]` | [YMP-109](#ymp-109) | P0 | Expose the provider-backed agent pool with stable individual identities | 2026-09-12 10:56 |
-| `[~]` | [YMP-110](#ymp-110) | P0 | Select session teams and execution settings within user constraints | 2026-09-12 15:23 |
+| `[~]` | [YMP-110](#ymp-110) | P0 | Select session teams and execution settings within user constraints | 2026-09-12 15:56 |
 | `[=]` | [YMP-112](#ymp-112) | P0 | Coordinate commitments, plan revisions and reassignment through the board | 2026-09-12 12:46 |
-| `[~]` | [YMP-113](#ymp-113) | P0 | Accumulate general knowledge and verified experience incrementally | 2026-09-12 15:23 |
+| `[~]` | [YMP-113](#ymp-113) | P0 | Accumulate general knowledge and verified experience incrementally | 2026-09-12 15:56 |
 | `[=]` | [YMP-114](#ymp-114) | P0 | Correct and supersede knowledge with newer verified evidence | 2026-09-12 12:46 |
 | `[x]` | [YMP-009](#ymp-009) | P0 | Align the product definition, research conclusions and backlog with final intent | 2026-09-12 09:15 |
 | `[~]` | [YMP-115](#ymp-115) | P0 | Enable useful concurrent execution of independent assignments | 2026-09-12 15:34 |
@@ -62,7 +62,7 @@ A planned task is not implemented functionality. Completed research and planning
 | `[=]` | [YMP-121](#ymp-121) | P1 | Verify the integrated application and package a local release | 2026-09-12 14:50 |
 | `[x]` | [YMP-013](#ymp-013) | P0 | Review plan coherence and simplify progress tracking | 2026-09-12 09:46 |
 | `[x]` | [YMP-122](#ymp-122) | P1 | Expose replaceable execution backends behind runtime-owned controls | 2026-09-12 15:23 |
-| `[+]` | [YMP-123](#ymp-123) | P1 | Expose a public local MCP facade over stdio | 2026-09-12 13:00 |
+| `[~]` | [YMP-123](#ymp-123) | P1 | Expose a public local MCP facade over stdio | 2026-09-12 15:56 |
 | `[=]` | [YMP-124](#ymp-124) | P1 | Add isolated execution and recoverable publication for larger projects | 2026-09-12 15:31 |
 
 ## YMP-001
@@ -806,9 +806,9 @@ Select session teams and execution settings within user constraints
 
 **State:** `[~]` (in_progress) · **Type:** implementation · **Priority:** P0
 
-**Last update (UTC):** 2026-09-12 15:23
+**Last update (UTC):** 2026-09-12 15:56
 
-**Current reason:** R1(5/10) RETURN: public admission could turn the reserved final reviewer into a producer; a known unsupported pinned reviewer consumed startup work before rejection. Author is correcting shared admission and pre-start configuration validation with exact public controls. Normal Cargo and validator tests had passed.
+**Current reason:** Standalone R2(9/10) ACCEPT closes both findings; public reservation/admission interleavings and known/unknown pin controls pass. Integration with accepted knowledge113 and UI118 is underway; historical/current membership must remain consistent across those consumers.
 
 **Owner:** Maintainer; application UI by Claude Code claude-opus-5 with thinking max via Paseo
 
@@ -887,9 +887,9 @@ Accumulate general knowledge and verified experience incrementally
 
 **State:** `[~]` (in_progress) · **Type:** implementation · **Priority:** P0
 
-**Last update (UTC):** 2026-09-12 15:23
+**Last update (UTC):** 2026-09-12 15:56
 
-**Current reason:** R1(6/10) RETURN: outcome paths were derived from mutable Project.path and could be invented after relocation. Author is binding location/freshness to immutable captured workspaces and returning unknown explicitly for unsupported legacy records. Unbounded MCP search payloads are separately tracked under YMP-123.
+**Current reason:** Standalone R2(9/10) ACCEPT preserves captured locations after relocation. Joint110/113 consumer found the older deterministic follow-up path reopened workspace metadata at the relocated directory; integration is routing it through immutable Store.outcomes. UI118 consumes the same source/current-availability records.
 
 **Owner:** Maintainer; application UI by Claude Code claude-opus-5 with thinking max via Paseo
 
@@ -1411,11 +1411,11 @@ A direct built-in provider call couples engine orchestration to one execution im
 
 Expose a public local MCP facade over stdio
 
-**State:** `[+]` (new) · **Type:** implementation · **Priority:** P1
+**State:** `[~]` (in_progress) · **Type:** implementation · **Priority:** P1
 
-**Last update (UTC):** 2026-09-12 13:00
+**Last update (UTC):** 2026-09-12 15:56
 
-**Current reason:** Added from owner MCP discussion and stdio selection. External access is a new delivery outcome; the existing internal socket bridge is not claimed as a public server.
+**Current reason:** Public stdio facade is assigned at xhigh for development; all tests use scripted providers and a real MCP client without inference. Scope includes fixed project/action permissions, bounded start/resume/progress/cancel, stable IDs, and bounded knowledge/history/result projections shared with internal MCP.
 
 **Owner:** Maintainer
 
