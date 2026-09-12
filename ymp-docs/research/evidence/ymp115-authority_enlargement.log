@@ -1,0 +1,20 @@
+   Compiling ymp-storage v0.3.0 (/private/var/folders/cw/7pn8sb3x6bj69g7j2d8f_ss00000gn/T/ymp-release-work-h6oq_rys/115/ymp-rust/crates/ymp-storage)
+   Compiling ymp-runtime v0.3.0 (/private/var/folders/cw/7pn8sb3x6bj69g7j2d8f_ss00000gn/T/ymp-release-work-h6oq_rys/115/ymp-rust/crates/ymp-runtime)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 2.43s
+     Running tests/concurrency.rs (target/debug/deps/concurrency-554b81c43e2a4a5d)
+
+running 1 test
+
+thread 'public_admission_cannot_enlarge_reviewed_read_only_authority' panicked at ymp-rust/crates/ymp-runtime/tests/concurrency.rs:662:10:
+called `Result::unwrap_err()` on an `Ok` value: InvocationRecord { id: "53c87efe-5425-47eb-9d24-d08a491e7c07", session_id: "c0388cce-1dd0-4710-a511-16f6444de013", assignment_id: "c7c90fe8-ec0f-455e-92d3-9ec504baae4c", execution_backend: Some(ExecutionBackendIdentity { id: "fixture.access-enforced", version: "1" }), turn: 9, requested: ExecutionSettings { model: None, effort: None, permission_mode: Some("write") }, sent: ExecutionSettings { model: None, effort: None, permission_mode: Some("read_only") }, reported: ExecutionSettings { model: None, effort: None, permission_mode: None }, resumed_from: Some("c085eb0a-0f4f-49bc-967d-62825045b2bd"), native_session_id: Some("c085eb0a-0f4f-49bc-967d-62825045b2bd"), native_turn_id: None, native_version: None, state: Running, started_at: "2026-09-12T16:01:01.004265+00:00", ended_at: None, usage: None, terminal_reason: None }
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test public_admission_cannot_enlarge_reviewed_read_only_authority ... FAILED
+
+failures:
+
+failures:
+    public_admission_cannot_enlarge_reviewed_read_only_authority
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 8 filtered out; finished in 0.35s
+
+error: test failed, to rerun pass `-p ymp-runtime --test concurrency`

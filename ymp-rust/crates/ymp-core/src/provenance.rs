@@ -233,6 +233,10 @@ pub struct PlanVersion {
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RecordLinks {
+    #[serde(default)]
+    pub workspace_access: Option<crate::WorkspaceAccessDecision>,
+    #[serde(default)]
+    pub workspace_wait: Option<crate::WorkspaceWait>,
     pub task: Option<TaskAttemptRef>,
     pub related_task_ids: Vec<String>,
     pub assignment_id: Option<String>,

@@ -124,6 +124,16 @@ impl Store {
                 "active_responsibility: cannot remove an active participant"
             );
         }
+        for task in provenance::records::<Task>(&tx, "tasks", &session.id)? {
+            ensure!(
+                task.state != TaskState::Running
+                    || task
+                        .assignee
+                        .as_ref()
+                        .is_some_and(|id| members.contains(id)),
+                "active_responsibility: cannot remove a committed task executor"
+            );
+        }
         for id in members {
             let profile = allocation
                 .input

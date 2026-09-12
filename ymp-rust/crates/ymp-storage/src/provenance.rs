@@ -472,6 +472,13 @@ impl Store {
                 );
             }
         }
+        if assignment.purpose == "execute" {
+            if let Some(reference) = &assignment.task {
+                let task: Task = record(&tx, "tasks", &reference.task_id)?;
+                ensure!(task.access != TaskAccess::ReadOnly || assignment.requested.permission_mode.as_deref()==Some("read_only"),
+                    "task_access: assignment cannot enlarge the reviewed task's read-only authority");
+            }
+        }
         if let Some(denial) = super::budget::denial(&tx, assignment)? {
             super::budget::record_denial(&tx, &assignment.session_id, &denial)?;
             tx.commit()?;
@@ -716,6 +723,7 @@ impl Store {
             ensure!(
                 task.title == reviewed.title
                     && task.description == reviewed.description
+                    && task.access == reviewed.access
                     && task.competence == reviewed.competence
                     && task.difficulty == reviewed.difficulty,
                 "Committed task definition differs from reviewed task {index}"

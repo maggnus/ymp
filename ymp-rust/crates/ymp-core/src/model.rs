@@ -81,8 +81,25 @@ pub enum TaskState {
     Blocked,
 }
 
+/// Requested filesystem authority, independent of the task's competence.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum TaskAccess {
+    ReadOnly,
+    #[default]
+    Write,
+}
+
+impl TaskAccess {
+    pub fn is_write(&self) -> bool {
+        *self == Self::Write
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Task {
+    #[serde(default, skip_serializing_if = "TaskAccess::is_write")]
+    pub access: TaskAccess,
     pub id: String,
     pub session_id: String,
     pub title: String,
@@ -146,6 +163,8 @@ impl Task {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct PlanTask {
+    #[serde(default, skip_serializing_if = "TaskAccess::is_write")]
+    pub access: TaskAccess,
     pub title: String,
     pub description: String,
     #[serde(default = "implementation")]
@@ -390,6 +409,7 @@ mod tests {
             summary: String::new(),
             tasks: (0..2)
                 .map(|i| PlanTask {
+                    access: crate::TaskAccess::default(),
                     title: "x".into(),
                     description: "x".into(),
                     competence: implementation(),
@@ -406,6 +426,7 @@ mod tests {
     #[test]
     fn rejects_self_acceptance_and_double_assignment() {
         let mut task = Task {
+            access: crate::TaskAccess::default(),
             id: new_id(),
             session_id: new_id(),
             title: "x".into(),
