@@ -1,6 +1,6 @@
 # Task details and evidence
 
-Updated: 2026-09-12 16:29 UTC.
+Updated: 2026-09-12 16:33 UTC.
 
 Use the [delivery plan](plan.md) to follow progress. This generated register contains full acceptance criteria, dependencies and evidence. [tasks.json](tasks.json) is the single source; [manage.py](manage.py) updates both pages.
 
@@ -45,19 +45,19 @@ A planned task is not implemented functionality. Completed research and planning
 | `[=]` | [YMP-204](#ymp-204) | P1 | Evaluate a project-scoped prior-outcome router | 2026-09-12 09:35 |
 | `[=]` | [YMP-301](#ymp-301) | P2 | Confirm the initial success class and intended audience | 2026-09-12 09:35 |
 | `[x]` | [YMP-109](#ymp-109) | P0 | Expose the provider-backed agent pool with stable individual identities | 2026-09-12 10:56 |
-| `[~]` | [YMP-110](#ymp-110) | P0 | Select session teams and execution settings within user constraints | 2026-09-12 16:17 |
+| `[~]` | [YMP-110](#ymp-110) | P0 | Select session teams and execution settings within user constraints | 2026-09-12 16:33 |
 | `[=]` | [YMP-112](#ymp-112) | P0 | Coordinate commitments, plan revisions and reassignment through the board | 2026-09-12 12:46 |
-| `[~]` | [YMP-113](#ymp-113) | P0 | Accumulate general knowledge and verified experience incrementally | 2026-09-12 16:29 |
+| `[~]` | [YMP-113](#ymp-113) | P0 | Accumulate general knowledge and verified experience incrementally | 2026-09-12 16:33 |
 | `[=]` | [YMP-114](#ymp-114) | P0 | Correct and supersede knowledge with newer verified evidence | 2026-09-12 12:46 |
 | `[x]` | [YMP-009](#ymp-009) | P0 | Align the product definition, research conclusions and backlog with final intent | 2026-09-12 09:15 |
-| `[~]` | [YMP-115](#ymp-115) | P0 | Enable useful concurrent execution of independent assignments | 2026-09-12 16:24 |
+| `[~]` | [YMP-115](#ymp-115) | P0 | Enable useful concurrent execution of independent assignments | 2026-09-12 16:33 |
 | `[x]` | [YMP-010](#ymp-010) | P0 | Approve product goals and core protocol constraints | 2026-09-12 09:06 |
 | `[x]` | [YMP-011](#ymp-011) | P0 | Document bounded dynamic teams and assignment-level effort | 2026-09-12 08:41 |
 | `[x]` | [YMP-012](#ymp-012) | P0 | Establish the delivery plan and traceable backlog for the approved intent | 2026-09-12 09:15 |
 | `[x]` | [YMP-116](#ymp-116) | P0 | Define the minimal runtime transition and authority contract | 2026-09-12 10:07 |
 | `[x]` | [YMP-117](#ymp-117) | P0 | Separate acceptance from confirmation and gate reputation on evidence | 2026-09-12 13:59 |
 | `[x]` | [YMP-120](#ymp-120) | P0 | Enforce assignment-scoped permissions and runtime-only state transitions | 2026-09-12 13:46 |
-| `[~]` | [YMP-118](#ymp-118) | P0 | Integrate core assignment, budget and confirmation visibility | 2026-09-12 14:16 |
+| `[~]` | [YMP-118](#ymp-118) | P0 | Integrate core assignment, budget and confirmation visibility | 2026-09-12 16:33 |
 | `[x]` | [YMP-119](#ymp-119) | P0 | Prepare universal acceptance scenarios and independent validators | 2026-09-12 10:56 |
 | `[=]` | [YMP-121](#ymp-121) | P1 | Verify the integrated application and package a local release | 2026-09-12 14:50 |
 | `[x]` | [YMP-013](#ymp-013) | P0 | Review plan coherence and simplify progress tracking | 2026-09-12 09:46 |
@@ -806,9 +806,9 @@ Select session teams and execution settings within user constraints
 
 **State:** `[~]` (in_progress) · **Type:** implementation · **Priority:** P0
 
-**Last update (UTC):** 2026-09-12 16:17
+**Last update (UTC):** 2026-09-12 16:33
 
-**Current reason:** Standalone R2(9/10) accepted. Combined allocation/knowledge candidate addba63 passes 267 tests and the public relocation consumer after a demonstrated 101-to-0 correction. Independent integration review is running; UI118 visibility remains required.
+**Current reason:** Backend integration R2(9/10) ACCEPT. Main5834e7f matches reviewed1b76133 source; fmt/clippy and267 workspace tests pass. Current membership, historical participants, pins and admission remain consistent with incremental knowledge. Corresponding Claude UI118 views are still required before closing this task.
 
 **Owner:** Maintainer; application UI by Claude Code claude-opus-5 with thinking max via Paseo
 
@@ -887,9 +887,9 @@ Accumulate general knowledge and verified experience incrementally
 
 **State:** `[~]` (in_progress) · **Type:** implementation · **Priority:** P0
 
-**Last update (UTC):** 2026-09-12 16:29
+**Last update (UTC):** 2026-09-12 16:33
 
-**Current reason:** Combined location correction1b76133 preserves captured structured and textual locations, including workspace/policy fallback and explicit unknown legacy state. Exact public consumer fails101 before correction and passes0 after. Fmt/clippy and final267-test suite pass; one earlier redaction setup failure passed targeted and unchanged full reruns and remains disclosed for review. Independent R2 is running; UI118 visibility remains required.
+**Current reason:** Backend integration R2(9/10) ACCEPT and merged into main5834e7f. Structured/textual captured locations, stored fallback, unknown legacy state and zero-inference follow-ups pass. Main fmt/clippy and267 tests pass. UI118 visibility remains required; the earlier unreproduced redaction-test anomaly is documented without claiming its cause fixed.
 
 **Owner:** Maintainer; application UI by Claude Code claude-opus-5 with thinking max via Paseo
 
@@ -995,9 +995,9 @@ Enable useful concurrent execution of independent assignments
 
 **State:** `[~]` (in_progress) · **Type:** implementation · **Priority:** P0
 
-**Last update (UTC):** 2026-09-12 16:24
+**Last update (UTC):** 2026-09-12 16:33
 
-**Current reason:** R1(5/10) RETURN: two failed occupied actors can prevent a feasible completed-sibling review. Exact public consumer fails101; correction now accounts for a distinct reviewer without removing occupied actors or exceeding pins. The author is retaining the regression and checking the bounded change.
+**Current reason:** Correction ecf1278 retains the exact101-to-0 public regression: completed A reaches confirmation despite two failed occupied siblings; real ceilings and fixed size still reject impossible membership. Author fmt/clippy and268 tests pass. Independent R2 is running; original candidate remains unmerged.
 
 **Owner:** Maintainer
 
@@ -1241,9 +1241,9 @@ Integrate core assignment, budget and confirmation visibility
 
 **State:** `[~]` (in_progress) · **Type:** implementation · **Priority:** P0
 
-**Last update (UTC):** 2026-09-12 14:16
+**Last update (UTC):** 2026-09-12 16:33
 
-**Current reason:** Claude Opus5 max is implementing core state/constraint/confirmation views and correcting shared-frame clipping in an isolated checkout. The UI will use actual captured records and integrate committed110/113 projections as available. Black theme, typography and sidebar behavior are preserved.
+**Current reason:** Claude Opus5 max is implementing the existing team and knowledge views against accepted110/113 records, alongside core state/constraint/confirmation visibility and frame clipping. A coherent core visibility slice is requested for independent UI review; main backend integration is available. No UI acceptance or release is claimed.
 
 **Owner:** Claude Code claude-opus-5 with thinking max via Paseo; maintainer integrates and verifies
 
