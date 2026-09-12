@@ -11,6 +11,8 @@ UI work must be delegated to Claude Code using claude-opus-5 with thinking level
 
 Agents are the working units and form each session's captured team. Providers and models are execution backends. Attribute usage to agent IDs within the session, never group team statistics by provider.
 
+The owner clarified on 2026-09-13 that selectable agent names must come from native provider scans. Preserve the identifiers, display names and supported effort/control values returned by Claude Code, Codex and other enabled systems; never substitute provider labels or a hand-maintained model-name table. Keep provider identity separate, unknown metadata explicit, and historical names/settings bound to their captured records. Scanning populates the actual agent pool and stored snapshots; UI painting does not initiate native discovery. YMP-127 owns this correction.
+
 Track project work in ymp-docs/tasks/tasks.json. manage.py generates both plan.md (progress) and README.md (task details); do not maintain their statuses by hand. Use planned, in_progress, owner_question, done, rejected, paused or new with a timestamped progress note. Readiness and dependency blocking are derived automatically; owner_question requires an actual unresolved question. Keep delivery counts separate from research and planning. Update evidence as work finishes and report progress during sustained work; a written design is not implemented functionality.
 
 The root Cargo workspace contains packages in `ymp-rust/crates`. Documentation lives in `ymp-docs`, SDK bridges in `ymp-bridges`, and evaluation scenarios in `ymp-evals`.

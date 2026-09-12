@@ -35,6 +35,10 @@ fn default_limit() -> usize {
 #[serde(deny_unknown_fields)]
 struct Knowledge {
     #[serde(default)]
+    scope: std::collections::BTreeMap<String, String>,
+    #[serde(default)]
+    history: bool,
+    #[serde(default)]
     query: String,
     id: Option<String>,
     version: Option<String>,
@@ -248,7 +252,32 @@ impl Facade {
         }
     }
     fn knowledge(&self, args: Knowledge) -> Result<Value> {
+        validate_knowledge_scope(&args.scope)?;
         ensure!(args.query.len() <= 4096, "Query exceeds 4096 bytes");
+        if args.history {
+            ensure!(
+                args.id.is_none() || args.query.is_empty(),
+                "Use query or id, not both"
+            );
+            ensure!(
+                args.version.is_none() || args.id.is_some(),
+                "version requires id"
+            );
+            let rows = self
+                .store
+                .inspect_knowledge(Some(&self.project.id), &args.scope)?
+                .into_iter()
+                .filter(|row| {
+                    args.id.as_ref().is_none_or(|id| id == &row.entry.id)
+                        && args.version.as_ref().is_none_or(|v| v == &row.version)
+                        && (args.query.is_empty()
+                            || format!("{} {}", row.entry.title, row.entry.content)
+                                .to_lowercase()
+                                .contains(&args.query.to_lowercase()))
+                })
+                .collect::<Vec<_>>();
+            return projection::page(&rows, cursor(args.cursor.as_deref())?, args.limit);
+        }
         let mode = if args.include_unconfirmed {
             KnowledgeRetrievalMode::IncludeUnconfirmed
         } else {
@@ -262,18 +291,14 @@ impl Facade {
                     Some(&self.project.id),
                     &id,
                     args.version.as_deref(),
-                    &Default::default(),
+                    &args.scope,
                     mode,
                 )?
                 .context("Knowledge is unavailable at this scope/version/confirmation mode")?]
         } else {
             ensure!(args.version.is_none(), "version requires id");
-            self.store.search_memory(
-                Some(&self.project.id),
-                &args.query,
-                &Default::default(),
-                mode,
-            )?
+            self.store
+                .search_memory(Some(&self.project.id), &args.query, &args.scope, mode)?
         };
         let rows = entries.iter().map(|entry| Ok(json!({"id":entry.id,"version":content_digest(&serde_json::to_string(entry)?),"entry":entry}))).collect::<Result<Vec<_>>>()?;
         projection::page(&rows, cursor(args.cursor.as_deref())?, args.limit)
@@ -468,7 +493,7 @@ pub fn tools() -> Value {
     let limit = json!({"type":"integer","minimum":1,"maximum":25,"default":10});
     let tools = vec![
         ("ymp_inspect_v1", "Inspect project scope, pool and saved runtime state without invoking agents. Responses omit snapshot bytes and mark truncation.", json!({"kind":{"type":"string","enum":["scope","pool","sessions","session","tasks","results","evidence","history"]},"session_id":{"type":"string"},"cursor":page,"limit":limit}), vec!["kind"], true),
-        ("ymp_knowledge_v1", "Search or resolve project/shared knowledge without inference. Unconfirmed inspection is explicit. Entry versions identify the complete source even when its projection is truncated.", json!({"query":{"type":"string","maxLength":4096},"id":{"type":"string"},"version":{"type":"string"},"include_unconfirmed":{"type":"boolean","default":false},"cursor":page,"limit":limit}), vec![], true),
+        ("ymp_knowledge_v1", "Search or resolve project/shared knowledge without inference. Unconfirmed inspection is explicit. Entry versions identify the complete source even when its projection is truncated.", json!({"scope":{"type":"object","maxProperties":16,"additionalProperties":{"type":"string","maxLength":1024}},"history":{"type":"boolean","default":false},"query":{"type":"string","maxLength":4096},"id":{"type":"string"},"version":{"type":"string"},"include_unconfirmed":{"type":"boolean","default":false},"cursor":page,"limit":limit}), vec![], true),
         ("ymp_run_v1", "Explicitly start or resume bounded work in the launcher's project using the common runtime. Returns a durable request handle immediately. Start requires prompt/max_turns/turn_timeout_secs; resume requires session_id and retains captured limits. max_seconds bounds this process's execution lease. Retry identical request_id/arguments to inspect, never repeat effects.", json!({"request_id":{"type":"string","minLength":1,"maxLength":128},"action":{"type":"string","enum":["start","resume"]},"prompt":{"type":"string","maxLength":16384},"session_id":{"type":"string"},"max_turns":{"type":"integer","minimum":1},"turn_timeout_secs":{"type":"integer","minimum":1},"max_seconds":{"type":"integer","minimum":1,"maximum":3600}}), vec!["request_id","action","max_seconds"], false),
         ("ymp_request_v1", "Inspect durable operation and saved progress/usage. A foreign process's liveness stays unknown; no agents are started.", json!({"request_id":{"type":"string"}}), vec!["request_id"], true),
         ("ymp_cancel_v1", "Request cancellation of an execution owned by this process. Poll request until terminal. Saved work and observed usage remain; cancellation does not roll back workspace writes.", json!({"request_id":{"type":"string"}}), vec!["request_id"], false),

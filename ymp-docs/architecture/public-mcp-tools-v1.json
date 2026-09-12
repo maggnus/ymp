@@ -74,6 +74,18 @@
           },
           "version": {
             "type": "string"
+          },
+          "scope": {
+            "type": "object",
+            "maxProperties": 16,
+            "additionalProperties": {
+              "type": "string",
+              "maxLength": 1024
+            }
+          },
+          "history": {
+            "type": "boolean",
+            "default": false
           }
         },
         "required": [],

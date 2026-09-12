@@ -1437,6 +1437,11 @@
           "at": "2026-09-12T17:54:15.279975+00:00",
           "status": "in_progress",
           "note": "Starting board commitment/revision implementation on accepted integrated allocation, permissions, budgets and contracts. Readiness no longer waits for the separate110 UI verdict; complete110/113 UI acceptance remains a release121 requirement. Preserve accepted work and inspect uncertain effects before reassignment; typed strategy proposals remain runtime-validated."
+        },
+        {
+          "at": "2026-09-12T19:07:48.849356+00:00",
+          "status": "in_progress",
+          "note": "R1(6/10) RETURN: valid committed work was treated as unavailable when its actor was already selected in a parallel wave. Author reproduced the public failure and corrected waiting/draining while preserving commitment; parallel/serial controls pass. Final checks and independent R2 follow; UI remains separate."
         }
       ]
     },
@@ -1611,6 +1616,11 @@
           "at": "2026-09-12T17:54:15.323953+00:00",
           "status": "in_progress",
           "note": "Starting evidence-bound correction/supersession using accepted knowledge and configured contracts125. Preflight identified explicit correction/source-replacement bindings and atomic history-preserving commit as missing; unrelated confirmed results or newer timestamps cannot authorize replacement. UI work remains delegated to Claude Opus5 max."
+        },
+        {
+          "at": "2026-09-12T19:07:48.904687+00:00",
+          "status": "in_progress",
+          "note": "Backend6ed96c8 independently ACCEPTED9/10; actual source replacement95-to60, CLI/public-MCP/internal scoped inspection, supersession/history and replay controls pass. Fmt/clippy304 tests pass independently. Integration and corresponding Opus UI remain before whole-task acceptance."
         }
       ]
     },
@@ -2648,6 +2658,11 @@
           "at": "2026-09-12T18:22:16.023396+00:00",
           "status": "in_progress",
           "note": "Extracted driver/exporter implementation from121 without removing any final release criterion. Core interfaces are accepted; work can begin now, while all seventeen completed runtime cases remain required before this task can close."
+        },
+        {
+          "at": "2026-09-12T19:12:38.745707+00:00",
+          "status": "in_progress",
+          "note": "Actual document workflow now passes the independent validator with confirmed output, six charged scripted invocations,42 synthetic tokens and zero-inference path follow-up. Runtime budget-reservations probe honestly fails: captured global60-token estimate also reserves60 for review, while scenario requires producer60/review20. Evidence retained; no fixture weakening or complete-suite claim. Driver author temporarily prioritizes112 R1 correction."
         }
       ]
     },
@@ -2681,11 +2696,16 @@
           "at": "2026-09-12T18:46:28.285158+00:00",
           "status": "in_progress",
           "note": "Owner reiterated the missed requirement. Actual config still has Codex/Claude/GLM with model=None; native metadata queries already return gpt-5.6-sol, Claude native aliases/models and glm-5.2 with thought_level choices. Capture/selection/display must use those provider results, not manual names."
+        },
+        {
+          "at": "2026-09-12T19:07:48.771329+00:00",
+          "status": "in_progress",
+          "note": "Backend native scan now preserves returned names/IDs/aliases/control labels, builds concrete pool profiles and captures effective assignment identity. Metadata-only installed scan succeeded for8 Codex,5 Claude and6 GLM offerings in a temporary home; real user configuration remains untouched pending integration. Seven executable fixture cases pass; final controls/review and Opus UI integration remain."
         }
       ]
     }
   ],
-  "updated_at": "2026-09-12T18:46:28.285158+00:00",
+  "updated_at": "2026-09-12T19:12:38.745707+00:00",
   "delivery_order": [
     "YMP-116",
     "YMP-103",

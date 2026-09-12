@@ -185,6 +185,7 @@ async fn membership_changes_preserve_supported_knowledge_and_original_locations(
         .with_execution_backend(backend.clone())
         .unwrap();
     engine.acceptance_contracts.push(AcceptanceContract {
+        knowledge_correction: None,
         task_title: "Create a greeting".into(),
         criteria: vec![AcceptanceCriterion {
             id: "exact-greeting".into(),

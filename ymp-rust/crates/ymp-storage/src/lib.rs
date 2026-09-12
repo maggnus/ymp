@@ -9,9 +9,11 @@ use std::{
 use ymp_core::*;
 mod allocation;
 mod authority;
+mod board;
 mod budget;
 mod confirmation;
 mod knowledge;
+mod knowledge_correction;
 pub mod projection;
 mod provenance;
 #[cfg(test)]

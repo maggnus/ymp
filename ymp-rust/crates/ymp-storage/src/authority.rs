@@ -143,9 +143,17 @@ impl Store {
         let allowed: &[&str] = match operation {
             TeamOperation::TeamPost => &["text", "recipient"],
             TeamOperation::TeamRead => &["after", "limit"],
-            TeamOperation::TasksList => &[],
-            TeamOperation::TaskPropose => &["title", "description"],
-            TeamOperation::MemorySearch => &["query", "include_unconfirmed", "cursor", "limit"],
+            TeamOperation::TasksList | TeamOperation::BoardRead => &[],
+            TeamOperation::TaskPropose => &[
+                "title",
+                "description",
+                "plan_version",
+                "change",
+                "rationale",
+            ],
+            TeamOperation::MemorySearch => {
+                &["query", "include_unconfirmed", "scope", "cursor", "limit"]
+            }
             TeamOperation::MemoryPropose => &["title", "content"],
         };
         ensure!(
@@ -154,6 +162,15 @@ impl Store {
         );
         let mut message = None;
         let result = match operation {
+            TeamOperation::TaskPropose
+                if arguments.get("change").is_some() || arguments.get("plan_version").is_some() =>
+            {
+                let proposal = super::board::propose(&tx, &current, arguments)?;
+                json!({"status":"proposed", "proposal":proposal, "note":"Pending runtime validation at a work boundary; no authority has been granted"})
+            }
+            TeamOperation::BoardRead => {
+                serde_json::to_value(super::board::snapshot(&tx, &current.session_id)?)?
+            }
             TeamOperation::TeamPost | TeamOperation::TaskPropose => {
                 let (kind, text) = if operation == TeamOperation::TeamPost {
                     (
@@ -228,6 +245,13 @@ impl Store {
                 serde_json::to_value(records::<Task>(&tx, "tasks", &current.session_id)?)?
             }
             TeamOperation::MemorySearch => {
+                let scope = arguments
+                    .get("scope")
+                    .cloned()
+                    .map(serde_json::from_value::<std::collections::BTreeMap<String, String>>)
+                    .transpose()?
+                    .unwrap_or_default();
+                validate_knowledge_scope(&scope)?;
                 let mode = if arguments["include_unconfirmed"] == true {
                     KnowledgeRetrievalMode::IncludeUnconfirmed
                 } else {
@@ -244,7 +268,7 @@ impl Store {
                         &tx,
                         &entry,
                         Some(&session.project_id),
-                        &Default::default(),
+                        &scope,
                         mode,
                     ) {
                         Ok(true) => Some(Ok(entry)),

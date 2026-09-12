@@ -1,6 +1,6 @@
 # Task details and evidence
 
-Updated: 2026-09-12 18:46 UTC.
+Updated: 2026-09-12 19:12 UTC.
 
 Use the [delivery plan](plan.md) to follow progress. This generated register contains full acceptance criteria, dependencies and evidence. [tasks.json](tasks.json) is the single source; [manage.py](manage.py) updates both pages.
 
@@ -46,9 +46,9 @@ A planned task is not implemented functionality. Completed research and planning
 | `[=]` | [YMP-301](#ymp-301) | P2 | Confirm the initial success class and intended audience | 2026-09-12 09:35 |
 | `[x]` | [YMP-109](#ymp-109) | P0 | Expose the provider-backed agent pool with stable individual identities | 2026-09-12 10:56 |
 | `[~]` | [YMP-110](#ymp-110) | P0 | Select session teams and execution settings within user constraints | 2026-09-12 16:33 |
-| `[~]` | [YMP-112](#ymp-112) | P0 | Coordinate commitments, plan revisions and reassignment through the board | 2026-09-12 17:54 |
+| `[~]` | [YMP-112](#ymp-112) | P0 | Coordinate commitments, plan revisions and reassignment through the board | 2026-09-12 19:07 |
 | `[~]` | [YMP-113](#ymp-113) | P0 | Accumulate general knowledge and verified experience incrementally | 2026-09-12 16:33 |
-| `[~]` | [YMP-114](#ymp-114) | P0 | Correct and supersede knowledge with newer verified evidence | 2026-09-12 17:54 |
+| `[~]` | [YMP-114](#ymp-114) | P0 | Correct and supersede knowledge with newer verified evidence | 2026-09-12 19:07 |
 | `[x]` | [YMP-009](#ymp-009) | P0 | Align the product definition, research conclusions and backlog with final intent | 2026-09-12 09:15 |
 | `[x]` | [YMP-115](#ymp-115) | P0 | Enable useful concurrent execution of independent assignments | 2026-09-12 17:00 |
 | `[x]` | [YMP-010](#ymp-010) | P0 | Approve product goals and core protocol constraints | 2026-09-12 09:06 |
@@ -65,8 +65,8 @@ A planned task is not implemented functionality. Completed research and planning
 | `[x]` | [YMP-123](#ymp-123) | P1 | Expose a public local MCP facade over stdio | 2026-09-12 18:22 |
 | `[=]` | [YMP-124](#ymp-124) | P1 | Add isolated execution and recoverable publication for larger projects | 2026-09-12 15:31 |
 | `[x]` | [YMP-125](#ymp-125) | P0 | Expose trusted acceptance contracts to executable users | 2026-09-12 17:54 |
-| `[~]` | [YMP-126](#ymp-126) | P1 | Execute universal acceptance scenarios through a trusted runtime driver | 2026-09-12 18:22 |
-| `[~]` | [YMP-127](#ymp-127) | P0 | Build and display the agent pool from provider-returned native names | 2026-09-12 18:46 |
+| `[~]` | [YMP-126](#ymp-126) | P1 | Execute universal acceptance scenarios through a trusted runtime driver | 2026-09-12 19:12 |
+| `[~]` | [YMP-127](#ymp-127) | P0 | Build and display the agent pool from provider-returned native names | 2026-09-12 19:07 |
 
 ## YMP-001
 
@@ -849,9 +849,9 @@ Coordinate commitments, plan revisions and reassignment through the board
 
 **State:** `[~]` (in_progress) · **Type:** implementation · **Priority:** P0
 
-**Last update (UTC):** 2026-09-12 17:54
+**Last update (UTC):** 2026-09-12 19:07
 
-**Current reason:** Starting board commitment/revision implementation on accepted integrated allocation, permissions, budgets and contracts. Readiness no longer waits for the separate110 UI verdict; complete110/113 UI acceptance remains a release121 requirement. Preserve accepted work and inspect uncertain effects before reassignment; typed strategy proposals remain runtime-validated.
+**Current reason:** R1(6/10) RETURN: valid committed work was treated as unavailable when its actor was already selected in a parallel wave. Author reproduced the public failure and corrected waiting/draining while preserving commitment; parallel/serial controls pass. Final checks and independent R2 follow; UI remains separate.
 
 **Owner:** Maintainer; application UI by Claude Code claude-opus-5 with thinking max via Paseo
 
@@ -924,9 +924,9 @@ Correct and supersede knowledge with newer verified evidence
 
 **State:** `[~]` (in_progress) · **Type:** implementation · **Priority:** P0
 
-**Last update (UTC):** 2026-09-12 17:54
+**Last update (UTC):** 2026-09-12 19:07
 
-**Current reason:** Starting evidence-bound correction/supersession using accepted knowledge and configured contracts125. Preflight identified explicit correction/source-replacement bindings and atomic history-preserving commit as missing; unrelated confirmed results or newer timestamps cannot authorize replacement. UI work remains delegated to Claude Opus5 max.
+**Current reason:** Backend6ed96c8 independently ACCEPTED9/10; actual source replacement95-to60, CLI/public-MCP/internal scoped inspection, supersession/history and replay controls pass. Fmt/clippy304 tests pass independently. Integration and corresponding Opus UI remain before whole-task acceptance.
 
 **Owner:** Maintainer; application UI by Claude Code claude-opus-5 with thinking max via Paseo
 
@@ -1517,9 +1517,9 @@ Execute universal acceptance scenarios through a trusted runtime driver
 
 **State:** `[~]` (in_progress) · **Type:** implementation · **Priority:** P1
 
-**Last update (UTC):** 2026-09-12 18:22
+**Last update (UTC):** 2026-09-12 19:12
 
-**Current reason:** Extracted driver/exporter implementation from121 without removing any final release criterion. Core interfaces are accepted; work can begin now, while all seventeen completed runtime cases remain required before this task can close.
+**Current reason:** Actual document workflow now passes the independent validator with confirmed output, six charged scripted invocations,42 synthetic tokens and zero-inference path follow-up. Runtime budget-reservations probe honestly fails: captured global60-token estimate also reserves60 for review, while scenario requires producer60/review20. Evidence retained; no fixture weakening or complete-suite claim. Driver author temporarily prioritizes112 R1 correction.
 
 **Owner:** Maintainer and delegated xhigh implementation/review agents
 
@@ -1551,9 +1551,9 @@ Build and display the agent pool from provider-returned native names
 
 **State:** `[~]` (in_progress) · **Type:** implementation · **Priority:** P0
 
-**Last update (UTC):** 2026-09-12 18:46
+**Last update (UTC):** 2026-09-12 19:07
 
-**Current reason:** Owner reiterated the missed requirement. Actual config still has Codex/Claude/GLM with model=None; native metadata queries already return gpt-5.6-sol, Claude native aliases/models and glm-5.2 with thought_level choices. Capture/selection/display must use those provider results, not manual names.
+**Current reason:** Backend native scan now preserves returned names/IDs/aliases/control labels, builds concrete pool profiles and captures effective assignment identity. Metadata-only installed scan succeeded for8 Codex,5 Claude and6 GLM offerings in a temporary home; real user configuration remains untouched pending integration. Seven executable fixture cases pass; final controls/review and Opus UI integration remain.
 
 **Owner:** Maintainer; all UI by Claude Opus 5 max via Paseo
 
