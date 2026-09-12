@@ -1340,6 +1340,11 @@
           "at": "2026-09-12T15:56:34.795903+00:00",
           "status": "in_progress",
           "note": "Standalone R2(9/10) ACCEPT closes both findings; public reservation/admission interleavings and known/unknown pin controls pass. Integration with accepted knowledge113 and UI118 is underway; historical/current membership must remain consistent across those consumers."
+        },
+        {
+          "at": "2026-09-12T16:17:26.571064+00:00",
+          "status": "in_progress",
+          "note": "Standalone R2(9/10) accepted. Combined allocation/knowledge candidate addba63 passes 267 tests and the public relocation consumer after a demonstrated 101-to-0 correction. Independent integration review is running; UI118 visibility remains required."
         }
       ]
     },
@@ -1487,6 +1492,11 @@
           "at": "2026-09-12T15:56:34.926285+00:00",
           "status": "in_progress",
           "note": "Standalone R2(9/10) ACCEPT preserves captured locations after relocation. Joint110/113 consumer found the older deterministic follow-up path reopened workspace metadata at the relocated directory; integration is routing it through immutable Store.outcomes. UI118 consumes the same source/current-availability records."
+        },
+        {
+          "at": "2026-09-12T16:17:26.617750+00:00",
+          "status": "in_progress",
+          "note": "Combined candidate addba63 answers location questions from immutable stored outcomes before workspace validation. The joint public consumer failed 101 before correction and passes 0 afterward. Independent integration review is running; UI118 visibility remains required."
         }
       ]
     },
@@ -1674,6 +1684,11 @@
           "at": "2026-09-12T16:11:12.347847+00:00",
           "status": "in_progress",
           "note": "Candidate 32624efd implements explicit task access, ordinary default-policy overlap, conservative native scopes and sibling/cancellation/restart handling. Author reports 267 passing Rust tests and eight observed failing controls. Independent xhigh code review is running; tested providers are deterministic, with no model inference."
+        },
+        {
+          "at": "2026-09-12T16:17:26.661114+00:00",
+          "status": "in_progress",
+          "note": "Independent review reproduced a default allocation failure: two failed concurrent producers can prevent review of a completed sibling despite an eligible reserved reviewer and remaining capacity. Exact public consumer exits101. Candidate is not accepted; bounded correction and re-review are next."
         }
       ]
     },
@@ -2326,6 +2341,11 @@
           "at": "2026-09-12T16:11:12.502837+00:00",
           "status": "in_progress",
           "note": "Public facade passed an official MCP Python SDK process walk with fixed mock/low providers: discovery, scoped reads/execution, progress, cancellation/reopen and bounded pagination. Five guard-removal controls fail. Final disconnect/SIGKILL/internal-bridge checks and code review are still pending; no actual model inference."
+        },
+        {
+          "at": "2026-09-12T16:17:26.704109+00:00",
+          "status": "in_progress",
+          "note": "Candidate1fa6f735 is committed. Official MCP SDK verification includes SIGKILL recovery and internal --socket compatibility (176 tool calls; largest reply73149 bytes); five removed-guard controls fail. Author fmt/clippy,270 Rust tests and13 bridge tests pass. Independent xhigh review is running; all execution workloads are mock/low without model inference."
         }
       ]
     },
@@ -2360,7 +2380,7 @@
       ]
     }
   ],
-  "updated_at": "2026-09-12T16:11:12.502837+00:00",
+  "updated_at": "2026-09-12T16:17:26.704109+00:00",
   "delivery_order": [
     "YMP-116",
     "YMP-103",
