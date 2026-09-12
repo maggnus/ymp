@@ -71,6 +71,9 @@ The updated heuristic is recorded as `ymp.bounded-allocation`, version 2. Ordina
 independent ready work can justify concurrent producers plus an eligible independent
 reviewer, within member and budget limits. Allocation input includes active and
 committed agent identities, and runtime/storage validation prevents removing them.
+The membership target includes a distinct selected reviewer alongside those retained
+actors, so two failed producers do not displace an otherwise feasible sibling review.
+Actual member ceilings and roster/size pins still apply.
 This sizing rule is an explicit bounded heuristic, not an optimality claim. The
 next wave waits for the current wave's work and reviews; it is not a continuously
 replenished queue. No bidding or filler invocation counts as useful overlap.
@@ -105,6 +108,12 @@ native execution; scoped writer/independent-reader overlap; conflicting native a
 scoped writer serialization; confirmed file-producing analysis alongside failed
 synthesis; cancellation while waiting; restart inspection without uncertain replay;
 and rejection of unsupported policy guarantees or enlarged task authority.
+The retained R1 regression uses three simultaneous producers under default
+allocation: two fail before the third finishes, and the third still reaches exact-byte
+confirmed acceptance through a distinct reviewer while failure usage and unresolved
+responsibilities remain recorded. The same review input still rejects a member
+ceiling or fixed size of two. Correction commands and observed failure/pass outputs
+are in [R1 correction evidence](../research/evidence/ymp115-r1-correction-checks.json).
 
 The suite also retains existing confirmation freshness, attribution, native
 continuation, provider authority and atomic budget tests. Negative controls remove

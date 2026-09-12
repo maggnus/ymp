@@ -23,6 +23,7 @@ enum Mode {
     Scoped,
     Unbounded,
     Failure,
+    TwoFailures,
 }
 struct Script {
     mode: Mode,
@@ -47,7 +48,8 @@ impl Script {
             Mode::Reads | Mode::Failure => &["A", "B"],
             _ => &["A", "B", "C"],
         };
-        names.iter().map(|name| json!({"title":name,"description":format!("Produce contribution {name}"),"access":if matches!(self.mode,Mode::Reads) || (*name == "B" && !matches!(self.mode,Mode::Failure)) {"read_only"} else {"write"},"competence":if matches!(self.mode,Mode::Failure) {if *name=="A" {"analysis"} else {"synthesis"}} else if matches!(self.mode,Mode::Reads) || (*name == "B" && !matches!(self.mode,Mode::Failure)) {"analysis"} else {"implementation"},"difficulty":"standard","dependencies":[],"checks":[]})).collect()
+        let failure = matches!(self.mode, Mode::Failure | Mode::TwoFailures);
+        names.iter().map(|name| json!({"title":name,"description":format!("Produce contribution {name}"),"access":if matches!(self.mode,Mode::Reads) || (*name == "B" && !failure) {"read_only"} else {"write"},"competence":if failure {if *name=="A" {"analysis"} else {"synthesis"}} else if matches!(self.mode,Mode::Reads) || (*name == "B" && !failure) {"analysis"} else {"implementation"},"difficulty":"standard","dependencies":[],"checks":[]})).collect()
     }
 }
 impl ExecutionBackend for Script {
@@ -73,7 +75,7 @@ impl ExecutionBackend for Script {
                     writes: vec!["outputs/shared.txt".into()],
                 },
             },
-            Mode::Failure => WorkspaceAccess::Scoped {
+            Mode::Failure | Mode::TwoFailures => WorkspaceAccess::Scoped {
                 reads: vec![],
                 writes: vec![format!("outputs/{}.txt", label(request)).into()],
             },
@@ -118,7 +120,7 @@ impl ExecutionBackend for Script {
                             )?;
                         }
                     }
-                    if matches!(self.mode, Mode::Failure) && label == "B" {
+                    if matches!(self.mode, Mode::Failure | Mode::TwoFailures) && label != "A" {
                         let _ = events.send(ProviderEvent::Usage(UsageSnapshot {
                             counts: TokenCounts {
                                 input: Some(7),
@@ -215,7 +217,7 @@ fn fixture(mode: Mode) -> Fixture {
         .with_execution_backend(script.clone())
         .unwrap();
     engine.use_memory = false;
-    if matches!(mode, Mode::Failure) {
+    if matches!(mode, Mode::Failure | Mode::TwoFailures) {
         engine.acceptance_contracts.push(AcceptanceContract {
             task_title: "A".into(),
             criteria: vec![AcceptanceCriterion {
@@ -519,6 +521,185 @@ async fn failed_sibling_preserves_completed_work_review_usage_and_restart_inspec
         .iter()
         .any(|d| d.reason.contains("interrupted artifacts")));
     assert_closed(&f, &resumed);
+}
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn independent_probe_two_failed_siblings_keep_eligible_review_reachable() {
+    let mut f = fixture(Mode::TwoFailures);
+    f.engine.config.team_constraints = TeamConstraints::default();
+    f.engine.config.team = vec!["one".into(), "two".into()];
+    f.engine.config.capabilities.insert(
+        "offline".into(),
+        ProviderCapabilities {
+            models_complete: true,
+            models: vec![ModelCapabilities {
+                id: "available".into(),
+                controls: None,
+            }],
+            default_model: Some("available".into()),
+            ..Default::default()
+        },
+    );
+    // B and C can produce, but only the independent fourth identity can review
+    // A. Their unsupported review configurations must not be silently changed.
+    f.engine
+        .set_assignment_settings(
+            ["two", "three"]
+                .into_iter()
+                .map(|id| AssignmentSettingsRule {
+                    agent_id: id.into(),
+                    purpose: Some("review".into()),
+                    task_id: None,
+                    settings: ModelEffort {
+                        model: Some("unavailable".into()),
+                        effort: None,
+                    },
+                })
+                .collect(),
+        )
+        .unwrap();
+    let run = start(&f);
+    let mut started = Vec::new();
+    for _ in 0..3 {
+        started.push(next(&mut f).await);
+    }
+    started.sort();
+    assert_eq!(started, ["A", "B", "C"]);
+    release(&f, "B");
+    release(&f, "C");
+    tokio::time::timeout(Duration::from_secs(3), async {
+        loop {
+            let session = f.store.sessions(None).unwrap().remove(0);
+            let trace = f.store.trace(&session.id).unwrap();
+            if trace
+                .invocations
+                .iter()
+                .filter(|i| i.state == InvocationState::Failed)
+                .count()
+                == 2
+            {
+                break;
+            }
+            tokio::time::sleep(Duration::from_millis(10)).await;
+        }
+    })
+    .await
+    .unwrap();
+    release(&f, "A");
+    let outcome = finish(run).await;
+    let trace = f.store.trace(&outcome.session.id).unwrap();
+    let completed = trace.tasks.iter().find(|t| t.title == "A").unwrap();
+    println!("Outcome: {}: {}", outcome.session.status, outcome.summary);
+    assert_eq!(
+        completed.state,
+        TaskState::Accepted,
+        "Completed sibling lost independent review although reviewer is eligible, max_members=4, and budget remains"
+    );
+    assert!(trace.decisions.iter().any(|d| d.kind == "task_accepted"
+        && d.links
+            .task
+            .as_ref()
+            .is_some_and(|task| task.task_id == completed.id)
+        && d.outcome
+            == Some(DecisionOutcome::Accepted {
+                confirmation: ConfirmationStatus::Confirmed
+            })));
+    assert_eq!(
+        std::fs::read(f.path.join("outputs/A.txt")).unwrap(),
+        b"Contribution A"
+    );
+    assert_eq!(outcome.session.status, "blocked");
+    assert!(outcome
+        .summary
+        .contains("Scripted sibling infrastructure failure"));
+    let failed = trace
+        .invocations
+        .iter()
+        .filter(|i| i.state == InvocationState::Failed)
+        .collect::<Vec<_>>();
+    assert_eq!(failed.len(), 2);
+    // Invocation records retain the runtime classification, not raw SDK errors.
+    assert!(failed
+        .iter()
+        .all(|i| i.terminal_reason.as_deref() == Some("failed")));
+    assert!(trace
+        .tasks
+        .iter()
+        .filter(|t| t.title != "A")
+        .all(|t| t.state == TaskState::Running));
+    assert_eq!(trace.usage.total.counts.input, Some(14));
+    assert_eq!(trace.usage.total.partial_calls, 2);
+    let budget = trace.budget.as_ref().unwrap();
+    assert!(budget.admitted_invocations < u64::try_from(budget.limits.turns).unwrap());
+    assert!(budget.last_denial.is_none());
+
+    let review = f
+        .store
+        .allocation_decisions(&outcome.session.id)
+        .unwrap()
+        .into_iter()
+        .find(|d| {
+            d.accepted
+                && d.input.demand.purpose == "review"
+                && d.input.demand.task_id.as_ref() == Some(&completed.id)
+        })
+        .unwrap();
+    assert_eq!(review.input.constraints, TeamConstraints::default());
+    assert_eq!(review.input.occupied_agent_ids, ["three", "two"]);
+    assert_eq!(review.proposal.members.len(), 3);
+    assert!(review
+        .input
+        .occupied_agent_ids
+        .iter()
+        .all(|id| review.proposal.members.contains(id)));
+    assert_eq!(
+        review.proposal.executor.as_ref().unwrap().agent_id,
+        "reviewer"
+    );
+    let reviewer = trace
+        .assignments
+        .iter()
+        .find(|a| {
+            a.purpose == "review"
+                && a.task
+                    .as_ref()
+                    .is_some_and(|task| task.task_id == completed.id)
+        })
+        .unwrap();
+    assert_eq!(reviewer.agent_id, "reviewer");
+    assert_ne!(completed.assignee.as_ref(), Some(&reviewer.agent_id));
+    assert!(reviewer.requested.model.is_none()); // Preserve the provider default.
+
+    // An actual smaller ceiling or size pin still forbids this membership.
+    // Increasing a heuristic target must not change captured constraints.
+    for constraints in [
+        TeamConstraints {
+            max_members: 2,
+            ..Default::default()
+        },
+        TeamConstraints {
+            fixed_size: Some(2),
+            ..Default::default()
+        },
+    ] {
+        let mut constrained = review.input.clone();
+        constrained.constraints = constraints;
+        assert!(BoundedAllocationPolicy
+            .propose(&constrained)
+            .unwrap_err()
+            .to_string()
+            .contains("active_responsibility"));
+    }
+    let mut already_occupied = review.input.clone();
+    already_occupied.occupied_agent_ids = vec!["reviewer".into(), "two".into()];
+    assert_eq!(
+        BoundedAllocationPolicy
+            .propose(&already_occupied)
+            .unwrap()
+            .members,
+        already_occupied.occupied_agent_ids,
+        "An already retained reviewer must not inflate the membership target"
+    );
+    assert_closed(&f, &outcome);
 }
 struct DishonestPolicy;
 impl WorkspaceAccessPolicy for DishonestPolicy {

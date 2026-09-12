@@ -85,9 +85,15 @@ impl AllocationPolicy for BoundedAllocationPolicy {
         } else {
             0
         };
-        let minimum = minimum
-            .max(useful_width + 1)
-            .max(input.occupied_agent_ids.len());
+        // Retained responsibilities and a distinct selected actor both need a
+        // slot, including review after unrelated producers have failed.
+        let required_members = input.occupied_agent_ids.len()
+            + usize::from(
+                executor
+                    .as_ref()
+                    .is_some_and(|choice| !input.occupied_agent_ids.contains(&choice.agent_id)),
+            );
+        let minimum = minimum.max(useful_width + 1).max(required_members);
         let target = input
             .constraints
             .fixed_roster
