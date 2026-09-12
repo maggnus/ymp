@@ -50,15 +50,7 @@ pub async fn refresh_catalog(
         "Catalog timeout must be between 1 and 60 seconds per provider"
     );
     config.validate()?;
-    std::fs::create_dir_all(home)?;
-    let scan_lock = std::fs::OpenOptions::new()
-        .create(true)
-        .truncate(false)
-        .read(true)
-        .write(true)
-        .open(home.join("catalog-scan.lock"))?;
-    fs2::FileExt::try_lock_exclusive(&scan_lock)
-        .map_err(|_| anyhow::anyhow!("Another native catalog scan is already running"))?;
+    let _scan_lock = catalog_scan_lock(home)?;
     let expected = match std::fs::read(home.join("config.toml")) {
         Ok(bytes) => Some(bytes),
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => None,
@@ -282,4 +274,97 @@ fn reconcile_provider(
     // Starting roster, execution policies, constraints, original instructions,
     // disabled state and all session/history data remain untouched.
     Ok(())
+}
+
+/// The scan owns exclusion, including when a spawned child temporarily retains
+/// an inherited descriptor. Ownership ends when this guard is dropped.
+struct CatalogScanLock {
+    file: std::fs::File,
+}
+
+impl Drop for CatalogScanLock {
+    fn drop(&mut self) {
+        let _ = fs2::FileExt::unlock(&self.file);
+    }
+}
+
+fn catalog_scan_lock(home: &Path) -> Result<CatalogScanLock> {
+    std::fs::create_dir_all(home)?;
+    let file = std::fs::OpenOptions::new()
+        .create(true)
+        .truncate(false)
+        .read(true)
+        .write(true)
+        .open(home.join("catalog-scan.lock"))?;
+    fs2::FileExt::try_lock_exclusive(&file)
+        .map_err(|_| anyhow::anyhow!("Another native catalog scan is already running"))?;
+    Ok(CatalogScanLock { file })
+}
+
+#[cfg(all(test, unix))]
+mod lock_tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn completed_scan_owner_releases_before_inherited_descriptor_closes() {
+        let temp = tempfile::tempdir().unwrap();
+        let home = temp.path();
+        let mut config = Config::default();
+        for provider in &mut config.providers {
+            provider.enabled = false;
+        }
+        config.save(home).unwrap();
+        let owner = catalog_scan_lock(home).unwrap();
+        // dup/try_clone shares the same open file description as an inherited
+        // descriptor; it makes the delayed-close failure deterministic.
+        let inherited = owner.file.try_clone().unwrap();
+        let blocked = refresh_catalog(
+            &mut config,
+            home,
+            home,
+            home,
+            ScanOptions::default(),
+            CancellationToken::new(),
+        )
+        .await
+        .unwrap_err();
+        assert!(blocked.to_string().contains("already running"));
+        drop(owner);
+        let next = catalog_scan_lock(home)
+            .expect("completed scan owner must release before an inherited descriptor closes");
+        assert!(
+            catalog_scan_lock(home).is_err(),
+            "replacement owner must remain exclusive"
+        );
+        drop(inherited);
+        let blocked = refresh_catalog(
+            &mut config,
+            home,
+            home,
+            home,
+            ScanOptions::default(),
+            CancellationToken::new(),
+        )
+        .await
+        .unwrap_err();
+        assert!(
+            blocked.to_string().contains("already running"),
+            "closing the old descriptor must not unlock the replacement owner"
+        );
+        drop(next);
+        let report = refresh_catalog(
+            &mut config,
+            home,
+            home,
+            home,
+            ScanOptions::default(),
+            CancellationToken::new(),
+        )
+        .await
+        .unwrap();
+        assert!(
+            report.providers.is_empty(),
+            "this lock control never queries any provider"
+        );
+    }
 }

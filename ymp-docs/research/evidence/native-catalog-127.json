@@ -439,6 +439,24 @@
       "exit": 101,
       "failed_tests": 2,
       "assertion": "Fresh-session candidate.experience.successes was 0 instead of 1 for both fixed and defaulted model policies."
+    },
+    {
+      "control": "configuration-owner-close-only",
+      "base_commit": "314dc8ad09e191b29ed78d791933490edd42b1e6",
+      "command": "cargo test -p ymp-core --lib completed_configuration_owner_releases_before_inherited_descriptor_closes",
+      "expected_old_behavior_fails": true,
+      "exit": 101,
+      "failed_tests": 1,
+      "assertion": "Replacement configuration owner could not acquire while an inherited descriptor remained open."
+    },
+    {
+      "control": "scan-owner-close-only",
+      "base_commit": "314dc8ad09e191b29ed78d791933490edd42b1e6",
+      "command": "cargo test -p ymp-providers --lib completed_scan_owner_releases_before_inherited_descriptor_closes",
+      "expected_old_behavior_fails": true,
+      "exit": 101,
+      "failed_tests": 1,
+      "assertion": "Replacement scan owner could not acquire while an inherited descriptor remained open."
     }
   ],
   "review_correction": {
@@ -459,6 +477,35 @@
       "cargo_test_workspace": "passed",
       "explicit_native_fixture_suite": "10 passed, 0 failed, 0 ignored",
       "claude_bridge": "unchanged; reused independently verified 14 passing tests and build"
+    }
+  },
+  "lock_lifecycle_correction": {
+    "base_commit": "314dc8ad09e191b29ed78d791933490edd42b1e6",
+    "integration_finding": "The explicit ten-fixture suite failed at the Claude fixture initial Config::save with OS error 35 on a fresh temporary home. The retaining child was not identified by that log.",
+    "confirmed_mechanism": "Deterministically duplicated file descriptors retained both original close-only configuration and scan locks after the apparent owner completed.",
+    "correction": "Private ownership guards explicitly unlock configuration and scan file locks on Drop; no retry delay, naming, version formula, cache format or historical-record change.",
+    "deterministic_controls": [
+      "completed_configuration_owner_releases_before_inherited_descriptor_closes",
+      "completed_scan_owner_releases_before_inherited_descriptor_closes"
+    ],
+    "assertions": [
+      "A live owner excludes another configuration save or catalog refresh.",
+      "A replacement owner acquires while the old duplicated descriptor remains open.",
+      "Closing the stale descriptor does not release the replacement owner.",
+      "Saving and refreshing resume when the replacement owner completes."
+    ],
+    "platform": "Unix shared open-file-description semantics, modeled deterministically with File::try_clone.",
+    "new_real_provider_queries": 0,
+    "real_application_home_modified": false,
+    "validation": {
+      "deterministic_close_only_controls": "both fail at immediate replacement-owner acquisition before the correction",
+      "deterministic_owned_release_controls": "both pass, including live/replacement-owner exclusion and stale-descriptor closure",
+      "cargo_fmt_all_check": "passed",
+      "cargo_clippy_workspace_all_targets_deny_warnings": "passed",
+      "cargo_test_workspace": "passed",
+      "explicit_native_fixture_suite": "10 passed, 0 failed, 0 ignored; includes concurrent-scan/config-edit preservation",
+      "claude_bridge": "unchanged; reused prior independently verified 14 tests/check/build",
+      "final_check_log": "native127-lock-lifecycle-final-checks.log"
     }
   }
 }
