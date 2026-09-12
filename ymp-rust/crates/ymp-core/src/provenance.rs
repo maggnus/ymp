@@ -234,6 +234,8 @@ pub struct PlanVersion {
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RecordLinks {
     #[serde(default)]
+    pub board: Option<Box<crate::BoardDecision>>,
+    #[serde(default)]
     pub workspace_access: Option<crate::WorkspaceAccessDecision>,
     #[serde(default)]
     pub workspace_wait: Option<crate::WorkspaceWait>,

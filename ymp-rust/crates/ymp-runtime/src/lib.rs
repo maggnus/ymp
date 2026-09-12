@@ -15,3 +15,6 @@ mod workspace_access;
 pub use workspace_access::{
     DirectWorkspaceAccessPolicy, WorkspaceAccessInput, WorkspaceAccessPolicy,
 };
+
+mod board;
+pub use board::*;
