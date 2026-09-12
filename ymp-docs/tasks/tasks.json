@@ -2170,6 +2170,11 @@
           "at": "2026-09-12T17:35:10.690326+00:00",
           "status": "in_progress",
           "note": "Author delivered05e67df with accepted115 access/concurrency records, truthful workspace policy and306 passing tests. Core7038a4c is under independent Opus5 max review. A bounded actual walk now checks reaching middle/end decision records and their details; reported feature limits are being separated from actual acceptance defects."
+        },
+        {
+          "at": "2026-09-12T18:12:06.883018+00:00",
+          "status": "in_progress",
+          "note": "Independent Opus core review ACCEPT8/10 at7038a4c confirms110/113 corresponding views. Before final118 closure the author is fixing remaining narrow header/requested-settings/credit wording issues (detail outcome already corrected), preserving review history, and integrating accepted125 configuration for a real typed-check TUI walk."
         }
       ]
     },
@@ -2242,7 +2247,8 @@
         "YMP-123",
         "YMP-125",
         "YMP-110",
-        "YMP-113"
+        "YMP-113",
+        "YMP-126"
       ],
       "reason": "A local release needs a reproducible install and truthful compatibility evidence for the configured native providers.",
       "acceptance": [
@@ -2298,6 +2304,11 @@
           "at": "2026-09-12T17:53:05.547641+00:00",
           "status": "planned",
           "note": "Release now directly requires complete110 and113 UI acceptance while112/114 can use their independently accepted integrated backends. All original outcomes remain required; this removes a frontend delay from backend readiness, not a release requirement."
+        },
+        {
+          "at": "2026-09-12T18:22:16.023396+00:00",
+          "status": "planned",
+          "note": "Driver/exporter implementation is tracked in126 for parallel progress. Final121 still reruns the full integrated acceptance evidence and performs independent max review, packaging and release; no scenario or release requirement is removed."
         }
       ],
       "budget": "Not allocated. Prepare a concrete bounded smoke-check proposal before any real-provider inference."
@@ -2411,7 +2422,7 @@
       "title": "Expose a public local MCP facade over stdio",
       "type": "implementation",
       "priority": "P1",
-      "status": "in_progress",
+      "status": "done",
       "owner": "Maintainer",
       "authorization": "Owner discussion on2026-09-12 requested external MCP availability and selected stdio; standing autonomous delivery authorization applies.",
       "depends_on": [
@@ -2486,6 +2497,16 @@
           "at": "2026-09-12T17:45:29.110651+00:00",
           "status": "in_progress",
           "note": "R3(6/10) RETURN reopens process-exit acceptance: an actual read-only client stops draining stdout, keeps pipes open and sends SIGTERM; the process remains alive after7s (exit1 control). Parent authorized a bounded two-return extension for interruptible output/backpressure plus preserved terminal accounting and framing. No model invocation occurred."
+        },
+        {
+          "at": "2026-09-12T18:12:06.966919+00:00",
+          "status": "in_progress",
+          "note": "R4 independent ACCEPT9.5/10 at e4607d7 closes output-backpressure signal shutdown and preserves EOF/broken-pipe cleanup. Integrated c709a9a; main source matches reviewed source. Required main checks and the actual undrained-output control are running before re-closing this task."
+        },
+        {
+          "at": "2026-09-12T18:22:16.099924+00:00",
+          "status": "done",
+          "note": "R4 independent ACCEPT9.5/10 closes the output-backpressure return. Integrated c709a9a, with main source identical to reviewed e4607d7. Main fmt/clippy,297 Rust tests/build and actual output-only process controls pass: undrained SIGTERM/SIGINT cancels active work and exits, EOF preserves complete frames, broken pipes clean up. Historical input/output failures remain recorded."
         }
       ]
     },
@@ -2578,9 +2599,49 @@
           "note": "Standalone and combined independent reviews ACCEPT9/10. Integrated c46a454; main source matches127bfd1. Main fmt/clippy,297 Rust tests, build and actual MCP configured-contract walk pass. User-controlled typed configuration now reaches confirmed output and later supported experience; target binding, immutable resume and runtime authority are preserved. MCP output backpressure remains separately reopened under123."
         }
       ]
+    },
+    {
+      "id": "YMP-126",
+      "title": "Execute universal acceptance scenarios through a trusted runtime driver",
+      "type": "implementation",
+      "priority": "P1",
+      "status": "in_progress",
+      "owner": "Maintainer and delegated xhigh implementation/review agents",
+      "authorization": "Implementation work extracted from existing YMP-121 scope to permit parallel preparation; no new product requirement or real-provider quota is added.",
+      "depends_on": [
+        "YMP-119",
+        "YMP-101",
+        "YMP-102",
+        "YMP-117",
+        "YMP-120",
+        "YMP-122",
+        "YMP-125"
+      ],
+      "reason": "YMP-119 supplies discriminating fixtures, but the production-boundary driver and authentic evidence exporter required by121 are still absent. This large implementation can begin on accepted core interfaces while final features and UI finish.",
+      "acceptance": [
+        "Implement the YMP-evals integration contract against actual runtime admission, execution, storage, tool and confirmation boundaries; scripted backends may control workload and barriers but may not fabricate completion receipts.",
+        "Run all four universal workflows and all thirteen named protocol scenarios. Pending feature adapters and skipped cases remain incomplete; board112 and correction114 must be exercised when their accepted implementations are available.",
+        "Derive normalized observations from actual records and measured counters, retain raw journals and an ID alias map, preserve unexpected occurrences/order, and bind source/fixture/provider/exporter revisions and hashes.",
+        "Keep authoritative validators, reference outputs and expected traces outside agent context and memory; use genuine non-Git selected task directories and metadata-only application homes.",
+        "Verify the independent validators against actual artifacts and relevant captured evidence, including qualitative accepted/unconfirmed outcomes, resource coverage, durable paths, recovery and policy substitution.",
+        "Retain discriminating negative controls and complete per-case evidence bundles as specified by ymp-evals/README.md; no model quality or efficiency claim follows from scripted runs.",
+        "Run required Cargo and validator checks, obtain independent review, and provide a reproducible command for the final121 release verification. All workloads remain mock/scripted; no native inference or UI implementation is authorized here."
+      ],
+      "evidence": [
+        "[Universal integration contract](../../ymp-evals/README.md)",
+        "[Workflow scenarios](../../ymp-evals/scenarios/universal-workflows.json)",
+        "[Protocol scenarios](../../ymp-evals/scenarios/universal-protocol.json)"
+      ],
+      "history": [
+        {
+          "at": "2026-09-12T18:22:16.023396+00:00",
+          "status": "in_progress",
+          "note": "Extracted driver/exporter implementation from121 without removing any final release criterion. Core interfaces are accepted; work can begin now, while all seventeen completed runtime cases remain required before this task can close."
+        }
+      ]
     }
   ],
-  "updated_at": "2026-09-12T17:54:15.323953+00:00",
+  "updated_at": "2026-09-12T18:22:16.099924+00:00",
   "delivery_order": [
     "YMP-116",
     "YMP-103",
@@ -2604,6 +2665,7 @@
     "YMP-107",
     "YMP-118",
     "YMP-123",
+    "YMP-126",
     "YMP-121"
   ],
   "intent": "intent.md",
@@ -2679,6 +2741,7 @@
         "YMP-125",
         "YMP-118",
         "YMP-123",
+        "YMP-126",
         "YMP-121"
       ]
     }
