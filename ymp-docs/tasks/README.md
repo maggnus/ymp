@@ -1,6 +1,6 @@
 # Task details and evidence
 
-Updated: 2026-09-12 19:07 UTC.
+Updated: 2026-09-12 19:12 UTC.
 
 Use the [delivery plan](plan.md) to follow progress. This generated register contains full acceptance criteria, dependencies and evidence. [tasks.json](tasks.json) is the single source; [manage.py](manage.py) updates both pages.
 
@@ -65,7 +65,7 @@ A planned task is not implemented functionality. Completed research and planning
 | `[x]` | [YMP-123](#ymp-123) | P1 | Expose a public local MCP facade over stdio | 2026-09-12 18:22 |
 | `[=]` | [YMP-124](#ymp-124) | P1 | Add isolated execution and recoverable publication for larger projects | 2026-09-12 15:31 |
 | `[x]` | [YMP-125](#ymp-125) | P0 | Expose trusted acceptance contracts to executable users | 2026-09-12 17:54 |
-| `[~]` | [YMP-126](#ymp-126) | P1 | Execute universal acceptance scenarios through a trusted runtime driver | 2026-09-12 18:22 |
+| `[~]` | [YMP-126](#ymp-126) | P1 | Execute universal acceptance scenarios through a trusted runtime driver | 2026-09-12 19:12 |
 | `[~]` | [YMP-127](#ymp-127) | P0 | Build and display the agent pool from provider-returned native names | 2026-09-12 19:07 |
 
 ## YMP-001
@@ -1517,9 +1517,9 @@ Execute universal acceptance scenarios through a trusted runtime driver
 
 **State:** `[~]` (in_progress) · **Type:** implementation · **Priority:** P1
 
-**Last update (UTC):** 2026-09-12 18:22
+**Last update (UTC):** 2026-09-12 19:12
 
-**Current reason:** Extracted driver/exporter implementation from121 without removing any final release criterion. Core interfaces are accepted; work can begin now, while all seventeen completed runtime cases remain required before this task can close.
+**Current reason:** Actual document workflow now passes the independent validator with confirmed output, six charged scripted invocations,42 synthetic tokens and zero-inference path follow-up. Runtime budget-reservations probe honestly fails: captured global60-token estimate also reserves60 for review, while scenario requires producer60/review20. Evidence retained; no fixture weakening or complete-suite claim. Driver author temporarily prioritizes112 R1 correction.
 
 **Owner:** Maintainer and delegated xhigh implementation/review agents
 
