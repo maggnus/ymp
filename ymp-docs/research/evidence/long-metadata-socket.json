@@ -1,0 +1,44 @@
+{
+  "scope": "YMP-128 candidate; independent review pending",
+  "source_manifest": "/tmp/ymp128-final/source-files.json",
+  "source_manifest_sha256": "87248fdcfae803db2806c39c36d565dac2441103038dc7e142f1a48e7f72f75e",
+  "source_file_count": 125,
+  "checks": [
+    {
+      "step": "fmt",
+      "exit": 0,
+      "seconds": 0.46,
+      "log": "/tmp/ymp128-final/fmt.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "step": "clippy",
+      "exit": 0,
+      "seconds": 17.87,
+      "log": "/tmp/ymp128-final/clippy.log",
+      "sha256": "799a5c1ae321b530f62d07570762b6386e8b343d6f81e70252e8ad078e282ba2"
+    },
+    {
+      "step": "workspace",
+      "exit": 0,
+      "seconds": 77.66,
+      "log": "/tmp/ymp128-final/workspace.log",
+      "sha256": "7ade08d98e07fe684e79546ea6f6764417619bd744525d88b227a15eb89499a9"
+    },
+    {
+      "step": "build",
+      "exit": 0,
+      "seconds": 0.2,
+      "log": "/tmp/ymp128-final/build.log",
+      "sha256": "40108eb5c2e432741fc7f36afdf5c793ec02b19e7b1ce5e51bdd2ba377bd26cb"
+    }
+  ],
+  "workspace_tests_passed": 382,
+  "original_failure": "/var/folders/cw/7pn8sb3x6bj69g7j2d8f_ss00000gn/T/ymp-install-preflight-v9wiwh0v/demo.log",
+  "negative_controls": {
+    "long_home_before": "/tmp/ymp128-long-home-before.log",
+    "ignore_replacement_owner": "/tmp/ymp128-replacement-control.log"
+  },
+  "same_setup_after": "/tmp/ymp128-original-install-demo-after.log",
+  "native_inference_calls": 0
+}
