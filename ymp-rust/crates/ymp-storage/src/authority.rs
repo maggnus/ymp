@@ -151,7 +151,7 @@ impl Store {
                 "change",
                 "rationale",
             ],
-            TeamOperation::MemorySearch => &["query", "include_unconfirmed", "cursor", "limit"],
+            TeamOperation::MemorySearch => &["query", "include_unconfirmed", "scope", "cursor", "limit"],
             TeamOperation::MemoryPropose => &["title", "content"],
         };
         ensure!(
@@ -243,6 +243,13 @@ impl Store {
                 serde_json::to_value(records::<Task>(&tx, "tasks", &current.session_id)?)?
             }
             TeamOperation::MemorySearch => {
+                let scope = arguments
+                    .get("scope")
+                    .cloned()
+                    .map(serde_json::from_value::<std::collections::BTreeMap<String, String>>)
+                    .transpose()?
+                    .unwrap_or_default();
+                validate_knowledge_scope(&scope)?;
                 let mode = if arguments["include_unconfirmed"] == true {
                     KnowledgeRetrievalMode::IncludeUnconfirmed
                 } else {
@@ -259,7 +266,7 @@ impl Store {
                         &tx,
                         &entry,
                         Some(&session.project_id),
-                        &Default::default(),
+                        &scope,
                         mode,
                     ) {
                         Ok(true) => Some(Ok(entry)),

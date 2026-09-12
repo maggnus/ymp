@@ -260,6 +260,15 @@ pub(super) fn decision(tx: &Transaction<'_>, value: &DecisionRecord) -> Result<(
     );
     validate_links(tx, value)?;
     super::confirmation::validate(tx, value)?;
+    if let Some(binding) = value
+        .links
+        .acceptance_contract
+        .as_ref()
+        .and_then(|c| c.contract.knowledge_correction.as_ref())
+    {
+        let predecessor: MemoryEntry = record(tx, "memory", &binding.target.id)?;
+        tx.execute("INSERT INTO events(session_id,kind,data,created_at) VALUES (?,'knowledge_correction_target',?,?)", params![value.session_id, serde_json::json!({"contract_id":value.id,"entry":predecessor}).to_string(), value.created_at])?;
+    }
     tx.execute(
         "INSERT INTO decisions(id,session_id,data) VALUES (?,?,?)",
         params![value.id, value.session_id, serde_json::to_string(value)?],
@@ -696,6 +705,10 @@ impl Store {
     }
 
     pub fn record_decision(&self, value: &DecisionRecord) -> Result<()> {
+        ensure!(
+            value.links.knowledge_correction.is_none() && value.kind != "knowledge_superseded",
+            "Knowledge corrections require the validated commit API"
+        );
         ensure!(
             value.kind != "reputation_observed",
             "Reputation records require the qualified observation API"

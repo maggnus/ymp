@@ -292,3 +292,127 @@ fn demo_keeps_explicit_contract_configuration() {
         Some(ConfirmationStatus::Confirmed)
     );
 }
+
+#[test]
+fn executable_correction_contract_scope_and_public_mcp_history_are_reachable() {
+    use std::io::Write;
+    use std::process::Stdio;
+    let f = Fixture::new();
+    std::fs::write(f.project.join("source-v1.txt"), "old input\n").unwrap();
+    std::fs::write(f.project.join("source-v2.txt"), "corrected input\n").unwrap();
+    let configure_scope = || {
+        let path = f.home.join("config.toml");
+        let mut config: Value = toml::from_str(&std::fs::read_to_string(&path).unwrap()).unwrap();
+        config["knowledge_scope"] = json!({"site":"Hill"});
+        std::fs::write(path, toml::to_string(&config).unwrap()).unwrap();
+    };
+    let mut first_contract = contract();
+    first_contract["inputs"] = json!(["source-v1.txt"]);
+    f.configure(Some(json!([first_contract])), "[mock:no-checks]");
+    configure_scope();
+    let (output, first) = f.run();
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let store = Store::open(&f.home).unwrap();
+    let old = store
+        .memory_inventory(Some(&first.session.project_id))
+        .unwrap()
+        .into_iter()
+        .find(|e| e.kind == "outcome")
+        .unwrap();
+    let mut correction = contract();
+    correction["inputs"] = json!(["source-v2.txt"]);
+    correction["knowledge_correction"] = json!({
+        "projection":"project_outcome", "target":{"id":old.id,"version":content_digest(&serde_json::to_string(&old).unwrap())},
+        "applicability":{"site":"Hill"}, "criterion_ids":["content"],
+        "source_replacement":{"previous_input":"source-v1.txt","replacement_input":"source-v2.txt"}
+    });
+    f.configure(Some(json!([correction])), "[mock:no-checks]");
+    configure_scope();
+    let (output, second) = f.run();
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let new = store
+        .memory_inventory(Some(&first.session.project_id))
+        .unwrap()
+        .into_iter()
+        .find(|e| e.kind == "outcome" && e.source_session == second.session.id)
+        .unwrap();
+    assert_eq!(new.supersedes.as_deref(), Some(old.id.as_str()));
+    assert_eq!(store.observations().unwrap().len(), 2);
+    let scoped = f.command(&["memory", "greeting", "--scope", "site=Hill"]);
+    assert!(scoped.status.success());
+    let rows: Value = serde_json::from_slice(&scoped.stdout).unwrap();
+    assert!(rows.as_array().unwrap().iter().any(|e| e["id"] == new.id));
+    assert!(!rows.as_array().unwrap().iter().any(|e| e["id"] == old.id));
+    let wrong = f.command(&["memory", "greeting", "--scope", "site=Harbor"]);
+    assert_eq!(
+        serde_json::from_slice::<Value>(&wrong.stdout).unwrap(),
+        json!([])
+    );
+    let history = f.command(&["memory", "--history", "--scope", "site=Hill"]);
+    let rows: Value = serde_json::from_slice(&history.stdout).unwrap();
+    assert!(rows
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|r| r["entry"]["id"] == old.id
+            && r["availability"] == "superseded"
+            && r["replaced_by"] == new.id));
+
+    // Use the actual stdio executable with read-only scope; tool arguments cannot
+    // supply correction authority or activate a record.
+    let mut child = Command::new(env!("CARGO_BIN_EXE_ymp"))
+        .arg("--home")
+        .arg(&f.home)
+        .arg("--cwd")
+        .arg(&f.project)
+        .arg("mcp")
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .unwrap();
+    let mut input = child.stdin.take().unwrap();
+    let requests = [
+        json!({"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"correction-test","version":"1"}}}),
+        json!({"jsonrpc":"2.0","method":"notifications/initialized","params":{}}),
+        json!({"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"ymp_knowledge_v1","arguments":{"id":new.id,"scope":{"site":"Hill"}}}}),
+        json!({"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"ymp_knowledge_v1","arguments":{"id":old.id,"scope":{"site":"Hill"},"history":true}}}),
+        json!({"jsonrpc":"2.0","id":4,"method":"tools/call","params":{"name":"ymp_knowledge_v1","arguments":{"query":"greeting","scope":{"site":"Harbor"}}}}),
+        json!({"jsonrpc":"2.0","id":5,"method":"tools/call","params":{"name":"ymp_knowledge_v1","arguments":{"id":old.id,"scope":{"site":"Hill"},"status":"active"}}}),
+    ];
+    for request in requests {
+        writeln!(input, "{request}").unwrap();
+    }
+    drop(input);
+    let output = child.wait_with_output().unwrap();
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let messages = String::from_utf8(output.stdout)
+        .unwrap()
+        .lines()
+        .map(|line| serde_json::from_str::<Value>(line).unwrap())
+        .collect::<Vec<_>>();
+    let result = |id| messages.iter().find(|v| v["id"] == id).unwrap()["result"].clone();
+    assert_eq!(
+        result(2)["structuredContent"]["items"][0]["value"]["id"],
+        new.id
+    );
+    assert_eq!(
+        result(3)["structuredContent"]["items"][0]["value"]["availability"],
+        "superseded"
+    );
+    assert_eq!(result(4)["structuredContent"]["items"], json!([]));
+    assert_eq!(result(5)["isError"], true);
+    assert_eq!(store.observations().unwrap().len(), 2);
+}

@@ -19,6 +19,7 @@ async fn await_phase(fixture: &mut RunFixture, phase: &str) {
 
 pub(super) fn exact_contract() -> AcceptanceContract {
     AcceptanceContract {
+        knowledge_correction: None,
         task_title: "Create a greeting".into(),
         criteria: vec![AcceptanceCriterion {
             id: "greeting-content".into(),

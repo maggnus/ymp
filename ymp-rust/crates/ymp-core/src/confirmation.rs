@@ -20,6 +20,8 @@ pub struct AcceptanceCriterion {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct AcceptanceContract {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub knowledge_correction: Option<crate::KnowledgeCorrectionBinding>,
     pub task_title: String,
     pub criteria: Vec<AcceptanceCriterion>,
     pub artifacts: Vec<PathBuf>,
@@ -44,6 +46,8 @@ pub fn validate_contract_targets(contracts: &[AcceptanceContract]) -> Result<()>
 /// captured bytes/code are deliberately absent from this type.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct AcceptanceRequirements {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub knowledge_correction: Option<crate::KnowledgeCorrectionBinding>,
     pub task_title: String,
     pub criteria: Vec<AcceptanceCriterion>,
     pub artifacts: Vec<PathBuf>,
@@ -53,6 +57,7 @@ pub struct AcceptanceRequirements {
 impl From<&AcceptanceContract> for AcceptanceRequirements {
     fn from(contract: &AcceptanceContract) -> Self {
         Self {
+            knowledge_correction: contract.knowledge_correction.clone(),
             task_title: contract.task_title.clone(),
             criteria: contract.criteria.clone(),
             artifacts: contract.artifacts.clone(),
@@ -172,6 +177,28 @@ impl CapturedAcceptanceContract {
             .iter()
             .map(|c| &c.id)
             .collect::<std::collections::HashSet<_>>();
+        if let Some(binding) = &contract.knowledge_correction {
+            crate::validate_knowledge_scope(&binding.applicability)?;
+            ensure!(
+                !binding.target.id.is_empty()
+                    && !binding.target.version.is_empty()
+                    && !binding.criterion_ids.is_empty()
+                    && binding.criterion_ids.iter().all(|id| ids.contains(id))
+                    && binding
+                        .criterion_ids
+                        .iter()
+                        .collect::<std::collections::HashSet<_>>()
+                        .len()
+                        == binding.criterion_ids.len(),
+                "Correction must bind an exact target and declared unique criteria"
+            );
+            if let Some(source) = &binding.source_replacement {
+                ensure!(
+                    contract.inputs.contains(&source.replacement_input),
+                    "Correction replacement input is undeclared"
+                );
+            }
+        }
         ensure!(
             ids.len() == contract.criteria.len()
                 && contract

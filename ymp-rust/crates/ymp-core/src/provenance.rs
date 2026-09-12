@@ -138,6 +138,7 @@ pub struct AssignmentRecord {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ContextKind {
+    KnowledgeCorrection,
     Message,
     Memory,
     Task,
@@ -233,6 +234,8 @@ pub struct PlanVersion {
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RecordLinks {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub knowledge_correction: Option<crate::KnowledgeCorrectionCommit>,
     #[serde(default)]
     pub board: Option<Box<crate::BoardDecision>>,
     #[serde(default)]

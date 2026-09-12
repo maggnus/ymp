@@ -85,6 +85,9 @@ impl Default for Limits {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Config {
+    /// Exact applicability for knowledge lookup and new retained findings.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub knowledge_scope: BTreeMap<String, String>,
     pub version: u32,
     /// Trusted checks for every new team session using this configuration.
     /// On resume, None keeps captured authority; Some must match it exactly.
@@ -110,6 +113,7 @@ impl Default for Config {
         Self {
             version: 1,
             acceptance_contracts: None,
+            knowledge_scope: Default::default(),
             team_constraints: crate::TeamConstraints::default(),
             limits: Limits::default(),
             capabilities: BTreeMap::new(),
@@ -173,6 +177,7 @@ impl Default for Config {
 
 impl Config {
     pub fn validate(&self) -> Result<()> {
+        crate::validate_knowledge_scope(&self.knowledge_scope)?;
         crate::validate_contract_targets(self.acceptance_contracts.as_deref().unwrap_or_default())?;
         self.team_constraints.validate()?;
         if self.version != 1 {

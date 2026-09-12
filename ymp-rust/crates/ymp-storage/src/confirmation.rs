@@ -309,6 +309,7 @@ pub(super) fn validate(db: &Connection, value: &DecisionRecord) -> Result<()> {
             fresh == *contract,
             "Contract does not match actual initial inputs and verifier code"
         );
+        super::knowledge_correction::validate_capture(db, &value.session_id, contract)?;
         let all: Vec<DecisionRecord> = records(db, "decisions", &value.session_id)?;
         ensure!(
             !all.iter().any(|d| d
@@ -610,6 +611,7 @@ pub(super) fn validate(db: &Connection, value: &DecisionRecord) -> Result<()> {
             ),
             "Agent review is not confirmation"
         );
+        super::knowledge_correction::validate_review_context(db, result, &assignment)?;
     }
     if value.kind == "check_observed" {
         ensure!(
