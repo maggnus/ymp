@@ -290,3 +290,138 @@ Stated plainly, because none of them is covered by the work above.
    protection.
 10. **The shared lock release correction under separate review is not duplicated here**, and
     nothing in these pages depends on it.
+
+## Round three: one walk of a long record list, and what it found
+
+Round two left item 8 of the list above open: the coordination records in the middle of a run
+were asserted by test and never read on a captured frame. This round answers it by walking the
+real binary, at 80x24, through a session that recorded 67 decisions. Commit `2124b53`,
+13/09/2026 01:37 HKT; the source stood at `05e67df` until the walk found something to correct.
+
+### How the walk was driven
+
+The binary is `target/debug/ymp` built from this worktree, started in a pseudo-terminal with
+its own home and its own working directory. Its configuration names the in-process mock
+provider (`kind = "mock"`, `command = "internal"`), two mock agents and two dependent tasks, so
+the recorded wait is the runtime's own and no provider process starts. No credential is read,
+no model is asked anything, and no effort setting applies.
+
+The first harness counted its position in the list by arithmetic over the row texts it had
+swept. Dozens of rows share the same left text, so that arithmetic answered with the first
+match, pressed Down too many times, and opened a later record than the one it named: a run it
+labelled "an acceptance record" in fact opened a reservation release. The corrected harness
+presses a key, reads the row the application itself marks as selected, and stops when that row
+is the wanted one, which is what a reader does. Both captures are kept, the faulty one
+included, at `/tmp/118-walk/walk_long_list2.txt` and `walk_long_list3.txt`.
+
+### What the keyboard reached
+
+| From | Keys | What became selected |
+| --- | --- | --- |
+| Top of the list | `Home` then 5x `PageDown` | row 35 of 68, the admission of One's turn |
+| Top of the list | `Home` then `End` | the last row, a reservation release |
+| Top of the list | `Home` then 16x `Down` | the wait record |
+| Top of the list | `Home` then 30x `Down` | the task acceptance record |
+| Top of the list | `Home` then 54x `Down` | the final acceptance record |
+| `/checks` | `Home` then 1x `Down` | the first recorded shell check |
+
+A sweep of the whole list with `Down` alone selected 68 rows: the explanatory first row plus
+the 67 the subtitle counts. The sweep took 70 samples, the last two because `Down` on the last
+row does not move, and two adjacent pairs read the same because the left text of a membership
+commit truncates before the member's name. The session's own store holds 67 decisions, of which
+ten are membership commits, which is the number of such rows the sweep selected, so the sweep
+reached every record rather than stopping inside the list. `PageDown` advances seven rows, one viewport at this
+height, and `End` reaches the last row from the top in one press. Two independent runs agreed
+on the order of the list, so the positions above are the same rows in both. `Enter` on any of
+them opens the whole record in a read-only surface that scrolls with `Up`/`Down` and states how
+much is left; the task acceptance record ended with `0 more` after one `PageDown`.
+
+The records read, in the words the pages now use:
+
+- The wait: `a turn waited`, actor the runtime, `outcome the turn waited · dependencies`,
+  the task and attempt, `waited because dependencies · a task it depends on was not accepted
+  yet`, `holder none was named`, and the runtime's own reason.
+- The reservation: `directory reserved`, its reservation short id, the directory, `effective
+  reads the directory and writes nothing`, `enforced by ymp.native 0.3.0`, and the direct-mode
+  statement that unbounded writers own the whole directory with no rollback or source
+  isolation.
+- The release: `reservation ended`, with `Runtime resource ownership ended; this is not result
+  acceptance`.
+- The task acceptance: `task accepted`, actor Two, `outcome accepted, unconfirmed`, `basis an
+  independent review, with no applicable check evidence`, the reviewer, the result with its
+  version and criteria version, `files still current (0 named by the result)`, the task and its
+  attempt, and the assignment.
+- The recorded check: the command whole across two lines, `outcome passed`, the task, the
+  directory, when it was recorded, and the captured output with its exit status.
+
+### The defect the walk found, and the correction
+
+A row reading `reservation ended` opened a record reading `outcome recorded without an
+outcome`. The detail read the acceptance grade field, which is never written for a membership
+change, a per-turn bound, a wait or the three reservation records, while the row beside it read
+the record's own field. One record, two statements, one of them false.
+
+`recorded_outcome` in `views.rs` now reads the same field the row does, so the detail states
+what the record decided: the membership was committed or refused, the bound was set or refused,
+the turn waited with its code, the directory was reserved, the turn was admitted under that
+reservation, the reservation ended, or criteria were captured before the work. Records that do
+carry an acceptance grade are unchanged.
+
+`a_record_that_carries_its_own_outcome_never_reads_as_ungraded` asserts it over every record of
+a mock run whose outcome lives inside itself, and fails before the change. Reverting
+`recorded_outcome` to the grade field fails that test as intended; this was the only mutation
+of round three.
+
+### Commands and results, round three
+
+| Command | Exit |
+| --- | --- |
+| `cargo fmt --all --check` | 0 |
+| `cargo clippy --workspace --all-targets -- -D warnings` | 0, no warning |
+| `cargo test --workspace` | 0, 307 tests passed, 102 of them in `ymp-tui` |
+| `python3 /tmp/118-walk/walk_long_list3.py` | walk written, 257 keystrokes |
+
+## Acceptance state, stated in two separate lists
+
+### Actually unmet YMP-118 criteria
+
+None remain that this task owns. Item 8 above is closed by the walk: normal navigation reaches
+every record of a long list, including the middle and the last row, and `Enter` opens each one
+whole. The one visibility defect the walk exposed is corrected in `2124b53`. Frame clipping,
+the other half of the task, is covered both by the test that paints every record page whole at
+every supported size and by these captured frames, where long values wrap inside the record
+surface and nothing is silently cut.
+
+Two defects found while doing this work belong to layers this task may not change, and are
+reported rather than fixed: a wait is recorded against an agent or a task and never against the
+assignment it delayed, so the pages list an agent's waits and say exactly that; and
+`Store::outcomes` answers for a whole session, so one accepted result with a missing captured
+directory makes the list unavailable and the page reports that failed read.
+
+### Tested limitations, which are not unmet criteria
+
+1. **A captured acceptance contract cannot appear in a walk driven through the binary.** No
+   configuration this build accepts supplies typed criteria; that ingress is YMP-125. The walk
+   searched the whole list for such a record and reported its absence rather than passing over
+   it: 120 `Down` presses from the top never selected one. The display path is covered by
+   `a_captured_acceptance_contract_is_shown_as_a_binding_and_not_as_a_result` and by the test
+   added this round, both against a contract supplied in process.
+2. **Scoped access rows have no producer on this build.** The native adapter records the whole
+   directory or read-only and nothing between, so the scoped words and path lists are exercised
+   by interface tests and by the runtime's fixture backend, not by a walk.
+3. **The section for records without captured membership is unreachable through supported
+   writes**, because storage refuses an assignment for an agent outside the captured team. Its
+   test supplies such a record as a controller snapshot.
+4. **A long recorded path wraps across lines** in the detail pane at 80 columns. The whole path
+   is present and reachable; it is not one line.
+5. **The emulator is not a terminal.** The screen model in the harness handles positioning,
+   erase, scrolling, colour and split sequences, and every reading above is cross-checked
+   against an interface test that asserts the same text.
+
+### Explicit feature boundaries, unchanged by this round
+
+Cross-session competence credit is not read, and the reputation page says so. Typed check
+outcomes and recorded shell checks are not joined on one page, and none claims to. No surface
+proposes or edits membership, access or criteria. Isolated execution and recoverable
+publication remain YMP-124. The shared lock release correction and the public MCP work are in
+main at `3b4045f` and are not duplicated here.
