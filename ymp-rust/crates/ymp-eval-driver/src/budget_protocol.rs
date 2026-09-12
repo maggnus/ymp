@@ -63,6 +63,13 @@ pub async fn run(root: &Path, directory: &Path, spec: &Value) -> Result<Value> {
     let (events, _) = mpsc::unbounded_channel();
     let server = Arc::new(TeamServer::start(store.clone(), &session, events.clone()).await?);
     let journal = Arc::new(NativeJournal::default());
+    let owner_engine = Engine::new(
+        store.clone(),
+        config.clone(),
+        events.clone(),
+        CancellationToken::new(),
+    )?;
+    let owner = owner_engine.acquire_workspace_owner(&session.id)?;
     let mut pending = BTreeMap::new();
     let mut attempts = BTreeMap::new();
     let mut denial_links = BTreeMap::new();
@@ -135,7 +142,7 @@ pub async fn run(root: &Path, directory: &Path, spec: &Value) -> Result<Value> {
                 let before = store.trace(&session.id)?;
                 let previous_seq = before.history.last().map_or(0, |e| e.seq);
                 let WorkspaceAdmission::Acquired(lease) =
-                    engine.try_reserve_workspace(&session.id, &request, None)?
+                    engine.try_reserve_workspace(&owner, &session.id, &request, None)?
                 else {
                     anyhow::bail!("Unexpected resource deferral in token protocol")
                 };

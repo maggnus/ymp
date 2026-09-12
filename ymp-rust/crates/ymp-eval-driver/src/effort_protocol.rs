@@ -120,6 +120,8 @@ pub async fn run(root: &Path, directory: &Path, spec: &Value) -> Result<Value> {
         servers.insert(name.clone(), server);
         sessions.insert(name.clone(), session);
     }
+    let first = sessions.keys().next().unwrap();
+    let owner = engines[first].acquire_workspace_owner(&sessions[first].id)?;
     let mut pending = BTreeMap::new();
     let mut aliases = BTreeMap::new();
     let mut observed = Vec::new();
@@ -155,7 +157,7 @@ pub async fn run(root: &Path, directory: &Path, spec: &Value) -> Result<Value> {
                     bridge: Path::new("").into(),
                 };
                 let before = store.trace(&session.id)?.invocations.len();
-                match engine.try_reserve_workspace(&session.id, &request, None) {
+                match engine.try_reserve_workspace(&owner, &session.id, &request, None) {
                     Err(error) => {
                         let message = error.to_string();
                         let reason = if message.contains("violates fixed model") {

@@ -1,7 +1,9 @@
 //! Trusted offline driver. Acceptance exports are derived from runtime records.
+mod artifact_protocol;
 mod budget_protocol;
 mod concurrency_protocol;
 mod effort_protocol;
+mod evidence_protocol;
 mod export;
 mod location_protocol;
 mod partial_protocol;

@@ -6,6 +6,8 @@ use std::path::Path;
 
 pub async fn run(root: &Path, directory: &Path, case: &str, spec: &Value) -> Result<Value> {
     match case {
+        "artifact-version" => crate::artifact_protocol::run(root, directory).await,
+        "evidence-boundaries" => crate::evidence_protocol::run(root, directory).await,
         "partial-usage" => crate::partial_protocol::run(root, directory, spec).await,
         "effort-support" => crate::effort_protocol::run(root, directory, spec).await,
         "location-retrieval" => crate::location_protocol::run(root, directory).await,

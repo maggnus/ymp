@@ -130,13 +130,22 @@ pub(crate) async fn execute_reserved_with_allowance(
         requested: request.settings.clone(),
         timeout_secs: request.timeout_secs,
         grant_ids: vec![],
-        context: vec![ContextReference {
-            kind: ContextKind::Prompt,
-            id: content_digest(&request.prompt),
-            session_id: Some(session.clone()),
-            digest: Some(content_digest(&request.prompt)),
-            included_chars: Some(request.prompt.chars().count()),
-        }],
+        context: vec![
+            ContextReference {
+                kind: ContextKind::Prompt,
+                id: content_digest(&request.prompt),
+                session_id: Some(session.clone()),
+                digest: Some(content_digest(&request.prompt)),
+                included_chars: Some(request.prompt.chars().count()),
+            },
+            ContextReference {
+                kind: ContextKind::ProfileInstructions,
+                id: request.profile.version(&request.provider),
+                session_id: None,
+                digest: Some(content_digest(&request.profile.instructions)),
+                included_chars: Some(request.profile.instructions.chars().count()),
+            },
+        ],
         state: InvocationState::Running,
         started_at: now(),
         ended_at: None,
@@ -289,6 +298,7 @@ pub async fn run(root: &Path, directory: &Path, spec: &Value) -> Result<Value> {
         CancellationToken::new(),
     )?
     .with_execution_backend(backend.clone())?;
+    let owner = engine.acquire_workspace_owner(&session.id)?;
     let server = Arc::new(TeamServer::start(store.clone(), &session, events).await?);
     let mut work_handles = BTreeMap::new();
     let mut aliases = BTreeMap::new();
@@ -336,7 +346,7 @@ pub async fn run(root: &Path, directory: &Path, spec: &Value) -> Result<Value> {
                     timeout_secs: 10,
                     bridge: Path::new("").into(),
                 };
-                match engine.try_reserve_workspace(&session.id, &request, None)? {
+                match engine.try_reserve_workspace(&owner, &session.id, &request, None)? {
                     WorkspaceAdmission::Deferred(wait) => {
                         let trace = store.trace(&session.id)?;
                         let record = trace

@@ -116,6 +116,7 @@ pub struct TaskHarness {
     pub journal: Arc<NativeJournal>,
     server: Arc<TeamServer>,
     backend: Arc<Backend>,
+    owner: Arc<ymp_runtime::WorkspaceOwner>,
 }
 pub struct NativeResult {
     pub assignment: AssignmentRecord,
@@ -194,6 +195,7 @@ impl TaskHarness {
             CancellationToken::new(),
         )?
         .with_execution_backend(backend.clone())?;
+        let owner = engine.acquire_workspace_owner(&session.id)?;
         let server = Arc::new(TeamServer::start(store.clone(), &session, events).await?);
         Ok(Self {
             store,
@@ -203,6 +205,7 @@ impl TaskHarness {
             journal,
             server,
             backend,
+            owner,
         })
     }
     pub async fn invoke(
@@ -248,9 +251,12 @@ impl TaskHarness {
             timeout_secs: 10,
             bridge: PathBuf::new(),
         };
-        let WorkspaceAdmission::Acquired(mut lease) =
-            self.engine
-                .try_reserve_workspace(&self.session.id, &request, task.clone())?
+        let WorkspaceAdmission::Acquired(mut lease) = self.engine.try_reserve_workspace(
+            &self.owner,
+            &self.session.id,
+            &request,
+            task.clone(),
+        )?
         else {
             anyhow::bail!("Unexpected task setup resource deferral")
         };
@@ -261,6 +267,13 @@ impl TaskHarness {
             digest: Some(content_digest(&request.prompt)),
             included_chars: Some(request.prompt.chars().count()),
         }];
+        context.push(ContextReference {
+            kind: ContextKind::ProfileInstructions,
+            id: request.profile.version(&request.provider),
+            session_id: None,
+            digest: Some(content_digest(&request.profile.instructions)),
+            included_chars: Some(request.profile.instructions.chars().count()),
+        });
         if let Some(result) = result {
             context.push(ContextReference {
                 kind: ContextKind::Result,
