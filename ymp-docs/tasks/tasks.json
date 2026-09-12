@@ -1420,6 +1420,11 @@
           "at": "2026-09-12T12:46:29.117507+00:00",
           "status": "planned",
           "note": "Owner extension requirement added: Keep commitment/replanning strategy replaceable through a typed proposal interface; runtime validates and commits transitions independently of the proposing strategy."
+        },
+        {
+          "at": "2026-09-12T17:35:10.645800+00:00",
+          "status": "planned",
+          "note": "Read-only readiness check: task_propose currently records a bound chat proposal but no durable commitment, and graph revision only occurs before initial plan commitment. Existing atomic task/decision, grants, allocation and recovery seams are available. Implementation remains dependency-blocked on110 UI acceptance; no board feature is claimed complete."
         }
       ]
     },
@@ -1577,6 +1582,11 @@
           "at": "2026-09-12T12:46:29.117507+00:00",
           "status": "planned",
           "note": "Owner extension requirement added: Support a replaceable correction proposal policy while runtime independently enforces evidence, applicability, supersession and observation idempotence."
+        },
+        {
+          "at": "2026-09-12T17:38:50.182325+00:00",
+          "status": "planned",
+          "note": "Read-only preflight confirms existing source refs, applicability, inventory and observation deduplication can be reused. Missing pieces are an explicitly reviewed correction relation, atomic supersession and an old/new source binding for corrections stored at a different input path. Implementation remains gated by113 UI acceptance; no correction behavior is claimed delivered."
         }
       ]
     },
@@ -2131,6 +2141,11 @@
           "at": "2026-09-12T17:18:28.435443+00:00",
           "status": "in_progress",
           "note": "Core UI candidate7038a4c is delivered with289 passing Rust tests and an actual mock TUI walk. A fresh Claude Opus5 max reviewer is inspecting that exact snapshot. The author is adapting the same views to accepted115 access/concurrency records and replacing the earlier serial-execution wording; no UI acceptance is claimed yet."
+        },
+        {
+          "at": "2026-09-12T17:35:10.690326+00:00",
+          "status": "in_progress",
+          "note": "Author delivered05e67df with accepted115 access/concurrency records, truthful workspace policy and306 passing tests. Core7038a4c is under independent Opus5 max review. A bounded actual walk now checks reaching middle/end decision records and their details; reported feature limits are being separated from actual acceptance defects."
         }
       ]
     },
@@ -2512,11 +2527,16 @@
           "at": "2026-09-12T17:24:49.951216+00:00",
           "status": "in_progress",
           "note": "Standalone R1(9/10) ACCEPT at ef9a125. Independent documented-config executable consumer confirms output, supported later retrieval, immutable resume and stale-source rejection;13 focused controls and author280-test evidence pass. Integration with accepted main concurrency/MCP/StoreLock is assigned, including trusted launch configuration through public stdio."
+        },
+        {
+          "at": "2026-09-12T17:38:50.225861+00:00",
+          "status": "in_progress",
+          "note": "Combined candidate127bfd1 preserves accepted MCP IDs, concurrency and StoreLock while adding trusted contract ingress. Actual MCP configuration/confirmation/knowledge/resume consumer passes; the same consumer fails on rebuilt pre-integration source. Fmt/clippy,297 Rust tests, build and full SDK walk pass. Independent combined review is running."
         }
       ]
     }
   ],
-  "updated_at": "2026-09-12T17:24:49.951216+00:00",
+  "updated_at": "2026-09-12T17:38:50.225861+00:00",
   "delivery_order": [
     "YMP-116",
     "YMP-103",

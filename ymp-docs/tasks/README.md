@@ -1,6 +1,6 @@
 # Task details and evidence
 
-Updated: 2026-09-12 17:24 UTC.
+Updated: 2026-09-12 17:38 UTC.
 
 Use the [delivery plan](plan.md) to follow progress. This generated register contains full acceptance criteria, dependencies and evidence. [tasks.json](tasks.json) is the single source; [manage.py](manage.py) updates both pages.
 
@@ -46,9 +46,9 @@ A planned task is not implemented functionality. Completed research and planning
 | `[=]` | [YMP-301](#ymp-301) | P2 | Confirm the initial success class and intended audience | 2026-09-12 09:35 |
 | `[x]` | [YMP-109](#ymp-109) | P0 | Expose the provider-backed agent pool with stable individual identities | 2026-09-12 10:56 |
 | `[~]` | [YMP-110](#ymp-110) | P0 | Select session teams and execution settings within user constraints | 2026-09-12 16:33 |
-| `[=]` | [YMP-112](#ymp-112) | P0 | Coordinate commitments, plan revisions and reassignment through the board | 2026-09-12 12:46 |
+| `[=]` | [YMP-112](#ymp-112) | P0 | Coordinate commitments, plan revisions and reassignment through the board | 2026-09-12 17:35 |
 | `[~]` | [YMP-113](#ymp-113) | P0 | Accumulate general knowledge and verified experience incrementally | 2026-09-12 16:33 |
-| `[=]` | [YMP-114](#ymp-114) | P0 | Correct and supersede knowledge with newer verified evidence | 2026-09-12 12:46 |
+| `[=]` | [YMP-114](#ymp-114) | P0 | Correct and supersede knowledge with newer verified evidence | 2026-09-12 17:38 |
 | `[x]` | [YMP-009](#ymp-009) | P0 | Align the product definition, research conclusions and backlog with final intent | 2026-09-12 09:15 |
 | `[x]` | [YMP-115](#ymp-115) | P0 | Enable useful concurrent execution of independent assignments | 2026-09-12 17:00 |
 | `[x]` | [YMP-010](#ymp-010) | P0 | Approve product goals and core protocol constraints | 2026-09-12 09:06 |
@@ -57,14 +57,14 @@ A planned task is not implemented functionality. Completed research and planning
 | `[x]` | [YMP-116](#ymp-116) | P0 | Define the minimal runtime transition and authority contract | 2026-09-12 10:07 |
 | `[x]` | [YMP-117](#ymp-117) | P0 | Separate acceptance from confirmation and gate reputation on evidence | 2026-09-12 13:59 |
 | `[x]` | [YMP-120](#ymp-120) | P0 | Enforce assignment-scoped permissions and runtime-only state transitions | 2026-09-12 13:46 |
-| `[~]` | [YMP-118](#ymp-118) | P0 | Integrate core assignment, budget and confirmation visibility | 2026-09-12 17:18 |
+| `[~]` | [YMP-118](#ymp-118) | P0 | Integrate core assignment, budget and confirmation visibility | 2026-09-12 17:35 |
 | `[x]` | [YMP-119](#ymp-119) | P0 | Prepare universal acceptance scenarios and independent validators | 2026-09-12 10:56 |
 | `[=]` | [YMP-121](#ymp-121) | P1 | Verify the integrated application and package a local release | 2026-09-12 16:52 |
 | `[x]` | [YMP-013](#ymp-013) | P0 | Review plan coherence and simplify progress tracking | 2026-09-12 09:46 |
 | `[x]` | [YMP-122](#ymp-122) | P1 | Expose replaceable execution backends behind runtime-owned controls | 2026-09-12 15:23 |
 | `[x]` | [YMP-123](#ymp-123) | P1 | Expose a public local MCP facade over stdio | 2026-09-12 17:24 |
 | `[=]` | [YMP-124](#ymp-124) | P1 | Add isolated execution and recoverable publication for larger projects | 2026-09-12 15:31 |
-| `[~]` | [YMP-125](#ymp-125) | P0 | Expose trusted acceptance contracts to executable users | 2026-09-12 17:24 |
+| `[~]` | [YMP-125](#ymp-125) | P0 | Expose trusted acceptance contracts to executable users | 2026-09-12 17:38 |
 
 ## YMP-001
 
@@ -847,7 +847,7 @@ Coordinate commitments, plan revisions and reassignment through the board
 
 **State:** `[=]` (planned) · **Type:** implementation · **Priority:** P0
 
-**Last update (UTC):** 2026-09-12 12:46
+**Last update (UTC):** 2026-09-12 17:35
 
 **Current reason:** Needs YMP-110
 
@@ -859,7 +859,7 @@ Coordinate commitments, plan revisions and reassignment through the board
 
 Required directly by the final product intent; design and implementation are pending.
 
-**Latest progress note:** Owner extension requirement added: Keep commitment/replanning strategy replaceable through a typed proposal interface; runtime validates and commits transitions independently of the proposing strategy.
+**Latest progress note:** Read-only readiness check: task_propose currently records a bound chat proposal but no durable commitment, and graph revision only occurs before initial plan commitment. Existing atomic task/decision, grants, allocation and recovery seams are available. Implementation remains dependency-blocked on110 UI acceptance; no board feature is claimed complete.
 
 **Acceptance criteria:**
 
@@ -924,7 +924,7 @@ Correct and supersede knowledge with newer verified evidence
 
 **State:** `[=]` (planned) · **Type:** implementation · **Priority:** P0
 
-**Last update (UTC):** 2026-09-12 12:46
+**Last update (UTC):** 2026-09-12 17:38
 
 **Current reason:** Needs YMP-113
 
@@ -936,7 +936,7 @@ Correct and supersede knowledge with newer verified evidence
 
 Required directly by the final product intent; design and implementation are pending.
 
-**Latest progress note:** Owner extension requirement added: Support a replaceable correction proposal policy while runtime independently enforces evidence, applicability, supersession and observation idempotence.
+**Latest progress note:** Read-only preflight confirms existing source refs, applicability, inventory and observation deduplication can be reused. Missing pieces are an explicitly reviewed correction relation, atomic supersession and an old/new source binding for corrections stored at a different input path. Implementation remains gated by113 UI acceptance; no correction behavior is claimed delivered.
 
 **Acceptance criteria:**
 
@@ -1246,9 +1246,9 @@ Integrate core assignment, budget and confirmation visibility
 
 **State:** `[~]` (in_progress) · **Type:** implementation · **Priority:** P0
 
-**Last update (UTC):** 2026-09-12 17:18
+**Last update (UTC):** 2026-09-12 17:35
 
-**Current reason:** Core UI candidate7038a4c is delivered with289 passing Rust tests and an actual mock TUI walk. A fresh Claude Opus5 max reviewer is inspecting that exact snapshot. The author is adapting the same views to accepted115 access/concurrency records and replacing the earlier serial-execution wording; no UI acceptance is claimed yet.
+**Current reason:** Author delivered05e67df with accepted115 access/concurrency records, truthful workspace policy and306 passing tests. Core7038a4c is under independent Opus5 max review. A bounded actual walk now checks reaching middle/end decision records and their details; reported feature limits are being separated from actual acceptance defects.
 
 **Owner:** Claude Code claude-opus-5 with thinking max via Paseo; maintainer integrates and verifies
 
@@ -1484,9 +1484,9 @@ Expose trusted acceptance contracts to executable users
 
 **State:** `[~]` (in_progress) · **Type:** implementation · **Priority:** P0
 
-**Last update (UTC):** 2026-09-12 17:24
+**Last update (UTC):** 2026-09-12 17:38
 
-**Current reason:** Standalone R1(9/10) ACCEPT at ef9a125. Independent documented-config executable consumer confirms output, supported later retrieval, immutable resume and stale-source rejection;13 focused controls and author280-test evidence pass. Integration with accepted main concurrency/MCP/StoreLock is assigned, including trusted launch configuration through public stdio.
+**Current reason:** Combined candidate127bfd1 preserves accepted MCP IDs, concurrency and StoreLock while adding trusted contract ingress. Actual MCP configuration/confirmation/knowledge/resume consumer passes; the same consumer fails on rebuilt pre-integration source. Fmt/clippy,297 Rust tests, build and full SDK walk pass. Independent combined review is running.
 
 **Owner:** Maintainer; any TUI implementation by Claude Opus 5 max via Paseo
 
