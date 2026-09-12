@@ -1,6 +1,6 @@
 # Task details and evidence
 
-Updated: 2026-09-12 19:33 UTC.
+Updated: 2026-09-12 19:46 UTC.
 
 Use the [delivery plan](plan.md) to follow progress. This generated register contains full acceptance criteria, dependencies and evidence. [tasks.json](tasks.json) is the single source; [manage.py](manage.py) updates both pages.
 
@@ -66,7 +66,7 @@ A planned task is not implemented functionality. Completed research and planning
 | `[=]` | [YMP-124](#ymp-124) | P1 | Add isolated execution and recoverable publication for larger projects | 2026-09-12 15:31 |
 | `[x]` | [YMP-125](#ymp-125) | P0 | Expose trusted acceptance contracts to executable users | 2026-09-12 17:54 |
 | `[~]` | [YMP-126](#ymp-126) | P1 | Execute universal acceptance scenarios through a trusted runtime driver | 2026-09-12 19:12 |
-| `[~]` | [YMP-127](#ymp-127) | P0 | Build and display the agent pool from provider-returned native names | 2026-09-12 19:33 |
+| `[~]` | [YMP-127](#ymp-127) | P0 | Build and display the agent pool from provider-returned native names | 2026-09-12 19:46 |
 
 ## YMP-001
 
@@ -1551,9 +1551,9 @@ Build and display the agent pool from provider-returned native names
 
 **State:** `[~]` (in_progress) · **Type:** implementation · **Priority:** P0
 
-**Last update (UTC):** 2026-09-12 19:33
+**Last update (UTC):** 2026-09-12 19:46
 
-**Current reason:** R1(8/10) requested changes for first-scan execution-version drift under existing fixed/default model policies. Correction314dc8a preserves exact version and qualified lookup without rewriting history or changing version formulas; both original failures now pass, with10 executable fixtures and required Rust checks. Independent R2 and Opus native-name integration are running; owner home remains untouched.
+**Current reason:** Backend R2 accepted and merged as263452a/f4551a8; main source matches314dc8a. Main fmt/clippy/workspace and bridge checks pass, but explicit10 native fixtures exposed configuration-lock EWOULDBLOCK (9 passed,1 failed). R3 bounded correction applies explicit-release discipline to new configuration/scan locks with deterministic controls. Owner home still untouched; Opus native-name UI integration continues.
 
 **Owner:** Maintainer; all UI by Claude Opus 5 max via Paseo
 

@@ -2721,11 +2721,16 @@
           "at": "2026-09-12T19:33:07.816094+00:00",
           "status": "in_progress",
           "note": "R1(8/10) requested changes for first-scan execution-version drift under existing fixed/default model policies. Correction314dc8a preserves exact version and qualified lookup without rewriting history or changing version formulas; both original failures now pass, with10 executable fixtures and required Rust checks. Independent R2 and Opus native-name integration are running; owner home remains untouched."
+        },
+        {
+          "at": "2026-09-12T19:46:13.945312+00:00",
+          "status": "in_progress",
+          "note": "Backend R2 accepted and merged as263452a/f4551a8; main source matches314dc8a. Main fmt/clippy/workspace and bridge checks pass, but explicit10 native fixtures exposed configuration-lock EWOULDBLOCK (9 passed,1 failed). R3 bounded correction applies explicit-release discipline to new configuration/scan locks with deterministic controls. Owner home still untouched; Opus native-name UI integration continues."
         }
       ]
     }
   ],
-  "updated_at": "2026-09-12T19:33:07.901366+00:00",
+  "updated_at": "2026-09-12T19:46:13.945312+00:00",
   "delivery_order": [
     "YMP-116",
     "YMP-103",
