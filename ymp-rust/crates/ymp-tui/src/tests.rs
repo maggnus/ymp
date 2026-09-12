@@ -2661,6 +2661,7 @@ async fn mock_run(prompt: &str, prepare: impl FnOnce(&mut ymp_runtime::Engine)) 
 fn exact_greeting_contract() -> ymp_core::AcceptanceContract {
     use ymp_core::{AcceptanceContract, AcceptanceCriterion, CheckAssertion, TrustedCheck};
     AcceptanceContract {
+        knowledge_correction: None,
         task_title: "Create a greeting".into(),
         criteria: vec![AcceptanceCriterion {
             id: "greeting-content".into(),

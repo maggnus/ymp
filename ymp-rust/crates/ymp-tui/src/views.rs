@@ -3996,6 +3996,7 @@ fn task_attempt(ctx: &Ctx, assignment: &AssignmentRecord) -> String {
 
 fn context_kind(kind: &ymp_core::ContextKind) -> &'static str {
     match kind {
+        ymp_core::ContextKind::KnowledgeCorrection => "a correction to what was retained",
         ymp_core::ContextKind::Message => "message",
         ymp_core::ContextKind::Memory => "memory",
         ymp_core::ContextKind::Task => "task",
@@ -4042,6 +4043,7 @@ fn operation_word(operation: ymp_core::TeamOperation) -> &'static str {
         ymp_core::TeamOperation::TeamRead => "read the board",
         ymp_core::TeamOperation::TasksList => "list tasks",
         ymp_core::TeamOperation::TaskPropose => "propose a task",
+        ymp_core::TeamOperation::BoardRead => "read the plan",
         ymp_core::TeamOperation::MemorySearch => "search memory",
         ymp_core::TeamOperation::MemoryPropose => "propose memory",
     }
