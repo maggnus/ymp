@@ -11,13 +11,14 @@ use crate::prefs::Prefs;
 use crate::text;
 use crate::theme::{self, Theme};
 use crate::transcript::{self, Entry, Notice};
+use crate::usage::Stats;
 use crate::views::{self, Ctx, Page, View};
 use anyhow::{bail, Result};
 use crossterm::event::{KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
 use ratatui::text::Line;
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::PathBuf;
-use ymp_core::{AgentProfile, Config, Message, Task, UiEvent};
+use ymp_core::{AgentProfile, Config, Message, SessionUsage, Task, UiEvent};
 use ymp_storage::Store;
 
 /// The region that owns the keyboard. Exactly one is active at any moment.
@@ -234,6 +235,9 @@ pub struct App {
     /// Profiles the loaded session captured when it started. The configuration may have
     /// been edited since, so this is what the run is actually using.
     pub session_team: Vec<AgentProfile>,
+    /// Token accounting for the loaded session, per agent. Replaced as a whole whenever
+    /// the run reports, and re-read from the store when a conversation is opened.
+    pub stats: Stats,
     pub turns_used: usize,
     pub status: String,
     pub active: bool,
@@ -283,6 +287,7 @@ impl App {
             session: None,
             session_status: "no session".into(),
             session_team: Vec::new(),
+            stats: Stats::default(),
             turns_used: 0,
             status: "Ready".into(),
             active: false,
@@ -391,6 +396,7 @@ impl App {
         };
         if stale {
             let theme = self.theme;
+            let (team, _) = self.active_team();
             let page = views::build(
                 self.view,
                 &Ctx {
@@ -400,18 +406,41 @@ impl App {
                     theme: &theme,
                     session: self.session.as_deref(),
                     tasks: &self.tasks,
+                    team: &team,
+                    stats: &self.stats,
+                    live: self.active,
                     memory_query: &self.memory_query,
                     width: width as usize,
                 },
             );
             self.page_cache = Some((self.view, width, self.revision, page));
+            self.select_a_row();
         }
         &self.page_cache.as_ref().expect("page was just built").3
+    }
+
+    /// Point the selection at a row rather than at a heading.
+    ///
+    /// A page opens with its first selectable row already selected, so the detail of that
+    /// row is on screen before the reader presses anything. A selection that is already on
+    /// a row is left exactly where it is.
+    fn select_a_row(&mut self) {
+        let Some((_, _, _, page)) = self.page_cache.as_ref() else {
+            return;
+        };
+        let is_row = |item: &&views::Item| item.kind == views::ItemKind::Row;
+        if page.items.get(self.page_selected).iter().any(is_row) {
+            return;
+        }
+        if let Some(index) = page.items.iter().position(|item| is_row(&item)) {
+            self.page_selected = index;
+        }
     }
 
     /// Apply a runtime event.
     pub fn event(&mut self, event: UiEvent) {
         match event {
+            UiEvent::Usage { session_id, usage } => return self.usage(&session_id, usage),
             UiEvent::Message(message) => {
                 if self
                     .session
@@ -461,6 +490,100 @@ impl App {
         self.changed();
     }
 
+    /// Apply a token statistics snapshot.
+    ///
+    /// A snapshot describes an entire session and replaces the one before it; adding them
+    /// together would count every turn again. A snapshot that names another conversation
+    /// belongs to a run this window is not showing, so it is discarded rather than mixed
+    /// into the open one.
+    fn usage(&mut self, session: &str, usage: SessionUsage) {
+        if self.session.as_deref().is_some_and(|open| open != session) {
+            return;
+        }
+        // The statistics page is a live list. Remember the row the reader selected, so a
+        // snapshot that records a new agent above it does not move them onto another one.
+        // No other page is built from statistics, so none of them is rebuilt here.
+        let anchor = (self.view == View::Usage)
+            .then(|| self.page_anchor())
+            .flatten();
+        self.stats.replace(session, usage);
+        self.count_turns();
+        self.changed();
+        self.restore_page_anchor(anchor.as_deref());
+    }
+
+    /// Advance the turn counter to the invocations the statistics account for.
+    ///
+    /// A run writes its own counter at its own pace, so during a turn the stored figure can
+    /// lag behind the work already done. Invocations are what the turn budget spends, so the
+    /// larger of the two is the one shown, and it never moves backwards inside one session:
+    /// a snapshot with fewer invocations is not a retraction of the ones already counted.
+    fn count_turns(&mut self) {
+        let Some(id) = self.session.clone() else {
+            return;
+        };
+        if !self.stats.describes(&id) {
+            return;
+        }
+        if let Some(total) = self.stats.total() {
+            self.turns_used = self.turns_used.max(total.calls as usize);
+        }
+    }
+
+    /// The session status to present.
+    ///
+    /// A run active in this window is running, whatever the stored record still says: the
+    /// record is written when the run ends. Browsing a saved session shows what was stored,
+    /// and so does this window once its own run has finished.
+    pub fn live_status(&self) -> &str {
+        if self.active {
+            "running"
+        } else {
+            &self.session_status
+        }
+    }
+
+    /// The key of the row the open page is pointing at, if it has one.
+    fn page_anchor(&self) -> Option<String> {
+        let (_, _, _, page) = self.page_cache.as_ref()?;
+        page.items
+            .get(self.page_selected)
+            .filter(|item| item.kind == views::ItemKind::Row)
+            .map(|item| item.key.clone())
+    }
+
+    /// Put the selection back on the row it was on after the data underneath it changed.
+    fn restore_page_anchor(&mut self, key: Option<&str>) {
+        let (Some(key), Some((_, width, _, _))) = (key, self.page_cache.as_ref()) else {
+            return;
+        };
+        let width = *width;
+        let found = self
+            .page(width)
+            .items
+            .iter()
+            .position(|item| item.kind == views::ItemKind::Row && item.key == key);
+        if let Some(index) = found {
+            self.page_selected = index;
+        }
+    }
+
+    /// Read the token statistics the store recorded for the loaded session.
+    ///
+    /// Reopening a conversation must show what it actually spent, so the store is read
+    /// rather than assumed empty. A read that fails leaves the statistics unavailable,
+    /// which is not the same as a session that spent nothing.
+    fn reload_usage(&mut self) {
+        let Some(id) = self.session.clone() else {
+            self.stats.clear();
+            return;
+        };
+        match self.store.session_usage(&id) {
+            Ok(usage) => self.stats.replace(&id, usage),
+            Err(_) => self.stats.unavailable(&id),
+        }
+    }
+
     /// Re-read the turn counter recorded for the loaded session.
     fn refresh_session_facts(&mut self) {
         let Some(id) = self.session.clone() else {
@@ -475,6 +598,12 @@ impl App {
             if let Some(turns) = value.as_u64() {
                 self.turns_used = turns as usize;
             }
+        }
+        self.count_turns();
+        // Statistics already being reported for this session are the live ones; only a
+        // conversation the interface was not following needs a read.
+        if !self.stats.describes(&id) {
+            self.reload_usage();
         }
     }
 
@@ -504,6 +633,7 @@ impl App {
         self.follow = true;
         self.top = 0;
         self.selected_entry = usize::MAX;
+        self.reload_usage();
         self.refresh_session_facts();
         self.changed();
         Ok(())
@@ -661,6 +791,8 @@ impl App {
 
     /// The selected page row, if the page has one.
     pub fn selected_item(&mut self, width: u16) -> Option<views::Item> {
+        // Building the page may move the selection onto the first row, so read it after.
+        self.page(width);
         let selected = self.page_selected;
         self.page(width)
             .items
@@ -1569,6 +1701,7 @@ impl App {
             "/chat" => self.set_view(View::Chat),
             "/help" => self.set_view(View::Help),
             "/tasks" => self.set_view(View::Tasks),
+            "/usage" => self.set_view(View::Usage),
             "/sessions" => self.set_view(View::Sessions),
             "/files" => self.set_view(View::Files),
             "/diff" => self.set_view(View::Changes),
@@ -1669,6 +1802,7 @@ impl App {
                 self.session = None;
                 self.session_status = "no session".into();
                 self.session_team.clear();
+                self.stats.clear();
                 self.turns_used = 0;
                 self.set_view(View::Chat);
                 self.notice("Ready for an unrelated task. The next message opens a new session.");

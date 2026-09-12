@@ -28,6 +28,7 @@ mod text;
 mod theme;
 mod transcript;
 mod ui;
+mod usage;
 mod views;
 
 #[cfg(test)]

@@ -6,17 +6,21 @@ right sidebar carries navigation, live team activity, and the current session's 
 ## Layout
 
 ```text
-ymp  project  /path/to/project                    3fa27c81  ✓ completed  12 / 200 turns
+ymp  project  /path/to/project      3fa27c81  ✓ completed  154.9k+ tokens  12 / 200 turns
 ──────────────────────────────────────────────────────────────────────────────────────────
   ▌ you                                                    12:04  │ NAVIGATE
   ▌ Add validation and tests for the import command                │ ● Conversation
                                                                    │   Tasks            3
-  · Codex proposed a plan · 2 tasks · Validate then test     12:04 │   Sessions
-  · Claude review · accepted · The parser rejects empty rows 12:07 │   …
-                                                                   │ SESSION
-  ◆ Codex · final result                                    12:09  │ 3fa27c81 ✓ completed
-    Added `validate_row` and six tests. `cargo test` passes.       │ turns      12 / 200
+  · Codex proposed a plan · 2 tasks · Validate then test     12:04 │   Token usage 154.9k+
+  · Claude review · accepted · The parser rejects empty rows 12:07 │   Sessions
+                                                                   │   …
+  ◆ Codex · final result                                    12:09  │ SESSION
+    Added `validate_row` and six tests. `cargo test` passes.       │ 3fa27c81 ✓ completed
+                                                                   │ turns      12 / 200
                                                                    │ dir  …/project
+                                                                   │ TOKENS       154.9k+
+                                                                   │ Codex         131.8k
+                                                                   │ Claude        23.1k+
                                                                    │ TEAM
                                                                    │ ● Codex     working
                                                                    │ ○ Claude    idle
@@ -91,6 +95,8 @@ agent and never writes to your working directory. Each page is a list with the d
 selected row underneath it, and states its own keys in the status row.
 
 - **Tasks** — the task graph, with state, assignee, reviewer, attempts, checks and results.
+- **Token usage** — what the loaded session spent, for the session as a whole and for each
+  agent in it. Described in its own section below.
 - **Sessions** — saved sessions for this project. `Enter` loads one for reading; `r`
   continues the run, which does start agents. While a run is active the list stays
   browsable, but the loaded conversation cannot be switched: it is the conversation your
@@ -107,6 +113,62 @@ selected row underneath it, and states its own keys in the status row.
 - **Reputation** — the observations behind competence estimates, with their evidence.
 - **Limits** — turn budget and parallelism. `+` and `-` adjust; `Enter` types a value.
 - **Help** — every command and key, generated from the command registry.
+
+## Token usage
+
+The header carries the session total, the sidebar's `TOKENS` section repeats it and lists
+what each agent has spent, and `/usage` opens the full page. Loading a saved session restores
+the statistics it recorded, and the page is a read-only projection like every other: opening
+it starts nothing.
+
+While a run is active in this window, the header and the sidebar report the session as
+running rather than repeating the status stored before it started, and the turn counter
+follows the invocations the statistics account for instead of waiting for the run to write
+its own counter. Both return to the stored record once the run ends. Browsing a saved session
+shows what was stored, unchanged.
+
+Every figure updates as soon as its provider reports, which is not the same moment for every
+provider and need not be during the turn. Claude streams its usage, and Codex notifies after
+each completed model request, so both appear while a turn is still running. The installed GLM
+ACP agent exposes only its last request's usage, and only when its native turn completes, so
+a GLM agent shows no figure until then and a partial one afterwards. How each provider is
+read is described in the [token accounting](../architecture/token-usage.md) guide.
+
+Every figure belongs to an **agent**, never to a provider. Two agents configured on the same
+provider are two rows with two counters, and the provider is shown beside the name only as
+metadata. An agent that spent tokens in the session without being in the team it captured is
+listed separately rather than dropped.
+
+The page shows input, output, cache reads and writes, and reasoning when a provider reports
+it. Cache reads and writes are part of the input, and reasoning is part of the output, so
+they are indented under the figure that already contains them and are never added to the
+total a second time.
+
+What the interface will not do is fill a gap:
+
+| Reading | Meaning |
+| --- | --- |
+| `0` | The store knows the amount, and it is zero. |
+| `—` | Nobody reported the amount. It is unknown, not zero, and is never estimated. |
+| `4200+` | At least this much. Something it counts is not finished or not attributable. |
+
+A total is marked `+` when an invocation is open, when a provider reported only part of the
+turn it ran, or when the session holds invocations that cannot be attributed to an agent.
+The coverage behind every figure is written next to it in words: how many of the session's
+invocations reported, how many were partial, how many are open, and how many were recorded
+without an agent. The installed GLM ACP agent reports only the last request of a turn, so its
+invocations count as partial and its figures stay lower bounds.
+
+An **open** invocation is one with no final status recorded. During an active run that means
+a turn is in flight. In a stored session it means no final status was ever written, which is
+what an interrupted run leaves behind; it is not evidence that anything is still running,
+and the page says so differently in each case.
+
+An older session can record how many turns it took without recording who took each one.
+Those invocations are counted in the session total and reported as unattributed. While there
+are any, no agent figure is presented as complete, and an agent with no recorded invocation
+of its own reads as `—` rather than zero, because one of the unattributed invocations may be
+its own. Nothing is divided between agents to make the figures add up.
 
 ## Themes
 

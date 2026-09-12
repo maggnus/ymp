@@ -1,4 +1,5 @@
 import { createInterface } from "node:readline";
+import { UsageTracker } from "./usage.js";
 import { query, type Options, type Query } from "@anthropic-ai/claude-agent-sdk";
 
 interface Request {
@@ -54,9 +55,12 @@ async function execute(request: Request): Promise<void> {
     stderr: () => {},
   };
   let result: { text: string; session_id: string; usage: unknown } | undefined;
+  const accounting = new UsageTracker();
   active = query({ prompt: p.prompt, options });
   try {
     for await (const event of active) {
+      const usage = accounting.ingest(event);
+      if (usage) send({ method: "usage", params: usage });
       if (event.type === "system" && event.subtype === "init") {
         send({ method: "session", params: { id: event.session_id } });
       }
@@ -65,7 +69,7 @@ async function execute(request: Request): Promise<void> {
       }
       if (event.type === "result") {
         if (event.subtype !== "success" || event.is_error) throw new Error(`Claude turn failed (${event.subtype})`);
-        result = { text: event.result, session_id: event.session_id, usage: event.usage };
+        result = { text: event.result, session_id: event.session_id, usage: { usage: event.usage, modelUsage: event.modelUsage } };
       }
     }
     if (!result) throw new Error("Claude exited without a final result");

@@ -6,7 +6,7 @@ use std::{
     path::{Path, PathBuf},
     sync::{
         atomic::{AtomicUsize, Ordering},
-        Arc,
+        Arc, Mutex,
     },
 };
 use tokio::{
@@ -29,6 +29,7 @@ pub struct Engine {
     pub executable: PathBuf,
     pub use_memory: bool,
     pub adaptive: bool,
+    usage_publication: Arc<Mutex<()>>,
 }
 #[derive(Clone)]
 struct RunContext {
@@ -68,6 +69,7 @@ impl Engine {
             executable: std::env::current_exe()?,
             use_memory: true,
             adaptive: true,
+            usage_publication: Arc::new(Mutex::new(())),
         })
     }
     fn status(&self, text: impl Into<String>) {
@@ -390,6 +392,11 @@ impl Engine {
             purpose: purpose.into(),
             read_only,
             resume,
+            usage_baseline: self
+                .store
+                .value(&format!("native_usage:{key}"))?
+                .map(serde_json::from_value)
+                .transpose()?,
             mcp: Some(McpEndpoint {
                 command: self.executable.to_string_lossy().into(),
                 args: vec![
@@ -402,6 +409,9 @@ impl Engine {
             timeout_secs: self.config.limits.turn_timeout_secs,
             bridge: self.bridge.clone(),
         };
+        self.store
+            .begin_usage(&ctx.session.id, used as u64, &agent.id)?;
+        self.publish_usage(&ctx.session.id)?;
         let _ = self.events.send(UiEvent::AgentStatus {
             agent: agent.id.clone(),
             status: purpose.into(),
@@ -414,16 +424,57 @@ impl Engine {
         let (tx, mut rx) = mpsc::unbounded_channel();
         let future = run_turn(request, self.cancel.child_token(), tx);
         tokio::pin!(future);
+        let consume = |event: ProviderEvent| -> Result<()> {
+            match event {
+                ProviderEvent::Delta(text) => {
+                    if purpose != "conversation" {
+                        let _ = self.events.send(UiEvent::Delta {
+                            agent: agent.id.clone(),
+                            text,
+                        });
+                    }
+                }
+                ProviderEvent::Session(id) => {
+                    self.store.put_value(&key, &json!(id))?;
+                }
+                ProviderEvent::Tool(name) => self.status(format!("{} · {name}", agent.name)),
+                ProviderEvent::Usage(snapshot) => {
+                    self.store
+                        .update_usage(&ctx.session.id, used as u64, &snapshot)?;
+                    if let Some(total) = &snapshot.native_total {
+                        self.store.put_value(
+                            &format!("native_usage:{key}"),
+                            &serde_json::to_value(total)?,
+                        )?;
+                    }
+                    self.publish_usage(&ctx.session.id)?;
+                }
+            }
+            Ok(())
+        };
         let result = loop {
             tokio::select! {
                 result=&mut future=>break result,
-                Some(event)=rx.recv()=>match event{
-                    ProviderEvent::Delta(text)=>{if purpose != "conversation" {let _=self.events.send(UiEvent::Delta{agent:agent.id.clone(),text});}},
-                    ProviderEvent::Session(id)=>{self.store.put_value(&key,&json!(id))?;},
-                    ProviderEvent::Tool(name)=>self.status(format!("{} · {name}",agent.name)),
-                }
+                Some(event)=rx.recv()=>consume(event)?,
             }
         };
+        // A final usage notification can be queued at the same instant as the
+        // provider result. Drain it before closing the invocation or dropping rx.
+        while let Ok(event) = rx.try_recv() {
+            consume(event)?;
+        }
+        self.store.finish_usage(
+            &ctx.session.id,
+            used as u64,
+            if result.is_ok() {
+                "completed"
+            } else if self.cancel.is_cancelled() {
+                "cancelled"
+            } else {
+                "failed"
+            },
+        )?;
+        self.publish_usage(&ctx.session.id)?;
         let _ = self.events.send(UiEvent::AgentStatus {
             agent: agent.id.clone(),
             status: if result.is_ok() { "idle" } else { "error" }.into(),
@@ -448,6 +499,21 @@ impl Engine {
                 Err(e)
             }
         }
+    }
+
+    fn publish_usage(&self, session: &str) -> Result<()> {
+        // Parallel agents must publish in the same order they read snapshots;
+        // otherwise an older read could arrive after the final closed total.
+        let _publication = self
+            .usage_publication
+            .lock()
+            .map_err(|_| anyhow::anyhow!("Usage publication lock poisoned"))?;
+        let usage = self.store.session_usage(session)?;
+        let _ = self.events.send(UiEvent::Usage {
+            session_id: session.into(),
+            usage,
+        });
+        Ok(())
     }
 
     fn choose(
@@ -1246,5 +1312,80 @@ mod tests {
                 .modified()
                 .unwrap()
         );
+    }
+    #[tokio::test]
+    async fn usage_updates_are_live_and_final_snapshots_are_not_lost() {
+        let temp = tempfile::tempdir().unwrap();
+        let project = temp.path().join("project");
+        std::fs::create_dir(&project).unwrap();
+        let store = Store::open(&temp.path().join("state")).unwrap();
+        let mut config = test_config(false);
+        for a in &mut config.agents {
+            a.instructions.push_str("[mock:usage]");
+        }
+        let (tx, mut rx) = mpsc::unbounded_channel();
+        let engine = Engine::new(store.clone(), config, tx, CancellationToken::new()).unwrap();
+        let outcome = engine
+            .run(&project, "Create a greeting", None)
+            .await
+            .unwrap();
+        assert_eq!(outcome.session.status, "completed");
+        let summary = store.session_usage(&outcome.session.id).unwrap();
+        assert_eq!(summary.total.calls, outcome.session.turns_used as u64);
+        assert_eq!(summary.total.known_total(), Some(summary.total.calls * 120));
+        assert_eq!(
+            summary.agents.len(),
+            2,
+            "Agents sharing a provider must stay separate"
+        );
+        assert!(!summary.total.is_partial());
+        let mut saw_partial = false;
+        while let Ok(event) = rx.try_recv() {
+            if let UiEvent::Usage { usage, .. } = event {
+                saw_partial |=
+                    usage.total.open_calls > 0 && usage.total.known_total().is_some_and(|n| n > 0);
+            }
+        }
+        assert!(
+            saw_partial,
+            "Usage must be visible before the full run completes"
+        );
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+    async fn cancellation_retains_reported_tokens() {
+        let temp = tempfile::tempdir().unwrap();
+        let project = temp.path().join("project");
+        std::fs::create_dir(&project).unwrap();
+        let store = Store::open(&temp.path().join("state")).unwrap();
+        let mut config = test_config(false);
+        for a in &mut config.agents {
+            a.instructions.push_str("[mock:usage]");
+        }
+        let (tx, mut rx) = mpsc::unbounded_channel();
+        let cancel = CancellationToken::new();
+        let engine = Engine::new(store.clone(), config, tx, cancel.clone()).unwrap();
+        let job =
+            tokio::spawn(async move { engine.run(&project, "Create a greeting", None).await });
+        while let Some(event) = rx.recv().await {
+            if matches!(event,UiEvent::Usage{ref usage,..} if usage.total.known_total().is_some_and(|n|n>0))
+            {
+                cancel.cancel();
+                break;
+            }
+        }
+        let outcome = job.await.unwrap().unwrap();
+        assert_eq!(outcome.session.status, "paused");
+        let summary = store.session_usage(&outcome.session.id).unwrap();
+        assert!(summary.total.known_total().unwrap_or(0) > 0);
+        assert!(summary.total.is_partial());
+        assert_eq!(summary.total.open_calls, 0);
+        let mut last = None;
+        while let Ok(event) = rx.try_recv() {
+            if let UiEvent::Usage { usage, .. } = event {
+                last = Some(usage);
+            }
+        }
+        assert_eq!(last.as_ref(), Some(&summary));
     }
 }

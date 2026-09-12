@@ -22,6 +22,8 @@ To configure a provider's command, arguments, or environment references, edit th
 
 `/tasks` shows assignments, attempts, and results; `Enter` opens the description, checks and reported result of the selected task.
 
+`/usage` shows what the loaded session spent, for the session and for each agent in it. A figure updates as soon as its provider reports: Claude streams usage and Codex notifies after each completed model request, both during the turn, while the installed GLM ACP agent exposes only its last request and only at native turn completion. Figures are what the providers reported, never an estimate: an amount nobody reported is shown as a dash rather than as zero, and a total that an open or partly reported invocation can still add to is marked with `+`. The [interface guide](interface.md) describes the page, and [token accounting](../architecture/token-usage.md) describes how each provider is read.
+
 `/sessions` lists sessions for the current project. `Enter` loads one for reading, which does not start agents; `r` on the list, or `/resume SESSION_ID`, continues the run and inspects unfinished work before doing so. Every other page reachable from the sidebar is a read-only projection.
 
 Use `/pause` or Ctrl+C to stop active turns. Native agent sessions and files in the working directory are retained. Increase the turn limit before resuming a run that exhausted its budget:

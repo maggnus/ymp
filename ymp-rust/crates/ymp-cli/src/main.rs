@@ -307,6 +307,7 @@ async fn ask(
         purpose: "ask".into(),
         read_only: !write,
         resume: None,
+        usage_baseline: None,
         mcp: None,
         timeout_secs: config.limits.turn_timeout_secs,
         bridge: engine.bridge,
@@ -426,19 +427,38 @@ async fn probe_team_tools(
     let request = TurnRequest {
         profile: profile.clone(), provider: config.provider(&profile.provider)?.clone(), cwd: path.into(),
         prompt: format!("Call the ymp MCP tool team_post with text exactly {marker}. Then return YMP_OK. This is an explicitly authorized local team-chat write. Do not modify files or use other tools. Respond in English."),
-        purpose: "probe".into(), read_only: true, resume: None, timeout_secs: 120, bridge: engine.bridge,
+        purpose: "probe".into(), read_only: true, resume: None, usage_baseline: None, timeout_secs: 120, bridge: engine.bridge,
         mcp: Some(ymp_providers::McpEndpoint { command: engine.executable.to_string_lossy().into(), args: vec!["mcp".into(), "--socket".into(), server.socket.to_string_lossy().into()], token: server.tokens[&profile.id].clone() }),
     };
+    store.begin_usage(&session.id, 1, &profile.id)?;
     let (tx, mut rx) = mpsc::unbounded_channel();
     let future = run_turn(request, cancel.clone(), tx);
     tokio::pin!(future);
     let result = loop {
         tokio::select! {
             result = &mut future => break result,
-            Some(_) = rx.recv() => {},
+            Some(event) = rx.recv() => if let ProviderEvent::Usage(snapshot) = event {
+                store.update_usage(&session.id, 1, &snapshot)?;
+            },
             _ = tokio::signal::ctrl_c() => cancel.cancel(),
         }
     };
+    while let Ok(event) = rx.try_recv() {
+        if let ProviderEvent::Usage(snapshot) = event {
+            store.update_usage(&session.id, 1, &snapshot)?;
+        }
+    }
+    store.finish_usage(
+        &session.id,
+        1,
+        if result.is_ok() {
+            "completed"
+        } else if cancel.is_cancelled() {
+            "cancelled"
+        } else {
+            "failed"
+        },
+    )?;
     let seen = store
         .messages(&session.id, 0, 100)?
         .iter()

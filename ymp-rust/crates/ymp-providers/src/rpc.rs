@@ -163,7 +163,13 @@ impl RpcProcess {
                 return Ok(v.get("result").cloned().unwrap_or(Value::Null));
             }
             let method = v["method"].as_str().unwrap_or("");
-            if method == "delta" {
+            if method == "usage" {
+                if let Ok(snapshot) =
+                    serde_json::from_value::<ymp_core::UsageSnapshot>(v["params"].clone())
+                {
+                    let _ = events.send(ProviderEvent::Usage(snapshot));
+                }
+            } else if method == "delta" {
                 if let Some(t) = v.pointer("/params/text").and_then(Value::as_str) {
                     let _ = events.send(ProviderEvent::Delta(t.into()));
                 }

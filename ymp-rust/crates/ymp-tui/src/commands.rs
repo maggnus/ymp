@@ -107,6 +107,13 @@ pub const COMMANDS: &[Command] = &[
         args: Args::None,
     },
     Command {
+        name: "/usage",
+        usage: "/usage",
+        summary: "Token statistics for the loaded session, agent by agent.",
+        group: Group::Navigate,
+        args: Args::None,
+    },
+    Command {
         name: "/sessions",
         usage: "/sessions",
         summary: "Saved sessions for this project. Opening one only reads it.",

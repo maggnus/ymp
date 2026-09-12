@@ -225,12 +225,25 @@ pub struct Observation {
 
 #[derive(Debug, Clone)]
 pub enum UiEvent {
+    Usage {
+        session_id: String,
+        usage: crate::SessionUsage,
+    },
     Message(Message),
-    Delta { agent: String, text: String },
-    AgentStatus { agent: String, status: String },
+    Delta {
+        agent: String,
+        text: String,
+    },
+    AgentStatus {
+        agent: String,
+        status: String,
+    },
     Task(Task),
     Status(String),
-    Finished { session_id: String, status: String },
+    Finished {
+        session_id: String,
+        status: String,
+    },
 }
 
 /// Providers may stream commentary before their final structured response. Accept

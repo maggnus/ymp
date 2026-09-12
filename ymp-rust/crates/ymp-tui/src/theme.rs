@@ -154,6 +154,10 @@ pub struct Markers {
     pub vline: &'static str,
     pub more: &'static str,
     pub paused: &'static str,
+    /// A value nobody reported. It stands for an unknown count, never for a zero.
+    pub unknown: &'static str,
+    /// A figure that can still grow, because something it counts is not finished.
+    pub growing: &'static str,
     pub spinner: [&'static str; 4],
 }
 
@@ -175,6 +179,8 @@ pub const UNICODE: Markers = Markers {
     vline: "│",
     more: "▼",
     paused: "⏸",
+    unknown: "—",
+    growing: "+",
     spinner: ["⠋", "⠙", "⠹", "⠸"],
 };
 
@@ -196,6 +202,8 @@ pub const ASCII: Markers = Markers {
     vline: "|",
     more: "v",
     paused: "||",
+    unknown: "-",
+    growing: "+",
     spinner: ["|", "/", "-", "\\"],
 };
 

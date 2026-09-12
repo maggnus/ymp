@@ -10,6 +10,7 @@ use crate::state::{App, Focus, Overlay, PromptTarget};
 use crate::text;
 use crate::theme::{self, Theme};
 use crate::transcript;
+use crate::usage;
 use crate::views::{self, ItemKind, View};
 use ratatui::layout::{Constraint, Direction, Layout, Rect};
 use ratatui::style::Style;
@@ -129,24 +130,92 @@ fn header(frame: &mut Frame, area: Rect, app: &App) {
             theme.faint(),
         ));
     }
-    let mut right: Vec<Span<'static>> = Vec::new();
-    match &app.session {
-        Some(id) => {
-            let (status, style) = views::session_status(&app.session_status, theme);
-            right.push(Span::styled(text::short_id(id), theme.muted()));
-            right.push(Span::styled("  ".to_owned(), theme.faint()));
-            right.push(Span::styled(status, style));
-        }
-        None => right.push(Span::styled("no session".to_owned(), theme.faint())),
+    let (status, status_style) = if app.active || app.session.is_some() {
+        views::session_status(app.live_status(), theme)
+    } else {
+        ("no session".to_owned(), theme.faint())
+    };
+    let total = app.stats.total();
+    let mut segments: Vec<Segment> = Vec::new();
+    if let Some(id) = &app.session {
+        segments.push(Segment::new(3, text::short_id(id), theme.muted()));
     }
-    right.push(Span::styled(
-        format!("  {} / {} turns", app.turns_used, app.config.limits.turns),
+    segments.push(Segment::new(2, status, status_style));
+    if usage::present(app.session.as_deref(), &app.stats) {
+        // The session total belongs here as well as in the sidebar: it stays readable when
+        // the sidebar is hidden, and when a short terminal has shortened its section away.
+        segments.push(Segment::new(
+            1,
+            format!(
+                "{} {}",
+                usage::headline(total, theme),
+                if wide { "tokens" } else { "tok" }
+            ),
+            usage::headline_style(total, theme),
+        ));
+    }
+    segments.push(Segment::new(
+        4,
+        if wide {
+            format!("{} / {} turns", app.turns_used, app.config.limits.turns)
+        } else {
+            format!("{}/{}", app.turns_used, app.config.limits.turns)
+        },
         theme.faint(),
     ));
     if app.prefs.details {
-        right.push(Span::styled("  details".to_owned(), theme.accent()));
+        segments.push(Segment::new(5, "details".to_owned(), theme.accent()));
     }
-    frame::row(frame, area, left, right);
+    frame::row(frame, area, left, fit_segments(segments, area.width));
+}
+
+/// One field of the header, and how readily it gives up its cells.
+///
+/// A narrow terminal cannot show everything. Rather than truncating the project name away,
+/// the header drops whole fields, least important first, and keeps their reading order.
+struct Segment {
+    priority: u8,
+    text: String,
+    style: Style,
+}
+
+impl Segment {
+    fn new(priority: u8, text: String, style: Style) -> Self {
+        Self {
+            priority,
+            text,
+            style,
+        }
+    }
+}
+
+/// Room the left of the header keeps for the application name and part of the project.
+const HEADER_LEFT: usize = 12;
+
+fn fit_segments(segments: Vec<Segment>, width: u16) -> Vec<Span<'static>> {
+    let budget = (width as usize).saturating_sub(HEADER_LEFT);
+    let mut order: Vec<usize> = (0..segments.len()).collect();
+    order.sort_by_key(|index| segments[*index].priority);
+    let mut used = 0usize;
+    let mut kept: Vec<bool> = vec![false; segments.len()];
+    for index in order {
+        let cells = text::width(&segments[index].text) + 2;
+        if used + cells <= budget {
+            used += cells;
+            kept[index] = true;
+        }
+    }
+    let mut spans: Vec<Span<'static>> = Vec::new();
+    for (index, segment) in segments.into_iter().enumerate() {
+        if !kept[index] {
+            continue;
+        }
+        if !spans.is_empty() {
+            spans.push(Span::raw("  ".to_owned()));
+        }
+        spans.push(Span::styled(segment.text, segment.style));
+    }
+    spans
 }
 
 fn status(frame: &mut Frame, area: Rect, app: &App, page_hints: &[(&'static str, &'static str)]) {
@@ -384,8 +453,12 @@ fn page_view(frame: &mut Frame, area: Rect, app: &mut App) {
     }
     let theme = app.theme;
     let focused = app.focus == Focus::Main;
-    let selected = app.page_selected;
     let inner_width = area.width.saturating_sub(2);
+    // Building the page can move the selection onto the first selectable row, so the frame
+    // reads the selection afterwards. Otherwise the first frame would paint a selection the
+    // keyboard has already left, and the detail of the selected row would be missing from it.
+    app.page(inner_width);
+    let selected = app.page_selected;
 
     let split = Layout::default()
         .direction(Direction::Vertical)

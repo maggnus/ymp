@@ -7,6 +7,7 @@
 use crate::state::App;
 use crate::text;
 use crate::theme::Theme;
+use crate::usage;
 use crate::views::{self, View};
 use ratatui::text::{Line, Span};
 use ymp_core::TaskState;
@@ -26,12 +27,17 @@ pub fn lines(app: &App, width: usize, height: usize, focused: bool) -> Vec<Line<
     let sections = vec![
         navigation(app, width, focused),
         session(app, width),
+        tokens(app, width),
         team(app, width),
         tasks(app, width),
     ];
     // When the sidebar owns the keyboard the navigation list must stay whole; otherwise the
     // live context is worth more than the full list of destinations.
-    let shrink_order: [usize; 4] = if focused { [3, 2, 1, 0] } else { [0, 3, 2, 1] };
+    let shrink_order: [usize; 5] = if focused {
+        [4, 3, 2, 1, 0]
+    } else {
+        [0, 4, 3, 2, 1]
+    };
     fit(sections, height, &shrink_order, theme)
 }
 
@@ -150,6 +156,11 @@ fn navigation(app: &App, width: usize, focused: bool) -> Section {
         };
         let badge = match view {
             View::Tasks if !app.tasks.is_empty() => app.tasks.len().to_string(),
+            // The session total stays reachable from the list even when the statistics
+            // section below has been shortened away.
+            View::Usage if usage::present(app.session.as_deref(), &app.stats) => {
+                usage::headline(app.stats.total(), theme)
+            }
             View::Team => app.config.members().len().to_string(),
             _ => String::new(),
         };
@@ -178,7 +189,7 @@ fn session(app: &App, width: usize) -> Section {
     let mut lines = vec![title(theme, "session", false)];
     match &app.session {
         Some(id) => {
-            let (status, style) = views::session_status(&app.session_status, theme);
+            let (status, style) = views::session_status(app.live_status(), theme);
             lines.push(text::row(
                 width,
                 vec![Span::styled(text::short_id(id), theme.text())],
@@ -222,6 +233,62 @@ fn session(app: &App, width: usize) -> Section {
     Section {
         lines,
         keep: 4,
+        anchor: None,
+    }
+}
+
+/// Token statistics: the session total on the section title, then one row per agent.
+///
+/// The title carries the total because a shortened section keeps its title, so the figure
+/// a reader checks most often survives a short terminal. Every row is an agent: two agents
+/// that share a provider are two rows and two counters, never one.
+fn tokens(app: &App, width: usize) -> Section {
+    let theme = &app.theme;
+    let total = app.stats.total();
+    let mut lines = vec![text::row(
+        width,
+        vec![Span::styled("TOKENS".to_owned(), theme.muted())],
+        vec![Span::styled(
+            usage::headline(total, theme),
+            usage::headline_style(total, theme),
+        )],
+    )];
+    if !usage::present(app.session.as_deref(), &app.stats) {
+        lines.push(Line::from(Span::styled(
+            "none · nothing spent yet".to_owned(),
+            theme.faint(),
+        )));
+        return Section {
+            lines,
+            keep: 2,
+            anchor: None,
+        };
+    }
+    let (team, _) = app.active_team();
+    let rows = usage::agent_rows(&app.stats, &team, &app.config);
+    if rows.is_empty() {
+        lines.push(Line::from(Span::styled(
+            "no agent recorded".to_owned(),
+            theme.faint(),
+        )));
+    }
+    for row in rows {
+        let figure = usage::agent_headline(&row, theme);
+        lines.push(text::row(
+            width,
+            vec![Span::styled(
+                text::truncate(&row.name, width.saturating_sub(text::width(&figure) + 2)),
+                theme.body(),
+            )],
+            vec![Span::styled(
+                figure,
+                usage::agent_headline_style(&row, theme),
+            )],
+        ));
+    }
+    Section {
+        lines,
+        keep: 3,
         anchor: None,
     }
 }

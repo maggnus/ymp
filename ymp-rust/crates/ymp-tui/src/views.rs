@@ -11,10 +11,11 @@
 use crate::commands::{self, Group};
 use crate::text;
 use crate::theme::Theme;
+use crate::usage::{self, Stats};
 use ratatui::style::Style;
 use ratatui::text::{Line, Span};
 use std::path::Path;
-use ymp_core::{Config, MemoryEntry, Session, Task, TaskState};
+use ymp_core::{AgentProfile, Config, MemoryEntry, Session, Task, TaskState, UsageTotals};
 use ymp_storage::Store;
 
 /// Every destination the sidebar and the commands can reach.
@@ -22,6 +23,7 @@ use ymp_storage::Store;
 pub enum View {
     Chat,
     Tasks,
+    Usage,
     Sessions,
     Files,
     Changes,
@@ -38,6 +40,7 @@ pub enum View {
 pub const NAV: &[View] = &[
     View::Chat,
     View::Tasks,
+    View::Usage,
     View::Sessions,
     View::Files,
     View::Changes,
@@ -55,6 +58,7 @@ impl View {
         match self {
             View::Chat => "Conversation",
             View::Tasks => "Tasks",
+            View::Usage => "Token usage",
             View::Sessions => "Sessions",
             View::Files => "Files",
             View::Changes => "Changed files",
@@ -71,6 +75,7 @@ impl View {
         match self {
             View::Chat => "/chat",
             View::Tasks => "/tasks",
+            View::Usage => "/usage",
             View::Sessions => "/sessions",
             View::Files => "/files",
             View::Changes => "/diff",
@@ -155,6 +160,11 @@ pub struct Ctx<'a> {
     pub theme: &'a Theme,
     pub session: Option<&'a str>,
     pub tasks: &'a [Task],
+    /// The profiles the loaded session captured, or the ones the next run would use.
+    pub team: &'a [AgentProfile],
+    pub stats: &'a Stats,
+    /// A run is active in this window. Only then is an open invocation one in flight.
+    pub live: bool,
     pub memory_query: &'a str,
     pub width: usize,
 }
@@ -165,6 +175,7 @@ pub fn build(view: View, ctx: &Ctx) -> Page {
         View::Chat => page(view, "The conversation", Vec::new(), ctx),
         View::Help => help(ctx),
         View::Tasks => tasks(ctx),
+        View::Usage => tokens(ctx),
         View::Sessions => guard(view, sessions(ctx), ctx),
         View::Files => guard(view, files(ctx), ctx),
         View::Changes => guard(view, changes(ctx), ctx),
@@ -451,6 +462,183 @@ fn tasks(ctx: &Ctx) -> Page {
         ),
         hints: vec![("Enter", "inspect"), ("Esc", "back")],
     }
+}
+
+/// Token statistics for the loaded session: the whole session, then every agent in it.
+///
+/// The page is a projection of what the store recorded. It starts nothing, and it never
+/// fills a gap with a guess: a count no provider reported stays a dash, and a figure that
+/// an unfinished invocation can still add to is marked as a lower bound.
+fn tokens(ctx: &Ctx) -> Page {
+    let theme = ctx.theme;
+    // One detail block is read in two places: under the list, and in the overlay Enter
+    // opens, which is narrower. Prose wraps to fit both, and the figures sit in a column
+    // of their own rather than at the far right of whichever surface is showing them.
+    let prose = ctx.width.saturating_sub(6).clamp(16, PROSE);
+    let ledger = prose.min(LEDGER);
+    let total = ctx.stats.total();
+    let mut items = Vec::new();
+    if usage::present(ctx.session, ctx.stats) {
+        let unattributed = ctx.stats.unattributed();
+        // The session total already counts every invocation, including any the session
+        // cannot attribute, so its own counters say all there is to say.
+        let mut detail = usage::breakdown(total, false, theme, ledger);
+        detail.push(Line::default());
+        detail.extend(paragraph(
+            theme,
+            &usage::coverage(total, unattributed),
+            prose,
+        ));
+        detail.extend(open_note(ctx, total));
+        if let Some(note) = usage::unattributed_note(unattributed) {
+            detail.push(Line::default());
+            detail.extend(hint(theme, &note, prose));
+        }
+        for note in usage::NOTES {
+            detail.push(Line::default());
+            detail.extend(hint(theme, note, prose));
+        }
+        items.push(Item::heading("Session", theme));
+        items.push(
+            Item::row(
+                "session",
+                vec![Span::styled("session total".to_owned(), theme.text())],
+            )
+            .with_right(vec![Span::styled(
+                usage::headline(total, theme),
+                usage::headline_style(total, theme),
+            )])
+            .with_detail(detail),
+        );
+
+        let rows = usage::agent_rows(ctx.stats, ctx.team, ctx.config);
+        let mut heading = false;
+        for row in rows.iter().filter(|row| !row.outside_team) {
+            if !std::mem::replace(&mut heading, true) {
+                items.push(Item::heading("Agents", theme));
+            }
+            items.push(agent_usage(ctx, row));
+        }
+        let mut heading = false;
+        for row in rows.iter().filter(|row| row.outside_team) {
+            if !std::mem::replace(&mut heading, true) {
+                items.push(Item::heading("Recorded outside the captured team", theme));
+            }
+            items.push(agent_usage(ctx, row));
+        }
+    }
+    Page {
+        view: View::Usage,
+        title: View::Usage.title().into(),
+        subtitle: match usage::present(ctx.session, ctx.stats) {
+            false => "No session is loaded".to_owned(),
+            // A narrow column keeps the figure; the coverage behind it is one row down,
+            // in the detail of the session row, rather than pushing the title off screen.
+            true if ctx.width < 60 => format!("{} tokens", usage::headline(total, theme)),
+            true => format!(
+                "{} tokens · {}",
+                usage::headline(total, theme),
+                usage::coverage(total, ctx.stats.unattributed())
+            ),
+        },
+        items,
+        empty: nothing(
+            theme,
+            "No session is loaded",
+            "Token statistics belong to a session. Open one from /sessions, or describe a task to start one. Each figure appears as its provider reports it, which for some providers is only once a turn has completed.",
+            ctx.width,
+        ),
+        hints: vec![("Enter", "inspect"), ("Esc", "back")],
+    }
+}
+
+/// One agent's row. The provider is named as metadata and never merges two agents: each
+/// agent in the session keeps its own counters, however many share a provider.
+fn agent_usage(ctx: &Ctx, row: &usage::AgentUsage) -> Item {
+    let theme = ctx.theme;
+    let prose = ctx.width.saturating_sub(6).clamp(16, PROSE);
+    let ledger = prose.min(LEDGER);
+    let totals = row.totals.as_ref();
+    let mut detail = field(theme, "agent", &row.id, prose);
+    detail.extend(field(
+        theme,
+        "provider",
+        if row.provider.is_empty() {
+            "unknown"
+        } else {
+            &row.provider
+        },
+        prose,
+    ));
+    if row.outside_team {
+        detail.extend(field(
+            theme,
+            "membership",
+            "spent tokens in this session but is not in the team it captured",
+            prose,
+        ));
+    }
+    detail.push(Line::default());
+    detail.extend(usage::breakdown(totals, row.incomplete, theme, ledger));
+    detail.push(Line::default());
+    detail.extend(paragraph(theme, &usage::coverage(totals, 0), prose));
+    detail.extend(open_note(ctx, totals));
+    if row.incomplete {
+        detail.push(Line::default());
+        detail.extend(hint(
+            theme,
+            &format!(
+                "The session recorded {} invocation(s) without an agent. Any of them could be this one's, so what is shown here is a lower bound rather than this agent's whole spending.",
+                ctx.stats.unattributed()
+            ),
+            prose,
+        ));
+    }
+    detail.push(Line::default());
+    detail.extend(hint(
+        theme,
+        "Counters belong to the agent, not to the provider it runs on. Two agents that share a provider are counted apart.",
+        prose,
+    ));
+    let mut left = vec![Span::styled(row.name.clone(), theme.text())];
+    if !row.provider.is_empty() {
+        left.push(Span::styled(format!(" · {}", row.provider), theme.faint()));
+    }
+    Item::row(row.id.clone(), left)
+        .with_right(vec![Span::styled(
+            usage::agent_headline(row, theme),
+            usage::agent_headline_style(row, theme),
+        )])
+        .with_detail(detail)
+}
+
+/// Say what the open invocations mean, when there are any.
+fn open_note(ctx: &Ctx, totals: Option<&UsageTotals>) -> Vec<Line<'static>> {
+    let open = totals.map_or(0, |totals| totals.open_calls);
+    usage::open_note(open, ctx.live)
+        .map(|note| {
+            hint(
+                ctx.theme,
+                &note,
+                ctx.width.saturating_sub(6).clamp(16, PROSE),
+            )
+        })
+        .unwrap_or_default()
+}
+
+/// Width of the column the token figures are set in. Wide enough for a grouped figure
+/// beside its label, narrow enough to survive the overlay the detail is also read in.
+const LEDGER: usize = 44;
+
+/// Widest the statistics prose is wrapped, whatever the terminal offers. The detail of a
+/// row is also read inside the inspect overlay, which is never wider than 86 cells.
+const PROSE: usize = 78;
+
+fn hint(theme: &Theme, body: &str, width: usize) -> Vec<Line<'static>> {
+    text::wrap(&text::sanitize(body), width.max(8))
+        .into_iter()
+        .map(|piece| Line::from(Span::styled(piece, theme.faint())))
+        .collect()
 }
 
 fn sessions(ctx: &Ctx) -> anyhow::Result<Page> {

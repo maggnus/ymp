@@ -15,7 +15,10 @@ use ratatui::backend::TestBackend;
 use ratatui::Terminal;
 use std::path::PathBuf;
 use tempfile::TempDir;
-use ymp_core::{new_id, now, Config, Message, Session, UiEvent};
+use ymp_core::{
+    new_id, now, AgentProfile, Config, Message, Session, SessionUsage, TokenCounts, UiEvent,
+    UsageSnapshot,
+};
 use ymp_storage::Store;
 
 struct Fixture {
@@ -70,6 +73,63 @@ impl Fixture {
             .unwrap();
         session.id
     }
+    /// A saved session with a chosen team and no turns of its own, so its statistics are
+    /// exactly the invocations a test records.
+    fn seed_with_team(&self, title: &str, team: Vec<AgentProfile>) -> String {
+        self.seed_counted(title, team, 0)
+    }
+    /// A saved session that claims `turns_used` turns. An older trace can count its turns
+    /// without recording which agent took each one.
+    fn seed_counted(&self, title: &str, team: Vec<AgentProfile>, turns_used: usize) -> String {
+        let project = self.store.project(self.project.path()).unwrap();
+        let session = Session {
+            id: new_id(),
+            project_id: project.id,
+            title: title.to_owned(),
+            status: "completed".into(),
+            created_at: now(),
+            team,
+            turns_used,
+        };
+        self.store.save_session(&session).unwrap();
+        session.id
+    }
+    /// Record one invocation the way a run does. `counts` of `None` reports nothing, and
+    /// `status` of `None` leaves the invocation without a final status.
+    fn record(
+        &self,
+        session: &str,
+        turn: u64,
+        agent: &str,
+        counts: Option<(u64, u64)>,
+        status: Option<&str>,
+    ) {
+        self.store.begin_usage(session, turn, agent).unwrap();
+        if let Some((input, output)) = counts {
+            self.store
+                .update_usage(
+                    session,
+                    turn,
+                    &UsageSnapshot {
+                        counts: TokenCounts {
+                            input: Some(input),
+                            output: Some(output),
+                            cache_read: Some(0),
+                            cache_write: Some(0),
+                            reasoning: None,
+                        },
+                        finalized: true,
+                        partial: false,
+                        note: None,
+                        native_total: None,
+                    },
+                )
+                .unwrap();
+        }
+        if let Some(status) = status {
+            self.store.finish_usage(session, turn, status).unwrap();
+        }
+    }
 }
 
 fn key(code: KeyCode) -> KeyEvent {
@@ -90,6 +150,26 @@ fn typed(app: &mut App, text: &str) {
     for ch in text.chars() {
         app.on_key(key(KeyCode::Char(ch)), 100);
     }
+}
+
+/// The plain text of a block of rendered lines, as one line: prose is wrapped to the
+/// width it was built for, so an assertion about wording must not depend on where it broke.
+fn lines_prose(lines: &[ratatui::text::Line<'static>]) -> String {
+    text::one_line(&lines_text(lines))
+}
+
+/// The plain text of a block of rendered lines.
+fn lines_text(lines: &[ratatui::text::Line<'static>]) -> String {
+    lines
+        .iter()
+        .map(|line| {
+            line.spans
+                .iter()
+                .map(|span| span.content.as_ref())
+                .collect::<String>()
+        })
+        .collect::<Vec<_>>()
+        .join("\n")
 }
 
 fn draw(app: &mut App, width: u16, height: u16) -> String {
@@ -1272,4 +1352,551 @@ fn instructions_editor_preserves_multiline_content_and_keeps_the_cursor_visible(
             .instructions,
         expected
     );
+}
+
+// ---------------------------------------------------------------------------
+// Token statistics
+// ---------------------------------------------------------------------------
+
+/// One recorded invocation: the agent that ran, the input and output counts it reported,
+/// and whether it was left without a final status.
+type Invocation<'a> = (&'a str, Option<(u64, u64)>, bool);
+
+/// A snapshot as the runtime publishes one: one entry per invocation, summed into the
+/// session total the same way the store sums it.
+///
+/// `counts` of `None` is an invocation that reported nothing, which is unknown rather than
+/// zero. `open` marks an invocation with no final status recorded.
+fn snapshot(invocations: &[Invocation]) -> SessionUsage {
+    let mut usage = SessionUsage::default();
+    for (agent, counts, open) in invocations {
+        let reported = counts.map(|(input, output)| UsageSnapshot {
+            counts: TokenCounts {
+                input: Some(input),
+                output: Some(output),
+                cache_read: Some(input / 2),
+                cache_write: Some(0),
+                reasoning: Some(output / 4),
+            },
+            finalized: !*open,
+            partial: false,
+            note: None,
+            native_total: None,
+        });
+        usage.total.include(reported.as_ref(), *open);
+        usage
+            .agents
+            .entry((*agent).to_owned())
+            .or_default()
+            .include(reported.as_ref(), *open);
+    }
+    usage
+}
+
+fn usage_event(session: &str, invocations: &[Invocation]) -> UiEvent {
+    UiEvent::Usage {
+        session_id: session.to_owned(),
+        usage: snapshot(invocations),
+    }
+}
+
+/// The keys of the selectable rows on the open page.
+fn row_keys(app: &mut App, width: u16) -> Vec<String> {
+    app.page(width)
+        .items
+        .iter()
+        .filter(|item| item.kind == crate::views::ItemKind::Row)
+        .map(|item| item.key.clone())
+        .collect()
+}
+
+#[test]
+fn a_snapshot_replaces_the_previous_one_instead_of_adding_to_it() {
+    let fixture = fixture();
+    let mut app = fixture.app();
+    conversation(&mut app, 2);
+
+    app.event(usage_event("s1", &[("codex", Some((1_000, 200)), false)]));
+    assert_eq!(app.stats.total().unwrap().known_total(), Some(1_200));
+
+    // The same invocation, reported again with a larger figure.
+    app.event(usage_event("s1", &[("codex", Some((1_500, 300)), false)]));
+    let total = app.stats.total().unwrap();
+    assert_eq!(
+        total.known_total(),
+        Some(1_800),
+        "snapshots must not accumulate"
+    );
+    assert_eq!(total.calls, 1);
+    assert_eq!(app.stats.agent("codex").unwrap().known_total(), Some(1_800));
+}
+
+#[test]
+fn a_live_snapshot_reaches_the_header_before_the_run_finishes() {
+    let fixture = fixture();
+    let mut app = fixture.app();
+    conversation(&mut app, 2);
+    app.active = true;
+
+    app.event(usage_event("s1", &[("codex", Some((12_000, 345)), true)]));
+    let rendered = draw(&mut app, 120, 30);
+    assert!(
+        rendered.contains("12.3k+ tokens"),
+        "the running total is missing from the header:\n{rendered}"
+    );
+    assert!(app.active, "showing statistics must not end the run");
+
+    // A reader who scrolled back stays where they were while the figures move.
+    conversation(&mut app, 40);
+    draw(&mut app, 120, 30);
+    app.on_key(key(KeyCode::PageUp), 120);
+    draw(&mut app, 120, 30);
+    let anchored = app.top;
+    app.event(usage_event("s1", &[("codex", Some((14_000, 400)), true)]));
+    draw(&mut app, 120, 30);
+    assert_eq!(app.top, anchored, "new statistics moved the transcript");
+    assert!(!app.follow);
+}
+
+#[test]
+fn opening_another_session_shows_the_statistics_that_session_recorded() {
+    let fixture = fixture();
+    let first = fixture.seed_with_team("First", Config::default().members());
+    let second = fixture.seed_with_team("Second", Config::default().members());
+    fixture.record(&first, 1, "codex", Some((900, 100)), Some("completed"));
+    fixture.record(
+        &second,
+        1,
+        "claude",
+        Some((40_000, 2_000)),
+        Some("completed"),
+    );
+    let mut app = fixture.app();
+
+    app.load_session(&first).unwrap();
+    assert_eq!(app.stats.total().unwrap().known_total(), Some(1_000));
+
+    app.load_session(&second).unwrap();
+    assert_eq!(app.stats.total().unwrap().known_total(), Some(42_000));
+    assert_eq!(
+        app.stats.agent("codex").unwrap().known_total(),
+        Some(0),
+        "an agent this session never invoked has spent nothing"
+    );
+
+    // A snapshot for the conversation that is no longer open belongs to another run.
+    app.event(usage_event(
+        &first,
+        &[("codex", Some((5_000, 5_000)), false)],
+    ));
+    assert_eq!(app.stats.total().unwrap().known_total(), Some(42_000));
+}
+
+#[test]
+fn statistics_are_forgotten_when_the_conversation_is() {
+    let fixture = fixture();
+    let id = fixture.seed_with_team("First", Config::default().members());
+    fixture.record(&id, 1, "codex", Some((900, 100)), Some("completed"));
+    let mut app = fixture.app();
+    app.load_session(&id).unwrap();
+    assert!(app.stats.total().is_some());
+
+    app.command("/new", 100);
+    assert!(app.stats.total().is_none());
+    let rendered = draw(&mut app, 120, 30);
+    assert!(rendered.contains("no session"), "{rendered}");
+}
+
+#[test]
+fn two_agents_on_one_provider_are_counted_apart() {
+    let fixture = fixture();
+    let mut app = fixture.app();
+    app.command("/agent add reviewer codex", 100);
+    app.command("/team add reviewer", 100);
+    conversation(&mut app, 2);
+
+    app.event(usage_event(
+        "s1",
+        &[
+            ("codex", Some((10_000, 1_000)), false),
+            ("reviewer", Some((2_000, 500)), false),
+        ],
+    ));
+    assert_eq!(
+        app.stats.agent("codex").unwrap().known_total(),
+        Some(11_000)
+    );
+    assert_eq!(
+        app.stats.agent("reviewer").unwrap().known_total(),
+        Some(2_500)
+    );
+
+    app.command("/usage", 120);
+    let keys = row_keys(&mut app, 118);
+    assert!(
+        keys.contains(&"codex".to_owned()) && keys.contains(&"reviewer".to_owned()),
+        "agents sharing a provider were folded together: {keys:?}"
+    );
+    let rendered = draw(&mut app, 120, 30);
+    assert!(rendered.contains("11.0k"), "{rendered}");
+    assert!(rendered.contains("2500"), "{rendered}");
+}
+
+#[test]
+fn unknown_is_not_zero_and_a_growing_total_says_so() {
+    let fixture = fixture();
+    let mut app = fixture.app();
+    conversation(&mut app, 2);
+
+    // Nothing has been invoked, so zero is a figure the store knows.
+    app.event(UiEvent::Usage {
+        session_id: "s1".into(),
+        usage: SessionUsage::default(),
+    });
+    assert_eq!(app.stats.total().unwrap().known_total(), Some(0));
+    let rendered = draw(&mut app, 120, 30);
+    assert!(rendered.contains("0 tokens"), "{rendered}");
+
+    // An invocation that reported nothing leaves the amount unknown.
+    app.event(usage_event("s1", &[("codex", None, false)]));
+    assert_eq!(app.stats.total().unwrap().known_total(), None);
+    let rendered = draw(&mut app, 120, 30);
+    assert!(
+        rendered.contains("— tokens"),
+        "unknown was shown as a number:\n{rendered}"
+    );
+
+    // A reported figure with an invocation still open is a lower bound.
+    app.event(usage_event("s1", &[("codex", Some((12_000, 345)), true)]));
+    let rendered = draw(&mut app, 120, 30);
+    assert!(rendered.contains("12.3k+ tokens"), "{rendered}");
+}
+
+#[test]
+fn a_provider_that_reports_part_of_a_turn_is_marked_partial() {
+    let fixture = fixture();
+    let mut app = fixture.app();
+    conversation(&mut app, 2);
+
+    // One installed provider reports only the last request of a turn; the rest of the
+    // turn is unaccounted for, and the interface must not present it as complete.
+    let reported = UsageSnapshot {
+        counts: TokenCounts {
+            input: Some(800),
+            output: Some(200),
+            cache_read: Some(700),
+            cache_write: Some(0),
+            reasoning: None,
+        },
+        finalized: true,
+        partial: true,
+        note: Some("only the last request of the turn".into()),
+        native_total: None,
+    };
+    let mut usage = SessionUsage::default();
+    usage.total.include(Some(&reported), false);
+    usage
+        .agents
+        .entry("glm".into())
+        .or_default()
+        .include(Some(&reported), false);
+    app.event(UiEvent::Usage {
+        session_id: "s1".into(),
+        usage,
+    });
+
+    app.command("/usage", 120);
+    let rendered = draw(&mut app, 120, 30);
+    assert!(
+        rendered.contains("1000+"),
+        "a partial figure was shown as exact:\n{rendered}"
+    );
+    assert!(rendered.contains("1 partial"), "{rendered}");
+    assert!(app.stats.total().unwrap().is_partial());
+}
+
+#[test]
+fn an_open_invocation_in_a_stored_session_is_not_called_running() {
+    let fixture = fixture();
+    let id = fixture.seed_with_team("Interrupted", Config::default().members());
+    // An invocation with no final status: what an interrupted run leaves behind.
+    fixture.record(&id, 1, "codex", Some((5_000, 500)), None);
+    let mut app = fixture.app();
+    app.load_session(&id).unwrap();
+    assert!(!app.active);
+
+    app.command("/usage", 120);
+    let detail = app
+        .page(118)
+        .items
+        .iter()
+        .find(|item| item.key == "session")
+        .map(|item| lines_text(&item.detail))
+        .unwrap();
+    assert!(detail.contains("open"), "{detail}");
+    let prose = text::one_line(&detail);
+    assert!(
+        prose.contains("no final status was recorded"),
+        "an unfinalised invocation was presented as work in progress:\n{detail}"
+    );
+    assert!(!prose.contains("active run has not finished"), "{detail}");
+}
+
+#[test]
+fn the_statistics_page_reads_and_starts_nothing() {
+    let fixture = fixture();
+    let id = fixture.seed_with_team("Landing page", Config::default().members());
+    fixture.record(&id, 1, "codex", Some((900, 100)), Some("completed"));
+    let mut app = fixture.app();
+    app.load_session(&id).unwrap();
+
+    let actions = type_and_enter(&mut app, "/usage");
+    assert!(actions.is_empty(), "opening the page produced {actions:?}");
+    assert_eq!(app.view, View::Usage);
+    for code in [
+        KeyCode::Down,
+        KeyCode::Up,
+        KeyCode::Enter,
+        KeyCode::Char(' '),
+        KeyCode::Char('r'),
+        KeyCode::End,
+    ] {
+        let actions = app.on_key(key(code), 100);
+        assert!(actions.is_empty(), "{code:?} produced {actions:?}");
+        app.overlay = None;
+    }
+    assert_eq!(app.session.as_deref(), Some(id.as_str()));
+}
+
+#[test]
+fn a_new_snapshot_keeps_the_row_and_the_reading_position() {
+    let fixture = fixture();
+    let mut app = fixture.app();
+    // With no team of its own, the page lists exactly the agents the session recorded,
+    // in the order the store keeps them.
+    app.command("/team remove codex", 100);
+    app.command("/team remove claude", 100);
+    conversation(&mut app, 2);
+    app.event(usage_event(
+        "s1",
+        &[("reviewer", Some((1_000, 100)), false)],
+    ));
+
+    app.command("/usage", 100);
+    draw(&mut app, 100, 30);
+    app.on_key(key(KeyCode::Down), 100);
+    assert_eq!(app.selected_item(98).unwrap().key, "reviewer");
+    let focus = app.focus;
+    let top = app.page_top;
+
+    // A later snapshot records an agent that sorts before the selected one.
+    app.event(usage_event(
+        "s1",
+        &[
+            ("reviewer", Some((1_200, 150)), false),
+            ("auditor", Some((300, 30)), false),
+        ],
+    ));
+    assert_eq!(
+        app.selected_item(98).unwrap().key,
+        "reviewer",
+        "the selection moved to another agent"
+    );
+    assert_eq!(app.focus, focus);
+    assert_eq!(app.page_top, top);
+}
+
+#[test]
+fn the_session_total_and_the_agents_survive_a_small_terminal() {
+    let fixture = fixture();
+    let mut app = fixture.app();
+    conversation(&mut app, 2);
+    app.event(usage_event(
+        "s1",
+        &[
+            ("codex", Some((12_000, 345)), false),
+            ("claude", Some((2_000, 100)), false),
+        ],
+    ));
+
+    let rendered = draw(&mut app, 80, 24);
+    assert!(
+        rendered.contains("14.4k"),
+        "the session total left the 80x24 screen:\n{rendered}"
+    );
+    assert!(rendered.contains("TOKENS"), "{rendered}");
+    assert!(rendered.contains("Codex"), "{rendered}");
+
+    // The project is still identifiable, and the composer still works.
+    typed(&mut app, "hello");
+    let rendered = draw(&mut app, 80, 24);
+    assert!(rendered.contains("ymp"), "{rendered}");
+    assert!(rendered.contains("hello"), "{rendered}");
+}
+
+#[test]
+fn invocations_with_no_agent_leave_the_agent_figures_incomplete() {
+    let fixture = fixture();
+    // An older session that counted three turns but recorded who took only one of them.
+    let id = fixture.seed_counted("Historic", Config::default().members(), 3);
+    fixture.record(&id, 1, "codex", Some((4_000, 200)), Some("completed"));
+    let mut app = fixture.app();
+    app.load_session(&id).unwrap();
+
+    assert_eq!(app.stats.unattributed(), 2);
+    assert_eq!(
+        app.stats.agent("claude"),
+        None,
+        "an agent with no row cannot be called zero while invocations are unattributed"
+    );
+
+    app.command("/usage", 120);
+    let rows: Vec<(String, String)> = app
+        .page(118)
+        .items
+        .iter()
+        .filter(|item| item.kind == crate::views::ItemKind::Row)
+        .map(|item| {
+            (
+                item.key.clone(),
+                item.right
+                    .iter()
+                    .map(|span| span.content.as_ref())
+                    .collect::<String>(),
+            )
+        })
+        .collect();
+    let figure = |key: &str| {
+        rows.iter()
+            .find(|(row, _)| row == key)
+            .map(|(_, figure)| figure.clone())
+            .unwrap_or_default()
+    };
+    assert_eq!(
+        figure("codex"),
+        "4200+",
+        "a figure that may be missing invocations must say so"
+    );
+    assert_eq!(
+        figure("claude"),
+        "—",
+        "an unattributable agent must not read as zero"
+    );
+    assert_eq!(figure("session"), "4200+");
+
+    let detail = app
+        .page(118)
+        .items
+        .iter()
+        .find(|item| item.key == "session")
+        .map(|item| lines_text(&item.detail))
+        .unwrap();
+    assert!(detail.contains("2 without an agent"), "{detail}");
+    assert!(
+        text::one_line(&detail).contains("recorded without the agent that made them"),
+        "the unattributed invocations were not explained:\n{detail}"
+    );
+
+    // The detail of an agent row marks its total incomplete for the same reason.
+    let agent = app
+        .page(118)
+        .items
+        .iter()
+        .find(|item| item.key == "codex")
+        .map(|item| lines_prose(&item.detail))
+        .unwrap();
+    assert!(
+        agent.contains("4 200+"),
+        "the agent detail total was presented as settled:\n{agent}"
+    );
+    assert!(agent.contains("could be this one's"), "{agent}");
+
+    // The sidebar keeps the same distinction.
+    let rendered = draw(&mut app, 120, 30);
+    assert!(rendered.contains("4200+"), "{rendered}");
+}
+
+#[test]
+fn opening_the_statistics_page_shows_the_session_breakdown_at_once() {
+    let fixture = fixture();
+    let id = fixture.seed_with_team("Landing page", Config::default().members());
+    fixture.record(&id, 1, "codex", Some((9_000, 900)), Some("completed"));
+    let mut app = fixture.app();
+    app.load_session(&id).unwrap();
+    app.command("/usage", 120);
+
+    // The first frame, before any key is pressed, already carries the detail.
+    let rendered = draw(&mut app, 120, 34);
+    assert!(
+        rendered.contains("cache read"),
+        "the breakdown was missing from the first frame:\n{rendered}"
+    );
+    assert_eq!(app.selected_item(118).unwrap().key, "session");
+
+    // The first press of Down moves on to the first agent, not onto the session row.
+    app.on_key(key(KeyCode::Down), 120);
+    assert_eq!(app.selected_item(118).unwrap().key, "codex");
+}
+
+#[test]
+fn a_running_session_shows_live_tokens_turns_and_status_together() {
+    let fixture = fixture();
+    let id = fixture.seed_with_team("Release check", Config::default().members());
+    let mut app = fixture.app();
+    app.load_session(&id).unwrap();
+    // The event loop marks the window active while a run it started is working.
+    app.active = true;
+
+    app.event(usage_event(
+        &id,
+        &[
+            ("codex", Some((500, 100)), false),
+            ("claude", Some((90, 10)), true),
+        ],
+    ));
+    let rendered = draw(&mut app, 120, 36);
+    assert!(rendered.contains("700+ tokens"), "{rendered}");
+    assert!(
+        rendered.contains("2 / 200 turns"),
+        "the turn counter did not follow the invocations:\n{rendered}"
+    );
+    assert!(
+        rendered.matches("running").count() >= 2,
+        "the header and the sidebar must both report the active run:\n{rendered}"
+    );
+    assert!(
+        !rendered.contains("completed"),
+        "the stored status outranked the active run:\n{rendered}"
+    );
+
+    // When the run ends, the persisted status is shown again and the counted turns stay.
+    app.active = false;
+    app.event(UiEvent::Finished {
+        session_id: id.clone(),
+        status: "completed".into(),
+    });
+    let rendered = draw(&mut app, 120, 36);
+    assert!(rendered.contains("completed"), "{rendered}");
+    assert!(!rendered.contains("running"), "{rendered}");
+    assert!(rendered.contains("700+ tokens"), "{rendered}");
+    assert!(
+        rendered.contains("2 / 200 turns"),
+        "the counted turns were lost when the run finished:\n{rendered}"
+    );
+}
+
+#[test]
+fn browsing_a_saved_session_reports_what_was_stored() {
+    let fixture = fixture();
+    let id = fixture.seed_with_team("Finished work", Config::default().members());
+    fixture.record(&id, 1, "codex", Some((300, 40)), Some("completed"));
+    let mut app = fixture.app();
+    app.load_session(&id).unwrap();
+
+    assert!(!app.active);
+    assert_eq!(app.live_status(), "completed");
+    let rendered = draw(&mut app, 120, 36);
+    assert!(rendered.contains("completed"), "{rendered}");
+    assert!(!rendered.contains("running"), "{rendered}");
+    assert!(rendered.contains("1 / 200 turns"), "{rendered}");
 }

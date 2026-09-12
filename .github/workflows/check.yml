@@ -17,6 +17,7 @@ jobs:
           cache-dependency-path: ymp-bridges/claude/package-lock.json
       - run: npm ci --prefix ymp-bridges/claude --no-audit --no-fund
       - run: npm run check --prefix ymp-bridges/claude
+      - run: npm test --prefix ymp-bridges/claude
       - run: cargo fmt --all --check
       - run: cargo clippy --workspace --all-targets --locked -- -D warnings
       - run: cargo test --workspace --locked

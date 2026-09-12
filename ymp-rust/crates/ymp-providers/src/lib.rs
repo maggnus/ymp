@@ -1,6 +1,7 @@
 pub mod discovery;
 mod rpc;
 pub mod supervisor;
+mod usage;
 
 use anyhow::{bail, Context, Result};
 use rpc::RpcProcess;
@@ -9,7 +10,7 @@ use serde_json::{json, Value};
 use std::path::PathBuf;
 use tokio::sync::mpsc;
 use tokio_util::sync::CancellationToken;
-use ymp_core::{AgentProfile, ProviderConfig, ProviderKind};
+use ymp_core::{AgentProfile, ProviderConfig, ProviderKind, TokenCounts, UsageSnapshot};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct McpEndpoint {
@@ -26,6 +27,8 @@ pub struct TurnRequest {
     pub purpose: String,
     pub read_only: bool,
     pub resume: Option<String>,
+    #[serde(default)]
+    pub usage_baseline: Option<TokenCounts>,
     pub mcp: Option<McpEndpoint>,
     pub timeout_secs: u64,
     pub bridge: PathBuf,
@@ -38,6 +41,7 @@ pub struct TurnResult {
 }
 #[derive(Debug, Clone)]
 pub enum ProviderEvent {
+    Usage(UsageSnapshot),
     Delta(String),
     Session(String),
     Tool(String),
@@ -81,7 +85,7 @@ async fn codex(
 ) -> Result<TurnResult> {
     proc.request(
         "initialize",
-        json!({"clientInfo":{"name":"ymp","version":"0.1.0"},"capabilities":{}}),
+        json!({"clientInfo":{"name":"ymp","version":env!("CARGO_PKG_VERSION")},"capabilities":{}}),
         events,
     )
     .await?;
@@ -116,6 +120,7 @@ async fn codex(
         .to_owned();
     let mut text = String::new();
     let mut usage = None;
+    let mut accounting = usage::CodexUsage::new(req.resume.is_some(), req.usage_baseline.clone());
     loop {
         let msg = proc.next().await?;
         if proc.respond_server(&msg).await? {
@@ -132,6 +137,9 @@ async fn codex(
             .and_then(Value::as_str)
             .is_some_and(|id| id != turn)
         {
+            if msg["method"].as_str() == Some("thread/tokenUsage/updated") {
+                accounting.restored(&p["tokenUsage"]);
+            }
             continue;
         }
         match msg["method"].as_str().unwrap_or("") {
@@ -149,6 +157,9 @@ async fn codex(
             }
             "thread/tokenUsage/updated" => {
                 usage = p.get("tokenUsage").cloned();
+                if let Some(snapshot) = usage.as_ref().and_then(|v| accounting.update(v)) {
+                    let _ = events.send(ProviderEvent::Usage(snapshot));
+                }
             }
             "turn/completed" => {
                 if p.pointer("/turn/id").and_then(Value::as_str) != Some(&turn) {
@@ -156,6 +167,9 @@ async fn codex(
                 }
                 if p.pointer("/turn/status").and_then(Value::as_str) != Some("completed") {
                     bail!("Codex turn did not complete: {}", p["turn"]);
+                }
+                if let Some(snapshot) = accounting.finish() {
+                    let _ = events.send(ProviderEvent::Usage(snapshot));
                 }
                 break;
             }
@@ -189,7 +203,7 @@ async fn acp(
     req: &TurnRequest,
     events: &mpsc::UnboundedSender<ProviderEvent>,
 ) -> Result<TurnResult> {
-    let init=proc.request("initialize",json!({"protocolVersion":1,"clientCapabilities":{},"clientInfo":{"name":"ymp","version":"0.1.0"}}),events).await?;
+    let init=proc.request("initialize",json!({"protocolVersion":1,"clientCapabilities":{},"clientInfo":{"name":"ymp","version":env!("CARGO_PKG_VERSION")}}),events).await?;
     let mcp=req.mcp.as_ref().map(|m|vec![json!({"name":"ymp","command":m.command,"args":m.args,"env":[{"name":"YMP_MCP_TOKEN","value":m.token}]})]).unwrap_or_default();
     let params = json!({"cwd":req.cwd,"mcpServers":mcp});
     let response = if let Some(id) = &req.resume {
@@ -246,6 +260,9 @@ async fn acp(
             events,
         )
         .await?;
+    if let Some(snapshot) = usage::acp_usage(&result["usage"]) {
+        let _ = events.send(ProviderEvent::Usage(snapshot));
+    }
     if result["stopReason"].as_str() != Some("end_turn") {
         bail!("ACP turn stopped: {}", result["stopReason"]);
     }
@@ -264,6 +281,17 @@ async fn mock_turn(
     cancel: CancellationToken,
     events: mpsc::UnboundedSender<ProviderEvent>,
 ) -> Result<TurnResult> {
+    let report_usage = req.profile.instructions.contains("[mock:usage]");
+    if report_usage {
+        let _ = events.send(ProviderEvent::Usage(UsageSnapshot {
+            counts: TokenCounts {
+                input: Some(100),
+                ..Default::default()
+            },
+            partial: true,
+            ..Default::default()
+        }));
+    }
     tokio::select! {_=cancel.cancelled()=>bail!("Cancelled"),_=tokio::time::sleep(std::time::Duration::from_millis(30))=>{}}
     let text=match req.purpose.as_str(){
         "conversation" => {
@@ -281,6 +309,17 @@ async fn mock_turn(
         _=>"The requested artifact is complete and independently verified.".into(),
     };
     let _ = events.send(ProviderEvent::Delta(text.clone()));
+    if report_usage {
+        let _ = events.send(ProviderEvent::Usage(UsageSnapshot {
+            counts: TokenCounts {
+                input: Some(100),
+                output: Some(20),
+                ..Default::default()
+            },
+            finalized: true,
+            ..Default::default()
+        }));
+    }
     Ok(TurnResult {
         text,
         session_id: req.resume.clone().unwrap_or_else(ymp_core::new_id),

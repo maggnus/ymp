@@ -7,6 +7,7 @@ use std::{
     sync::{Arc, Mutex, MutexGuard},
 };
 use ymp_core::*;
+mod usage;
 
 #[derive(Clone)]
 pub struct Store {
@@ -26,7 +27,7 @@ impl Store {
         conn.busy_timeout(std::time::Duration::from_secs(5))?;
         conn.execute_batch("PRAGMA journal_mode=WAL; PRAGMA foreign_keys=ON;")?;
         let version: u32 = conn.query_row("PRAGMA user_version", [], |r| r.get(0))?;
-        if version > 1 {
+        if version > 2 {
             bail!("This database was created by a newer ymp version");
         }
         if version == 0 {
@@ -34,6 +35,9 @@ impl Store {
             tx.execute_batch(include_str!("schema.sql"))?;
             tx.execute_batch("PRAGMA user_version=1")?;
             tx.commit()?;
+        }
+        if version < 2 {
+            usage::migrate(&mut conn)?;
         }
         Ok(Self {
             conn: Arc::new(Mutex::new(conn)),

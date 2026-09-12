@@ -52,7 +52,7 @@ ymp ask codex 'Summarize the entry points'
 
 The interface is chat-first with a right sidebar that carries navigation, live team activity, and the current session's context. The sidebar appears from 80 columns; hide it with `Ctrl+B`.
 
-Commands: `/chat`, `/help`, `/tasks`, `/sessions`, `/files`, `/diff`, `/providers`, `/agents`, `/agent`, `/team`, `/limits`, `/memory`, `/reputation`, `/theme`, `/sidebar`, `/details`, `/new`, `/resume`, `/pause`, `/stop`, and `/quit`. `Ctrl+P` opens the command palette, and `/help` lists every command and key.
+Commands: `/chat`, `/help`, `/tasks`, `/usage`, `/sessions`, `/files`, `/diff`, `/providers`, `/agents`, `/agent`, `/team`, `/limits`, `/memory`, `/reputation`, `/theme`, `/sidebar`, `/details`, `/new`, `/resume`, `/pause`, `/stop`, and `/quit`. `Ctrl+P` opens the command palette, and `/help` lists every command and key.
 
 Enter sends, Ctrl+J inserts a newline, and Tab completes a command name or moves the focus to the next region. Esc removes the topmost surface and eventually returns to the composer. Ctrl+C stops an active run; when idle, it exits. Messages entered during execution are delivered at the next turn boundary.
 
