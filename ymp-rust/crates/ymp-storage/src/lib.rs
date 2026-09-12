@@ -12,6 +12,7 @@ mod authority;
 mod budget;
 mod confirmation;
 mod knowledge;
+pub mod projection;
 mod provenance;
 #[cfg(test)]
 mod provenance_tests;
@@ -25,6 +26,19 @@ pub fn memory_search_query(query: &str) -> String {
         .map(|s| format!("\"{}\"", s.replace('"', "\"\"")))
         .collect::<Vec<_>>()
         .join(" OR ")
+}
+
+/// Exclusive run ownership, released when its owner completes even if a child
+/// temporarily retains a fork-inherited descriptor before exec closes it.
+#[derive(Debug)]
+pub struct StoreLock {
+    file: File,
+}
+
+impl Drop for StoreLock {
+    fn drop(&mut self) {
+        let _ = FileExt::unlock(&self.file);
+    }
 }
 
 #[derive(Clone)]
@@ -198,7 +212,7 @@ impl Store {
             .join("sessions")
             .join(&s.id)
     }
-    pub fn lock_session(&self, s: &Session) -> Result<File> {
+    pub fn lock_session(&self, s: &Session) -> Result<StoreLock> {
         let dir = self.session_dir(s);
         std::fs::create_dir_all(&dir)?;
         let file = std::fs::OpenOptions::new()
@@ -209,9 +223,9 @@ impl Store {
             .open(dir.join("session.lock"))?;
         file.try_lock_exclusive()
             .context("This session is already running in another ymp process")?;
-        Ok(file)
+        Ok(StoreLock { file })
     }
-    pub fn lock_project(&self, project_id: &str) -> Result<File> {
+    pub fn lock_project(&self, project_id: &str) -> Result<StoreLock> {
         let dir = self.home.join("projects").join(project_id);
         std::fs::create_dir_all(&dir)?;
         let file = std::fs::OpenOptions::new()
@@ -222,7 +236,7 @@ impl Store {
             .open(dir.join("workspace.lock"))?;
         file.try_lock_exclusive()
             .context("Another ymp run is already using this working directory")?;
-        Ok(file)
+        Ok(StoreLock { file })
     }
     pub fn message(
         &self,
@@ -376,6 +390,19 @@ impl Store {
         self.db()?.execute("INSERT INTO kv(key,value) VALUES (?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value",params![key,value.to_string()])?;
         Ok(())
     }
+    /// Atomically reserve an external operation identity before starting effects.
+    pub fn put_value_if_absent(&self, key: &str, value: &serde_json::Value) -> Result<bool> {
+        Ok(self.db()?.execute(
+            "INSERT OR IGNORE INTO kv(key,value) VALUES (?,?)",
+            params![key, value.to_string()],
+        )? == 1)
+    }
+
+    /// Scoped decision records for inspection; callers must project snapshot bytes.
+    pub fn decisions(&self, session: &str) -> Result<Vec<DecisionRecord>> {
+        provenance::records(&*self.db()?, "decisions", session)
+    }
+
     pub fn value(&self, key: &str) -> Result<Option<serde_json::Value>> {
         let data: Option<String> = self
             .db()?
@@ -811,6 +838,55 @@ mod tests {
         );
         assert_eq!(checks[2].output, None);
         assert_eq!(checks[3].command, None, "a blank command became a command");
+    }
+
+    #[cfg(unix)]
+    fn assert_owner_releases_inherited_lock(acquire: impl Fn() -> Result<StoreLock>) {
+        let owner = acquire().unwrap();
+        // dup retains the same open file description as a child between fork
+        // and exec, even when the descriptor has close-on-exec enabled.
+        let inherited = owner.file.try_clone().unwrap();
+        assert!(
+            acquire().is_err(),
+            "A live owner must exclude another writer"
+        );
+        drop(owner);
+        let next = acquire().expect(
+            "A completed owner must release its lock while an inherited descriptor remains open",
+        );
+        assert!(acquire().is_err(), "The next owner must retain exclusivity");
+        drop(inherited);
+        assert!(
+            acquire().is_err(),
+            "Closing a stale descriptor must not unlock the next owner"
+        );
+        drop(next);
+        assert!(acquire().is_ok());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn completed_project_owner_releases_lock_before_inherited_descriptor_closes() {
+        let temp = tempfile::tempdir().unwrap();
+        let store = Store::open(&temp.path().join("state")).unwrap();
+        assert_owner_releases_inherited_lock(|| store.lock_project("project"));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn completed_session_owner_releases_lock_before_inherited_descriptor_closes() {
+        let temp = tempfile::tempdir().unwrap();
+        let store = Store::open(&temp.path().join("state")).unwrap();
+        let session = Session {
+            id: new_id(),
+            project_id: "project".into(),
+            title: "goal".into(),
+            status: "completed".into(),
+            created_at: now(),
+            team: vec![],
+            turns_used: 0,
+        };
+        assert_owner_releases_inherited_lock(|| store.lock_session(&session));
     }
 
     #[test]

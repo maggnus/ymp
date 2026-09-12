@@ -118,6 +118,31 @@ mod backend_contract_tests {
         }
     }
 
+    fn assert_backend_admitted(
+        fixture: &RunFixture,
+        session: &str,
+        script: &ScriptedBackend,
+        error: &anyhow::Error,
+    ) {
+        if !script.requests.lock().unwrap().is_empty() {
+            return;
+        }
+        // Admission can fail before the backend receives a capability. Describe
+        // that boundary without formatting errors or requests that might contain one.
+        let io_code = error
+            .downcast_ref::<std::io::Error>()
+            .and_then(|error| error.raw_os_error());
+        let trace = fixture.store.trace(session).unwrap();
+        let events = trace
+            .history
+            .iter()
+            .rev()
+            .take(8)
+            .map(|event| event.kind.as_str())
+            .collect::<Vec<_>>();
+        panic!("Scripted backend was not admitted: io_code={io_code:?}, session_status={}, last_events={events:?}", trace.session.status);
+    }
+
     fn assert_closed(fixture: &RunFixture, session: &str) {
         let trace = fixture.store.trace(session).unwrap();
         assert_eq!(trace.budget.as_ref().unwrap().in_flight_invocations, 0);
@@ -270,12 +295,17 @@ mod backend_contract_tests {
         let call = fixture
             .engine
             .follow_up(&fixture.project, "What is the sum?", &session.id);
-        let (result, ()) = tokio::time::timeout(std::time::Duration::from_secs(3), async {
-            tokio::join!(call, stop)
+        let result = tokio::time::timeout(std::time::Duration::from_secs(3), async {
+            tokio::pin!(call);
+            tokio::select! {
+                result = &mut call => result,
+                () = stop => call.await,
+            }
         })
         .await
         .expect("common guard did not stop execution");
         let error = result.unwrap_err();
+        assert_backend_admitted(&fixture, &session.id, &script, &error);
         assert!(
             error.to_string().contains(if cancellation {
                 "cancelled"
@@ -314,6 +344,7 @@ mod backend_contract_tests {
             .follow_up(&fixture.project, "What is the sum?", &session.id)
             .await
             .unwrap_err();
+        assert_backend_admitted(&fixture, &session.id, &script, &error);
         let token = script.requests.lock().unwrap()[0]
             .mcp
             .as_ref()

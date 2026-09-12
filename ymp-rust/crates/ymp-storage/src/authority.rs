@@ -145,7 +145,7 @@ impl Store {
             TeamOperation::TeamRead => &["after", "limit"],
             TeamOperation::TasksList => &[],
             TeamOperation::TaskPropose => &["title", "description"],
-            TeamOperation::MemorySearch => &["query", "include_unconfirmed"],
+            TeamOperation::MemorySearch => &["query", "include_unconfirmed", "cursor", "limit"],
             TeamOperation::MemoryPropose => &["title", "content"],
         };
         ensure!(
@@ -253,7 +253,23 @@ impl Store {
                     }
                 })
                 .collect::<Result<Vec<_>>>()?;
-                serde_json::to_value(values)?
+                let offset = arguments
+                    .get("cursor")
+                    .map(|v| {
+                        v.as_str()
+                            .context("cursor must be a string")?
+                            .parse::<usize>()
+                            .context("Invalid memory cursor")
+                    })
+                    .transpose()?
+                    .unwrap_or(0);
+                let limit = arguments
+                    .get("limit")
+                    .map(|v| v.as_u64().context("limit must be a positive integer"))
+                    .transpose()?
+                    .unwrap_or(10);
+                let rows = values.iter().map(|entry| Ok(serde_json::json!({"id":entry.id,"version":content_digest(&serde_json::to_string(entry)?),"entry":entry}))).collect::<Result<Vec<_>>>()?;
+                super::projection::page(&rows, offset, usize::try_from(limit)?)?
             }
             TeamOperation::MemoryPropose => {
                 let value = MemoryEntry {

@@ -1,0 +1,183 @@
+{
+  "schema_version": 1,
+  "tools": [
+    {
+      "name": "ymp_inspect_v1",
+      "description": "Inspect project scope, pool and saved runtime state without invoking agents. Responses omit snapshot bytes and mark truncation.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "cursor": {
+            "description": "Opaque continuation returned as next_cursor. Stable row ordering; concurrent changes can require restarting.",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "scope",
+              "pool",
+              "sessions",
+              "session",
+              "tasks",
+              "results",
+              "evidence",
+              "history"
+            ],
+            "type": "string"
+          },
+          "limit": {
+            "default": 10,
+            "maximum": 25,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "session_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind"
+        ],
+        "type": "object"
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "ymp_knowledge_v1",
+      "description": "Search or resolve project/shared knowledge without inference. Unconfirmed inspection is explicit. Entry versions identify the complete source even when its projection is truncated.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "cursor": {
+            "description": "Opaque continuation returned as next_cursor. Stable row ordering; concurrent changes can require restarting.",
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "include_unconfirmed": {
+            "default": false,
+            "type": "boolean"
+          },
+          "limit": {
+            "default": 10,
+            "maximum": 25,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "query": {
+            "maxLength": 4096,
+            "type": "string"
+          },
+          "version": {
+            "type": "string"
+          }
+        },
+        "required": [],
+        "type": "object"
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "ymp_run_v1",
+      "description": "Explicitly start or resume bounded work in the launcher's project using the common runtime. Returns a durable request handle immediately. Start requires prompt/max_turns/turn_timeout_secs; resume requires session_id and retains captured limits. max_seconds bounds this process's execution lease. Retry identical request_id/arguments to inspect, never repeat effects.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "action": {
+            "enum": [
+              "start",
+              "resume"
+            ],
+            "type": "string"
+          },
+          "max_seconds": {
+            "maximum": 3600,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "max_turns": {
+            "minimum": 1,
+            "type": "integer"
+          },
+          "prompt": {
+            "maxLength": 16384,
+            "type": "string"
+          },
+          "request_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "session_id": {
+            "type": "string"
+          },
+          "turn_timeout_secs": {
+            "minimum": 1,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "request_id",
+          "action",
+          "max_seconds"
+        ],
+        "type": "object"
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "ymp_request_v1",
+      "description": "Inspect durable operation and saved progress/usage. A foreign process's liveness stays unknown; no agents are started.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "request_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "request_id"
+        ],
+        "type": "object"
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "ymp_cancel_v1",
+      "description": "Request cancellation of an execution owned by this process. Poll request until terminal. Saved work and observed usage remain; cancellation does not roll back workspace writes.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "request_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "request_id"
+        ],
+        "type": "object"
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "openWorldHint": true
+      }
+    }
+  ]
+}

@@ -511,9 +511,9 @@ async fn memory_proposal_records_bound_origin_without_activation() {
     search["arguments"] = json!({"query":"lesson","include_unconfirmed":true});
     let found = f.call(search).await;
     assert_eq!(found["ok"], true);
-    assert_eq!(found["value"][0]["id"], memory[0].id);
+    assert_eq!(found["value"]["items"][0]["value"]["id"], memory[0].id);
     assert_eq!(
-        found["value"][0]["provenance"]["confirmation"],
+        found["value"]["items"][0]["value"]["entry"]["provenance"]["confirmation"],
         "unconfirmed"
     );
     f.server
@@ -549,3 +549,44 @@ async fn memory_proposal_records_bound_origin_without_activation() {
 }
 
 include!("budget_authority_tests.rs");
+
+#[tokio::test]
+async fn internal_memory_search_projects_large_rows_with_versions_and_continuation() {
+    let f = Fixture::new().await;
+    for n in 0..28 {
+        f.store
+            .save_memory(&ymp_core::MemoryEntry {
+                id: format!("large-{n}"),
+                project_id: Some(f.session.project_id.clone()),
+                kind: "lesson".into(),
+                title: "Large lesson".into(),
+                content: "lesson ".repeat(5000),
+                source_session: f.session.id.clone(),
+                author: f.assignment.agent_id.clone(),
+                reviewer: None,
+                status: "proposed".into(),
+                created_at: ymp_core::now(),
+                supersedes: None,
+                provenance: None,
+            })
+            .unwrap();
+    }
+    let mut request = f.request("large-search");
+    request["name"] = json!("memory_search");
+    request["arguments"] = json!({"query":"lesson","include_unconfirmed":true,"limit":25});
+    let response = f.call(request).await;
+    assert_eq!(response["ok"], true, "{response}");
+    assert!(response.to_string().len() < 52 * 1024);
+    let items = response["value"]["items"].as_array().unwrap();
+    assert_eq!(items.len(), 25);
+    assert!(items.iter().all(|row| row["truncated"] == true
+        && row["value"]["version"]
+            .as_str()
+            .is_some_and(|v| v.len() == 64)));
+    let mut request = f.request("large-next");
+    request["name"] = json!("memory_search");
+    request["arguments"] = json!({"query":"lesson","include_unconfirmed":true,"cursor":response["value"]["next_cursor"],"limit":25});
+    let next = f.call(request).await;
+    assert_eq!(next["value"]["items"].as_array().unwrap().len(), 3);
+    assert_eq!(next["value"]["next_cursor"], Value::Null);
+}
