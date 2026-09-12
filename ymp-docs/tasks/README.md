@@ -1,6 +1,6 @@
 # Task details and evidence
 
-Updated: 2026-09-12 22:52 UTC.
+Updated: 2026-09-12 22:58 UTC.
 
 Use the [delivery plan](plan.md) to follow progress. This generated register contains full acceptance criteria, dependencies and evidence. [tasks.json](tasks.json) is the single source; [manage.py](manage.py) updates both pages.
 
@@ -59,7 +59,7 @@ A planned task is not implemented functionality. Completed research and planning
 | `[x]` | [YMP-120](#ymp-120) | P0 | Enforce assignment-scoped permissions and runtime-only state transitions | 2026-09-12 13:46 |
 | `[x]` | [YMP-118](#ymp-118) | P0 | Integrate core assignment, budget and confirmation visibility | 2026-09-12 20:43 |
 | `[x]` | [YMP-119](#ymp-119) | P0 | Prepare universal acceptance scenarios and independent validators | 2026-09-12 10:56 |
-| `[=]` | [YMP-121](#ymp-121) | P1 | Verify the integrated application and package a local release | 2026-09-12 22:38 |
+| `[=]` | [YMP-121](#ymp-121) | P1 | Verify the integrated application and package a local release | 2026-09-12 22:58 |
 | `[x]` | [YMP-013](#ymp-013) | P0 | Review plan coherence and simplify progress tracking | 2026-09-12 09:46 |
 | `[x]` | [YMP-122](#ymp-122) | P1 | Expose replaceable execution backends behind runtime-owned controls | 2026-09-12 15:23 |
 | `[x]` | [YMP-123](#ymp-123) | P1 | Expose a public local MCP facade over stdio | 2026-09-12 18:22 |
@@ -1316,7 +1316,7 @@ Verify the integrated application and package a local release
 
 **State:** `[=]` (planned) · **Type:** verification · **Priority:** P1
 
-**Last update (UTC):** 2026-09-12 22:38
+**Last update (UTC):** 2026-09-12 22:58
 
 **Current reason:** Needs YMP-112, YMP-114
 
@@ -1328,7 +1328,7 @@ Verify the integrated application and package a local release
 
 A local release needs a reproducible install and truthful compatibility evidence for the configured native providers.
 
-**Latest progress note:** Independent max reviewer is active on the complete126 driver, to continue on the final integrated release source. Installer preflight and all typed substitution points now have current evidence, including the independently implemented checker replay. Release0.4.0 remains unbuilt/uninstalled until final UI follow-ups, full driver review and final-source checks pass.
+**Latest progress note:** Current main413-test build also passes the complete official MCP SDK1.28.1 walk:331 calls, maximum normal reply73149 bytes, fixed mock/low, including lifecycle, scoped authority, configured contracts, SIGKILL recovery and blocked-output shutdown. Fresh max review accepts full126; final0.4.0 packaging/review waits for the last Opus UI visibility corrections, whose actual terminal walk is being prepared.
 
 **Acceptance criteria:**
 

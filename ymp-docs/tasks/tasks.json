@@ -2424,6 +2424,11 @@
           "at": "2026-09-12T22:38:45.481827+00:00",
           "status": "planned",
           "note": "Independent max reviewer is active on the complete126 driver, to continue on the final integrated release source. Installer preflight and all typed substitution points now have current evidence, including the independently implemented checker replay. Release0.4.0 remains unbuilt/uninstalled until final UI follow-ups, full driver review and final-source checks pass."
+        },
+        {
+          "at": "2026-09-12T22:58:21.808377+00:00",
+          "status": "planned",
+          "note": "Current main413-test build also passes the complete official MCP SDK1.28.1 walk:331 calls, maximum normal reply73149 bytes, fixed mock/low, including lifecycle, scoped authority, configured contracts, SIGKILL recovery and blocked-output shutdown. Fresh max review accepts full126; final0.4.0 packaging/review waits for the last Opus UI visibility corrections, whose actual terminal walk is being prepared."
         }
       ],
       "budget": "Not allocated. Prepare a concrete bounded smoke-check proposal before any real-provider inference."
@@ -2934,7 +2939,7 @@
       ]
     }
   ],
-  "updated_at": "2026-09-12T22:52:12.623663+00:00",
+  "updated_at": "2026-09-12T22:58:21.808377+00:00",
   "delivery_order": [
     "YMP-116",
     "YMP-103",
