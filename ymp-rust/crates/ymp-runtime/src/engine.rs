@@ -438,6 +438,19 @@ impl Engine {
                     self.store.put_value(&key, &json!(id))?;
                 }
                 ProviderEvent::Tool(name) => self.status(format!("{} · {name}", agent.name)),
+                ProviderEvent::Retry {
+                    session_id,
+                    turn_id,
+                    error_code,
+                } => {
+                    self.store.event(
+                        &ctx.session.id,
+                        "provider_retry",
+                        &json!({"agent":agent.id,"purpose":purpose,"turn":used,
+                            "native_session_id":session_id,"native_turn_id":turn_id,
+                            "error_code":error_code}),
+                    )?;
+                }
                 ProviderEvent::Usage(snapshot) => {
                     self.store
                         .update_usage(&ctx.session.id, used as u64, &snapshot)?;

@@ -45,6 +45,11 @@ pub enum ProviderEvent {
     Delta(String),
     Session(String),
     Tool(String),
+    Retry {
+        session_id: String,
+        turn_id: String,
+        error_code: Option<String>,
+    },
 }
 
 pub async fn run_turn(
@@ -173,7 +178,18 @@ async fn codex(
                 }
                 break;
             }
-            "error" => bail!("Codex error: {}", p["error"]),
+            "error" => {
+                if p["willRetry"].as_bool() != Some(true) {
+                    bail!("Codex error: {}", p["error"]);
+                }
+                // The native turn owns this retry. Keep its text and accounting
+                // and let the existing invocation cancellation/deadline apply.
+                let _ = events.send(ProviderEvent::Retry {
+                    session_id: session.clone(),
+                    turn_id: turn.clone(),
+                    error_code: codex_error_code(&p["error"]["codexErrorInfo"]),
+                });
+            }
             _ => {}
         }
     }
@@ -185,6 +201,38 @@ async fn codex(
         session_id: session,
         usage,
     })
+}
+
+fn codex_error_code(info: &Value) -> Option<String> {
+    // Retain only protocol-defined codes, never arbitrary provider messages or
+    // additional details that could contain credentials or request contents.
+    match info.as_str() {
+        Some(
+            code @ ("contextWindowExceeded"
+            | "sessionBudgetExceeded"
+            | "usageLimitExceeded"
+            | "rateLimitExceeded"
+            | "serverOverloaded"
+            | "cyberPolicy"
+            | "misalignmentPolicyViolation"
+            | "internalServerError"
+            | "unauthorized"
+            | "badRequest"
+            | "threadRollbackFailed"
+            | "sandboxError"
+            | "other"),
+        ) => Some(code.into()),
+        _ => [
+            "httpConnectionFailed",
+            "responseStreamConnectionFailed",
+            "responseStreamDisconnected",
+            "responseTooManyFailedAttempts",
+            "activeTurnNotSteerable",
+        ]
+        .into_iter()
+        .find(|code| info.get(code).is_some())
+        .map(str::to_owned),
+    }
 }
 
 async fn claude(
