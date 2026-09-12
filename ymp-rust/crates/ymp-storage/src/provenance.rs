@@ -425,6 +425,19 @@ impl Store {
                     && team.eligible_agents.contains(&assignment.agent_id),
                 "ineligible_member: assignment requires current admitted membership"
             );
+            if assignment.purpose == "execute" {
+                let reviewer = team.reserved_final_reviewer.as_ref().context(
+                    "no_independent_eligible_reviewer: production requires a reserved final reviewer",
+                )?;
+                ensure!(
+                    reviewer != &assignment.agent_id
+                        && team.eligible_agents.contains(reviewer)
+                        && !records::<AssignmentRecord>(&tx, "assignments", &assignment.session_id)?
+                            .iter()
+                            .any(|a| a.purpose == "execute" && &a.agent_id == reviewer),
+                    "no_independent_eligible_reviewer: production would consume or invalidate reserved final-review eligibility"
+                );
+            }
         }
         if let Some(task) = &assignment.task {
             validate_task(&tx, &assignment.session_id, task, true)?;

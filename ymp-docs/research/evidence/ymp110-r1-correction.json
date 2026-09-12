@@ -1,0 +1,71 @@
+{
+  "task": "YMP-110",
+  "recorded_at": "2026-09-12T15:28:59.444570+00:00",
+  "review_round": "R1(5/10) RETURN 12/09 23:12",
+  "answer": "Both reported defects reproduced and corrected; independent R2 acceptance remains pending.",
+  "scope": "Shared public admission and allocation commitment preserve review feasibility; metadata-only startup validates known native pin conflicts and usable review configurations.",
+  "baseline": {
+    "command": "cargo test --manifest-path /tmp/ymp110-review-u71mgk/Cargo.toml -- --nocapture",
+    "exit_code": 101,
+    "passed": 4,
+    "failed": 3
+  },
+  "additional_failing_controls": {
+    "command": "cargo test -p ymp-runtime --test allocation_admission -- --nocapture",
+    "exit_code": 101,
+    "passed": 4,
+    "failed": 5,
+    "observed_output": [
+      "thread 'invalid_pinned_reviewer_must_be_rejected_before_startup' panicked at ymp-rust/crates/ymp-runtime/tests/allocation_admission.rs:287:5:",
+      "INFEASIBLE PINNED REVIEWER SPENT STARTUP: purposes=[\"plan\"]; outcome=blocked: Run blocked: no_independent_eligible_reviewer: no executor remains while preserving independent final review",
+      "thread 'public_admission_must_not_consume_reserved_final_reviewer' panicked at ymp-rust/crates/ymp-runtime/tests/allocation_admission.rs:210:5:",
+      "PUBLIC ADMISSION CONSUMED RESERVED REVIEWER: agent=two; grants=1; members=[\"two\", \"one\"]",
+      "thread 'admission_uses_reservation_committed_after_assignment_records_were_prepared' panicked at ymp-rust/crates/ymp-runtime/tests/allocation_admission.rs:631:9:",
+      "Admission ignored the newly committed reviewer reservation",
+      "thread 'public_reserved_admission_must_not_consume_reserved_final_reviewer' panicked at ymp-rust/crates/ymp-runtime/tests/allocation_admission.rs:418:5:",
+      "RESERVED-ORDINAL ADMISSION CONSUMED RESERVED REVIEWER: agent=two; grants=1",
+      "thread 'reservation_commit_rechecks_production_admitted_after_its_snapshot' panicked at ymp-rust/crates/ymp-runtime/tests/allocation_admission.rs:568:13:",
+      "Reservation installed an agent that became a producer after the proposal snapshot",
+      "test result: FAILED. 4 passed; 5 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.33s"
+    ]
+  },
+  "final_checks": [
+    {
+      "command": "cargo test --manifest-path /tmp/ymp110-review-u71mgk/Cargo.toml -- --nocapture",
+      "exit_code": 0,
+      "passed": 7
+    },
+    {
+      "command": "cargo test -p ymp-runtime --test allocation_admission -- --nocapture",
+      "exit_code": 0,
+      "passed": 13
+    },
+    {
+      "command": "cargo fmt --all --check",
+      "exit_code": 0
+    },
+    {
+      "command": "cargo clippy --workspace --all-targets -- -D warnings",
+      "exit_code": 0
+    },
+    {
+      "command": "cargo test --workspace",
+      "exit_code": 0,
+      "passed": 256
+    }
+  ],
+  "controls": [
+    "Both explicit and reserved ordinal wrappers deny reserved-reviewer production and keep ordinary current executors admissible.",
+    "A producer admitted after the allocation input cannot become reserved reviewer, whether its invocation remains open or has already ended.",
+    "Admission uses a reservation committed after its assignment records were prepared; denied admission changes no trace, grant or usage record.",
+    "Known unsupported pinned model/effort and required review settings reject before any startup session or backend invocation.",
+    "Supported effort pins still reach actual scripted requests, including selection of another supported model.",
+    "Absent catalog, unknown controls and unlisted models in incomplete catalogs remain unknown and can reach scripted execution without an invented native acknowledgement.",
+    "Existing history, fixed-size replacement, retired membership, conversation continuity, policy substitution and resource controls remain covered by the full suite."
+  ],
+  "limits": [
+    "No real provider inference or credentials accessed.",
+    "No UI, intent or task registry changes.",
+    "Bridge source unchanged; separate bridge checks not run."
+  ]
+}

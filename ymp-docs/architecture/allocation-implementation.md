@@ -41,6 +41,23 @@ wrappers check current membership and the latest observed eligibility in the sam
 transaction as admission. `Engine.refresh_team_eligibility` refreshes local
 metadata without invoking a model; normal admission performs that refresh.
 
+Both public admission wrappers also check final-review feasibility inside that
+transaction, before assignment, invocation, budget reservation or grant records
+are created. Production cannot use the reserved reviewer or proceed with a
+reservation whose identity has already produced work. Membership commitments
+recheck actual producer assignments under the same write lock, including
+assignments admitted after the policy input snapshot and assignments already
+closed. A reservation change and production admission therefore cannot each rely
+on stale information about the other.
+
+Known model/effort pin contradictions are diagnosed from applicable capability
+metadata before startup creates a session or invokes a backend. The error names
+the agent and conflicting model or effort. Required candidate and final-review
+configurations are checked at allocation boundaries. An absent catalog, unknown
+controls, or a model absent from an incomplete catalog does not prove a pin
+unsupported. An effort pin can still select another allowed model that supports
+it; no universal effort ordering or inference call is used for this validation.
+
 ## Replaceable proposal boundaries
 
 `Engine.with_allocation_policy(Arc<dyn AllocationPolicy>)` installs joint method,
