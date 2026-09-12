@@ -744,6 +744,11 @@
           "at": "2026-09-12T12:12:44.715234+00:00",
           "status": "in_progress",
           "note": "12/09 20:11 HKT R1(8/10) RETURN: independent Claude Opus 5 max review confirmed behavior but found two output-display claims too broad. Author is correcting wording; integration waits for R2. Shared-frame clipping is reserved for YMP-118."
+        },
+        {
+          "at": "2026-09-12T12:20:54.531792+00:00",
+          "status": "in_progress",
+          "note": "R1 wording corrections68db7c8 are complete. Integration with provenance101 exposes task IDs in new check events; Opus5 max is updating the projection and task/command matching against current main before independent R2. Shared-frame clipping remains assigned to YMP-118."
         }
       ]
     },
@@ -1497,7 +1502,7 @@
       "title": "Enable useful concurrent execution of independent assignments",
       "type": "implementation",
       "priority": "P0",
-      "status": "planned",
+      "status": "owner_question",
       "owner": "Maintainer",
       "authorization": "Planned delivery derived from the owner-approved intent and standing autonomous-development direction. Follow dependencies and acceptance criteria; separate real-provider quota is required where stated.",
       "depends_on": [
@@ -1541,6 +1546,11 @@
           "at": "2026-09-12T09:35:05.248513+00:00",
           "status": "planned",
           "note": "Useful concurrency can first serve the existing fixed task graph. Dynamic membership/replanning is a separate capability."
+        },
+        {
+          "at": "2026-09-12T12:25:03.163058+00:00",
+          "status": "owner_question",
+          "note": "Owner question: chat-supplied AGENTS.md requires isolated working copies preserving the original directory, while repository AGENTS.md and prior product direction require direct work in the selected directory. Which workspace policy should govern the release? Asked asynchronously; budget, authority, confirmation and other independent work continue."
         }
       ]
     },
@@ -1743,7 +1753,7 @@
       "title": "Separate acceptance from confirmation and gate reputation on evidence",
       "type": "implementation",
       "priority": "P0",
-      "status": "planned",
+      "status": "in_progress",
       "owner": "Maintainer",
       "authorization": "Derived from the owner-approved intent and work-plan request. Follow recorded dependencies; real-provider quota remains separately authorized.",
       "depends_on": [
@@ -1774,6 +1784,11 @@
           "at": "2026-09-12T09:35:05.248513+00:00",
           "status": "planned",
           "note": "Evidence-qualified acceptance can use existing runtime-owned review transitions while permission expiry is implemented independently."
+        },
+        {
+          "at": "2026-09-12T12:25:03.063843+00:00",
+          "status": "in_progress",
+          "note": "Production Engine::run control reproduced unconfirmed reputation growth: a mock plan with no checks completed and created2 positive observations (executor and planner). Regression accepting_without_confirmation_never_awards_reputation exits101 in development worktree117. Evidence-qualified acceptance implementation is next."
         }
       ]
     },
@@ -1866,6 +1881,11 @@
           "at": "2026-09-12T09:35:05.248513+00:00",
           "status": "planned",
           "note": "Core observability no longer waits for dynamic scheduling or knowledge correction. Those features extend the existing views in their own tasks."
+        },
+        {
+          "at": "2026-09-12T12:20:54.627364+00:00",
+          "status": "planned",
+          "note": "Alongside core assignment/budget/confirmation views, fix independently reproduced shared-frame text clipping: inline wrapping uses two columns more than the paint area and modal wrapping uses full terminal width. YMP-107 review demonstrated lost words on both checks and the existing memory page; Opus5 max owns UI correction."
         }
       ]
     },
@@ -2009,7 +2029,7 @@
       ]
     }
   ],
-  "updated_at": "2026-09-12T12:18:55.315304+00:00",
+  "updated_at": "2026-09-12T12:25:03.163058+00:00",
   "delivery_order": [
     "YMP-116",
     "YMP-103",

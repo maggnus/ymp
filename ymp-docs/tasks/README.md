@@ -1,6 +1,6 @@
 # Task details and evidence
 
-Updated: 2026-09-12 12:18 UTC.
+Updated: 2026-09-12 12:25 UTC.
 
 Use the [delivery plan](plan.md) to follow progress. This generated register contains full acceptance criteria, dependencies and evidence. [tasks.json](tasks.json) is the single source; [manage.py](manage.py) updates both pages.
 
@@ -36,7 +36,7 @@ A planned task is not implemented functionality. Completed research and planning
 | `[x]` | [YMP-104](#ymp-104) | P0 | Preserve accepted outcomes and confirmation status when final narration fails | 2026-09-12 10:16 |
 | `[x]` | [YMP-105](#ymp-105) | P1 | Enumerate file names without reading file contents | 2026-09-12 10:16 |
 | `[~]` | [YMP-106](#ymp-106) | P1 | Use task-specific memory queries and record retrieval evidence | 2026-09-12 12:18 |
-| `[~]` | [YMP-107](#ymp-107) | P1 | Expose recorded checks and factual recovery limits | 2026-09-12 12:12 |
+| `[~]` | [YMP-107](#ymp-107) | P1 | Expose recorded checks and factual recovery limits | 2026-09-12 12:20 |
 | `[=]` | [YMP-108](#ymp-108) | P2 | Evaluate an optional usage estimate with explicit price provenance | 2026-09-12 09:35 |
 | `[x]` | [YMP-111](#ymp-111) | P0 | Apply native models and reasoning settings per assignment | 2026-09-12 12:18 |
 | `[=]` | [YMP-201](#ymp-201) | P2 | Calibrate and run the paired solo/team pilot | 2026-09-12 09:35 |
@@ -50,14 +50,14 @@ A planned task is not implemented functionality. Completed research and planning
 | `[=]` | [YMP-113](#ymp-113) | P0 | Accumulate general knowledge and verified experience incrementally | 2026-09-12 09:35 |
 | `[=]` | [YMP-114](#ymp-114) | P0 | Correct and supersede knowledge with newer verified evidence | 2026-09-12 09:35 |
 | `[x]` | [YMP-009](#ymp-009) | P0 | Align the product definition, research conclusions and backlog with final intent | 2026-09-12 09:15 |
-| `[=]` | [YMP-115](#ymp-115) | P0 | Enable useful concurrent execution of independent assignments | 2026-09-12 09:35 |
+| `[?]` | [YMP-115](#ymp-115) | P0 | Enable useful concurrent execution of independent assignments | 2026-09-12 12:25 |
 | `[x]` | [YMP-010](#ymp-010) | P0 | Approve product goals and core protocol constraints | 2026-09-12 09:06 |
 | `[x]` | [YMP-011](#ymp-011) | P0 | Document bounded dynamic teams and assignment-level effort | 2026-09-12 08:41 |
 | `[x]` | [YMP-012](#ymp-012) | P0 | Establish the delivery plan and traceable backlog for the approved intent | 2026-09-12 09:15 |
 | `[x]` | [YMP-116](#ymp-116) | P0 | Define the minimal runtime transition and authority contract | 2026-09-12 10:07 |
-| `[ ]` | [YMP-117](#ymp-117) | P0 | Separate acceptance from confirmation and gate reputation on evidence | 2026-09-12 09:35 |
+| `[~]` | [YMP-117](#ymp-117) | P0 | Separate acceptance from confirmation and gate reputation on evidence | 2026-09-12 12:25 |
 | `[~]` | [YMP-120](#ymp-120) | P0 | Enforce assignment-scoped permissions and runtime-only state transitions | 2026-09-12 12:18 |
-| `[=]` | [YMP-118](#ymp-118) | P0 | Integrate core assignment, budget and confirmation visibility | 2026-09-12 09:35 |
+| `[=]` | [YMP-118](#ymp-118) | P0 | Integrate core assignment, budget and confirmation visibility | 2026-09-12 12:20 |
 | `[x]` | [YMP-119](#ymp-119) | P0 | Prepare universal acceptance scenarios and independent validators | 2026-09-12 10:56 |
 | `[=]` | [YMP-121](#ymp-121) | P1 | Verify the integrated application and package a local release | 2026-09-12 09:35 |
 | `[x]` | [YMP-013](#ymp-013) | P0 | Review plan coherence and simplify progress tracking | 2026-09-12 09:46 |
@@ -493,9 +493,9 @@ Expose recorded checks and factual recovery limits
 
 **State:** `[~]` (in_progress) · **Type:** implementation · **Priority:** P1
 
-**Last update (UTC):** 2026-09-12 12:12
+**Last update (UTC):** 2026-09-12 12:20
 
-**Current reason:** 12/09 20:11 HKT R1(8/10) RETURN: independent Claude Opus 5 max review confirmed behavior but found two output-display claims too broad. Author is correcting wording; integration waits for R2. Shared-frame clipping is reserved for YMP-118.
+**Current reason:** R1 wording corrections68db7c8 are complete. Integration with provenance101 exposes task IDs in new check events; Opus5 max is updating the projection and task/command matching against current main before independent R2. Shared-frame clipping remains assigned to YMP-118.
 
 **Owner:** Claude Code claude-opus-5 with thinking max via Paseo; maintainer integrates and verifies
 
@@ -978,11 +978,11 @@ The earlier research framing treated some mandatory autonomous-team capabilities
 
 Enable useful concurrent execution of independent assignments
 
-**State:** `[=]` (planned) · **Type:** implementation · **Priority:** P0
+**State:** `[?]` (owner_question) · **Type:** implementation · **Priority:** P0
 
-**Last update (UTC):** 2026-09-12 09:35
+**Last update (UTC):** 2026-09-12 12:25
 
-**Current reason:** Needs YMP-102, YMP-120, YMP-117
+**Current reason:** Owner question: chat-supplied AGENTS.md requires isolated working copies preserving the original directory, while repository AGENTS.md and prior product direction require direct work in the selected directory. Which workspace policy should govern the release? Asked asynchronously; budget, authority, confirmation and other independent work continue.
 
 **Owner:** Maintainer
 
@@ -991,8 +991,6 @@ Enable useful concurrent execution of independent assignments
 **Depends on:** [YMP-102](#ymp-102), [YMP-120](#ymp-120), [YMP-117](#ymp-117)
 
 The current ready-task selection uses take(1), so a larger pool or parallel limit does not enable concurrent task execution.
-
-**Latest progress note:** Useful concurrency can first serve the existing fixed task graph. Dynamic membership/replanning is a separate capability.
 
 **Acceptance criteria:**
 
@@ -1150,11 +1148,11 @@ The approved intent fixes a trusted runtime and temporary assignment authority; 
 
 Separate acceptance from confirmation and gate reputation on evidence
 
-**State:** `[ ]` (planned) · **Type:** implementation · **Priority:** P0
+**State:** `[~]` (in_progress) · **Type:** implementation · **Priority:** P0
 
-**Last update (UTC):** 2026-09-12 09:35
+**Last update (UTC):** 2026-09-12 12:25
 
-**Current reason:** Ready to start
+**Current reason:** Production Engine::run control reproduced unconfirmed reputation growth: a mock plan with no checks completed and created2 positive observations (executor and planner). Regression accepting_without_confirmation_never_awards_reputation exits101 in development worktree117. Evidence-qualified acceptance implementation is next.
 
 **Owner:** Maintainer
 
@@ -1163,8 +1161,6 @@ Separate acceptance from confirmation and gate reputation on evidence
 **Depends on:** [YMP-101](#ymp-101)
 
 Current boolean approval can award positive observations with no automated checks; reviewer agreement is also used as a competence observation. The approved intent forbids that evidence shortcut.
-
-**Latest progress note:** Evidence-qualified acceptance can use existing runtime-owned review transitions while permission expiry is implemented independently.
 
 **Acceptance criteria:**
 
@@ -1220,7 +1216,7 @@ Integrate core assignment, budget and confirmation visibility
 
 **State:** `[=]` (planned) · **Type:** implementation · **Priority:** P0
 
-**Last update (UTC):** 2026-09-12 09:35
+**Last update (UTC):** 2026-09-12 12:20
 
 **Current reason:** Needs YMP-102, YMP-117, YMP-120
 
@@ -1232,7 +1228,7 @@ Integrate core assignment, budget and confirmation visibility
 
 The approved protocol needs observable identities, settings, authority and evidence without requiring the user to manage internal work.
 
-**Latest progress note:** Core observability no longer waits for dynamic scheduling or knowledge correction. Those features extend the existing views in their own tasks.
+**Latest progress note:** Alongside core assignment/budget/confirmation views, fix independently reproduced shared-frame text clipping: inline wrapping uses two columns more than the paint area and modal wrapping uses full terminal width. YMP-107 review demonstrated lost words on both checks and the existing memory page; Opus5 max owns UI correction.
 
 **Acceptance criteria:**
 
