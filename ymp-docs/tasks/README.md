@@ -1,6 +1,6 @@
 # Task details and evidence
 
-Updated: 2026-09-12 21:07 UTC.
+Updated: 2026-09-12 21:14 UTC.
 
 Use the [delivery plan](plan.md) to follow progress. This generated register contains full acceptance criteria, dependencies and evidence. [tasks.json](tasks.json) is the single source; [manage.py](manage.py) updates both pages.
 
@@ -46,7 +46,7 @@ A planned task is not implemented functionality. Completed research and planning
 | `[=]` | [YMP-301](#ymp-301) | P2 | Confirm the initial success class and intended audience | 2026-09-12 09:35 |
 | `[x]` | [YMP-109](#ymp-109) | P0 | Expose the provider-backed agent pool with stable individual identities | 2026-09-12 10:56 |
 | `[x]` | [YMP-110](#ymp-110) | P0 | Select session teams and execution settings within user constraints | 2026-09-12 20:43 |
-| `[~]` | [YMP-112](#ymp-112) | P0 | Coordinate commitments, plan revisions and reassignment through the board | 2026-09-12 20:43 |
+| `[~]` | [YMP-112](#ymp-112) | P0 | Coordinate commitments, plan revisions and reassignment through the board | 2026-09-12 21:14 |
 | `[x]` | [YMP-113](#ymp-113) | P0 | Accumulate general knowledge and verified experience incrementally | 2026-09-12 20:43 |
 | `[~]` | [YMP-114](#ymp-114) | P0 | Correct and supersede knowledge with newer verified evidence | 2026-09-12 20:12 |
 | `[x]` | [YMP-009](#ymp-009) | P0 | Align the product definition, research conclusions and backlog with final intent | 2026-09-12 09:15 |
@@ -67,7 +67,7 @@ A planned task is not implemented functionality. Completed research and planning
 | `[x]` | [YMP-125](#ymp-125) | P0 | Expose trusted acceptance contracts to executable users | 2026-09-12 17:54 |
 | `[~]` | [YMP-126](#ymp-126) | P1 | Execute universal acceptance scenarios through a trusted runtime driver | 2026-09-12 21:07 |
 | `[x]` | [YMP-127](#ymp-127) | P0 | Build and display the agent pool from provider-returned native names | 2026-09-12 20:43 |
-| `[~]` | [YMP-128](#ymp-128) | P1 | Support internal team transport with long metadata paths | 2026-09-12 21:07 |
+| `[~]` | [YMP-128](#ymp-128) | P1 | Support internal team transport with long metadata paths | 2026-09-12 21:14 |
 
 ## YMP-001
 
@@ -851,9 +851,9 @@ Coordinate commitments, plan revisions and reassignment through the board
 
 **State:** `[~]` (in_progress) · **Type:** implementation · **Priority:** P0
 
-**Last update (UTC):** 2026-09-12 20:43
+**Last update (UTC):** 2026-09-12 21:14
 
-**Current reason:** Backend coordination is accepted and integrated; Opus is completing existing-page board views with knowledge114. Two minor findings from the accepted native-name UI review are now explicit acceptance follow-ups: accurate team-chat/shared-board permission labels and a captured-versus-current name regression with a failing mutation control. No native inference is used.
+**Current reason:** Opus f4ad62c closes all minor native-interface findings and is independently accepted in R3: labels match all seven tools, and the captured-name regression now fails under the previously surviving mutation. It is included in the checked128 composition for integration. Full existing-page board views continue with114; no native inference.
 
 **Owner:** Maintainer; application UI by Claude Code claude-opus-5 with thinking max via Paseo
 
@@ -1590,9 +1590,9 @@ Support internal team transport with long metadata paths
 
 **State:** `[~]` (in_progress) · **Type:** implementation · **Priority:** P1
 
-**Last update (UTC):** 2026-09-12 21:07
+**Last update (UTC):** 2026-09-12 21:14
 
-**Current reason:** The new executable regression reproduces the actual install-preflight SUN_LEN failure on the original long metadata path. Private short-address binding is implemented in an isolated candidate, retaining the socket under metadata and preserving owned-resource cleanup. Focused transport/lifecycle and executable checks are running before independent review.
+**Current reason:** Candidate af6a4dc passes the exact original long-home demo, four transport/cleanup controls, formatting, Clippy and all382 workspace tests. Socket files remain under metadata; private short aliases handle Unix path limits, and inode checks preserve replacement listeners. The original before-failure and a failing ownership-removal mutation are retained. Independent review is running before integration and the complete installer rerun.
 
 **Owner:** Maintainer and independent xhigh reviewer
 

@@ -212,3 +212,62 @@ configured name was changed.
   UTF-8 decoder and contains no replacement characters.
 - YMP-112 board proposals and YMP-114 knowledge inspection views are not part of this
   composition and were not reviewed.
+
+## R3, bounded follow-up: both findings closed
+
+13/09 04:52 HKT, 2026-09-13 — **ACCEPT, both R2 findings closed** on
+`f4ad62c900263a26cad3365e3d1f3291bfb90bf8`, whose parent is the author source
+`ba08ea9032a20f1293855fd01b720d1950ba9cd5`. Two files, 94 insertions and 5 deletions.
+
+The author tree was never touched. The commit was read from the shared object store through my
+own review worktree, and every control ran on a `git archive` snapshot at `/tmp/f4-snap`, each
+mutation reverted and confirmed by `sha256` (`4b6da516c541ab0d…` before and after).
+
+### F1, the permission labels
+
+Closed, and wider than the finding. I had reported two labels; the author found a third with the
+same defect. All seven coordination labels now match the tool each one names.
+
+| Operation | Label at `f4ad62c` | Tool description in the same tree |
+| --- | --- | --- |
+| `TeamPost` | post to the team chat | "Post a concise finding or question to the shared team chat" |
+| `TeamRead` | read the team chat | "Read the shared team chat, including peer findings" |
+| `TasksList` | list tasks | "Inspect tasks, assignments, dependencies and outcomes" |
+| `TaskPropose` | propose a task | "Propose a durable change after board_read" |
+| `BoardRead` | read the shared board | "Read the shared board: exact plan/task versions, pending proposals…" |
+| `MemorySearch` | search memory | "Find supported project knowledge and shared check experience" |
+| `MemoryPropose` | propose memory | "Retain an unconfirmed lesson candidate with bound origin" |
+
+`TeamPost` was mine to have caught and I did not; the correction is right.
+
+### F2, the missing negative control
+
+Closed. `a_finished_session_is_named_by_the_identity_its_turns_captured` records a turn whose
+captured identity is `GPT-5.6-Terra` while the configuration still reads the old name, then
+asserts the right panel, the assignment row and the team page all name the session by what its
+turn captured. Two guard assertions keep the fixture honest: it fails if the captured name ever
+equals the configured one, and it fails if the configuration no longer carries the old name. That
+is what stops this test from decaying into the tautology the previous fixtures had become.
+
+### Controls run here
+
+| Inversion | Result |
+| --- | --- |
+| `actor_name` drops the captured-identity clause, the mutation that survived all 121 tests at `762b636` | `a_finished_session_is_named_by_the_identity_its_turns_captured` **FAILED**, 121 passed |
+| the three labels revert to `post to the board`, `read the board`, `read the plan` | `an_assignment_shows_what_was_sent_and_never_claims_an_unreported_setting_applied` **FAILED**, 121 passed |
+
+| Check on the snapshot | Result |
+| --- | --- |
+| `cargo test -p ymp-tui` | exit 0, **122 passed**, 0 failed |
+| `cargo fmt --all --check` | exit 0 |
+| `cargo clippy -p ymp-tui --all-targets -- -D warnings` | exit 0, no diagnostics |
+
+The count moved from 121 to 122, which is the one test this commit adds. No provider was scanned
+and no model was asked anything for this round; the accepted native-name behaviour from R2 stands
+unchanged and was not re-derived. No real application home was read or written.
+
+### Remaining
+
+Nothing from R2 is open. The startup scan still blocks for about 11.5 seconds on a fresh
+configuration while saying what it is doing, which R2 recorded as an observation rather than a
+finding and which this commit does not touch.

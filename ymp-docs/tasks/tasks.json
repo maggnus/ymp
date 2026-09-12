@@ -1469,6 +1469,11 @@
           "at": "2026-09-12T20:43:04.824261+00:00",
           "status": "in_progress",
           "note": "Backend coordination is accepted and integrated; Opus is completing existing-page board views with knowledge114. Two minor findings from the accepted native-name UI review are now explicit acceptance follow-ups: accurate team-chat/shared-board permission labels and a captured-versus-current name regression with a failing mutation control. No native inference is used."
+        },
+        {
+          "at": "2026-09-12T21:14:51.092170+00:00",
+          "status": "in_progress",
+          "note": "Opus f4ad62c closes all minor native-interface findings and is independently accepted in R3: labels match all seven tools, and the captured-name regression now fails under the previously surviving mutation. It is included in the checked128 composition for integration. Full existing-page board views continue with114; no native inference."
         }
       ]
     },
@@ -2868,11 +2873,16 @@
           "at": "2026-09-12T21:07:10.853474+00:00",
           "status": "in_progress",
           "note": "The new executable regression reproduces the actual install-preflight SUN_LEN failure on the original long metadata path. Private short-address binding is implemented in an isolated candidate, retaining the socket under metadata and preserving owned-resource cleanup. Focused transport/lifecycle and executable checks are running before independent review."
+        },
+        {
+          "at": "2026-09-12T21:14:51.048507+00:00",
+          "status": "in_progress",
+          "note": "Candidate af6a4dc passes the exact original long-home demo, four transport/cleanup controls, formatting, Clippy and all382 workspace tests. Socket files remain under metadata; private short aliases handle Unix path limits, and inode checks preserve replacement listeners. The original before-failure and a failing ownership-removal mutation are retained. Independent review is running before integration and the complete installer rerun."
         }
       ]
     }
   ],
-  "updated_at": "2026-09-12T21:07:10.853474+00:00",
+  "updated_at": "2026-09-12T21:14:51.092170+00:00",
   "delivery_order": [
     "YMP-116",
     "YMP-103",
