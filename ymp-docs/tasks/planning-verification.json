@@ -1,0 +1,69 @@
+{
+  "checked_at": "2026-09-12T09:15:43.629034+00:00",
+  "approved_intent_sha256": "4479e919c5b47934e69e81ac493d16e90a0dc420a9a370382e79bca3f3c754d9",
+  "implementation_baseline": "c443ad0",
+  "scope": "Approved-intent alignment, work plan and repository task management; no product source, bridge, UI or historical research dataset changes.",
+  "tasks": 38,
+  "milestones": 7,
+  "covered_goals": 5,
+  "covered_principles": 26,
+  "checks": {
+    "cargo_fmt_all_check": "passed",
+    "cargo_clippy_workspace_all_targets_deny_warnings": "passed",
+    "cargo_test_workspace": {
+      "passed": 90,
+      "failed": 0
+    },
+    "task_register": "passed",
+    "local_document_links": "passed"
+  },
+  "negative_controls": [
+    "duplicate task",
+    "dependency cycle",
+    "premature ready status",
+    "missing intent coverage",
+    "unknown milestone task",
+    "delivery order before dependency",
+    "changed approved-intent digest",
+    "duplicate milestone membership",
+    "unknown coverage task"
+  ],
+  "negative_controls_rejected": 9,
+  "real_provider_inference_calls": 0,
+  "limitations": [
+    "No runtime feature implementation or comparative performance result is claimed.",
+    "Real-provider release checks and experiments still require their explicitly recorded quota authorization."
+  ],
+  "reviews": [
+    {
+      "checked_at": "2026-09-12T09:46:03.700254+00:00",
+      "task": "YMP-013",
+      "approved_intent_unchanged": true,
+      "findings_addressed": [
+        "Removed unnecessary dependencies among native settings, permissions, budgets, narration, memory and UI work.",
+        "Reduced upfront design to the minimal transition/authority contract using existing components.",
+        "Moved acceptance-fixture preparation earlier and made integrated release testing depend explicitly on all required features.",
+        "Consolidated interface/release planning and removed duplicated policy prose.",
+        "Made tasks.json the single source for both generated Markdown views with seven requested markers, UTC timestamps and derived readiness.",
+        "Separated explicit owner questions from dependency blocking and excluded research/planning completion from delivery counts."
+      ],
+      "task_register_schema": 2,
+      "tasks": 39,
+      "delivery_tasks": 20,
+      "delivery_milestones": 5,
+      "ready_delivery_tasks": 5,
+      "cli_behavior_checks_passed": 12,
+      "negative_integrity_cases_rejected": 10,
+      "local_links_checked": 486,
+      "checks": {
+        "cargo_fmt_all_check": "passed",
+        "cargo_clippy_workspace_all_targets_deny_warnings": "passed",
+        "cargo_test_workspace": {
+          "passed": 90,
+          "failed": 0
+        }
+      },
+      "real_provider_inference_calls": 0
+    }
+  ]
+}

@@ -1,6 +1,6 @@
 # Team size and reasoning-effort policy
 
-Status: product direction documented at the owner's request on 2026-09-12. Bounded dynamic teams are the default direction; fixed user constraints remain supported. This is a design contract, not implemented behavior or evidence of an optimal allocation policy. Product implementation remains paused during YMP-010. The coordination topology and numerical defaults are still to be selected.
+Status: aligned with the owner-approved intent on 2026-09-12. Initial team selection, bounded changes and fixed user constraints are product requirements. This policy is not implemented behavior or evidence of optimal allocation. The [delivery plan](../tasks/plan.md) tracks work automatically. YMP-116 defines the minimal transition and authority contract; numerical defaults are recorded by the relevant implementation tasks.
 
 This document expands the short principles in [intent.md](../../intent.md). Its purpose is to support the [product goals](../product/requirements.md#goals): accepted results within resource and time constraints, less human intervention and useful accumulated experience.
 
@@ -38,9 +38,10 @@ Inconsistent constraints are reported explicitly. A fixed size must agree with a
 | Proposed work, approach, required capabilities and supporting findings | Agents acting on their current assignments |
 | Selection of method, membership, executors, models and effort | YMP's planning policy, using proposals and verified experience |
 | Validation, budget reservation, admission and durable state transitions | Runtime |
-| Acceptance of produced results | The applicable independent verification process |
+| Verification and its recorded basis | An independent verifier and applicable checks/external data |
+| Final acceptance and confirmation status | Trusted runtime, applying the verification and evidence rules |
 
-The planning policy is one logical decision mechanism. Whether it uses a temporary planner, peer proposals or another coordinator remains an architectural choice; no provider name grants control. An agent recommendation cannot directly expand a budget, bypass a pin or accept its own output. Runtime enforcement does not itself require an LLM call.
+The planning policy is one logical decision mechanism executed by the trusted runtime. Agents may propose and negotiate work or receive temporary planning assignments. No agent has permanent hierarchy or retains a role's permissions in later assignments; no provider name grants control. An agent recommendation cannot directly expand a budget, bypass a pin or accept its own output. Runtime enforcement does not itself require an LLM call.
 
 Configured defaults supply missing values and never silently override an explicit constraint or valid assignment decision. Record requested settings, what the adapter sent or acknowledged, and what the provider reports separately. An inherited default can remain unresolved. Effort is a native reasoning control, not a common numerical currency or a guaranteed token allowance.
 
@@ -82,6 +83,8 @@ Keep the verification reserve usable: required reviewers must remain eligible an
 
 ## Experience and the optional Oracle
 
+Independent review precedes runtime acceptance. Record the review basis and confirmation separately: an accepted result without relevant deterministic checks or external data remains unconfirmed and earns no reputation. Agent consensus alone cannot confirm execution, reviewer competence or reusable knowledge. Preserve those grades through reassignment, recovery and historical migration.
+
 Retain the task context, chosen configuration, actual resource use and coverage, elapsed time, verification outcome and relevant failure causes. Evaluate configurations and methods using this evidence, while attributing work to stable agent IDs. Do not treat a higher message count, self-confidence or agreement as improved competence. Preserve execution variants rather than silently pooling unknown, low and high effort results.
 
 Useful experience can inform when to use more participants, spend more reasoning effort or reuse a proven procedure. Changed requirements and stale knowledge still require applicability checks. A later task must not repeat a prior result merely because its prompt resembles an earlier one.
@@ -94,4 +97,4 @@ A task with three independent research questions may begin with three bounded re
 
 With three pinned participants, the same task stays within those identities. Required review must be assigned to an eligible participant that did not produce the result being reviewed. A disabled pinned participant or unavailable model is a constraint issue; it does not authorize an undeclared replacement.
 
-YMP-109 covers pool and membership identity; YMP-110 covers selection under dynamic or fixed constraints; YMP-111 covers assignment-level native controls; YMP-102 covers admission and budget limitations; YMP-112 covers revision and reassignment; YMP-115 covers useful concurrent execution. YMP-011 records this documentation change. Offline checks must distinguish fixed size from a pinned roster, demonstrate useful overlap and conflict serialization, and reject overspending or unsupported changes. Real-provider performance comparisons remain separate and require their own authorized budget.
+YMP-116 defines executable contracts; YMP-120 enforces assignment authority; YMP-117 distinguishes acceptance from confirmation. YMP-109 covers pool and membership identity; YMP-110 covers selection under dynamic or fixed constraints; YMP-111 covers assignment-level native controls; YMP-102 covers admission and budget limitations; YMP-112 covers revision and reassignment; YMP-115 covers useful concurrent execution. The [delivery plan](../tasks/plan.md) records sequencing and acceptance. Offline checks must distinguish fixed size from a pinned roster, demonstrate useful overlap and conflict serialization, and reject overspending or unsupported changes. Real-provider performance comparisons remain separate and require their own authorized budget.

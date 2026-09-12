@@ -1,6 +1,6 @@
 # Research findings and delivery priorities
 
-Current planning status: the owner recorded product goals and requested a [bounded dynamic team and effort policy](../architecture/team-and-effort-policy.md). Implementation remains paused during the broader architecture review in YMP-010; the delivery recommendations below are provisional. Current terminology is defined [separately](../product/entities.md). Historical measurements remain unchanged.
+Current planning status: the owner approved the final intent and requested the [delivery plan](../tasks/plan.md), which now governs implementation order. It includes trusted runtime authority, assignment-scoped permissions and a distinction between acceptance and external confirmation. The earlier definition pause is superseded. Historical measurements and policy comparisons below retain their original scope; current terminology is defined [separately](../product/entities.md).
 
 The final [intent.md](../../intent.md) defines the product: autonomous user-task solving by a self-organizing agent pool, with team-selected executors/models/effort, independent verification, a shared budget and incremental reusable knowledge and reputation. This report identifies implementation gaps and evaluates proposed mechanisms in support of that product. It does not make a benchmark victory or a statistical superiority claim a prerequisite for implementing the required capabilities.
 
@@ -43,6 +43,8 @@ This table separates requirements from observations. The linked task IDs are pla
 | Temporary roles, commitments and reassignment | Task states, assignments and proposal recording | Apply team proposals, change plans, add participants and reassign unfinished work within constraints | YMP-112 |
 | Useful concurrent execution | Parallel planning/bidding and an invocation semaphore | Ready-task selection uses take(1); execute independent assignments concurrently while preserving dependencies, resource constraints and verification eligibility | YMP-115 |
 | Shared board and explainable history | Team/addressed messages and persistent events | Complete recipient/decision presentation and link decisions to execution and verification | YMP-101, YMP-112 |
+| Trusted runtime and temporary assignment permissions | Agent/session-bound team-tool credentials and task transitions | Bind grants to assignments, revoke them and prevent authority from transferring to later work | YMP-116, YMP-120 |
+| Acceptance distinct from confirmation | Boolean review approval and observations | Record accepted-but-unconfirmed outcomes without reputation credit; require relevant deterministic or external confirmation | YMP-117, YMP-113 |
 | Independent verification and resilient progress | Candidate review excludes the executor; checks and observations exist | Final-review selection still allows executors; also correct nonterminal errors and preserve/reassign work safely | YMP-103, YMP-104, YMP-112 |
 | Shared budget | Turn/time/attempt limits and usage recording | Explicit common resource policy, admission and honest unknown/overshoot handling | YMP-102 |
 | Incremental cross-session experience | Incremental events, reputation and some memory; global learning largely after success | Publish usable general knowledge during work and retrieve it in subsequent sessions | YMP-106, YMP-113 |

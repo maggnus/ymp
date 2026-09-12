@@ -3,15 +3,15 @@
 The executable is named `ymp`. Application-owned data lives in `~/.ymp2`.
 All project documentation, code comments, UI strings, and examples are in English.
 
-The owner-authored intent.md is the concise product definition; edit its wording only as authorized by the owner and keep it in Russian. Derived documentation remains in English. Keep terminology, detailed policies and task priorities aligned with it. The documented direction includes bounded dynamic teams, fixed user constraints, joint executor/model/effort selection, independent verification, a shared budget and incremental reusable experience.
+The owner-approved intent.md is the authoritative product definition. Preserve it unless the owner explicitly requests a revision; it remains in Russian and derived documentation remains in English. Keep terminology, policy and task priorities aligned with its recorded digest in ymp-docs/tasks/tasks.json.
 
-On 2026-09-12 the owner reopened the architecture and paused implementation. Product goals and the team/effort direction have since been documented at the owner's request. Coordination topology, numerical defaults and performance claims remain open in YMP-010; do not resume feature delivery merely because a documentation task is complete. Terms are defined in ymp-docs/product/entities.md and the detailed policy in ymp-docs/architecture/team-and-effort-policy.md. Historical UI reviews and research proposals do not override current intent.
+On 2026-09-12 the owner approved the final intent and requested tasks and a work plan. ymp-docs/tasks/plan.md now replaces the earlier product-definition pause; follow task dependencies, scope and acceptance criteria. YMP-010 records product approval, while YMP-116 specifies executable contracts. Agents have no permanent hierarchy: roles and permissions last for one assignment. The trusted runtime commits assignments, grants and final acceptance. An independently accepted result without confirmation stays unconfirmed and does not increase reputation. Terms are defined in ymp-docs/product/entities.md and the detailed policy in ymp-docs/architecture/team-and-effort-policy.md. Historical reviews and unproven optimization proposals do not override approved intent.
 
 UI work must be delegated to Claude Code using claude-opus-5 with thinking level max; use Paseo CLI when available. The parent owns backend contracts, integration, and independent verification.
 
 Agents are the working units and form each session's captured team. Providers and models are execution backends. Attribute usage to agent IDs within the session, never group team statistics by provider.
 
-Track accepted project work in ymp-docs/tasks/tasks.json and keep the generated ymp-docs/tasks/README.md current using manage.py. Update status and evidence as milestones finish, and report progress during sustained work. Distinguish research recommendations, authorized implementation, and completed delivery; do not mark a proposed feature as implemented.
+Track project work in ymp-docs/tasks/tasks.json. manage.py generates both plan.md (progress) and README.md (task details); do not maintain their statuses by hand. Use planned, in_progress, owner_question, done, rejected, paused or new with a timestamped progress note. Readiness and dependency blocking are derived automatically; owner_question requires an actual unresolved question. Keep delivery counts separate from research and planning. Update evidence as work finishes and report progress during sustained work; a written design is not implemented functionality.
 
 The root Cargo workspace contains packages in `ymp-rust/crates`. Documentation lives in `ymp-docs`, SDK bridges in `ymp-bridges`, and evaluation scenarios in `ymp-evals`.
 

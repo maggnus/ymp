@@ -1,12 +1,12 @@
 # Product value under discussion
 
-Status: the owner recorded the product goals in [intent.md](../../intent.md) on 2026-09-12. The examples and performance expectations below remain hypotheses, not measured achievements. Implementation remains paused during the broader architecture review. The subsequently documented [team and effort policy](../architecture/team-and-effort-policy.md) establishes bounded dynamic operation and fixed user constraints without selecting a coordination topology.
+Status: the owner approved [intent.md](../../intent.md) on 2026-09-12 and requested the [delivery plan](../tasks/plan.md). The examples and performance expectations below remain hypotheses, not measured achievements. The [team and effort policy](../architecture/team-and-effort-policy.md) operates within trusted runtime authority, assignment-scoped roles, bounded membership and fixed user constraints.
 
 ## Purpose
 
 YMP organizes available native AI agents to produce independently assessable results within the user's time and resource constraints. Its product hypothesis is that selective collaboration and accumulated verified experience can improve the tradeoff between result quality, resource use, elapsed time and human effort.
 
-Agent count, provider diversity, a permanent leader, equal standing, an Oracle and fixed or adaptive effort are possible mechanisms. Their inclusion must be justified by the desired outcome. A useful run may use one executor or several; a configured pool does not require activating every agent.
+Agent count, provider diversity, temporary coordination roles, an optional Oracle and fixed or adaptive effort are possible mechanisms within the approved protocol. Their inclusion must be justified by the desired outcome. Permanent agent hierarchy and inherited assignment authority are excluded by the approved intent. A useful run may use one executor or several; a configured pool does not require activating every agent.
 
 ## Five kinds of value
 
@@ -37,6 +37,8 @@ The current evidence does not establish an ymp advantage. External controlled wo
 
 Use a result-specific acceptance standard: observable behavior for software, required contents and inspectable files for documents, grounded claims and coverage for research, or explicit constraints for plans. Preserve uncertainty where correctness cannot be determined. A model's self-confidence or team vote alone is not an independent success label.
 
+The approved intent distinguishes acceptance from confirmation. An independently reviewed qualitative result may be accepted without confirmation, but it earns no reputation and must be reported separately from externally confirmed success. Comparative reports must not silently combine these categories into a single confirmed-quality score.
+
 Record resource units separately. Raw tokens from different models are not automatically equal cost, and native subscriptions may not yield an authoritative currency charge. Preserve usage coverage and unavailable values; where accounting is partial, report the comparison's limitation instead of asserting equal expenditure. Elapsed time and human effort remain separate measurements.
 
 This comparison design does not authorize paid provider experiments. The prior [evaluation protocol](../research/experiment-protocol.md) remains a proposal and must be revised around the chosen product scenarios before use.
@@ -49,6 +51,6 @@ This comparison design does not authorize paid provider experiments. The prior [
 - Shared evidence and independently checked results must survive an individual failure. Reassignment must preserve completed work, total spend and unresolved side-effect uncertainty.
 - Verified knowledge and execution observations must remain usable across providers and later sessions, with applicability and correction. More stored messages alone do not establish improvement.
 
-No topology is selected by these consequences alone. A controller, temporary planner, peer board or hybrid must be assessed against the desired benefit. The next product decision is which representative workflows and primary benefit should establish the first useful version; implementation follows the resulting architecture, not the current count of configured agents.
+The runtime's authority and the temporary scope of agent roles are fixed by the approved intent. Methods using a temporary planner, peer proposals or several independent approaches are assessed within that boundary. Representative workflows, executable-contract design and implementation order are now recorded in the [delivery plan](../tasks/plan.md).
 
 Tracked in [YMP-010](../tasks/README.md#ymp-010). The [research findings](../research/research-program-findings.md) remain historical evidence with stated limits.

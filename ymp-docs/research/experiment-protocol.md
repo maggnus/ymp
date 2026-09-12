@@ -1,5 +1,7 @@
 # Controlled evaluation protocol
 
+Status after intent approval: this remains an unexecuted historical study proposal. YMP-201 must revise its original two-arm allocation to include aggregate-budget-matched independent attempts and separate accepted-but-unconfirmed results from externally confirmed outcomes, as required by the [delivery plan](../tasks/plan.md). The numerical quotas below are proposals, not approved budgets or allocations for the new comparison.
+
 This optional comparative protocol supports the product defined in [intent.md](../../intent.md). It tests whether particular team policies produce more independently verified outcomes than a strong solo baseline under declared resource constraints; it does not gate autonomous team formation, effort choices or accumulated knowledge. It also separates the effects of memory, assignment, effort, ceremony, and prior-outcome retrieval. It is a proposal for approval, not a record of model performance.
 
 ## Preconditions and units

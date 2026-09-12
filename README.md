@@ -75,7 +75,7 @@ After a run finishes or stops, the next message continues that conversation. A q
 
 See [architecture](ymp-docs/architecture/system.md), [team protocol](ymp-docs/protocols/team.md), [provider integration](ymp-docs/architecture/providers.md), [storage](ymp-docs/architecture/storage.md), [usage](ymp-docs/guides/usage.md), and the [interface guide](ymp-docs/guides/interface.md).
 
-Follow [project tasks and progress](ymp-docs/tasks/README.md), [research findings](ymp-docs/research/research-program-findings.md), and the [controlled evaluation protocol](ymp-docs/research/experiment-protocol.md).
+Follow the [approved intent](intent.md), [delivery plan](ymp-docs/tasks/plan.md), [project tasks and progress](ymp-docs/tasks/README.md), [research findings](ymp-docs/research/research-program-findings.md), and the [controlled evaluation protocol](ymp-docs/research/experiment-protocol.md). The plan describes pending delivery; the usage instructions above describe the current implementation.
 
 ## Development checks
 

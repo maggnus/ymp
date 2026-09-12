@@ -22,7 +22,7 @@ A model is an AI model available through a provider and selected as an execution
 
 An agent is an individually identified participant with instructions, execution capabilities and a distinct work context. Its ID owns authorship, assignments, usage attribution and historical participation. Provider/model bindings supply execution resources; they do not replace that ID.
 
-An agent can plan, execute or verify different work. These are current responsibilities rather than separate definitions of agent identity. Configuration changes are versioned for execution evidence while the stable ID preserves history. Different IDs or model names alone do not establish statistically independent reasoning or independent verification.
+An agent can plan, execute or verify different work. Roles and permissions are limited to one assignment; no permanent agent hierarchy or inherited authority exists. Configuration changes are versioned for execution evidence while the stable ID preserves history. Different IDs or model names alone do not establish statistically independent reasoning or independent verification.
 
 ## Pool
 
@@ -34,7 +34,7 @@ A team is the set of agents selected to participate in a session. Current member
 
 ## Assignment
 
-An assignment binds a particular agent to bounded work, with its task/purpose, execution configuration and resource allowance. It is distinct from the task: reassignment changes responsibility without erasing the task, previous attempts or accepted evidence. Model and effort choices belong to assignments and are recorded for the invocations that execute them.
+An assignment binds a particular agent to bounded work, with its task/purpose, execution configuration, permissions and constraints. The runtime commits it and controls the lifetime of its authority. It is distinct from the task: reassignment changes responsibility without erasing the task, previous attempts or accepted evidence. Model and effort choices belong to assignments and are recorded for the invocations that execute them.
 
 ## Invocation
 
@@ -64,16 +64,28 @@ Knowledge is a retained finding with applicability and supporting evidence. A ca
 
 Knowledge may have project or general scope. Corrections and supersession retain the earlier record and supply new supporting evidence. Session history is not automatically reusable knowledge, and an old accepted fact is not automatically applicable to a changed task.
 
+## Runtime
+
+The runtime is YMP's trusted execution kernel. It executes the protocol, grants assignment-scoped authority, commits assignments and records final acceptance after the required verification. Agent messages, proposals and negotiated agreements are inputs; they do not themselves change authoritative state or grant permissions. Native provider processes remain execution resources, not this protocol authority.
+
+## Verification
+
+Verification is the assessment of a result against acceptance conditions, with its basis recorded. It must be independent before final acceptance. A reviewer may record a reasoned acceptance even where external confirmation is unavailable, but that outcome remains explicitly unconfirmed. Naming a phase review or obtaining agreement does not establish independence.
+
+## Confirmation
+
+Confirmation is an acceptance basis independent of agents' judgments: relevant deterministic check results or inspectable external data. Agent agreement is not confirmation. Record sources, relevant criteria, result version and coverage so unrelated passing commands or unsupported citations cannot be mistaken for confirmation.
+
+Acceptance and confirmation are separate facts. An independently reviewed result can be accepted without confirmation and must then earn no reputation. Rejected or unchecked work does not become accepted merely because it lacks confirmation. Runtime acceptance records must retain this distinction through recovery, export and later reuse.
+
 ## Reputation
 
-Reputation is an evidence-based assessment of an agent's execution outcomes in a relevant configuration and task context. It supports selection; it is not an agent's self-rating or authority to bypass constraints. Resource use and uncertainty remain available alongside quality outcomes rather than disappearing into an unexplained rank.
+Reputation is an evidence-based assessment of an agent's execution outcomes in a relevant configuration and task context. Accepted-but-unconfirmed results, self-assessment and peer agreement do not increase it. It supports selection; it does not grant authority to bypass constraints. Resource use and uncertainty remain available alongside quality outcomes rather than disappearing into an unexplained rank.
 
 An agent ID, configuration version and observation ID serve different purposes: identity preserves attribution, configuration identifies the execution conditions, and observation identity prevents repeated credit for the same result. A transport failure or missing result alone does not establish a competence failure.
 
 ## Supporting concepts
 
-- **Verification** assesses a result against acceptance conditions and inspectable evidence. Naming a phase review or obtaining agreement does not by itself establish independence or correctness.
-- **Runtime** is the execution component that validates decisions, admits work and records state. It enforces the supplied constraints independently of agents' recommendations.
 - **Oracle** is an optional outside consultation under discussion. It would supply advice to the same decision process, with attributed resource use; it would not constitute automatic acceptance or unrestricted control.
 
 Identity, state and policy are deliberately separate: entity definitions explain what exists, [principles](../../intent.md#принципы) state product rules, and the [detailed policy](../architecture/team-and-effort-policy.md) explains how selection and adaptation should respect those rules.

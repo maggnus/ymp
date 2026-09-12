@@ -1,6 +1,6 @@
 # ADR 0002: agent identity and autonomous reasoning choices
 
-Status: documented product direction derived from [intent.md](../../intent.md). The owner requested bounded dynamic teams, fixed user constraints and assignment-level effort to be documented on 2026-09-12. Implementation remains paused during YMP-010. Coordination topology, numerical defaults and optimization-policy performance remain open; the Oracle is an optional proposal.
+Status: design direction aligned with the owner-approved [intent.md](../../intent.md) on 2026-09-12. The [delivery plan](../tasks/plan.md) tracks pending work. Trusted runtime authority, assignment-scoped roles and acceptance distinct from confirmation are approved invariants. YMP-116 defines the minimal contract; implementation tasks record their concrete settings. Performance claims and the optional Oracle remain unproven proposals.
 
 ## Decision
 
@@ -17,7 +17,7 @@ An agent is the working unit. Provider installation, model selection and support
 | Shared board | Team-wide and addressed communication, with persistent findings and decision evidence |
 | Experience | Verified outcomes tied to their agent/configuration, plus incrementally accumulated general knowledge |
 
-Planning, execution and review are assignments; a provider name does not impose a permanent role. The earlier unconditional no-leader requirement has been relaxed: roles and coordination are chosen for the task. A temporary planner, peer proposal mechanism or other coordinator may inform the planning policy, while the runtime validates decisions and enforces constraints. See the [domain terminology](../product/entities.md) for identity and scope definitions.
+Planning, execution and review are assignments. Agents have no permanent hierarchy; roles and permissions apply only to the current assignment and cannot carry into the next one. Temporary planning and peer negotiation inform the policy, while the trusted runtime commits assignments, grants and final acceptance. A provider name confers no control. The final approved intent supersedes the earlier discussion of allowing standing agent leadership. See the [domain terminology](../product/entities.md) for identity and scope definitions.
 
 ## Native reasoning controls
 
@@ -31,13 +31,7 @@ Specific policies such as low for every bid or xhigh for every final review rema
 
 ## Team and resource policy
 
-The [detailed policy](../architecture/team-and-effort-policy.md) distinguishes pool, membership and active invocations, defines fixed size separately from a pinned roster, and gives one authority model for joint team/model/effort selection. Its operational rules include the following; no token-saving or optimality result is claimed.
-
-- Opening the application or listing the eligible pool does not require inference. Activating a participant requires useful work and a resource allowance. Do not solicit a proposal and bid from every available agent as a mandatory startup procedure.
-- Admission accounts for already spent resources, concurrent reservations and a protected allowance for independent verification and final reporting. Starting work must leave a feasible way to check its result. Reassignment and failure do not reset the shared accounting.
-- Bound context, native model/tool turns, output where supported, elapsed time and concurrency as well as ymp invocation counts. Effort alone is not a token limit. State which adapter limits are enforceable and which are estimates; unknown usage cannot support a strict token or currency guarantee.
-- A failure prompts diagnosis. Missing evidence, infrastructure errors, a poor method and a verified reasoning error need different responses. Increased effort is one possible decision, with a stated reason and an admitted allowance; there is no unconditional effort increment or unbounded escalation chain.
-- Reuse verified intermediate work and publish knowledge incrementally through ordinary work and review results. Recording each finding must not require another model invocation.
+The [detailed policy](../architecture/team-and-effort-policy.md) is the source for fixed versus dynamic constraints, joint model/effort selection, bounded startup, resource admission and diagnosed adaptation. Use existing runtime counters, invocation records and native controls; this direction requires no separate budget service or general optimizer. An effort level is not a hard spending limit, and no resource-saving result is claimed.
 
 ## Useful concurrent work
 
@@ -49,13 +43,9 @@ Waiting is justified by a dependency, resource constraint or lack of useful work
 
 ## Open option: external Oracle
 
-An Oracle could provide a bounded outside consultation when the team encounters a documented impasse or needs to compare consequential alternatives. This is an option under discussion, not an accepted mandatory component or a permanent team leader. External means outside the current working conversation; it need not introduce another provider or authentication mechanism.
+An Oracle could supply a bounded outside consultation on a documented impasse. It is optional and outside core delivery. If introduced, it should use an ordinary attributed native invocation under the same budget and assignment constraints; it does not require a separate service or privileged agent. Its advice is not confirmation or final acceptance.
 
-A consultation would receive the goal, relevant evidence, attempted approaches, available execution capabilities and remaining budget. It would return a proposed next action and a way to check it. The team would record how it used that advice; the runtime would continue to enforce constraints and charge the consultation to the shared budget. Advice would not count as verified knowledge or final acceptance merely because it came from the Oracle.
-
-The initial proposal is one bounded consultation for an unresolved issue, with no recursive Oracle calls and no repeat without new evidence and a fresh admission decision. This limits consultation frequency; an adapter must still bound the work inside the invocation. An Oracle that authorizes every assignment would serialize the team and consume resources before useful work begins. It cannot substitute for concurrent task execution or solve effort selection merely by relocating it to another model.
-
-The theoretical motivation is to compare the expected decision improvement with the resources consumed by additional computation, as described in [Russell's account of rational metareasoning](https://aima.eecs.berkeley.edu/~russell/research-bo.html). Applying that principle to an ymp Oracle is a design inference; the current traces do not establish consultation value or calibrated thresholds. Verified consultation outcomes could later inform when to seek advice, with unsupported or inconclusive outcomes retained as such.
+The idea is to seek additional computation when its expected benefit justifies its resource use, following [rational metareasoning](https://aima.eecs.berkeley.edu/~russell/research-bo.html). This is a design motivation, not an established benefit or a reason to consult another model on every decision.
 
 ## Identity and history
 
@@ -71,12 +61,15 @@ Board data, intermediate findings and verified results are persisted during work
 
 ## Verification, resilience and explanation
 
-Independent verification precedes final acceptance. An individual agent failure does not invalidate completed verified work or authorize blind replay of side effects. Preserve progress, inspect unfinished work and let the team revise assignments within its remaining budget.
+Independent verification precedes final acceptance by the runtime. Record its basis and confirmation status separately. An accepted result without relevant deterministic checks or external data remains unconfirmed and does not increase reputation. Agent agreement cannot serve as confirmation, including when judging a reviewer. An individual agent failure does not invalidate completed reviewed work or authorize blind replay of side effects. Preserve outcomes and their confirmation grade, inspect unfinished work and revise assignments within the remaining budget.
 
 Record brief decision rationales, supporting evidence, resource use and setting changes so a person can follow the work without directing every internal step. This is decision provenance, not a requirement to expose private internal reasoning traces.
 
 ## Delivery
 
+- **YMP-116:** define executable runtime, assignment-authority and evidence contracts.
+- **YMP-120:** grant and revoke permissions within one assignment and protect runtime-owned state transitions.
+- **YMP-117:** distinguish acceptance from confirmation and prevent unsupported reputation credit.
 - **YMP-109:** complete the available agent pool and distinguish membership from active invocations.
 - **YMP-111:** expose assignment-level native reasoning controls and explicit user pins.
 - **YMP-110:** apply bounded dynamic or fixed team constraints and joint executor/model/effort selection.
