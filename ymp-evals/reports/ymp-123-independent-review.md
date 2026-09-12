@@ -131,3 +131,53 @@ SIGTERM/SIGINT controls fail with the original reader and pass with the correcti
 while stdin remains open and terminal accounting is preserved. See
 [the correction evidence](ymp-123-r1-correction.md). This author response does not
 change the R1 verdict or claim independent R2 acceptance.
+
+## Independent R2 — accepted correction
+
+Reviewed corrected commit: **`610f99d6932a8f326bc315597faa3be2d6c440a7`**.
+Review timestamp: **2026-09-12 16:39:29 UTC / 2026-09-13 00:39:29 HKT**, read from the actual clock.
+
+**R2 verdict: ACCEPT for YMP-123 integration. Score: 9.5/10. No remaining blocking findings in the reviewed facade and correction.** The R1 signal-exit finding is resolved at this exact commit. R1 and its failing observations above remain historical evidence. This acceptance does not extend to later combined-release changes or independently accept the backend ancestry.
+
+### Correction and source assessment
+
+The production diff is limited to the public input reader and byte-frame decoding. `stdin_frames` uses a named standard thread instead of Tokio's blocking pool, so an outstanding operating-system stdin read cannot hold Tokio teardown open. Dropping the join handle intentionally leaves the thread detached; process exit terminates a read that remains blocked. The exchange loop still runs owned execution cleanup before returning.
+
+The `mpsc::channel(1)` allows one queued frame. The producer can hold one additional bounded frame while sending or reading; the consumer can hold its current frame. `Read::take(MAX_FRAME + 1)` bounds each read to 65,537 bytes, and the reader stops after sending an oversized frame. The standard buffered reader adds fixed buffering, not unbounded input accumulation. A blocked channel send ends when the receiving side closes. This preserves backpressure without introducing an unbounded task queue.
+
+Complete frames are parsed from bytes. Split UTF-8 characters therefore survive partial operating-system reads; invalid UTF-8 becomes a JSON parse error and the next valid frame remains usable. EOF forwards a nonempty final frame before closing the channel. I found no changes to execution authority, captured limits, request fingerprints, runtime admission/acceptance, cancellation accounting, output bounds, or the internal socket bridge.
+
+### Independently observed checks
+
+The executable was rebuilt at the corrected commit. A fresh subprocess consumer used its own byte-oriented stdout reader with `select`/`os.read`, explicit five-second process waits, and closed SQLite connections. It reused only the checked-in mock configuration/launch helpers. Every signal assertion left the parent's stdin writer open until after the process had exited. All active cases required a paused operation with an end timestamp and closed admitted invocations with fixed `mock/low` settings. Idle cases required no operations or invocations.
+
+| Independent signal case | Exit | Elapsed | Saved accounting |
+| --- | --- | --- | --- |
+| SIGTERM, idle | 0 | 0.0038 s | No execution records |
+| SIGTERM, active mock run | 0 | 0.0088 s | Terminal paused; admitted invocations closed |
+| SIGINT, idle | 0 | 0.0038 s | No execution records |
+| SIGINT, active mock run | 0 | 0.0088 s | Terminal paused; admitted invocations closed |
+| SIGTERM, active run, reader waiting inside an unfinished UTF-8 character | 0 | 0.0088 s | Terminal paused; admitted invocations closed |
+
+The same independent consumer also passed these directly affected framing cases:
+
+- Split a valid request inside a four-byte UTF-8 character, verified no premature response, and received the complete original Unicode request ID after the suffix/newline arrived.
+- Sent malformed UTF-8, received `-32700`, then successfully consumed 100 pipelined valid requests in order with no dropped or duplicated IDs.
+- Sent an exactly 65,536-byte newline-terminated valid request and received its normal result.
+- Sent 65,537 bytes with no newline, received `-32600`, and observed exit 0 with stdin still open.
+- Sent a valid final request without a newline, closed stdin, received its result, and observed exit 0.
+
+Read-only wire cases created no invocations. The entire independent subprocess/framing consumer exited **0**.
+
+| R2 command / evidence | Result |
+| --- | --- |
+| `git rev-parse HEAD` | Exact corrected commit above; initially clean worktree |
+| `cargo build -p ymp-cli` | Independently rerun, exit 0 |
+| `/tmp/ymp-mcp123-sdk/bin/python ymp-evals/mcp/stdio_client.py target/debug/ymp --signals-only` | Independently rerun, exit 0; four cases exited in 0.005–0.008 s with stdin open and terminal accounting |
+| `/tmp/ymp-mcp123-sdk/bin/python -` independent raw-process signal/framing consumer | Exit 0; results detailed above |
+| `git diff --check` | Exit 0 before this report append |
+| Author's exact-source fmt, clippy, 270-test workspace suite and full official SDK walk | Reviewed in `ymp-123-r1-correction.md`; not gratuitously repeated for this narrow R2 |
+
+I inspected `signal-exit-controls.json`: restoring the original reader makes all four permanent signal cases time out with otherwise preserved accounting, while the correction makes the identical command pass. This agrees with the independently reproduced R1 failure and the R2 observations; the check distinguishes actual process termination from merely saved cancellation. The old reader was not restored again during R2.
+
+Only this report was appended during R2; no production source, UI, intent, task registry, or main-branch change was made, and no real-provider inference ran. The mock-only interoperability and explicit MVP limitations recorded in R1 remain the limits of this acceptance. Combined integration verification is the next release step.
