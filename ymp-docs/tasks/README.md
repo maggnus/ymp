@@ -1,6 +1,6 @@
 # Task details and evidence
 
-Updated: 2026-09-12 12:35 UTC.
+Updated: 2026-09-12 12:46 UTC.
 
 Use the [delivery plan](plan.md) to follow progress. This generated register contains full acceptance criteria, dependencies and evidence. [tasks.json](tasks.json) is the single source; [manage.py](manage.py) updates both pages.
 
@@ -14,7 +14,7 @@ A planned task is not implemented functionality. Completed research and planning
 | design | 1 | 1 |
 | documentation | 4 | 4 |
 | experiment | 0 | 4 |
-| implementation | 7 | 18 |
+| implementation | 7 | 19 |
 | research | 8 | 8 |
 | verification | 1 | 2 |
 
@@ -45,22 +45,23 @@ A planned task is not implemented functionality. Completed research and planning
 | `[=]` | [YMP-204](#ymp-204) | P1 | Evaluate a project-scoped prior-outcome router | 2026-09-12 09:35 |
 | `[=]` | [YMP-301](#ymp-301) | P2 | Confirm the initial success class and intended audience | 2026-09-12 09:35 |
 | `[x]` | [YMP-109](#ymp-109) | P0 | Expose the provider-backed agent pool with stable individual identities | 2026-09-12 10:56 |
-| `[=]` | [YMP-110](#ymp-110) | P0 | Select session teams and execution settings within user constraints | 2026-09-12 09:35 |
-| `[=]` | [YMP-112](#ymp-112) | P0 | Coordinate commitments, plan revisions and reassignment through the board | 2026-09-12 09:35 |
-| `[=]` | [YMP-113](#ymp-113) | P0 | Accumulate general knowledge and verified experience incrementally | 2026-09-12 09:35 |
-| `[=]` | [YMP-114](#ymp-114) | P0 | Correct and supersede knowledge with newer verified evidence | 2026-09-12 09:35 |
+| `[=]` | [YMP-110](#ymp-110) | P0 | Select session teams and execution settings within user constraints | 2026-09-12 12:46 |
+| `[=]` | [YMP-112](#ymp-112) | P0 | Coordinate commitments, plan revisions and reassignment through the board | 2026-09-12 12:46 |
+| `[=]` | [YMP-113](#ymp-113) | P0 | Accumulate general knowledge and verified experience incrementally | 2026-09-12 12:46 |
+| `[=]` | [YMP-114](#ymp-114) | P0 | Correct and supersede knowledge with newer verified evidence | 2026-09-12 12:46 |
 | `[x]` | [YMP-009](#ymp-009) | P0 | Align the product definition, research conclusions and backlog with final intent | 2026-09-12 09:15 |
 | `[?]` | [YMP-115](#ymp-115) | P0 | Enable useful concurrent execution of independent assignments | 2026-09-12 12:25 |
 | `[x]` | [YMP-010](#ymp-010) | P0 | Approve product goals and core protocol constraints | 2026-09-12 09:06 |
 | `[x]` | [YMP-011](#ymp-011) | P0 | Document bounded dynamic teams and assignment-level effort | 2026-09-12 08:41 |
 | `[x]` | [YMP-012](#ymp-012) | P0 | Establish the delivery plan and traceable backlog for the approved intent | 2026-09-12 09:15 |
 | `[x]` | [YMP-116](#ymp-116) | P0 | Define the minimal runtime transition and authority contract | 2026-09-12 10:07 |
-| `[~]` | [YMP-117](#ymp-117) | P0 | Separate acceptance from confirmation and gate reputation on evidence | 2026-09-12 12:33 |
+| `[~]` | [YMP-117](#ymp-117) | P0 | Separate acceptance from confirmation and gate reputation on evidence | 2026-09-12 12:46 |
 | `[~]` | [YMP-120](#ymp-120) | P0 | Enforce assignment-scoped permissions and runtime-only state transitions | 2026-09-12 12:18 |
 | `[=]` | [YMP-118](#ymp-118) | P0 | Integrate core assignment, budget and confirmation visibility | 2026-09-12 12:20 |
 | `[x]` | [YMP-119](#ymp-119) | P0 | Prepare universal acceptance scenarios and independent validators | 2026-09-12 10:56 |
-| `[=]` | [YMP-121](#ymp-121) | P1 | Verify the integrated application and package a local release | 2026-09-12 09:35 |
+| `[=]` | [YMP-121](#ymp-121) | P1 | Verify the integrated application and package a local release | 2026-09-12 12:46 |
 | `[x]` | [YMP-013](#ymp-013) | P0 | Review plan coherence and simplify progress tracking | 2026-09-12 09:46 |
+| `[+]` | [YMP-122](#ymp-122) | P1 | Expose replaceable execution backends behind runtime-owned controls | 2026-09-12 12:46 |
 
 ## YMP-001
 
@@ -797,7 +798,7 @@ Select session teams and execution settings within user constraints
 
 **State:** `[=]` (planned) · **Type:** implementation · **Priority:** P0
 
-**Last update (UTC):** 2026-09-12 09:35
+**Last update (UTC):** 2026-09-12 12:46
 
 **Current reason:** Needs YMP-102, YMP-117
 
@@ -809,7 +810,7 @@ Select session teams and execution settings within user constraints
 
 The owner requested bounded dynamic teams by default, optional fixed size or roster, and joint selection of team size, executors, models and effort.
 
-**Latest progress note:** Feature-specific visibility is part of this task, so core UI integration does not have to wait for every later feature.
+**Latest progress note:** Owner extension requirement added: Provide injectable typed policies for team/model/effort proposals and resource allocation, with runtime validation of pins, capabilities, independence and ceilings outside the policies.
 
 **Acceptance criteria:**
 
@@ -821,6 +822,7 @@ The owner requested bounded dynamic teams by default, optional fixed size or ros
 - Reconsider allocations on meaningful work boundaries and evidence; no model invocation is needed merely to inspect a pool or enforce a runtime limit.
 - Agents propose and negotiate work; the trusted runtime commits method, membership and assignment decisions. A planning agent has no standing authority beyond its current assignment.
 - Keep the corresponding existing views consistent with the new state using Claude Opus 5 max and shared runtime data contracts; coordinate with YMP-118 without requiring a separate dashboard or a completed later feature.
+- Provide injectable typed policies for team/model/effort proposals and resource allocation, with runtime validation of pins, capabilities, independence and ceilings outside the policies.
 
 **Evidence:**
 
@@ -830,6 +832,7 @@ The owner requested bounded dynamic teams by default, optional fixed size or ros
 - [Team and effort policy](../architecture/team-and-effort-policy.md)
 - [Domain terminology](../product/entities.md)
 - [Delivery plan](plan.md)
+- [Replaceable subsystem contracts](../architecture/subsystem-interfaces.md)
 
 ## YMP-112
 
@@ -837,7 +840,7 @@ Coordinate commitments, plan revisions and reassignment through the board
 
 **State:** `[=]` (planned) · **Type:** implementation · **Priority:** P0
 
-**Last update (UTC):** 2026-09-12 09:35
+**Last update (UTC):** 2026-09-12 12:46
 
 **Current reason:** Needs YMP-110, YMP-120
 
@@ -849,7 +852,7 @@ Coordinate commitments, plan revisions and reassignment through the board
 
 Required directly by the final product intent; design and implementation are pending.
 
-**Latest progress note:** Feature-specific visibility is part of this task, so core UI integration does not have to wait for every later feature.
+**Latest progress note:** Owner extension requirement added: Keep commitment/replanning strategy replaceable through a typed proposal interface; runtime validates and commits transitions independently of the proposing strategy.
 
 **Acceptance criteria:**
 
@@ -860,6 +863,7 @@ Required directly by the final product intent; design and implementation are pen
 - Preserve verified work on individual agent failure; inspect uncertain side effects before replay or reassignment.
 - Use explicit task ownership and validated state transitions. Workspace execution follows the applicable workspace policy; this coordination task does not select a new isolation mechanism.
 - Keep the corresponding existing views consistent with the new state using Claude Opus 5 max and shared runtime data contracts; coordinate with YMP-118 without requiring a separate dashboard or a completed later feature.
+- Keep commitment/replanning strategy replaceable through a typed proposal interface; runtime validates and commits transitions independently of the proposing strategy.
 
 **Evidence:**
 
@@ -869,6 +873,7 @@ Required directly by the final product intent; design and implementation are pen
 - [Team and effort policy](../architecture/team-and-effort-policy.md)
 - [Domain terminology](../product/entities.md)
 - [Delivery plan](plan.md)
+- [Replaceable subsystem contracts](../architecture/subsystem-interfaces.md)
 
 ## YMP-113
 
@@ -876,7 +881,7 @@ Accumulate general knowledge and verified experience incrementally
 
 **State:** `[=]` (planned) · **Type:** implementation · **Priority:** P0
 
-**Last update (UTC):** 2026-09-12 09:35
+**Last update (UTC):** 2026-09-12 12:46
 
 **Current reason:** Needs YMP-117
 
@@ -888,7 +893,7 @@ Accumulate general knowledge and verified experience incrementally
 
 Required directly by the final product intent; design and implementation are pending.
 
-**Latest progress note:** Feature-specific visibility is part of this task, so core UI integration does not have to wait for every later feature.
+**Latest progress note:** Owner extension requirement added: Expose replaceable knowledge retrieval/proposal policies; runtime resolves actual source versions, enforces scope/context limits and controls activation.
 
 **Acceptance criteria:**
 
@@ -898,6 +903,7 @@ Required directly by the final product intent; design and implementation are pen
 - Retain unconfirmed candidate findings and project-specific facts with explicit provenance and status; never present agent agreement alone as confirmed general knowledge.
 - Prove that verified knowledge from an intermediate outcome is retrievable by a later session even if a subsequent agent in the source session fails.
 - Keep the corresponding existing views consistent with the new state using Claude Opus 5 max and shared runtime data contracts; coordinate with YMP-118 without requiring a separate dashboard or a completed later feature.
+- Expose replaceable knowledge retrieval/proposal policies; runtime resolves actual source versions, enforces scope/context limits and controls activation.
 
 **Evidence:**
 
@@ -905,6 +911,7 @@ Required directly by the final product intent; design and implementation are pen
 - [English product requirements](../product/requirements.md)
 - [Agent and decision contract](../adr/0002-agent-identity-and-reasoning.md)
 - [Delivery plan](plan.md)
+- [Replaceable subsystem contracts](../architecture/subsystem-interfaces.md)
 
 ## YMP-114
 
@@ -912,7 +919,7 @@ Correct and supersede knowledge with newer verified evidence
 
 **State:** `[=]` (planned) · **Type:** implementation · **Priority:** P0
 
-**Last update (UTC):** 2026-09-12 09:35
+**Last update (UTC):** 2026-09-12 12:46
 
 **Current reason:** Needs YMP-113
 
@@ -924,7 +931,7 @@ Correct and supersede knowledge with newer verified evidence
 
 Required directly by the final product intent; design and implementation are pending.
 
-**Latest progress note:** Feature-specific visibility is part of this task, so core UI integration does not have to wait for every later feature.
+**Latest progress note:** Owner extension requirement added: Support a replaceable correction proposal policy while runtime independently enforces evidence, applicability, supersession and observation idempotence.
 
 **Acceptance criteria:**
 
@@ -933,6 +940,7 @@ Required directly by the final product intent; design and implementation are pen
 - Resolve correction proposals using relevant confirmation evidence and independent review; consensus or a newer timestamp alone cannot confirm a replacement.
 - Keep these changes within the existing metadata storage; no automatic time-decay policy or storage rewrite is required.
 - Keep the corresponding existing views consistent with the new state using Claude Opus 5 max and shared runtime data contracts; coordinate with YMP-118 without requiring a separate dashboard or a completed later feature.
+- Support a replaceable correction proposal policy while runtime independently enforces evidence, applicability, supersession and observation idempotence.
 
 **Evidence:**
 
@@ -940,6 +948,7 @@ Required directly by the final product intent; design and implementation are pen
 - [English product requirements](../product/requirements.md)
 - [Agent and decision contract](../adr/0002-agent-identity-and-reasoning.md)
 - [Delivery plan](plan.md)
+- [Replaceable subsystem contracts](../architecture/subsystem-interfaces.md)
 
 ## YMP-009
 
@@ -1152,9 +1161,9 @@ Separate acceptance from confirmation and gate reputation on evidence
 
 **State:** `[~]` (in_progress) · **Type:** implementation · **Priority:** P0
 
-**Last update (UTC):** 2026-09-12 12:33
+**Last update (UTC):** 2026-09-12 12:46
 
-**Current reason:** Implementation delegated at xhigh atop baseline57c325b. The no-checks public-engine regression exits101 with2 unsupported positive observations. Work adds version-bound reviews/confirmation, trusted check contracts, independent final eligibility and idempotent qualified reputation; general qualitative results remain usable and unconfirmed.
+**Current reason:** Owner extension requirement added: Expose an injectable typed confirmation-check executor with implementation ID/version; runtime/storage retain input/result capture, coverage/freshness, grading and reputation authority.
 
 **Owner:** Maintainer
 
@@ -1174,11 +1183,13 @@ Current boolean approval can award positive observations with no automated check
 - Preserve historical observations and acceptance records with legacy/unknown evidence status; do not silently promote them into confirmed training data.
 - Demonstrate offline cases for approved-without-checks, agreement-without-evidence, confirmed success, contradictory evidence, irrelevant passing checks and replay without duplicate credit.
 - Keep the narration-failure fallback from YMP-104 consistent when adding confirmation metadata; final integration checks both accepted grades.
+- Expose an injectable typed confirmation-check executor with implementation ID/version; runtime/storage retain input/result capture, coverage/freshness, grading and reputation authority.
 
 **Evidence:**
 
 - [Approved intent](../../intent.md)
 - [Delivery plan](plan.md)
+- [Replaceable subsystem contracts](../architecture/subsystem-interfaces.md)
 
 ## YMP-120
 
@@ -1285,19 +1296,19 @@ Verify the integrated application and package a local release
 
 **State:** `[=]` (planned) · **Type:** verification · **Priority:** P1
 
-**Last update (UTC):** 2026-09-12 09:35
+**Last update (UTC):** 2026-09-12 12:46
 
-**Current reason:** Needs YMP-107, YMP-112, YMP-115, YMP-114, YMP-118
+**Current reason:** Needs YMP-107, YMP-112, YMP-115, YMP-114, YMP-118, YMP-122
 
 **Owner:** Independent final reviewer at max reasoning; maintainer integrates and packages
 
 **Authorization:** Offline packaging and check preparation follow the approved delivery plan. Actual native inference requires its explicit bounded quota authorization; none is granted by this planning task.
 
-**Depends on:** [YMP-119](#ymp-119), [YMP-103](#ymp-103), [YMP-105](#ymp-105), [YMP-107](#ymp-107), [YMP-112](#ymp-112), [YMP-115](#ymp-115), [YMP-114](#ymp-114), [YMP-118](#ymp-118)
+**Depends on:** [YMP-119](#ymp-119), [YMP-103](#ymp-103), [YMP-105](#ymp-105), [YMP-107](#ymp-107), [YMP-112](#ymp-112), [YMP-115](#ymp-115), [YMP-114](#ymp-114), [YMP-118](#ymp-118), [YMP-122](#ymp-122)
 
 A local release needs a reproducible install and truthful compatibility evidence for the configured native providers.
 
-**Latest progress note:** Final integration now explicitly depends on all terminal delivery work and runs the acceptance suite prepared earlier.
+**Latest progress note:** Owner extension requirement added: Verify implementation substitution through the public engine and owning subsystem interfaces, preserving runtime constraints and recorded implementation identities.
 
 **Acceptance criteria:**
 
@@ -1308,11 +1319,13 @@ A local release needs a reproducible install and truthful compatibility evidence
 - Distinguish offline fixture coverage from verified native behavior and unsupported capabilities in release notes.
 - Document migration/recovery behavior and output locations; announce completion only after all required release checks pass.
 - Perform the final requirement-by-requirement release review with an independent max-reasoning agent; xhigh is the minimum for other delegated engineering work.
+- Verify implementation substitution through the public engine and owning subsystem interfaces, preserving runtime constraints and recorded implementation identities.
 
 **Evidence:**
 
 - [Approved intent](../../intent.md)
 - [Delivery plan](plan.md)
+- [Replaceable subsystem contracts](../architecture/subsystem-interfaces.md)
 
 **Quota:** Not allocated. Prepare a concrete bounded smoke-check proposal before any real-provider inference.
 
@@ -1347,6 +1360,36 @@ The plan duplicates prose, delays independent work and does not yet expose owner
 - [Delivery plan](plan.md)
 - [Detailed team/effort policy](../architecture/team-and-effort-policy.md)
 - [Planning verification and review](planning-verification.json)
+
+## YMP-122
+
+Expose replaceable execution backends behind runtime-owned controls
+
+**State:** `[+]` (new) · **Type:** implementation · **Priority:** P1
+
+**Last update (UTC):** 2026-09-12 12:46
+
+**Current reason:** Added from explicit owner steering: favor interfaces/plugins so alternative subsystem implementations can be evaluated. Native execution is the first common interface; related task criteria retain subsystem ownership.
+
+**Owner:** Maintainer
+
+**Authorization:** Explicit owner request on2026-09-12 to favor interfaces/plugins and permit alternative subsystem implementations; standing autonomous delivery authorization applies.
+
+**Depends on:** [YMP-102](#ymp-102), [YMP-120](#ymp-120)
+
+A direct built-in provider call couples engine orchestration to one execution implementation and makes controlled experiments require changes inside the runtime.
+
+**Acceptance criteria:**
+
+- Expose a narrow typed Rust execution interface and engine injection with the existing native implementation as the default; retain native authentication and current behavior.
+- Record selected implementation ID/version in execution provenance so alternative backends remain attributable.
+- Keep runtime admission, captured limits, cancellation/output handling, assignment grants and capability-safe errors around replaceable execution. An injected implementation cannot bypass these contracts through its return value.
+- Exercise a distinct scripted implementation through the public engine and adverse cancellation/output/error cases without provider inference. Preserve the built-in native adapter checks.
+- Document the extension contract and ownership of policy, retrieval and confirmation interfaces without introducing a dynamic plugin ABI, plugin service or generic container. Those interfaces are delivered in their owning tasks and verified by final integration.
+
+**Evidence:**
+
+- [Owner-directed subsystem interfaces](../architecture/subsystem-interfaces.md)
 
 ## Intent coverage
 

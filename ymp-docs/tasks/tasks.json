@@ -1247,7 +1247,8 @@
         "Start with bounded useful work and no mandatory all-pool proposal or bidding round. A fixed roster does not require continuous activity by every member.",
         "Reconsider allocations on meaningful work boundaries and evidence; no model invocation is needed merely to inspect a pool or enforce a runtime limit.",
         "Agents propose and negotiate work; the trusted runtime commits method, membership and assignment decisions. A planning agent has no standing authority beyond its current assignment.",
-        "Keep the corresponding existing views consistent with the new state using Claude Opus 5 max and shared runtime data contracts; coordinate with YMP-118 without requiring a separate dashboard or a completed later feature."
+        "Keep the corresponding existing views consistent with the new state using Claude Opus 5 max and shared runtime data contracts; coordinate with YMP-118 without requiring a separate dashboard or a completed later feature.",
+        "Provide injectable typed policies for team/model/effort proposals and resource allocation, with runtime validation of pins, capabilities, independence and ceilings outside the policies."
       ],
       "evidence": [
         "[Final owner intent](../../intent.md)",
@@ -1255,7 +1256,8 @@
         "[Agent and decision contract](../adr/0002-agent-identity-and-reasoning.md)",
         "[Team and effort policy](../architecture/team-and-effort-policy.md)",
         "[Domain terminology](../product/entities.md)",
-        "[Delivery plan](plan.md)"
+        "[Delivery plan](plan.md)",
+        "[Replaceable subsystem contracts](../architecture/subsystem-interfaces.md)"
       ],
       "history": [
         {
@@ -1287,6 +1289,11 @@
           "at": "2026-09-12T09:35:05.248513+00:00",
           "status": "planned",
           "note": "Feature-specific visibility is part of this task, so core UI integration does not have to wait for every later feature."
+        },
+        {
+          "at": "2026-09-12T12:46:29.117507+00:00",
+          "status": "planned",
+          "note": "Owner extension requirement added: Provide injectable typed policies for team/model/effort proposals and resource allocation, with runtime validation of pins, capabilities, independence and ceilings outside the policies."
         }
       ]
     },
@@ -1310,7 +1317,8 @@
         "Require independent review before runtime acceptance, with the basis and confirmation grade from YMP-117. A producer cannot approve its own result; preserved accepted-but-unconfirmed work does not earn reputation.",
         "Preserve verified work on individual agent failure; inspect uncertain side effects before replay or reassignment.",
         "Use explicit task ownership and validated state transitions. Workspace execution follows the applicable workspace policy; this coordination task does not select a new isolation mechanism.",
-        "Keep the corresponding existing views consistent with the new state using Claude Opus 5 max and shared runtime data contracts; coordinate with YMP-118 without requiring a separate dashboard or a completed later feature."
+        "Keep the corresponding existing views consistent with the new state using Claude Opus 5 max and shared runtime data contracts; coordinate with YMP-118 without requiring a separate dashboard or a completed later feature.",
+        "Keep commitment/replanning strategy replaceable through a typed proposal interface; runtime validates and commits transitions independently of the proposing strategy."
       ],
       "evidence": [
         "[Final owner intent](../../intent.md)",
@@ -1318,7 +1326,8 @@
         "[Agent and decision contract](../adr/0002-agent-identity-and-reasoning.md)",
         "[Team and effort policy](../architecture/team-and-effort-policy.md)",
         "[Domain terminology](../product/entities.md)",
-        "[Delivery plan](plan.md)"
+        "[Delivery plan](plan.md)",
+        "[Replaceable subsystem contracts](../architecture/subsystem-interfaces.md)"
       ],
       "history": [
         {
@@ -1350,6 +1359,11 @@
           "at": "2026-09-12T09:35:05.248513+00:00",
           "status": "planned",
           "note": "Feature-specific visibility is part of this task, so core UI integration does not have to wait for every later feature."
+        },
+        {
+          "at": "2026-09-12T12:46:29.117507+00:00",
+          "status": "planned",
+          "note": "Owner extension requirement added: Keep commitment/replanning strategy replaceable through a typed proposal interface; runtime validates and commits transitions independently of the proposing strategy."
         }
       ]
     },
@@ -1372,13 +1386,15 @@
         "Retain origin, applicability, verification state and supporting result links.",
         "Retain unconfirmed candidate findings and project-specific facts with explicit provenance and status; never present agent agreement alone as confirmed general knowledge.",
         "Prove that verified knowledge from an intermediate outcome is retrievable by a later session even if a subsequent agent in the source session fails.",
-        "Keep the corresponding existing views consistent with the new state using Claude Opus 5 max and shared runtime data contracts; coordinate with YMP-118 without requiring a separate dashboard or a completed later feature."
+        "Keep the corresponding existing views consistent with the new state using Claude Opus 5 max and shared runtime data contracts; coordinate with YMP-118 without requiring a separate dashboard or a completed later feature.",
+        "Expose replaceable knowledge retrieval/proposal policies; runtime resolves actual source versions, enforces scope/context limits and controls activation."
       ],
       "evidence": [
         "[Final owner intent](../../intent.md)",
         "[English product requirements](../product/requirements.md)",
         "[Agent and decision contract](../adr/0002-agent-identity-and-reasoning.md)",
-        "[Delivery plan](plan.md)"
+        "[Delivery plan](plan.md)",
+        "[Replaceable subsystem contracts](../architecture/subsystem-interfaces.md)"
       ],
       "history": [
         {
@@ -1405,6 +1421,11 @@
           "at": "2026-09-12T09:35:05.248513+00:00",
           "status": "planned",
           "note": "Feature-specific visibility is part of this task, so core UI integration does not have to wait for every later feature."
+        },
+        {
+          "at": "2026-09-12T12:46:29.117507+00:00",
+          "status": "planned",
+          "note": "Owner extension requirement added: Expose replaceable knowledge retrieval/proposal policies; runtime resolves actual source versions, enforces scope/context limits and controls activation."
         }
       ]
     },
@@ -1425,13 +1446,15 @@
         "Preserve history, provenance and replacement links while excluding superseded claims from normal current-knowledge retrieval.",
         "Resolve correction proposals using relevant confirmation evidence and independent review; consensus or a newer timestamp alone cannot confirm a replacement.",
         "Keep these changes within the existing metadata storage; no automatic time-decay policy or storage rewrite is required.",
-        "Keep the corresponding existing views consistent with the new state using Claude Opus 5 max and shared runtime data contracts; coordinate with YMP-118 without requiring a separate dashboard or a completed later feature."
+        "Keep the corresponding existing views consistent with the new state using Claude Opus 5 max and shared runtime data contracts; coordinate with YMP-118 without requiring a separate dashboard or a completed later feature.",
+        "Support a replaceable correction proposal policy while runtime independently enforces evidence, applicability, supersession and observation idempotence."
       ],
       "evidence": [
         "[Final owner intent](../../intent.md)",
         "[English product requirements](../product/requirements.md)",
         "[Agent and decision contract](../adr/0002-agent-identity-and-reasoning.md)",
-        "[Delivery plan](plan.md)"
+        "[Delivery plan](plan.md)",
+        "[Replaceable subsystem contracts](../architecture/subsystem-interfaces.md)"
       ],
       "history": [
         {
@@ -1458,6 +1481,11 @@
           "at": "2026-09-12T09:35:05.248513+00:00",
           "status": "planned",
           "note": "Feature-specific visibility is part of this task, so core UI integration does not have to wait for every later feature."
+        },
+        {
+          "at": "2026-09-12T12:46:29.117507+00:00",
+          "status": "planned",
+          "note": "Owner extension requirement added: Support a replaceable correction proposal policy while runtime independently enforces evidence, applicability, supersession and observation idempotence."
         }
       ]
     },
@@ -1785,11 +1813,13 @@
         "Apply reputation updates only to supported, attributable outcomes and once per observation; do not award reviewer credit for agreement alone.",
         "Preserve historical observations and acceptance records with legacy/unknown evidence status; do not silently promote them into confirmed training data.",
         "Demonstrate offline cases for approved-without-checks, agreement-without-evidence, confirmed success, contradictory evidence, irrelevant passing checks and replay without duplicate credit.",
-        "Keep the narration-failure fallback from YMP-104 consistent when adding confirmation metadata; final integration checks both accepted grades."
+        "Keep the narration-failure fallback from YMP-104 consistent when adding confirmation metadata; final integration checks both accepted grades.",
+        "Expose an injectable typed confirmation-check executor with implementation ID/version; runtime/storage retain input/result capture, coverage/freshness, grading and reputation authority."
       ],
       "evidence": [
         "[Approved intent](../../intent.md)",
-        "[Delivery plan](plan.md)"
+        "[Delivery plan](plan.md)",
+        "[Replaceable subsystem contracts](../architecture/subsystem-interfaces.md)"
       ],
       "history": [
         {
@@ -1811,6 +1841,11 @@
           "at": "2026-09-12T12:33:34.844920+00:00",
           "status": "in_progress",
           "note": "Implementation delegated at xhigh atop baseline57c325b. The no-checks public-engine regression exits101 with2 unsupported positive observations. Work adds version-bound reviews/confirmation, trusted check contracts, independent final eligibility and idempotent qualified reputation; general qualitative results remain usable and unconfirmed."
+        },
+        {
+          "at": "2026-09-12T12:46:29.117507+00:00",
+          "status": "in_progress",
+          "note": "Owner extension requirement added: Expose an injectable typed confirmation-check executor with implementation ID/version; runtime/storage retain input/result capture, coverage/freshness, grading and reputation authority."
         }
       ]
     },
@@ -1975,7 +2010,8 @@
         "YMP-112",
         "YMP-115",
         "YMP-114",
-        "YMP-118"
+        "YMP-118",
+        "YMP-122"
       ],
       "reason": "A local release needs a reproducible install and truthful compatibility evidence for the configured native providers.",
       "acceptance": [
@@ -1985,11 +2021,13 @@
         "Run real-provider checks only under explicit recorded quota authorization; record requested/applied effort and usage coverage without exposing credentials.",
         "Distinguish offline fixture coverage from verified native behavior and unsupported capabilities in release notes.",
         "Document migration/recovery behavior and output locations; announce completion only after all required release checks pass.",
-        "Perform the final requirement-by-requirement release review with an independent max-reasoning agent; xhigh is the minimum for other delegated engineering work."
+        "Perform the final requirement-by-requirement release review with an independent max-reasoning agent; xhigh is the minimum for other delegated engineering work.",
+        "Verify implementation substitution through the public engine and owning subsystem interfaces, preserving runtime constraints and recorded implementation identities."
       ],
       "evidence": [
         "[Approved intent](../../intent.md)",
-        "[Delivery plan](plan.md)"
+        "[Delivery plan](plan.md)",
+        "[Replaceable subsystem contracts](../architecture/subsystem-interfaces.md)"
       ],
       "history": [
         {
@@ -2001,6 +2039,11 @@
           "at": "2026-09-12T09:35:05.248513+00:00",
           "status": "planned",
           "note": "Final integration now explicitly depends on all terminal delivery work and runs the acceptance suite prepared earlier."
+        },
+        {
+          "at": "2026-09-12T12:46:29.117507+00:00",
+          "status": "planned",
+          "note": "Owner extension requirement added: Verify implementation substitution through the public engine and owning subsystem interfaces, preserving runtime constraints and recorded implementation identities."
         }
       ],
       "budget": "Not allocated. Prepare a concrete bounded smoke-check proposal before any real-provider inference."
@@ -2049,9 +2092,40 @@
           "note": "Simplified dependencies and the initial contract; prepared earlier acceptance fixtures and explicit final integration. Both Markdown views now show the requested seven states, UTC updates and exact blockers from one register. All 12 CLI behavior checks, 10 negative integrity cases, local references and 90 Rust tests pass. Approved intent is unchanged."
         }
       ]
+    },
+    {
+      "id": "YMP-122",
+      "title": "Expose replaceable execution backends behind runtime-owned controls",
+      "type": "implementation",
+      "priority": "P1",
+      "status": "new",
+      "owner": "Maintainer",
+      "authorization": "Explicit owner request on2026-09-12 to favor interfaces/plugins and permit alternative subsystem implementations; standing autonomous delivery authorization applies.",
+      "depends_on": [
+        "YMP-102",
+        "YMP-120"
+      ],
+      "reason": "A direct built-in provider call couples engine orchestration to one execution implementation and makes controlled experiments require changes inside the runtime.",
+      "acceptance": [
+        "Expose a narrow typed Rust execution interface and engine injection with the existing native implementation as the default; retain native authentication and current behavior.",
+        "Record selected implementation ID/version in execution provenance so alternative backends remain attributable.",
+        "Keep runtime admission, captured limits, cancellation/output handling, assignment grants and capability-safe errors around replaceable execution. An injected implementation cannot bypass these contracts through its return value.",
+        "Exercise a distinct scripted implementation through the public engine and adverse cancellation/output/error cases without provider inference. Preserve the built-in native adapter checks.",
+        "Document the extension contract and ownership of policy, retrieval and confirmation interfaces without introducing a dynamic plugin ABI, plugin service or generic container. Those interfaces are delivered in their owning tasks and verified by final integration."
+      ],
+      "evidence": [
+        "[Owner-directed subsystem interfaces](../architecture/subsystem-interfaces.md)"
+      ],
+      "history": [
+        {
+          "at": "2026-09-12T12:46:29.117507+00:00",
+          "status": "new",
+          "note": "Added from explicit owner steering: favor interfaces/plugins so alternative subsystem implementations can be evaluated. Native execution is the first common interface; related task criteria retain subsystem ownership."
+        }
+      ]
     }
   ],
-  "updated_at": "2026-09-12T12:35:54.128079+00:00",
+  "updated_at": "2026-09-12T12:46:29.117507+00:00",
   "delivery_order": [
     "YMP-116",
     "YMP-103",
@@ -2063,6 +2137,7 @@
     "YMP-111",
     "YMP-102",
     "YMP-120",
+    "YMP-122",
     "YMP-117",
     "YMP-106",
     "YMP-115",
@@ -2113,7 +2188,8 @@
         "YMP-111",
         "YMP-102",
         "YMP-103",
-        "YMP-104"
+        "YMP-104",
+        "YMP-122"
       ]
     },
     {
@@ -2419,7 +2495,8 @@
     "Prepare universal fixtures in YMP-119 early. The final integration task YMP-121 runs them against completed features; fixture preparation is not product completion.",
     "Integrate core visibility as soon as the core records are available. Later features extend the same views as part of their own acceptance; all application UI work uses Claude Opus 5 max through Paseo.",
     "Preserve accepted-but-unconfirmed outcomes and award no reputation without confirmation. Keep native authentication and honest resource-coverage limits; an effort level is not a spending cap.",
-    "Real-provider checks and experiments require their concrete quota authorization. Unattended checks use fixtures. After changes run cargo fmt, clippy with warnings denied and workspace tests; bridge changes also require bridge checks."
+    "Real-provider checks and experiments require their concrete quota authorization. Unattended checks use fixtures. After changes run cargo fmt, clippy with warnings denied and workspace tests; bridge changes also require bridge checks.",
+    "Favor narrow typed subsystem interfaces and injectable built-in implementations. Replacement algorithms propose work or provide observations; trusted runtime rules still own grants, budgets, acceptance and evidence. See subsystem-interfaces.md and YMP-122."
   ],
   "release": {
     "target_version": "0.4.0",
