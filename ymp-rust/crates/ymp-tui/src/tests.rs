@@ -2001,7 +2001,15 @@ impl Fixture {
         }
         self.store.event(session, "check", &data).unwrap();
     }
-    /// A stored task that declares acceptance commands.
+    /// A stored task that declares acceptance commands, left where its checks have run and
+    /// no independent review has decided yet.
+    ///
+    /// These scenarios are about what the session log recorded and what the page reads back
+    /// from it; none of them asserts anything about acceptance. Acceptance is a decision the
+    /// store takes only through `save_task_with_decision`, bound to the reviewed attempt and
+    /// the evidence behind it, so a display fixture must not claim it. A task submitted and
+    /// awaiting review is also the state a recorded check actually belongs to: the runtime
+    /// runs a task's checks after its execution turn and before the review decision.
     fn seed_task(&self, session: &str, title: &str, checks: &[&str]) -> String {
         let task = Task {
             id: new_id(),
@@ -2012,11 +2020,12 @@ impl Fixture {
             difficulty: "standard".into(),
             dependencies: Vec::new(),
             checks: checks.iter().map(|c| (*c).to_owned()).collect(),
-            state: TaskState::Accepted,
+            state: TaskState::Review,
             assignee: Some("codex".into()),
-            reviewer: Some("claude".into()),
+            // The reviewer is recorded by the review decision, which has not been taken.
+            reviewer: None,
             attempts: 1,
-            result: Some("Done".into()),
+            result: Some("Submitted for independent review.".into()),
             workspace: Some(self.project.path().to_path_buf()),
             base_commit: None,
             interrupted: false,
