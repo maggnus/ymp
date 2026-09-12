@@ -451,6 +451,11 @@
           "at": "2026-09-12T12:55:53.673424+00:00",
           "status": "in_progress",
           "note": "R1(6/10) RETURN found historical spend reused on legacy resume. Correction899e990 preserves durable invocation totals; exact public Store/Engine probes change101 to0 and163 author Rust tests pass. Combined budget/grant integration is being prepared before independent R2; fresh mutation replay logs are explicitly labelled."
+        },
+        {
+          "at": "2026-09-12T13:09:36.391192+00:00",
+          "status": "in_progress",
+          "note": "Combined budget/authority candidate cd86d49 is under independent xhigh R2. Historical-spend correction and one atomic budget/ordinal/grant transaction passed205 author Rust tests,13 bridge tests and the5 preserved public probes. Three joint guard-removal controls fail101. Candidate remains unintegrated until review."
         }
       ]
     },
@@ -1859,6 +1864,11 @@
           "at": "2026-09-12T12:46:29.117507+00:00",
           "status": "in_progress",
           "note": "Owner extension requirement added: Expose an injectable typed confirmation-check executor with implementation ID/version; runtime/storage retain input/result capture, coverage/freshness, grading and reputation authority."
+        },
+        {
+          "at": "2026-09-12T13:09:36.483403+00:00",
+          "status": "in_progress",
+          "note": "R1(2/10) RETURN reproduced4 acceptance-boundary defects: leaf result used as final acceptance, reused/contradictory review invocation bindings, accepted text replaced under old evidence, and stale confirmed grade after narration-time edits. Exact public probes retained; author is correcting F1-F4 within the same scope. Required tests alone had passed."
         }
       ]
     },
@@ -2183,7 +2193,7 @@
       ]
     }
   ],
-  "updated_at": "2026-09-12T13:00:04.752401+00:00",
+  "updated_at": "2026-09-12T13:09:36.483403+00:00",
   "delivery_order": [
     "YMP-116",
     "YMP-103",

@@ -1,6 +1,6 @@
 # Task details and evidence
 
-Updated: 2026-09-12 13:00 UTC.
+Updated: 2026-09-12 13:09 UTC.
 
 Use the [delivery plan](plan.md) to follow progress. This generated register contains full acceptance criteria, dependencies and evidence. [tasks.json](tasks.json) is the single source; [manage.py](manage.py) updates both pages.
 
@@ -31,7 +31,7 @@ A planned task is not implemented functionality. Completed research and planning
 | `[x]` | [YMP-007](#ymp-007) | P0 | Evaluate verification-grounded outcome reuse and lifecycle evidence | 2026-09-11 16:00 |
 | `[x]` | [YMP-008](#ymp-008) | P0 | Reconcile native and canonical usage and recompute weighted input | 2026-09-11 16:00 |
 | `[x]` | [YMP-101](#ymp-101) | P0 | Persist explainable session decisions and execution provenance | 2026-09-12 11:37 |
-| `[~]` | [YMP-102](#ymp-102) | P0 | Add explicit session resource budgets and unknown-usage policy | 2026-09-12 12:55 |
+| `[~]` | [YMP-102](#ymp-102) | P0 | Add explicit session resource budgets and unknown-usage policy | 2026-09-12 13:09 |
 | `[x]` | [YMP-103](#ymp-103) | P0 | Honor Codex nonterminal retry notifications | 2026-09-12 10:16 |
 | `[x]` | [YMP-104](#ymp-104) | P0 | Preserve accepted outcomes and confirmation status when final narration fails | 2026-09-12 10:16 |
 | `[x]` | [YMP-105](#ymp-105) | P1 | Enumerate file names without reading file contents | 2026-09-12 10:16 |
@@ -55,7 +55,7 @@ A planned task is not implemented functionality. Completed research and planning
 | `[x]` | [YMP-011](#ymp-011) | P0 | Document bounded dynamic teams and assignment-level effort | 2026-09-12 08:41 |
 | `[x]` | [YMP-012](#ymp-012) | P0 | Establish the delivery plan and traceable backlog for the approved intent | 2026-09-12 09:15 |
 | `[x]` | [YMP-116](#ymp-116) | P0 | Define the minimal runtime transition and authority contract | 2026-09-12 10:07 |
-| `[~]` | [YMP-117](#ymp-117) | P0 | Separate acceptance from confirmation and gate reputation on evidence | 2026-09-12 12:46 |
+| `[~]` | [YMP-117](#ymp-117) | P0 | Separate acceptance from confirmation and gate reputation on evidence | 2026-09-12 13:09 |
 | `[~]` | [YMP-120](#ymp-120) | P0 | Enforce assignment-scoped permissions and runtime-only state transitions | 2026-09-12 12:55 |
 | `[=]` | [YMP-118](#ymp-118) | P0 | Integrate core assignment, budget and confirmation visibility | 2026-09-12 12:20 |
 | `[x]` | [YMP-119](#ymp-119) | P0 | Prepare universal acceptance scenarios and independent validators | 2026-09-12 10:56 |
@@ -333,9 +333,9 @@ Add explicit session resource budgets and unknown-usage policy
 
 **State:** `[~]` (in_progress) · **Type:** implementation · **Priority:** P0
 
-**Last update (UTC):** 2026-09-12 12:55
+**Last update (UTC):** 2026-09-12 13:09
 
-**Current reason:** R1(6/10) RETURN found historical spend reused on legacy resume. Correction899e990 preserves durable invocation totals; exact public Store/Engine probes change101 to0 and163 author Rust tests pass. Combined budget/grant integration is being prepared before independent R2; fresh mutation replay logs are explicitly labelled.
+**Current reason:** Combined budget/authority candidate cd86d49 is under independent xhigh R2. Historical-spend correction and one atomic budget/ordinal/grant transaction passed205 author Rust tests,13 bridge tests and the5 preserved public probes. Three joint guard-removal controls fail101. Candidate remains unintegrated until review.
 
 **Owner:** Maintainer
 
@@ -1165,9 +1165,9 @@ Separate acceptance from confirmation and gate reputation on evidence
 
 **State:** `[~]` (in_progress) · **Type:** implementation · **Priority:** P0
 
-**Last update (UTC):** 2026-09-12 12:46
+**Last update (UTC):** 2026-09-12 13:09
 
-**Current reason:** Owner extension requirement added: Expose an injectable typed confirmation-check executor with implementation ID/version; runtime/storage retain input/result capture, coverage/freshness, grading and reputation authority.
+**Current reason:** R1(2/10) RETURN reproduced4 acceptance-boundary defects: leaf result used as final acceptance, reused/contradictory review invocation bindings, accepted text replaced under old evidence, and stale confirmed grade after narration-time edits. Exact public probes retained; author is correcting F1-F4 within the same scope. Required tests alone had passed.
 
 **Owner:** Maintainer
 
