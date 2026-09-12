@@ -1261,7 +1261,7 @@
       "title": "Select session teams and execution settings within user constraints",
       "type": "implementation",
       "priority": "P0",
-      "status": "in_progress",
+      "status": "done",
       "owner": "Maintainer; application UI by Claude Code claude-opus-5 with thinking max via Paseo",
       "authorization": "Planned delivery derived from the owner-approved intent and standing autonomous-development direction. Follow dependencies and acceptance criteria; separate real-provider quota is required where stated.",
       "depends_on": [
@@ -1288,7 +1288,8 @@
         "[Team and effort policy](../architecture/team-and-effort-policy.md)",
         "[Domain terminology](../product/entities.md)",
         "[Delivery plan](plan.md)",
-        "[Replaceable subsystem contracts](../architecture/subsystem-interfaces.md)"
+        "[Replaceable subsystem contracts](../architecture/subsystem-interfaces.md)",
+        "[Independent core and native-name UI review](../../ymp-evals/reports/ymp-118-native-independent-review.md)"
       ],
       "history": [
         {
@@ -1350,6 +1351,11 @@
           "at": "2026-09-12T16:33:37.914783+00:00",
           "status": "in_progress",
           "note": "Backend integration R2(9/10) ACCEPT. Main5834e7f matches reviewed1b76133 source; fmt/clippy and267 workspace tests pass. Current membership, historical participants, pins and admission remain consistent with incremental knowledge. Corresponding Claude UI118 views are still required before closing this task."
+        },
+        {
+          "at": "2026-09-12T20:43:04.654016+00:00",
+          "status": "done",
+          "note": "Accepted allocation backend and its corresponding existing views are integrated. Independent Opus reviews confirm current/historical membership, roster revisions, reserved review responsibility, constraints and committed decisions. Final UI composition762b636 accepted9/10 and merged ascf89f61; main matches all123 reviewed source files and passes formatting, Clippy,375 workspace tests and build."
         }
       ]
     },
@@ -1376,7 +1382,8 @@
         "Preserve verified work on individual agent failure; inspect uncertain side effects before replay or reassignment.",
         "Use explicit task ownership and validated state transitions. Workspace execution follows the applicable workspace policy; this coordination task does not select a new isolation mechanism.",
         "Keep the corresponding existing views consistent with the new state using Claude Opus 5 max and shared runtime data contracts; coordinate with YMP-118 without requiring a separate dashboard or a completed later feature.",
-        "Keep commitment/replanning strategy replaceable through a typed proposal interface; runtime validates and commits transitions independently of the proposing strategy."
+        "Keep commitment/replanning strategy replaceable through a typed proposal interface; runtime validates and commits transitions independently of the proposing strategy.",
+        "Close the nonblocking shared-interface review follow-ups: distinguish team-chat and board permissions in labels, and add a discriminating captured-name regression where current and historical agent names differ."
       ],
       "evidence": [
         "[Final owner intent](../../intent.md)",
@@ -1457,6 +1464,11 @@
           "at": "2026-09-12T20:12:36.150108+00:00",
           "status": "in_progress",
           "note": "Board/knowledge/native composition0e8059e accepted by parent (9/10), with122 independently verified source hashes,10 protected sections and17 focused tests. Integrated asb249195; main fmt/clippy327workspace/build pass. Backend complete; delegated Opus board views and executable UI walkthrough remain."
+        },
+        {
+          "at": "2026-09-12T20:43:04.824261+00:00",
+          "status": "in_progress",
+          "note": "Backend coordination is accepted and integrated; Opus is completing existing-page board views with knowledge114. Two minor findings from the accepted native-name UI review are now explicit acceptance follow-ups: accurate team-chat/shared-board permission labels and a captured-versus-current name regression with a failing mutation control. No native inference is used."
         }
       ]
     },
@@ -1465,7 +1477,7 @@
       "title": "Accumulate general knowledge and verified experience incrementally",
       "type": "implementation",
       "priority": "P0",
-      "status": "in_progress",
+      "status": "done",
       "owner": "Maintainer; application UI by Claude Code claude-opus-5 with thinking max via Paseo",
       "authorization": "Planned delivery derived from the owner-approved intent and standing autonomous-development direction. Follow dependencies and acceptance criteria; separate real-provider quota is required where stated.",
       "depends_on": [
@@ -1487,7 +1499,8 @@
         "[English product requirements](../product/requirements.md)",
         "[Agent and decision contract](../adr/0002-agent-identity-and-reasoning.md)",
         "[Delivery plan](plan.md)",
-        "[Replaceable subsystem contracts](../architecture/subsystem-interfaces.md)"
+        "[Replaceable subsystem contracts](../architecture/subsystem-interfaces.md)",
+        "[Independent core and native-name UI review](../../ymp-evals/reports/ymp-118-native-independent-review.md)"
       ],
       "history": [
         {
@@ -1554,6 +1567,11 @@
           "at": "2026-09-12T16:33:37.979960+00:00",
           "status": "in_progress",
           "note": "Backend integration R2(9/10) ACCEPT and merged into main5834e7f. Structured/textual captured locations, stored fallback, unknown legacy state and zero-inference follow-ups pass. Main fmt/clippy and267 tests pass. UI118 visibility remains required; the earlier unreproduced redaction-test anomaly is documented without claiming its cause fixed."
+        },
+        {
+          "at": "2026-09-12T20:43:04.696539+00:00",
+          "status": "done",
+          "note": "Accepted incremental retention backend and corresponding knowledge, reputation and outcome views are integrated. Independent Opus review confirms provenance, confirmation status, applicability, retrieval eligibility and preserved original locations; the earlier credit wording is corrected. Final UI composition accepted9/10; maincf89f61 passes all375 workspace tests and required checks. Correction-history extensions remain separately in114."
         }
       ]
     },
@@ -2153,7 +2171,7 @@
       "title": "Integrate core assignment, budget and confirmation visibility",
       "type": "implementation",
       "priority": "P0",
-      "status": "in_progress",
+      "status": "done",
       "owner": "Claude Code claude-opus-5 with thinking max via Paseo; maintainer integrates and verifies",
       "authorization": "Derived from the owner-approved intent and work-plan request. Follow recorded dependencies; real-provider quota remains separately authorized.",
       "depends_on": [
@@ -2173,7 +2191,8 @@
       ],
       "evidence": [
         "[Approved intent](../../intent.md)",
-        "[Delivery plan](plan.md)"
+        "[Delivery plan](plan.md)",
+        "[Independent core and native-name UI review](../../ymp-evals/reports/ymp-118-native-independent-review.md)"
       ],
       "history": [
         {
@@ -2225,6 +2244,11 @@
           "at": "2026-09-12T20:08:34.271328+00:00",
           "status": "in_progress",
           "note": "Opus candidate08fcbf6 closes core review findings, includes actual configured-contract visibility and native catalog views, and passes352 author workspace tests. Independent Opus R2 runs on an immutable worktree, including successful Claude bridge metadata and actual terminal consumers. Board112/knowledge114 extensions are delegated to the same existing pages separately."
+        },
+        {
+          "at": "2026-09-12T20:43:04.738478+00:00",
+          "status": "done",
+          "note": "Independent Opus R2 accepts final composition762b636 at9/10; all six earlier core findings are closed. Captured assignments, settings, budgets, confirmation, membership and history are visible through the existing frame. Integrated ascf89f61 with identical reviewed source; main formatting, Clippy,375 tests and build pass. Two minor label/regression follow-ups are explicitly tracked with112 before final release."
         }
       ]
     },
@@ -2727,7 +2751,7 @@
       "title": "Build and display the agent pool from provider-returned native names",
       "type": "implementation",
       "priority": "P0",
-      "status": "in_progress",
+      "status": "done",
       "owner": "Maintainer; all UI by Claude Opus 5 max via Paseo",
       "authorization": "Owner explicitly reiterated that team members must use the real names returned by provider systems after scanning. Correct the missed product requirement autonomously; metadata-only native queries are allowed, model inference remains separate.",
       "depends_on": [
@@ -2745,7 +2769,8 @@
         "After independent acceptance, refresh the local application configuration/catalog through the implemented path and build a current executable whose selectable agents carry the returned names. Never read/log/copy credential values or use real model inference for these checks."
       ],
       "evidence": [
-        "[Owner clarification and catalog contract](../architecture/provider-named-agent-catalog.md)"
+        "[Owner clarification and catalog contract](../architecture/provider-named-agent-catalog.md)",
+        "[Independent core and native-name UI review](../../ymp-evals/reports/ymp-118-native-independent-review.md)"
       ],
       "history": [
         {
@@ -2792,11 +2817,16 @@
           "at": "2026-09-12T20:32:57.006633+00:00",
           "status": "in_progress",
           "note": "Final native-only composition762b636 matches Opus sourceba08ea9 and passes formatting, Clippy, all375 workspace tests, bridge checks and10 explicit native fixtures. It includes native names in the sidebar, opening summary and transcript, visible startup scan progress, and accurate migration wording. Three mechanical UI type/fixture adjustments were authored by Opus. Independent final history, usage and team-selection checks remain before integration; evidence native-ui-composition-checks.json."
+        },
+        {
+          "at": "2026-09-12T20:43:04.780410+00:00",
+          "status": "done",
+          "note": "Native scan-derived names are implemented end to end and independently accepted by Opus (9/10). Supported owner-home refresh retains the original team/configuration and1237 history rows while exposing19 offerings. Current maincf89f61 binary displays native names in pool/team, sidebar, transcript, assignments and usage; historical identities remain captured. Main375 tests and required checks pass;10 native protocol fixtures and bridge checks pass on identical candidate bytes. Installed release remains pending121."
         }
       ]
     }
   ],
-  "updated_at": "2026-09-12T20:32:57.006633+00:00",
+  "updated_at": "2026-09-12T20:43:04.824261+00:00",
   "delivery_order": [
     "YMP-116",
     "YMP-103",

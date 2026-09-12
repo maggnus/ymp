@@ -73,6 +73,49 @@
   "native_fixtures_passed": 10,
   "binary": "/var/folders/cw/7pn8sb3x6bj69g7j2d8f_ss00000gn/T/ymp-release-work-h6oq_rys/integrate_native_ui/target/debug/ymp",
   "binary_sha256": "161b4ddc1d65982e5e63ea313ddbe5672c24c5871909fc9250e92ab23bdae336",
-  "independent_ui_review": "pending; original08fcbf6 and final composition are distinguished",
-  "native_inference_calls": 0
+  "independent_ui_review": {
+    "verdict": "ACCEPT",
+    "score": "9/10",
+    "source": "762b636a53dfb751891345ade50797d9ceb4fffb",
+    "report": "ymp-evals/reports/ymp-118-native-independent-review.md",
+    "minor_followups_task": "YMP-112"
+  },
+  "native_inference_calls": 0,
+  "main_integration": {
+    "source": "cf89f61856ed71ef37cf033ba2a13109b1309e1d",
+    "all_reviewed_source_files_identical": true,
+    "checks": [
+      {
+        "step": "fmt",
+        "exit": 0,
+        "seconds": 0.49,
+        "log": "/tmp/ymp-main-native-ui/fmt.log",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "step": "clippy",
+        "exit": 0,
+        "seconds": 2.02,
+        "log": "/tmp/ymp-main-native-ui/clippy.log",
+        "sha256": "960aedf4a615c1f78aa421cc60f0ce0f3c21e392335ff7a03d91087aa9ee7a00"
+      },
+      {
+        "step": "workspace",
+        "exit": 0,
+        "seconds": 65.43,
+        "log": "/tmp/ymp-main-native-ui/workspace.log",
+        "sha256": "95d20a7e7fceb773bcf7c81c71da9b28a3f5cbc9f9757176592954b24ca16bea"
+      },
+      {
+        "step": "build",
+        "exit": 0,
+        "seconds": 0.2,
+        "log": "/tmp/ymp-main-native-ui/build.log",
+        "sha256": "2b34696728dc82b03cbf6311d7e3a6a41658bbde097834c3010a78bc82842c1a"
+      }
+    ],
+    "binary": "/Users/maggnus/Code/ymp2/target/debug/ymp",
+    "binary_sha256": "d9ba0d600450e32d822c4c80db7bdb057e4727593e523b3f2641067c755e56b3",
+    "installed_release_updated": false
+  }
 }
