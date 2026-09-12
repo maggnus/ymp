@@ -86,7 +86,7 @@ pub struct RunOutcome {
 }
 
 struct RecordedResponse {
-    _access: Option<crate::workspace_access::AccessLease>,
+    _access: Option<crate::WorkspaceReservation>,
     text: String,
     assignment_id: String,
     invocation_id: String,
@@ -1017,38 +1017,13 @@ impl Engine {
             bridge: self.bridge.clone(),
         };
         let assignment_id = new_id();
-        let task_value = task
-            .as_ref()
-            .map(|reference| {
-                self.store
-                    .tasks(&ctx.session.id)?
-                    .into_iter()
-                    .find(|t| t.id == reference.task_id && t.attempts == reference.attempt)
-                    .context("Workspace policy task is missing or stale")
-            })
-            .transpose()?;
-        let backend_access = self.execution_backend.workspace_access(&request);
-        let effective_access = self
-            .workspace_policy
-            .resolve(&crate::WorkspaceAccessInput {
-                directory: cwd,
-                purpose,
-                task: task_value.as_ref(),
-                backend_access: &backend_access,
-            })?;
-        anyhow::ensure!(
-            effective_access.covers(&backend_access),
-            "unsupported_workspace_guarantee: policy cannot narrow actual backend access"
-        );
-        crate::workspace_access::validate_access(cwd, &backend_access)?;
-        crate::workspace_access::validate_access(cwd, &effective_access)?;
-        let access_decision = WorkspaceAccessDecision {
-            reservation_id: assignment_id.clone(),
-            policy: self.workspace_policy_identity.clone(), backend: self.backend_identity.clone(),
-            directory: cwd.canonicalize()?, backend_access, effective_access,
-            rationale: "Direct MVP execution; access comes from the trusted backend. Unbounded writers own the whole directory. No rollback or source isolation is provided.".into(),
-        };
-        let access = self
+        let access_decision = self.workspace_access_decision(
+            &ctx.session.id,
+            &assignment_id,
+            &request,
+            task.as_ref(),
+        )?;
+        let lease = self
             .acquire_workspace(
                 ctx,
                 &assignment_id,
@@ -1057,6 +1032,15 @@ impl Engine {
                 &access_decision,
             )
             .await?;
+        let mut access = crate::WorkspaceReservation {
+            lease,
+            store: self.store.clone(),
+            session_id: ctx.session.id.clone(),
+            request: request.clone(),
+            task: task.clone(),
+            access: access_decision.clone(),
+            authority: None,
+        };
         // Existing per-run permits remain a secondary bound for legacy callers.
         let _permit = tokio::select! {_=self.cancel.cancelled()=>bail!("Cancelled"),p=ctx.permits.acquire()=>p?};
         let continuation = self
@@ -1161,7 +1145,8 @@ impl Engine {
             usage: None,
             terminal_reason: None,
         };
-        let token = ctx.server.admit_reserved(
+        let token = access.admit_reserved(
+            ctx.server.clone(),
             &mut assignment,
             &mut invocation,
             TeamOperation::coordination(),
@@ -1173,22 +1158,6 @@ impl Engine {
             id: invocation.id.clone(),
             closed: false,
         };
-        self.store.record_decision(&DecisionRecord {
-            id: new_id(),
-            session_id: ctx.session.id.clone(),
-            kind: "workspace_access_admitted".into(),
-            actor: Some(agent.id.clone()),
-            reason: access_decision.rationale.clone(),
-            outcome: None,
-            links: RecordLinks {
-                task: assignment.task.clone(),
-                assignment_id: Some(assignment.id.clone()),
-                invocation_id: Some(invocation.id.clone()),
-                workspace_access: Some(access_decision),
-                ..Default::default()
-            },
-            created_at: now(),
-        })?;
         // A failure after resume invalidates the previously completed marker.
         self.store.put_value(&key, &Value::Null)?;
         self.store.event(

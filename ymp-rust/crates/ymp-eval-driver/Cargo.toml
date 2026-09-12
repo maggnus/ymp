@@ -1,0 +1,22 @@
+[package]
+name = "ymp-eval-driver"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+ymp-core.workspace = true
+ymp-storage.workspace = true
+ymp-providers.workspace = true
+ymp-runtime.workspace = true
+anyhow.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+tokio.workspace = true
+tokio-util.workspace = true
+clap.workspace = true
+walkdir.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true
