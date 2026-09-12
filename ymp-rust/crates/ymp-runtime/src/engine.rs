@@ -2296,6 +2296,39 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn accepting_without_confirmation_never_awards_reputation() {
+        for instructions in ["[mock:no-checks]", "[mock:unrelated-check]"] {
+            let fixture = RunFixture::new(instructions, false);
+            let outcome = fixture.run().await;
+            assert_eq!(outcome.session.status, "completed");
+            assert!(fixture
+                .store
+                .tasks(&outcome.session.id)
+                .unwrap()
+                .iter()
+                .all(|t| t.state == TaskState::Accepted));
+            let observations = fixture.store.observations().unwrap();
+            assert!(
+                observations.iter().all(|o| !o.success),
+                "{instructions}: {} positive observations without relevant confirmation",
+                observations.iter().filter(|o| o.success).count()
+            );
+            let trace = fixture.store.trace(&outcome.session.id).unwrap();
+            let accepted = trace
+                .decisions
+                .iter()
+                .find(|d| d.kind == "task_accepted")
+                .unwrap();
+            assert_eq!(
+                accepted.outcome,
+                Some(DecisionOutcome::Accepted {
+                    confirmation: ConfirmationStatus::Unconfirmed
+                })
+            );
+        }
+    }
+
+    #[tokio::test]
     async fn every_planner_invocation_has_a_production_decision() {
         for instructions in ["", "[mock:reject:review_plan]"] {
             let mut fixture = RunFixture::new(instructions, false);
