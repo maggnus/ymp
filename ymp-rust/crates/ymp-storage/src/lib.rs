@@ -326,6 +326,7 @@ impl Store {
         }
         let mut db = self.db()?;
         let tx = db.transaction()?;
+        confirmation::validate_plain_task_write(&tx, t)?;
         write_task(&tx, t)?;
         tx.commit()?;
         Ok(())

@@ -559,6 +559,7 @@ fn stale_task_decisions_cannot_rewind_attempts_or_overwrite_a_later_state() {
         version: 1,
         task: Some(TaskAttemptRef::from(&candidate)),
         summary: candidate.result.clone().unwrap(),
+        task_definition: Some(TaskDefinition::from(&candidate)),
         criteria_version: content_digest(&serde_json::to_string(&criteria).unwrap()),
         criteria,
         contract_id: None,
@@ -587,6 +588,23 @@ fn stale_task_decisions_cannot_rewind_attempts_or_overwrite_a_later_state() {
     let (mut assignment, invocation) = f.invocation(2);
     assignment.agent_id = "reviewer".into();
     assignment.purpose = "review".into();
+    let submission = f
+        .store
+        .trace(&f.session.id)
+        .unwrap()
+        .decisions
+        .into_iter()
+        .find(|d| d.kind == "result_submitted")
+        .unwrap();
+    assignment.context.push(ContextReference {
+        kind: ContextKind::Result,
+        id: submission.id,
+        session_id: Some(f.session.id.clone()),
+        digest: Some(content_digest(
+            &serde_json::to_string(&Some(&result)).unwrap(),
+        )),
+        included_chars: None,
+    });
     f.store.begin_invocation(&assignment, &invocation).unwrap();
     f.store
         .finish_invocation(
@@ -671,8 +689,42 @@ fn stale_task_decisions_cannot_rewind_attempts_or_overwrite_a_later_state() {
             "a rejected stale write changed state or events"
         );
     }
-    // The same candidate can be accepted while its actual attempt is in review.
+    // Acceptance must preserve the exact text and definition captured at submission.
     f.store.save_task(&candidate).unwrap();
+    for mutation in 0..8 {
+        let mut forged = accepted.clone();
+        match mutation {
+            0 => forged.result = Some("A NEW unreviewed deliverable asserted at acceptance".into()),
+            1 => forged.title.push_str(" changed"),
+            2 => forged.description.push_str(" changed"),
+            3 => forged.competence = "planning".into(),
+            4 => forged.difficulty = "complex".into(),
+            5 => forged.checks.push("true".into()),
+            6 => forged.dependencies.push("unreviewed-dependency".into()),
+            _ => forged.workspace = Some(std::path::PathBuf::from("other-directory")),
+        }
+        let before = serde_json::to_value(f.store.trace(&f.session.id).unwrap()).unwrap();
+        assert!(
+            f.store.save_task_with_decision(&forged, &decision).is_err(),
+            "Installed changed candidate field {mutation}"
+        );
+        let after = serde_json::to_value(f.store.trace(&f.session.id).unwrap()).unwrap();
+        assert_eq!(
+            before, after,
+            "Rejected acceptance changed state or journal"
+        );
+        if let Some(directory) = std::env::var_os("YMP_TEST_CAPTURE_DIR") {
+            let directory = std::path::PathBuf::from(directory);
+            std::fs::create_dir_all(&directory).unwrap();
+            std::fs::write(
+                directory.join(format!("accepted-field-{mutation}.json")),
+                serde_json::to_vec_pretty(&serde_json::json!({"before":before,"after":after}))
+                    .unwrap(),
+            )
+            .unwrap();
+        }
+    }
+    // The unaltered candidate can still be accepted from its current review state.
     f.store
         .save_task_with_decision(&accepted, &decision)
         .unwrap();

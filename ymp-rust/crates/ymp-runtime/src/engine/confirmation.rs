@@ -51,6 +51,7 @@ impl Engine {
             version: task.attempts,
             task: Some(TaskAttemptRef::from(task)),
             summary: task.result.clone().unwrap_or_default(),
+            task_definition: Some(TaskDefinition::from(task)),
             criteria_version: content_digest(&serde_json::to_string(&criteria)?),
             criteria,
             contract_id: contract.map(|d| d.id.clone()),
@@ -261,6 +262,7 @@ impl Engine {
                 .count()
                 + 1,
             task: None,
+            task_definition: None,
             summary: tasks
                 .iter()
                 .filter_map(|t| t.result.clone())

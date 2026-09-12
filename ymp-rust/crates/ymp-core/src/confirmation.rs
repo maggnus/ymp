@@ -216,12 +216,41 @@ impl CapturedAcceptanceContract {
     }
 }
 
+/// The task definition judged with a candidate, excluding mutable lifecycle fields.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct TaskDefinition {
+    pub title: String,
+    pub description: String,
+    pub competence: String,
+    pub difficulty: String,
+    pub dependencies: Vec<String>,
+    pub checks: Vec<String>,
+    pub workspace: Option<PathBuf>,
+    pub base_commit: Option<String>,
+}
+impl From<&crate::Task> for TaskDefinition {
+    fn from(task: &crate::Task) -> Self {
+        Self {
+            title: task.title.clone(),
+            description: task.description.clone(),
+            competence: task.competence.clone(),
+            difficulty: task.difficulty.clone(),
+            dependencies: task.dependencies.clone(),
+            checks: task.checks.clone(),
+            workspace: task.workspace.clone(),
+            base_commit: task.base_commit.clone(),
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ResultVersion {
     pub id: String,
     pub version: usize,
     pub task: Option<TaskAttemptRef>,
     pub summary: String,
+    #[serde(default)]
+    pub task_definition: Option<TaskDefinition>,
     pub criteria: Vec<AcceptanceCriterion>,
     pub criteria_version: String,
     pub contract_id: Option<String>,

@@ -476,3 +476,193 @@ async fn confirmation_alternative_executor_cannot_bypass_runtime_evidence_guards
         }
     }
 }
+
+#[tokio::test]
+async fn confirmation_final_phase_and_review_outcome_are_bound_to_the_invocation() {
+    let mut fixture = RunFixture::new("[mock:no-checks]", false);
+    fixture.engine.acceptance_contracts.push(exact_contract());
+    let outcome = fixture.run().await;
+    let trace = fixture.store.trace(&outcome.session.id).unwrap();
+    let candidate = trace
+        .decisions
+        .iter()
+        .find(|d| d.kind == "candidate_review")
+        .unwrap();
+    let final_review = trace
+        .decisions
+        .iter()
+        .find(|d| d.kind == "final_review")
+        .unwrap();
+    let final_acceptance = trace
+        .decisions
+        .iter()
+        .find(|d| d.kind == "final_accepted")
+        .unwrap();
+    for forgery in 0..6 {
+        let mut decision = match forgery {
+            0 => accepted(&trace),
+            1 => final_review,
+            2 | 3 => candidate,
+            _ => final_acceptance,
+        }
+        .clone();
+        decision.id = new_id();
+        match forgery {
+            0 => decision.kind = "final_accepted".into(),
+            1 => {
+                decision.actor = candidate.actor.clone();
+                decision.links.assignment_id = candidate.links.assignment_id.clone();
+                decision.links.invocation_id = candidate.links.invocation_id.clone();
+            }
+            2 => {
+                decision.outcome = Some(DecisionOutcome::Rejected);
+                decision.reason = "Opposite judgment for an already observed invocation".into();
+            }
+            3 => {} // Even an identical assessment cannot consume the invocation again.
+            4 => decision.outcome = Some(DecisionOutcome::Rejected),
+            _ => decision.kind = "final_rejected".into(),
+        }
+        assert!(
+            fixture.store.record_decision(&decision).is_err(),
+            "Accepted review/phase forgery {forgery}"
+        );
+        assert_eq!(
+            serde_json::to_value(fixture.store.trace(&outcome.session.id).unwrap()).unwrap(),
+            serde_json::to_value(&trace).unwrap()
+        );
+    }
+    let mut reopened_task = trace.tasks[0].clone();
+    reopened_task.state = TaskState::Review;
+    assert!(fixture.store.save_task(&reopened_task).is_err());
+    let unchanged = fixture.store.trace(&outcome.session.id).unwrap();
+    assert_eq!(
+        serde_json::to_value(&unchanged).unwrap(),
+        serde_json::to_value(&trace).unwrap()
+    );
+    if let Some(directory) = std::env::var_os("YMP_TEST_CAPTURE_DIR") {
+        let directory = PathBuf::from(directory);
+        std::fs::create_dir_all(&directory).unwrap();
+        std::fs::write(
+            directory.join("accepted-attempt-reopen.json"),
+            serde_json::to_vec_pretty(&json!({"before":trace,"after":unchanged})).unwrap(),
+        )
+        .unwrap();
+    }
+    // A fresh final review is valid, but its new aggregate supersedes the old one.
+    let resumed = fixture
+        .engine
+        .run(&fixture.project, "", Some(&outcome.session.id))
+        .await
+        .unwrap();
+    assert_eq!(resumed.session.status, "completed");
+    let before = fixture.store.trace(&outcome.session.id).unwrap();
+    let mut stale = final_acceptance.clone();
+    stale.id = new_id();
+    assert!(fixture.store.record_decision(&stale).is_err());
+    assert_eq!(
+        serde_json::to_value(fixture.store.trace(&outcome.session.id).unwrap()).unwrap(),
+        serde_json::to_value(before).unwrap()
+    );
+}
+
+#[tokio::test]
+async fn confirmation_delivery_rechecks_files_after_normal_and_failed_narration() {
+    for confirmed in [false, true] {
+        for fail_narration in [false, true] {
+            for changed_file in ["greeting.txt", "source.txt"] {
+                let mut fixture = RunFixture::new(
+                    if fail_narration {
+                        "[mock:fail:synthesis]"
+                    } else {
+                        ""
+                    },
+                    false,
+                );
+                std::fs::write(fixture.project.join("source.txt"), "supplied data\n").unwrap();
+                let mut contract = exact_contract();
+                contract.inputs.push("source.txt".into());
+                if !confirmed {
+                    contract.criteria.push(AcceptanceCriterion {
+                        id: "quality".into(),
+                        description: "Unconfirmed qualitative criterion".into(),
+                    });
+                }
+                fixture.engine.acceptance_contracts.push(contract);
+                let engine = fixture.engine.clone();
+                let project = fixture.project.clone();
+                let run = tokio::spawn(async move {
+                    engine
+                        .run(&project, "Create a greeting", None)
+                        .await
+                        .unwrap()
+                });
+                while let Some(event) = fixture.events.recv().await {
+                    if matches!(event, UiEvent::AgentStatus { ref status, .. } if status == "synthesis")
+                    {
+                        std::fs::write(
+                            fixture.project.join(changed_file),
+                            "changed during narration\n",
+                        )
+                        .unwrap();
+                        break;
+                    }
+                }
+                let outcome = run.await.unwrap();
+                assert_eq!(outcome.session.status, "blocked", "{}", outcome.summary);
+                assert!(outcome
+                    .summary
+                    .contains("current confirmation is unconfirmed"));
+                assert!(!outcome.summary.ends_with("confirmation: confirmed."));
+                let trace = fixture.store.trace(&outcome.session.id).unwrap();
+                let historical = trace
+                    .decisions
+                    .iter()
+                    .find(|d| d.kind == "final_accepted")
+                    .unwrap();
+                assert_eq!(
+                    historical.outcome,
+                    Some(DecisionOutcome::Accepted {
+                        confirmation: if confirmed {
+                            ConfirmationStatus::Confirmed
+                        } else {
+                            ConfirmationStatus::Unconfirmed
+                        }
+                    })
+                );
+                assert!(trace
+                    .decisions
+                    .iter()
+                    .any(|d| d.kind == "result_invalidated"
+                        && d.links.result == historical.links.result));
+                assert!(!fixture
+                    .store
+                    .result_is_current(
+                        &outcome.session.id,
+                        historical.links.result.as_ref().unwrap()
+                    )
+                    .unwrap());
+                assert_eq!(
+                    fixture
+                        .store
+                        .confirmation_grade(
+                            &outcome.session.id,
+                            historical.links.result.as_ref().unwrap()
+                        )
+                        .unwrap()
+                        .0,
+                    ConfirmationStatus::Unconfirmed
+                );
+                assert_eq!(
+                    fixture.store.observations().unwrap().len(),
+                    usize::from(confirmed),
+                    "Historical supported observations remain inspectable"
+                );
+                if let Some(directory) = std::env::var_os("YMP_TEST_CAPTURE_DIR") {
+                    let directory = PathBuf::from(directory);
+                    std::fs::create_dir_all(&directory).unwrap();
+                    std::fs::write(directory.join(format!("delivery-{confirmed}-{fail_narration}-{changed_file}.json")), serde_json::to_vec_pretty(&json!({"outcome":outcome.summary,"status":outcome.session.status,"trace":trace})).unwrap()).unwrap();
+                }
+            }
+        }
+    }
+}

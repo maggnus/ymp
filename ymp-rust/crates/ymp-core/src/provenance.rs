@@ -111,6 +111,7 @@ pub enum ContextKind {
     Message,
     Memory,
     Task,
+    Result,
     Session,
     Prompt,
     ProfileInstructions,

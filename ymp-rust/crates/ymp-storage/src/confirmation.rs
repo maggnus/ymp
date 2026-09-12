@@ -12,6 +12,138 @@ fn root(db: &Connection, session: &str) -> Result<std::path::PathBuf> {
     Ok(project.path)
 }
 
+fn current_task(db: &Connection, result: &ResultVersion) -> Result<bool> {
+    let Some(reference) = &result.task else {
+        return Ok(false);
+    };
+    let task: Task = record(db, "tasks", &reference.task_id)?;
+    let producer: AssignmentRecord = record(
+        db,
+        "assignments",
+        result
+            .producer_assignment_ids
+            .first()
+            .context("Missing result producer")?,
+    )?;
+    Ok(task.attempts == result.version
+        && task.assignee.as_ref() == Some(&producer.agent_id)
+        && producer.task == result.task
+        && result.task_definition.as_ref() == Some(&TaskDefinition::from(&task))
+        && task.result.as_deref() == Some(result.summary.as_str()))
+}
+
+fn current_aggregate(db: &Connection, session: &str, result: &ResultVersion) -> Result<bool> {
+    if result.task.is_some() || result.task_definition.is_some() || result.component_ids.is_empty()
+    {
+        return Ok(false);
+    }
+    let tasks: Vec<Task> = records(db, "tasks", session)?;
+    let components = result
+        .component_ids
+        .iter()
+        .map(|id| record::<DecisionRecord>(db, "decisions", id))
+        .collect::<Result<Vec<_>>>()?;
+    if tasks.len() != components.len() {
+        return Ok(false);
+    }
+    for task in tasks {
+        if task.state != TaskState::Accepted {
+            return Ok(false);
+        }
+        let Some(component) = components.iter().find(|d| {
+            d.session_id == session
+                && d.kind == "result_submitted"
+                && d.links.task.as_ref() == Some(&TaskAttemptRef::from(&task))
+        }) else {
+            return Ok(false);
+        };
+        if !current_task(
+            db,
+            component
+                .links
+                .result
+                .as_ref()
+                .context("Missing component result")?,
+        )? {
+            return Ok(false);
+        }
+    }
+    Ok(true)
+}
+
+fn current_files(db: &Connection, session: &str, result: &ResultVersion) -> Result<bool> {
+    let directory = root(db, session)?;
+    if !result.artifacts.iter().all(|a| a.current(&directory)) {
+        return Ok(false);
+    }
+    if let Some(id) = &result.contract_id {
+        let contract: DecisionRecord = record(db, "decisions", id)?;
+        if !contract
+            .links
+            .acceptance_contract
+            .context("Missing captured contract")?
+            .inputs
+            .iter()
+            .all(|a| a.current(&directory))
+        {
+            return Ok(false);
+        }
+    }
+    for id in &result.component_ids {
+        let component: DecisionRecord = record(db, "decisions", id)?;
+        if !current_files(
+            db,
+            session,
+            component
+                .links
+                .result
+                .as_ref()
+                .context("Missing component result")?,
+        )? {
+            return Ok(false);
+        }
+    }
+    Ok(true)
+}
+
+fn known_result(db: &Connection, session: &str, result: &ResultVersion) -> Result<()> {
+    let decisions: Vec<DecisionRecord> = records(db, "decisions", session)?;
+    ensure!(
+        decisions.iter().any(|d| matches!(
+            d.kind.as_str(),
+            "result_submitted" | "result_aggregated"
+        ) && d.links.result.as_ref() == Some(result)),
+        "Cannot inspect an unknown or altered result version"
+    );
+    Ok(())
+}
+
+pub(super) fn validate_plain_task_write(db: &Connection, task: &Task) -> Result<()> {
+    let tasks: Vec<Task> = records(db, "tasks", &task.session_id)?;
+    ensure!(!tasks.iter().any(|old| old.id == task.id && old.state == TaskState::Accepted), "An accepted attempt cannot be reopened by a plain task write; submit a new task/result version");
+    let decisions: Vec<DecisionRecord> = records(db, "decisions", &task.session_id)?;
+    for result in decisions
+        .iter()
+        .filter(|d| {
+            d.kind == "result_submitted"
+                && d.links.task.as_ref() == Some(&TaskAttemptRef::from(task))
+        })
+        .filter_map(|d| d.links.result.as_ref())
+    {
+        ensure!(
+            result.task_definition.as_ref() == Some(&TaskDefinition::from(task)),
+            "Submitted task definition is immutable for this attempt"
+        );
+        if task.state == TaskState::Review {
+            ensure!(
+                task.result.as_deref() == Some(result.summary.as_str()),
+                "Submitted result text is immutable for this attempt"
+            );
+        }
+    }
+    Ok(())
+}
+
 pub(super) fn grade(
     db: &Connection,
     session: &str,
@@ -82,6 +214,26 @@ pub(super) fn grade(
 }
 
 pub(super) fn validate(db: &Connection, value: &DecisionRecord) -> Result<()> {
+    match value.kind.as_str() {
+        "task_accepted" | "final_accepted" => ensure!(
+            matches!(value.outcome, Some(DecisionOutcome::Accepted { .. })),
+            "Accepted decision kind requires an accepted outcome"
+        ),
+        "task_rejected" | "final_rejected" => ensure!(
+            value.outcome == Some(DecisionOutcome::Rejected),
+            "Rejected decision kind requires a rejected outcome"
+        ),
+        "candidate_review" | "candidate_arbitration" | "final_review" => ensure!(
+            matches!(
+                value.outcome,
+                Some(DecisionOutcome::Accepted {
+                    confirmation: ConfirmationStatus::Unconfirmed
+                }) | Some(DecisionOutcome::Rejected)
+            ),
+            "Review requires a single unconfirmed assessment outcome"
+        ),
+        _ => {}
+    }
     if let Some(contract) = &value.links.acceptance_contract {
         ensure!(
             value.kind == "acceptance_contract_captured" && value.actor.is_none(),
@@ -174,6 +326,34 @@ pub(super) fn validate(db: &Connection, value: &DecisionRecord) -> Result<()> {
             .as_ref()
             .is_some_and(|r| r.id == result.id && r.version == result.version)
     });
+    if matches!(
+        value.kind.as_str(),
+        "final_review" | "final_accepted" | "final_rejected"
+    ) {
+        ensure!(
+            current_aggregate(db, &value.session_id, result)?,
+            "Final transition requires an aggregate covering every current accepted task"
+        );
+        ensure!(
+            submissions
+                .iter()
+                .rev()
+                .find(|d| d.kind == "result_aggregated")
+                .is_some_and(|d| d.links.result.as_ref() == Some(result)),
+            "Final transition requires the current recorded aggregate version"
+        );
+    }
+    if matches!(
+        value.kind.as_str(),
+        "candidate_review" | "candidate_arbitration" | "task_accepted" | "task_rejected"
+    ) {
+        ensure!(
+            result.task.is_some()
+                && result.component_ids.is_empty()
+                && result.task_definition.is_some(),
+            "Candidate transition requires a leaf task result"
+        );
+    }
     let producing = matches!(
         value.kind.as_str(),
         "result_submitted" | "result_aggregated"
@@ -235,6 +415,10 @@ pub(super) fn validate(db: &Connection, value: &DecisionRecord) -> Result<()> {
         "Result producer scope mismatch"
     );
     if value.kind == "result_submitted" {
+        ensure!(
+            current_task(db, result)?,
+            "Submission requires the exact task definition and result text"
+        );
         let task: Task = record(
             db,
             "tasks",
@@ -315,6 +499,13 @@ pub(super) fn validate(db: &Connection, value: &DecisionRecord) -> Result<()> {
     ) {
         let actor = value.actor.as_ref().context("Review needs a reviewer")?;
         ensure!(
+            !all.iter().any(|d| matches!(
+                d.kind.as_str(),
+                "candidate_review" | "candidate_arbitration" | "final_review"
+            ) && d.links.invocation_id == value.links.invocation_id),
+            "A review invocation already has its immutable assessment"
+        );
+        ensure!(
             producers.iter().all(|p| &p.agent_id != actor),
             "Independent review excludes every result producer"
         );
@@ -331,8 +522,27 @@ pub(super) fn validate(db: &Connection, value: &DecisionRecord) -> Result<()> {
         ensure!(
             invocation.state == InvocationState::Completed
                 && assignment.agent_id == *actor
-                && matches!(assignment.purpose.as_str(), "review" | "final_review"),
+                && assignment.purpose
+                    == if value.kind == "final_review" {
+                        "final_review"
+                    } else {
+                        "review"
+                    }
+                && assignment.task == result.task
+                && value.links.assignment_id.as_ref() == Some(&assignment.id),
             "Review must identify its completed reviewer invocation"
+        );
+        let submission = existing.context("Review result submission missing")?;
+        let digest = content_digest(&serde_json::to_string(&Some(result))?);
+        ensure!(
+            assignment
+                .context
+                .iter()
+                .any(|c| c.kind == ContextKind::Result
+                    && c.id == submission.id
+                    && c.session_id.as_ref() == Some(&value.session_id)
+                    && c.digest.as_ref() == Some(&digest)),
+            "Review assignment was not bound to this exact result version"
         );
         ensure!(
             !matches!(
@@ -455,6 +665,12 @@ pub(super) fn validate(db: &Connection, value: &DecisionRecord) -> Result<()> {
                 "Acceptance decision must commit with the matching task state"
             );
         }
+        if value.kind == "task_accepted" {
+            ensure!(
+                current_task(db, result)?,
+                "Acceptance must preserve the reviewed task definition and result text"
+            );
+        }
         let review: DecisionRecord = record(
             db,
             "decisions",
@@ -467,10 +683,14 @@ pub(super) fn validate(db: &Connection, value: &DecisionRecord) -> Result<()> {
         ensure!(
             review.session_id == value.session_id
                 && review.links.result.as_ref() == Some(result)
-                && matches!(
-                    review.kind.as_str(),
-                    "candidate_review" | "candidate_arbitration" | "final_review"
-                )
+                && if value.kind.starts_with("final_") {
+                    review.kind == "final_review"
+                } else {
+                    matches!(
+                        review.kind.as_str(),
+                        "candidate_review" | "candidate_arbitration"
+                    )
+                }
                 && value.actor == review.actor
                 && value.links.invocation_id == review.links.invocation_id,
             "Acceptance review binding mismatch"
@@ -515,15 +735,21 @@ impl Store {
         result: &ResultVersion,
     ) -> Result<(ConfirmationStatus, Vec<String>, bool)> {
         let db = self.db()?;
-        let decisions: Vec<DecisionRecord> = records(&db, "decisions", session)?;
-        ensure!(
-            decisions.iter().any(|d| matches!(
-                d.kind.as_str(),
-                "result_submitted" | "result_aggregated"
-            ) && d.links.result.as_ref() == Some(result)),
-            "Cannot grade an unknown or altered result version"
-        );
+        known_result(&db, session, result)?;
         grade(&db, session, result)
+    }
+
+    /// Check persistent artifact/input changes and current task bindings without
+    /// turning qualitative acceptance into objective confirmation.
+    pub fn result_is_current(&self, session: &str, result: &ResultVersion) -> Result<bool> {
+        let db = self.db()?;
+        known_result(&db, session, result)?;
+        let definitions_current = if result.task.is_some() {
+            current_task(&db, result)?
+        } else {
+            current_aggregate(&db, session, result)?
+        };
+        Ok(definitions_current && current_files(&db, session, result)?)
     }
 
     /// Credit a confirmed producing invocation once. Agreement and legacy

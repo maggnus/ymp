@@ -784,6 +784,30 @@ impl Engine {
                 included_chars: None,
             });
         }
+        if purpose == "final_review" || (purpose == "review" && task.is_some()) {
+            let trace = self.store.trace(&ctx.session.id)?;
+            let result = trace
+                .decisions
+                .iter()
+                .rev()
+                .find(|d| {
+                    if purpose == "final_review" {
+                        d.kind == "result_aggregated"
+                    } else {
+                        d.kind == "result_submitted" && d.links.task == task
+                    }
+                })
+                .context("Review assignment requires a submitted result version")?;
+            context.push(ContextReference {
+                kind: ContextKind::Result,
+                id: result.id.clone(),
+                session_id: Some(ctx.session.id.clone()),
+                digest: Some(content_digest(&serde_json::to_string(
+                    &result.links.result,
+                )?)),
+                included_chars: None,
+            });
+        }
         let mut assignment = AssignmentRecord {
             id: new_id(),
             session_id: ctx.session.id.clone(),
@@ -1353,7 +1377,7 @@ impl Engine {
                 DecisionOutcome::Rejected
             }),
             links: RecordLinks {
-                result: Some(aggregate),
+                result: Some(aggregate.clone()),
                 assignment_id: Some(response.assignment_id.clone()),
                 invocation_id: Some(response.invocation_id.clone()),
                 review_ids: vec![review_id],
@@ -1378,7 +1402,7 @@ impl Engine {
             }
         }
         let synthesis=self.ask(ctx,&verifier,&ctx.workspace.directory,"synthesis",&format!("Summarize the completed work for the user. State what changed, how it was checked, and remaining limitations. Original request: {prompt}"),true).await;
-        match synthesis {
+        let summary = match synthesis {
             Ok(text) => Ok(format!(
                 "{text}\n\nAcceptance: accepted; confirmation: {}.",
                 match confirmation {
@@ -1409,7 +1433,18 @@ impl Engine {
                     verifier.id, review.reason
                 ))
             }
+        }?;
+        let (current_grade, _, failed) =
+            self.store.confirmation_grade(&ctx.session.id, &aggregate)?;
+        if !self.store.result_is_current(&ctx.session.id, &aggregate)?
+            || failed
+            || (confirmation == ConfirmationStatus::Confirmed
+                && current_grade != ConfirmationStatus::Confirmed)
+        {
+            self.store.record_decision(&DecisionRecord { id: new_id(), session_id: ctx.session.id.clone(), kind: "result_invalidated".into(), actor: None, reason: "The accepted result or its inputs changed during optional work or final narration; historical acceptance is retained and a fresh result and independent review are required".into(), outcome: None, links: RecordLinks { result: Some(aggregate), ..Default::default() }, created_at: now() })?;
+            bail!("Final result changed during narration; current confirmation is unconfirmed. Historical acceptance is retained; a fresh result and independent review are required");
         }
+        Ok(summary)
     }
 
     async fn learn(&self, ctx: &RunContext, author: &AgentProfile, prompt: &str) -> Result<()> {
