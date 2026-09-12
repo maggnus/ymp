@@ -1669,6 +1669,11 @@
           "at": "2026-09-12T15:34:36.340125+00:00",
           "status": "in_progress",
           "note": "Owner approved direct execution for MVP only and the instruction conflict is resolved. Useful concurrency is assigned against the prepared allocation interface: independent safe work may overlap, conflicting or unbounded writes serialize, and effective access is recorded. Post-MVP isolation is YMP-124."
+        },
+        {
+          "at": "2026-09-12T16:11:12.347847+00:00",
+          "status": "in_progress",
+          "note": "Candidate 32624efd implements explicit task access, ordinary default-policy overlap, conservative native scopes and sibling/cancellation/restart handling. Author reports 267 passing Rust tests and eight observed failing controls. Independent xhigh code review is running; tested providers are deterministic, with no model inference."
         }
       ]
     },
@@ -2316,6 +2321,11 @@
           "at": "2026-09-12T15:56:35.075371+00:00",
           "status": "in_progress",
           "note": "Public stdio facade is assigned at xhigh for development; all tests use scripted providers and a real MCP client without inference. Scope includes fixed project/action permissions, bounded start/resume/progress/cancel, stable IDs, and bounded knowledge/history/result projections shared with internal MCP."
+        },
+        {
+          "at": "2026-09-12T16:11:12.502837+00:00",
+          "status": "in_progress",
+          "note": "Public facade passed an official MCP Python SDK process walk with fixed mock/low providers: discovery, scoped reads/execution, progress, cancellation/reopen and bounded pagination. Five guard-removal controls fail. Final disconnect/SIGKILL/internal-bridge checks and code review are still pending; no actual model inference."
         }
       ]
     },
@@ -2350,7 +2360,7 @@
       ]
     }
   ],
-  "updated_at": "2026-09-12T15:56:35.075371+00:00",
+  "updated_at": "2026-09-12T16:11:12.502837+00:00",
   "delivery_order": [
     "YMP-116",
     "YMP-103",

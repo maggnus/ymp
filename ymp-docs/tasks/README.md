@@ -1,6 +1,6 @@
 # Task details and evidence
 
-Updated: 2026-09-12 15:56 UTC.
+Updated: 2026-09-12 16:11 UTC.
 
 Use the [delivery plan](plan.md) to follow progress. This generated register contains full acceptance criteria, dependencies and evidence. [tasks.json](tasks.json) is the single source; [manage.py](manage.py) updates both pages.
 
@@ -50,7 +50,7 @@ A planned task is not implemented functionality. Completed research and planning
 | `[~]` | [YMP-113](#ymp-113) | P0 | Accumulate general knowledge and verified experience incrementally | 2026-09-12 15:56 |
 | `[=]` | [YMP-114](#ymp-114) | P0 | Correct and supersede knowledge with newer verified evidence | 2026-09-12 12:46 |
 | `[x]` | [YMP-009](#ymp-009) | P0 | Align the product definition, research conclusions and backlog with final intent | 2026-09-12 09:15 |
-| `[~]` | [YMP-115](#ymp-115) | P0 | Enable useful concurrent execution of independent assignments | 2026-09-12 15:34 |
+| `[~]` | [YMP-115](#ymp-115) | P0 | Enable useful concurrent execution of independent assignments | 2026-09-12 16:11 |
 | `[x]` | [YMP-010](#ymp-010) | P0 | Approve product goals and core protocol constraints | 2026-09-12 09:06 |
 | `[x]` | [YMP-011](#ymp-011) | P0 | Document bounded dynamic teams and assignment-level effort | 2026-09-12 08:41 |
 | `[x]` | [YMP-012](#ymp-012) | P0 | Establish the delivery plan and traceable backlog for the approved intent | 2026-09-12 09:15 |
@@ -62,7 +62,7 @@ A planned task is not implemented functionality. Completed research and planning
 | `[=]` | [YMP-121](#ymp-121) | P1 | Verify the integrated application and package a local release | 2026-09-12 14:50 |
 | `[x]` | [YMP-013](#ymp-013) | P0 | Review plan coherence and simplify progress tracking | 2026-09-12 09:46 |
 | `[x]` | [YMP-122](#ymp-122) | P1 | Expose replaceable execution backends behind runtime-owned controls | 2026-09-12 15:23 |
-| `[~]` | [YMP-123](#ymp-123) | P1 | Expose a public local MCP facade over stdio | 2026-09-12 15:56 |
+| `[~]` | [YMP-123](#ymp-123) | P1 | Expose a public local MCP facade over stdio | 2026-09-12 16:11 |
 | `[=]` | [YMP-124](#ymp-124) | P1 | Add isolated execution and recoverable publication for larger projects | 2026-09-12 15:31 |
 
 ## YMP-001
@@ -995,9 +995,9 @@ Enable useful concurrent execution of independent assignments
 
 **State:** `[~]` (in_progress) · **Type:** implementation · **Priority:** P0
 
-**Last update (UTC):** 2026-09-12 15:34
+**Last update (UTC):** 2026-09-12 16:11
 
-**Current reason:** Owner approved direct execution for MVP only and the instruction conflict is resolved. Useful concurrency is assigned against the prepared allocation interface: independent safe work may overlap, conflicting or unbounded writes serialize, and effective access is recorded. Post-MVP isolation is YMP-124.
+**Current reason:** Candidate 32624efd implements explicit task access, ordinary default-policy overlap, conservative native scopes and sibling/cancellation/restart handling. Author reports 267 passing Rust tests and eight observed failing controls. Independent xhigh code review is running; tested providers are deterministic, with no model inference.
 
 **Owner:** Maintainer
 
@@ -1413,9 +1413,9 @@ Expose a public local MCP facade over stdio
 
 **State:** `[~]` (in_progress) · **Type:** implementation · **Priority:** P1
 
-**Last update (UTC):** 2026-09-12 15:56
+**Last update (UTC):** 2026-09-12 16:11
 
-**Current reason:** Public stdio facade is assigned at xhigh for development; all tests use scripted providers and a real MCP client without inference. Scope includes fixed project/action permissions, bounded start/resume/progress/cancel, stable IDs, and bounded knowledge/history/result projections shared with internal MCP.
+**Current reason:** Public facade passed an official MCP Python SDK process walk with fixed mock/low providers: discovery, scoped reads/execution, progress, cancellation/reopen and bounded pagination. Five guard-removal controls fail. Final disconnect/SIGKILL/internal-bridge checks and code review are still pending; no actual model inference.
 
 **Owner:** Maintainer
 

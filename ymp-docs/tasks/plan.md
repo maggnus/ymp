@@ -1,6 +1,6 @@
 # Delivery plan and progress
 
-Updated: 2026-09-12 15:56 UTC.
+Updated: 2026-09-12 16:11 UTC.
 
 [Approved intent](../../intent.md) · [Task details and evidence](README.md) · [Canonical register](tasks.json)
 
@@ -30,9 +30,9 @@ A planned task automatically shows `[=]` while prerequisites remain unfinished a
 
 - `[~]` [YMP-110](README.md#ymp-110) — Select session teams and execution settings within user constraints (2026-09-12 15:56). Standalone R2(9/10) ACCEPT closes both findings; public reservation/admission interleavings and known/unknown pin controls pass. Integration with accepted knowledge113 and UI118 is underway; historical/current membership must remain consistent across those consumers.
 - `[~]` [YMP-113](README.md#ymp-113) — Accumulate general knowledge and verified experience incrementally (2026-09-12 15:56). Standalone R2(9/10) ACCEPT preserves captured locations after relocation. Joint110/113 consumer found the older deterministic follow-up path reopened workspace metadata at the relocated directory; integration is routing it through immutable Store.outcomes. UI118 consumes the same source/current-availability records.
-- `[~]` [YMP-115](README.md#ymp-115) — Enable useful concurrent execution of independent assignments (2026-09-12 15:34). Owner approved direct execution for MVP only and the instruction conflict is resolved. Useful concurrency is assigned against the prepared allocation interface: independent safe work may overlap, conflicting or unbounded writes serialize, and effective access is recorded. Post-MVP isolation is YMP-124.
+- `[~]` [YMP-115](README.md#ymp-115) — Enable useful concurrent execution of independent assignments (2026-09-12 16:11). Candidate 32624efd implements explicit task access, ordinary default-policy overlap, conservative native scopes and sibling/cancellation/restart handling. Author reports 267 passing Rust tests and eight observed failing controls. Independent xhigh code review is running; tested providers are deterministic, with no model inference.
 - `[~]` [YMP-118](README.md#ymp-118) — Integrate core assignment, budget and confirmation visibility (2026-09-12 14:16). Claude Opus5 max is implementing core state/constraint/confirmation views and correcting shared-frame clipping in an isolated checkout. The UI will use actual captured records and integrate committed110/113 projections as available. Black theme, typography and sidebar behavior are preserved.
-- `[~]` [YMP-123](README.md#ymp-123) — Expose a public local MCP facade over stdio (2026-09-12 15:56). Public stdio facade is assigned at xhigh for development; all tests use scripted providers and a real MCP client without inference. Scope includes fixed project/action permissions, bounded start/resume/progress/cancel, stable IDs, and bounded knowledge/history/result projections shared with internal MCP.
+- `[~]` [YMP-123](README.md#ymp-123) — Expose a public local MCP facade over stdio (2026-09-12 16:11). Public facade passed an official MCP Python SDK process walk with fixed mock/low providers: discovery, scoped reads/execution, progress, cancellation/reopen and bounded pagination. Five guard-removal controls fail. Final disconnect/SIGKILL/internal-bridge checks and code review are still pending; no actual model inference.
 
 ## Ready next
 
@@ -71,7 +71,7 @@ No delivery task is ready. See the dependency reasons below.
 | --- | --- | --- | --- |
 | `[~]` | [YMP-110](README.md#ymp-110) — Select session teams and execution settings within user constraints | 2026-09-12 15:56 | Standalone R2(9/10) ACCEPT closes both findings; public reservation/admission interleavings and known/unknown pin controls pass. Integration with accepted knowledge113 and UI118 is underway; historical/current membership must remain consistent across those consumers. |
 | `[=]` | [YMP-112](README.md#ymp-112) — Coordinate commitments, plan revisions and reassignment through the board | 2026-09-12 12:46 | Needs YMP-110 |
-| `[~]` | [YMP-115](README.md#ymp-115) — Enable useful concurrent execution of independent assignments | 2026-09-12 15:34 | Owner approved direct execution for MVP only and the instruction conflict is resolved. Useful concurrency is assigned against the prepared allocation interface: independent safe work may overlap, conflicting or unbounded writes serialize, and effective access is recorded. Post-MVP isolation is YMP-124. |
+| `[~]` | [YMP-115](README.md#ymp-115) — Enable useful concurrent execution of independent assignments | 2026-09-12 16:11 | Candidate 32624efd implements explicit task access, ordinary default-policy overlap, conservative native scopes and sibling/cancellation/restart handling. Author reports 267 passing Rust tests and eight observed failing controls. Independent xhigh code review is running; tested providers are deterministic, with no model inference. |
 
 ## M4 — Incremental reusable experience
 
@@ -92,7 +92,7 @@ No delivery task is ready. See the dependency reasons below.
 | --- | --- | --- | --- |
 | `[x]` | [YMP-107](README.md#ymp-107) — Expose recorded checks and factual recovery limits | 2026-09-12 12:55 | R2(9/10) ACCEPT by independent Claude Opus5 max review; integrated c2b273b,628e99a,9b82bf2. Recorded checks distinguish unknown/missing runs and task scope; recovery/output limits are factual. Main matches reviewed UI bytes; fmt/clippy and164 Rust tests exit0. Shared-frame clipping remains118. |
 | `[~]` | [YMP-118](README.md#ymp-118) — Integrate core assignment, budget and confirmation visibility | 2026-09-12 14:16 | Claude Opus5 max is implementing core state/constraint/confirmation views and correcting shared-frame clipping in an isolated checkout. The UI will use actual captured records and integrate committed110/113 projections as available. Black theme, typography and sidebar behavior are preserved. |
-| `[~]` | [YMP-123](README.md#ymp-123) — Expose a public local MCP facade over stdio | 2026-09-12 15:56 | Public stdio facade is assigned at xhigh for development; all tests use scripted providers and a real MCP client without inference. Scope includes fixed project/action permissions, bounded start/resume/progress/cancel, stable IDs, and bounded knowledge/history/result projections shared with internal MCP. |
+| `[~]` | [YMP-123](README.md#ymp-123) — Expose a public local MCP facade over stdio | 2026-09-12 16:11 | Public facade passed an official MCP Python SDK process walk with fixed mock/low providers: discovery, scoped reads/execution, progress, cancellation/reopen and bounded pagination. Five guard-removal controls fail. Final disconnect/SIGKILL/internal-bridge checks and code review are still pending; no actual model inference. |
 | `[=]` | [YMP-121](README.md#ymp-121) — Verify the integrated application and package a local release | 2026-09-12 14:50 | Needs YMP-112, YMP-115, YMP-114, YMP-118, YMP-123 |
 
 ## Working approach
@@ -124,10 +124,10 @@ Deferred and post-MVP work:
 
 | Time (UTC) | Task | State | Update |
 | --- | --- | --- | --- |
-| 2026-09-12 15:56 | [YMP-123](README.md#ymp-123) | `[~]` | Public stdio facade is assigned at xhigh for development; all tests use scripted providers and a real MCP client without inference. Scope includes fixed project/action permissions, bounded start/resume/progress/cancel, stable IDs, and bounded knowledge/history/result projections shared with internal MCP. |
+| 2026-09-12 16:11 | [YMP-123](README.md#ymp-123) | `[~]` | Public facade passed an official MCP Python SDK process walk with fixed mock/low providers: discovery, scoped reads/execution, progress, cancellation/reopen and bounded pagination. Five guard-removal controls fail. Final disconnect/SIGKILL/internal-bridge checks and code review are still pending; no actual model inference. |
+| 2026-09-12 16:11 | [YMP-115](README.md#ymp-115) | `[~]` | Candidate 32624efd implements explicit task access, ordinary default-policy overlap, conservative native scopes and sibling/cancellation/restart handling. Author reports 267 passing Rust tests and eight observed failing controls. Independent xhigh code review is running; tested providers are deterministic, with no model inference. |
 | 2026-09-12 15:56 | [YMP-113](README.md#ymp-113) | `[~]` | Standalone R2(9/10) ACCEPT preserves captured locations after relocation. Joint110/113 consumer found the older deterministic follow-up path reopened workspace metadata at the relocated directory; integration is routing it through immutable Store.outcomes. UI118 consumes the same source/current-availability records. |
 | 2026-09-12 15:56 | [YMP-110](README.md#ymp-110) | `[~]` | Standalone R2(9/10) ACCEPT closes both findings; public reservation/admission interleavings and known/unknown pin controls pass. Integration with accepted knowledge113 and UI118 is underway; historical/current membership must remain consistent across those consumers. |
-| 2026-09-12 15:34 | [YMP-115](README.md#ymp-115) | `[~]` | Owner approved direct execution for MVP only and the instruction conflict is resolved. Useful concurrency is assigned against the prepared allocation interface: independent safe work may overlap, conflicting or unbounded writes serialize, and effective access is recorded. Post-MVP isolation is YMP-124. |
 | 2026-09-12 15:31 | [YMP-124](README.md#ymp-124) | `[=]` | Explicitly deferred until after the 0.4.0 MVP. Direct execution is accepted only for that MVP; larger-project isolation/publication requires this separate outcome. |
 
 ## Maintenance
