@@ -1,0 +1,36 @@
+{
+  "at": "2026-09-12T18:21:39Z",
+  "base": "9ad43dccb29840089a3f351c5651867aa808135d",
+  "inference": "none; mock/scripted providers with low effort",
+  "baseline_executable": {
+    "exit_code": 101,
+    "consumer": "executable_correction_contract_scope_and_public_mcp_history_are_reachable",
+    "failure": "unknown field knowledge_correction in acceptance_contracts"
+  },
+  "removed_guard_controls": [
+    {
+      "control": "cross-file-source-filter",
+      "source_file": "ymp-rust/crates/ymp-storage/src/knowledge.rs",
+      "removed_guard": "if super::knowledge_correction::source_changed(db, entry)? {",
+      "consumer": "cross_file_correction_reopens_retrieves_and_replays_without_duplicate_credit",
+      "exit_code": 101,
+      "failure": "thread 'cross_file_correction_reopens_retrieves_and_replays_without_duplicate_credit' panicked at ymp-rust/crates/ymp-runtime/tests/knowledge_correction.rs:225:5:\nCapturing the corrected file must invalidate the old source even while the original remains unchanged\nnote: run with `RUST_BACKTRACE=1` environment variable to display a backtrace\ntest cross_file_correction_reopens_retrieves_and_replays_without_duplicate_credit ... FAILED\n\nfailures:\n\nfailures:\n    cross_file_correction_reopens_retrieves_and_replays_without_duplicate_credit\n\ntest result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 4 filtered out; finished in 1.25s\n\nerror: test failed, to rerun pass `-p ymp-runtime --test knowledge_correction`\n"
+    },
+    {
+      "control": "independent-correction-context",
+      "source_file": "ymp-rust/crates/ymp-storage/src/knowledge_correction.rs",
+      "removed_guard": "        assignment\n            .context\n",
+      "consumer": "unrelated_review_context_cannot_approve_the_correction_relation",
+      "exit_code": 101,
+      "failure": "thread 'unrelated_review_context_cannot_approve_the_correction_relation' panicked at ymp-rust/crates/ymp-runtime/tests/knowledge_correction.rs:525:18:\ncalled `Result::unwrap_err()` on an `Ok` value: ()\nnote: run with `RUST_BACKTRACE=1` environment variable to display a backtrace\ntest unrelated_review_context_cannot_approve_the_correction_relation ... FAILED\n\nfailures:\n\nfailures:\n    unrelated_review_context_cannot_approve_the_correction_relation\n\ntest result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 4 filtered out; finished in 2.41s\n\nerror: test failed, to rerun pass `-p ymp-runtime --test knowledge_correction`\n"
+    },
+    {
+      "control": "pending-replacement-activation",
+      "source_file": "ymp-rust/crates/ymp-storage/src/knowledge.rs",
+      "removed_guard": "confirmed && projected && !pending_correction",
+      "consumer": "malicious_correction_policy_cannot_activate_an_uncommitted_replacement",
+      "exit_code": 101,
+      "failure": "thread 'malicious_correction_policy_cannot_activate_an_uncommitted_replacement' panicked at ymp-rust/crates/ymp-runtime/tests/knowledge_correction.rs:564:5:\nassertion `left == right` failed\n  left: \"active\"\n right: \"proposed\"\nnote: run with `RUST_BACKTRACE=1` environment variable to display a backtrace\ntest malicious_correction_policy_cannot_activate_an_uncommitted_replacement ... FAILED\n\nfailures:\n\nfailures:\n    malicious_correction_policy_cannot_activate_an_uncommitted_replacement\n\ntest result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 4 filtered out; finished in 2.49s\n\nerror: test failed, to rerun pass `-p ymp-runtime --test knowledge_correction`\n"
+    }
+  ]
+}

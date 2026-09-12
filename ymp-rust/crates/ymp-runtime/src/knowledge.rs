@@ -62,6 +62,43 @@ pub trait KnowledgeProposalPolicy: Send + Sync {
     fn propose(&self, input: KnowledgeProposalInput<'_>) -> Result<Vec<KnowledgeProposal>>;
 }
 
+pub struct KnowledgeCorrectionInput<'a> {
+    pub acceptance: &'a DecisionRecord,
+    pub binding: Option<&'a KnowledgeCorrectionBinding>,
+}
+
+pub trait KnowledgeCorrectionPolicy: Send + Sync {
+    fn identity(&self) -> KnowledgePolicyIdentity;
+    fn propose(
+        &self,
+        input: KnowledgeCorrectionInput<'_>,
+    ) -> Result<Vec<KnowledgeCorrectionProposal>>;
+}
+
+#[derive(Default)]
+pub struct BoundKnowledgeCorrections;
+impl KnowledgeCorrectionPolicy for BoundKnowledgeCorrections {
+    fn identity(&self) -> KnowledgePolicyIdentity {
+        KnowledgePolicyIdentity {
+            id: "ymp.bound-correction".into(),
+            version: "1".into(),
+        }
+    }
+    fn propose(
+        &self,
+        input: KnowledgeCorrectionInput<'_>,
+    ) -> Result<Vec<KnowledgeCorrectionProposal>> {
+        Ok(input
+            .binding
+            .into_iter()
+            .map(|binding| KnowledgeCorrectionProposal {
+                target: binding.target.clone(),
+                acceptance_id: input.acceptance.id.clone(),
+            })
+            .collect())
+    }
+}
+
 #[derive(Default)]
 pub struct EvidenceKnowledgeProposals;
 impl KnowledgeProposalPolicy for EvidenceKnowledgeProposals {

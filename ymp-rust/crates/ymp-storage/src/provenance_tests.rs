@@ -16,6 +16,7 @@ fn session_contract_capture_rolls_back_the_whole_set_on_second_contract_failure(
     policy.session_id = session.id.clone();
     let first = CapturedAcceptanceContract::capture(
         AcceptanceContract {
+            knowledge_correction: None,
             task_title: "First required output".into(),
             criteria: vec![AcceptanceCriterion {
                 id: "content".into(),

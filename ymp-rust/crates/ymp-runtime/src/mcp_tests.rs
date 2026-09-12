@@ -549,6 +549,38 @@ async fn memory_proposal_records_bound_origin_without_activation() {
     assert_eq!(event.data["invocation_id"], f.invocation.id);
 }
 
+#[tokio::test]
+async fn scoped_internal_memory_inspection_preserves_applicability_and_confirmation() {
+    let f = Fixture::new().await;
+    let mut proposal = f.request("scoped-candidate");
+    proposal["name"] = json!("memory_propose");
+    proposal["arguments"] = json!({"title":"Hill observation", "content":"Candidate claim"});
+    assert_eq!(f.call(proposal).await["ok"], true);
+    let mut entry = f.store.proposed_memory(&f.session.id).unwrap().remove(0);
+    entry
+        .provenance
+        .as_mut()
+        .unwrap()
+        .applicability
+        .insert("site".into(), "Hill".into());
+    f.store.save_memory(&entry).unwrap();
+    for (request_id, scope, include_unconfirmed, expected) in [
+        ("hill-candidate", "Hill", true, 1),
+        ("harbor-candidate", "Harbor", true, 0),
+        ("hill-supported", "Hill", false, 0),
+    ] {
+        let mut search = f.request(request_id);
+        search["name"] = json!("memory_search");
+        search["arguments"] = json!({"query":"observation", "scope":{"site":scope}, "include_unconfirmed":include_unconfirmed});
+        let response = f.call(search).await;
+        assert_eq!(response["ok"], true, "{response}");
+        assert_eq!(
+            response["value"]["items"].as_array().unwrap().len(),
+            expected
+        );
+    }
+}
+
 include!("budget_authority_tests.rs");
 
 #[tokio::test]

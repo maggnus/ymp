@@ -1,4 +1,5 @@
 mod allocation;
+mod board;
 mod confirmation;
 #[cfg(test)]
 mod confirmation_tests;
@@ -9,8 +10,9 @@ mod knowledge_tests;
 mod workspace_access;
 use crate::mcp::TeamServer;
 use crate::{
-    BuiltinConfirmationChecker, ConfirmationChecker, EvidenceKnowledgeProposals,
-    FtsKnowledgeRetrieval, KnowledgeCandidateSource, KnowledgeProposalInput,
+    BoundKnowledgeCorrections, BuiltinConfirmationChecker, ConfirmationChecker,
+    EvidenceKnowledgeProposals, FtsKnowledgeRetrieval, KnowledgeCandidateSource,
+    KnowledgeCorrectionInput, KnowledgeCorrectionPolicy, KnowledgeProposalInput,
     KnowledgeProposalPolicy, KnowledgeRetrievalInput, KnowledgeRetrievalPolicy,
 };
 use anyhow::{bail, Context, Result};
@@ -54,6 +56,7 @@ pub struct Engine {
     pub confirmation_checker: Arc<dyn ConfirmationChecker>,
     pub knowledge_retrieval: Arc<dyn KnowledgeRetrievalPolicy>,
     pub knowledge_proposals: Arc<dyn KnowledgeProposalPolicy>,
+    pub knowledge_corrections: Arc<dyn KnowledgeCorrectionPolicy>,
     pub knowledge_mode: KnowledgeRetrievalMode,
     /// Optional trusted-client applicability constraints, matched exactly.
     pub knowledge_scope: std::collections::BTreeMap<String, String>,
@@ -68,6 +71,8 @@ pub struct Engine {
     workspace_policy: Arc<dyn crate::WorkspaceAccessPolicy>,
     workspace_policy_identity: ExecutionBackendIdentity,
     workspace_parent: Option<String>,
+    board_policy: Arc<dyn crate::BoardProposalPolicy>,
+    board_identity: ExecutionBackendIdentity,
 }
 #[derive(Clone)]
 struct RunContext {
@@ -143,6 +148,7 @@ impl Engine {
         let bridge = std::env::var_os("YMP_CLAUDE_BRIDGE")
             .map(PathBuf::from)
             .unwrap_or_else(|| root.join("ymp-bridges/claude/dist/index.js"));
+        let knowledge_scope = config.knowledge_scope.clone();
         Ok(Self {
             store,
             config,
@@ -157,11 +163,14 @@ impl Engine {
                 &crate::DirectWorkspaceAccessPolicy,
             ),
             workspace_parent: None,
+            board_policy: Arc::new(crate::OrderedBoardPolicy),
+            board_identity: crate::BoardProposalPolicy::identity(&crate::OrderedBoardPolicy),
             acceptance_contracts: Vec::new(),
             confirmation_checker: Arc::new(BuiltinConfirmationChecker),
             knowledge_retrieval: Arc::new(FtsKnowledgeRetrieval),
             knowledge_proposals: Arc::new(EvidenceKnowledgeProposals),
-            knowledge_scope: Default::default(),
+            knowledge_corrections: Arc::new(BoundKnowledgeCorrections),
+            knowledge_scope,
             knowledge_mode: KnowledgeRetrievalMode::Supported,
             usage_publication: Arc::new(Mutex::new(())),
             assignment_settings: Arc::new(Mutex::new(None)),
@@ -1118,6 +1127,29 @@ impl Engine {
                     }
                 })
                 .context("Review assignment requires a submitted result version")?;
+            if let Some(contract_id) = result
+                .links
+                .result
+                .as_ref()
+                .and_then(|r| r.contract_id.as_ref())
+            {
+                if let Some(binding) = trace
+                    .decisions
+                    .iter()
+                    .find(|d| &d.id == contract_id)
+                    .and_then(|d| d.links.acceptance_contract.as_ref())
+                    .and_then(|c| c.contract.knowledge_correction.as_ref())
+                {
+                    let rendered = serde_json::to_string(binding)?;
+                    context.push(ContextReference {
+                        kind: ContextKind::KnowledgeCorrection,
+                        id: contract_id.clone(),
+                        session_id: Some(ctx.session.id.clone()),
+                        digest: Some(content_digest(&rendered)),
+                        included_chars: Some(rendered.chars().count()),
+                    });
+                }
+            }
             context.push(ContextReference {
                 kind: ContextKind::Result,
                 id: result.id.clone(),
@@ -1611,6 +1643,7 @@ impl Engine {
             if self.cancel.is_cancelled() {
                 bail!("Cancelled");
             }
+            self.commit_board_proposals(&ctx.session.id)?;
             tasks = self.store.tasks(&ctx.session.id)?;
             self.validate_contract_bindings(
                 &ctx.session.id,
@@ -1659,41 +1692,22 @@ impl Engine {
             // backend permissions, including whole-directory native writers.
             let mut assigned = Vec::new();
             let mut busy = HashSet::new();
-            for mut task in ready {
-                if task.state == TaskState::Review {
-                    assigned.push(task);
-                    continue;
+            let mut selection_error = None;
+            for task in ready {
+                match self.select_wave_task(ctx, task, &accepted, &mut busy) {
+                    Ok(Some(task)) => assigned.push(task),
+                    Ok(None) => {}
+                    Err(error) => {
+                        selection_error = Some(error);
+                        break;
+                    }
                 }
-                let reserved = self
-                    .store
-                    .team_state(&ctx.session.id)?
-                    .and_then(|s| s.reserved_final_reviewer);
-                let eligible = if busy.is_empty() {
-                    self.eligible_agents(&ctx.session.id)?
-                } else {
-                    self.current_team(&ctx.session.id)?
-                };
-                let candidates = eligible
-                    .iter()
-                    .filter(|a| !busy.contains(&a.id) && Some(&a.id) != reserved.as_ref())
-                    .cloned()
-                    .collect::<Vec<_>>();
-                if candidates.is_empty() {
-                    self.record_workspace_wait(
-                        ctx,
-                        &task,
-                        "agent_busy",
-                        "Current members are assigned or reserved for independent final review",
-                    )?;
-                    continue;
+            }
+            if assigned.is_empty() {
+                if let Some(error) = selection_error {
+                    return Err(error);
                 }
-                let agent = self.choose_executor(ctx, &task, &candidates)?;
-                busy.insert(agent.id.clone());
-                task.assign(&agent.id, &accepted)?;
-                task.workspace = Some(ctx.workspace.directory.clone());
-                task.base_commit = None;
-                self.task_changed(&task)?;
-                assigned.push(task);
+                bail!("No available executor for ready work under the current responsibilities");
             }
             let mut work = JoinSet::new();
             for task in assigned {
@@ -1701,7 +1715,10 @@ impl Engine {
                 let context = ctx.clone();
                 work.spawn(async move { engine.perform(&context, task).await });
             }
-            let mut error = None;
+            // Earlier claims must run and be reviewed even if selecting later
+            // work discovers a real constraint error. Preserve that error after
+            // draining the already committed wave.
+            let mut error = selection_error;
             while let Some(result) = work.join_next().await {
                 match result {
                     Ok(Ok(mut task)) => {
@@ -2151,12 +2168,79 @@ impl Engine {
         Ok(tasks)
     }
 
+    /// Select pending work without confusing a responsibility's temporarily
+    /// occupied agent with an unavailable identity that needs reassignment.
+    fn select_wave_task(
+        &self,
+        ctx: &RunContext,
+        mut task: Task,
+        accepted: &HashSet<String>,
+        busy: &mut HashSet<String>,
+    ) -> Result<Option<Task>> {
+        if task.state == TaskState::Review {
+            return Ok(Some(task));
+        }
+        let board_task = self
+            .store
+            .board(&ctx.session.id)?
+            .tasks
+            .into_iter()
+            .find(|t| t.task.id == task.id)
+            .context("Missing board task")?;
+        let reference = BoardTaskRef {
+            task_id: task.id.clone(),
+            version: board_task.version,
+        };
+        if board_task
+            .commitment
+            .as_ref()
+            .is_some_and(|commitment| busy.contains(&commitment.agent_id))
+        {
+            self.record_workspace_wait(ctx, &task, "commitment_busy", "The responsible agent is already selected in this wave; retain the commitment for the next work boundary")?;
+            return Ok(None);
+        }
+        let reserved = self
+            .store
+            .team_state(&ctx.session.id)?
+            .and_then(|s| s.reserved_final_reviewer);
+        let eligible = if busy.is_empty() {
+            self.eligible_agents(&ctx.session.id)?
+        } else {
+            self.current_team(&ctx.session.id)?
+        };
+        let candidates = eligible
+            .iter()
+            .filter(|a| !busy.contains(&a.id) && Some(&a.id) != reserved.as_ref())
+            .cloned()
+            .collect::<Vec<_>>();
+        if candidates.is_empty() {
+            self.record_workspace_wait(
+                ctx,
+                &task,
+                "agent_busy",
+                "Current members are assigned or reserved for independent final review",
+            )?;
+            return Ok(None);
+        }
+        let agent = self.choose_executor(ctx, &task, &candidates)?;
+        task.assign(&agent.id, accepted)?;
+        task.workspace = Some(ctx.workspace.directory.clone());
+        task.base_commit = None;
+        self.store.claim_board_task(&reference, &task)?;
+        busy.insert(agent.id.clone());
+        let _ = self.events.send(UiEvent::Task(task.clone()));
+        Ok(Some(task))
+    }
+
     fn choose_executor(
         &self,
         ctx: &RunContext,
         task: &Task,
         candidates: &[AgentProfile],
     ) -> Result<AgentProfile> {
+        if let Some(agent) = self.committed_executor(&ctx.session.id, task, candidates)? {
+            return Ok(agent);
+        }
         self.choose(
             ctx,
             candidates,
@@ -2179,7 +2263,7 @@ impl Engine {
             .find(|a| Some(&a.id) == task.assignee.as_ref())
             .context("Missing assignee")?;
         let path = task.workspace.as_ref().context("Missing task workspace")?;
-        let request=format!("Execute this assigned task in the current working directory:\n{}\n{}\nAcceptance checks: {}\nPrevious result/review: {}\nRead relevant shared chat and share discoveries that affect other tasks. Follow the enforced access recorded for this assignment. Return read-only findings in your response; write deliverables only when write permission is granted. Preserve existing behavior outside the task. Do not push or publish externally unless the original request explicitly requires it. Finish with a concrete summary of files and checks.",task.title,task.description,serde_json::to_string(&task.checks)?,task.result.as_deref().unwrap_or("none"));
+        let request=format!("Execute this assigned task in the current working directory:\n{}\n{}\nAcceptance checks: {}\nPrevious result/review: {}\nRead relevant shared chat and board_read; share discoveries that affect other tasks. Use task_propose with exact plan/task versions to accept responsibility, distribute or reassign ready work, or propose an additive plan revision. Proposals apply after active work ends and grant no authority. Follow the enforced access recorded for this assignment. Return read-only findings in your response; write deliverables only when write permission is granted. Preserve existing behavior outside the task. Do not push or publish externally unless the original request explicitly requires it. Finish with a concrete summary of files and checks.",task.title,task.description,serde_json::to_string(&task.checks)?,task.result.as_deref().unwrap_or("none"));
         let read_only = self.workspace_policy.execution_read_only(&task);
         anyhow::ensure!(task.access != TaskAccess::ReadOnly || read_only, "unsupported_workspace_guarantee: policy cannot enlarge a read-only task's native authority");
         let text = self
@@ -2376,9 +2460,20 @@ impl Engine {
                 .into_iter()
                 .find(|d| d.id == acceptance_id)
                 .context("Missing accepted knowledge source")?;
+            let binding = self
+                .store
+                .decisions(&ctx.session.id)?
+                .into_iter()
+                .find(|d| Some(&d.id) == result.contract_id.as_ref())
+                .and_then(|d| d.links.acceptance_contract)
+                .and_then(|c| c.contract.knowledge_correction);
+            let knowledge_scope = binding
+                .as_ref()
+                .map(|b| &b.applicability)
+                .unwrap_or(&self.knowledge_scope);
             let policy = self.knowledge_proposals.identity();
             self.store.event(&ctx.session.id, "knowledge_proposal_policy", &json!({
-                "acceptance_id":acceptance_id, "implementation":policy, "applicability":self.knowledge_scope,
+                "acceptance_id":acceptance_id, "implementation":policy, "applicability":knowledge_scope,
                 "proposal_limit":8,
             }))?;
             // Save each accepted outcome before optional proposals. A policy failure
@@ -2386,7 +2481,7 @@ impl Engine {
             self.store.retain_knowledge(
                 &acceptance_id,
                 &KnowledgeProposal::ProjectOutcome,
-                &self.knowledge_scope,
+                knowledge_scope,
                 &EvidenceKnowledgeProposals.identity(),
             )?;
             match self.knowledge_proposals.propose(KnowledgeProposalInput {
@@ -2398,7 +2493,7 @@ impl Engine {
                         if let Err(error) = self.store.retain_knowledge(
                             &acceptance_id,
                             &proposal,
-                            &self.knowledge_scope,
+                            knowledge_scope,
                             &policy,
                         ) {
                             self.post(
@@ -2418,6 +2513,56 @@ impl Engine {
                         &format!(
                             "Knowledge proposal policy failed; accepted outcome retained: {error}"
                         ),
+                    )?;
+                }
+            }
+            let correction_policy = self.knowledge_corrections.identity();
+            self.store.event(&ctx.session.id, "knowledge_correction_policy", &json!({
+                "acceptance_id": acceptance.id, "implementation": correction_policy, "proposal_limit": 8,
+            }))?;
+            if let Some(binding) = &binding {
+                self.store.retain_knowledge(
+                    &acceptance.id,
+                    &binding.projection.proposal(),
+                    &binding.applicability,
+                    &EvidenceKnowledgeProposals.identity(),
+                )?;
+            }
+            match self
+                .knowledge_corrections
+                .propose(KnowledgeCorrectionInput {
+                    acceptance: &acceptance,
+                    binding: binding.as_ref(),
+                }) {
+                Ok(proposals) => {
+                    for proposal in proposals.into_iter().take(8) {
+                        let outcome = if proposal.acceptance_id == acceptance.id {
+                            self.store
+                                .commit_knowledge_correction(&proposal, &correction_policy)
+                        } else {
+                            Err(anyhow::anyhow!(
+                                "Correction policy cannot substitute another source acceptance"
+                            ))
+                        };
+                        match outcome {
+                            Ok(outcome) => {
+                                self.store.event(
+                                    &ctx.session.id,
+                                    "knowledge_correction_resolved",
+                                    &serde_json::to_value(outcome)?,
+                                )?;
+                            }
+                            Err(error) => {
+                                self.store.event(&ctx.session.id, "knowledge_correction_denied", &json!({"proposal": proposal, "reason": error.to_string(), "implementation": correction_policy}))?;
+                            }
+                        }
+                    }
+                }
+                Err(error) => {
+                    self.store.event(
+                        &ctx.session.id,
+                        "knowledge_correction_denied",
+                        &json!({"reason": error.to_string(), "implementation": correction_policy}),
                     )?;
                 }
             }
@@ -2492,6 +2637,7 @@ mod tests {
             team_constraints: TeamConstraints::default(),
             version: 1,
             acceptance_contracts: None,
+            knowledge_scope: Default::default(),
             execution: Default::default(),
             capabilities: Default::default(),
             limits: Limits {

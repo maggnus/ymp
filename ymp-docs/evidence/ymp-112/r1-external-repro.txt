@@ -1,0 +1,16 @@
+   Compiling ymp-runtime v0.3.0 (/private/var/folders/cw/7pn8sb3x6bj69g7j2d8f_ss00000gn/T/ymp-release-work-h6oq_rys/sibling112/ymp-rust/crates/ymp-runtime)
+   Compiling ymp112-independent-board v0.0.0 (/tmp/ymp112-review-mpha21ll)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 2.11s
+     Running tests/board.rs (/var/folders/cw/7pn8sb3x6bj69g7j2d8f_ss00000gn/T/ymp-release-work-h6oq_rys/sibling112/target/debug/deps/board-225961065c3eb767)
+
+running 1 test
+STATUS completed SUMMARY All requested results are available
+
+Acceptance: accepted; confirmation: unconfirmed.
+TASKS [("First", Accepted, Some("one")), ("Second", Accepted, Some("one")), ("Third", Accepted, Some("one"))]
+COMMITMENTS [(true, Some(("d5ecf5ca-24d7-471b-b00d-34935cc869bc", "one"))), (true, Some(("d5ecf5ca-24d7-471b-b00d-34935cc869bc", "one")))]
+EXECUTIONS 3
+test independent_parallel_commitment_waits_for_its_owner_without_blocking_feasible_work ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 1.00s
+

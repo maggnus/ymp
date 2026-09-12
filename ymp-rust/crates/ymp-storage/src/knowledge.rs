@@ -8,6 +8,21 @@ use rusqlite::{params, Connection, OptionalExtension, Transaction};
 use std::collections::BTreeMap;
 use ymp_core::*;
 
+pub(super) fn entry_id(
+    acceptance_id: &str,
+    proposal: &KnowledgeProposal,
+    applicability: &BTreeMap<String, String>,
+) -> Result<String> {
+    Ok(format!(
+        "knowledge:{}",
+        content_digest(&serde_json::to_string(&(
+            acceptance_id,
+            proposal,
+            applicability
+        ))?)
+    ))
+}
+
 pub(super) fn write(tx: &Transaction<'_>, entry: &MemoryEntry) -> Result<()> {
     tx.execute("INSERT INTO memory(id,project_id,status,data) VALUES (?,?,?,?) ON CONFLICT(id) DO UPDATE SET project_id=excluded.project_id,status=excluded.status,data=excluded.data", params![entry.id, entry.project_id, entry.status, serde_json::to_string(entry)?])?;
     tx.execute("DELETE FROM memory_search WHERE id=?", [&entry.id])?;
@@ -43,6 +58,9 @@ pub(super) fn applicable(
         .iter()
         .all(|(key, value)| scope.get(key) == Some(value))
     {
+        return Ok(false);
+    }
+    if super::knowledge_correction::source_changed(db, entry)? {
         return Ok(false);
     }
     if provenance.confirmation != ConfirmationStatus::Confirmed {
@@ -99,6 +117,7 @@ impl Store {
         scope: &BTreeMap<String, String>,
         mode: KnowledgeRetrievalMode,
     ) -> Result<Vec<MemoryEntry>> {
+        validate_knowledge_scope(scope)?;
         let db = self.db()?;
         super::read_memory_candidates(&db, project, query)?
             .into_iter()
@@ -122,6 +141,7 @@ impl Store {
         scope: &BTreeMap<String, String>,
         mode: KnowledgeRetrievalMode,
     ) -> Result<Option<MemoryEntry>> {
+        validate_knowledge_scope(scope)?;
         let db = self.db()?;
         let raw: Option<String> = db
             .query_row("SELECT data FROM memory WHERE id=?", [id], |r| r.get(0))
@@ -146,6 +166,7 @@ impl Store {
         applicability: &BTreeMap<String, String>,
         policy: &KnowledgePolicyIdentity,
     ) -> Result<MemoryEntry> {
+        validate_knowledge_scope(applicability)?;
         ensure!(
             !policy.id.is_empty() && !policy.version.is_empty(),
             "Knowledge policy identity is required"
@@ -180,6 +201,16 @@ impl Store {
             && confirmation::current_files(&tx, &acceptance.session_id, result)?
             && confirmation::grade(&tx, &acceptance.session_id, result)?.0
                 == ConfirmationStatus::Confirmed;
+        let correction_contract: Option<DecisionRecord> = result
+            .contract_id
+            .as_ref()
+            .map(|id| record(&tx, "decisions", id))
+            .transpose()?;
+        let pending_correction = correction_contract
+            .as_ref()
+            .and_then(|d| d.links.acceptance_contract.as_ref())
+            .and_then(|c| c.contract.knowledge_correction.as_ref())
+            .is_some_and(|binding| binding.projection.proposal() == *proposal);
         let (kind, title, content, global, projected) = match proposal {
             KnowledgeProposal::ProjectOutcome => {
                 let title = result
@@ -264,12 +295,7 @@ impl Store {
                 ("procedure", title.clone(), content.clone(), false, false)
             }
         };
-        let key = content_digest(&serde_json::to_string(&(
-            acceptance_id,
-            proposal,
-            applicability,
-        ))?);
-        let id = format!("knowledge:{key}");
+        let id = entry_id(acceptance_id, proposal, applicability)?;
         // Replaying acceptance cannot revive a retired or superseded entry.
         if let Some(raw) = tx
             .query_row("SELECT data FROM memory WHERE id=?", [&id], |r| {
@@ -300,7 +326,7 @@ impl Store {
             } else {
                 None
             },
-            status: if confirmed && projected {
+            status: if confirmed && projected && !pending_correction {
                 "active"
             } else {
                 "proposed"

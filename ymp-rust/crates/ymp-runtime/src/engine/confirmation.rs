@@ -67,7 +67,20 @@ impl Engine {
         if requirements.is_empty() {
             return Ok(String::new());
         }
-        Ok(format!("\nTrusted acceptance requirements (captured before planning):\n{}\nEvery plan and revision must contain exactly one task with each declared task_title, preserving its exact spelling. Implement and inspect the declared criteria, artifacts and inputs. These bindings remain mandatory throughout this session. Model-suggested shell commands do not replace trusted checks.\n", serde_json::to_string(&requirements)?))
+        let mut predecessors = String::new();
+        for decision in self.store.decisions(session)? {
+            if let Some(binding) = decision
+                .links
+                .acceptance_contract
+                .as_ref()
+                .and_then(|c| c.contract.knowledge_correction.as_ref())
+            {
+                let old = self.store.correction_predecessor(&decision.id)?;
+                let excerpt = old.content.chars().take(4000).collect::<String>();
+                predecessors.push_str(&format!("\nCorrection predecessor {}@{} (historical context, not current evidence): {}\n{}\nSource session: {}\n", old.id, binding.target.version, old.title, excerpt, old.source_session));
+            }
+        }
+        Ok(format!("\nTrusted acceptance requirements (captured before planning):\n{}\nEvery plan and revision must contain exactly one task with each declared task_title, preserving its exact spelling. Implement and inspect the declared criteria, artifacts and inputs. These bindings remain mandatory throughout this session. Model-suggested shell commands do not replace trusted checks.\n{predecessors}", serde_json::to_string(&requirements)?))
     }
 
     pub(super) fn validate_contract_bindings<'a>(

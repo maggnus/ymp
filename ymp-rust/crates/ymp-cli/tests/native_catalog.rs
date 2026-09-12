@@ -675,6 +675,7 @@ fn history_engine(store: &Store, config: Config) -> ymp_runtime::Engine {
     .unwrap();
     engine.use_memory = false;
     engine.acceptance_contracts.push(AcceptanceContract {
+        knowledge_correction: None,
         task_title: "Create a greeting".into(),
         criteria: vec![AcceptanceCriterion {
             id: "exact-content".into(),

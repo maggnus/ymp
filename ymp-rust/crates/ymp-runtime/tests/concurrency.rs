@@ -231,6 +231,7 @@ fn fixture(mode: Mode) -> Fixture {
     engine.use_memory = false;
     if matches!(mode, Mode::Failure | Mode::TwoFailures) {
         engine.acceptance_contracts.push(AcceptanceContract {
+            knowledge_correction: None,
             task_title: "A".into(),
             criteria: vec![AcceptanceCriterion {
                 id: "exact".into(),
