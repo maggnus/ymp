@@ -136,16 +136,26 @@ impl Store {
     }
     pub fn save_session(&self, s: &Session) -> Result<()> {
         let mut db = self.db()?;
-        let tx = db.transaction()?;
+        let tx = db.transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)?;
         let old: Option<String> = tx
-            .query_row("SELECT project_id FROM sessions WHERE id=?", [&s.id], |r| {
+            .query_row("SELECT data FROM sessions WHERE id=?", [&s.id], |r| {
                 r.get(0)
             })
             .optional()?;
-        if old.as_ref().is_some_and(|project| project != &s.project_id) {
+        let old: Option<Session> = old.map(|raw| serde_json::from_str(&raw)).transpose()?;
+        if old
+            .as_ref()
+            .is_some_and(|old| old.project_id != s.project_id)
+        {
             bail!("Session belongs to another project");
         }
-        let data = serde_json::to_string(s)?;
+        let mut current = s.clone();
+        let historical = old.as_ref().map_or(0, |old| old.turns_used as u64);
+        let count = usage::invocation_count(&tx, &s.id, historical.max(s.turns_used as u64))?;
+        current.turns_used =
+            usize::try_from(count).context("Invocation count exceeds platform capacity")?;
+        usage::advance_invocation_count(&tx, &s.id, count)?;
+        let data = serde_json::to_string(&current)?;
         tx.execute("INSERT INTO sessions(id,project_id,data) VALUES (?,?,?) ON CONFLICT(id) DO UPDATE SET data=excluded.data",params![s.id,s.project_id,data])?;
         tx.execute(
             "INSERT INTO events(session_id,kind,data,created_at) VALUES (?,'session',?,?)",

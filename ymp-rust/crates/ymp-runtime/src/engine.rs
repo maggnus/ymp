@@ -297,11 +297,8 @@ impl Engine {
         )?;
         let server =
             Arc::new(TeamServer::start(self.store.clone(), &session, self.events.clone()).await?);
-        let turns = self
-            .store
-            .value(&format!("turns:{}", session.id))?
-            .and_then(|v| v.as_u64())
-            .unwrap_or(session.turns_used as u64) as usize;
+        let turns = usize::try_from(self.store.session_usage(&session.id)?.total.calls)
+            .context("Invocation count exceeds platform capacity")?;
         self.store
             .capture_legacy_budget_limits(&session.id, &self.config.limits)?;
         let limits = self
@@ -504,11 +501,8 @@ impl Engine {
         let workspace = Workspace::open(&project.path, &dir.join("workspace"))?;
         let server =
             Arc::new(TeamServer::start(self.store.clone(), &session, self.events.clone()).await?);
-        let saved_turns = self
-            .store
-            .value(&format!("turns:{}", session.id))?
-            .and_then(|v| v.as_u64())
-            .unwrap_or(session.turns_used as u64) as usize;
+        let saved_turns = usize::try_from(self.store.session_usage(&session.id)?.total.calls)
+            .context("Invocation count exceeds platform capacity")?;
         session.status = "running".into();
         self.store.save_session(&session)?;
         self.store

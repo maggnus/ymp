@@ -6,6 +6,11 @@ assignment and token-usage row, and publishes a reservation event. Independent
 connections cannot reserve the same remaining allowance. A denied admission
 records a stable code and message without creating an invocation or charging a
 turn. `begin_invocation` retains its explicit-ordinal API and uses the same guard.
+The durable cumulative ordinal, saved session count and highest detailed ordinal
+supply one monotonic invocation total. Missing historical ordinals remain unknown
+calls alongside newly admitted work; new rows cannot replace historical spend.
+Saving a stale session cannot reduce this total. Native token coverage remains
+independent of that invocation count.
 
 The session policy captures `Limits.resources` once. Resume and follow-up use that
 capture even when configuration changes. An older policy without resource fields

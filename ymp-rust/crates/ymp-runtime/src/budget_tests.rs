@@ -68,3 +68,34 @@ async fn budget_native_output_stop_reaches_trace_with_actual_usage() {
     assert_eq!(trace.usage.total.known_total(), Some(trace.invocations.len() as u64 * 120));
     assert_eq!(trace.budget.unwrap().in_flight_invocations, 0);
 }
+
+#[tokio::test]
+async fn budget_public_resume_preserves_legacy_spend_with_missing_or_sparse_rows() {
+    for sparse in [false, true] {
+        let mut fixture = RunFixture::new("[mock:usage]", false);
+        fixture.engine.config.limits.turns = 3;
+        fixture.engine.config.limits.resources = None;
+        let project = fixture.store.project(&fixture.project).unwrap();
+        let session = Session { id:new_id(), project_id:project.id, title:"Legacy task".into(),
+            status:"paused".into(), created_at:now(), team:fixture.engine.config.members(), turns_used:2 };
+        fixture.store.save_session(&session).unwrap();
+        fixture.store.capture_legacy_budget_limits(&session.id, &fixture.engine.config.limits).unwrap();
+        if sparse {
+            fixture.store.begin_usage(&session.id, 1, &session.team[0].id).unwrap();
+            fixture.store.finish_usage(&session.id, 1, "interrupted").unwrap();
+        }
+        let outcome = fixture.engine.run(&fixture.project, "Create a greeting", Some(&session.id)).await.unwrap();
+        assert_eq!(outcome.session.status, "paused");
+        assert_eq!(outcome.session.turns_used, 3);
+        let trace = fixture.store.trace(&session.id).unwrap();
+        assert_eq!(trace.invocations.len(), 1);
+        assert_eq!(trace.invocations[0].turn, 3);
+        assert_eq!(trace.usage.total.calls, 3);
+        assert_eq!(trace.usage.total.reported, 1);
+        assert!(trace.usage.total.is_partial());
+        assert_eq!(trace.budget.unwrap().last_denial.unwrap().code, "invocation_limit");
+        let resumed = fixture.engine.run(&fixture.project, "", Some(&session.id)).await.unwrap();
+        assert_eq!(resumed.session.turns_used, 3);
+        assert_eq!(fixture.store.trace(&session.id).unwrap().invocations.len(), 1);
+    }
+}

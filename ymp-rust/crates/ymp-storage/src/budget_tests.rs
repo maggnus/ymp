@@ -125,3 +125,64 @@ fn budget_legacy_resume_captures_new_limits_once_without_inventing_old_policy() 
     assert_eq!(b.limits.turns, 1);
     assert_eq!(b.observed_usage.known_total(), None);
 }
+
+#[test]
+fn budget_legacy_missing_calls_remain_additive_across_sparse_concurrent_admission() {
+    for sparse in [false, true] {
+        for policy_present in [false, true] {
+            let limits = Limits { turns: 3, parallel: 4, resources: None, ..Default::default() };
+            let mut f = Fixture::with_limits(limits.clone());
+            f.session.turns_used = 2;
+            f.store.save_session(&f.session).unwrap();
+            if !policy_present {
+                f.store.db().unwrap().execute("DELETE FROM session_policies WHERE session_id=?", [&f.session.id]).unwrap();
+                f.store.capture_legacy_budget_limits(&f.session.id, &limits).unwrap();
+            }
+            if sparse {
+                f.store.begin_usage(&f.session.id, 1, "writer").unwrap();
+                f.store.update_usage(&f.session.id, 1, &UsageSnapshot {
+                    counts: TokenCounts { input: Some(7), output: Some(0), ..Default::default() },
+                    finalized: true, ..Default::default()
+                }).unwrap();
+                f.store.finish_usage(&f.session.id, 1, "completed").unwrap();
+            }
+            let barrier = std::sync::Arc::new(std::sync::Barrier::new(4));
+            let jobs: Vec<_> = (0..3).map(|_| {
+                let store = Store::open(&f.store.home).unwrap();
+                let (a, i) = budget_assignment(&f, "review");
+                let barrier = barrier.clone();
+                std::thread::spawn(move || { barrier.wait(); store.admit_invocation(&a, i) })
+            }).collect();
+            barrier.wait();
+            let results: Vec<_> = jobs.into_iter().map(|j| j.join().unwrap()).collect();
+            assert_eq!(results.iter().filter(|r| r.is_ok()).count(), 1, "sparse={sparse}, policy={policy_present}");
+            let i = results.into_iter().find_map(Result::ok).unwrap();
+            assert_eq!(i.turn, 3);
+            budget_observe(&f, &i, 9, false);
+            f.store.finish_invocation(&f.session.id, &i.id, InvocationState::Completed, None).unwrap();
+            let reopened = Store::open(&f.store.home).unwrap();
+            let b = reopened.session_budget(&f.session.id).unwrap().unwrap();
+            assert_eq!(b.admitted_invocations, 3);
+            assert_eq!(b.observed_usage.calls, 3);
+            assert_eq!(b.observed_usage.reported, if sparse { 2 } else { 1 });
+            assert_eq!(b.observed_usage.known_total(), Some(if sparse { 16 } else { 9 }));
+            assert!(b.observed_usage.is_partial());
+            assert_eq!(b.in_flight_invocations, 0);
+            let (a, next) = budget_assignment(&f, "review");
+            assert!(reopened.admit_invocation(&a, next).unwrap_err().to_string().contains("invocation_limit"));
+        }
+    }
+}
+
+#[test]
+fn budget_session_save_cannot_rewind_missing_historical_spend() {
+    let mut f = Fixture::new();
+    f.session.turns_used = 4;
+    f.store.save_session(&f.session).unwrap();
+    f.session.turns_used = 1;
+    f.store.save_session(&f.session).unwrap();
+    assert_eq!(f.store.session(&f.session.id).unwrap().turns_used, 4);
+    assert_eq!(f.store.session_usage(&f.session.id).unwrap().total.calls, 4);
+    let (a, i) = budget_assignment(&f, "review");
+    assert_eq!(f.store.admit_invocation(&a, i).unwrap().turn, 5);
+}

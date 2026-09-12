@@ -1,5 +1,5 @@
 use super::Store;
-use anyhow::{ensure, Result};
+use anyhow::{ensure, Context, Result};
 use rusqlite::{params, Connection, OptionalExtension};
 use serde_json::Value;
 use ymp_core::{InvocationObservation, InvocationState, SessionUsage, TokenCounts, UsageSnapshot};
@@ -85,6 +85,36 @@ impl Store {
     }
 }
 
+/// Invocation ordinals are cumulative. Gaps retain unknown historical calls;
+/// a new detailed row beyond the saved history cannot replace those calls.
+pub(super) fn invocation_count(db: &Connection, session: &str, saved: u64) -> Result<u64> {
+    let durable: Option<String> = db
+        .query_row(
+            "SELECT value FROM kv WHERE key=?",
+            [format!("turns:{session}")],
+            |r| r.get(0),
+        )
+        .optional()?;
+    let durable = durable
+        .map(|raw| {
+            raw.parse::<u64>()
+                .context("Invalid durable invocation count")
+        })
+        .transpose()?
+        .unwrap_or(0);
+    let highest: u64 = db.query_row(
+        "SELECT COALESCE(MAX(turn),0) FROM token_usage WHERE session_id=?",
+        [session],
+        |r| r.get(0),
+    )?;
+    Ok(saved.max(durable).max(highest))
+}
+
+pub(super) fn advance_invocation_count(db: &Connection, session: &str, count: u64) -> Result<()> {
+    db.execute("INSERT INTO kv(key,value) VALUES (?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value WHERE CAST(excluded.value AS INTEGER)>CAST(kv.value AS INTEGER)", params![format!("turns:{session}"), count.to_string()])?;
+    Ok(())
+}
+
 pub(super) fn session_usage(db: &Connection, session: &str) -> Result<SessionUsage> {
     let mut q = db.prepare(
         "SELECT agent,status,snapshot FROM token_usage WHERE session_id=? ORDER BY turn",
@@ -118,7 +148,7 @@ pub(super) fn session_usage(db: &Connection, session: &str) -> Result<SessionUsa
         .optional()?;
     if let Some(raw) = raw_session {
         let record: Value = serde_json::from_str(&raw)?;
-        let expected = record["turns_used"].as_u64().unwrap_or(0);
+        let expected = invocation_count(db, session, record["turns_used"].as_u64().unwrap_or(0))?;
         if expected > usage.total.calls {
             let missing = expected - usage.total.calls;
             usage.total.calls = expected;

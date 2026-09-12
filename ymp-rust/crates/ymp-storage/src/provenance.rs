@@ -455,15 +455,13 @@ impl Store {
             return Err(denial.into());
         }
         if allocate_turn {
-            let previous: u64 = tx.query_row(
-                "SELECT COALESCE(MAX(turn),0) FROM token_usage WHERE session_id=?",
-                [&assignment.session_id],
-                |r| r.get(0),
-            )?;
-            invocation.turn = previous
-                .max(session.turns_used as u64)
-                .checked_add(1)
-                .context("Invocation ordinal exhausted")?;
+            invocation.turn = super::usage::invocation_count(
+                &tx,
+                &assignment.session_id,
+                session.turns_used as u64,
+            )?
+            .checked_add(1)
+            .context("Invocation ordinal exhausted")?;
         }
         for grant in grants {
             super::authority::issue(&tx, assignment, invocation, grant)?;
@@ -492,7 +490,7 @@ impl Store {
         )?;
         // The ordinal and accounting start commit together, including after a
         // crash before the in-memory session's turn count can be saved.
-        tx.execute("INSERT INTO kv(key,value) VALUES (?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value WHERE CAST(excluded.value AS INTEGER)>CAST(kv.value AS INTEGER)", params![format!("turns:{}", invocation.session_id), invocation.turn.to_string()])?;
+        super::usage::advance_invocation_count(&tx, &invocation.session_id, invocation.turn)?;
         event(
             &tx,
             &assignment.session_id,
