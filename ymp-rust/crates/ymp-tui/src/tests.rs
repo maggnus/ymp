@@ -3469,9 +3469,23 @@ async fn a_confirmed_projection_and_a_candidate_are_not_shown_as_the_same_thing(
     }
     let confirmed = supported[0].id.clone();
     assert!(
-        right_of_key(&mut app, 65, &confirmed).contains("supported"),
-        "a confirmed projection is not named as support: {}",
+        right_of_key(&mut app, 65, &confirmed).contains("current"),
+        "a confirmed projection is not named as current: {}",
         right_of_key(&mut app, 65, &confirmed)
+    );
+    let candidate = inventory
+        .iter()
+        .find(|entry| !supported.iter().any(|offered| offered.id == entry.id))
+        .expect("the run recorded a candidate");
+    assert_ne!(
+        right_of_key(&mut app, 65, &candidate.id),
+        right_of_key(&mut app, 65, &confirmed),
+        "a candidate and a confirmed projection read the same"
+    );
+    assert!(
+        detail_of_key(&mut app, 65, &confirmed)
+            .contains("yes, as support under the default retrieval"),
+        "the page no longer says whether a run would be given this entry"
     );
     let detail = detail_of_key(&mut app, 65, &confirmed);
     assert!(
@@ -3548,7 +3562,10 @@ async fn knowledge_a_run_recorded_without_evidence_is_listed_rather_than_hidden(
     let mut app = run.app();
     app.command("/memory", 100);
 
-    let keys = keys_of(&mut app, 65);
+    let keys = keys_of(&mut app, 65)
+        .into_iter()
+        .filter(|key| key != crate::views::ABOUT_KEY)
+        .collect::<Vec<_>>();
     assert_eq!(
         keys.len(),
         inventory.len(),
@@ -3819,10 +3836,12 @@ async fn the_record_pages_paint_their_statements_whole_at_every_supported_size()
         );
 
         app.set_view(View::Memory);
+        app.on_key(key(KeyCode::Down), width);
         let prose = main_prose(&mut app, width, height);
         assert!(
             prose.contains("no passing evidence is attached")
-                || prose.contains("carried passing checks"),
+                || prose.contains("carried passing checks")
+                || prose.contains("recorded without a grade"),
             "at {width}x{height} the memory page lost words from an entry's basis:\n{prose}"
         );
 
@@ -5116,4 +5135,504 @@ async fn no_row_puts_more_in_its_right_column_than_the_narrowest_column_holds() 
         "no row carried the pool's own refusal, so the narrowest case went unchecked"
     );
     assert!(checked > 40, "only {checked} rows were checked");
+}
+
+// ---------------------------------------------------------------------------
+// The shared plan, as the runtime itself writes it
+// ---------------------------------------------------------------------------
+
+/// A scripted backend that coordinates through the real team API while its turn runs.
+///
+/// Nothing here is asked of a model. The plan is a fixed list of independent notes, and the
+/// proposals are the ones these tests mean to read back: one that the runtime commits, one
+/// repeated against a version the commitment has already moved, and one more that commits so
+/// that two tasks end up owed to the same agent. Every other purpose is left to the offline
+/// fixture executor underneath.
+struct Coordinating {
+    proposed: std::sync::Mutex<Vec<serde_json::Value>>,
+    asked_once: std::sync::atomic::AtomicBool,
+    /// Stop the notes the commitments are for, so a reader can be shown a responsibility that
+    /// is still owed rather than one a finished session has already discharged.
+    stall: bool,
+}
+
+async fn team_call(
+    request: &ymp_providers::TurnRequest,
+    name: &str,
+    arguments: serde_json::Value,
+) -> anyhow::Result<serde_json::Value> {
+    use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
+    let endpoint = request
+        .mcp
+        .as_ref()
+        .expect("the turn carries a team endpoint");
+    let socket = endpoint.args.last().expect("the endpoint names its socket");
+    let mut stream = tokio::net::UnixStream::connect(socket).await?;
+    stream
+        .write_all(
+            format!(
+                "{}\n",
+                serde_json::json!({"token": endpoint.token, "request_id": new_id(), "name": name, "arguments": arguments})
+            )
+            .as_bytes(),
+        )
+        .await?;
+    let mut line = String::new();
+    BufReader::new(stream).read_line(&mut line).await?;
+    Ok(serde_json::from_str(&line)?)
+}
+
+const NOTES: [&str; 4] = ["Alpha note", "Beta note", "Gamma note", "Delta note"];
+
+impl ymp_providers::ExecutionBackend for Coordinating {
+    fn identity(&self) -> ymp_core::ExecutionBackendIdentity {
+        ymp_core::ExecutionBackendIdentity {
+            id: "test.board-views".into(),
+            version: "1".into(),
+        }
+    }
+    fn execute(
+        &self,
+        request: ymp_providers::TurnRequest,
+        events: tokio::sync::mpsc::UnboundedSender<ymp_providers::ProviderEvent>,
+    ) -> ymp_providers::ExecutionFuture<'_> {
+        Box::pin(async move {
+            assert_eq!(
+                request.provider.kind,
+                ymp_core::ProviderKind::Mock,
+                "no native inference in an interface test"
+            );
+            let purpose = request.purpose.clone();
+            // The prompt carries the whole plan, so the task this turn is for is the one named
+            // under its own assignment heading and not merely one the prompt mentions.
+            let marker = format!("Your current assignment ({purpose}):\n");
+            let assignment = request
+                .prompt
+                .rsplit(&marker)
+                .next()
+                .unwrap_or("")
+                .to_owned();
+            // Only the turn that actually runs the first note asks, and only once: a bid or a
+            // review for the same task names it too.
+            let first = purpose == "execute"
+                && assignment.contains(NOTES[0])
+                && !self
+                    .asked_once
+                    .swap(true, std::sync::atomic::Ordering::SeqCst);
+            if self.stall
+                && purpose == "execute"
+                && (assignment.contains(NOTES[2]) || assignment.contains(NOTES[3]))
+            {
+                anyhow::bail!("Scripted stop before the committed notes run");
+            }
+            if first {
+                let read = team_call(&request, "board_read", serde_json::json!({})).await?;
+                assert_eq!(read["ok"], true, "{read}");
+                let board = &read["value"];
+                let reference = |title: &str| {
+                    let entry = board["tasks"]
+                        .as_array()
+                        .unwrap()
+                        .iter()
+                        .find(|entry| entry["task"]["title"] == title)
+                        .unwrap_or_else(|| panic!("the plan has no task called {title}"));
+                    serde_json::json!({"task_id": entry["task"]["id"], "version": entry["version"]})
+                };
+                for (target, rationale) in [
+                    (
+                        NOTES[2],
+                        "Take the third note on, having produced the first",
+                    ),
+                    (
+                        NOTES[2],
+                        "Take the third note on again, against the version this turn read",
+                    ),
+                    (NOTES[3], "Take the fourth note on as well, to hold both"),
+                ] {
+                    let asked = team_call(
+                        &request,
+                        "task_propose",
+                        serde_json::json!({
+                            "plan_version": board["plan_version"],
+                            "change": {"kind": "assign", "task": reference(target), "agent_id": "one", "settings": {"model": "small", "effort": "low"}},
+                            "rationale": rationale,
+                        }),
+                    )
+                    .await?;
+                    self.proposed.lock().unwrap().push(asked);
+                }
+            }
+            let mut result = ymp_providers::NativeExecutionBackend
+                .execute(request, events)
+                .await?;
+            if purpose == "plan" {
+                let mut plan: serde_json::Value = serde_json::from_str(&result.text)?;
+                let checks = plan["tasks"][0]["checks"].clone();
+                plan["tasks"] = serde_json::Value::Array(
+                    NOTES
+                        .iter()
+                        .map(|title| {
+                            serde_json::json!({
+                                "title": title,
+                                "description": "Write greeting.txt containing Hello from ymp",
+                                "competence": "implementation",
+                                "difficulty": "simple",
+                                "dependencies": [],
+                                "checks": checks,
+                            })
+                        })
+                        .collect(),
+                );
+                result.text = plan.to_string();
+            }
+            Ok(result)
+        })
+    }
+}
+
+/// The configuration the coordination fixture runs under: two mock actors with fixed settings,
+/// so the settings a proposal names are exactly the ones the runtime will validate.
+fn board_config() -> Config {
+    let mut config = mock_config();
+    config.limits.turns = 120;
+    config.limits.parallel = 2;
+    for id in ["one", "two"] {
+        config.execution.insert(
+            id.into(),
+            ymp_core::AgentExecutionPolicy {
+                fixed: ymp_core::ModelEffort {
+                    model: Some("small".into()),
+                    effort: Some("low".into()),
+                },
+                ..Default::default()
+            },
+        );
+    }
+    config
+}
+
+/// One run of the real runtime whose agents coordinated through the team API.
+async fn board_run(stall: bool) -> Run {
+    let home = TempDir::new().unwrap();
+    let project = TempDir::new().unwrap();
+    let store = Store::open(home.path()).unwrap();
+    let (tx, _events) = tokio::sync::mpsc::unbounded_channel();
+    let backend = std::sync::Arc::new(Coordinating {
+        proposed: std::sync::Mutex::new(Vec::new()),
+        asked_once: std::sync::atomic::AtomicBool::new(false),
+        stall,
+    });
+    let mut config = board_config();
+    if stall {
+        config.limits.attempts = 1;
+    }
+    let mut engine = ymp_runtime::Engine::new(
+        store.clone(),
+        config,
+        tx,
+        tokio_util::sync::CancellationToken::new(),
+    )
+    .unwrap()
+    .with_execution_backend(backend.clone())
+    .unwrap();
+    engine.use_memory = false;
+    let outcome = engine
+        .run(project.path(), "Write the notes this plan names", None)
+        .await
+        .unwrap();
+    assert_eq!(
+        backend.proposed.lock().unwrap().len(),
+        3,
+        "the fixture did not ask for what these tests read back"
+    );
+    Run {
+        _home: home,
+        project,
+        store,
+        config: engine.config.clone(),
+        session: outcome.session.id,
+        status: outcome.session.status,
+    }
+}
+
+/// The run the board tests read: its plan, its proposals and the decisions on them.
+struct Board {
+    run: Run,
+    committed: String,
+    rejected: String,
+    /// The task a commitment is still owed on when the run stopped.
+    owed: String,
+}
+
+async fn board_views() -> Board {
+    let run = board_run(true).await;
+    let board = run.store.board(&run.session).unwrap();
+    let decided = |accepted: bool| {
+        run.store
+            .trace(&run.session)
+            .unwrap()
+            .decisions
+            .into_iter()
+            .filter_map(|decision| decision.links.board)
+            .find(|board| board.accepted == accepted)
+            .map(|board| board.proposal.id.clone())
+            .expect("the fixture recorded a decision of each kind")
+    };
+    let owed = board
+        .tasks
+        .iter()
+        .find(|entry| entry.commitment.is_some())
+        .expect("the fixture left a commitment owed")
+        .task
+        .id
+        .clone();
+    Board {
+        committed: decided(true),
+        rejected: decided(false),
+        owed,
+        run,
+    }
+}
+
+#[tokio::test]
+async fn a_plan_change_an_agent_asked_for_is_listed_with_its_outcome_and_reason() {
+    let board = board_views().await;
+    let mut app = board.run.app();
+    app.load_session(&board.run.session).unwrap();
+    app.command("/tasks", 100);
+
+    let keys = keys_of(&mut app, 100);
+    assert!(
+        keys.contains(&board.committed) && keys.contains(&board.rejected),
+        "the plan's own proposals are not on the page"
+    );
+    let row = right_of_key(&mut app, 100, &board.committed);
+    assert!(
+        row.contains("committed"),
+        "a committed proposal does not say so: {row}"
+    );
+    let left = left_of_key(&mut app, 100, &board.committed);
+    assert!(
+        left.contains("give") && left.contains("note"),
+        "the row does not say what the proposal asks for: {left}"
+    );
+    let detail = detail_of_key(&mut app, 100, &board.committed);
+    for expected in [
+        "asked by",
+        "committed · the plan now carries it",
+        "decided by",
+        "ymp.ordered-board",
+        "the runtime, not an agent",
+        "resulting plan",
+        "the version the plan took on",
+        "responsibility",
+        "small at low",
+        "against plan",
+        "against members",
+        "Take the third note on",
+    ] {
+        assert!(
+            detail.contains(expected),
+            "the committed proposal's record does not carry {expected:?}:\n{detail}"
+        );
+    }
+
+    let row = right_of_key(&mut app, 100, &board.rejected);
+    assert!(
+        row.contains("rejected"),
+        "a rejected proposal does not say so: {row}"
+    );
+    let detail = detail_of_key(&mut app, 100, &board.rejected);
+    assert!(
+        detail.contains("rejected · the plan was not changed")
+            && detail.contains("stale_task")
+            && detail.contains("unchanged by this proposal"),
+        "the rejected proposal does not carry the runtime's own reason:\n{detail}"
+    );
+    assert!(
+        !detail.contains("responsibility"),
+        "a rejected proposal was shown as creating a responsibility:\n{detail}"
+    );
+}
+
+#[tokio::test]
+async fn a_task_says_who_is_responsible_for_it_and_what_was_put_off() {
+    let board = board_views().await;
+    let mut app = board.run.app();
+    app.load_session(&board.run.session).unwrap();
+    app.command("/tasks", 100);
+
+    let detail = detail_of_key(&mut app, 100, &board.owed);
+    for expected in [
+        "task version",
+        "responsibility",
+        "small at low",
+        "against task version",
+        "committed by",
+        "put off",
+        "commitment_busy",
+        "the agent responsible for it was already working",
+    ] {
+        assert!(
+            detail.contains(expected),
+            "the task does not carry {expected:?}:\n{detail}"
+        );
+    }
+    let right = right_of_key(&mut app, 100, &board.owed);
+    assert!(
+        right.contains("one"),
+        "the row does not name who is responsible for the task: {right}"
+    );
+
+    // The same responsibility, from the member's side.
+    app.command("/team", 100);
+    let member = detail_of_key(&mut app, 100, "one");
+    assert!(
+        member.contains("responsible for")
+            && member.contains("note")
+            && member.contains("small at low"),
+        "the team page does not say what this member is responsible for:\n{member}"
+    );
+    let other = detail_of_key(&mut app, 100, "two");
+    assert!(
+        other.contains("no task on the plan is committed to this member"),
+        "a member with no commitment is not said to have none:\n{other}"
+    );
+}
+
+#[tokio::test]
+async fn the_decision_and_not_the_stored_status_says_what_became_of_a_proposal() {
+    // The negative control for the board outcome. A proposal's stored status and its decision
+    // are written in one transaction, so they agree; only the decision carries the reason, and
+    // only the decision is the runtime's own statement. Here the status is put back to pending
+    // while the rejection stands, and the page must still read the decision.
+    let board = board_views().await;
+    let mut app = board.run.app();
+    app.load_session(&board.run.session).unwrap();
+    app.command("/tasks", 100);
+    let mut snapshot = app.records.board.take().expect("the plan was read");
+    for proposal in &mut snapshot.proposals {
+        proposal.status = ymp_core::BoardProposalStatus::Pending;
+    }
+    app.records.board = Some(snapshot);
+
+    let row = right_of_key(&mut app, 100, &board.rejected);
+    assert!(
+        row.contains("rejected"),
+        "the page read the stored status instead of the decision: {row}"
+    );
+    let row = right_of_key(&mut app, 100, &board.committed);
+    assert!(
+        row.contains("committed"),
+        "the page read the stored status instead of the decision: {row}"
+    );
+    assert!(
+        !app.page(100).subtitle.contains("waiting"),
+        "decided proposals were counted as waiting: {}",
+        app.page(100).subtitle
+    );
+}
+
+#[tokio::test]
+async fn a_proposal_no_decision_answered_is_not_shown_as_refused() {
+    let board = board_views().await;
+    let mut app = board.run.app();
+    app.load_session(&board.run.session).unwrap();
+    // What the page must show between a turn asking and the next work boundary: the decisions
+    // this session read are dropped, and the proposals stand as asked.
+    app.command("/tasks", 100);
+    let mut snapshot = app.records.board.take().expect("the plan was read");
+    for proposal in &mut snapshot.proposals {
+        proposal.status = ymp_core::BoardProposalStatus::Pending;
+    }
+    app.records.board = Some(snapshot);
+    if let Some(trace) = app.records.trace.as_mut() {
+        trace
+            .decisions
+            .retain(|decision| decision.links.board.is_none());
+    }
+
+    let row = right_of_key(&mut app, 100, &board.rejected);
+    assert!(
+        row.contains("proposed") && !row.contains("rejected"),
+        "a proposal nothing answered was shown as refused: {row}"
+    );
+    let detail = detail_of_key(&mut app, 100, &board.rejected);
+    assert!(
+        detail.contains("The runtime answers a proposal at a work boundary"),
+        "the page does not say when a proposal is answered:\n{detail}"
+    );
+    assert!(
+        app.page(100).subtitle.contains("3 proposals waiting"),
+        "the page does not say how many proposals are still waiting: {}",
+        app.page(100).subtitle
+    );
+}
+
+#[tokio::test]
+async fn a_plan_that_could_not_be_read_is_not_shown_as_a_plan_with_nothing_on_it() {
+    let board = board_views().await;
+    let mut app = board.run.app();
+    app.load_session(&board.run.session).unwrap();
+    app.command("/tasks", 100);
+    app.records.board = None;
+    app.records.board_unreadable = Some("board_unreadable: disk error".into());
+
+    let right = right_of_key(&mut app, 100, "board-unreadable");
+    assert!(
+        right.contains("unavailable"),
+        "a failed read of the plan is not reported: {right}"
+    );
+    let detail = detail_of_key(&mut app, 100, "board-unreadable");
+    assert!(
+        detail.contains("board_unreadable: disk error") && detail.contains("which proposals exist"),
+        "the page does not say what a failed read of the plan costs:\n{detail}"
+    );
+    let task = detail_of_key(&mut app, 100, &board.owed);
+    assert!(
+        !task.contains("responsibility"),
+        "a task claimed a responsibility with no plan read:\n{task}"
+    );
+}
+
+#[tokio::test]
+async fn a_decision_that_changed_the_plan_reads_as_its_own_outcome() {
+    let board = board_views().await;
+    let mut app = board.run.app();
+    app.load_session(&board.run.session).unwrap();
+    app.command("/decisions", 100);
+
+    let committed = app
+        .records
+        .decisions()
+        .iter()
+        .find(|decision| decision.kind == "board_committed")
+        .map(|decision| decision.id.clone())
+        .expect("the fixture recorded a committed plan change");
+    let detail = detail_of_key(&mut app, 100, &text::short_id(&committed));
+    for expected in [
+        "plan change committed",
+        "the plan took the change on",
+        "proposal",
+        "asked by",
+        "resulting",
+        "responsibility",
+    ] {
+        assert!(
+            detail.contains(expected),
+            "the decision does not carry {expected:?}:\n{detail}"
+        );
+    }
+    let rejected = app
+        .records
+        .decisions()
+        .iter()
+        .find(|decision| decision.kind == "board_rejected")
+        .map(|decision| decision.id.clone())
+        .expect("the fixture recorded a rejected plan change");
+    let detail = detail_of_key(&mut app, 100, &text::short_id(&rejected));
+    assert!(
+        detail.contains("plan change rejected") && detail.contains("the plan was left unchanged"),
+        "a rejected plan change does not read as one:\n{detail}"
+    );
 }

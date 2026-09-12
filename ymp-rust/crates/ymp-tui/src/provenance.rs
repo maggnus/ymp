@@ -17,10 +17,11 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 use ymp_core::{
-    now, AgentPool, AssignmentRecord, Config, ConfirmationStatus, DecisionOutcome, DecisionRecord,
-    GrantRecord, InvocationRecord, InvocationState, PoolAgent, ResultVersion, SessionPolicy,
-    SessionTrace, StoredOutcome, TeamConstraints, TeamState, WorkspaceAccessDecision,
-    WorkspaceWait,
+    now, AgentPool, AssignmentRecord, BoardCommitment, BoardDecision, BoardProposal,
+    BoardProposalStatus, BoardSnapshot, BoardTask, Config, ConfirmationStatus, DecisionOutcome,
+    DecisionRecord, GrantRecord, InvocationRecord, InvocationState, PoolAgent, ResultVersion,
+    SessionPolicy, SessionTrace, StoredOutcome, TeamConstraints, TeamState,
+    WorkspaceAccessDecision, WorkspaceWait,
 };
 use ymp_providers::discovery::ProviderHealth;
 use ymp_storage::Store;
@@ -68,6 +69,11 @@ pub struct Records {
     pub outcomes_unreadable: Option<String>,
     /// Why there is nothing to show, when the reason is a failed read.
     pub unreadable: Option<String>,
+    /// The shared plan as the store holds it: its version, every task's own version and
+    /// commitment, and the proposals agents made against it. `None` where no session is open
+    /// or the read failed, which is not the same as a session with no proposals.
+    pub board: Option<BoardSnapshot>,
+    pub board_unreadable: Option<String>,
 }
 
 impl Records {
@@ -129,6 +135,12 @@ impl Records {
             Ok(outcomes) => (outcomes, None),
             Err(error) => (Vec::new(), Some(format!("{error:#}"))),
         };
+        // The plan's own versions and the proposals against it are a read of the same session,
+        // taken here so the page that presents them paints from a snapshot like every other.
+        let (board, board_unreadable) = match store.board(id) {
+            Ok(board) => (Some(board), None),
+            Err(error) => (None, Some(format!("{error:#}"))),
+        };
         Self {
             session: Some(id.to_owned()),
             read_at,
@@ -139,7 +151,87 @@ impl Records {
             outcomes,
             outcomes_unreadable,
             unreadable: None,
+            board,
+            board_unreadable,
         }
+    }
+
+    /// The version of the plan the proposals were made against, where a board was read.
+    ///
+    /// A version is a digest of the plan's own definitions. It changes when a commitment
+    /// changes the plan, which is why a proposal that names an older one cannot be committed.
+    pub fn plan_version(&self) -> Option<&str> {
+        self.board.as_ref().map(|board| board.plan_version.as_str())
+    }
+
+    /// What the plan holds for one task: its own version and the commitment on it.
+    pub fn board_task(&self, task_id: &str) -> Option<&BoardTask> {
+        self.board
+            .as_ref()?
+            .tasks
+            .iter()
+            .find(|entry| entry.task.id == task_id)
+    }
+
+    /// Every proposal the session recorded, in the order it recorded them.
+    pub fn proposals(&self) -> &[BoardProposal] {
+        self.board
+            .as_ref()
+            .map(|board| board.proposals.as_slice())
+            .unwrap_or_default()
+    }
+
+    /// The decision that answered one proposal, where the runtime recorded one.
+    ///
+    /// The decision is the authority, not the proposal's stored status: the runtime writes the
+    /// decision and the status in one transaction, and only the decision carries the reason.
+    pub fn board_decision(&self, proposal: &str) -> Option<(&DecisionRecord, &BoardDecision)> {
+        self.decisions().iter().find_map(|decision| {
+            decision
+                .links
+                .board
+                .as_deref()
+                .filter(|board| board.proposal.id == proposal)
+                .map(|board| (decision, board))
+        })
+    }
+
+    /// The commitment one agent currently holds, where the plan holds one for it.
+    pub fn commitment_of(&self, agent: &str) -> Option<(&BoardTask, &BoardCommitment)> {
+        self.board.as_ref()?.tasks.iter().find_map(|entry| {
+            entry
+                .commitment
+                .as_ref()
+                .filter(|commitment| commitment.agent_id == agent)
+                .map(|commitment| (entry, commitment))
+        })
+    }
+
+    /// Turns the runtime put off rather than started, for one task.
+    ///
+    /// A deferral is a recorded wait and never a silent skip: the runtime writes why it left a
+    /// task for the next work boundary, and `commitment_busy` is the one that means the agent
+    /// responsible for it was already working.
+    pub fn deferrals_for_task(&self, task_id: &str) -> Vec<(&DecisionRecord, &WorkspaceWait)> {
+        self.waits_for_task(task_id)
+            .into_iter()
+            .filter(|(_, wait)| wait.code == "commitment_busy" || wait.code == "agent_busy")
+            .collect()
+    }
+
+    /// Proposals nothing has answered yet, which is what a reader can still expect.
+    ///
+    /// Waiting means two things at once: the stored status is still pending, and no decision
+    /// this session read answers it. A proposal whose status moved without a decision here is
+    /// not waiting either, and its row says that what the runtime decided was not read.
+    pub fn pending_proposals(&self) -> usize {
+        self.proposals()
+            .iter()
+            .filter(|proposal| {
+                proposal.status == BoardProposalStatus::Pending
+                    && self.board_decision(&proposal.id).is_none()
+            })
+            .count()
     }
 
     /// The roster the runtime holds for this session: who a turn may be given to now.
