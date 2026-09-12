@@ -17,11 +17,13 @@ use ratatui::style::Style;
 use ratatui::text::{Line, Span};
 use std::path::Path;
 use ymp_core::{
-    AgentProfile, AllocationBoundary, AllocationDecision, AssignmentRecord, CapabilitySource,
-    CheckOutcome, CheckRun, Config, ConfirmationStatus, DecisionRecord, ExecutionSettings,
-    GrantRecord, InvocationRecord, InvocationState, KnowledgeRetrievalMode, Limits, MemoryEntry,
-    ModelEffort, PoolAgent, PoolExclusion, PoolModelStatus, ProviderCapabilities, Session,
-    SessionBudget, Task, TaskAccess, TaskState, UsageTotals, WorkspaceAccess, WorkspaceWait,
+    AgentIdentity, AgentIdentityStatus, AgentProfile, AllocationBoundary, AllocationDecision,
+    AssignmentRecord, CapabilitySource, CheckOutcome, CheckRun, Config, ConfirmationStatus,
+    DecisionRecord, ExecutionSettings, GrantRecord, InvocationRecord, InvocationState,
+    KnowledgeRetrievalMode, Limits, MemoryEntry, ModelCapabilities, ModelEffort, NativeControl,
+    NativeControlValue, NativeControlValues, PoolAgent, PoolExclusion, PoolModelStatus,
+    ProviderCapabilities, Session, SessionBudget, Task, TaskAccess, TaskState, UsageTotals,
+    WorkspaceAccess, WorkspaceWait,
 };
 use ymp_storage::Store;
 use ymp_workspace::repository::Repository;
@@ -1589,14 +1591,140 @@ fn models_used(ctx: &Ctx, agent: &str) -> String {
 /// A catalog read today says nothing about a turn that ran yesterday, so a captured member is
 /// never resolved against the present catalog: the answer comes from the profile the session
 /// captured, or from the turns the session itself recorded, or it stays missing.
+/// What is stored for a provider: a reading from the installation, a claim the configuration
+/// wrote, or nothing, with the last attempt and any bounded failure the scan recorded.
+fn catalog_words(ctx: &Ctx, provider: &str) -> String {
+    let snapshot = ctx.config.native_provider_snapshot(provider);
+    let source = ctx
+        .config
+        .provider_capabilities(provider)
+        .map(|catalog| catalog.source.clone());
+    match (snapshot, source) {
+        (
+            Some(snapshot),
+            Some(CapabilitySource::NativeMetadata {
+                method,
+                observed_at,
+            }),
+        ) => match snapshot.failure.as_deref() {
+            None => format!("read from the installation by {method} at {observed_at}"),
+            Some(failure) => format!(
+                "the attempt at {} ended as {failure}; the reading by {method} at {observed_at} is kept",
+                snapshot.last_attempt
+            ),
+        },
+        (Some(snapshot), _) => match snapshot.failure.as_deref() {
+            Some(failure) => format!(
+                "not read · the attempt at {} ended as {failure}",
+                snapshot.last_attempt
+            ),
+            None => format!("attempted at {}, with nothing stored", snapshot.last_attempt),
+        },
+        (None, Some(CapabilitySource::Configured)) => {
+            "written by configuration; no reading from the installation stands behind it".to_owned()
+        }
+        (None, Some(CapabilitySource::NativeMetadata { .. })) => {
+            "a claim of a native reading that no stored scan matches".to_owned()
+        }
+        (None, None) => "nothing stored; this provider's own offerings have not been read".to_owned(),
+    }
+}
+
+/// What the catalog lists, in the installation's own names, and whether it claims to be whole.
+fn catalog_models_words(catalog: Option<&ProviderCapabilities>) -> String {
+    match catalog {
+        None => "none listed".to_owned(),
+        Some(catalog) if catalog.models.is_empty() && catalog.models_complete => {
+            "none, and the list is complete: this installation offers nothing".to_owned()
+        }
+        Some(catalog) if catalog.models.is_empty() => "none listed".to_owned(),
+        Some(catalog) => format!(
+            "{} · {}",
+            catalog
+                .models
+                .iter()
+                .map(|model| match model.display_name.as_deref() {
+                    Some(name) if name != model.id => format!("{name} ({})", model.id),
+                    _ => model.id.clone(),
+                })
+                .collect::<Vec<_>>()
+                .join(", "),
+            if catalog.models_complete {
+                "the whole list"
+            } else {
+                "not known to be the whole list"
+            }
+        ),
+    }
+}
+
+/// The label a captured member carries: the native name the record captured at admission, or
+/// the name the session captured with the profile.
+fn captured_label(ctx: &Ctx, profile: &AgentProfile) -> String {
+    captured_identity(ctx, &profile.id)
+        .map(|identity| identity.name.clone())
+        .unwrap_or_else(|| profile.name.clone())
+}
+
+/// The identity recorded with this agent's last assignment, if one was recorded.
+fn captured_identity<'a>(ctx: &'a Ctx, agent: &str) -> Option<&'a AgentIdentity> {
+    ctx.records
+        .assignments()
+        .iter()
+        .filter(|assignment| assignment.agent_id == agent)
+        .next_back()
+        .and_then(|assignment| assignment.agent_identity.as_ref())
+}
+
+/// What a captured member was, from the records alone.
+fn captured_identity_lines(ctx: &Ctx, profile: &AgentProfile) -> Vec<Line<'static>> {
+    let theme = ctx.theme;
+    let mut lines = Vec::new();
+    if let Some(identity) = captured_identity(ctx, &profile.id) {
+        lines.extend(field(theme, "name", &identity.name, ctx.width));
+        if identity.configured_name != identity.name {
+            lines.extend(field(
+                theme,
+                "configured as",
+                &identity.configured_name,
+                ctx.width,
+            ));
+        }
+        lines.extend(field(
+            theme,
+            "captured as",
+            &format!(
+                "{} · the identity recorded when the turn was admitted",
+                identity
+                    .model
+                    .as_deref()
+                    .unwrap_or("no model was recorded with it")
+            ),
+            ctx.width,
+        ));
+    }
+    lines.extend(field(
+        theme,
+        "model",
+        &captured_model_detail_words(ctx, profile),
+        ctx.width,
+    ));
+    lines
+}
+
 fn captured_model_row_words(ctx: &Ctx, profile: &AgentProfile) -> String {
-    if let Some(id) = profile.model.as_deref() {
+    if let Some(id) = captured_identity(ctx, &profile.id).and_then(|i| i.model.as_deref()) {
         return id.to_owned();
     }
-    recorded_models(ctx, &profile.id)
-        .0
-        .first()
-        .cloned()
+    // What the turns recorded comes before the profile's own field: a model can reach a turn
+    // from an execution policy without ever being written on the profile, so an empty field is
+    // not a statement that no model was used.
+    if let Some(id) = recorded_models(ctx, &profile.id).0.first() {
+        return id.clone();
+    }
+    profile
+        .model
+        .clone()
         .unwrap_or_else(|| "model not recorded".to_owned())
 }
 
@@ -1610,157 +1738,193 @@ fn captured_model_detail_words(ctx: &Ctx, profile: &AgentProfile) -> String {
     }
 }
 
-/// What an agent would actually run as, read from the catalog the pool reports.
+/// The native identity of a profile, as the pool snapshot holds it.
 ///
-/// A provider id is a transport label: `codex` is how ymp reaches an installation, not the
-/// name of a model it offers. Until a catalog has been read from an installation, no model
-/// name is known for a profile that pins none, and this says exactly that instead of putting
-/// the provider's own label where a model name belongs. Nothing here derives a name from an
-/// identifier.
-///
-/// The source is the pool snapshot and never `Config::capabilities`, because the pool is what
-/// stamps a configuration-supplied catalog as configured. Reading the configuration directly
-/// would let a file claim a native observation it never made.
-enum ResolvedModel<'a> {
-    /// The configuration pins this exact identifier for this agent.
-    Pinned(&'a str),
-    /// A stored native scan names this identifier as what the installation would choose.
-    ScannedDefault {
-        id: &'a str,
-        method: &'a str,
-        observed_at: &'a str,
-    },
-    /// A scan is stored for the provider and reported no default to fall back on.
-    ScannedWithoutDefault { observed_at: &'a str },
-    /// A catalog exists for the provider, but configuration wrote it and no scan did.
-    Configured,
-    /// Nothing is stored for the provider at all.
-    Unscanned,
-    /// What is installed could not be read, which is not an answer about the model.
-    Unread,
+/// Painting reads the snapshot and never scans: `Pool::read` rebuilt it when the window opened,
+/// a session was loaded or the pages were opened, and an explicit scan is its own action.
+fn identity_of<'a>(ctx: &'a Ctx, profile: &AgentProfile) -> Option<&'a AgentIdentity> {
+    ctx.pool.agent(&profile.id).map(|agent| &agent.identity)
 }
 
-impl<'a> ResolvedModel<'a> {
-    fn id(&self) -> Option<&'a str> {
-        match self {
-            Self::Pinned(id) | Self::ScannedDefault { id, .. } => Some(id),
-            _ => None,
-        }
-    }
-
-    /// The short words a row carries. The two unresolved states stay apart, because nothing
-    /// having been scanned is not the same as a scan that resolved no model.
-    fn row_words(&self) -> &'static str {
-        match self {
-            Self::Unscanned => "not scanned",
-            Self::Unread => "not read",
-            _ => "model unknown",
-        }
-    }
-
-    /// The same answer in full, with where it came from.
-    fn detail_words(&self) -> String {
-        match self {
-            Self::Pinned(id) => format!("{id} · the configuration pins it for this agent"),
-            Self::ScannedDefault {
-                id,
-                method,
-                observed_at,
-            } => format!(
-                "{id} · the default a scan read from the installation by {method} at {observed_at}"
-            ),
-            Self::ScannedWithoutDefault { observed_at } => format!(
-                "unknown · the scan at {observed_at} reported no default, and this agent pins none"
-            ),
-            Self::Configured => {
-                "unknown · the catalog for this provider was written by configuration, not by a scan"
-                    .to_owned()
-            }
-            Self::Unscanned => {
-                "not scanned · nothing has been read from this installation, so no native name is known"
-                    .to_owned()
-            }
-            Self::Unread => {
-                "not read · what is installed on this machine could not be read, so this says nothing about the model"
-                    .to_owned()
-            }
-        }
-    }
-}
-
-fn resolved_model<'a>(ctx: &'a Ctx, profile: &'a AgentProfile) -> ResolvedModel<'a> {
-    if let Some(id) = profile.model.as_deref() {
-        return ResolvedModel::Pinned(id);
-    }
-    let Some(pool) = ctx.pool.pool.as_ref() else {
-        return ResolvedModel::Unread;
+/// The label a row carries for an agent, and the short words beside it.
+///
+/// A provider id is a transport label: `codex` is how ymp reaches an installation, not the name
+/// of a model it offers. So a native name, where the installation gave one, is the label; where
+/// it did not, the label is the configured one and the words beside it say exactly what is
+/// missing. Nothing here derives a name from an identifier.
+fn identity_row_words(
+    identity: Option<&AgentIdentity>,
+    profile: &AgentProfile,
+) -> (String, String) {
+    let Some(identity) = identity else {
+        return (
+            profile.name.clone(),
+            "what is installed could not be read".to_owned(),
+        );
     };
-    match pool.capabilities.get(&profile.provider) {
-        None => ResolvedModel::Unscanned,
-        Some(catalog) => match (&catalog.source, catalog.default_model.as_deref()) {
-            (
-                CapabilitySource::NativeMetadata {
-                    method,
-                    observed_at,
-                },
-                Some(id),
-            ) => ResolvedModel::ScannedDefault {
-                id,
-                method,
-                observed_at,
-            },
-            (CapabilitySource::NativeMetadata { observed_at, .. }, None) => {
-                ResolvedModel::ScannedWithoutDefault { observed_at }
-            }
-            (CapabilitySource::Configured, _) => ResolvedModel::Configured,
-        },
-    }
-}
-
-/// The catalog the pool reports for a provider, which is the only source that may claim a
-/// native observation.
-fn pool_catalog<'a>(ctx: &'a Ctx, provider: &str) -> Option<&'a ProviderCapabilities> {
-    ctx.pool.pool.as_ref()?.capabilities.get(provider)
-}
-
-/// What a stored catalog is, for the provider page: a scan, configuration, or nothing.
-fn catalog_words(catalog: Option<&ProviderCapabilities>) -> String {
-    match catalog {
-        None => "nothing stored; this provider's own offerings have not been read".to_owned(),
-        Some(catalog) => match &catalog.source {
-            CapabilitySource::NativeMetadata {
-                method,
-                observed_at,
-            } => format!("read from the installation by {method} at {observed_at}"),
-            CapabilitySource::Configured => {
-                "written by configuration; no scan stands behind it".to_owned()
-            }
-        },
-    }
-}
-
-/// How many offerings the catalog lists, and whether it claims to list them all.
-fn catalog_models_words(catalog: Option<&ProviderCapabilities>) -> String {
-    match catalog {
-        None => "none listed".to_owned(),
-        Some(catalog) if catalog.models.is_empty() && catalog.models_complete => {
-            "none, and the list is complete: this installation offers nothing".to_owned()
-        }
-        Some(catalog) if catalog.models.is_empty() => "none listed".to_owned(),
-        Some(catalog) => format!(
-            "{} · {}",
-            catalog
-                .models
-                .iter()
-                .map(|model| model.id.clone())
-                .collect::<Vec<_>>()
-                .join(", "),
-            if catalog.models_complete {
-                "the whole list"
-            } else {
-                "not known to be the whole list"
-            }
+    match identity.status {
+        AgentIdentityStatus::Native => (
+            identity.name.clone(),
+            identity
+                .model
+                .clone()
+                .unwrap_or_else(|| "no identifier recorded".to_owned()),
         ),
+        AgentIdentityStatus::Stale => (identity.name.clone(), "not read recently".to_owned()),
+        AgentIdentityStatus::Unknown => (
+            identity.configured_name.clone(),
+            "not in the catalog".to_owned(),
+        ),
+        AgentIdentityStatus::Unresolved => (
+            identity.configured_name.clone(),
+            "no native model".to_owned(),
+        ),
+        AgentIdentityStatus::Local => (identity.name.clone(), "a local provider".to_owned()),
+    }
+}
+
+/// The same identity in full: what it is, where the name came from, and what it does not say.
+fn identity_lines(ctx: &Ctx, profile: &AgentProfile) -> Vec<Line<'static>> {
+    let theme = ctx.theme;
+    let identity = identity_of(ctx, profile);
+    let Some(identity) = identity else {
+        return field(
+            theme,
+            "model",
+            "unknown · what is installed on this machine could not be read, so this says nothing about the model",
+            ctx.width,
+        );
+    };
+    let mut lines = field(theme, "name", &identity.name, ctx.width);
+    if identity.configured_name != identity.name {
+        lines.extend(field(
+            theme,
+            "configured as",
+            &identity.configured_name,
+            ctx.width,
+        ));
+    }
+    lines.extend(field(
+        theme,
+        "model",
+        &match identity.model.as_deref() {
+            Some(id) => id.to_owned(),
+            None => "none is set, so the installation would choose".to_owned(),
+        },
+        ctx.width,
+    ));
+    if let Some(resolved) = identity.resolved_model.as_deref() {
+        lines.extend(field(theme, "resolved to", resolved, ctx.width));
+    }
+    lines.extend(field(theme, "name from", &name_source(identity), ctx.width));
+    let catalog = ctx.config.provider_capabilities(&profile.provider);
+    if let Some(offering) = catalog
+        .zip(identity.model.as_deref())
+        .and_then(|(catalog, model)| catalog.model(model))
+    {
+        if !offering.aliases.is_empty() {
+            lines.extend(field(
+                theme,
+                "also known as",
+                &offering.aliases.join(", "),
+                ctx.width,
+            ));
+        }
+        if let Some(picker) = offering.picker_id.as_deref() {
+            lines.extend(field(
+                theme,
+                "chosen in the picker as",
+                &format!("{picker} · a selector, not a model to send"),
+                ctx.width,
+            ));
+        }
+        lines.extend(control_lines(theme, offering, ctx.width));
+    }
+    lines
+}
+
+/// Where a name came from, which is the only thing that makes it a native name.
+fn name_source(identity: &AgentIdentity) -> String {
+    match (&identity.status, &identity.source) {
+        (
+            AgentIdentityStatus::Native,
+            Some(CapabilitySource::NativeMetadata {
+                method,
+                observed_at,
+            }),
+        ) => format!("the installation, read by {method} at {observed_at}"),
+        (
+            AgentIdentityStatus::Stale,
+            Some(CapabilitySource::NativeMetadata {
+                method,
+                observed_at,
+            }),
+        ) => format!(
+            "the installation, read by {method} at {observed_at}, which is no longer current"
+        ),
+        (AgentIdentityStatus::Native | AgentIdentityStatus::Stale, _) => {
+            "a stored reading whose source was not recorded".to_owned()
+        }
+        (AgentIdentityStatus::Unknown, _) => {
+            "the configuration · no stored catalog lists this model".to_owned()
+        }
+        (AgentIdentityStatus::Unresolved, _) => {
+            "nowhere yet · no model is set and no stored catalog names a default".to_owned()
+        }
+        (AgentIdentityStatus::Local, _) => {
+            "the configuration · a local provider has no native identity".to_owned()
+        }
+    }
+}
+
+/// The controls an offering advertises, in the installation's own words.
+fn control_lines(theme: &Theme, offering: &ModelCapabilities, width: usize) -> Vec<Line<'static>> {
+    let mut lines = Vec::new();
+    match offering.controls.as_deref() {
+        None => lines.extend(field(
+            theme,
+            "controls",
+            "unknown · the catalog does not say which it offers",
+            width,
+        )),
+        Some([]) => lines.extend(field(
+            theme,
+            "controls",
+            "none · the catalog says it offers none",
+            width,
+        )),
+        Some(controls) => {
+            for control in controls {
+                let label = control.display_name.as_deref().unwrap_or(&control.id);
+                lines.extend(field(theme, label, &control_values(control), width));
+            }
+        }
+    }
+    lines
+}
+
+/// The values one control takes, named as the installation names them.
+fn control_values(control: &NativeControl) -> String {
+    let values = match &control.values {
+        NativeControlValues::Choices { options } => options
+            .iter()
+            .map(|option| match control.value_names.get(option) {
+                Some(name) if name != option => format!("{name} ({option})"),
+                _ => option.clone(),
+            })
+            .collect::<Vec<_>>()
+            .join(", "),
+        NativeControlValues::Boolean => "on or off".to_owned(),
+        NativeControlValues::Integer { min, max } => format!("{min} to {max}"),
+    };
+    match &control.default {
+        Some(NativeControlValue::Choice(value)) => format!("{values} · {value} by default"),
+        Some(NativeControlValue::Boolean(value)) => format!(
+            "{values} · {} by default",
+            if *value { "on" } else { "off" }
+        ),
+        Some(NativeControlValue::Integer(value)) => format!("{values} · {value} by default"),
+        None => format!("{values} · no default is named"),
     }
 }
 
@@ -1794,23 +1958,21 @@ fn member_row(ctx: &Ctx, profile: &AgentProfile) -> Item {
             None => ("not in the pool".to_owned(), theme.warn()),
         }
     };
-    let resolved = resolved_model(ctx, profile);
-    let (model_row, model_detail) = if ctx.team_captured {
+    let identity = identity_of(ctx, profile);
+    let (label, words) = identity_row_words(identity, profile);
+    let mut detail = field(theme, "profile", &profile.id, ctx.width);
+    // A catalog read today says nothing about a turn that ran yesterday, so a captured member
+    // is read from what its own session recorded and never from the catalog as it stands now.
+    let (label, words) = if ctx.team_captured {
+        detail.extend(captured_identity_lines(ctx, profile));
         (
+            captured_label(ctx, profile),
             captured_model_row_words(ctx, profile),
-            captured_model_detail_words(ctx, profile),
         )
     } else {
-        (
-            resolved
-                .id()
-                .map(|id| id.to_owned())
-                .unwrap_or_else(|| resolved.row_words().to_owned()),
-            resolved.detail_words(),
-        )
+        detail.extend(identity_lines(ctx, profile));
+        (label, words)
     };
-    let mut detail = field(theme, "profile", &profile.id, ctx.width);
-    detail.extend(field(theme, "model", &model_detail, ctx.width));
     detail.extend(field(theme, "provider", &profile.provider, ctx.width));
     detail.extend(field(
         theme,
@@ -1875,8 +2037,8 @@ fn member_row(ctx: &Ctx, profile: &AgentProfile) -> Item {
                 ),
                 style,
             ),
-            Span::styled(profile.name.clone(), theme.text()),
-            Span::styled(format!(" · {model_row}"), theme.muted()),
+            Span::styled(label, theme.text()),
+            Span::styled(format!(" · {words}"), theme.muted()),
             Span::styled(format!(" · {}", profile.provider), theme.faint()),
         ],
     )
@@ -2234,6 +2396,9 @@ fn exclusion_word(exclusion: PoolExclusion) -> &'static str {
         PoolExclusion::ExecutableMissing => "the provider's program was not found",
         PoolExclusion::ModelUnlisted => "the configured catalog does not list the model",
         PoolExclusion::NoModelsAvailable => "the configured catalog lists no model",
+        PoolExclusion::NativeModelUnresolved => {
+            "no native model is resolved for it, so nothing would be sent"
+        }
     }
 }
 
@@ -2254,14 +2419,14 @@ fn agents(ctx: &Ctx) -> Page {
         .iter()
         .map(|profile| {
             let in_team = ctx.config.team.contains(&profile.id);
-            let resolved = resolved_model(ctx, profile);
+            let (label, words) = identity_row_words(identity_of(ctx, profile), profile);
             let mut detail = field(theme, "profile", &profile.id, ctx.width);
-            detail.extend(field(theme, "model", &resolved.detail_words(), ctx.width));
+            detail.extend(identity_lines(ctx, profile));
             detail.extend(field(theme, "provider", &profile.provider, ctx.width));
             detail.extend(field(
                 theme,
                 "catalog",
-                &catalog_words(pool_catalog(ctx, &profile.provider)),
+                &catalog_words(ctx, &profile.provider),
                 ctx.width,
             ));
             detail.extend(field(
@@ -2298,8 +2463,8 @@ fn agents(ctx: &Ctx) -> Page {
             Item::row(
                 profile.id.clone(),
                 vec![
-                    Span::styled(profile.name.clone(), theme.text()),
-                    Span::styled(format!(" · {}", resolved.id().unwrap_or_else(|| resolved.row_words())), theme.muted()),
+                    Span::styled(label, theme.text()),
+                    Span::styled(format!(" · {words}"), theme.muted()),
                     Span::styled(format!(" · {}", profile.provider), theme.faint()),
                 ],
             )
@@ -2330,6 +2495,7 @@ fn agents(ctx: &Ctx) -> Page {
             ("Space", "enable"),
             ("t", "team"),
             ("r", "re-read"),
+            ("R", "ask the installations"),
             ("Esc", "back"),
         ],
     }
@@ -2382,8 +2548,13 @@ fn providers(ctx: &Ctx) -> Page {
                     },
                     ctx.width,
                 ));
-                let catalog = pool_catalog(ctx, &provider.id);
-                detail.extend(field(theme, "catalog", &catalog_words(catalog), ctx.width));
+                let catalog = ctx.config.provider_capabilities(&provider.id);
+                detail.extend(field(
+                theme,
+                "catalog",
+                &catalog_words(ctx, &provider.id),
+                ctx.width,
+            ));
                 detail.extend(field(
                     theme,
                     "offers",
@@ -2462,7 +2633,8 @@ fn providers(ctx: &Ctx) -> Page {
         ),
         hints: vec![
             ("Space", "enable or disable"),
-            ("r", "re-read what is installed"),
+            ("r", "re-read what is stored"),
+            ("R", "ask this installation what it offers"),
             ("Esc", "back"),
         ],
     }

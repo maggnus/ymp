@@ -104,6 +104,11 @@ pub enum Action {
     },
     /// Stop active turns.
     Cancel,
+    /// Ask the installations what they offer, which is the only scan the interface performs.
+    RefreshCatalog {
+        /// One provider, or every enabled provider when absent.
+        provider: Option<String>,
+    },
 }
 
 /// Where a submitted line of text belongs. Kept separate from the key handler so the
@@ -1280,8 +1285,17 @@ impl App {
             (View::Providers | View::Agents, KeyCode::Char('r')) => {
                 self.refresh_pool();
                 self.notice(
-                    "Re-read what is installed on this machine and the catalog already stored. This asks no provider anything: reading a provider's own offerings is a separate explicit scan.",
+                    "Re-read what is installed on this machine and the catalog already stored. This asks no provider anything: reading a provider's own offerings is R.",
                 );
+            }
+            (View::Providers | View::Agents, KeyCode::Char('R')) => {
+                // One provider when the row is a provider; every enabled one from the pool page,
+                // because a profile's row names an agent and not what would be asked.
+                let provider = match view {
+                    View::Providers => Some(item.key.clone()),
+                    _ => None,
+                };
+                return vec![Action::RefreshCatalog { provider }];
             }
             (View::Agents, KeyCode::Char('m')) => {
                 let id = item.key.clone();
@@ -1497,6 +1511,17 @@ impl App {
             config.team.push(id.clone());
             Ok(format!("{id} joined the team."))
         });
+    }
+
+    /// Take the configuration a catalog reading produced.
+    ///
+    /// The reading has already written `config.toml` and its own snapshot under the
+    /// application home, so this does not save again: saving here would race with the check
+    /// that refuses a reading when the file changed under it. The loaded session, its records
+    /// and the conversation are untouched; only what the next run would use changes.
+    pub fn adopt_config(&mut self, config: Config) {
+        self.config = config;
+        self.refresh_pool();
     }
 
     /// Apply a configuration change, validate it, and save it. A rejected change is

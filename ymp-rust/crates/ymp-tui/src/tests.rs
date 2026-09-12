@@ -4257,9 +4257,13 @@ async fn credit_this_session_did_not_read_is_reported_and_not_asserted() {
     );
 }
 
-/// A catalog as a native scan would have stored it: exact identifiers, the control the
-/// installation advertises with its own name, and the time the scan was observed at.
-fn scanned_catalog(default_model: Option<&str>) -> ymp_core::ProviderCapabilities {
+/// A catalog as a scan of an installation stores it: exact identifiers, the verbatim picker
+/// label, the aliases advertised, the control the installation names with its own words, and
+/// the time the reading was observed at.
+fn scanned_catalog(
+    default_model: Option<&str>,
+    observed_at: &str,
+) -> ymp_core::ProviderCapabilities {
     use ymp_core::{
         CapabilitySource, ModelCapabilities, NativeControl, NativeControlValue,
         NativeControlValues, ProviderCapabilities,
@@ -4267,13 +4271,21 @@ fn scanned_catalog(default_model: Option<&str>) -> ymp_core::ProviderCapabilitie
     ProviderCapabilities {
         source: CapabilitySource::NativeMetadata {
             method: "models.list".into(),
-            observed_at: "2026-09-13T00:00:00+00:00".into(),
+            observed_at: observed_at.into(),
         },
         models_complete: true,
         models: vec![ModelCapabilities {
-            id: "glm-5.2".into(),
+            id: "gpt-5.6-sol".into(),
+            display_name: Some("GPT-5.6-Sol".into()),
+            picker_id: Some("sol-row".into()),
+            aliases: vec!["gpt-5.6".into()],
+            resolved_model: Some("gpt-5.6-sol-0913".into()),
             controls: Some(vec![NativeControl {
                 id: "thought_level".into(),
+                display_name: Some("Thought level".into()),
+                value_names: [("max".to_owned(), "Maximum".to_owned())]
+                    .into_iter()
+                    .collect(),
                 values: NativeControlValues::Choices {
                     options: vec!["none".into(), "high".into(), "max".into()],
                 },
@@ -4284,8 +4296,39 @@ fn scanned_catalog(default_model: Option<&str>) -> ymp_core::ProviderCapabilitie
     }
 }
 
+/// A configuration holding a stored reading for its first provider, the way the application
+/// holds one after a scan: the snapshot is bound to the provider it was read from by the same
+/// fingerprint the scan writes, so the supported readers accept it.
+fn config_with_reading(model: Option<&str>, catalog: ymp_core::ProviderCapabilities) -> Config {
+    let mut config = Config::default();
+    let provider = config.providers[0].id.clone();
+    if let Some(agent) = config.agents.iter_mut().find(|a| a.provider == provider) {
+        agent.model = model.map(|id| id.to_owned());
+    }
+    config.native_catalog.providers.insert(
+        provider.clone(),
+        ymp_core::NativeProviderSnapshot {
+            provider_fingerprint: ymp_core::provider_fingerprint(
+                config.provider(&provider).unwrap(),
+            ),
+            last_attempt: ymp_core::now(),
+            failure: None,
+            catalog: Some(catalog),
+        },
+    );
+    config
+}
+
+fn app_with(fixture: &Fixture, config: Config) -> App {
+    App::new(
+        fixture.store.clone(),
+        config,
+        PathBuf::from(fixture.project.path()),
+    )
+}
+
 #[test]
-fn a_profile_with_no_scanned_catalog_is_not_presented_as_a_named_agent() {
+fn a_profile_with_no_native_reading_is_not_presented_as_a_named_agent() {
     // The shipped default: three provider-labelled profiles with no model of their own.
     let fixture = fixture();
     let mut app = fixture.app();
@@ -4294,107 +4337,189 @@ fn a_profile_with_no_scanned_catalog_is_not_presented_as_a_named_agent() {
     for profile in ["codex", "claude", "glm"] {
         let row = left_of_key(&mut app, 65, profile);
         assert!(
-            row.contains("not scanned"),
-            "an unscanned profile does not say so: {row}"
-        );
-        assert!(
-            !row.contains("default model") && !row.contains("provider default"),
-            "a label stands where a model name belongs: {row}"
+            row.contains("no native model"),
+            "an unresolved profile does not say so: {row}"
         );
         let detail = detail_of_key(&mut app, 100, profile);
         assert!(
-            detail.contains("nothing has been read from this installation"),
+            detail.contains("no model is set and no stored catalog names a default"),
             "the page does not say why no name is known:\n{detail}"
         );
         assert!(
             detail.contains("nothing stored; this provider's own offerings have not been read"),
-            "the catalog behind the profile is not reported:\n{detail}"
+            "the reading behind the profile is not reported:\n{detail}"
         );
     }
+    // The pool itself refuses them for the same reason, and the team page says which.
+    app.command("/team", 100);
+    assert!(
+        row_prose(&mut app, 100, "Codex").contains("no native model is resolved for it"),
+        "the pool's own reason is not shown:\n{}",
+        row_prose(&mut app, 100, "Codex")
+    );
 }
 
-/// A pool snapshot holding a catalog read from an installation.
-///
-/// The supported path cannot produce one yet: `inspect_pool` stamps every
-/// configuration-supplied catalog as configured, which is exactly what stops a file from
-/// claiming an observation it never made. So the snapshot is supplied here the way the
-/// controller will hold it once a scan has stored one.
-fn pool_with_catalog(
-    provider: &str,
-    catalog: ymp_core::ProviderCapabilities,
-) -> crate::provenance::Pool {
-    crate::provenance::Pool {
-        read_at: ymp_core::now(),
-        pool: Some(ymp_core::AgentPool {
-            agents: Vec::new(),
-            capabilities: [(provider.to_owned(), catalog)].into_iter().collect(),
-        }),
-        health: Vec::new(),
-        unreadable: None,
+#[test]
+fn a_native_name_is_shown_exactly_as_the_installation_returned_it() {
+    let fixture = fixture();
+    let config = config_with_reading(
+        Some("gpt-5.6-sol"),
+        scanned_catalog(Some("gpt-5.6-sol"), &ymp_core::now()),
+    );
+    let mut app = app_with(&fixture, config);
+    app.command("/agents", 100);
+
+    let row = left_of_key(&mut app, 65, "codex");
+    assert!(
+        row.starts_with("GPT-5.6-Sol"),
+        "the installation's own name is not the label: {row}"
+    );
+    assert!(
+        row.contains("gpt-5.6-sol") && row.contains("codex"),
+        "the identifier and the provider are not kept beside it: {row}"
+    );
+    let detail = detail_of_key(&mut app, 100, "codex");
+    for expected in [
+        "configured as",
+        "Codex",
+        "resolved to",
+        "gpt-5.6-sol-0913",
+        "the installation, read by models.list",
+        "also known as",
+        "gpt-5.6",
+        "a selector, not a model to send",
+        "Thought level",
+        "Maximum (max)",
+        "high by default",
+    ] {
+        assert!(
+            detail.contains(expected),
+            "the record does not carry {expected:?}:\n{detail}"
+        );
     }
-}
-
-#[test]
-fn a_scanned_default_is_named_exactly_as_the_scan_reported_it() {
-    let fixture = fixture();
-    let mut app = fixture.app();
-    app.command("/agents", 100);
-    app.pool = pool_with_catalog("codex", scanned_catalog(Some("glm-5.2")));
-
-    // A width the page was not built at, so the injected snapshot is the one it reads.
-    let row = left_of_key(&mut app, 65, "codex");
     assert!(
-        row.contains("glm-5.2"),
-        "the scanned identifier is not on the row: {row}"
-    );
-    let detail = detail_of_key(&mut app, 65, "codex");
-    assert!(
-        detail.contains("models.list") && detail.contains("2026-09-13T00:00:00+00:00"),
-        "the page does not say which scan resolved the name:\n{detail}"
-    );
-    // A provider whose catalog was not scanned keeps its own answer.
-    assert!(
-        left_of_key(&mut app, 65, "claude").contains("not scanned"),
-        "one provider's scan was read as another's"
-    );
-
-    // Opening the page re-reads what is installed, which is the behaviour under test
-    // elsewhere, so the snapshot is supplied again after the switch.
-    app.command("/providers", 100);
-    app.pool = pool_with_catalog("codex", scanned_catalog(Some("glm-5.2")));
-    let provider = detail_of_key(&mut app, 65, "codex");
-    assert!(
-        provider.contains("read from the installation by models.list"),
-        "the provider page does not say where its catalog came from:\n{provider}"
-    );
-    assert!(
-        provider.contains("glm-5.2") && provider.contains("the whole list"),
-        "the offerings the scan stored are not listed:\n{provider}"
+        !detail.contains("sol-row ·") || detail.contains("a selector"),
+        "the picker identity is offered as a model to send:\n{detail}"
     );
 }
 
 #[test]
-fn a_scan_that_resolved_no_model_says_unknown_and_never_the_provider() {
+fn an_actor_whose_model_comes_from_its_execution_policy_is_still_named_natively() {
+    // A legacy actor: nothing on the profile itself, a concrete model in its execution policy.
+    // The migration deliberately leaves that profile field empty so the actor keeps its
+    // qualified experience, so an empty field cannot be read as an unresolved agent.
     let fixture = fixture();
-    let mut app = fixture.app();
+    let mut config =
+        config_with_reading(None, scanned_catalog(Some("gpt-5.6-sol"), &ymp_core::now()));
+    config.execution.insert(
+        "codex".into(),
+        ymp_core::AgentExecutionPolicy {
+            defaults: ymp_core::ModelEffort {
+                model: Some("gpt-5.6-sol".into()),
+                effort: None,
+            },
+            ..Default::default()
+        },
+    );
+    assert!(
+        config.agent("codex").unwrap().model.is_none(),
+        "the fixture must leave the profile's own field empty"
+    );
+    let mut app = app_with(&fixture, config);
     app.command("/agents", 100);
-    app.pool = pool_with_catalog("codex", scanned_catalog(None));
 
     let row = left_of_key(&mut app, 65, "codex");
     assert!(
-        row.contains("model unknown") && !row.contains("not scanned"),
-        "a scan that resolved nothing is confused with no scan at all: {row}"
+        row.starts_with("GPT-5.6-Sol"),
+        "an actor whose model comes from its policy is not named natively: {row}"
     );
-    let detail = detail_of_key(&mut app, 65, "codex");
     assert!(
-        detail.contains("reported no default"),
-        "the page does not say what the scan did not answer:\n{detail}"
+        !row.contains("no native model"),
+        "an empty profile field was read as an unresolved agent: {row}"
     );
+    let detail = detail_of_key(&mut app, 100, "codex");
+    assert!(
+        detail.contains("gpt-5.6-sol") && detail.contains("the installation, read by models.list"),
+        "the record does not name the model and where its name came from:\n{detail}"
+    );
+}
+
+#[test]
+fn a_reading_that_is_no_longer_current_says_so_rather_than_reading_as_native() {
+    let fixture = fixture();
+    // A reading from before this work started, which is more than a day old however long this
+    // test lives.
+    let config = config_with_reading(
+        Some("gpt-5.6-sol"),
+        scanned_catalog(Some("gpt-5.6-sol"), "2026-09-01T00:00:00+00:00"),
+    );
+    let mut app = app_with(&fixture, config);
+    app.command("/agents", 100);
+
+    let row = left_of_key(&mut app, 65, "codex");
+    assert!(
+        row.starts_with("GPT-5.6-Sol") && row.contains("not read recently"),
+        "a reading two days old is presented as current: {row}"
+    );
+    assert!(
+        detail_of_key(&mut app, 100, "codex").contains("which is no longer current"),
+        "the record does not say the reading is stale"
+    );
+}
+
+#[test]
+fn a_model_no_reading_lists_is_unknown_and_never_native() {
+    let fixture = fixture();
+    let config = config_with_reading(
+        Some("gpt-9"),
+        scanned_catalog(Some("gpt-5.6-sol"), &ymp_core::now()),
+    );
+    let mut app = app_with(&fixture, config);
+    app.command("/agents", 100);
+
+    let row = left_of_key(&mut app, 65, "codex");
+    assert!(
+        row.starts_with("Codex") && row.contains("not in the catalog"),
+        "a model nothing read is presented as a native name: {row}"
+    );
+    let detail = detail_of_key(&mut app, 100, "codex");
+    assert!(
+        detail.contains("no stored catalog lists this model"),
+        "the record does not say what is missing:\n{detail}"
+    );
+    assert!(
+        !detail.contains("GPT-5.6-Sol"),
+        "another offering's name was borrowed:\n{detail}"
+    );
+}
+
+#[test]
+fn a_failed_attempt_keeps_the_previous_reading_and_says_it_failed() {
+    let fixture = fixture();
+    let mut config = config_with_reading(
+        Some("gpt-5.6-sol"),
+        scanned_catalog(Some("gpt-5.6-sol"), &ymp_core::now()),
+    );
+    let provider = config.providers[0].id.clone();
+    // A bounded failure code, which is what the scan records: never native diagnostic text.
+    config
+        .native_catalog
+        .providers
+        .get_mut(&provider)
+        .unwrap()
+        .failure = Some("timeout".into());
+    let mut app = app_with(&fixture, config);
     app.command("/providers", 100);
-    app.pool = pool_with_catalog("codex", scanned_catalog(None));
+
+    let detail = detail_of_key(&mut app, 65, &provider);
     assert!(
-        detail_of_key(&mut app, 65, "codex").contains("none was reported"),
-        "the provider page invents a default it was not given"
+        detail.contains("ended as timeout") && detail.contains("is kept"),
+        "a failed attempt is not distinguished from a current reading:\n{detail}"
+    );
+    app.command("/agents", 100);
+    assert!(
+        left_of_key(&mut app, 65, "codex").contains("not read recently"),
+        "a retained reading after a failure is presented as current"
     );
 }
 
@@ -4472,8 +4597,10 @@ fn re_reading_the_catalog_is_an_action_that_asks_no_provider_anything() {
     assert!(!notice.failure, "re-reading was reported as a failure");
     assert!(
         notice.text.contains("asks no provider anything")
-            && notice.text.contains("separate explicit scan"),
-        "the action claims more than it did: {}",
+            && notice
+                .text
+                .contains("reading a provider's own offerings is R"),
+        "the action claims more than it did, or does not point at the one that reads: {}",
         notice.text
     );
     assert!(
@@ -4491,8 +4618,18 @@ fn re_reading_the_catalog_is_an_action_that_asks_no_provider_anything() {
         .map(|(key, _)| *key)
         .collect::<Vec<_>>();
     assert!(
-        hints.contains(&"r"),
-        "the action is not offered on the page: {hints:?}"
+        hints.contains(&"r") && hints.contains(&"R"),
+        "the two actions are not both offered on the page: {hints:?}"
+    );
+
+    // The reading itself is an action the window performs, not something painting does.
+    let actions = app.on_key(KeyEvent::new(KeyCode::Char('R'), KeyModifiers::SHIFT), 100);
+    assert!(
+        matches!(
+            actions.as_slice(),
+            [crate::state::Action::RefreshCatalog { provider: Some(id) }] if id == "codex"
+        ),
+        "R on a provider row does not ask that installation: {actions:?}"
     );
 }
 
@@ -4502,13 +4639,38 @@ async fn a_captured_member_is_not_relabelled_by_the_catalog_as_it_stands_now() {
     let mut app = run.app();
     app.load_session(&run.session).unwrap();
     app.command("/team", 100);
-    // A catalog read after the session ended. It says nothing about a turn that already ran,
-    // and a member of a finished session must not be relabelled by it.
-    app.pool = pool_with_catalog("mock", scanned_catalog(Some("GPT-6-Astra")));
-
-    let agent = run.store.trace(&run.session).unwrap().assignments[0]
+    // What the pool would hold if this agent's installation were read after the session ended.
+    // It says nothing about a turn that already ran, and a member of a finished session must
+    // not be relabelled by it.
+    let agent_id = run.store.trace(&run.session).unwrap().assignments[0]
         .agent_id
         .clone();
+    let profile = app.config.agent(&agent_id).unwrap().clone();
+    app.pool = crate::provenance::Pool {
+        read_at: ymp_core::now(),
+        pool: Some(ymp_core::AgentPool {
+            agents: vec![ymp_core::PoolAgent {
+                identity: ymp_core::AgentIdentity {
+                    name: "GPT-6-Astra".into(),
+                    configured_name: profile.name.clone(),
+                    model: Some("gpt-6-astra".into()),
+                    effort: None,
+                    resolved_model: None,
+                    source: None,
+                    status: ymp_core::AgentIdentityStatus::Native,
+                },
+                profile,
+                profile_version: String::new(),
+                exclusions: Vec::new(),
+                model_status: ymp_core::PoolModelStatus::Listed,
+            }],
+            capabilities: Default::default(),
+        }),
+        health: Vec::new(),
+        unreadable: None,
+    };
+
+    let agent = agent_id;
     let row = left_of_key(&mut app, 65, &agent);
     assert!(
         !row.contains("GPT-6-Astra"),
@@ -4527,5 +4689,87 @@ async fn a_captured_member_is_not_relabelled_by_the_catalog_as_it_stands_now() {
     assert!(
         !detail.contains("GPT-6-Astra"),
         "the later catalog reached a captured member's record:\n{detail}"
+    );
+}
+
+#[tokio::test]
+async fn a_captured_member_shows_what_its_turns_ran_with_before_what_its_profile_said() {
+    let run = mock_run("Create a greeting", |_| {}).await;
+    let trace = run.store.trace(&run.session).unwrap();
+    let agent = trace.assignments[0].agent_id.clone();
+    let previous = trace.assignments.last().unwrap().clone();
+    let mut assignment = ymp_core::AssignmentRecord {
+        id: ymp_core::new_id(),
+        grant_ids: Vec::new(),
+        agent_id: agent.clone(),
+        state: ymp_core::InvocationState::Running,
+        started_at: ymp_core::now(),
+        ended_at: None,
+        ..previous
+    };
+    let turn = ymp_core::InvocationRecord {
+        id: ymp_core::new_id(),
+        session_id: run.session.clone(),
+        assignment_id: assignment.id.clone(),
+        execution_backend: None,
+        turn: trace.invocations.len() as u64 + 1,
+        requested: assignment.requested.clone(),
+        sent: ymp_core::ExecutionSettings {
+            model: Some("gpt-5.6-sol".into()),
+            ..Default::default()
+        },
+        reported: Default::default(),
+        resumed_from: None,
+        native_session_id: None,
+        native_turn_id: None,
+        native_version: None,
+        state: ymp_core::InvocationState::Running,
+        started_at: ymp_core::now(),
+        ended_at: None,
+        usage: None,
+        terminal_reason: None,
+    };
+    let grants = vec![ymp_core::GrantRecord::for_assignment(
+        &assignment,
+        &turn,
+        ymp_core::TeamOperation::coordination(),
+    )];
+    assignment.grant_ids = grants.iter().map(|grant| grant.id.clone()).collect();
+    run.store
+        .begin_invocation_with_grants(&assignment, &turn, &grants)
+        .unwrap();
+
+    let mut app = run.app();
+    app.load_session(&run.session).unwrap();
+    app.command("/team", 100);
+    // The profile this session captured names a model its turns did not use, which is what a
+    // profile edited after the run, or a policy that supplied another, leaves behind.
+    let mut trace = run.store.trace(&run.session).unwrap();
+    for profile in trace.session.team.iter_mut() {
+        if profile.id == agent {
+            profile.model = Some("a-model-the-profile-named".into());
+        }
+    }
+    app.records = crate::provenance::Records {
+        session: Some(run.session.clone()),
+        read_at: ymp_core::now(),
+        trace: Some(trace),
+        ..Default::default()
+    };
+    app.session_team = app
+        .records
+        .trace
+        .as_ref()
+        .map(|trace| trace.session.team.clone())
+        .unwrap_or_default();
+
+    let row = left_of_key(&mut app, 64, &agent);
+    assert!(
+        row.contains("gpt-5.6-sol"),
+        "the row does not show what the turns actually ran with: {row}"
+    );
+    assert!(
+        !row.contains("a-model-the-profile-named"),
+        "a profile field outranked the recorded turns: {row}"
     );
 }
