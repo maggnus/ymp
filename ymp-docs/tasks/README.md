@@ -1,6 +1,6 @@
 # Task details and evidence
 
-Updated: 2026-09-12 17:00 UTC.
+Updated: 2026-09-12 17:18 UTC.
 
 Use the [delivery plan](plan.md) to follow progress. This generated register contains full acceptance criteria, dependencies and evidence. [tasks.json](tasks.json) is the single source; [manage.py](manage.py) updates both pages.
 
@@ -57,14 +57,14 @@ A planned task is not implemented functionality. Completed research and planning
 | `[x]` | [YMP-116](#ymp-116) | P0 | Define the minimal runtime transition and authority contract | 2026-09-12 10:07 |
 | `[x]` | [YMP-117](#ymp-117) | P0 | Separate acceptance from confirmation and gate reputation on evidence | 2026-09-12 13:59 |
 | `[x]` | [YMP-120](#ymp-120) | P0 | Enforce assignment-scoped permissions and runtime-only state transitions | 2026-09-12 13:46 |
-| `[~]` | [YMP-118](#ymp-118) | P0 | Integrate core assignment, budget and confirmation visibility | 2026-09-12 16:33 |
+| `[~]` | [YMP-118](#ymp-118) | P0 | Integrate core assignment, budget and confirmation visibility | 2026-09-12 17:18 |
 | `[x]` | [YMP-119](#ymp-119) | P0 | Prepare universal acceptance scenarios and independent validators | 2026-09-12 10:56 |
 | `[=]` | [YMP-121](#ymp-121) | P1 | Verify the integrated application and package a local release | 2026-09-12 16:52 |
 | `[x]` | [YMP-013](#ymp-013) | P0 | Review plan coherence and simplify progress tracking | 2026-09-12 09:46 |
 | `[x]` | [YMP-122](#ymp-122) | P1 | Expose replaceable execution backends behind runtime-owned controls | 2026-09-12 15:23 |
-| `[~]` | [YMP-123](#ymp-123) | P1 | Expose a public local MCP facade over stdio | 2026-09-12 17:00 |
+| `[~]` | [YMP-123](#ymp-123) | P1 | Expose a public local MCP facade over stdio | 2026-09-12 17:18 |
 | `[=]` | [YMP-124](#ymp-124) | P1 | Add isolated execution and recoverable publication for larger projects | 2026-09-12 15:31 |
-| `[~]` | [YMP-125](#ymp-125) | P0 | Expose trusted acceptance contracts to executable users | 2026-09-12 16:53 |
+| `[~]` | [YMP-125](#ymp-125) | P0 | Expose trusted acceptance contracts to executable users | 2026-09-12 17:18 |
 
 ## YMP-001
 
@@ -1246,9 +1246,9 @@ Integrate core assignment, budget and confirmation visibility
 
 **State:** `[~]` (in_progress) · **Type:** implementation · **Priority:** P0
 
-**Last update (UTC):** 2026-09-12 16:33
+**Last update (UTC):** 2026-09-12 17:18
 
-**Current reason:** Claude Opus5 max is implementing the existing team and knowledge views against accepted110/113 records, alongside core state/constraint/confirmation visibility and frame clipping. A coherent core visibility slice is requested for independent UI review; main backend integration is available. No UI acceptance or release is claimed.
+**Current reason:** Core UI candidate7038a4c is delivered with289 passing Rust tests and an actual mock TUI walk. A fresh Claude Opus5 max reviewer is inspecting that exact snapshot. The author is adapting the same views to accepted115 access/concurrency records and replacing the earlier serial-execution wording; no UI acceptance is claimed yet.
 
 **Owner:** Claude Code claude-opus-5 with thinking max via Paseo; maintainer integrates and verifies
 
@@ -1418,9 +1418,9 @@ Expose a public local MCP facade over stdio
 
 **State:** `[~]` (in_progress) · **Type:** implementation · **Priority:** P1
 
-**Last update (UTC):** 2026-09-12 17:00
+**Last update (UTC):** 2026-09-12 17:18
 
-**Current reason:** Standalone R2(9.5/10) ACCEPT; combined build and full official MCP client walk pass. After ENOSPC cleanup, a full runtime test exposed false session-lock contention from inherited descriptors; a separate bounded Store lock correction is underway. MCP source remains unmerged until shared-lock correction and combined verification complete.
+**Current reason:** Combined candidate376cdc4 includes independently accepted MCP, concurrency/state and explicit StoreLock release. All284 Rust tests, fmt/clippy/build and official SDK walk pass (171 calls; maximum73149-byte response). Open-pipe signals preserve terminal accounting. Independent combined review is running before main integration.
 
 **Owner:** Maintainer
 
@@ -1480,9 +1480,9 @@ Expose trusted acceptance contracts to executable users
 
 **State:** `[~]` (in_progress) · **Type:** implementation · **Priority:** P0
 
-**Last update (UTC):** 2026-09-12 16:53
+**Last update (UTC):** 2026-09-12 17:18
 
-**Current reason:** Implementing explicit executable contract ingress and unambiguous plan binding through the existing trusted runtime. The independent audit establishes the missing application route; all automatic checks remain mock/scripted, and any TUI work stays with Claude Opus 5 max.
+**Current reason:** Candidate ef9a125 implements shared typed config ingress, sanitized exact task binding, atomic capture and immutable resume. Actual mock/low executable output is confirmed and reused in a later session; original behavior and three removed-guard controls fail101. Author fmt/clippy and280 tests pass. Independent review is running; no TUI code or real inference was used.
 
 **Owner:** Maintainer; any TUI implementation by Claude Opus 5 max via Paseo
 

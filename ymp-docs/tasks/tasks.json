@@ -2126,6 +2126,11 @@
           "at": "2026-09-12T16:33:38.110325+00:00",
           "status": "in_progress",
           "note": "Claude Opus5 max is implementing the existing team and knowledge views against accepted110/113 records, alongside core state/constraint/confirmation visibility and frame clipping. A coherent core visibility slice is requested for independent UI review; main backend integration is available. No UI acceptance or release is claimed."
+        },
+        {
+          "at": "2026-09-12T17:18:28.435443+00:00",
+          "status": "in_progress",
+          "note": "Core UI candidate7038a4c is delivered with289 passing Rust tests and an actual mock TUI walk. A fresh Claude Opus5 max reviewer is inspecting that exact snapshot. The author is adapting the same views to accepted115 access/concurrency records and replacing the earlier serial-execution wording; no UI acceptance is claimed yet."
         }
       ]
     },
@@ -2416,6 +2421,11 @@
           "at": "2026-09-12T17:00:52.158442+00:00",
           "status": "in_progress",
           "note": "Standalone R2(9.5/10) ACCEPT; combined build and full official MCP client walk pass. After ENOSPC cleanup, a full runtime test exposed false session-lock contention from inherited descriptors; a separate bounded Store lock correction is underway. MCP source remains unmerged until shared-lock correction and combined verification complete."
+        },
+        {
+          "at": "2026-09-12T17:18:28.523110+00:00",
+          "status": "in_progress",
+          "note": "Combined candidate376cdc4 includes independently accepted MCP, concurrency/state and explicit StoreLock release. All284 Rust tests, fmt/clippy/build and official SDK walk pass (171 calls; maximum73149-byte response). Open-pipe signals preserve terminal accounting. Independent combined review is running before main integration."
         }
       ]
     },
@@ -2483,11 +2493,16 @@
           "at": "2026-09-12T16:53:01.470120+00:00",
           "status": "in_progress",
           "note": "Implementing explicit executable contract ingress and unambiguous plan binding through the existing trusted runtime. The independent audit establishes the missing application route; all automatic checks remain mock/scripted, and any TUI work stays with Claude Opus 5 max."
+        },
+        {
+          "at": "2026-09-12T17:18:28.479463+00:00",
+          "status": "in_progress",
+          "note": "Candidate ef9a125 implements shared typed config ingress, sanitized exact task binding, atomic capture and immutable resume. Actual mock/low executable output is confirmed and reused in a later session; original behavior and three removed-guard controls fail101. Author fmt/clippy and280 tests pass. Independent review is running; no TUI code or real inference was used."
         }
       ]
     }
   ],
-  "updated_at": "2026-09-12T17:00:52.158442+00:00",
+  "updated_at": "2026-09-12T17:18:28.523110+00:00",
   "delivery_order": [
     "YMP-116",
     "YMP-103",
