@@ -22,11 +22,21 @@ A record is presented as it was written. A missing result is `no recorded outcom
 pass. A check that timed out or was stopped with the run is written nowhere, so it cannot
 appear: commands the accepted plan declared and the log has no run for are listed separately
 as `no recorded run`, which is not a result. The task page labels a task's own commands
-`planned checks` for the same reason.
+`planned checks` for the same reason. With no session open the page reports that nothing was
+read, which is not the same statement as a session having recorded nothing.
+
+A record names its command and not the task that declared it, because the runtime writes the
+command, the directory, the exit result and the output and nothing else. Declared commands are
+therefore matched against recorded runs by their text alone, and the page says so: a command
+that two tasks declare and one run reaches appears as that one run, and not also as a command
+still waiting for the other task. Matching on the pair of task and command would require the
+runtime to record a task identity with each check, which this work did not change.
 
 Only the first 20000 characters of a check's combined output are recorded by the runtime, and
-the page shows the first 80 display lines of that; the rest is reachable in the full record
-with `Enter`. Reading the log is a scan of the session's events, which carries no index.
+the page shows the first 80 display lines of that. The remainder is not reachable from the
+interface at all: `Enter` opens the lines the row was already built with, so it shows the same
+cut, and the note under the output says the rest stays in the session log. Reading the log is
+a scan of the session's events, which carries no index.
 
 ## Recovery limits
 
@@ -69,10 +79,30 @@ environment override, and a path that cannot be canonicalized. Storage tests rea
 recorded checks in order and show that a missing result, directory or command stays missing.
 Interface tests assert the recovery statement on the change page in both its empty and its
 populated state, the command and outcome of each recorded check at 80x24, a declared command
-without a run, and that no surface uses the words this contract forbids.
+without a run, and that no surface uses the words this contract forbids. They also assert what
+`Enter` opens for a record longer than the page shows, that the hint describes exactly that,
+that an unopened session is not reported as a session without checks, and that the page states
+the text-alone matching of declared commands.
 
 The interface was also walked in a pseudo-terminal against the deterministic demo agents,
 with the working directory two levels below a repository marker: the run completed, `/checks`
 showed both recorded runs with `passed`, their directory and their captured output, and
 `/diff` named the discovered repository and stated that no earlier content was recorded. That
 walk made no provider request.
+
+## Rounds
+
+- Round 1, commit `9562f8b`: `/checks`, the recovery statement on `/diff` and repository
+  discovery in the workspace layer, with 118 workspace tests, formatting and lint clean, and a
+  pseudo-terminal walk on the deterministic demo agents.
+- Round 2, correction after independent review returned R1 8 of 10: the claim that `Enter`
+  reaches output beyond the first 80 display lines was false and is corrected here and in the
+  page hint, the `/checks` empty state no longer reports an unopened session as a session
+  without checks, and the text-alone matching of declared commands is now stated on the page.
+  No viewer for the remaining output was added, and no logic changed.
+
+The exact limitation, stated once: of a check's recorded output, the interface shows the first
+80 display lines of the first 20000 characters the runtime kept, and the rest can be read only
+from the session log in `~/.ymp2/state.sqlite`. Clipping of long detail text by the shared
+frame, which affects every page and not only these, is a separate follow-up tracked with
+YMP-118 and is not corrected here.

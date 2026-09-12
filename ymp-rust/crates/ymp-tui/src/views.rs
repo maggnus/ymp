@@ -1006,17 +1006,27 @@ fn checks(ctx: &Ctx) -> anyhow::Result<Page> {
         },
         items,
         empty: {
-            let mut lines = nothing(
-                theme,
-                "No checks were recorded",
-                "ymp records a check when the accepted plan supplies an acceptance command and the run reaches it. A session without one was judged by inspection alone.",
-                ctx.width,
-            );
+            // With no session open nothing was read, which is not a statement about a
+            // session's checks. This page of all pages must keep the two apart.
+            let mut lines = match ctx.session {
+                None => nothing(
+                    theme,
+                    "Nothing was read",
+                    "No session is loaded, so no session log was read. Open one from /sessions to see the commands ymp ran for it.",
+                    ctx.width,
+                ),
+                Some(_) => nothing(
+                    theme,
+                    "No checks were recorded",
+                    "ymp records a check when the accepted plan supplies an acceptance command and the run reaches it. A session without one was judged by inspection alone.",
+                    ctx.width,
+                ),
+            };
             lines.push(Line::default());
             lines.extend(paragraph(theme, HOW_CHECKS_RUN[0], ctx.width));
             lines
         },
-        hints: vec![("Enter", "show the whole record"), ("Esc", "back")],
+        hints: vec![("Enter", "show the recorded run"), ("Esc", "back")],
     })
 }
 
@@ -1034,6 +1044,9 @@ const HOW_CHECKS_RUN: &[&str] = &[
      command, not about the task.",
     "The commands come from the plan the session accepted. This page reads the log and \
      runs nothing.",
+    "A record names its command and not the task that declared it, so commands are matched \
+     here by their text alone. A command that two tasks declare and one run reaches appears \
+     as that one run, and not also as a command still waiting for the other task.",
 ];
 
 fn how_checks_run(ctx: &Ctx) -> Item {
@@ -1100,7 +1113,7 @@ fn recorded_check(ctx: &Ctx, run: &CheckRun) -> Item {
                 detail.extend(paragraph(
                     theme,
                     &format!(
-                        "{} further recorded lines are not shown here.",
+                        "{} further lines were recorded and no page shows them; they stay in the session log.",
                         wrapped.len() - shown
                     ),
                     ctx.width,

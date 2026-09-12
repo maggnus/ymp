@@ -2175,3 +2175,114 @@ fn repository_discovery_looks_above_the_working_directory_and_never_concludes_ab
         );
     }
 }
+
+/// A record longer than the page shows must say where the rest is, and the page must not
+/// offer a keystroke that reaches it. `Enter` clones the lines the row was built with, so
+/// the cut is already in them: there is no second, fuller view to promise.
+#[test]
+fn a_truncated_record_says_the_rest_is_not_shown_anywhere() {
+    let fixture = fixture();
+    let id = fixture.seed_session("Build a landing page");
+    let long = (0..400)
+        .map(|line| format!("recorded line {line}"))
+        .collect::<Vec<_>>()
+        .join("\n");
+    fixture.seed_check(&id, "cargo test --workspace", Some(true), &long);
+    let mut app = fixture.app();
+    app.load_session(&id).unwrap();
+    app.command("/checks", 100);
+
+    let detail = detail_prose(&mut app, 100, "cargo test --workspace");
+    assert!(
+        detail.contains("session log"),
+        "the remainder was not placed where it actually is:\n{detail}"
+    );
+    assert!(
+        detail.contains("no page shows"),
+        "the detail did not say the rest is unreachable:\n{detail}"
+    );
+
+    // The hint must describe what Enter does, which is to open these same lines.
+    let hints = app.page(100).hints.clone();
+    assert!(
+        hints.iter().any(|(key, text)| *key == "Enter"
+            && *text == "show the recorded run"
+            && !text.contains("whole")),
+        "the hint promises more than Enter opens: {hints:?}"
+    );
+
+    // What Enter opens is the selected row's detail, cut lines and all.
+    app.on_key(key(KeyCode::Down), 100);
+    app.on_key(key(KeyCode::Enter), 100);
+    let Some(Overlay::Inspect { title, body, .. }) = &app.overlay else {
+        panic!("Enter did not open the record");
+    };
+    assert_eq!(title, "cargo test --workspace");
+    let opened = lines_prose(body);
+    assert!(opened.contains("no page shows"), "{opened}");
+    assert_eq!(
+        opened.matches("recorded line").count(),
+        detail.matches("recorded line").count(),
+        "the overlay showed a different amount of output than the row"
+    );
+}
+
+/// With no session open the page read nothing. Saying that nothing was recorded would be a
+/// statement about a session the interface never looked at, on the one page whose purpose is
+/// to keep an absent record apart from a result.
+#[test]
+fn the_checks_page_does_not_report_an_absent_session_as_an_absent_record() {
+    let fixture = fixture();
+    let mut app = fixture.app();
+    app.command("/checks", 100);
+    assert!(app.session.is_none());
+
+    let empty = empty_prose(&mut app, 100);
+    assert!(
+        !empty.contains("No checks were recorded"),
+        "a session that was never opened was reported as having no checks:\n{empty}"
+    );
+    assert!(
+        empty.contains("No session is loaded"),
+        "the reason nothing was read is missing:\n{empty}"
+    );
+    let rendered = draw(&mut app, 80, 24);
+    assert!(rendered.contains("Nothing was read"), "{rendered}");
+
+    // With a session that recorded nothing, the page does report the absent record.
+    let id = fixture.seed_session("Build a landing page");
+    app.load_session(&id).unwrap();
+    app.command("/checks", 100);
+    let empty = empty_prose(&mut app, 100);
+    assert!(empty.contains("No checks were recorded"), "{empty}");
+}
+
+/// Records carry no task identity, so the page matches declared commands by their text. The
+/// consequence is stated on the page rather than hidden behind a row that is simply absent.
+#[test]
+fn the_page_states_that_declared_commands_are_matched_by_text_alone() {
+    let fixture = fixture();
+    let id = fixture.seed_session("Build a landing page");
+    fixture.seed_check(&id, "cargo fmt --check", Some(true), "exit: 0");
+    fixture.seed_task(&id, "Write the page", &["cargo fmt --check"]);
+    fixture.seed_task(&id, "Check the layout", &["cargo fmt --check"]);
+    let mut app = fixture.app();
+    app.load_session(&id).unwrap();
+    app.command("/checks", 100);
+
+    // One run, and no second row, because a record cannot name which task declared it.
+    let keys = row_keys(&mut app, 100);
+    assert_eq!(
+        keys.iter()
+            .filter(|key| *key == "cargo fmt --check")
+            .count(),
+        1,
+        "{keys:?}"
+    );
+    let about = detail_prose(&mut app, 100, "how checks run");
+    assert!(
+        about.contains("not the task that declared it"),
+        "the page hides that commands are matched by text alone:\n{about}"
+    );
+    assert_eq!(forbidden(&about), None, "in:\n{about}");
+}
