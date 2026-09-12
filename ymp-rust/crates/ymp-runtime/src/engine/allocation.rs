@@ -7,12 +7,18 @@ impl Engine {
         let resources = limits.resources.get_or_insert_with(ResourceLimits::default);
         let protected_review_invocations = resources.required_review_invocations;
         let reserved_tokens = resources.invocation_tokens.map(|_| 0);
+        let protected_review_tokens = resources.review_reserve_tokens.or_else(|| {
+            resources
+                .invocation_tokens
+                .map(|each| each.saturating_mul(protected_review_invocations))
+        });
         SessionBudget {
             limits,
             admitted_invocations: 0,
             in_flight_invocations: 0,
             startup_invocations: 0,
             protected_review_invocations,
+            protected_review_tokens,
             reserved_tokens,
             observed_usage: UsageTotals::default(),
             observed_token_overshoot: None,

@@ -32,8 +32,7 @@ use tokio::{
 use tokio_util::sync::CancellationToken;
 use ymp_core::*;
 use ymp_providers::{
-    run_turn_with_backend, ExecutionBackend, McpEndpoint, NativeExecutionBackend, ProviderEvent,
-    TurnRequest,
+    ExecutionBackend, McpEndpoint, NativeExecutionBackend, ProviderEvent, TurnRequest,
 };
 use ymp_storage::Store;
 use ymp_workspace::Workspace;
@@ -76,6 +75,7 @@ pub struct Engine {
 }
 #[derive(Clone)]
 struct RunContext {
+    workspace_owner: Arc<crate::WorkspaceOwner>,
     session: Session,
     server: Arc<TeamServer>,
     workspace: Workspace,
@@ -91,7 +91,7 @@ pub struct RunOutcome {
 }
 
 struct RecordedResponse {
-    _access: Option<crate::workspace_access::AccessLease>,
+    _access: Option<crate::WorkspaceReservation>,
     text: String,
     assignment_id: String,
     invocation_id: String,
@@ -411,7 +411,7 @@ impl Engine {
         if session.project_id != project.id {
             bail!("Session belongs to a different project");
         }
-        let project_lock = self.store.lock_project(&project.id)?;
+        let project_lock = Arc::new(crate::WorkspaceOwner::acquire(&self.store, &project)?);
         let lock = self.store.lock_session(&session)?;
         if [
             "where is the file?",
@@ -497,6 +497,7 @@ impl Engine {
         self.store.interrupt_open_invocations(&session.id)?;
         self.recover_workspace_access(&session.id)?;
         let ctx = RunContext {
+            workspace_owner: project_lock.clone(),
             session: session.clone(),
             server,
             workspace: workspace.clone(),
@@ -585,7 +586,7 @@ impl Engine {
         new_session_id: Option<&str>,
     ) -> Result<RunOutcome> {
         let project = self.store.project(path)?;
-        let _project_lock = self.store.lock_project(&project.id)?;
+        let project_lock = Arc::new(crate::WorkspaceOwner::acquire(&self.store, &project)?);
         let parent_session = parent.map(|id| self.store.session(id)).transpose()?;
         if parent_session
             .as_ref()
@@ -739,6 +740,7 @@ impl Engine {
         self.store.interrupt_open_invocations(&session.id)?;
         self.recover_workspace_access(&session.id)?;
         let ctx = RunContext {
+            workspace_owner: project_lock.clone(),
             session: session.clone(),
             server,
             workspace: workspace.clone(),
@@ -1030,38 +1032,13 @@ impl Engine {
             bridge: self.bridge.clone(),
         };
         let assignment_id = new_id();
-        let task_value = task
-            .as_ref()
-            .map(|reference| {
-                self.store
-                    .tasks(&ctx.session.id)?
-                    .into_iter()
-                    .find(|t| t.id == reference.task_id && t.attempts == reference.attempt)
-                    .context("Workspace policy task is missing or stale")
-            })
-            .transpose()?;
-        let backend_access = self.execution_backend.workspace_access(&request);
-        let effective_access = self
-            .workspace_policy
-            .resolve(&crate::WorkspaceAccessInput {
-                directory: cwd,
-                purpose,
-                task: task_value.as_ref(),
-                backend_access: &backend_access,
-            })?;
-        anyhow::ensure!(
-            effective_access.covers(&backend_access),
-            "unsupported_workspace_guarantee: policy cannot narrow actual backend access"
-        );
-        crate::workspace_access::validate_access(cwd, &backend_access)?;
-        crate::workspace_access::validate_access(cwd, &effective_access)?;
-        let access_decision = WorkspaceAccessDecision {
-            reservation_id: assignment_id.clone(),
-            policy: self.workspace_policy_identity.clone(), backend: self.backend_identity.clone(),
-            directory: cwd.canonicalize()?, backend_access, effective_access,
-            rationale: "Direct MVP execution; access comes from the trusted backend. Unbounded writers own the whole directory. No rollback or source isolation is provided.".into(),
-        };
-        let access = self
+        let access_decision = self.workspace_access_decision(
+            &ctx.session.id,
+            &assignment_id,
+            &request,
+            task.as_ref(),
+        )?;
+        let lease = self
             .acquire_workspace(
                 ctx,
                 &assignment_id,
@@ -1070,6 +1047,18 @@ impl Engine {
                 &access_decision,
             )
             .await?;
+        let mut access = crate::WorkspaceReservation {
+            lease,
+            _owner: ctx.workspace_owner.clone(),
+            store: self.store.clone(),
+            session_id: ctx.session.id.clone(),
+            request: request.clone(),
+            task: task.clone(),
+            access: access_decision.clone(),
+            authority: None,
+            token: None,
+            executed: false,
+        };
         // Existing per-run permits remain a secondary bound for legacy callers.
         let _permit = tokio::select! {_=self.cancel.cancelled()=>bail!("Cancelled"),p=ctx.permits.acquire()=>p?};
         let continuation = self
@@ -1161,6 +1150,7 @@ impl Engine {
             });
         }
         let mut assignment = AssignmentRecord {
+            token_reservation: None,
             agent_identity: Some(identity),
             id: assignment_id,
             session_id: ctx.session.id.clone(),
@@ -1198,7 +1188,8 @@ impl Engine {
             usage: None,
             terminal_reason: None,
         };
-        let token = ctx.server.admit_reserved(
+        let token = access.admit_reserved(
+            ctx.server.clone(),
             &mut assignment,
             &mut invocation,
             TeamOperation::coordination(),
@@ -1210,22 +1201,6 @@ impl Engine {
             id: invocation.id.clone(),
             closed: false,
         };
-        self.store.record_decision(&DecisionRecord {
-            id: new_id(),
-            session_id: ctx.session.id.clone(),
-            kind: "workspace_access_admitted".into(),
-            actor: Some(agent.id.clone()),
-            reason: access_decision.rationale.clone(),
-            outcome: None,
-            links: RecordLinks {
-                task: assignment.task.clone(),
-                assignment_id: Some(assignment.id.clone()),
-                invocation_id: Some(invocation.id.clone()),
-                workspace_access: Some(access_decision),
-                ..Default::default()
-            },
-            created_at: now(),
-        })?;
         // A failure after resume invalidates the previously completed marker.
         self.store.put_value(&key, &Value::Null)?;
         self.store.event(
@@ -1267,13 +1242,12 @@ impl Engine {
         }))?;
         let (tx, mut rx) = mpsc::unbounded_channel();
         let invocation_cancel = self.cancel.child_token();
-        let future = run_turn_with_backend(
+        let mut future = Box::pin(access.run_turn(
             self.execution_backend.as_ref(),
             request,
             invocation_cancel.clone(),
             tx,
-        );
-        tokio::pin!(future);
+        ));
         let consume = |event: ProviderEvent| -> Result<()> {
             match event {
                 ProviderEvent::Capabilities(catalog) => {
@@ -1350,6 +1324,7 @@ impl Engine {
                 Some(event)=rx.recv()=>if let Err(error) = consume(event) { break Err(error); },
             }
         };
+        drop(future);
         // A final usage notification can be queued at the same instant as the
         // provider result. Drain it before closing the invocation or dropping rx.
         while let Ok(event) = rx.try_recv() {
@@ -2801,6 +2776,9 @@ mod tests {
         )
         .unwrap();
         let ctx = RunContext {
+            workspace_owner: Arc::new(
+                crate::WorkspaceOwner::acquire(&fixture.store, &project).unwrap(),
+            ),
             server: Arc::new(
                 TeamServer::start(
                     fixture.store.clone(),

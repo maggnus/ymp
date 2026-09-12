@@ -279,3 +279,83 @@ fn explicit_storage_wrappers_cannot_replace_unknown_history_or_skip_allowance() 
         }
     }
 }
+
+fn variable_budget_fixture(total: u64, ceiling: u64, review: u64) -> Fixture {
+    let f = Fixture::with_limits(Limits { parallel: 4, resources: Some(ResourceLimits {
+        observed_tokens: Some(total), invocation_tokens: Some(ceiling), review_reserve_tokens: Some(review), required_review_invocations: 1,
+        ..Default::default()
+    }), ..Default::default() });
+    // This ledger fixture has no task graph; only its captured required review.
+    f.store.db().unwrap().execute("DELETE FROM tasks WHERE session_id=?", [&f.session.id]).unwrap();
+    f
+}
+fn variable_assignment(f: &Fixture, purpose: &str, tokens: u64) -> (AssignmentRecord, InvocationRecord) {
+    let (mut assignment, mut invocation) = budget_assignment(f, purpose);
+    assignment.token_reservation = Some(tokens);
+    assignment.requested.effort = Some("low".into());
+    invocation.requested = assignment.requested.clone();
+    (assignment, invocation)
+}
+#[test]
+fn variable_reservations_race_atomically_and_cannot_override_captured_ceiling() {
+    let f = variable_budget_fixture(100, 60, 20);
+    let barrier = std::sync::Arc::new(std::sync::Barrier::new(3));
+    let jobs = [60, 60].into_iter().map(|tokens| {
+        let store = Store::open(&f.store.home).unwrap();
+        let (assignment, invocation) = variable_assignment(&f, "execution", tokens);
+        let barrier = barrier.clone();
+        std::thread::spawn(move || { barrier.wait(); store.admit_invocation(&assignment, invocation) })
+    }).collect::<Vec<_>>();
+    barrier.wait();
+    let results = jobs.into_iter().map(|job|job.join().unwrap()).collect::<Vec<_>>();
+    assert_eq!(results.iter().filter(|result|result.is_ok()).count(), 1);
+    let budget = f.store.session_budget(&f.session.id).unwrap().unwrap();
+    assert_eq!(budget.reserved_tokens, Some(60));
+    assert_eq!(budget.protected_review_tokens, Some(20));
+    for tokens in [0, 61, u64::MAX] {
+        let (assignment, invocation) = variable_assignment(&f, "review", tokens);
+        let denied = f.store.admit_invocation(&assignment, invocation).unwrap_err();
+        assert_eq!(denied.downcast_ref::<BudgetDenial>().unwrap().code, "token_reservation_limit");
+    }
+    assert_eq!(f.store.trace(&f.session.id).unwrap().invocations.len(), 1);
+}
+#[test]
+fn live_review_reservation_is_counted_once_and_completed_review_releases_unused_protection() {
+    let f = variable_budget_fixture(100, 100, 20);
+    let (assignment, invocation) = variable_assignment(&f, "review", 20);
+    let review = f.store.admit_invocation(&assignment, invocation).unwrap();
+    budget_observe(&f, &review, 7, true);
+    let budget = f.store.session_budget(&f.session.id).unwrap().unwrap();
+    assert_eq!(budget.observed_usage.known_total(), Some(7));
+    assert_eq!(budget.reserved_tokens, Some(13));
+    assert_eq!(budget.protected_review_tokens, Some(0));
+    let (assignment, invocation) = variable_assignment(&f, "execution", 80);
+    let execution = f.store.admit_invocation(&assignment, invocation).unwrap();
+    assert_eq!(f.store.session_budget(&f.session.id).unwrap().unwrap().reserved_tokens, Some(93));
+    budget_observe(&f, &execution, 0, false);
+    f.store.finish_invocation(&f.session.id, &execution.id, InvocationState::Completed, None).unwrap();
+    budget_observe(&f, &review, 15, false);
+    f.store.finish_invocation(&f.session.id, &review.id, InvocationState::Completed, None).unwrap();
+    let budget = f.store.session_budget(&f.session.id).unwrap().unwrap();
+    assert_eq!(budget.observed_usage.known_total(), Some(15));
+    assert_eq!(budget.protected_review_tokens, Some(0));
+    let (assignment, invocation) = variable_assignment(&f, "consultation", 85);
+    assert!(f.store.admit_invocation(&assignment, invocation).is_ok());
+}
+#[test]
+fn variable_reservations_preserve_partial_usage_stop_and_reject_arithmetic_overflow() {
+    let f = variable_budget_fixture(100, 60, 20);
+    let (assignment, invocation) = variable_assignment(&f, "execution", 10);
+    let invocation = f.store.admit_invocation(&assignment, invocation).unwrap();
+    budget_observe(&f, &invocation, 7, true);
+    f.store.finish_invocation(&f.session.id, &invocation.id, InvocationState::Interrupted, None).unwrap();
+    let (assignment, next) = variable_assignment(&f, "review", 1);
+    let denied = f.store.admit_invocation(&assignment, next).unwrap_err();
+    assert_eq!(denied.downcast_ref::<BudgetDenial>().unwrap().code, "unknown_usage");
+    assert_eq!(f.store.session_budget(&f.session.id).unwrap().unwrap().observed_usage.known_total(), Some(7));
+    let f = variable_budget_fixture(u64::MAX, u64::MAX, 1);
+    let (assignment, invocation) = variable_assignment(&f, "execution", u64::MAX);
+    let denied = f.store.admit_invocation(&assignment, invocation).unwrap_err();
+    assert_eq!(denied.downcast_ref::<BudgetDenial>().unwrap().code, "token_review_reserve");
+    assert!(f.store.trace(&f.session.id).unwrap().invocations.is_empty());
+}

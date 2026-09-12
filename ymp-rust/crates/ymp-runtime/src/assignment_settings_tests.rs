@@ -2,6 +2,7 @@ async fn settings_context(fixture: &RunFixture, session: Session) -> RunContext 
     let limits = fixture.store.session_policy(&session.id).unwrap().unwrap().limits;
     let server = Arc::new(TeamServer::start(fixture.store.clone(), &session, fixture.engine.events.clone()).await.unwrap());
     RunContext {
+        workspace_owner: fixture.engine.acquire_workspace_owner(&session.id).unwrap(),
         turns: Arc::new(AtomicUsize::new(session.turns_used)),
         permits: Arc::new(Semaphore::new(limits.parallel)),
         workspace: Workspace::open(&fixture.project, &fixture.store.session_dir(&session).join("workspace")).unwrap(),
