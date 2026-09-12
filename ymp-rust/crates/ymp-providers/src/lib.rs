@@ -1,4 +1,5 @@
 pub mod discovery;
+mod redaction;
 mod rpc;
 mod settings;
 pub mod supervisor;
@@ -70,6 +71,17 @@ pub enum ProviderEvent {
 }
 
 pub async fn run_turn(
+    req: TurnRequest,
+    cancel: CancellationToken,
+    events: mpsc::UnboundedSender<ProviderEvent>,
+) -> Result<TurnResult> {
+    let capability = req.mcp.as_ref().map(|mcp| mcp.token.clone());
+    run_turn_inner(req, cancel, events)
+        .await
+        .map_err(|error| redaction::team_capability(error, capability.as_deref()))
+}
+
+async fn run_turn_inner(
     req: TurnRequest,
     cancel: CancellationToken,
     events: mpsc::UnboundedSender<ProviderEvent>,
