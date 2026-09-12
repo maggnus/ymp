@@ -1,0 +1,198 @@
+{
+  "scope": "YMP-126 exporter correction; independent review pending; full driver acceptance separate",
+  "code_commit": "534ce54a80a7498795f58ff162d9eb40ae8dcb13",
+  "base_commit": "51b44fc8da828e27a8562467e5316e3e35b37ae4",
+  "checks": {
+    "at": "2026-09-12T21:44:20.844607+00:00",
+    "checks": [
+      {
+        "command": [
+          "cargo",
+          "fmt",
+          "--all",
+          "--check"
+        ],
+        "exit_code": 0
+      },
+      {
+        "command": [
+          "cargo",
+          "clippy",
+          "--workspace",
+          "--all-targets",
+          "--",
+          "-D",
+          "warnings"
+        ],
+        "exit_code": 0
+      },
+      {
+        "command": [
+          "cargo",
+          "test",
+          "--workspace"
+        ],
+        "exit_code": 0
+      },
+      {
+        "command": [
+          "cargo",
+          "build",
+          "-p",
+          "ymp-eval-driver"
+        ],
+        "exit_code": 0
+      }
+    ],
+    "debug": 0,
+    "incremental": false,
+    "log_sha256": "a66d7b8041302af239cb9c34b120aa535b0a0b9a48fdf45ac54dccc4db742c24"
+  },
+  "cli": {
+    "evidence_root": "/private/tmp/ye-rx93zy00",
+    "results": [
+      {
+        "case": "effort-support",
+        "command": [
+          "/private/var/folders/cw/7pn8sb3x6bj69g7j2d8f_ss00000gn/T/ymp126-export-corrections-_osr7bik/worktree/target/debug/ymp-eval-driver",
+          "--output",
+          "/private/tmp/ye-rx93zy00/e",
+          "--case",
+          "effort-support"
+        ],
+        "exit_code": 0,
+        "bundle": "/private/tmp/ye-rx93zy00/e/effort-support",
+        "event_count": 5,
+        "projection_source_count": 5,
+        "backends": [
+          {
+            "identity": {
+              "id": "ymp.evals.effort-observations",
+              "version": "1"
+            },
+            "invocation_ids": [
+              "14638baa-2892-43f5-8a71-076d09cf2b44"
+            ],
+            "native_versions": [
+              {
+                "invocation_id": "14638baa-2892-43f5-8a71-076d09cf2b44",
+                "version": "scripted-effort-v1"
+              }
+            ]
+          }
+        ],
+        "build_revision": "534ce54a80a7498795f58ff162d9eb40ae8dcb13",
+        "source_tree_sha256": "59f44599ce0f694c281f086d66134405197b9678341630bba2b80bdce80be49e",
+        "executable_sha256": "171e059c181f525f0adcd00ef2d8f6e271ce2ee9a022f502fa77a9920bab256e"
+      },
+      {
+        "case": "location-retrieval",
+        "command": [
+          "/private/var/folders/cw/7pn8sb3x6bj69g7j2d8f_ss00000gn/T/ymp126-export-corrections-_osr7bik/worktree/target/debug/ymp-eval-driver",
+          "--output",
+          "/private/tmp/ye-rx93zy00/l",
+          "--case",
+          "location-retrieval"
+        ],
+        "exit_code": 0,
+        "bundle": "/private/tmp/ye-rx93zy00/l/location-retrieval",
+        "event_count": 3,
+        "projection_source_count": 3,
+        "backends": [
+          {
+            "identity": {
+              "id": "ymp.evals.scripted",
+              "version": "0.3.0"
+            },
+            "invocation_ids": [
+              "cb87df52-9453-44a9-883a-ed5a36080abf",
+              "01ff0a0a-91c9-468c-b72d-0c9a3799e6b7",
+              "88551161-1e48-4aeb-ba1f-02708ca5e204",
+              "a4d03b00-eef3-42b8-9e56-ee86dccb50b0",
+              "ca939a7d-03ce-4513-8bf3-06f5e9194e07",
+              "34a16361-a80d-4502-b169-4d9fbb320378"
+            ],
+            "native_versions": [
+              {
+                "invocation_id": "cb87df52-9453-44a9-883a-ed5a36080abf",
+                "version": "scripted-runtime-v1"
+              },
+              {
+                "invocation_id": "01ff0a0a-91c9-468c-b72d-0c9a3799e6b7",
+                "version": "scripted-runtime-v1"
+              },
+              {
+                "invocation_id": "88551161-1e48-4aeb-ba1f-02708ca5e204",
+                "version": "scripted-runtime-v1"
+              },
+              {
+                "invocation_id": "a4d03b00-eef3-42b8-9e56-ee86dccb50b0",
+                "version": "scripted-runtime-v1"
+              },
+              {
+                "invocation_id": "ca939a7d-03ce-4513-8bf3-06f5e9194e07",
+                "version": "scripted-runtime-v1"
+              },
+              {
+                "invocation_id": "34a16361-a80d-4502-b169-4d9fbb320378",
+                "version": "scripted-runtime-v1"
+              }
+            ]
+          }
+        ],
+        "build_revision": "534ce54a80a7498795f58ff162d9eb40ae8dcb13",
+        "source_tree_sha256": "59f44599ce0f694c281f086d66134405197b9678341630bba2b80bdce80be49e",
+        "executable_sha256": "171e059c181f525f0adcd00ef2d8f6e271ce2ee9a022f502fa77a9920bab256e"
+      },
+      {
+        "case": "partial-usage",
+        "command": [
+          "/private/var/folders/cw/7pn8sb3x6bj69g7j2d8f_ss00000gn/T/ymp126-export-corrections-_osr7bik/worktree/target/debug/ymp-eval-driver",
+          "--output",
+          "/private/tmp/ye-rx93zy00/p",
+          "--case",
+          "partial-usage"
+        ],
+        "exit_code": 0,
+        "bundle": "/private/tmp/ye-rx93zy00/p/partial-usage",
+        "event_count": 4,
+        "projection_source_count": 4,
+        "backends": [
+          {
+            "identity": {
+              "id": "ymp.evals.partial-timeout",
+              "version": "1"
+            },
+            "invocation_ids": [
+              "7b9626a4-4052-4585-ac6c-f18ba1a4b109"
+            ],
+            "native_versions": [
+              {
+                "invocation_id": "7b9626a4-4052-4585-ac6c-f18ba1a4b109",
+                "version": "scripted-partial-v1"
+              }
+            ]
+          }
+        ],
+        "build_revision": "534ce54a80a7498795f58ff162d9eb40ae8dcb13",
+        "source_tree_sha256": "59f44599ce0f694c281f086d66134405197b9678341630bba2b80bdce80be49e",
+        "executable_sha256": "171e059c181f525f0adcd00ef2d8f6e271ce2ee9a022f502fa77a9920bab256e"
+      },
+      {
+        "control": "stale_binary_source_drift",
+        "command": [
+          "/private/var/folders/cw/7pn8sb3x6bj69g7j2d8f_ss00000gn/T/ymp126-export-corrections-_osr7bik/worktree/target/debug/ymp-eval-driver",
+          "--output",
+          "/private/tmp/ye-rx93zy00/drift",
+          "--case",
+          "effort-support"
+        ],
+        "exit_code": 1,
+        "before_any_case": true
+      }
+    ]
+  },
+  "native_inference": false,
+  "owner_home_modified": false,
+  "fixture_expectations_changed": false
+}

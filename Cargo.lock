@@ -1533,6 +1533,26 @@ dependencies = [
 ]
 
 [[package]]
+name = "ymp-eval-driver"
+version = "0.3.0"
+dependencies = [
+ "anyhow",
+ "chrono",
+ "clap",
+ "serde",
+ "serde_json",
+ "sha2",
+ "tempfile",
+ "tokio",
+ "tokio-util",
+ "walkdir",
+ "ymp-core",
+ "ymp-providers",
+ "ymp-runtime",
+ "ymp-storage",
+]
+
+[[package]]
 name = "ymp-providers"
 version = "0.3.0"
 dependencies = [

@@ -1,0 +1,11 @@
+   Compiling ymp-storage v0.3.0 (/private/var/folders/cw/7pn8sb3x6bj69g7j2d8f_ss00000gn/T/ymp-release-work-h6oq_rys/sibling126/ymp-rust/crates/ymp-storage)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 2.73s
+     Running unittests src/lib.rs (target/debug/deps/ymp_storage-c16dbb486f9f4e48)
+
+running 3 tests
+test provenance_tests::bounded_unknown_usage_retains_reported_token_ceiling_and_reservation_races ... ok
+test provenance_tests::cancellation_failure_and_recovery_preserve_partial_and_unknown_usage ... ok
+test provenance_tests::captured_unknown_usage_policy_preserves_partial_spend_and_allows_bounded_admission_only ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 34 filtered out; finished in 0.07s
+

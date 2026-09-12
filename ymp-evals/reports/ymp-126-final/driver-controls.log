@@ -1,0 +1,16 @@
+   Compiling ymp-core v0.3.0 (/private/var/folders/cw/7pn8sb3x6bj69g7j2d8f_ss00000gn/T/ymp-release-work-h6oq_rys/sibling126/ymp-rust/crates/ymp-core)
+   Compiling ymp-eval-driver v0.3.0 (/private/var/folders/cw/7pn8sb3x6bj69g7j2d8f_ss00000gn/T/ymp-release-work-h6oq_rys/sibling126/ymp-rust/crates/ymp-eval-driver)
+   Compiling ymp-workspace v0.3.0 (/private/var/folders/cw/7pn8sb3x6bj69g7j2d8f_ss00000gn/T/ymp-release-work-h6oq_rys/sibling126/ymp-rust/crates/ymp-workspace)
+   Compiling ymp-providers v0.3.0 (/private/var/folders/cw/7pn8sb3x6bj69g7j2d8f_ss00000gn/T/ymp-release-work-h6oq_rys/sibling126/ymp-rust/crates/ymp-providers)
+   Compiling ymp-storage v0.3.0 (/private/var/folders/cw/7pn8sb3x6bj69g7j2d8f_ss00000gn/T/ymp-release-work-h6oq_rys/sibling126/ymp-rust/crates/ymp-storage)
+   Compiling ymp-runtime v0.3.0 (/private/var/folders/cw/7pn8sb3x6bj69g7j2d8f_ss00000gn/T/ymp-release-work-h6oq_rys/sibling126/ymp-rust/crates/ymp-runtime)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 8.50s
+     Running unittests src/main.rs (target/debug/deps/ymp_eval_driver-78706496de303909)
+
+running 3 tests
+test driver_controls::qualitative_rubric_rejects_well_formatted_unrelated_content ... ok
+test driver_controls::actual_workflow_export_rejects_missing_acceptance_and_retains_extra_usage_and_credit ... ok
+test driver_controls::actual_knowledge_export_retains_duplicates_order_and_rejects_missing_sources ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 4 filtered out; finished in 4.10s
+
