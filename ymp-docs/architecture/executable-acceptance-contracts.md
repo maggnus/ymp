@@ -4,7 +4,7 @@ YMP-125 exposes the existing typed acceptance contracts through `acceptance_cont
 
 ## Activation and configuration
 
-The configured set applies to **every new team session** started with that configuration: `ymp run`, the TUI, and `ymp demo` / `ymp demo --tui`. It also applies when a conversation explicitly starts a distinct task in a new session. Use a dedicated `--home` configuration when checks belong to one project or workflow; no project file is discovered or trusted automatically. `ask`, diagnostics and read-only inspection do not create team acceptance authority.
+The configured set applies to **every new team session** started with that configuration: `ymp run`, the TUI, `ymp demo` / `ymp demo --tui`, and execution-enabled [public MCP](public-mcp.md) starts. It also applies when a conversation explicitly starts a distinct task in a new session. Use a dedicated `--home` configuration when checks belong to one project or workflow; no project file is discovered or trusted automatically. Public MCP fixes its project and configuration at process launch; tool arguments cannot install contracts, and edits to configuration require restarting the facade. `ask`, diagnostics and read-only inspection do not create team acceptance authority.
 
 Append this typed contract to `config.toml` to check the built-in greeting demo. The byte array is UTF-8 `Hello from ymp` followed by a newline.
 
