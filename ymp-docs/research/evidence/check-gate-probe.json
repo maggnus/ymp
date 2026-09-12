@@ -1,0 +1,25 @@
+{
+  "scope": "Controlled stubs and harmless marker files; no real build tools or project code executed.",
+  "cases": [
+    {
+      "case": "plain",
+      "prefix_allowed": true,
+      "unexpected_marker": false
+    },
+    {
+      "case": "composition",
+      "prefix_allowed": true,
+      "unexpected_marker": true
+    },
+    {
+      "case": "substitution",
+      "prefix_allowed": true,
+      "unexpected_marker": true
+    },
+    {
+      "case": "permitted_program_behavior_without_shell",
+      "prefix_allowed": true,
+      "unexpected_marker": true
+    }
+  ]
+}

@@ -1,0 +1,747 @@
+{
+  "schema_version": 1,
+  "project": "ymp",
+  "baseline": "56e21dd",
+  "tasks": [
+    {
+      "id": "YMP-001",
+      "title": "Research the success gaps and select a small delivery backlog",
+      "type": "research",
+      "priority": "P0",
+      "status": "done",
+      "owner": "Research lead",
+      "authorization": "Authorized research scope; no product implementation or real-provider experiment.",
+      "depends_on": [
+        "YMP-002",
+        "YMP-003",
+        "YMP-004",
+        "YMP-005",
+        "YMP-006",
+        "YMP-007",
+        "YMP-008"
+      ],
+      "reason": "Research request 01 requires evidence before adopting hypotheses.",
+      "acceptance": [
+        "Give an evidence-backed verdict for H1\u2013H9, including the added outcome reuse and weighted accounting hypotheses.",
+        "Address all seven success gaps and register every retained action."
+      ],
+      "evidence": [
+        "[Findings for H1\u2013H9 and all success gaps](../research/research-program-findings.md)",
+        "[Controlled experiment protocol](../research/experiment-protocol.md)",
+        "[Verification evidence](../research/evidence/verification.json)"
+      ],
+      "history": [
+        {
+          "at": "2026-09-12",
+          "status": "in_progress",
+          "note": "Research program registered from request 01."
+        },
+        {
+          "at": "2026-09-12T06:05:47.474069+00:00",
+          "status": "done",
+          "note": "Research and independent checks complete. Six immediate implementation proposals and conditional follow-ups are registered; no product implementation or model experiment claimed."
+        }
+      ]
+    },
+    {
+      "id": "YMP-002",
+      "title": "Audit the event journal, assignment evidence, and repository history",
+      "type": "research",
+      "priority": "P0",
+      "status": "done",
+      "owner": "Research lead",
+      "authorization": "Authorized research scope; no product implementation or real-provider experiment.",
+      "depends_on": [],
+      "reason": "Research request 01 requires evidence before adopting hypotheses.",
+      "acceptance": [
+        "Freeze and summarize a read-only journal snapshot.",
+        "Identify retrospective limits and distinguish actual failures from censored runs."
+      ],
+      "evidence": [
+        "[Journal audit](../research/evidence/journal-audit.json)",
+        "[Repository history audit](../research/evidence/history-audit.json)"
+      ],
+      "history": [
+        {
+          "at": "2026-09-12",
+          "status": "in_progress",
+          "note": "Research program registered from request 01."
+        },
+        {
+          "at": "2026-09-12",
+          "status": "done",
+          "note": "Offline evidence collected and checked; no product implementation implied."
+        }
+      ]
+    },
+    {
+      "id": "YMP-003",
+      "title": "Measure coordination overhead and prototype bounded failure handling",
+      "type": "research",
+      "priority": "P0",
+      "status": "done",
+      "owner": "Research lead",
+      "authorization": "Authorized research scope; no product implementation or real-provider experiment.",
+      "depends_on": [],
+      "reason": "Research request 01 requires evidence before adopting hypotheses.",
+      "acceptance": [
+        "Run deterministic protocol fixtures across team and task sizes.",
+        "Inject failures before and after side effects and measure completion, attempts, and reputation."
+      ],
+      "evidence": [
+        "[32 offline protocol experiments](../research/evidence/protocol-experiments.json)"
+      ],
+      "history": [
+        {
+          "at": "2026-09-12",
+          "status": "ready",
+          "note": "Research program registered from request 01."
+        },
+        {
+          "at": "2026-09-12T04:40:00.015278+00:00",
+          "status": "in_progress",
+          "note": "Testing phase-specific failures and ceremony counts with a local protocol fixture."
+        },
+        {
+          "at": "2026-09-12",
+          "status": "done",
+          "note": "Offline evidence collected and checked; no product implementation implied."
+        },
+        {
+          "at": "2026-09-12T05:33:23.704793+00:00",
+          "status": "done",
+          "note": "Extended coverage: provider-declared nonterminal retry notice is mishandled by the current adapter."
+        }
+      ]
+    },
+    {
+      "id": "YMP-004",
+      "title": "Measure file-list cost and context retention",
+      "type": "research",
+      "priority": "P0",
+      "status": "done",
+      "owner": "Research lead",
+      "authorization": "Authorized research scope; no product implementation or real-provider experiment.",
+      "depends_on": [],
+      "reason": "Research request 01 requires evidence before adopting hypotheses.",
+      "acceptance": [
+        "Measure actual file-list growth and content-read cost.",
+        "Test context retention and native resume partitioning without a model-quality claim."
+      ],
+      "evidence": [
+        "[Release-profile context and retrieval probe](../research/evidence/context-probe.json)"
+      ],
+      "history": [
+        {
+          "at": "2026-09-12",
+          "status": "ready",
+          "note": "Research program registered from request 01."
+        },
+        {
+          "at": "2026-09-12T04:45:07.685313+00:00",
+          "status": "in_progress",
+          "note": "Measuring the actual Workspace::files implementation and FTS5 retrieval using an offline Rust probe."
+        },
+        {
+          "at": "2026-09-12",
+          "status": "done",
+          "note": "Offline evidence collected and checked; no product implementation implied."
+        }
+      ]
+    },
+    {
+      "id": "YMP-005",
+      "title": "Verify effort controls and design bounded comparative experiments",
+      "type": "research",
+      "priority": "P0",
+      "status": "done",
+      "owner": "Research lead",
+      "authorization": "Authorized research scope; no product implementation or real-provider experiment.",
+      "depends_on": [],
+      "reason": "Research request 01 requires evidence before adopting hypotheses.",
+      "acceptance": [
+        "Verify installed protocol capabilities and current driver gaps.",
+        "Define solo/team, memory, review, and effort experiments with independent outcomes and an explicit approval budget."
+      ],
+      "evidence": [
+        "[Installed effort capabilities](../research/evidence/effort-capabilities.json)",
+        "[81 offline policy cases](../research/evidence/effort-policy-probe.json)",
+        "[Controlled evaluation protocol](../research/experiment-protocol.md)"
+      ],
+      "history": [
+        {
+          "at": "2026-09-12",
+          "status": "ready",
+          "note": "Research program registered from request 01."
+        },
+        {
+          "at": "2026-09-12T05:13:45.018198+00:00",
+          "status": "in_progress",
+          "note": "Installed effort controls verified. Drafting the fixed-budget solo/team and memory evaluation protocols."
+        },
+        {
+          "at": "2026-09-12",
+          "status": "done",
+          "note": "Capability and policy checks complete. Live stages have explicit proposed ceilings and remain unauthorized."
+        }
+      ]
+    },
+    {
+      "id": "YMP-006",
+      "title": "Review UI concentration and working-directory recovery communication",
+      "type": "research",
+      "priority": "P0",
+      "status": "done",
+      "owner": "Claude Opus 5 (max)",
+      "authorization": "Authorized research scope; no product implementation or real-provider experiment.",
+      "depends_on": [],
+      "reason": "Research request 01 requires evidence before adopting hypotheses.",
+      "acceptance": [
+        "Use source, Git history, and existing UI regression evidence.",
+        "Reject unsupported file-size causation and propose at most two small evidence-backed actions.",
+        "Audit H9 presentation semantics without replacing token volume with an unlabeled cost proxy."
+      ],
+      "evidence": [
+        "[UI concentration, recovery and H9 review](../research/evidence/ui-architecture-review.md)",
+        "[Prefix-gate controls](../research/evidence/check-gate-probe.json)"
+      ],
+      "history": [
+        {
+          "at": "2026-09-12",
+          "status": "in_progress",
+          "note": "Research program registered from request 01."
+        },
+        {
+          "at": "2026-09-12T05:48:36.840518+00:00",
+          "status": "done",
+          "note": "Claude Opus 5 max review completed and independently corrected; no product UI changes."
+        }
+      ]
+    },
+    {
+      "id": "YMP-007",
+      "title": "Evaluate verification-grounded outcome reuse and lifecycle evidence",
+      "type": "research",
+      "priority": "P0",
+      "status": "done",
+      "owner": "Research lead",
+      "authorization": "Authorized research scope; no product changes or real-provider experiments.",
+      "depends_on": [
+        "YMP-002",
+        "YMP-003",
+        "YMP-004"
+      ],
+      "reason": "H8 adds repeated real requests, a proposed reuse gate, and a stale-session-status claim.",
+      "acceptance": [
+        "Check the three runs against recorded state and actual fingerprint semantics.",
+        "Exercise stale-artifact, changed-intent, explicit-redo and missing-evidence cases offline.",
+        "State break-even conditions and a bounded experiment rather than assuming gate savings."
+      ],
+      "evidence": [
+        "[Outcome and project audit](../research/evidence/outcome-economics.json)",
+        "[12 reuse guard cases and negative control](../research/evidence/outcome-reuse-probe.json)",
+        "[Outcome routing study](../research/experiment-protocol.md#outcome-routing-study)"
+      ],
+      "history": [
+        {
+          "at": "2026-09-12",
+          "status": "in_progress",
+          "note": "Added H8 from the updated request."
+        },
+        {
+          "at": "2026-09-12T05:13:45.057112+00:00",
+          "status": "in_progress",
+          "note": "Twelve offline reuse cases checked. The three cited requests span two projects; a false intent match still defeats fingerprint-only reuse."
+        },
+        {
+          "at": "2026-09-12",
+          "status": "done",
+          "note": "Reuse prerequisites and wrong-intent counterexample established; no production gate or savings claim accepted."
+        }
+      ]
+    },
+    {
+      "id": "YMP-008",
+      "title": "Reconcile native and canonical usage and recompute weighted input",
+      "type": "research",
+      "priority": "P0",
+      "status": "done",
+      "owner": "Research lead",
+      "authorization": "Authorized retrospective analysis; no model calls.",
+      "depends_on": [
+        "YMP-002"
+      ],
+      "reason": "H9 adds a proposed effective-token metric and alleges disagreements between usage streams.",
+      "acceptance": [
+        "Distinguish absent fields, true zeros, native totals and per-invocation normalized values.",
+        "Recompute the three runs from canonical rows with explicit weights and missing-data bounds.",
+        "Check ranking sensitivity and separate token volume, a price proxy, and actual billing."
+      ],
+      "evidence": [
+        "[Canonical weighted-input audit](../research/evidence/outcome-economics.json)",
+        "[Evaluation units and approval envelope](../research/experiment-protocol.md#preconditions-and-units)"
+      ],
+      "history": [
+        {
+          "at": "2026-09-12",
+          "status": "in_progress",
+          "note": "Added H9 from the updated request."
+        },
+        {
+          "at": "2026-09-12T05:13:45.093704+00:00",
+          "status": "in_progress",
+          "note": "Canonical usage recomputed. Missing native fields were not zeros. The observed input-cost ranking stays unchanged in all 12 coefficient scenarios; final metric recommendation pending."
+        },
+        {
+          "at": "2026-09-12",
+          "status": "done",
+          "note": "Weighted-input sensitivity completed. Effective-only display and an unqualified common cost denominator are rejected."
+        }
+      ]
+    },
+    {
+      "id": "YMP-101",
+      "title": "Record reproducible evaluation provenance and export canonical outcomes",
+      "type": "implementation",
+      "priority": "P0",
+      "status": "proposed",
+      "owner": "Maintainer",
+      "authorization": "Research recommendation accepted; product implementation requires owner approval under request 01.",
+      "depends_on": [
+        "YMP-001"
+      ],
+      "reason": "Current sessions do not record treatment flags, resolved execution identity, or a direct assignment-to-task link. Retrospective cost-aware policy evaluation is not identifiable.",
+      "acceptance": [
+        "Export normalized usage from token_usage with unknown/partial coverage preserved; label raw provider events separately.",
+        "Record application revision, fixture/treatment ID, memory/adaptive flags, requested and reported model/effort, native versions when available, and task/attempt links.",
+        "Keep independent acceptance results separate from session status and model approval; preserve content-free aggregate exports.",
+        "Validate the record with a deterministic success, a failed check, a cancellation, and missing usage."
+      ],
+      "evidence": [
+        "[Journal audit](../research/evidence/journal-audit.json)",
+        "[Usage reconciliation](../research/evidence/outcome-economics.json)"
+      ],
+      "history": [
+        {
+          "at": "2026-09-12T05:33:23.704647+00:00",
+          "status": "proposed",
+          "note": "Registered from concrete evidence; implementation has not started."
+        }
+      ]
+    },
+    {
+      "id": "YMP-102",
+      "title": "Add explicit session resource budgets and unknown-usage policy",
+      "type": "implementation",
+      "priority": "P0",
+      "status": "proposed",
+      "owner": "Maintainer",
+      "authorization": "Research recommendation accepted; product implementation requires owner approval under request 01.",
+      "depends_on": [
+        "YMP-001",
+        "YMP-101"
+      ],
+      "reason": "Turn counts alone do not constrain model resource use; native invocations contain multiple requests and some providers report only partial usage.",
+      "acceptance": [
+        "Define the budget unit explicitly: invocation/time limits, raw reported tokens, or a versioned estimate; never mix units.",
+        "Account for concurrent in-flight work and preserve usage when stopping; prevent further admission after exhaustion.",
+        "Document and test the overshoot bound or limitation. Refuse a strict equal-budget claim when usage coverage cannot support it.",
+        "Show the selected budget and stopping reason through Claude Opus 5 UI work, with no guessed zero for missing usage."
+      ],
+      "evidence": [
+        "[Evaluation protocol](../research/experiment-protocol.md#preconditions-and-units)"
+      ],
+      "history": [
+        {
+          "at": "2026-09-12T05:33:23.704779+00:00",
+          "status": "proposed",
+          "note": "Registered from concrete evidence; implementation has not started."
+        }
+      ]
+    },
+    {
+      "id": "YMP-103",
+      "title": "Honor Codex nonterminal retry notifications",
+      "type": "implementation",
+      "priority": "P0",
+      "status": "proposed",
+      "owner": "Maintainer",
+      "authorization": "Research recommendation accepted; product implementation requires owner approval under request 01.",
+      "depends_on": [
+        "YMP-001"
+      ],
+      "reason": "The installed protocol declares willRetry, but the adapter treats every error notification as terminal. An offline native-retry notice followed by success currently blocks the session.",
+      "acceptance": [
+        "A willRetry=true notification followed by turn completion finishes the same invocation without an application-level replay.",
+        "Terminal failure still stops; cancellation and timeout remain effective while native retries are pending.",
+        "Preserve usage and failure/retry evidence without incrementing task attempts or awarding competence credit for the retry itself.",
+        "Use offline protocol tests; real provider checks remain separate."
+      ],
+      "evidence": [
+        "[Protocol fault runs](../research/evidence/protocol-experiments.json)",
+        "[Installed schema](../research/evidence/effort-capabilities.json)"
+      ],
+      "history": [
+        {
+          "at": "2026-09-12T05:33:23.704783+00:00",
+          "status": "proposed",
+          "note": "Registered from concrete evidence; implementation has not started."
+        }
+      ]
+    },
+    {
+      "id": "YMP-104",
+      "title": "Preserve verified completion when final narration fails",
+      "type": "implementation",
+      "priority": "P0",
+      "status": "proposed",
+      "owner": "Maintainer",
+      "authorization": "Research recommendation accepted; product implementation requires owner approval under request 01.",
+      "depends_on": [
+        "YMP-001"
+      ],
+      "reason": "A synthesis failure currently blocks a session after the artifact, candidate review, and final review have succeeded.",
+      "acceptance": [
+        "Return a factual fallback summary with recorded verification evidence when only final synthesis fails.",
+        "Keep the verified deliverable outcome distinct from reporting and optional-learning errors.",
+        "Do not promote an unverified, rejected, or incomplete task to completed; preserve documented cancellation semantics.",
+        "Cover synthesis failure, failed final review, and optional-learning failure with deterministic tests."
+      ],
+      "evidence": [
+        "[Protocol fault runs](../research/evidence/protocol-experiments.json)"
+      ],
+      "history": [
+        {
+          "at": "2026-09-12T05:33:23.704786+00:00",
+          "status": "proposed",
+          "note": "Registered from concrete evidence; implementation has not started."
+        }
+      ]
+    },
+    {
+      "id": "YMP-105",
+      "title": "Enumerate file names without reading file contents",
+      "type": "implementation",
+      "priority": "P1",
+      "status": "proposed",
+      "owner": "Maintainer",
+      "authorization": "Research recommendation accepted; product implementation requires owner approval under request 01.",
+      "depends_on": [
+        "YMP-001"
+      ],
+      "reason": "Workspace::files invokes fingerprint and rehashes every regular file even when the caller only needs paths.",
+      "acceptance": [
+        "Preserve the same sorted path set, ignore rules, metadata exclusions, symlink behavior, and filename validation for readable fixtures.",
+        "File enumeration does not read regular-file contents; change verification continues to use hashes.",
+        "Repeat the release-profile 10k-file and large-file measurements and retain set-equality controls.",
+        "Keep all application metadata under the configured home and preserve direct working-directory behavior."
+      ],
+      "evidence": [
+        "[Actual crate measurements](../research/evidence/context-probe.json)"
+      ],
+      "history": [
+        {
+          "at": "2026-09-12T05:33:23.704788+00:00",
+          "status": "proposed",
+          "note": "Registered from concrete evidence; implementation has not started."
+        }
+      ]
+    },
+    {
+      "id": "YMP-106",
+      "title": "Use task-specific memory queries and record retrieval evidence",
+      "type": "implementation",
+      "priority": "P1",
+      "status": "proposed",
+      "owner": "Maintainer",
+      "authorization": "Research recommendation accepted; product implementation requires owner approval under request 01.",
+      "depends_on": [
+        "YMP-001",
+        "YMP-101"
+      ],
+      "reason": "The first twelve words of a role instruction can contain no task terms, and the actual FTS5 probe retrieves generic memory while missing the relevant entry.",
+      "acceptance": [
+        "Build the retrieval query from active task/request content rather than role boilerplate.",
+        "Retain project/global scope, active-status filtering, and an explicit context allowance.",
+        "Record retrieved entry IDs/versions and the effective query so relevance and downstream outcomes can be evaluated.",
+        "The invoice-memory control returns the relevant entry; irrelevant, retired, and other-project entries do not bypass scope.",
+        "Do not add an embedding service or rewrite storage."
+      ],
+      "evidence": [
+        "[FTS5 control](../research/evidence/context-probe.json)"
+      ],
+      "history": [
+        {
+          "at": "2026-09-12T05:33:23.704790+00:00",
+          "status": "proposed",
+          "note": "Registered from concrete evidence; implementation has not started."
+        }
+      ]
+    },
+    {
+      "id": "YMP-107",
+      "title": "Expose recorded checks and factual recovery limits",
+      "type": "implementation",
+      "priority": "P1",
+      "status": "proposed",
+      "owner": "Claude Opus 5 (max)",
+      "authorization": "Conditional research recommendation; owner approval required before product implementation.",
+      "depends_on": [
+        "YMP-001"
+      ],
+      "reason": "Metadata can explain what changed but does not contain prior file backups. A command-prefix gate would not contain native agent execution.",
+      "acceptance": [
+        "Show recorded check commands and outcomes for the selected session, with no claim of sandboxing or approval.",
+        "Explain recovery limits in the change view without promising rollback or adding mandatory confirmation.",
+        "Do not infer repository absence from cwd/.git; any repository discovery must handle nested directories, worktrees, and unknown state.",
+        "Keep project data in the working directory and application metadata in its home; all UI changes use the requested Claude model."
+      ],
+      "evidence": [
+        "[UI/recovery evidence](../research/evidence/ui-architecture-review.md)"
+      ],
+      "budget": null,
+      "history": [
+        {
+          "at": "2026-09-12T05:53:25.655410+00:00",
+          "status": "proposed",
+          "note": "Registered with a condition for starting or reopening; no implementation or experiment claimed."
+        }
+      ]
+    },
+    {
+      "id": "YMP-108",
+      "title": "Evaluate an optional usage estimate with explicit price provenance",
+      "type": "implementation",
+      "priority": "P2",
+      "status": "parked",
+      "owner": "Maintainer; UI by Claude Opus 5 (max)",
+      "authorization": "Conditional research recommendation; owner approval required before product implementation.",
+      "depends_on": [
+        "YMP-001",
+        "YMP-101",
+        "YMP-102"
+      ],
+      "reason": "Weighted-input rankings do not reverse in the twelve retrospective scenarios. An estimate may help interpretation but cannot replace raw counts or stand in for billing.",
+      "acceptance": [
+        "Owner selects the estimate unit, model-specific rate source, effective date, output/tool rates, and missing-data policy before implementation.",
+        "Retain raw usage and incomplete-reporting markers; never turn absent cache fields into zero.",
+        "Distinguish billing, SDK estimated currency, and local weighted estimates.",
+        "Do not present provider-local equivalent-input tokens as a common cross-provider resource."
+      ],
+      "evidence": [
+        "[H9 reconciliation](../research/evidence/outcome-economics.json)",
+        "[H9 findings](../research/research-program-findings.md#h9--raw-volume-weighted-input-and-money)"
+      ],
+      "budget": null,
+      "history": [
+        {
+          "at": "2026-09-12T05:53:25.655541+00:00",
+          "status": "parked",
+          "note": "Registered with a condition for starting or reopening; no implementation or experiment claimed."
+        }
+      ]
+    },
+    {
+      "id": "YMP-111",
+      "title": "Expose effective effort controls without silent tier substitution",
+      "type": "implementation",
+      "priority": "P2",
+      "status": "parked",
+      "owner": "Maintainer; UI by Claude Opus 5 (max)",
+      "authorization": "Conditional research recommendation; owner approval required before product implementation.",
+      "depends_on": [
+        "YMP-001",
+        "YMP-101"
+      ],
+      "reason": "Installed interfaces expose effort, but their tier vocabularies and scopes differ. Policy transport is testable; quality and cost effects remain unmeasured.",
+      "acceptance": [
+        "Use the model-advertised Codex effort field, Claude query options, and acknowledged ACP config options.",
+        "Record requested and effective effort, and include effective configuration in observation versioning.",
+        "Reject or explicitly represent unsupported tiers; do not silently map low to off or to a provider default.",
+        "Preserve default behavior until an effort experiment is approved; no native settings or credentials are copied into application storage."
+      ],
+      "evidence": [
+        "[Capability audit](../research/evidence/effort-capabilities.json)",
+        "[81 policy cases](../research/evidence/effort-policy-probe.json)"
+      ],
+      "budget": null,
+      "history": [
+        {
+          "at": "2026-09-12T05:53:25.655545+00:00",
+          "status": "parked",
+          "note": "Registered with a condition for starting or reopening; no implementation or experiment claimed."
+        }
+      ]
+    },
+    {
+      "id": "YMP-201",
+      "title": "Calibrate and run the paired solo/team pilot",
+      "type": "experiment",
+      "priority": "P0",
+      "status": "proposed",
+      "owner": "Experiment lead",
+      "authorization": "Explicit owner approval and the recorded quota envelope are required before model experiments.",
+      "depends_on": [
+        "YMP-001",
+        "YMP-101",
+        "YMP-102"
+      ],
+      "reason": "The central team-advantage claim has no controlled result. The initial candidate class includes software, data, documents, planning, and deliberately trivial controls.",
+      "acceptance": [
+        "Obtain explicit approval for the selected model, effective settings, budget unit and ceiling; calibration does not authorize the pilot.",
+        "Materialize, independently verify and freeze the task fixtures and external oracles from the twenty-case catalog before live runs.",
+        "Apply matched raw-resource and time limits, randomize treatment order, and preserve every scheduled failure/cancellation.",
+        "Report paired outcomes and uncertainty without treating twenty cases as proof of a small noninferiority margin.",
+        "Report cache composition and any separately versioned estimate; no GLM whole-run equal-cost claim while its usage is last-request-only."
+      ],
+      "evidence": [
+        "[Evaluation protocol](../research/experiment-protocol.md)"
+      ],
+      "budget": "Proposed only: calibration 4 attempts, 500,000 observed raw tokens each / 2,000,000 total; subsequent pilot 40 attempts / at most 20,000,000 total, separately approved. One active attempt, 20 minutes each, 80 ymp invocations each, 180 seconds per invocation; no application-level retries. In-flight overshoot requires a documented policy before approval.",
+      "history": [
+        {
+          "at": "2026-09-12T05:53:25.655548+00:00",
+          "status": "proposed",
+          "note": "Registered with a condition for starting or reopening; no implementation or experiment claimed."
+        }
+      ]
+    },
+    {
+      "id": "YMP-202",
+      "title": "Test memory and adaptive assignment on held-out tasks",
+      "type": "experiment",
+      "priority": "P1",
+      "status": "parked",
+      "owner": "Experiment lead",
+      "authorization": "Explicit owner approval and the recorded quota envelope are required before model experiments.",
+      "depends_on": [
+        "YMP-201",
+        "YMP-106"
+      ],
+      "reason": "Stored experience and positive observations do not establish a cumulative advantage. Retrieval relevance and learning cost must be measured.",
+      "acceptance": [
+        "Freeze disjoint adaptation and held-out task instances and separate application/native state for all four treatments.",
+        "Include no-memory, relevant-memory, and stale/irrelevant-memory controls.",
+        "Charge adaptation, learning and review costs to amortized outcome cost; log retrieval identities and versions.",
+        "Demonstrate a benefit without increasing escaped defects, or report a negative result."
+      ],
+      "evidence": [
+        "[Four-treatment protocol](../research/experiment-protocol.md#memory-and-adaptive-assignment)"
+      ],
+      "budget": "No allocation proposed until YMP-201 establishes a useful class and plausible sample/budget requirements. Explicit owner approval required.",
+      "history": [
+        {
+          "at": "2026-09-12T05:53:25.655551+00:00",
+          "status": "parked",
+          "note": "Registered with a condition for starting or reopening; no implementation or experiment claimed."
+        }
+      ]
+    },
+    {
+      "id": "YMP-203",
+      "title": "Test effort, reduced preparation and low-effort ensembles separately",
+      "type": "experiment",
+      "priority": "P1",
+      "status": "parked",
+      "owner": "Experiment lead",
+      "authorization": "Explicit owner approval and the recorded quota envelope are required before model experiments.",
+      "depends_on": [
+        "YMP-201",
+        "YMP-111"
+      ],
+      "reason": "Preparation cost is measured, but neither a simple-task shortcut nor a low-effort ensemble has a quality-equivalence result.",
+      "acceptance": [
+        "Pre-register separate effort-only, preparation-only, and ensemble comparisons; do not attribute a combined change to one factor.",
+        "Preserve independent review, price the verifier and synthesis, and compare against a capable solo agent/self-consistency baseline.",
+        "Use a controlled pre-proposal information set before claiming blind planning.",
+        "Include underestimated-difficulty and changed-requirement controls; reject shortcuts that lose requirements."
+      ],
+      "evidence": [
+        "[Effort and ceremony protocol](../research/experiment-protocol.md#effort-ceremony-and-ensemble-studies)"
+      ],
+      "budget": "No experimental quota allocated. Propose a stage-specific envelope after calibration, with owner approval before any model calls.",
+      "history": [
+        {
+          "at": "2026-09-12T05:53:25.655554+00:00",
+          "status": "parked",
+          "note": "Registered with a condition for starting or reopening; no implementation or experiment claimed."
+        }
+      ]
+    },
+    {
+      "id": "YMP-204",
+      "title": "Evaluate a project-scoped prior-outcome router",
+      "type": "experiment",
+      "priority": "P1",
+      "status": "proposed",
+      "owner": "Experiment lead; UI by Claude Opus 5 (max)",
+      "authorization": "Explicit owner approval and the recorded quota envelope are required before model experiments.",
+      "depends_on": [
+        "YMP-001",
+        "YMP-101",
+        "YMP-102",
+        "YMP-105"
+      ],
+      "reason": "Only S05 has a same-project earlier completed outcome in the cited sequence. Fingerprints do not establish that a changed request is satisfied.",
+      "acceptance": [
+        "Prototype a bounded candidate record and explicit verification scope without hidden source copies or a storage rewrite.",
+        "Pass the twelve offline guards, preserve the wrong-intent negative control, and cover missing anchors and external dependencies.",
+        "Charge retrieval/routing/reverification; avoid a model gate when no eligible record exists.",
+        "Compare normal execution with the router on true repeats, changed intent, new projects and stale artifacts; any false successful reuse rejects deployment.",
+        "Attribute answers to their source outcomes and keep lookup usage tied to the requesting session."
+      ],
+      "evidence": [
+        "[H8 evidence](../research/evidence/outcome-reuse-probe.json)",
+        "[Project and outcome audit](../research/evidence/outcome-economics.json)",
+        "[Router protocol](../research/experiment-protocol.md#outcome-routing-study)"
+      ],
+      "budget": "Proposed only: after prerequisites, 4 scenario pairs / 8 attempts at at most 250,000 observed raw tokens each / 2,000,000 total, one at a time, 20 minutes and 80 ymp invocations per attempt, 180 seconds per invocation. No model calls until separately approved; overshoot policy required.",
+      "history": [
+        {
+          "at": "2026-09-12T05:53:25.655557+00:00",
+          "status": "proposed",
+          "note": "Registered with a condition for starting or reopening; no implementation or experiment claimed."
+        }
+      ]
+    },
+    {
+      "id": "YMP-301",
+      "title": "Confirm the initial success class and intended audience",
+      "type": "decision",
+      "priority": "P1",
+      "status": "proposed",
+      "owner": "Project owner",
+      "authorization": "Owner decision required.",
+      "depends_on": [
+        "YMP-001"
+      ],
+      "reason": "Research proposes inspectable multi-constraint work as a candidate team advantage, while preserving universal non-software tasks. External distribution is a separate commitment.",
+      "acceptance": [
+        "Choose whether the first success criterion is personal sustained use or use by external users.",
+        "Confirm or replace the proposed task class and the negative controls in the pilot catalog.",
+        "Define what measured quality/resource improvement would justify further complexity.",
+        "Only add packaging or operating-system commitments after the audience decision; do not equate Unix APIs with proven macOS-only support."
+      ],
+      "evidence": [
+        "[Success gaps](../research/research-program-findings.md#success-gaps-and-owner-decisions)"
+      ],
+      "budget": null,
+      "history": [
+        {
+          "at": "2026-09-12T05:53:25.655561+00:00",
+          "status": "proposed",
+          "note": "Registered with a condition for starting or reopening; no implementation or experiment claimed."
+        }
+      ]
+    }
+  ],
+  "updated_at": "2026-09-12T06:05:47.474209+00:00",
+  "delivery_order": [
+    "YMP-103",
+    "YMP-104",
+    "YMP-101",
+    "YMP-102",
+    "YMP-105",
+    "YMP-106"
+  ]
+}

@@ -1,0 +1,659 @@
+{
+  "scope": "81 transport-policy cases; Codex and Claude tier sets are declared fixtures, not proof that a live selected model honors them. GLM levels come from the installed package.",
+  "policy_cases": [
+    {
+      "provider": "codex_fixture",
+      "role": "plan",
+      "difficulty": "simple",
+      "requested": "low",
+      "accepted": "low",
+      "result": "supported_fixture"
+    },
+    {
+      "provider": "codex_fixture",
+      "role": "plan",
+      "difficulty": "standard",
+      "requested": "low",
+      "accepted": "low",
+      "result": "supported_fixture"
+    },
+    {
+      "provider": "codex_fixture",
+      "role": "plan",
+      "difficulty": "complex",
+      "requested": "low",
+      "accepted": "low",
+      "result": "supported_fixture"
+    },
+    {
+      "provider": "codex_fixture",
+      "role": "review_plan",
+      "difficulty": "simple",
+      "requested": "medium",
+      "accepted": "medium",
+      "result": "supported_fixture"
+    },
+    {
+      "provider": "codex_fixture",
+      "role": "review_plan",
+      "difficulty": "standard",
+      "requested": "medium",
+      "accepted": "medium",
+      "result": "supported_fixture"
+    },
+    {
+      "provider": "codex_fixture",
+      "role": "review_plan",
+      "difficulty": "complex",
+      "requested": "medium",
+      "accepted": "medium",
+      "result": "supported_fixture"
+    },
+    {
+      "provider": "codex_fixture",
+      "role": "bid",
+      "difficulty": "simple",
+      "requested": "low",
+      "accepted": "low",
+      "result": "supported_fixture"
+    },
+    {
+      "provider": "codex_fixture",
+      "role": "bid",
+      "difficulty": "standard",
+      "requested": "low",
+      "accepted": "low",
+      "result": "supported_fixture"
+    },
+    {
+      "provider": "codex_fixture",
+      "role": "bid",
+      "difficulty": "complex",
+      "requested": "low",
+      "accepted": "low",
+      "result": "supported_fixture"
+    },
+    {
+      "provider": "codex_fixture",
+      "role": "execute",
+      "difficulty": "simple",
+      "requested": "low",
+      "accepted": "low",
+      "result": "supported_fixture"
+    },
+    {
+      "provider": "codex_fixture",
+      "role": "execute",
+      "difficulty": "standard",
+      "requested": "high",
+      "accepted": "high",
+      "result": "supported_fixture"
+    },
+    {
+      "provider": "codex_fixture",
+      "role": "execute",
+      "difficulty": "complex",
+      "requested": "xhigh",
+      "accepted": "xhigh",
+      "result": "supported_fixture"
+    },
+    {
+      "provider": "codex_fixture",
+      "role": "review",
+      "difficulty": "simple",
+      "requested": "medium",
+      "accepted": "medium",
+      "result": "supported_fixture"
+    },
+    {
+      "provider": "codex_fixture",
+      "role": "review",
+      "difficulty": "standard",
+      "requested": "medium",
+      "accepted": "medium",
+      "result": "supported_fixture"
+    },
+    {
+      "provider": "codex_fixture",
+      "role": "review",
+      "difficulty": "complex",
+      "requested": "medium",
+      "accepted": "medium",
+      "result": "supported_fixture"
+    },
+    {
+      "provider": "codex_fixture",
+      "role": "final_review",
+      "difficulty": "simple",
+      "requested": "xhigh",
+      "accepted": "xhigh",
+      "result": "supported_fixture"
+    },
+    {
+      "provider": "codex_fixture",
+      "role": "final_review",
+      "difficulty": "standard",
+      "requested": "xhigh",
+      "accepted": "xhigh",
+      "result": "supported_fixture"
+    },
+    {
+      "provider": "codex_fixture",
+      "role": "final_review",
+      "difficulty": "complex",
+      "requested": "xhigh",
+      "accepted": "xhigh",
+      "result": "supported_fixture"
+    },
+    {
+      "provider": "codex_fixture",
+      "role": "learn",
+      "difficulty": "simple",
+      "requested": "low",
+      "accepted": "low",
+      "result": "supported_fixture"
+    },
+    {
+      "provider": "codex_fixture",
+      "role": "learn",
+      "difficulty": "standard",
+      "requested": "low",
+      "accepted": "low",
+      "result": "supported_fixture"
+    },
+    {
+      "provider": "codex_fixture",
+      "role": "learn",
+      "difficulty": "complex",
+      "requested": "low",
+      "accepted": "low",
+      "result": "supported_fixture"
+    },
+    {
+      "provider": "codex_fixture",
+      "role": "review_memory",
+      "difficulty": "simple",
+      "requested": "medium",
+      "accepted": "medium",
+      "result": "supported_fixture"
+    },
+    {
+      "provider": "codex_fixture",
+      "role": "review_memory",
+      "difficulty": "standard",
+      "requested": "medium",
+      "accepted": "medium",
+      "result": "supported_fixture"
+    },
+    {
+      "provider": "codex_fixture",
+      "role": "review_memory",
+      "difficulty": "complex",
+      "requested": "medium",
+      "accepted": "medium",
+      "result": "supported_fixture"
+    },
+    {
+      "provider": "codex_fixture",
+      "role": "synthesis",
+      "difficulty": "simple",
+      "requested": "medium",
+      "accepted": "medium",
+      "result": "supported_fixture"
+    },
+    {
+      "provider": "codex_fixture",
+      "role": "synthesis",
+      "difficulty": "standard",
+      "requested": "medium",
+      "accepted": "medium",
+      "result": "supported_fixture"
+    },
+    {
+      "provider": "codex_fixture",
+      "role": "synthesis",
+      "difficulty": "complex",
+      "requested": "medium",
+      "accepted": "medium",
+      "result": "supported_fixture"
+    },
+    {
+      "provider": "claude_sdk_fixture",
+      "role": "plan",
+      "difficulty": "simple",
+      "requested": "low",
+      "accepted": "low",
+      "result": "supported_fixture"
+    },
+    {
+      "provider": "claude_sdk_fixture",
+      "role": "plan",
+      "difficulty": "standard",
+      "requested": "low",
+      "accepted": "low",
+      "result": "supported_fixture"
+    },
+    {
+      "provider": "claude_sdk_fixture",
+      "role": "plan",
+      "difficulty": "complex",
+      "requested": "low",
+      "accepted": "low",
+      "result": "supported_fixture"
+    },
+    {
+      "provider": "claude_sdk_fixture",
+      "role": "review_plan",
+      "difficulty": "simple",
+      "requested": "medium",
+      "accepted": "medium",
+      "result": "supported_fixture"
+    },
+    {
+      "provider": "claude_sdk_fixture",
+      "role": "review_plan",
+      "difficulty": "standard",
+      "requested": "medium",
+      "accepted": "medium",
+      "result": "supported_fixture"
+    },
+    {
+      "provider": "claude_sdk_fixture",
+      "role": "review_plan",
+      "difficulty": "complex",
+      "requested": "medium",
+      "accepted": "medium",
+      "result": "supported_fixture"
+    },
+    {
+      "provider": "claude_sdk_fixture",
+      "role": "bid",
+      "difficulty": "simple",
+      "requested": "low",
+      "accepted": "low",
+      "result": "supported_fixture"
+    },
+    {
+      "provider": "claude_sdk_fixture",
+      "role": "bid",
+      "difficulty": "standard",
+      "requested": "low",
+      "accepted": "low",
+      "result": "supported_fixture"
+    },
+    {
+      "provider": "claude_sdk_fixture",
+      "role": "bid",
+      "difficulty": "complex",
+      "requested": "low",
+      "accepted": "low",
+      "result": "supported_fixture"
+    },
+    {
+      "provider": "claude_sdk_fixture",
+      "role": "execute",
+      "difficulty": "simple",
+      "requested": "low",
+      "accepted": "low",
+      "result": "supported_fixture"
+    },
+    {
+      "provider": "claude_sdk_fixture",
+      "role": "execute",
+      "difficulty": "standard",
+      "requested": "high",
+      "accepted": "high",
+      "result": "supported_fixture"
+    },
+    {
+      "provider": "claude_sdk_fixture",
+      "role": "execute",
+      "difficulty": "complex",
+      "requested": "xhigh",
+      "accepted": "xhigh",
+      "result": "supported_fixture"
+    },
+    {
+      "provider": "claude_sdk_fixture",
+      "role": "review",
+      "difficulty": "simple",
+      "requested": "medium",
+      "accepted": "medium",
+      "result": "supported_fixture"
+    },
+    {
+      "provider": "claude_sdk_fixture",
+      "role": "review",
+      "difficulty": "standard",
+      "requested": "medium",
+      "accepted": "medium",
+      "result": "supported_fixture"
+    },
+    {
+      "provider": "claude_sdk_fixture",
+      "role": "review",
+      "difficulty": "complex",
+      "requested": "medium",
+      "accepted": "medium",
+      "result": "supported_fixture"
+    },
+    {
+      "provider": "claude_sdk_fixture",
+      "role": "final_review",
+      "difficulty": "simple",
+      "requested": "xhigh",
+      "accepted": "xhigh",
+      "result": "supported_fixture"
+    },
+    {
+      "provider": "claude_sdk_fixture",
+      "role": "final_review",
+      "difficulty": "standard",
+      "requested": "xhigh",
+      "accepted": "xhigh",
+      "result": "supported_fixture"
+    },
+    {
+      "provider": "claude_sdk_fixture",
+      "role": "final_review",
+      "difficulty": "complex",
+      "requested": "xhigh",
+      "accepted": "xhigh",
+      "result": "supported_fixture"
+    },
+    {
+      "provider": "claude_sdk_fixture",
+      "role": "learn",
+      "difficulty": "simple",
+      "requested": "low",
+      "accepted": "low",
+      "result": "supported_fixture"
+    },
+    {
+      "provider": "claude_sdk_fixture",
+      "role": "learn",
+      "difficulty": "standard",
+      "requested": "low",
+      "accepted": "low",
+      "result": "supported_fixture"
+    },
+    {
+      "provider": "claude_sdk_fixture",
+      "role": "learn",
+      "difficulty": "complex",
+      "requested": "low",
+      "accepted": "low",
+      "result": "supported_fixture"
+    },
+    {
+      "provider": "claude_sdk_fixture",
+      "role": "review_memory",
+      "difficulty": "simple",
+      "requested": "medium",
+      "accepted": "medium",
+      "result": "supported_fixture"
+    },
+    {
+      "provider": "claude_sdk_fixture",
+      "role": "review_memory",
+      "difficulty": "standard",
+      "requested": "medium",
+      "accepted": "medium",
+      "result": "supported_fixture"
+    },
+    {
+      "provider": "claude_sdk_fixture",
+      "role": "review_memory",
+      "difficulty": "complex",
+      "requested": "medium",
+      "accepted": "medium",
+      "result": "supported_fixture"
+    },
+    {
+      "provider": "claude_sdk_fixture",
+      "role": "synthesis",
+      "difficulty": "simple",
+      "requested": "medium",
+      "accepted": "medium",
+      "result": "supported_fixture"
+    },
+    {
+      "provider": "claude_sdk_fixture",
+      "role": "synthesis",
+      "difficulty": "standard",
+      "requested": "medium",
+      "accepted": "medium",
+      "result": "supported_fixture"
+    },
+    {
+      "provider": "claude_sdk_fixture",
+      "role": "synthesis",
+      "difficulty": "complex",
+      "requested": "medium",
+      "accepted": "medium",
+      "result": "supported_fixture"
+    },
+    {
+      "provider": "glm_5_2_installed",
+      "role": "plan",
+      "difficulty": "simple",
+      "requested": "low",
+      "accepted": null,
+      "result": "unsupported_no_silent_fallback"
+    },
+    {
+      "provider": "glm_5_2_installed",
+      "role": "plan",
+      "difficulty": "standard",
+      "requested": "low",
+      "accepted": null,
+      "result": "unsupported_no_silent_fallback"
+    },
+    {
+      "provider": "glm_5_2_installed",
+      "role": "plan",
+      "difficulty": "complex",
+      "requested": "low",
+      "accepted": null,
+      "result": "unsupported_no_silent_fallback"
+    },
+    {
+      "provider": "glm_5_2_installed",
+      "role": "review_plan",
+      "difficulty": "simple",
+      "requested": "medium",
+      "accepted": null,
+      "result": "unsupported_no_silent_fallback"
+    },
+    {
+      "provider": "glm_5_2_installed",
+      "role": "review_plan",
+      "difficulty": "standard",
+      "requested": "medium",
+      "accepted": null,
+      "result": "unsupported_no_silent_fallback"
+    },
+    {
+      "provider": "glm_5_2_installed",
+      "role": "review_plan",
+      "difficulty": "complex",
+      "requested": "medium",
+      "accepted": null,
+      "result": "unsupported_no_silent_fallback"
+    },
+    {
+      "provider": "glm_5_2_installed",
+      "role": "bid",
+      "difficulty": "simple",
+      "requested": "low",
+      "accepted": null,
+      "result": "unsupported_no_silent_fallback"
+    },
+    {
+      "provider": "glm_5_2_installed",
+      "role": "bid",
+      "difficulty": "standard",
+      "requested": "low",
+      "accepted": null,
+      "result": "unsupported_no_silent_fallback"
+    },
+    {
+      "provider": "glm_5_2_installed",
+      "role": "bid",
+      "difficulty": "complex",
+      "requested": "low",
+      "accepted": null,
+      "result": "unsupported_no_silent_fallback"
+    },
+    {
+      "provider": "glm_5_2_installed",
+      "role": "execute",
+      "difficulty": "simple",
+      "requested": "low",
+      "accepted": null,
+      "result": "unsupported_no_silent_fallback"
+    },
+    {
+      "provider": "glm_5_2_installed",
+      "role": "execute",
+      "difficulty": "standard",
+      "requested": "high",
+      "accepted": "high",
+      "result": "supported_fixture"
+    },
+    {
+      "provider": "glm_5_2_installed",
+      "role": "execute",
+      "difficulty": "complex",
+      "requested": "xhigh",
+      "accepted": null,
+      "result": "unsupported_no_silent_fallback"
+    },
+    {
+      "provider": "glm_5_2_installed",
+      "role": "review",
+      "difficulty": "simple",
+      "requested": "medium",
+      "accepted": null,
+      "result": "unsupported_no_silent_fallback"
+    },
+    {
+      "provider": "glm_5_2_installed",
+      "role": "review",
+      "difficulty": "standard",
+      "requested": "medium",
+      "accepted": null,
+      "result": "unsupported_no_silent_fallback"
+    },
+    {
+      "provider": "glm_5_2_installed",
+      "role": "review",
+      "difficulty": "complex",
+      "requested": "medium",
+      "accepted": null,
+      "result": "unsupported_no_silent_fallback"
+    },
+    {
+      "provider": "glm_5_2_installed",
+      "role": "final_review",
+      "difficulty": "simple",
+      "requested": "xhigh",
+      "accepted": null,
+      "result": "unsupported_no_silent_fallback"
+    },
+    {
+      "provider": "glm_5_2_installed",
+      "role": "final_review",
+      "difficulty": "standard",
+      "requested": "xhigh",
+      "accepted": null,
+      "result": "unsupported_no_silent_fallback"
+    },
+    {
+      "provider": "glm_5_2_installed",
+      "role": "final_review",
+      "difficulty": "complex",
+      "requested": "xhigh",
+      "accepted": null,
+      "result": "unsupported_no_silent_fallback"
+    },
+    {
+      "provider": "glm_5_2_installed",
+      "role": "learn",
+      "difficulty": "simple",
+      "requested": "low",
+      "accepted": null,
+      "result": "unsupported_no_silent_fallback"
+    },
+    {
+      "provider": "glm_5_2_installed",
+      "role": "learn",
+      "difficulty": "standard",
+      "requested": "low",
+      "accepted": null,
+      "result": "unsupported_no_silent_fallback"
+    },
+    {
+      "provider": "glm_5_2_installed",
+      "role": "learn",
+      "difficulty": "complex",
+      "requested": "low",
+      "accepted": null,
+      "result": "unsupported_no_silent_fallback"
+    },
+    {
+      "provider": "glm_5_2_installed",
+      "role": "review_memory",
+      "difficulty": "simple",
+      "requested": "medium",
+      "accepted": null,
+      "result": "unsupported_no_silent_fallback"
+    },
+    {
+      "provider": "glm_5_2_installed",
+      "role": "review_memory",
+      "difficulty": "standard",
+      "requested": "medium",
+      "accepted": null,
+      "result": "unsupported_no_silent_fallback"
+    },
+    {
+      "provider": "glm_5_2_installed",
+      "role": "review_memory",
+      "difficulty": "complex",
+      "requested": "medium",
+      "accepted": null,
+      "result": "unsupported_no_silent_fallback"
+    },
+    {
+      "provider": "glm_5_2_installed",
+      "role": "synthesis",
+      "difficulty": "simple",
+      "requested": "medium",
+      "accepted": null,
+      "result": "unsupported_no_silent_fallback"
+    },
+    {
+      "provider": "glm_5_2_installed",
+      "role": "synthesis",
+      "difficulty": "standard",
+      "requested": "medium",
+      "accepted": null,
+      "result": "unsupported_no_silent_fallback"
+    },
+    {
+      "provider": "glm_5_2_installed",
+      "role": "synthesis",
+      "difficulty": "complex",
+      "requested": "medium",
+      "accepted": null,
+      "result": "unsupported_no_silent_fallback"
+    }
+  ],
+  "effective_effort_changes_experience_key": true,
+  "conclusions": [
+    "The requested funnel has unsupported GLM tiers in this installation.",
+    "A mock cannot measure quality or token savings from changing reasoning effort.",
+    "All requests in a role-mapped native thread must set the effective effort explicitly to avoid inherited-tier contamination."
+  ]
+}

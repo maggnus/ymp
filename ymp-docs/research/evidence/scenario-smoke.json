@@ -1,0 +1,20 @@
+{
+  "scenario": "greeting",
+  "application_status": "completed",
+  "application_exit": 0,
+  "files": [
+    "greeting.txt"
+  ],
+  "independent_checks": [
+    {
+      "command": "python3 -m unittest",
+      "exit_code": 5
+    },
+    {
+      "command": "python3 -c \"from greeting import greet; assert greet('Ada') == 'Hello, Ada!'; assert greet('') == 'Hello, !'\"",
+      "exit_code": 1
+    }
+  ],
+  "independent_acceptance": false,
+  "interpretation": "Mock uses canned greeting.txt behavior; it is not a model that can solve greeting.py. This is an oracle/fixture sanity check, not an estimate of agent quality."
+}

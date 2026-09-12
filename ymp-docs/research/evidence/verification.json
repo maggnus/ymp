@@ -1,0 +1,24 @@
+{
+  "checked_at": "2026-09-12T06:05:47.415353+00:00",
+  "product_revision": "56e21ddeb0e19a84c5c05e3859c10d8cbc8b6189",
+  "request_sha256": "fc20625d3fe63a3b54bd113028d68b1d49c1b250f27246591b7e6a1593860a79",
+  "experimental_provider_inference_calls": 0,
+  "ui_research": "Explicitly delegated Claude Opus 5 with max thinking via Paseo; development quota is separate from experimental allocation.",
+  "protocol_cases": 32,
+  "protocol_outcomes": {
+    "completed": 21,
+    "blocked": 10,
+    "paused": 1
+  },
+  "checks": [
+    "cargo fmt --all --check",
+    "cargo clippy --workspace --all-targets -- -D warnings",
+    "cargo test --workspace: 90 tests passed",
+    "Python syntax checks",
+    "Task-ID and local-link checks",
+    "Four invalid-register negative controls",
+    "Central numeric-claim assertions"
+  ],
+  "product_source_changed": false,
+  "scope": "Research documents, offline instrumentation and project task tracking only."
+}

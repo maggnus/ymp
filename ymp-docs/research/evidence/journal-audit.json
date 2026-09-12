@@ -1,0 +1,932 @@
+{
+  "snapshot_at": "2026-09-12T04:56:11.639127+00:00",
+  "schema": 2,
+  "max_event_seq": 375,
+  "source": "Existing local application journal; consistent read-only SQLite backup",
+  "event_counts": {
+    "message": 126,
+    "turn_started": 79,
+    "turn_completed": 78,
+    "assignment_choice": 32,
+    "task": 19,
+    "check": 40,
+    "turn_failed": 1
+  },
+  "sessions": [
+    {
+      "label": "S01",
+      "status": "paused",
+      "team_size": 3,
+      "native_models_explicit": 0,
+      "turns_used": 18,
+      "started": 18,
+      "phases": {
+        "plan": 7,
+        "review_plan": 3,
+        "bid": 3,
+        "execute": 1,
+        "review": 1,
+        "final_review": 1,
+        "learn": 1,
+        "review_memory": 1
+      },
+      "calls_before_first_execute": 13,
+      "check_events": 8,
+      "failed_checks": 0,
+      "right_censored": false
+    },
+    {
+      "label": "S02",
+      "status": "blocked",
+      "team_size": 3,
+      "native_models_explicit": 0,
+      "turns_used": 13,
+      "started": 13,
+      "phases": {
+        "plan": 5,
+        "review_plan": 3,
+        "bid": 3,
+        "execute": 1,
+        "review": 1
+      },
+      "calls_before_first_execute": 11,
+      "check_events": 2,
+      "failed_checks": 1,
+      "right_censored": false
+    },
+    {
+      "label": "S03",
+      "status": "completed",
+      "team_size": 3,
+      "native_models_explicit": 0,
+      "turns_used": 20,
+      "started": 20,
+      "phases": {
+        "plan": 6,
+        "review_plan": 5,
+        "bid": 3,
+        "execute": 1,
+        "review": 1,
+        "final_review": 1,
+        "learn": 1,
+        "review_memory": 1,
+        "synthesis": 1
+      },
+      "calls_before_first_execute": 14,
+      "check_events": 16,
+      "failed_checks": 0,
+      "right_censored": false
+    },
+    {
+      "label": "S04",
+      "status": "completed",
+      "team_size": 3,
+      "native_models_explicit": 0,
+      "turns_used": 13,
+      "started": 13,
+      "phases": {
+        "plan": 3,
+        "review_plan": 1,
+        "bid": 3,
+        "execute": 1,
+        "review": 1,
+        "final_review": 1,
+        "learn": 1,
+        "review_memory": 1,
+        "synthesis": 1
+      },
+      "calls_before_first_execute": 7,
+      "check_events": 10,
+      "failed_checks": 0,
+      "right_censored": false
+    },
+    {
+      "label": "S05",
+      "status": "completed",
+      "team_size": 3,
+      "native_models_explicit": 0,
+      "turns_used": 15,
+      "started": 15,
+      "phases": {
+        "plan": 4,
+        "review_plan": 2,
+        "bid": 3,
+        "execute": 1,
+        "review": 1,
+        "final_review": 1,
+        "learn": 1,
+        "review_memory": 1,
+        "synthesis": 1
+      },
+      "calls_before_first_execute": 9,
+      "check_events": 4,
+      "failed_checks": 0,
+      "right_censored": false
+    }
+  ],
+  "phases": {
+    "plan": {
+      "started": 25,
+      "completed": 25,
+      "failed": 0,
+      "open": 0,
+      "known_tokens": 983294,
+      "reported": 25,
+      "partial": 22,
+      "summed_invocation_seconds": 1808.753,
+      "median_invocation_seconds": 50.264
+    },
+    "review_plan": {
+      "started": 14,
+      "completed": 14,
+      "failed": 0,
+      "open": 0,
+      "known_tokens": 371786,
+      "reported": 14,
+      "partial": 12,
+      "summed_invocation_seconds": 670.687,
+      "median_invocation_seconds": 36.401
+    },
+    "bid": {
+      "started": 15,
+      "completed": 15,
+      "failed": 0,
+      "open": 0,
+      "known_tokens": 399848,
+      "reported": 15,
+      "partial": 13,
+      "summed_invocation_seconds": 239.354,
+      "median_invocation_seconds": 13.434
+    },
+    "execute": {
+      "started": 5,
+      "completed": 5,
+      "failed": 0,
+      "open": 0,
+      "known_tokens": 104826,
+      "reported": 5,
+      "partial": 5,
+      "summed_invocation_seconds": 437.465,
+      "median_invocation_seconds": 70.778
+    },
+    "review": {
+      "started": 5,
+      "completed": 5,
+      "failed": 0,
+      "open": 0,
+      "known_tokens": 521676,
+      "reported": 5,
+      "partial": 4,
+      "summed_invocation_seconds": 462.088,
+      "median_invocation_seconds": 71.433
+    },
+    "final_review": {
+      "started": 4,
+      "completed": 4,
+      "failed": 0,
+      "open": 0,
+      "known_tokens": 366571,
+      "reported": 4,
+      "partial": 3,
+      "summed_invocation_seconds": 137.711,
+      "median_invocation_seconds": 33.096
+    },
+    "learn": {
+      "started": 4,
+      "completed": 4,
+      "failed": 0,
+      "open": 0,
+      "known_tokens": 212204,
+      "reported": 4,
+      "partial": 3,
+      "summed_invocation_seconds": 105.362,
+      "median_invocation_seconds": 22.327
+    },
+    "review_memory": {
+      "started": 4,
+      "completed": 3,
+      "failed": 1,
+      "open": 0,
+      "known_tokens": 154211,
+      "reported": 3,
+      "partial": 2,
+      "summed_invocation_seconds": 186.925,
+      "median_invocation_seconds": 40.928
+    },
+    "synthesis": {
+      "started": 3,
+      "completed": 3,
+      "failed": 0,
+      "open": 0,
+      "known_tokens": 179839,
+      "reported": 3,
+      "partial": 2,
+      "summed_invocation_seconds": 81.306,
+      "median_invocation_seconds": 30.719
+    }
+  },
+  "failures": {
+    "cancellation": 1
+  },
+  "assignment": {
+    "count": 32,
+    "cold_prior_choices": 26,
+    "selected_with_posterior": 3,
+    "decisions_with_logged_propensity": 0,
+    "decisions_with_task_id": 0,
+    "reconstructed_propensities": [
+      {
+        "choice": 1,
+        "candidates": 2,
+        "beta_parameters": [
+          [
+            1,
+            1
+          ],
+          [
+            1,
+            1
+          ]
+        ],
+        "selected_index": 0,
+        "selected_propensity_mc": 0.5082,
+        "draws": 10000,
+        "competence": "planning",
+        "difficulty": "standard"
+      },
+      {
+        "choice": 2,
+        "candidates": 2,
+        "beta_parameters": [
+          [
+            1,
+            1
+          ],
+          [
+            1,
+            1
+          ]
+        ],
+        "selected_index": 0,
+        "selected_propensity_mc": 0.4894,
+        "draws": 10000,
+        "competence": "verification",
+        "difficulty": "standard"
+      },
+      {
+        "choice": 3,
+        "candidates": 2,
+        "beta_parameters": [
+          [
+            1,
+            1
+          ],
+          [
+            1,
+            1
+          ]
+        ],
+        "selected_index": 0,
+        "selected_propensity_mc": 0.4958,
+        "draws": 10000,
+        "competence": "planning",
+        "difficulty": "standard"
+      },
+      {
+        "choice": 4,
+        "candidates": 2,
+        "beta_parameters": [
+          [
+            1,
+            1
+          ],
+          [
+            1,
+            1
+          ]
+        ],
+        "selected_index": 0,
+        "selected_propensity_mc": 0.5023,
+        "draws": 10000,
+        "competence": "verification",
+        "difficulty": "standard"
+      },
+      {
+        "choice": 5,
+        "candidates": 3,
+        "beta_parameters": [
+          [
+            1,
+            1
+          ],
+          [
+            1,
+            1
+          ],
+          [
+            1,
+            1
+          ]
+        ],
+        "selected_index": 0,
+        "selected_propensity_mc": 0.3439,
+        "draws": 10000,
+        "competence": "analysis",
+        "difficulty": "simple"
+      },
+      {
+        "choice": 6,
+        "candidates": 2,
+        "beta_parameters": [
+          [
+            1,
+            1
+          ],
+          [
+            1,
+            1
+          ]
+        ],
+        "selected_index": 0,
+        "selected_propensity_mc": 0.4943,
+        "draws": 10000,
+        "competence": "verification",
+        "difficulty": "simple"
+      },
+      {
+        "choice": 7,
+        "candidates": 3,
+        "beta_parameters": [
+          [
+            1,
+            1
+          ],
+          [
+            1,
+            1
+          ],
+          [
+            1,
+            1
+          ]
+        ],
+        "selected_index": 0,
+        "selected_propensity_mc": 0.3292,
+        "draws": 10000,
+        "competence": "planning",
+        "difficulty": "standard"
+      },
+      {
+        "choice": 8,
+        "candidates": 2,
+        "beta_parameters": [
+          [
+            1,
+            1
+          ],
+          [
+            1,
+            1
+          ]
+        ],
+        "selected_index": 0,
+        "selected_propensity_mc": 0.502,
+        "draws": 10000,
+        "competence": "verification",
+        "difficulty": "standard"
+      },
+      {
+        "choice": 9,
+        "candidates": 3,
+        "beta_parameters": [
+          [
+            1,
+            1
+          ],
+          [
+            1,
+            1
+          ],
+          [
+            1,
+            1
+          ]
+        ],
+        "selected_index": 0,
+        "selected_propensity_mc": 0.3382,
+        "draws": 10000,
+        "competence": "implementation",
+        "difficulty": "simple"
+      },
+      {
+        "choice": 10,
+        "candidates": 2,
+        "beta_parameters": [
+          [
+            1,
+            1
+          ],
+          [
+            1,
+            1
+          ]
+        ],
+        "selected_index": 0,
+        "selected_propensity_mc": 0.4982,
+        "draws": 10000,
+        "competence": "verification",
+        "difficulty": "simple"
+      },
+      {
+        "choice": 11,
+        "candidates": 3,
+        "beta_parameters": [
+          [
+            1,
+            1
+          ],
+          [
+            1,
+            1
+          ],
+          [
+            1,
+            1
+          ]
+        ],
+        "selected_index": 0,
+        "selected_propensity_mc": 0.3306,
+        "draws": 10000,
+        "competence": "verification",
+        "difficulty": "standard"
+      },
+      {
+        "choice": 12,
+        "candidates": 2,
+        "beta_parameters": [
+          [
+            1,
+            1
+          ],
+          [
+            1,
+            1
+          ]
+        ],
+        "selected_index": 0,
+        "selected_propensity_mc": 0.5086,
+        "draws": 10000,
+        "competence": "verification",
+        "difficulty": "standard"
+      },
+      {
+        "choice": 13,
+        "candidates": 3,
+        "beta_parameters": [
+          [
+            1,
+            1
+          ],
+          [
+            2,
+            1
+          ],
+          [
+            1,
+            1
+          ]
+        ],
+        "selected_index": 0,
+        "selected_propensity_mc": 0.2505,
+        "draws": 10000,
+        "competence": "planning",
+        "difficulty": "standard"
+      },
+      {
+        "choice": 14,
+        "candidates": 2,
+        "beta_parameters": [
+          [
+            1,
+            1
+          ],
+          [
+            1,
+            1
+          ]
+        ],
+        "selected_index": 0,
+        "selected_propensity_mc": 0.503,
+        "draws": 10000,
+        "competence": "verification",
+        "difficulty": "standard"
+      },
+      {
+        "choice": 15,
+        "candidates": 2,
+        "beta_parameters": [
+          [
+            1,
+            1
+          ],
+          [
+            2,
+            1
+          ]
+        ],
+        "selected_index": 0,
+        "selected_propensity_mc": 0.3248,
+        "draws": 10000,
+        "competence": "planning",
+        "difficulty": "standard"
+      },
+      {
+        "choice": 16,
+        "candidates": 2,
+        "beta_parameters": [
+          [
+            1,
+            1
+          ],
+          [
+            1,
+            1
+          ]
+        ],
+        "selected_index": 0,
+        "selected_propensity_mc": 0.5005,
+        "draws": 10000,
+        "competence": "verification",
+        "difficulty": "standard"
+      },
+      {
+        "choice": 17,
+        "candidates": 3,
+        "beta_parameters": [
+          [
+            1,
+            1
+          ],
+          [
+            1,
+            1
+          ],
+          [
+            2,
+            1
+          ]
+        ],
+        "selected_index": 0,
+        "selected_propensity_mc": 0.2591,
+        "draws": 10000,
+        "competence": "implementation",
+        "difficulty": "simple"
+      },
+      {
+        "choice": 18,
+        "candidates": 2,
+        "beta_parameters": [
+          [
+            1,
+            1
+          ],
+          [
+            1,
+            1
+          ]
+        ],
+        "selected_index": 0,
+        "selected_propensity_mc": 0.5066,
+        "draws": 10000,
+        "competence": "verification",
+        "difficulty": "simple"
+      },
+      {
+        "choice": 19,
+        "candidates": 3,
+        "beta_parameters": [
+          [
+            1,
+            1
+          ],
+          [
+            1,
+            1
+          ],
+          [
+            1,
+            1
+          ]
+        ],
+        "selected_index": 0,
+        "selected_propensity_mc": 0.3263,
+        "draws": 10000,
+        "competence": "verification",
+        "difficulty": "standard"
+      },
+      {
+        "choice": 20,
+        "candidates": 2,
+        "beta_parameters": [
+          [
+            1,
+            1
+          ],
+          [
+            1,
+            1
+          ]
+        ],
+        "selected_index": 0,
+        "selected_propensity_mc": 0.4943,
+        "draws": 10000,
+        "competence": "verification",
+        "difficulty": "standard"
+      },
+      {
+        "choice": 21,
+        "candidates": 3,
+        "beta_parameters": [
+          [
+            2,
+            1
+          ],
+          [
+            2,
+            1
+          ],
+          [
+            1,
+            1
+          ]
+        ],
+        "selected_index": 0,
+        "selected_propensity_mc": 0.3972,
+        "draws": 10000,
+        "competence": "planning",
+        "difficulty": "standard"
+      },
+      {
+        "choice": 22,
+        "candidates": 2,
+        "beta_parameters": [
+          [
+            1,
+            1
+          ],
+          [
+            1,
+            1
+          ]
+        ],
+        "selected_index": 0,
+        "selected_propensity_mc": 0.5044,
+        "draws": 10000,
+        "competence": "verification",
+        "difficulty": "standard"
+      },
+      {
+        "choice": 23,
+        "candidates": 2,
+        "beta_parameters": [
+          [
+            2,
+            1
+          ],
+          [
+            2,
+            1
+          ]
+        ],
+        "selected_index": 0,
+        "selected_propensity_mc": 0.4981,
+        "draws": 10000,
+        "competence": "implementation",
+        "difficulty": "simple"
+      },
+      {
+        "choice": 24,
+        "candidates": 2,
+        "beta_parameters": [
+          [
+            1,
+            1
+          ],
+          [
+            1,
+            1
+          ]
+        ],
+        "selected_index": 0,
+        "selected_propensity_mc": 0.5061,
+        "draws": 10000,
+        "competence": "verification",
+        "difficulty": "simple"
+      },
+      {
+        "choice": 25,
+        "candidates": 3,
+        "beta_parameters": [
+          [
+            1,
+            1
+          ],
+          [
+            1,
+            1
+          ],
+          [
+            1,
+            1
+          ]
+        ],
+        "selected_index": 0,
+        "selected_propensity_mc": 0.3353,
+        "draws": 10000,
+        "competence": "verification",
+        "difficulty": "standard"
+      },
+      {
+        "choice": 26,
+        "candidates": 2,
+        "beta_parameters": [
+          [
+            1,
+            1
+          ],
+          [
+            1,
+            1
+          ]
+        ],
+        "selected_index": 0,
+        "selected_propensity_mc": 0.5035,
+        "draws": 10000,
+        "competence": "verification",
+        "difficulty": "standard"
+      },
+      {
+        "choice": 27,
+        "candidates": 3,
+        "beta_parameters": [
+          [
+            3,
+            1
+          ],
+          [
+            2,
+            1
+          ],
+          [
+            1,
+            1
+          ]
+        ],
+        "selected_index": 0,
+        "selected_propensity_mc": 0.5026,
+        "draws": 10000,
+        "competence": "planning",
+        "difficulty": "standard"
+      },
+      {
+        "choice": 28,
+        "candidates": 2,
+        "beta_parameters": [
+          [
+            1,
+            1
+          ],
+          [
+            1,
+            1
+          ]
+        ],
+        "selected_index": 0,
+        "selected_propensity_mc": 0.4991,
+        "draws": 10000,
+        "competence": "verification",
+        "difficulty": "standard"
+      },
+      {
+        "choice": 29,
+        "candidates": 3,
+        "beta_parameters": [
+          [
+            1,
+            1
+          ],
+          [
+            1,
+            1
+          ],
+          [
+            1,
+            1
+          ]
+        ],
+        "selected_index": 0,
+        "selected_propensity_mc": 0.3313,
+        "draws": 10000,
+        "competence": "verification",
+        "difficulty": "simple"
+      },
+      {
+        "choice": 30,
+        "candidates": 2,
+        "beta_parameters": [
+          [
+            1,
+            1
+          ],
+          [
+            1,
+            1
+          ]
+        ],
+        "selected_index": 0,
+        "selected_propensity_mc": 0.5024,
+        "draws": 10000,
+        "competence": "verification",
+        "difficulty": "simple"
+      },
+      {
+        "choice": 31,
+        "candidates": 3,
+        "beta_parameters": [
+          [
+            1,
+            1
+          ],
+          [
+            1,
+            1
+          ],
+          [
+            1,
+            1
+          ]
+        ],
+        "selected_index": 0,
+        "selected_propensity_mc": 0.3323,
+        "draws": 10000,
+        "competence": "verification",
+        "difficulty": "standard"
+      },
+      {
+        "choice": 32,
+        "candidates": 2,
+        "beta_parameters": [
+          [
+            1,
+            1
+          ],
+          [
+            1,
+            1
+          ]
+        ],
+        "selected_index": 0,
+        "selected_propensity_mc": 0.4999,
+        "draws": 10000,
+        "competence": "verification",
+        "difficulty": "standard"
+      }
+    ],
+    "propensity_caveat": "Reconstructed from logged Beta parameters under the current selection rule; sampled scores are not action probabilities. This does not identify counterfactual rewards or costs.",
+    "decisions_with_candidate_costs": 0
+  },
+  "observations": [
+    {
+      "competence": "implementation",
+      "difficulty": "simple",
+      "success": 1,
+      "count": 3
+    },
+    {
+      "competence": "planning",
+      "difficulty": "standard",
+      "success": 1,
+      "count": 4
+    },
+    {
+      "competence": "verification",
+      "difficulty": "simple",
+      "success": 1,
+      "count": 1
+    }
+  ],
+  "memory": {
+    "count": 5,
+    "statuses": {
+      "active": 5
+    },
+    "supersedes_links": 0
+  },
+  "caveats": [
+    "Historical usage may be partial; known_tokens is a reported lower bound.",
+    "Invocation durations are not additive wall-clock latency when calls overlap.",
+    "Completion statuses are product outcomes, not independent benchmark labels.",
+    "An open run is right-censored; no missing result is treated as a failure.",
+    "No prompts, message bodies, check output, file contents, credentials, or native session IDs are exported."
+  ]
+}

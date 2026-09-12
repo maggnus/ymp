@@ -1,0 +1,1625 @@
+{
+  "snapshot_at": "2026-09-12T05:08:24.523355+00:00",
+  "max_event_seq": 375,
+  "source": "Read-only consistent SQLite snapshot; repeated requests S03\u2013S05 identified by the request appendix.",
+  "outcomes": [
+    {
+      "label": "S03",
+      "project": "P01",
+      "status": "completed",
+      "recorded_turns": 20,
+      "started": 20,
+      "completed": 20,
+      "elapsed_first_start_to_last_completion_seconds": 1165.947771,
+      "last_completed_at": "2026-09-12T03:34:13.982885+00:00",
+      "reported_input": 838568,
+      "reported_output": 14093,
+      "reported_cache_read": 791908,
+      "reported_cache_write": 26676,
+      "partial_invocations": 20,
+      "illustrative_weighted_input_bounds": [
+        132519.80000000002,
+        133499.55000000002
+      ],
+      "naive_flat_missing": 15,
+      "naive_flat_explicit_zero": 0,
+      "agents": {
+        "claude": {
+          "invocations": 4,
+          "input": 94692,
+          "output": 8368,
+          "cache_read": 68004,
+          "cache_write": 26676,
+          "partial": 4,
+          "missing_cache_read": 0,
+          "missing_cache_write": 0
+        },
+        "glm": {
+          "invocations": 5,
+          "input": 29711,
+          "output": 2176,
+          "cache_read": 25792,
+          "cache_write": 0,
+          "partial": 5,
+          "missing_cache_read": 0,
+          "missing_cache_write": 5
+        },
+        "codex": {
+          "invocations": 11,
+          "input": 714165,
+          "output": 3549,
+          "cache_read": 698112,
+          "cache_write": 0,
+          "partial": 11,
+          "missing_cache_read": 0,
+          "missing_cache_write": 0
+        }
+      },
+      "check_events": 16,
+      "failed_checks": 0,
+      "saved_workspace_fields": [
+        "directory",
+        "initial",
+        "root"
+      ],
+      "initial_fingerprint_files": 1,
+      "end_change_count": 0,
+      "explicit_post_verification_fingerprint": false,
+      "rows": [
+        {
+          "turn": 1,
+          "agent": "claude",
+          "provider": "claude",
+          "phase": "plan",
+          "native_shape": "claude_legacy_main_usage",
+          "naive_flat_input": null,
+          "counts": {
+            "input": 30960,
+            "output": 1518,
+            "cache_read": 20371,
+            "cache_write": 10583,
+            "reasoning": 463
+          },
+          "partial": true,
+          "finalized": true,
+          "illustrative_weighted_input_bounds": [
+            15271.85,
+            15271.85
+          ]
+        },
+        {
+          "turn": 2,
+          "agent": "glm",
+          "provider": "glm",
+          "phase": "plan",
+          "native_shape": "acp_flat_last_request",
+          "naive_flat_input": 2741,
+          "counts": {
+            "input": 2741,
+            "output": 512,
+            "cache_read": 2560,
+            "cache_write": null,
+            "reasoning": 235
+          },
+          "partial": true,
+          "finalized": true,
+          "illustrative_weighted_input_bounds": [
+            437.0,
+            482.25
+          ]
+        },
+        {
+          "turn": 3,
+          "agent": "codex",
+          "provider": "codex",
+          "phase": "plan",
+          "native_shape": "codex_thread_total_and_last",
+          "naive_flat_input": null,
+          "counts": {
+            "input": 34634,
+            "output": 677,
+            "cache_read": 33024,
+            "cache_write": 0,
+            "reasoning": 375
+          },
+          "partial": true,
+          "finalized": true,
+          "illustrative_weighted_input_bounds": [
+            4912.4,
+            4912.4
+          ]
+        },
+        {
+          "turn": 4,
+          "agent": "codex",
+          "provider": "codex",
+          "phase": "review_plan",
+          "native_shape": "codex_thread_total_and_last",
+          "naive_flat_input": null,
+          "counts": {
+            "input": 39625,
+            "output": 80,
+            "cache_read": 38528,
+            "cache_write": 0,
+            "reasoning": 0
+          },
+          "partial": true,
+          "finalized": true,
+          "illustrative_weighted_input_bounds": [
+            4949.8,
+            4949.8
+          ]
+        },
+        {
+          "turn": 5,
+          "agent": "glm",
+          "provider": "glm",
+          "phase": "plan",
+          "native_shape": "acp_flat_last_request",
+          "naive_flat_input": 4572,
+          "counts": {
+            "input": 4572,
+            "output": 444,
+            "cache_read": 4288,
+            "cache_write": null,
+            "reasoning": 0
+          },
+          "partial": true,
+          "finalized": true,
+          "illustrative_weighted_input_bounds": [
+            712.8,
+            783.8
+          ]
+        },
+        {
+          "turn": 6,
+          "agent": "codex",
+          "provider": "codex",
+          "phase": "review_plan",
+          "native_shape": "codex_thread_total_and_last",
+          "naive_flat_input": null,
+          "counts": {
+            "input": 46797,
+            "output": 95,
+            "cache_read": 46208,
+            "cache_write": 0,
+            "reasoning": 0
+          },
+          "partial": true,
+          "finalized": true,
+          "illustrative_weighted_input_bounds": [
+            5209.8,
+            5209.8
+          ]
+        },
+        {
+          "turn": 7,
+          "agent": "glm",
+          "provider": "glm",
+          "phase": "plan",
+          "native_shape": "acp_flat_last_request",
+          "naive_flat_input": 6562,
+          "counts": {
+            "input": 6562,
+            "output": 510,
+            "cache_read": 6272,
+            "cache_write": null,
+            "reasoning": 0
+          },
+          "partial": true,
+          "finalized": true,
+          "illustrative_weighted_input_bounds": [
+            917.2,
+            989.7
+          ]
+        },
+        {
+          "turn": 8,
+          "agent": "codex",
+          "provider": "codex",
+          "phase": "review_plan",
+          "native_shape": "codex_thread_total_and_last",
+          "naive_flat_input": null,
+          "counts": {
+            "input": 53578,
+            "output": 101,
+            "cache_read": 53120,
+            "cache_write": 0,
+            "reasoning": 0
+          },
+          "partial": true,
+          "finalized": true,
+          "illustrative_weighted_input_bounds": [
+            5770.0,
+            5770.0
+          ]
+        },
+        {
+          "turn": 9,
+          "agent": "codex",
+          "provider": "codex",
+          "phase": "review_plan",
+          "native_shape": "codex_thread_total_and_last",
+          "naive_flat_input": null,
+          "counts": {
+            "input": 60700,
+            "output": 203,
+            "cache_read": 60032,
+            "cache_write": 0,
+            "reasoning": 106
+          },
+          "partial": true,
+          "finalized": true,
+          "illustrative_weighted_input_bounds": [
+            6671.200000000001,
+            6671.200000000001
+          ]
+        },
+        {
+          "turn": 10,
+          "agent": "claude",
+          "provider": "claude",
+          "phase": "plan",
+          "native_shape": "claude_legacy_main_usage",
+          "naive_flat_input": null,
+          "counts": {
+            "input": 14269,
+            "output": 5000,
+            "cache_read": 10583,
+            "cache_write": 3684,
+            "reasoning": 3844
+          },
+          "partial": true,
+          "finalized": true,
+          "illustrative_weighted_input_bounds": [
+            5665.3,
+            5665.3
+          ]
+        },
+        {
+          "turn": 11,
+          "agent": "codex",
+          "provider": "codex",
+          "phase": "review_plan",
+          "native_shape": "codex_thread_total_and_last",
+          "naive_flat_input": null,
+          "counts": {
+            "input": 67579,
+            "output": 99,
+            "cache_read": 67072,
+            "cache_write": 0,
+            "reasoning": 0
+          },
+          "partial": true,
+          "finalized": true,
+          "illustrative_weighted_input_bounds": [
+            7214.200000000001,
+            7214.200000000001
+          ]
+        },
+        {
+          "turn": 12,
+          "agent": "glm",
+          "provider": "glm",
+          "phase": "bid",
+          "native_shape": "acp_flat_last_request",
+          "naive_flat_input": 9378,
+          "counts": {
+            "input": 9378,
+            "output": 327,
+            "cache_read": 6528,
+            "cache_write": null,
+            "reasoning": 175
+          },
+          "partial": true,
+          "finalized": true,
+          "illustrative_weighted_input_bounds": [
+            3502.8,
+            4215.3
+          ]
+        },
+        {
+          "turn": 13,
+          "agent": "claude",
+          "provider": "claude",
+          "phase": "bid",
+          "native_shape": "claude_legacy_main_usage",
+          "naive_flat_input": null,
+          "counts": {
+            "input": 22785,
+            "output": 302,
+            "cache_read": 14267,
+            "cache_write": 8516,
+            "reasoning": 0
+          },
+          "partial": true,
+          "finalized": true,
+          "illustrative_weighted_input_bounds": [
+            12073.7,
+            12073.7
+          ]
+        },
+        {
+          "turn": 14,
+          "agent": "codex",
+          "provider": "codex",
+          "phase": "bid",
+          "native_shape": "codex_thread_total_and_last",
+          "naive_flat_input": null,
+          "counts": {
+            "input": 70355,
+            "output": 467,
+            "cache_read": 67456,
+            "cache_write": 0,
+            "reasoning": 369
+          },
+          "partial": true,
+          "finalized": true,
+          "illustrative_weighted_input_bounds": [
+            9644.6,
+            9644.6
+          ]
+        },
+        {
+          "turn": 15,
+          "agent": "glm",
+          "provider": "glm",
+          "phase": "execute",
+          "native_shape": "acp_flat_last_request",
+          "naive_flat_input": 6458,
+          "counts": {
+            "input": 6458,
+            "output": 383,
+            "cache_read": 6144,
+            "cache_write": null,
+            "reasoning": 12
+          },
+          "partial": true,
+          "finalized": true,
+          "illustrative_weighted_input_bounds": [
+            928.4000000000001,
+            1006.9000000000001
+          ]
+        },
+        {
+          "turn": 16,
+          "agent": "codex",
+          "provider": "codex",
+          "phase": "review",
+          "native_shape": "codex_thread_total_and_last",
+          "naive_flat_input": null,
+          "counts": {
+            "input": 79274,
+            "output": 129,
+            "cache_read": 78592,
+            "cache_write": 0,
+            "reasoning": 0
+          },
+          "partial": true,
+          "finalized": true,
+          "illustrative_weighted_input_bounds": [
+            8541.2,
+            8541.2
+          ]
+        },
+        {
+          "turn": 17,
+          "agent": "codex",
+          "provider": "codex",
+          "phase": "final_review",
+          "native_shape": "codex_thread_total_and_last",
+          "naive_flat_input": null,
+          "counts": {
+            "input": 84039,
+            "output": 98,
+            "cache_read": 83584,
+            "cache_write": 0,
+            "reasoning": 0
+          },
+          "partial": true,
+          "finalized": true,
+          "illustrative_weighted_input_bounds": [
+            8813.4,
+            8813.4
+          ]
+        },
+        {
+          "turn": 18,
+          "agent": "codex",
+          "provider": "codex",
+          "phase": "learn",
+          "native_shape": "codex_thread_total_and_last",
+          "naive_flat_input": null,
+          "counts": {
+            "input": 86856,
+            "output": 1009,
+            "cache_read": 83840,
+            "cache_write": 0,
+            "reasoning": 864
+          },
+          "partial": true,
+          "finalized": true,
+          "illustrative_weighted_input_bounds": [
+            11400.0,
+            11400.0
+          ]
+        },
+        {
+          "turn": 19,
+          "agent": "claude",
+          "provider": "claude",
+          "phase": "review_memory",
+          "native_shape": "claude_legacy_main_usage",
+          "naive_flat_input": null,
+          "counts": {
+            "input": 26678,
+            "output": 1548,
+            "cache_read": 22783,
+            "cache_write": 3893,
+            "reasoning": 1121
+          },
+          "partial": true,
+          "finalized": true,
+          "illustrative_weighted_input_bounds": [
+            7146.55,
+            7146.55
+          ]
+        },
+        {
+          "turn": 20,
+          "agent": "codex",
+          "provider": "codex",
+          "phase": "synthesis",
+          "native_shape": "codex_thread_total_and_last",
+          "naive_flat_input": null,
+          "counts": {
+            "input": 90728,
+            "output": 591,
+            "cache_read": 86656,
+            "cache_write": 0,
+            "reasoning": 516
+          },
+          "partial": true,
+          "finalized": true,
+          "illustrative_weighted_input_bounds": [
+            12737.6,
+            12737.6
+          ]
+        }
+      ]
+    },
+    {
+      "label": "S04",
+      "project": "P02",
+      "status": "completed",
+      "recorded_turns": 13,
+      "started": 13,
+      "completed": 13,
+      "elapsed_first_start_to_last_completion_seconds": 403.728165,
+      "last_completed_at": "2026-09-12T03:43:53.501553+00:00",
+      "reported_input": 259994,
+      "reported_output": 4736,
+      "reported_cache_read": 240585,
+      "reported_cache_write": 9112,
+      "partial_invocations": 13,
+      "illustrative_weighted_input_bounds": [
+        45745.5,
+        46986.25
+      ],
+      "naive_flat_missing": 6,
+      "naive_flat_explicit_zero": 0,
+      "agents": {
+        "claude": {
+          "invocations": 2,
+          "input": 44137,
+          "output": 1569,
+          "cache_read": 35017,
+          "cache_write": 9112,
+          "partial": 2,
+          "missing_cache_read": 0,
+          "missing_cache_write": 0
+        },
+        "codex": {
+          "invocations": 4,
+          "input": 165070,
+          "output": 1174,
+          "cache_read": 159744,
+          "cache_write": 0,
+          "partial": 4,
+          "missing_cache_read": 0,
+          "missing_cache_write": 0
+        },
+        "glm": {
+          "invocations": 7,
+          "input": 50787,
+          "output": 1993,
+          "cache_read": 45824,
+          "cache_write": 0,
+          "partial": 7,
+          "missing_cache_read": 0,
+          "missing_cache_write": 7
+        }
+      },
+      "check_events": 10,
+      "failed_checks": 0,
+      "saved_workspace_fields": [
+        "directory",
+        "initial",
+        "root"
+      ],
+      "initial_fingerprint_files": 0,
+      "end_change_count": 1,
+      "explicit_post_verification_fingerprint": false,
+      "rows": [
+        {
+          "turn": 1,
+          "agent": "claude",
+          "provider": "claude",
+          "phase": "plan",
+          "native_shape": "claude_legacy_main_usage",
+          "naive_flat_input": null,
+          "counts": {
+            "input": 30504,
+            "output": 1217,
+            "cache_read": 24703,
+            "cache_write": 5795,
+            "reasoning": 314
+          },
+          "partial": true,
+          "finalized": true,
+          "illustrative_weighted_input_bounds": [
+            9720.05,
+            9720.05
+          ]
+        },
+        {
+          "turn": 2,
+          "agent": "codex",
+          "provider": "codex",
+          "phase": "plan",
+          "native_shape": "codex_thread_total_and_last",
+          "naive_flat_input": null,
+          "counts": {
+            "input": 34215,
+            "output": 606,
+            "cache_read": 33152,
+            "cache_write": 0,
+            "reasoning": 317
+          },
+          "partial": true,
+          "finalized": true,
+          "illustrative_weighted_input_bounds": [
+            4378.200000000001,
+            4378.200000000001
+          ]
+        },
+        {
+          "turn": 3,
+          "agent": "glm",
+          "provider": "glm",
+          "phase": "plan",
+          "native_shape": "acp_flat_last_request",
+          "naive_flat_input": 2456,
+          "counts": {
+            "input": 2456,
+            "output": 296,
+            "cache_read": 2368,
+            "cache_write": null,
+            "reasoning": 68
+          },
+          "partial": true,
+          "finalized": true,
+          "illustrative_weighted_input_bounds": [
+            324.8,
+            346.8
+          ]
+        },
+        {
+          "turn": 4,
+          "agent": "glm",
+          "provider": "glm",
+          "phase": "review_plan",
+          "native_shape": "acp_flat_last_request",
+          "naive_flat_input": 4262,
+          "counts": {
+            "input": 4262,
+            "output": 158,
+            "cache_read": 4160,
+            "cache_write": null,
+            "reasoning": 0
+          },
+          "partial": true,
+          "finalized": true,
+          "illustrative_weighted_input_bounds": [
+            518.0,
+            543.5
+          ]
+        },
+        {
+          "turn": 5,
+          "agent": "glm",
+          "provider": "glm",
+          "phase": "bid",
+          "native_shape": "acp_flat_last_request",
+          "naive_flat_input": 5908,
+          "counts": {
+            "input": 5908,
+            "output": 266,
+            "cache_read": 4224,
+            "cache_write": null,
+            "reasoning": 96
+          },
+          "partial": true,
+          "finalized": true,
+          "illustrative_weighted_input_bounds": [
+            2106.4,
+            2527.4
+          ]
+        },
+        {
+          "turn": 6,
+          "agent": "claude",
+          "provider": "claude",
+          "phase": "bid",
+          "native_shape": "claude_legacy_main_usage",
+          "naive_flat_input": null,
+          "counts": {
+            "input": 13633,
+            "output": 352,
+            "cache_read": 10314,
+            "cache_write": 3317,
+            "reasoning": 0
+          },
+          "partial": true,
+          "finalized": true,
+          "illustrative_weighted_input_bounds": [
+            5179.65,
+            5179.65
+          ]
+        },
+        {
+          "turn": 7,
+          "agent": "codex",
+          "provider": "codex",
+          "phase": "bid",
+          "native_shape": "codex_thread_total_and_last",
+          "naive_flat_input": null,
+          "counts": {
+            "input": 36680,
+            "output": 323,
+            "cache_read": 34048,
+            "cache_write": 0,
+            "reasoning": 217
+          },
+          "partial": true,
+          "finalized": true,
+          "illustrative_weighted_input_bounds": [
+            6036.8,
+            6036.8
+          ]
+        },
+        {
+          "turn": 8,
+          "agent": "glm",
+          "provider": "glm",
+          "phase": "execute",
+          "native_shape": "acp_flat_last_request",
+          "naive_flat_input": 5265,
+          "counts": {
+            "input": 5265,
+            "output": 282,
+            "cache_read": 4992,
+            "cache_write": null,
+            "reasoning": 13
+          },
+          "partial": true,
+          "finalized": true,
+          "illustrative_weighted_input_bounds": [
+            772.2,
+            840.45
+          ]
+        },
+        {
+          "turn": 9,
+          "agent": "codex",
+          "provider": "codex",
+          "phase": "review",
+          "native_shape": "codex_thread_total_and_last",
+          "naive_flat_input": null,
+          "counts": {
+            "input": 44480,
+            "output": 131,
+            "cache_read": 43648,
+            "cache_write": 0,
+            "reasoning": 0
+          },
+          "partial": true,
+          "finalized": true,
+          "illustrative_weighted_input_bounds": [
+            5196.8,
+            5196.8
+          ]
+        },
+        {
+          "turn": 10,
+          "agent": "glm",
+          "provider": "glm",
+          "phase": "final_review",
+          "native_shape": "acp_flat_last_request",
+          "naive_flat_input": 8626,
+          "counts": {
+            "input": 8626,
+            "output": 256,
+            "cache_read": 8384,
+            "cache_write": null,
+            "reasoning": 106
+          },
+          "partial": true,
+          "finalized": true,
+          "illustrative_weighted_input_bounds": [
+            1080.4,
+            1140.9
+          ]
+        },
+        {
+          "turn": 11,
+          "agent": "glm",
+          "provider": "glm",
+          "phase": "learn",
+          "native_shape": "acp_flat_last_request",
+          "naive_flat_input": 11007,
+          "counts": {
+            "input": 11007,
+            "output": 393,
+            "cache_read": 8576,
+            "cache_write": null,
+            "reasoning": 236
+          },
+          "partial": true,
+          "finalized": true,
+          "illustrative_weighted_input_bounds": [
+            3288.6,
+            3896.35
+          ]
+        },
+        {
+          "turn": 12,
+          "agent": "codex",
+          "provider": "codex",
+          "phase": "review_memory",
+          "native_shape": "codex_thread_total_and_last",
+          "naive_flat_input": null,
+          "counts": {
+            "input": 49695,
+            "output": 114,
+            "cache_read": 48896,
+            "cache_write": 0,
+            "reasoning": 0
+          },
+          "partial": true,
+          "finalized": true,
+          "illustrative_weighted_input_bounds": [
+            5688.6,
+            5688.6
+          ]
+        },
+        {
+          "turn": 13,
+          "agent": "glm",
+          "provider": "glm",
+          "phase": "synthesis",
+          "native_shape": "acp_flat_last_request",
+          "naive_flat_input": 13263,
+          "counts": {
+            "input": 13263,
+            "output": 342,
+            "cache_read": 13120,
+            "cache_write": null,
+            "reasoning": 0
+          },
+          "partial": true,
+          "finalized": true,
+          "illustrative_weighted_input_bounds": [
+            1455.0,
+            1490.75
+          ]
+        }
+      ]
+    },
+    {
+      "label": "S05",
+      "project": "P01",
+      "status": "completed",
+      "recorded_turns": 15,
+      "started": 15,
+      "completed": 15,
+      "elapsed_first_start_to_last_completion_seconds": 928.953221,
+      "last_completed_at": "2026-09-12T04:37:57.246935+00:00",
+      "reported_input": 1268960,
+      "reported_output": 29722,
+      "reported_cache_read": 1139743,
+      "reported_cache_write": 30030,
+      "partial_invocations": 3,
+      "illustrative_weighted_input_bounds": [
+        250698.8,
+        251673.05
+      ],
+      "naive_flat_missing": 12,
+      "naive_flat_explicit_zero": 0,
+      "agents": {
+        "glm": {
+          "invocations": 3,
+          "input": 18745,
+          "output": 1553,
+          "cache_read": 14848,
+          "cache_write": 0,
+          "partial": 3,
+          "missing_cache_read": 0,
+          "missing_cache_write": 3
+        },
+        "codex": {
+          "invocations": 7,
+          "input": 1077166,
+          "output": 16793,
+          "cache_read": 983168,
+          "cache_write": 0,
+          "partial": 0,
+          "missing_cache_read": 0,
+          "missing_cache_write": 0
+        },
+        "claude": {
+          "invocations": 5,
+          "input": 173049,
+          "output": 11376,
+          "cache_read": 141727,
+          "cache_write": 30030,
+          "partial": 0,
+          "missing_cache_read": 0,
+          "missing_cache_write": 0
+        }
+      },
+      "check_events": 4,
+      "failed_checks": 0,
+      "saved_workspace_fields": [
+        "directory",
+        "initial",
+        "root"
+      ],
+      "initial_fingerprint_files": 1,
+      "end_change_count": 0,
+      "explicit_post_verification_fingerprint": false,
+      "rows": [
+        {
+          "turn": 1,
+          "agent": "glm",
+          "provider": "glm",
+          "phase": "plan",
+          "native_shape": "acp_flat_last_request",
+          "naive_flat_input": 2740,
+          "counts": {
+            "input": 2740,
+            "output": 698,
+            "cache_read": 2560,
+            "cache_write": null,
+            "reasoning": 251
+          },
+          "partial": true,
+          "finalized": true,
+          "illustrative_weighted_input_bounds": [
+            436.0,
+            481.0
+          ]
+        },
+        {
+          "turn": 2,
+          "agent": "codex",
+          "provider": "codex",
+          "phase": "plan",
+          "native_shape": "codex_thread_total_and_last",
+          "naive_flat_input": null,
+          "counts": {
+            "input": 195741,
+            "output": 4047,
+            "cache_read": 171392,
+            "cache_write": 0,
+            "reasoning": 2398
+          },
+          "partial": false,
+          "finalized": true,
+          "illustrative_weighted_input_bounds": [
+            41488.2,
+            41488.2
+          ]
+        },
+        {
+          "turn": 3,
+          "agent": "claude",
+          "provider": "claude",
+          "phase": "plan",
+          "native_shape": "claude_query_usage_and_model_map",
+          "naive_flat_input": null,
+          "counts": {
+            "input": 32607,
+            "output": 1912,
+            "cache_read": 28318,
+            "cache_write": 3007,
+            "reasoning": null
+          },
+          "partial": false,
+          "finalized": true,
+          "illustrative_weighted_input_bounds": [
+            7872.55,
+            7872.55
+          ]
+        },
+        {
+          "turn": 4,
+          "agent": "claude",
+          "provider": "claude",
+          "phase": "review_plan",
+          "native_shape": "claude_query_usage_and_model_map",
+          "naive_flat_input": null,
+          "counts": {
+            "input": 15238,
+            "output": 1495,
+            "cache_read": 10783,
+            "cache_write": 4453,
+            "reasoning": null
+          },
+          "partial": false,
+          "finalized": true,
+          "illustrative_weighted_input_bounds": [
+            6646.55,
+            6646.55
+          ]
+        },
+        {
+          "turn": 5,
+          "agent": "codex",
+          "provider": "codex",
+          "phase": "plan",
+          "native_shape": "codex_thread_total_and_last",
+          "naive_flat_input": null,
+          "counts": {
+            "input": 251538,
+            "output": 7695,
+            "cache_read": 212352,
+            "cache_write": 0,
+            "reasoning": 4525
+          },
+          "partial": false,
+          "finalized": true,
+          "illustrative_weighted_input_bounds": [
+            60421.2,
+            60421.2
+          ]
+        },
+        {
+          "turn": 6,
+          "agent": "claude",
+          "provider": "claude",
+          "phase": "review_plan",
+          "native_shape": "claude_query_usage_and_model_map",
+          "naive_flat_input": null,
+          "counts": {
+            "input": 21816,
+            "output": 4072,
+            "cache_read": 15236,
+            "cache_write": 6578,
+            "reasoning": null
+          },
+          "partial": false,
+          "finalized": true,
+          "illustrative_weighted_input_bounds": [
+            9748.1,
+            9748.1
+          ]
+        },
+        {
+          "turn": 7,
+          "agent": "glm",
+          "provider": "glm",
+          "phase": "bid",
+          "native_shape": "acp_flat_last_request",
+          "naive_flat_input": 6044,
+          "counts": {
+            "input": 6044,
+            "output": 508,
+            "cache_read": 2688,
+            "cache_write": null,
+            "reasoning": 308
+          },
+          "partial": true,
+          "finalized": true,
+          "illustrative_weighted_input_bounds": [
+            3624.8,
+            4463.8
+          ]
+        },
+        {
+          "turn": 8,
+          "agent": "claude",
+          "provider": "claude",
+          "phase": "bid",
+          "native_shape": "claude_query_usage_and_model_map",
+          "naive_flat_input": null,
+          "counts": {
+            "input": 30256,
+            "output": 853,
+            "cache_read": 21814,
+            "cache_write": 8440,
+            "reasoning": null
+          },
+          "partial": false,
+          "finalized": true,
+          "illustrative_weighted_input_bounds": [
+            12733.4,
+            12733.4
+          ]
+        },
+        {
+          "turn": 9,
+          "agent": "codex",
+          "provider": "codex",
+          "phase": "bid",
+          "native_shape": "codex_thread_total_and_last",
+          "naive_flat_input": null,
+          "counts": {
+            "input": 50480,
+            "output": 328,
+            "cache_read": 45440,
+            "cache_write": 0,
+            "reasoning": 213
+          },
+          "partial": false,
+          "finalized": true,
+          "illustrative_weighted_input_bounds": [
+            9584.0,
+            9584.0
+          ]
+        },
+        {
+          "turn": 10,
+          "agent": "glm",
+          "provider": "glm",
+          "phase": "execute",
+          "native_shape": "acp_flat_last_request",
+          "naive_flat_input": 9961,
+          "counts": {
+            "input": 9961,
+            "output": 347,
+            "cache_read": 9600,
+            "cache_write": null,
+            "reasoning": 14
+          },
+          "partial": true,
+          "finalized": true,
+          "illustrative_weighted_input_bounds": [
+            1321.0,
+            1411.25
+          ]
+        },
+        {
+          "turn": 11,
+          "agent": "codex",
+          "provider": "codex",
+          "phase": "review",
+          "native_shape": "codex_thread_total_and_last",
+          "naive_flat_input": null,
+          "counts": {
+            "input": 234900,
+            "output": 2629,
+            "cache_read": 223104,
+            "cache_write": 0,
+            "reasoning": 1189
+          },
+          "partial": false,
+          "finalized": true,
+          "illustrative_weighted_input_bounds": [
+            34106.4,
+            34106.4
+          ]
+        },
+        {
+          "turn": 12,
+          "agent": "codex",
+          "provider": "codex",
+          "phase": "final_review",
+          "native_shape": "codex_thread_total_and_last",
+          "naive_flat_input": null,
+          "counts": {
+            "input": 199441,
+            "output": 958,
+            "cache_read": 193408,
+            "cache_write": 0,
+            "reasoning": 332
+          },
+          "partial": false,
+          "finalized": true,
+          "illustrative_weighted_input_bounds": [
+            25373.8,
+            25373.8
+          ]
+        },
+        {
+          "turn": 13,
+          "agent": "codex",
+          "provider": "codex",
+          "phase": "learn",
+          "native_shape": "codex_thread_total_and_last",
+          "naive_flat_input": null,
+          "counts": {
+            "input": 70759,
+            "output": 528,
+            "cache_read": 66944,
+            "cache_write": 0,
+            "reasoning": 404
+          },
+          "partial": false,
+          "finalized": true,
+          "illustrative_weighted_input_bounds": [
+            10509.400000000001,
+            10509.400000000001
+          ]
+        },
+        {
+          "turn": 14,
+          "agent": "claude",
+          "provider": "claude",
+          "phase": "review_memory",
+          "native_shape": "claude_query_usage_and_model_map",
+          "naive_flat_input": null,
+          "counts": {
+            "input": 73132,
+            "output": 3044,
+            "cache_read": 65576,
+            "cache_write": 7552,
+            "reasoning": null
+          },
+          "partial": false,
+          "finalized": true,
+          "illustrative_weighted_input_bounds": [
+            16001.6,
+            16001.6
+          ]
+        },
+        {
+          "turn": 15,
+          "agent": "codex",
+          "provider": "codex",
+          "phase": "synthesis",
+          "native_shape": "codex_thread_total_and_last",
+          "naive_flat_input": null,
+          "counts": {
+            "input": 74307,
+            "output": 608,
+            "cache_read": 70528,
+            "cache_write": 0,
+            "reasoning": 516
+          },
+          "partial": false,
+          "finalized": true,
+          "illustrative_weighted_input_bounds": [
+            10831.8,
+            10831.8
+          ]
+        }
+      ]
+    }
+  ],
+  "sensitivity": [
+    {
+      "read_weight": 0,
+      "write_weight": 1,
+      "values": [
+        {
+          "label": "S03",
+          "bounds": [
+            46660.0,
+            46660.0
+          ]
+        },
+        {
+          "label": "S04",
+          "bounds": [
+            19409.0,
+            19409.0
+          ]
+        },
+        {
+          "label": "S05",
+          "bounds": [
+            129217.0,
+            129217.0
+          ]
+        }
+      ],
+      "order": [
+        "S04",
+        "S03",
+        "S05"
+      ],
+      "order_unambiguous": true
+    },
+    {
+      "read_weight": 0,
+      "write_weight": 1.25,
+      "values": [
+        {
+          "label": "S03",
+          "bounds": [
+            53329.0,
+            54308.75
+          ]
+        },
+        {
+          "label": "S04",
+          "bounds": [
+            21687.0,
+            22927.75
+          ]
+        },
+        {
+          "label": "S05",
+          "bounds": [
+            136724.5,
+            137698.75
+          ]
+        }
+      ],
+      "order": [
+        "S04",
+        "S03",
+        "S05"
+      ],
+      "order_unambiguous": true
+    },
+    {
+      "read_weight": 0,
+      "write_weight": 2,
+      "values": [
+        {
+          "label": "S03",
+          "bounds": [
+            73336.0,
+            77255.0
+          ]
+        },
+        {
+          "label": "S04",
+          "bounds": [
+            28521.0,
+            33484.0
+          ]
+        },
+        {
+          "label": "S05",
+          "bounds": [
+            159247.0,
+            163144.0
+          ]
+        }
+      ],
+      "order": [
+        "S04",
+        "S03",
+        "S05"
+      ],
+      "order_unambiguous": true
+    },
+    {
+      "read_weight": 0.1,
+      "write_weight": 1,
+      "values": [
+        {
+          "label": "S03",
+          "bounds": [
+            125850.8,
+            125850.8
+          ]
+        },
+        {
+          "label": "S04",
+          "bounds": [
+            43467.5,
+            43467.5
+          ]
+        },
+        {
+          "label": "S05",
+          "bounds": [
+            243191.3,
+            243191.3
+          ]
+        }
+      ],
+      "order": [
+        "S04",
+        "S03",
+        "S05"
+      ],
+      "order_unambiguous": true
+    },
+    {
+      "read_weight": 0.1,
+      "write_weight": 1.25,
+      "values": [
+        {
+          "label": "S03",
+          "bounds": [
+            132519.80000000002,
+            133499.55000000002
+          ]
+        },
+        {
+          "label": "S04",
+          "bounds": [
+            45745.5,
+            46986.25
+          ]
+        },
+        {
+          "label": "S05",
+          "bounds": [
+            250698.8,
+            251673.05
+          ]
+        }
+      ],
+      "order": [
+        "S04",
+        "S03",
+        "S05"
+      ],
+      "order_unambiguous": true
+    },
+    {
+      "read_weight": 0.1,
+      "write_weight": 2,
+      "values": [
+        {
+          "label": "S03",
+          "bounds": [
+            152526.8,
+            156445.8
+          ]
+        },
+        {
+          "label": "S04",
+          "bounds": [
+            52579.5,
+            57542.5
+          ]
+        },
+        {
+          "label": "S05",
+          "bounds": [
+            273221.3,
+            277118.3
+          ]
+        }
+      ],
+      "order": [
+        "S04",
+        "S03",
+        "S05"
+      ],
+      "order_unambiguous": true
+    },
+    {
+      "read_weight": 0.5,
+      "write_weight": 1,
+      "values": [
+        {
+          "label": "S03",
+          "bounds": [
+            442614.0,
+            442614.0
+          ]
+        },
+        {
+          "label": "S04",
+          "bounds": [
+            139701.5,
+            139701.5
+          ]
+        },
+        {
+          "label": "S05",
+          "bounds": [
+            699088.5,
+            699088.5
+          ]
+        }
+      ],
+      "order": [
+        "S04",
+        "S03",
+        "S05"
+      ],
+      "order_unambiguous": true
+    },
+    {
+      "read_weight": 0.5,
+      "write_weight": 1.25,
+      "values": [
+        {
+          "label": "S03",
+          "bounds": [
+            449283.0,
+            450262.75
+          ]
+        },
+        {
+          "label": "S04",
+          "bounds": [
+            141979.5,
+            143220.25
+          ]
+        },
+        {
+          "label": "S05",
+          "bounds": [
+            706596.0,
+            707570.25
+          ]
+        }
+      ],
+      "order": [
+        "S04",
+        "S03",
+        "S05"
+      ],
+      "order_unambiguous": true
+    },
+    {
+      "read_weight": 0.5,
+      "write_weight": 2,
+      "values": [
+        {
+          "label": "S03",
+          "bounds": [
+            469290.0,
+            473209.0
+          ]
+        },
+        {
+          "label": "S04",
+          "bounds": [
+            148813.5,
+            153776.5
+          ]
+        },
+        {
+          "label": "S05",
+          "bounds": [
+            729118.5,
+            733015.5
+          ]
+        }
+      ],
+      "order": [
+        "S04",
+        "S03",
+        "S05"
+      ],
+      "order_unambiguous": true
+    },
+    {
+      "read_weight": 1,
+      "write_weight": 1,
+      "values": [
+        {
+          "label": "S03",
+          "bounds": [
+            838568.0,
+            838568.0
+          ]
+        },
+        {
+          "label": "S04",
+          "bounds": [
+            259994.0,
+            259994.0
+          ]
+        },
+        {
+          "label": "S05",
+          "bounds": [
+            1268960.0,
+            1268960.0
+          ]
+        }
+      ],
+      "order": [
+        "S04",
+        "S03",
+        "S05"
+      ],
+      "order_unambiguous": true
+    },
+    {
+      "read_weight": 1,
+      "write_weight": 1.25,
+      "values": [
+        {
+          "label": "S03",
+          "bounds": [
+            845237.0,
+            846216.75
+          ]
+        },
+        {
+          "label": "S04",
+          "bounds": [
+            262272.0,
+            263512.75
+          ]
+        },
+        {
+          "label": "S05",
+          "bounds": [
+            1276467.5,
+            1277441.75
+          ]
+        }
+      ],
+      "order": [
+        "S04",
+        "S03",
+        "S05"
+      ],
+      "order_unambiguous": true
+    },
+    {
+      "read_weight": 1,
+      "write_weight": 2,
+      "values": [
+        {
+          "label": "S03",
+          "bounds": [
+            865244.0,
+            869163.0
+          ]
+        },
+        {
+          "label": "S04",
+          "bounds": [
+            269106.0,
+            274069.0
+          ]
+        },
+        {
+          "label": "S05",
+          "bounds": [
+            1298990.0,
+            1302887.0
+          ]
+        }
+      ],
+      "order": [
+        "S04",
+        "S03",
+        "S05"
+      ],
+      "order_unambiguous": true
+    }
+  ],
+  "cross_run": {
+    "all_three_same_registered_project": false,
+    "s03_s05_initial_manifests_equal": true,
+    "raw_input_order": [
+      "S04",
+      "S03",
+      "S05"
+    ]
+  },
+  "formula": "I_noncache + w_read * R + w_write * W; I_noncache = I - R - W. Input only; output is separately reported.",
+  "assumptions": [
+    "Weights 0.1 and 1.25 are illustrative hypotheses, not verified model prices or an invoice.",
+    "Missing cache fields generate interval bounds; partial invocation totals remain lower-bound observations.",
+    "No inference of an absent native input field as zero. Native raw payloads retain provider-specific semantics.",
+    "An initial workspace fingerprint is not automatically a post-verification snapshot. An empty recorded end change list needs separate interpretation.",
+    "No private prompts, file contents, credentials or native session handles are exported."
+  ]
+}

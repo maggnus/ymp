@@ -1,0 +1,1334 @@
+{
+  "binary_version": "ymp 0.3.0",
+  "scope": "Deterministic offline fixture; synthetic usage and outcomes cannot establish model quality or real latency savings.",
+  "runs": [
+    {
+      "settings": {
+        "tasks": 1
+      },
+      "members": 2,
+      "memory": false,
+      "adaptive": false,
+      "status": "completed",
+      "exit_code": 0,
+      "phases": {
+        "plan": 2,
+        "review_plan": 1,
+        "bid": 2,
+        "execute": 1,
+        "review": 1,
+        "final_review": 1,
+        "synthesis": 1
+      },
+      "turns": 9,
+      "synthetic_reported_tokens": 1080,
+      "seconds": 0.2413,
+      "observations": {
+        "1": 2
+      },
+      "task_attempts": [
+        1
+      ],
+      "task_states": [
+        "accepted"
+      ],
+      "faults": [],
+      "side_effects": 1,
+      "artifacts_ok": true,
+      "external_acceptance": true,
+      "failure_messages": [],
+      "turn_failures": 0
+    },
+    {
+      "settings": {
+        "tasks": 3
+      },
+      "members": 2,
+      "memory": false,
+      "adaptive": false,
+      "status": "completed",
+      "exit_code": 0,
+      "phases": {
+        "plan": 2,
+        "review_plan": 1,
+        "bid": 6,
+        "execute": 3,
+        "review": 3,
+        "final_review": 1,
+        "synthesis": 1
+      },
+      "turns": 17,
+      "synthetic_reported_tokens": 2040,
+      "seconds": 0.4241,
+      "observations": {
+        "1": 4
+      },
+      "task_attempts": [
+        1,
+        1,
+        1
+      ],
+      "task_states": [
+        "accepted",
+        "accepted",
+        "accepted"
+      ],
+      "faults": [],
+      "side_effects": 3,
+      "artifacts_ok": true,
+      "external_acceptance": true,
+      "failure_messages": [],
+      "turn_failures": 0
+    },
+    {
+      "settings": {
+        "tasks": 8
+      },
+      "members": 2,
+      "memory": false,
+      "adaptive": false,
+      "status": "completed",
+      "exit_code": 0,
+      "phases": {
+        "plan": 2,
+        "review_plan": 1,
+        "bid": 16,
+        "execute": 8,
+        "review": 8,
+        "final_review": 1,
+        "synthesis": 1
+      },
+      "turns": 37,
+      "synthetic_reported_tokens": 4440,
+      "seconds": 0.9276,
+      "observations": {
+        "1": 9
+      },
+      "task_attempts": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      "task_states": [
+        "accepted",
+        "accepted",
+        "accepted",
+        "accepted",
+        "accepted",
+        "accepted",
+        "accepted",
+        "accepted"
+      ],
+      "faults": [],
+      "side_effects": 8,
+      "artifacts_ok": true,
+      "external_acceptance": true,
+      "failure_messages": [],
+      "turn_failures": 0
+    },
+    {
+      "settings": {
+        "tasks": 1
+      },
+      "members": 3,
+      "memory": false,
+      "adaptive": false,
+      "status": "completed",
+      "exit_code": 0,
+      "phases": {
+        "plan": 3,
+        "review_plan": 1,
+        "bid": 3,
+        "execute": 1,
+        "review": 1,
+        "final_review": 1,
+        "synthesis": 1
+      },
+      "turns": 11,
+      "synthetic_reported_tokens": 1320,
+      "seconds": 0.2275,
+      "observations": {
+        "1": 2
+      },
+      "task_attempts": [
+        1
+      ],
+      "task_states": [
+        "accepted"
+      ],
+      "faults": [],
+      "side_effects": 1,
+      "artifacts_ok": true,
+      "external_acceptance": true,
+      "failure_messages": [],
+      "turn_failures": 0
+    },
+    {
+      "settings": {
+        "tasks": 3
+      },
+      "members": 3,
+      "memory": false,
+      "adaptive": false,
+      "status": "completed",
+      "exit_code": 0,
+      "phases": {
+        "plan": 3,
+        "review_plan": 1,
+        "bid": 9,
+        "execute": 3,
+        "review": 3,
+        "final_review": 1,
+        "synthesis": 1
+      },
+      "turns": 21,
+      "synthetic_reported_tokens": 2520,
+      "seconds": 0.4301,
+      "observations": {
+        "1": 4
+      },
+      "task_attempts": [
+        1,
+        1,
+        1
+      ],
+      "task_states": [
+        "accepted",
+        "accepted",
+        "accepted"
+      ],
+      "faults": [],
+      "side_effects": 3,
+      "artifacts_ok": true,
+      "external_acceptance": true,
+      "failure_messages": [],
+      "turn_failures": 0
+    },
+    {
+      "settings": {
+        "tasks": 8
+      },
+      "members": 3,
+      "memory": false,
+      "adaptive": false,
+      "status": "completed",
+      "exit_code": 0,
+      "phases": {
+        "plan": 3,
+        "review_plan": 1,
+        "bid": 24,
+        "execute": 8,
+        "review": 8,
+        "final_review": 1,
+        "synthesis": 1
+      },
+      "turns": 46,
+      "synthetic_reported_tokens": 5520,
+      "seconds": 0.9334,
+      "observations": {
+        "1": 9
+      },
+      "task_attempts": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      "task_states": [
+        "accepted",
+        "accepted",
+        "accepted",
+        "accepted",
+        "accepted",
+        "accepted",
+        "accepted",
+        "accepted"
+      ],
+      "faults": [],
+      "side_effects": 8,
+      "artifacts_ok": true,
+      "external_acceptance": true,
+      "failure_messages": [],
+      "turn_failures": 0
+    },
+    {
+      "settings": {
+        "tasks": 1
+      },
+      "members": 5,
+      "memory": false,
+      "adaptive": false,
+      "status": "completed",
+      "exit_code": 0,
+      "phases": {
+        "plan": 5,
+        "review_plan": 1,
+        "bid": 5,
+        "execute": 1,
+        "review": 1,
+        "final_review": 1,
+        "synthesis": 1
+      },
+      "turns": 15,
+      "synthetic_reported_tokens": 1800,
+      "seconds": 0.2956,
+      "observations": {
+        "1": 2
+      },
+      "task_attempts": [
+        1
+      ],
+      "task_states": [
+        "accepted"
+      ],
+      "faults": [],
+      "side_effects": 1,
+      "artifacts_ok": true,
+      "external_acceptance": true,
+      "failure_messages": [],
+      "turn_failures": 0
+    },
+    {
+      "settings": {
+        "tasks": 3
+      },
+      "members": 5,
+      "memory": false,
+      "adaptive": false,
+      "status": "completed",
+      "exit_code": 0,
+      "phases": {
+        "plan": 5,
+        "review_plan": 1,
+        "bid": 15,
+        "execute": 3,
+        "review": 3,
+        "final_review": 1,
+        "synthesis": 1
+      },
+      "turns": 29,
+      "synthetic_reported_tokens": 3480,
+      "seconds": 0.5406,
+      "observations": {
+        "1": 4
+      },
+      "task_attempts": [
+        1,
+        1,
+        1
+      ],
+      "task_states": [
+        "accepted",
+        "accepted",
+        "accepted"
+      ],
+      "faults": [],
+      "side_effects": 3,
+      "artifacts_ok": true,
+      "external_acceptance": true,
+      "failure_messages": [],
+      "turn_failures": 0
+    },
+    {
+      "settings": {
+        "tasks": 8
+      },
+      "members": 5,
+      "memory": false,
+      "adaptive": false,
+      "status": "completed",
+      "exit_code": 0,
+      "phases": {
+        "plan": 5,
+        "review_plan": 1,
+        "bid": 40,
+        "execute": 8,
+        "review": 8,
+        "final_review": 1,
+        "synthesis": 1
+      },
+      "turns": 64,
+      "synthetic_reported_tokens": 7680,
+      "seconds": 1.1834,
+      "observations": {
+        "1": 9
+      },
+      "task_attempts": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      "task_states": [
+        "accepted",
+        "accepted",
+        "accepted",
+        "accepted",
+        "accepted",
+        "accepted",
+        "accepted",
+        "accepted"
+      ],
+      "faults": [],
+      "side_effects": 8,
+      "artifacts_ok": true,
+      "external_acceptance": true,
+      "failure_messages": [],
+      "turn_failures": 0
+    },
+    {
+      "settings": {
+        "difficulty": "simple"
+      },
+      "members": 3,
+      "memory": false,
+      "adaptive": false,
+      "status": "completed",
+      "exit_code": 0,
+      "phases": {
+        "plan": 3,
+        "review_plan": 1,
+        "bid": 3,
+        "execute": 1,
+        "review": 1,
+        "final_review": 1,
+        "synthesis": 1
+      },
+      "turns": 11,
+      "synthetic_reported_tokens": 1320,
+      "seconds": 0.2428,
+      "observations": {
+        "1": 2
+      },
+      "task_attempts": [
+        1
+      ],
+      "task_states": [
+        "accepted"
+      ],
+      "faults": [],
+      "side_effects": 1,
+      "artifacts_ok": true,
+      "external_acceptance": true,
+      "failure_messages": [],
+      "turn_failures": 0
+    },
+    {
+      "settings": {
+        "difficulty": "standard"
+      },
+      "members": 3,
+      "memory": false,
+      "adaptive": false,
+      "status": "completed",
+      "exit_code": 0,
+      "phases": {
+        "plan": 3,
+        "review_plan": 1,
+        "bid": 3,
+        "execute": 1,
+        "review": 1,
+        "final_review": 1,
+        "synthesis": 1
+      },
+      "turns": 11,
+      "synthetic_reported_tokens": 1320,
+      "seconds": 0.2393,
+      "observations": {
+        "1": 2
+      },
+      "task_attempts": [
+        1
+      ],
+      "task_states": [
+        "accepted"
+      ],
+      "faults": [],
+      "side_effects": 1,
+      "artifacts_ok": true,
+      "external_acceptance": true,
+      "failure_messages": [],
+      "turn_failures": 0
+    },
+    {
+      "settings": {
+        "difficulty": "complex"
+      },
+      "members": 3,
+      "memory": false,
+      "adaptive": false,
+      "status": "completed",
+      "exit_code": 0,
+      "phases": {
+        "plan": 3,
+        "review_plan": 1,
+        "bid": 3,
+        "execute": 1,
+        "review": 1,
+        "final_review": 1,
+        "synthesis": 1
+      },
+      "turns": 11,
+      "synthetic_reported_tokens": 1320,
+      "seconds": 0.2402,
+      "observations": {
+        "1": 2
+      },
+      "task_attempts": [
+        1
+      ],
+      "task_states": [
+        "accepted"
+      ],
+      "faults": [],
+      "side_effects": 1,
+      "artifacts_ok": true,
+      "external_acceptance": true,
+      "failure_messages": [],
+      "turn_failures": 0
+    },
+    {
+      "settings": {},
+      "members": 2,
+      "memory": false,
+      "adaptive": false,
+      "status": "completed",
+      "exit_code": 0,
+      "phases": {
+        "plan": 2,
+        "review_plan": 1,
+        "bid": 2,
+        "execute": 1,
+        "review": 1,
+        "final_review": 1,
+        "synthesis": 1
+      },
+      "turns": 9,
+      "synthetic_reported_tokens": 1080,
+      "seconds": 0.2347,
+      "observations": {
+        "1": 2
+      },
+      "task_attempts": [
+        1
+      ],
+      "task_states": [
+        "accepted"
+      ],
+      "faults": [],
+      "side_effects": 1,
+      "artifacts_ok": true,
+      "external_acceptance": true,
+      "failure_messages": [],
+      "turn_failures": 0
+    },
+    {
+      "settings": {},
+      "members": 2,
+      "memory": true,
+      "adaptive": false,
+      "status": "completed",
+      "exit_code": 0,
+      "phases": {
+        "plan": 2,
+        "review_plan": 1,
+        "bid": 2,
+        "execute": 1,
+        "review": 1,
+        "final_review": 1,
+        "learn": 1,
+        "review_memory": 1,
+        "synthesis": 1
+      },
+      "turns": 11,
+      "synthetic_reported_tokens": 1320,
+      "seconds": 0.3233,
+      "observations": {
+        "1": 2
+      },
+      "task_attempts": [
+        1
+      ],
+      "task_states": [
+        "accepted"
+      ],
+      "faults": [],
+      "side_effects": 1,
+      "artifacts_ok": true,
+      "external_acceptance": true,
+      "failure_messages": [],
+      "turn_failures": 0
+    },
+    {
+      "settings": {},
+      "members": 2,
+      "memory": false,
+      "adaptive": true,
+      "status": "completed",
+      "exit_code": 0,
+      "phases": {
+        "plan": 2,
+        "review_plan": 1,
+        "bid": 2,
+        "execute": 1,
+        "review": 1,
+        "final_review": 1,
+        "synthesis": 1
+      },
+      "turns": 9,
+      "synthetic_reported_tokens": 1080,
+      "seconds": 0.234,
+      "observations": {
+        "1": 2
+      },
+      "task_attempts": [
+        1
+      ],
+      "task_states": [
+        "accepted"
+      ],
+      "faults": [],
+      "side_effects": 1,
+      "artifacts_ok": true,
+      "external_acceptance": true,
+      "failure_messages": [],
+      "turn_failures": 0
+    },
+    {
+      "settings": {},
+      "members": 2,
+      "memory": true,
+      "adaptive": true,
+      "status": "completed",
+      "exit_code": 0,
+      "phases": {
+        "plan": 2,
+        "review_plan": 1,
+        "bid": 2,
+        "execute": 1,
+        "review": 1,
+        "final_review": 1,
+        "learn": 1,
+        "review_memory": 1,
+        "synthesis": 1
+      },
+      "turns": 11,
+      "synthetic_reported_tokens": 1320,
+      "seconds": 0.2958,
+      "observations": {
+        "1": 2
+      },
+      "task_attempts": [
+        1
+      ],
+      "task_states": [
+        "accepted"
+      ],
+      "faults": [],
+      "side_effects": 1,
+      "artifacts_ok": true,
+      "external_acceptance": true,
+      "failure_messages": [],
+      "turn_failures": 0
+    },
+    {
+      "settings": {
+        "fault": "plan_one_exit",
+        "fault_phase": "plan",
+        "retry_policy": "none",
+        "persistent_fault": false
+      },
+      "members": 2,
+      "memory": false,
+      "adaptive": false,
+      "status": "completed",
+      "exit_code": 0,
+      "phases": {
+        "plan": 2,
+        "review_plan": 1,
+        "bid": 2,
+        "execute": 1,
+        "review": 1,
+        "final_review": 1,
+        "synthesis": 1
+      },
+      "turns": 9,
+      "synthetic_reported_tokens": 960,
+      "seconds": 0.2377,
+      "observations": {
+        "1": 2
+      },
+      "task_attempts": [
+        1
+      ],
+      "task_states": [
+        "accepted"
+      ],
+      "faults": [
+        [
+          "plan",
+          "plan_one_exit",
+          0
+        ]
+      ],
+      "side_effects": 1,
+      "artifacts_ok": true,
+      "external_acceptance": true,
+      "failure_messages": [
+        "Agent process exited before completing the request"
+      ],
+      "turn_failures": 1
+    },
+    {
+      "settings": {
+        "fault": "bid_one_exit",
+        "fault_phase": "bid",
+        "retry_policy": "none",
+        "persistent_fault": false
+      },
+      "members": 2,
+      "memory": false,
+      "adaptive": false,
+      "status": "completed",
+      "exit_code": 0,
+      "phases": {
+        "plan": 2,
+        "review_plan": 1,
+        "bid": 2,
+        "execute": 1,
+        "review": 1,
+        "final_review": 1,
+        "synthesis": 1
+      },
+      "turns": 9,
+      "synthetic_reported_tokens": 960,
+      "seconds": 0.2448,
+      "observations": {
+        "1": 2
+      },
+      "task_attempts": [
+        1
+      ],
+      "task_states": [
+        "accepted"
+      ],
+      "faults": [
+        [
+          "bid",
+          "bid_one_exit",
+          0
+        ]
+      ],
+      "side_effects": 1,
+      "artifacts_ok": true,
+      "external_acceptance": true,
+      "failure_messages": [
+        "Agent process exited before completing the request"
+      ],
+      "turn_failures": 1
+    },
+    {
+      "settings": {
+        "fault": "transient_refusal",
+        "fault_phase": "review_plan",
+        "retry_policy": "none",
+        "persistent_fault": false
+      },
+      "members": 2,
+      "memory": false,
+      "adaptive": false,
+      "status": "blocked",
+      "exit_code": 1,
+      "phases": {
+        "plan": 2,
+        "review_plan": 1
+      },
+      "turns": 3,
+      "synthetic_reported_tokens": 240,
+      "seconds": 0.0719,
+      "observations": {},
+      "task_attempts": [],
+      "task_states": [],
+      "faults": [
+        [
+          "review_plan",
+          "transient_refusal",
+          0
+        ]
+      ],
+      "side_effects": 0,
+      "artifacts_ok": false,
+      "external_acceptance": false,
+      "failure_messages": [
+        "Codex error: {\"code\":\"serverOverloaded\",\"message\":\"Synthetic transient refusal\"}"
+      ],
+      "turn_failures": 1
+    },
+    {
+      "settings": {
+        "fault": "native_retry_notice",
+        "fault_phase": "review_plan",
+        "retry_policy": "none",
+        "persistent_fault": false
+      },
+      "members": 2,
+      "memory": false,
+      "adaptive": false,
+      "status": "blocked",
+      "exit_code": 1,
+      "phases": {
+        "plan": 2,
+        "review_plan": 1
+      },
+      "turns": 3,
+      "synthetic_reported_tokens": 240,
+      "seconds": 0.0704,
+      "observations": {},
+      "task_attempts": [],
+      "task_states": [],
+      "faults": [
+        [
+          "review_plan",
+          "native_retry_notice",
+          0
+        ]
+      ],
+      "side_effects": 0,
+      "artifacts_ok": false,
+      "external_acceptance": false,
+      "failure_messages": [
+        "Codex error: {\"codexErrorInfo\":\"serverOverloaded\",\"message\":\"Synthetic native retry in progress\"}"
+      ],
+      "turn_failures": 1
+    },
+    {
+      "settings": {
+        "fault": "transient_refusal",
+        "fault_phase": "review_plan",
+        "retry_policy": "bounded_read",
+        "persistent_fault": false
+      },
+      "members": 2,
+      "memory": false,
+      "adaptive": false,
+      "status": "completed",
+      "exit_code": 0,
+      "phases": {
+        "plan": 2,
+        "review_plan": 1,
+        "bid": 2,
+        "execute": 1,
+        "review": 1,
+        "final_review": 1,
+        "synthesis": 1
+      },
+      "turns": 9,
+      "synthetic_reported_tokens": 1080,
+      "seconds": 0.2506,
+      "observations": {
+        "1": 2
+      },
+      "task_attempts": [
+        1
+      ],
+      "task_states": [
+        "accepted"
+      ],
+      "faults": [
+        [
+          "review_plan",
+          "transient_refusal",
+          1
+        ]
+      ],
+      "side_effects": 1,
+      "artifacts_ok": true,
+      "external_acceptance": true,
+      "failure_messages": [],
+      "turn_failures": 0
+    },
+    {
+      "settings": {
+        "fault": "transient_refusal",
+        "fault_phase": "review_plan",
+        "retry_policy": "bounded_read",
+        "persistent_fault": true
+      },
+      "members": 2,
+      "memory": false,
+      "adaptive": false,
+      "status": "blocked",
+      "exit_code": 1,
+      "phases": {
+        "plan": 2,
+        "review_plan": 1
+      },
+      "turns": 3,
+      "synthetic_reported_tokens": 240,
+      "seconds": 0.1066,
+      "observations": {},
+      "task_attempts": [],
+      "task_states": [],
+      "faults": [
+        [
+          "review_plan",
+          "transient_refusal",
+          2
+        ]
+      ],
+      "side_effects": 0,
+      "artifacts_ok": false,
+      "external_acceptance": false,
+      "failure_messages": [
+        "Codex error: {\"code\":\"serverOverloaded\",\"message\":\"Synthetic transient refusal\"}"
+      ],
+      "turn_failures": 1
+    },
+    {
+      "settings": {
+        "fault": "execute_exit_before",
+        "fault_phase": "execute",
+        "retry_policy": "none",
+        "persistent_fault": false
+      },
+      "members": 2,
+      "memory": false,
+      "adaptive": false,
+      "status": "blocked",
+      "exit_code": 1,
+      "phases": {
+        "plan": 2,
+        "review_plan": 1,
+        "bid": 2,
+        "execute": 1
+      },
+      "turns": 6,
+      "synthetic_reported_tokens": 600,
+      "seconds": 0.1336,
+      "observations": {},
+      "task_attempts": [
+        1
+      ],
+      "task_states": [
+        "running"
+      ],
+      "faults": [
+        [
+          "execute",
+          "execute_exit_before",
+          0
+        ]
+      ],
+      "side_effects": 0,
+      "artifacts_ok": false,
+      "external_acceptance": false,
+      "failure_messages": [
+        "Agent process exited before completing the request"
+      ],
+      "turn_failures": 1
+    },
+    {
+      "settings": {
+        "fault": "execute_exit_after",
+        "fault_phase": "execute",
+        "retry_policy": "none",
+        "persistent_fault": false
+      },
+      "members": 2,
+      "memory": false,
+      "adaptive": false,
+      "status": "blocked",
+      "exit_code": 1,
+      "phases": {
+        "plan": 2,
+        "review_plan": 1,
+        "bid": 2,
+        "execute": 1
+      },
+      "turns": 6,
+      "synthetic_reported_tokens": 600,
+      "seconds": 0.1351,
+      "observations": {},
+      "task_attempts": [
+        1
+      ],
+      "task_states": [
+        "running"
+      ],
+      "faults": [
+        [
+          "execute",
+          "execute_exit_after",
+          0
+        ]
+      ],
+      "side_effects": 1,
+      "artifacts_ok": true,
+      "external_acceptance": true,
+      "failure_messages": [
+        "Agent process exited before completing the request"
+      ],
+      "turn_failures": 1
+    },
+    {
+      "settings": {
+        "fault": "execute_exit_after",
+        "fault_phase": "execute",
+        "retry_policy": "bounded_read",
+        "persistent_fault": false
+      },
+      "members": 2,
+      "memory": false,
+      "adaptive": false,
+      "status": "blocked",
+      "exit_code": 1,
+      "phases": {
+        "plan": 2,
+        "review_plan": 1,
+        "bid": 2,
+        "execute": 1
+      },
+      "turns": 6,
+      "synthetic_reported_tokens": 600,
+      "seconds": 0.1412,
+      "observations": {},
+      "task_attempts": [
+        1
+      ],
+      "task_states": [
+        "running"
+      ],
+      "faults": [
+        [
+          "execute",
+          "execute_exit_after",
+          0
+        ]
+      ],
+      "side_effects": 1,
+      "artifacts_ok": true,
+      "external_acceptance": true,
+      "failure_messages": [
+        "Agent process exited before completing the request"
+      ],
+      "turn_failures": 1
+    },
+    {
+      "settings": {
+        "fault": "execute_exit_after",
+        "fault_phase": "execute",
+        "retry_policy": "blind",
+        "persistent_fault": false
+      },
+      "members": 2,
+      "memory": false,
+      "adaptive": false,
+      "status": "completed",
+      "exit_code": 0,
+      "phases": {
+        "plan": 2,
+        "review_plan": 1,
+        "bid": 2,
+        "execute": 1,
+        "review": 1,
+        "final_review": 1,
+        "synthesis": 1
+      },
+      "turns": 9,
+      "synthetic_reported_tokens": 1080,
+      "seconds": 0.2467,
+      "observations": {
+        "1": 2
+      },
+      "task_attempts": [
+        1
+      ],
+      "task_states": [
+        "accepted"
+      ],
+      "faults": [
+        [
+          "execute",
+          "execute_exit_after",
+          1
+        ]
+      ],
+      "side_effects": 2,
+      "artifacts_ok": true,
+      "external_acceptance": false,
+      "failure_messages": [],
+      "turn_failures": 0
+    },
+    {
+      "settings": {
+        "fault": "malformed_review",
+        "fault_phase": "review",
+        "retry_policy": "none",
+        "persistent_fault": false
+      },
+      "members": 2,
+      "memory": false,
+      "adaptive": false,
+      "status": "blocked",
+      "exit_code": 1,
+      "phases": {
+        "plan": 2,
+        "review_plan": 1,
+        "bid": 2,
+        "execute": 1,
+        "review": 1
+      },
+      "turns": 7,
+      "synthetic_reported_tokens": 840,
+      "seconds": 0.1697,
+      "observations": {},
+      "task_attempts": [
+        1
+      ],
+      "task_states": [
+        "review"
+      ],
+      "faults": [
+        [
+          "review",
+          "malformed_review",
+          0
+        ]
+      ],
+      "side_effects": 1,
+      "artifacts_ok": true,
+      "external_acceptance": true,
+      "failure_messages": [],
+      "turn_failures": 0
+    },
+    {
+      "settings": {
+        "fault": "timeout",
+        "fault_phase": "review",
+        "retry_policy": "none",
+        "persistent_fault": false
+      },
+      "members": 2,
+      "memory": false,
+      "adaptive": false,
+      "status": "blocked",
+      "exit_code": 1,
+      "phases": {
+        "plan": 2,
+        "review_plan": 1,
+        "bid": 2,
+        "execute": 1,
+        "review": 1
+      },
+      "turns": 7,
+      "synthetic_reported_tokens": 720,
+      "seconds": 1.1747,
+      "observations": {},
+      "task_attempts": [
+        1
+      ],
+      "task_states": [
+        "review"
+      ],
+      "faults": [
+        [
+          "review",
+          "timeout",
+          0
+        ]
+      ],
+      "side_effects": 1,
+      "artifacts_ok": true,
+      "external_acceptance": true,
+      "failure_messages": [
+        "Provider turn timed out; outcome may be incomplete"
+      ],
+      "turn_failures": 1
+    },
+    {
+      "settings": {
+        "fault": "timeout",
+        "fault_phase": "review_plan",
+        "retry_policy": "bounded_read",
+        "persistent_fault": false
+      },
+      "members": 2,
+      "memory": false,
+      "adaptive": false,
+      "status": "paused",
+      "exit_code": 1,
+      "phases": {
+        "plan": 2,
+        "review_plan": 1
+      },
+      "turns": 3,
+      "synthetic_reported_tokens": 240,
+      "seconds": 0.1133,
+      "observations": {},
+      "task_attempts": [],
+      "task_states": [],
+      "faults": [
+        [
+          "review_plan",
+          "timeout",
+          0
+        ]
+      ],
+      "side_effects": 0,
+      "artifacts_ok": false,
+      "external_acceptance": false,
+      "failure_messages": [
+        "Turn cancelled; process resources released"
+      ],
+      "turn_failures": 1
+    },
+    {
+      "settings": {
+        "fault": "content_bad",
+        "fault_phase": null,
+        "retry_policy": "bounded_read",
+        "persistent_fault": false
+      },
+      "members": 2,
+      "memory": false,
+      "adaptive": false,
+      "status": "blocked",
+      "exit_code": 1,
+      "phases": {
+        "plan": 2,
+        "review_plan": 1,
+        "bid": 4,
+        "execute": 2,
+        "review": 2
+      },
+      "turns": 11,
+      "synthetic_reported_tokens": 1320,
+      "seconds": 0.3029,
+      "observations": {
+        "0": 2
+      },
+      "task_attempts": [
+        2
+      ],
+      "task_states": [
+        "blocked"
+      ],
+      "faults": [],
+      "side_effects": 2,
+      "artifacts_ok": false,
+      "external_acceptance": false,
+      "failure_messages": [],
+      "turn_failures": 0
+    },
+    {
+      "settings": {
+        "fault": "exit",
+        "fault_phase": "learn",
+        "retry_policy": "none",
+        "persistent_fault": false
+      },
+      "members": 2,
+      "memory": true,
+      "adaptive": false,
+      "status": "completed",
+      "exit_code": 0,
+      "phases": {
+        "plan": 2,
+        "review_plan": 1,
+        "bid": 2,
+        "execute": 1,
+        "review": 1,
+        "final_review": 1,
+        "learn": 1,
+        "synthesis": 1
+      },
+      "turns": 10,
+      "synthetic_reported_tokens": 1080,
+      "seconds": 0.2569,
+      "observations": {
+        "1": 2
+      },
+      "task_attempts": [
+        1
+      ],
+      "task_states": [
+        "accepted"
+      ],
+      "faults": [
+        [
+          "learn",
+          "exit",
+          0
+        ]
+      ],
+      "side_effects": 1,
+      "artifacts_ok": true,
+      "external_acceptance": true,
+      "failure_messages": [
+        "Agent process exited before completing the request"
+      ],
+      "turn_failures": 1
+    },
+    {
+      "settings": {
+        "fault": "exit",
+        "fault_phase": "synthesis",
+        "retry_policy": "none",
+        "persistent_fault": false
+      },
+      "members": 2,
+      "memory": false,
+      "adaptive": false,
+      "status": "blocked",
+      "exit_code": 1,
+      "phases": {
+        "plan": 2,
+        "review_plan": 1,
+        "bid": 2,
+        "execute": 1,
+        "review": 1,
+        "final_review": 1,
+        "synthesis": 1
+      },
+      "turns": 9,
+      "synthetic_reported_tokens": 960,
+      "seconds": 0.2262,
+      "observations": {
+        "1": 2
+      },
+      "task_attempts": [
+        1
+      ],
+      "task_states": [
+        "accepted"
+      ],
+      "faults": [
+        [
+          "synthesis",
+          "exit",
+          0
+        ]
+      ],
+      "side_effects": 1,
+      "artifacts_ok": true,
+      "external_acceptance": true,
+      "failure_messages": [
+        "Agent process exited before completing the request"
+      ],
+      "turn_failures": 1
+    }
+  ]
+}

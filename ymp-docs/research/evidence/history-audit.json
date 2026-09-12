@@ -1,0 +1,79 @@
+{
+  "baseline": "56e21ddeb0e19a84c5c05e3859c10d8cbc8b6189",
+  "commits": [
+    {
+      "revision": "7d815be3d6e2599d03885b6e4c7ee338d412db2a",
+      "date": "2026-09-12T04:01:32+08:00",
+      "subject": "Build ymp terminal agent team with native providers and persistent experience",
+      "files": 47,
+      "engine_changed": true,
+      "ui_state_changed": false,
+      "engine_numstat": [
+        [
+          "1082",
+          "0"
+        ]
+      ],
+      "ui_state_numstat": []
+    },
+    {
+      "revision": "54f3da8a826101d37fea77af089c7af912dc5719",
+      "date": "2026-09-12T11:12:15+08:00",
+      "subject": "Redesign terminal UI with sidebar and persistent themes; fix workspace conversations",
+      "files": 34,
+      "engine_changed": true,
+      "ui_state_changed": true,
+      "engine_numstat": [
+        [
+          "227",
+          "59"
+        ]
+      ],
+      "ui_state_numstat": [
+        [
+          "1773",
+          "0"
+        ]
+      ]
+    },
+    {
+      "revision": "c87aa73a13da4affc92615952a0ac4451bd4b940",
+      "date": "2026-09-12T11:18:14+08:00",
+      "subject": "Use black backgrounds in Ember without changing text styles",
+      "files": 3,
+      "engine_changed": false,
+      "ui_state_changed": false,
+      "engine_numstat": [],
+      "ui_state_numstat": []
+    },
+    {
+      "revision": "56e21ddeb0e19a84c5c05e3859c10d8cbc8b6189",
+      "date": "2026-09-12T12:18:00+08:00",
+      "subject": "Track live token usage per session and agent",
+      "files": 36,
+      "engine_changed": true,
+      "ui_state_changed": true,
+      "engine_numstat": [
+        [
+          "147",
+          "6"
+        ]
+      ],
+      "ui_state_numstat": [
+        [
+          "135",
+          "1"
+        ]
+      ]
+    }
+  ],
+  "line_counts": {
+    "ymp-rust/crates/ymp-runtime/src/engine.rs": 1391,
+    "ymp-rust/crates/ymp-tui/src/state.rs": 1907
+  },
+  "remotes": [],
+  "limits": [
+    "One day and four commits cannot establish file-size causation, review latency, or recurring merge conflicts.",
+    "The initial import is not an independent maintenance observation."
+  ]
+}

@@ -1,0 +1,100 @@
+{
+  "caveat": "Offline availability and performance checks, not model-quality A/B evidence. Timings are single warm-cache observations.",
+  "context": {
+    "last_12_retains_mid_run_requirement": false,
+    "messages": 14,
+    "original_request_is_separately_injected_into_reviews": true
+  },
+  "listings": [
+    {
+      "fixture": "10 small files",
+      "measurement": {
+        "absolute_listing_bytes": 571,
+        "files": 11,
+        "fingerprint_seconds": 0.000412875,
+        "first_200_bytes": 571,
+        "first_200_contains_target": true,
+        "full_contains_target": true,
+        "names_only_seconds": 6.3833e-05,
+        "path_sets_equal": true,
+        "regular_file_bytes": 10264,
+        "targeted_200_bytes": 571,
+        "targeted_contains_target": true
+      }
+    },
+    {
+      "fixture": "1000 small files",
+      "measurement": {
+        "absolute_listing_bytes": 54053,
+        "files": 1001,
+        "fingerprint_seconds": 0.012485666,
+        "first_200_bytes": 10801,
+        "first_200_contains_target": false,
+        "full_contains_target": true,
+        "names_only_seconds": 0.000933792,
+        "path_sets_equal": true,
+        "regular_file_bytes": 1024024,
+        "targeted_200_bytes": 10799,
+        "targeted_contains_target": true
+      }
+    },
+    {
+      "fixture": "10000 small files",
+      "measurement": {
+        "absolute_listing_bytes": 550054,
+        "files": 10001,
+        "fingerprint_seconds": 0.146047333,
+        "first_200_bytes": 11001,
+        "first_200_contains_target": false,
+        "full_contains_target": true,
+        "names_only_seconds": 0.0117635,
+        "path_sets_equal": true,
+        "regular_file_bytes": 10240024,
+        "targeted_200_bytes": 10999,
+        "targeted_contains_target": true
+      }
+    },
+    {
+      "fixture": "64 MiB regular file",
+      "measurement": {
+        "absolute_listing_bytes": 99,
+        "files": 2,
+        "fingerprint_seconds": 0.144962416,
+        "first_200_bytes": 99,
+        "first_200_contains_target": true,
+        "full_contains_target": true,
+        "names_only_seconds": 3.1375e-05,
+        "path_sets_equal": true,
+        "regular_file_bytes": 67108888,
+        "targeted_200_bytes": 99,
+        "targeted_contains_target": true
+      }
+    },
+    {
+      "fixture": "ymp working tree during research, including untracked artifacts",
+      "measurement": {
+        "absolute_listing_bytes": 6044,
+        "files": 95,
+        "fingerprint_seconds": 0.0040775,
+        "first_200_bytes": 6044,
+        "first_200_contains_target": false,
+        "full_contains_target": false,
+        "names_only_seconds": 0.000530875,
+        "path_sets_equal": true,
+        "regular_file_bytes": 1214599,
+        "targeted_200_bytes": 6044,
+        "targeted_contains_target": false
+      }
+    }
+  ],
+  "memory": {
+    "boilerplate_prefix_query_returns": [
+      "generic"
+    ],
+    "task_query_returns": [
+      "relevant"
+    ]
+  },
+  "build_profile": "release",
+  "source_revision": "56e21dd"
+}

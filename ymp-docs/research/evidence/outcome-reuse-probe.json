@@ -1,0 +1,76 @@
+{
+  "scope": "Offline decision guards conditional on declared router labels; semantic and translation accuracy are unmeasured.",
+  "cases": [
+    {
+      "case": "exact_repeat",
+      "decision": "answer",
+      "reason": "attributed_prior_outcome"
+    },
+    {
+      "case": "translated_repeat_declared_same_intent",
+      "decision": "answer",
+      "reason": "attributed_prior_outcome"
+    },
+    {
+      "case": "different_project",
+      "decision": "task",
+      "reason": "different_project"
+    },
+    {
+      "case": "explicit_redo",
+      "decision": "task",
+      "reason": "explicit_redo"
+    },
+    {
+      "case": "new_dark_theme",
+      "decision": "task",
+      "reason": "changed_or_unknown_intent"
+    },
+    {
+      "case": "ambiguous_request",
+      "decision": "task",
+      "reason": "changed_or_unknown_intent"
+    },
+    {
+      "case": "edited_artifact",
+      "decision": "task",
+      "reason": "changed_files"
+    },
+    {
+      "case": "deleted_artifact",
+      "decision": "task",
+      "reason": "changed_files"
+    },
+    {
+      "case": "only_initial_snapshot",
+      "decision": "task",
+      "reason": "no_verification_anchor"
+    },
+    {
+      "case": "unfinished_session",
+      "decision": "task",
+      "reason": "unverified_outcome"
+    },
+    {
+      "case": "failed_check",
+      "decision": "task",
+      "reason": "unverified_outcome"
+    },
+    {
+      "case": "external_or_ignored_dependency",
+      "decision": "task",
+      "reason": "uncovered_dependencies"
+    }
+  ],
+  "negative_control": {
+    "case": "router_falsely_labels_dark_theme_as_same",
+    "fact_only_gate_returns": "answer",
+    "actually_correct": false
+  },
+  "symlink_dependency": {
+    "link_identity_unchanged": true,
+    "target_content_changed": true,
+    "note": "Target must be covered separately; link-string equality alone is insufficient."
+  },
+  "break_even": "Reuse is economical only if p_valid * (C_full - C_revalidate) > C_gate, before adding the expected loss from incorrect reuse."
+}
