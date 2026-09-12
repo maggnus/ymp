@@ -28,6 +28,19 @@ pub fn memory_search_query(query: &str) -> String {
         .join(" OR ")
 }
 
+/// Exclusive run ownership, released when its owner completes even if a child
+/// temporarily retains a fork-inherited descriptor before exec closes it.
+#[derive(Debug)]
+pub struct StoreLock {
+    file: File,
+}
+
+impl Drop for StoreLock {
+    fn drop(&mut self) {
+        let _ = FileExt::unlock(&self.file);
+    }
+}
+
 #[derive(Clone)]
 pub struct Store {
     conn: Arc<Mutex<Connection>>,
@@ -199,7 +212,7 @@ impl Store {
             .join("sessions")
             .join(&s.id)
     }
-    pub fn lock_session(&self, s: &Session) -> Result<File> {
+    pub fn lock_session(&self, s: &Session) -> Result<StoreLock> {
         let dir = self.session_dir(s);
         std::fs::create_dir_all(&dir)?;
         let file = std::fs::OpenOptions::new()
@@ -210,9 +223,9 @@ impl Store {
             .open(dir.join("session.lock"))?;
         file.try_lock_exclusive()
             .context("This session is already running in another ymp process")?;
-        Ok(file)
+        Ok(StoreLock { file })
     }
-    pub fn lock_project(&self, project_id: &str) -> Result<File> {
+    pub fn lock_project(&self, project_id: &str) -> Result<StoreLock> {
         let dir = self.home.join("projects").join(project_id);
         std::fs::create_dir_all(&dir)?;
         let file = std::fs::OpenOptions::new()
@@ -223,7 +236,7 @@ impl Store {
             .open(dir.join("workspace.lock"))?;
         file.try_lock_exclusive()
             .context("Another ymp run is already using this working directory")?;
-        Ok(file)
+        Ok(StoreLock { file })
     }
     pub fn message(
         &self,
@@ -825,6 +838,55 @@ mod tests {
         );
         assert_eq!(checks[2].output, None);
         assert_eq!(checks[3].command, None, "a blank command became a command");
+    }
+
+    #[cfg(unix)]
+    fn assert_owner_releases_inherited_lock(acquire: impl Fn() -> Result<StoreLock>) {
+        let owner = acquire().unwrap();
+        // dup retains the same open file description as a child between fork
+        // and exec, even when the descriptor has close-on-exec enabled.
+        let inherited = owner.file.try_clone().unwrap();
+        assert!(
+            acquire().is_err(),
+            "A live owner must exclude another writer"
+        );
+        drop(owner);
+        let next = acquire().expect(
+            "A completed owner must release its lock while an inherited descriptor remains open",
+        );
+        assert!(acquire().is_err(), "The next owner must retain exclusivity");
+        drop(inherited);
+        assert!(
+            acquire().is_err(),
+            "Closing a stale descriptor must not unlock the next owner"
+        );
+        drop(next);
+        assert!(acquire().is_ok());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn completed_project_owner_releases_lock_before_inherited_descriptor_closes() {
+        let temp = tempfile::tempdir().unwrap();
+        let store = Store::open(&temp.path().join("state")).unwrap();
+        assert_owner_releases_inherited_lock(|| store.lock_project("project"));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn completed_session_owner_releases_lock_before_inherited_descriptor_closes() {
+        let temp = tempfile::tempdir().unwrap();
+        let store = Store::open(&temp.path().join("state")).unwrap();
+        let session = Session {
+            id: new_id(),
+            project_id: "project".into(),
+            title: "goal".into(),
+            status: "completed".into(),
+            created_at: now(),
+            team: vec![],
+            turns_used: 0,
+        };
+        assert_owner_releases_inherited_lock(|| store.lock_session(&session));
     }
 
     #[test]
