@@ -460,6 +460,10 @@ async fn membership_changes_preserve_supported_knowledge_and_original_locations(
         .summary
         .contains(&relocated.join("greeting.txt").display().to_string()));
     assert_eq!(
+        answer.workspace, directory,
+        "The structured outcome must preserve the captured output directory"
+    );
+    assert_eq!(
         store.trace(&source.session.id).unwrap().invocations.len(),
         invocations_before
     );
@@ -472,4 +476,49 @@ async fn membership_changes_preserve_supported_knowledge_and_original_locations(
     let final_observations = store.observations().unwrap();
     assert_eq!(final_observations.len(), 1);
     assert_eq!(final_observations[0].id, observation.id);
+
+    // The later session failed before producing anything. Its location fallback
+    // must still use captured metadata after registration moves elsewhere.
+    assert!(store.outcomes(&next.session.id).unwrap().is_empty());
+    let fallback = engine
+        .follow_up(&relocated, "Where did you save it?", &next.session.id)
+        .await
+        .unwrap();
+    assert_eq!(fallback.workspace, directory);
+    assert!(fallback.summary.contains("Recorded working directory:"));
+    assert!(fallback.summary.contains(&directory.display().to_string()));
+    assert!(!fallback.summary.contains(&relocated.display().to_string()));
+
+    std::fs::remove_file(
+        store
+            .session_dir(&next.session)
+            .join("workspace/workspace.json"),
+    )
+    .unwrap();
+    let policy_only = engine
+        .follow_up(&relocated, "Where did you save it?", &next.session.id)
+        .await
+        .unwrap();
+    assert_eq!(policy_only.workspace, directory);
+    assert!(policy_only
+        .summary
+        .contains("Stored workspace is unavailable"));
+    assert_eq!(
+        store.trace(&next.session.id).unwrap().invocations.len(),
+        next_trace.invocations.len()
+    );
+
+    // Legacy sessions without a policy, workspace or outcome cannot establish
+    // an output location from the project's mutable current registration.
+    let mut legacy = next.session.clone();
+    legacy.id = new_id();
+    legacy.turns_used = 0;
+    store.save_session(&legacy).unwrap();
+    let unknown = engine
+        .follow_up(&relocated, "Where did you save it?", &legacy.id)
+        .await
+        .unwrap_err();
+    assert!(unknown.to_string().contains("outcome_location_unknown"));
+    assert!(store.trace(&legacy.id).unwrap().invocations.is_empty());
+    assert_eq!(backend.requests.lock().unwrap().len(), requests_before);
 }
