@@ -31,6 +31,7 @@ async fn main() -> Result<()> {
     let mut baseline = None;
     for turn in 1..=2 {
         let request = TurnRequest {
+            settings: config.execution_settings(&profile, &Default::default())?,
             profile: profile.clone(),
             provider: provider.clone(),
             cwd: directory.path().into(),

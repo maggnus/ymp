@@ -21,6 +21,8 @@ for line in sys.stdin:
     method = request.get("method")
     if method == "initialize":
         reply(request, {})
+    elif method == "model/list":
+        reply(request, {"data": [{"model": settings.get("thread_response", {}).get("model", "requested-model"), "isDefault": True, "supportedReasoningEfforts": [{"reasoningEffort": "high"}], "defaultReasoningEffort": "high"}]})
     elif method in ("thread/start", "thread/resume"):
         reply(request, {"thread": {"id": "thread-fixture"}, **settings.get("thread_response", {})})
     elif method == "turn/start":

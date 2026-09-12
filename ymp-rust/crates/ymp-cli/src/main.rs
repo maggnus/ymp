@@ -5,7 +5,7 @@ use std::path::PathBuf;
 use tokio::sync::mpsc;
 use tokio_util::sync::CancellationToken;
 use ymp_core::*;
-use ymp_providers::{discovery, run_turn, ProviderEvent, TurnRequest};
+use ymp_providers::{discovery, inspect_capabilities, run_turn, ProviderEvent, TurnRequest};
 use ymp_runtime::Engine;
 use ymp_storage::Store;
 
@@ -46,12 +46,23 @@ enum Command {
         no_memory: bool,
         #[arg(long)]
         no_adaptive: bool,
+        /// JSON array of assignment settings rules (agent_id, purpose/task_id, settings).
+        #[arg(long)]
+        assignment_settings: Option<PathBuf>,
+    },
+    /// Inspect native models and controls without sending a model prompt.
+    Capabilities {
+        agent: String,
+        #[arg(long)]
+        model: Option<String>,
     },
     /// Resume an interrupted team session.
     Resume {
         session: String,
         #[arg(long)]
         headless: bool,
+        #[arg(long, requires = "headless")]
+        assignment_settings: Option<PathBuf>,
     },
     /// Send a request to a single configured agent (read-only by default).
     Ask {
@@ -59,6 +70,10 @@ enum Command {
         prompt: String,
         #[arg(long)]
         write: bool,
+        #[arg(long)]
+        model: Option<String>,
+        #[arg(long)]
+        effort: Option<String>,
     },
     /// List saved sessions for the current project.
     Sessions,
@@ -164,6 +179,7 @@ async fn entry() -> Result<()> {
                             profile,
                             "Reply with exactly YMP_OK. Do not modify files or run commands.",
                             false,
+                            &ModelEffort::default(),
                         )
                         .await
                     };
@@ -180,11 +196,39 @@ async fn entry() -> Result<()> {
                 }
             }
         }
+        Some(Command::Capabilities { agent, model }) => {
+            let profile = config.agent(&agent)?.clone();
+            let (events, _) = mpsc::unbounded_channel();
+            let cancel = CancellationToken::new();
+            let engine = Engine::new(store.clone(), config.clone(), events, cancel.clone())?;
+            let req = TurnRequest {
+                settings: ExecutionSettings {
+                    model,
+                    ..Default::default()
+                },
+                provider: config.provider(&profile.provider)?.clone(),
+                profile,
+                cwd: path,
+                prompt: String::new(),
+                purpose: "capabilities".into(),
+                read_only: true,
+                resume: None,
+                usage_baseline: None,
+                mcp: None,
+                timeout_secs: 30,
+                bridge: engine.bridge,
+            };
+            println!(
+                "{}",
+                serde_json::to_string_pretty(&inspect_capabilities(req, cancel).await?)?
+            );
+        }
         Some(Command::Run {
             prompt,
             json,
             no_memory,
             no_adaptive,
+            assignment_settings,
         }) => {
             headless(
                 store,
@@ -195,15 +239,28 @@ async fn entry() -> Result<()> {
                 json,
                 !no_memory,
                 !no_adaptive,
+                assignment_settings.as_deref(),
             )
             .await?
         }
         Some(Command::Resume {
             session,
             headless: headless_mode,
+            assignment_settings,
         }) => {
             if headless_mode {
-                headless(store, config, path, "", Some(&session), false, true, true).await?;
+                headless(
+                    store,
+                    config,
+                    path,
+                    "",
+                    Some(&session),
+                    false,
+                    true,
+                    true,
+                    assignment_settings.as_deref(),
+                )
+                .await?;
             } else {
                 ymp_tui::run(store, config, path, Some(session)).await?;
             }
@@ -212,6 +269,8 @@ async fn entry() -> Result<()> {
             agent,
             prompt,
             write,
+            model,
+            effort,
         }) => {
             let text = ask(
                 &config,
@@ -220,6 +279,7 @@ async fn entry() -> Result<()> {
                 config.agent(&agent)?,
                 &prompt,
                 write,
+                &ModelEffort { model, effort },
             )
             .await?;
             println!("{text}");
@@ -272,6 +332,7 @@ async fn entry() -> Result<()> {
                     false,
                     true,
                     true,
+                    None,
                 )
                 .await?;
             }
@@ -295,6 +356,7 @@ fn print_health(config: &Config) {
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 async fn ask(
     config: &Config,
     store: &Store,
@@ -302,12 +364,14 @@ async fn ask(
     profile: &AgentProfile,
     prompt: &str,
     write: bool,
+    choice: &ModelEffort,
 ) -> Result<String> {
     let (ui, _) = mpsc::unbounded_channel();
     let cancel = CancellationToken::new();
     let engine = Engine::new(store.clone(), config.clone(), ui, cancel.clone())?;
     let provider = config.provider(&profile.provider)?.clone();
     let request = TurnRequest {
+        settings: config.execution_settings(profile, choice)?,
         profile: profile.clone(),
         provider,
         cwd: path.into(),
@@ -342,12 +406,16 @@ async fn headless(
     json_output: bool,
     memory: bool,
     adaptive: bool,
+    assignment_settings: Option<&std::path::Path>,
 ) -> Result<()> {
     let (tx, mut rx) = mpsc::unbounded_channel();
     let cancel = CancellationToken::new();
     let mut engine = Engine::new(store, config, tx, cancel.clone())?;
     engine.use_memory = memory;
     engine.adaptive = adaptive;
+    if let Some(path) = assignment_settings {
+        engine.set_assignment_settings(serde_json::from_slice(&std::fs::read(path)?)?)?;
+    }
     let future = engine.run(&path, prompt, resume);
     tokio::pin!(future);
     let outcome = loop {
@@ -433,6 +501,7 @@ async fn probe_team_tools(
     let engine = Engine::new(store.clone(), config.clone(), ui, cancel.clone())?;
     let marker = format!("YMP_TOOL_OK_{}", new_id());
     let request = TurnRequest {
+        settings: config.execution_settings(profile, &ModelEffort::default())?,
         profile: profile.clone(), provider: config.provider(&profile.provider)?.clone(), cwd: path.into(),
         prompt: format!("Call the ymp MCP tool team_post with text exactly {marker}. Then return YMP_OK. This is an explicitly authorized local team-chat write. Do not modify files or use other tools. Respond in English."),
         purpose: "probe".into(), read_only: true, resume: None, usage_baseline: None, timeout_secs: 120, bridge: engine.bridge,

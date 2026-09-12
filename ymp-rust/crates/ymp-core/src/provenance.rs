@@ -22,6 +22,10 @@ pub struct SessionPolicy {
     pub limits: Limits,
     pub eligible_pool: Vec<AgentProfile>,
     pub captured_team: Vec<AgentProfile>,
+    #[serde(default)]
+    pub execution: std::collections::BTreeMap<String, crate::AgentExecutionPolicy>,
+    #[serde(default)]
+    pub assignment_settings: Vec<crate::AssignmentSettingsRule>,
     pub parent_session_id: Option<String>,
     pub evaluation: Option<EvaluationReference>,
     pub captured_at: String,

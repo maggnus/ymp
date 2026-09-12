@@ -4,8 +4,10 @@ use sha2::{Digest, Sha256};
 use std::{collections::BTreeMap, path::PathBuf};
 
 mod capabilities;
+mod execution;
 mod pool;
 pub use capabilities::*;
+pub use execution::*;
 pub use pool::*;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -86,6 +88,8 @@ pub struct Config {
     /// Optional native offerings, keyed by provider ID. Absence means unknown.
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub capabilities: BTreeMap<String, ProviderCapabilities>,
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub execution: BTreeMap<String, AgentExecutionPolicy>,
     pub agents: Vec<AgentProfile>,
     /// Configured starting roster; neither the eligible pool nor a live session.
     pub team: Vec<String>,
@@ -97,6 +101,7 @@ impl Default for Config {
             version: 1,
             limits: Limits::default(),
             capabilities: BTreeMap::new(),
+            execution: BTreeMap::new(),
             providers: vec![
                 ProviderConfig {
                     id: "codex".into(),
@@ -187,6 +192,10 @@ impl Config {
                 bail!("Duplicate or empty agent id");
             }
             self.provider(&agent.provider)?;
+        }
+        for (id, policy) in &self.execution {
+            let agent = self.agent(id)?;
+            policy.resolve(agent, &ModelEffort::default())?;
         }
         let mut team = std::collections::HashSet::new();
         for id in &self.team {

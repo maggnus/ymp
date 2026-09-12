@@ -1,5 +1,6 @@
 pub mod discovery;
 mod rpc;
+mod settings;
 pub mod supervisor;
 mod usage;
 
@@ -24,6 +25,8 @@ pub struct McpEndpoint {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TurnRequest {
     pub profile: AgentProfile,
+    #[serde(default)]
+    pub settings: ExecutionSettings,
     pub provider: ProviderConfig,
     pub cwd: PathBuf,
     pub prompt: String,
@@ -44,6 +47,7 @@ pub struct TurnResult {
 }
 #[derive(Debug, Clone)]
 pub enum ProviderEvent {
+    Capabilities(ymp_core::ProviderCapabilities),
     Execution(Box<InvocationObservation>),
     Usage(UsageSnapshot),
     Delta(String),
@@ -61,6 +65,11 @@ pub async fn run_turn(
     cancel: CancellationToken,
     events: mpsc::UnboundedSender<ProviderEvent>,
 ) -> Result<TurnResult> {
+    ymp_core::ModelEffort {
+        model: req.settings.model.clone(),
+        effort: req.settings.effort.clone(),
+    }
+    .validate()?;
     if req.provider.kind == ProviderKind::Mock {
         return mock_turn(&req, cancel, events).await;
     }
@@ -69,6 +78,55 @@ pub async fn run_turn(
     tokio::select! {
         _=cancel.cancelled()=>bail!("Turn cancelled; process resources released"),
         result=tokio::time::timeout(std::time::Duration::from_secs(timeout),work)=>result.context("Provider turn timed out; outcome may be incomplete")?,
+    }
+}
+
+/// Query native control/metadata interfaces without sending a model prompt.
+/// ACP controls describe the selected model; uninspected models remain unknown.
+pub async fn inspect_capabilities(
+    mut req: TurnRequest,
+    cancel: CancellationToken,
+) -> Result<ymp_core::ProviderCapabilities> {
+    req.resume = None;
+    req.mcp = None;
+    req.read_only = true;
+    req.prompt.clear();
+    let (events, _rx) = mpsc::unbounded_channel();
+    let timeout = req.timeout_secs;
+    let work = async {
+        if req.provider.kind == ProviderKind::Mock {
+            return Ok(ymp_core::ProviderCapabilities::default());
+        }
+        let mut proc = RpcProcess::spawn(&req).await?;
+        let result = async {
+            match req.provider.kind {
+                ProviderKind::Codex => {
+                    proc.request("initialize", json!({"clientInfo":{"name":"ymp","version":env!("CARGO_PKG_VERSION")},"capabilities":{}}), &events).await?;
+                    proc.notify("initialized", json!({})).await?;
+                    settings::codex_catalog(&mut proc, &events).await
+                }
+                ProviderKind::Claude => Ok(serde_json::from_value(proc.request("capabilities", serde_json::to_value(&req)?, &events).await?)?),
+                ProviderKind::Acp => {
+                    proc.request("initialize", json!({"protocolVersion":1,"clientCapabilities":{},"clientInfo":{"name":"ymp","version":env!("CARGO_PKG_VERSION")}}), &events).await?;
+                    let response = proc.request("session/new", json!({"cwd":req.cwd,"mcpServers":[]}), &events).await?;
+                    let mut catalog = settings::acp_catalog(&response, "session/new")?;
+                    if let Some(model) = &req.settings.model {
+                        proc.acp_config_options = None;
+                        proc.request("session/set_model", json!({"sessionId":response["sessionId"],"modelId":model}), &events).await?;
+                        let options = proc.acp_config_options.clone().unwrap_or(Value::Null);
+                        settings::refreshed_acp_model(&mut catalog, model, &options)?;
+                    }
+                    Ok(catalog)
+                }
+                ProviderKind::Mock => unreachable!(),
+            }
+        }.await;
+        proc.close().await;
+        result
+    };
+    tokio::select! {
+        _ = cancel.cancelled() => bail!("Capability inspection cancelled"),
+        result = tokio::time::timeout(std::time::Duration::from_secs(timeout), work) => result.context("Native capability inspection timed out")?,
     }
 }
 
@@ -99,9 +157,16 @@ async fn codex(
     )
     .await?;
     proc.notify("initialized", json!({})).await?;
+    let catalog = settings::codex_catalog(proc, events).await?;
+    if let Some(model) = &req.settings.model {
+        settings::validate_choice(&catalog, model, req.settings.effort.as_deref(), "effort")?;
+    }
     let mut params = json!({"cwd":req.cwd,"approvalPolicy":"never","sandbox":if req.read_only{"read-only"}else{"danger-full-access"},"developerInstructions":format!("{}\nAll responses, documentation, comments, and artifacts in ymp must be in English.",req.profile.instructions)});
-    if let Some(model) = &req.profile.model {
+    if let Some(model) = &req.settings.model {
         params["model"] = json!(model);
+    }
+    if let Some(effort) = &req.settings.effort {
+        params["config"] = json!({"model_reasoning_effort":effort});
     }
     let response = if let Some(id) = &req.resume {
         params["threadId"] = json!(id);
@@ -115,27 +180,42 @@ async fn codex(
         .context("Codex did not return a thread id")?
         .to_owned();
     let _ = events.send(ProviderEvent::Session(session.clone()));
+    let native_model = response.get("model").and_then(Value::as_str);
+    let native_effort = response.get("reasoningEffort").and_then(Value::as_str);
     let _ = events.send(ProviderEvent::Execution(Box::new(InvocationObservation {
         reported: Some(ExecutionSettings {
-            model: response
-                .get("model")
-                .and_then(Value::as_str)
-                .map(str::to_owned),
-            effort: response
-                .get("reasoningEffort")
-                .and_then(Value::as_str)
-                .map(str::to_owned),
+            model: native_model.map(str::to_owned),
+            effort: native_effort.map(str::to_owned),
             permission_mode: None,
         }),
         ..Default::default()
     })));
-    let response = proc
-        .request(
-            "turn/start",
-            json!({"threadId":session,"input":[{"type":"text","text":req.prompt}]}),
-            events,
-        )
-        .await?;
+    if let Some(model) = native_model {
+        settings::validate_choice(&catalog, model, req.settings.effort.as_deref(), "effort")?;
+        if req
+            .settings
+            .model
+            .as_deref()
+            .is_some_and(|requested| requested != model)
+        {
+            bail!("Codex acknowledged a different model than requested");
+        }
+    } else if req.settings.effort.is_some() && req.settings.model.is_none() {
+        bail!("Codex did not identify the native default model for effort validation");
+    }
+    if let (Some(requested), Some(actual)) = (req.settings.effort.as_deref(), native_effort) {
+        if requested != actual {
+            bail!("Codex acknowledged a different effort than requested");
+        }
+    }
+    let mut turn_params = json!({"threadId":session,"input":[{"type":"text","text":req.prompt}]});
+    if let Some(model) = &req.settings.model {
+        turn_params["model"] = json!(model);
+    }
+    if let Some(effort) = &req.settings.effort {
+        turn_params["effort"] = json!(effort);
+    }
+    let response = proc.request("turn/start", turn_params, events).await?;
     let turn = response
         .pointer("/turn/id")
         .and_then(Value::as_str)
@@ -303,14 +383,87 @@ async fn acp(
         .or_else(|| req.resume.clone())
         .context("ACP session id missing")?;
     let _ = events.send(ProviderEvent::Session(session.clone()));
-    if let Some(model) = &req.profile.model {
+    let mut catalog = settings::acp_catalog(
+        &response,
+        if req.resume.is_some() {
+            "session/load"
+        } else {
+            "session/new"
+        },
+    )?;
+    let mut selected_model = response
+        .pointer("/models/currentModelId")
+        .and_then(Value::as_str)
+        .map(str::to_owned);
+    let mut options = response["configOptions"].clone();
+    if let Some(model) = &req.settings.model {
+        proc.acp_config_options = None;
         proc.request(
             "session/set_model",
             json!({"sessionId":session,"modelId":model}),
             events,
         )
         .await?;
+        selected_model = Some(model.clone());
+        // GLM clamps thought_level on model change. Never validate against the
+        // previous model's list if no refreshed options were observed.
+        options = proc.acp_config_options.clone().unwrap_or(Value::Null);
+        settings::refreshed_acp_model(&mut catalog, model, &options)?;
     }
+    settings::publish(&catalog, events);
+    let mut native_effort = settings::acp_effort(&options);
+    let _ = events.send(ProviderEvent::Execution(Box::new(InvocationObservation {
+        reported: Some(ExecutionSettings {
+            model: if req.settings.model.is_none() {
+                selected_model.clone()
+            } else {
+                None
+            },
+            effort: native_effort.clone(),
+            permission_mode: None,
+        }),
+        ..Default::default()
+    })));
+
+    if let Some(effort) = &req.settings.effort {
+        let model = selected_model
+            .as_deref()
+            .context("ACP default model was not identified")?;
+        settings::validate_choice(&catalog, model, Some(effort), "thought_level")?;
+        let ack = proc
+            .request(
+                "session/set_config_option",
+                json!({"sessionId":session,"configId":"thought_level","value":effort}),
+                events,
+            )
+            .await?;
+        native_effort = settings::acp_effort(&ack["configOptions"]);
+        let _ = events.send(ProviderEvent::Execution(Box::new(InvocationObservation {
+            reported: Some(ExecutionSettings {
+                model: None,
+                effort: native_effort.clone(),
+                permission_mode: None,
+            }),
+            ..Default::default()
+        })));
+        if native_effort.as_ref() != Some(effort) {
+            bail!("ACP did not acknowledge the requested thought_level");
+        }
+    }
+    let _ = events.send(ProviderEvent::Execution(Box::new(InvocationObservation {
+        // set_model returns only {}, an acknowledgement rather than a model
+        // report. Retain the reported model only when it was not changed.
+        reported: Some(ExecutionSettings {
+            model: if req.settings.model.is_none() {
+                selected_model
+            } else {
+                None
+            },
+            effort: native_effort,
+            permission_mode: None,
+        }),
+        ..Default::default()
+    })));
     if !req.read_only {
         proc.request(
             "session/set_mode",
@@ -358,6 +511,10 @@ async fn mock_turn(
     cancel: CancellationToken,
     events: mpsc::UnboundedSender<ProviderEvent>,
 ) -> Result<TurnResult> {
+    let _ = events.send(ProviderEvent::Execution(Box::new(InvocationObservation {
+        sent: Some(req.settings.clone()),
+        ..Default::default()
+    })));
     let report_usage = req.profile.instructions.contains("[mock:usage]");
     if report_usage {
         let _ = events.send(ProviderEvent::Usage(UsageSnapshot {

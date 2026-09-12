@@ -37,6 +37,8 @@ impl Fixture {
             cwd: temp.path().canonicalize().unwrap(),
             limits: Limits::default(),
             eligible_pool: team.clone(),
+            execution: Default::default(),
+            assignment_settings: Default::default(),
             captured_team: team,
             parent_session_id: None,
             evaluation: None,

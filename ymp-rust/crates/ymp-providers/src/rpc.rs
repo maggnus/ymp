@@ -16,6 +16,7 @@ pub(crate) struct RpcProcess {
     next_id: u64,
     pending: VecDeque<Value>,
     pub acp_text: String,
+    pub acp_config_options: Option<Value>,
     read_only: bool,
 }
 impl RpcProcess {
@@ -104,6 +105,7 @@ impl RpcProcess {
             next_id: 1,
             pending: VecDeque::new(),
             acp_text: String::new(),
+            acp_config_options: None,
             read_only: req.read_only,
         })
     }
@@ -173,7 +175,13 @@ impl RpcProcess {
                 return Ok(v.get("result").cloned().unwrap_or(Value::Null));
             }
             let method = v["method"].as_str().unwrap_or("");
-            if method == "execution" {
+            if method == "capabilities" {
+                if let Ok(catalog) =
+                    serde_json::from_value::<ymp_core::ProviderCapabilities>(v["params"].clone())
+                {
+                    let _ = events.send(ProviderEvent::Capabilities(catalog));
+                }
+            } else if method == "execution" {
                 if let Ok(observation) =
                     serde_json::from_value::<ymp_core::InvocationObservation>(v["params"].clone())
                 {
@@ -194,7 +202,16 @@ impl RpcProcess {
                     let _ = events.send(ProviderEvent::Session(t.into()));
                 }
             } else if method == "session/update" {
+                if params
+                    .get("sessionId")
+                    .is_some_and(|id| v.pointer("/params/sessionId") != Some(id))
+                {
+                    continue;
+                }
                 let u = &v["params"]["update"];
+                if u["sessionUpdate"].as_str() == Some("config_option_update") {
+                    self.acp_config_options = Some(u["configOptions"].clone());
+                }
                 if u["sessionUpdate"].as_str() == Some("agent_message_chunk") {
                     if let Some(t) = u.pointer("/content/text").and_then(Value::as_str) {
                         self.acp_text.push_str(t);
@@ -266,9 +283,24 @@ fn sent_settings(method: &str, params: &Value) -> Option<ymp_core::ExecutionSett
     match method {
         "thread/start" | "thread/resume" => Some(ymp_core::ExecutionSettings {
             model: string("model"),
-            effort: None,
+            effort: params
+                .pointer("/config/model_reasoning_effort")
+                .and_then(Value::as_str)
+                .map(str::to_owned),
             permission_mode: string("sandbox"),
         }),
+        "turn/start" => Some(ymp_core::ExecutionSettings {
+            model: string("model"),
+            effort: string("effort"),
+            permission_mode: None,
+        }),
+        "session/set_config_option" if params["configId"] == "thought_level" => {
+            Some(ymp_core::ExecutionSettings {
+                model: None,
+                effort: string("value"),
+                permission_mode: None,
+            })
+        }
         "session/set_model" => Some(ymp_core::ExecutionSettings {
             model: string("modelId"),
             ..Default::default()

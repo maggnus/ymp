@@ -20,6 +20,7 @@ impl Fixture {
         )
         .unwrap();
         let request = TurnRequest {
+            settings: Default::default(),
             profile: AgentProfile {
                 id: "agent-fixture".into(),
                 name: "Offline fixture".into(),
@@ -87,7 +88,13 @@ impl Fixture {
             .collect::<Vec<_>>();
         assert_eq!(
             methods,
-            ["initialize", "initialized", "thread/start", "turn/start"]
+            [
+                "initialize",
+                "initialized",
+                "model/list",
+                "thread/start",
+                "turn/start"
+            ]
         );
         assert_eq!(
             std::fs::read_to_string(self.cwd.path().join("effects.log")).unwrap(),
@@ -148,10 +155,10 @@ fn completed(status: &str) -> Value {
 async fn native_provenance_distinguishes_sent_reported_and_unknown_settings() {
     for reported in [
         json!({}),
-        json!({"model":"resolved-model", "reasoningEffort":"high", "private_reasoning":"must-not-be-copied"}),
+        json!({"model":"requested-model", "reasoningEffort":"high", "private_reasoning":"must-not-be-copied"}),
     ] {
         let mut fixture = Fixture::new(vec![final_message(), completed("completed")]);
-        fixture.request.profile.model = Some("requested-model".into());
+        fixture.request.settings.model = Some("requested-model".into());
         fixture.option("thread_response", reported.clone());
         let (result, events) = fixture.run().await;
         result.unwrap();

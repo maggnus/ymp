@@ -79,8 +79,9 @@ pub fn inspect_pool(config: &Config) -> Result<AgentPool> {
             if !health.iter().any(|h| h.id == provider.id && h.available) {
                 exclusions.push(PoolExclusion::ExecutableMissing);
             }
+            let settings = config.execution_settings(profile, &Default::default())?;
             let model_status = match (
-                profile.model.as_deref(),
+                settings.model.as_deref(),
                 capabilities.get(&profile.provider),
             ) {
                 (None, catalog) => {
@@ -342,5 +343,40 @@ mod tests {
         );
         config.providers.retain(|p| p.id != "glm");
         assert!(!discover_glm_in(&mut config, temp.path()).unwrap());
+    }
+
+    #[test]
+    fn fixed_execution_model_takes_precedence_over_a_stale_profile_default_in_pool_eligibility() {
+        let mut config = Config::default();
+        config.providers[0].kind = ProviderKind::Mock;
+        config.agents[0].model = Some("stale-default".into());
+        config.capabilities.insert(
+            "codex".into(),
+            ProviderCapabilities {
+                models_complete: true,
+                models: vec![ModelCapabilities {
+                    id: "fixed-model".into(),
+                    controls: None,
+                }],
+                ..Default::default()
+            },
+        );
+        config.execution.insert(
+            "codex".into(),
+            ymp_core::AgentExecutionPolicy {
+                fixed: ymp_core::ModelEffort {
+                    model: Some("fixed-model".into()),
+                    effort: None,
+                },
+                ..Default::default()
+            },
+        );
+        let pool = inspect_pool(&config).unwrap();
+        assert_eq!(pool.agents[0].model_status, PoolModelStatus::Listed);
+        assert!(pool.agents[0].exclusions.is_empty());
+        assert_eq!(
+            pool.agents[0].profile.model.as_deref(),
+            Some("stale-default")
+        );
     }
 }

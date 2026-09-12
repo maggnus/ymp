@@ -1,0 +1,432 @@
+{
+  "schema_version": 1,
+  "purpose": "YMP-111 non-inference native metadata verification",
+  "native_versions": {
+    "codex": "0.153.4",
+    "claude_code": "2.1.269",
+    "claude_sdk": "0.3.246",
+    "glm_acp_agent": "1.3.0"
+  },
+  "model_prompts_sent": 0,
+  "observations": [
+    {
+      "agent": "codex",
+      "requested_model": null,
+      "catalog": {
+        "source": {
+          "kind": "native_metadata",
+          "method": "model/list",
+          "observed_at": "2026-09-12T11:25:10.103819+00:00"
+        },
+        "models_complete": true,
+        "models": [
+          {
+            "id": "gpt-6-astra",
+            "controls": [
+              {
+                "id": "effort",
+                "values": {
+                  "kind": "choices",
+                  "options": [
+                    "low",
+                    "medium",
+                    "high",
+                    "xhigh",
+                    "max",
+                    "ultra"
+                  ]
+                },
+                "default": "medium"
+              }
+            ]
+          },
+          {
+            "id": "gpt-reserve",
+            "controls": [
+              {
+                "id": "effort",
+                "values": {
+                  "kind": "choices",
+                  "options": [
+                    "low",
+                    "medium",
+                    "high",
+                    "xhigh",
+                    "max"
+                  ]
+                },
+                "default": "medium"
+              }
+            ]
+          },
+          {
+            "id": "gpt-5.6-sol",
+            "controls": [
+              {
+                "id": "effort",
+                "values": {
+                  "kind": "choices",
+                  "options": [
+                    "low",
+                    "medium",
+                    "high",
+                    "xhigh",
+                    "max",
+                    "ultra"
+                  ]
+                },
+                "default": "low"
+              }
+            ]
+          },
+          {
+            "id": "gpt-5.6-terra",
+            "controls": [
+              {
+                "id": "effort",
+                "values": {
+                  "kind": "choices",
+                  "options": [
+                    "low",
+                    "medium",
+                    "high",
+                    "xhigh",
+                    "max",
+                    "ultra"
+                  ]
+                },
+                "default": "medium"
+              }
+            ]
+          },
+          {
+            "id": "gpt-5.6-luna",
+            "controls": [
+              {
+                "id": "effort",
+                "values": {
+                  "kind": "choices",
+                  "options": [
+                    "low",
+                    "medium",
+                    "high",
+                    "xhigh",
+                    "max"
+                  ]
+                },
+                "default": "medium"
+              }
+            ]
+          },
+          {
+            "id": "gpt-5.5",
+            "controls": [
+              {
+                "id": "effort",
+                "values": {
+                  "kind": "choices",
+                  "options": [
+                    "low",
+                    "medium",
+                    "high",
+                    "xhigh"
+                  ]
+                },
+                "default": "medium"
+              }
+            ]
+          },
+          {
+            "id": "gpt-5.3-codex-spark",
+            "controls": [
+              {
+                "id": "effort",
+                "values": {
+                  "kind": "choices",
+                  "options": [
+                    "low",
+                    "medium",
+                    "high",
+                    "xhigh"
+                  ]
+                },
+                "default": "high"
+              }
+            ]
+          },
+          {
+            "id": "codex-auto-review",
+            "controls": [
+              {
+                "id": "effort",
+                "values": {
+                  "kind": "choices",
+                  "options": [
+                    "low",
+                    "medium",
+                    "high",
+                    "xhigh",
+                    "max"
+                  ]
+                },
+                "default": "medium"
+              }
+            ]
+          }
+        ],
+        "default_model": "gpt-6-astra"
+      }
+    },
+    {
+      "agent": "claude",
+      "requested_model": "claude-opus-5",
+      "catalog": {
+        "source": {
+          "kind": "native_metadata",
+          "method": "Claude Query.supportedModels()",
+          "observed_at": "2026-09-12T11:25:14.447Z"
+        },
+        "models_complete": false,
+        "models": [
+          {
+            "id": "default",
+            "controls": [
+              {
+                "id": "effort",
+                "values": {
+                  "kind": "choices",
+                  "options": [
+                    "low",
+                    "medium",
+                    "high",
+                    "xhigh",
+                    "max"
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "id": "claude-opus-5[1m]",
+            "controls": [
+              {
+                "id": "effort",
+                "values": {
+                  "kind": "choices",
+                  "options": [
+                    "low",
+                    "medium",
+                    "high",
+                    "xhigh",
+                    "max"
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "id": "opus[1m]",
+            "controls": [
+              {
+                "id": "effort",
+                "values": {
+                  "kind": "choices",
+                  "options": [
+                    "low",
+                    "medium",
+                    "high",
+                    "xhigh",
+                    "max"
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "id": "claude-fable-5-1[1m]",
+            "controls": [
+              {
+                "id": "effort",
+                "values": {
+                  "kind": "choices",
+                  "options": [
+                    "low",
+                    "medium",
+                    "high",
+                    "xhigh",
+                    "max"
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "id": "claude-fable-5-1",
+            "controls": [
+              {
+                "id": "effort",
+                "values": {
+                  "kind": "choices",
+                  "options": [
+                    "low",
+                    "medium",
+                    "high",
+                    "xhigh",
+                    "max"
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "id": "sonnet",
+            "controls": [
+              {
+                "id": "effort",
+                "values": {
+                  "kind": "choices",
+                  "options": [
+                    "low",
+                    "medium",
+                    "high",
+                    "xhigh",
+                    "max"
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "id": "claude-sonnet-5",
+            "controls": [
+              {
+                "id": "effort",
+                "values": {
+                  "kind": "choices",
+                  "options": [
+                    "low",
+                    "medium",
+                    "high",
+                    "xhigh",
+                    "max"
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "id": "haiku"
+          },
+          {
+            "id": "claude-haiku-4-5-20251001"
+          }
+        ],
+        "default_model": "default"
+      }
+    },
+    {
+      "agent": "glm",
+      "requested_model": null,
+      "catalog": {
+        "source": {
+          "kind": "native_metadata",
+          "method": "session/new",
+          "observed_at": "2026-09-12T11:25:16.601941+00:00"
+        },
+        "models_complete": false,
+        "models": [
+          {
+            "id": "glm-5.2",
+            "controls": [
+              {
+                "id": "thought_level",
+                "values": {
+                  "kind": "choices",
+                  "options": [
+                    "none",
+                    "high",
+                    "max"
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "id": "glm-5.1"
+          },
+          {
+            "id": "glm-5-turbo"
+          },
+          {
+            "id": "glm-5v-turbo"
+          },
+          {
+            "id": "glm-4.7"
+          },
+          {
+            "id": "glm-4.5-air"
+          }
+        ],
+        "default_model": "glm-5.2"
+      }
+    },
+    {
+      "agent": "glm",
+      "requested_model": "glm-4.7",
+      "catalog": {
+        "source": {
+          "kind": "native_metadata",
+          "method": "session/set_model + session/update config_option_update",
+          "observed_at": "2026-09-12T11:25:18.732152+00:00"
+        },
+        "models_complete": false,
+        "models": [
+          {
+            "id": "glm-5.2",
+            "controls": [
+              {
+                "id": "thought_level",
+                "values": {
+                  "kind": "choices",
+                  "options": [
+                    "none",
+                    "high",
+                    "max"
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "id": "glm-5.1"
+          },
+          {
+            "id": "glm-5-turbo"
+          },
+          {
+            "id": "glm-5v-turbo"
+          },
+          {
+            "id": "glm-4.7",
+            "controls": [
+              {
+                "id": "thought_level",
+                "values": {
+                  "kind": "choices",
+                  "options": [
+                    "none",
+                    "on"
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "id": "glm-4.5-air"
+          }
+        ],
+        "default_model": "glm-5.2"
+      }
+    }
+  ]
+}

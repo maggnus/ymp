@@ -18,9 +18,11 @@ Provider availability and authentication are different checks. `doctor` locates 
 
 The backend [agent pool API](agent-pool.md) exposes individual profiles and configured native model/control offerings without inference. Pool discovery does not change the configured starting roster or infer live session membership.
 
+Model and effort settings are validated and transmitted [per assignment](assignment-settings.md). `ymp capabilities AGENT` queries native metadata without inference; `ymp ask --model/--effort` and `ymp run --assignment-settings` supply concrete choices.
+
 ## Local bridge protocol
 
-The host sends one `run` JSON-RPC request per bridge process. The bridge emits `session` and `delta` notifications, then returns `text`, `session_id`, and provider-reported `usage`. Errors reject the request. Stdout carries protocol messages only; diagnostic stderr is drained without persisting raw output that might contain credentials.
+The host sends one `run` or metadata-only `capabilities` JSON-RPC request per bridge process. The bridge emits `session` and `delta` notifications, then returns `text`, `session_id`, and provider-reported `usage`. Errors reject the request. Stdout carries protocol messages only; diagnostic stderr is drained without persisting raw output that might contain credentials.
 
 The Rust host handles timeouts, cancellation, process ownership, and durable outcomes. The SDK bridge contains no team scheduling, reputation, or storage logic.
 
