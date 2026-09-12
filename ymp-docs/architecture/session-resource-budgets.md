@@ -39,7 +39,9 @@ capture at its first resume; this does not invent historical policy or usage.
 | Supplied prompt plus profile instructions | 128,000 characters; 32,000 for startup | Reject before invocation; full transmitted prompt reference is recorded |
 | Visible output | 64,000 characters per invocation | Stop after an observed stream or result exceeds the limit |
 | Native conversation loop | 16 turns per invocation | Claude SDK `maxTurns`; Codex and ACP support is not claimed |
-| Reported raw tokens | Optional `observed_tokens` and `invocation_tokens` together | Enforced admission ceiling and per-invocation reservation |
+| Reported raw tokens | Optional `observed_tokens` and `invocation_tokens` together | Enforced admission ceiling; `invocation_tokens` is the default and maximum per-assignment reservation |
+| Required review tokens | Optional `review_reserve_tokens` total | Protect the unspent review allowance without counting live review reservations twice |
+| Incomplete native usage | `unknown_usage: stop` | Explicit `bounded_native` permits admission against reported spend while retaining all other captured limits |
 
 Startup samples at most two profiles, subject to concurrency and the remaining
 startup allowance for plan review. It does not solicit the entire roster. Model
@@ -61,6 +63,13 @@ retries and context reprocessing therefore remain inside invocation usage; retry
 events and partial/complete coverage are retained. There is no guessed request
 count, currency conversion, provider grouping or estimate substituted for spend.
 
+An assignment may request a positive `token_reservation` no larger than captured
+`invocation_tokens`; absence uses that captured default. The optional total
+`review_reserve_tokens` protects its remaining balance after actual review spend
+and live review reservations. Completing the required review count releases
+unused protection once no task or final-review obligation remains. All measured
+review spend stays charged. Absence retains the previous per-review calculation.
+
 The active reservation is the unobserved remainder of each invocation's token
 allowance. Admission adds observed tokens, those remainders, the new allowance
 and protected review capacity. This avoids both double counting and granting two
@@ -69,10 +78,16 @@ recovery release the remaining reservation; recorded invocation count and tokens
 never reset. Storage rejects attempts to reduce previously observed input or
 output. Missing usage stays missing.
 
-With token admission enabled, any closed invocation with unavailable or partial
-accounting blocks further admission, including required review. Without token
-admission, those invocations still consume the supported counters and remain
-visibly incomplete. The runtime requests cancellation when an observed token
+With token admission enabled, the default captured `unknown_usage: stop` policy
+blocks further admission after any closed invocation with unavailable or partial
+accounting, including required review. Explicit `unknown_usage: bounded_native`
+permits further admission against reported spend and live reservations only. It
+does not infer missing use as zero or promise a true-spend ceiling. Invocation,
+concurrency, context, native-loop, output and timeout caps remain enforced; the
+reported-token ceiling and review protection remain in the same atomic admission
+transaction. The choice must be captured before work and cannot be substituted
+on resume. Without token admission, incomplete invocations still consume the
+supported counters and remain visibly incomplete. The runtime requests cancellation when an observed token
 ceiling is reached. Overshoot remains visible in `observed_token_overshoot`.
 
 ## Limits of the guarantee and client contract

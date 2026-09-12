@@ -1,0 +1,9 @@
+    Checking ymp-core v0.3.0 (/private/var/folders/cw/7pn8sb3x6bj69g7j2d8f_ss00000gn/T/ymp-release-work-h6oq_rys/sibling126/ymp-rust/crates/ymp-core)
+   Compiling ymp-eval-driver v0.3.0 (/private/var/folders/cw/7pn8sb3x6bj69g7j2d8f_ss00000gn/T/ymp-release-work-h6oq_rys/sibling126/ymp-rust/crates/ymp-eval-driver)
+    Checking ymp-providers v0.3.0 (/private/var/folders/cw/7pn8sb3x6bj69g7j2d8f_ss00000gn/T/ymp-release-work-h6oq_rys/sibling126/ymp-rust/crates/ymp-providers)
+    Checking ymp-workspace v0.3.0 (/private/var/folders/cw/7pn8sb3x6bj69g7j2d8f_ss00000gn/T/ymp-release-work-h6oq_rys/sibling126/ymp-rust/crates/ymp-workspace)
+    Checking ymp-storage v0.3.0 (/private/var/folders/cw/7pn8sb3x6bj69g7j2d8f_ss00000gn/T/ymp-release-work-h6oq_rys/sibling126/ymp-rust/crates/ymp-storage)
+    Checking ymp-runtime v0.3.0 (/private/var/folders/cw/7pn8sb3x6bj69g7j2d8f_ss00000gn/T/ymp-release-work-h6oq_rys/sibling126/ymp-rust/crates/ymp-runtime)
+    Checking ymp-tui v0.3.0 (/private/var/folders/cw/7pn8sb3x6bj69g7j2d8f_ss00000gn/T/ymp-release-work-h6oq_rys/sibling126/ymp-rust/crates/ymp-tui)
+    Checking ymp-cli v0.3.0 (/private/var/folders/cw/7pn8sb3x6bj69g7j2d8f_ss00000gn/T/ymp-release-work-h6oq_rys/sibling126/ymp-rust/crates/ymp-cli)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 5.59s

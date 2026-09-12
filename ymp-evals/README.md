@@ -1,8 +1,8 @@
 # Acceptance fixtures
 
-YMP-119 supplies deterministic inputs, independent validators and scripted expectations for the [runtime contract](../ymp-docs/architecture/runtime-contract.md). It does **not** run the integrated application or establish native model quality. YMP-121 must connect the scripts to the completed runtime and export observed records. The existing [greeting scenario](scenarios/greeting.json) remains a separate software smoke check.
+YMP-119 supplies deterministic inputs, independent validators and scripted expectations for the [runtime contract](../ymp-docs/architecture/runtime-contract.md). It does **not** run the integrated application or establish native model quality. YMP-126 now provides the production-boundary driver below; YMP-121 independently validates the accepted composition and release package. The existing [greeting scenario](scenarios/greeting.json) remains a separate software smoke check.
 
-Everything here uses Python 3.9+ and its standard library. No provider, network, credentials or paid inference is used by the validators or tests.
+The standalone validators use Python 3.9+ and its standard library. The trusted driver is a Rust workspace package. No provider, network, credentials or paid inference is used by the validators or tests.
 
 ## Model use during verification
 
@@ -49,7 +49,7 @@ All objective input files must retain the checked-in bytes. JSON duplicate keys,
 
 ## Scripted protocol cases
 
-[universal-protocol.json](scenarios/universal-protocol.json) describes each setup, sequence of harness actions, expected event projection and final state. The scripts are data for a future integrated provider harness, not an implemented fake provider or runtime adapter.
+[universal-protocol.json](scenarios/universal-protocol.json) describes each setup, sequence of harness actions, expected event projection and final state. The scripts are consumed by the trusted runtime adapters below; expected traces remain exclusively validator-side comparison data.
 
 | Cases | Required behavior |
 | --- | --- |
@@ -65,7 +65,26 @@ All objective input files must retain the checked-in bytes. JSON duplicate keys,
 
 Budget units are controlled synthetic token counts, not currency or claims about native bounds. The fictional corrected source changes Hill's W36 completion rate from 95% to 60%; the old entry remains historical and cannot answer a request against the corrected source. Symbolic names such as `a1` and `grant-a1` are test aliases, never secrets.
 
-## YMP-121 integration contract
+## Trusted runtime driver (YMP-126)
+
+Build both the driver and the real public MCP stdio bridge, then select a fresh absolute evidence directory outside any Git checkout:
+
+```sh
+cargo build -p ymp-eval-driver -p ymp-cli
+target/debug/ymp-eval-driver --output /tmp/ymp-universal-unique-run
+```
+
+Use `--case document` (or any named case below) for a bounded diagnostic run. A selected-case pass exits zero, while `run.json.complete` remains false until all 17 named cases have run and passed. Any failed or missing adapter exits nonzero and leaves a concrete case error. Existing evidence directories are rejected. Rebuild after source or fixture changes: the executable compares live source/checker hashes with its embedded build snapshot before running. No live provider discovery, native inference, network credentials or account data are needed.
+
+Each case creates its selected `work/` directory and separate `metadata/` application home. The providers are explicit scripted identities. Workflow artifacts are independently computed by `driver/artifact_writer.py` from listed input files; trusted runtime checks run the external validators. Expected traces, reference outputs and validator implementation bytes never enter provider prompts or retained knowledge. Scripted qualitative review remains unconfirmed and makes no claim about real-model quality.
+
+The driver uses real `Engine` execution for workflows, location, knowledge and crash recovery. Protocol setup helpers use actual Store version/contract validation, live TeamServer admission and the same Engine workspace coordinator; they do not synthesize accepted records. The fixed-roster adverse setup starts without a standing team reservation, then asks actual Engine review admission to resolve the impossible independent-review roster. The authority adapter runs the actual `ymp mcp` stdio executable; its fixture ends with a live second grant and exports subsequent cleanup separately. Restart uses separate OS processes, actual SIGKILL after durable partial usage, and private inherited pipes for the expiring capability. Native tokens never enter evidence files.
+
+The restart session explicitly captures `unknown_usage: bounded_native` before starting. It preserves the 100 reported-token ceiling, all native/admission caps and partial coverage. The default `stop` policy still denies continuation after incomplete accounting. See the [policy correction evidence](reports/ymp-126-unknown-usage-policy.md). The [reservation correction evidence](reports/ymp-126-runtime-corrections.md) distinguishes new runtime corrections from earlier acceptance.
+
+Every case retains raw runtime/native journals, actual artifact bytes, aliases with projection sources, nullable resource/cost metrics and independent validator results. `run.json` embeds source and fixture hashes plus the actual executable digest; each case’s metrics bind the actual backend IDs/versions and invocation IDs. Resources remain attributed to agents. Evidence outside a projected scenario endpoint is retained as raw history or an explicitly named cleanup journal. Scripted outcomes establish boundary behavior, not cooperation or model-efficiency improvements.
+
+## Release integration contract
 
 Implement a trusted harness against actual runtime admission, provider, storage and tool boundaries. Its provider should consume each script, return controlled native responses/usage and hold the stated barriers. Setup and `seed_*` actions must establish valid records through production transitions or reviewed test setup; they must not create fake completion events. Restore persisted state in a fresh runtime process for restart cases. Work directly in each explicitly selected task directory.
 

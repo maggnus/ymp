@@ -1,0 +1,19 @@
+{
+  "scope": "Current application compatibility before final versioned release",
+  "source": "56c9f04543249ad987e028f5347087c4b6013408",
+  "binary": "/Users/maggnus/Code/ymp2/target/debug/ymp",
+  "binary_sha256": "e105855af7acee98997c30d026cb096f0aefba99852ed665c019ee2592384595",
+  "client_result": {
+    "client": "official mcp Python SDK 1.28.1",
+    "protocol": "2025-06-18",
+    "provider": "mock only, fixed mock/low",
+    "checks": "discovery, read-only admission, bounds, continuation, versions, no inference reads, scoped execution, configured contracts, confirmed knowledge, immutable resume, rejected tool authority, conflicts, progress, usage, result/evidence, cancel/resume, foreign refs, disconnect/reopen, SIGKILL recovery, internal bridge lifecycle, malformed frames",
+    "largest_reply_bytes": 73149,
+    "tool_calls": 331
+  },
+  "exit": 0,
+  "raw_log": "/tmp/ymp-current-mcp-client.log",
+  "raw_log_sha256": "f39172b8b48d850280f8976de7c8093affe2c73d33db4c1611c624afafc2c3d2",
+  "native_inference_calls": 0,
+  "final_versioned_check": "pending"
+}
