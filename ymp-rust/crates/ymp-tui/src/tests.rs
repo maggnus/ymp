@@ -3762,3 +3762,43 @@ async fn locations_that_could_not_be_read_are_not_reported_as_none() {
         "a failed read is not distinguished from an absence of outcomes:\n{detail}"
     );
 }
+
+#[tokio::test]
+async fn the_record_pages_paint_their_statements_whole_at_every_supported_size() {
+    let run = mock_run("Create a greeting", |engine| {
+        engine.config.team_constraints.fixed_size = Some(1);
+        engine.acceptance_contracts.push(exact_greeting_contract());
+    })
+    .await;
+    for (width, height) in SUPPORTED_SIZES.iter().copied() {
+        let mut app = run.app();
+        app.load_session(&run.session).unwrap();
+
+        app.set_view(View::Team);
+        let prose = main_prose(&mut app, width, height);
+        assert!(
+            prose.contains("A session holds a roster of the members a turn may be given to now"),
+            "at {width}x{height} the team page lost words from what a roster is:\n{prose}"
+        );
+
+        app.set_view(View::Memory);
+        let prose = main_prose(&mut app, width, height);
+        assert!(
+            prose.contains("no passing evidence is attached")
+                || prose.contains("carried passing checks"),
+            "at {width}x{height} the memory page lost words from an entry's basis:\n{prose}"
+        );
+
+        // The workspace statement is longer than the detail pane at the smallest size, and
+        // the surface Enter opens is where the whole of it is read.
+        app.set_view(View::Changes);
+        app.on_key(key(KeyCode::Enter), width);
+        let prose = modal_prose(&mut app, width, height);
+        assert!(
+            prose.contains(
+                "Only a turn that executes a task is asked with permission to change files"
+            ),
+            "at {width}x{height} the workspace statement lost words:\n{prose}"
+        );
+    }
+}
