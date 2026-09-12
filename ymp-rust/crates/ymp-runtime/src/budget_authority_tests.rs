@@ -25,6 +25,7 @@ impl BudgetAuthorityFixture {
             store.save_session(&session).unwrap();
             store.capture_legacy_budget_limits(&session.id, &limits).unwrap();
         } else { store.create_session(&session, &SessionPolicy {
+            team_constraints: None,
             session_id: session.id.clone(), goal: "Inspect a bounded result".into(), constraints: None,
             cwd: dir.path().into(), limits, eligible_pool: team.clone(), captured_team: team,
             execution: Default::default(), assignment_settings: vec![], parent_session_id: None,

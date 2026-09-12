@@ -34,6 +34,7 @@ impl Fixture {
             turns_used: 0,
         };
         let policy = SessionPolicy {
+            team_constraints: None,
             session_id: session.id.clone(),
             goal: "complete original goal with constraints".into(),
             constraints: None,

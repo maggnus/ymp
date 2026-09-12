@@ -4,3 +4,6 @@ pub use engine::*;
 
 pub mod checker;
 pub use checker::*;
+
+mod allocation;
+pub use allocation::*;

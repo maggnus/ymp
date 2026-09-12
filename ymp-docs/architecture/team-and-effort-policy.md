@@ -1,6 +1,6 @@
 # Team size and reasoning-effort policy
 
-Status: aligned with the owner-approved intent on 2026-09-12. Initial team selection, bounded changes and fixed user constraints are product requirements. This policy is not implemented behavior or evidence of optimal allocation. The [delivery plan](../tasks/plan.md) tracks work automatically. YMP-116 defines the minimal transition and authority contract; numerical defaults are recorded by the relevant implementation tasks.
+Status: aligned with the owner-approved intent on 2026-09-12. Initial team selection, bounded changes and fixed user constraints are product requirements. This policy defines requirements, not evidence of optimal allocation. The [bounded allocation implementation](allocation-implementation.md) records the runtime behavior, explicit heuristics, shared view contracts and remaining subsystem boundaries. The [delivery plan](../tasks/plan.md) tracks work automatically. YMP-116 defines the minimal transition and authority contract; numerical defaults are recorded by the relevant implementation tasks.
 
 This document expands the short principles in [intent.md](../../intent.md). Its purpose is to support the [product goals](../product/requirements.md#goals): accepted results within resource and time constraints, less human intervention and useful accumulated experience.
 
