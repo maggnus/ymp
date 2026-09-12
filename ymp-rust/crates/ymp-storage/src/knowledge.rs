@@ -348,13 +348,13 @@ impl Store {
     /// No provider, planning or artifact production is started.
     pub fn outcomes(&self, session_id: &str) -> Result<Vec<StoredOutcome>> {
         let db = self.db()?;
-        let session: Session = record(&db, "sessions", session_id)?;
-        let project: Project = record(&db, "projects", &session.project_id)?;
+        let _: Session = record(&db, "sessions", session_id)?;
         records::<DecisionRecord>(&db, "decisions", session_id)?
             .into_iter()
             .filter(|d| d.kind == "task_accepted" && d.links.result.is_some())
             .map(|d| {
                 let result = d.links.result.context("Accepted outcome has no result")?;
+                let directory = confirmation::source_directory(&db, session_id, &result)?.with_context(|| format!("outcome_location_unknown: captured directory is missing for result {}:{} in session {session_id}", result.id, result.version))?;
                 let current = confirmation::current_task(&db, &result)?
                     && confirmation::current_files(&db, session_id, &result)?;
                 let confirmation = if current {
@@ -367,13 +367,13 @@ impl Store {
                     acceptance_id: d.id,
                     result_id: result.id,
                     result_version: result.version,
-                    directory: project.path.clone(),
+                    directory: directory.clone(),
                     summary: result.summary,
                     artifacts: result
                         .artifacts
                         .into_iter()
                         .map(|a| OutcomeArtifact {
-                            path: project.path.join(a.path),
+                            path: directory.join(a.path),
                             sha256: a.sha256,
                         })
                         .collect(),
@@ -442,5 +442,73 @@ mod tests {
             .unwrap()
             .is_empty());
         assert_eq!(store.memory_inventory(None).unwrap()[0].status, "retired");
+    }
+
+    #[test]
+    fn legacy_outcome_without_captured_directory_does_not_invent_a_location() {
+        let temp = tempfile::tempdir().unwrap();
+        let store = Store::open(&temp.path().join("state")).unwrap();
+        let project = store.project(temp.path()).unwrap();
+        let session = Session {
+            id: new_id(),
+            project_id: project.id,
+            title: "Legacy outcome".into(),
+            status: "completed".into(),
+            created_at: now(),
+            team: vec![],
+            turns_used: 0,
+        };
+        store.save_session(&session).unwrap();
+        std::fs::write(temp.path().join("greeting.txt"), b"Hello from ymp\n").unwrap();
+        let result = ResultVersion {
+            id: "legacy-result".into(),
+            version: 1,
+            task: None,
+            summary: "A historical file was created".into(),
+            task_definition: None,
+            criteria: vec![],
+            criteria_version: "legacy".into(),
+            contract_id: None,
+            producer_assignment_ids: vec![],
+            artifacts: vec![FileSnapshot::capture(
+                temp.path(),
+                std::path::Path::new("greeting.txt"),
+            )
+            .unwrap()],
+            component_ids: vec![],
+        };
+        let acceptance = DecisionRecord {
+            id: new_id(),
+            session_id: session.id.clone(),
+            kind: "task_accepted".into(),
+            actor: None,
+            reason: "Historical acceptance without a directory capture".into(),
+            outcome: Some(DecisionOutcome::Accepted {
+                confirmation: ConfirmationStatus::Unknown,
+            }),
+            links: RecordLinks {
+                result: Some(result),
+                ..Default::default()
+            },
+            created_at: now(),
+        };
+        // Imported legacy data can lack provenance required by today's writers.
+        store
+            .db()
+            .unwrap()
+            .execute(
+                "INSERT INTO decisions(id,session_id,data) VALUES (?,?,?)",
+                params![
+                    acceptance.id,
+                    session.id,
+                    serde_json::to_string(&acceptance).unwrap()
+                ],
+            )
+            .unwrap();
+        let error = store.outcomes(&session.id).unwrap_err();
+        assert!(error.to_string().contains("outcome_location_unknown"));
+        assert!(error.to_string().contains("legacy-result:1"));
+        assert!(temp.path().join("greeting.txt").exists());
+        assert!(store.trace(&session.id).unwrap().invocations.is_empty());
     }
 }

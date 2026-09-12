@@ -497,3 +497,80 @@ async fn knowledge_policy_failure_preserves_accepted_project_fact() {
         .iter()
         .any(|m| m.text.contains("Scripted proposal failure")));
 }
+
+#[tokio::test]
+async fn knowledge_outcomes_retain_captured_location_after_project_relocation() {
+    let mut fixture = RunFixture::new("[mock:split-writers]", true);
+    fixture.engine = fixture
+        .engine
+        .with_execution_backend(Arc::new(FailingSibling))
+        .unwrap();
+    let mut contract = exact_contract();
+    contract.inputs.push("input.csv".into());
+    std::fs::write(fixture.project.join("input.csv"), b"Hill,95\n").unwrap();
+    fixture.engine.acceptance_contracts.push(contract);
+    let source = fixture.run().await;
+    assert!(source.summary.contains("Scripted later sibling failure"));
+    let before = fixture.store.outcomes(&source.session.id).unwrap();
+    assert_eq!(before.len(), 1);
+    assert!(before[0].current);
+    assert_eq!(before[0].confirmation, ConfirmationStatus::Confirmed);
+    assert_eq!(before[0].directory, fixture.project.canonicalize().unwrap());
+    assert!(before[0].artifacts[0].path.exists());
+    let trace = fixture.store.trace(&source.session.id).unwrap();
+    let relocated = fixture.project.parent().unwrap().join("relocated-empty");
+    std::fs::create_dir(&relocated).unwrap();
+    fixture
+        .store
+        .relocate_project(&source.session.project_id, &relocated)
+        .unwrap();
+    let reopened = Store::open(&fixture.store.home).unwrap();
+    assert_eq!(
+        reopened
+            .get_project(&source.session.project_id)
+            .unwrap()
+            .path,
+        relocated.canonicalize().unwrap()
+    );
+    assert_eq!(
+        reopened.outcomes(&source.session.id).unwrap(),
+        before,
+        "Project registration must not replace captured outcome location or grade"
+    );
+    assert!(!relocated.join("greeting.txt").exists());
+    assert!(!reopened
+        .memory(Some(&source.session.project_id), "greeting")
+        .unwrap()
+        .is_empty());
+
+    // Matching files under the new association cannot conceal changes to the
+    // original checked artifacts or supplied inputs.
+    std::fs::write(relocated.join("greeting.txt"), b"Hello from ymp\n").unwrap();
+    std::fs::write(relocated.join("input.csv"), b"Hill,95\n").unwrap();
+    for path in ["greeting.txt", "input.csv"] {
+        let original = fixture.project.join(path);
+        let bytes = std::fs::read(&original).unwrap();
+        std::fs::write(&original, b"changed original source\n").unwrap();
+        let changed = reopened.outcomes(&source.session.id).unwrap();
+        assert_eq!(changed[0].directory, before[0].directory);
+        assert_eq!(changed[0].artifacts, before[0].artifacts);
+        assert_eq!(changed[0].result_id, before[0].result_id);
+        assert_eq!(changed[0].result_version, before[0].result_version);
+        assert!(!changed[0].current);
+        assert_eq!(changed[0].confirmation, ConfirmationStatus::Unconfirmed);
+        assert!(reopened
+            .memory(Some(&source.session.project_id), "greeting")
+            .unwrap()
+            .is_empty());
+        std::fs::write(&original, bytes).unwrap();
+        assert_eq!(reopened.outcomes(&source.session.id).unwrap(), before);
+    }
+    assert_eq!(
+        reopened
+            .trace(&source.session.id)
+            .unwrap()
+            .invocations
+            .len(),
+        trace.invocations.len()
+    );
+}
