@@ -91,3 +91,29 @@ of provenance.
 
 The catalog is not done and is not claimed to be: no native name has been read from an
 installation in this worktree, and none will be until the scan exists and is run.
+
+## Read through the built executable, 80x24
+
+The pages were opened in a pseudo-terminal against a fresh home, so the configuration is the one
+the installation ships. No run was started and no provider was asked anything.
+
+```
+ Agent profiles  /agents                  3 profiles
+ › Codex · not scanned · codex       ✓ on  in team
+   Claude · not scanned · claude     ✓ on  in team
+   GLM · not scanned · glm                    ✓ on
+
+  model          not scanned · nothing has been read from this installation, so no
+                 native name is known
+  catalog        nothing stored; this provider's own offerings have not been read
+```
+
+`r` on the provider page moved the `inspected` time from `19:04:12` to `19:04:16` in the same
+session, which is the re-read doing what its notice says. The capture is at
+`/tmp/118-walk/walk127.txt`.
+
+## Coordination
+
+The interface session has no direct channel to the catalog author: the agents it can message are
+other sessions of this work, not `/root/native_catalog_127`. These needs therefore go through the
+parent.
