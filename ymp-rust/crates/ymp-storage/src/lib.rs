@@ -12,6 +12,7 @@ mod authority;
 mod budget;
 mod confirmation;
 mod knowledge;
+pub mod projection;
 mod provenance;
 #[cfg(test)]
 mod provenance_tests;
@@ -376,6 +377,19 @@ impl Store {
         self.db()?.execute("INSERT INTO kv(key,value) VALUES (?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value",params![key,value.to_string()])?;
         Ok(())
     }
+    /// Atomically reserve an external operation identity before starting effects.
+    pub fn put_value_if_absent(&self, key: &str, value: &serde_json::Value) -> Result<bool> {
+        Ok(self.db()?.execute(
+            "INSERT OR IGNORE INTO kv(key,value) VALUES (?,?)",
+            params![key, value.to_string()],
+        )? == 1)
+    }
+
+    /// Scoped decision records for inspection; callers must project snapshot bytes.
+    pub fn decisions(&self, session: &str) -> Result<Vec<DecisionRecord>> {
+        provenance::records(&*self.db()?, "decisions", session)
+    }
+
     pub fn value(&self, key: &str) -> Result<Option<serde_json::Value>> {
         let data: Option<String> = self
             .db()?

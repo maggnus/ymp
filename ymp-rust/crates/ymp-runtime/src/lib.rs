@@ -10,3 +10,4 @@ pub use allocation::*;
 
 pub mod knowledge;
 pub use knowledge::*;
+pub mod public_mcp;

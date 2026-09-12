@@ -366,7 +366,20 @@ impl Engine {
     }
 
     pub async fn run(&self, path: &Path, prompt: &str, resume: Option<&str>) -> Result<RunOutcome> {
-        self.run_internal(path, prompt, resume, None).await
+        self.run_internal(path, prompt, resume, None, None).await
+    }
+
+    /// Start with a trusted caller's preallocated ID. Creating the captured session
+    /// is insert-only, so retrying an ID cannot overwrite or repeat an existing run.
+    pub async fn run_identified(
+        &self,
+        path: &Path,
+        prompt: &str,
+        session_id: &str,
+    ) -> Result<RunOutcome> {
+        uuid::Uuid::parse_str(session_id).context("Invalid preallocated session ID")?;
+        self.run_internal(path, prompt, None, None, Some(session_id))
+            .await
     }
 
     /// Continue the conversation before deciding whether new work is necessary.
@@ -532,7 +545,8 @@ impl Engine {
                     .to_owned();
                 drop(ctx);
                 drop(lock);
-                self.run_internal(path, &task, None, Some(previous)).await
+                self.run_internal(path, &task, None, Some(previous), None)
+                    .await
             }
             _ => bail!("Invalid follow-up action; no new work was started"),
         }
@@ -544,6 +558,7 @@ impl Engine {
         prompt: &str,
         resume: Option<&str>,
         parent: Option<&str>,
+        new_session_id: Option<&str>,
     ) -> Result<RunOutcome> {
         let project = self.store.project(path)?;
         let _project_lock = self.store.lock_project(&project.id)?;
@@ -561,7 +576,7 @@ impl Engine {
             }
             s
         } else {
-            let id = new_id();
+            let id = new_session_id.map(str::to_owned).unwrap_or_else(new_id);
             let constraints = self.config.team_constraints.clone();
             let eligible = self.eligible_with(&constraints)?;
             let difficulty = if prompt.len() > 1000 || prompt.to_lowercase().contains("complex") {
