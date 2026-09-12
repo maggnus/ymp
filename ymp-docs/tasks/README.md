@@ -1,6 +1,6 @@
 # Task details and evidence
 
-Updated: 2026-09-12 10:07 UTC.
+Updated: 2026-09-12 10:16 UTC.
 
 Use the [delivery plan](plan.md) to follow progress. This generated register contains full acceptance criteria, dependencies and evidence. [tasks.json](tasks.json) is the single source; [manage.py](manage.py) updates both pages.
 
@@ -14,7 +14,7 @@ A planned task is not implemented functionality. Completed research and planning
 | design | 1 | 1 |
 | documentation | 4 | 4 |
 | experiment | 0 | 4 |
-| implementation | 0 | 18 |
+| implementation | 3 | 18 |
 | research | 8 | 8 |
 | verification | 0 | 2 |
 
@@ -30,13 +30,13 @@ A planned task is not implemented functionality. Completed research and planning
 | `[x]` | [YMP-006](#ymp-006) | P0 | Review UI concentration and working-directory recovery communication | 2026-09-12 05:48 |
 | `[x]` | [YMP-007](#ymp-007) | P0 | Evaluate verification-grounded outcome reuse and lifecycle evidence | 2026-09-11 16:00 |
 | `[x]` | [YMP-008](#ymp-008) | P0 | Reconcile native and canonical usage and recompute weighted input | 2026-09-11 16:00 |
-| `[~]` | [YMP-101](#ymp-101) | P0 | Persist explainable session decisions and execution provenance | 2026-09-12 10:07 |
+| `[~]` | [YMP-101](#ymp-101) | P0 | Persist explainable session decisions and execution provenance | 2026-09-12 10:16 |
 | `[=]` | [YMP-102](#ymp-102) | P0 | Add explicit session resource budgets and unknown-usage policy | 2026-09-12 09:35 |
-| `[~]` | [YMP-103](#ymp-103) | P0 | Honor Codex nonterminal retry notifications | 2026-09-12 09:58 |
-| `[~]` | [YMP-104](#ymp-104) | P0 | Preserve accepted outcomes and confirmation status when final narration fails | 2026-09-12 10:07 |
-| `[~]` | [YMP-105](#ymp-105) | P1 | Enumerate file names without reading file contents | 2026-09-12 10:07 |
+| `[x]` | [YMP-103](#ymp-103) | P0 | Honor Codex nonterminal retry notifications | 2026-09-12 10:16 |
+| `[x]` | [YMP-104](#ymp-104) | P0 | Preserve accepted outcomes and confirmation status when final narration fails | 2026-09-12 10:16 |
+| `[x]` | [YMP-105](#ymp-105) | P1 | Enumerate file names without reading file contents | 2026-09-12 10:16 |
 | `[=]` | [YMP-106](#ymp-106) | P1 | Use task-specific memory queries and record retrieval evidence | 2026-09-12 09:06 |
-| `[=]` | [YMP-107](#ymp-107) | P1 | Expose recorded checks and factual recovery limits | 2026-09-12 09:35 |
+| `[ ]` | [YMP-107](#ymp-107) | P1 | Expose recorded checks and factual recovery limits | 2026-09-12 09:35 |
 | `[=]` | [YMP-108](#ymp-108) | P2 | Evaluate an optional usage estimate with explicit price provenance | 2026-09-12 09:35 |
 | `[=]` | [YMP-111](#ymp-111) | P0 | Apply native models and reasoning settings per assignment | 2026-09-12 09:35 |
 | `[=]` | [YMP-201](#ymp-201) | P2 | Calibrate and run the paired solo/team pilot | 2026-09-12 09:35 |
@@ -44,7 +44,7 @@ A planned task is not implemented functionality. Completed research and planning
 | `[=]` | [YMP-203](#ymp-203) | P1 | Test effort, reduced preparation and low-effort ensembles separately | 2026-09-12 09:35 |
 | `[=]` | [YMP-204](#ymp-204) | P1 | Evaluate a project-scoped prior-outcome router | 2026-09-12 09:35 |
 | `[=]` | [YMP-301](#ymp-301) | P2 | Confirm the initial success class and intended audience | 2026-09-12 09:35 |
-| `[ ]` | [YMP-109](#ymp-109) | P0 | Expose the provider-backed agent pool with stable individual identities | 2026-09-12 09:35 |
+| `[~]` | [YMP-109](#ymp-109) | P0 | Expose the provider-backed agent pool with stable individual identities | 2026-09-12 10:09 |
 | `[=]` | [YMP-110](#ymp-110) | P0 | Select session teams and execution settings within user constraints | 2026-09-12 09:35 |
 | `[=]` | [YMP-112](#ymp-112) | P0 | Coordinate commitments, plan revisions and reassignment through the board | 2026-09-12 09:35 |
 | `[=]` | [YMP-113](#ymp-113) | P0 | Accumulate general knowledge and verified experience incrementally | 2026-09-12 09:35 |
@@ -58,7 +58,7 @@ A planned task is not implemented functionality. Completed research and planning
 | `[=]` | [YMP-117](#ymp-117) | P0 | Separate acceptance from confirmation and gate reputation on evidence | 2026-09-12 09:35 |
 | `[=]` | [YMP-120](#ymp-120) | P0 | Enforce assignment-scoped permissions and runtime-only state transitions | 2026-09-12 09:35 |
 | `[=]` | [YMP-118](#ymp-118) | P0 | Integrate core assignment, budget and confirmation visibility | 2026-09-12 09:35 |
-| `[ ]` | [YMP-119](#ymp-119) | P0 | Prepare universal acceptance scenarios and independent validators | 2026-09-12 09:35 |
+| `[~]` | [YMP-119](#ymp-119) | P0 | Prepare universal acceptance scenarios and independent validators | 2026-09-12 10:12 |
 | `[=]` | [YMP-121](#ymp-121) | P1 | Verify the integrated application and package a local release | 2026-09-12 09:35 |
 | `[x]` | [YMP-013](#ymp-013) | P0 | Review plan coherence and simplify progress tracking | 2026-09-12 09:46 |
 
@@ -296,9 +296,9 @@ Persist explainable session decisions and execution provenance
 
 **State:** `[~]` (in_progress) · **Type:** implementation · **Priority:** P0
 
-**Last update (UTC):** 2026-09-12 10:07
+**Last update (UTC):** 2026-09-12 10:16
 
-**Current reason:** Implementing typed assignment/invocation provenance and atomic records/events from the reviewed contract.
+**Current reason:** Typed provenance implementation delegated to an xhigh subagent after contract review; parent continues integration and prepares UI/native capability work.
 
 **Owner:** Maintainer
 
@@ -364,11 +364,11 @@ A shared budget and user constraints bound the autonomous team; budgeting is a c
 
 Honor Codex nonterminal retry notifications
 
-**State:** `[~]` (in_progress) · **Type:** implementation · **Priority:** P0
+**State:** `[x]` (done) · **Type:** implementation · **Priority:** P0
 
-**Last update (UTC):** 2026-09-12 09:58
+**Last update (UTC):** 2026-09-12 10:16
 
-**Current reason:** Assigned to an xhigh subagent in an isolated worktree; provider retry handling and offline regression proof.
+**Current reason:** R1(9/10) ACCEPT from independent xhigh review; integrated 0468057. Old retry regression failed exit 101; nine provider cases and integrated workspace suite pass. Native retry evidence retains safe codes and IDs without replay/counter changes.
 
 **Owner:** Maintainer
 
@@ -391,16 +391,17 @@ The installed protocol declares willRetry, but the adapter treats every error no
 - [Installed schema](../research/evidence/effort-capabilities.json)
 - [Final owner intent](../../intent.md)
 - [Delivery plan](plan.md)
+- [Process-level retry regressions](../../ymp-rust/crates/ymp-providers/tests/codex_retry.rs)
 
 ## YMP-104
 
 Preserve accepted outcomes and confirmation status when final narration fails
 
-**State:** `[~]` (in_progress) · **Type:** implementation · **Priority:** P0
+**State:** `[x]` (done) · **Type:** implementation · **Priority:** P0
 
-**Last update (UTC):** 2026-09-12 10:07
+**Last update (UTC):** 2026-09-12 10:16
 
-**Current reason:** Fix committed in isolated worktree; failing-before regression and full checks passed. Independent review is in progress before integration.
+**Current reason:** R1(9/10) ACCEPT from independent xhigh review; integrated 9f92751. Original synthesis-failure regression failed exit 101; fallback, cancellation, prior-check and optional-learning cases pass.
 
 **Owner:** Maintainer
 
@@ -422,16 +423,17 @@ A synthesis failure currently blocks a session after the artifact, candidate rev
 - [Protocol fault runs](../research/evidence/protocol-experiments.json)
 - [Final owner intent](../../intent.md)
 - [Delivery plan](plan.md)
+- [Runtime fallback regressions](../../ymp-rust/crates/ymp-runtime/src/engine.rs)
 
 ## YMP-105
 
 Enumerate file names without reading file contents
 
-**State:** `[~]` (in_progress) · **Type:** implementation · **Priority:** P1
+**State:** `[x]` (done) · **Type:** implementation · **Priority:** P1
 
-**Last update (UTC):** 2026-09-12 10:07
+**Last update (UTC):** 2026-09-12 10:16
 
-**Current reason:** Fix and measurement evidence committed in isolated worktree; zero-content-read regression and full checks passed. Independent review is in progress.
+**Current reason:** R1(9/10) ACCEPT from independent xhigh review; integrated 59bece8. Old listing read 131073 bytes and failed the zero-read check; listing now reads none. Sorting/filter/symlink/change controls and measured release probes pass.
 
 **Owner:** Maintainer
 
@@ -452,6 +454,7 @@ Workspace::files invokes fingerprint and rehashes every regular file even when t
 
 - [Actual crate measurements](../research/evidence/context-probe.json)
 - [Delivery plan](plan.md)
+- [Measured names-only evidence](../research/evidence/ymp-105-workspace-files.json)
 
 ## YMP-106
 
@@ -490,11 +493,11 @@ The first twelve words of a role instruction can contain no task terms, and the 
 
 Expose recorded checks and factual recovery limits
 
-**State:** `[=]` (planned) · **Type:** implementation · **Priority:** P1
+**State:** `[ ]` (planned) · **Type:** implementation · **Priority:** P1
 
 **Last update (UTC):** 2026-09-12 09:35
 
-**Current reason:** Needs YMP-104
+**Current reason:** Ready to start
 
 **Owner:** Claude Code claude-opus-5 with thinking max via Paseo; maintainer integrates and verifies
 
@@ -758,11 +761,11 @@ The core product is already a universal local agent-team workspace. External ado
 
 Expose the provider-backed agent pool with stable individual identities
 
-**State:** `[ ]` (planned) · **Type:** implementation · **Priority:** P0
+**State:** `[~]` (in_progress) · **Type:** implementation · **Priority:** P0
 
-**Last update (UTC):** 2026-09-12 09:35
+**Last update (UTC):** 2026-09-12 10:09
 
-**Current reason:** Ready to start
+**Current reason:** Backend pool/identity work assigned to an xhigh subagent; metadata discovery and configuration only, no provider inference or UI edits.
 
 **Owner:** Maintainer; UI by Claude Opus 5 (max)
 
@@ -771,8 +774,6 @@ Expose the provider-backed agent pool with stable individual identities
 **Depends on:** [YMP-010](#ymp-010)
 
 Available agents are working units supplied through providers. The eligible pool is distinct from the team autonomously formed for a task.
-
-**Latest progress note:** Pool/capability metadata uses existing stable IDs and can proceed independently of the runtime-contract task.
 
 **Acceptance criteria:**
 
@@ -1258,11 +1259,11 @@ The approved protocol needs observable identities, settings, authority and evide
 
 Prepare universal acceptance scenarios and independent validators
 
-**State:** `[ ]` (planned) · **Type:** verification · **Priority:** P0
+**State:** `[~]` (in_progress) · **Type:** verification · **Priority:** P0
 
-**Last update (UTC):** 2026-09-12 09:35
+**Last update (UTC):** 2026-09-12 10:12
 
-**Current reason:** Ready to start
+**Current reason:** Independent universal acceptance fixtures and validators assigned to an xhigh subagent; final runtime execution remains YMP-121.
 
 **Owner:** Maintainer
 
@@ -1271,8 +1272,6 @@ Prepare universal acceptance scenarios and independent validators
 **Depends on:** [YMP-116](#ymp-116)
 
 Delivery must work for documents, data and evidence-based tasks as well as software, and must prove protocol behavior without unattended model quota.
-
-**Latest progress note:** Prepare external acceptance fixtures early. Full runtime execution against them is a release condition in YMP-121.
 
 **Acceptance criteria:**
 
@@ -1296,7 +1295,7 @@ Verify the integrated application and package a local release
 
 **Last update (UTC):** 2026-09-12 09:35
 
-**Current reason:** Needs YMP-119, YMP-103, YMP-105, YMP-107, YMP-112, YMP-115, YMP-114, YMP-118
+**Current reason:** Needs YMP-119, YMP-107, YMP-112, YMP-115, YMP-114, YMP-118
 
 **Owner:** Independent final reviewer at max reasoning; maintainer integrates and packages
 

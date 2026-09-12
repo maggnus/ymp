@@ -354,6 +354,11 @@
           "at": "2026-09-12T10:07:54.563405+00:00",
           "status": "in_progress",
           "note": "Implementing typed assignment/invocation provenance and atomic records/events from the reviewed contract."
+        },
+        {
+          "at": "2026-09-12T10:16:16.977115+00:00",
+          "status": "in_progress",
+          "note": "Typed provenance implementation delegated to an xhigh subagent after contract review; parent continues integration and prepares UI/native capability work."
         }
       ]
     },
@@ -422,7 +427,7 @@
       "title": "Honor Codex nonterminal retry notifications",
       "type": "implementation",
       "priority": "P0",
-      "status": "in_progress",
+      "status": "done",
       "owner": "Maintainer",
       "authorization": "Planned delivery derived from the owner-approved intent and standing autonomous-development direction. Follow dependencies and acceptance criteria; separate real-provider quota is required where stated.",
       "depends_on": [
@@ -439,7 +444,8 @@
         "[Protocol fault runs](../research/evidence/protocol-experiments.json)",
         "[Installed schema](../research/evidence/effort-capabilities.json)",
         "[Final owner intent](../../intent.md)",
-        "[Delivery plan](plan.md)"
+        "[Delivery plan](plan.md)",
+        "[Process-level retry regressions](../../ymp-rust/crates/ymp-providers/tests/codex_retry.rs)"
       ],
       "history": [
         {
@@ -471,6 +477,11 @@
           "at": "2026-09-12T09:58:18.814823+00:00",
           "status": "in_progress",
           "note": "Assigned to an xhigh subagent in an isolated worktree; provider retry handling and offline regression proof."
+        },
+        {
+          "at": "2026-09-12T10:16:16.851506+00:00",
+          "status": "done",
+          "note": "R1(9/10) ACCEPT from independent xhigh review; integrated 0468057. Old retry regression failed exit 101; nine provider cases and integrated workspace suite pass. Native retry evidence retains safe codes and IDs without replay/counter changes."
         }
       ]
     },
@@ -479,7 +490,7 @@
       "title": "Preserve accepted outcomes and confirmation status when final narration fails",
       "type": "implementation",
       "priority": "P0",
-      "status": "in_progress",
+      "status": "done",
       "owner": "Maintainer",
       "authorization": "Planned delivery derived from the owner-approved intent and standing autonomous-development direction. Follow dependencies and acceptance criteria; separate real-provider quota is required where stated.",
       "depends_on": [
@@ -495,7 +506,8 @@
       "evidence": [
         "[Protocol fault runs](../research/evidence/protocol-experiments.json)",
         "[Final owner intent](../../intent.md)",
-        "[Delivery plan](plan.md)"
+        "[Delivery plan](plan.md)",
+        "[Runtime fallback regressions](../../ymp-rust/crates/ymp-runtime/src/engine.rs)"
       ],
       "history": [
         {
@@ -532,6 +544,11 @@
           "at": "2026-09-12T10:07:54.605827+00:00",
           "status": "in_progress",
           "note": "Fix committed in isolated worktree; failing-before regression and full checks passed. Independent review is in progress before integration."
+        },
+        {
+          "at": "2026-09-12T10:16:16.893210+00:00",
+          "status": "done",
+          "note": "R1(9/10) ACCEPT from independent xhigh review; integrated 9f92751. Original synthesis-failure regression failed exit 101; fallback, cancellation, prior-check and optional-learning cases pass."
         }
       ]
     },
@@ -540,7 +557,7 @@
       "title": "Enumerate file names without reading file contents",
       "type": "implementation",
       "priority": "P1",
-      "status": "in_progress",
+      "status": "done",
       "owner": "Maintainer",
       "authorization": "Planned delivery derived from the owner-approved intent and standing autonomous-development direction. Follow dependencies and acceptance criteria; separate real-provider quota is required where stated.",
       "depends_on": [
@@ -555,7 +572,8 @@
       ],
       "evidence": [
         "[Actual crate measurements](../research/evidence/context-probe.json)",
-        "[Delivery plan](plan.md)"
+        "[Delivery plan](plan.md)",
+        "[Measured names-only evidence](../research/evidence/ymp-105-workspace-files.json)"
       ],
       "history": [
         {
@@ -587,6 +605,11 @@
           "at": "2026-09-12T10:07:54.651778+00:00",
           "status": "in_progress",
           "note": "Fix and measurement evidence committed in isolated worktree; zero-content-read regression and full checks passed. Independent review is in progress."
+        },
+        {
+          "at": "2026-09-12T10:16:16.935078+00:00",
+          "status": "done",
+          "note": "R1(9/10) ACCEPT from independent xhigh review; integrated 59bece8. Old listing read 131073 bytes and failed the zero-read check; listing now reads none. Sorting/filter/symlink/change controls and measured release probes pass."
         }
       ]
     },
@@ -1045,7 +1068,7 @@
       "title": "Expose the provider-backed agent pool with stable individual identities",
       "type": "implementation",
       "priority": "P0",
-      "status": "planned",
+      "status": "in_progress",
       "owner": "Maintainer; UI by Claude Opus 5 (max)",
       "authorization": "Planned delivery derived from the owner-approved intent and standing autonomous-development direction. Follow dependencies and acceptance criteria; separate real-provider quota is required where stated.",
       "depends_on": [
@@ -1104,6 +1127,11 @@
           "at": "2026-09-12T09:35:05.248513+00:00",
           "status": "planned",
           "note": "Pool/capability metadata uses existing stable IDs and can proceed independently of the runtime-contract task."
+        },
+        {
+          "at": "2026-09-12T10:09:59.833452+00:00",
+          "status": "in_progress",
+          "note": "Backend pool/identity work assigned to an xhigh subagent; metadata discovery and configuration only, no provider inference or UI edits."
         }
       ]
     },
@@ -1763,7 +1791,7 @@
       "title": "Prepare universal acceptance scenarios and independent validators",
       "type": "verification",
       "priority": "P0",
-      "status": "planned",
+      "status": "in_progress",
       "owner": "Maintainer",
       "authorization": "Derived from the owner-approved intent and work-plan request. Follow recorded dependencies; real-provider quota remains separately authorized.",
       "depends_on": [
@@ -1792,6 +1820,11 @@
           "at": "2026-09-12T09:35:05.248513+00:00",
           "status": "planned",
           "note": "Prepare external acceptance fixtures early. Full runtime execution against them is a release condition in YMP-121."
+        },
+        {
+          "at": "2026-09-12T10:12:27.007723+00:00",
+          "status": "in_progress",
+          "note": "Independent universal acceptance fixtures and validators assigned to an xhigh subagent; final runtime execution remains YMP-121."
         }
       ]
     },
@@ -1887,7 +1920,7 @@
       ]
     }
   ],
-  "updated_at": "2026-09-12T10:07:54.651778+00:00",
+  "updated_at": "2026-09-12T10:16:16.977115+00:00",
   "delivery_order": [
     "YMP-116",
     "YMP-103",
