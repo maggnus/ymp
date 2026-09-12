@@ -4009,3 +4009,50 @@ async fn a_captured_acceptance_contract_is_shown_as_a_binding_and_not_as_a_resul
         "a captured contract could be read as evidence:\n{detail}"
     );
 }
+
+#[tokio::test]
+async fn a_record_that_carries_its_own_outcome_never_reads_as_ungraded() {
+    let run = mock_run("Create a greeting", |engine| {
+        engine.acceptance_contracts.push(exact_greeting_contract())
+    })
+    .await;
+    let trace = run.store.trace(&run.session).unwrap();
+    let mut app = run.app();
+    app.load_session(&run.session).unwrap();
+    app.command("/decisions", 100);
+
+    // Every record whose outcome lives inside itself: the row and the detail read it from the
+    // same field, so a reader cannot be told two different things about one record.
+    let own_outcome = trace.decisions.iter().filter(|decision| {
+        decision.links.allocation.is_some()
+            || decision.links.resource_allocation.is_some()
+            || decision.links.workspace_wait.is_some()
+            || decision.links.workspace_access.is_some()
+            || decision.links.acceptance_contract.is_some()
+    });
+    let mut checked = 0;
+    for decision in own_outcome {
+        let key = text::short_id(&decision.id);
+        let detail = detail_of_key(&mut app, 65, &key);
+        assert!(
+            !detail.contains("recorded without an outcome"),
+            "{} reads as ungraded while its row states an outcome:\n{detail}",
+            decision.kind
+        );
+        checked += 1;
+    }
+    assert!(
+        checked >= 4,
+        "the run recorded only {checked} such records, so this case is barely tested"
+    );
+    let released = trace
+        .decisions
+        .iter()
+        .find(|decision| decision.kind == "workspace_access_released")
+        .expect("the run released a reservation");
+    assert!(
+        detail_of_key(&mut app, 65, &text::short_id(&released.id))
+            .contains("the reservation ended"),
+        "a released reservation does not say so in its own record"
+    );
+}

@@ -3681,7 +3681,12 @@ fn decision_row(ctx: &Ctx, decision: &DecisionRecord) -> Item {
     ));
     detail.extend(field(theme, "actor", &actor, ctx.width));
     detail.extend(field(theme, "recorded", &decision.created_at, ctx.width));
-    detail.extend(field(theme, "outcome", acceptance.word(), ctx.width));
+    detail.extend(field(
+        theme,
+        "outcome",
+        &recorded_outcome(decision, &acceptance),
+        ctx.width,
+    ));
     if acceptance.accepted == Some(true) {
         detail.extend(field(
             theme,
@@ -3938,6 +3943,39 @@ fn membership_detail(ctx: &Ctx, allocation: &AllocationDecision) -> Vec<Line<'st
         ctx.width,
     ));
     lines
+}
+
+/// The outcome a record carries, read from the field that actually holds it.
+///
+/// A membership change, a per-turn bound, a wait and the three reservation records decide
+/// inside the record they carry, and no grade is ever written for them. Reading the grade
+/// field would report them as decisions recorded without an outcome while the row beside them
+/// says what they did, so this reads the same field the row does.
+fn recorded_outcome(decision: &DecisionRecord, acceptance: &Acceptance) -> String {
+    if let Some(allocation) = decision.links.allocation.as_deref() {
+        return if allocation.accepted {
+            "the membership was committed".to_owned()
+        } else {
+            "the membership was refused".to_owned()
+        };
+    }
+    if let Some(resource) = decision.links.resource_allocation.as_deref() {
+        return if resource.accepted {
+            "the bound was set".to_owned()
+        } else {
+            "the bound was refused".to_owned()
+        };
+    }
+    if let Some(wait) = decision.links.workspace_wait.as_ref() {
+        return format!("the turn waited · {}", wait.code);
+    }
+    match decision.kind.as_str() {
+        "workspace_access_acquired" => "the directory was reserved".to_owned(),
+        "workspace_access_admitted" => "the turn was admitted under that reservation".to_owned(),
+        "workspace_access_released" => "the reservation ended".to_owned(),
+        "acceptance_contract_captured" => "criteria were captured before the work".to_owned(),
+        _ => acceptance.word().to_owned(),
+    }
 }
 
 /// Whether a decision carries its own outcome, for records the grade field was never
