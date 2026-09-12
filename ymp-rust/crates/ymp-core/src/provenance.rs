@@ -9,6 +9,34 @@ pub fn content_digest(content: &str) -> String {
     format!("{:x}", Sha256::digest(content.as_bytes()))
 }
 
+/// Shared identity for producing observations and validating their attribution.
+/// Historical invocations without backend metadata retain their original identity;
+/// this does not infer which backend produced them.
+pub fn effective_execution_version(
+    config_version: &str,
+    invocation: &InvocationRecord,
+) -> anyhow::Result<String> {
+    let content = if invocation.execution_backend.is_some() {
+        serde_json::to_string(&(
+            "effective-execution-v2",
+            config_version,
+            &invocation.execution_backend,
+            &invocation.sent,
+            &invocation.reported,
+            &invocation.native_version,
+        ))?
+    } else {
+        serde_json::to_string(&(
+            "effective-execution-v1",
+            config_version,
+            &invocation.sent,
+            &invocation.reported,
+            &invocation.native_version,
+        ))?
+    };
+    Ok(content_digest(&content)[..24].to_owned())
+}
+
 /// Captured exactly once for a new session. Historical sessions have no policy
 /// rather than a policy invented from today's configuration.
 #[derive(Debug, Clone, Serialize, Deserialize)]

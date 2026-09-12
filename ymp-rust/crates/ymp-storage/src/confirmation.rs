@@ -799,14 +799,8 @@ impl Store {
             invocation.state == InvocationState::Completed,
             "Interrupted work is not a competence observation"
         );
-        let expected_version = content_digest(&serde_json::to_string(&(
-            "effective-execution-v1",
-            &producer.agent_config_version,
-            &invocation.sent,
-            &invocation.reported,
-            &invocation.native_version,
-        ))?)[..24]
-            .to_owned();
+        let expected_version =
+            effective_execution_version(&producer.agent_config_version, invocation)?;
         let task: Task = record(
             &tx,
             "tasks",
