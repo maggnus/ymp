@@ -437,3 +437,123 @@ main at `3b4045f` and are not duplicated here.
 Board proposals from YMP-112 and knowledge inspection from YMP-114 are later feature work on
 the same views, not YMP-118 criteria. Their author APIs were read for planning only, nothing was
 merged, and the small changes they need are reported to the parent rather than applied here.
+
+## Round four: the independent review's findings, the accepted merge, and a configured contract
+
+13/09/2026 02:29 HKT. Head `d9cb9d7`. The independent core review of `7038a4c` returned ACCEPT
+8 of 10 with six findings; all six are closed here, the accepted main `9ad43dc` is merged, and
+the typed contract path is exercised through the executable rather than through a fixture.
+
+### What the findings were, and what closed them
+
+**F1, the opened record contradicted its own row.** Already corrected in `2124b53` before the
+review arrived, by the same reading of the same field. What was missing was the assertion: the
+covering test read the row word and never the opened record. It now reads both, and fails if the
+record says a committed membership was recorded without an outcome.
+
+**F2, the Limits page lost its title and cut its subtitle at 80 columns.** Two changes. The page
+header is now painted by a helper of its own, which keeps the title and the command and gives up
+the summary instead, marking the cut with an ellipsis; a captured count has no width the page
+controls, so no number can take the page identity away again. The Limits summary is also short
+enough to stay whole at the smallest supported width, and the two sections below carry every
+number in full. At 80x24 the page now reads `Limits  /limits      captured 40 turns, 2 at a
+time`, and `/checks`, whose summary does not fit, reads `Recorded checks  /checks 2 recorded · 0
+declared wi…`: the name survives and the cut is visible.
+
+**F3, the requested value disappeared once something was sent.** A setting whose requested and
+sent values differ now names both, which is what clause 4 of the interface contract and both
+guides already claimed. A value nothing reported still reads as unconfirmed, so the three states
+stay distinct.
+
+**F4, `/reputation` asserted a credit it had not read.** The field now says that whether the work
+was credited is recorded by the session that accepted it, which this page does not read.
+
+**F5, the module comment overstated its scope.** It now describes the snapshot pages and names
+the six pages that read the store or the working directory inside their own build.
+
+**F6, the workspace count.** The round-one figure is left as it was reported and annotated:
+the review's sum of 290 at `7038a4c` is right, one binary's result was dropped when that table
+was written, and the later figures belong to different trees.
+
+**One more, found by the walk and not by the review.** The row of a captured contract still
+carried the mark for a decision with no outcome, while its words said criteria were captured.
+That is the same contradiction as F1 in a glyph, so the contract now carries the mark the
+reservation records carry.
+
+### Failing-before controls, round four
+
+Seven mutations, applied one at a time on the worktree itself and reverted, with `shasum -a 256`
+confirming each restore.
+
+| Mutation | Test | Result |
+| --- | --- | --- |
+| The header is painted by the row painter again | `a_page_keeps_its_name_and_command_at_every_supported_size` | failed as intended |
+| The long Limits summary returns | `a_reopened_session_is_measured_against_the_limits_it_captured` | failed as intended |
+| The header helper always defers to the row helper | `a_header_gives_up_its_summary_before_its_own_name` | failed as intended |
+| The requested value is dropped whenever something was sent | `a_setting_rewritten_on_its_way_out_names_both_values` | failed as intended |
+| The credit is asserted again | `credit_this_session_did_not_read_is_reported_and_not_asserted` | failed as intended |
+| The opened record reads the grade field | `a_membership_decision_says_what_it_changed_and_what_it_reserved` and `a_record_that_carries_its_own_outcome_never_reads_as_ungraded` | both failed as intended |
+| A captured contract loses its own mark | `a_captured_acceptance_contract_is_shown_as_a_binding_and_not_as_a_result` | failed as intended |
+
+### The accepted merge
+
+`9ad43dc` is merged with no conflict. It brings the YMP-125 trusted-config contract ingress, the
+public MCP work and the lock-release correction, and it touches no interface file, so nothing in
+these pages is duplicated or rewritten by it. The head now contains `1b76133` for YMP-110 and
+YMP-113, main `f02a8c2` for accepted YMP-115, `3b4045f` for MCP and the lock release, and
+`9ad43dc` for the contracts. The standalone combined YMP-115 source `b08eb57` is deliberately not
+an ancestor: main `f02a8c2` carries the same accepted work, which the integration brief allowed.
+
+### The configured-contract walk
+
+One walk, at 80x24 and then resized to 120x40 in the same process. The configuration is kept at
+`/tmp/118-walk/config125.toml`: one provider of `kind = "mock"` with `command = "internal"`, two
+mock agents, and one `[[acceptance_contracts]]` entry declaring the criterion
+`greeting-content`, the artifact `greeting.txt` and the trusted check `exact-greeting-v1` as
+exact bytes. No provider process starts, no credential is read, and no model is asked anything.
+The capture is `/tmp/118-walk/walk125.txt`, 188 keystrokes.
+
+| Record | Keys from the top of the list | What it reads |
+| --- | --- | --- |
+| The captured contract | `Home` then 1x `Down` | `acceptance criteria captured`, `criteria were captured before the work`, the task, the criterion and its description, `checks bound 1 · exact-greeting-v1`, the artifact, inputs by digest, `checker ymp.builtin-confirmation 1`, the contract version and the checker code recorded by digest |
+| The task acceptance | `Home` then 31x `Down` | `accepted, confirmed`, `basis 1 piece(s) of passing evidence covering every applicable criterion`, the reviewer, the result with its version and criteria version, and `files still current (1 named by the result)` |
+| The final acceptance | `Home` then 41x `Down` | the same confirmed reading for the run's own result |
+| A recorded shell check | `/checks`, `Home` then 1x `Down` | the command whole, `outcome passed`, the task, the directory, and the captured output with its exit status |
+
+`Enter` opens each record whole; the contract at 80x24 shows `4 more` at its lower border and one
+`PageDown` reaches the rest and then `0 more`. Both sizes read the same records, so the
+difference between them is layout and not content.
+
+The first pass of this walk reported that the contract could not be reached at 80x24. That was
+the harness searching for the untruncated row text, which a 53-cell column cuts; the row was the
+first record in the list at both sizes. The needle is now one a narrow row still shows, and the
+faulty pass is described here rather than discarded.
+
+### Commands and results, round four
+
+| Command | Exit |
+| --- | --- |
+| `cargo fmt --all --check` | 0 |
+| `cargo clippy --workspace --all-targets -- -D warnings` | 0, no warning |
+| `cargo test --workspace` | 0, 330 tests passed over 25 binaries, 106 of them in `ymp-tui` |
+| `python3 /tmp/118-walk/walk125.py` | walk written at both sizes |
+
+### Acceptance state after this round
+
+**Actually unmet YMP-118 criteria: none that this task owns.** The six findings are closed, the
+defect the walk added is closed, and the typed contract, its check evidence and the confirmed
+acceptance it produces are now read through the executable at both walked sizes. The two defects
+reported in round three still belong to other layers: a wait is recorded against an agent or a
+task and never against the assignment it delayed, and `Store::outcomes` answers for a whole
+session so one unreadable captured location makes the list unavailable.
+
+**Tested limitations.** The contract limitation of round three is closed by this round and is
+not repeated. What remains is unchanged: scoped access rows have no producer on this build; the
+team section for records without captured membership cannot be written through supported calls;
+a long recorded path wraps rather than truncating; and the walk's screen model is an emulator
+whose every reading is cross-checked against an interface test.
+
+**Feature boundaries, unchanged.** Cross-session competence credit is not read and the page says
+so. Typed check outcomes and recorded shell checks are not joined on one page. No surface
+proposes or edits membership, access or criteria. YMP-112 board proposals and YMP-114 knowledge
+inspection are later feature work on these same views, read for planning only.
