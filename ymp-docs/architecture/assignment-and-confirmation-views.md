@@ -51,12 +51,13 @@ active in this window. In a stored session the same record means a turn that was
 which is what an interrupted run leaves behind, and the page says so in those words.
 
 **Committed against graded.** Several records decide inside themselves, and no grade is ever
-written for them: a membership change, a per-turn resource bound, a wait, the three records of a
-directory reservation, and a captured acceptance contract. Both the row and the record it opens
-read the outcome from that field, and they read it from the same one, so a row cannot state an
-outcome the record then denies: committed or refused, set or refused, waited under its own code,
-reserved, admitted, ended, or captured before the work. None of them is reported as a decision
-recorded without an outcome, and the grade words below are not applied to them.
+written for them: a membership change, a per-turn resource bound, a wait, a change to the shared
+plan, a correction to what was retained, the three records of a directory reservation, and a
+captured acceptance contract. The row and the record it opens read the outcome from one place,
+so a row cannot state an outcome the record then denies, or deny one the record states:
+committed or refused, set or refused, waited under its own code, committed or rejected, entry
+replaced, reserved, admitted, ended, or captured before the work. None of them is reported as a
+decision recorded without an outcome, and the grade words below are not applied to them.
 
 **Accepted, unconfirmed, confirmed, unknown.** An acceptance carries a grade. Confirmed means
 the evidence the acceptance bound passed for every criterion it applies to. Unconfirmed means
@@ -78,6 +79,20 @@ without observations is not thereby unreliable.
 editable values on the limits page apply to a later session; they are never presented as what
 a finished session ran under, and the turn counter in the header and the sidebar uses the
 captured bound when a session is loaded.
+
+**Ceiling, allowance, protection, policy.** The token rows of the limits page read the captured
+resource limits and the budget the store computes, never the configuration. The ceiling is
+checked at admission against reported tokens and the allowances still held by open turns, so
+what it leaves is stated as a reported remainder, and as at most that where a count is
+incomplete. A turn's allowance is either the one its assignment requested or the captured
+per-turn default, and it is accounting rather than a limit the installation enforced. Review
+tokens are the ones still protected now: a captured reserve less what review turns have
+reported and still hold, or, where no reserve was captured, one allowance for each review turn
+still owed. The policy for incomplete counts is the one the session captured: stop admitting
+under the ceiling, or go on admitting against reported counts. Going on keeps an incomplete
+count incomplete, so no remainder becomes known and no strict bound follows, and the page says
+both. No installation this release drives proves a hard cap on a whole run, and the strict
+bound row says that too.
 
 **Pool, member, worked here.** The pool is who may be drawn on this machine; a session's team
 is who its run actually formed. An agent that worked in a session keeps its place in that
@@ -368,9 +383,11 @@ sizes.
   and on the decision that committed it, and those are where a finished session's record of it
   is.
 - The inputs a correction replaced are named in the acceptance contract and not in the
-  correction record. The page names each side's own acceptance, result and criteria version,
-  which is the evidence each claim rests on; which file each read is in the result record and
-  is not shown here.
+  correction record, so they are read where the contract is shown: each declared input with
+  the digest it was captured at, and which declared source replaced which. The earlier input
+  is named by path alone, because its digest belongs to the earlier contract, whose own record
+  shows it. The memory page names each side's own acceptance, result and criteria version,
+  which is the evidence each claim rests on.
 - `Store::inspect_knowledge` answers for one project and for entries shared globally with it.
   An entry of another project is not listed, and the page does not imply that it lists every
   entry in the store.
