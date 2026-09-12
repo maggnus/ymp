@@ -4,9 +4,11 @@ use sha2::{Digest, Sha256};
 use std::{collections::BTreeMap, path::PathBuf};
 
 mod capabilities;
+mod catalog;
 mod execution;
 mod pool;
 pub use capabilities::*;
+pub use catalog::*;
 pub use execution::*;
 pub use pool::*;
 
@@ -85,6 +87,9 @@ impl Default for Limits {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Config {
+    /// Loaded only from the application-owned scan cache; never trusted from TOML.
+    #[serde(skip)]
+    pub native_catalog: NativeCatalogSnapshot,
     pub version: u32,
     /// Trusted checks for every new team session using this configuration.
     /// On resume, None keeps captured authority; Some must match it exactly.
@@ -108,6 +113,7 @@ pub struct Config {
 impl Default for Config {
     fn default() -> Self {
         Self {
+            native_catalog: NativeCatalogSnapshot::default(),
             version: 1,
             acceptance_contracts: None,
             team_constraints: crate::TeamConstraints::default(),
@@ -244,11 +250,35 @@ impl Config {
             .collect()
     }
     pub fn load(home: &std::path::Path) -> Result<Self> {
-        let value: Self = toml::from_str(&std::fs::read_to_string(home.join("config.toml"))?)?;
+        let mut value: Self = toml::from_str(&std::fs::read_to_string(home.join("config.toml"))?)?;
         value.validate()?;
+        value.native_catalog = NativeCatalogSnapshot::load(home)?;
         Ok(value)
     }
     pub fn save(&self, home: &std::path::Path) -> Result<()> {
+        let _lock = configuration_lock(home)?;
+        self.save_configuration(home)
+    }
+    /// Publish a scan without overwriting configuration edited during discovery.
+    pub fn save_scanned_catalog(
+        &self,
+        home: &std::path::Path,
+        expected: Option<&[u8]>,
+    ) -> Result<()> {
+        let _lock = configuration_lock(home)?;
+        let actual = match std::fs::read(home.join("config.toml")) {
+            Ok(bytes) => Some(bytes),
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => None,
+            Err(error) => return Err(error.into()),
+        };
+        if actual.as_deref() != expected {
+            bail!("Configuration changed during native scan; refresh again to preserve the edit");
+        }
+        self.validate()?;
+        self.native_catalog.save(home)?;
+        self.save_configuration(home)
+    }
+    fn save_configuration(&self, home: &std::path::Path) -> Result<()> {
         self.validate()?;
         std::fs::create_dir_all(home)?;
         let tmp = home.join(format!("config.{}.tmp", uuid::Uuid::new_v4()));
@@ -256,6 +286,19 @@ impl Config {
         std::fs::rename(tmp, home.join("config.toml"))?;
         Ok(())
     }
+}
+
+fn configuration_lock(home: &std::path::Path) -> Result<std::fs::File> {
+    std::fs::create_dir_all(home)?;
+    let file = std::fs::OpenOptions::new()
+        .create(true)
+        .truncate(false)
+        .read(true)
+        .write(true)
+        .open(home.join("configuration.lock"))?;
+    fs2::FileExt::try_lock_exclusive(&file)
+        .context("Another client is saving configuration; retry the edit")?;
+    Ok(file)
 }
 
 pub fn default_home() -> Result<PathBuf> {

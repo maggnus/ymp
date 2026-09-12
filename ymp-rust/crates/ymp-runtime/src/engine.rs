@@ -868,6 +868,10 @@ impl Engine {
             task.as_ref().map(|t| t.task_id.as_str()),
             read_only,
         )?;
+        let identity = self.config.agent_identity(agent, &requested);
+        let mut effective_agent = agent.clone();
+        effective_agent.name = identity.name.clone();
+        let agent = &effective_agent;
         let allowance = self.resource_allowance(ctx, purpose, task.as_ref(), agent, &requested)?;
         let provider = self.config.provider(&agent.provider)?.clone();
         let key = format!(
@@ -1125,6 +1129,7 @@ impl Engine {
             });
         }
         let mut assignment = AssignmentRecord {
+            agent_identity: Some(identity),
             id: assignment_id,
             session_id: ctx.session.id.clone(),
             task,
@@ -2483,6 +2488,7 @@ mod tests {
 
     fn test_config(broken: bool) -> Config {
         Config {
+            native_catalog: Default::default(),
             team_constraints: TeamConstraints::default(),
             version: 1,
             acceptance_contracts: None,

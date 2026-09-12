@@ -29,6 +29,9 @@ pub(crate) async fn codex_catalog(
     let mut cursor = Value::Null;
     let mut seen = std::collections::HashSet::new();
     loop {
+        if seen.len() >= 32 || catalog.models.len() >= 4096 {
+            bail!("Codex model-list scan exceeds its metadata bound");
+        }
         let page = proc
             .request(
                 "model/list",
@@ -54,6 +57,8 @@ pub(crate) async fn codex_catalog(
                     vec![]
                 } else {
                     vec![NativeControl {
+                        display_name: None,
+                        value_names: Default::default(),
                         id: "effort".into(),
                         values: NativeControlValues::Choices { options },
                         default: model["defaultReasoningEffort"]
@@ -64,6 +69,13 @@ pub(crate) async fn codex_catalog(
             });
             // The picker row ID can differ from the actual wire model name.
             catalog.models.push(ModelCapabilities {
+                picker_id: model["id"].as_str().map(str::to_owned),
+                display_name: model["displayName"]
+                    .as_str()
+                    .filter(|name| !name.trim().is_empty())
+                    .map(str::to_owned),
+                aliases: vec![],
+                resolved_model: None,
                 id: id.into(),
                 controls,
             });
@@ -134,6 +146,13 @@ pub(crate) fn acp_catalog(response: &Value, method: &str) -> Result<ProviderCapa
     {
         if let Some(id) = model["modelId"].as_str() {
             catalog.models.push(ModelCapabilities {
+                picker_id: None,
+                display_name: model["name"]
+                    .as_str()
+                    .filter(|name| !name.trim().is_empty())
+                    .map(str::to_owned),
+                aliases: vec![],
+                resolved_model: None,
                 id: id.into(),
                 controls: if Some(id) == current {
                     acp_controls(&response["configOptions"])?
@@ -145,6 +164,10 @@ pub(crate) fn acp_catalog(response: &Value, method: &str) -> Result<ProviderCapa
     }
     if let Some(id) = current.filter(|id| catalog.model(id).is_none()) {
         catalog.models.push(ModelCapabilities {
+            picker_id: None,
+            display_name: None,
+            aliases: vec![],
+            resolved_model: None,
             id: id.into(),
             controls: acp_controls(&response["configOptions"])?,
         });
@@ -162,22 +185,39 @@ pub(crate) fn acp_controls(options: &Value) -> Result<Option<Vec<NativeControl>>
     };
     let mut controls = vec![];
     for option in options {
-        if option["id"] != "thought_level" || option["type"] != "select" {
+        if option["type"] != "select" {
             continue;
         }
+        let id = option["id"]
+            .as_str()
+            .context("ACP configuration option id missing")?;
         let values = option["options"]
             .as_array()
-            .context("ACP thought_level options missing")?
+            .context("ACP select options missing")?
             .iter()
             .filter_map(|v| v["value"].as_str().map(str::to_owned))
             .collect::<Vec<_>>();
         if values.is_empty() {
-            bail!("ACP thought_level has no supported values");
+            bail!("ACP select control has no supported values");
         }
         controls.push(NativeControl {
-            id: "thought_level".into(),
+            display_name: option["name"].as_str().map(str::to_owned),
+            value_names: option["options"]
+                .as_array()
+                .into_iter()
+                .flatten()
+                .filter_map(|value| {
+                    Some((
+                        value["value"].as_str()?.to_owned(),
+                        value["name"].as_str()?.to_owned(),
+                    ))
+                })
+                .collect(),
+            id: id.into(),
             values: NativeControlValues::Choices { options: values },
-            default: None,
+            default: option["currentValue"]
+                .as_str()
+                .map(|value| NativeControlValue::Choice(value.into())),
         });
     }
     Ok(Some(controls))
@@ -202,6 +242,10 @@ pub(crate) fn refreshed_acp_model(
         entry.controls = controls;
     } else {
         catalog.models.push(ModelCapabilities {
+            picker_id: None,
+            display_name: None,
+            aliases: vec![],
+            resolved_model: None,
             id: model.into(),
             controls,
         });

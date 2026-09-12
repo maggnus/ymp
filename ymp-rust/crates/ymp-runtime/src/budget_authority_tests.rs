@@ -39,6 +39,7 @@ impl BudgetAuthorityFixture {
     }
     fn pair(&self, agent: usize) -> (AssignmentRecord, InvocationRecord) {
         let assignment = AssignmentRecord {
+            agent_identity: None,
             id: new_id(), session_id: self.session.id.clone(), task: None,
             agent_id: self.session.team[agent].id.clone(), agent_config_version: "fixture".into(),
             provider_id: "mock".into(), purpose: "plan".into(), reason: "Bounded joint fixture".into(),

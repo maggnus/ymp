@@ -54,9 +54,12 @@ export function modelCatalog(models: ModelInfo[]): unknown {
     const controls = m.supportedEffortLevels
       ? (m.supportedEffortLevels.length ? [{ id: "effort", values: { kind: "choices", options: m.supportedEffortLevels } }] : [])
       : m.supportsEffort === false ? [] : null;
-    for (const id of [m.value, m.resolvedModel]) {
-      if (id) entries.set(id, { id, controls });
-    }
+    entries.set(m.value, {
+      id: m.value,
+      ...(m.displayName?.trim() ? { display_name: m.displayName } : {}),
+      ...(m.resolvedModel ? { resolved_model: m.resolvedModel } : {}),
+      controls,
+    });
   }
   return {
     source: { kind: "native_metadata", method: "Claude Query.supportedModels()", observed_at: new Date().toISOString() },

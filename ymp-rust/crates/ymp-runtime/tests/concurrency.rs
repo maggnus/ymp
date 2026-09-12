@@ -546,6 +546,10 @@ async fn independent_probe_two_failed_siblings_keep_eligible_review_reachable() 
         ProviderCapabilities {
             models_complete: true,
             models: vec![ModelCapabilities {
+                picker_id: None,
+                display_name: None,
+                aliases: vec![],
+                resolved_model: None,
                 id: "available".into(),
                 controls: None,
             }],

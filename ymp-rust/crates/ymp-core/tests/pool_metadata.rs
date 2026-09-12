@@ -51,10 +51,18 @@ fn configured_native_controls_round_trip_with_exact_types_and_unknowns() {
     let version = config.agents[0].version(&config.providers[0]);
     let mut capabilities = catalog();
     capabilities.models.push(ModelCapabilities {
+        picker_id: None,
+        display_name: None,
+        aliases: vec![],
+        resolved_model: None,
         id: "controls-unknown".into(),
         controls: None,
     });
     capabilities.models.push(ModelCapabilities {
+        picker_id: None,
+        display_name: None,
+        aliases: vec![],
+        resolved_model: None,
         id: "no-controls".into(),
         controls: Some(vec![]),
     });
