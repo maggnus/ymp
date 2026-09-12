@@ -1,0 +1,25 @@
+{
+  "scope": "Current-main replay of the accepted independently implemented confirmation checker; original workload and assertions retained.",
+  "source": "2c6bbab9dfb03ceb3a2eb90cb43a9ad69404dc50",
+  "source_reference": "/var/folders/cw/7pn8sb3x6bj69g7j2d8f_ss00000gn/T/ymp-117-review-probes-j4afrbna/src/lib.rs",
+  "probe": "/tmp/ymp-checker-current-_pwuyjxc",
+  "fixture_adaptations": [
+    "Add defaults for additive Config and Limits fields",
+    "Set optional knowledge_correction to None",
+    "Select the original DifferentChecker and its four-mode test; omit unrelated historical tests"
+  ],
+  "checks": {
+    "raw_success": "one qualified observation",
+    "unknown_exit": "no qualified observation or confirmed acceptance",
+    "mutated_input": "no qualified observation or confirmed acceptance",
+    "mutated_artifact": "no qualified observation or confirmed acceptance"
+  },
+  "files": {
+    "/tmp/ymp-checker-current-_pwuyjxc/Cargo.toml": "e813c30deb80e51554146a6e780ae2f562c5050906b9551fa1fa94e36eea6cb2",
+    "/tmp/ymp-checker-current-_pwuyjxc/Cargo.lock": "2aa43620dcb4dd4e6e4675883952ddbec5de57a9cd1c96fce19f364b86acd3b8",
+    "/tmp/ymp-checker-current-_pwuyjxc/src/lib.rs": "0adb00cc79ab3d18695fa35a7a1f8943836da8b21f8696084172b9a626094313",
+    "/tmp/ymp-checker-current-_pwuyjxc/check.log": "f4440eec13d98e0f575b331a9322948690ab44ca4f580aadc83e01cfa73766d4"
+  },
+  "native_inference_calls": 0,
+  "exit": 0
+}

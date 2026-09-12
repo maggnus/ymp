@@ -1,6 +1,6 @@
 # Task details and evidence
 
-Updated: 2026-09-12 21:24 UTC.
+Updated: 2026-09-12 22:27 UTC.
 
 Use the [delivery plan](plan.md) to follow progress. This generated register contains full acceptance criteria, dependencies and evidence. [tasks.json](tasks.json) is the single source; [manage.py](manage.py) updates both pages.
 
@@ -46,9 +46,9 @@ A planned task is not implemented functionality. Completed research and planning
 | `[=]` | [YMP-301](#ymp-301) | P2 | Confirm the initial success class and intended audience | 2026-09-12 09:35 |
 | `[x]` | [YMP-109](#ymp-109) | P0 | Expose the provider-backed agent pool with stable individual identities | 2026-09-12 10:56 |
 | `[x]` | [YMP-110](#ymp-110) | P0 | Select session teams and execution settings within user constraints | 2026-09-12 20:43 |
-| `[~]` | [YMP-112](#ymp-112) | P0 | Coordinate commitments, plan revisions and reassignment through the board | 2026-09-12 21:14 |
+| `[~]` | [YMP-112](#ymp-112) | P0 | Coordinate commitments, plan revisions and reassignment through the board | 2026-09-12 22:27 |
 | `[x]` | [YMP-113](#ymp-113) | P0 | Accumulate general knowledge and verified experience incrementally | 2026-09-12 20:43 |
-| `[~]` | [YMP-114](#ymp-114) | P0 | Correct and supersede knowledge with newer verified evidence | 2026-09-12 20:12 |
+| `[~]` | [YMP-114](#ymp-114) | P0 | Correct and supersede knowledge with newer verified evidence | 2026-09-12 22:27 |
 | `[x]` | [YMP-009](#ymp-009) | P0 | Align the product definition, research conclusions and backlog with final intent | 2026-09-12 09:15 |
 | `[x]` | [YMP-115](#ymp-115) | P0 | Enable useful concurrent execution of independent assignments | 2026-09-12 17:00 |
 | `[x]` | [YMP-010](#ymp-010) | P0 | Approve product goals and core protocol constraints | 2026-09-12 09:06 |
@@ -65,7 +65,7 @@ A planned task is not implemented functionality. Completed research and planning
 | `[x]` | [YMP-123](#ymp-123) | P1 | Expose a public local MCP facade over stdio | 2026-09-12 18:22 |
 | `[=]` | [YMP-124](#ymp-124) | P1 | Add isolated execution and recoverable publication for larger projects | 2026-09-12 15:31 |
 | `[x]` | [YMP-125](#ymp-125) | P0 | Expose trusted acceptance contracts to executable users | 2026-09-12 17:54 |
-| `[~]` | [YMP-126](#ymp-126) | P1 | Execute universal acceptance scenarios through a trusted runtime driver | 2026-09-12 21:07 |
+| `[~]` | [YMP-126](#ymp-126) | P1 | Execute universal acceptance scenarios through a trusted runtime driver | 2026-09-12 22:27 |
 | `[x]` | [YMP-127](#ymp-127) | P0 | Build and display the agent pool from provider-returned native names | 2026-09-12 20:43 |
 | `[x]` | [YMP-128](#ymp-128) | P1 | Support internal team transport with long metadata paths | 2026-09-12 21:24 |
 
@@ -851,9 +851,9 @@ Coordinate commitments, plan revisions and reassignment through the board
 
 **State:** `[~]` (in_progress) · **Type:** implementation · **Priority:** P0
 
-**Last update (UTC):** 2026-09-12 21:14
+**Last update (UTC):** 2026-09-12 22:27
 
-**Current reason:** Opus f4ad62c closes all minor native-interface findings and is independently accepted in R3: labels match all seven tools, and the captured-name regression now fails under the previously surviving mutation. It is included in the checked128 composition for integration. Full existing-page board views continue with114; no native inference.
+**Current reason:** Independent Opus review accepts completed board/knowledge compositionf6b58fa (9/10), including actual terminal walks and5 discriminating controls. Accepted views are integrated; main checks run with accepted runtime reservations. Two local follow-ups remain before closure: use the actual board/correction outcome in decision list rows, and expose declared contract input/source-replacement paths. Opus also adds visibility for new captured budget fields. The stopped Paseo daemon was authoritatively diagnosed and restarted; the same author session resumed.
 
 **Owner:** Maintainer; application UI by Claude Code claude-opus-5 with thinking max via Paseo
 
@@ -884,6 +884,7 @@ Required directly by the final product intent; design and implementation are pen
 - [Domain terminology](../product/entities.md)
 - [Delivery plan](plan.md)
 - [Replaceable subsystem contracts](../architecture/subsystem-interfaces.md)
+- [Independent board and knowledge UI review](../../ymp-evals/reports/board-knowledge-ui-independent-review.md)
 
 ## YMP-113
 
@@ -928,9 +929,9 @@ Correct and supersede knowledge with newer verified evidence
 
 **State:** `[~]` (in_progress) · **Type:** implementation · **Priority:** P0
 
-**Last update (UTC):** 2026-09-12 20:12
+**Last update (UTC):** 2026-09-12 22:27
 
-**Current reason:** Correction/board/native composition0e8059e accepted by parent (9/10) and integrated asb249195. Main exactly matches reviewed source; fmt/clippy327workspace/build pass. Evidence-bound correction and later scoped retrieval are implemented. Delegated Opus current/superseded knowledge view remains.
+**Current reason:** Current/superseded knowledge views and real95-to60 terminal walkthrough independently accepted by Opus (9/10), now integrated with board views. Both sides retain acceptance, result and policy links. Final local UI correction must show declared input and old/new source paths in the captured contract; author is completing it with the other bounded UI follow-ups.
 
 **Owner:** Maintainer; application UI by Claude Code claude-opus-5 with thinking max via Paseo
 
@@ -956,6 +957,7 @@ Required directly by the final product intent; design and implementation are pen
 - [Agent and decision contract](../adr/0002-agent-identity-and-reasoning.md)
 - [Delivery plan](plan.md)
 - [Replaceable subsystem contracts](../architecture/subsystem-interfaces.md)
+- [Independent board and knowledge UI review](../../ymp-evals/reports/board-knowledge-ui-independent-review.md)
 
 ## YMP-009
 
@@ -1523,9 +1525,9 @@ Execute universal acceptance scenarios through a trusted runtime driver
 
 **State:** `[~]` (in_progress) · **Type:** implementation · **Priority:** P1
 
-**Last update (UTC):** 2026-09-12 21:07
+**Last update (UTC):** 2026-09-12 22:27
 
-**Current reason:** Driver preparation now passes11 of17 cases, including fixed roster, and accepted main897b4eb is composed as812b101. Independent runtime-delta review requests changes (7/10): a caller can understate context size and execute an oversized prompt; a second process can reserve conflicting work despite the project lock. Both exact public controls fail as expected, while3 storage and4 existing public tests pass. The unaccepted delta remains outside main; author is correcting both enforced boundaries before resubmission.
+**Current reason:** One-build all17 bundle passed at /tmp/ymp126-all-first-20260912. Driver source now incorporates accepted main as a8493ac for final checks and evidence regeneration. Runtime R2 and exporter corrections are independently accepted; captured Stop/BoundedNative policy and actual two-process restart remain under independent review. DefaultStop is preserved; bounded mode never hides partial accounting, disables the100 reported ceiling or erases prior spend.
 
 **Owner:** Maintainer and delegated xhigh implementation/review agents
 
