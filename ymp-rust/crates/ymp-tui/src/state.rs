@@ -1386,7 +1386,7 @@ impl App {
                     field: Field::new(self.memory_query.clone()),
                 });
             }
-            (View::Memory, KeyCode::Char('f')) => {
+            (View::Memory, KeyCode::Char('f')) if item.key != crate::views::ABOUT_KEY => {
                 self.overlay = Some(Overlay::Confirm {
                     question: format!(
                         "Retire memory entry {}? It stops informing future runs.",

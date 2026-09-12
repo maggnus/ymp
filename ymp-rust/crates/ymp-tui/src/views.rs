@@ -18,12 +18,12 @@ use ratatui::text::{Line, Span};
 use std::path::Path;
 use ymp_core::{
     AgentIdentity, AgentIdentityStatus, AgentProfile, AllocationBoundary, AllocationDecision,
-    AssignmentRecord, CapabilitySource, CheckOutcome, CheckRun, Config, ConfirmationStatus,
-    DecisionRecord, ExecutionSettings, GrantRecord, InvocationRecord, InvocationState,
-    KnowledgeRetrievalMode, Limits, MemoryEntry, ModelCapabilities, ModelEffort, NativeControl,
-    NativeControlValue, NativeControlValues, PoolAgent, PoolExclusion, PoolModelStatus,
-    ProviderCapabilities, Session, SessionBudget, Task, TaskAccess, TaskState, UsageTotals,
-    WorkspaceAccess, WorkspaceWait,
+    AssignmentRecord, BoardChange, BoardCommitment, BoardProposal, BoardProposalStatus,
+    CapabilitySource, CheckOutcome, CheckRun, Config, ConfirmationStatus, DecisionRecord,
+    ExecutionSettings, GrantRecord, InvocationRecord, InvocationState, KnowledgeRetrievalMode,
+    Limits, MemoryEntry, ModelCapabilities, ModelEffort, NativeControl, NativeControlValue,
+    NativeControlValues, PoolAgent, PoolExclusion, PoolModelStatus, ProviderCapabilities, Session,
+    SessionBudget, Task, TaskAccess, TaskState, UsageTotals, WorkspaceAccess, WorkspaceWait,
 };
 use ymp_storage::Store;
 use ymp_workspace::repository::Repository;
@@ -469,7 +469,18 @@ fn tasks(ctx: &Ctx) -> Page {
                     ctx.width,
                 ));
             }
-            for (_, wait) in ctx.records.waits_for_task(&task.id) {
+            detail.extend(board_task_lines(ctx, &task.id));
+            let deferred = ctx
+                .records
+                .deferrals_for_task(&task.id)
+                .into_iter()
+                .map(|(decision, _)| decision.id.clone())
+                .collect::<Vec<_>>();
+            for (decision, wait) in ctx.records.waits_for_task(&task.id) {
+                // A deferral is a wait too, and it is already named above as what was put off.
+                if deferred.contains(&decision.id) {
+                    continue;
+                }
                 detail.extend(field(theme, "waited", &wait_words(wait), ctx.width));
             }
             if task.interrupted {
@@ -512,11 +523,15 @@ fn tasks(ctx: &Ctx) -> Page {
                         None => theme.muted(),
                     },
                 ),
-                Span::styled(assignee, theme.faint()),
+                Span::styled(
+                    responsibility_or_assignee(ctx, task, &assignee),
+                    theme.faint(),
+                ),
             ])
             .with_detail(detail)
         })
         .collect::<Vec<_>>();
+    let items = board_items(ctx, items);
     let accepted = ctx
         .tasks
         .iter()
@@ -528,7 +543,15 @@ fn tasks(ctx: &Ctx) -> Page {
         subtitle: if ctx.tasks.is_empty() {
             "No task graph for this session".into()
         } else {
-            format!("{accepted} of {} accepted", ctx.tasks.len())
+            let pending = ctx.records.pending_proposals();
+            match pending {
+                0 => format!("{accepted} of {} accepted", ctx.tasks.len()),
+                1 => format!("{accepted} of {} accepted · 1 proposal waiting", ctx.tasks.len()),
+                many => format!(
+                    "{accepted} of {} accepted · {many} proposals waiting",
+                    ctx.tasks.len()
+                ),
+            }
         },
         items,
         empty: nothing(
@@ -1990,6 +2013,20 @@ fn member_row(ctx: &Ctx, profile: &AgentProfile) -> Item {
         &turns.to_string(),
         ctx.width,
     ));
+    detail.extend(field(
+        theme,
+        "responsible for",
+        &match ctx.records.commitment_of(&profile.id) {
+            Some((entry, commitment)) => format!(
+                "{} · {} · committed by proposal {}",
+                entry.task.title,
+                settings_words(&commitment.settings),
+                text::short_id(&commitment.proposal_id)
+            ),
+            None => "no task on the plan is committed to this member".to_owned(),
+        },
+        ctx.width,
+    ));
     let (source, fixed) = pinned(ctx, &profile.id);
     detail.extend(field(theme, "fixed", &pin_words(&fixed, source), ctx.width));
     detail.extend(field(
@@ -2669,6 +2706,12 @@ const MEMORY_BASIS: &str = "An entry is either a projection of a result this pro
      the entry was written before provenance was recorded at all. The text of an entry is not \
      evidence for itself, whatever it claims.";
 
+const WHAT_RETAINED_KNOWLEDGE_IS: &[&str] = &[
+    "Every entry this project retained is listed, with the standing the store gives it now. Current means the default retrieval of a run accepts it under the conditions in force here. Everything else is readable and is not offered to a run.",
+    "A correction does not delete what it corrects. An accepted correction marks the old entry superseded, names the replacement on it, and both stay here with their own evidence, so a reader can see what changed and on what basis.",
+    "A correction is only accepted where a trusted contract named the criteria for it and the evidence for those criteria passed. The contract, the acceptance and the policy that applied it are all named on the entry.",
+];
+
 const MEMORY_SUPPORT: &str = "Only supported entries are given to a run as context. That \
      question is decided when a run assembles a prompt, by re-reading the source record, so an \
      entry recorded as confirmed stops being offered once the task, the files or the criteria \
@@ -2678,6 +2721,12 @@ const MEMORY_SUPPORT: &str = "Only supported entries are given to a run as conte
 fn memory(ctx: &Ctx) -> anyhow::Result<Page> {
     let theme = ctx.theme;
     let project = ctx.store.project(ctx.cwd)?;
+    // The scope a lookup is answered under. It is configuration, so an entry that applies only
+    // elsewhere is not current here, and the page says which scope it read under.
+    let scope = &ctx.config.knowledge_scope;
+    // Every entry's current standing, the correction that touched it and what replaced it, as
+    // the store answers it. The page presents that answer and adds no judgement of its own.
+    let inspected = ctx.store.inspect_knowledge(Some(&project.id), scope)?;
     // Browsing lists every entry with its own label. Whether an entry would be given to a
     // run is a separate question, and the store answers it here rather than the page: the
     // supported set is exactly what the default retrieval of a run would accept.
@@ -2687,7 +2736,7 @@ fn memory(ctx: &Ctx) -> anyhow::Result<Page> {
         ctx.store.search_memory(
             Some(&project.id),
             ctx.memory_query,
-            &Default::default(),
+            scope,
             KnowledgeRetrievalMode::IncludeUnconfirmed,
         )?
     };
@@ -2696,102 +2745,120 @@ fn memory(ctx: &Ctx) -> anyhow::Result<Page> {
         .search_memory(
             Some(&project.id),
             ctx.memory_query,
-            &Default::default(),
+            scope,
             KnowledgeRetrievalMode::Supported,
         )?
         .into_iter()
         .map(|entry| entry.id)
         .collect();
-    let items = entries
-        .iter()
-        .map(|entry| {
-            let scope = if entry.project_id.is_some() {
-                "project"
-            } else {
-                "global"
-            };
-            let offered = supported.contains(&entry.id);
-            let mut detail = field(theme, "entry", &entry.id, ctx.width);
-            detail.extend(field(theme, "scope", scope, ctx.width));
-            detail.extend(field(theme, "kind", &entry.kind, ctx.width));
-            detail.extend(field(theme, "status", &entry.status, ctx.width));
-            detail.extend(knowledge_basis(ctx, entry, offered));
-            detail.extend(field(theme, "author", &entry.author, ctx.width));
-            detail.extend(field(
-                theme,
-                "reviewer",
-                entry
-                    .reviewer
-                    .as_deref()
-                    .unwrap_or("none recorded; this entry is a candidate"),
-                ctx.width,
-            ));
-            detail.extend(field(
-                theme,
-                "from session",
-                if entry.source_session.is_empty() {
-                    "not recorded"
+    let mut items = vec![about_row(
+        ctx,
+        ABOUT_KEY,
+        "What current, superseded and corrected mean here",
+        WHAT_RETAINED_KNOWLEDGE_IS,
+    )];
+    items.extend(
+        entries
+            .iter()
+            .map(|entry| {
+                let scope_name = if entry.project_id.is_some() {
+                    "project"
                 } else {
-                    &entry.source_session
-                },
-                ctx.width,
-            ));
-            detail.extend(field(
-                theme,
-                "supersedes",
-                &entry
-                    .supersedes
-                    .as_deref()
-                    .map(text::short_id)
-                    .unwrap_or_else(|| "nothing".to_owned()),
-                ctx.width,
-            ));
-            detail.extend(field(theme, "recorded", &entry.created_at, ctx.width));
-            detail.push(Line::default());
-            detail.extend(paragraph(theme, MEMORY_BASIS, ctx.width));
-            detail.push(Line::default());
-            detail.extend(paragraph(theme, MEMORY_SUPPORT, ctx.width));
-            detail.push(Line::default());
-            detail.extend(text::markdown(
-                &entry.content,
-                ctx.width,
-                theme,
-                theme.body(),
-            ));
-            let (state, style) = entry_state(ctx, entry, offered);
-            Item::row(
-                entry.id.clone(),
-                vec![Span::styled(entry.title.clone(), theme.text())],
-            )
-            .with_right(vec![
-                Span::styled(format!("{state}  "), style),
-                Span::styled(
-                    scope.to_owned(),
-                    if scope == "global" {
-                        theme.accent()
+                    "global"
+                };
+                let offered = supported.contains(&entry.id);
+                let standing = inspected.iter().find(|item| item.id == entry.id);
+                // The standing and the basis come first: at the smallest size only a few lines of
+                // a record are on the page at once, and what a reader needs there is whether this
+                // entry still stands and on what evidence. Enter opens the whole of it.
+                let mut detail = knowledge_standing_lines(ctx, standing, &inspected);
+                detail.extend(knowledge_basis(ctx, entry, offered));
+                detail.extend(field(theme, "entry", &entry.id, ctx.width));
+                detail.extend(field(theme, "kind", &entry.kind, ctx.width));
+                detail.extend(field(theme, "status", &entry.status, ctx.width));
+                detail.extend(field(theme, "scope", scope_name, ctx.width));
+                detail.extend(field(
+                    theme,
+                    "read under",
+                    &knowledge_scope_words(ctx),
+                    ctx.width,
+                ));
+                detail.extend(field(theme, "author", &entry.author, ctx.width));
+                detail.extend(field(
+                    theme,
+                    "reviewer",
+                    entry
+                        .reviewer
+                        .as_deref()
+                        .unwrap_or("none recorded; this entry is a candidate"),
+                    ctx.width,
+                ));
+                detail.extend(field(
+                    theme,
+                    "from session",
+                    if entry.source_session.is_empty() {
+                        "not recorded"
                     } else {
-                        theme.faint()
+                        &entry.source_session
                     },
-                ),
-            ])
-            .with_detail(detail)
-        })
-        .collect::<Vec<_>>();
+                    ctx.width,
+                ));
+                detail.extend(field(theme, "recorded", &entry.created_at, ctx.width));
+                detail.push(Line::default());
+                detail.extend(paragraph(theme, MEMORY_BASIS, ctx.width));
+                detail.push(Line::default());
+                detail.extend(paragraph(theme, MEMORY_SUPPORT, ctx.width));
+                detail.push(Line::default());
+                detail.extend(text::markdown(
+                    &entry.content,
+                    ctx.width,
+                    theme,
+                    theme.body(),
+                ));
+                let (state, style) = entry_state(ctx, entry, standing, offered);
+                Item::row(
+                    entry.id.clone(),
+                    vec![Span::styled(entry.title.clone(), theme.text())],
+                )
+                .with_right(vec![
+                    Span::styled(format!("{state}  "), style),
+                    Span::styled(
+                        scope_name.to_owned(),
+                        if scope_name == "global" {
+                            theme.accent()
+                        } else {
+                            theme.faint()
+                        },
+                    ),
+                ])
+                .with_detail(detail)
+            })
+            .collect::<Vec<_>>(),
+    );
+    if entries.is_empty() {
+        items.clear();
+    }
     Ok(Page {
         view: View::Memory,
         title: View::Memory.title().into(),
-        subtitle: if ctx.memory_query.is_empty() {
-            format!(
-                "{} recorded · {} supported as context",
-                entries.len(),
-                supported.len()
-            )
-        } else {
-            format!(
-                "Matching \"{}\" · {} supported as context",
-                ctx.memory_query,
-                supported.len()
-            )
+        subtitle: {
+            let current = inspected
+                .iter()
+                .filter(|item| item.availability == ymp_core::KnowledgeAvailability::Available)
+                .count();
+            if ctx.memory_query.is_empty() {
+                format!(
+                    "{} recorded · {current} current · {} supported as context",
+                    entries.len(),
+                    supported.len()
+                )
+            } else {
+                format!(
+                    "Matching \"{}\" · {current} current of {} recorded",
+                    ctx.memory_query,
+                    inspected.len()
+                )
+            }
         },
         items,
         empty: {
@@ -2816,12 +2883,181 @@ fn memory(ctx: &Ctx) -> anyhow::Result<Page> {
     })
 }
 
+/// The word for one entry's current standing, and the colour that repeats it.
+///
+/// The store answers this question; the page only puts it into words. Nothing here upgrades an
+/// entry: an entry that is not current says which of the reasons applies to it.
+fn availability_words(availability: &ymp_core::KnowledgeAvailability) -> &'static str {
+    use ymp_core::KnowledgeAvailability::*;
+    match availability {
+        Available => "current",
+        Superseded => "superseded",
+        Retired => "retired",
+        Rejected => "rejected",
+        PendingCorrection => "correction proposed",
+        ScopeMismatch => "other scope",
+        Unconfirmed => "unconfirmed",
+        SourceVersionChanged => "source changed",
+        SourceUnavailable => "source unavailable",
+    }
+}
+
+/// The same standing as a sentence: what it means for a run that looks this up.
+fn availability_sentence(availability: &ymp_core::KnowledgeAvailability) -> &'static str {
+    use ymp_core::KnowledgeAvailability::*;
+    match availability {
+        Available => "current: the default retrieval of a run accepts this entry in this scope.",
+        Superseded => "superseded: an accepted correction replaced this entry. It is kept so the correction has a predecessor to point at, and it is not offered to a run.",
+        Retired => "retired: this entry was withdrawn. It is kept and never offered.",
+        Rejected => "rejected: this entry was refused when it was reviewed, so it was never support for anything.",
+        PendingCorrection => "a correction to this entry was proposed and has not been committed. Until the runtime commits it, this entry is still the proposed one and not support.",
+        ScopeMismatch => "recorded for other conditions than the ones in force here. Applicability is matched exactly, and a condition this scope does not name does not match.",
+        Unconfirmed => "no passing evidence is attached to the acceptance it names, so it is context and not a confirmed finding.",
+        SourceVersionChanged => "the result it was retained against has moved on, so what it says can no longer be re-read from that result.",
+        SourceUnavailable => "the default retrieval does not accept it, and the reason is not one of the ones above. What it records is readable here and is not support.",
+    }
+}
+
+/// What the store says about one entry now: its standing, what replaced it, what it replaced,
+/// and the correction that did it with the evidence that correction was bound to.
+fn knowledge_standing_lines(
+    ctx: &Ctx,
+    standing: Option<&ymp_core::KnowledgeInspection>,
+    all: &[ymp_core::KnowledgeInspection],
+) -> Vec<Line<'static>> {
+    let theme = ctx.theme;
+    let Some(standing) = standing else {
+        return field(
+            theme,
+            "standing",
+            "not read for this project, so its current standing is unknown here",
+            ctx.width,
+        );
+    };
+    let title_of = |id: &str| {
+        all.iter()
+            .find(|item| item.id == id)
+            .map(|item| format!("{} ({})", item.entry.title, text::short_id(id)))
+            .unwrap_or_else(|| text::short_id(id))
+    };
+    let mut lines = field(
+        theme,
+        "standing",
+        availability_sentence(&standing.availability),
+        ctx.width,
+    );
+    lines.extend(field(
+        theme,
+        "version",
+        &format!(
+            "{} · the stored lifecycle and content version of this entry",
+            text::short_id(&standing.version)
+        ),
+        ctx.width,
+    ));
+    lines.extend(field(
+        theme,
+        "replaced by",
+        &match &standing.replaced_by {
+            Some(id) => title_of(id),
+            None => "nothing; no accepted correction replaced this entry".to_owned(),
+        },
+        ctx.width,
+    ));
+    lines.extend(field(
+        theme,
+        "replaces",
+        &match &standing.entry.supersedes {
+            Some(id) => title_of(id),
+            None => "nothing; this entry is not a replacement".to_owned(),
+        },
+        ctx.width,
+    ));
+    if let Some(correction) = &standing.correction {
+        let side = if correction.target.id == standing.id {
+            "this entry is the one that was corrected"
+        } else {
+            "this entry is the correction"
+        };
+        lines.extend(field(
+            theme,
+            "correction",
+            &format!(
+                "{side} · {} replaced {} at version {}",
+                text::short_id(&correction.replacement_id),
+                text::short_id(&correction.target.id),
+                text::short_id(&correction.target.version)
+            ),
+            ctx.width,
+        ));
+        lines.extend(field(
+            theme,
+            "authorised by",
+            &format!(
+                "acceptance {} under trusted contract {}",
+                text::short_id(&correction.acceptance_id),
+                text::short_id(&correction.contract_id)
+            ),
+            ctx.width,
+        ));
+        lines.extend(field(
+            theme,
+            "corrected by",
+            &format!(
+                "policy {} version {}",
+                correction.policy.id, correction.policy.version
+            ),
+            ctx.width,
+        ));
+    }
+    if standing.availability == ymp_core::KnowledgeAvailability::Superseded
+        && standing.replaced_by.is_some()
+    {
+        lines.extend(paragraph(
+            theme,
+            "Both are kept. A correction does not delete what it corrects, so the predecessor stays readable here with its own evidence and the replacement names it.",
+            ctx.width,
+        ));
+    }
+    lines.push(Line::default());
+    lines
+}
+
+/// The scope the page answered under, named so a reader can tell an absent entry from one that
+/// simply applies elsewhere.
+fn knowledge_scope_words(ctx: &Ctx) -> String {
+    if ctx.config.knowledge_scope.is_empty() {
+        return "no conditions are configured, so only entries recorded without conditions of their own can be current".to_owned();
+    }
+    ctx.config
+        .knowledge_scope
+        .iter()
+        .map(|(key, value)| format!("{key} is {value}"))
+        .collect::<Vec<_>>()
+        .join(", ")
+}
+
 /// The word for one entry's standing, which never upgrades a candidate into a fact.
 ///
 /// Being offered as context is the store's answer, not a reading of the text: an entry whose
 /// source moved on is recorded as confirmed and is no longer supported, and both are said.
-fn entry_state(ctx: &Ctx, entry: &MemoryEntry, offered: bool) -> (String, Style) {
+fn entry_state(
+    ctx: &Ctx,
+    entry: &MemoryEntry,
+    standing: Option<&ymp_core::KnowledgeInspection>,
+    offered: bool,
+) -> (String, Style) {
     let theme = ctx.theme;
+    if let Some(standing) = standing {
+        use ymp_core::KnowledgeAvailability::*;
+        let style = match standing.availability {
+            Available => theme.good(),
+            Superseded | Retired => theme.faint(),
+            Rejected => theme.bad(),
+            _ => theme.warn(),
+        };
+        return (availability_words(&standing.availability).to_owned(), style);
+    }
     if entry.status == "retired" {
         return ("retired".to_owned(), theme.faint());
     }
@@ -3799,11 +4035,430 @@ fn access_paths(theme: &Theme, access: &WorkspaceAccess, width: usize) -> Vec<Li
     lines
 }
 
+// ---------------------------------------------------------------------------
+// The shared plan
+// ---------------------------------------------------------------------------
+
+/// The title a proposal's target task carries, from the plan the snapshot holds.
+///
+/// A proposal names a task by id and by the version it was made against, so the title is read
+/// from the plan and never from the proposal: a title the proposal carried could have changed.
+fn board_task_title(ctx: &Ctx, task_id: &str) -> String {
+    ctx.records
+        .board_task(task_id)
+        .map(|entry| entry.task.title.clone())
+        .or_else(|| {
+            ctx.tasks
+                .iter()
+                .find(|task| task.id == task_id)
+                .map(|task| task.title.clone())
+        })
+        .unwrap_or_else(|| text::short_id(task_id))
+}
+
+/// The settings a proposal asks a turn to run with, as the proposal carries them.
+///
+/// An absent value is absent: the runtime resolves it at admission from the actor's own policy,
+/// and naming a default here would claim the proposal said something it did not.
+fn settings_words(settings: &ymp_core::ModelEffort) -> String {
+    match (&settings.model, &settings.effort) {
+        (Some(model), Some(effort)) => format!("{model} at {effort}"),
+        (Some(model), None) => format!("{model}, effort not named"),
+        (None, Some(effort)) => format!("effort {effort}, model not named"),
+        (None, None) => "neither model nor effort was named".to_owned(),
+    }
+}
+
+/// What one proposal asks for, in a few words for a row and a sentence for a record.
+fn board_change_words(ctx: &Ctx, proposal: &BoardProposal) -> (String, String) {
+    let author = presented_name(ctx, &proposal.agent_id);
+    match &proposal.change {
+        BoardChange::AcceptResponsibility { task, settings } => {
+            let title = board_task_title(ctx, &task.task_id);
+            (
+                format!("take on {title}"),
+                format!(
+                    "{author} asks to be the agent responsible for {title}, running {}",
+                    settings_words(settings)
+                ),
+            )
+        }
+        BoardChange::Assign {
+            task,
+            agent_id,
+            settings,
+        } => {
+            let title = board_task_title(ctx, &task.task_id);
+            let holder = presented_name(ctx, agent_id);
+            (
+                format!("give {title} to {holder}"),
+                format!(
+                    "{author} asks that {holder} be responsible for {title}, running {}",
+                    settings_words(settings)
+                ),
+            )
+        }
+        BoardChange::Revise {
+            task,
+            approach,
+            dependencies,
+            checks,
+        } => {
+            let title = board_task_title(ctx, &task.task_id);
+            let mut adds = Vec::new();
+            if !dependencies.is_empty() {
+                adds.push(format!("{} dependency(ies)", dependencies.len()));
+            }
+            if !checks.is_empty() {
+                adds.push(format!("{} check(s)", checks.len()));
+            }
+            let additions = if adds.is_empty() {
+                "no dependency or check".to_owned()
+            } else {
+                adds.join(" and ")
+            };
+            (
+                format!("revise {title}"),
+                format!(
+                    "{author} asks to add an approach to {title}, with {additions}. A revision may only add: the objectives, checks, dependencies and authority the task already carries cannot be removed. The approach reads: {}",
+                    text::one_line(approach)
+                ),
+            )
+        }
+        BoardChange::AddTask {
+            title,
+            competence,
+            difficulty,
+            access,
+            dependencies,
+            checks,
+            ..
+        } => (
+            format!("add {title}"),
+            format!(
+                "{author} asks to add a task called {title}: {competence} work of {difficulty} difficulty, declaring {}, with {} dependency(ies) and {} check(s)",
+                declared_access_words(*access),
+                dependencies.len(),
+                checks.len()
+            ),
+        ),
+        BoardChange::Membership { members } => {
+            let names = members
+                .iter()
+                .map(|id| presented_name(ctx, id))
+                .collect::<Vec<_>>();
+            (
+                "change who is in the team".to_owned(),
+                format!(
+                    "{author} asks that the session's members be {}",
+                    if names.is_empty() {
+                        "nobody".to_owned()
+                    } else {
+                        names.join(", ")
+                    }
+                ),
+            )
+        }
+    }
+}
+
+/// The outcome of one proposal, from the decision the runtime wrote for it.
+///
+/// The decision is the authority. A proposal's own stored status is written in the same
+/// transaction, so the two agree, but only the decision carries why, and a proposal no decision
+/// answers is still waiting rather than refused.
+fn proposal_outcome(ctx: &Ctx, proposal: &BoardProposal) -> (String, Style) {
+    let theme = ctx.theme;
+    match ctx.records.board_decision(&proposal.id) {
+        Some((_, board)) if board.accepted => ("committed".to_owned(), theme.good()),
+        Some((_, _)) => ("rejected".to_owned(), theme.bad()),
+        None => match proposal.status {
+            BoardProposalStatus::Pending => ("proposed".to_owned(), theme.info()),
+            // The status moved without a decision this session can read, which is a statement
+            // about what was read and not about what the runtime decided.
+            BoardProposalStatus::Committed => {
+                ("committed, reason not read".to_owned(), theme.warn())
+            }
+            BoardProposalStatus::Rejected => ("rejected, reason not read".to_owned(), theme.warn()),
+        },
+    }
+}
+
+/// One proposal as a row: what it asks, what became of it, and everything behind both.
+fn proposal_row(ctx: &Ctx, proposal: &BoardProposal) -> Item {
+    let theme = ctx.theme;
+    let (short, sentence) = board_change_words(ctx, proposal);
+    let (outcome, style) = proposal_outcome(ctx, proposal);
+    let mut detail = field(theme, "proposal", &proposal.id, ctx.width);
+    detail.extend(field(
+        theme,
+        "asked by",
+        &presented_name(ctx, &proposal.agent_id),
+        ctx.width,
+    ));
+    detail.extend(field(theme, "outcome", &outcome, ctx.width));
+    detail.extend(field(
+        theme,
+        "from turn",
+        &format!(
+            "assignment {} · invocation {} · under grant {}",
+            text::short_id(&proposal.assignment_id),
+            text::short_id(&proposal.invocation_id),
+            text::short_id(&proposal.grant_id)
+        ),
+        ctx.width,
+    ));
+    detail.extend(field(
+        theme,
+        "against plan",
+        &format!(
+            "{} · {}",
+            text::short_id(&proposal.plan_version),
+            match ctx.records.plan_version() {
+                Some(current) if current == proposal.plan_version =>
+                    "the plan as it stands now".to_owned(),
+                Some(current) => format!("the plan is now {}", text::short_id(current)),
+                None => "the plan could not be read here".to_owned(),
+            }
+        ),
+        ctx.width,
+    ));
+    detail.extend(field(
+        theme,
+        "membership",
+        &format!(
+            "{} · a proposal made against other membership cannot be committed",
+            text::short_id(&proposal.team_version)
+        ),
+        ctx.width,
+    ));
+    detail.extend(field(theme, "recorded", &proposal.created_at, ctx.width));
+    detail.push(Line::default());
+    detail.extend(paragraph(theme, &sentence, ctx.width));
+    detail.push(Line::default());
+    detail.push(Line::from(Span::styled(
+        "Why it was asked for".to_owned(),
+        theme.muted(),
+    )));
+    detail.extend(paragraph(theme, &proposal.rationale, ctx.width));
+    detail.push(Line::default());
+    detail.push(Line::from(Span::styled(
+        "What the runtime decided".to_owned(),
+        theme.muted(),
+    )));
+    detail.extend(board_decision_lines(ctx, proposal));
+    Item::row(
+        proposal.id.clone(),
+        vec![
+            Span::styled(format!("{} ", theme.markers.activity), style),
+            Span::styled(short, theme.text()),
+        ],
+    )
+    .with_right(vec![
+        Span::styled(format!("{outcome}  "), style),
+        Span::styled(presented_name(ctx, &proposal.agent_id), theme.faint()),
+    ])
+    .with_detail(detail)
+}
+
+/// The decision a proposal received, or the fact that it has not received one.
+fn board_decision_lines(ctx: &Ctx, proposal: &BoardProposal) -> Vec<Line<'static>> {
+    let theme = ctx.theme;
+    let Some((decision, board)) = ctx.records.board_decision(&proposal.id) else {
+        return paragraph(
+            theme,
+            match proposal.status {
+                BoardProposalStatus::Pending => "Nothing yet. The runtime answers a proposal at a work boundary, when no turn of this session is running, and writes a decision with its reason either way.",
+                _ => "This session's records carry no decision for this proposal, although its stored status has moved. What the runtime decided, and why, is not readable here.",
+            },
+            ctx.width,
+        );
+    };
+    let mut lines = field(
+        theme,
+        "decided",
+        if board.accepted {
+            "committed · the plan now carries it"
+        } else {
+            "rejected · the plan was not changed"
+        },
+        ctx.width,
+    );
+    lines.extend(field(theme, "recorded", &decision.created_at, ctx.width));
+    lines.extend(field(
+        theme,
+        "decided by",
+        &format!(
+            "{} {} · the runtime, not an agent",
+            board.implementation.id, board.implementation.version
+        ),
+        ctx.width,
+    ));
+    lines.extend(field(
+        theme,
+        "resulting plan",
+        &format!(
+            "{} · {}",
+            text::short_id(&board.resulting_plan_version),
+            if board.accepted {
+                "the version the plan took on"
+            } else {
+                "unchanged by this proposal"
+            }
+        ),
+        ctx.width,
+    ));
+    if let Some(commitment) = &board.commitment {
+        lines.extend(field(
+            theme,
+            "responsibility",
+            &commitment_words(ctx, commitment),
+            ctx.width,
+        ));
+    }
+    lines.push(Line::default());
+    if board.reason == proposal.rationale {
+        lines.extend(paragraph(
+            theme,
+            "The reason it recorded is the one the proposal gave, above.",
+            ctx.width,
+        ));
+    } else {
+        lines.extend(paragraph(theme, &board.reason, ctx.width));
+    }
+    lines
+}
+
+/// Who holds a task and what their turns were committed to run with.
+fn commitment_words(ctx: &Ctx, commitment: &BoardCommitment) -> String {
+    format!(
+        "{} · {} · against task version {}",
+        presented_name(ctx, &commitment.agent_id),
+        settings_words(&commitment.settings),
+        text::short_id(&commitment.task_version)
+    )
+}
+
+/// What the plan records about one task: its version, who holds it, what was put off.
+fn board_task_lines(ctx: &Ctx, task_id: &str) -> Vec<Line<'static>> {
+    let theme = ctx.theme;
+    let Some(entry) = ctx.records.board_task(task_id) else {
+        if let Some(error) = &ctx.records.board_unreadable {
+            return field(
+                theme,
+                "the plan",
+                &format!("could not be read: {}", text::one_line(error)),
+                ctx.width,
+            );
+        }
+        return Vec::new();
+    };
+    let mut lines = field(
+        theme,
+        "task version",
+        &format!(
+            "{} · changes when the task or its commitment changes",
+            text::short_id(&entry.version)
+        ),
+        ctx.width,
+    );
+    lines.extend(field(
+        theme,
+        "responsibility",
+        &match &entry.commitment {
+            Some(commitment) => commitment_words(ctx, commitment),
+            None => {
+                "nobody holds this task; the runtime picks an executor at the next work boundary"
+                    .to_owned()
+            }
+        },
+        ctx.width,
+    ));
+    if let Some(commitment) = &entry.commitment {
+        if let Some(proposal) = ctx
+            .records
+            .proposals()
+            .iter()
+            .find(|proposal| proposal.id == commitment.proposal_id)
+        {
+            lines.extend(field(
+                theme,
+                "committed by",
+                &format!(
+                    "proposal {} from {}",
+                    text::short_id(&proposal.id),
+                    presented_name(ctx, &proposal.agent_id)
+                ),
+                ctx.width,
+            ));
+        }
+    }
+    for (_, wait) in ctx.records.deferrals_for_task(task_id) {
+        lines.extend(field(theme, "put off", &wait_words(wait), ctx.width));
+    }
+    lines
+}
+
+/// Who the plan holds responsible for a task, or who its latest attempt was given to.
+///
+/// These are two different facts and the row says which it has. A commitment is the plan's own
+/// statement about the next turn; an assignee is what an attempt already carried.
+fn responsibility_or_assignee(ctx: &Ctx, task: &Task, assignee: &str) -> String {
+    match ctx
+        .records
+        .board_task(&task.id)
+        .and_then(|entry| entry.commitment.as_ref())
+    {
+        Some(commitment) => presented_name(ctx, &commitment.agent_id),
+        None => assignee.to_owned(),
+    }
+}
+
+/// The plan's own rows, appended under the tasks they are about.
+///
+/// Proposals live on this page because they are changes to this plan and nothing else. A session
+/// whose agents proposed nothing gains no heading, so the page does not grow a section that
+/// explains an absence.
+fn board_items(ctx: &Ctx, mut items: Vec<Item>) -> Vec<Item> {
+    let theme = ctx.theme;
+    let proposals = ctx.records.proposals();
+    if let Some(error) = &ctx.records.board_unreadable {
+        items.push(Item::heading("the plan", theme));
+        items.push(
+            Item::row(
+                "board-unreadable",
+                vec![Span::styled("the plan could not be read".to_owned(), theme.bad())],
+            )
+            .with_right(vec![Span::styled("unavailable".to_owned(), theme.bad())])
+            .with_detail(paragraph(
+                theme,
+                &format!(
+                    "Reading the shared plan failed with: {}. Without it this page cannot say which task is committed to whom, which proposals exist, or what version the plan is at. The tasks above are what the session's own task records say.",
+                    text::one_line(error)
+                ),
+                ctx.width,
+            )),
+        );
+        return items;
+    }
+    if proposals.is_empty() {
+        return items;
+    }
+    items.push(Item::heading("proposals to change this plan", theme));
+    for proposal in proposals {
+        items.push(proposal_row(ctx, proposal));
+    }
+    items
+}
+
 /// A wait the runtime recorded, in its own words, with the code it recorded it under.
 fn wait_words(wait: &WorkspaceWait) -> String {
     let reason = match wait.code.as_str() {
         "resource_conflict" => "another turn held access that conflicts with this one",
         "agent_busy" => "the agent already had an active assignment",
+        "commitment_busy" => {
+            "the agent responsible for it was already working, so it keeps the commitment"
+        }
         "concurrency_limit" => "the run's own ceiling on active turns was occupied",
         "dependencies" => "a task it depends on was not accepted yet",
         _ => "the runtime recorded this code",
@@ -4246,6 +4901,42 @@ fn decision_row(ctx: &Ctx, decision: &DecisionRecord) -> Item {
             ctx.width,
         ));
     }
+    if let Some(board) = decision.links.board.as_deref() {
+        detail.extend(field(
+            theme,
+            "proposal",
+            &format!(
+                "{} · {}",
+                text::short_id(&board.proposal.id),
+                board_change_words(ctx, &board.proposal).0
+            ),
+            ctx.width,
+        ));
+        detail.extend(field(
+            theme,
+            "asked by",
+            &presented_name(ctx, &board.proposal.agent_id),
+            ctx.width,
+        ));
+        detail.extend(field(
+            theme,
+            "plan",
+            &format!(
+                "proposed against {} · resulting {}",
+                text::short_id(&board.proposal.plan_version),
+                text::short_id(&board.resulting_plan_version)
+            ),
+            ctx.width,
+        ));
+        if let Some(commitment) = &board.commitment {
+            detail.extend(field(
+                theme,
+                "responsibility",
+                &commitment_words(ctx, commitment),
+                ctx.width,
+            ));
+        }
+    }
     if let Some(allocation) = decision.links.allocation.as_deref() {
         detail.extend(membership_detail(ctx, allocation));
     }
@@ -4445,6 +5136,16 @@ fn recorded_outcome(decision: &DecisionRecord, acceptance: &Acceptance) -> Strin
     if let Some(wait) = decision.links.workspace_wait.as_ref() {
         return format!("the turn waited · {}", wait.code);
     }
+    if let Some(board) = decision.links.board.as_deref() {
+        return if board.accepted {
+            "the plan took the change on".to_owned()
+        } else {
+            "the plan was left unchanged".to_owned()
+        };
+    }
+    if decision.links.knowledge_correction.is_some() {
+        return "what was retained was replaced".to_owned();
+    }
     match decision.kind.as_str() {
         "workspace_access_acquired" => "the directory was reserved".to_owned(),
         "workspace_access_admitted" => "the turn was admitted under that reservation".to_owned(),
@@ -4455,7 +5156,8 @@ fn recorded_outcome(decision: &DecisionRecord, acceptance: &Acceptance) -> Strin
 }
 
 /// Whether a decision carries its own outcome, for records the grade field was never
-/// written for: membership and per-turn resource bounds both decide inside their own record.
+/// written for: membership, per-turn resource bounds and changes to the shared plan all decide
+/// inside their own record.
 fn bounded_outcome(decision: &DecisionRecord) -> Option<bool> {
     decision
         .links
@@ -4469,6 +5171,7 @@ fn bounded_outcome(decision: &DecisionRecord) -> Option<bool> {
                 .as_deref()
                 .map(|resource| resource.accepted)
         })
+        .or_else(|| decision.links.board.as_deref().map(|board| board.accepted))
 }
 
 /// What one turn was actually allowed to consume, and who decided it.
@@ -4564,6 +5267,11 @@ fn decision_kind(kind: &str) -> String {
         "workspace_access_admitted" => "turn admitted".into(),
         "workspace_access_released" => "reservation ended".into(),
         "assignment_waiting" => "a turn waited".into(),
+        "board_committed" => "plan change committed".into(),
+        "board_rejected" => "plan change rejected".into(),
+        "task_claimed" => "task taken up".into(),
+        "knowledge_superseded" => "retained knowledge corrected".into(),
+        "allocation_deferred" => "membership left for later".into(),
         other => other.replace('_', " "),
     }
 }
@@ -4705,6 +5413,10 @@ fn check_outcome_word(outcome: &ymp_core::ConfirmationCheckOutcome) -> &'static 
 // ---------------------------------------------------------------------------
 
 /// The leading row every record page opens with: what the page is, in its own words.
+/// Key of a row that explains its page rather than naming a thing on it. An action that
+/// changes something must not apply to it: there is nothing there to change.
+pub const ABOUT_KEY: &str = "about this page";
+
 fn about_row(ctx: &Ctx, key: &str, title: &str, sentences: &[&str]) -> Item {
     let theme = ctx.theme;
     let mut detail = Vec::new();

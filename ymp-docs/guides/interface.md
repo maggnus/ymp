@@ -100,7 +100,16 @@ agent and never writes to your working directory. Each page is a list with the d
 selected row underneath it, and states its own keys in the status row.
 
 - **Tasks** — the task graph, with state, assignee, reviewer, attempts, checks, results, the
-  access each task declared, and any wait the runtime recorded against it.
+  access each task declared, and any wait the runtime recorded against it. Each task also
+  carries what the shared plan records for it: its own version, the member the plan holds
+  responsible with the model and effort that responsibility was committed under, the proposal
+  that committed it, and any turn the runtime put off rather than started. The changes agents
+  asked for are listed under the tasks they are about, one row each, naming what the change
+  asks for, the plan and membership version it was made against, why it was asked for, and
+  what the runtime decided with the reason it recorded. The decision is the authority: a
+  proposal nothing has answered reads as proposed rather than refused, and a proposal whose
+  stored status moved without a readable decision says so. A plan that could not be read is
+  reported as unavailable rather than as a plan with nothing on it.
 - **Token usage** — what the loaded session spent, for the session as a whole and for each
   agent in it. Described in its own section below.
 - **Sessions** — saved sessions for this project. `Enter` loads one for reading; `r`
@@ -129,14 +138,17 @@ selected row underneath it, and states its own keys in the status row.
   recorded, each with its actor, its time and the records it links. A captured contract shows
   what a result will be judged against, its checker and the inputs recorded by digest, and says
   that it is a binding rather than a result. A record that carries its own outcome, such as a
-  membership change, a turn bound or a wait, reads from that outcome and not from a grade it
-  never had. An acceptance
+  membership change, a change to the shared plan, a turn bound or a wait, reads from that
+  outcome and not from a grade it never had. A decision that changed the plan names the
+  proposal behind it, who asked, the version the plan took on, and the responsibility it
+  created. An acceptance
   states whether it rests on passing evidence for every criterion or on an independent
   review alone, and says when the files it was accepted against have changed since.
 - **Team**, **Agent profiles**, **Providers** — membership and configuration. The team page
-  shows the members of the loaded session, any identity the session captured that its roster
-  no longer lists, the agents that worked in it, the roster record itself with the final
-  reviewer it keeps free, the bounds the roster was formed under, and the pool that is
+  shows the members of the loaded session, what each is responsible for on the shared plan
+  with the settings that responsibility carries, any identity the session captured that its
+  roster no longer lists, the agents that worked in it, the roster record itself with the
+  final reviewer it keeps free, the bounds the roster was formed under, and the pool that is
   eligible on this machine, with the reason any profile is excluded. Each row names the model the
   agent would actually run as: the one its profile pins, or the default a catalog read from the
   installation reports. Where no catalog has been read, the row says so rather than showing the
@@ -147,13 +159,20 @@ selected row underneath it, and states its own keys in the status row.
   catalog already stored, which asks no provider anything. Changes are validated and saved to
   `config.toml`; a rejected change is reverted and reported.
 - **Memory** — every entry recorded for this project and as shared procedure, including
-  candidates and retired ones, each labelled. An entry is either a projection of a result
-  this project accepted or a candidate a run proposed: confirmed means the acceptance it
-  names carried passing checks, unconfirmed means no passing evidence is attached, and an
-  entry written before provenance was recorded says its confirmation is unknown. The page
-  also says, per entry, whether a run assembling a prompt would actually be given it, which
-  is decided by re-reading the source record and not by the text of the entry. `/` searches,
-  `f` retires an entry after a confirmation.
+  candidates, superseded and retired ones, each with the standing the store gives it now:
+  current, superseded, retired, rejected, or the reason it is not offered, which may be that
+  it was recorded for other conditions, that its source moved on, or that nothing confirms
+  it. An entry is either a projection of a result this project accepted or a candidate a run
+  proposed: confirmed means the acceptance it names carried passing checks, unconfirmed means
+  no passing evidence is attached, and an entry written before provenance was recorded says
+  its confirmation is unknown. The page also says, per entry, whether a run assembling a
+  prompt would actually be given it, which is decided by re-reading the source record and not
+  by the text of the entry. An accepted correction keeps both sides: the superseded entry
+  names its replacement, the replacement names what it replaced, and each carries the
+  acceptance, the trusted contract and the policy the correction was authorised by, with its
+  own evidence. The page reads under the conditions in `knowledge_scope`, the same ones a run
+  asks under, and every entry says what those were. `/` searches, `f` retires an entry after
+  a confirmation.
 - **Reputation** — the observations behind competence estimates, with their evidence, their
   evidence status, and what credit toward selection requires.
 - **Limits** — the limits the loaded session captured, shown apart from the ones the next run
