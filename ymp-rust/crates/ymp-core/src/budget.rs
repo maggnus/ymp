@@ -15,8 +15,11 @@ pub struct ResourceLimits {
     pub native_max_turns: u64,
     /// Admission ceiling on reported raw input + output (cache already included).
     pub observed_tokens: Option<u64>,
-    /// Reserved for each in-flight invocation; never substituted for actual use.
+    /// Default reservation and ceiling for smaller per-assignment allowances;
+    /// never substituted for observed native use.
     pub invocation_tokens: Option<u64>,
+    /// Combined protection for required review; None retains the legacy calculation.
+    pub review_reserve_tokens: Option<u64>,
 }
 impl Default for ResourceLimits {
     fn default() -> Self {
@@ -29,6 +32,7 @@ impl Default for ResourceLimits {
             native_max_turns: 16,
             observed_tokens: None,
             invocation_tokens: None,
+            review_reserve_tokens: None,
         }
     }
 }
@@ -47,6 +51,12 @@ impl ResourceLimits {
         ensure!(matches!((self.observed_tokens, self.invocation_tokens), (None, None))
             || matches!((self.observed_tokens, self.invocation_tokens), (Some(total), Some(each)) if each > 0 && total >= each),
             "Observed token admission requires a positive per-invocation reservation within the total");
+        ensure!(
+            self.review_reserve_tokens
+                .is_none_or(|reserve| reserve > 0
+                    && self.observed_tokens.is_some_and(|total| reserve <= total)),
+            "Review token reserve requires a positive captured token ceiling and cannot exceed it"
+        );
         Ok(())
     }
     pub fn context_chars(&self, purpose: &str) -> u64 {
@@ -76,6 +86,8 @@ pub struct SessionBudget {
     pub in_flight_invocations: u64,
     pub startup_invocations: u64,
     pub protected_review_invocations: u64,
+    #[serde(default)]
+    pub protected_review_tokens: Option<u64>,
     pub reserved_tokens: Option<u64>,
     pub observed_usage: UsageTotals,
     pub observed_token_overshoot: Option<u64>,

@@ -32,8 +32,7 @@ use tokio::{
 use tokio_util::sync::CancellationToken;
 use ymp_core::*;
 use ymp_providers::{
-    run_turn_with_backend, ExecutionBackend, McpEndpoint, NativeExecutionBackend, ProviderEvent,
-    TurnRequest,
+    ExecutionBackend, McpEndpoint, NativeExecutionBackend, ProviderEvent, TurnRequest,
 };
 use ymp_storage::Store;
 use ymp_workspace::Workspace;
@@ -1049,6 +1048,8 @@ impl Engine {
             task: task.clone(),
             access: access_decision.clone(),
             authority: None,
+            token: None,
+            executed: false,
         };
         // Existing per-run permits remain a secondary bound for legacy callers.
         let _permit = tokio::select! {_=self.cancel.cancelled()=>bail!("Cancelled"),p=ctx.permits.acquire()=>p?};
@@ -1141,6 +1142,7 @@ impl Engine {
             });
         }
         let mut assignment = AssignmentRecord {
+            token_reservation: None,
             id: assignment_id,
             session_id: ctx.session.id.clone(),
             task,
@@ -1231,13 +1233,12 @@ impl Engine {
         }))?;
         let (tx, mut rx) = mpsc::unbounded_channel();
         let invocation_cancel = self.cancel.child_token();
-        let future = run_turn_with_backend(
+        let mut future = Box::pin(access.run_turn(
             self.execution_backend.as_ref(),
             request,
             invocation_cancel.clone(),
             tx,
-        );
-        tokio::pin!(future);
+        ));
         let consume = |event: ProviderEvent| -> Result<()> {
             match event {
                 ProviderEvent::Capabilities(catalog) => {
@@ -1314,6 +1315,7 @@ impl Engine {
                 Some(event)=rx.recv()=>if let Err(error) = consume(event) { break Err(error); },
             }
         };
+        drop(future);
         // A final usage notification can be queued at the same instant as the
         // provider result. Drain it before closing the invocation or dropping rx.
         while let Ok(event) = rx.try_recv() {

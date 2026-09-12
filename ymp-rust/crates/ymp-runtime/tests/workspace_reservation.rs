@@ -345,6 +345,7 @@ async fn lease_admission_binds_identity_and_drop_revokes_before_releasing_access
             .unwrap(),
     );
     let mut assignment = AssignmentRecord {
+        token_reservation: None,
         id: lease.assignment_id().into(),
         session_id: f.session.id.clone(),
         task: None,
@@ -357,7 +358,13 @@ async fn lease_admission_binds_identity_and_drop_revokes_before_releasing_access
         requested: request.settings.clone(),
         timeout_secs: 10,
         grant_ids: vec![],
-        context: vec![],
+        context: vec![ContextReference {
+            kind: ContextKind::Prompt,
+            id: content_digest(&request.prompt),
+            session_id: Some(f.session.id.clone()),
+            digest: Some(content_digest(&request.prompt)),
+            included_chars: Some(request.prompt.chars().count()),
+        }],
         state: InvocationState::Running,
         started_at: now(),
         ended_at: None,
@@ -400,6 +407,42 @@ async fn lease_admission_binds_identity_and_drop_revokes_before_releasing_access
             TeamOperation::coordination(),
         )
         .unwrap();
+    let (events, _) = mpsc::unbounded_channel();
+    let mut changed = request.clone();
+    changed.prompt = serde_json::to_string(&WorkspaceAccess::WriteAll).unwrap();
+    assert!(lease
+        .run_turn(
+            f.backend.as_ref(),
+            changed,
+            CancellationToken::new(),
+            events.clone()
+        )
+        .await
+        .unwrap_err()
+        .to_string()
+        .contains("changed after reservation"));
+    assert_eq!(f.backend.0.load(Ordering::SeqCst), 0);
+    lease
+        .run_turn(
+            f.backend.as_ref(),
+            request.clone(),
+            CancellationToken::new(),
+            events.clone(),
+        )
+        .await
+        .unwrap();
+    assert!(lease
+        .run_turn(
+            f.backend.as_ref(),
+            request,
+            CancellationToken::new(),
+            events
+        )
+        .await
+        .unwrap_err()
+        .to_string()
+        .contains("replay requires fresh admission"));
+    assert_eq!(f.backend.0.load(Ordering::SeqCst), 1);
     drop(lease);
     assert_eq!(
         f.store

@@ -164,6 +164,8 @@ impl Engine {
                     task,
                     access,
                     authority: None,
+                    token: None,
+                    executed: false,
                 },
             ))),
             Err(wait) => {

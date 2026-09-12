@@ -144,6 +144,7 @@ impl Fixture {
             permission_mode: Some("read_only".into()),
         };
         let assignment = AssignmentRecord {
+            token_reservation: None,
             id: new_id(),
             session_id: self.session.id.clone(),
             task: Some(TaskAttemptRef::from(&self.task)),

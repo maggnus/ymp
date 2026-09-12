@@ -3,8 +3,12 @@
 use crate::{mcp::TeamServer, workspace_access::AccessLease};
 use anyhow::{ensure, Result};
 use std::sync::Arc;
+use tokio::sync::mpsc;
+use tokio_util::sync::CancellationToken;
 use ymp_core::*;
-use ymp_providers::TurnRequest;
+use ymp_providers::{
+    run_turn_with_backend, ExecutionBackend, ProviderEvent, TurnRequest, TurnResult,
+};
 use ymp_storage::Store;
 
 pub enum WorkspaceAdmission {
@@ -21,6 +25,8 @@ pub struct WorkspaceReservation {
     pub(crate) task: Option<TaskAttemptRef>,
     pub(crate) access: WorkspaceAccessDecision,
     pub(crate) authority: Option<(Arc<TeamServer>, String)>,
+    pub(crate) token: Option<String>,
+    pub(crate) executed: bool,
 }
 impl WorkspaceReservation {
     pub fn assignment_id(&self) -> &str {
@@ -28,6 +34,58 @@ impl WorkspaceReservation {
     }
     pub fn access(&self) -> &WorkspaceAccessDecision {
         &self.access
+    }
+
+    /// Execute the exact admitted request once, under this lease. Continuation
+    /// context may change, but authority and enforced resource access cannot.
+    pub async fn run_turn(
+        &mut self,
+        backend: &dyn ExecutionBackend,
+        request: TurnRequest,
+        cancel: CancellationToken,
+        events: mpsc::UnboundedSender<ProviderEvent>,
+    ) -> Result<TurnResult> {
+        ensure!(
+            !self.executed,
+            "workspace_execution_spent: replay requires fresh admission"
+        );
+        let (server, invocation) = self.authority.as_ref().ok_or_else(|| {
+            anyhow::anyhow!("workspace_binding: native execution requires admitted authority")
+        })?;
+        ensure!(
+            self.store.invocation(&self.session_id, invocation)?.state == InvocationState::Running,
+            "workspace_binding: invocation authority has ended"
+        );
+        let mut expected = self.request.clone();
+        expected.resume = request.resume.clone();
+        expected.usage_baseline = request.usage_baseline.clone();
+        expected.mcp = request.mcp.clone();
+        ensure!(
+            serde_json::to_value(&expected)? == serde_json::to_value(&request)?,
+            "workspace_binding: native request changed after reservation"
+        );
+        if let Some(endpoint) = &request.mcp {
+            ensure!(
+                self.token.as_ref() == Some(&endpoint.token)
+                    && endpoint
+                        .args
+                        .last()
+                        .is_some_and(|arg| std::path::Path::new(arg) == server.socket),
+                "workspace_binding: native team capability differs from this admission"
+            );
+        }
+        ensure!(
+            backend.identity() == self.access.backend,
+            "workspace_binding: execution backend changed after reservation"
+        );
+        let actual = backend.workspace_access(&request);
+        crate::workspace_access::validate_access(&request.cwd, &actual)?;
+        ensure!(
+            self.access.effective_access.covers(&actual),
+            "unsupported_workspace_guarantee: backend access widened after reservation"
+        );
+        self.executed = true;
+        run_turn_with_backend(backend, request, cancel, events).await
     }
 
     pub fn admit_reserved(
@@ -54,7 +112,17 @@ impl WorkspaceReservation {
                 && invocation.execution_backend.as_ref() == Some(&self.access.backend),
             "workspace_binding: assignment differs from the reserved request or execution backend"
         );
+        ensure!(
+            assignment
+                .context
+                .iter()
+                .any(|context| context.kind == ContextKind::Prompt
+                    && context.digest.as_deref()
+                        == Some(content_digest(&self.request.prompt).as_str())),
+            "workspace_binding: assignment prompt differs from the reserved request"
+        );
         let token = server.admit_reserved(assignment, invocation, operations)?;
+        self.token = Some(token.clone());
         self.authority = Some((server, invocation.id.clone()));
         let recorded = self.store.record_decision(&DecisionRecord {
             id: new_id(),

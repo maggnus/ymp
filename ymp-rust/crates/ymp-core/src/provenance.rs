@@ -115,6 +115,9 @@ impl InvocationState {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AssignmentRecord {
+    /// Runtime-requested accounting allowance; not a native hard token limit.
+    #[serde(default)]
+    pub token_reservation: Option<u64>,
     pub id: String,
     pub session_id: String,
     pub task: Option<TaskAttemptRef>,

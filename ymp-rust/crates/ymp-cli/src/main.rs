@@ -558,6 +558,7 @@ async fn probe_team_tools(
     let marker = format!("YMP_TOOL_OK_{}", new_id());
     let requested = config.execution_settings(profile, &ModelEffort::default())?;
     let mut assignment = AssignmentRecord {
+        token_reservation: None,
         id: new_id(),
         session_id: session.id.clone(),
         task: None,
