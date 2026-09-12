@@ -1,14 +1,88 @@
 use super::*;
 
 impl Engine {
-    pub(super) fn capture_contracts(&self, session: &Session, directory: &Path) -> Result<()> {
-        for contract in &self.acceptance_contracts {
-            let captured = CapturedAcceptanceContract::capture(
-                contract.clone(),
-                directory,
-                self.confirmation_checker.identity(),
-            )?;
-            self.store.record_decision(&DecisionRecord { id: new_id(), session_id: session.id.clone(), kind: "acceptance_contract_captured".into(), actor: None, reason: "Trusted client supplied acceptance criteria and check bindings before execution".into(), outcome: None, links: RecordLinks { acceptance_contract: Some(captured), ..Default::default() }, created_at: now() })?;
+    fn requested_contracts(&self) -> Result<Option<&[AcceptanceContract]>> {
+        if self.acceptance_contracts.is_empty() {
+            return Ok(self.config.acceptance_contracts.as_deref());
+        }
+        anyhow::ensure!(
+            self.config
+                .acceptance_contracts
+                .as_ref()
+                .is_none_or(|configured| configured == &self.acceptance_contracts),
+            "Conflicting configuration and client acceptance contracts"
+        );
+        Ok(Some(&self.acceptance_contracts))
+    }
+
+    pub(super) fn prepare_contracts(
+        &self,
+        directory: &Path,
+    ) -> Result<Vec<CapturedAcceptanceContract>> {
+        let contracts = self.requested_contracts()?.unwrap_or_default();
+        validate_contract_targets(contracts)?;
+        contracts
+            .iter()
+            .map(|contract| {
+                CapturedAcceptanceContract::capture(
+                    contract.clone(),
+                    directory,
+                    self.confirmation_checker.identity(),
+                )
+            })
+            .collect()
+    }
+
+    fn captured_contracts(&self, session: &str) -> Result<Vec<AcceptanceContract>> {
+        let contracts = self
+            .store
+            .trace(session)?
+            .decisions
+            .into_iter()
+            .filter_map(|d| d.links.acceptance_contract.map(|c| c.contract))
+            .collect::<Vec<_>>();
+        validate_contract_targets(&contracts)?;
+        Ok(contracts)
+    }
+
+    pub(super) fn validate_resumed_contracts(&self, session: &str) -> Result<()> {
+        if let Some(requested) = self.requested_contracts()? {
+            validate_contract_targets(requested)?;
+            let captured = self.captured_contracts(session)?;
+            anyhow::ensure!(
+                requested.len() == captured.len() && requested.iter().all(|c| captured.contains(c)),
+                "Acceptance contracts are immutable on resume; restore the captured definitions or omit acceptance_contracts to use the capture"
+            );
+        }
+        // Never recapture input bytes or verifier contents on resume.
+        Ok(())
+    }
+
+    pub(super) fn acceptance_requirements(&self, session: &str) -> Result<String> {
+        let requirements = self
+            .captured_contracts(session)?
+            .iter()
+            .map(AcceptanceRequirements::from)
+            .collect::<Vec<_>>();
+        if requirements.is_empty() {
+            return Ok(String::new());
+        }
+        Ok(format!("\nTrusted acceptance requirements (captured before planning):\n{}\nEvery plan and revision must contain exactly one task with each declared task_title, preserving its exact spelling. Implement and inspect the declared criteria, artifacts and inputs. These bindings remain mandatory throughout this session. Model-suggested shell commands do not replace trusted checks.\n", serde_json::to_string(&requirements)?))
+    }
+
+    pub(super) fn validate_contract_bindings<'a>(
+        &self,
+        session: &str,
+        titles: impl Iterator<Item = &'a str>,
+    ) -> Result<()> {
+        let titles = titles.collect::<Vec<_>>();
+        for contract in self.captured_contracts(session)? {
+            let matches = titles
+                .iter()
+                .filter(|title| **title == contract.task_title)
+                .count();
+            anyhow::ensure!(matches == 1,
+                "Acceptance contract target {:?} requires exactly one planned task; found {matches}", contract.task_title);
         }
         Ok(())
     }

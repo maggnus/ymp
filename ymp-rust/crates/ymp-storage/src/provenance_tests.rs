@@ -6,6 +6,66 @@ struct Fixture {
     session: Session,
     task: Task,
 }
+
+#[test]
+fn session_contract_capture_rolls_back_the_whole_set_on_second_contract_failure() {
+    let f = Fixture::new();
+    let mut session = f.session.clone();
+    session.id = new_id();
+    let mut policy = f.store.session_policy(&f.session.id).unwrap().unwrap();
+    policy.session_id = session.id.clone();
+    let first = CapturedAcceptanceContract::capture(
+        AcceptanceContract {
+            task_title: "First required output".into(),
+            criteria: vec![AcceptanceCriterion {
+                id: "content".into(),
+                description: "Exact content".into(),
+            }],
+            artifacts: vec!["first.txt".into()],
+            inputs: vec![],
+            checks: vec![TrustedCheck {
+                id: "exact".into(),
+                criterion_ids: vec!["content".into()],
+                assertion: CheckAssertion::ExactBytes {
+                    artifact: "first.txt".into(),
+                    expected: b"hello".to_vec(),
+                },
+            }],
+        },
+        &policy.cwd,
+        CheckerIdentity {
+            id: "test".into(),
+            version: "1".into(),
+        },
+    )
+    .unwrap();
+    for duplicate in [false, true] {
+        let mut second = first.clone();
+        if !duplicate {
+            second.version = "invalid digest".into();
+        }
+        assert!(f
+            .store
+            .create_session_with_contracts(&session, &policy, &[first.clone(), second])
+            .is_err());
+        assert!(f.store.session(&session.id).is_err());
+        assert!(f.store.session_policy(&session.id).unwrap().is_none());
+        assert_eq!(f.store.sessions(None).unwrap().len(), 1);
+    }
+    f.store
+        .create_session_with_contracts(&session, &policy, &[first])
+        .unwrap();
+    assert_eq!(
+        f.store
+            .trace(&session.id)
+            .unwrap()
+            .decisions
+            .iter()
+            .filter(|d| d.links.acceptance_contract.is_some())
+            .count(),
+        1
+    );
+}
 impl Fixture {
     fn new() -> Self {
         Self::with_limits(Limits::default())

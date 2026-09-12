@@ -48,6 +48,8 @@ ymp ask codex 'Summarize the entry points'
 
 `ymp demo --tui` opens the interface with deterministic test agents. It makes no model requests.
 
+For objectively confirmed results and reusable supported experience, configure explicit [trusted acceptance contracts](ymp-docs/architecture/executable-acceptance-contracts.md). The same configuration applies to new CLI and TUI team runs. Qualitative acceptance without complete objective evidence remains unconfirmed.
+
 ## Working with a team
 
 The interface is chat-first with a right sidebar that carries navigation, live team activity, and the current session's context. The sidebar appears from 80 columns; hide it with `Ctrl+B`.

@@ -99,11 +99,16 @@ enum Command {
         #[arg(long)]
         tui: bool,
     },
-    /// Internal MCP stdio bridge for agents.
-    #[command(hide = true)]
+    /// Public project-scoped MCP server over stdio (read-only unless enabled).
     Mcp {
         #[arg(long)]
-        socket: PathBuf,
+        socket: Option<PathBuf>,
+        /// Permit explicit bounded execution and cancellation for the selected project.
+        #[arg(long, conflicts_with = "socket")]
+        allow_execution: bool,
+        /// Stable external identity for request deduplication; never a team credential.
+        #[arg(long, default_value = "local", conflicts_with = "socket")]
+        client_id: String,
     },
 }
 
@@ -121,7 +126,11 @@ async fn entry() -> Result<()> {
         return ymp_providers::supervisor::run(argv.into_iter().skip(2).collect()).await;
     }
     let cli = Cli::parse();
-    if let Some(Command::Mcp { socket }) = &cli.command {
+    if let Some(Command::Mcp {
+        socket: Some(socket),
+        ..
+    }) = &cli.command
+    {
         return ymp_runtime::mcp::stdio_bridge(socket).await;
     }
     let home = cli.home.unwrap_or(default_home()?);
@@ -145,7 +154,13 @@ async fn entry() -> Result<()> {
     let config = Config::load(&home)?;
     match cli.command {
         None => ymp_tui::run(store, config, path, None).await?,
-        Some(Command::Mcp { .. }) => unreachable!(),
+        Some(Command::Mcp {
+            allow_execution,
+            client_id,
+            ..
+        }) => {
+            ymp_runtime::public_mcp::serve(store, config, path, client_id, allow_execution).await?;
+        }
         Some(Command::Trace { .. }) => unreachable!(),
         Some(Command::Init) => {
             println!(
@@ -320,7 +335,9 @@ async fn entry() -> Result<()> {
             println!("Project path updated; history and memory retained.");
         }
         Some(Command::Demo { tui }) => {
-            let config = demo_config();
+            let mut demo = demo_config();
+            demo.acceptance_contracts = config.acceptance_contracts;
+            let config = demo;
             if tui {
                 ymp_tui::run(store, config, path, None).await?;
             } else {

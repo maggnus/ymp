@@ -1358,11 +1358,13 @@
       "title": "Coordinate commitments, plan revisions and reassignment through the board",
       "type": "implementation",
       "priority": "P0",
-      "status": "planned",
+      "status": "in_progress",
       "owner": "Maintainer; application UI by Claude Code claude-opus-5 with thinking max via Paseo",
       "authorization": "Planned delivery derived from the owner-approved intent and standing autonomous-development direction. Follow dependencies and acceptance criteria; separate real-provider quota is required where stated.",
       "depends_on": [
-        "YMP-110",
+        "YMP-111",
+        "YMP-102",
+        "YMP-117",
         "YMP-120"
       ],
       "reason": "Required directly by the final product intent; design and implementation are pending.",
@@ -1420,6 +1422,21 @@
           "at": "2026-09-12T12:46:29.117507+00:00",
           "status": "planned",
           "note": "Owner extension requirement added: Keep commitment/replanning strategy replaceable through a typed proposal interface; runtime validates and commits transitions independently of the proposing strategy."
+        },
+        {
+          "at": "2026-09-12T17:35:10.645800+00:00",
+          "status": "planned",
+          "note": "Read-only readiness check: task_propose currently records a bound chat proposal but no durable commitment, and graph revision only occurs before initial plan commitment. Existing atomic task/decision, grants, allocation and recovery seams are available. Implementation remains dependency-blocked on110 UI acceptance; no board feature is claimed complete."
+        },
+        {
+          "at": "2026-09-12T17:53:05.547641+00:00",
+          "status": "planned",
+          "note": "Readiness refined after allocation110 backend R2 and combined R2 acceptance were integrated into main. Remaining110 UI acceptance is retained as a direct release121 prerequisite; it does not block board implementation using the already accepted API. No acceptance criterion or feature scope was removed."
+        },
+        {
+          "at": "2026-09-12T17:54:15.279975+00:00",
+          "status": "in_progress",
+          "note": "Starting board commitment/revision implementation on accepted integrated allocation, permissions, budgets and contracts. Readiness no longer waits for the separate110 UI verdict; complete110/113 UI acceptance remains a release121 requirement. Preserve accepted work and inspect uncertain effects before reassignment; typed strategy proposals remain runtime-validated."
         }
       ]
     },
@@ -1525,11 +1542,13 @@
       "title": "Correct and supersede knowledge with newer verified evidence",
       "type": "implementation",
       "priority": "P0",
-      "status": "planned",
+      "status": "in_progress",
       "owner": "Maintainer; application UI by Claude Code claude-opus-5 with thinking max via Paseo",
       "authorization": "Planned delivery derived from the owner-approved intent and standing autonomous-development direction. Follow dependencies and acceptance criteria; separate real-provider quota is required where stated.",
       "depends_on": [
-        "YMP-113"
+        "YMP-106",
+        "YMP-117",
+        "YMP-125"
       ],
       "reason": "Required directly by the final product intent; design and implementation are pending.",
       "acceptance": [
@@ -1577,6 +1596,21 @@
           "at": "2026-09-12T12:46:29.117507+00:00",
           "status": "planned",
           "note": "Owner extension requirement added: Support a replaceable correction proposal policy while runtime independently enforces evidence, applicability, supersession and observation idempotence."
+        },
+        {
+          "at": "2026-09-12T17:38:50.182325+00:00",
+          "status": "planned",
+          "note": "Read-only preflight confirms existing source refs, applicability, inventory and observation deduplication can be reused. Missing pieces are an explicitly reviewed correction relation, atomic supersession and an old/new source binding for corrections stored at a different input path. Implementation remains gated by113 UI acceptance; no correction behavior is claimed delivered."
+        },
+        {
+          "at": "2026-09-12T17:53:05.547641+00:00",
+          "status": "planned",
+          "note": "Readiness refined after knowledge113 backend and integration acceptance landed. Remaining113 UI acceptance is retained as a direct release121 prerequisite. Correction builds on accepted source/retrieval APIs and explicit trusted contract ingress125; no acceptance criterion or feature scope was removed."
+        },
+        {
+          "at": "2026-09-12T17:54:15.323953+00:00",
+          "status": "in_progress",
+          "note": "Starting evidence-bound correction/supersession using accepted knowledge and configured contracts125. Preflight identified explicit correction/source-replacement bindings and atomic history-preserving commit as missing; unrelated confirmed results or newer timestamps cannot authorize replacement. UI work remains delegated to Claude Opus5 max."
         }
       ]
     },
@@ -2126,6 +2160,16 @@
           "at": "2026-09-12T16:33:38.110325+00:00",
           "status": "in_progress",
           "note": "Claude Opus5 max is implementing the existing team and knowledge views against accepted110/113 records, alongside core state/constraint/confirmation visibility and frame clipping. A coherent core visibility slice is requested for independent UI review; main backend integration is available. No UI acceptance or release is claimed."
+        },
+        {
+          "at": "2026-09-12T17:18:28.435443+00:00",
+          "status": "in_progress",
+          "note": "Core UI candidate7038a4c is delivered with289 passing Rust tests and an actual mock TUI walk. A fresh Claude Opus5 max reviewer is inspecting that exact snapshot. The author is adapting the same views to accepted115 access/concurrency records and replacing the earlier serial-execution wording; no UI acceptance is claimed yet."
+        },
+        {
+          "at": "2026-09-12T17:35:10.690326+00:00",
+          "status": "in_progress",
+          "note": "Author delivered05e67df with accepted115 access/concurrency records, truthful workspace policy and306 passing tests. Core7038a4c is under independent Opus5 max review. A bounded actual walk now checks reaching middle/end decision records and their details; reported feature limits are being separated from actual acceptance defects."
         }
       ]
     },
@@ -2196,7 +2240,9 @@
         "YMP-118",
         "YMP-122",
         "YMP-123",
-        "YMP-125"
+        "YMP-125",
+        "YMP-110",
+        "YMP-113"
       ],
       "reason": "A local release needs a reproducible install and truthful compatibility evidence for the configured native providers.",
       "acceptance": [
@@ -2247,6 +2293,11 @@
           "at": "2026-09-12T16:52:30.502537+00:00",
           "status": "planned",
           "note": "YMP-125 makes the trusted-contract integration seam reachable from executable clients. Final verification must include this application route, not only direct Rust injection."
+        },
+        {
+          "at": "2026-09-12T17:53:05.547641+00:00",
+          "status": "planned",
+          "note": "Release now directly requires complete110 and113 UI acceptance while112/114 can use their independently accepted integrated backends. All original outcomes remain required; this removes a frontend delay from backend readiness, not a release requirement."
         }
       ],
       "budget": "Not allocated. Prepare a concrete bounded smoke-check proposal before any real-provider inference."
@@ -2379,7 +2430,11 @@
         "Bound and paginate knowledge/history/result payloads with explicit truncation or continuation. Reuse bounded projections for internal agent MCP memory search, whose full candidate results can otherwise exceed useful context limits; do not confuse this with the separate automatic prompt excerpt cap."
       ],
       "evidence": [
-        "[Public MCP scope and transport decision](../architecture/public-mcp.md)"
+        "[Public MCP scope and transport decision](../architecture/public-mcp.md)",
+        "[Published tool schemas](../architecture/public-mcp-tools-v1.json)",
+        "[Standalone independent R1/R2 review](../../ymp-evals/reports/ymp-123-independent-review.md)",
+        "[Combined MCP/concurrency/lock verification](../../ymp-evals/reports/mcp-concurrency-lock-integration.md)",
+        "[Independent combined acceptance](../../ymp-evals/reports/mcp-concurrency-lock-independent-review.md)"
       ],
       "history": [
         {
@@ -2416,6 +2471,21 @@
           "at": "2026-09-12T17:00:52.158442+00:00",
           "status": "in_progress",
           "note": "Standalone R2(9.5/10) ACCEPT; combined build and full official MCP client walk pass. After ENOSPC cleanup, a full runtime test exposed false session-lock contention from inherited descriptors; a separate bounded Store lock correction is underway. MCP source remains unmerged until shared-lock correction and combined verification complete."
+        },
+        {
+          "at": "2026-09-12T17:18:28.523110+00:00",
+          "status": "in_progress",
+          "note": "Combined candidate376cdc4 includes independently accepted MCP, concurrency/state and explicit StoreLock release. All284 Rust tests, fmt/clippy/build and official SDK walk pass (171 calls; maximum73149-byte response). Open-pipe signals preserve terminal accounting. Independent combined review is running before main integration."
+        },
+        {
+          "at": "2026-09-12T17:24:49.906750+00:00",
+          "status": "done",
+          "note": "Standalone R2(9.5/10) and combined independent review(9.5/10) ACCEPT. Merged as3b4045f; main source matches376cdc4. Main fmt/clippy,284 Rust tests, build and actual official MCP SDK walk pass. Scope, bounded projections, reconnect/cancel and open-pipe signal exit use shared runtime controls; explicit StoreLock release closes reproduced false contention. Mock/low workloads only."
+        },
+        {
+          "at": "2026-09-12T17:45:29.110651+00:00",
+          "status": "in_progress",
+          "note": "R3(6/10) RETURN reopens process-exit acceptance: an actual read-only client stops draining stdout, keeps pipes open and sends SIGTERM; the process remains alive after7s (exit1 control). Parent authorized a bounded two-return extension for interruptible output/backpressure plus preserved terminal accounting and framing. No model invocation occurred."
         }
       ]
     },
@@ -2454,7 +2524,7 @@
       "title": "Expose trusted acceptance contracts to executable users",
       "type": "implementation",
       "priority": "P0",
-      "status": "in_progress",
+      "status": "done",
       "owner": "Maintainer; any TUI implementation by Claude Opus 5 max via Paseo",
       "authorization": "Required release integration derived from the approved executable product and checked-experience goal; standing autonomous implementation authorization applies. No real-provider quota is granted.",
       "depends_on": [
@@ -2471,7 +2541,10 @@
       ],
       "evidence": [
         "[Executable integration gap and contract](../architecture/executable-acceptance-contracts.md)",
-        "[Independent executable audit measurements](../research/evidence/executable-confirmation-gap.json)"
+        "[Independent executable audit measurements](../research/evidence/executable-confirmation-gap.json)",
+        "[Standalone independent acceptance](../../ymp-evals/reports/ymp-125-independent-review.md)",
+        "[Actual MCP integration verification](../../ymp-evals/reports/ymp-125-mcp-integration.md)",
+        "[Independent combined acceptance](../../ymp-evals/reports/ymp-125-mcp-independent-review.md)"
       ],
       "history": [
         {
@@ -2483,11 +2556,31 @@
           "at": "2026-09-12T16:53:01.470120+00:00",
           "status": "in_progress",
           "note": "Implementing explicit executable contract ingress and unambiguous plan binding through the existing trusted runtime. The independent audit establishes the missing application route; all automatic checks remain mock/scripted, and any TUI work stays with Claude Opus 5 max."
+        },
+        {
+          "at": "2026-09-12T17:18:28.479463+00:00",
+          "status": "in_progress",
+          "note": "Candidate ef9a125 implements shared typed config ingress, sanitized exact task binding, atomic capture and immutable resume. Actual mock/low executable output is confirmed and reused in a later session; original behavior and three removed-guard controls fail101. Author fmt/clippy and280 tests pass. Independent review is running; no TUI code or real inference was used."
+        },
+        {
+          "at": "2026-09-12T17:24:49.951216+00:00",
+          "status": "in_progress",
+          "note": "Standalone R1(9/10) ACCEPT at ef9a125. Independent documented-config executable consumer confirms output, supported later retrieval, immutable resume and stale-source rejection;13 focused controls and author280-test evidence pass. Integration with accepted main concurrency/MCP/StoreLock is assigned, including trusted launch configuration through public stdio."
+        },
+        {
+          "at": "2026-09-12T17:38:50.225861+00:00",
+          "status": "in_progress",
+          "note": "Combined candidate127bfd1 preserves accepted MCP IDs, concurrency and StoreLock while adding trusted contract ingress. Actual MCP configuration/confirmation/knowledge/resume consumer passes; the same consumer fails on rebuilt pre-integration source. Fmt/clippy,297 Rust tests, build and full SDK walk pass. Independent combined review is running."
+        },
+        {
+          "at": "2026-09-12T17:54:15.234315+00:00",
+          "status": "done",
+          "note": "Standalone and combined independent reviews ACCEPT9/10. Integrated c46a454; main source matches127bfd1. Main fmt/clippy,297 Rust tests, build and actual MCP configured-contract walk pass. User-controlled typed configuration now reaches confirmed output and later supported experience; target binding, immutable resume and runtime authority are preserved. MCP output backpressure remains separately reopened under123."
         }
       ]
     }
   ],
-  "updated_at": "2026-09-12T17:00:52.158442+00:00",
+  "updated_at": "2026-09-12T17:54:15.323953+00:00",
   "delivery_order": [
     "YMP-116",
     "YMP-103",
@@ -2506,9 +2599,9 @@
     "YMP-110",
     "YMP-112",
     "YMP-113",
+    "YMP-125",
     "YMP-114",
     "YMP-107",
-    "YMP-125",
     "YMP-118",
     "YMP-123",
     "YMP-121"
@@ -2863,7 +2956,8 @@
     "Preserve accepted-but-unconfirmed outcomes and award no reputation without confirmation. Keep native authentication and honest resource-coverage limits; an effort level is not a spending cap.",
     "Real-provider checks and experiments require their concrete quota authorization. Unattended checks use fixtures. After changes run cargo fmt, clippy with warnings denied and workspace tests; bridge changes also require bridge checks.",
     "Favor narrow typed subsystem interfaces and injectable built-in implementations. Replacement algorithms propose work or provide observations; trusted runtime rules still own grants, budgets, acceptance and evidence. See subsystem-interfaces.md and YMP-122.",
-    "Release 0.4.0 is an MVP. Its owner-approved direct workspace policy is a temporary limitation; YMP-124 tracks post-MVP isolated execution and recoverable publication."
+    "Release 0.4.0 is an MVP. Its owner-approved direct workspace policy is a temporary limitation; YMP-124 tracks post-MVP isolated execution and recoverable publication.",
+    "After110/113 backend integration was independently accepted,112/114 readiness uses their completed core prerequisites; remaining110/113 UI acceptance is an explicit121 dependency. Their full acceptance and completion counts remain unchanged."
   ],
   "release": {
     "target_version": "0.4.0",
