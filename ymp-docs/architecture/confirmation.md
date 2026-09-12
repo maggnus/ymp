@@ -6,7 +6,7 @@ An independent review records its decision and rationale against an exact result
 
 ## Trusted checks
 
-A client can populate `Engine.acceptance_contracts` before `Engine.run`. Contracts are captured before any agent invocation and are immutable on resume. Each contract names a task title, all relevant acceptance criteria, artifact paths, supplied input paths, and the precise criteria covered by each check. This Rust client API is the integration seam for YMP-121; there is no automatic natural-language contract inference or new CLI configuration surface.
+A Rust client can populate `Engine.acceptance_contracts` before `Engine.run`; executable clients can supply the same trusted contracts through configuration as described in [executable acceptance contracts](executable-acceptance-contracts.md). Contracts are captured before any agent invocation and are immutable on resume. Each contract names a task title, all relevant acceptance criteria, artifact paths, supplied input paths, and the precise criteria covered by each check. Natural-language requests do not automatically create objective contract authority.
 
 Agent-proposed plan commands still run as acceptance checks, but neither their success nor citations and agreement in model text install a trusted contract. A passed `true` command cannot establish task quality. General tasks without a trusted objective contract remain unconfirmed.
 

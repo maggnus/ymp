@@ -1,6 +1,6 @@
 # Task details and evidence
 
-Updated: 2026-09-12 20:43 UTC.
+Updated: 2026-09-12 22:17 UTC.
 
 Use the [delivery plan](plan.md) to follow progress. This generated register contains full acceptance criteria, dependencies and evidence. [tasks.json](tasks.json) is the single source; [manage.py](manage.py) updates both pages.
 
@@ -14,7 +14,7 @@ A planned task is not implemented functionality. Completed research and planning
 | design | 1 | 1 |
 | documentation | 4 | 4 |
 | experiment | 0 | 4 |
-| implementation | 19 | 24 |
+| implementation | 20 | 25 |
 | research | 8 | 8 |
 | verification | 1 | 2 |
 
@@ -46,7 +46,7 @@ A planned task is not implemented functionality. Completed research and planning
 | `[=]` | [YMP-301](#ymp-301) | P2 | Confirm the initial success class and intended audience | 2026-09-12 09:35 |
 | `[x]` | [YMP-109](#ymp-109) | P0 | Expose the provider-backed agent pool with stable individual identities | 2026-09-12 10:56 |
 | `[x]` | [YMP-110](#ymp-110) | P0 | Select session teams and execution settings within user constraints | 2026-09-12 20:43 |
-| `[~]` | [YMP-112](#ymp-112) | P0 | Coordinate commitments, plan revisions and reassignment through the board | 2026-09-12 20:43 |
+| `[~]` | [YMP-112](#ymp-112) | P0 | Coordinate commitments, plan revisions and reassignment through the board | 2026-09-12 21:14 |
 | `[x]` | [YMP-113](#ymp-113) | P0 | Accumulate general knowledge and verified experience incrementally | 2026-09-12 20:43 |
 | `[~]` | [YMP-114](#ymp-114) | P0 | Correct and supersede knowledge with newer verified evidence | 2026-09-12 20:12 |
 | `[x]` | [YMP-009](#ymp-009) | P0 | Align the product definition, research conclusions and backlog with final intent | 2026-09-12 09:15 |
@@ -59,14 +59,15 @@ A planned task is not implemented functionality. Completed research and planning
 | `[x]` | [YMP-120](#ymp-120) | P0 | Enforce assignment-scoped permissions and runtime-only state transitions | 2026-09-12 13:46 |
 | `[x]` | [YMP-118](#ymp-118) | P0 | Integrate core assignment, budget and confirmation visibility | 2026-09-12 20:43 |
 | `[x]` | [YMP-119](#ymp-119) | P0 | Prepare universal acceptance scenarios and independent validators | 2026-09-12 10:56 |
-| `[=]` | [YMP-121](#ymp-121) | P1 | Verify the integrated application and package a local release | 2026-09-12 20:08 |
+| `[=]` | [YMP-121](#ymp-121) | P1 | Verify the integrated application and package a local release | 2026-09-12 21:24 |
 | `[x]` | [YMP-013](#ymp-013) | P0 | Review plan coherence and simplify progress tracking | 2026-09-12 09:46 |
 | `[x]` | [YMP-122](#ymp-122) | P1 | Expose replaceable execution backends behind runtime-owned controls | 2026-09-12 15:23 |
 | `[x]` | [YMP-123](#ymp-123) | P1 | Expose a public local MCP facade over stdio | 2026-09-12 18:22 |
 | `[=]` | [YMP-124](#ymp-124) | P1 | Add isolated execution and recoverable publication for larger projects | 2026-09-12 15:31 |
 | `[x]` | [YMP-125](#ymp-125) | P0 | Expose trusted acceptance contracts to executable users | 2026-09-12 17:54 |
-| `[~]` | [YMP-126](#ymp-126) | P1 | Execute universal acceptance scenarios through a trusted runtime driver | 2026-09-12 20:21 |
+| `[~]` | [YMP-126](#ymp-126) | P1 | Execute universal acceptance scenarios through a trusted runtime driver | 2026-09-12 22:17 |
 | `[x]` | [YMP-127](#ymp-127) | P0 | Build and display the agent pool from provider-returned native names | 2026-09-12 20:43 |
+| `[x]` | [YMP-128](#ymp-128) | P1 | Support internal team transport with long metadata paths | 2026-09-12 21:24 |
 
 ## YMP-001
 
@@ -850,9 +851,9 @@ Coordinate commitments, plan revisions and reassignment through the board
 
 **State:** `[~]` (in_progress) · **Type:** implementation · **Priority:** P0
 
-**Last update (UTC):** 2026-09-12 20:43
+**Last update (UTC):** 2026-09-12 21:14
 
-**Current reason:** Backend coordination is accepted and integrated; Opus is completing existing-page board views with knowledge114. Two minor findings from the accepted native-name UI review are now explicit acceptance follow-ups: accurate team-chat/shared-board permission labels and a captured-versus-current name regression with a failing mutation control. No native inference is used.
+**Current reason:** Opus f4ad62c closes all minor native-interface findings and is independently accepted in R3: labels match all seven tools, and the captured-name regression now fails under the previously surviving mutation. It is included in the checked128 composition for integration. Full existing-page board views continue with114; no native inference.
 
 **Owner:** Maintainer; application UI by Claude Code claude-opus-5 with thinking max via Paseo
 
@@ -1313,7 +1314,7 @@ Verify the integrated application and package a local release
 
 **State:** `[=]` (planned) · **Type:** verification · **Priority:** P1
 
-**Last update (UTC):** 2026-09-12 20:08
+**Last update (UTC):** 2026-09-12 21:24
 
 **Current reason:** Needs YMP-112, YMP-114, YMP-126
 
@@ -1321,11 +1322,11 @@ Verify the integrated application and package a local release
 
 **Authorization:** Offline packaging and check preparation follow the approved delivery plan. Actual native inference requires its explicit bounded quota authorization; none is granted by this planning task.
 
-**Depends on:** [YMP-119](#ymp-119), [YMP-103](#ymp-103), [YMP-105](#ymp-105), [YMP-107](#ymp-107), [YMP-112](#ymp-112), [YMP-115](#ymp-115), [YMP-114](#ymp-114), [YMP-118](#ymp-118), [YMP-122](#ymp-122), [YMP-123](#ymp-123), [YMP-125](#ymp-125), [YMP-110](#ymp-110), [YMP-113](#ymp-113), [YMP-126](#ymp-126), [YMP-127](#ymp-127)
+**Depends on:** [YMP-119](#ymp-119), [YMP-103](#ymp-103), [YMP-105](#ymp-105), [YMP-107](#ymp-107), [YMP-112](#ymp-112), [YMP-115](#ymp-115), [YMP-114](#ymp-114), [YMP-118](#ymp-118), [YMP-122](#ymp-122), [YMP-123](#ymp-123), [YMP-125](#ymp-125), [YMP-110](#ymp-110), [YMP-113](#ymp-113), [YMP-126](#ymp-126), [YMP-127](#ymp-127), [YMP-128](#ymp-128)
 
 A local release needs a reproducible install and truthful compatibility evidence for the configured native providers.
 
-**Latest progress note:** Release verification procedure now records packaging paths, exact offline checks, native metadata versus inference boundaries, and a bounded optional two-invocation minimal-effort proposal. No inference quota requested or consumed. Final execution/review/version/install still depend on complete delivery tasks.
+**Latest progress note:** Installer preflight passes on accepted sourceaf6a4dc at version0.3.0, including long-home mock demo, backup and repeat-install behavior; user installation is unchanged. All advertised subsystem consumers are mapped, and successful alternate workspace-policy behavior is independently accepted. Remaining126 runtime/driver and112/114 UI work still block final-version verification, max review and release installation.
 
 **Acceptance criteria:**
 
@@ -1522,9 +1523,9 @@ Execute universal acceptance scenarios through a trusted runtime driver
 
 **State:** `[~]` (in_progress) · **Type:** implementation · **Priority:** P1
 
-**Last update (UTC):** 2026-09-12 20:21
+**Last update (UTC):** 2026-09-12 22:17
 
-**Current reason:** The unchanged budget-reservations scenario now passes, bringing actual driver coverage to10 of17 cases. Scripted usage totals80 units (agent a65, b15),20 remain, no live reservations remain, and all3 denied requests start no invocation. Optional captured review reserve and per-assignment token reservation preserve previous behavior when absent. Race, pin and unknown-usage controls are still being added before independent acceptance; exporter corrections and remaining adapters continue.
+**Current reason:** All17 scenarios now have actual preparation passes; a single-build combined run is underway. Exporter corrections independently accepted by parent after4 discriminating controls. Accepted runtime-only compositionfcbe5add is integrated and being checked on main; full driver and captured unknown-usage/restart policy still require independent acceptance. A disk-full compilation interruption was preserved as an environment failure; completed caches were reclaimed without deleting source, reports or accepted binaries.
 
 **Owner:** Maintainer and delegated xhigh implementation/review agents
 
@@ -1582,6 +1583,36 @@ Native metadata readers discard display names and selectable profiles remain pro
 
 - [Owner clarification and catalog contract](../architecture/provider-named-agent-catalog.md)
 - [Independent core and native-name UI review](../../ymp-evals/reports/ymp-118-native-independent-review.md)
+
+## YMP-128
+
+Support internal team transport with long metadata paths
+
+**State:** `[x]` (done) · **Type:** implementation · **Priority:** P1
+
+**Last update (UTC):** 2026-09-12 21:24
+
+**Current reason:** Independent review accepts af6a4dc (9/10);26 focused socket/MCP/executable checks pass. Integrated as235d0a with all125 reviewed source hashes preserved; main formatting, Clippy,382 tests and build pass. The complete isolated installer workflow now passes installation, version/help, mock demo in the long metadata path, backup preservation and repeat installation. Artifacts stay in the selected directory; owner installation remains unchanged. Final-version packaging remains121.
+
+**Owner:** Maintainer and independent xhigh reviewer
+
+**Authorization:** Correct a reproducible release-preflight failure within the existing executable and custom application-home contract; no new provider inference quota.
+
+**Depends on:** [YMP-123](#ymp-123)
+
+The actual isolated install succeeds, but its mock demo fails with path must be shorter than SUN_LEN when the temporary application-home path exceeds the Unix socket address limit. Preserve the failing setup rather than shortening it to obtain a pass.
+
+**Acceptance criteria:**
+
+- Keep application data and the actual socket in the selected metadata home while using a private short transport alias when the Unix address cannot represent that path; never change the process working directory.
+- Preserve assignment capability validation, native authentication, socket permissions, public stdio behavior and independent concurrent server identities.
+- Release the owned socket and temporary alias on normal shutdown and failed setup, without deleting another listener or application data.
+- Reproduce the original long-home failure, pass a real executable mock demo in that same setup, and exercise transport round trips, isolation and cleanup with deterministic offline controls.
+- Run required Rust checks and obtain independent review, then repeat the existing isolated install, help, demo and backup/idempotence checks. No native model calls are permitted.
+
+**Evidence:**
+
+- [Local release verification procedure](../guides/release-verification.md)
 
 ## Intent coverage
 

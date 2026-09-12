@@ -1469,6 +1469,11 @@
           "at": "2026-09-12T20:43:04.824261+00:00",
           "status": "in_progress",
           "note": "Backend coordination is accepted and integrated; Opus is completing existing-page board views with knowledge114. Two minor findings from the accepted native-name UI review are now explicit acceptance follow-ups: accurate team-chat/shared-board permission labels and a captured-versus-current name regression with a failing mutation control. No native inference is used."
+        },
+        {
+          "at": "2026-09-12T21:14:51.092170+00:00",
+          "status": "in_progress",
+          "note": "Opus f4ad62c closes all minor native-interface findings and is independently accepted in R3: labels match all seven tools, and the captured-name regression now fails under the previously surviving mutation. It is included in the checked128 composition for integration. Full existing-page board views continue with114; no native inference."
         }
       ]
     },
@@ -2323,7 +2328,8 @@
         "YMP-110",
         "YMP-113",
         "YMP-126",
-        "YMP-127"
+        "YMP-127",
+        "YMP-128"
       ],
       "reason": "A local release needs a reproducible install and truthful compatibility evidence for the configured native providers.",
       "acceptance": [
@@ -2395,6 +2401,11 @@
           "at": "2026-09-12T20:08:34.226447+00:00",
           "status": "planned",
           "note": "Release verification procedure now records packaging paths, exact offline checks, native metadata versus inference boundaries, and a bounded optional two-invocation minimal-effort proposal. No inference quota requested or consumed. Final execution/review/version/install still depend on complete delivery tasks."
+        },
+        {
+          "at": "2026-09-12T21:24:46.062254+00:00",
+          "status": "planned",
+          "note": "Installer preflight passes on accepted sourceaf6a4dc at version0.3.0, including long-home mock demo, backup and repeat-install behavior; user installation is unchanged. All advertised subsystem consumers are mapped, and successful alternate workspace-policy behavior is independently accepted. Remaining126 runtime/driver and112/114 UI work still block final-version verification, max review and release installation."
         }
       ],
       "budget": "Not allocated. Prepare a concrete bounded smoke-check proposal before any real-provider inference."
@@ -2743,6 +2754,16 @@
           "at": "2026-09-12T20:21:56.530003+00:00",
           "status": "in_progress",
           "note": "The unchanged budget-reservations scenario now passes, bringing actual driver coverage to10 of17 cases. Scripted usage totals80 units (agent a65, b15),20 remain, no live reservations remain, and all3 denied requests start no invocation. Optional captured review reserve and per-assignment token reservation preserve previous behavior when absent. Race, pin and unknown-usage controls are still being added before independent acceptance; exporter corrections and remaining adapters continue."
+        },
+        {
+          "at": "2026-09-12T21:07:10.808655+00:00",
+          "status": "in_progress",
+          "note": "Driver preparation now passes11 of17 cases, including fixed roster, and accepted main897b4eb is composed as812b101. Independent runtime-delta review requests changes (7/10): a caller can understate context size and execute an oversized prompt; a second process can reserve conflicting work despite the project lock. Both exact public controls fail as expected, while3 storage and4 existing public tests pass. The unaccepted delta remains outside main; author is correcting both enforced boundaries before resubmission."
+        },
+        {
+          "at": "2026-09-12T22:17:53.608461+00:00",
+          "status": "in_progress",
+          "note": "All17 scenarios now have actual preparation passes; a single-build combined run is underway. Exporter corrections independently accepted by parent after4 discriminating controls. Accepted runtime-only compositionfcbe5add is integrated and being checked on main; full driver and captured unknown-usage/restart policy still require independent acceptance. A disk-full compilation interruption was preserved as an environment failure; completed caches were reclaimed without deleting source, reports or accepted binaries."
         }
       ]
     },
@@ -2824,9 +2845,59 @@
           "note": "Native scan-derived names are implemented end to end and independently accepted by Opus (9/10). Supported owner-home refresh retains the original team/configuration and1237 history rows while exposing19 offerings. Current maincf89f61 binary displays native names in pool/team, sidebar, transcript, assignments and usage; historical identities remain captured. Main375 tests and required checks pass;10 native protocol fixtures and bridge checks pass on identical candidate bytes. Installed release remains pending121."
         }
       ]
+    },
+    {
+      "id": "YMP-128",
+      "title": "Support internal team transport with long metadata paths",
+      "type": "implementation",
+      "priority": "P1",
+      "status": "done",
+      "owner": "Maintainer and independent xhigh reviewer",
+      "authorization": "Correct a reproducible release-preflight failure within the existing executable and custom application-home contract; no new provider inference quota.",
+      "depends_on": [
+        "YMP-123"
+      ],
+      "reason": "The actual isolated install succeeds, but its mock demo fails with path must be shorter than SUN_LEN when the temporary application-home path exceeds the Unix socket address limit. Preserve the failing setup rather than shortening it to obtain a pass.",
+      "acceptance": [
+        "Keep application data and the actual socket in the selected metadata home while using a private short transport alias when the Unix address cannot represent that path; never change the process working directory.",
+        "Preserve assignment capability validation, native authentication, socket permissions, public stdio behavior and independent concurrent server identities.",
+        "Release the owned socket and temporary alias on normal shutdown and failed setup, without deleting another listener or application data.",
+        "Reproduce the original long-home failure, pass a real executable mock demo in that same setup, and exercise transport round trips, isolation and cleanup with deterministic offline controls.",
+        "Run required Rust checks and obtain independent review, then repeat the existing isolated install, help, demo and backup/idempotence checks. No native model calls are permitted."
+      ],
+      "evidence": [
+        "[Local release verification procedure](../guides/release-verification.md)"
+      ],
+      "history": [
+        {
+          "at": "2026-09-12T20:57:24.245152+00:00",
+          "status": "new",
+          "note": "Release preflight found an actual long-metadata-path socket failure after installation succeeded. Captured failure log remains under the original temporary run directory."
+        },
+        {
+          "at": "2026-09-12T20:57:24.245152+00:00",
+          "status": "in_progress",
+          "note": "Implement a bounded private short-address alias while retaining the socket under the metadata home; preserve the original long-path consumer for verification."
+        },
+        {
+          "at": "2026-09-12T21:07:10.853474+00:00",
+          "status": "in_progress",
+          "note": "The new executable regression reproduces the actual install-preflight SUN_LEN failure on the original long metadata path. Private short-address binding is implemented in an isolated candidate, retaining the socket under metadata and preserving owned-resource cleanup. Focused transport/lifecycle and executable checks are running before independent review."
+        },
+        {
+          "at": "2026-09-12T21:14:51.048507+00:00",
+          "status": "in_progress",
+          "note": "Candidate af6a4dc passes the exact original long-home demo, four transport/cleanup controls, formatting, Clippy and all382 workspace tests. Socket files remain under metadata; private short aliases handle Unix path limits, and inode checks preserve replacement listeners. The original before-failure and a failing ownership-removal mutation are retained. Independent review is running before integration and the complete installer rerun."
+        },
+        {
+          "at": "2026-09-12T21:24:46.018437+00:00",
+          "status": "done",
+          "note": "Independent review accepts af6a4dc (9/10);26 focused socket/MCP/executable checks pass. Integrated as235d0a with all125 reviewed source hashes preserved; main formatting, Clippy,382 tests and build pass. The complete isolated installer workflow now passes installation, version/help, mock demo in the long metadata path, backup preservation and repeat installation. Artifacts stay in the selected directory; owner installation remains unchanged. Final-version packaging remains121."
+        }
+      ]
     }
   ],
-  "updated_at": "2026-09-12T20:43:04.824261+00:00",
+  "updated_at": "2026-09-12T22:17:53.608461+00:00",
   "delivery_order": [
     "YMP-116",
     "YMP-103",
@@ -2852,6 +2923,7 @@
     "YMP-123",
     "YMP-127",
     "YMP-126",
+    "YMP-128",
     "YMP-121"
   ],
   "intent": "intent.md",
@@ -2929,6 +3001,7 @@
         "YMP-123",
         "YMP-127",
         "YMP-126",
+        "YMP-128",
         "YMP-121"
       ]
     }

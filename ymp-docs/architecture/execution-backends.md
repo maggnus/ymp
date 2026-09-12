@@ -1,6 +1,6 @@
 # Replaceable execution backends
 
-YMP-122 supplies the first compiled extension described in [subsystem interfaces](subsystem-interfaces.md). `ymp_providers::ExecutionBackend` has two methods: `identity()` returns an `ExecutionBackendIdentity` (ID and version), and `execute(TurnRequest, Sender<ProviderEvent>)` returns a boxed `Send` future yielding `TurnResult`. There is no store, assignment-commit API or scheduler in that interface.
+YMP-122 supplies the first compiled extension described in [subsystem interfaces](subsystem-interfaces.md). `ymp_providers::ExecutionBackend` provides `identity()` (an ID and version), `execute(TurnRequest, Sender<ProviderEvent>)` (a boxed `Send` future yielding `TurnResult`), and `workspace_access(&TurnRequest)` (the access the backend actually enforces, with a conservative default). There is no store, assignment-commit API or scheduler in that interface. Runtime scheduling may reserve broader access, but cannot narrow the backend's actual guarantee.
 
 `Engine::new` selects `NativeExecutionBackend`, whose ID is `ymp.native` and whose version is the provider crate's package version. It runs the existing Codex, Claude, ACP and explicit offline mock adapters. Native authentication and capability inspection are unchanged. `Engine::with_execution_backend(Arc<dyn ExecutionBackend>)` explicitly replaces execution for that engine and subsequent clones; existing clones and active turns keep their original backend. There is no dynamic ABI, registry, loader, plugin service or dependency container.
 
