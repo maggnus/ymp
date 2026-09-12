@@ -16,7 +16,7 @@ An admitted participant reads `board_read`, then calls `task_propose` with the r
 | `add_task` | Add a bounded, independently checked subtask using stable dependency IDs |
 | `membership` | Change current participants within captured restrictions, retaining historical profiles and contributions |
 
-The normal execution loop consumes proposals at work-wave boundaries. `Engine::commit_board_proposals` exposes the same consumer to trusted clients. It returns without changing proposals while native assignments are active. A committed responsibility does not issue a capability, start native work, spend a new allowance or establish acceptance. The scheduler honors that responsibility, performs an atomic current-version task claim, and then uses the existing budget, workspace and assignment-grant admission path. Actual invocation records preserve requested, sent and reported settings.
+The normal execution loop consumes proposals at work-wave boundaries. `Engine::commit_board_proposals` exposes the same consumer to trusted clients. It returns without changing proposals while native assignments are active. A committed responsibility does not issue a capability, start native work, spend a new allowance or establish acceptance. The scheduler honors that responsibility, performs an atomic current-version task claim, and then uses the existing budget, workspace and assignment-grant admission path. If the responsible agent has already been selected in the current wave, the task waits with its commitment intact. Earlier claims still execute and receive review if selecting later work finds a real constraint error. Actual invocation records preserve requested, sent and reported settings.
 
 ## Versions, atomicity and constraints
 

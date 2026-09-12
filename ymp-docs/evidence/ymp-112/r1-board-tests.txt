@@ -1,0 +1,19 @@
+   Compiling ymp-runtime v0.3.0 (/private/var/folders/cw/7pn8sb3x6bj69g7j2d8f_ss00000gn/T/ymp-release-work-h6oq_rys/sibling112/ymp-rust/crates/ymp-runtime)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.74s
+     Running tests/board_coordination.rs (target/debug/deps/board_coordination-3afa5527f16666ea)
+
+running 11 tests
+test later_selection_error_drains_and_reviews_already_claimed_work ... ok
+test replacing_strategy_changes_choice_without_bypassing_runtime_validation ... ok
+test post_commit_revision_preserves_objectives_contract_and_rejects_stale_plan ... ok
+test malicious_proposals_cannot_override_identity_versions_pins_or_contracts ... ok
+test racing_public_claims_have_one_winner_and_do_not_issue_authority ... ok
+test actual_team_tools_commit_one_of_two_conflicting_claims_and_execute_the_winner ... ok
+test recovery_inspects_uncertain_effect_before_replay_and_preserves_confirmed_sibling ... ok
+test a_participant_can_distribute_work_and_a_new_subtask_reaches_independent_acceptance ... ok
+test reassignment_and_membership_changes_preserve_historical_contributions ... ok
+test an_approach_revision_keeps_responsibility_and_stale_membership_cannot_overwrite ... ok
+test parallel_commitment_waits_for_busy_owner_and_keeps_prior_claims_running ... ok
+
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.82s
+
