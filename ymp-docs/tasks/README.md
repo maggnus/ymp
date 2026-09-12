@@ -1,6 +1,6 @@
 # Task details and evidence
 
-Updated: 2026-09-12 20:03 UTC.
+Updated: 2026-09-12 20:08 UTC.
 
 Use the [delivery plan](plan.md) to follow progress. This generated register contains full acceptance criteria, dependencies and evidence. [tasks.json](tasks.json) is the single source; [manage.py](manage.py) updates both pages.
 
@@ -57,9 +57,9 @@ A planned task is not implemented functionality. Completed research and planning
 | `[x]` | [YMP-116](#ymp-116) | P0 | Define the minimal runtime transition and authority contract | 2026-09-12 10:07 |
 | `[x]` | [YMP-117](#ymp-117) | P0 | Separate acceptance from confirmation and gate reputation on evidence | 2026-09-12 13:59 |
 | `[x]` | [YMP-120](#ymp-120) | P0 | Enforce assignment-scoped permissions and runtime-only state transitions | 2026-09-12 13:46 |
-| `[~]` | [YMP-118](#ymp-118) | P0 | Integrate core assignment, budget and confirmation visibility | 2026-09-12 18:46 |
+| `[~]` | [YMP-118](#ymp-118) | P0 | Integrate core assignment, budget and confirmation visibility | 2026-09-12 20:08 |
 | `[x]` | [YMP-119](#ymp-119) | P0 | Prepare universal acceptance scenarios and independent validators | 2026-09-12 10:56 |
-| `[=]` | [YMP-121](#ymp-121) | P1 | Verify the integrated application and package a local release | 2026-09-12 18:46 |
+| `[=]` | [YMP-121](#ymp-121) | P1 | Verify the integrated application and package a local release | 2026-09-12 20:08 |
 | `[x]` | [YMP-013](#ymp-013) | P0 | Review plan coherence and simplify progress tracking | 2026-09-12 09:46 |
 | `[x]` | [YMP-122](#ymp-122) | P1 | Expose replaceable execution backends behind runtime-owned controls | 2026-09-12 15:23 |
 | `[x]` | [YMP-123](#ymp-123) | P1 | Expose a public local MCP facade over stdio | 2026-09-12 18:22 |
@@ -1244,9 +1244,9 @@ Integrate core assignment, budget and confirmation visibility
 
 **State:** `[~]` (in_progress) · **Type:** implementation · **Priority:** P0
 
-**Last update (UTC):** 2026-09-12 18:46
+**Last update (UTC):** 2026-09-12 20:08
 
-**Current reason:** Owner correction127 makes native scan results the source of primary agent names. Core118 fixes continue, but final catalog/name integration and its UI verification are owned by127 and remain a release requirement.
+**Current reason:** Opus candidate08fcbf6 closes core review findings, includes actual configured-contract visibility and native catalog views, and passes352 author workspace tests. Independent Opus R2 runs on an immutable worktree, including successful Claude bridge metadata and actual terminal consumers. Board112/knowledge114 extensions are delegated to the same existing pages separately.
 
 **Owner:** Claude Code claude-opus-5 with thinking max via Paseo; maintainer integrates and verifies
 
@@ -1309,7 +1309,7 @@ Verify the integrated application and package a local release
 
 **State:** `[=]` (planned) · **Type:** verification · **Priority:** P1
 
-**Last update (UTC):** 2026-09-12 18:46
+**Last update (UTC):** 2026-09-12 20:08
 
 **Current reason:** Needs YMP-112, YMP-114, YMP-118, YMP-110, YMP-113, YMP-126, YMP-127
 
@@ -1321,7 +1321,7 @@ Verify the integrated application and package a local release
 
 A local release needs a reproducible install and truthful compatibility evidence for the configured native providers.
 
-**Latest progress note:** Final release explicitly requires127: native scan-derived agent names and actual selectable pool, per the owner correction. Existing provider placeholders are not an acceptable final product.
+**Latest progress note:** Release verification procedure now records packaging paths, exact offline checks, native metadata versus inference boundaries, and a bounded optional two-invocation minimal-effort proposal. No inference quota requested or consumed. Final execution/review/version/install still depend on complete delivery tasks.
 
 **Acceptance criteria:**
 
@@ -1342,6 +1342,7 @@ A local release needs a reproducible install and truthful compatibility evidence
 - [Delivery plan](plan.md)
 - [Replaceable subsystem contracts](../architecture/subsystem-interfaces.md)
 - [Test inference audit and probe distinction](../research/evidence/test-inference-audit.json)
+- [Local release verification procedure](../guides/release-verification.md)
 
 **Quota:** Not allocated. Prepare a concrete bounded smoke-check proposal before any real-provider inference.
 
