@@ -448,6 +448,14 @@ impl Engine {
                     .filter_map(|t| t.assignee.clone()),
             )
             .collect::<Vec<_>>();
+        occupied_agent_ids.extend(
+            self.store
+                .board(session)?
+                .tasks
+                .into_iter()
+                .filter(|t| demand.task_id.as_ref() != Some(&t.task.id))
+                .filter_map(|t| t.commitment.map(|c| c.agent_id)),
+        );
         occupied_agent_ids.sort();
         occupied_agent_ids.dedup();
         Ok(AllocationInput {

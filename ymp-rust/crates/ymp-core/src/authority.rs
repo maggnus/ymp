@@ -10,6 +10,7 @@ pub enum TeamOperation {
     TeamRead,
     TasksList,
     TaskPropose,
+    BoardRead,
     MemorySearch,
     MemoryPropose,
 }
@@ -20,6 +21,7 @@ impl TeamOperation {
             Self::TeamRead,
             Self::TasksList,
             Self::TaskPropose,
+            Self::BoardRead,
             Self::MemorySearch,
             Self::MemoryPropose,
         ]

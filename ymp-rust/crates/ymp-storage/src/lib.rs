@@ -9,6 +9,7 @@ use std::{
 use ymp_core::*;
 mod allocation;
 mod authority;
+mod board;
 mod budget;
 mod confirmation;
 mod knowledge;
