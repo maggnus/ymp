@@ -384,7 +384,7 @@
       "title": "Add explicit session resource budgets and unknown-usage policy",
       "type": "implementation",
       "priority": "P0",
-      "status": "planned",
+      "status": "in_progress",
       "owner": "Maintainer",
       "authorization": "Planned delivery derived from the owner-approved intent and standing autonomous-development direction. Follow dependencies and acceptance criteria; separate real-provider quota is required where stated.",
       "depends_on": [
@@ -436,6 +436,11 @@
           "at": "2026-09-12T09:35:05.248513+00:00",
           "status": "planned",
           "note": "Budget admission needs invocation provenance, not completed effort selection or dynamic assignment permissions."
+        },
+        {
+          "at": "2026-09-12T12:12:44.621677+00:00",
+          "status": "in_progress",
+          "note": "Session budgets assigned to an xhigh subagent against reviewed provenance and native settings. Atomic reservations, bounded startup, protected verification and honest unknown-usage handling are the acceptance scope."
         }
       ]
     },
@@ -673,6 +678,11 @@
           "at": "2026-09-12T11:37:58.838027+00:00",
           "status": "in_progress",
           "note": "Implementing task-specific bounded memory retrieval and traceable query/source records on the integrated provenance layer."
+        },
+        {
+          "at": "2026-09-12T12:16:37.327162+00:00",
+          "status": "in_progress",
+          "note": "Candidate 6e5aa6a implements content-based retrieval and bounded, versioned source evidence. The original invoice regression failed exit101 before correction; three runtime retrieval cases and all138 Rust tests pass. Independent review is next; candidate is preserved in its development worktree."
         }
       ]
     },
@@ -724,6 +734,11 @@
           "at": "2026-09-12T10:23:06.090079+00:00",
           "status": "in_progress",
           "note": "Claude Opus 5 max is assigned through Paseo: independently review the pool outcome, then implement recorded checks and factual recovery views in an isolated development worktree."
+        },
+        {
+          "at": "2026-09-12T12:12:44.715234+00:00",
+          "status": "in_progress",
+          "note": "12/09 20:11 HKT R1(8/10) RETURN: independent Claude Opus 5 max review confirmed behavior but found two output-display claims too broad. Author is correcting wording; integration waits for R2. Shared-frame clipping is reserved for YMP-118."
         }
       ]
     },
@@ -853,6 +868,11 @@
           "at": "2026-09-12T10:56:22.436052+00:00",
           "status": "in_progress",
           "note": "Native model/effort work is assigned at xhigh against the completed pool API and candidate provenance types; upstream 101 corrections will be incorporated before integration."
+        },
+        {
+          "at": "2026-09-12T12:12:44.926694+00:00",
+          "status": "in_progress",
+          "note": "Independent xhigh review accepted 823d51d at R1(9/10); diagnostic correction 56d95d5 distinguishes unsupported from unknown effort controls. Implementation awaits integration and workspace checks; 147 tests pass in its development worktree."
         }
       ]
     },
@@ -1786,6 +1806,11 @@
           "at": "2026-09-12T11:37:58.795564+00:00",
           "status": "in_progress",
           "note": "Assignment-scoped grant enforcement assigned to an xhigh subagent against reviewed provenance; native settings work is coordinated separately."
+        },
+        {
+          "at": "2026-09-12T12:12:44.829679+00:00",
+          "status": "in_progress",
+          "note": "Authority implementation dc81cd0 is complete in an isolated development worktree and undergoing independent xhigh review. Scope covers assignment grants, native permission refresh, expiry and replay rejection; not yet integrated."
         }
       ]
     },
@@ -1969,7 +1994,7 @@
       ]
     }
   ],
-  "updated_at": "2026-09-12T11:37:58.838027+00:00",
+  "updated_at": "2026-09-12T12:16:37.327162+00:00",
   "delivery_order": [
     "YMP-116",
     "YMP-103",
