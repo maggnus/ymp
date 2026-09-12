@@ -1,6 +1,6 @@
 # Task details and evidence
 
-Updated: 2026-09-12 12:46 UTC.
+Updated: 2026-09-12 12:55 UTC.
 
 Use the [delivery plan](plan.md) to follow progress. This generated register contains full acceptance criteria, dependencies and evidence. [tasks.json](tasks.json) is the single source; [manage.py](manage.py) updates both pages.
 
@@ -14,7 +14,7 @@ A planned task is not implemented functionality. Completed research and planning
 | design | 1 | 1 |
 | documentation | 4 | 4 |
 | experiment | 0 | 4 |
-| implementation | 7 | 19 |
+| implementation | 8 | 19 |
 | research | 8 | 8 |
 | verification | 1 | 2 |
 
@@ -31,12 +31,12 @@ A planned task is not implemented functionality. Completed research and planning
 | `[x]` | [YMP-007](#ymp-007) | P0 | Evaluate verification-grounded outcome reuse and lifecycle evidence | 2026-09-11 16:00 |
 | `[x]` | [YMP-008](#ymp-008) | P0 | Reconcile native and canonical usage and recompute weighted input | 2026-09-11 16:00 |
 | `[x]` | [YMP-101](#ymp-101) | P0 | Persist explainable session decisions and execution provenance | 2026-09-12 11:37 |
-| `[~]` | [YMP-102](#ymp-102) | P0 | Add explicit session resource budgets and unknown-usage policy | 2026-09-12 12:35 |
+| `[~]` | [YMP-102](#ymp-102) | P0 | Add explicit session resource budgets and unknown-usage policy | 2026-09-12 12:55 |
 | `[x]` | [YMP-103](#ymp-103) | P0 | Honor Codex nonterminal retry notifications | 2026-09-12 10:16 |
 | `[x]` | [YMP-104](#ymp-104) | P0 | Preserve accepted outcomes and confirmation status when final narration fails | 2026-09-12 10:16 |
 | `[x]` | [YMP-105](#ymp-105) | P1 | Enumerate file names without reading file contents | 2026-09-12 10:16 |
 | `[x]` | [YMP-106](#ymp-106) | P1 | Use task-specific memory queries and record retrieval evidence | 2026-09-12 12:33 |
-| `[~]` | [YMP-107](#ymp-107) | P1 | Expose recorded checks and factual recovery limits | 2026-09-12 12:34 |
+| `[x]` | [YMP-107](#ymp-107) | P1 | Expose recorded checks and factual recovery limits | 2026-09-12 12:55 |
 | `[=]` | [YMP-108](#ymp-108) | P2 | Evaluate an optional usage estimate with explicit price provenance | 2026-09-12 09:35 |
 | `[x]` | [YMP-111](#ymp-111) | P0 | Apply native models and reasoning settings per assignment | 2026-09-12 12:18 |
 | `[=]` | [YMP-201](#ymp-201) | P2 | Calibrate and run the paired solo/team pilot | 2026-09-12 09:35 |
@@ -56,7 +56,7 @@ A planned task is not implemented functionality. Completed research and planning
 | `[x]` | [YMP-012](#ymp-012) | P0 | Establish the delivery plan and traceable backlog for the approved intent | 2026-09-12 09:15 |
 | `[x]` | [YMP-116](#ymp-116) | P0 | Define the minimal runtime transition and authority contract | 2026-09-12 10:07 |
 | `[~]` | [YMP-117](#ymp-117) | P0 | Separate acceptance from confirmation and gate reputation on evidence | 2026-09-12 12:46 |
-| `[~]` | [YMP-120](#ymp-120) | P0 | Enforce assignment-scoped permissions and runtime-only state transitions | 2026-09-12 12:18 |
+| `[~]` | [YMP-120](#ymp-120) | P0 | Enforce assignment-scoped permissions and runtime-only state transitions | 2026-09-12 12:55 |
 | `[=]` | [YMP-118](#ymp-118) | P0 | Integrate core assignment, budget and confirmation visibility | 2026-09-12 12:20 |
 | `[x]` | [YMP-119](#ymp-119) | P0 | Prepare universal acceptance scenarios and independent validators | 2026-09-12 10:56 |
 | `[=]` | [YMP-121](#ymp-121) | P1 | Verify the integrated application and package a local release | 2026-09-12 12:46 |
@@ -332,9 +332,9 @@ Add explicit session resource budgets and unknown-usage policy
 
 **State:** `[~]` (in_progress) · **Type:** implementation · **Priority:** P0
 
-**Last update (UTC):** 2026-09-12 12:35
+**Last update (UTC):** 2026-09-12 12:55
 
-**Current reason:** Candidate0f53ee7 implements atomic shared admission, preserved spend, verification reserves and supported native controls; mandatory author checks passed. Fresh independent xhigh review is running. Native token overshoot remains explicitly unbounded where no native hard cap exists; incomplete usage prevents further token-budgeted admission.
+**Current reason:** R1(6/10) RETURN found historical spend reused on legacy resume. Correction899e990 preserves durable invocation totals; exact public Store/Engine probes change101 to0 and163 author Rust tests pass. Combined budget/grant integration is being prepared before independent R2; fresh mutation replay logs are explicitly labelled.
 
 **Owner:** Maintainer
 
@@ -494,11 +494,11 @@ The first twelve words of a role instruction can contain no task terms, and the 
 
 Expose recorded checks and factual recovery limits
 
-**State:** `[~]` (in_progress) · **Type:** implementation · **Priority:** P1
+**State:** `[x]` (done) · **Type:** implementation · **Priority:** P1
 
-**Last update (UTC):** 2026-09-12 12:34
+**Last update (UTC):** 2026-09-12 12:55
 
-**Current reason:** Integrated candidate3540ecd now reads optional task/attempt references and fixes same-command cross-task display, with explicit legacy handling. Author reports161 passing Rust tests and a mock TUI walk; independent Claude Opus5 max R2 is running against this actual integration candidate.
+**Current reason:** R2(9/10) ACCEPT by independent Claude Opus5 max review; integrated c2b273b,628e99a,9b82bf2. Recorded checks distinguish unknown/missing runs and task scope; recovery/output limits are factual. Main matches reviewed UI bytes; fmt/clippy and164 Rust tests exit0. Shared-frame clipping remains118.
 
 **Owner:** Claude Code claude-opus-5 with thinking max via Paseo; maintainer integrates and verifies
 
@@ -519,6 +519,9 @@ Metadata can explain what changed but does not contain prior file backups. A com
 
 - [UI/recovery evidence](../research/evidence/ui-architecture-review.md)
 - [Delivery plan](plan.md)
+- [Recorded checks and recovery contract](../architecture/recorded-checks-and-recovery.md)
+- [Independent Opus5 max R2 review](../../ymp-evals/reports/ymp-107-independent-review.md)
+- [Preserved R1 findings](../../ymp-evals/reports/ymp-107-review-r1.md)
 
 ## YMP-108
 
@@ -1197,9 +1200,9 @@ Enforce assignment-scoped permissions and runtime-only state transitions
 
 **State:** `[~]` (in_progress) · **Type:** implementation · **Priority:** P0
 
-**Last update (UTC):** 2026-09-12 12:18
+**Last update (UTC):** 2026-09-12 12:55
 
-**Current reason:** R1(5/10) RETURN: independent consumer probe showed a native protocol error could persist a synthetic assignment capability in two board notices and two UI events (exit101). Author is correcting the error boundary; integration waits for the exact probe and R2.
+**Current reason:** R2(9/10) ACCEPT for standalone dc81cd0+d9a3317: exact capability-leak probe now reports zero persisted/UI leaks, with independent failing controls and167 Rust tests passing. Integration with budget102 must preserve one atomic admission/grant transaction and is still awaiting joint verification.
 
 **Owner:** Maintainer
 
@@ -1298,7 +1301,7 @@ Verify the integrated application and package a local release
 
 **Last update (UTC):** 2026-09-12 12:46
 
-**Current reason:** Needs YMP-107, YMP-112, YMP-115, YMP-114, YMP-118, YMP-122
+**Current reason:** Needs YMP-112, YMP-115, YMP-114, YMP-118, YMP-122
 
 **Owner:** Independent final reviewer at max reasoning; maintainer integrates and packages
 

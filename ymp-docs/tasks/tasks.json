@@ -446,6 +446,11 @@
           "at": "2026-09-12T12:35:54.128079+00:00",
           "status": "in_progress",
           "note": "Candidate0f53ee7 implements atomic shared admission, preserved spend, verification reserves and supported native controls; mandatory author checks passed. Fresh independent xhigh review is running. Native token overshoot remains explicitly unbounded where no native hard cap exists; incomplete usage prevents further token-budgeted admission."
+        },
+        {
+          "at": "2026-09-12T12:55:53.673424+00:00",
+          "status": "in_progress",
+          "note": "R1(6/10) RETURN found historical spend reused on legacy resume. Correction899e990 preserves durable invocation totals; exact public Store/Engine probes change101 to0 and163 author Rust tests pass. Combined budget/grant integration is being prepared before independent R2; fresh mutation replay logs are explicitly labelled."
         }
       ]
     },
@@ -708,7 +713,7 @@
       "title": "Expose recorded checks and factual recovery limits",
       "type": "implementation",
       "priority": "P1",
-      "status": "in_progress",
+      "status": "done",
       "owner": "Claude Code claude-opus-5 with thinking max via Paseo; maintainer integrates and verifies",
       "authorization": "Planned delivery derived from the owner-approved intent and standing autonomous-development direction. Follow dependencies and acceptance criteria; separate real-provider quota is required where stated.",
       "depends_on": [
@@ -723,7 +728,10 @@
       ],
       "evidence": [
         "[UI/recovery evidence](../research/evidence/ui-architecture-review.md)",
-        "[Delivery plan](plan.md)"
+        "[Delivery plan](plan.md)",
+        "[Recorded checks and recovery contract](../architecture/recorded-checks-and-recovery.md)",
+        "[Independent Opus5 max R2 review](../../ymp-evals/reports/ymp-107-independent-review.md)",
+        "[Preserved R1 findings](../../ymp-evals/reports/ymp-107-review-r1.md)"
       ],
       "budget": null,
       "history": [
@@ -766,6 +774,11 @@
           "at": "2026-09-12T12:34:13.307527+00:00",
           "status": "in_progress",
           "note": "Integrated candidate3540ecd now reads optional task/attempt references and fixes same-command cross-task display, with explicit legacy handling. Author reports161 passing Rust tests and a mock TUI walk; independent Claude Opus5 max R2 is running against this actual integration candidate."
+        },
+        {
+          "at": "2026-09-12T12:55:53.571705+00:00",
+          "status": "done",
+          "note": "R2(9/10) ACCEPT by independent Claude Opus5 max review; integrated c2b273b,628e99a,9b82bf2. Recorded checks distinguish unknown/missing runs and task scope; recovery/output limits are factual. Main matches reviewed UI bytes; fmt/clippy and164 Rust tests exit0. Shared-frame clipping remains118."
         }
       ]
     },
@@ -1898,6 +1911,11 @@
           "at": "2026-09-12T12:18:55.196688+00:00",
           "status": "in_progress",
           "note": "R1(5/10) RETURN: independent consumer probe showed a native protocol error could persist a synthetic assignment capability in two board notices and two UI events (exit101). Author is correcting the error boundary; integration waits for the exact probe and R2."
+        },
+        {
+          "at": "2026-09-12T12:55:53.775508+00:00",
+          "status": "in_progress",
+          "note": "R2(9/10) ACCEPT for standalone dc81cd0+d9a3317: exact capability-leak probe now reports zero persisted/UI leaks, with independent failing controls and167 Rust tests passing. Integration with budget102 must preserve one atomic admission/grant transaction and is still awaiting joint verification."
         }
       ]
     },
@@ -2125,7 +2143,7 @@
       ]
     }
   ],
-  "updated_at": "2026-09-12T12:46:29.117507+00:00",
+  "updated_at": "2026-09-12T12:55:53.775508+00:00",
   "delivery_order": [
     "YMP-116",
     "YMP-103",
