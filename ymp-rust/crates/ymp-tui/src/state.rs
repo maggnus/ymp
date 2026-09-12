@@ -404,6 +404,8 @@ impl App {
                 &self.notices,
                 &self.streams,
                 &self.config,
+                &self.pool,
+                &self.records,
                 self.prefs.details,
             );
             self.entries_revision = self.revision;

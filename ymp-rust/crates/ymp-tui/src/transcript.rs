@@ -83,6 +83,8 @@ pub fn build(
     notices: &[Notice],
     streams: &BTreeMap<String, String>,
     config: &Config,
+    pool: &crate::provenance::Pool,
+    records: &crate::provenance::Records,
     details: bool,
 ) -> Vec<Entry> {
     let mut entries = Vec::with_capacity(messages.len() + notices.len() + streams.len());
@@ -90,7 +92,7 @@ pub fn build(
         if ROUTING.contains(&message.kind.as_str()) && !details {
             continue;
         }
-        entries.push(entry(message, config, details));
+        entries.push(entry(message, config, pool, records, details));
     }
     for notice in notices {
         entries.push(Entry {
@@ -127,7 +129,7 @@ pub fn build(
         let tail = text::last_cells(&tail, STREAM_PREVIEW_CELLS);
         entries.push(Entry {
             role: Role::Stream,
-            author: display_name(config, agent),
+            author: display_name(config, pool, records, agent),
             kind: "streaming".into(),
             time: String::new(),
             seq: None,
@@ -139,21 +141,29 @@ pub fn build(
     entries
 }
 
-fn display_name(config: &Config, id: &str) -> String {
+/// Who wrote an entry. Agents are named by the shared rule, so the transcript, the sidebar and
+/// every page say the same thing about the same actor.
+fn display_name(
+    config: &Config,
+    pool: &crate::provenance::Pool,
+    records: &crate::provenance::Records,
+    id: &str,
+) -> String {
     match id {
         "you" => "you".into(),
         "ymp" => "ymp".into(),
-        other => config
-            .agents
-            .iter()
-            .find(|a| a.id == other)
-            .map(|a| a.name.clone())
-            .unwrap_or_else(|| other.to_owned()),
+        other => crate::views::actor_name(config, pool, records, other),
     }
 }
 
-fn entry(message: &Message, config: &Config, details: bool) -> Entry {
-    let author = display_name(config, &message.author);
+fn entry(
+    message: &Message,
+    config: &Config,
+    pool: &crate::provenance::Pool,
+    records: &crate::provenance::Records,
+    details: bool,
+) -> Entry {
+    let author = display_name(config, pool, records, &message.author);
     let time = text::clock(&message.created_at);
     let raw = message.text.clone();
     let (role, headline, body) = present(&message.kind, &message.text, details);

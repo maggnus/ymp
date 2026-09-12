@@ -356,7 +356,10 @@ fn team(app: &App, width: usize) -> Section {
             width,
             vec![
                 Span::styled(format!("{marker} "), style),
-                Span::styled(member.name.clone(), theme.body()),
+                Span::styled(
+                    views::actor_name(&app.config, &app.pool, &app.records, &member.id),
+                    theme.body(),
+                ),
             ],
             vec![Span::styled(word.to_owned(), style)],
         ));
