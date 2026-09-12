@@ -1,5 +1,5 @@
 use crate::Store;
-use anyhow::Result;
+use anyhow::{ensure, Context, Result};
 use rusqlite::{params, Connection, OptionalExtension, Transaction};
 use ymp_core::*;
 
@@ -12,6 +12,15 @@ fn rows<T: serde::de::DeserializeOwned>(
     let raw = q.query_map([session], |r| r.get::<_, String>(0))?;
     raw.map(|r| Ok(serde_json::from_str(&r?)?)).collect()
 }
+fn allowance(assignment: &AssignmentRecord, resources: &ResourceLimits) -> Result<Option<u64>> {
+    if let Some(requested) = assignment.token_reservation {
+        ensure!(requested > 0 && resources.invocation_tokens.is_some_and(|ceiling| requested <= ceiling), "token_reservation_limit: requested allowance must be positive and within the captured per-invocation ceiling");
+        Ok(Some(requested))
+    } else {
+        Ok(resources.invocation_tokens)
+    }
+}
+
 pub(super) fn snapshot(db: &Connection, session: &str) -> Result<Option<SessionBudget>> {
     let policy: Option<String> = db
         .query_row(
@@ -55,6 +64,7 @@ pub(super) fn snapshot(db: &Connection, session: &str) -> Result<Option<SessionB
         .resources
         .as_ref()
         .map_or(0, |r| r.required_review_invocations.saturating_sub(reviews));
+    let mut task_review_pending = false;
     if limits.resources.is_some() && !tasks.is_empty() {
         // Each unresolved task needs review; final review remains required until
         // the runtime has recorded approval, not merely a completed model call.
@@ -66,23 +76,78 @@ pub(super) fn snapshot(db: &Connection, session: &str) -> Result<Option<SessionB
         let final_approved = decisions.iter().any(|d| {
             d.kind == "final_review" && matches!(d.outcome, Some(DecisionOutcome::Accepted { .. }))
         });
+        task_review_pending = pending > 0 || !final_approved;
         protected =
             protected.max((pending + u64::from(!final_approved)).saturating_sub(running_reviews));
     }
-    let reservation = limits.resources.as_ref().and_then(|r| r.invocation_tokens);
-    let reserved_tokens = reservation.map(|each| {
-        invocations
+    let resources = limits.resources.as_ref();
+    let mut reserved = 0u64;
+    let mut live_review_reservations = 0u64;
+    let mut review_spend = 0u64;
+    for invocation in &invocations {
+        let assignment = assignments
             .iter()
-            .filter(|i| i.state == InvocationState::Running)
-            .fold(0u64, |sum, i| {
-                let observed = i
-                    .usage
-                    .as_ref()
-                    .and_then(|s| s.counts.known_total())
-                    .unwrap_or(0);
-                sum.saturating_add(each.saturating_sub(observed))
-            })
-    });
+            .find(|a| a.id == invocation.assignment_id)
+            .context("Missing reservation assignment")?;
+        let observed = invocation
+            .usage
+            .as_ref()
+            .and_then(|u| u.counts.known_total())
+            .unwrap_or(0);
+        if required_review_purpose(&assignment.purpose) {
+            review_spend = review_spend
+                .checked_add(observed)
+                .context("Review usage arithmetic overflow")?;
+        }
+        if invocation.state == InvocationState::Running {
+            let tokens = resources
+                .map(|r| allowance(assignment, r))
+                .transpose()?
+                .flatten()
+                .unwrap_or(0)
+                .saturating_sub(observed);
+            reserved = reserved
+                .checked_add(tokens)
+                .context("Reservation arithmetic overflow")?;
+            if required_review_purpose(&assignment.purpose) {
+                live_review_reservations = live_review_reservations
+                    .checked_add(tokens)
+                    .context("Review reservation arithmetic overflow")?;
+            }
+        }
+    }
+    let reserved_tokens = resources
+        .and_then(|r| r.invocation_tokens)
+        .map(|_| reserved);
+    let protected_review_tokens = if let Some(resources) = resources {
+        if let Some(total) = resources.review_reserve_tokens {
+            let completed = assignments
+                .iter()
+                .filter(|a| {
+                    required_review_purpose(&a.purpose) && a.state == InvocationState::Completed
+                })
+                .count() as u64;
+            Some(
+                if completed < resources.required_review_invocations || task_review_pending {
+                    total
+                        .saturating_sub(review_spend)
+                        .saturating_sub(live_review_reservations)
+                } else {
+                    0
+                },
+            )
+        } else {
+            resources
+                .invocation_tokens
+                .map(|each| {
+                    each.checked_mul(protected)
+                        .context("Review protection arithmetic overflow")
+                })
+                .transpose()?
+        }
+    } else {
+        None
+    };
     let last: Option<String> = db
         .query_row(
             "SELECT value FROM kv WHERE key=?",
@@ -105,6 +170,7 @@ pub(super) fn snapshot(db: &Connection, session: &str) -> Result<Option<SessionB
         in_flight_invocations: usage.open_calls,
         startup_invocations: startup,
         protected_review_invocations: protected,
+        protected_review_tokens,
         reserved_tokens,
         observed_usage: usage,
         observed_token_overshoot: overshoot,
@@ -147,9 +213,20 @@ pub(super) fn denial(
         ));
     }
     let Some(r) = &b.limits.resources else {
-        return Ok(None);
+        return Ok(if assignment.token_reservation.is_some() {
+            fail(
+                "token_reservation_limit",
+                "A token reservation requires a captured per-invocation ceiling",
+            )
+        } else {
+            None
+        });
     };
     r.validate()?;
+    let requested_tokens = match allowance(assignment, r) {
+        Ok(tokens) => tokens,
+        Err(error) => return Ok(fail("token_reservation_limit", &error.to_string())),
+    };
     if startup_purpose(&assignment.purpose) && b.startup_invocations >= r.startup_invocations {
         return Ok(fail(
             "startup_limit",
@@ -187,7 +264,7 @@ pub(super) fn denial(
             "Assignment context exceeds the captured character allowance",
         ));
     }
-    if let (Some(total), Some(each)) = (r.observed_tokens, r.invocation_tokens) {
+    if let (Some(total), Some(each)) = (r.observed_tokens, requested_tokens) {
         let invocations: Vec<InvocationRecord> = rows(db, "invocations", &assignment.session_id)?;
         let incomplete_closed = invocations.iter().any(|i| {
             i.state != InvocationState::Running
@@ -208,8 +285,9 @@ pub(super) fn denial(
             .observed_usage
             .known_total()
             .unwrap_or(0)
-            .saturating_add(b.reserved_tokens.unwrap_or(0));
-        if committed.saturating_add(each) > total {
+            .checked_add(b.reserved_tokens.unwrap_or(0));
+        let requested_total = committed.and_then(|value| value.checked_add(each));
+        if requested_total.is_none_or(|value| value > total) {
             return Ok(fail(
                 "token_limit",
                 "Observed usage and in-flight reservations exhaust the token allowance",
@@ -218,9 +296,12 @@ pub(super) fn denial(
         let protected = if required_review_purpose(&assignment.purpose) {
             0
         } else {
-            b.protected_review_invocations.saturating_mul(each)
+            b.protected_review_tokens.unwrap_or(0)
         };
-        if committed.saturating_add(each).saturating_add(protected) > total {
+        if requested_total
+            .and_then(|value| value.checked_add(protected))
+            .is_none_or(|value| value > total)
+        {
             return Ok(fail(
                 "token_review_reserve",
                 "Remaining token allowance is protected for required review",

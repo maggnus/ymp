@@ -23,13 +23,13 @@ Profiles and tasks are different entities. A profile may execute, plan, or revie
 
 ## Workspaces
 
-A run works directly in the user's selected directory. Files are immediately visible there. The application does not initialize Git, create worktrees, or copy source files into its home. It records initial file hashes and later changes as metadata; file contents remain in the working directory.
+For the **0.4.0 MVP only**, a run works directly in the user's selected directory. Files are immediately visible there. The application does not initialize Git, create worktrees, or copy source trees into its home. It records file hashes, changes and bounded evidence snapshots as metadata. Post-MVP isolation and recoverable publication remain separate work under the [workspace policy](workspace-policy.md).
 
-A project lock prevents two ymp runs from writing to the same project. Within a run, execution, verification, and revisions are sequential. Planning and bids can run concurrently with read-only tools. Failed checks leave the actual files in place for inspection and revision; they do not cause an automatic rollback.
+A project lock prevents overlapping runs for the same registered project. Within a run, the scheduler selects bounded work waves and permits independent assignments to overlap when their actual backend access does not conflict. Unbounded writers reserve the whole directory, conflicting access is serialized, and verification takes exclusive access through checks and acceptance. Board changes commit at work boundaries. The default allocator selects from metadata without collecting bids. Failed checks leave the actual files available for inspection; they do not cause an automatic rollback. See [concurrency](concurrency-implementation.md) and [board coordination](board-coordination.md).
 
 The next idle chat message retains the current session's history, outcome, and file paths. A read-only conversational turn answers questions directly. Only an explicit request for more implementation starts a new task run, linked to its parent conversation and using the same working directory. `/new` starts an unrelated conversation.
 
-Legacy isolated directories from older versions are retained for recovery, but new runs and follow-ups use the user's working directory.
+Captured outcome locations remain historical facts after a metadata-only project relocation. Deterministic location questions use the stored original paths; missing legacy capture remains explicitly unknown. Execution and resume still validate the captured directory against the selected workspace.
 
 ## Stopping and recovery
 

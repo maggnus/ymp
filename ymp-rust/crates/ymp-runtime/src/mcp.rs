@@ -7,7 +7,7 @@ use std::{
 };
 use tokio::{
     io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt, BufReader},
-    net::{UnixListener, UnixStream},
+    net::UnixStream,
     sync::mpsc,
 };
 use tokio_util::sync::CancellationToken;
@@ -16,6 +16,8 @@ use ymp_core::{
     UiEvent,
 };
 use ymp_storage::Store;
+
+mod socket;
 
 struct ActiveGrant {
     record: GrantRecord,
@@ -29,6 +31,7 @@ pub struct TeamServer {
     session: String,
     active: ActiveGrants,
     cancel: CancellationToken,
+    _socket_binding: socket::Binding,
 }
 impl TeamServer {
     pub async fn start(
@@ -36,15 +39,8 @@ impl TeamServer {
         session: &ymp_core::Session,
         events: mpsc::UnboundedSender<UiEvent>,
     ) -> Result<Self> {
-        let dir = store.home.join("run");
-        std::fs::create_dir_all(&dir)?;
-        let socket = dir.join(format!("{}.sock", &new_id()[..8]));
-        let listener = UnixListener::bind(&socket)?;
-        #[cfg(unix)]
-        {
-            use std::os::unix::fs::PermissionsExt;
-            std::fs::set_permissions(&socket, std::fs::Permissions::from_mode(0o600))?;
-        }
+        let (listener, binding) = socket::bind(&store.home.join("run"))?;
+        let socket = binding.address.clone();
         // Restored conversation IDs and durable grant records are audit context;
         // every new server starts without active capabilities.
         let active = ActiveGrants::default();
@@ -71,6 +67,7 @@ impl TeamServer {
             session: session.id.clone(),
             active,
             cancel,
+            _socket_binding: binding,
         })
     }
 
@@ -177,7 +174,6 @@ impl Drop for TeamServer {
             }
             active.clear();
         }
-        let _ = std::fs::remove_file(&self.socket);
     }
 }
 

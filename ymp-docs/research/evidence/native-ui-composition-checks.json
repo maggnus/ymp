@@ -1,0 +1,121 @@
+{
+  "source": "762b636a53dfb751891345ade50797d9ceb4fffb",
+  "opus_source_equivalent": "ba08ea9032a20f1293855fd01b720d1950ba9cd5",
+  "source_file_count": 123,
+  "source_manifest": "/tmp/ymp-native-ui-final-checks/source-files.json",
+  "source_manifest_sha256": "b9b42142c03b9f50485b22178bd65834e16fa0a9f6b73166b7f213b2b0e617ec",
+  "checks": [
+    {
+      "step": "fmt",
+      "exit": 0,
+      "seconds": 0.42,
+      "log": "/tmp/ymp-native-ui-final-checks/fmt.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "step": "clippy",
+      "exit": 0,
+      "seconds": 5.4,
+      "log": "/tmp/ymp-native-ui-final-checks/clippy.log",
+      "sha256": "57ee1aa42f84a28d6453d1de25d9cacda1eb9da9a832146e6c6191178cf03b1c"
+    },
+    {
+      "step": "workspace",
+      "exit": 0,
+      "seconds": 85.43,
+      "log": "/tmp/ymp-native-ui-final-checks/workspace.log",
+      "sha256": "ffc4f7e97ea58d8c48e7639a4a7fc758d2d5ab5dddd0b368a86ba427030ad8db"
+    },
+    {
+      "step": "bridge-install",
+      "exit": 0,
+      "seconds": 1.54,
+      "log": "/tmp/ymp-native-ui-final-checks/bridge-install.log",
+      "sha256": "43f19854c28c547f083cb19d396b86e212ede9ae4442548e2da77bc8670c6a63"
+    },
+    {
+      "step": "bridge-check",
+      "exit": 0,
+      "seconds": 0.82,
+      "log": "/tmp/ymp-native-ui-final-checks/bridge-check.log",
+      "sha256": "0e2731dd88a26e6fefd98927034c2fd0548d7965a615ebf520215e01e8a19303"
+    },
+    {
+      "step": "bridge-tests",
+      "exit": 0,
+      "seconds": 2.83,
+      "log": "/tmp/ymp-native-ui-final-checks/bridge-tests.log",
+      "sha256": "3a6a71d34e0cd52b1816ca41b4328050818cdee0d61b9cb067d4cf602c0be2a0"
+    },
+    {
+      "step": "bridge-build",
+      "exit": 0,
+      "seconds": 0.6,
+      "log": "/tmp/ymp-native-ui-final-checks/bridge-build.log",
+      "sha256": "7fed0dfdc721af25a17c124197ff65c4bc2c53d187206d86798d24abdaac8537"
+    },
+    {
+      "step": "native-fixtures",
+      "exit": 0,
+      "seconds": 13.17,
+      "log": "/tmp/ymp-native-ui-final-checks/native-fixtures.log",
+      "sha256": "f5b58c7b78c3bbf9c0bc15ff1a5a82138ebb1843eb8d30b66ede5d8e063b9935"
+    },
+    {
+      "step": "build",
+      "exit": 0,
+      "seconds": 0.1,
+      "log": "/tmp/ymp-native-ui-final-checks/build.log",
+      "sha256": "a11a1de8037a032bda7e33f88e31dc898d0129cfe94956add639cd289d2ce985"
+    }
+  ],
+  "workspace_tests_passed": 375,
+  "native_fixtures_passed": 10,
+  "binary": "/var/folders/cw/7pn8sb3x6bj69g7j2d8f_ss00000gn/T/ymp-release-work-h6oq_rys/integrate_native_ui/target/debug/ymp",
+  "binary_sha256": "161b4ddc1d65982e5e63ea313ddbe5672c24c5871909fc9250e92ab23bdae336",
+  "independent_ui_review": {
+    "verdict": "ACCEPT",
+    "score": "9/10",
+    "source": "762b636a53dfb751891345ade50797d9ceb4fffb",
+    "report": "ymp-evals/reports/ymp-118-native-independent-review.md",
+    "minor_followups_task": "YMP-112"
+  },
+  "native_inference_calls": 0,
+  "main_integration": {
+    "source": "cf89f61856ed71ef37cf033ba2a13109b1309e1d",
+    "all_reviewed_source_files_identical": true,
+    "checks": [
+      {
+        "step": "fmt",
+        "exit": 0,
+        "seconds": 0.49,
+        "log": "/tmp/ymp-main-native-ui/fmt.log",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "step": "clippy",
+        "exit": 0,
+        "seconds": 2.02,
+        "log": "/tmp/ymp-main-native-ui/clippy.log",
+        "sha256": "960aedf4a615c1f78aa421cc60f0ce0f3c21e392335ff7a03d91087aa9ee7a00"
+      },
+      {
+        "step": "workspace",
+        "exit": 0,
+        "seconds": 65.43,
+        "log": "/tmp/ymp-main-native-ui/workspace.log",
+        "sha256": "95d20a7e7fceb773bcf7c81c71da9b28a3f5cbc9f9757176592954b24ca16bea"
+      },
+      {
+        "step": "build",
+        "exit": 0,
+        "seconds": 0.2,
+        "log": "/tmp/ymp-main-native-ui/build.log",
+        "sha256": "2b34696728dc82b03cbf6311d7e3a6a41658bbde097834c3010a78bc82842c1a"
+      }
+    ],
+    "binary": "/Users/maggnus/Code/ymp2/target/debug/ymp",
+    "binary_sha256": "d9ba0d600450e32d822c4c80db7bdb057e4727593e523b3f2641067c755e56b3",
+    "installed_release_updated": false
+  }
+}

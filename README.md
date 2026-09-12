@@ -2,7 +2,7 @@
 
 A terminal workspace for a self-organizing team of local AI agents. Written in Rust with Ratatui, with a small official-SDK bridge for Claude Code.
 
-Give the team a task. Participants propose a plan, bid for work, implement in the current working directory, review each other's results, and verify the deliverable. Verified experience informs later assignments and supplies reusable project knowledge.
+Give the team a task. Agents propose plans and temporary responsibilities; the runtime validates assignments and revisions. They work in the selected directory and independently review the deliverable. Objectively confirmed outcomes supply qualified experience and reusable knowledge; qualitative acceptance remains explicitly unconfirmed.
 
 **Status:** initial working implementation. Quality improvements from memory and adaptive assignment are hypotheses to evaluate, not a measured product claim.
 
@@ -31,9 +31,9 @@ For a local command on your PATH, run `./ymp-scripts/install.sh`. The installati
 Run in the project's source directory, or use `ymp -C /path/to/project`. The default application home is `~/.ymp2`; override it with `--home PATH` or `YMP_HOME`.
 
 ```sh
-# Small real-provider authentication check (uses provider limits).
-ymp doctor --probe
-ymp doctor --probe --team-tools
+# Discover native model names and controls without a model prompt.
+ymp catalog --refresh
+ymp catalog
 
 # Autonomous team execution without the TUI.
 ymp -C /path/to/project run 'Add validation and tests for the import command'
@@ -47,6 +47,8 @@ ymp ask codex 'Summarize the entry points'
 ```
 
 `ymp demo --tui` opens the interface with deterministic test agents. It makes no model requests.
+
+Native catalog refresh populates selectable agents with the names returned by their installations. It preserves the starting team and historical records. Real-model diagnostics (`doctor --probe`, including `--team-tools`) run once for every matching enabled profile; use the [bounded native-check procedure](ymp-docs/guides/release-verification.md) with only the intended test actors.
 
 For objectively confirmed results and reusable supported experience, configure explicit [trusted acceptance contracts](ymp-docs/architecture/executable-acceptance-contracts.md). The same configuration applies to new CLI and TUI team runs. Qualitative acceptance without complete objective evidence remains unconfirmed.
 
@@ -64,7 +66,9 @@ Five colour themes ship with ymp, including a light one, a high-contrast one, an
 
 Every destination in the sidebar is read-only: opening one never starts an agent and never writes to your working directory. See the [interface guide](ymp-docs/guides/interface.md).
 
-Files are created and modified directly in the directory where you start `ymp` (or the directory selected with `-C`). Only metadata lives under `~/.ymp2`; no source copies or hidden Git repositories are created. Turns overlap only where the access each one holds does not conflict: a turn that writes the whole directory excludes every other turn in it, while readers and declared disjoint paths do not exclude each other. `/diff` lists files changed during the session, states how the directory is used and what that rules out, states that ymp recorded a hash rather than a copy and so cannot restore an earlier version of a file, and lists the session's accepted results with the directory each was recorded in. `/checks` lists the acceptance commands ymp ran itself, with their recorded outcome. `/assignments` shows the turns the run assigned, with the model and effort each one requested, what was sent to the installation and what it reported back; `/decisions` shows the plans, reviews, acceptances and competence credit the session recorded, and says whether an acceptance rests on evidence or on an independent review alone.
+For the 0.4.0 MVP, files are created and modified directly in the directory where you start `ymp` (or the directory selected with `-C`). Only metadata lives under `~/.ymp2`; no source-tree copies or hidden Git repositories are created. Independent assignments can overlap when their enforced access permits; conflicting or unbounded writes are serialized. This MVP policy provides no rollback guarantee.
+
+`/diff` lists files changed during the session, states how the directory is used and what that rules out, states that ymp recorded a hash rather than a copy and so cannot restore an earlier version of a file, and lists the session's accepted results with the directory each was recorded in. `/checks` lists the acceptance commands ymp ran itself, with their recorded outcome. `/assignments` shows the turns the run assigned, with the model and effort each one requested, what was sent to the installation and what it reported back; `/decisions` shows the plans, reviews, acceptances and competence credit the session recorded, and says whether an acceptance rests on evidence or on an independent review alone.
 
 After a run finishes or stops, the next message continues that conversation. A question such as ‘Where is the file?’ receives the previous outcome and actual file paths without restarting execution. Use `/new` for an unrelated task.
 

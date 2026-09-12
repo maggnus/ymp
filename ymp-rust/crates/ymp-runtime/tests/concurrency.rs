@@ -2,7 +2,7 @@
 use anyhow::{bail, ensure, Result};
 use serde_json::json;
 use std::{
-    collections::HashMap,
+    collections::{HashMap, HashSet},
     path::PathBuf,
     sync::{
         atomic::{AtomicBool, Ordering},
@@ -367,6 +367,169 @@ async fn independent_read_only_contributions_overlap_through_public_engine() {
     );
     assert_closed(&f, &outcome);
 }
+struct ExclusiveWorkspacePolicy;
+impl WorkspaceAccessPolicy for ExclusiveWorkspacePolicy {
+    fn identity(&self) -> ExecutionBackendIdentity {
+        ExecutionBackendIdentity {
+            id: "fixture.exclusive-workspace".into(),
+            version: "1".into(),
+        }
+    }
+    fn resolve(&self, _: &WorkspaceAccessInput<'_>) -> Result<WorkspaceAccess> {
+        // Broaden the reservation without changing the backend's permissions.
+        Ok(WorkspaceAccess::WriteAll)
+    }
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn substituted_workspace_policy_serializes_the_same_public_engine_read_workload() {
+    for exclusive in [false, true] {
+        let mut f = fixture(Mode::Reads);
+        f.engine.config.team_constraints = TeamConstraints::default();
+        f.engine.config.team = vec!["one".into(), "two".into()];
+        let (policy, access) = if exclusive {
+            f.engine = f
+                .engine
+                .with_workspace_access_policy(Arc::new(ExclusiveWorkspacePolicy))
+                .unwrap();
+            (
+                ExclusiveWorkspacePolicy.identity(),
+                WorkspaceAccess::WriteAll,
+            )
+        } else {
+            (
+                DirectWorkspaceAccessPolicy.identity(),
+                WorkspaceAccess::ReadAll,
+            )
+        };
+        let run = start(&f);
+        let first = next(&mut f).await;
+        let held_wait = if exclusive {
+            let session = f.store.sessions(None).unwrap().remove(0);
+            let trace = f.store.trace(&session.id).unwrap();
+            let holder = trace
+                .assignments
+                .iter()
+                .find(|a| a.purpose == "execute")
+                .unwrap()
+                .id
+                .clone();
+            // Observe the runtime's durable wait while the first native turn
+            // remains held. A missing second start for a short delay is not proof.
+            let wait = async {
+                loop {
+                    if let Some(wait) =
+                        f.store
+                            .decisions(&session.id)
+                            .unwrap()
+                            .into_iter()
+                            .find(|d| {
+                                d.kind == "assignment_waiting"
+                                    && d.links.workspace_wait.as_ref().is_some_and(|w| {
+                                        w.code == "resource_conflict"
+                                            && w.holder.as_ref() == Some(&holder)
+                                    })
+                            })
+                    {
+                        break wait;
+                    }
+                    tokio::time::sleep(Duration::from_millis(10)).await;
+                }
+            };
+            let wait = tokio::select! {
+                wait = tokio::time::timeout(Duration::from_secs(3), wait) =>
+                    wait.expect("Alternate policy did not record a resource-conflict wait"),
+                second = f.started.recv() =>
+                    panic!("Alternate policy overlapped held read executions: {first} and {second:?}"),
+            };
+            let recorded = wait.links.workspace_access.as_ref().unwrap();
+            assert_eq!(recorded.policy, policy);
+            assert_eq!(recorded.backend, f.script.identity());
+            assert_eq!(recorded.backend_access, WorkspaceAccess::ReadAll);
+            assert_eq!(recorded.effective_access, access);
+            assert_ne!(recorded.reservation_id, holder);
+            assert!(f.started.try_recv().is_err());
+            release(&f, &first);
+            Some(wait)
+        } else {
+            None
+        };
+        let second = next(&mut f).await;
+        assert_ne!(first, second);
+        // Under the default policy both native executions reached their barriers
+        // before either release. The alternate requires the first release above.
+        if !exclusive {
+            release(&f, &first);
+        }
+        release(&f, &second);
+        let outcome = finish(run).await;
+        assert_eq!(outcome.session.status, "completed", "{}", outcome.summary);
+        let trace = f.store.trace(&outcome.session.id).unwrap();
+        let producers = trace
+            .assignments
+            .iter()
+            .filter(|a| a.purpose == "execute")
+            .map(|a| a.id.clone())
+            .collect::<HashSet<_>>();
+        assert_eq!(producers.len(), 2);
+        let admitted = trace
+            .decisions
+            .iter()
+            .filter(|d| d.kind == "workspace_access_admitted")
+            .filter_map(|d| d.links.workspace_access.as_ref())
+            .filter(|a| producers.contains(&a.reservation_id))
+            .collect::<Vec<_>>();
+        assert_eq!(admitted.len(), 2);
+        for recorded in &admitted {
+            assert_eq!(recorded.policy, policy);
+            assert_eq!(recorded.backend, f.script.identity());
+            assert_eq!(recorded.backend_access, WorkspaceAccess::ReadAll);
+            assert_eq!(recorded.effective_access, access);
+        }
+        if let Some(wait) = held_wait {
+            let waiting = wait.links.workspace_access.unwrap();
+            assert!(admitted.iter().any(|a| **a == waiting));
+            assert!(producers.contains(wait.links.workspace_wait.unwrap().holder.as_ref().unwrap()));
+        }
+        let mut active = HashSet::new();
+        let mut peak = 0;
+        for event in trace.history.iter().filter(|e| e.kind == "provenance") {
+            match serde_json::from_value::<ProvenanceEvent>(event.data.clone()).unwrap() {
+                ProvenanceEvent::AssignmentStarted {
+                    assignment,
+                    invocation,
+                } if assignment.purpose == "execute" => {
+                    assert!(active.insert(invocation.id));
+                    peak = peak.max(active.len());
+                }
+                ProvenanceEvent::InvocationFinished { invocation } => {
+                    active.remove(&invocation.id);
+                }
+                _ => {}
+            }
+        }
+        assert_eq!(peak, if exclusive { 1 } else { 2 });
+        assert!(active.is_empty());
+        assert!(trace.tasks.iter().all(|t| t.state == TaskState::Accepted));
+        assert!(f
+            .script
+            .requests
+            .lock()
+            .unwrap()
+            .iter()
+            .filter(|r| r.purpose == "execute")
+            .all(|r| {
+                r.read_only && r.settings.permission_mode.as_deref() == Some("read_only")
+            }));
+        assert!(!f.path.join("greeting.txt").exists());
+        assert_eq!(
+            std::fs::read_dir(f.path.join("outputs")).unwrap().count(),
+            0
+        );
+        assert_closed(&f, &outcome);
+    }
+}
+
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn scoped_backend_overlaps_independent_read_but_serializes_conflicting_writers() {
     let mut f = fixture(Mode::Scoped);
