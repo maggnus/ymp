@@ -13,6 +13,7 @@ mod board;
 mod budget;
 mod confirmation;
 mod knowledge;
+mod knowledge_correction;
 pub mod projection;
 mod provenance;
 #[cfg(test)]

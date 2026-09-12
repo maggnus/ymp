@@ -10,8 +10,9 @@ mod knowledge_tests;
 mod workspace_access;
 use crate::mcp::TeamServer;
 use crate::{
-    BuiltinConfirmationChecker, ConfirmationChecker, EvidenceKnowledgeProposals,
-    FtsKnowledgeRetrieval, KnowledgeCandidateSource, KnowledgeProposalInput,
+    BoundKnowledgeCorrections, BuiltinConfirmationChecker, ConfirmationChecker,
+    EvidenceKnowledgeProposals, FtsKnowledgeRetrieval, KnowledgeCandidateSource,
+    KnowledgeCorrectionInput, KnowledgeCorrectionPolicy, KnowledgeProposalInput,
     KnowledgeProposalPolicy, KnowledgeRetrievalInput, KnowledgeRetrievalPolicy,
 };
 use anyhow::{bail, Context, Result};
@@ -55,6 +56,7 @@ pub struct Engine {
     pub confirmation_checker: Arc<dyn ConfirmationChecker>,
     pub knowledge_retrieval: Arc<dyn KnowledgeRetrievalPolicy>,
     pub knowledge_proposals: Arc<dyn KnowledgeProposalPolicy>,
+    pub knowledge_corrections: Arc<dyn KnowledgeCorrectionPolicy>,
     pub knowledge_mode: KnowledgeRetrievalMode,
     /// Optional trusted-client applicability constraints, matched exactly.
     pub knowledge_scope: std::collections::BTreeMap<String, String>,
@@ -146,6 +148,7 @@ impl Engine {
         let bridge = std::env::var_os("YMP_CLAUDE_BRIDGE")
             .map(PathBuf::from)
             .unwrap_or_else(|| root.join("ymp-bridges/claude/dist/index.js"));
+        let knowledge_scope = config.knowledge_scope.clone();
         Ok(Self {
             store,
             config,
@@ -166,7 +169,8 @@ impl Engine {
             confirmation_checker: Arc::new(BuiltinConfirmationChecker),
             knowledge_retrieval: Arc::new(FtsKnowledgeRetrieval),
             knowledge_proposals: Arc::new(EvidenceKnowledgeProposals),
-            knowledge_scope: Default::default(),
+            knowledge_corrections: Arc::new(BoundKnowledgeCorrections),
+            knowledge_scope,
             knowledge_mode: KnowledgeRetrievalMode::Supported,
             usage_publication: Arc::new(Mutex::new(())),
             assignment_settings: Arc::new(Mutex::new(None)),
@@ -1123,6 +1127,29 @@ impl Engine {
                     }
                 })
                 .context("Review assignment requires a submitted result version")?;
+            if let Some(contract_id) = result
+                .links
+                .result
+                .as_ref()
+                .and_then(|r| r.contract_id.as_ref())
+            {
+                if let Some(binding) = trace
+                    .decisions
+                    .iter()
+                    .find(|d| &d.id == contract_id)
+                    .and_then(|d| d.links.acceptance_contract.as_ref())
+                    .and_then(|c| c.contract.knowledge_correction.as_ref())
+                {
+                    let rendered = serde_json::to_string(binding)?;
+                    context.push(ContextReference {
+                        kind: ContextKind::KnowledgeCorrection,
+                        id: contract_id.clone(),
+                        session_id: Some(ctx.session.id.clone()),
+                        digest: Some(content_digest(&rendered)),
+                        included_chars: Some(rendered.chars().count()),
+                    });
+                }
+            }
             context.push(ContextReference {
                 kind: ContextKind::Result,
                 id: result.id.clone(),
@@ -2433,9 +2460,20 @@ impl Engine {
                 .into_iter()
                 .find(|d| d.id == acceptance_id)
                 .context("Missing accepted knowledge source")?;
+            let binding = self
+                .store
+                .decisions(&ctx.session.id)?
+                .into_iter()
+                .find(|d| Some(&d.id) == result.contract_id.as_ref())
+                .and_then(|d| d.links.acceptance_contract)
+                .and_then(|c| c.contract.knowledge_correction);
+            let knowledge_scope = binding
+                .as_ref()
+                .map(|b| &b.applicability)
+                .unwrap_or(&self.knowledge_scope);
             let policy = self.knowledge_proposals.identity();
             self.store.event(&ctx.session.id, "knowledge_proposal_policy", &json!({
-                "acceptance_id":acceptance_id, "implementation":policy, "applicability":self.knowledge_scope,
+                "acceptance_id":acceptance_id, "implementation":policy, "applicability":knowledge_scope,
                 "proposal_limit":8,
             }))?;
             // Save each accepted outcome before optional proposals. A policy failure
@@ -2443,7 +2481,7 @@ impl Engine {
             self.store.retain_knowledge(
                 &acceptance_id,
                 &KnowledgeProposal::ProjectOutcome,
-                &self.knowledge_scope,
+                knowledge_scope,
                 &EvidenceKnowledgeProposals.identity(),
             )?;
             match self.knowledge_proposals.propose(KnowledgeProposalInput {
@@ -2455,7 +2493,7 @@ impl Engine {
                         if let Err(error) = self.store.retain_knowledge(
                             &acceptance_id,
                             &proposal,
-                            &self.knowledge_scope,
+                            knowledge_scope,
                             &policy,
                         ) {
                             self.post(
@@ -2475,6 +2513,56 @@ impl Engine {
                         &format!(
                             "Knowledge proposal policy failed; accepted outcome retained: {error}"
                         ),
+                    )?;
+                }
+            }
+            let correction_policy = self.knowledge_corrections.identity();
+            self.store.event(&ctx.session.id, "knowledge_correction_policy", &json!({
+                "acceptance_id": acceptance.id, "implementation": correction_policy, "proposal_limit": 8,
+            }))?;
+            if let Some(binding) = &binding {
+                self.store.retain_knowledge(
+                    &acceptance.id,
+                    &binding.projection.proposal(),
+                    &binding.applicability,
+                    &EvidenceKnowledgeProposals.identity(),
+                )?;
+            }
+            match self
+                .knowledge_corrections
+                .propose(KnowledgeCorrectionInput {
+                    acceptance: &acceptance,
+                    binding: binding.as_ref(),
+                }) {
+                Ok(proposals) => {
+                    for proposal in proposals.into_iter().take(8) {
+                        let outcome = if proposal.acceptance_id == acceptance.id {
+                            self.store
+                                .commit_knowledge_correction(&proposal, &correction_policy)
+                        } else {
+                            Err(anyhow::anyhow!(
+                                "Correction policy cannot substitute another source acceptance"
+                            ))
+                        };
+                        match outcome {
+                            Ok(outcome) => {
+                                self.store.event(
+                                    &ctx.session.id,
+                                    "knowledge_correction_resolved",
+                                    &serde_json::to_value(outcome)?,
+                                )?;
+                            }
+                            Err(error) => {
+                                self.store.event(&ctx.session.id, "knowledge_correction_denied", &json!({"proposal": proposal, "reason": error.to_string(), "implementation": correction_policy}))?;
+                            }
+                        }
+                    }
+                }
+                Err(error) => {
+                    self.store.event(
+                        &ctx.session.id,
+                        "knowledge_correction_denied",
+                        &json!({"reason": error.to_string(), "implementation": correction_policy}),
                     )?;
                 }
             }
@@ -2549,6 +2637,7 @@ mod tests {
             team_constraints: TeamConstraints::default(),
             version: 1,
             acceptance_contracts: None,
+            knowledge_scope: Default::default(),
             execution: Default::default(),
             capabilities: Default::default(),
             limits: Limits {

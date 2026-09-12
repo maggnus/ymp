@@ -98,6 +98,12 @@ enum Command {
     /// Search verified memory for the current project.
     Memory {
         query: Option<String>,
+        /// Exact applicability constraints, repeat as --scope KEY=VALUE.
+        #[arg(long, value_parser = parse_knowledge_scope_pair)]
+        scope: Vec<(String, String)>,
+        /// Inspect lifecycle history and current availability.
+        #[arg(long)]
+        history: bool,
         #[arg(long)]
         forget: Option<String>,
     },
@@ -375,7 +381,18 @@ async fn entry() -> Result<()> {
         Some(Command::Reputation) => {
             println!("{}", serde_json::to_string_pretty(&store.observations()?)?);
         }
-        Some(Command::Memory { query, forget }) => {
+        Some(Command::Memory {
+            query,
+            forget,
+            scope,
+            history,
+        }) => {
+            let pairs = scope.len();
+            let scope = scope
+                .into_iter()
+                .collect::<std::collections::BTreeMap<_, _>>();
+            anyhow::ensure!(scope.len() == pairs, "Duplicate knowledge scope key");
+            validate_knowledge_scope(&scope)?;
             if let Some(id) = forget {
                 store.forget_memory(&id)?;
                 println!("Memory entry retired.");
@@ -383,9 +400,28 @@ async fn entry() -> Result<()> {
                 let p = store.project(&path)?;
                 println!(
                     "{}",
-                    serde_json::to_string_pretty(
-                        &store.memory(Some(&p.id), query.as_deref().unwrap_or(""))?
-                    )?
+                    serde_json::to_string_pretty(&if history {
+                        serde_json::to_value(
+                            store
+                                .inspect_knowledge(Some(&p.id), &scope)?
+                                .into_iter()
+                                .filter(|row| {
+                                    query.as_ref().is_none_or(|q| {
+                                        format!("{} {}", row.entry.title, row.entry.content)
+                                            .to_lowercase()
+                                            .contains(&q.to_lowercase())
+                                    })
+                                })
+                                .collect::<Vec<_>>(),
+                        )?
+                    } else {
+                        serde_json::to_value(store.search_memory(
+                            Some(&p.id),
+                            query.as_deref().unwrap_or(""),
+                            &scope,
+                            KnowledgeRetrievalMode::Supported,
+                        )?)?
+                    })?
                 );
             }
         }
@@ -396,6 +432,7 @@ async fn entry() -> Result<()> {
         Some(Command::Demo { tui }) => {
             let mut demo = demo_config();
             demo.acceptance_contracts = config.acceptance_contracts;
+            demo.knowledge_scope = config.knowledge_scope;
             let config = demo;
             if tui {
                 ymp_tui::run(store, config, path, None).await?;
@@ -703,6 +740,15 @@ async fn probe_team_tools(
         bail!("Agent returned without actually invoking team_post");
     }
     Ok("YMP_OK; team_post delivery independently confirmed".into())
+}
+
+fn parse_knowledge_scope_pair(value: &str) -> Result<(String, String), String> {
+    let (key, value) = value
+        .split_once('=')
+        .ok_or("Knowledge scope must be KEY=VALUE")?;
+    let scope = [(key.to_owned(), value.to_owned())].into_iter().collect();
+    validate_knowledge_scope(&scope).map_err(|e| e.to_string())?;
+    Ok((key.to_owned(), value.to_owned()))
 }
 
 #[cfg(test)]
