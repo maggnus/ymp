@@ -2106,12 +2106,14 @@
         "Document migration/recovery behavior and output locations; announce completion only after all required release checks pass.",
         "Perform the final requirement-by-requirement release review with an independent max-reasoning agent; xhigh is the minimum for other delegated engineering work.",
         "Verify implementation substitution through the public engine and owning subsystem interfaces, preserving runtime constraints and recorded implementation identities.",
-        "Verify public stdio MCP interoperability and lifecycle against shared runtime controls using a real client and scripted execution; provider inference checks retain separate quota authorization."
+        "Verify public stdio MCP interoperability and lifecycle against shared runtime controls using a real client and scripted execution; provider inference checks retain separate quota authorization.",
+        "Unattended tests never run real models at max/xhigh; real-provider checks use explicit minimal supported effort and recorded settings rather than expensive inherited defaults. The independent release reviewer reasoning remains max."
       ],
       "evidence": [
         "[Approved intent](../../intent.md)",
         "[Delivery plan](plan.md)",
-        "[Replaceable subsystem contracts](../architecture/subsystem-interfaces.md)"
+        "[Replaceable subsystem contracts](../architecture/subsystem-interfaces.md)",
+        "[Test inference audit and probe distinction](../research/evidence/test-inference-audit.json)"
       ],
       "history": [
         {
@@ -2133,6 +2135,11 @@
           "at": "2026-09-12T13:00:04.752401+00:00",
           "status": "planned",
           "note": "Final release includes the owner-selected public stdio MCP interface through YMP-123."
+        },
+        {
+          "at": "2026-09-12T14:50:45.441499+00:00",
+          "status": "planned",
+          "note": "Owner requested a check that tests do not use real max/xhigh agents. Source audit confirms mock/scripted unattended paths. Live compatibility probes must pin minimal supported effort; developer/reviewer model use is a separate resource category."
         }
       ],
       "budget": "Not allocated. Prepare a concrete bounded smoke-check proposal before any real-provider inference."
@@ -2267,7 +2274,7 @@
       ]
     }
   ],
-  "updated_at": "2026-09-12T14:36:46.296272+00:00",
+  "updated_at": "2026-09-12T14:50:45.441499+00:00",
   "delivery_order": [
     "YMP-116",
     "YMP-103",

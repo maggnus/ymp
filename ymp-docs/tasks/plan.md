@@ -1,6 +1,6 @@
 # Delivery plan and progress
 
-Updated: 2026-09-12 14:36 UTC.
+Updated: 2026-09-12 14:50 UTC.
 
 [Approved intent](../../intent.md) · [Task details and evidence](README.md) · [Canonical register](tasks.json)
 
@@ -94,7 +94,7 @@ No delivery task is ready. See the dependency reasons below.
 | `[x]` | [YMP-107](README.md#ymp-107) — Expose recorded checks and factual recovery limits | 2026-09-12 12:55 | R2(9/10) ACCEPT by independent Claude Opus5 max review; integrated c2b273b,628e99a,9b82bf2. Recorded checks distinguish unknown/missing runs and task scope; recovery/output limits are factual. Main matches reviewed UI bytes; fmt/clippy and164 Rust tests exit0. Shared-frame clipping remains118. |
 | `[~]` | [YMP-118](README.md#ymp-118) — Integrate core assignment, budget and confirmation visibility | 2026-09-12 14:16 | Claude Opus5 max is implementing core state/constraint/confirmation views and correcting shared-frame clipping in an isolated checkout. The UI will use actual captured records and integrate committed110/113 projections as available. Black theme, typography and sidebar behavior are preserved. |
 | `[+]` | [YMP-123](README.md#ymp-123) — Expose a public local MCP facade over stdio | 2026-09-12 13:00 | Added from owner MCP discussion and stdio selection. External access is a new delivery outcome; the existing internal socket bridge is not claimed as a public server. |
-| `[=]` | [YMP-121](README.md#ymp-121) — Verify the integrated application and package a local release | 2026-09-12 13:00 | Needs YMP-112, YMP-115, YMP-114, YMP-118, YMP-122, YMP-123 |
+| `[=]` | [YMP-121](README.md#ymp-121) — Verify the integrated application and package a local release | 2026-09-12 14:50 | Needs YMP-112, YMP-115, YMP-114, YMP-118, YMP-122, YMP-123 |
 
 ## Working approach
 
@@ -123,11 +123,11 @@ Deferred options and quota-dependent studies:
 
 | Time (UTC) | Task | State | Update |
 | --- | --- | --- | --- |
+| 2026-09-12 14:50 | [YMP-121](README.md#ymp-121) | `[=]` | Owner requested a check that tests do not use real max/xhigh agents. Source audit confirms mock/scripted unattended paths. Live compatibility probes must pin minimal supported effort; developer/reviewer model use is a separate resource category. |
 | 2026-09-12 14:36 | [YMP-122](README.md#ymp-122) | `[~]` | Standalone R1(9/10) accepted. Combined confirmation/backend integration exposed producer-v2 versus storage-v1 attribution mismatch; shared core version calculation fixes the unchanged failing consumer, preserves historical identity and passes 230 tests. Independent integration review is next; code remains outside main. |
 | 2026-09-12 14:16 | [YMP-118](README.md#ymp-118) | `[~]` | Claude Opus5 max is implementing core state/constraint/confirmation views and correcting shared-frame clipping in an isolated checkout. The UI will use actual captured records and integrate committed110/113 projections as available. Black theme, typography and sidebar behavior are preserved. |
 | 2026-09-12 14:16 | [YMP-113](README.md#ymp-113) | `[~]` | Incremental knowledge and outcome inspection assigned at xhigh. Candidates remain explicitly unconfirmed; supported source-bound projections can survive later failure and be reused under applicability constraints. Retrieval/proposal policies are replaceable and runtime retains source/scope/activation control. |
 | 2026-09-12 14:16 | [YMP-110](README.md#ymp-110) | `[~]` | Dynamic membership and joint team/model/effort policies assigned at xhigh. Typed proposals remain separate from runtime commitment; historical membership must not authorize current grants. Implementation preserves fixed constraints, qualified experience and independent final review eligibility. |
-| 2026-09-12 13:59 | [YMP-117](README.md#ymp-117) | `[x]` | R2(9/10) ACCEPT and I1(9/10) integration ACCEPT. Integrated cad2218,4e3eff7,b900cf3,d2f0e50. Result-bound independent reviews, current evidence grades and idempotent confirmed credit hold across admission, grants and narration. Main matches reviewed source; fmt/clippy and 220 Rust tests exit 0. Historical unsupported observations remain unknown and excluded from qualified selection. |
 
 ## Maintenance
 

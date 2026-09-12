@@ -4,6 +4,14 @@ YMP-119 supplies deterministic inputs, independent validators and scripted expec
 
 Everything here uses Python 3.9+ and its standard library. No provider, network, credentials or paid inference is used by the validators or tests.
 
+## Model use during verification
+
+Unattended Rust, bridge and evaluation tests use deterministic backends or local protocol fixtures. Effort values such as `max` and `xhigh` are test data for transmission and validation; they must not launch real model inference. The Claude bridge tests use the real SDK with its executable explicitly replaced by `tests/fixtures/claude.py`.
+
+Real-provider compatibility checks are separate, explicitly authorized work. Use an explicit minimal supported effort in the temporary probe configuration, record requested/sent/reported settings, and do not inherit native or agent defaults that may select `max` or `xhigh`. If the provider cannot offer a suitable low-cost setting, record the limitation rather than silently using an expensive default. The production `doctor --probe` command currently follows configured/native settings and is not an unattended test command.
+
+Development and independent code-review agents have their own reasoning settings and consume resources separately from the test workload. The final YMP-121 reviewer remains at the owner's requested `max`; that setting does not authorize running tested providers at `max`.
+
 ## Run the fixture checks
 
 From the repository root:

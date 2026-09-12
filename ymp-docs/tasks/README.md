@@ -1,6 +1,6 @@
 # Task details and evidence
 
-Updated: 2026-09-12 14:36 UTC.
+Updated: 2026-09-12 14:50 UTC.
 
 Use the [delivery plan](plan.md) to follow progress. This generated register contains full acceptance criteria, dependencies and evidence. [tasks.json](tasks.json) is the single source; [manage.py](manage.py) updates both pages.
 
@@ -59,7 +59,7 @@ A planned task is not implemented functionality. Completed research and planning
 | `[x]` | [YMP-120](#ymp-120) | P0 | Enforce assignment-scoped permissions and runtime-only state transitions | 2026-09-12 13:46 |
 | `[~]` | [YMP-118](#ymp-118) | P0 | Integrate core assignment, budget and confirmation visibility | 2026-09-12 14:16 |
 | `[x]` | [YMP-119](#ymp-119) | P0 | Prepare universal acceptance scenarios and independent validators | 2026-09-12 10:56 |
-| `[=]` | [YMP-121](#ymp-121) | P1 | Verify the integrated application and package a local release | 2026-09-12 13:00 |
+| `[=]` | [YMP-121](#ymp-121) | P1 | Verify the integrated application and package a local release | 2026-09-12 14:50 |
 | `[x]` | [YMP-013](#ymp-013) | P0 | Review plan coherence and simplify progress tracking | 2026-09-12 09:46 |
 | `[~]` | [YMP-122](#ymp-122) | P1 | Expose replaceable execution backends behind runtime-owned controls | 2026-09-12 14:36 |
 | `[+]` | [YMP-123](#ymp-123) | P1 | Expose a public local MCP facade over stdio | 2026-09-12 13:00 |
@@ -1303,7 +1303,7 @@ Verify the integrated application and package a local release
 
 **State:** `[=]` (planned) · **Type:** verification · **Priority:** P1
 
-**Last update (UTC):** 2026-09-12 13:00
+**Last update (UTC):** 2026-09-12 14:50
 
 **Current reason:** Needs YMP-112, YMP-115, YMP-114, YMP-118, YMP-122, YMP-123
 
@@ -1315,7 +1315,7 @@ Verify the integrated application and package a local release
 
 A local release needs a reproducible install and truthful compatibility evidence for the configured native providers.
 
-**Latest progress note:** Final release includes the owner-selected public stdio MCP interface through YMP-123.
+**Latest progress note:** Owner requested a check that tests do not use real max/xhigh agents. Source audit confirms mock/scripted unattended paths. Live compatibility probes must pin minimal supported effort; developer/reviewer model use is a separate resource category.
 
 **Acceptance criteria:**
 
@@ -1328,12 +1328,14 @@ A local release needs a reproducible install and truthful compatibility evidence
 - Perform the final requirement-by-requirement release review with an independent max-reasoning agent; xhigh is the minimum for other delegated engineering work.
 - Verify implementation substitution through the public engine and owning subsystem interfaces, preserving runtime constraints and recorded implementation identities.
 - Verify public stdio MCP interoperability and lifecycle against shared runtime controls using a real client and scripted execution; provider inference checks retain separate quota authorization.
+- Unattended tests never run real models at max/xhigh; real-provider checks use explicit minimal supported effort and recorded settings rather than expensive inherited defaults. The independent release reviewer reasoning remains max.
 
 **Evidence:**
 
 - [Approved intent](../../intent.md)
 - [Delivery plan](plan.md)
 - [Replaceable subsystem contracts](../architecture/subsystem-interfaces.md)
+- [Test inference audit and probe distinction](../research/evidence/test-inference-audit.json)
 
 **Quota:** Not allocated. Prepare a concrete bounded smoke-check proposal before any real-provider inference.
 
