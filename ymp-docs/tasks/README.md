@@ -1,6 +1,6 @@
 # Task details and evidence
 
-Updated: 2026-09-12 20:12 UTC.
+Updated: 2026-09-12 20:21 UTC.
 
 Use the [delivery plan](plan.md) to follow progress. This generated register contains full acceptance criteria, dependencies and evidence. [tasks.json](tasks.json) is the single source; [manage.py](manage.py) updates both pages.
 
@@ -65,8 +65,8 @@ A planned task is not implemented functionality. Completed research and planning
 | `[x]` | [YMP-123](#ymp-123) | P1 | Expose a public local MCP facade over stdio | 2026-09-12 18:22 |
 | `[=]` | [YMP-124](#ymp-124) | P1 | Add isolated execution and recoverable publication for larger projects | 2026-09-12 15:31 |
 | `[x]` | [YMP-125](#ymp-125) | P0 | Expose trusted acceptance contracts to executable users | 2026-09-12 17:54 |
-| `[~]` | [YMP-126](#ymp-126) | P1 | Execute universal acceptance scenarios through a trusted runtime driver | 2026-09-12 20:12 |
-| `[~]` | [YMP-127](#ymp-127) | P0 | Build and display the agent pool from provider-returned native names | 2026-09-12 20:03 |
+| `[~]` | [YMP-126](#ymp-126) | P1 | Execute universal acceptance scenarios through a trusted runtime driver | 2026-09-12 20:21 |
+| `[~]` | [YMP-127](#ymp-127) | P0 | Build and display the agent pool from provider-returned native names | 2026-09-12 20:20 |
 
 ## YMP-001
 
@@ -1518,9 +1518,9 @@ Execute universal acceptance scenarios through a trusted runtime driver
 
 **State:** `[~]` (in_progress) · **Type:** implementation · **Priority:** P1
 
-**Last update (UTC):** 2026-09-12 20:12
+**Last update (UTC):** 2026-09-12 20:21
 
-**Current reason:** Independent exporter preflight confirms workflow receipts use actual runtime decisions and prompts exclude validator/reference data. Three concrete corrections identified: actual backend provenance, preserving extra occurrences/source order in location/effort projections, and complete partial-usage source mapping with deterministic ordering. Author acknowledged; this is preflight, not task acceptance. Remaining scenario adapters and reservation correction continue.
+**Current reason:** The unchanged budget-reservations scenario now passes, bringing actual driver coverage to10 of17 cases. Scripted usage totals80 units (agent a65, b15),20 remain, no live reservations remain, and all3 denied requests start no invocation. Optional captured review reserve and per-assignment token reservation preserve previous behavior when absent. Race, pin and unknown-usage controls are still being added before independent acceptance; exporter corrections and remaining adapters continue.
 
 **Owner:** Maintainer and delegated xhigh implementation/review agents
 
@@ -1552,9 +1552,9 @@ Build and display the agent pool from provider-returned native names
 
 **State:** `[~]` (in_progress) · **Type:** implementation · **Priority:** P0
 
-**Last update (UTC):** 2026-09-12 20:03
+**Last update (UTC):** 2026-09-12 20:20
 
-**Current reason:** Supported real ~/.ymp2 refresh completed at2026-09-12T20:02:44Z using accepted main81b6208:8 Codex,5 Claude,6 GLM offerings;16 new pool actors and3 migrated placeholders. Original3-member roster, all original config values/instructions/providers and all1237 baseline history rows across7 tables preserved. Main fmt/clippy/workspace,10 explicit nativefixtures and CLI build pass. Actual provider names stored, effort left unspecified unless configured. Independent Opus UI review remains; installed release binary not yet replaced. Evidence native-catalog-owner-refresh.json.
+**Current reason:** Independent Opus checkpoint on08fcbf6: fmt/clippy352workspace and built Claude bridge pass; actual UI reads all3 installations and19 offerings, exact Claude label/resolution and native GLM control labels. No blocker so far. History/usage/team-selection checks and selected negative controls remain before final verdict. Cold-start scan lacks visible progress and migration notice wording is imprecise; bounded Opus corrections requested without startup redesign.
 
 **Owner:** Maintainer; all UI by Claude Opus 5 max via Paseo
 

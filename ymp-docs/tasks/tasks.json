@@ -2714,6 +2714,11 @@
           "at": "2026-09-12T20:12:36.247825+00:00",
           "status": "in_progress",
           "note": "Independent exporter preflight confirms workflow receipts use actual runtime decisions and prompts exclude validator/reference data. Three concrete corrections identified: actual backend provenance, preserving extra occurrences/source order in location/effort projections, and complete partial-usage source mapping with deterministic ordering. Author acknowledged; this is preflight, not task acceptance. Remaining scenario adapters and reservation correction continue."
+        },
+        {
+          "at": "2026-09-12T20:21:56.530003+00:00",
+          "status": "in_progress",
+          "note": "The unchanged budget-reservations scenario now passes, bringing actual driver coverage to10 of17 cases. Scripted usage totals80 units (agent a65, b15),20 remain, no live reservations remain, and all3 denied requests start no invocation. Optional captured review reserve and per-assignment token reservation preserve previous behavior when absent. Race, pin and unknown-usage controls are still being added before independent acceptance; exporter corrections and remaining adapters continue."
         }
       ]
     },
@@ -2777,11 +2782,16 @@
           "at": "2026-09-12T20:03:24.993371+00:00",
           "status": "in_progress",
           "note": "Supported real ~/.ymp2 refresh completed at2026-09-12T20:02:44Z using accepted main81b6208:8 Codex,5 Claude,6 GLM offerings;16 new pool actors and3 migrated placeholders. Original3-member roster, all original config values/instructions/providers and all1237 baseline history rows across7 tables preserved. Main fmt/clippy/workspace,10 explicit nativefixtures and CLI build pass. Actual provider names stored, effort left unspecified unless configured. Independent Opus UI review remains; installed release binary not yet replaced. Evidence native-catalog-owner-refresh.json."
+        },
+        {
+          "at": "2026-09-12T20:20:20.827143+00:00",
+          "status": "in_progress",
+          "note": "Independent Opus checkpoint on08fcbf6: fmt/clippy352workspace and built Claude bridge pass; actual UI reads all3 installations and19 offerings, exact Claude label/resolution and native GLM control labels. No blocker so far. History/usage/team-selection checks and selected negative controls remain before final verdict. Cold-start scan lacks visible progress and migration notice wording is imprecise; bounded Opus corrections requested without startup redesign."
         }
       ]
     }
   ],
-  "updated_at": "2026-09-12T20:12:36.247825+00:00",
+  "updated_at": "2026-09-12T20:21:56.530003+00:00",
   "delivery_order": [
     "YMP-116",
     "YMP-103",
