@@ -1,0 +1,50 @@
+CONTROL disabled-board-consumer
+Command: cargo test -p ymp-runtime --test board_coordination actual_team_tools_commit_one_of_two_conflicting_claims_and_execute_the_winner -- --nocapture
+Expected exit: nonzero
+Observed exit: 101
+   Compiling ymp-runtime v0.3.0 (/private/var/folders/cw/7pn8sb3x6bj69g7j2d8f_ss00000gn/T/ymp-release-work-h6oq_rys/sibling112/ymp-rust/crates/ymp-runtime)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.75s
+     Running tests/board_coordination.rs (target/debug/deps/board_coordination-3afa5527f16666ea)
+
+running 1 test
+
+thread 'actual_team_tools_commit_one_of_two_conflicting_claims_and_execute_the_winner' panicked at ymp-rust/crates/ymp-runtime/tests/board_coordination.rs:307:5:
+assertion `left == right` failed
+  left: 0
+ right: 2
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test actual_team_tools_commit_one_of_two_conflicting_claims_and_execute_the_winner ... FAILED
+
+failures:
+
+failures:
+    actual_team_tools_commit_one_of_two_conflicting_claims_and_execute_the_winner
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 7 filtered out; finished in 0.40s
+
+error: test failed, to rerun pass `-p ymp-runtime --test board_coordination`
+
+CONTROL removed-commitment-version
+Command: cargo test -p ymp-runtime --test board_coordination actual_team_tools_commit_one_of_two_conflicting_claims_and_execute_the_winner -- --nocapture
+Expected exit: nonzero
+Observed exit: 101
+   Compiling ymp-storage v0.3.0 (/private/var/folders/cw/7pn8sb3x6bj69g7j2d8f_ss00000gn/T/ymp-release-work-h6oq_rys/sibling112/ymp-rust/crates/ymp-storage)
+   Compiling ymp-runtime v0.3.0 (/private/var/folders/cw/7pn8sb3x6bj69g7j2d8f_ss00000gn/T/ymp-release-work-h6oq_rys/sibling112/ymp-rust/crates/ymp-runtime)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.87s
+     Running tests/board_coordination.rs (target/debug/deps/board_coordination-3afa5527f16666ea)
+
+running 1 test
+
+thread 'actual_team_tools_commit_one_of_two_conflicting_claims_and_execute_the_winner' panicked at ymp-rust/crates/ymp-runtime/tests/board_coordination.rs:309:5:
+assertion failed: !changes[1].accepted && changes[1].reason.contains("stale_task")
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test actual_team_tools_commit_one_of_two_conflicting_claims_and_execute_the_winner ... FAILED
+
+failures:
+
+failures:
+    actual_team_tools_commit_one_of_two_conflicting_claims_and_execute_the_winner
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 7 filtered out; finished in 0.51s
+
+error: test failed, to rerun pass `-p ymp-runtime --test board_coordination`

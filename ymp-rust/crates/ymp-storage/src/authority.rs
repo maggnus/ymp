@@ -143,8 +143,14 @@ impl Store {
         let allowed: &[&str] = match operation {
             TeamOperation::TeamPost => &["text", "recipient"],
             TeamOperation::TeamRead => &["after", "limit"],
-            TeamOperation::TasksList => &[],
-            TeamOperation::TaskPropose => &["title", "description"],
+            TeamOperation::TasksList | TeamOperation::BoardRead => &[],
+            TeamOperation::TaskPropose => &[
+                "title",
+                "description",
+                "plan_version",
+                "change",
+                "rationale",
+            ],
             TeamOperation::MemorySearch => &["query", "include_unconfirmed", "cursor", "limit"],
             TeamOperation::MemoryPropose => &["title", "content"],
         };
@@ -154,6 +160,15 @@ impl Store {
         );
         let mut message = None;
         let result = match operation {
+            TeamOperation::TaskPropose
+                if arguments.get("change").is_some() || arguments.get("plan_version").is_some() =>
+            {
+                let proposal = super::board::propose(&tx, &current, arguments)?;
+                json!({"status":"proposed", "proposal":proposal, "note":"Pending runtime validation at a work boundary; no authority has been granted"})
+            }
+            TeamOperation::BoardRead => {
+                serde_json::to_value(super::board::snapshot(&tx, &current.session_id)?)?
+            }
             TeamOperation::TeamPost | TeamOperation::TaskPropose => {
                 let (kind, text) = if operation == TeamOperation::TeamPost {
                     (

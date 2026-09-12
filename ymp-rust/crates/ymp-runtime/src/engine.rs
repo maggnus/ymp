@@ -1,4 +1,5 @@
 mod allocation;
+mod board;
 mod confirmation;
 #[cfg(test)]
 mod confirmation_tests;
@@ -68,6 +69,8 @@ pub struct Engine {
     workspace_policy: Arc<dyn crate::WorkspaceAccessPolicy>,
     workspace_policy_identity: ExecutionBackendIdentity,
     workspace_parent: Option<String>,
+    board_policy: Arc<dyn crate::BoardProposalPolicy>,
+    board_identity: ExecutionBackendIdentity,
 }
 #[derive(Clone)]
 struct RunContext {
@@ -157,6 +160,8 @@ impl Engine {
                 &crate::DirectWorkspaceAccessPolicy,
             ),
             workspace_parent: None,
+            board_policy: Arc::new(crate::OrderedBoardPolicy),
+            board_identity: crate::BoardProposalPolicy::identity(&crate::OrderedBoardPolicy),
             acceptance_contracts: Vec::new(),
             confirmation_checker: Arc::new(BuiltinConfirmationChecker),
             knowledge_retrieval: Arc::new(FtsKnowledgeRetrieval),
@@ -1575,6 +1580,7 @@ impl Engine {
             if self.cancel.is_cancelled() {
                 bail!("Cancelled");
             }
+            self.commit_board_proposals(&ctx.session.id)?;
             tasks = self.store.tasks(&ctx.session.id)?;
             self.validate_contract_bindings(
                 &ctx.session.id,
@@ -1653,10 +1659,22 @@ impl Engine {
                 }
                 let agent = self.choose_executor(ctx, &task, &candidates)?;
                 busy.insert(agent.id.clone());
+                let board_task = self
+                    .store
+                    .board(&ctx.session.id)?
+                    .tasks
+                    .into_iter()
+                    .find(|t| t.task.id == task.id)
+                    .context("Missing board task")?;
+                let reference = BoardTaskRef {
+                    task_id: task.id.clone(),
+                    version: board_task.version,
+                };
                 task.assign(&agent.id, &accepted)?;
                 task.workspace = Some(ctx.workspace.directory.clone());
                 task.base_commit = None;
-                self.task_changed(&task)?;
+                self.store.claim_board_task(&reference, &task)?;
+                let _ = self.events.send(UiEvent::Task(task.clone()));
                 assigned.push(task);
             }
             let mut work = JoinSet::new();
@@ -2121,6 +2139,9 @@ impl Engine {
         task: &Task,
         candidates: &[AgentProfile],
     ) -> Result<AgentProfile> {
+        if let Some(agent) = self.committed_executor(&ctx.session.id, task, candidates)? {
+            return Ok(agent);
+        }
         self.choose(
             ctx,
             candidates,
@@ -2143,7 +2164,7 @@ impl Engine {
             .find(|a| Some(&a.id) == task.assignee.as_ref())
             .context("Missing assignee")?;
         let path = task.workspace.as_ref().context("Missing task workspace")?;
-        let request=format!("Execute this assigned task in the current working directory:\n{}\n{}\nAcceptance checks: {}\nPrevious result/review: {}\nRead relevant shared chat and share discoveries that affect other tasks. Follow the enforced access recorded for this assignment. Return read-only findings in your response; write deliverables only when write permission is granted. Preserve existing behavior outside the task. Do not push or publish externally unless the original request explicitly requires it. Finish with a concrete summary of files and checks.",task.title,task.description,serde_json::to_string(&task.checks)?,task.result.as_deref().unwrap_or("none"));
+        let request=format!("Execute this assigned task in the current working directory:\n{}\n{}\nAcceptance checks: {}\nPrevious result/review: {}\nRead relevant shared chat and board_read; share discoveries that affect other tasks. Use task_propose with exact plan/task versions to accept responsibility, distribute or reassign ready work, or propose an additive plan revision. Proposals apply after active work ends and grant no authority. Follow the enforced access recorded for this assignment. Return read-only findings in your response; write deliverables only when write permission is granted. Preserve existing behavior outside the task. Do not push or publish externally unless the original request explicitly requires it. Finish with a concrete summary of files and checks.",task.title,task.description,serde_json::to_string(&task.checks)?,task.result.as_deref().unwrap_or("none"));
         let read_only = self.workspace_policy.execution_read_only(&task);
         anyhow::ensure!(task.access != TaskAccess::ReadOnly || read_only, "unsupported_workspace_guarantee: policy cannot enlarge a read-only task's native authority");
         let text = self

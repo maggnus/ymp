@@ -18,3 +18,5 @@ pub use workspace_access::{
 
 mod reservation;
 pub use reservation::{WorkspaceAdmission, WorkspaceReservation};
+mod board;
+pub use board::*;
