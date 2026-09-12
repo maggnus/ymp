@@ -359,6 +359,11 @@
           "at": "2026-09-12T10:16:16.977115+00:00",
           "status": "in_progress",
           "note": "Typed provenance implementation delegated to an xhigh subagent after contract review; parent continues integration and prepares UI/native capability work."
+        },
+        {
+          "at": "2026-09-12T10:55:17.535398+00:00",
+          "status": "in_progress",
+          "note": "R1(7/10) RETURN: stale task acceptance could rewind a later attempt, and committed plans lacked producer/revision invocation links. Author is correcting both with negative regressions; not integrated."
         }
       ]
     },
@@ -659,7 +664,7 @@
       "title": "Expose recorded checks and factual recovery limits",
       "type": "implementation",
       "priority": "P1",
-      "status": "planned",
+      "status": "in_progress",
       "owner": "Claude Code claude-opus-5 with thinking max via Paseo; maintainer integrates and verifies",
       "authorization": "Planned delivery derived from the owner-approved intent and standing autonomous-development direction. Follow dependencies and acceptance criteria; separate real-provider quota is required where stated.",
       "depends_on": [
@@ -697,6 +702,11 @@
           "at": "2026-09-12T09:35:05.248513+00:00",
           "status": "planned",
           "note": "Recorded recovery/check views do not depend on dynamic replanning or the full resource-budget feature."
+        },
+        {
+          "at": "2026-09-12T10:23:06.090079+00:00",
+          "status": "in_progress",
+          "note": "Claude Opus 5 max is assigned through Paseo: independently review the pool outcome, then implement recorded checks and factual recovery views in an isolated development worktree."
         }
       ]
     },
@@ -753,7 +763,7 @@
       "title": "Apply native models and reasoning settings per assignment",
       "type": "implementation",
       "priority": "P0",
-      "status": "planned",
+      "status": "in_progress",
       "owner": "Maintainer; UI by Claude Opus 5 (max)",
       "authorization": "Planned delivery derived from the owner-approved intent and standing autonomous-development direction. Follow dependencies and acceptance criteria; separate real-provider quota is required where stated.",
       "depends_on": [
@@ -821,6 +831,11 @@
           "at": "2026-09-12T09:35:05.248513+00:00",
           "status": "planned",
           "note": "Native model/effort plumbing does not require the permission-lifecycle implementation. Authority integration is checked in YMP-120 and the final release."
+        },
+        {
+          "at": "2026-09-12T10:56:22.436052+00:00",
+          "status": "in_progress",
+          "note": "Native model/effort work is assigned at xhigh against the completed pool API and candidate provenance types; upstream 101 corrections will be incorporated before integration."
         }
       ]
     },
@@ -1068,7 +1083,7 @@
       "title": "Expose the provider-backed agent pool with stable individual identities",
       "type": "implementation",
       "priority": "P0",
-      "status": "in_progress",
+      "status": "done",
       "owner": "Maintainer; UI by Claude Opus 5 (max)",
       "authorization": "Planned delivery derived from the owner-approved intent and standing autonomous-development direction. Follow dependencies and acceptance criteria; separate real-provider quota is required where stated.",
       "depends_on": [
@@ -1090,7 +1105,8 @@
         "[Final owner intent](../../intent.md)",
         "[Team and effort policy](../architecture/team-and-effort-policy.md)",
         "[Domain terminology](../product/entities.md)",
-        "[Delivery plan](plan.md)"
+        "[Delivery plan](plan.md)",
+        "[Opus 5 independent review](../../ymp-evals/reports/ymp-109-independent-review.md)"
       ],
       "history": [
         {
@@ -1132,6 +1148,11 @@
           "at": "2026-09-12T10:09:59.833452+00:00",
           "status": "in_progress",
           "note": "Backend pool/identity work assigned to an xhigh subagent; metadata discovery and configuration only, no provider inference or UI edits."
+        },
+        {
+          "at": "2026-09-12T10:56:22.351042+00:00",
+          "status": "done",
+          "note": "R1(9/10) ACCEPT by independent Claude Opus 5 max review; integrated f5573f6. Configured/unknown metadata, inference-free discovery, stable captured identities and activity controls pass, including mutation checks. Integrated Rust suite: 119 tests."
         }
       ]
     },
@@ -1791,7 +1812,7 @@
       "title": "Prepare universal acceptance scenarios and independent validators",
       "type": "verification",
       "priority": "P0",
-      "status": "in_progress",
+      "status": "done",
       "owner": "Maintainer",
       "authorization": "Derived from the owner-approved intent and work-plan request. Follow recorded dependencies; real-provider quota remains separately authorized.",
       "depends_on": [
@@ -1808,7 +1829,8 @@
       ],
       "evidence": [
         "[Approved intent](../../intent.md)",
-        "[Delivery plan](plan.md)"
+        "[Delivery plan](plan.md)",
+        "[Universal fixture verification](../../ymp-evals/reports/universal-fixture-verification.md)"
       ],
       "history": [
         {
@@ -1825,6 +1847,11 @@
           "at": "2026-09-12T10:12:27.007723+00:00",
           "status": "in_progress",
           "note": "Independent universal acceptance fixtures and validators assigned to an xhigh subagent; final runtime execution remains YMP-121."
+        },
+        {
+          "at": "2026-09-12T10:56:22.393150+00:00",
+          "status": "done",
+          "note": "R1(9/10) ACCEPT by independent xhigh review; integrated 456311b. Four workflow validators and thirteen protocol cases pass 26 tests and 42 independent controls. These are fixtures, not integrated runtime or model-quality proof; YMP-121 still runs the real boundary adapter."
         }
       ]
     },
@@ -1920,7 +1947,7 @@
       ]
     }
   ],
-  "updated_at": "2026-09-12T10:16:16.977115+00:00",
+  "updated_at": "2026-09-12T10:56:22.436052+00:00",
   "delivery_order": [
     "YMP-116",
     "YMP-103",

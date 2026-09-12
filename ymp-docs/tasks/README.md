@@ -1,6 +1,6 @@
 # Task details and evidence
 
-Updated: 2026-09-12 10:16 UTC.
+Updated: 2026-09-12 10:56 UTC.
 
 Use the [delivery plan](plan.md) to follow progress. This generated register contains full acceptance criteria, dependencies and evidence. [tasks.json](tasks.json) is the single source; [manage.py](manage.py) updates both pages.
 
@@ -14,9 +14,9 @@ A planned task is not implemented functionality. Completed research and planning
 | design | 1 | 1 |
 | documentation | 4 | 4 |
 | experiment | 0 | 4 |
-| implementation | 3 | 18 |
+| implementation | 4 | 18 |
 | research | 8 | 8 |
-| verification | 0 | 2 |
+| verification | 1 | 2 |
 
 ## Index
 
@@ -30,21 +30,21 @@ A planned task is not implemented functionality. Completed research and planning
 | `[x]` | [YMP-006](#ymp-006) | P0 | Review UI concentration and working-directory recovery communication | 2026-09-12 05:48 |
 | `[x]` | [YMP-007](#ymp-007) | P0 | Evaluate verification-grounded outcome reuse and lifecycle evidence | 2026-09-11 16:00 |
 | `[x]` | [YMP-008](#ymp-008) | P0 | Reconcile native and canonical usage and recompute weighted input | 2026-09-11 16:00 |
-| `[~]` | [YMP-101](#ymp-101) | P0 | Persist explainable session decisions and execution provenance | 2026-09-12 10:16 |
+| `[~]` | [YMP-101](#ymp-101) | P0 | Persist explainable session decisions and execution provenance | 2026-09-12 10:55 |
 | `[=]` | [YMP-102](#ymp-102) | P0 | Add explicit session resource budgets and unknown-usage policy | 2026-09-12 09:35 |
 | `[x]` | [YMP-103](#ymp-103) | P0 | Honor Codex nonterminal retry notifications | 2026-09-12 10:16 |
 | `[x]` | [YMP-104](#ymp-104) | P0 | Preserve accepted outcomes and confirmation status when final narration fails | 2026-09-12 10:16 |
 | `[x]` | [YMP-105](#ymp-105) | P1 | Enumerate file names without reading file contents | 2026-09-12 10:16 |
 | `[=]` | [YMP-106](#ymp-106) | P1 | Use task-specific memory queries and record retrieval evidence | 2026-09-12 09:06 |
-| `[ ]` | [YMP-107](#ymp-107) | P1 | Expose recorded checks and factual recovery limits | 2026-09-12 09:35 |
+| `[~]` | [YMP-107](#ymp-107) | P1 | Expose recorded checks and factual recovery limits | 2026-09-12 10:23 |
 | `[=]` | [YMP-108](#ymp-108) | P2 | Evaluate an optional usage estimate with explicit price provenance | 2026-09-12 09:35 |
-| `[=]` | [YMP-111](#ymp-111) | P0 | Apply native models and reasoning settings per assignment | 2026-09-12 09:35 |
+| `[~]` | [YMP-111](#ymp-111) | P0 | Apply native models and reasoning settings per assignment | 2026-09-12 10:56 |
 | `[=]` | [YMP-201](#ymp-201) | P2 | Calibrate and run the paired solo/team pilot | 2026-09-12 09:35 |
 | `[=]` | [YMP-202](#ymp-202) | P1 | Test memory and adaptive assignment on held-out tasks | 2026-09-12 09:35 |
 | `[=]` | [YMP-203](#ymp-203) | P1 | Test effort, reduced preparation and low-effort ensembles separately | 2026-09-12 09:35 |
 | `[=]` | [YMP-204](#ymp-204) | P1 | Evaluate a project-scoped prior-outcome router | 2026-09-12 09:35 |
 | `[=]` | [YMP-301](#ymp-301) | P2 | Confirm the initial success class and intended audience | 2026-09-12 09:35 |
-| `[~]` | [YMP-109](#ymp-109) | P0 | Expose the provider-backed agent pool with stable individual identities | 2026-09-12 10:09 |
+| `[x]` | [YMP-109](#ymp-109) | P0 | Expose the provider-backed agent pool with stable individual identities | 2026-09-12 10:56 |
 | `[=]` | [YMP-110](#ymp-110) | P0 | Select session teams and execution settings within user constraints | 2026-09-12 09:35 |
 | `[=]` | [YMP-112](#ymp-112) | P0 | Coordinate commitments, plan revisions and reassignment through the board | 2026-09-12 09:35 |
 | `[=]` | [YMP-113](#ymp-113) | P0 | Accumulate general knowledge and verified experience incrementally | 2026-09-12 09:35 |
@@ -58,7 +58,7 @@ A planned task is not implemented functionality. Completed research and planning
 | `[=]` | [YMP-117](#ymp-117) | P0 | Separate acceptance from confirmation and gate reputation on evidence | 2026-09-12 09:35 |
 | `[=]` | [YMP-120](#ymp-120) | P0 | Enforce assignment-scoped permissions and runtime-only state transitions | 2026-09-12 09:35 |
 | `[=]` | [YMP-118](#ymp-118) | P0 | Integrate core assignment, budget and confirmation visibility | 2026-09-12 09:35 |
-| `[~]` | [YMP-119](#ymp-119) | P0 | Prepare universal acceptance scenarios and independent validators | 2026-09-12 10:12 |
+| `[x]` | [YMP-119](#ymp-119) | P0 | Prepare universal acceptance scenarios and independent validators | 2026-09-12 10:56 |
 | `[=]` | [YMP-121](#ymp-121) | P1 | Verify the integrated application and package a local release | 2026-09-12 09:35 |
 | `[x]` | [YMP-013](#ymp-013) | P0 | Review plan coherence and simplify progress tracking | 2026-09-12 09:46 |
 
@@ -296,9 +296,9 @@ Persist explainable session decisions and execution provenance
 
 **State:** `[~]` (in_progress) · **Type:** implementation · **Priority:** P0
 
-**Last update (UTC):** 2026-09-12 10:16
+**Last update (UTC):** 2026-09-12 10:55
 
-**Current reason:** Typed provenance implementation delegated to an xhigh subagent after contract review; parent continues integration and prepares UI/native capability work.
+**Current reason:** R1(7/10) RETURN: stale task acceptance could rewind a later attempt, and committed plans lacked producer/revision invocation links. Author is correcting both with negative regressions; not integrated.
 
 **Owner:** Maintainer
 
@@ -493,11 +493,11 @@ The first twelve words of a role instruction can contain no task terms, and the 
 
 Expose recorded checks and factual recovery limits
 
-**State:** `[ ]` (planned) · **Type:** implementation · **Priority:** P1
+**State:** `[~]` (in_progress) · **Type:** implementation · **Priority:** P1
 
-**Last update (UTC):** 2026-09-12 09:35
+**Last update (UTC):** 2026-09-12 10:23
 
-**Current reason:** Ready to start
+**Current reason:** Claude Opus 5 max is assigned through Paseo: independently review the pool outcome, then implement recorded checks and factual recovery views in an isolated development worktree.
 
 **Owner:** Claude Code claude-opus-5 with thinking max via Paseo; maintainer integrates and verifies
 
@@ -506,8 +506,6 @@ Expose recorded checks and factual recovery limits
 **Depends on:** [YMP-104](#ymp-104)
 
 Metadata can explain what changed but does not contain prior file backups. A command-prefix gate would not contain native agent execution.
-
-**Latest progress note:** Recorded recovery/check views do not depend on dynamic replanning or the full resource-budget feature.
 
 **Acceptance criteria:**
 
@@ -556,11 +554,11 @@ Weighted-input rankings do not reverse in the twelve retrospective scenarios. An
 
 Apply native models and reasoning settings per assignment
 
-**State:** `[=]` (planned) · **Type:** implementation · **Priority:** P0
+**State:** `[~]` (in_progress) · **Type:** implementation · **Priority:** P0
 
-**Last update (UTC):** 2026-09-12 09:35
+**Last update (UTC):** 2026-09-12 10:56
 
-**Current reason:** Needs YMP-109
+**Current reason:** Native model/effort work is assigned at xhigh against the completed pool API and candidate provenance types; upstream 101 corrections will be incorporated before integration.
 
 **Owner:** Maintainer; UI by Claude Opus 5 (max)
 
@@ -569,8 +567,6 @@ Apply native models and reasoning settings per assignment
 **Depends on:** [YMP-109](#ymp-109)
 
 Native reasoning controls support YMP selection under user constraints. Effort belongs to assignments rather than permanent agent identity or an automatic failure counter.
-
-**Latest progress note:** Native model/effort plumbing does not require the permission-lifecycle implementation. Authority integration is checked in YMP-120 and the final release.
 
 **Acceptance criteria:**
 
@@ -761,11 +757,11 @@ The core product is already a universal local agent-team workspace. External ado
 
 Expose the provider-backed agent pool with stable individual identities
 
-**State:** `[~]` (in_progress) · **Type:** implementation · **Priority:** P0
+**State:** `[x]` (done) · **Type:** implementation · **Priority:** P0
 
-**Last update (UTC):** 2026-09-12 10:09
+**Last update (UTC):** 2026-09-12 10:56
 
-**Current reason:** Backend pool/identity work assigned to an xhigh subagent; metadata discovery and configuration only, no provider inference or UI edits.
+**Current reason:** R1(9/10) ACCEPT by independent Claude Opus 5 max review; integrated f5573f6. Configured/unknown metadata, inference-free discovery, stable captured identities and activity controls pass, including mutation checks. Integrated Rust suite: 119 tests.
 
 **Owner:** Maintainer; UI by Claude Opus 5 (max)
 
@@ -793,6 +789,7 @@ Available agents are working units supplied through providers. The eligible pool
 - [Team and effort policy](../architecture/team-and-effort-policy.md)
 - [Domain terminology](../product/entities.md)
 - [Delivery plan](plan.md)
+- [Opus 5 independent review](../../ymp-evals/reports/ymp-109-independent-review.md)
 
 ## YMP-110
 
@@ -1259,11 +1256,11 @@ The approved protocol needs observable identities, settings, authority and evide
 
 Prepare universal acceptance scenarios and independent validators
 
-**State:** `[~]` (in_progress) · **Type:** verification · **Priority:** P0
+**State:** `[x]` (done) · **Type:** verification · **Priority:** P0
 
-**Last update (UTC):** 2026-09-12 10:12
+**Last update (UTC):** 2026-09-12 10:56
 
-**Current reason:** Independent universal acceptance fixtures and validators assigned to an xhigh subagent; final runtime execution remains YMP-121.
+**Current reason:** R1(9/10) ACCEPT by independent xhigh review; integrated 456311b. Four workflow validators and thirteen protocol cases pass 26 tests and 42 independent controls. These are fixtures, not integrated runtime or model-quality proof; YMP-121 still runs the real boundary adapter.
 
 **Owner:** Maintainer
 
@@ -1286,6 +1283,7 @@ Delivery must work for documents, data and evidence-based tasks as well as softw
 
 - [Approved intent](../../intent.md)
 - [Delivery plan](plan.md)
+- [Universal fixture verification](../../ymp-evals/reports/universal-fixture-verification.md)
 
 ## YMP-121
 
@@ -1295,7 +1293,7 @@ Verify the integrated application and package a local release
 
 **Last update (UTC):** 2026-09-12 09:35
 
-**Current reason:** Needs YMP-119, YMP-107, YMP-112, YMP-115, YMP-114, YMP-118
+**Current reason:** Needs YMP-107, YMP-112, YMP-115, YMP-114, YMP-118
 
 **Owner:** Independent final reviewer at max reasoning; maintainer integrates and packages
 
