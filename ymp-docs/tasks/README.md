@@ -1,6 +1,6 @@
 # Task details and evidence
 
-Updated: 2026-09-12 19:12 UTC.
+Updated: 2026-09-12 20:08 UTC.
 
 Use the [delivery plan](plan.md) to follow progress. This generated register contains full acceptance criteria, dependencies and evidence. [tasks.json](tasks.json) is the single source; [manage.py](manage.py) updates both pages.
 
@@ -46,9 +46,9 @@ A planned task is not implemented functionality. Completed research and planning
 | `[=]` | [YMP-301](#ymp-301) | P2 | Confirm the initial success class and intended audience | 2026-09-12 09:35 |
 | `[x]` | [YMP-109](#ymp-109) | P0 | Expose the provider-backed agent pool with stable individual identities | 2026-09-12 10:56 |
 | `[~]` | [YMP-110](#ymp-110) | P0 | Select session teams and execution settings within user constraints | 2026-09-12 16:33 |
-| `[~]` | [YMP-112](#ymp-112) | P0 | Coordinate commitments, plan revisions and reassignment through the board | 2026-09-12 19:07 |
+| `[~]` | [YMP-112](#ymp-112) | P0 | Coordinate commitments, plan revisions and reassignment through the board | 2026-09-12 20:01 |
 | `[~]` | [YMP-113](#ymp-113) | P0 | Accumulate general knowledge and verified experience incrementally | 2026-09-12 16:33 |
-| `[~]` | [YMP-114](#ymp-114) | P0 | Correct and supersede knowledge with newer verified evidence | 2026-09-12 19:07 |
+| `[~]` | [YMP-114](#ymp-114) | P0 | Correct and supersede knowledge with newer verified evidence | 2026-09-12 20:01 |
 | `[x]` | [YMP-009](#ymp-009) | P0 | Align the product definition, research conclusions and backlog with final intent | 2026-09-12 09:15 |
 | `[x]` | [YMP-115](#ymp-115) | P0 | Enable useful concurrent execution of independent assignments | 2026-09-12 17:00 |
 | `[x]` | [YMP-010](#ymp-010) | P0 | Approve product goals and core protocol constraints | 2026-09-12 09:06 |
@@ -57,16 +57,16 @@ A planned task is not implemented functionality. Completed research and planning
 | `[x]` | [YMP-116](#ymp-116) | P0 | Define the minimal runtime transition and authority contract | 2026-09-12 10:07 |
 | `[x]` | [YMP-117](#ymp-117) | P0 | Separate acceptance from confirmation and gate reputation on evidence | 2026-09-12 13:59 |
 | `[x]` | [YMP-120](#ymp-120) | P0 | Enforce assignment-scoped permissions and runtime-only state transitions | 2026-09-12 13:46 |
-| `[~]` | [YMP-118](#ymp-118) | P0 | Integrate core assignment, budget and confirmation visibility | 2026-09-12 18:46 |
+| `[~]` | [YMP-118](#ymp-118) | P0 | Integrate core assignment, budget and confirmation visibility | 2026-09-12 20:08 |
 | `[x]` | [YMP-119](#ymp-119) | P0 | Prepare universal acceptance scenarios and independent validators | 2026-09-12 10:56 |
-| `[=]` | [YMP-121](#ymp-121) | P1 | Verify the integrated application and package a local release | 2026-09-12 18:46 |
+| `[=]` | [YMP-121](#ymp-121) | P1 | Verify the integrated application and package a local release | 2026-09-12 20:08 |
 | `[x]` | [YMP-013](#ymp-013) | P0 | Review plan coherence and simplify progress tracking | 2026-09-12 09:46 |
 | `[x]` | [YMP-122](#ymp-122) | P1 | Expose replaceable execution backends behind runtime-owned controls | 2026-09-12 15:23 |
 | `[x]` | [YMP-123](#ymp-123) | P1 | Expose a public local MCP facade over stdio | 2026-09-12 18:22 |
 | `[=]` | [YMP-124](#ymp-124) | P1 | Add isolated execution and recoverable publication for larger projects | 2026-09-12 15:31 |
 | `[x]` | [YMP-125](#ymp-125) | P0 | Expose trusted acceptance contracts to executable users | 2026-09-12 17:54 |
-| `[~]` | [YMP-126](#ymp-126) | P1 | Execute universal acceptance scenarios through a trusted runtime driver | 2026-09-12 19:12 |
-| `[~]` | [YMP-127](#ymp-127) | P0 | Build and display the agent pool from provider-returned native names | 2026-09-12 19:07 |
+| `[~]` | [YMP-126](#ymp-126) | P1 | Execute universal acceptance scenarios through a trusted runtime driver | 2026-09-12 20:01 |
+| `[~]` | [YMP-127](#ymp-127) | P0 | Build and display the agent pool from provider-returned native names | 2026-09-12 20:03 |
 
 ## YMP-001
 
@@ -849,9 +849,9 @@ Coordinate commitments, plan revisions and reassignment through the board
 
 **State:** `[~]` (in_progress) · **Type:** implementation · **Priority:** P0
 
-**Last update (UTC):** 2026-09-12 19:07
+**Last update (UTC):** 2026-09-12 20:01
 
-**Current reason:** R1(6/10) RETURN: valid committed work was treated as unavailable when its actor was already selected in a parallel wave. Author reproduced the public failure and corrected waiting/draining while preserving commitment; parallel/serial controls pass. Final checks and independent R2 follow; UI remains separate.
+**Current reason:** Combined112/114 backend afede54 independently accepted R1(9/10):17 focused tests and actual CLI/public-MCP correction consumer pass;100 source hashes and protected MCP/StoreLock sections match. Composition with native catalog127 is underway. Existing-page Opus UI delivery remains required.
 
 **Owner:** Maintainer; application UI by Claude Code claude-opus-5 with thinking max via Paseo
 
@@ -924,9 +924,9 @@ Correct and supersede knowledge with newer verified evidence
 
 **State:** `[~]` (in_progress) · **Type:** implementation · **Priority:** P0
 
-**Last update (UTC):** 2026-09-12 19:07
+**Last update (UTC):** 2026-09-12 20:01
 
-**Current reason:** Backend6ed96c8 independently ACCEPTED9/10; actual source replacement95-to60, CLI/public-MCP/internal scoped inspection, supersession/history and replay controls pass. Fmt/clippy304 tests pass independently. Integration and corresponding Opus UI remain before whole-task acceptance.
+**Current reason:** Combined112/114 backend afede54 independently accepted R1(9/10), including actual CLI/public-MCP correction-history consumer. Source/record bindings and scoped current knowledge verified. Composition with native catalog127 is underway; Opus knowledge-history view remains required.
 
 **Owner:** Maintainer; application UI by Claude Code claude-opus-5 with thinking max via Paseo
 
@@ -1244,9 +1244,9 @@ Integrate core assignment, budget and confirmation visibility
 
 **State:** `[~]` (in_progress) · **Type:** implementation · **Priority:** P0
 
-**Last update (UTC):** 2026-09-12 18:46
+**Last update (UTC):** 2026-09-12 20:08
 
-**Current reason:** Owner correction127 makes native scan results the source of primary agent names. Core118 fixes continue, but final catalog/name integration and its UI verification are owned by127 and remain a release requirement.
+**Current reason:** Opus candidate08fcbf6 closes core review findings, includes actual configured-contract visibility and native catalog views, and passes352 author workspace tests. Independent Opus R2 runs on an immutable worktree, including successful Claude bridge metadata and actual terminal consumers. Board112/knowledge114 extensions are delegated to the same existing pages separately.
 
 **Owner:** Claude Code claude-opus-5 with thinking max via Paseo; maintainer integrates and verifies
 
@@ -1309,7 +1309,7 @@ Verify the integrated application and package a local release
 
 **State:** `[=]` (planned) · **Type:** verification · **Priority:** P1
 
-**Last update (UTC):** 2026-09-12 18:46
+**Last update (UTC):** 2026-09-12 20:08
 
 **Current reason:** Needs YMP-112, YMP-114, YMP-118, YMP-110, YMP-113, YMP-126, YMP-127
 
@@ -1321,7 +1321,7 @@ Verify the integrated application and package a local release
 
 A local release needs a reproducible install and truthful compatibility evidence for the configured native providers.
 
-**Latest progress note:** Final release explicitly requires127: native scan-derived agent names and actual selectable pool, per the owner correction. Existing provider placeholders are not an acceptable final product.
+**Latest progress note:** Release verification procedure now records packaging paths, exact offline checks, native metadata versus inference boundaries, and a bounded optional two-invocation minimal-effort proposal. No inference quota requested or consumed. Final execution/review/version/install still depend on complete delivery tasks.
 
 **Acceptance criteria:**
 
@@ -1342,6 +1342,7 @@ A local release needs a reproducible install and truthful compatibility evidence
 - [Delivery plan](plan.md)
 - [Replaceable subsystem contracts](../architecture/subsystem-interfaces.md)
 - [Test inference audit and probe distinction](../research/evidence/test-inference-audit.json)
+- [Local release verification procedure](../guides/release-verification.md)
 
 **Quota:** Not allocated. Prepare a concrete bounded smoke-check proposal before any real-provider inference.
 
@@ -1517,9 +1518,9 @@ Execute universal acceptance scenarios through a trusted runtime driver
 
 **State:** `[~]` (in_progress) · **Type:** implementation · **Priority:** P1
 
-**Last update (UTC):** 2026-09-12 19:12
+**Last update (UTC):** 2026-09-12 20:01
 
-**Current reason:** Actual document workflow now passes the independent validator with confirmed output, six charged scripted invocations,42 synthetic tokens and zero-inference path follow-up. Runtime budget-reservations probe honestly fails: captured global60-token estimate also reserves60 for review, while scenario requires producer60/review20. Evidence retained; no fixture weakening or complete-suite claim. Driver author temporarily prioritizes112 R1 correction.
+**Current reason:** Actual driver now passes9 of17 cases, including all four workflows and partial-usage timeout/revocation. Accepted112/114 backends are composed for remaining adapters. The real budget case exposed missing variable per-assignment reservation and separately protected review allowance; narrow captured runtime correction authorized, fixture unchanged. All workloads remain scripted; no model-quality claim.
 
 **Owner:** Maintainer and delegated xhigh implementation/review agents
 
@@ -1551,9 +1552,9 @@ Build and display the agent pool from provider-returned native names
 
 **State:** `[~]` (in_progress) · **Type:** implementation · **Priority:** P0
 
-**Last update (UTC):** 2026-09-12 19:07
+**Last update (UTC):** 2026-09-12 20:03
 
-**Current reason:** Backend native scan now preserves returned names/IDs/aliases/control labels, builds concrete pool profiles and captures effective assignment identity. Metadata-only installed scan succeeded for8 Codex,5 Claude and6 GLM offerings in a temporary home; real user configuration remains untouched pending integration. Seven executable fixture cases pass; final controls/review and Opus UI integration remain.
+**Current reason:** Supported real ~/.ymp2 refresh completed at2026-09-12T20:02:44Z using accepted main81b6208:8 Codex,5 Claude,6 GLM offerings;16 new pool actors and3 migrated placeholders. Original3-member roster, all original config values/instructions/providers and all1237 baseline history rows across7 tables preserved. Main fmt/clippy/workspace,10 explicit nativefixtures and CLI build pass. Actual provider names stored, effort left unspecified unless configured. Independent Opus UI review remains; installed release binary not yet replaced. Evidence native-catalog-owner-refresh.json.
 
 **Owner:** Maintainer; all UI by Claude Opus 5 max via Paseo
 
