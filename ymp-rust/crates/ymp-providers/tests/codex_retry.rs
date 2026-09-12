@@ -20,6 +20,7 @@ impl Fixture {
         )
         .unwrap();
         let request = TurnRequest {
+            resource_controls: Default::default(),
             settings: Default::default(),
             profile: AgentProfile {
                 id: "agent-fixture".into(),

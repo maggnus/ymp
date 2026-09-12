@@ -82,6 +82,26 @@ impl TeamServer {
         invocation: &InvocationRecord,
         operations: Vec<TeamOperation>,
     ) -> Result<String> {
+        self.admit_inner(assignment, &mut invocation.clone(), operations, false)
+    }
+
+    /// Publish a live capability only after budget, ordinal and grant commit.
+    pub fn admit_reserved(
+        &self,
+        assignment: &mut AssignmentRecord,
+        invocation: &mut InvocationRecord,
+        operations: Vec<TeamOperation>,
+    ) -> Result<String> {
+        self.admit_inner(assignment, invocation, operations, true)
+    }
+
+    fn admit_inner(
+        &self,
+        assignment: &mut AssignmentRecord,
+        invocation: &mut InvocationRecord,
+        operations: Vec<TeamOperation>,
+        allocate_turn: bool,
+    ) -> Result<String> {
         ensure!(
             assignment.session_id == self.session,
             "Assignment belongs to another team server"
@@ -97,11 +117,19 @@ impl TeamServer {
         let grant = GrantRecord::for_assignment(assignment, invocation, operations);
         let mut admitted = assignment.clone();
         admitted.grant_ids.push(grant.id.clone());
-        self.store.begin_invocation_with_grants(
-            &admitted,
-            invocation,
-            std::slice::from_ref(&grant),
-        )?;
+        if allocate_turn {
+            *invocation = self.store.admit_invocation_with_grants(
+                &admitted,
+                invocation.clone(),
+                std::slice::from_ref(&grant),
+            )?;
+        } else {
+            self.store.begin_invocation_with_grants(
+                &admitted,
+                invocation,
+                std::slice::from_ref(&grant),
+            )?;
+        }
         let token = new_id();
         active.insert(
             token.clone(),

@@ -202,6 +202,7 @@ async fn entry() -> Result<()> {
             let cancel = CancellationToken::new();
             let engine = Engine::new(store.clone(), config.clone(), events, cancel.clone())?;
             let req = TurnRequest {
+                resource_controls: Default::default(),
                 settings: ExecutionSettings {
                     model,
                     ..Default::default()
@@ -371,6 +372,7 @@ async fn ask(
     let engine = Engine::new(store.clone(), config.clone(), ui, cancel.clone())?;
     let provider = config.provider(&profile.provider)?.clone();
     let request = TurnRequest {
+        resource_controls: Default::default(),
         settings: config.execution_settings(profile, choice)?,
         profile: profile.clone(),
         provider,
@@ -539,6 +541,7 @@ async fn probe_team_tools(
     };
     let token = server.admit(&mut assignment, &invocation, vec![TeamOperation::TeamPost])?;
     let request = TurnRequest {
+        resource_controls: Default::default(),
         settings: config.execution_settings(profile, &ModelEffort::default())?,
         profile: profile.clone(), provider: config.provider(&profile.provider)?.clone(), cwd: path.into(),
         prompt: format!("Call the ymp MCP tool team_post with text exactly {marker}. Then return YMP_OK. This is an explicitly authorized local team-chat write. Do not modify files or use other tools. Respond in English."),

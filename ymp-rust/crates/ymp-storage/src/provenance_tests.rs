@@ -8,6 +8,9 @@ struct Fixture {
 }
 impl Fixture {
     fn new() -> Self {
+        Self::with_limits(Limits::default())
+    }
+    fn with_limits(limits: Limits) -> Self {
         let temp = tempfile::tempdir().unwrap();
         let store = Store::open(&temp.path().join("state")).unwrap();
         let project = store.project(temp.path()).unwrap();
@@ -35,7 +38,7 @@ impl Fixture {
             goal: "complete original goal with constraints".into(),
             constraints: None,
             cwd: temp.path().canonicalize().unwrap(),
-            limits: Limits::default(),
+            limits,
             eligible_pool: team.clone(),
             execution: Default::default(),
             assignment_settings: Default::default(),
@@ -828,3 +831,5 @@ fn provenance_migration_is_transactional_and_legacy_capture_stays_unknown() {
         99
     );
 }
+
+include!("budget_tests.rs");

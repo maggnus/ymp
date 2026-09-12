@@ -1,5 +1,6 @@
 import { createInterface } from "node:readline";
 import { nativeSettings, validateSettings, validateReportedModel, modelCatalog, type Settings } from "./settings.js";
+import { nativeResourceOptions } from "./resources.js";
 import { UsageTracker } from "./usage.js";
 import { query, type Options, type Query, type SDKUserMessage } from "@anthropic-ai/claude-agent-sdk";
 
@@ -13,6 +14,7 @@ interface Request {
     cwd: string;
     prompt: string;
     read_only: boolean;
+    resource_controls?: { max_turns?: number; max_output_chars?: number };
     resume?: string;
     mcp?: { command: string; args: string[]; token: string };
   };
@@ -41,6 +43,7 @@ async function execute(request: Request): Promise<void> {
     ...(p.read_only ? { tools: ["Read", "Glob", "Grep"] } : {}),
     allowDangerouslySkipPermissions: true,
     includePartialMessages: true,
+    ...nativeResourceOptions(p.resource_controls),
     persistSession: true,
     env,
     ...nativeSettings(p.settings ?? {}),

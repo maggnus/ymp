@@ -8,6 +8,7 @@ use std::{
 };
 use ymp_core::*;
 mod authority;
+mod budget;
 mod provenance;
 #[cfg(test)]
 mod provenance_tests;

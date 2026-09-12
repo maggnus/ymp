@@ -88,3 +88,11 @@ test("native resume receives a fresh MCP credential and read tool restriction ea
     assert.equal(config.mcpServers.ymp.env.YMP_MCP_TOKEN, token);
   }
 });
+
+test("captured native loop allowance reaches the physical SDK transport", async () => {
+  const { response, wire } = await run({}, "run", { resource_controls: { max_turns: 2 } });
+  assert.equal(response.result?.text, "done", JSON.stringify(response));
+  const argv = wire[0].argv as string[];
+  assert.ok(argv.includes("--max-turns"));
+  assert.equal(argv[argv.indexOf("--max-turns") + 1], "2");
+});

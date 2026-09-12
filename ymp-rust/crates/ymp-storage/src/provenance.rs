@@ -341,12 +341,40 @@ impl Store {
         self.begin_invocation_with_grants(assignment, invocation, &[])
     }
 
-    /// Runtime-only admission: assignment, invocation, grants and their events
-    /// commit together. This does not recreate a process-owned capability.
+    /// Commit explicit invocation identities and grants together.
     pub fn begin_invocation_with_grants(
         &self,
         assignment: &AssignmentRecord,
         invocation: &InvocationRecord,
+        grants: &[GrantRecord],
+    ) -> Result<()> {
+        self.begin_invocation_inner(assignment, &mut invocation.clone(), false, grants)
+    }
+
+    pub fn admit_invocation(
+        &self,
+        assignment: &AssignmentRecord,
+        invocation: InvocationRecord,
+    ) -> Result<InvocationRecord> {
+        self.admit_invocation_with_grants(assignment, invocation, &[])
+    }
+
+    /// Allocate an ordinal, reserve budget, and issue grants in one transaction.
+    pub fn admit_invocation_with_grants(
+        &self,
+        assignment: &AssignmentRecord,
+        mut invocation: InvocationRecord,
+        grants: &[GrantRecord],
+    ) -> Result<InvocationRecord> {
+        self.begin_invocation_inner(assignment, &mut invocation, true, grants)?;
+        Ok(invocation)
+    }
+
+    fn begin_invocation_inner(
+        &self,
+        assignment: &AssignmentRecord,
+        invocation: &mut InvocationRecord,
+        allocate_turn: bool,
         grants: &[GrantRecord],
     ) -> Result<()> {
         ensure!(
@@ -378,7 +406,7 @@ impl Store {
             "New invocation cannot contain terminal accounting"
         );
         let mut db = self.db()?;
-        let tx = db.transaction()?;
+        let tx = db.transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)?;
         let session: Session = record(&tx, "sessions", &assignment.session_id)?;
         ensure!(
             session
@@ -420,6 +448,22 @@ impl Store {
                     "Execution claim is stale or belongs to another agent"
                 );
             }
+        }
+        if let Some(denial) = super::budget::denial(&tx, assignment)? {
+            super::budget::record_denial(&tx, &assignment.session_id, &denial)?;
+            tx.commit()?;
+            return Err(denial.into());
+        }
+        if allocate_turn {
+            let previous: u64 = tx.query_row(
+                "SELECT COALESCE(MAX(turn),0) FROM token_usage WHERE session_id=?",
+                [&assignment.session_id],
+                |r| r.get(0),
+            )?;
+            invocation.turn = previous
+                .max(session.turns_used as u64)
+                .checked_add(1)
+                .context("Invocation ordinal exhausted")?;
         }
         for grant in grants {
             super::authority::issue(&tx, assignment, invocation, grant)?;
@@ -469,6 +513,12 @@ impl Store {
                 .to_string(),
                 invocation.started_at
             ],
+        )?;
+        super::budget::record_state(
+            &tx,
+            &assignment.session_id,
+            &invocation.id,
+            "budget_reserved",
         )?;
         tx.commit()?;
         Ok(())
@@ -522,6 +572,17 @@ impl Store {
                 .is_some_and(|old| old.finalized && old != usage)
             {
                 bail!("Finalized invocation usage cannot be replaced");
+            }
+            if let Some(previous) = &invocation.usage {
+                for (old, new) in [
+                    (previous.counts.input, usage.counts.input),
+                    (previous.counts.output, usage.counts.output),
+                ] {
+                    ensure!(
+                        old.is_none_or(|old| new.is_some_and(|new| new >= old)),
+                        "Observed token spend cannot be retracted"
+                    );
+                }
             }
             invocation.usage = Some(usage.clone());
             tx.execute(
@@ -716,6 +777,7 @@ impl Store {
             invocations: records(&tx, "invocations", session)?,
             decisions: records(&tx, "decisions", session)?,
             usage: super::usage::session_usage(&tx, session)?,
+            budget: super::budget::snapshot(&tx, session)?,
             history,
         };
         drop(rows);
@@ -784,6 +846,7 @@ pub(super) fn finish(
             invocation.turn
         ],
     )?;
+    super::budget::record_state(tx, session, id, "budget_released")?;
     event(
         tx,
         session,

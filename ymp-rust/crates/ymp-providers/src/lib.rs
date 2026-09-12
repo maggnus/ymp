@@ -46,6 +46,8 @@ pub struct TurnRequest {
     #[serde(default)]
     pub usage_baseline: Option<TokenCounts>,
     pub mcp: Option<McpEndpoint>,
+    #[serde(default)]
+    pub resource_controls: ymp_core::NativeResourceControls,
     pub timeout_secs: u64,
     pub bridge: PathBuf,
 }
@@ -108,15 +110,49 @@ async fn run_turn_inner(
         }.into()],
         ..Default::default()
     })));
-    if req.provider.kind == ProviderKind::Mock {
-        return mock_turn(&req, cancel, events).await;
-    }
     let timeout = req.timeout_secs;
-    let work = run_native(req, events);
-    tokio::select! {
-        _=cancel.cancelled()=>bail!("Turn cancelled; process resources released"),
-        result=tokio::time::timeout(std::time::Duration::from_secs(timeout),work)=>result.context("Provider turn timed out; outcome may be incomplete")?,
+    let max_output = req.resource_controls.max_output_chars;
+    let (forward, mut rx) = mpsc::unbounded_channel();
+    let mut output_chars = 0u64;
+    let work = async {
+        let native = run_native(req, forward);
+        tokio::pin!(native);
+        loop {
+            tokio::select! {
+                result = &mut native => break result,
+                Some(event) = rx.recv() => {
+                    if let ProviderEvent::Delta(text) = &event {
+                        output_chars = output_chars.saturating_add(text.chars().count() as u64);
+                    }
+                    let _ = events.send(event);
+                    if max_output.is_some_and(|max| output_chars > max) {
+                        bail!("output_limit: Native stream exceeds the visible-output character limit");
+                    }
+                },
+            }
+        }
+    };
+    let result = tokio::select! {
+        _=cancel.cancelled()=>Err(anyhow::anyhow!("Turn cancelled; process resources released")),
+        result=tokio::time::timeout(std::time::Duration::from_secs(timeout),work)=>
+            result.context("Provider turn timed out; outcome may be incomplete").and_then(|r| r),
+    };
+    // Drain on every terminal path, including timeout, cancellation and a stream
+    // limit. Usage already received must not disappear with the forwarding queue.
+    while let Ok(event) = rx.try_recv() {
+        if let ProviderEvent::Delta(text) = &event {
+            output_chars = output_chars.saturating_add(text.chars().count() as u64);
+        }
+        let _ = events.send(event);
     }
+    if max_output.is_some_and(|max| output_chars > max) {
+        bail!("output_limit: Native stream exceeds the visible-output character limit");
+    }
+    let result = result?;
+    if max_output.is_some_and(|max| result.text.chars().count() as u64 > max) {
+        bail!("output_limit: Native result exceeds the visible-output character limit");
+    }
+    Ok(result)
 }
 
 /// Query native control/metadata interfaces without sending a model prompt.
@@ -172,6 +208,9 @@ async fn run_native(
     req: TurnRequest,
     events: mpsc::UnboundedSender<ProviderEvent>,
 ) -> Result<TurnResult> {
+    if req.provider.kind == ProviderKind::Mock {
+        return mock_turn(&req, CancellationToken::new(), events).await;
+    }
     let mut proc = RpcProcess::spawn(&req).await?;
     let result = match req.provider.kind {
         ProviderKind::Codex => codex(&mut proc, &req, &events).await,

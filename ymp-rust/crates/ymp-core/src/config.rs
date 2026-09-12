@@ -67,6 +67,9 @@ pub struct Limits {
     pub turns: usize,
     pub turn_timeout_secs: u64,
     pub attempts: usize,
+    /// Absent on historical captures. New sessions resolve the resource defaults once.
+    #[serde(default)]
+    pub resources: Option<crate::ResourceLimits>,
 }
 impl Default for Limits {
     fn default() -> Self {
@@ -75,6 +78,7 @@ impl Default for Limits {
             turns: 200,
             turn_timeout_secs: 900,
             attempts: 3,
+            resources: Some(crate::ResourceLimits::default()),
         }
     }
 }
@@ -170,6 +174,9 @@ impl Config {
             || self.limits.turn_timeout_secs == 0
         {
             bail!("Limits must be positive");
+        }
+        if let Some(resources) = &self.limits.resources {
+            resources.validate()?;
         }
         let mut ids = std::collections::HashSet::new();
         for provider in &self.providers {

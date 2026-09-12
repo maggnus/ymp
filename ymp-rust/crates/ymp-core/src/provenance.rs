@@ -278,5 +278,7 @@ pub struct SessionTrace {
     pub invocations: Vec<InvocationRecord>,
     pub decisions: Vec<DecisionRecord>,
     pub usage: SessionUsage,
+    #[serde(default)]
+    pub budget: Option<crate::SessionBudget>,
     pub history: Vec<HistoryEvent>,
 }
