@@ -62,6 +62,8 @@ enum Command {
     },
     /// List saved sessions for the current project.
     Sessions,
+    /// Export a saved session's structured state and complete history as JSON.
+    Trace { session: String },
     /// Show configuration, profile information, or the configuration file path.
     Config {
         #[arg(long)]
@@ -108,6 +110,11 @@ async fn entry() -> Result<()> {
         return ymp_runtime::mcp::stdio_bridge(socket).await;
     }
     let home = cli.home.unwrap_or(default_home()?);
+    if let Some(Command::Trace { session }) = &cli.command {
+        let store = Store::open_read_only(&home)?;
+        println!("{}", serde_json::to_string_pretty(&store.trace(session)?)?);
+        return Ok(());
+    }
     let path = cli.cwd.unwrap_or(std::env::current_dir()?).canonicalize()?;
     let store = Store::open(&home)?;
     if !home.join("config.toml").exists() {
@@ -124,6 +131,7 @@ async fn entry() -> Result<()> {
     match cli.command {
         None => ymp_tui::run(store, config, path, None).await?,
         Some(Command::Mcp { .. }) => unreachable!(),
+        Some(Command::Trace { .. }) => unreachable!(),
         Some(Command::Init) => {
             println!(
                 "Configuration: {}\nData: {}",

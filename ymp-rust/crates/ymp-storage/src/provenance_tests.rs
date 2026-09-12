@@ -1,0 +1,495 @@
+use super::*;
+
+struct Fixture {
+    _temp: tempfile::TempDir,
+    store: Store,
+    session: Session,
+    task: Task,
+}
+impl Fixture {
+    fn new() -> Self {
+        let temp = tempfile::tempdir().unwrap();
+        let store = Store::open(&temp.path().join("state")).unwrap();
+        let project = store.project(temp.path()).unwrap();
+        let team = ["writer", "reviewer"]
+            .map(|id| AgentProfile {
+                id: id.into(),
+                name: id.into(),
+                provider: "mock".into(),
+                model: Some("requested-model".into()),
+                instructions: String::new(),
+                enabled: true,
+            })
+            .to_vec();
+        let session = Session {
+            id: new_id(),
+            project_id: project.id,
+            title: "original goal".into(),
+            status: "running".into(),
+            created_at: now(),
+            team: team.clone(),
+            turns_used: 0,
+        };
+        let policy = SessionPolicy {
+            session_id: session.id.clone(),
+            goal: "complete original goal with constraints".into(),
+            constraints: None,
+            cwd: temp.path().canonicalize().unwrap(),
+            limits: Limits::default(),
+            eligible_pool: team.clone(),
+            captured_team: team,
+            parent_session_id: None,
+            evaluation: None,
+            captured_at: now(),
+        };
+        store.create_session(&session, &policy).unwrap();
+        let task = Task {
+            id: new_id(),
+            session_id: session.id.clone(),
+            title: "same title".into(),
+            description: "expected result".into(),
+            competence: "implementation".into(),
+            difficulty: "simple".into(),
+            dependencies: vec![],
+            checks: vec![],
+            state: TaskState::Running,
+            assignee: Some("writer".into()),
+            reviewer: None,
+            attempts: 1,
+            result: None,
+            workspace: None,
+            base_commit: None,
+            interrupted: false,
+        };
+        store.save_task(&task).unwrap();
+        Self {
+            _temp: temp,
+            store,
+            session,
+            task,
+        }
+    }
+    fn invocation(&self, turn: u64) -> (AssignmentRecord, InvocationRecord) {
+        let requested = ExecutionSettings {
+            model: Some("requested-model".into()),
+            effort: None,
+            permission_mode: Some("read_only".into()),
+        };
+        let assignment = AssignmentRecord {
+            id: new_id(),
+            session_id: self.session.id.clone(),
+            task: Some(TaskAttemptRef::from(&self.task)),
+            agent_id: "writer".into(),
+            agent_config_version: "immutable-config-v1".into(),
+            provider_id: "mock".into(),
+            purpose: "execute".into(),
+            reason: "Selected for this task".into(),
+            cwd: self._temp.path().into(),
+            requested: requested.clone(),
+            timeout_secs: 10,
+            grant_ids: vec![],
+            context: vec![],
+            state: InvocationState::Running,
+            started_at: now(),
+            ended_at: None,
+        };
+        let invocation = InvocationRecord {
+            id: new_id(),
+            session_id: self.session.id.clone(),
+            assignment_id: assignment.id.clone(),
+            turn,
+            requested,
+            sent: ExecutionSettings::default(),
+            reported: ExecutionSettings::default(),
+            resumed_from: Some("old-native-context".into()),
+            native_session_id: None,
+            native_turn_id: None,
+            native_version: None,
+            state: InvocationState::Running,
+            started_at: now(),
+            ended_at: None,
+            usage: None,
+            terminal_reason: None,
+        };
+        (assignment, invocation)
+    }
+}
+
+#[test]
+fn provenance_is_immutable_attributed_and_exportable_after_reopen() {
+    let f = Fixture::new();
+    let mut policy = f.store.session_policy(&f.session.id).unwrap().unwrap();
+    policy.goal = "silently changed goal".into();
+    assert!(f.store.create_session(&f.session, &policy).is_err());
+    let (mut assignment, invocation) = f.invocation(1);
+    f.store.begin_invocation(&assignment, &invocation).unwrap();
+    assignment.agent_config_version = "changed-after-admission".into();
+    assignment.requested.model = Some("different-model".into());
+    assert!(f.store.begin_invocation(&assignment, &invocation).is_err());
+    let observed = InvocationObservation {
+        sent: Some(ExecutionSettings {
+            model: Some("wire-model".into()),
+            ..Default::default()
+        }),
+        reported: Some(ExecutionSettings {
+            model: Some("resolved-native-model".into()),
+            ..Default::default()
+        }),
+        native_session_id: Some("native-session".into()),
+        native_turn_id: Some("native-turn".into()),
+        native_version: Some("native-1.2".into()),
+        usage: Some(UsageSnapshot {
+            counts: TokenCounts {
+                input: Some(100),
+                output: Some(20),
+                ..Default::default()
+            },
+            finalized: true,
+            ..Default::default()
+        }),
+    };
+    f.store
+        .observe_invocation(&f.session.id, &invocation.id, &observed)
+        .unwrap();
+    f.store
+        .finish_invocation(
+            &f.session.id,
+            &invocation.id,
+            InvocationState::Completed,
+            None,
+        )
+        .unwrap();
+    assert!(f
+        .store
+        .update_usage(&f.session.id, 1, observed.usage.as_ref().unwrap())
+        .is_err());
+    assert!(f
+        .store
+        .finish_invocation(&f.session.id, &invocation.id, InvocationState::Failed, None)
+        .is_err());
+    assert!(f.store.begin_usage(&f.session.id, 1, "reviewer").is_err());
+    let trace = f.store.trace(&f.session.id).unwrap();
+    assert_eq!(
+        trace.assignments[0].agent_config_version,
+        "immutable-config-v1"
+    );
+    assert_eq!(
+        trace.invocations[0].requested.model.as_deref(),
+        Some("requested-model")
+    );
+    assert_eq!(
+        trace.invocations[0].sent.model.as_deref(),
+        Some("wire-model")
+    );
+    assert_eq!(
+        trace.invocations[0].reported.model.as_deref(),
+        Some("resolved-native-model")
+    );
+    assert!(trace.invocations[0].reported.effort.is_none());
+    assert_eq!(trace.usage.agents.len(), 1);
+    assert_eq!(trace.usage.agents["writer"].known_total(), Some(120));
+    assert!(!trace.usage.total.is_partial());
+    assert!(trace
+        .history
+        .iter()
+        .filter(|e| e.kind == "provenance")
+        .all(|e| serde_json::from_value::<ProvenanceEvent>(e.data.clone()).is_ok()));
+    let raw = serde_json::to_value(&trace).unwrap();
+    let _: SessionTrace = serde_json::from_value(raw.clone()).unwrap();
+    let reopened = Store::open_read_only(&f.store.home).unwrap();
+    assert_eq!(
+        serde_json::to_value(reopened.trace(&f.session.id).unwrap()).unwrap(),
+        raw
+    );
+    assert!(reopened.save_task(&f.task).is_err());
+    assert!(!f.store.home.join("config.toml").exists());
+}
+
+#[test]
+fn wrong_scope_stale_attempt_and_identity_collisions_leave_no_partial_writes() {
+    let f = Fixture::new();
+    let (assignment, invocation) = f.invocation(1);
+    let mut other = f.session.clone();
+    other.id = new_id();
+    f.store.save_session(&other).unwrap();
+    let mut collision = f.task.clone();
+    collision.session_id = other.id.clone();
+    assert!(f.store.save_task(&collision).is_err());
+    let mut foreign = assignment.clone();
+    foreign.session_id = other.id.clone();
+    let mut foreign_invocation = invocation.clone();
+    foreign_invocation.session_id = other.id.clone();
+    assert!(f
+        .store
+        .begin_invocation(&foreign, &foreign_invocation)
+        .is_err());
+    let mut stale = assignment.clone();
+    stale.task.as_mut().unwrap().attempt = 0;
+    assert!(f.store.begin_invocation(&stale, &invocation).is_err());
+    f.store.begin_invocation(&assignment, &invocation).unwrap();
+    assert!(f.store.invocation(&other.id, &invocation.id).is_err());
+    assert!(f
+        .store
+        .observe_invocation(&other.id, &invocation.id, &InvocationObservation::default())
+        .is_err());
+    assert!(f
+        .store
+        .finish_invocation(&other.id, &invocation.id, InvocationState::Completed, None)
+        .is_err());
+    let (duplicate_assignment, duplicate_invocation) = f.invocation(1);
+    assert!(f
+        .store
+        .begin_invocation(&duplicate_assignment, &duplicate_invocation)
+        .is_err());
+    let mut candidate = f.task.clone();
+    candidate.state = TaskState::Accepted;
+    let decision = DecisionRecord {
+        id: new_id(),
+        session_id: f.session.id.clone(),
+        kind: "acceptance".into(),
+        actor: Some("reviewer".into()),
+        reason: "Inspected this result".into(),
+        outcome: Some(DecisionOutcome::Accepted {
+            confirmation: ConfirmationStatus::Unconfirmed,
+        }),
+        links: RecordLinks {
+            task: Some(TaskAttemptRef::from(&candidate)),
+            invocation_id: Some("nonexistent".into()),
+            ..Default::default()
+        },
+        created_at: now(),
+    };
+    assert!(f
+        .store
+        .save_task_with_decision(&candidate, &decision)
+        .is_err());
+    let trace = f.store.trace(&f.session.id).unwrap();
+    assert_eq!(trace.tasks[0].state, TaskState::Running);
+    assert_eq!(trace.assignments.len(), 1);
+    assert_eq!(trace.invocations.len(), 1);
+    assert!(trace.decisions.is_empty());
+    assert_eq!(trace.usage.total.calls, 1);
+}
+
+#[test]
+fn out_of_order_admissions_do_not_rewind_the_durable_turn_counter() {
+    let f = Fixture::new();
+    for turn in [2, 1] {
+        let (assignment, invocation) = f.invocation(turn);
+        f.store.begin_invocation(&assignment, &invocation).unwrap();
+    }
+    assert_eq!(
+        f.store.value(&format!("turns:{}", f.session.id)).unwrap(),
+        Some(serde_json::json!(2))
+    );
+}
+
+#[test]
+fn event_failure_rolls_back_invocation_and_usage_state() {
+    let f = Fixture::new();
+    let (assignment, invocation) = f.invocation(1);
+    let trigger = "CREATE TRIGGER reject_event BEFORE INSERT ON events BEGIN SELECT RAISE(ABORT,'injected event failure'); END";
+    f.store.db().unwrap().execute_batch(trigger).unwrap();
+    assert!(f.store.begin_invocation(&assignment, &invocation).is_err());
+    let trace = f.store.trace(&f.session.id).unwrap();
+    assert!(trace.assignments.is_empty());
+    assert!(trace.invocations.is_empty());
+    assert_eq!(trace.usage.total.calls, 0);
+    f.store
+        .db()
+        .unwrap()
+        .execute_batch("DROP TRIGGER reject_event")
+        .unwrap();
+    f.store.begin_invocation(&assignment, &invocation).unwrap();
+    f.store.db().unwrap().execute_batch(trigger).unwrap();
+    assert!(f
+        .store
+        .finish_invocation(
+            &f.session.id,
+            &invocation.id,
+            InvocationState::Completed,
+            None
+        )
+        .is_err());
+    assert_eq!(
+        f.store
+            .invocation(&f.session.id, &invocation.id)
+            .unwrap()
+            .state,
+        InvocationState::Running
+    );
+    assert_eq!(
+        f.store
+            .session_usage(&f.session.id)
+            .unwrap()
+            .total
+            .open_calls,
+        1
+    );
+    f.store
+        .db()
+        .unwrap()
+        .execute_batch("DROP TRIGGER reject_event")
+        .unwrap();
+    f.store
+        .finish_invocation(&f.session.id, &invocation.id, InvocationState::Failed, None)
+        .unwrap();
+}
+
+#[test]
+fn cancellation_failure_and_recovery_preserve_partial_and_unknown_usage() {
+    let f = Fixture::new();
+    for (turn, state) in [
+        (1, InvocationState::Failed),
+        (2, InvocationState::Cancelled),
+        (3, InvocationState::Running),
+    ] {
+        let (assignment, invocation) = f.invocation(turn);
+        f.store.begin_invocation(&assignment, &invocation).unwrap();
+        if turn == 2 {
+            f.store
+                .observe_invocation(
+                    &f.session.id,
+                    &invocation.id,
+                    &InvocationObservation {
+                        usage: Some(UsageSnapshot {
+                            counts: TokenCounts {
+                                input: Some(17),
+                                ..Default::default()
+                            },
+                            ..Default::default()
+                        }),
+                        ..Default::default()
+                    },
+                )
+                .unwrap();
+        }
+        if state != InvocationState::Running {
+            f.store
+                .finish_invocation(&f.session.id, &invocation.id, state, None)
+                .unwrap();
+        }
+    }
+    let reopened = Store::open(&f.store.home).unwrap();
+    assert_eq!(
+        reopened.interrupt_open_invocations(&f.session.id).unwrap(),
+        1
+    );
+    assert_eq!(
+        reopened.interrupt_open_invocations(&f.session.id).unwrap(),
+        0
+    );
+    let trace = reopened.trace(&f.session.id).unwrap();
+    assert_eq!(
+        trace
+            .invocations
+            .iter()
+            .map(|i| i.state)
+            .collect::<Vec<_>>(),
+        vec![
+            InvocationState::Failed,
+            InvocationState::Cancelled,
+            InvocationState::Interrupted
+        ]
+    );
+    assert!(trace.invocations[0].usage.is_none());
+    assert!(trace.invocations[1].usage.as_ref().unwrap().partial);
+    assert!(trace.invocations[2].usage.is_none());
+    assert_eq!(trace.usage.total.open_calls, 0);
+    assert_eq!(trace.usage.total.known_total(), Some(17));
+    assert!(trace.usage.total.is_partial());
+    assert_eq!(trace.tasks[0].state, TaskState::Running);
+}
+
+#[test]
+fn decisions_preserve_confirmation_distinctions_without_grading() {
+    let f = Fixture::new();
+    for (index, outcome) in [
+        None,
+        Some(DecisionOutcome::Accepted {
+            confirmation: ConfirmationStatus::Unknown,
+        }),
+        Some(DecisionOutcome::Accepted {
+            confirmation: ConfirmationStatus::Unconfirmed,
+        }),
+        Some(DecisionOutcome::Accepted {
+            confirmation: ConfirmationStatus::Confirmed,
+        }),
+        Some(DecisionOutcome::Rejected),
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        let decision = DecisionRecord {
+            id: format!("decision-{index}"),
+            session_id: f.session.id.clone(),
+            kind: "assessment".into(),
+            actor: Some("reviewer".into()),
+            reason: "Captured assessment supplied by the trusted caller".into(),
+            outcome: outcome.clone(),
+            links: RecordLinks {
+                task: Some(TaskAttemptRef::from(&f.task)),
+                ..Default::default()
+            },
+            created_at: now(),
+        };
+        f.store.record_decision(&decision).unwrap();
+        assert!(f.store.record_decision(&decision).is_err());
+        assert_eq!(
+            f.store.trace(&f.session.id).unwrap().decisions[index].outcome,
+            outcome
+        );
+    }
+    // Merely recording a declared grade has no acceptance/reputation side effect.
+    assert_eq!(
+        f.store.tasks(&f.session.id).unwrap()[0].state,
+        TaskState::Running
+    );
+    assert!(f.store.observations().unwrap().is_empty());
+}
+
+#[test]
+fn provenance_migration_is_transactional_and_legacy_capture_stays_unknown() {
+    let f = Fixture::new();
+    f.store.db().unwrap().execute_batch("DROP TABLE invocations; DROP TABLE assignments; DROP TABLE decisions; DROP TABLE session_policies; CREATE TABLE assignments(collision TEXT); PRAGMA user_version=2").unwrap();
+    assert!(Store::open(&f.store.home).is_err());
+    assert_eq!(
+        f.store
+            .db()
+            .unwrap()
+            .query_row("PRAGMA user_version", [], |r| r.get::<_, u32>(0))
+            .unwrap(),
+        2
+    );
+    assert!(f
+        .store
+        .db()
+        .unwrap()
+        .prepare("SELECT * FROM session_policies")
+        .is_err());
+    f.store
+        .db()
+        .unwrap()
+        .execute_batch("DROP TABLE assignments")
+        .unwrap();
+    let migrated = Store::open(&f.store.home).unwrap();
+    let trace = migrated.trace(&f.session.id).unwrap();
+    assert!(trace.policy.is_none());
+    assert!(trace.assignments.is_empty());
+    assert_eq!(trace.tasks[0].id, f.task.id);
+    migrated
+        .db()
+        .unwrap()
+        .execute_batch("PRAGMA user_version=99")
+        .unwrap();
+    assert!(Store::open(&f.store.home).is_err());
+    assert!(Store::open_read_only(&f.store.home).is_err());
+    assert_eq!(
+        migrated
+            .db()
+            .unwrap()
+            .query_row("PRAGMA user_version", [], |r| r.get::<_, u32>(0))
+            .unwrap(),
+        99
+    );
+}

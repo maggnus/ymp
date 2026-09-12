@@ -10,7 +10,10 @@ use serde_json::{json, Value};
 use std::path::PathBuf;
 use tokio::sync::mpsc;
 use tokio_util::sync::CancellationToken;
-use ymp_core::{AgentProfile, ProviderConfig, ProviderKind, TokenCounts, UsageSnapshot};
+use ymp_core::{
+    AgentProfile, ExecutionSettings, InvocationObservation, ProviderConfig, ProviderKind,
+    TokenCounts, UsageSnapshot,
+};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct McpEndpoint {
@@ -41,6 +44,7 @@ pub struct TurnResult {
 }
 #[derive(Debug, Clone)]
 pub enum ProviderEvent {
+    Execution(Box<InvocationObservation>),
     Usage(UsageSnapshot),
     Delta(String),
     Session(String),
@@ -111,6 +115,20 @@ async fn codex(
         .context("Codex did not return a thread id")?
         .to_owned();
     let _ = events.send(ProviderEvent::Session(session.clone()));
+    let _ = events.send(ProviderEvent::Execution(Box::new(InvocationObservation {
+        reported: Some(ExecutionSettings {
+            model: response
+                .get("model")
+                .and_then(Value::as_str)
+                .map(str::to_owned),
+            effort: response
+                .get("reasoningEffort")
+                .and_then(Value::as_str)
+                .map(str::to_owned),
+            permission_mode: None,
+        }),
+        ..Default::default()
+    })));
     let response = proc
         .request(
             "turn/start",
@@ -123,6 +141,10 @@ async fn codex(
         .and_then(Value::as_str)
         .context("Codex did not return a turn id")?
         .to_owned();
+    let _ = events.send(ProviderEvent::Execution(Box::new(InvocationObservation {
+        native_turn_id: Some(turn.clone()),
+        ..Default::default()
+    })));
     let mut text = String::new();
     let mut usage = None;
     let mut accounting = usage::CodexUsage::new(req.resume.is_some(), req.usage_baseline.clone());
@@ -252,6 +274,13 @@ async fn acp(
     events: &mpsc::UnboundedSender<ProviderEvent>,
 ) -> Result<TurnResult> {
     let init=proc.request("initialize",json!({"protocolVersion":1,"clientCapabilities":{},"clientInfo":{"name":"ymp","version":env!("CARGO_PKG_VERSION")}}),events).await?;
+    let _ = events.send(ProviderEvent::Execution(Box::new(InvocationObservation {
+        native_version: init
+            .pointer("/agentInfo/version")
+            .and_then(Value::as_str)
+            .map(str::to_owned),
+        ..Default::default()
+    })));
     let mcp=req.mcp.as_ref().map(|m|vec![json!({"name":"ymp","command":m.command,"args":m.args,"env":[{"name":"YMP_MCP_TOKEN","value":m.token}]})]).unwrap_or_default();
     let params = json!({"cwd":req.cwd,"mcpServers":mcp});
     let response = if let Some(id) = &req.resume {

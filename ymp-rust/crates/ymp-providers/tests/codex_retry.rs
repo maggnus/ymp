@@ -145,6 +145,46 @@ fn completed(status: &str) -> Value {
 }
 
 #[tokio::test]
+async fn native_provenance_distinguishes_sent_reported_and_unknown_settings() {
+    for reported in [
+        json!({}),
+        json!({"model":"resolved-model", "reasoningEffort":"high", "private_reasoning":"must-not-be-copied"}),
+    ] {
+        let mut fixture = Fixture::new(vec![final_message(), completed("completed")]);
+        fixture.request.profile.model = Some("requested-model".into());
+        fixture.option("thread_response", reported.clone());
+        let (result, events) = fixture.run().await;
+        result.unwrap();
+        let observations = events
+            .into_iter()
+            .filter_map(|event| match event {
+                ProviderEvent::Execution(observation) => Some(observation),
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+        let sent = observations.iter().find_map(|o| o.sent.as_ref()).unwrap();
+        assert_eq!(sent.model.as_deref(), Some("requested-model"));
+        assert_eq!(sent.permission_mode.as_deref(), Some("danger-full-access"));
+        assert!(sent.effort.is_none());
+        let settings = observations
+            .iter()
+            .find_map(|o| o.reported.as_ref())
+            .unwrap();
+        assert_eq!(settings.model.as_deref(), reported["model"].as_str());
+        assert_eq!(
+            settings.effort.as_deref(),
+            reported["reasoningEffort"].as_str()
+        );
+        assert!(observations
+            .iter()
+            .any(|o| o.native_turn_id.as_deref() == Some("turn-fixture")));
+        assert!(!serde_json::to_string(&observations)
+            .unwrap()
+            .contains("must-not-be-copied"));
+    }
+}
+
+#[tokio::test]
 async fn codex_native_retry_completes_the_same_invocation() {
     let fixture = Fixture::new(vec![
         usage(10, 2),

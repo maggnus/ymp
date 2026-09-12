@@ -22,7 +22,7 @@ for line in sys.stdin:
     if method == "initialize":
         reply(request, {})
     elif method in ("thread/start", "thread/resume"):
-        reply(request, {"thread": {"id": "thread-fixture"}})
+        reply(request, {"thread": {"id": "thread-fixture"}, **settings.get("thread_response", {})})
     elif method == "turn/start":
         with Path("effects.log").open("a") as effects:
             effects.write("turn-started\n")

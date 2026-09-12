@@ -63,6 +63,12 @@ async function execute(request: Request): Promise<void> {
       if (usage) send({ method: "usage", params: usage });
       if (event.type === "system" && event.subtype === "init") {
         send({ method: "session", params: { id: event.session_id } });
+        send({ method: "execution", params: {
+          sent: { model: options.model ?? null, effort: null, permission_mode: options.permissionMode ?? null },
+          reported: { model: event.model, effort: null, permission_mode: event.permissionMode },
+          native_session_id: event.session_id,
+          native_version: event.claude_code_version,
+        } });
       }
       if (event.type === "stream_event" && event.event.type === "content_block_delta" && event.event.delta.type === "text_delta") {
         send({ method: "delta", params: { text: event.event.delta.text } });

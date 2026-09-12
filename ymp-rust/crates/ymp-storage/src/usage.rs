@@ -1,15 +1,43 @@
 use super::Store;
-use anyhow::Result;
+use anyhow::{ensure, Result};
 use rusqlite::{params, Connection, OptionalExtension};
 use serde_json::Value;
-use ymp_core::{SessionUsage, TokenCounts, UsageSnapshot};
+use ymp_core::{InvocationObservation, InvocationState, SessionUsage, TokenCounts, UsageSnapshot};
 
 impl Store {
     pub fn begin_usage(&self, session: &str, turn: u64, agent: &str) -> Result<()> {
-        self.db()?.execute("INSERT OR IGNORE INTO token_usage(session_id,turn,agent,status) VALUES (?,?,?,'running')",params![session,turn,agent])?;
+        let db = self.db()?;
+        let existing: Option<(String, String)> = db
+            .query_row(
+                "SELECT agent,status FROM token_usage WHERE session_id=? AND turn=?",
+                params![session, turn],
+                |r| Ok((r.get(0)?, r.get(1)?)),
+            )
+            .optional()?;
+        if let Some((prior, state)) = existing {
+            ensure!(
+                prior == agent && state == "running",
+                "Usage ordinal is already attributed or closed"
+            );
+            return Ok(());
+        }
+        db.execute(
+            "INSERT INTO token_usage(session_id,turn,agent,status) VALUES (?,?,?,'running')",
+            params![session, turn, agent],
+        )?;
         Ok(())
     }
     pub fn update_usage(&self, session: &str, turn: u64, snapshot: &UsageSnapshot) -> Result<()> {
+        if let Some(id) = self.usage_invocation(session, turn)? {
+            return self.observe_invocation(
+                session,
+                &id,
+                &InvocationObservation {
+                    usage: Some(snapshot.clone()),
+                    ..Default::default()
+                },
+            );
+        }
         let db = self.db()?;
         let old: Option<String> = db
             .query_row(
@@ -32,6 +60,10 @@ impl Store {
         Ok(())
     }
     pub fn finish_usage(&self, session: &str, turn: u64, status: &str) -> Result<()> {
+        if let Some(id) = self.usage_invocation(session, turn)? {
+            let state: InvocationState = serde_json::from_value(Value::String(status.into()))?;
+            return self.finish_invocation(session, &id, state, Some(state.as_str()));
+        }
         self.db()?.execute(
             "UPDATE token_usage SET status=? WHERE session_id=? AND turn=?",
             params![status, session, turn],
@@ -39,52 +71,65 @@ impl Store {
         Ok(())
     }
     pub fn session_usage(&self, session: &str) -> Result<SessionUsage> {
-        let db = self.db()?;
-        let mut q = db.prepare(
-            "SELECT agent,status,snapshot FROM token_usage WHERE session_id=? ORDER BY turn",
-        )?;
-        let rows = q.query_map([session], |r| {
-            Ok((
-                r.get::<_, String>(0)?,
-                r.get::<_, String>(1)?,
-                r.get::<_, Option<String>>(2)?,
-            ))
-        })?;
-        let mut usage = SessionUsage::default();
-        for row in rows {
-            let (agent, status, raw) = row?;
-            let snapshot = raw
-                .map(|v| serde_json::from_str::<UsageSnapshot>(&v))
-                .transpose()?;
-            usage.total.include(snapshot.as_ref(), status == "running");
-            usage
-                .agents
-                .entry(agent)
-                .or_default()
-                .include(snapshot.as_ref(), status == "running");
-        }
-        // A diagnostic or an older incomplete trace can have a recorded turn count
-        // but no per-invocation events. Such usage is unavailable, never free.
-        let raw_session: Option<String> = db
-            .query_row("SELECT data FROM sessions WHERE id=?", [session], |r| {
-                r.get(0)
-            })
-            .optional()?;
-        if let Some(raw) = raw_session {
-            let record: Value = serde_json::from_str(&raw)?;
-            let expected = record["turns_used"].as_u64().unwrap_or(0);
-            if expected > usage.total.calls {
-                let missing = expected - usage.total.calls;
-                usage.total.calls = expected;
-                if let Some(team) = record["team"].as_array().filter(|t| t.len() == 1) {
-                    if let Some(id) = team[0]["id"].as_str() {
-                        usage.agents.entry(id.into()).or_default().calls += missing;
-                    }
+        session_usage(&*self.db()?, session)
+    }
+    fn usage_invocation(&self, session: &str, turn: u64) -> Result<Option<String>> {
+        Ok(self
+            .db()?
+            .query_row(
+                "SELECT id FROM invocations WHERE session_id=? AND turn=?",
+                params![session, turn],
+                |r| r.get(0),
+            )
+            .optional()?)
+    }
+}
+
+pub(super) fn session_usage(db: &Connection, session: &str) -> Result<SessionUsage> {
+    let mut q = db.prepare(
+        "SELECT agent,status,snapshot FROM token_usage WHERE session_id=? ORDER BY turn",
+    )?;
+    let rows = q.query_map([session], |r| {
+        Ok((
+            r.get::<_, String>(0)?,
+            r.get::<_, String>(1)?,
+            r.get::<_, Option<String>>(2)?,
+        ))
+    })?;
+    let mut usage = SessionUsage::default();
+    for row in rows {
+        let (agent, status, raw) = row?;
+        let snapshot = raw
+            .map(|v| serde_json::from_str::<UsageSnapshot>(&v))
+            .transpose()?;
+        usage.total.include(snapshot.as_ref(), status == "running");
+        usage
+            .agents
+            .entry(agent)
+            .or_default()
+            .include(snapshot.as_ref(), status == "running");
+    }
+    // A diagnostic or an older incomplete trace can have a recorded turn count
+    // but no per-invocation events. Such usage is unavailable, never free.
+    let raw_session: Option<String> = db
+        .query_row("SELECT data FROM sessions WHERE id=?", [session], |r| {
+            r.get(0)
+        })
+        .optional()?;
+    if let Some(raw) = raw_session {
+        let record: Value = serde_json::from_str(&raw)?;
+        let expected = record["turns_used"].as_u64().unwrap_or(0);
+        if expected > usage.total.calls {
+            let missing = expected - usage.total.calls;
+            usage.total.calls = expected;
+            if let Some(team) = record["team"].as_array().filter(|t| t.len() == 1) {
+                if let Some(id) = team[0]["id"].as_str() {
+                    usage.agents.entry(id.into()).or_default().calls += missing;
                 }
             }
         }
-        Ok(usage)
     }
+    Ok(usage)
 }
 
 pub(super) fn migrate(conn: &mut Connection) -> Result<()> {

@@ -151,6 +151,16 @@ impl RpcProcess {
         self.next_id += 1;
         self.send(&json!({"jsonrpc":"2.0","id":id,"method":method,"params":params}))
             .await?;
+        // Record only settings actually written to the native transport. A
+        // request to the Claude bridge is not itself a native SDK setting.
+        if let Some(sent) = sent_settings(method, &params) {
+            let _ = events.send(ProviderEvent::Execution(Box::new(
+                ymp_core::InvocationObservation {
+                    sent: Some(sent),
+                    ..Default::default()
+                },
+            )));
+        }
         loop {
             let v = self.read().await?;
             if self.respond_server(&v).await? {
@@ -163,7 +173,13 @@ impl RpcProcess {
                 return Ok(v.get("result").cloned().unwrap_or(Value::Null));
             }
             let method = v["method"].as_str().unwrap_or("");
-            if method == "usage" {
+            if method == "execution" {
+                if let Ok(observation) =
+                    serde_json::from_value::<ymp_core::InvocationObservation>(v["params"].clone())
+                {
+                    let _ = events.send(ProviderEvent::Execution(Box::new(observation)));
+                }
+            } else if method == "usage" {
                 if let Ok(snapshot) =
                     serde_json::from_value::<ymp_core::UsageSnapshot>(v["params"].clone())
                 {
@@ -242,6 +258,26 @@ impl RpcProcess {
                 libc::kill(-(pid as i32), libc::SIGKILL);
             }
         }
+    }
+}
+
+fn sent_settings(method: &str, params: &Value) -> Option<ymp_core::ExecutionSettings> {
+    let string = |key: &str| params[key].as_str().map(str::to_owned);
+    match method {
+        "thread/start" | "thread/resume" => Some(ymp_core::ExecutionSettings {
+            model: string("model"),
+            effort: None,
+            permission_mode: string("sandbox"),
+        }),
+        "session/set_model" => Some(ymp_core::ExecutionSettings {
+            model: string("modelId"),
+            ..Default::default()
+        }),
+        "session/set_mode" => Some(ymp_core::ExecutionSettings {
+            permission_mode: string("modeId"),
+            ..Default::default()
+        }),
+        _ => None,
     }
 }
 impl Drop for RpcProcess {

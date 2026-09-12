@@ -7,6 +7,9 @@ use std::{
     sync::{Arc, Mutex, MutexGuard},
 };
 use ymp_core::*;
+mod provenance;
+#[cfg(test)]
+mod provenance_tests;
 mod usage;
 
 #[derive(Clone)]
@@ -16,6 +19,26 @@ pub struct Store {
 }
 
 impl Store {
+    /// Open an existing, current-schema store without creating files, migrating
+    /// records, discovering providers, or changing configuration.
+    pub fn open_read_only(home: &Path) -> Result<Self> {
+        let conn = Connection::open_with_flags(
+            home.join("state.sqlite"),
+            rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY,
+        )?;
+        let version: u32 = conn.query_row("PRAGMA user_version", [], |r| r.get(0))?;
+        if version > 3 {
+            bail!("This database was created by a newer ymp version");
+        }
+        if version != 3 {
+            bail!("Structured read-only export requires schema 3; found {version}. Open the store normally to migrate an older schema.");
+        }
+        Ok(Self {
+            conn: Arc::new(Mutex::new(conn)),
+            home: home.into(),
+        })
+    }
+
     pub fn open(home: &Path) -> Result<Self> {
         std::fs::create_dir_all(home)?;
         #[cfg(unix)]
@@ -25,11 +48,11 @@ impl Store {
         }
         let mut conn = Connection::open(home.join("state.sqlite"))?;
         conn.busy_timeout(std::time::Duration::from_secs(5))?;
-        conn.execute_batch("PRAGMA journal_mode=WAL; PRAGMA foreign_keys=ON;")?;
         let version: u32 = conn.query_row("PRAGMA user_version", [], |r| r.get(0))?;
-        if version > 2 {
+        if version > 3 {
             bail!("This database was created by a newer ymp version");
         }
+        conn.execute_batch("PRAGMA journal_mode=WAL; PRAGMA foreign_keys=ON;")?;
         if version == 0 {
             let tx = conn.transaction()?;
             tx.execute_batch(include_str!("schema.sql"))?;
@@ -38,6 +61,9 @@ impl Store {
         }
         if version < 2 {
             usage::migrate(&mut conn)?;
+        }
+        if version < 3 {
+            provenance::migrate(&mut conn)?;
         }
         Ok(Self {
             conn: Arc::new(Mutex::new(conn)),
@@ -97,7 +123,23 @@ impl Store {
         Ok(())
     }
     pub fn save_session(&self, s: &Session) -> Result<()> {
-        self.db()?.execute("INSERT INTO sessions(id,project_id,data) VALUES (?,?,?) ON CONFLICT(id) DO UPDATE SET data=excluded.data",params![s.id,s.project_id,serde_json::to_string(s)?])?;
+        let mut db = self.db()?;
+        let tx = db.transaction()?;
+        let old: Option<String> = tx
+            .query_row("SELECT project_id FROM sessions WHERE id=?", [&s.id], |r| {
+                r.get(0)
+            })
+            .optional()?;
+        if old.as_ref().is_some_and(|project| project != &s.project_id) {
+            bail!("Session belongs to another project");
+        }
+        let data = serde_json::to_string(s)?;
+        tx.execute("INSERT INTO sessions(id,project_id,data) VALUES (?,?,?) ON CONFLICT(id) DO UPDATE SET data=excluded.data",params![s.id,s.project_id,data])?;
+        tx.execute(
+            "INSERT INTO events(session_id,kind,data,created_at) VALUES (?,'session',?,?)",
+            params![s.id, data, now()],
+        )?;
+        tx.commit()?;
         Ok(())
     }
     pub fn session(&self, id: &str) -> Result<Session> {
@@ -208,12 +250,7 @@ impl Store {
     pub fn save_task(&self, t: &Task) -> Result<()> {
         let mut db = self.db()?;
         let tx = db.transaction()?;
-        let data = serde_json::to_string(t)?;
-        tx.execute("INSERT INTO tasks(id,session_id,data) VALUES (?,?,?) ON CONFLICT(id) DO UPDATE SET data=excluded.data",params![t.id,t.session_id,data])?;
-        tx.execute(
-            "INSERT INTO events(session_id,kind,data,created_at) VALUES (?,?,?,?)",
-            params![t.session_id, "task", data, now()],
-        )?;
+        write_task(&tx, t)?;
         tx.commit()?;
         Ok(())
     }
@@ -233,17 +270,7 @@ impl Store {
     pub fn save_plan(&self, tasks: &[Task]) -> Result<()> {
         let mut db = self.db()?;
         let tx = db.transaction()?;
-        for task in tasks {
-            let data = serde_json::to_string(task)?;
-            tx.execute(
-                "INSERT INTO tasks(id,session_id,data) VALUES (?,?,?)",
-                params![task.id, task.session_id, data],
-            )?;
-            tx.execute(
-                "INSERT INTO events(session_id,kind,data,created_at) VALUES (?,?,?,?)",
-                params![task.session_id, "task", data, now()],
-            )?;
-        }
+        write_plan(&tx, tasks)?;
         tx.commit()?;
         Ok(())
     }
@@ -356,9 +383,65 @@ impl Store {
     }
 }
 
+fn write_task(tx: &rusqlite::Transaction<'_>, task: &Task) -> Result<()> {
+    let old: Option<String> = tx
+        .query_row("SELECT session_id FROM tasks WHERE id=?", [&task.id], |r| {
+            r.get(0)
+        })
+        .optional()?;
+    if old
+        .as_ref()
+        .is_some_and(|session| session != &task.session_id)
+    {
+        bail!("Task belongs to another session");
+    }
+    let data = serde_json::to_string(task)?;
+    tx.execute("INSERT INTO tasks(id,session_id,data) VALUES (?,?,?) ON CONFLICT(id) DO UPDATE SET data=excluded.data",params![task.id,task.session_id,data])?;
+    tx.execute(
+        "INSERT INTO events(session_id,kind,data,created_at) VALUES (?,'task',?,?)",
+        params![task.session_id, data, now()],
+    )?;
+    Ok(())
+}
+
+fn write_plan(tx: &rusqlite::Transaction<'_>, tasks: &[Task]) -> Result<()> {
+    for task in tasks {
+        let data = serde_json::to_string(task)?;
+        tx.execute(
+            "INSERT INTO tasks(id,session_id,data) VALUES (?,?,?)",
+            params![task.id, task.session_id, data],
+        )?;
+        tx.execute(
+            "INSERT INTO events(session_id,kind,data,created_at) VALUES (?,'task',?,?)",
+            params![task.session_id, data, now()],
+        )?;
+    }
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn session_ids_cannot_be_rebound_to_another_project() {
+        let temp = tempfile::tempdir().unwrap();
+        let store = Store::open(&temp.path().join("state")).unwrap();
+        let first = store.project(temp.path()).unwrap();
+        let other = store.project(&store.home).unwrap();
+        let mut session = Session {
+            id: new_id(),
+            project_id: first.id.clone(),
+            title: "goal".into(),
+            status: "created".into(),
+            created_at: now(),
+            team: vec![],
+            turns_used: 0,
+        };
+        store.save_session(&session).unwrap();
+        session.project_id = other.id;
+        assert!(store.save_session(&session).is_err());
+        assert_eq!(store.session(&session.id).unwrap().project_id, first.id);
+    }
     #[test]
     fn observations_are_idempotent_and_memory_is_scoped() {
         let dir = tempfile::tempdir().unwrap();
