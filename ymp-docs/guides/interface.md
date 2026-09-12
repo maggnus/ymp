@@ -117,7 +117,7 @@ directory and restored at the next start.
 
 | Theme | Kind | Description |
 | --- | --- | --- |
-| `ember` | dark | Warm amber on near-black. The default. |
+| `ember` | dark | Warm amber on black. The default. |
 | `slate` | dark | Cool blue on deep slate, low saturation. |
 | `paper` | light | Dark ink on warm paper. |
 | `contrast` | high contrast | Maximum separation on pure black. |

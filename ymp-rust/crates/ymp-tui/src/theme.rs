@@ -223,15 +223,15 @@ const fn rgb(value: u32) -> Color {
     )
 }
 
-/// Warm amber on near-black: the default ymp palette.
+/// Warm amber on black: the default ymp palette.
 pub const EMBER: Theme = Theme {
     id: "ember",
     name: "Ember",
-    summary: "Warm amber on near-black. The default ymp palette.",
+    summary: "Warm amber on black. The default ymp palette.",
     kind: ThemeKind::Dark,
-    bg: rgb(0x141210),
-    surface: rgb(0x1d1a17),
-    raised: rgb(0x2a2520),
+    bg: rgb(0x000000),
+    surface: rgb(0x000000),
+    raised: rgb(0x000000),
     rule: rgb(0x3a352f),
     text: rgb(0xf2eee6),
     body: rgb(0xd8d2c6),
