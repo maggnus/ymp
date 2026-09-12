@@ -1629,53 +1629,22 @@ impl Engine {
             // backend permissions, including whole-directory native writers.
             let mut assigned = Vec::new();
             let mut busy = HashSet::new();
-            for mut task in ready {
-                if task.state == TaskState::Review {
-                    assigned.push(task);
-                    continue;
+            let mut selection_error = None;
+            for task in ready {
+                match self.select_wave_task(ctx, task, &accepted, &mut busy) {
+                    Ok(Some(task)) => assigned.push(task),
+                    Ok(None) => {}
+                    Err(error) => {
+                        selection_error = Some(error);
+                        break;
+                    }
                 }
-                let reserved = self
-                    .store
-                    .team_state(&ctx.session.id)?
-                    .and_then(|s| s.reserved_final_reviewer);
-                let eligible = if busy.is_empty() {
-                    self.eligible_agents(&ctx.session.id)?
-                } else {
-                    self.current_team(&ctx.session.id)?
-                };
-                let candidates = eligible
-                    .iter()
-                    .filter(|a| !busy.contains(&a.id) && Some(&a.id) != reserved.as_ref())
-                    .cloned()
-                    .collect::<Vec<_>>();
-                if candidates.is_empty() {
-                    self.record_workspace_wait(
-                        ctx,
-                        &task,
-                        "agent_busy",
-                        "Current members are assigned or reserved for independent final review",
-                    )?;
-                    continue;
+            }
+            if assigned.is_empty() {
+                if let Some(error) = selection_error {
+                    return Err(error);
                 }
-                let agent = self.choose_executor(ctx, &task, &candidates)?;
-                busy.insert(agent.id.clone());
-                let board_task = self
-                    .store
-                    .board(&ctx.session.id)?
-                    .tasks
-                    .into_iter()
-                    .find(|t| t.task.id == task.id)
-                    .context("Missing board task")?;
-                let reference = BoardTaskRef {
-                    task_id: task.id.clone(),
-                    version: board_task.version,
-                };
-                task.assign(&agent.id, &accepted)?;
-                task.workspace = Some(ctx.workspace.directory.clone());
-                task.base_commit = None;
-                self.store.claim_board_task(&reference, &task)?;
-                let _ = self.events.send(UiEvent::Task(task.clone()));
-                assigned.push(task);
+                bail!("No available executor for ready work under the current responsibilities");
             }
             let mut work = JoinSet::new();
             for task in assigned {
@@ -1683,7 +1652,10 @@ impl Engine {
                 let context = ctx.clone();
                 work.spawn(async move { engine.perform(&context, task).await });
             }
-            let mut error = None;
+            // Earlier claims must run and be reviewed even if selecting later
+            // work discovers a real constraint error. Preserve that error after
+            // draining the already committed wave.
+            let mut error = selection_error;
             while let Some(result) = work.join_next().await {
                 match result {
                     Ok(Ok(mut task)) => {
@@ -2131,6 +2103,70 @@ impl Engine {
             &proposal.plan.summary,
         )?;
         Ok(tasks)
+    }
+
+    /// Select pending work without confusing a responsibility's temporarily
+    /// occupied agent with an unavailable identity that needs reassignment.
+    fn select_wave_task(
+        &self,
+        ctx: &RunContext,
+        mut task: Task,
+        accepted: &HashSet<String>,
+        busy: &mut HashSet<String>,
+    ) -> Result<Option<Task>> {
+        if task.state == TaskState::Review {
+            return Ok(Some(task));
+        }
+        let board_task = self
+            .store
+            .board(&ctx.session.id)?
+            .tasks
+            .into_iter()
+            .find(|t| t.task.id == task.id)
+            .context("Missing board task")?;
+        let reference = BoardTaskRef {
+            task_id: task.id.clone(),
+            version: board_task.version,
+        };
+        if board_task
+            .commitment
+            .as_ref()
+            .is_some_and(|commitment| busy.contains(&commitment.agent_id))
+        {
+            self.record_workspace_wait(ctx, &task, "commitment_busy", "The responsible agent is already selected in this wave; retain the commitment for the next work boundary")?;
+            return Ok(None);
+        }
+        let reserved = self
+            .store
+            .team_state(&ctx.session.id)?
+            .and_then(|s| s.reserved_final_reviewer);
+        let eligible = if busy.is_empty() {
+            self.eligible_agents(&ctx.session.id)?
+        } else {
+            self.current_team(&ctx.session.id)?
+        };
+        let candidates = eligible
+            .iter()
+            .filter(|a| !busy.contains(&a.id) && Some(&a.id) != reserved.as_ref())
+            .cloned()
+            .collect::<Vec<_>>();
+        if candidates.is_empty() {
+            self.record_workspace_wait(
+                ctx,
+                &task,
+                "agent_busy",
+                "Current members are assigned or reserved for independent final review",
+            )?;
+            return Ok(None);
+        }
+        let agent = self.choose_executor(ctx, &task, &candidates)?;
+        task.assign(&agent.id, accepted)?;
+        task.workspace = Some(ctx.workspace.directory.clone());
+        task.base_commit = None;
+        self.store.claim_board_task(&reference, &task)?;
+        busy.insert(agent.id.clone());
+        let _ = self.events.send(UiEvent::Task(task.clone()));
+        Ok(Some(task))
     }
 
     fn choose_executor(

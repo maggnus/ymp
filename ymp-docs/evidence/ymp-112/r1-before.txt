@@ -1,0 +1,21 @@
+   Compiling ymp-runtime v0.3.0 (/private/var/folders/cw/7pn8sb3x6bj69g7j2d8f_ss00000gn/T/ymp-release-work-h6oq_rys/sibling112/ymp-rust/crates/ymp-runtime)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.19s
+     Running tests/board_coordination.rs (target/debug/deps/board_coordination-3afa5527f16666ea)
+
+running 1 test
+
+thread 'parallel_commitment_waits_for_busy_owner_and_keeps_prior_claims_running' panicked at ymp-rust/crates/ymp-runtime/tests/board_coordination.rs:673:9:
+assertion `left == right` failed: parallel=2: Run blocked: commitment_unavailable: explicit reassignment is required for an unavailable responsible agent
+  left: "blocked"
+ right: "completed"
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test parallel_commitment_waits_for_busy_owner_and_keeps_prior_claims_running ... FAILED
+
+failures:
+
+failures:
+    parallel_commitment_waits_for_busy_owner_and_keeps_prior_claims_running
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 9 filtered out; finished in 0.27s
+
+error: test failed, to rerun pass `-p ymp-runtime --test board_coordination`
