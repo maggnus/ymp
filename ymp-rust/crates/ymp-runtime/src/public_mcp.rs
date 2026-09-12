@@ -8,11 +8,7 @@ use std::{
     path::PathBuf,
     time::Duration,
 };
-use tokio::{
-    io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt, BufReader},
-    sync::mpsc,
-    task::JoinHandle,
-};
+use tokio::{io::AsyncWriteExt, sync::mpsc, task::JoinHandle};
 use tokio_util::sync::CancellationToken;
 use ymp_core::*;
 use ymp_storage::{projection, Store};
@@ -514,8 +510,41 @@ pub async fn serve(
     result
 }
 
+/// A dedicated reader avoids Tokio's uncancellable blocking-stdin task, which
+/// would keep runtime teardown waiting for the client's still-open input pipe.
+/// The detached thread ends at EOF/send failure or process exit. Only one frame
+/// can queue; one bounded read may be in progress, preserving pipe backpressure.
+fn stdin_frames() -> Result<mpsc::Receiver<std::io::Result<Vec<u8>>>> {
+    let (sender, receiver) = mpsc::channel(1);
+    std::thread::Builder::new()
+        .name("ymp-mcp-stdin".into())
+        .spawn(move || {
+            use std::io::{BufRead, Read};
+            let mut input = std::io::BufReader::new(std::io::stdin());
+            loop {
+                let mut frame = Vec::with_capacity(4096);
+                match (&mut input)
+                    .take(MAX_FRAME + 1)
+                    .read_until(b'\n', &mut frame)
+                {
+                    Ok(0) => break,
+                    Ok(count) => {
+                        if sender.blocking_send(Ok(frame)).is_err() || count as u64 > MAX_FRAME {
+                            break;
+                        }
+                    }
+                    Err(error) => {
+                        let _ = sender.blocking_send(Err(error));
+                        break;
+                    }
+                }
+            }
+        })?;
+    Ok(receiver)
+}
+
 async fn exchange(facade: &mut Facade) -> Result<()> {
-    let mut input = BufReader::new(tokio::io::stdin());
+    let mut input = stdin_frames()?;
     let mut output = tokio::io::stdout();
     let mut initialized = false;
     let mut ready = false;
@@ -523,13 +552,10 @@ async fn exchange(facade: &mut Facade) -> Result<()> {
     let shutdown = shutdown_signal();
     tokio::pin!(shutdown);
     loop {
-        let mut line = String::new();
-        let read = async { (&mut input).take(MAX_FRAME + 1).read_line(&mut line).await };
-        let count = tokio::select! { _ = &mut shutdown => break, count = read => count? };
-        if count == 0 {
-            break;
-        }
-        if count as u64 > MAX_FRAME {
+        let frame = tokio::select! { _ = &mut shutdown => break, frame = input.recv() => frame };
+        let Some(frame) = frame else { break };
+        let frame = frame?;
+        if frame.len() as u64 > MAX_FRAME {
             output
                 .write_all(
                     format!(
@@ -545,7 +571,7 @@ async fn exchange(facade: &mut Facade) -> Result<()> {
                 .await?;
             break;
         }
-        let req: Value = match serde_json::from_str(&line) {
+        let req: Value = match serde_json::from_slice(&frame) {
             Ok(req) => req,
             Err(_) => {
                 output

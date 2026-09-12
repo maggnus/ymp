@@ -1,0 +1,83 @@
+{
+  "recorded_at": "2026-09-12T16:35:58.595209+00:00",
+  "command": "python ymp-evals/mcp/stdio_client.py target/debug/ymp --signals-only (official MCP SDK 1.28.1 environment)",
+  "broken_source_commit": "1fa6f735f517d7437bdf0f9e56b0bb5c9ec8acdb",
+  "broken_exit": 1,
+  "broken_cases": [
+    {
+      "signal": "SIGTERM",
+      "active": true,
+      "stdin_open": true,
+      "exit": null,
+      "elapsed_seconds": 5.001,
+      "terminal_accounting": true,
+      "invocations": 1
+    },
+    {
+      "signal": "SIGINT",
+      "active": true,
+      "stdin_open": true,
+      "exit": null,
+      "elapsed_seconds": 5.003,
+      "terminal_accounting": true,
+      "invocations": 1
+    },
+    {
+      "signal": "SIGINT",
+      "active": false,
+      "stdin_open": true,
+      "exit": null,
+      "elapsed_seconds": 5.001,
+      "terminal_accounting": true,
+      "invocations": 0
+    },
+    {
+      "signal": "SIGTERM",
+      "active": false,
+      "stdin_open": true,
+      "exit": null,
+      "elapsed_seconds": 5.003,
+      "terminal_accounting": true,
+      "invocations": 0
+    }
+  ],
+  "corrected_exit": 0,
+  "corrected_cases": [
+    {
+      "signal": "SIGINT",
+      "active": true,
+      "stdin_open": true,
+      "exit": 0,
+      "elapsed_seconds": 0.006,
+      "terminal_accounting": true,
+      "invocations": 1
+    },
+    {
+      "signal": "SIGTERM",
+      "active": true,
+      "stdin_open": true,
+      "exit": 0,
+      "elapsed_seconds": 0.008,
+      "terminal_accounting": true,
+      "invocations": 1
+    },
+    {
+      "signal": "SIGTERM",
+      "active": false,
+      "stdin_open": true,
+      "exit": 0,
+      "elapsed_seconds": 0.004,
+      "terminal_accounting": true,
+      "invocations": 0
+    },
+    {
+      "signal": "SIGINT",
+      "active": false,
+      "stdin_open": true,
+      "exit": 0,
+      "elapsed_seconds": 0.005,
+      "terminal_accounting": true,
+      "invocations": 0
+    }
+  ]
+}

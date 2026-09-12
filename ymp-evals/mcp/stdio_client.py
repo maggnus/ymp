@@ -7,6 +7,8 @@ import json
 import os
 from pathlib import Path
 import sqlite3
+import signal
+import subprocess
 import sys
 import tempfile
 import time
@@ -250,6 +252,16 @@ async def wire_edges(home, project):
     assert (await exchange('{"jsonrpc":"2.0","id":4,"method":"unknown"}'))["error"]["code"] == -32601
     assert (await exchange('{"jsonrpc":"2.0","id":5,"method":"tools/call","params":{"name":"internal_team_tool"}}'))["error"]["code"] == -32602
     assert (await exchange('{"jsonrpc":"2.0","id":6,"method":"tools/list","params":[]}'))["error"]["code"] == -32602
+    # Split inside a UTF-8 code point and delay the newline: framing must retain bytes.
+    unicode_id = "unicode-\U0001f310"
+    frame = json.dumps({"jsonrpc":"2.0","id":unicode_id,"method":"ping"}, ensure_ascii=False).encode() + b"\n"
+    split = frame.index(unicode_id[-1].encode()) + 1
+    process.stdin.write(frame[:split])
+    await process.stdin.drain()
+    await asyncio.sleep(0.005)
+    process.stdin.write(frame[split:])
+    await process.stdin.drain()
+    assert json.loads(await asyncio.wait_for(process.stdout.readline(), 3))["id"] == unicode_id
     assert (await exchange('x' * 65537))["error"]["code"] == -32600
     process.stdin.close()
     assert await asyncio.wait_for(process.wait(), 10) == 0
@@ -292,7 +304,65 @@ async def hard_exit_and_bridge(home, project):
             assert "team_post" in [t.name for t in (await session.list_tools()).tools]
 
 
+async def signal_exit_walk():
+    async def scenario(sig, active):
+        with tempfile.TemporaryDirectory(prefix="ymp-mcp-signal-") as tmp:
+            root = Path(tmp)
+            home, project = root / "metadata", root / "project"
+            project.mkdir(); config(home)
+            p = params(home, project, True)
+            process = subprocess.Popen([p.command, *p.args], env=p.env, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+            async def rpc(value, reply=True):
+                process.stdin.write(json.dumps(value) + "\n")
+                process.stdin.flush()
+                if reply:
+                    return json.loads(await asyncio.wait_for(asyncio.to_thread(process.stdout.readline), 3))
+            try:
+                await rpc({"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"signal-exit","version":"1"}}})
+                await rpc({"jsonrpc":"2.0","method":"notifications/initialized"}, False)
+                if active:
+                    await rpc({"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"ymp_run_v1","arguments":start_args("signal")}})
+                    deadline = time.monotonic() + 3
+                    while count(home) == 0:
+                        assert time.monotonic() < deadline
+                        await asyncio.sleep(0.001)
+                    await asyncio.sleep(0.01)
+                else:
+                    await rpc({"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"ymp_inspect_v1","arguments":{"kind":"sessions"}}})
+                    await asyncio.sleep(0.05)
+                assert not process.stdin.closed
+                started = time.monotonic()
+                process.send_signal(sig)
+                try:
+                    code = await asyncio.wait_for(asyncio.to_thread(process.wait), 5)
+                except asyncio.TimeoutError:
+                    code = None
+                elapsed = time.monotonic() - started
+                # The input writer deliberately remains open through exit or timeout.
+                assert not process.stdin.closed
+                with sqlite3.connect(home / "state.sqlite") as db:
+                    operations = [json.loads(v) for v, in db.execute("SELECT value FROM kv WHERE key LIKE 'public_mcp:v1:%'")]
+                    invocations = [json.loads(v) for v, in db.execute("SELECT data FROM invocations")]
+                accounting = (len(operations) == 1 and operations[0]["status"] == "paused" and operations[0]["ended_at"] is not None and bool(invocations) and all(i["state"] != "running" and i["ended_at"] is not None for i in invocations)) if active else not operations and not invocations
+                result = {"signal":sig.name,"active":active,"stdin_open":True,"exit":code,"elapsed_seconds":round(elapsed,3),"terminal_accounting":accounting,"invocations":len(invocations)}
+                print(json.dumps(result), flush=True)
+                return result
+            finally:
+                if process.poll() is None:
+                    process.kill()
+                    await asyncio.to_thread(process.wait)
+                process.stdin.close()
+                stderr = process.stderr.read()
+                assert not stderr, stderr
+    results = await asyncio.gather(*(scenario(sig, active) for sig in (signal.SIGTERM, signal.SIGINT) for active in (False, True)))
+    assert all(r["exit"] == 0 and r["elapsed_seconds"] < 5 and r["terminal_accounting"] for r in results), results
+
+
 async def main():
+    if "--signals-only" in sys.argv[2:]:
+        await signal_exit_walk()
+        return
+    await signal_exit_walk()
     with tempfile.TemporaryDirectory(prefix="ymp-mcp-client-") as tmp:
         root = Path(tmp)
         home, a, b = root / "metadata", root / "a", root / "b"
