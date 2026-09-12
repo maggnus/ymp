@@ -25,3 +25,5 @@ hard native expenditure guarantee.
 This accepts only the runtime composition. The later optional unknown-usage
 policy, full seventeen-case driver and visibility of the new reservation fields
 are separate pending work before the final release.
+
+The accepted runtime composition was integrated as `2f28780`. Main formatting, Clippy, all 392 workspace tests and executable build passed; raw results are `/tmp/ymp-main-reservations/checks.json`. The subsequent independently accepted unknown-usage policy is tracked separately.
