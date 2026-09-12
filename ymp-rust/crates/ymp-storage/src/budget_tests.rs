@@ -359,3 +359,81 @@ fn variable_reservations_preserve_partial_usage_stop_and_reject_arithmetic_overf
     assert_eq!(denied.downcast_ref::<BudgetDenial>().unwrap().code, "token_review_reserve");
     assert!(f.store.trace(&f.session.id).unwrap().invocations.is_empty());
 }
+
+#[test]
+fn captured_unknown_usage_policy_preserves_partial_spend_and_allows_bounded_admission_only() {
+    let legacy: ResourceLimits = serde_json::from_value(serde_json::json!({})).unwrap();
+    assert_eq!(legacy.unknown_usage, UnknownUsagePolicy::Stop);
+    for policy in [UnknownUsagePolicy::Stop, UnknownUsagePolicy::BoundedNative] {
+        for reported in [None, Some(7)] {
+            let f = Fixture::with_limits(Limits { turns: 3, parallel: 1, resources: Some(ResourceLimits {
+                unknown_usage: policy, observed_tokens: Some(100), invocation_tokens: Some(20),
+                required_review_invocations: 1, ..Default::default()
+            }), ..Default::default() });
+            let (a, i) = budget_assignment(&f, "execute");
+            let i = f.store.admit_invocation(&a, i).unwrap();
+            if let Some(tokens) = reported { budget_observe(&f, &i, tokens, true); }
+            f.store.interrupt_open_invocations(&f.session.id).unwrap();
+            let reopened = Store::open(&f.store.home).unwrap();
+            let before = reopened.session_budget(&f.session.id).unwrap().unwrap();
+            assert_eq!(before.observed_usage.known_total(), reported);
+            assert!(before.observed_usage.is_partial());
+            assert!(!before.strict_token_bound);
+            // A later caller cannot replace the once-captured default/policy.
+            reopened.capture_legacy_budget_limits(&f.session.id, &Limits::default()).unwrap();
+            assert_eq!(reopened.session_budget(&f.session.id).unwrap().unwrap().limits.resources.unwrap().unknown_usage, policy);
+            let (a, next) = budget_assignment(&f, "review");
+            let result = reopened.admit_invocation(&a, next);
+            if policy == UnknownUsagePolicy::Stop {
+                assert_eq!(result.unwrap_err().downcast_ref::<BudgetDenial>().unwrap().code, "unknown_usage");
+                assert_eq!(reopened.trace(&f.session.id).unwrap().invocations.len(), 1);
+            } else {
+                let inspection = result.unwrap();
+                budget_observe(&f, &inspection, 3, false);
+                f.store.finish_invocation(&f.session.id, &inspection.id, InvocationState::Completed, None).unwrap();
+                let after = reopened.session_budget(&f.session.id).unwrap().unwrap();
+                assert_eq!(after.observed_usage.known_total(), Some(reported.unwrap_or(0) + 3));
+                assert!(after.observed_usage.is_partial());
+                assert!(!after.strict_token_bound);
+                assert!(after.require_strict_token_bound().is_err());
+                let (mut a, next) = budget_assignment(&f, "review");
+                a.context = vec![ContextReference { kind: ContextKind::Prompt, id: "actual prompt".into(), session_id: None, digest: None, included_chars: Some(128001) }];
+                assert_eq!(reopened.admit_invocation(&a, next).unwrap_err().downcast_ref::<BudgetDenial>().unwrap().code, "context_limit");
+                let (a, next) = budget_assignment(&f, "review");
+                let last = reopened.admit_invocation(&a, next).unwrap();
+                budget_observe(&f, &last, 90, false);
+                f.store.finish_invocation(&f.session.id, &last.id, InvocationState::Completed, None).unwrap();
+                let (a, next) = budget_assignment(&f, "review");
+                assert_eq!(reopened.admit_invocation(&a, next).unwrap_err().downcast_ref::<BudgetDenial>().unwrap().code, "invocation_limit");
+            }
+        }
+    }
+}
+
+#[test]
+fn bounded_unknown_usage_retains_reported_token_ceiling_and_reservation_races() {
+    let f = Fixture::with_limits(Limits { parallel: 4, resources: Some(ResourceLimits {
+        unknown_usage: UnknownUsagePolicy::BoundedNative, observed_tokens: Some(100),
+        invocation_tokens: Some(20), required_review_invocations: 1, ..Default::default()
+    }), ..Default::default() });
+    let (a, i) = budget_assignment(&f, "execute");
+    let first = f.store.admit_invocation(&a, i).unwrap();
+    budget_observe(&f, &first, 75, true);
+    f.store.interrupt_open_invocations(&f.session.id).unwrap();
+    let barrier = std::sync::Arc::new(std::sync::Barrier::new(3));
+    let jobs: Vec<_> = (0..2).map(|_| {
+        let store = Store::open(&f.store.home).unwrap();
+        let (a, i) = budget_assignment(&f, "review");
+        let barrier = barrier.clone();
+        std::thread::spawn(move || { barrier.wait(); store.admit_invocation(&a, i) })
+    }).collect();
+    barrier.wait();
+    let results: Vec<_> = jobs.into_iter().map(|job| job.join().unwrap()).collect();
+    assert_eq!(results.iter().filter(|r| r.is_ok()).count(), 1);
+    assert_eq!(results.iter().find_map(|r| r.as_ref().err()).unwrap().downcast_ref::<BudgetDenial>().unwrap().code, "token_limit");
+    let b = f.store.session_budget(&f.session.id).unwrap().unwrap();
+    assert_eq!(b.observed_usage.known_total(), Some(75));
+    assert_eq!(b.reserved_tokens, Some(20));
+    assert!(b.observed_usage.is_partial());
+    assert!(!b.strict_token_bound);
+}
