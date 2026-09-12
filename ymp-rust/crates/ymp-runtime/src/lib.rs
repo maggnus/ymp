@@ -16,5 +16,7 @@ pub use workspace_access::{
     DirectWorkspaceAccessPolicy, WorkspaceAccessInput, WorkspaceAccessPolicy,
 };
 
+mod reservation;
+pub use reservation::{WorkspaceAdmission, WorkspaceOwner, WorkspaceReservation};
 mod board;
 pub use board::*;
