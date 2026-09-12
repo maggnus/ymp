@@ -45,7 +45,7 @@ async fn native_errors_preserve_diagnosis_without_exposing_current_capabilities(
     };
     let (outcome, capabilities) = tokio::time::timeout(Duration::from_secs(15), async {
         tokio::join!(
-            engine.run(&project, "Inspect offline fixture", None),
+            engine.run(&project, "Inspect this complex offline fixture", None),
             collect_capabilities
         )
     })

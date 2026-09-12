@@ -145,7 +145,7 @@ impl Store {
             TeamOperation::TeamRead => &["after", "limit"],
             TeamOperation::TasksList => &[],
             TeamOperation::TaskPropose => &["title", "description"],
-            TeamOperation::MemorySearch => &["query"],
+            TeamOperation::MemorySearch => &["query", "include_unconfirmed"],
             TeamOperation::MemoryPropose => &["title", "content"],
         };
         ensure!(
@@ -227,13 +227,47 @@ impl Store {
             TeamOperation::TasksList => {
                 serde_json::to_value(records::<Task>(&tx, "tasks", &current.session_id)?)?
             }
-            TeamOperation::MemorySearch => serde_json::to_value(super::read_memory(
-                &tx,
-                Some(&session.project_id),
-                arguments["query"].as_str().unwrap_or(""),
-            )?)?,
+            TeamOperation::MemorySearch => {
+                let mode = if arguments["include_unconfirmed"] == true {
+                    KnowledgeRetrievalMode::IncludeUnconfirmed
+                } else {
+                    KnowledgeRetrievalMode::Supported
+                };
+                let values = super::read_memory_candidates(
+                    &tx,
+                    Some(&session.project_id),
+                    arguments["query"].as_str().unwrap_or(""),
+                )?
+                .into_iter()
+                .filter_map(|entry| {
+                    match super::knowledge::applicable(
+                        &tx,
+                        &entry,
+                        Some(&session.project_id),
+                        &Default::default(),
+                        mode,
+                    ) {
+                        Ok(true) => Some(Ok(entry)),
+                        Ok(false) => None,
+                        Err(error) => Some(Err(error)),
+                    }
+                })
+                .collect::<Result<Vec<_>>>()?;
+                serde_json::to_value(values)?
+            }
             TeamOperation::MemoryPropose => {
                 let value = MemoryEntry {
+                    provenance: Some(KnowledgeProvenance {
+                        confirmation: ConfirmationStatus::Unconfirmed,
+                        applicability: Default::default(),
+                        source: None,
+                        assignment_id: Some(current.assignment_id.clone()),
+                        invocation_id: Some(current.invocation_id.clone()),
+                        policy: KnowledgePolicyIdentity {
+                            id: "ymp.team-proposal".into(),
+                            version: "1".into(),
+                        },
+                    }),
                     id: new_id(),
                     project_id: Some(session.project_id),
                     kind: "procedure".into(),

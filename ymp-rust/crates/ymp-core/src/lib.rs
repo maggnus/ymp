@@ -16,3 +16,9 @@ pub use usage::*;
 
 pub mod confirmation;
 pub use confirmation::*;
+
+mod allocation;
+pub use allocation::*;
+
+pub mod knowledge;
+pub use knowledge::*;

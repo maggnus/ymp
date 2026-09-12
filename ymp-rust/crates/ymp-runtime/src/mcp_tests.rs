@@ -495,6 +495,46 @@ async fn memory_proposal_records_bound_origin_without_activation() {
         .memory(Some(&f.session.project_id), "lesson")
         .unwrap()
         .is_empty());
+    let provenance = memory[0].provenance.as_ref().unwrap();
+    assert_eq!(provenance.confirmation, ConfirmationStatus::Unconfirmed);
+    assert_eq!(
+        provenance.assignment_id.as_deref(),
+        Some(f.assignment.id.as_str())
+    );
+    assert_eq!(
+        provenance.invocation_id.as_deref(),
+        Some(f.invocation.id.as_str())
+    );
+    let mut search = f.request("inspect-candidate");
+    search["name"] = json!("memory_search");
+    search["arguments"] = json!({"query":"lesson","include_unconfirmed":true});
+    let found = f.call(search).await;
+    assert_eq!(found["ok"], true);
+    assert_eq!(found["value"][0]["id"], memory[0].id);
+    assert_eq!(
+        found["value"][0]["provenance"]["confirmation"],
+        "unconfirmed"
+    );
+    f.server
+        .finish(
+            &f.invocation.id,
+            InvocationState::Failed,
+            Some("Scripted later failure"),
+        )
+        .unwrap();
+    let reopened = Store::open(&f.store.home).unwrap();
+    assert_eq!(
+        reopened
+            .search_memory(
+                Some(&f.session.project_id),
+                "lesson",
+                &Default::default(),
+                KnowledgeRetrievalMode::IncludeUnconfirmed
+            )
+            .unwrap()[0]
+            .id,
+        memory[0].id
+    );
     let trace = f.store.trace(&f.session.id).unwrap();
     let event = trace
         .history

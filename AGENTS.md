@@ -15,6 +15,8 @@ Track project work in ymp-docs/tasks/tasks.json. manage.py generates both plan.m
 
 The root Cargo workspace contains packages in `ymp-rust/crates`. Documentation lives in `ymp-docs`, SDK bridges in `ymp-bridges`, and evaluation scenarios in `ymp-evals`.
 
-Use the installed agents' native authentication. Never log credentials or copy tokens into application storage. Team runs work directly in the user's working directory. Serialize writes; keep only metadata under ~/.ymp2. Do not create hidden source copies or Git repositories.
+Use the installed agents' native authentication. Never log credentials or copy tokens into application storage. For the 0.4.0 MVP only, team runs work directly in the user's selected directory. Serialize conflicting or unbounded writes; keep only metadata under ~/.ymp2. Do not create hidden source copies or Git repositories as MVP application behavior. This is an explicit MVP limitation, not a production isolation or rollback guarantee. The owner approved this policy on 2026-09-12; see ymp-docs/architecture/workspace-policy.md. Post-MVP isolation and recoverable publication are tracked in YMP-124. Isolated development worktrees for parallel implementation are separately authorized.
+
+Favor narrow typed subsystem interfaces and injectable implementations. Runtime validation remains responsible for constraints, permissions, budgets, acceptance and evidence. Public MCP uses stdio for the first release; see subsystem-interfaces.md and public-mcp.md under ymp-docs/architecture. Unattended tests use mock/scripted providers. Real-provider probes require explicit minimal supported effort and the separate quota authorization; max/xhigh fixture values are data, not inference calls.
 
 After changes, run `cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings`, and `cargo test --workspace`. Real provider checks are separate from unattended tests.

@@ -1,0 +1,44 @@
+{
+  "checked_at": "2026-09-12T14:50:45.441499+00:00",
+  "source_commit": "7dffdb37a052701bd547f26edde21f6ea6416687",
+  "scope": "Read-only audit of unattended test entry points, explicit protocol fixture wiring and native probe settings. No real-provider inference was run for this audit.",
+  "unattended_inference": false,
+  "effort_values_are_fixture_data": true,
+  "evidence": [
+    {
+      "path": "ymp-rust/crates/ymp-runtime/src/engine.rs",
+      "basis": "test_config uses ProviderKind::Mock."
+    },
+    {
+      "path": "ymp-rust/crates/ymp-providers/tests/settings.rs",
+      "basis": "Codex and ACP request tests explicitly execute python3 with tests/fixtures/settings.py."
+    },
+    {
+      "path": "ymp-rust/crates/ymp-providers/tests/codex_retry.rs",
+      "basis": "Native protocol events are supplied by a local Python fixture."
+    },
+    {
+      "path": "ymp-bridges/claude/src/protocol.test.ts",
+      "basis": "provider.command resolves to tests/fixtures/claude.py for every SDK protocol case."
+    },
+    {
+      "path": "ymp-bridges/claude/src/index.ts",
+      "basis": "SDK pathToClaudeCodeExecutable is set from provider.command."
+    },
+    {
+      "path": "ymp-bridges/claude/tests/fixtures/claude.py",
+      "basis": "Reads JSON from stdin and returns fixed metadata/results; no model or network request."
+    },
+    {
+      "path": "ymp-evals/README.md",
+      "basis": "Evaluation validators and protocol scenarios are explicitly synthetic/offline."
+    }
+  ],
+  "manual_native_probe": {
+    "command": "ymp doctor --probe",
+    "unattended": false,
+    "risk": "Configured/native defaults can select high reasoning; do not use unchanged defaults as the release probe policy.",
+    "release_policy": "Explicit minimal supported effort in temporary probe configuration; no max/xhigh inference; separate quota authorization."
+  },
+  "development_agents": "Coding and independent review agents may use xhigh/max under the separate owner instruction; their model usage is not claimed to be zero."
+}

@@ -7,9 +7,11 @@ use std::{
     sync::{Arc, Mutex, MutexGuard},
 };
 use ymp_core::*;
+mod allocation;
 mod authority;
 mod budget;
 mod confirmation;
+mod knowledge;
 mod provenance;
 #[cfg(test)]
 mod provenance_tests;
@@ -151,6 +153,11 @@ impl Store {
             bail!("Session belongs to another project");
         }
         let mut current = s.clone();
+        if allocation::state(&tx, &s.id)?.is_some() {
+            if let Some(old) = &old {
+                current.team = old.team.clone();
+            }
+        }
         let historical = old.as_ref().map_or(0, |old| old.turns_used as u64);
         let count = usage::invocation_count(&tx, &s.id, historical.max(s.turns_used as u64))?;
         current.turns_used =
@@ -413,20 +420,46 @@ impl Store {
             .collect()
     }
     pub fn save_memory(&self, m: &MemoryEntry) -> Result<()> {
-        if m.project_id.is_none()
-            && m.status == "active"
-            && (m.reviewer.is_none() || m.reviewer.as_deref() == Some(&m.author))
-        {
-            bail!("Global memory requires independent review");
+        if m.status == "active" {
+            bail!("Active knowledge requires runtime evidence projection");
         }
         let mut db = self.db()?;
         let tx = db.transaction()?;
-        tx.execute("INSERT INTO memory(id,project_id,status,data) VALUES (?,?,?,?) ON CONFLICT(id) DO UPDATE SET status=excluded.status,data=excluded.data",params![m.id,m.project_id,m.status,serde_json::to_string(m)?])?;
-        tx.execute("DELETE FROM memory_search WHERE id=?", [&m.id])?;
-        tx.execute(
-            "INSERT INTO memory_search(id,title,content) VALUES (?,?,?)",
-            params![m.id, m.title, m.content],
-        )?;
+        let previous: Option<String> = tx
+            .query_row("SELECT data FROM memory WHERE id=?", [&m.id], |r| r.get(0))
+            .optional()?;
+        let existing: Option<MemoryEntry> =
+            previous.map(|raw| serde_json::from_str(&raw)).transpose()?;
+        let protected = |entry: &MemoryEntry| {
+            entry.provenance.as_ref().is_some_and(|p| {
+                p.source.is_some() || p.confirmation == ConfirmationStatus::Confirmed
+            })
+        };
+        if protected(m) || existing.as_ref().is_some_and(protected) {
+            let Some(mut original) = existing else {
+                bail!("Evidence-linked knowledge requires runtime projection");
+            };
+            let confirmed = original
+                .provenance
+                .as_ref()
+                .is_some_and(|p| p.confirmation == ConfirmationStatus::Confirmed);
+            if confirmed {
+                if m.status != "retired" {
+                    bail!("Confirmed knowledge is immutable except retirement");
+                }
+            } else {
+                if !["proposed", "rejected", "retired"].contains(&m.status.as_str()) {
+                    bail!("Agent agreement cannot activate a candidate");
+                }
+                original.reviewer = m.reviewer.clone();
+            }
+            original.status = m.status.clone();
+            if serde_json::to_value(&original)? != serde_json::to_value(m)? {
+                bail!("Knowledge source and content are immutable");
+            }
+        }
+        knowledge::write(&tx, m)?;
+        tx.execute("INSERT INTO events(session_id,kind,data,created_at) VALUES (?,'knowledge_retained',?,?)", params![m.source_session, serde_json::to_string(m)?, now()])?;
         tx.commit()?;
         Ok(())
     }
@@ -539,11 +572,34 @@ fn recorded_text(value: &serde_json::Value) -> Option<String> {
 }
 
 fn read_memory(db: &Connection, project: Option<&str>, query: &str) -> Result<Vec<MemoryEntry>> {
+    read_memory_candidates(db, project, query)?
+        .into_iter()
+        .filter_map(|entry| {
+            match knowledge::applicable(
+                db,
+                &entry,
+                project,
+                &Default::default(),
+                KnowledgeRetrievalMode::Supported,
+            ) {
+                Ok(true) => Some(Ok(entry)),
+                Ok(false) => None,
+                Err(error) => Some(Err(error)),
+            }
+        })
+        .collect()
+}
+
+fn read_memory_candidates(
+    db: &Connection,
+    project: Option<&str>,
+    query: &str,
+) -> Result<Vec<MemoryEntry>> {
     let terms = memory_search_query(query);
     let sql = if terms.is_empty() {
-        "SELECT data FROM memory WHERE status='active' AND (project_id IS NULL OR project_id=?1) ORDER BY rowid DESC LIMIT 20"
+        "SELECT data FROM memory WHERE status IN ('active','proposed') AND (project_id IS NULL OR project_id=?1) ORDER BY rowid DESC"
     } else {
-        "SELECT m.data FROM memory m JOIN memory_search f ON f.id=m.id WHERE m.status='active' AND (m.project_id IS NULL OR m.project_id=?1) AND memory_search MATCH ?2 ORDER BY rank LIMIT 10"
+        "SELECT m.data FROM memory m JOIN memory_search f ON f.id=m.id WHERE m.status IN ('active','proposed') AND (m.project_id IS NULL OR m.project_id=?1) AND memory_search MATCH ?2 ORDER BY rank"
     };
     let mut q = db.prepare(sql)?;
     let values = if terms.is_empty() {
@@ -615,6 +671,7 @@ mod tests {
             0 // Legacy observations are inspectable but not evidence-qualified.
         );
         let m = MemoryEntry {
+            provenance: None,
             id: new_id(),
             project_id: Some("a".into()),
             kind: "procedure".into(),
@@ -623,12 +680,23 @@ mod tests {
             source_session: "s".into(),
             author: "a".into(),
             reviewer: Some("b".into()),
-            status: "active".into(),
+            status: "proposed".into(),
             created_at: now(),
             supersedes: None,
         };
         store.save_memory(&m).unwrap();
-        assert_eq!(store.memory(Some("a"), "cargo").unwrap().len(), 1);
+        assert_eq!(
+            store
+                .search_memory(
+                    Some("a"),
+                    "cargo",
+                    &Default::default(),
+                    KnowledgeRetrievalMode::IncludeUnconfirmed
+                )
+                .unwrap()
+                .len(),
+            1
+        );
         assert!(store.memory(Some("b"), "cargo").unwrap().is_empty());
         store.forget_memory(&m.id).unwrap();
         assert!(store.memory(Some("a"), "").unwrap().is_empty());

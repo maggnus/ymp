@@ -37,7 +37,7 @@ fn yes() -> bool {
     true
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct AgentProfile {
     pub id: String,
     pub name: String,
@@ -60,7 +60,7 @@ impl AgentProfile {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct Limits {
     pub parallel: usize,
@@ -97,12 +97,15 @@ pub struct Config {
     pub agents: Vec<AgentProfile>,
     /// Configured starting roster; neither the eligible pool nor a live session.
     pub team: Vec<String>,
+    #[serde(default)]
+    pub team_constraints: crate::TeamConstraints,
 }
 
 impl Default for Config {
     fn default() -> Self {
         Self {
             version: 1,
+            team_constraints: crate::TeamConstraints::default(),
             limits: Limits::default(),
             capabilities: BTreeMap::new(),
             execution: BTreeMap::new(),
@@ -165,6 +168,7 @@ impl Default for Config {
 
 impl Config {
     pub fn validate(&self) -> Result<()> {
+        self.team_constraints.validate()?;
         if self.version != 1 {
             bail!("Unsupported configuration version {}", self.version);
         }

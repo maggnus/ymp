@@ -1,7 +1,5 @@
 # YMP-117 independent review
 
-12/09 21:29 HKT — **Current verdict: R2(9/10) ACCEPT** on `0af7287470a53de82224a0ac6d642198153cd627`. All four R1 findings are closed by independently reproduced evidence. The original R1 findings and round ledger remain below; the R2 record follows them.
-
 12/09 21:05 HKT — **R1(2/10) RETURN** on `52e692b316cd400f490791b8f7b3b8bd1e0eb6b3`, baseline `57c325b`.
 
 The required workspace checks pass. Four defects remain in the contracted outcome: public storage accepts forged final acceptance and review bindings, accepts replacement task content under an earlier reviewed result, and the final consumer can receive a confirmed grade after an artifact changes during narration. These are YMP-117 acceptance/evidence defects, not extensions into admission, native grants, workspace policy, or knowledge activation.
@@ -96,59 +94,3 @@ The storage forgery probes establish an invariant failure in the public trusted 
 R1 correction is bounded to F1–F4 and their regression evidence in the existing confirmation/runtime/storage surfaces. The next review must rerun these failing public probes, verify rejected writes leave no partial changes, exercise normal and failed narration for both grades, and rerun formatting, Clippy, and the workspace tests. No verdict is granted by the existing green suite alone.
 
 Round ledger: `R1(2/10) RETURN 12/09 21:05 — forged acceptance/review bindings, replaced accepted text, and stale final grade → five failing public assertions and complete trace captures → correction pending`.
-
-
-## R2 independent verdict
-
-12/09 21:29 HKT — **R2(9/10) ACCEPT** on `0af7287470a53de82224a0ac6d642198153cd627`, correction base `52e692b316cd400f490791b8f7b3b8bd1e0eb6b3`.
-
-F1–F4 are closed. The original ten public probes pass, and four independent supplemental tests pass, including twelve final-delivery combinations. The complete correction diff and actual consuming paths were inspected. Required formatting, Clippy, and workspace tests pass. No open defect in the reviewed YMP-117 outcome remains.
-
-Score: code 9/10, evidence 9/10, consumer experience 9/10 within the offline public Rust consumer scope. The earlier failing forms were observed in R1; the same original probes now succeed. Additional adverse inputs distinguish phase, result binding, definition immutability, and final freshness individually. Acceptance does not establish native model quality or completion of the future combined-release integration.
-
-### Closure evidence
-
-| Finding | Independently observed correction |
-| --- | --- |
-| F1 — Final acceptance scope | The unchanged leaf-to-final forgery now returns `Final transition requires an aggregate covering every current accepted task`. After a real resume creates another aggregate, old final acceptance returns `Final transition requires the current recorded aggregate version`. Full before/after traces remain identical on rejection. |
-| F2 — Review binding and reuse | Both original reused-invocation forgeries now reject. New, unused review invocations separately reject absent result context, wrong submission ID, wrong digest, wrong session, and wrong purpose. A fresh correctly bound invocation records its assessment successfully; another assessment for that invocation rejects. This exercises the new result-binding checks independently of the duplicate-invocation guard. |
-| F3 — Accepted result and definition | The original plain-write precursor rejects without any state/history change. A separate candidate was installed using public Store APIs, with producing and reviewing invocations, to test the acceptance transaction directly. Mutations of text, title, description, competence, difficulty, dependencies, checks, workspace, base commit, and assignee all reject atomically. The unchanged candidate then accepts successfully. |
-| F4 — Final consumer freshness | All twelve combinations of confirmed/unconfirmed × normal/failed narration × unchanged/artifact drift/input drift were walked through public `Engine::run`. The four unchanged controls complete with the correct grade. The eight drift cases return blocked/unconfirmed, append result invalidation, and report `result_is_current = false`. Historical acceptance and previously supported observations remain inspectable. |
-
-The additive `ResultVersion.task_definition` and `ContextKind::Result` fields support the immutable bindings in the actual review admission and storage validation paths. `Store.result_is_current` checks task definitions, artifact bytes, and declared source bytes after optional work in both narration branches. A persisted artifact change at the final consumer boundary is now detected rather than presented as current confirmed output.
-
-### Commands and independent captures
-
-All repository commands ran in the unchanged reviewed checkout. The author correction report was read for its proposed answer; the verdict rests on the independent executions below.
-
-| Command | Actual R2 result |
-| --- | --- |
-| `git diff 52e692b..0af7287` (all changed files inspected) | Exit 0 |
-| `cargo fmt --all --check` | Exit 0 |
-| `cargo clippy --workspace --all-targets -- -D warnings` | Exit 0 |
-| `cargo test --workspace` | Exit 0; all suites pass, including 33 runtime tests |
-| Original external ten-probe command, before supplemental tests were added | Exit 0; 10 passed |
-| Same external command after adding the independent `r2` module | Exit 0; 14 passed |
-| Full JSON equality checks for rejected original and supplemental mutation captures | Exit 0; before and after traces equal |
-| `git diff --exit-code 0af7287470a53de82224a0ac6d642198153cd627 -- . ':!ymp-evals/reports/ymp-117-independent-review.md'` | Exit 0; reviewed production source unchanged |
-
-The exact external command remains:
-
-```text
-cargo test --manifest-path /var/folders/cw/7pn8sb3x6bj69g7j2d8f_ss00000gn/T/ymp-117-review-probes-j4afrbna/Cargo.toml -- --nocapture
-```
-
-Its final independent output is `review-r2-output.txt` in that crate. `src/lib.rs` retains the ten original probes; `src/r2.rs` contains the supplemental probes. Full JSON captures include `r2-accepted-reopen.json`, ten `r2-accepted-field-*.json` files, five `r2-fresh-review-*.json` files, and twelve `r2-delivery-*.json` files. The three original decision-forgery captures now show 13 decisions and 92 events before and after, with full trace equality. Original R1 captures remain in `captures-r1-original/`.
-
-One initial supplemental fixture attempted to reuse a task ID through `save_plan` and exited 101 on its setup uniqueness constraint before exercising acceptance. It was replaced with a distinct public-API candidate and fresh invocation records. This was a probe setup error, not a product defect or a passing control; the corrected complete run exits 0.
-
-### Full acceptance and limits retained
-
-The unchanged original controls continue to establish accepted/unconfirmed usability and no unsupported credit for missing or irrelevant checks; failed applicable typed evidence remains non-overridable; supplied-input drift invalidates current confirmation. The deliberately different injected checker still returns only raw execution output, has its implementation ID/version captured, and cannot manufacture typed success or hide input/artifact changes. Exact observation replay remains idempotent and source-attributed; legacy/unknown observations stay inspectable and excluded from reputation selection. The workspace tests independently rerun the aggregate producer exclusion, partial coverage, supplied-data, pinned-validator, historical migration, and both accepted-grade narration fallback cases.
-
-No source edits, task-registry edits, intent edits, real provider inference, credential reads, bridge execution, or interactive TUI work occurred during R2. Only this independent report changed in the checkout. The universal driver, provider replacement integration, combined YMP-102/YMP-120/YMP-122 release checks, knowledge policy, and native model comparisons remain their own outcomes. The existing snapshot boundary still does not claim protection against an external writer changing and restoring bytes between observations or a sandbox for trusted in-process checker code.
-
-Round ledger:
-
-- `R1(2/10) RETURN 12/09 21:05 — forged acceptance/review bindings, replaced accepted text, and stale final grade → five failing public assertions and full trace captures → bounded correction requested`.
-- `R2(9/10) ACCEPT 12/09 21:29 — F1–F4 → original ten probes plus fresh-invocation, direct-acceptance, aggregate-supersession and twelve delivery cases; required checks exit 0 → corrected outcome accepted`.

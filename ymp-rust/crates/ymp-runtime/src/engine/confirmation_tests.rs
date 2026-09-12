@@ -1,6 +1,22 @@
 use super::tests::RunFixture;
 use super::*;
 
+async fn await_phase(fixture: &mut RunFixture, phase: &str) {
+    loop {
+        let event = tokio::time::timeout(std::time::Duration::from_secs(10), fixture.events.recv())
+            .await
+            .expect("Run stopped producing events before the tested phase")
+            .expect("Run event channel closed before the tested phase");
+        if matches!(event, UiEvent::AgentStatus { ref status, .. } if status == phase) {
+            return;
+        }
+        assert!(
+            !matches!(event, UiEvent::Finished { .. }),
+            "Run finished before phase {phase}"
+        );
+    }
+}
+
 pub(super) fn exact_contract() -> AcceptanceContract {
     AcceptanceContract {
         task_title: "Create a greeting".into(),
@@ -255,16 +271,12 @@ async fn confirmation_stale_artifact_requires_a_new_attempt_and_new_review() {
     let engine = fixture.engine.clone();
     let project = fixture.project.clone();
     let run = tokio::spawn(async move { engine.run(&project, "Create a greeting", None).await });
-    while let Some(event) = fixture.events.recv().await {
-        if matches!(event, UiEvent::AgentStatus { ref status, .. } if status == "review") {
-            std::fs::write(
-                fixture.project.join("greeting.txt"),
-                "changed after checking\n",
-            )
-            .unwrap();
-            break;
-        }
-    }
+    await_phase(&mut fixture, "review").await;
+    std::fs::write(
+        fixture.project.join("greeting.txt"),
+        "changed after checking\n",
+    )
+    .unwrap();
     let outcome = run.await.unwrap().unwrap();
     assert_eq!(outcome.session.status, "completed", "{}", outcome.summary);
     let trace = fixture.store.trace(&outcome.session.id).unwrap();
@@ -361,25 +373,27 @@ async fn confirmation_storage_rejects_forged_result_review_and_credit_links() {
 async fn confirmation_final_review_excludes_all_aggregate_producers() {
     let fixture = RunFixture::new("[mock:split-writers]", false);
     let outcome = fixture.run().await;
-    assert_eq!(outcome.session.status, "blocked");
-    assert!(outcome
-        .summary
-        .contains("Independent final review is pending"));
+    assert_eq!(outcome.session.status, "completed", "{}", outcome.summary);
     let trace = fixture.store.trace(&outcome.session.id).unwrap();
     assert_eq!(trace.tasks.len(), 2);
     assert!(trace.tasks.iter().all(|t| t.state == TaskState::Accepted));
-    assert_ne!(trace.tasks[0].assignee, trace.tasks[1].assignee);
-    assert!(!trace
+    let final_review = trace
         .assignments
         .iter()
-        .any(|a| a.purpose == "final_review"));
-    let pending = trace
+        .find(|a| a.purpose == "final_review")
+        .unwrap();
+    assert!(trace
+        .assignments
+        .iter()
+        .filter(|a| a.purpose == "execute")
+        .all(|a| a.agent_id != final_review.agent_id));
+    let accepted = trace
         .decisions
         .iter()
-        .find(|d| d.kind == "final_review_pending")
+        .find(|d| d.kind == "final_accepted")
         .unwrap();
     assert_eq!(
-        pending
+        accepted
             .links
             .result
             .as_ref()
@@ -596,17 +610,12 @@ async fn confirmation_delivery_rechecks_files_after_normal_and_failed_narration(
                         .await
                         .unwrap()
                 });
-                while let Some(event) = fixture.events.recv().await {
-                    if matches!(event, UiEvent::AgentStatus { ref status, .. } if status == "synthesis")
-                    {
-                        std::fs::write(
-                            fixture.project.join(changed_file),
-                            "changed during narration\n",
-                        )
-                        .unwrap();
-                        break;
-                    }
-                }
+                await_phase(&mut fixture, "synthesis").await;
+                std::fs::write(
+                    fixture.project.join(changed_file),
+                    "changed during narration\n",
+                )
+                .unwrap();
                 let outcome = run.await.unwrap();
                 assert_eq!(outcome.session.status, "blocked", "{}", outcome.summary);
                 assert!(outcome

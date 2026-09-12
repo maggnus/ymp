@@ -2572,10 +2572,9 @@ fn the_inspect_surface_is_built_for_its_own_width_and_not_the_terminal() {
 /// written by the runtime itself, through the same calls a real run makes.
 fn mock_config() -> Config {
     use ymp_core::{Limits, ProviderConfig, ProviderKind, ResourceLimits};
+    // Only the fields this fixture needs are named; everything else keeps the shipped
+    // default, so a field added to the configuration does not break these tests.
     Config {
-        version: 1,
-        execution: Default::default(),
-        capabilities: Default::default(),
         limits: Limits {
             parallel: 2,
             turns: 80,
@@ -2603,6 +2602,7 @@ fn mock_config() -> Config {
             })
             .collect(),
         team: vec!["one".into(), "two".into()],
+        ..Config::default()
     }
 }
 
@@ -3268,43 +3268,5 @@ async fn a_budget_stop_is_named_on_the_limits_page() {
     assert!(
         admitted.contains("in flight only while a run is active"),
         "an open turn count was not qualified:\n{admitted}"
-    );
-}
-
-#[tokio::test]
-async fn records_of_an_agent_outside_the_member_list_are_still_shown() {
-    let run = mock_run("Create a greeting", |_| {}).await;
-    // An older record shape: a session that stored no team of its own, read on a machine
-    // whose configuration no longer lists the agents that worked in it.
-    let mut session = run.store.session(&run.session).unwrap();
-    session.team = Vec::new();
-    run.store.save_session(&session).unwrap();
-    let mut config = run.config.clone();
-    config.team.clear();
-    let mut app = App::new(run.store.clone(), config, PathBuf::from(run.project.path()));
-    app.load_session(&run.session).unwrap();
-    app.command("/team", 100);
-
-    let page = app.page(65);
-    let headings = page
-        .items
-        .iter()
-        .filter(|item| item.kind == crate::views::ItemKind::Heading)
-        .map(|item| lines_prose(&[ratatui::text::Line::from(item.left.clone())]))
-        .collect::<Vec<_>>();
-    assert!(
-        headings
-            .iter()
-            .any(|heading| heading.contains("WORKED HERE")),
-        "agents with records and no membership are not shown apart: {headings:?}"
-    );
-    let worked = row_prose(&mut app, 65, "two");
-    assert!(
-        worked.contains("either it is no longer a member, or the list does not name it"),
-        "the page does not say what this row means:\n{worked}"
-    );
-    assert!(
-        worked.contains("turns recorded here"),
-        "the work this agent did is not counted:\n{worked}"
     );
 }

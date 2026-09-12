@@ -3,16 +3,64 @@ use super::{
     Store,
 };
 use anyhow::{ensure, Context, Result};
-use rusqlite::{params, Connection};
+use rusqlite::{params, Connection, OptionalExtension};
 use ymp_core::*;
 
-fn root(db: &Connection, session: &str) -> Result<std::path::PathBuf> {
-    let session: Session = record(db, "sessions", session)?;
-    let project: Project = record(db, "projects", &session.project_id)?;
-    Ok(project.path)
+fn session_directory(db: &Connection, session: &str) -> Result<Option<std::path::PathBuf>> {
+    let raw: Option<String> = db
+        .query_row(
+            "SELECT data FROM session_policies WHERE session_id=?",
+            [session],
+            |r| r.get(0),
+        )
+        .optional()?;
+    let policy: Option<SessionPolicy> = raw.map(|raw| serde_json::from_str(&raw)).transpose()?;
+    Ok(policy
+        .map(|policy| policy.cwd)
+        .filter(|path| path.is_absolute()))
 }
 
-fn current_task(db: &Connection, result: &ResultVersion) -> Result<bool> {
+fn root(db: &Connection, session: &str) -> Result<std::path::PathBuf> {
+    session_directory(db, session)?.context("Captured session directory is unavailable")
+}
+
+/// Resolve the directory recorded for this result, never today's mutable project
+/// association. Missing legacy capture stays unknown even if current files match.
+pub(super) fn source_directory(
+    db: &Connection,
+    session: &str,
+    result: &ResultVersion,
+) -> Result<Option<std::path::PathBuf>> {
+    if result.task.is_some() && result.producer_assignment_ids.len() == 1 {
+        let raw: Option<String> = db
+            .query_row(
+                "SELECT data FROM assignments WHERE id=?",
+                [&result.producer_assignment_ids[0]],
+                |r| r.get(0),
+            )
+            .optional()?;
+        let producer: Option<AssignmentRecord> =
+            raw.map(|raw| serde_json::from_str(&raw)).transpose()?;
+        if let Some(producer) = producer.filter(|producer| {
+            producer.session_id == session
+                && producer.task == result.task
+                && producer.cwd.is_absolute()
+        }) {
+            return Ok(Some(producer.cwd));
+        }
+    }
+    if let Some(directory) = result
+        .task_definition
+        .as_ref()
+        .and_then(|definition| definition.workspace.as_ref())
+        .filter(|path| path.is_absolute())
+    {
+        return Ok(Some(directory.clone()));
+    }
+    session_directory(db, session)
+}
+
+pub(super) fn current_task(db: &Connection, result: &ResultVersion) -> Result<bool> {
     let Some(reference) = &result.task else {
         return Ok(false);
     };
@@ -71,8 +119,14 @@ fn current_aggregate(db: &Connection, session: &str, result: &ResultVersion) -> 
     Ok(true)
 }
 
-fn current_files(db: &Connection, session: &str, result: &ResultVersion) -> Result<bool> {
-    let directory = root(db, session)?;
+pub(super) fn current_files(
+    db: &Connection,
+    session: &str,
+    result: &ResultVersion,
+) -> Result<bool> {
+    let Some(directory) = source_directory(db, session, result)? else {
+        return Ok(false);
+    };
     if !result.artifacts.iter().all(|a| a.current(&directory)) {
         return Ok(false);
     }
@@ -187,18 +241,21 @@ pub(super) fn grade(
             ids.extend(child_ids);
         }
     }
-    let directory = root(db, session)?;
-    complete &= result.artifacts.iter().all(|a| a.current(&directory));
-    if let Some(id) = &result.contract_id {
-        let contract: DecisionRecord = record(db, "decisions", id)?;
-        complete &= contract
-            .links
-            .acceptance_contract
-            .as_ref()
-            .context("Missing contract")?
-            .inputs
-            .iter()
-            .all(|s| s.current(&directory));
+    if let Some(directory) = source_directory(db, session, result)? {
+        complete &= result.artifacts.iter().all(|a| a.current(&directory));
+        if let Some(id) = &result.contract_id {
+            let contract: DecisionRecord = record(db, "decisions", id)?;
+            complete &= contract
+                .links
+                .acceptance_contract
+                .as_ref()
+                .context("Missing contract")?
+                .inputs
+                .iter()
+                .all(|s| s.current(&directory));
+        }
+    } else {
+        complete = false;
     }
     ids.sort();
     ids.dedup();

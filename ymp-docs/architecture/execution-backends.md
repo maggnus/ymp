@@ -61,3 +61,9 @@ Policy, coordination, retrieval/update and confirmation remain owned by YMP-110,
 ## Verification
 
 Offline checks exercise the public `Engine::run` and `Engine::follow_up`, a distinct exact-sum script, hanging futures, cancellation, streamed/result overflow, nested capability errors, captured admission, terminal usage drain, agent attribution, grant revocation, persistent identity, legacy unknown identity, and compatible/incompatible continuation and competence identities. Built-in native wire checks remain in the provider suite. Negative controls and command exits are retained in [execution backend controls](../research/evidence/execution-backend-controls.txt). No provider inference or credential reads are required.
+
+## Integration with confirmed experience
+
+Runtime observation creation and storage attribution use the same core `effective_execution_version` function. Invocations with backend metadata use the backend-aware v2 identity. Historical invocations without that field retain their original v1 identity; this preserves existing bindings without inferring a backend or promoting legacy observations.
+
+The first combined consumer run exposed a mismatch between the runtime v2 calculation and the storage v1 calculation: confirmed work stopped with `Observation attribution mismatch` (exit 101). The shared calculation makes the unchanged confirmed-success/fallback control pass (exit 0). A fixed historical identity control protects compatibility. Phase-sensitive tests now fail when a run finishes before the phase being exercised, instead of waiting indefinitely; restoring the mismatched validation reproduces that failure at the intended boundary.

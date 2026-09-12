@@ -1261,7 +1261,7 @@
       "title": "Select session teams and execution settings within user constraints",
       "type": "implementation",
       "priority": "P0",
-      "status": "planned",
+      "status": "in_progress",
       "owner": "Maintainer; application UI by Claude Code claude-opus-5 with thinking max via Paseo",
       "authorization": "Planned delivery derived from the owner-approved intent and standing autonomous-development direction. Follow dependencies and acceptance criteria; separate real-provider quota is required where stated.",
       "depends_on": [
@@ -1325,6 +1325,16 @@
           "at": "2026-09-12T12:46:29.117507+00:00",
           "status": "planned",
           "note": "Owner extension requirement added: Provide injectable typed policies for team/model/effort proposals and resource allocation, with runtime validation of pins, capabilities, independence and ceilings outside the policies."
+        },
+        {
+          "at": "2026-09-12T14:16:57.448421+00:00",
+          "status": "in_progress",
+          "note": "Dynamic membership and joint team/model/effort policies assigned at xhigh. Typed proposals remain separate from runtime commitment; historical membership must not authorize current grants. Implementation preserves fixed constraints, qualified experience and independent final review eligibility."
+        },
+        {
+          "at": "2026-09-12T15:23:32.455382+00:00",
+          "status": "in_progress",
+          "note": "R1(5/10) RETURN: public admission could turn the reserved final reviewer into a producer; a known unsupported pinned reviewer consumed startup work before rejection. Author is correcting shared admission and pre-start configuration validation with exact public controls. Normal Cargo and validator tests had passed."
         }
       ]
     },
@@ -1403,7 +1413,7 @@
       "title": "Accumulate general knowledge and verified experience incrementally",
       "type": "implementation",
       "priority": "P0",
-      "status": "planned",
+      "status": "in_progress",
       "owner": "Maintainer; application UI by Claude Code claude-opus-5 with thinking max via Paseo",
       "authorization": "Planned delivery derived from the owner-approved intent and standing autonomous-development direction. Follow dependencies and acceptance criteria; separate real-provider quota is required where stated.",
       "depends_on": [
@@ -1457,6 +1467,16 @@
           "at": "2026-09-12T12:46:29.117507+00:00",
           "status": "planned",
           "note": "Owner extension requirement added: Expose replaceable knowledge retrieval/proposal policies; runtime resolves actual source versions, enforces scope/context limits and controls activation."
+        },
+        {
+          "at": "2026-09-12T14:16:57.549928+00:00",
+          "status": "in_progress",
+          "note": "Incremental knowledge and outcome inspection assigned at xhigh. Candidates remain explicitly unconfirmed; supported source-bound projections can survive later failure and be reused under applicability constraints. Retrieval/proposal policies are replaceable and runtime retains source/scope/activation control."
+        },
+        {
+          "at": "2026-09-12T15:23:32.560823+00:00",
+          "status": "in_progress",
+          "note": "R1(6/10) RETURN: outcome paths were derived from mutable Project.path and could be invented after relocation. Author is binding location/freshness to immutable captured workspaces and returning unknown explicitly for unsupported legacy records. Unbounded MCP search payloads are separately tracked under YMP-123."
         }
       ]
     },
@@ -1578,7 +1598,7 @@
       "title": "Enable useful concurrent execution of independent assignments",
       "type": "implementation",
       "priority": "P0",
-      "status": "owner_question",
+      "status": "in_progress",
       "owner": "Maintainer",
       "authorization": "Planned delivery derived from the owner-approved intent and standing autonomous-development direction. Follow dependencies and acceptance criteria; separate real-provider quota is required where stated.",
       "depends_on": [
@@ -1593,14 +1613,16 @@
         "Reserve shared resources atomically for in-flight work and retain usage and attempt history on cancellation or reassignment.",
         "Process each completed result independently so an unrelated failure cannot prevent its review or erase accepted work.",
         "Use an offline synchronization fixture to demonstrate overlap of independent work and non-overlap of conflicting work; provider inference is not required for scheduler correctness.",
-        "Record why otherwise ready work waits and distinguish meaningful contributions from planning/bidding traffic."
+        "Record why otherwise ready work waits and distinguish meaningful contributions from planning/bidding traffic.",
+        "Use the owner-approved direct-directory policy only for the 0.4.0 MVP. Expose a narrow workspace/access-policy boundary; serialize whole-workspace writes when scoped enforcement is unavailable, and do not claim production isolation or rollback."
       ],
       "evidence": [
         "[Ready-task selection](../../ymp-rust/crates/ymp-runtime/src/engine.rs)",
         "[Design options](../adr/0002-agent-identity-and-reasoning.md#useful-concurrent-work)",
         "[Team and effort policy](../architecture/team-and-effort-policy.md)",
         "[Domain terminology](../product/entities.md)",
-        "[Delivery plan](plan.md)"
+        "[Delivery plan](plan.md)",
+        "[MVP workspace decision and post-MVP boundary](../architecture/workspace-policy.md)"
       ],
       "history": [
         {
@@ -1627,6 +1649,16 @@
           "at": "2026-09-12T12:25:03.163058+00:00",
           "status": "owner_question",
           "note": "Owner question: chat-supplied AGENTS.md requires isolated working copies preserving the original directory, while repository AGENTS.md and prior product direction require direct work in the selected directory. Which workspace policy should govern the release? Asked asynchronously; budget, authority, confirmation and other independent work continue."
+        },
+        {
+          "at": "2026-09-12T15:31:59.482312+00:00",
+          "status": "planned",
+          "note": "Owner approved direct work in the selected directory for the 0.4.0 MVP only. The prior instruction conflict is resolved. Implement useful concurrency with conservative resource locking and an access-policy interface; unknown write scope means a whole-workspace writer. Production isolation/publication is deferred to YMP-124."
+        },
+        {
+          "at": "2026-09-12T15:34:36.340125+00:00",
+          "status": "in_progress",
+          "note": "Owner approved direct execution for MVP only and the instruction conflict is resolved. Useful concurrency is assigned against the prepared allocation interface: independent safe work may overlap, conflicting or unbounded writes serialize, and effective access is recorded. Post-MVP isolation is YMP-124."
         }
       ]
     },
@@ -1829,7 +1861,7 @@
       "title": "Separate acceptance from confirmation and gate reputation on evidence",
       "type": "implementation",
       "priority": "P0",
-      "status": "in_progress",
+      "status": "done",
       "owner": "Maintainer",
       "authorization": "Derived from the owner-approved intent and work-plan request. Follow recorded dependencies; real-provider quota remains separately authorized.",
       "depends_on": [
@@ -1850,7 +1882,10 @@
       "evidence": [
         "[Approved intent](../../intent.md)",
         "[Delivery plan](plan.md)",
-        "[Replaceable subsystem contracts](../architecture/subsystem-interfaces.md)"
+        "[Replaceable subsystem contracts](../architecture/subsystem-interfaces.md)",
+        "[Confirmation and reputation contract](../architecture/confirmation.md)",
+        "[Independent R1-R2 review](../../ymp-evals/reports/ymp-117-independent-review.md)",
+        "[Independent integration review](../../ymp-evals/reports/ymp-117-integration-review.md)"
       ],
       "history": [
         {
@@ -1892,6 +1927,11 @@
           "at": "2026-09-12T13:46:30.334672+00:00",
           "status": "in_progress",
           "note": "Standalone R2(9/10) ACCEPT closes F1-F4. Integration with accepted budget/authority and recorded-check UI is under independent review. A confirmation enum name collision was resolved without wire changes; Opus5 max corrected four UI fixtures to use valid Review state, preserving all assertions. Integrated candidate passes220 tests; not yet on main."
+        },
+        {
+          "at": "2026-09-12T13:59:23.759206+00:00",
+          "status": "done",
+          "note": "R2(9/10) ACCEPT and I1(9/10) integration ACCEPT. Integrated cad2218,4e3eff7,b900cf3,d2f0e50. Result-bound independent reviews, current evidence grades and idempotent confirmed credit hold across admission, grants and narration. Main matches reviewed source; fmt/clippy and 220 Rust tests exit 0. Historical unsupported observations remain unknown and excluded from qualified selection."
         }
       ]
     },
@@ -1965,7 +2005,7 @@
       "title": "Integrate core assignment, budget and confirmation visibility",
       "type": "implementation",
       "priority": "P0",
-      "status": "planned",
+      "status": "in_progress",
       "owner": "Claude Code claude-opus-5 with thinking max via Paseo; maintainer integrates and verifies",
       "authorization": "Derived from the owner-approved intent and work-plan request. Follow recorded dependencies; real-provider quota remains separately authorized.",
       "depends_on": [
@@ -2002,6 +2042,11 @@
           "at": "2026-09-12T12:20:54.627364+00:00",
           "status": "planned",
           "note": "Alongside core assignment/budget/confirmation views, fix independently reproduced shared-frame text clipping: inline wrapping uses two columns more than the paint area and modal wrapping uses full terminal width. YMP-107 review demonstrated lost words on both checks and the existing memory page; Opus5 max owns UI correction."
+        },
+        {
+          "at": "2026-09-12T14:16:57.664228+00:00",
+          "status": "in_progress",
+          "note": "Claude Opus5 max is implementing core state/constraint/confirmation views and correcting shared-frame clipping in an isolated checkout. The UI will use actual captured records and integrate committed110/113 projections as available. Black theme, typography and sidebar behavior are preserved."
         }
       ]
     },
@@ -2083,12 +2128,14 @@
         "Document migration/recovery behavior and output locations; announce completion only after all required release checks pass.",
         "Perform the final requirement-by-requirement release review with an independent max-reasoning agent; xhigh is the minimum for other delegated engineering work.",
         "Verify implementation substitution through the public engine and owning subsystem interfaces, preserving runtime constraints and recorded implementation identities.",
-        "Verify public stdio MCP interoperability and lifecycle against shared runtime controls using a real client and scripted execution; provider inference checks retain separate quota authorization."
+        "Verify public stdio MCP interoperability and lifecycle against shared runtime controls using a real client and scripted execution; provider inference checks retain separate quota authorization.",
+        "Unattended tests never run real models at max/xhigh; real-provider checks use explicit minimal supported effort and recorded settings rather than expensive inherited defaults. The independent release reviewer reasoning remains max."
       ],
       "evidence": [
         "[Approved intent](../../intent.md)",
         "[Delivery plan](plan.md)",
-        "[Replaceable subsystem contracts](../architecture/subsystem-interfaces.md)"
+        "[Replaceable subsystem contracts](../architecture/subsystem-interfaces.md)",
+        "[Test inference audit and probe distinction](../research/evidence/test-inference-audit.json)"
       ],
       "history": [
         {
@@ -2110,6 +2157,11 @@
           "at": "2026-09-12T13:00:04.752401+00:00",
           "status": "planned",
           "note": "Final release includes the owner-selected public stdio MCP interface through YMP-123."
+        },
+        {
+          "at": "2026-09-12T14:50:45.441499+00:00",
+          "status": "planned",
+          "note": "Owner requested a check that tests do not use real max/xhigh agents. Source audit confirms mock/scripted unattended paths. Live compatibility probes must pin minimal supported effort; developer/reviewer model use is a separate resource category."
         }
       ],
       "budget": "Not allocated. Prepare a concrete bounded smoke-check proposal before any real-provider inference."
@@ -2164,7 +2216,7 @@
       "title": "Expose replaceable execution backends behind runtime-owned controls",
       "type": "implementation",
       "priority": "P1",
-      "status": "in_progress",
+      "status": "done",
       "owner": "Maintainer",
       "authorization": "Explicit owner request on2026-09-12 to favor interfaces/plugins and permit alternative subsystem implementations; standing autonomous delivery authorization applies.",
       "depends_on": [
@@ -2180,7 +2232,10 @@
         "Document the extension contract and ownership of policy, retrieval and confirmation interfaces without introducing a dynamic plugin ABI, plugin service or generic container. Those interfaces are delivered in their owning tasks and verified by final integration."
       ],
       "evidence": [
-        "[Owner-directed subsystem interfaces](../architecture/subsystem-interfaces.md)"
+        "[Owner-directed subsystem interfaces](../architecture/subsystem-interfaces.md)",
+        "[Execution backend interface](../architecture/execution-backends.md)",
+        "[Independent backend review](../../ymp-evals/reports/ymp-122-independent-review.md)",
+        "[Independent confirmation/backend integration review](../../ymp-evals/reports/ymp-122-integration-review.md)"
       ],
       "history": [
         {
@@ -2202,6 +2257,16 @@
           "at": "2026-09-12T13:46:30.437275+00:00",
           "status": "in_progress",
           "note": "Candidate c322649 adds the execution backend interface, recorded implementation ID/version and backend-scoped continuation/usage/competence. Native and scripted execution share common guards. Author reports217 tests and discriminating negative controls; independent xhigh review is running."
+        },
+        {
+          "at": "2026-09-12T14:36:46.296272+00:00",
+          "status": "in_progress",
+          "note": "Standalone R1(9/10) accepted. Combined confirmation/backend integration exposed producer-v2 versus storage-v1 attribution mismatch; shared core version calculation fixes the unchanged failing consumer, preserves historical identity and passes 230 tests. Independent integration review is next; code remains outside main."
+        },
+        {
+          "at": "2026-09-12T15:23:32.342294+00:00",
+          "status": "done",
+          "note": "R1(9/10) ACCEPT and I1(9/10) integration ACCEPT. Integrated 11250c9,762b3d2,d8c284c. Native/scripted backends share guards; identity, continuation baselines and confirmed-credit validation agree, including historical v1 records. Main matches reviewed source; fmt/clippy and 230 Rust tests exit 0."
         }
       ]
     },
@@ -2225,7 +2290,8 @@
         "Support explicit bounded start/resume, progress and cancellation through the same runtime. Define disconnect/process-exit behavior and preserve interrupted work and usage.",
         "Distinguish external client requests and project/action scope from internal agent assignment grants. Reject foreign-project references and do not disclose provider credentials or live assignment capabilities.",
         "Run the real stdio process with an MCP client and scripted provider through discovery, read/write lifecycle, cancellation, malformed requests, scope denial, disconnect and reopen. Final release verifies actual interoperability.",
-        "Keep the facade thin and transport replaceable; no second orchestrator, shared daemon requirement, HTTP service or remote authentication system is introduced."
+        "Keep the facade thin and transport replaceable; no second orchestrator, shared daemon requirement, HTTP service or remote authentication system is introduced.",
+        "Bound and paginate knowledge/history/result payloads with explicit truncation or continuation. Reuse bounded projections for internal agent MCP memory search, whose full candidate results can otherwise exceed useful context limits; do not confuse this with the separate automatic prompt excerpt cap."
       ],
       "evidence": [
         "[Public MCP scope and transport decision](../architecture/public-mcp.md)"
@@ -2237,9 +2303,39 @@
           "note": "Added from owner MCP discussion and stdio selection. External access is a new delivery outcome; the existing internal socket bridge is not claimed as a public server."
         }
       ]
+    },
+    {
+      "id": "YMP-124",
+      "title": "Add isolated execution and recoverable publication for larger projects",
+      "type": "implementation",
+      "priority": "P1",
+      "status": "paused",
+      "owner": "Maintainer",
+      "authorization": "Owner explicitly accepted direct-directory execution only for the MVP and identified it as unsuitable protection for larger production projects. This is post-MVP work.",
+      "depends_on": [
+        "YMP-121"
+      ],
+      "reason": "Production-scale parallel work needs isolated candidates and controlled, recoverable application of reviewed changes to the canonical user directory.",
+      "acceptance": [
+        "Define and implement isolated working areas behind the workspace/access-policy boundary, with explicit storage, visibility and lifetime contracts.",
+        "Independently check exact candidate versions before controlled publication; detect conflicts and preserve user changes and prior accepted results.",
+        "Make publication interruption recoverable and retain the relationship between reviewed and delivered versions and actual artifact locations.",
+        "Support ordinary directories and non-software artifacts as well as optional Git-specific implementations.",
+        "State actual native filesystem/process guarantees and test conflict, stale-input, failure and recovery paths without claiming a file copy is a sandbox."
+      ],
+      "evidence": [
+        "[Owner-approved workspace policy](../architecture/workspace-policy.md)"
+      ],
+      "history": [
+        {
+          "at": "2026-09-12T15:31:59.383469+00:00",
+          "status": "paused",
+          "note": "Explicitly deferred until after the 0.4.0 MVP. Direct execution is accepted only for that MVP; larger-project isolation/publication requires this separate outcome."
+        }
+      ]
     }
   ],
-  "updated_at": "2026-09-12T13:46:30.437275+00:00",
+  "updated_at": "2026-09-12T15:34:36.340125+00:00",
   "delivery_order": [
     "YMP-116",
     "YMP-103",
@@ -2612,13 +2708,15 @@
     "Integrate core visibility as soon as the core records are available. Later features extend the same views as part of their own acceptance; all application UI work uses Claude Opus 5 max through Paseo.",
     "Preserve accepted-but-unconfirmed outcomes and award no reputation without confirmation. Keep native authentication and honest resource-coverage limits; an effort level is not a spending cap.",
     "Real-provider checks and experiments require their concrete quota authorization. Unattended checks use fixtures. After changes run cargo fmt, clippy with warnings denied and workspace tests; bridge changes also require bridge checks.",
-    "Favor narrow typed subsystem interfaces and injectable built-in implementations. Replacement algorithms propose work or provide observations; trusted runtime rules still own grants, budgets, acceptance and evidence. See subsystem-interfaces.md and YMP-122."
+    "Favor narrow typed subsystem interfaces and injectable built-in implementations. Replacement algorithms propose work or provide observations; trusted runtime rules still own grants, budgets, acceptance and evidence. See subsystem-interfaces.md and YMP-122.",
+    "Release 0.4.0 is an MVP. Its owner-approved direct workspace policy is a temporary limitation; YMP-124 tracks post-MVP isolated execution and recoverable publication."
   ],
   "release": {
     "target_version": "0.4.0",
     "delegated_reasoning_minimum": "xhigh",
     "final_verification_task": "YMP-121",
     "final_verification_reasoning": "max",
-    "status": "in_progress"
+    "status": "in_progress",
+    "stage": "MVP"
   }
 }

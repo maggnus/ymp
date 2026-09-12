@@ -36,7 +36,7 @@ async fn budget_all_purposes_share_usage_and_timeout_controls() {
     let outcome = fixture.run().await;
     assert_eq!(outcome.session.status, "completed");
     let trace = fixture.store.trace(&outcome.session.id).unwrap();
-    for purpose in ["plan", "review_plan", "bid", "execute", "review", "final_review", "learn", "review_memory", "synthesis"] {
+    for purpose in ["plan", "review_plan", "execute", "review", "final_review", "learn", "review_memory", "synthesis"] {
         assert!(trace.assignments.iter().any(|a| a.purpose == purpose), "missing consumer purpose {purpose}");
     }
     let budget = trace.budget.unwrap();
@@ -113,7 +113,7 @@ async fn joint_engine_budget_stops_never_leave_unaccounted_or_active_grants() {
         let outcome = fixture.run().await;
         assert_eq!(outcome.session.status, "paused");
         let trace = fixture.store.trace(&outcome.session.id).unwrap();
-        assert_eq!(trace.invocations.len(), if mode == "context" { 0 } else { 2 });
+        assert_eq!(trace.invocations.len(), if mode == "context" { 0 } else { 1 });
         assert_eq!(trace.history.iter().filter(|e| e.data["change"] == "grant_issued").count(), trace.invocations.len());
         assert_eq!(trace.history.iter().filter(|e| e.data["change"] == "grant_revoked").count(), trace.invocations.len());
         assert_eq!(trace.history.iter().filter(|e| e.kind == "budget_reserved").count(), trace.invocations.len());
@@ -125,6 +125,6 @@ async fn joint_engine_budget_stops_never_leave_unaccounted_or_active_grants() {
         let budget = trace.budget.unwrap();
         assert_eq!(budget.admitted_invocations, trace.invocations.len() as u64);
         assert_eq!(budget.in_flight_invocations, 0);
-        assert_eq!(budget.observed_usage.known_total(), match mode { "context" => Some(0), "unknown" => None, _ => Some(240) });
+        assert_eq!(budget.observed_usage.known_total(), match mode { "context" => Some(0), "unknown" => None, _ => Some(120) });
     }
 }
