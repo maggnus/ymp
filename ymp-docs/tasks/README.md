@@ -1,6 +1,6 @@
 # Task details and evidence
 
-Updated: 2026-09-12 22:38 UTC.
+Updated: 2026-09-12 22:52 UTC.
 
 Use the [delivery plan](plan.md) to follow progress. This generated register contains full acceptance criteria, dependencies and evidence. [tasks.json](tasks.json) is the single source; [manage.py](manage.py) updates both pages.
 
@@ -14,7 +14,7 @@ A planned task is not implemented functionality. Completed research and planning
 | design | 1 | 1 |
 | documentation | 4 | 4 |
 | experiment | 0 | 4 |
-| implementation | 20 | 25 |
+| implementation | 21 | 25 |
 | research | 8 | 8 |
 | verification | 1 | 2 |
 
@@ -65,7 +65,7 @@ A planned task is not implemented functionality. Completed research and planning
 | `[x]` | [YMP-123](#ymp-123) | P1 | Expose a public local MCP facade over stdio | 2026-09-12 18:22 |
 | `[=]` | [YMP-124](#ymp-124) | P1 | Add isolated execution and recoverable publication for larger projects | 2026-09-12 15:31 |
 | `[x]` | [YMP-125](#ymp-125) | P0 | Expose trusted acceptance contracts to executable users | 2026-09-12 17:54 |
-| `[~]` | [YMP-126](#ymp-126) | P1 | Execute universal acceptance scenarios through a trusted runtime driver | 2026-09-12 22:38 |
+| `[x]` | [YMP-126](#ymp-126) | P1 | Execute universal acceptance scenarios through a trusted runtime driver | 2026-09-12 22:52 |
 | `[x]` | [YMP-127](#ymp-127) | P0 | Build and display the agent pool from provider-returned native names | 2026-09-12 20:43 |
 | `[x]` | [YMP-128](#ymp-128) | P1 | Support internal team transport with long metadata paths | 2026-09-12 21:24 |
 
@@ -1318,7 +1318,7 @@ Verify the integrated application and package a local release
 
 **Last update (UTC):** 2026-09-12 22:38
 
-**Current reason:** Needs YMP-112, YMP-114, YMP-126
+**Current reason:** Needs YMP-112, YMP-114
 
 **Owner:** Independent final reviewer at max reasoning; maintainer integrates and packages
 
@@ -1350,6 +1350,7 @@ A local release needs a reproducible install and truthful compatibility evidence
 - [Replaceable subsystem contracts](../architecture/subsystem-interfaces.md)
 - [Test inference audit and probe distinction](../research/evidence/test-inference-audit.json)
 - [Local release verification procedure](../guides/release-verification.md)
+- [Release notes draft](../releases/0.4.0.md)
 
 **Quota:** Not allocated. Prepare a concrete bounded smoke-check proposal before any real-provider inference.
 
@@ -1523,11 +1524,11 @@ Independent rebuilt executable audit confirms that only Rust consumers can origi
 
 Execute universal acceptance scenarios through a trusted runtime driver
 
-**State:** `[~]` (in_progress) · **Type:** implementation · **Priority:** P1
+**State:** `[x]` (done) · **Type:** implementation · **Priority:** P1
 
-**Last update (UTC):** 2026-09-12 22:38
+**Last update (UTC):** 2026-09-12 22:52
 
-**Current reason:** Final driver candidate a04aef41 (sourcea8493ac) has one-build all17 success,402 workspace tests and26 validator tests, with232 raw evidence files archived and hashed. Fresh independent max reviewer release_max is auditing the full driver and repeating actual controls. Captured Stop/BoundedNative policy and real restart independently accepted9/10, integrated as3c5013f; main formatting, Clippy,405 tests and build pass. Full-driver/final-release acceptance is still pending.
+**Current reason:** Fresh independent max review accepts a04aef4 at9/10: own17/17 run,8 driver/restart controls,26 validator tests,232 archive hashes and raw SQLite/provenance audits pass. Compositionb49d159 preserves every application/driver source file, passes413 tests and a fresh all17 run; integrated main56c9f04 also passes formatting, Clippy,413 tests and build. No case skipped or fixture weakened. Failed-case JSON diagnostic can lag two follow-up messages; complete SQLite retains them and no invocation/acceptance is lost. Final versioned release review remains121.
 
 **Owner:** Maintainer and delegated xhigh implementation/review agents
 
@@ -1554,6 +1555,8 @@ YMP-119 supplies discriminating fixtures, but the production-boundary driver and
 - [Protocol scenarios](../../ymp-evals/scenarios/universal-protocol.json)
 - [Independent captured usage-policy review](../../ymp-evals/reports/unknown-usage-policy-independent-review.md)
 - [Independent exporter review](../../ymp-evals/reports/ymp-126-exporter-independent-review.md)
+- [Independent max driver review](../../ymp-evals/reports/ymp-126-independent-max-review.md)
+- [Integrated driver verification](../research/evidence/complete-driver-integration.json)
 
 ## YMP-127
 

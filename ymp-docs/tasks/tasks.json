@@ -2361,7 +2361,8 @@
         "[Delivery plan](plan.md)",
         "[Replaceable subsystem contracts](../architecture/subsystem-interfaces.md)",
         "[Test inference audit and probe distinction](../research/evidence/test-inference-audit.json)",
-        "[Local release verification procedure](../guides/release-verification.md)"
+        "[Local release verification procedure](../guides/release-verification.md)",
+        "[Release notes draft](../releases/0.4.0.md)"
       ],
       "history": [
         {
@@ -2719,7 +2720,7 @@
       "title": "Execute universal acceptance scenarios through a trusted runtime driver",
       "type": "implementation",
       "priority": "P1",
-      "status": "in_progress",
+      "status": "done",
       "owner": "Maintainer and delegated xhigh implementation/review agents",
       "authorization": "Implementation work extracted from existing YMP-121 scope to permit parallel preparation; no new product requirement or real-provider quota is added.",
       "depends_on": [
@@ -2746,7 +2747,9 @@
         "[Workflow scenarios](../../ymp-evals/scenarios/universal-workflows.json)",
         "[Protocol scenarios](../../ymp-evals/scenarios/universal-protocol.json)",
         "[Independent captured usage-policy review](../../ymp-evals/reports/unknown-usage-policy-independent-review.md)",
-        "[Independent exporter review](../../ymp-evals/reports/ymp-126-exporter-independent-review.md)"
+        "[Independent exporter review](../../ymp-evals/reports/ymp-126-exporter-independent-review.md)",
+        "[Independent max driver review](../../ymp-evals/reports/ymp-126-independent-max-review.md)",
+        "[Integrated driver verification](../research/evidence/complete-driver-integration.json)"
       ],
       "history": [
         {
@@ -2793,6 +2796,11 @@
           "at": "2026-09-12T22:38:45.438052+00:00",
           "status": "in_progress",
           "note": "Final driver candidate a04aef41 (sourcea8493ac) has one-build all17 success,402 workspace tests and26 validator tests, with232 raw evidence files archived and hashed. Fresh independent max reviewer release_max is auditing the full driver and repeating actual controls. Captured Stop/BoundedNative policy and real restart independently accepted9/10, integrated as3c5013f; main formatting, Clippy,405 tests and build pass. Full-driver/final-release acceptance is still pending."
+        },
+        {
+          "at": "2026-09-12T22:52:12.623663+00:00",
+          "status": "done",
+          "note": "Fresh independent max review accepts a04aef4 at9/10: own17/17 run,8 driver/restart controls,26 validator tests,232 archive hashes and raw SQLite/provenance audits pass. Compositionb49d159 preserves every application/driver source file, passes413 tests and a fresh all17 run; integrated main56c9f04 also passes formatting, Clippy,413 tests and build. No case skipped or fixture weakened. Failed-case JSON diagnostic can lag two follow-up messages; complete SQLite retains them and no invocation/acceptance is lost. Final versioned release review remains121."
         }
       ]
     },
@@ -2926,7 +2934,7 @@
       ]
     }
   ],
-  "updated_at": "2026-09-12T22:38:45.481827+00:00",
+  "updated_at": "2026-09-12T22:52:12.623663+00:00",
   "delivery_order": [
     "YMP-116",
     "YMP-103",

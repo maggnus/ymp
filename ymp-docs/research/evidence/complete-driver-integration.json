@@ -1,0 +1,82 @@
+{
+  "composition": "b49d1595d1719e33d8bc03fb7319772d0781f71f",
+  "application_source": "44ef9bb",
+  "driver_source": "a04aef41e003609c42c81ac5b698c0ca2a208274",
+  "source_preservation": "Every application/bridge source file equals main44ef9bb; every driver source file equals accepted a04aef4. Only Cargo.lock and driver/docs/evidence are added.",
+  "checks": [
+    {
+      "step": "fmt",
+      "exit": 0,
+      "seconds": 0.59,
+      "log": "/tmp/ymp-driver-integration-checks/fmt.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "step": "clippy",
+      "exit": 0,
+      "seconds": 38.83,
+      "log": "/tmp/ymp-driver-integration-checks/clippy.log",
+      "sha256": "3f249fe974290c6013baabbe465edb0dea8b0af8f0d4e5e86b9373b5b8658179"
+    },
+    {
+      "step": "workspace",
+      "exit": 0,
+      "seconds": 111.87,
+      "log": "/tmp/ymp-driver-integration-checks/workspace.log",
+      "sha256": "67482c151b86eb445a4c7c7cb45fff5bffe526cb141207519ba4c2584b54d1be"
+    },
+    {
+      "step": "build",
+      "exit": 0,
+      "seconds": 0.23,
+      "log": "/tmp/ymp-driver-integration-checks/build.log",
+      "sha256": "f694a9e074374d315f58b8a63ce849858b1b8708cf56b3d194218605bd2a9d6e"
+    },
+    {
+      "step": "all17",
+      "exit": 0,
+      "seconds": 31.23,
+      "log": "/tmp/ymp-driver-integration-checks/all17.log",
+      "evidence": "/tmp/ymp-integrated-driver-tuhemdxu/evidence",
+      "sha256": "f46fdd92c28bb728c85723b5bdc3fa69a508d0aed671042d4800ecff57eb48be"
+    }
+  ],
+  "workspace_tests": 413,
+  "all17_passed": true,
+  "main_merge": "56c9f04543249ad987e028f5347087c4b6013408",
+  "independent_driver_review": "ymp-evals/reports/ymp-126-independent-max-review.md",
+  "final_release_acceptance": "pending final UI/version/package source",
+  "native_inference_calls": 0,
+  "main_checks": [
+    {
+      "step": "fmt",
+      "exit": 0,
+      "seconds": 0.69,
+      "log": "/tmp/ymp-main-driver/fmt.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "step": "clippy",
+      "exit": 0,
+      "seconds": 6.91,
+      "log": "/tmp/ymp-main-driver/clippy.log",
+      "sha256": "0cbb08f57a5b9a4b577af7b1d9685b78ace41dd22080239705a8510e459d6110"
+    },
+    {
+      "step": "workspace",
+      "exit": 0,
+      "seconds": 75.42,
+      "log": "/tmp/ymp-main-driver/workspace.log",
+      "sha256": "20d859df1ac448017c25ef84c5345df5b2be8c93f4f8f57c817f5faf4ff1c686"
+    },
+    {
+      "step": "build",
+      "exit": 0,
+      "seconds": 0.14,
+      "log": "/tmp/ymp-main-driver/build.log",
+      "sha256": "a5f4c585ee974ca44916ac30a98bbc189e067a7e0a6bc6d2e8d6bc525be724af"
+    }
+  ],
+  "main_workspace_tests": 413,
+  "independent_verdict": "ACCEPT9/10 by fresh max reviewer; driver only, final release remains pending"
+}
