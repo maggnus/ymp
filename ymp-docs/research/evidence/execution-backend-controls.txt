@@ -1,0 +1,197 @@
+12/09 21:35 HKT — Negative control: bypass Engine common wrapper.
+Command: cargo test -p ymp-runtime backend_public_engine_ -- --nocapture
+Exit: 101
+   Compiling ymp-runtime v0.3.0 (/private/var/folders/cw/7pn8sb3x6bj69g7j2d8f_ss00000gn/T/ymp-release-work-h6oq_rys/122/ymp-rust/crates/ymp-runtime)
+warning: unused import: `run_turn_with_backend`
+  --> ymp-rust/crates/ymp-runtime/src/engine.rs:19:5
+   |
+19 |     run_turn_with_backend, ExecutionBackend, McpEndpoint, NativeExecutionBackend, ProviderEvent,
+   |     ^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` on by default
+
+warning: `ymp-runtime` (lib) generated 1 warning (run `cargo fix --lib -p ymp-runtime` to apply 1 suggestion)
+warning: `ymp-runtime` (lib test) generated 1 warning (1 duplicate)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.81s
+     Running unittests src/lib.rs (target/debug/deps/ymp_runtime-c2f7efa1ccec5d72)
+
+running 7 tests
+test engine::tests::backend_contract_tests::backend_public_engine_admission_precedes_script_execution ... ok
+test engine::tests::backend_contract_tests::backend_public_engine_executes_a_distinct_workflow_and_records_actual_identity ... ok
+
+thread 'engine::tests::backend_contract_tests::backend_public_engine_redacts_nested_capability_errors' panicked at ymp-rust/crates/ymp-runtime/src/backend_tests.rs:329:13:
+assertion failed: !rendered.contains(&token)
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test engine::tests::backend_contract_tests::backend_public_engine_redacts_nested_capability_errors ... FAILED
+
+thread 'engine::tests::backend_contract_tests::backend_public_engine_stops_result_overflow_and_drains_usage' panicked at ymp-rust/crates/ymp-runtime/src/backend_tests.rs:221:9:
+Agent did not return a complete JSON object
+test engine::tests::backend_contract_tests::backend_public_engine_stops_result_overflow_and_drains_usage ... FAILED
+
+thread 'engine::tests::backend_contract_tests::backend_public_engine_times_out_a_noncooperative_future' panicked at ymp-rust/crates/ymp-runtime/src/backend_tests.rs:277:10:
+common guard did not stop execution: Elapsed(())
+test engine::tests::backend_contract_tests::backend_public_engine_times_out_a_noncooperative_future ... FAILED
+
+thread 'engine::tests::backend_contract_tests::backend_public_engine_stops_stream_overflow_and_drains_usage' panicked at ymp-rust/crates/ymp-runtime/src/backend_tests.rs:219:10:
+common output guard did not stop execution: Elapsed(())
+
+thread 'engine::tests::backend_contract_tests::backend_public_engine_cancels_a_noncooperative_future' panicked at ymp-rust/crates/ymp-runtime/src/backend_tests.rs:277:10:
+common guard did not stop execution: Elapsed(())
+test engine::tests::backend_contract_tests::backend_public_engine_stops_stream_overflow_and_drains_usage ... FAILED
+test engine::tests::backend_contract_tests::backend_public_engine_cancels_a_noncooperative_future ... FAILED
+
+failures:
+
+failures:
+    engine::tests::backend_contract_tests::backend_public_engine_cancels_a_noncooperative_future
+    engine::tests::backend_contract_tests::backend_public_engine_redacts_nested_capability_errors
+    engine::tests::backend_contract_tests::backend_public_engine_stops_result_overflow_and_drains_usage
+    engine::tests::backend_contract_tests::backend_public_engine_stops_stream_overflow_and_drains_usage
+    engine::tests::backend_contract_tests::backend_public_engine_times_out_a_noncooperative_future
+
+test result: FAILED. 2 passed; 5 failed; 0 ignored; 0 measured; 49 filtered out; finished in 3.35s
+
+error: test failed, to rerun pass `-p ymp-runtime --lib`
+
+12/09 21:36 HKT — Negative control: omit backend identity from selection/configuration hash.
+Command: cargo test -p ymp-runtime backend_identity_scopes -- --nocapture
+Exit: 101
+   Compiling ymp-runtime v0.3.0 (/private/var/folders/cw/7pn8sb3x6bj69g7j2d8f_ss00000gn/T/ymp-release-work-h6oq_rys/122/ymp-rust/crates/ymp-runtime)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.91s
+     Running unittests src/lib.rs (target/debug/deps/ymp_runtime-c2f7efa1ccec5d72)
+
+running 1 test
+
+thread 'engine::tests::backend_contract_tests::backend_identity_scopes_continuations_and_competence_in_both_directions' panicked at ymp-rust/crates/ymp-runtime/src/backend_tests.rs:418:21:
+assertion `left != right` failed
+  left: "35f32ae4b17f896d03d343e5"
+ right: "35f32ae4b17f896d03d343e5"
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test engine::tests::backend_contract_tests::backend_identity_scopes_continuations_and_competence_in_both_directions ... FAILED
+
+failures:
+
+failures:
+    engine::tests::backend_contract_tests::backend_identity_scopes_continuations_and_competence_in_both_directions
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 55 filtered out; finished in 0.35s
+
+error: test failed, to rerun pass `-p ymp-runtime --lib`
+
+12/09 21:36 HKT — Negative control: erase captured invocation implementation.
+Command: cargo test -p ymp-runtime backend_public_engine_executes_a_distinct -- --nocapture
+Exit: 101
+   Compiling ymp-runtime v0.3.0 (/private/var/folders/cw/7pn8sb3x6bj69g7j2d8f_ss00000gn/T/ymp-release-work-h6oq_rys/122/ymp-rust/crates/ymp-runtime)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.47s
+     Running unittests src/lib.rs (target/debug/deps/ymp_runtime-c2f7efa1ccec5d72)
+
+running 1 test
+
+thread 'engine::tests::backend_contract_tests::backend_public_engine_executes_a_distinct_workflow_and_records_actual_identity' panicked at ymp-rust/crates/ymp-runtime/src/backend_tests.rs:159:13:
+assertion `left == right` failed
+  left: None
+ right: Some(ExecutionBackendIdentity { id: "example.series", version: "1" })
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test engine::tests::backend_contract_tests::backend_public_engine_executes_a_distinct_workflow_and_records_actual_identity ... FAILED
+
+failures:
+
+failures:
+    engine::tests::backend_contract_tests::backend_public_engine_executes_a_distinct_workflow_and_records_actual_identity
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 55 filtered out; finished in 0.08s
+
+error: test failed, to rerun pass `-p ymp-runtime --lib`
+
+12/09 21:37 HKT — Negative control: disable compatible context reuse while retaining its baseline.
+Command: cargo test -p ymp-runtime backend_identity_scopes -- --nocapture
+Exit: 101
+   Compiling ymp-runtime v0.3.0 (/private/var/folders/cw/7pn8sb3x6bj69g7j2d8f_ss00000gn/T/ymp-release-work-h6oq_rys/122/ymp-rust/crates/ymp-runtime)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.69s
+     Running unittests src/lib.rs (target/debug/deps/ymp_runtime-c2f7efa1ccec5d72)
+
+running 1 test
+
+thread 'engine::tests::backend_contract_tests::backend_identity_scopes_continuations_and_competence_in_both_directions' panicked at ymp-rust/crates/ymp-runtime/src/backend_tests.rs:471:13:
+assertion `left == right` failed
+  left: None
+ right: Some("script-4f52e0ea-5512-4b1b-86e5-18b3d340baa4")
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test engine::tests::backend_contract_tests::backend_identity_scopes_continuations_and_competence_in_both_directions ... FAILED
+
+failures:
+
+failures:
+    engine::tests::backend_contract_tests::backend_identity_scopes_continuations_and_competence_in_both_directions
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 55 filtered out; finished in 0.38s
+
+error: test failed, to rerun pass `-p ymp-runtime --lib`
+
+12/09 21:37 HKT — Negative control: skip common terminal observation drain.
+Command: cargo test -p ymp-runtime backend_public_engine_stops_stream_overflow -- --nocapture
+Exit: 101
+   Compiling ymp-providers v0.3.0 (/private/var/folders/cw/7pn8sb3x6bj69g7j2d8f_ss00000gn/T/ymp-release-work-h6oq_rys/122/ymp-rust/crates/ymp-providers)
+   Compiling ymp-runtime v0.3.0 (/private/var/folders/cw/7pn8sb3x6bj69g7j2d8f_ss00000gn/T/ymp-release-work-h6oq_rys/122/ymp-rust/crates/ymp-runtime)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 2.28s
+     Running unittests src/lib.rs (target/debug/deps/ymp_runtime-c2f7efa1ccec5d72)
+
+running 1 test
+
+thread 'engine::tests::backend_contract_tests::backend_public_engine_stops_stream_overflow_and_drains_usage' panicked at ymp-rust/crates/ymp-runtime/src/backend_tests.rs:232:13:
+assertion `left == right` failed
+  left: Some(7)
+ right: Some(9)
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test engine::tests::backend_contract_tests::backend_public_engine_stops_stream_overflow_and_drains_usage ... FAILED
+
+failures:
+
+failures:
+    engine::tests::backend_contract_tests::backend_public_engine_stops_stream_overflow_and_drains_usage
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 55 filtered out; finished in 0.37s
+
+error: test failed, to rerun pass `-p ymp-runtime --lib`
+
+12/09 21:37 HKT — Negative control: skip common request validation.
+Command: cargo test -p ymp-providers --test backend -- --nocapture
+Exit: 101
+   Compiling ymp-providers v0.3.0 (/private/var/folders/cw/7pn8sb3x6bj69g7j2d8f_ss00000gn/T/ymp-release-work-h6oq_rys/122/ymp-rust/crates/ymp-providers)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.81s
+     Running tests/backend.rs (target/debug/deps/backend-45e7df29c9ca6797)
+
+running 1 test
+
+thread 'backend_common_validation_rejects_invalid_settings_and_permission_mismatch' panicked at ymp-rust/crates/ymp-providers/tests/backend.rs:51:14:
+called `Result::unwrap_err()` on an `Ok` value: TurnResult { text: "invalid request ran", session_id: "invalid", usage: None }
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test backend_common_validation_rejects_invalid_settings_and_permission_mismatch ... FAILED
+
+failures:
+
+failures:
+    backend_common_validation_rejects_invalid_settings_and_permission_mismatch
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p ymp-providers --test backend`
+
+12/09 21:32 HKT — Pre-fix cumulative baseline regression (captured failure excerpt).
+Command: cargo test -p ymp-runtime backend_identity_scopes -- --nocapture
+Exit: 101
+assertion `left == right` failed: usage baseline belongs to a different continuation
+  left: Some(TokenCounts { input: Some(70), output: Some(30), cache_read: None, cache_write: None, reasoning: None })
+ right: None
+The replacement's second turn received the earlier implementation's cumulative totals.
+After binding the baseline to the successful typed continuation marker, the same command exited 0.
+
+12/09 21:39 HKT — Restored implementation verification.
+cargo fmt --all --check — exit 0.
+cargo clippy --workspace --all-targets -- -D warnings — exit 0.
+cargo test --workspace — exit 0 (217 tests; includes 8 backend runtime tests, the provider validation test, native transport tests, and upstream budget/authority controls).
+git diff --check — exit 0.
+Bridge checks were not rerun: TurnRequest, bridge source and transport serialization are unchanged. No real provider inference or native credential reads were performed.
+
+Scope of evidence: these checks establish compiled replacement and shared protocol controls, not model quality, strict native token ceilings or containment of malicious in-process code. Each deliberate mutant was restored before final verification.
+Upstream budget correction f215df35896d0293044da68d8958f47850cd42dd was cherry-picked as 7e0a40e before final workspace verification; it is separate from the YMP-122 outcome.

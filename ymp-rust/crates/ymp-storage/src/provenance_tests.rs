@@ -102,6 +102,7 @@ impl Fixture {
             id: new_id(),
             session_id: self.session.id.clone(),
             assignment_id: assignment.id.clone(),
+            execution_backend: None,
             turn,
             requested,
             sent: ExecutionSettings::default(),

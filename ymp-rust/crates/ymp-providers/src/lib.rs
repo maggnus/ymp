@@ -1,9 +1,14 @@
+mod backend;
 pub mod discovery;
 mod redaction;
 mod rpc;
 mod settings;
 pub mod supervisor;
 mod usage;
+
+pub use backend::{
+    ExecutionBackend, ExecutionBackendIdentity, ExecutionFuture, NativeExecutionBackend,
+};
 
 use anyhow::{bail, Context, Result};
 use rpc::RpcProcess;
@@ -77,13 +82,25 @@ pub async fn run_turn(
     cancel: CancellationToken,
     events: mpsc::UnboundedSender<ProviderEvent>,
 ) -> Result<TurnResult> {
+    run_turn_with_backend(&NativeExecutionBackend, req, cancel, events).await
+}
+
+/// Execute through the same validation, cancellation, timeout, output and
+/// diagnostic boundary as the built-in backend. Runtime admission stays upstream.
+pub async fn run_turn_with_backend(
+    backend: &dyn ExecutionBackend,
+    req: TurnRequest,
+    cancel: CancellationToken,
+    events: mpsc::UnboundedSender<ProviderEvent>,
+) -> Result<TurnResult> {
     let capability = req.mcp.as_ref().map(|mcp| mcp.token.clone());
-    run_turn_inner(req, cancel, events)
+    run_turn_inner(backend, req, cancel, events)
         .await
         .map_err(|error| redaction::team_capability(error, capability.as_deref()))
 }
 
 async fn run_turn_inner(
+    backend: &dyn ExecutionBackend,
     req: TurnRequest,
     cancel: CancellationToken,
     events: mpsc::UnboundedSender<ProviderEvent>,
@@ -101,21 +118,12 @@ async fn run_turn_inner(
             bail!("Requested permission guarantee is unsupported or disagrees with the assignment")
         }
     }
-    let _ = events.send(ProviderEvent::Execution(Box::new(InvocationObservation {
-        permission_limitations: vec![match req.provider.kind {
-            ProviderKind::Codex => "Codex receives the selected native sandbox and approval policy. Team API authorization does not contain host filesystem or process access.",
-            ProviderKind::Claude => "Claude receives native tool and permission settings. The SDK tool allowlist is not OS filesystem or process isolation.",
-            ProviderKind::Acp => "ACP receives an advertised permission mode and denies approval requests during read assignments. Approval callbacks and instructions are not OS filesystem or process isolation.",
-            ProviderKind::Mock => "Offline fixture execution has no native sandbox; team API checks cover coordination authority only.",
-        }.into()],
-        ..Default::default()
-    })));
     let timeout = req.timeout_secs;
     let max_output = req.resource_controls.max_output_chars;
     let (forward, mut rx) = mpsc::unbounded_channel();
     let mut output_chars = 0u64;
     let work = async {
-        let native = run_native(req, forward);
+        let native = backend.execute(req, forward);
         tokio::pin!(native);
         loop {
             tokio::select! {
@@ -208,6 +216,15 @@ async fn run_native(
     req: TurnRequest,
     events: mpsc::UnboundedSender<ProviderEvent>,
 ) -> Result<TurnResult> {
+    let _ = events.send(ProviderEvent::Execution(Box::new(InvocationObservation {
+        permission_limitations: vec![match req.provider.kind {
+            ProviderKind::Codex => "Codex receives the selected native sandbox and approval policy. Team API authorization does not contain host filesystem or process access.",
+            ProviderKind::Claude => "Claude receives native tool and permission settings. The SDK tool allowlist is not OS filesystem or process isolation.",
+            ProviderKind::Acp => "ACP receives an advertised permission mode and denies approval requests during read assignments. Approval callbacks and instructions are not OS filesystem or process isolation.",
+            ProviderKind::Mock => "Offline fixture execution has no native sandbox; team API checks cover coordination authority only.",
+        }.into()],
+        ..Default::default()
+    })));
     if req.provider.kind == ProviderKind::Mock {
         return mock_turn(&req, CancellationToken::new(), events).await;
     }

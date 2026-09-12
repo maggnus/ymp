@@ -128,11 +128,35 @@ pub struct ContextReference {
     pub included_chars: Option<usize>,
 }
 
+/// Runtime-selected implementation, distinct from provider/model observations.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ExecutionBackendIdentity {
+    pub id: String,
+    pub version: String,
+}
+
+impl ExecutionBackendIdentity {
+    pub fn validate(&self) -> anyhow::Result<()> {
+        for value in [&self.id, &self.version] {
+            anyhow::ensure!(
+                !value.is_empty()
+                    && value.len() <= 128
+                    && value.bytes().all(|c| c.is_ascii_alphanumeric() || b"._-+".contains(&c)),
+                "Execution backend ID and version must be nonempty identifiers of at most 128 ASCII letters, digits, dots, underscores, hyphens or plus signs"
+            );
+        }
+        Ok(())
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct InvocationRecord {
     pub id: String,
     pub session_id: String,
     pub assignment_id: String,
+    /// Captured before execution; legacy records retain unknown implementation.
+    #[serde(default)]
+    pub execution_backend: Option<ExecutionBackendIdentity>,
     /// Existing per-session usage ordinal, retained for backward compatibility.
     pub turn: u64,
     pub requested: ExecutionSettings,
