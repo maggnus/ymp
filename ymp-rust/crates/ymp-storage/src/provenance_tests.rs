@@ -242,16 +242,14 @@ fn wrong_scope_stale_attempt_and_identity_collisions_leave_no_partial_writes() {
         .begin_invocation(&duplicate_assignment, &duplicate_invocation)
         .is_err());
     let mut candidate = f.task.clone();
-    candidate.state = TaskState::Accepted;
+    candidate.state = TaskState::Review;
     let decision = DecisionRecord {
         id: new_id(),
         session_id: f.session.id.clone(),
-        kind: "acceptance".into(),
-        actor: Some("reviewer".into()),
-        reason: "Inspected this result".into(),
-        outcome: Some(DecisionOutcome::Accepted {
-            confirmation: ConfirmationStatus::Unconfirmed,
-        }),
+        kind: "result_submitted".into(),
+        actor: Some("writer".into()),
+        reason: "Produced this result".into(),
+        outcome: None,
         links: RecordLinks {
             task: Some(TaskAttemptRef::from(&candidate)),
             invocation_id: Some("nonexistent".into()),
@@ -259,16 +257,96 @@ fn wrong_scope_stale_attempt_and_identity_collisions_leave_no_partial_writes() {
         },
         created_at: now(),
     };
-    assert!(f
+    let error = f
         .store
         .save_task_with_decision(&candidate, &decision)
-        .is_err());
+        .unwrap_err();
+    assert!(matches!(
+        error.downcast_ref::<rusqlite::Error>(),
+        Some(rusqlite::Error::QueryReturnedNoRows)
+    ));
     let trace = f.store.trace(&f.session.id).unwrap();
     assert_eq!(trace.tasks[0].state, TaskState::Running);
     assert_eq!(trace.assignments.len(), 1);
     assert_eq!(trace.invocations.len(), 1);
     assert!(trace.decisions.is_empty());
     assert_eq!(trace.usage.total.calls, 1);
+}
+
+#[test]
+fn stale_task_decisions_cannot_rewind_attempts_or_overwrite_a_later_state() {
+    let f = Fixture::new();
+    let mut candidate = f.task.clone();
+    candidate.state = TaskState::Review;
+    candidate.result = Some("attempt-one candidate".into());
+    f.store.save_task(&candidate).unwrap();
+    let (mut assignment, invocation) = f.invocation(1);
+    assignment.agent_id = "reviewer".into();
+    assignment.purpose = "review".into();
+    f.store.begin_invocation(&assignment, &invocation).unwrap();
+    f.store
+        .finish_invocation(
+            &f.session.id,
+            &invocation.id,
+            InvocationState::Completed,
+            None,
+        )
+        .unwrap();
+    let mut accepted = candidate.clone();
+    accepted.state = TaskState::Accepted;
+    accepted.reviewer = Some("reviewer".into());
+    let decision = DecisionRecord {
+        id: new_id(),
+        session_id: f.session.id.clone(),
+        kind: "task_accepted".into(),
+        actor: Some("reviewer".into()),
+        reason: "Acceptance of attempt one".into(),
+        outcome: Some(DecisionOutcome::Accepted {
+            confirmation: ConfirmationStatus::Unknown,
+        }),
+        links: RecordLinks {
+            task: Some(TaskAttemptRef::from(&accepted)),
+            assignment_id: Some(assignment.id),
+            invocation_id: Some(invocation.id),
+            ..Default::default()
+        },
+        created_at: now(),
+    };
+    for (attempts, state) in [
+        (2, TaskState::Running),
+        (2, TaskState::Review),
+        (1, TaskState::Running),
+        (1, TaskState::Ready),
+        (1, TaskState::Accepted),
+        (1, TaskState::Blocked),
+    ] {
+        let mut current = candidate.clone();
+        current.attempts = attempts;
+        current.state = state;
+        current.result = Some("current result must survive".into());
+        f.store.save_task(&current).unwrap();
+        let before = serde_json::to_value(f.store.trace(&f.session.id).unwrap()).unwrap();
+        assert!(
+            f.store
+                .save_task_with_decision(&accepted, &decision)
+                .is_err(),
+            "stale acceptance overwrote attempt {attempts} in {state:?}"
+        );
+        assert_eq!(
+            serde_json::to_value(f.store.trace(&f.session.id).unwrap()).unwrap(),
+            before,
+            "a rejected stale write changed state or events"
+        );
+    }
+    // The same candidate can be accepted while its actual attempt is in review.
+    f.store.save_task(&candidate).unwrap();
+    f.store
+        .save_task_with_decision(&accepted, &decision)
+        .unwrap();
+    assert_eq!(
+        f.store.tasks(&f.session.id).unwrap()[0].state,
+        TaskState::Accepted
+    );
 }
 
 #[test]

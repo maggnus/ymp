@@ -112,7 +112,7 @@ impl Task {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct PlanTask {
     pub title: String,
     pub description: String,
@@ -133,7 +133,7 @@ fn standard() -> String {
     "standard".into()
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Plan {
     pub summary: String,
     pub tasks: Vec<PlanTask>,

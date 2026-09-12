@@ -733,7 +733,7 @@ impl Engine {
         actor: &str,
         response: &RecordedResponse,
         review: &Review,
-        task: Option<TaskAttemptRef>,
+        links: RecordLinks,
         kind: &str,
     ) -> Result<String> {
         let id = new_id();
@@ -751,14 +751,55 @@ impl Engine {
                 DecisionOutcome::Rejected
             }),
             links: RecordLinks {
-                task,
                 assignment_id: Some(response.assignment_id.clone()),
                 invocation_id: Some(response.invocation_id.clone()),
-                ..Default::default()
+                ..links
             },
             created_at: now(),
         })?;
         Ok(id)
+    }
+
+    fn record_plan_proposal(
+        &self,
+        ctx: &RunContext,
+        author: &AgentProfile,
+        response: RecordedResponse,
+        previous: Option<(&PlanVersion, &str)>,
+    ) -> Result<PlanVersion> {
+        let plan: Plan = parse_response(&response.text)?;
+        plan.validate()?;
+        let version = PlanVersion {
+            proposal_id: previous
+                .map(|(p, _)| p.proposal_id.clone())
+                .unwrap_or_else(new_id),
+            revision: previous.map(|(p, _)| p.revision + 1).unwrap_or(1),
+            producer_assignment_id: response.assignment_id.clone(),
+            producer_invocation_id: response.invocation_id.clone(),
+            plan,
+        };
+        self.store.record_decision(&DecisionRecord {
+            id: new_id(),
+            session_id: ctx.session.id.clone(),
+            kind: "plan_proposed".into(),
+            actor: Some(author.id.clone()),
+            reason: format!(
+                "Plan proposal revision {}: {}",
+                version.revision, version.plan.summary
+            ),
+            outcome: None,
+            links: RecordLinks {
+                assignment_id: Some(response.assignment_id),
+                invocation_id: Some(response.invocation_id),
+                review_ids: previous
+                    .map(|(_, review)| vec![review.into()])
+                    .unwrap_or_default(),
+                plan_proposal: Some(version.clone()),
+                ..Default::default()
+            },
+            created_at: now(),
+        })?;
+        Ok(version)
     }
 
     fn publish_usage(&self, session: &str) -> Result<()> {
@@ -947,7 +988,14 @@ impl Engine {
         )?;
         let response=self.ask_scoped(ctx,&verifier,&ctx.workspace.directory,"final_review",&format!("Independently inspect the final result against the ORIGINAL REQUEST:\n{prompt}\nAll listed checks were run by ymp. Return only JSON {{\"approved\":true|false,\"reason\":\"specific evidence and any gaps\"}}. Do not approve based solely on peer claims."),true,None).await?;
         let review: Review = parse_response(&response.text)?;
-        self.record_review(ctx, &verifier.id, &response, &review, None, "final_review")?;
+        self.record_review(
+            ctx,
+            &verifier.id,
+            &response,
+            &review,
+            RecordLinks::default(),
+            "final_review",
+        )?;
         if !review.approved {
             bail!("Final review rejected the result: {}", review.reason);
         }
@@ -1096,7 +1144,7 @@ impl Engine {
             let p = instruction.clone();
             work.spawn(async move {
                 let r = e
-                    .ask(&c, &a, &c.workspace.directory, "plan", &p, true)
+                    .ask_scoped(&c, &a, &c.workspace.directory, "plan", &p, true, None)
                     .await;
                 (a, r)
             });
@@ -1104,13 +1152,9 @@ impl Engine {
         let mut proposals = Vec::new();
         while let Some(result) = work.join_next().await {
             let (agent, result) = result?;
-            match result
-                .and_then(|s| parse_response::<Plan>(&s))
-                .and_then(|p| {
-                    p.validate()?;
-                    Ok(p)
-                }) {
-                Ok(plan) => proposals.push((agent, plan)),
+            match result.and_then(|response| self.record_plan_proposal(ctx, &agent, response, None))
+            {
+                Ok(proposal) => proposals.push((agent, proposal)),
                 Err(e) => {
                     self.post(
                         &ctx.session.id,
@@ -1132,7 +1176,7 @@ impl Engine {
                 .iter()
                 .position(|(a, _)| a.id == author.id)
                 .context("Missing proposal")?;
-            let (_, mut plan) = proposals.remove(index);
+            let (_, mut proposal) = proposals.remove(index);
             let peers = ctx
                 .session
                 .team
@@ -1143,7 +1187,7 @@ impl Engine {
             let reviewer = self.choose(ctx, &peers, "verification", "standard", "plan review")?;
             let mut accepted_review = None;
             for attempt in 0..ctx.limits.attempts {
-                let review_prompt = format!("Review this proposed plan against the user's request. Check completeness, meaningful acceptance checks, dependencies, and unnecessary work.\nRequest: {prompt}\nPlan: {}\nReturn ONLY JSON {{\"approved\":true|false,\"reason\":\"specific justification\"}}.", serde_json::to_string(&plan)?);
+                let review_prompt = format!("Review this proposed plan against the user's request. Check completeness, meaningful acceptance checks, dependencies, and unnecessary work.\nRequest: {prompt}\nPlan: {}\nReturn ONLY JSON {{\"approved\":true|false,\"reason\":\"specific justification\"}}.", serde_json::to_string(&proposal.plan)?);
                 let response = self
                     .ask_scoped(
                         ctx,
@@ -1156,32 +1200,50 @@ impl Engine {
                     )
                     .await?;
                 let review: Review = parse_response(&response.text)?;
-                let review_id =
-                    self.record_review(ctx, &reviewer.id, &response, &review, None, "plan_review")?;
+                let review_id = self.record_review(
+                    ctx,
+                    &reviewer.id,
+                    &response,
+                    &review,
+                    RecordLinks {
+                        plan_proposal: Some(proposal.clone()),
+                        ..Default::default()
+                    },
+                    "plan_review",
+                )?;
                 if review.approved {
                     accepted_review = Some((response, review_id, review.reason));
                     break;
                 }
                 if attempt + 1 < ctx.limits.attempts {
-                    let response = self.ask(ctx, &author, &ctx.workspace.directory, "plan", &format!("Revise your plan to address this independent review: {}. Return the same JSON plan schema. Original request: {prompt}", review.reason), true).await?;
-                    plan = parse_response(&response)?;
-                    plan.validate()?;
+                    let response = self.ask_scoped(ctx, &author, &ctx.workspace.directory, "plan", &format!("Revise your plan to address this independent review: {}. Return the same JSON plan schema. Original request: {prompt}", review.reason), true, None).await?;
+                    proposal = self.record_plan_proposal(
+                        ctx,
+                        &author,
+                        response,
+                        Some((&proposal, &review_id)),
+                    )?;
                 }
             }
             if let Some(review) = accepted_review {
-                selected = Some((author, plan, review));
+                selected = Some((author, proposal, review));
                 break;
             }
             self.post(&ctx.session.id, "ymp", "notice", &format!("{}'s proposal exhausted its revision attempts. Considering another participant's proposal.", author.name))?;
         }
-        let (author, plan, (review_response, review_id, review_reason)) =
+        let (author, proposal, (review_response, review_id, review_reason)) =
             selected.context("No proposed plan passed independent review")?;
         // Planning credit is deferred until the whole plan succeeds (recorded below).
         self.store
             .put_value(&format!("plan_author:{}", ctx.session.id), &json!(author))?;
-        let ids = plan.tasks.iter().map(|_| new_id()).collect::<Vec<_>>();
+        let ids = proposal
+            .plan
+            .tasks
+            .iter()
+            .map(|_| new_id())
+            .collect::<Vec<_>>();
         let mut tasks = Vec::new();
-        for (i, t) in plan.tasks.into_iter().enumerate() {
+        for (i, t) in proposal.plan.tasks.clone().into_iter().enumerate() {
             let task = Task {
                 id: ids[i].clone(),
                 session_id: ctx.session.id.clone(),
@@ -1209,13 +1271,14 @@ impl Engine {
                 session_id: ctx.session.id.clone(),
                 kind: "plan_committed".into(),
                 actor: None,
-                reason: format!("{}: {}", plan.summary, review_reason),
+                reason: format!("{}: {}", proposal.plan.summary, review_reason),
                 outcome: None,
                 links: RecordLinks {
                     related_task_ids: tasks.iter().map(|t| t.id.clone()).collect(),
                     assignment_id: Some(review_response.assignment_id),
                     invocation_id: Some(review_response.invocation_id),
                     review_ids: vec![review_id],
+                    plan_proposal: Some(proposal.clone()),
                     ..Default::default()
                 },
                 created_at: now(),
@@ -1224,7 +1287,12 @@ impl Engine {
         for task in &tasks {
             let _ = self.events.send(UiEvent::Task(task.clone()));
         }
-        self.post(&ctx.session.id, "ymp", "plan_accepted", &plan.summary)?;
+        self.post(
+            &ctx.session.id,
+            "ymp",
+            "plan_accepted",
+            &proposal.plan.summary,
+        )?;
         Ok(tasks)
     }
 
@@ -1350,7 +1418,10 @@ impl Engine {
             &reviewer.id,
             &response,
             &review,
-            Some(TaskAttemptRef::from(&*task)),
+            RecordLinks {
+                task: Some(TaskAttemptRef::from(&*task)),
+                ..Default::default()
+            },
             "candidate_review",
         )?];
         let mut review_response = response;
@@ -1375,7 +1446,10 @@ impl Engine {
                 &arbiter.id,
                 &response,
                 &arbitration,
-                Some(TaskAttemptRef::from(&*task)),
+                RecordLinks {
+                    task: Some(TaskAttemptRef::from(&*task)),
+                    ..Default::default()
+                },
                 "candidate_arbitration",
             )?);
             review_response = response;
@@ -1571,6 +1645,187 @@ mod tests {
                 .await
                 .unwrap()
         }
+    }
+
+    #[tokio::test]
+    async fn every_planner_invocation_has_a_production_decision() {
+        for instructions in ["", "[mock:reject:review_plan]"] {
+            let fixture = RunFixture::new(instructions, false);
+            let outcome = fixture.run().await;
+            let trace = fixture.store.trace(&outcome.session.id).unwrap();
+            let producers = trace
+                .assignments
+                .iter()
+                .filter(|a| a.purpose == "plan")
+                .collect::<Vec<_>>();
+            assert_eq!(producers.len(), if instructions.is_empty() { 2 } else { 4 });
+            for producer in producers {
+                let invocation = trace
+                    .invocations
+                    .iter()
+                    .find(|i| i.assignment_id == producer.id)
+                    .unwrap();
+                assert!(
+                    trace
+                        .decisions
+                        .iter()
+                        .any(|d| d.links.assignment_id.as_deref() == Some(&producer.id)
+                            && d.links.invocation_id.as_deref() == Some(&invocation.id)),
+                    "planner invocation {} has no production decision",
+                    invocation.id
+                );
+            }
+            let proposals = trace
+                .decisions
+                .iter()
+                .filter(|d| d.kind == "plan_proposed")
+                .collect::<Vec<_>>();
+            for proposal in proposals {
+                let version = proposal.links.plan_proposal.as_ref().unwrap();
+                assert_eq!(
+                    proposal.links.assignment_id.as_ref(),
+                    Some(&version.producer_assignment_id)
+                );
+                assert_eq!(
+                    proposal.links.invocation_id.as_ref(),
+                    Some(&version.producer_invocation_id)
+                );
+                if version.revision > 1 {
+                    let rejected = trace
+                        .decisions
+                        .iter()
+                        .find(|d| proposal.links.review_ids.contains(&d.id))
+                        .unwrap();
+                    assert_eq!(rejected.outcome, Some(DecisionOutcome::Rejected));
+                    let previous = rejected.links.plan_proposal.as_ref().unwrap();
+                    assert_eq!(previous.proposal_id, version.proposal_id);
+                    assert_eq!(previous.revision + 1, version.revision);
+                    assert_ne!(
+                        previous.producer_invocation_id,
+                        version.producer_invocation_id
+                    );
+                }
+            }
+            if instructions.is_empty() {
+                assert_committed_plan_sources(&trace, 1);
+            } else {
+                assert!(!trace.decisions.iter().any(|d| d.kind == "plan_committed"));
+            }
+        }
+    }
+
+    fn assert_committed_plan_sources(trace: &SessionTrace, revision: usize) {
+        let committed = trace
+            .decisions
+            .iter()
+            .find(|d| d.kind == "plan_committed")
+            .unwrap();
+        let version = committed.links.plan_proposal.as_ref().unwrap();
+        assert_eq!(version.revision, revision);
+        let production = trace
+            .decisions
+            .iter()
+            .find(|d| d.kind == "plan_proposed" && d.links.plan_proposal.as_ref() == Some(version))
+            .unwrap();
+        let review = trace
+            .decisions
+            .iter()
+            .find(|d| committed.links.review_ids.contains(&d.id))
+            .unwrap();
+        assert_eq!(review.kind, "plan_review");
+        assert_eq!(review.links.plan_proposal.as_ref(), Some(version));
+        assert_eq!(committed.links.assignment_id, review.links.assignment_id);
+        assert_eq!(committed.links.invocation_id, review.links.invocation_id);
+        assert_eq!(
+            production.links.assignment_id.as_ref(),
+            Some(&version.producer_assignment_id)
+        );
+        assert_eq!(
+            production.links.invocation_id.as_ref(),
+            Some(&version.producer_invocation_id)
+        );
+        assert_ne!(production.links.invocation_id, review.links.invocation_id);
+        assert_ne!(production.actor, review.actor);
+        assert_eq!(trace.tasks.len(), version.plan.tasks.len());
+        for (task, proposed) in trace.tasks.iter().zip(&version.plan.tasks) {
+            assert_eq!(task.title, proposed.title);
+            assert_eq!(task.description, proposed.description);
+            assert_eq!(task.checks, proposed.checks);
+        }
+    }
+
+    #[tokio::test]
+    async fn revised_plan_commit_identifies_the_new_producer_and_rejected_predecessor() {
+        let fixture = RunFixture::new("[mock:revise-plan]", false);
+        let outcome = fixture.run().await;
+        assert_eq!(outcome.session.status, "completed");
+        let trace = fixture.store.trace(&outcome.session.id).unwrap();
+        assert_committed_plan_sources(&trace, 2);
+        let revisions = trace
+            .decisions
+            .iter()
+            .filter(|d| d.kind == "plan_proposed")
+            .collect::<Vec<_>>();
+        assert_eq!(revisions.len(), 3);
+        let revised = revisions
+            .iter()
+            .find(|d| d.links.plan_proposal.as_ref().unwrap().revision == 2)
+            .unwrap();
+        let rejected = trace
+            .decisions
+            .iter()
+            .find(|d| revised.links.review_ids.contains(&d.id))
+            .unwrap();
+        assert_eq!(rejected.outcome, Some(DecisionOutcome::Rejected));
+        let old_version = rejected.links.plan_proposal.as_ref().unwrap();
+        let new_version = revised.links.plan_proposal.as_ref().unwrap();
+        assert_eq!(old_version.proposal_id, new_version.proposal_id);
+        assert_eq!(old_version.revision, 1);
+        assert_ne!(
+            old_version.producer_invocation_id,
+            new_version.producer_invocation_id
+        );
+        assert_ne!(old_version.plan, new_version.plan);
+        let committed = trace
+            .decisions
+            .iter()
+            .find(|d| d.kind == "plan_committed")
+            .unwrap();
+        for mismatch in ["content", "review_version", "producer"] {
+            let mut forged = committed.clone();
+            forged.id = new_id();
+            let version = forged.links.plan_proposal.as_mut().unwrap();
+            match mismatch {
+                "content" => version.plan.summary = "A different proposal body".into(),
+                "review_version" => *version = old_version.clone(),
+                "producer" => {
+                    version.producer_assignment_id = forged.links.assignment_id.clone().unwrap()
+                }
+                _ => unreachable!(),
+            }
+            let mut tasks = trace.tasks.clone();
+            for task in &mut tasks {
+                task.id = new_id();
+            }
+            forged.links.related_task_ids = tasks.iter().map(|t| t.id.clone()).collect();
+            assert!(
+                fixture
+                    .store
+                    .save_plan_with_decision(&tasks, &forged)
+                    .is_err(),
+                "accepted mismatched plan {mismatch}"
+            );
+            assert_eq!(
+                serde_json::to_value(fixture.store.trace(&outcome.session.id).unwrap()).unwrap(),
+                serde_json::to_value(&trace).unwrap(),
+                "invalid plan {mismatch} changed state or history"
+            );
+        }
+        let reopened = Store::open_read_only(&fixture.store.home).unwrap();
+        assert_eq!(
+            serde_json::to_value(reopened.trace(&outcome.session.id).unwrap()).unwrap(),
+            serde_json::to_value(trace).unwrap()
+        );
     }
 
     #[tokio::test]

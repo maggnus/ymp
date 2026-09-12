@@ -144,6 +144,88 @@ fn validate_links(db: &Connection, decision: &DecisionRecord) -> Result<()> {
             );
         }
     }
+    if let Some(version) = &decision.links.plan_proposal {
+        validate_plan_version(db, decision, version)?;
+    }
+    Ok(())
+}
+
+fn validate_plan_version(
+    db: &Connection,
+    decision: &DecisionRecord,
+    version: &PlanVersion,
+) -> Result<()> {
+    ensure!(
+        !version.proposal_id.is_empty() && version.revision > 0,
+        "Plan proposal needs an identity and revision"
+    );
+    version.plan.validate()?;
+    let producer: AssignmentRecord = record(db, "assignments", &version.producer_assignment_id)?;
+    let invocation: InvocationRecord = record(db, "invocations", &version.producer_invocation_id)?;
+    ensure!(
+        producer.session_id == decision.session_id
+            && invocation.session_id == decision.session_id
+            && invocation.assignment_id == producer.id,
+        "Plan producer belongs to another assignment or session"
+    );
+    ensure!(
+        producer.purpose == "plan" && invocation.state == InvocationState::Completed,
+        "Plan producer must be a completed planning invocation"
+    );
+    let proposals = records::<DecisionRecord>(db, "decisions", &decision.session_id)?
+        .into_iter()
+        .filter(|d| d.kind == "plan_proposed")
+        .filter_map(|d| d.links.plan_proposal)
+        .filter(|p| p.proposal_id == version.proposal_id)
+        .collect::<Vec<_>>();
+    let existing = proposals.iter().find(|p| p.revision == version.revision);
+    if decision.kind == "plan_proposed" {
+        ensure!(existing.is_none(), "Plan proposal revision already exists");
+        ensure!(
+            decision.links.assignment_id.as_ref() == Some(&producer.id)
+                && decision.links.invocation_id.as_ref() == Some(&invocation.id)
+                && decision.actor.as_ref() == Some(&producer.agent_id),
+            "Plan production decision must identify its producer"
+        );
+        if version.revision > 1 {
+            ensure!(
+                proposals.iter().any(|p| p.revision == version.revision - 1),
+                "Previous plan proposal revision is missing"
+            );
+            ensure!(
+                decision
+                    .links
+                    .review_ids
+                    .iter()
+                    .any(
+                        |id| record::<DecisionRecord>(db, "decisions", id).is_ok_and(
+                            |review| review.outcome == Some(DecisionOutcome::Rejected)
+                                && review
+                                    .links
+                                    .plan_proposal
+                                    .as_ref()
+                                    .is_some_and(|prior| prior.proposal_id == version.proposal_id
+                                        && prior.revision == version.revision - 1)
+                        )
+                    ),
+                "Plan revision must link the rejected review of its predecessor"
+            );
+        }
+    } else {
+        ensure!(
+            existing == Some(version),
+            "Plan proposal content or producer differs from the recorded version"
+        );
+        if decision.kind == "plan_committed" {
+            for id in &decision.links.review_ids {
+                let review: DecisionRecord = record(db, "decisions", id)?;
+                ensure!(
+                    review.links.plan_proposal.as_ref() == Some(version),
+                    "Plan commitment review refers to another proposal version"
+                );
+            }
+        }
+    }
     Ok(())
 }
 
@@ -459,7 +541,7 @@ impl Store {
         Ok(())
     }
 
-    /// Append a linked decision and the task transition atomically. This records
+    /// Commit submission or review against the current task attempt. This records
     /// a decision; acceptance and confirmation validation belongs to the runtime.
     pub fn save_task_with_decision(&self, task: &Task, value: &DecisionRecord) -> Result<()> {
         ensure!(
@@ -469,6 +551,27 @@ impl Store {
         );
         let mut db = self.db()?;
         let tx = db.transaction()?;
+        let previous: Task = record(&tx, "tasks", &task.id)?;
+        ensure!(
+            previous.session_id == task.session_id,
+            "Task belongs to another session"
+        );
+        ensure!(
+            previous.attempts == task.attempts && previous.assignee == task.assignee,
+            "Task attempt or assignee changed before the decision was committed"
+        );
+        ensure!(
+            matches!(
+                (previous.state, task.state),
+                (TaskState::Running, TaskState::Review)
+                    | (
+                        TaskState::Review,
+                        TaskState::Accepted | TaskState::Ready | TaskState::Blocked
+                    )
+            ),
+            "Task state changed before the decision was committed"
+        );
+        validate_links(&tx, value)?;
         super::write_task(&tx, task)?;
         decision(&tx, value)?;
         tx.commit()?;

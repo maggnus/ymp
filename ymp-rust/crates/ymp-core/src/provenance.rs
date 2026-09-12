@@ -1,6 +1,6 @@
 //! Runtime-owned provenance. These records describe authority and evidence links;
 //! they do not issue permissions or establish confirmation by themselves.
-use crate::{AgentProfile, Limits, Session, SessionUsage, Task, UsageSnapshot};
+use crate::{AgentProfile, Limits, Plan, Session, SessionUsage, Task, UsageSnapshot};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::path::PathBuf;
@@ -157,6 +157,17 @@ pub struct InvocationObservation {
     pub usage: Option<UsageSnapshot>,
 }
 
+/// An exact proposal version and the native invocation that produced it. Keeping
+/// the structured plan here binds reviews and commitments to the same content.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PlanVersion {
+    pub proposal_id: String,
+    pub revision: usize,
+    pub producer_assignment_id: String,
+    pub producer_invocation_id: String,
+    pub plan: Plan,
+}
+
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RecordLinks {
     pub task: Option<TaskAttemptRef>,
@@ -167,6 +178,8 @@ pub struct RecordLinks {
     pub review_ids: Vec<String>,
     pub confirmation_ids: Vec<String>,
     pub evidence_ids: Vec<String>,
+    #[serde(default)]
+    pub plan_proposal: Option<PlanVersion>,
 }
 
 /// A concise runtime decision with explicit supporting record identities. Future

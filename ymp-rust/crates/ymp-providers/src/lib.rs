@@ -377,6 +377,11 @@ async fn mock_turn(
     {
         bail!("Mock provider failure during {}", req.purpose);
     }
+    // The revision fixture responds to the current assignment, independently of
+    // earlier proposals retained in shared-message context.
+    let marker = format!("Your current assignment ({}):\n", req.purpose);
+    let assignment = req.prompt.rsplit(&marker).next().unwrap_or(&req.prompt);
+    let revise_plan = req.profile.instructions.contains("[mock:revise-plan]");
     let text=match req.purpose.as_str(){
         "conversation" => {
             if !req.prompt.contains("Original request:") || !req.prompt.contains("Previous outcome:") {
@@ -385,9 +390,9 @@ async fn mock_turn(
             let path = req.cwd.join("greeting.txt");
             json!({"action":"answer","answer":if path.exists() {format!("The file is located at {}",path.display())} else {"The earlier run did not create a file.".into()}}).to_string()
         },
-        "plan"=>json!({"summary":"Create and verify a small deliverable","tasks":[{"title":"Create a greeting","description":"Write greeting.txt containing Hello from ymp","competence":"implementation","difficulty":"simple","dependencies":[],"checks":["test -f greeting.txt && grep -q 'Hello from ymp' greeting.txt"]}]}).to_string(),
+        "plan"=>json!({"summary":if revise_plan && assignment.starts_with("Revise your plan") {"Revised mock plan"} else {"Create and verify a small deliverable"},"tasks":[{"title":"Create a greeting","description":"Write greeting.txt containing Hello from ymp","competence":"implementation","difficulty":"simple","dependencies":[],"checks":["test -f greeting.txt && grep -q 'Hello from ymp' greeting.txt"]}]}).to_string(),
         "review_plan"|"review"|"final_review"|"review_memory"=>{
-            if req.profile.instructions.contains(&format!("[mock:reject:{}]",req.purpose)) {
+            if req.profile.instructions.contains(&format!("[mock:reject:{}]",req.purpose)) || (revise_plan && req.purpose == "review_plan" && !assignment.contains("Revised mock plan")) {
                 json!({"approved":false,"reason":"The requested result is incomplete."}).to_string()
             } else {
                 json!({"approved":true,"reason":"The stated acceptance criteria are satisfied.","lesson":"Check the produced artifact against the requested content."}).to_string()
