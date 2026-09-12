@@ -2634,7 +2634,7 @@ fn providers(ctx: &Ctx) -> Page {
         hints: vec![
             ("Space", "enable or disable"),
             ("r", "re-read what is stored"),
-            ("R", "ask this installation what it offers"),
+            ("R", "ask this installation"),
             ("Esc", "back"),
         ],
     }

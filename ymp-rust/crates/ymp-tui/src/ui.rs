@@ -254,7 +254,9 @@ fn status(frame: &mut Frame, area: Rect, app: &App, page_hints: &[(&'static str,
         theme.muted(),
     ));
     right.extend(frame::key_hints(&hints(app, page_hints), theme));
-    frame::row(frame, area, left, right);
+    // What the window is doing outranks the list of keys: a long hint list must not take the
+    // status text away, which is how a reader learns that a reading is running.
+    frame::header(frame, area, left, right);
 }
 
 /// The keys worth naming right now. A page states its own; the conversation states the

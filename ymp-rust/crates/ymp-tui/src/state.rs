@@ -1295,6 +1295,14 @@ impl App {
                     View::Providers => Some(item.key.clone()),
                     _ => None,
                 };
+                if let Some(id) = provider.as_deref() {
+                    if !self.config.provider(id).is_ok_and(|p| p.enabled) {
+                        self.fail(format!(
+                            "{id} is disabled, so nothing would be asked of it. Enable it with Space first."
+                        ));
+                        return Vec::new();
+                    }
+                }
                 return vec![Action::RefreshCatalog { provider }];
             }
             (View::Agents, KeyCode::Char('m')) => {

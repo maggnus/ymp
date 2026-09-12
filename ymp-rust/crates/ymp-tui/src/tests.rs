@@ -4773,3 +4773,54 @@ async fn a_captured_member_shows_what_its_turns_ran_with_before_what_its_profile
         "a profile field outranked the recorded turns: {row}"
     );
 }
+
+#[test]
+fn the_status_line_keeps_what_the_window_is_doing_at_every_supported_size() {
+    let fixture = fixture();
+    let mut app = fixture.app();
+    app.command("/providers", 100);
+    app.status = "Asking glm what it offers".into();
+    for (width, height) in SUPPORTED_SIZES.iter().copied() {
+        let rows = screen_rows(&mut app, width, height);
+        let line = rows.last().expect("a status line").clone();
+        assert!(
+            line.contains("Asking glm what it offers"),
+            "the hints took the status away at {width}x{height}:\n{line}"
+        );
+    }
+}
+
+#[test]
+fn asking_a_disabled_installation_is_refused_with_its_reason() {
+    let fixture = fixture();
+    let mut config = Config::default();
+    let disabled = config.providers[2].id.clone();
+    config.providers[2].enabled = false;
+    let mut app = App::new(
+        fixture.store.clone(),
+        config,
+        PathBuf::from(fixture.project.path()),
+    );
+    app.command("/providers", 100);
+    app.page_selected = app
+        .page(100)
+        .items
+        .iter()
+        .position(|item| item.key == disabled)
+        .expect("the disabled provider has a row");
+
+    let actions = app.on_key(KeyEvent::new(KeyCode::Char('R'), KeyModifiers::SHIFT), 100);
+    assert!(
+        actions.is_empty(),
+        "a disabled installation was asked anyway: {actions:?}"
+    );
+    let notice = app.notices.last().expect("the refusal is reported");
+    assert!(
+        notice.failure
+            && notice
+                .text
+                .contains("is disabled, so nothing would be asked"),
+        "the refusal does not say why: {}",
+        notice.text
+    );
+}
