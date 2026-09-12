@@ -1392,7 +1392,8 @@
         "[Team and effort policy](../architecture/team-and-effort-policy.md)",
         "[Domain terminology](../product/entities.md)",
         "[Delivery plan](plan.md)",
-        "[Replaceable subsystem contracts](../architecture/subsystem-interfaces.md)"
+        "[Replaceable subsystem contracts](../architecture/subsystem-interfaces.md)",
+        "[Independent board and knowledge UI review](../../ymp-evals/reports/board-knowledge-ui-independent-review.md)"
       ],
       "history": [
         {
@@ -1474,6 +1475,11 @@
           "at": "2026-09-12T21:14:51.092170+00:00",
           "status": "in_progress",
           "note": "Opus f4ad62c closes all minor native-interface findings and is independently accepted in R3: labels match all seven tools, and the captured-name regression now fails under the previously surviving mutation. It is included in the checked128 composition for integration. Full existing-page board views continue with114; no native inference."
+        },
+        {
+          "at": "2026-09-12T22:27:49.055979+00:00",
+          "status": "in_progress",
+          "note": "Independent Opus review accepts completed board/knowledge compositionf6b58fa (9/10), including actual terminal walks and5 discriminating controls. Accepted views are integrated; main checks run with accepted runtime reservations. Two local follow-ups remain before closure: use the actual board/correction outcome in decision list rows, and expose declared contract input/source-replacement paths. Opus also adds visibility for new captured budget fields. The stopped Paseo daemon was authoritatively diagnosed and restarted; the same author session resumed."
         }
       ]
     },
@@ -1607,7 +1613,8 @@
         "[English product requirements](../product/requirements.md)",
         "[Agent and decision contract](../adr/0002-agent-identity-and-reasoning.md)",
         "[Delivery plan](plan.md)",
-        "[Replaceable subsystem contracts](../architecture/subsystem-interfaces.md)"
+        "[Replaceable subsystem contracts](../architecture/subsystem-interfaces.md)",
+        "[Independent board and knowledge UI review](../../ymp-evals/reports/board-knowledge-ui-independent-review.md)"
       ],
       "history": [
         {
@@ -1674,6 +1681,11 @@
           "at": "2026-09-12T20:12:36.201969+00:00",
           "status": "in_progress",
           "note": "Correction/board/native composition0e8059e accepted by parent (9/10) and integrated asb249195. Main exactly matches reviewed source; fmt/clippy327workspace/build pass. Evidence-bound correction and later scoped retrieval are implemented. Delegated Opus current/superseded knowledge view remains."
+        },
+        {
+          "at": "2026-09-12T22:27:49.134344+00:00",
+          "status": "in_progress",
+          "note": "Current/superseded knowledge views and real95-to60 terminal walkthrough independently accepted by Opus (9/10), now integrated with board views. Both sides retain acceptance, result and policy links. Final local UI correction must show declared input and old/new source paths in the captured contract; author is completing it with the other bounded UI follow-ups."
         }
       ]
     },
@@ -2764,6 +2776,11 @@
           "at": "2026-09-12T22:17:53.608461+00:00",
           "status": "in_progress",
           "note": "All17 scenarios now have actual preparation passes; a single-build combined run is underway. Exporter corrections independently accepted by parent after4 discriminating controls. Accepted runtime-only compositionfcbe5add is integrated and being checked on main; full driver and captured unknown-usage/restart policy still require independent acceptance. A disk-full compilation interruption was preserved as an environment failure; completed caches were reclaimed without deleting source, reports or accepted binaries."
+        },
+        {
+          "at": "2026-09-12T22:27:49.191989+00:00",
+          "status": "in_progress",
+          "note": "One-build all17 bundle passed at /tmp/ymp126-all-first-20260912. Driver source now incorporates accepted main as a8493ac for final checks and evidence regeneration. Runtime R2 and exporter corrections are independently accepted; captured Stop/BoundedNative policy and actual two-process restart remain under independent review. DefaultStop is preserved; bounded mode never hides partial accounting, disables the100 reported ceiling or erases prior spend."
         }
       ]
     },
@@ -2897,7 +2914,7 @@
       ]
     }
   ],
-  "updated_at": "2026-09-12T22:17:53.608461+00:00",
+  "updated_at": "2026-09-12T22:27:49.191989+00:00",
   "delivery_order": [
     "YMP-116",
     "YMP-103",
