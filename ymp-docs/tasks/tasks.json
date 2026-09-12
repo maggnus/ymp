@@ -2323,7 +2323,8 @@
         "YMP-110",
         "YMP-113",
         "YMP-126",
-        "YMP-127"
+        "YMP-127",
+        "YMP-128"
       ],
       "reason": "A local release needs a reproducible install and truthful compatibility evidence for the configured native providers.",
       "acceptance": [
@@ -2743,6 +2744,11 @@
           "at": "2026-09-12T20:21:56.530003+00:00",
           "status": "in_progress",
           "note": "The unchanged budget-reservations scenario now passes, bringing actual driver coverage to10 of17 cases. Scripted usage totals80 units (agent a65, b15),20 remain, no live reservations remain, and all3 denied requests start no invocation. Optional captured review reserve and per-assignment token reservation preserve previous behavior when absent. Race, pin and unknown-usage controls are still being added before independent acceptance; exporter corrections and remaining adapters continue."
+        },
+        {
+          "at": "2026-09-12T21:07:10.808655+00:00",
+          "status": "in_progress",
+          "note": "Driver preparation now passes11 of17 cases, including fixed roster, and accepted main897b4eb is composed as812b101. Independent runtime-delta review requests changes (7/10): a caller can understate context size and execute an oversized prompt; a second process can reserve conflicting work despite the project lock. Both exact public controls fail as expected, while3 storage and4 existing public tests pass. The unaccepted delta remains outside main; author is correcting both enforced boundaries before resubmission."
         }
       ]
     },
@@ -2824,9 +2830,49 @@
           "note": "Native scan-derived names are implemented end to end and independently accepted by Opus (9/10). Supported owner-home refresh retains the original team/configuration and1237 history rows while exposing19 offerings. Current maincf89f61 binary displays native names in pool/team, sidebar, transcript, assignments and usage; historical identities remain captured. Main375 tests and required checks pass;10 native protocol fixtures and bridge checks pass on identical candidate bytes. Installed release remains pending121."
         }
       ]
+    },
+    {
+      "id": "YMP-128",
+      "title": "Support internal team transport with long metadata paths",
+      "type": "implementation",
+      "priority": "P1",
+      "status": "in_progress",
+      "owner": "Maintainer and independent xhigh reviewer",
+      "authorization": "Correct a reproducible release-preflight failure within the existing executable and custom application-home contract; no new provider inference quota.",
+      "depends_on": [
+        "YMP-123"
+      ],
+      "reason": "The actual isolated install succeeds, but its mock demo fails with path must be shorter than SUN_LEN when the temporary application-home path exceeds the Unix socket address limit. Preserve the failing setup rather than shortening it to obtain a pass.",
+      "acceptance": [
+        "Keep application data and the actual socket in the selected metadata home while using a private short transport alias when the Unix address cannot represent that path; never change the process working directory.",
+        "Preserve assignment capability validation, native authentication, socket permissions, public stdio behavior and independent concurrent server identities.",
+        "Release the owned socket and temporary alias on normal shutdown and failed setup, without deleting another listener or application data.",
+        "Reproduce the original long-home failure, pass a real executable mock demo in that same setup, and exercise transport round trips, isolation and cleanup with deterministic offline controls.",
+        "Run required Rust checks and obtain independent review, then repeat the existing isolated install, help, demo and backup/idempotence checks. No native model calls are permitted."
+      ],
+      "evidence": [
+        "[Local release verification procedure](../guides/release-verification.md)"
+      ],
+      "history": [
+        {
+          "at": "2026-09-12T20:57:24.245152+00:00",
+          "status": "new",
+          "note": "Release preflight found an actual long-metadata-path socket failure after installation succeeded. Captured failure log remains under the original temporary run directory."
+        },
+        {
+          "at": "2026-09-12T20:57:24.245152+00:00",
+          "status": "in_progress",
+          "note": "Implement a bounded private short-address alias while retaining the socket under the metadata home; preserve the original long-path consumer for verification."
+        },
+        {
+          "at": "2026-09-12T21:07:10.853474+00:00",
+          "status": "in_progress",
+          "note": "The new executable regression reproduces the actual install-preflight SUN_LEN failure on the original long metadata path. Private short-address binding is implemented in an isolated candidate, retaining the socket under metadata and preserving owned-resource cleanup. Focused transport/lifecycle and executable checks are running before independent review."
+        }
+      ]
     }
   ],
-  "updated_at": "2026-09-12T20:43:04.824261+00:00",
+  "updated_at": "2026-09-12T21:07:10.853474+00:00",
   "delivery_order": [
     "YMP-116",
     "YMP-103",
@@ -2852,6 +2898,7 @@
     "YMP-123",
     "YMP-127",
     "YMP-126",
+    "YMP-128",
     "YMP-121"
   ],
   "intent": "intent.md",
@@ -2929,6 +2976,7 @@
         "YMP-123",
         "YMP-127",
         "YMP-126",
+        "YMP-128",
         "YMP-121"
       ]
     }

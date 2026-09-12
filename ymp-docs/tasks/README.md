@@ -1,6 +1,6 @@
 # Task details and evidence
 
-Updated: 2026-09-12 20:43 UTC.
+Updated: 2026-09-12 21:07 UTC.
 
 Use the [delivery plan](plan.md) to follow progress. This generated register contains full acceptance criteria, dependencies and evidence. [tasks.json](tasks.json) is the single source; [manage.py](manage.py) updates both pages.
 
@@ -14,7 +14,7 @@ A planned task is not implemented functionality. Completed research and planning
 | design | 1 | 1 |
 | documentation | 4 | 4 |
 | experiment | 0 | 4 |
-| implementation | 19 | 24 |
+| implementation | 19 | 25 |
 | research | 8 | 8 |
 | verification | 1 | 2 |
 
@@ -65,8 +65,9 @@ A planned task is not implemented functionality. Completed research and planning
 | `[x]` | [YMP-123](#ymp-123) | P1 | Expose a public local MCP facade over stdio | 2026-09-12 18:22 |
 | `[=]` | [YMP-124](#ymp-124) | P1 | Add isolated execution and recoverable publication for larger projects | 2026-09-12 15:31 |
 | `[x]` | [YMP-125](#ymp-125) | P0 | Expose trusted acceptance contracts to executable users | 2026-09-12 17:54 |
-| `[~]` | [YMP-126](#ymp-126) | P1 | Execute universal acceptance scenarios through a trusted runtime driver | 2026-09-12 20:21 |
+| `[~]` | [YMP-126](#ymp-126) | P1 | Execute universal acceptance scenarios through a trusted runtime driver | 2026-09-12 21:07 |
 | `[x]` | [YMP-127](#ymp-127) | P0 | Build and display the agent pool from provider-returned native names | 2026-09-12 20:43 |
+| `[~]` | [YMP-128](#ymp-128) | P1 | Support internal team transport with long metadata paths | 2026-09-12 21:07 |
 
 ## YMP-001
 
@@ -1315,13 +1316,13 @@ Verify the integrated application and package a local release
 
 **Last update (UTC):** 2026-09-12 20:08
 
-**Current reason:** Needs YMP-112, YMP-114, YMP-126
+**Current reason:** Needs YMP-112, YMP-114, YMP-126, YMP-128
 
 **Owner:** Independent final reviewer at max reasoning; maintainer integrates and packages
 
 **Authorization:** Offline packaging and check preparation follow the approved delivery plan. Actual native inference requires its explicit bounded quota authorization; none is granted by this planning task.
 
-**Depends on:** [YMP-119](#ymp-119), [YMP-103](#ymp-103), [YMP-105](#ymp-105), [YMP-107](#ymp-107), [YMP-112](#ymp-112), [YMP-115](#ymp-115), [YMP-114](#ymp-114), [YMP-118](#ymp-118), [YMP-122](#ymp-122), [YMP-123](#ymp-123), [YMP-125](#ymp-125), [YMP-110](#ymp-110), [YMP-113](#ymp-113), [YMP-126](#ymp-126), [YMP-127](#ymp-127)
+**Depends on:** [YMP-119](#ymp-119), [YMP-103](#ymp-103), [YMP-105](#ymp-105), [YMP-107](#ymp-107), [YMP-112](#ymp-112), [YMP-115](#ymp-115), [YMP-114](#ymp-114), [YMP-118](#ymp-118), [YMP-122](#ymp-122), [YMP-123](#ymp-123), [YMP-125](#ymp-125), [YMP-110](#ymp-110), [YMP-113](#ymp-113), [YMP-126](#ymp-126), [YMP-127](#ymp-127), [YMP-128](#ymp-128)
 
 A local release needs a reproducible install and truthful compatibility evidence for the configured native providers.
 
@@ -1522,9 +1523,9 @@ Execute universal acceptance scenarios through a trusted runtime driver
 
 **State:** `[~]` (in_progress) · **Type:** implementation · **Priority:** P1
 
-**Last update (UTC):** 2026-09-12 20:21
+**Last update (UTC):** 2026-09-12 21:07
 
-**Current reason:** The unchanged budget-reservations scenario now passes, bringing actual driver coverage to10 of17 cases. Scripted usage totals80 units (agent a65, b15),20 remain, no live reservations remain, and all3 denied requests start no invocation. Optional captured review reserve and per-assignment token reservation preserve previous behavior when absent. Race, pin and unknown-usage controls are still being added before independent acceptance; exporter corrections and remaining adapters continue.
+**Current reason:** Driver preparation now passes11 of17 cases, including fixed roster, and accepted main897b4eb is composed as812b101. Independent runtime-delta review requests changes (7/10): a caller can understate context size and execute an oversized prompt; a second process can reserve conflicting work despite the project lock. Both exact public controls fail as expected, while3 storage and4 existing public tests pass. The unaccepted delta remains outside main; author is correcting both enforced boundaries before resubmission.
 
 **Owner:** Maintainer and delegated xhigh implementation/review agents
 
@@ -1582,6 +1583,36 @@ Native metadata readers discard display names and selectable profiles remain pro
 
 - [Owner clarification and catalog contract](../architecture/provider-named-agent-catalog.md)
 - [Independent core and native-name UI review](../../ymp-evals/reports/ymp-118-native-independent-review.md)
+
+## YMP-128
+
+Support internal team transport with long metadata paths
+
+**State:** `[~]` (in_progress) · **Type:** implementation · **Priority:** P1
+
+**Last update (UTC):** 2026-09-12 21:07
+
+**Current reason:** The new executable regression reproduces the actual install-preflight SUN_LEN failure on the original long metadata path. Private short-address binding is implemented in an isolated candidate, retaining the socket under metadata and preserving owned-resource cleanup. Focused transport/lifecycle and executable checks are running before independent review.
+
+**Owner:** Maintainer and independent xhigh reviewer
+
+**Authorization:** Correct a reproducible release-preflight failure within the existing executable and custom application-home contract; no new provider inference quota.
+
+**Depends on:** [YMP-123](#ymp-123)
+
+The actual isolated install succeeds, but its mock demo fails with path must be shorter than SUN_LEN when the temporary application-home path exceeds the Unix socket address limit. Preserve the failing setup rather than shortening it to obtain a pass.
+
+**Acceptance criteria:**
+
+- Keep application data and the actual socket in the selected metadata home while using a private short transport alias when the Unix address cannot represent that path; never change the process working directory.
+- Preserve assignment capability validation, native authentication, socket permissions, public stdio behavior and independent concurrent server identities.
+- Release the owned socket and temporary alias on normal shutdown and failed setup, without deleting another listener or application data.
+- Reproduce the original long-home failure, pass a real executable mock demo in that same setup, and exercise transport round trips, isolation and cleanup with deterministic offline controls.
+- Run required Rust checks and obtain independent review, then repeat the existing isolated install, help, demo and backup/idempotence checks. No native model calls are permitted.
+
+**Evidence:**
+
+- [Local release verification procedure](../guides/release-verification.md)
 
 ## Intent coverage
 
