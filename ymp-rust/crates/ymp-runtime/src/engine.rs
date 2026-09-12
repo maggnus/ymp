@@ -675,7 +675,7 @@ impl Engine {
             .collect::<HashSet<_>>()
             .into_iter()
             .collect::<Vec<_>>();
-        self.checks(ctx, &ctx.workspace.directory, &checks).await?;
+        let check_log = self.checks(ctx, &ctx.workspace.directory, &checks).await?;
         let verifier = self.choose(
             ctx,
             &ctx.session.team,
@@ -714,8 +714,33 @@ impl Engine {
                 )?;
             }
         }
-        let final_text=self.ask(ctx,&verifier,&ctx.workspace.directory,"synthesis",&format!("Summarize the completed work for the user. State what changed, how it was checked, and remaining limitations. Original request: {prompt}"),true).await?;
-        Ok(final_text)
+        let synthesis=self.ask(ctx,&verifier,&ctx.workspace.directory,"synthesis",&format!("Summarize the completed work for the user. State what changed, how it was checked, and remaining limitations. Original request: {prompt}"),true).await;
+        match synthesis {
+            Ok(text) => Ok(text),
+            Err(error) if self.cancel.is_cancelled() => Err(error),
+            Err(error) => {
+                // Only narration is optional here: task acceptance, final checks
+                // and final review have already succeeded. Reuse their records
+                // without changing acceptance, confirmation or observations.
+                let notice = format!("Final narration unavailable: {error:#}");
+                self.post(&ctx.session.id, "ymp", "notice", &notice)?;
+                let results = tasks
+                    .iter()
+                    .map(|task| {
+                        format!(
+                            "- {}\n  Recorded result: {}",
+                            task.title,
+                            task.result.as_deref().unwrap_or("No result text recorded.")
+                        )
+                    })
+                    .collect::<Vec<_>>()
+                    .join("\n");
+                Ok(format!(
+                    "{notice}\n\nAccepted task results:\n{results}\n\nFinal checks run by ymp:\n{check_log}\nFinal review by {}:\n{}",
+                    verifier.id, review.reason
+                ))
+            }
+        }
     }
 
     async fn learn(&self, ctx: &RunContext, author: &AgentProfile, prompt: &str) -> Result<()> {
@@ -1130,6 +1155,281 @@ mod tests {
                 })
                 .collect(),
             team: vec!["one".into(), "two".into()],
+        }
+    }
+
+    struct RunFixture {
+        _temp: tempfile::TempDir,
+        project: PathBuf,
+        store: Store,
+        engine: Engine,
+        events: mpsc::UnboundedReceiver<UiEvent>,
+    }
+
+    impl RunFixture {
+        fn new(instructions: &str, use_memory: bool) -> Self {
+            let temp = tempfile::tempdir().unwrap();
+            let project = temp.path().join("project");
+            std::fs::create_dir(&project).unwrap();
+            let store = Store::open(&temp.path().join("state")).unwrap();
+            let mut config = test_config(false);
+            for agent in &mut config.agents {
+                agent.instructions.push_str(instructions);
+            }
+            let (tx, events) = mpsc::unbounded_channel();
+            let mut engine =
+                Engine::new(store.clone(), config, tx, CancellationToken::new()).unwrap();
+            engine.use_memory = use_memory;
+            Self {
+                _temp: temp,
+                project,
+                store,
+                engine,
+                events,
+            }
+        }
+
+        async fn run(&self) -> RunOutcome {
+            self.engine
+                .run(&self.project, "Create a greeting", None)
+                .await
+                .unwrap()
+        }
+    }
+
+    #[tokio::test]
+    async fn synthesis_failure_preserves_accepted_results_and_usage() {
+        let fixture = RunFixture::new("[mock:fail:synthesis][mock:usage]", false);
+        let outcome = fixture.run().await;
+        let tasks = fixture.store.tasks(&outcome.session.id).unwrap();
+        assert_eq!(tasks.len(), 1);
+        assert_eq!(tasks[0].state, TaskState::Accepted);
+        assert_eq!(
+            std::fs::read_to_string(fixture.project.join("greeting.txt")).unwrap(),
+            "Hello from ymp\n"
+        );
+        assert_eq!(outcome.session.status, "completed");
+        assert!(outcome.summary.contains("Final narration unavailable"));
+        assert!(outcome
+            .summary
+            .contains("Mock provider failure during synthesis"));
+        assert!(outcome.summary.contains(&tasks[0].title));
+        assert!(outcome
+            .summary
+            .contains(tasks[0].result.as_deref().unwrap()));
+        assert!(outcome.summary.contains(&tasks[0].checks[0]));
+        assert!(outcome.summary.contains("exit: exit status: 0"));
+        let messages = fixture
+            .store
+            .messages(&outcome.session.id, 0, 10000)
+            .unwrap();
+        let final_review = messages.iter().find(|m| m.kind == "final_review").unwrap();
+        let review: Review = parse_response(&final_review.text).unwrap();
+        assert!(review.approved);
+        assert!(outcome.summary.contains(&review.reason));
+        assert!(outcome.summary.contains(&final_review.author));
+        assert!(messages
+            .iter()
+            .any(|m| m.kind == "notice" && m.text.contains("synthesis")));
+        assert!(messages
+            .iter()
+            .any(|m| m.kind == "summary" && m.text.starts_with(&outcome.summary)));
+        assert!(!messages.iter().any(|m| m.kind == "synthesis"));
+        let observations = fixture.store.observations().unwrap();
+        assert_eq!(observations.len(), 2);
+        assert!(observations.iter().all(|o| o.success));
+        let usage = fixture.store.session_usage(&outcome.session.id).unwrap();
+        assert_eq!(usage.total.calls, outcome.session.turns_used as u64);
+        assert_eq!(usage.total.open_calls, 0);
+        assert!(usage.total.is_partial());
+        assert_eq!(
+            usage.total.known_total(),
+            Some(usage.total.calls * 120 - 20)
+        );
+        let reopened = Store::open(&fixture.store.home).unwrap();
+        assert_eq!(
+            reopened.session(&outcome.session.id).unwrap().status,
+            "completed"
+        );
+        assert_eq!(
+            serde_json::to_value(reopened.tasks(&outcome.session.id).unwrap()).unwrap(),
+            serde_json::to_value(tasks).unwrap()
+        );
+    }
+
+    #[tokio::test]
+    async fn turn_exhaustion_only_preserves_completion_after_final_review() {
+        for (turns, expected_status) in [(7, "paused"), (8, "completed")] {
+            let mut fixture = RunFixture::new("[mock:usage]", false);
+            fixture.engine.config.limits.turns = turns;
+            let outcome = fixture.run().await;
+            assert_eq!(outcome.session.status, expected_status);
+            assert_eq!(outcome.session.turns_used, turns);
+            assert!(outcome.summary.contains("Turn limit reached"));
+            let messages = fixture
+                .store
+                .messages(&outcome.session.id, 0, 10000)
+                .unwrap();
+            let reviewed = messages.iter().any(|m| m.kind == "final_review");
+            assert_eq!(reviewed, turns == 8);
+            assert_eq!(outcome.summary.contains("Accepted task results:"), reviewed);
+            assert_eq!(
+                fixture.store.tasks(&outcome.session.id).unwrap()[0].state,
+                TaskState::Accepted
+            );
+            let usage = fixture.store.session_usage(&outcome.session.id).unwrap();
+            assert_eq!(usage.total.calls, turns as u64);
+            assert_eq!(usage.total.open_calls, 0);
+            assert!(!usage.total.is_partial());
+        }
+    }
+
+    #[tokio::test]
+    async fn failed_final_checks_do_not_restore_a_previously_completed_session() {
+        let fixture = RunFixture::new("[mock:fail:synthesis]", false);
+        let completed = fixture.run().await;
+        assert_eq!(completed.session.status, "completed");
+        std::fs::remove_file(fixture.project.join("greeting.txt")).unwrap();
+        let resumed = fixture
+            .engine
+            .run(&fixture.project, "", Some(&completed.session.id))
+            .await
+            .unwrap();
+        assert_eq!(resumed.session.status, "blocked");
+        assert!(resumed.summary.contains("test -f greeting.txt"));
+        assert!(!resumed.summary.contains("Accepted task results:"));
+        assert_eq!(resumed.session.turns_used, completed.session.turns_used);
+        assert_eq!(
+            fixture.store.tasks(&resumed.session.id).unwrap()[0].state,
+            TaskState::Accepted
+        );
+    }
+
+    #[tokio::test]
+    async fn failures_before_final_acceptance_never_use_narration_fallback() {
+        for (fault, expected_task_state, expected_error) in [
+            (
+                "[mock:fail:execute]",
+                TaskState::Running,
+                "Mock provider failure during execute",
+            ),
+            (
+                "[mock:fail:review]",
+                TaskState::Review,
+                "Mock provider failure during review",
+            ),
+            ("[mock:reject:review]", TaskState::Blocked, "Task blocked:"),
+            (
+                "[mock:fail:final_review]",
+                TaskState::Accepted,
+                "Mock provider failure during final_review",
+            ),
+            (
+                "[mock:reject:final_review]",
+                TaskState::Accepted,
+                "Final review rejected the result: The requested result is incomplete.",
+            ),
+        ] {
+            let fixture = RunFixture::new(fault, true);
+            let outcome = fixture.run().await;
+            assert_eq!(outcome.session.status, "blocked", "{fault}");
+            assert!(outcome.summary.contains(expected_error), "{fault}");
+            assert!(
+                !outcome.summary.contains("Accepted task results:"),
+                "{fault}"
+            );
+            assert_eq!(
+                fixture.store.tasks(&outcome.session.id).unwrap()[0].state,
+                expected_task_state,
+                "{fault}"
+            );
+            let messages = fixture
+                .store
+                .messages(&outcome.session.id, 0, 10000)
+                .unwrap();
+            assert!(!messages
+                .iter()
+                .any(|m| ["synthesis", "learn"].contains(&m.kind.as_str())));
+            assert!(fixture
+                .store
+                .observations()
+                .unwrap()
+                .iter()
+                .all(|o| o.competence != "planning"));
+        }
+    }
+
+    #[tokio::test]
+    async fn optional_learning_failure_keeps_the_accepted_result() {
+        for fault in ["[mock:fail:learn]", "[mock:fail:review_memory]"] {
+            let fixture = RunFixture::new(&format!("{fault}[mock:usage]"), true);
+            let outcome = fixture.run().await;
+            assert_eq!(outcome.session.status, "completed");
+            assert_eq!(
+                fixture.store.tasks(&outcome.session.id).unwrap()[0].state,
+                TaskState::Accepted
+            );
+            let messages = fixture
+                .store
+                .messages(&outcome.session.id, 0, 10000)
+                .unwrap();
+            assert!(messages.iter().any(|m| m.kind == "notice"
+                && m.text.contains("global memory update skipped")
+                && m.text.contains("Mock provider failure")));
+            assert!(messages
+                .iter()
+                .any(|m| m.kind == "synthesis" && m.text == outcome.summary));
+            assert!(fixture.store.memory(None, "").unwrap().is_empty());
+            let usage = fixture.store.session_usage(&outcome.session.id).unwrap();
+            assert_eq!(usage.total.calls, outcome.session.turns_used as u64);
+            assert_eq!(usage.total.open_calls, 0);
+            assert!(usage.total.is_partial());
+            assert_eq!(
+                usage.total.known_total(),
+                Some(usage.total.calls * 120 - 20)
+            );
+        }
+    }
+
+    #[tokio::test]
+    async fn cancellation_during_learning_or_synthesis_still_pauses_the_session() {
+        for purpose in ["learn", "synthesis"] {
+            let mut fixture = RunFixture::new("[mock:usage]", true);
+            let engine = fixture.engine.clone();
+            let project = fixture.project.clone();
+            let run =
+                tokio::spawn(async move { engine.run(&project, "Create a greeting", None).await });
+            let mut cancelled_at_purpose = false;
+            while let Some(event) = fixture.events.recv().await {
+                if matches!(event, UiEvent::AgentStatus { ref status, .. } if status == purpose) {
+                    fixture.engine.cancel.cancel();
+                    cancelled_at_purpose = true;
+                    break;
+                }
+                if matches!(event, UiEvent::Finished { .. }) {
+                    break;
+                }
+            }
+            let outcome = run.await.unwrap().unwrap();
+            assert!(cancelled_at_purpose);
+            assert_eq!(outcome.session.status, "paused");
+            assert!(!outcome.summary.contains("Accepted task results:"));
+            assert_eq!(
+                fixture.store.tasks(&outcome.session.id).unwrap()[0].state,
+                TaskState::Accepted
+            );
+            let observations = fixture.store.observations().unwrap();
+            assert_eq!(observations.len(), 2);
+            assert!(observations.iter().all(|o| o.success));
+            let usage = fixture.store.session_usage(&outcome.session.id).unwrap();
+            assert_eq!(usage.total.calls, outcome.session.turns_used as u64);
+            assert_eq!(usage.total.open_calls, 0);
+            assert!(usage.total.is_partial());
+            assert!(usage.total.known_total().unwrap() > 0);
+            assert_eq!(
+                fixture.store.session(&outcome.session.id).unwrap().status,
+                "paused"
+            );
         }
     }
 
