@@ -378,10 +378,6 @@ impl Engine {
             bail!("Session belongs to a different project");
         }
         let lock = self.store.lock_session(&session)?;
-        let workspace = Workspace::open(
-            &project.path,
-            &self.store.session_dir(&session).join("workspace"),
-        )?;
         if [
             "where is the file?",
             "where is it?",
@@ -391,29 +387,25 @@ impl Engine {
         .contains(&prompt.trim().to_lowercase().as_str())
         {
             self.post(&session.id, "you", "user", prompt)?;
-            let trace = self.store.trace(&session.id)?;
-            let mut paths = trace
-                .decisions
-                .iter()
-                .filter(|d| matches!(d.outcome, Some(DecisionOutcome::Accepted { .. })))
-                .filter_map(|d| d.links.result.as_ref())
-                .flat_map(|r| &r.artifacts)
-                .map(|a| workspace.directory.join(&a.path))
+            let mut paths = self
+                .store
+                .outcomes(&session.id)?
+                .into_iter()
+                .flat_map(|outcome| outcome.artifacts)
+                .map(|artifact| artifact.path)
                 .collect::<Vec<_>>();
             paths.sort();
             paths.dedup();
             let summary = if paths.is_empty() {
-                format!(
-                    "Working directory: {}. Current files: {}. Session status: {}.",
-                    workspace.directory.display(),
-                    workspace
-                        .files()?
-                        .iter()
-                        .map(|p| workspace.directory.join(p).display().to_string())
-                        .collect::<Vec<_>>()
-                        .join(", "),
-                    session.status
-                )
+                match Workspace::load(&self.store.session_dir(&session).join("workspace")) {
+                    Ok(captured) => format!(
+                        "Recorded working directory: {}. Current files in that directory: {}. Session status: {}.",
+                        captured.directory.display(),
+                        captured.files()?.iter().map(|path| path.display().to_string()).collect::<Vec<_>>().join(", "),
+                        session.status,
+                    ),
+                    Err(error) => format!("No recorded output paths. Stored workspace is unavailable: {error}. Session status: {}.", session.status),
+                }
             } else {
                 format!(
                     "Recorded output paths: {}",
@@ -431,10 +423,14 @@ impl Engine {
             });
             return Ok(RunOutcome {
                 session,
-                workspace: workspace.directory,
+                workspace: project.path.clone(),
                 summary,
             });
         }
+        let workspace = Workspace::open(
+            &project.path,
+            &self.store.session_dir(&session).join("workspace"),
+        )?;
         let server =
             Arc::new(TeamServer::start(self.store.clone(), &session, self.events.clone()).await?);
         let turns = usize::try_from(self.store.session_usage(&session.id)?.total.calls)
