@@ -132,16 +132,23 @@ selected row underneath it, and states its own keys in the status row.
   purpose, the task attempt, the directory, the access the execution backend enforced for the
   turn with the reservation it was admitted under and any wait it went through, and the model,
   effort and permission mode that were requested, sent and reported. A turn still open is separated from the turns that
-  finished, and the coordination permissions an assignment held are named with it.
+  finished, and the coordination permissions an assignment held are named with it. Where the
+  session captured a token ceiling, each turn names the token allowance it was admitted with
+  and whether its assignment requested it or inherited the session's per-turn default; an
+  allowance is accounting, not a limit the installation enforced.
 - **Decisions** — the plans, reviews, acceptances, rejections, competence credit, membership
   changes, per-turn bounds, captured acceptance criteria and directory reservations the session
   recorded, each with its actor, its time and the records it links. A captured contract shows
-  what a result will be judged against, its checker and the inputs recorded by digest, and says
-  that it is a binding rather than a result. A record that carries its own outcome, such as a
-  membership change, a change to the shared plan, a turn bound or a wait, reads from that
-  outcome and not from a grade it never had. A decision that changed the plan names the
-  proposal behind it, who asked, the version the plan took on, and the responsibility it
-  created. An acceptance
+  what a result will be judged against, its checker, and each input it declares with the
+  digest it was captured at; a contract that binds a correction also names the entry it
+  corrects and which declared source replaced which. It says that it is a binding rather than
+  a result. A record that carries its own outcome, such as a membership change, a change to the
+  shared plan, a correction to what was retained, a turn bound or a wait, reads from that
+  outcome in its row and in its record alike, and not from a grade it never had. A decision
+  that changed the plan names the proposal behind it, who asked, the version the plan took on,
+  and the responsibility it created; a correction names the entry it replaced, its
+  replacement, the acceptance and contract that authorised it and the policy it was applied
+  under. An acceptance
   states whether it rests on passing evidence for every criterion or on an independent
   review alone, and says when the files it was accepted against have changed since.
 - **Team**, **Agent profiles**, **Providers** — membership and configuration. The team page
@@ -176,8 +183,12 @@ selected row underneath it, and states its own keys in the status row.
 - **Reputation** — the observations behind competence estimates, with their evidence, their
   evidence status, and what credit toward selection requires.
 - **Limits** — the limits the loaded session captured, shown apart from the ones the next run
-  would use. `+` and `-` adjust the next run; `Enter` types a value. A captured limit is a
-  record and cannot be edited.
+  would use. Beside the turn, parallel, timeout and attempt bounds, the captured rows give the
+  token ceiling with what reported counts leave under it, the per-turn allowance, the review
+  tokens still protected and how that figure was reached, the policy the session captured for
+  counts an installation left incomplete, and whether a strict token bound holds. Where a count
+  is incomplete, a remainder is stated as a reported one and never as a known one. `+` and `-`
+  adjust the next run; `Enter` types a value. A captured limit is a record and cannot be edited.
 - **Help** — every command and key, generated from the command registry.
 
 ## What a run recorded

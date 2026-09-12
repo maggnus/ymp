@@ -3062,7 +3062,7 @@ async fn a_reopened_session_is_measured_against_the_limits_it_captured() {
     );
     let tokens = row_prose(&mut app, 65, "tokens observed");
     assert!(
-        tokens.contains("not as zero tokens"),
+        tokens.contains("its tokens stay unknown rather than being counted as zero"),
         "unreported spend was not distinguished from nothing spent:\n{tokens}"
     );
 
@@ -3296,6 +3296,344 @@ async fn a_budget_stop_is_named_on_the_limits_page() {
     assert!(
         admitted.contains("in flight only while a run is active"),
         "an open turn count was not qualified:\n{admitted}"
+    );
+}
+
+/// A run whose captured limits carry a token ceiling and a policy for incomplete counts.
+///
+/// The mock installation reports no token counts unless a member's instructions ask it to.
+/// With `reporting`, member `one` reports what it used and member `two` still reports nothing,
+/// so some tokens are known while the counts stay incomplete; without it no count is known at
+/// all. Either way the captured policy is what decides whether admission goes on.
+async fn token_run(
+    policy: ymp_core::UnknownUsagePolicy,
+    review_reserve: Option<u64>,
+    reporting: bool,
+) -> Run {
+    mock_run("Create a greeting", |engine| {
+        let resources = engine.config.limits.resources.as_mut().unwrap();
+        resources.observed_tokens = Some(100_000);
+        resources.invocation_tokens = Some(4_000);
+        resources.review_reserve_tokens = review_reserve;
+        resources.unknown_usage = policy;
+        if reporting {
+            if let Some(agent) = engine.config.agents.iter_mut().find(|a| a.id == "one") {
+                agent.instructions = "[mock:usage]".into();
+            }
+        }
+    })
+    .await
+}
+
+/// The configuration a later run would use, with every token setting moved away from what the
+/// session captured, so a page that read today's values would show other ones.
+fn moved_token_config(run: &Run, policy: ymp_core::UnknownUsagePolicy) -> Config {
+    let mut config = run.config.clone();
+    let resources = config.limits.resources.as_mut().unwrap();
+    resources.observed_tokens = Some(50_000);
+    resources.invocation_tokens = Some(2_000);
+    resources.review_reserve_tokens = Some(7_000);
+    resources.unknown_usage = policy;
+    config
+}
+
+/// Admit one more turn that requests its own token allowance, through the store's admission.
+///
+/// The runtime at this version never requests one, so this is the only way such a record is
+/// written, and the store still checks the request against the ceiling the session captured.
+/// The turn is left open, which is what makes its allowance held.
+fn admit_requested_allowance(run: &Run, tokens: u64) -> String {
+    let trace = run.store.trace(&run.session).unwrap();
+    let first = trace.assignments.first().unwrap().clone();
+    let assignment = ymp_core::AssignmentRecord {
+        id: ymp_core::new_id(),
+        token_reservation: Some(tokens),
+        purpose: "consultation".into(),
+        task: None,
+        grant_ids: Vec::new(),
+        state: ymp_core::InvocationState::Running,
+        started_at: ymp_core::now(),
+        ended_at: None,
+        ..first
+    };
+    let invocation = ymp_core::InvocationRecord {
+        id: ymp_core::new_id(),
+        session_id: run.session.clone(),
+        assignment_id: assignment.id.clone(),
+        execution_backend: None,
+        turn: 1,
+        requested: assignment.requested.clone(),
+        sent: Default::default(),
+        reported: Default::default(),
+        resumed_from: None,
+        native_session_id: None,
+        native_turn_id: None,
+        native_version: None,
+        state: ymp_core::InvocationState::Running,
+        started_at: ymp_core::now(),
+        ended_at: None,
+        usage: None,
+        terminal_reason: None,
+    };
+    run.store.admit_invocation(&assignment, invocation).unwrap();
+    assignment.id
+}
+
+#[tokio::test]
+async fn a_reopened_session_shows_the_token_policy_it_captured_and_not_todays() {
+    use ymp_core::UnknownUsagePolicy::{BoundedNative, Stop};
+
+    // A captured stop. No count is ever reported, so the turn after the first is refused.
+    let stopped = token_run(Stop, Some(10_000), false).await;
+    assert_eq!(
+        stopped.status, "paused",
+        "a stop on incomplete counts did not pause the run"
+    );
+    let budget = stopped
+        .store
+        .session_budget(&stopped.session)
+        .unwrap()
+        .unwrap();
+    assert_eq!(
+        budget
+            .last_denial
+            .as_ref()
+            .map(|denial| denial.code.as_str()),
+        Some("unknown_usage"),
+        "the run stopped for another reason"
+    );
+    let protected = budget
+        .protected_review_tokens
+        .expect("a captured reserve protects review tokens");
+    let mut app = App::new(
+        stopped.store.clone(),
+        moved_token_config(&stopped, BoundedNative),
+        PathBuf::from(stopped.project.path()),
+    );
+    app.load_session(&stopped.session).unwrap();
+    app.command("/limits", 100);
+    for (key, value) in [
+        ("captured:unknown-usage", "stop admitting".to_owned()),
+        ("captured:token-ceiling", "100000".to_owned()),
+        ("captured:turn-allowance", "4000".to_owned()),
+        ("captured:review-tokens", protected.to_string()),
+        ("captured:bound", "not proved".to_owned()),
+        ("captured:denial", "unknown_usage".to_owned()),
+    ] {
+        assert_eq!(
+            right_of_key(&mut app, 65, key),
+            value,
+            "{key} does not show what the session captured"
+        );
+    }
+    let policy = detail_of_key(&mut app, 65, "captured:unknown-usage");
+    assert!(
+        policy.contains("admits no further turn under its token ceiling")
+            && !policy.contains("goes on admitting"),
+        "a captured stop reads as the policy the configuration holds now:\n{policy}"
+    );
+    let review = detail_of_key(&mut app, 65, "captured:review-tokens");
+    assert!(
+        review.contains("captured 10000 tokens for the review it owes")
+            && review.contains(&format!("{protected} of them are protected now")),
+        "the captured review reserve is not the one shown:\n{review}"
+    );
+    let ceiling = detail_of_key(&mut app, 65, "captured:token-ceiling");
+    assert!(
+        ceiling.contains("No turn reported a count, so no spending is known")
+            && ceiling.contains("what is truly left is not known"),
+        "a session with no count at all reads as if its spending were known:\n{ceiling}"
+    );
+
+    // A captured go-on. The same counts are missing, and admission went on to the end.
+    let bounded = token_run(BoundedNative, None, true).await;
+    assert_eq!(
+        bounded.status, "completed",
+        "admission on reported counts did not go on"
+    );
+    let budget = bounded
+        .store
+        .session_budget(&bounded.session)
+        .unwrap()
+        .unwrap();
+    assert!(
+        budget.observed_usage.is_partial() && !budget.strict_token_bound,
+        "the fixture no longer has incomplete counts"
+    );
+    let mut app = App::new(
+        bounded.store.clone(),
+        moved_token_config(&bounded, Stop),
+        PathBuf::from(bounded.project.path()),
+    );
+    app.load_session(&bounded.session).unwrap();
+    app.command("/limits", 100);
+    assert_eq!(
+        right_of_key(&mut app, 65, "captured:unknown-usage"),
+        "admit on reported"
+    );
+    assert_eq!(
+        right_of_key(&mut app, 65, "captured:token-ceiling"),
+        "100000"
+    );
+    let policy = detail_of_key(&mut app, 65, "captured:unknown-usage");
+    for expected in [
+        "goes on admitting turns against what was reported",
+        "An incomplete count stays incomplete",
+        "not what is truly left",
+        "no strict token bound follows",
+        "Not every count in this session is complete",
+    ] {
+        assert!(
+            policy.contains(expected),
+            "the captured policy does not say {expected:?}:\n{policy}"
+        );
+    }
+    let ceiling = detail_of_key(&mut app, 65, "captured:token-ceiling");
+    assert!(
+        ceiling.contains("By reported counts")
+            && ceiling.contains("what is truly left is not known: it is at most"),
+        "a remainder by reported counts reads as a known one:\n{ceiling}"
+    );
+    let strict = detail_of_key(&mut app, 65, "captured:bound");
+    assert!(
+        strict.contains("Its counts are also incomplete")
+            && strict.contains("Admitting on reported counts does not change that"),
+        "going on without counts reads as a bound:\n{strict}"
+    );
+    let review = detail_of_key(&mut app, 65, "captured:review-tokens");
+    assert!(
+        review.contains(&format!(
+            "4000 × {} = {}",
+            budget.protected_review_invocations,
+            budget.protected_review_tokens.unwrap()
+        )),
+        "the protection without a captured reserve is not explained by its parts:\n{review}"
+    );
+    if keys_of(&mut app, 65).contains(&"captured:denial".to_owned()) {
+        assert_ne!(
+            right_of_key(&mut app, 65, "captured:denial"),
+            "unknown_usage",
+            "a session that went on admitting shows a stop on incomplete counts"
+        );
+    }
+}
+
+#[tokio::test]
+async fn an_assignment_says_whether_its_token_allowance_was_requested_or_inherited() {
+    let run = token_run(
+        ymp_core::UnknownUsagePolicy::BoundedNative,
+        Some(10_000),
+        false,
+    )
+    .await;
+    let inherited = run.store.trace(&run.session).unwrap().assignments[0].clone();
+    assert_eq!(
+        inherited.token_reservation, None,
+        "the runtime requested an allowance of its own"
+    );
+    let requested = admit_requested_allowance(&run, 1_500);
+
+    // A later configuration with another default must not change what either turn was given.
+    let mut config = run.config.clone();
+    let resources = config.limits.resources.as_mut().unwrap();
+    resources.invocation_tokens = Some(2_000);
+    resources.observed_tokens = Some(50_000);
+    let mut app = App::new(run.store.clone(), config, PathBuf::from(run.project.path()));
+    app.load_session(&run.session).unwrap();
+    app.command("/assignments", 100);
+    let detail = detail_of_key(&mut app, 65, &text::short_id(&requested));
+    assert!(
+        detail.contains(
+            "token allowance 1500 · requested by this assignment, within the per-turn ceiling of 4000 the session captured"
+        ),
+        "an allowance the assignment requested is not named as its own:\n{detail}"
+    );
+    let detail = detail_of_key(&mut app, 65, &text::short_id(&inherited.id));
+    assert!(
+        detail.contains(
+            "token allowance 4000 · inherited: this assignment requested none, so it took the session's per-turn default"
+        ),
+        "an inherited allowance is not named as the session's default:\n{detail}"
+    );
+
+    app.command("/limits", 100);
+    let ceiling = detail_of_key(&mut app, 65, "captured:token-ceiling");
+    assert!(
+        ceiling.contains("1500 are held for turns still open"),
+        "the allowance an open turn holds is not counted against the ceiling:\n{ceiling}"
+    );
+}
+
+#[tokio::test]
+async fn a_session_without_a_token_ceiling_names_no_allowance_and_protects_nothing() {
+    let run = mock_run("Create a greeting", |_| {}).await;
+    let mut app = run.app();
+    app.load_session(&run.session).unwrap();
+    app.command("/limits", 100);
+    for key in [
+        "captured:token-ceiling",
+        "captured:turn-allowance",
+        "captured:review-tokens",
+    ] {
+        assert_eq!(
+            right_of_key(&mut app, 65, key),
+            "none",
+            "{key} shows a figure the session never captured"
+        );
+    }
+    assert_eq!(
+        right_of_key(&mut app, 65, "captured:unknown-usage"),
+        "stop admitting"
+    );
+    let policy = detail_of_key(&mut app, 65, "captured:unknown-usage");
+    assert!(
+        policy.contains("this policy had nothing to act on"),
+        "a policy without a ceiling reads as if it had stopped something:\n{policy}"
+    );
+
+    app.command("/assignments", 100);
+    let first = run.store.trace(&run.session).unwrap().assignments[0]
+        .id
+        .clone();
+    let detail = detail_of_key(&mut app, 65, &text::short_id(&first));
+    assert!(
+        detail.contains("token allowance none · the session captured no token ceiling"),
+        "a turn without a ceiling is shown with an allowance:\n{detail}"
+    );
+}
+
+#[tokio::test]
+async fn a_session_that_captured_no_resource_limits_shows_no_token_policy_in_their_place() {
+    let fixture = fixture();
+    let id = fixture.seed_session("An older run");
+    fixture
+        .store
+        .capture_legacy_budget_limits(
+            &id,
+            &ymp_core::Limits {
+                resources: None,
+                ..Default::default()
+            },
+        )
+        .unwrap();
+    let mut app = fixture.app();
+    app.load_session(&id).unwrap();
+    app.command("/limits", 100);
+
+    let keys = keys_of(&mut app, 65);
+    assert!(
+        keys.contains(&"captured:token-policy".to_owned())
+            && !keys.contains(&"captured:token-ceiling".to_owned()),
+        "a capture without resource limits was given today's token rows: {keys:?}"
+    );
+    assert_eq!(
+        right_of_key(&mut app, 65, "captured:token-policy"),
+        "not captured"
+    );
+    let detail = detail_of_key(&mut app, 65, "captured:token-policy");
+    assert!(
+        detail.contains("None of today's values is shown in their place"),
+        "an absent token policy is not distinguished from a captured one:\n{detail}"
     );
 }
 
@@ -4056,7 +4394,7 @@ async fn a_captured_acceptance_contract_is_shown_as_a_binding_and_not_as_a_resul
         "exact-greeting-v1",
         "greeting.txt",
         "checker",
-        "inputs recorded",
+        "declared input none",
     ] {
         assert!(
             detail.contains(expected),
@@ -4096,6 +4434,12 @@ async fn a_record_that_carries_its_own_outcome_never_reads_as_ungraded() {
         assert!(
             !detail.contains("recorded without an outcome"),
             "{} reads as ungraded while its row states an outcome:\n{detail}",
+            decision.kind
+        );
+        let row = right_of_key(&mut app, 65, &key);
+        assert!(
+            !row.contains("recorded without an outcome"),
+            "{} reads as ungraded in its row while its record states an outcome: {row}",
             decision.kind
         );
         checked += 1;
@@ -5609,7 +5953,8 @@ async fn a_decision_that_changed_the_plan_reads_as_its_own_outcome() {
         .find(|decision| decision.kind == "board_committed")
         .map(|decision| decision.id.clone())
         .expect("the fixture recorded a committed plan change");
-    let detail = detail_of_key(&mut app, 100, &text::short_id(&committed));
+    let key = text::short_id(&committed);
+    let detail = detail_of_key(&mut app, 100, &key);
     for expected in [
         "plan change committed",
         "the plan took the change on",
@@ -5623,6 +5968,17 @@ async fn a_decision_that_changed_the_plan_reads_as_its_own_outcome() {
             "the decision does not carry {expected:?}:\n{detail}"
         );
     }
+    // The list row is what a reader sees first, and it must not say less than the record.
+    let row = right_of_key(&mut app, 100, &key);
+    assert!(
+        row == "committed",
+        "the row of a committed plan change contradicts the record it opens: {row:?}"
+    );
+    assert!(
+        left_of_key(&mut app, 100, &key).starts_with(crate::theme::UNICODE.ok),
+        "the row of a committed plan change is not marked as done: {}",
+        left_of_key(&mut app, 100, &key)
+    );
     let rejected = app
         .records
         .decisions()
@@ -5630,10 +5986,21 @@ async fn a_decision_that_changed_the_plan_reads_as_its_own_outcome() {
         .find(|decision| decision.kind == "board_rejected")
         .map(|decision| decision.id.clone())
         .expect("the fixture recorded a rejected plan change");
-    let detail = detail_of_key(&mut app, 100, &text::short_id(&rejected));
+    let key = text::short_id(&rejected);
+    let detail = detail_of_key(&mut app, 100, &key);
     assert!(
         detail.contains("plan change rejected") && detail.contains("the plan was left unchanged"),
         "a rejected plan change does not read as one:\n{detail}"
+    );
+    let row = right_of_key(&mut app, 100, &key);
+    assert!(
+        row == "rejected",
+        "the row of a rejected plan change contradicts the record it opens: {row:?}"
+    );
+    assert!(
+        left_of_key(&mut app, 100, &key).starts_with(crate::theme::UNICODE.fail),
+        "the row of a rejected plan change is not marked as refused: {}",
+        left_of_key(&mut app, 100, &key)
     );
 }
 
@@ -5952,6 +6319,146 @@ async fn both_sides_of_a_correction_are_kept_and_each_says_which_it_is() {
     );
 }
 
+/// The session a correction was applied in, and the record that applied it.
+fn applied_correction(run: &Correction) -> (String, ymp_core::DecisionRecord) {
+    run.store
+        .sessions(None)
+        .unwrap()
+        .into_iter()
+        .find_map(|session| {
+            run.store
+                .trace(&session.id)
+                .unwrap()
+                .decisions
+                .into_iter()
+                .find(|decision| decision.links.knowledge_correction.is_some())
+                .map(|decision| (session.id, decision))
+        })
+        .expect("the second run recorded the correction it applied")
+}
+
+#[tokio::test]
+async fn a_correction_reads_as_applied_in_its_row_and_in_its_record() {
+    let run = correction_run().await;
+    let (session, correction) = applied_correction(&run);
+    let mut app = run.app();
+    app.load_session(&session).unwrap();
+    app.command("/decisions", 100);
+
+    let key = text::short_id(&correction.id);
+    let row = right_of_key(&mut app, 100, &key);
+    assert!(
+        row == "entry replaced",
+        "the row of an applied correction contradicts the record it opens: {row:?}"
+    );
+    assert!(
+        left_of_key(&mut app, 100, &key).starts_with(crate::theme::UNICODE.ok),
+        "the row of an applied correction is marked as a decision without an outcome: {}",
+        left_of_key(&mut app, 100, &key)
+    );
+    let detail = detail_of_key(&mut app, 100, &key);
+    for expected in [
+        "retained knowledge corrected".to_owned(),
+        "outcome what was retained was replaced".to_owned(),
+        format!("replaced retained entry {}", text::short_id(&run.old)),
+        format!("replacement retained entry {}", text::short_id(&run.new)),
+        "corrected by policy ymp.bound-correction".to_owned(),
+    ] {
+        assert!(
+            detail.contains(&expected),
+            "the correction's record does not carry {expected:?}:\n{detail}"
+        );
+    }
+    assert!(
+        !detail.contains("recorded without an outcome"),
+        "an applied correction reads as ungraded when opened:\n{detail}"
+    );
+}
+
+#[tokio::test]
+async fn a_contract_names_the_inputs_it_declares_and_the_source_a_correction_replaced() {
+    let run = correction_run().await;
+    // Each run captured its own contract, and only the second one binds a correction.
+    let mut contracts = Vec::new();
+    for session in run.store.sessions(None).unwrap() {
+        for decision in run.store.trace(&session.id).unwrap().decisions {
+            if let Some(captured) = decision.links.acceptance_contract.as_ref() {
+                let corrects = captured.contract.knowledge_correction.is_some();
+                contracts.push((session.id.clone(), decision.id.clone(), corrects));
+            }
+        }
+    }
+    assert_eq!(
+        contracts
+            .iter()
+            .filter(|(_, _, corrects)| *corrects)
+            .count(),
+        1,
+        "the fixture should hold one correcting contract: {contracts:?}"
+    );
+    assert_eq!(contracts.len(), 2, "each run should capture one contract");
+
+    for (session, id, corrects) in contracts {
+        let mut app = run.app();
+        app.load_session(&session).unwrap();
+        app.command("/decisions", 100);
+        let key = text::short_id(&id);
+        let detail = detail_of_key(&mut app, 100, &key);
+        if corrects {
+            for expected in [
+                "declared input inputs/observations-corrected.csv · captured at sha256".to_owned(),
+                format!("corrects retained entry {}", text::short_id(&run.old)),
+                "source change inputs/observations.csv replaced by inputs/observations-corrected.csv"
+                    .to_owned(),
+                "established by observation-value".to_owned(),
+                "It also binds a correction".to_owned(),
+            ] {
+                assert!(
+                    detail.contains(&expected),
+                    "the correcting contract does not carry {expected:?}:\n{detail}"
+                );
+            }
+        } else {
+            assert!(
+                detail.contains("declared input inputs/observations.csv · captured at sha256"),
+                "the first contract does not name the file it declared:\n{detail}"
+            );
+            assert!(
+                !detail.contains("source change") && !detail.contains("It also binds a correction"),
+                "a contract that binds no correction reads as one:\n{detail}"
+            );
+        }
+
+        // A narrow pane wraps a path under its label: no line runs past the width the detail
+        // was built for, and no character of a path is lost to the wrapping.
+        for width in [44u16, 30] {
+            let page = app.page(width);
+            let item = page
+                .items
+                .iter()
+                .find(|item| item.key == key)
+                .expect("the contract row is on the page");
+            let text = lines_text(&item.detail);
+            for line in text.lines() {
+                assert!(
+                    line.chars().count() <= width as usize,
+                    "at {width} a line of the contract runs past its pane: {line:?}"
+                );
+            }
+            let squeezed: String = text.chars().filter(|ch| !ch.is_whitespace()).collect();
+            let path = if corrects {
+                "inputs/observations.csvreplacedbyinputs/observations-corrected.csv"
+            } else {
+                "declaredinputinputs/observations.csv·capturedatsha256"
+            };
+            assert!(
+                squeezed.contains(path),
+                "at {width} the declared paths lost characters:\n{text}"
+            );
+        }
+    }
+}
+
 #[tokio::test]
 async fn an_entry_recorded_for_other_conditions_is_not_current_here() {
     // The negative control for the scope. Both entries are recorded for Hill, and this reader is
@@ -6091,6 +6598,38 @@ async fn keep_the_fixtures_an_interface_walk_reads() {
             "old": correction.old, "new": correction.new,
         }),
     );
+
+    // Two sessions that captured a token ceiling, each kept with a configuration that says the
+    // opposite of what it captured, so the walk reads a reopened session against a changed one.
+    for (name, policy, reserve, today) in [
+        (
+            "stopped",
+            ymp_core::UnknownUsagePolicy::Stop,
+            Some(10_000),
+            ymp_core::UnknownUsagePolicy::BoundedNative,
+        ),
+        (
+            "bounded",
+            ymp_core::UnknownUsagePolicy::BoundedNative,
+            None,
+            ymp_core::UnknownUsagePolicy::Stop,
+        ),
+    ] {
+        let run = token_run(policy, reserve, name == "bounded").await;
+        let requested = (policy == ymp_core::UnknownUsagePolicy::BoundedNative)
+            .then(|| admit_requested_allowance(&run, 1_500));
+        let config = moved_token_config(&run, today);
+        let home = run.home.keep();
+        let project = run.project.keep();
+        config.save(&home).unwrap();
+        manifest.insert(
+            name.into(),
+            serde_json::json!({
+                "home": home, "project": project,
+                "session": run.session, "status": run.status, "requested": requested,
+            }),
+        );
+    }
 
     std::fs::write(
         PathBuf::from(&target).join("manifest.json"),

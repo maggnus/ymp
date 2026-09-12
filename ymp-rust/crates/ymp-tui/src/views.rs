@@ -280,7 +280,9 @@ fn page(view: View, subtitle: &str, items: Vec<Item>, _ctx: &Ctx) -> Page {
 // ---------------------------------------------------------------------------
 
 fn field(theme: &Theme, label: &str, value: &str, width: usize) -> Vec<Line<'static>> {
-    let label_width = 14usize.min(width.saturating_sub(4));
+    // A label longer than the usual column pushes its value right, so the value is wrapped to
+    // the room actually left beside it rather than running past the width.
+    let label_width = 14usize.max(text::width(label)).min(width.saturating_sub(4));
     let room = width.saturating_sub(label_width + 1).max(8);
     let mut lines = Vec::new();
     for (index, piece) in text::wrap(&text::sanitize(value), room)
@@ -3278,10 +3280,12 @@ fn reputation(ctx: &Ctx) -> anyhow::Result<Page> {
 }
 
 const WHAT_LIMITS_ARE: &[&str] = &[
-    "A limit is a bound on the run, not a target. Reaching one stops the session and leaves it resumable, and nothing works around it.",
+    "A limit is a bound on what a session may admit, not a target. When the next turn would not fit, it is refused, the session stops and stays resumable, and no turn is admitted around the refusal.",
     "A session captures the limits it started with. The values under the next run are editable and apply to a session started later: they do not change what a session already ran under, and they are not what a finished session was measured against.",
     "A session that ran before its limits were captured has nothing recorded here. That is a missing record, not a run without bounds.",
     "Token figures are what installations reported. A count nobody reported stays unknown rather than zero, and a figure an open turn can still add to is shown as a lower bound.",
+    "A token ceiling is checked when a turn is admitted, against the tokens reported so far and the allowances of turns still open. A turn already running can report more than its allowance, so a ceiling bounds what is admitted, not everything a run spends.",
+    "Where a count is incomplete, a session follows the policy it captured: stop admitting under its ceiling, or go on admitting against what was reported. Going on does not complete the count, so what is left under the ceiling is then a reported remainder and not a known one.",
 ];
 
 fn limits(ctx: &Ctx) -> Page {
@@ -3466,33 +3470,7 @@ fn captured_limit_rows(ctx: &Ctx) -> Vec<Item> {
             budget.startup_invocations, budget.protected_review_invocations
         ),
     ));
-    rows.push(captured_row(
-        ctx,
-        "captured:tokens",
-        "tokens observed",
-        &short_observed(budget),
-        &format!(
-            "{}. This is what installations reported for this session, as the budget counted it. A turn that reported nothing is counted as a turn, not as zero tokens.",
-            observed_words(budget)
-        ),
-    ));
-    rows.push(captured_row(
-        ctx,
-        "captured:bound",
-        "token bound",
-        if budget.strict_token_bound {
-            "required"
-        } else {
-            "not required"
-        },
-        &format!(
-            "Whether every turn in this session had to state a token bound before it was admitted. {}",
-            match budget.reserved_tokens {
-                Some(reserved) => format!("{reserved} token(s) were reserved for turns already admitted."),
-                None => "No token reservation was recorded.".to_owned(),
-            }
-        ),
-    ));
+    rows.extend(token_rows(ctx, limits.resources.as_ref(), budget));
     if let Some(denial) = &budget.last_denial {
         rows.push(captured_row(
             ctx,
@@ -3525,6 +3503,165 @@ fn captured_row(ctx: &Ctx, key: &str, label: &str, value: &str, description: &st
     )
     .with_right(vec![Span::styled(value.to_owned(), theme.body())])
     .with_detail(detail)
+}
+
+/// What the session captured about tokens, and where its accounting stands now.
+///
+/// Every figure is read from the limits the session captured or from the budget the store
+/// computed for it; none is taken from the configuration a later run would use. A remainder
+/// under the ceiling is given as what reported counts leave, because where a count is
+/// incomplete that is all that is known.
+fn token_rows(
+    ctx: &Ctx,
+    resources: Option<&ymp_core::ResourceLimits>,
+    budget: &SessionBudget,
+) -> Vec<Item> {
+    let Some(resources) = resources else {
+        return vec![
+            observed_row(ctx, budget),
+            captured_row(
+                ctx,
+                "captured:token-policy",
+                "token policy",
+                "not captured",
+                "This session captured no resource limits, so no token ceiling, turn allowance, review protection or policy for incomplete counts applied to it. None of today's values is shown in their place.",
+            ),
+            strict_row(ctx, budget, None),
+        ];
+    };
+    let totals = &budget.observed_usage;
+    let partial = totals.is_partial();
+    let held = budget.reserved_tokens.unwrap_or(0);
+    let ceiling = match resources.observed_tokens {
+        None => "This session captured no token ceiling, so no turn was refused for tokens. What installations reported is still recorded under tokens observed.".to_owned(),
+        Some(total) => {
+            let standing = match totals.known_total() {
+                Some(spent) if partial => {
+                    let left = total.saturating_sub(spent).saturating_sub(held);
+                    format!("By reported counts, {spent} were spent and {held} are held for turns still open, which leaves {left}. Not every count is complete, so what is truly left is not known: it is at most {left}.")
+                }
+                Some(spent) => {
+                    let left = total.saturating_sub(spent).saturating_sub(held);
+                    format!("{spent} were reported spent and {held} are held for turns still open, which leaves {left}.")
+                }
+                None => format!("No turn reported a count, so no spending is known, {held} are held for turns still open, and what is truly left is not known."),
+            };
+            format!("A turn was admitted only if the tokens reported so far, the allowances still held by open turns and its own allowance fitted under {total}. {standing}")
+        }
+    };
+    let allowance = match resources.invocation_tokens {
+        Some(each) => format!("A turn whose assignment requested no allowance was admitted with {each}, and no assignment could request more. An allowance is what admission set aside while the turn ran. It is not a limit the installation enforced, and a turn can report more than its allowance."),
+        None => "No allowance was captured, so turns were admitted without setting tokens aside for them.".to_owned(),
+    };
+    let review = match (
+        budget.protected_review_tokens,
+        resources.review_reserve_tokens,
+        resources.invocation_tokens,
+    ) {
+        (Some(protected), Some(reserve), _) => format!("The session captured {reserve} tokens for the review it owes, and {protected} of them are protected now. What review turns have reported, and the allowances of review turns still open, come off that, and nothing is protected once the review the session owes is complete. Other work is refused where it would reach into them."),
+        (Some(protected), None, Some(each)) => format!(
+            "No review reserve was captured, so the protection is one turn allowance for each review turn still owed: {each} × {} = {protected}. Other work is refused where it would reach into them.",
+            budget.protected_review_invocations
+        ),
+        _ => "No token ceiling was captured, so no tokens were protected for review. The review turns kept aside are counted under reserved turns.".to_owned(),
+    };
+    let (policy, policy_words) = match resources.unknown_usage {
+        ymp_core::UnknownUsagePolicy::Stop => (
+            "stop admitting",
+            "Where an installation left a turn's count incomplete, the session admits no further turn under its token ceiling, and nothing is inferred to fill the gap.",
+        ),
+        ymp_core::UnknownUsagePolicy::BoundedNative => (
+            "admit on reported",
+            "Where an installation left a turn's count incomplete, the session goes on admitting turns against what was reported. An incomplete count stays incomplete: the remainder under the ceiling is what reported counts leave, not what is truly left, and no strict token bound follows. The ceiling, the review protection and the turn, parallel, context, output and timeout limits still apply.",
+        ),
+    };
+    let policy_detail = match (resources.observed_tokens, partial) {
+        (None, _) => format!("{policy_words} The session captured no token ceiling, so this policy had nothing to act on."),
+        (Some(_), true) => format!("{policy_words} Not every count in this session is complete."),
+        (Some(_), false) => policy_words.to_owned(),
+    };
+    let figure = |value: Option<u64>| value.map_or_else(|| "none".to_owned(), |v| v.to_string());
+    vec![
+        observed_row(ctx, budget),
+        captured_row(
+            ctx,
+            "captured:token-ceiling",
+            "token ceiling",
+            &figure(resources.observed_tokens),
+            &ceiling,
+        ),
+        captured_row(
+            ctx,
+            "captured:turn-allowance",
+            "turn allowance",
+            &figure(resources.invocation_tokens),
+            &allowance,
+        ),
+        captured_row(
+            ctx,
+            "captured:review-tokens",
+            "review tokens",
+            &figure(budget.protected_review_tokens),
+            &review,
+        ),
+        captured_row(
+            ctx,
+            "captured:unknown-usage",
+            "incomplete counts",
+            policy,
+            &policy_detail,
+        ),
+        strict_row(ctx, budget, Some(resources)),
+    ]
+}
+
+/// What installations reported for the session, with a count nobody reported kept unknown.
+fn observed_row(ctx: &Ctx, budget: &SessionBudget) -> Item {
+    captured_row(
+        ctx,
+        "captured:tokens",
+        "tokens observed",
+        &short_observed(budget),
+        &format!(
+            "{}. This is what installations reported for this session. A turn that reported nothing is counted as a turn, and its tokens stay unknown rather than being counted as zero.",
+            observed_words(budget)
+        ),
+    )
+}
+
+/// Whether a strict token bound holds for what the session spent.
+fn strict_row(
+    ctx: &Ctx,
+    budget: &SessionBudget,
+    resources: Option<&ymp_core::ResourceLimits>,
+) -> Item {
+    let words = if budget.strict_token_bound {
+        "The record states that what this session spent was held to a proved token bound."
+            .to_owned()
+    } else {
+        let mut words = "No proved bound holds for what this session spent. A turn already running can report more than its allowance, and no installation this session used proves a hard cap on a whole run, so a ceiling bounds what is admitted and not everything that is spent.".to_owned();
+        if budget.observed_usage.is_partial() {
+            words.push_str(
+                " Its counts are also incomplete, which on its own rules a strict bound out.",
+            );
+        }
+        if resources.is_some_and(|r| r.unknown_usage == ymp_core::UnknownUsagePolicy::BoundedNative)
+        {
+            words.push_str(" Admitting on reported counts does not change that.");
+        }
+        words
+    };
+    captured_row(
+        ctx,
+        "captured:bound",
+        "strict bound",
+        if budget.strict_token_bound {
+            "proved"
+        } else {
+            "not proved"
+        },
+        &words,
+    )
 }
 
 /// The short form for the row, which must leave room for its own label.
@@ -3573,6 +3710,7 @@ const HOW_WORK_IS_ASSIGNED: &[&str] = &[
     "Requested is what the run asked for. Sent is what the adapter passed to the installation. Reported is what the installation said it used. A column the record leaves empty stays empty here: no value is copied from one column into another, and a requested value nobody confirmed is never shown as applied.",
     "A fixed model or effort is a constraint the configuration states, and it is the only value allowed for that agent. Where nothing is fixed, the run chooses for itself and may choose differently on the next turn.",
     "A grant is permission to use one coordination call, issued for one assignment and recorded with it. It stops working when that turn ends or when the record says it was revoked. It is not a restriction on what the turn can do in the working directory: by the time a turn runs, it already has the same access to that directory as the user who started ymp.",
+    "Where a session captured a token ceiling, a turn is admitted with a token allowance: the one its assignment requested, or the session's per-turn default where it requested none. An allowance is what admission set aside while the turn ran, not a limit the installation enforced.",
     "Tokens counted against a turn stay with it whether the turn completed, failed or was cancelled, and a count no installation reported stays unknown rather than zero.",
 ];
 
@@ -3683,6 +3821,12 @@ fn assignment_row(ctx: &Ctx, assignment: &AssignmentRecord, live: bool) -> Item 
         theme,
         "turn timeout",
         &format!("{} s", assignment.timeout_secs),
+        ctx.width,
+    ));
+    detail.extend(field(
+        theme,
+        "token allowance",
+        &allowance_words(ctx, assignment),
         ctx.width,
     ));
     detail.push(Line::default());
@@ -3812,6 +3956,47 @@ fn assignment_row(ctx: &Ctx, assignment: &AssignmentRecord, live: bool) -> Item 
         Span::styled(model_word(assignment, invocation).to_owned(), theme.muted()),
     ])
     .with_detail(detail)
+}
+
+/// The token allowance a turn was admitted with, and where it came from.
+///
+/// An assignment that requested an allowance names it, and one that did not took the per-turn
+/// default the session captured. Both are read from the record and from the captured limits,
+/// never from the configuration a later run would use.
+fn allowance_words(ctx: &Ctx, assignment: &AssignmentRecord) -> String {
+    let requested = assignment.token_reservation;
+    let Some((limits, _)) = captured_limits(ctx) else {
+        return match requested {
+            Some(tokens) => format!(
+                "{tokens} · requested by this assignment; the session captured no limits to read it against"
+            ),
+            None => {
+                "not known · the session captured no limits, so no allowance can be named".to_owned()
+            }
+        };
+    };
+    let ceiling = limits
+        .resources
+        .as_ref()
+        .and_then(|resources| resources.invocation_tokens);
+    match (requested, ceiling) {
+        (Some(tokens), Some(ceiling)) if tokens <= ceiling => format!(
+            "{tokens} · requested by this assignment, within the per-turn ceiling of {ceiling} the session captured"
+        ),
+        (Some(tokens), Some(ceiling)) => format!(
+            "{tokens} · requested by this assignment, above the per-turn ceiling of {ceiling} the session captured"
+        ),
+        (Some(tokens), None) => format!(
+            "{tokens} · requested by this assignment; the session captured no per-turn ceiling"
+        ),
+        (None, Some(each)) => format!(
+            "{each} · inherited: this assignment requested none, so it took the session's per-turn default"
+        ),
+        (None, None) => {
+            "none · the session captured no token ceiling, so nothing was set aside for this turn"
+                .to_owned()
+        }
+    }
 }
 
 /// Marker, word and colour for the state of a turn. A record that says `running` while no
@@ -3952,12 +4137,58 @@ fn contract_detail(
         },
         ctx.width,
     ));
-    lines.extend(field(
-        theme,
-        "inputs recorded",
-        &format!("{} file(s) by digest", captured.inputs.len()),
-        ctx.width,
-    ));
+    // Each declared input is named with the digest it was captured at. A criterion that says a
+    // claim matches the declared source says nothing to a reader who cannot see which file
+    // that was.
+    if contract.inputs.is_empty() {
+        lines.extend(field(theme, "declared input", "none", ctx.width));
+    }
+    for input in &contract.inputs {
+        let digest = captured
+            .inputs
+            .iter()
+            .find(|snapshot| &snapshot.path == input)
+            .and_then(|snapshot| snapshot.sha256.as_deref())
+            .map(|digest| format!("captured at sha256 {}", text::short_id(digest)))
+            .unwrap_or_else(|| "no digest was captured".to_owned());
+        lines.extend(field(
+            theme,
+            "declared input",
+            &format!("{} · {digest}", input.display()),
+            ctx.width,
+        ));
+    }
+    if let Some(binding) = &contract.knowledge_correction {
+        lines.extend(field(
+            theme,
+            "corrects",
+            &format!(
+                "retained entry {} at version {}",
+                text::short_id(&binding.target.id),
+                text::short_id(&binding.target.version)
+            ),
+            ctx.width,
+        ));
+        lines.extend(field(
+            theme,
+            "source change",
+            &match &binding.source_replacement {
+                Some(source) => format!(
+                    "{} replaced by {}",
+                    source.previous_input.display(),
+                    source.replacement_input.display()
+                ),
+                None => "none declared".to_owned(),
+            },
+            ctx.width,
+        ));
+        lines.extend(field(
+            theme,
+            "established by",
+            &binding.criterion_ids.join(", "),
+            ctx.width,
+        ));
+    }
     lines.extend(field(
         theme,
         "checker",
@@ -3982,6 +4213,14 @@ fn contract_detail(
         "This is what a result will be judged against, captured before the work ran. It is a binding and not a result: whether each check then passed is a record of its own, and an acceptance states which criteria the evidence covered.",
         ctx.width,
     ));
+    if contract.knowledge_correction.is_some() {
+        lines.push(Line::default());
+        lines.extend(paragraph(
+            theme,
+            "It also binds a correction. The entry it names is replaced only if a result is accepted with passing evidence for the criteria it is established by, and that replacement is a record of its own.",
+            ctx.width,
+        ));
+    }
     lines
 }
 
@@ -4812,12 +5051,8 @@ fn decision_row(ctx: &Ctx, decision: &DecisionRecord) -> Item {
     ));
     detail.extend(field(theme, "actor", &actor, ctx.width));
     detail.extend(field(theme, "recorded", &decision.created_at, ctx.width));
-    detail.extend(field(
-        theme,
-        "outcome",
-        &recorded_outcome(decision, &acceptance),
-        ctx.width,
-    ));
+    let (outcome_word, outcome) = recorded_outcome(decision, &acceptance);
+    detail.extend(field(theme, "outcome", &outcome, ctx.width));
     if acceptance.accepted == Some(true) {
         detail.extend(field(
             theme,
@@ -4937,6 +5172,48 @@ fn decision_row(ctx: &Ctx, decision: &DecisionRecord) -> Item {
             ));
         }
     }
+    // The chain from a correction to the two entries it concerns, so the record says what it
+    // replaced without sending the reader to the memory page for it.
+    if let Some(correction) = decision.links.knowledge_correction.as_ref() {
+        detail.extend(field(
+            theme,
+            "replaced",
+            &format!(
+                "retained entry {} at version {}",
+                text::short_id(&correction.target.id),
+                text::short_id(&correction.target.version)
+            ),
+            ctx.width,
+        ));
+        detail.extend(field(
+            theme,
+            "replacement",
+            &format!(
+                "retained entry {}",
+                text::short_id(&correction.replacement_id)
+            ),
+            ctx.width,
+        ));
+        detail.extend(field(
+            theme,
+            "authorised by",
+            &format!(
+                "acceptance {} under trusted contract {}",
+                text::short_id(&correction.acceptance_id),
+                text::short_id(&correction.contract_id)
+            ),
+            ctx.width,
+        ));
+        detail.extend(field(
+            theme,
+            "corrected by",
+            &format!(
+                "policy {} version {}",
+                correction.policy.id, correction.policy.version
+            ),
+            ctx.width,
+        ));
+    }
     if let Some(allocation) = decision.links.allocation.as_deref() {
         detail.extend(membership_detail(ctx, allocation));
     }
@@ -5000,34 +5277,13 @@ fn decision_row(ctx: &Ctx, decision: &DecisionRecord) -> Item {
         theme.muted(),
     )));
     detail.extend(paragraph(theme, &decision.reason, ctx.width));
-    // A membership or resource decision records its own outcome inside the record it
-    // carries, not in the decision's grade field, so its word comes from there and never
-    // from a grade that was never written.
-    let (right, right_style) = match (
-        decision.links.allocation.as_deref(),
-        decision.links.resource_allocation.as_deref(),
-        decision.links.workspace_wait.as_ref(),
-    ) {
-        (Some(allocation), _, _) if allocation.accepted => {
-            ("membership committed".to_owned(), theme.good())
-        }
-        (Some(_), _, _) => ("membership refused".to_owned(), theme.bad()),
-        (_, Some(resource), _) if resource.accepted => ("bound set".to_owned(), theme.good()),
-        (_, Some(_), _) => ("bound refused".to_owned(), theme.bad()),
-        (_, _, Some(wait)) => (format!("waited · {}", wait.code), theme.warn()),
-        _ if decision.links.acceptance_contract.is_some() => {
-            ("criteria captured".to_owned(), theme.info())
-        }
-        _ if decision.kind == "workspace_access_acquired" => {
-            ("directory reserved".to_owned(), theme.info())
-        }
-        _ if decision.kind == "workspace_access_admitted" => {
-            ("turn admitted".to_owned(), theme.info())
-        }
-        _ if decision.kind == "workspace_access_released" => {
-            ("reservation ended".to_owned(), theme.muted())
-        }
-        _ => (acceptance.word().to_owned(), style),
+    // The row's word is read where the record's outcome is read, so the list cannot say that a
+    // record has no outcome while the record it opens states one. Its colour is the marker's,
+    // except that a reservation which ended is not news.
+    let right_style = if decision.kind == "workspace_access_released" {
+        theme.muted()
+    } else {
+        style
     };
     Item::row(
         text::short_id(&decision.id),
@@ -5037,7 +5293,7 @@ fn decision_row(ctx: &Ctx, decision: &DecisionRecord) -> Item {
             Span::styled(format!(" · {actor}"), theme.faint()),
         ],
     )
-    .with_right(vec![Span::styled(right, right_style)])
+    .with_right(vec![Span::styled(outcome_word, right_style)])
     .with_detail(detail)
 }
 
@@ -5112,52 +5368,71 @@ fn membership_detail(ctx: &Ctx, allocation: &AllocationDecision) -> Vec<Line<'st
     lines
 }
 
-/// The outcome a record carries, read from the field that actually holds it.
+/// The outcome a record carries, read from the field that actually holds it: the word its row
+/// shows, and the sentence its record states.
 ///
-/// A membership change, a per-turn bound, a wait and the three reservation records decide
-/// inside the record they carry, and no grade is ever written for them. Reading the grade
-/// field would report them as decisions recorded without an outcome while the row beside them
-/// says what they did, so this reads the same field the row does.
-fn recorded_outcome(decision: &DecisionRecord, acceptance: &Acceptance) -> String {
+/// A membership change, a per-turn bound, a wait, a change to the shared plan, a correction to
+/// what was retained, a captured contract and the three reservation records decide inside the
+/// record they carry, and no grade is ever written for them. Reading the grade field would
+/// report them as decisions recorded without an outcome, so the row and the record both read
+/// from here and cannot say different things.
+fn recorded_outcome(decision: &DecisionRecord, acceptance: &Acceptance) -> (String, String) {
+    let pair = |word: &str, sentence: &str| (word.to_owned(), sentence.to_owned());
     if let Some(allocation) = decision.links.allocation.as_deref() {
         return if allocation.accepted {
-            "the membership was committed".to_owned()
+            pair("membership committed", "the membership was committed")
         } else {
-            "the membership was refused".to_owned()
+            pair("membership refused", "the membership was refused")
         };
     }
     if let Some(resource) = decision.links.resource_allocation.as_deref() {
         return if resource.accepted {
-            "the bound was set".to_owned()
+            pair("bound set", "the bound was set")
         } else {
-            "the bound was refused".to_owned()
+            pair("bound refused", "the bound was refused")
         };
     }
     if let Some(wait) = decision.links.workspace_wait.as_ref() {
-        return format!("the turn waited · {}", wait.code);
+        return (
+            format!("waited · {}", wait.code),
+            format!("the turn waited · {}", wait.code),
+        );
     }
     if let Some(board) = decision.links.board.as_deref() {
         return if board.accepted {
-            "the plan took the change on".to_owned()
+            pair("committed", "the plan took the change on")
         } else {
-            "the plan was left unchanged".to_owned()
+            pair("rejected", "the plan was left unchanged")
         };
     }
     if decision.links.knowledge_correction.is_some() {
-        return "what was retained was replaced".to_owned();
+        return pair("entry replaced", "what was retained was replaced");
+    }
+    if decision.links.acceptance_contract.is_some() {
+        return pair(
+            "criteria captured",
+            "criteria were captured before the work",
+        );
     }
     match decision.kind.as_str() {
-        "workspace_access_acquired" => "the directory was reserved".to_owned(),
-        "workspace_access_admitted" => "the turn was admitted under that reservation".to_owned(),
-        "workspace_access_released" => "the reservation ended".to_owned(),
-        "acceptance_contract_captured" => "criteria were captured before the work".to_owned(),
-        _ => acceptance.word().to_owned(),
+        "workspace_access_acquired" => pair("directory reserved", "the directory was reserved"),
+        "workspace_access_admitted" => pair(
+            "turn admitted",
+            "the turn was admitted under that reservation",
+        ),
+        "workspace_access_released" => pair("reservation ended", "the reservation ended"),
+        "acceptance_contract_captured" => pair(
+            "criteria captured",
+            "criteria were captured before the work",
+        ),
+        _ => pair(acceptance.word(), acceptance.word()),
     }
 }
 
 /// Whether a decision carries its own outcome, for records the grade field was never
-/// written for: membership, per-turn resource bounds and changes to the shared plan all decide
-/// inside their own record.
+/// written for: membership, per-turn resource bounds, changes to the shared plan and
+/// corrections to what was retained all decide inside their own record. A correction is
+/// written only once it has been applied, so there is no refused one to mark.
 fn bounded_outcome(decision: &DecisionRecord) -> Option<bool> {
     decision
         .links
@@ -5172,6 +5447,7 @@ fn bounded_outcome(decision: &DecisionRecord) -> Option<bool> {
                 .map(|resource| resource.accepted)
         })
         .or_else(|| decision.links.board.as_deref().map(|board| board.accepted))
+        .or_else(|| decision.links.knowledge_correction.as_ref().map(|_| true))
 }
 
 /// What one turn was actually allowed to consume, and who decided it.
