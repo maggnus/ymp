@@ -21,6 +21,7 @@ use ymp_storage::Store;
 mod commands;
 mod frame;
 mod prefs;
+mod provenance;
 mod sidebar;
 mod state;
 mod terminal;

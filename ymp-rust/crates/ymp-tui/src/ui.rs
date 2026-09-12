@@ -154,12 +154,19 @@ fn header(frame: &mut Frame, area: Rect, app: &App) {
             usage::headline_style(total, theme),
         ));
     }
+    // The denominator is the bound the loaded session captured, not the one a later edit
+    // left in the configuration: a finished run is measured against what it ran under.
+    let (limit, captured) = app.turn_limit();
     segments.push(Segment::new(
         4,
         if wide {
-            format!("{} / {} turns", app.turns_used, app.config.limits.turns)
+            format!(
+                "{} / {limit} turns{}",
+                app.turns_used,
+                if captured { " captured" } else { "" }
+            )
         } else {
-            format!("{}/{}", app.turns_used, app.config.limits.turns)
+            format!("{}/{limit}", app.turns_used)
         },
         theme.faint(),
     ));
@@ -453,7 +460,9 @@ fn page_view(frame: &mut Frame, area: Rect, app: &mut App) {
     }
     let theme = app.theme;
     let focused = app.focus == Focus::Main;
-    let inner_width = area.width.saturating_sub(2);
+    // One width for the whole page: the rows, the detail pane and the empty state all land
+    // in rects of exactly this width, so nothing is wrapped wider than the rect it reaches.
+    let inner_width = frame::page_content_width(area.width);
     // Building the page can move the selection onto the first selectable row, so the frame
     // reads the selection afterwards. Otherwise the first frame would paint a selection the
     // keyboard has already left, and the detail of the selected row would be missing from it.
@@ -519,9 +528,9 @@ fn page_view(frame: &mut Frame, area: Rect, app: &mut App) {
 
     if !selectable {
         let inset = Rect {
-            x: body.x + 2,
+            x: body.x + frame::PAGE_INSET,
             y: body.y + 1,
-            width: body.width.saturating_sub(4),
+            width: inner_width,
             height: body.height.saturating_sub(1),
         };
         frame::paint(frame, inset, if empty.is_empty() { rows } else { empty });
@@ -538,7 +547,9 @@ fn page_view(frame: &mut Frame, area: Rect, app: &mut App) {
     let list_area = Rect {
         x: body.x + 1,
         y: body.y,
-        width: body.width.saturating_sub(2),
+        // The marker column is the row's own indent. The width is the page width, so a row
+        // keeps the same right margin the detail pane below it has.
+        width: inner_width,
         height: list_height,
     };
 
@@ -565,11 +576,11 @@ fn page_view(frame: &mut Frame, area: Rect, app: &mut App) {
             height: 1,
         };
         frame::hairline(frame, rule, &theme);
-        // Two columns of indent on each side, matching the width the page wrapped for.
+        // Two columns of indent on each side: exactly the width the page wrapped for.
         let detail_area = Rect {
-            x: body.x + 2,
+            x: body.x + frame::PAGE_INSET,
             y: rule.y + 1,
-            width: body.width.saturating_sub(4),
+            width: inner_width,
             height: detail_height.saturating_sub(1),
         };
         frame::paint(frame, detail_area, detail);
@@ -820,7 +831,7 @@ fn overlay(frame: &mut Frame, area: Rect, app: &App) -> Option<(u16, u16)> {
                     title: title.clone(),
                     badge: "read only".into(),
                     role: ModalRole::Reference,
-                    width: 86u16.min(area.width.saturating_sub(4)),
+                    width: frame::inspect_width(area.width),
                     body: body.clone(),
                     footer: vec![("Up/Down", "scroll"), ("Esc", "close")],
                     scroll: *scroll,

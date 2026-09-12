@@ -2409,3 +2409,902 @@ fn a_record_written_before_tasks_were_recorded_is_read_as_unscoped() {
         "the page does not account for records written before tasks were recorded"
     );
 }
+
+// ---------------------------------------------------------------------------
+// Frame width: prose is painted at the width it was wrapped for
+// ---------------------------------------------------------------------------
+
+/// Sizes the interface claims to support: the documented minimum and three larger ones.
+const SUPPORTED_SIZES: &[(u16, u16)] = &[(80, 24), (100, 30), (120, 40), (160, 48)];
+
+/// One sentence that is longer than any supported main column, so it must wrap and a lost
+/// column shows up as a missing word rather than as a missing space.
+const RECOVERY_SENTENCE: &str = "It recorded a path, a status and a content hash for each \
+     file, never a copy, so earlier content exists only where the working directory's own \
+     version control or a backup already kept it.";
+
+/// The screen as rows, so a test can see where a painted line ended.
+fn screen_rows(app: &mut App, width: u16, height: u16) -> Vec<String> {
+    let mut terminal = Terminal::new(TestBackend::new(width, height)).unwrap();
+    terminal.draw(|frame| ui::render(frame, app)).unwrap();
+    let buffer = terminal.backend().buffer().clone();
+    (0..height)
+        .map(|y| {
+            (0..width)
+                .map(|x| buffer[(x, y)].symbol())
+                .collect::<String>()
+        })
+        .collect()
+}
+
+/// The columns `first .. first + room` of every row, as one line.
+fn column_prose(rows: &[String], first: usize, room: usize) -> String {
+    let block = rows
+        .iter()
+        .map(|row| row.chars().skip(first).take(room).collect::<String>())
+        .collect::<Vec<_>>()
+        .join("\n");
+    text::one_line(&block)
+}
+
+/// What the main column says, as one line. The sidebar is cut away first, because it sits
+/// to the right of every row and would otherwise interrupt each sentence. A sentence
+/// survives the frame only if it is still here unbroken: a clipped right edge cuts a word
+/// in half instead.
+fn main_prose(app: &mut App, width: u16, height: u16) -> String {
+    let sidebar = crate::frame::sidebar_width(width);
+    let main = if sidebar == 0 {
+        width
+    } else {
+        width - sidebar - 1
+    };
+    column_prose(&screen_rows(app, width, height), 0, main as usize)
+}
+
+/// What the floating read-only surface says, as one line. It is centred and 86 columns
+/// wide, or the terminal less four, and its border takes the first and the last column.
+fn modal_prose(app: &mut App, width: u16, height: u16) -> String {
+    let surface = 86u16.min(width.saturating_sub(4)).max(12);
+    let left = (width.saturating_sub(surface) / 2 + 1) as usize;
+    column_prose(&screen_rows(app, width, height), left, inspect_room(width))
+}
+
+/// Columns the read-only inspect surface has for its body: it is 86 columns wide, or the
+/// terminal less four, and its own frame takes one column on each side.
+fn inspect_room(total: u16) -> usize {
+    86u16
+        .min(total.saturating_sub(4))
+        .saturating_sub(2)
+        .max(8)
+        .into()
+}
+
+/// Change metadata as a finished run writes it, so the change page has a row to select.
+fn seed_change(fixture: &Fixture, session: &str, name: &str, status: &str) {
+    let workspace = fixture
+        .store
+        .session_dir(&fixture.store.session(session).unwrap())
+        .join("workspace");
+    std::fs::create_dir_all(&workspace).unwrap();
+    std::fs::write(
+        workspace.join("changes.json"),
+        serde_json::json!([{"path": fixture.project.path().join(name), "status": status}])
+            .to_string(),
+    )
+    .unwrap();
+}
+
+#[test]
+fn the_detail_pane_paints_prose_whole_at_every_supported_size() {
+    let fixture = fixture();
+    let id = fixture.seed_session("Build a landing page");
+    seed_change(&fixture, &id, "index.html", "created");
+    for (width, height) in SUPPORTED_SIZES.iter().copied() {
+        let mut app = fixture.app();
+        app.load_session(&id).unwrap();
+        app.set_view(View::Changes);
+        let prose = main_prose(&mut app, width, height);
+        assert!(
+            prose.contains(RECOVERY_SENTENCE),
+            "at {width}x{height} the detail pane lost words from its statement:\n{prose}"
+        );
+    }
+}
+
+#[test]
+fn an_empty_page_paints_its_prose_whole_at_every_supported_size() {
+    let fixture = fixture();
+    let id = fixture.seed_session("Build a landing page");
+    for (width, height) in SUPPORTED_SIZES.iter().copied() {
+        let mut app = fixture.app();
+        app.load_session(&id).unwrap();
+        app.set_view(View::Changes);
+        let prose = main_prose(&mut app, width, height);
+        assert!(
+            prose.contains(RECOVERY_SENTENCE),
+            "at {width}x{height} the empty state lost words from its statement:\n{prose}"
+        );
+    }
+}
+
+#[test]
+fn the_inspect_surface_is_built_for_its_own_width_and_not_the_terminal() {
+    let fixture = fixture();
+    let id = fixture.seed_session("Build a landing page");
+    seed_change(&fixture, &id, "index.html", "created");
+    for (width, height) in SUPPORTED_SIZES.iter().copied() {
+        let mut app = fixture.app();
+        app.load_session(&id).unwrap();
+        app.set_view(View::Changes);
+        app.on_key(key(KeyCode::Enter), width);
+        let Some(Overlay::Inspect { body, .. }) = &app.overlay else {
+            panic!("Enter must open the selected record at {width}x{height}");
+        };
+        let room = inspect_room(width);
+        for line in body {
+            let painted = line
+                .spans
+                .iter()
+                .map(|span| span.content.as_ref())
+                .collect::<String>();
+            assert!(
+                text::width(&painted) <= room,
+                "at {width}x{height} a line of {} cells was built for a surface {room} wide:\n{painted}",
+                text::width(&painted)
+            );
+        }
+        let prose = modal_prose(&mut app, width, height);
+        assert!(
+            prose.contains(RECOVERY_SENTENCE),
+            "at {width}x{height} the inspect surface lost words from its statement:\n{prose}"
+        );
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Records a real mock run writes
+// ---------------------------------------------------------------------------
+
+/// A configuration whose only provider answers inside ymp.
+///
+/// Nothing in these tests reaches a provider process, reads a credential or leaves the
+/// temporary directories the fixture owns. The records the pages are asserted against are
+/// written by the runtime itself, through the same calls a real run makes.
+fn mock_config() -> Config {
+    use ymp_core::{Limits, ProviderConfig, ProviderKind, ResourceLimits};
+    Config {
+        version: 1,
+        execution: Default::default(),
+        capabilities: Default::default(),
+        limits: Limits {
+            parallel: 2,
+            turns: 80,
+            turn_timeout_secs: 10,
+            attempts: 2,
+            resources: Some(ResourceLimits::default()),
+        },
+        providers: vec![ProviderConfig {
+            id: "mock".into(),
+            kind: ProviderKind::Mock,
+            command: "internal".into(),
+            args: vec![],
+            env_refs: Default::default(),
+            enabled: true,
+        }],
+        agents: ["one", "two"]
+            .into_iter()
+            .map(|id| AgentProfile {
+                id: id.into(),
+                name: id.into(),
+                provider: "mock".into(),
+                model: None,
+                instructions: id.into(),
+                enabled: true,
+            })
+            .collect(),
+        team: vec!["one".into(), "two".into()],
+    }
+}
+
+struct Run {
+    _home: TempDir,
+    project: TempDir,
+    store: Store,
+    config: Config,
+    session: String,
+    status: String,
+}
+
+impl Run {
+    fn app(&self) -> App {
+        App::new(
+            self.store.clone(),
+            self.config.clone(),
+            PathBuf::from(self.project.path()),
+        )
+    }
+}
+
+/// Run the real engine once against the mock provider and keep what it wrote.
+///
+/// `prepare` receives the engine before the run, which is how a test installs an acceptance
+/// contract or a resource limit. No model is contacted at any effort: the mock answers in
+/// process, and the only settings that travel are the ones the runtime itself sets.
+async fn mock_run(prompt: &str, prepare: impl FnOnce(&mut ymp_runtime::Engine)) -> Run {
+    let home = TempDir::new().unwrap();
+    let project = TempDir::new().unwrap();
+    let store = Store::open(home.path()).unwrap();
+    let config = mock_config();
+    let (tx, _events) = tokio::sync::mpsc::unbounded_channel();
+    let mut engine = ymp_runtime::Engine::new(
+        store.clone(),
+        config.clone(),
+        tx,
+        tokio_util::sync::CancellationToken::new(),
+    )
+    .unwrap();
+    prepare(&mut engine);
+    let outcome = engine.run(project.path(), prompt, None).await.unwrap();
+    Run {
+        _home: home,
+        project,
+        store,
+        config: engine.config.clone(),
+        session: outcome.session.id,
+        status: outcome.session.status,
+    }
+}
+
+/// The contract a run is given so its acceptance can be confirmed: one criterion, one
+/// trusted check over the artifact the mock executor writes.
+fn exact_greeting_contract() -> ymp_core::AcceptanceContract {
+    use ymp_core::{AcceptanceContract, AcceptanceCriterion, CheckAssertion, TrustedCheck};
+    AcceptanceContract {
+        task_title: "Create a greeting".into(),
+        criteria: vec![AcceptanceCriterion {
+            id: "greeting-content".into(),
+            description: "The greeting file contains exactly the requested greeting".into(),
+        }],
+        artifacts: vec!["greeting.txt".into()],
+        inputs: vec![],
+        checks: vec![TrustedCheck {
+            id: "exact-greeting-v1".into(),
+            criterion_ids: vec!["greeting-content".into()],
+            assertion: CheckAssertion::ExactBytes {
+                artifact: "greeting.txt".into(),
+                expected: b"Hello from ymp\n".to_vec(),
+            },
+        }],
+    }
+}
+
+/// The rows of a page, by key, so a test can name the one it means.
+fn keys_of(app: &mut App, width: u16) -> Vec<String> {
+    app.page(width)
+        .items
+        .iter()
+        .map(|item| item.key.clone())
+        .collect()
+}
+
+/// The detail of the first row whose left text contains `needle`, as one line.
+fn row_prose(app: &mut App, width: u16, needle: &str) -> String {
+    let page = app.page(width);
+    let item = page
+        .items
+        .iter()
+        .find(|item| {
+            item.left
+                .iter()
+                .map(|span| span.content.as_ref())
+                .collect::<String>()
+                .contains(needle)
+        })
+        .unwrap_or_else(|| {
+            panic!(
+                "no row mentions {needle}: {:?}",
+                page.items.iter().map(|i| i.key.clone()).collect::<Vec<_>>()
+            )
+        });
+    text::one_line(&lines_text(&item.detail))
+}
+
+/// The right-hand text of the row with this key, which names one record exactly.
+fn right_of_key(app: &mut App, width: u16, key: &str) -> String {
+    let page = app.page(width);
+    page.items
+        .iter()
+        .find(|item| item.key == key)
+        .map(|item| {
+            item.right
+                .iter()
+                .map(|span| span.content.as_ref())
+                .collect::<String>()
+        })
+        .unwrap_or_else(|| panic!("no row has the key {key}"))
+}
+
+/// The detail of the row with this key, as one line.
+fn detail_of_key(app: &mut App, width: u16, key: &str) -> String {
+    let page = app.page(width);
+    let item = page
+        .items
+        .iter()
+        .find(|item| item.key == key)
+        .unwrap_or_else(|| panic!("no row has the key {key}"));
+    text::one_line(&lines_text(&item.detail))
+}
+
+/// The right-hand text of the first row whose left text contains `needle`.
+fn row_right(app: &mut App, width: u16, needle: &str) -> String {
+    let page = app.page(width);
+    page.items
+        .iter()
+        .find(|item| {
+            item.left
+                .iter()
+                .map(|span| span.content.as_ref())
+                .collect::<String>()
+                .contains(needle)
+        })
+        .map(|item| {
+            item.right
+                .iter()
+                .map(|span| span.content.as_ref())
+                .collect::<String>()
+        })
+        .unwrap_or_else(|| panic!("no row mentions {needle}"))
+}
+
+#[tokio::test]
+async fn an_assignment_shows_what_was_sent_and_never_claims_an_unreported_setting_applied() {
+    let run = mock_run("Create a greeting", |_| {}).await;
+    let mut app = run.app();
+    app.load_session(&run.session).unwrap();
+    app.command("/assignments", 100);
+
+    let subtitle = app.page(65).subtitle.clone();
+    assert!(
+        subtitle.contains("assigned") && subtitle.contains("none open"),
+        "a finished run was not described as finished: {subtitle}"
+    );
+    let execute = row_prose(&mut app, 65, "execute");
+    assert!(
+        execute.contains("write sent") && execute.contains("unconfirmed"),
+        "a permission mode nobody reported was not marked unconfirmed:\n{execute}"
+    );
+    assert!(
+        !execute.contains("the installation reported the same"),
+        "a setting nothing reported was presented as confirmed:\n{execute}"
+    );
+    assert!(
+        execute.contains("nothing requested; the installation used its own default"),
+        "an unrequested model was not stated as the installation's own default:\n{execute}"
+    );
+    assert!(
+        execute.contains("nothing is fixed"),
+        "the page did not say whether the settings were constrained:\n{execute}"
+    );
+    assert!(
+        execute.contains("ymp.native"),
+        "the record's execution backend is missing:\n{execute}"
+    );
+    assert!(
+        execute.contains("Create a greeting") && execute.contains("attempt 1"),
+        "the turn did not name the task attempt it belongs to:\n{execute}"
+    );
+    assert!(
+        execute.contains("post to the board"),
+        "the coordination permission the record grants is not named:\n{execute}"
+    );
+    assert!(
+        execute.contains("completed"),
+        "the turn's recorded state is missing:\n{execute}"
+    );
+    // A record is not a claim about containment.
+    for forbidden in ["sandbox", "isolated", "approved by you"] {
+        assert!(
+            !execute.contains(forbidden),
+            "the page claims {forbidden}:\n{execute}"
+        );
+    }
+}
+
+#[tokio::test]
+async fn an_acceptance_on_review_alone_is_not_presented_as_confirmed() {
+    let run = mock_run("Create a greeting", |_| {}).await;
+    let mut app = run.app();
+    app.load_session(&run.session).unwrap();
+    app.command("/decisions", 100);
+
+    let trace = run.store.trace(&run.session).unwrap();
+    let acceptance = trace
+        .decisions
+        .iter()
+        .find(|decision| decision.kind == "task_accepted")
+        .unwrap();
+    let reviewer = trace
+        .decisions
+        .iter()
+        .find(|decision| acceptance.links.review_ids.contains(&decision.id))
+        .and_then(|review| review.actor.clone())
+        .expect("the runtime links the review its acceptance rests on");
+    let accepted = row_prose(&mut app, 65, "task accepted");
+    assert!(
+        accepted.contains("accepted, unconfirmed"),
+        "an acceptance with no evidence was graded as something else:\n{accepted}"
+    );
+    assert!(
+        accepted.contains("an independent review, with no applicable check evidence"),
+        "the basis of the acceptance is not stated:\n{accepted}"
+    );
+    assert!(
+        accepted.contains(&format!("reviewed by {reviewer}")),
+        "the reviewer the acceptance links is not named:\n{accepted}"
+    );
+    assert!(
+        !accepted.contains("accepted, confirmed"),
+        "an unconfirmed acceptance reads as confirmed:\n{accepted}"
+    );
+
+    app.command("/tasks", 100);
+    assert!(
+        row_right(&mut app, 65, "Create a greeting").contains("unconfirmed"),
+        "the task row does not carry the grade of its acceptance"
+    );
+    let task = row_prose(&mut app, 65, "Create a greeting");
+    assert!(
+        task.contains("no competence credit was recorded"),
+        "an unconfirmed acceptance was credited:\n{task}"
+    );
+    assert!(
+        !task.contains("competence credited to"),
+        "credit appeared without a credit record:\n{task}"
+    );
+}
+
+#[tokio::test]
+async fn a_confirmed_acceptance_names_its_evidence_and_its_credit() {
+    let run = mock_run("Create a greeting", |engine| {
+        engine.acceptance_contracts.push(exact_greeting_contract())
+    })
+    .await;
+    let mut app = run.app();
+    app.load_session(&run.session).unwrap();
+    app.command("/decisions", 100);
+
+    let accepted = row_prose(&mut app, 65, "task accepted");
+    assert!(
+        accepted.contains("accepted, confirmed"),
+        "a confirmed acceptance was not distinguished:\n{accepted}"
+    );
+    assert!(
+        accepted.contains("covering every applicable criterion"),
+        "the evidence behind a confirmed acceptance is not stated:\n{accepted}"
+    );
+    assert!(
+        accepted.contains("still current"),
+        "the page does not say whether the accepted files are still the ones on disk:\n{accepted}"
+    );
+    let credited = row_prose(&mut app, 65, "competence credited");
+    assert!(
+        credited.contains("competence observation"),
+        "the credit record does not name its observation:\n{credited}"
+    );
+
+    app.command("/tasks", 100);
+    assert!(
+        row_right(&mut app, 65, "Create a greeting").contains("confirmed"),
+        "the task row does not show that its acceptance was confirmed"
+    );
+    let task = row_prose(&mut app, 65, "Create a greeting");
+    assert!(
+        task.contains("competence credited to"),
+        "a credited task does not say so:\n{task}"
+    );
+
+    app.command("/reputation", 100);
+    let producer = run
+        .store
+        .observations()
+        .unwrap()
+        .first()
+        .expect("a confirmed acceptance credits its producer")
+        .agent_name
+        .clone();
+    let observation = row_prose(&mut app, 65, &producer);
+    assert!(
+        observation.contains("confirmed: evidence passed for every criterion"),
+        "the observation's evidence status is missing:\n{observation}"
+    );
+    assert!(
+        observation.contains("this session recorded the credit for it"),
+        "the credit this session recorded is not shown:\n{observation}"
+    );
+    assert!(
+        app.page(65).subtitle.contains("on confirmed evidence"),
+        "the page does not count confirmed observations apart: {}",
+        app.page(65).subtitle
+    );
+}
+
+#[tokio::test]
+async fn an_accepted_result_whose_files_changed_stays_accepted_and_says_what_changed() {
+    let run = mock_run("Create a greeting", |engine| {
+        engine.acceptance_contracts.push(exact_greeting_contract())
+    })
+    .await;
+    // The working directory moves on after acceptance, as a later run would move it.
+    std::fs::write(run.project.path().join("greeting.txt"), "Changed by hand\n").unwrap();
+    let mut app = run.app();
+    app.load_session(&run.session).unwrap();
+    app.command("/decisions", 100);
+
+    let accepted = row_prose(&mut app, 65, "task accepted");
+    assert!(
+        accepted.contains("accepted, confirmed"),
+        "a later edit retracted a recorded acceptance:\n{accepted}"
+    );
+    assert!(
+        accepted.contains("superseded by later changes"),
+        "a stale result was presented as current:\n{accepted}"
+    );
+    assert!(
+        !accepted.contains("still current"),
+        "the page claims the accepted files are unchanged:\n{accepted}"
+    );
+}
+
+#[tokio::test]
+async fn an_unreadable_grade_is_never_read_as_a_pass() {
+    let run = mock_run("Create a greeting", |_| {}).await;
+    // What an older installation left behind: an outcome recorded before grading existed.
+    run.store
+        .observe(&ymp_core::Observation {
+            confirmation: ymp_core::ConfirmationStatus::Unknown,
+            id: ymp_core::new_id(),
+            agent_version: "legacy-version".into(),
+            agent_name: "two".into(),
+            competence: "implementation".into(),
+            difficulty: "simple".into(),
+            success: true,
+            evidence: "Recorded before evidence was graded.".into(),
+            created_at: ymp_core::now(),
+        })
+        .unwrap();
+    let mut app = run.app();
+    app.load_session(&run.session).unwrap();
+    app.command("/reputation", 100);
+
+    let legacy = row_prose(&mut app, 65, "two");
+    assert!(
+        legacy.contains("unknown: the record was written before grading"),
+        "a legacy observation was given a grade it does not carry:\n{legacy}"
+    );
+    assert!(
+        legacy.contains("not eligible: only a confirmed outcome can be credited"),
+        "an ungraded observation was treated as eligible for selection:\n{legacy}"
+    );
+    assert!(
+        row_right(&mut app, 65, "two").contains("grade unknown"),
+        "the row does not show that the grade is unknown"
+    );
+    assert!(
+        app.page(65).subtitle.contains("0 on confirmed evidence"),
+        "an ungraded observation was counted as confirmed: {}",
+        app.page(65).subtitle
+    );
+}
+
+#[tokio::test]
+async fn a_reopened_session_is_measured_against_the_limits_it_captured() {
+    let run = mock_run("Create a greeting", |_| {}).await;
+    // The configuration moves on after the run, which must not rewrite what it ran under.
+    let mut config = run.config.clone();
+    config.limits.turns = 7;
+    let mut app = App::new(run.store.clone(), config, PathBuf::from(run.project.path()));
+    app.load_session(&run.session).unwrap();
+
+    let (limit, captured) = app.turn_limit();
+    assert!(
+        captured,
+        "a session with a captured budget was read as if it had none"
+    );
+    assert_eq!(
+        limit, 80,
+        "the session was measured against an edited limit"
+    );
+
+    app.command("/limits", 100);
+    let captured_turns = row_prose(&mut app, 65, "turns");
+    assert!(
+        captured_turns.contains("cannot be edited here"),
+        "a captured limit was offered for editing:\n{captured_turns}"
+    );
+    let keys = keys_of(&mut app, 65);
+    assert!(
+        keys.contains(&"captured:turns".to_owned()) && keys.contains(&"turns".to_owned()),
+        "the captured limits and the next run's are not kept apart: {keys:?}"
+    );
+    assert!(
+        app.page(65).subtitle.contains("this session: 80 turns")
+            && app.page(65).subtitle.contains("the next run: 7 turns"),
+        "the page does not separate the two: {}",
+        app.page(65).subtitle
+    );
+    let tokens = row_prose(&mut app, 65, "tokens observed");
+    assert!(
+        tokens.contains("not as zero tokens"),
+        "unreported spend was not distinguished from nothing spent:\n{tokens}"
+    );
+
+    // Pressing the editing keys on a record must not change the configuration.
+    app.page_selected = app
+        .page(65)
+        .items
+        .iter()
+        .position(|item| item.key == "captured:turns")
+        .unwrap();
+    app.on_key(key(KeyCode::Char('+')), 100);
+    app.on_key(key(KeyCode::Char('-')), 100);
+    assert_eq!(
+        app.config.limits.turns, 7,
+        "a keystroke on a captured record edited the configuration"
+    );
+}
+
+#[tokio::test]
+async fn a_session_that_captured_no_limits_says_so_instead_of_showing_todays() {
+    let fixture = fixture();
+    let id = fixture.seed_session("An older run");
+    let mut app = fixture.app();
+    app.load_session(&id).unwrap();
+
+    let (limit, captured) = app.turn_limit();
+    assert!(!captured, "a session with no captured budget claimed one");
+    assert_eq!(limit, Config::default().limits.turns);
+
+    app.command("/limits", 100);
+    let none = row_prose(&mut app, 65, "captured no limits");
+    assert!(
+        none.contains("ran before limits were captured")
+            && none.contains("the values below are not it"),
+        "an absent capture was not distinguished from a captured value:\n{none}"
+    );
+
+    app.command("/assignments", 100);
+    let empty = empty_prose(&mut app, 65);
+    assert!(
+        empty.contains("No assignments were recorded"),
+        "a session that recorded nothing was described as unread:\n{empty}"
+    );
+    assert!(
+        !empty.contains("Nothing was read"),
+        "an opened session was reported as unopened:\n{empty}"
+    );
+
+    app.command("/new", 100);
+    app.command("/decisions", 100);
+    let unopened = empty_prose(&mut app, 65);
+    assert!(
+        unopened.contains("Nothing was read") && unopened.contains("No session is loaded"),
+        "an unopened session was reported as one that recorded nothing:\n{unopened}"
+    );
+}
+
+#[tokio::test]
+async fn membership_keeps_an_agent_that_worked_here_after_it_leaves_the_pool() {
+    let run = mock_run("Create a greeting", |_| {}).await;
+    // The profile is deleted from the configuration after the run, as editing the file does.
+    let mut config = run.config.clone();
+    config.agents.retain(|agent| agent.id != "two");
+    config.team.retain(|id| id != "two");
+    let mut app = App::new(run.store.clone(), config, PathBuf::from(run.project.path()));
+    app.load_session(&run.session).unwrap();
+    app.command("/team", 100);
+
+    let keys = keys_of(&mut app, 65);
+    assert!(
+        keys.contains(&"two".to_owned()),
+        "an agent that worked in this session disappeared with its profile: {keys:?}"
+    );
+    let member = row_prose(&mut app, 65, "two");
+    assert!(
+        member.contains("captured by this session when it started"),
+        "the session's own membership is not named as captured:\n{member}"
+    );
+    assert!(
+        member.contains("not in the pool on this machine"),
+        "an agent missing from the pool was presented as available:\n{member}"
+    );
+    assert!(
+        member.contains("turns recorded here"),
+        "the work the agent did here is not counted:\n{member}"
+    );
+    assert!(
+        app.page(65).subtitle.contains("captured by this session"),
+        "the page does not say which team it shows: {}",
+        app.page(65).subtitle
+    );
+}
+
+#[tokio::test]
+async fn a_turn_left_open_is_not_called_running_until_a_run_is_active() {
+    let run = mock_run("Create a greeting", |_| {}).await;
+    let trace = run.store.trace(&run.session).unwrap();
+    let previous = trace.assignments.last().unwrap().clone();
+    // One more turn, admitted and not finished: what a turn in flight looks like in the
+    // store, written with the same calls the runtime uses.
+    let mut assignment = ymp_core::AssignmentRecord {
+        id: ymp_core::new_id(),
+        grant_ids: Vec::new(),
+        state: ymp_core::InvocationState::Running,
+        started_at: ymp_core::now(),
+        ended_at: None,
+        ..previous.clone()
+    };
+    let open = ymp_core::InvocationRecord {
+        id: ymp_core::new_id(),
+        session_id: run.session.clone(),
+        assignment_id: assignment.id.clone(),
+        execution_backend: None,
+        turn: trace.invocations.len() as u64 + 1,
+        requested: assignment.requested.clone(),
+        sent: Default::default(),
+        reported: Default::default(),
+        resumed_from: None,
+        native_session_id: None,
+        native_turn_id: None,
+        native_version: None,
+        state: ymp_core::InvocationState::Running,
+        started_at: ymp_core::now(),
+        ended_at: None,
+        usage: None,
+        terminal_reason: None,
+    };
+    let grants = vec![ymp_core::GrantRecord::for_assignment(
+        &assignment,
+        &open,
+        ymp_core::TeamOperation::coordination(),
+    )];
+    assignment.grant_ids = grants.iter().map(|grant| grant.id.clone()).collect();
+    run.store
+        .begin_invocation_with_grants(&assignment, &open, &grants)
+        .unwrap();
+
+    let mut app = run.app();
+    app.load_session(&run.session).unwrap();
+    app.command("/team", 100);
+    assert!(!app.active);
+    let idle = row_right(&mut app, 65, &assignment.agent_id);
+    assert!(
+        idle.contains("a turn was left open"),
+        "an open record in a stored session was described as live: {idle}"
+    );
+    app.command("/assignments", 100);
+    let row_key = text::short_id(&assignment.id);
+    let idle_row = right_of_key(&mut app, 65, &row_key);
+    assert!(
+        idle_row.contains("left open") && !idle_row.contains("running"),
+        "an open record in a stored session was described as running: {idle_row}"
+    );
+    assert!(
+        app.page(65).subtitle.contains("1 left open"),
+        "the page described a stored open turn as one in flight: {}",
+        app.page(65).subtitle
+    );
+
+    app.active = true;
+    app.command("/team", 100);
+    let live = row_right(&mut app, 65, &assignment.agent_id);
+    assert!(
+        live.contains("running now"),
+        "a turn open during an active run was not described as running: {live}"
+    );
+    app.command("/assignments", 100);
+    let live_row = right_of_key(&mut app, 65, &row_key);
+    assert!(
+        live_row.contains("running"),
+        "a turn in flight was not described as running: {live_row}"
+    );
+    assert!(
+        app.page(65).subtitle.contains("1 running"),
+        "the page does not count the turn that is in flight: {}",
+        app.page(65).subtitle
+    );
+
+    // Stopping a run recovers the turn it left open, which is the call the runtime makes
+    // after a cancellation. The record then says interrupted, and nothing says completed.
+    assert_eq!(
+        run.store.interrupt_open_invocations(&run.session).unwrap(),
+        1
+    );
+    app.active = false;
+    app.command("/assignments", 100);
+    let stopped = right_of_key(&mut app, 65, &row_key);
+    assert!(
+        stopped.contains("interrupted"),
+        "a recovered turn was not described as interrupted: {stopped}"
+    );
+    assert!(
+        app.page(65).subtitle.contains("none open"),
+        "a recovered turn is still counted as open: {}",
+        app.page(65).subtitle
+    );
+    let detail = detail_of_key(&mut app, 65, &row_key);
+    assert!(
+        detail.contains("Runtime recovered an invocation without an observed terminal result"),
+        "the reason the turn ended is not shown:\n{detail}"
+    );
+}
+
+#[tokio::test]
+async fn a_budget_stop_is_named_on_the_limits_page() {
+    let run = mock_run("Create a greeting", |engine| {
+        engine
+            .config
+            .limits
+            .resources
+            .as_mut()
+            .unwrap()
+            .startup_context_chars = 100;
+    })
+    .await;
+    assert_eq!(run.status, "paused", "the budget did not stop the run");
+    let mut app = run.app();
+    app.load_session(&run.session).unwrap();
+    app.command("/limits", 100);
+
+    let stop = row_prose(&mut app, 65, "last stop");
+    assert!(
+        stop.contains("the budget refused") && stop.contains("allowance"),
+        "the recorded stop is not explained:\n{stop}"
+    );
+    assert!(
+        row_right(&mut app, 65, "last stop").contains("context_limit"),
+        "the stop does not carry the code the budget recorded"
+    );
+    let admitted = row_prose(&mut app, 65, "turns admitted");
+    assert!(
+        admitted.contains("in flight only while a run is active"),
+        "an open turn count was not qualified:\n{admitted}"
+    );
+}
+
+#[tokio::test]
+async fn records_of_an_agent_outside_the_member_list_are_still_shown() {
+    let run = mock_run("Create a greeting", |_| {}).await;
+    // An older record shape: a session that stored no team of its own, read on a machine
+    // whose configuration no longer lists the agents that worked in it.
+    let mut session = run.store.session(&run.session).unwrap();
+    session.team = Vec::new();
+    run.store.save_session(&session).unwrap();
+    let mut config = run.config.clone();
+    config.team.clear();
+    let mut app = App::new(run.store.clone(), config, PathBuf::from(run.project.path()));
+    app.load_session(&run.session).unwrap();
+    app.command("/team", 100);
+
+    let page = app.page(65);
+    let headings = page
+        .items
+        .iter()
+        .filter(|item| item.kind == crate::views::ItemKind::Heading)
+        .map(|item| lines_prose(&[ratatui::text::Line::from(item.left.clone())]))
+        .collect::<Vec<_>>();
+    assert!(
+        headings
+            .iter()
+            .any(|heading| heading.contains("WORKED HERE")),
+        "agents with records and no membership are not shown apart: {headings:?}"
+    );
+    let worked = row_prose(&mut app, 65, "two");
+    assert!(
+        worked.contains("either it is no longer a member, or the list does not name it"),
+        "the page does not say what this row means:\n{worked}"
+    );
+    assert!(
+        worked.contains("turns recorded here"),
+        "the work this agent did is not counted:\n{worked}"
+    );
+}

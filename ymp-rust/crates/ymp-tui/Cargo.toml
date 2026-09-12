@@ -7,6 +7,7 @@ license.workspace = true
 
 [dependencies]
 ymp-core.workspace = true
+ymp-providers.workspace = true
 ymp-storage.workspace = true
 ymp-workspace.workspace = true
 ymp-runtime.workspace = true

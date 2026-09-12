@@ -201,11 +201,21 @@ fn session(app: &App, width: usize) -> Section {
             theme.faint(),
         ))),
     }
+    // Against the bound the session captured where it has one, so a stored run is not
+    // measured against a limit edited after it finished.
+    let (limit, captured) = app.turn_limit();
     lines.push(text::row(
         width,
-        vec![Span::styled("turns".to_owned(), theme.muted())],
         vec![Span::styled(
-            format!("{} / {}", app.turns_used, app.config.limits.turns),
+            if captured {
+                "turns this session".to_owned()
+            } else {
+                "turns next run".to_owned()
+            },
+            theme.muted(),
+        )],
+        vec![Span::styled(
+            format!("{} / {limit}", app.turns_used),
             theme.body(),
         )],
     ));

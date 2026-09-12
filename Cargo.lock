@@ -1593,6 +1593,7 @@ dependencies = [
  "tokio-util",
  "unicode-width 0.2.0",
  "ymp-core",
+ "ymp-providers",
  "ymp-runtime",
  "ymp-storage",
  "ymp-workspace",

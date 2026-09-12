@@ -9,6 +9,7 @@
 //! the user's working directory.
 
 use crate::commands::{self, Group};
+use crate::provenance::{Acceptance, Pool, Records};
 use crate::text;
 use crate::theme::Theme;
 use crate::usage::{self, Stats};
@@ -16,8 +17,10 @@ use ratatui::style::Style;
 use ratatui::text::{Line, Span};
 use std::path::Path;
 use ymp_core::{
-    AgentProfile, CheckOutcome, CheckRun, Config, MemoryEntry, Session, Task, TaskState,
-    UsageTotals,
+    AgentProfile, AssignmentRecord, CheckOutcome, CheckRun, Config, ConfirmationStatus,
+    DecisionRecord, ExecutionSettings, GrantRecord, InvocationRecord, InvocationState, Limits,
+    MemoryEntry, ModelEffort, PoolAgent, PoolExclusion, PoolModelStatus, Session, SessionBudget,
+    Task, TaskState, UsageTotals,
 };
 use ymp_storage::Store;
 use ymp_workspace::repository::Repository;
@@ -32,6 +35,8 @@ pub enum View {
     Files,
     Changes,
     Checks,
+    Assignments,
+    Decisions,
     Team,
     Agents,
     Providers,
@@ -50,6 +55,8 @@ pub const NAV: &[View] = &[
     View::Files,
     View::Changes,
     View::Checks,
+    View::Assignments,
+    View::Decisions,
     View::Team,
     View::Agents,
     View::Providers,
@@ -69,6 +76,8 @@ impl View {
             View::Files => "Files",
             View::Changes => "Changed files",
             View::Checks => "Recorded checks",
+            View::Assignments => "Assignments",
+            View::Decisions => "Decisions",
             View::Team => "Team",
             View::Agents => "Agent profiles",
             View::Providers => "Providers",
@@ -87,6 +96,8 @@ impl View {
             View::Files => "/files",
             View::Changes => "/diff",
             View::Checks => "/checks",
+            View::Assignments => "/assignments",
+            View::Decisions => "/decisions",
             View::Team => "/team",
             View::Agents => "/agents",
             View::Providers => "/providers",
@@ -95,6 +106,27 @@ impl View {
             View::Limits => "/limits",
             View::Help => "/help",
         }
+    }
+
+    /// Pages built from the records a session wrote. The controller refreshes its snapshot
+    /// when one of them is opened, and again while a run is reporting into one, so a page
+    /// never reads the store itself.
+    pub fn reads_records(self) -> bool {
+        matches!(
+            self,
+            View::Tasks
+                | View::Assignments
+                | View::Decisions
+                | View::Team
+                | View::Limits
+                | View::Reputation
+        )
+    }
+
+    /// Pages that describe what is installed on this machine. Inspecting that looks for
+    /// executables on `PATH`, which is a read the controller performs, never a page.
+    pub fn reads_pool(self) -> bool {
+        matches!(self, View::Team | View::Agents | View::Providers)
     }
 }
 
@@ -173,9 +205,15 @@ pub struct Ctx<'a> {
     pub tasks: &'a [Task],
     /// The profiles the loaded session captured, or the ones the next run would use.
     pub team: &'a [AgentProfile],
+    /// True when `team` is what a session captured rather than what a next run would use.
+    pub team_captured: bool,
     pub stats: &'a Stats,
     /// A run is active in this window. Only then is an open invocation one in flight.
     pub live: bool,
+    /// What the controller last read of the loaded session's own records.
+    pub records: &'a Records,
+    /// What the controller last found installed on this machine.
+    pub pool: &'a Pool,
     pub memory_query: &'a str,
     pub width: usize,
 }
@@ -191,6 +229,8 @@ pub fn build(view: View, ctx: &Ctx) -> Page {
         View::Files => guard(view, files(ctx), ctx),
         View::Changes => guard(view, changes(ctx), ctx),
         View::Checks => guard(view, checks(ctx), ctx),
+        View::Assignments => assignments(ctx),
+        View::Decisions => decisions(ctx),
         View::Team => team(ctx),
         View::Agents => agents(ctx),
         View::Providers => providers(ctx),
@@ -307,16 +347,6 @@ fn yes_no(value: bool, theme: &Theme) -> Span<'static> {
     } else {
         Span::styled(format!("{} off", theme.markers.idle), theme.faint())
     }
-}
-
-/// Is `command` reachable? A relative name is looked up on PATH; nothing is executed.
-fn on_path(command: &str) -> bool {
-    if command.contains('/') {
-        return Path::new(command).is_file();
-    }
-    std::env::var_os("PATH")
-        .map(|paths| std::env::split_paths(&paths).any(|dir| dir.join(command).is_file()))
-        .unwrap_or(false)
 }
 
 // ---------------------------------------------------------------------------
@@ -443,6 +473,13 @@ fn tasks(ctx: &Ctx) -> Page {
                 )));
                 detail.extend(text::markdown(result, ctx.width, theme, theme.body()));
             }
+            detail.push(Line::default());
+            detail.push(Line::from(Span::styled(
+                "Acceptance".to_owned(),
+                theme.muted(),
+            )));
+            detail.extend(acceptance_lines(ctx, task));
+            let grade = ctx.records.acceptance(&task.id);
             Item::row(
                 task.id.clone(),
                 vec![
@@ -452,6 +489,17 @@ fn tasks(ctx: &Ctx) -> Page {
             )
             .with_right(vec![
                 Span::styled(format!("{word}  "), style),
+                Span::styled(
+                    match &grade {
+                        Some(acceptance) => format!("{}  ", grade_word(acceptance)),
+                        None => String::new(),
+                    },
+                    match &grade {
+                        Some(acceptance) if acceptance.confirmed() => theme.good(),
+                        Some(_) => theme.info(),
+                        None => theme.muted(),
+                    },
+                ),
                 Span::styled(assignee, theme.faint()),
             ])
             .with_detail(detail)
@@ -486,6 +534,25 @@ fn tasks(ctx: &Ctx) -> Page {
 /// The page is a projection of what the store recorded. It starts nothing, and it never
 /// fills a gap with a guess: a count no provider reported stays a dash, and a figure that
 /// an unfinished invocation can still add to is marked as a lower bound.
+/// The turn bound these figures should be read against, named as what it is.
+fn turn_bound_words(ctx: &Ctx) -> String {
+    match captured_limits(ctx) {
+        Some((limits, _)) => format!(
+            "{} of {} captured by this session",
+            ctx.records
+                .trace
+                .as_ref()
+                .map(|trace| trace.session.turns_used)
+                .unwrap_or(0),
+            limits.turns
+        ),
+        None => format!(
+            "this session captured no bound of its own; {} is what a new run would start with",
+            ctx.config.limits.turns
+        ),
+    }
+}
+
 fn tokens(ctx: &Ctx) -> Page {
     let theme = ctx.theme;
     // One detail block is read in two places: under the list, and in the overlay Enter
@@ -498,8 +565,16 @@ fn tokens(ctx: &Ctx) -> Page {
     if usage::present(ctx.session, ctx.stats) {
         let unattributed = ctx.stats.unattributed();
         // The session total already counts every invocation, including any the session
-        // cannot attribute, so its own counters say all there is to say.
-        let mut detail = usage::breakdown(total, false, theme, ledger);
+        // cannot attribute, so its own counters say all there is to say. What it does not
+        // say on its own is which session it belongs to and which bound it was spent
+        // against, so both are named first.
+        let mut detail = Vec::new();
+        if let Some(session) = ctx.session {
+            detail.extend(field(theme, "session", session, prose));
+        }
+        detail.extend(field(theme, "turns", &turn_bound_words(ctx), prose));
+        detail.push(Line::default());
+        detail.extend(usage::breakdown(total, false, theme, ledger));
         detail.push(Line::default());
         detail.extend(paragraph(
             theme,
@@ -1195,113 +1270,356 @@ fn declared_check(ctx: &Ctx, command: &str, tasks: &[String]) -> Item {
     .with_detail(detail)
 }
 
+const WHAT_MEMBERSHIP_MEANS: &[&str] = &[
+    "The pool is who may be drawn on; a session's team is who its run actually formed. Neither is assembled turn by turn by hand, and editing one does not rewrite the other.",
+    "What a session captured stays as captured. An agent that worked in it keeps its place in that record after it leaves the pool, and a profile edited afterwards does not change how the finished session reads.",
+    "A role lasts as long as the assignment that created it. Planning, executing and reviewing are what an agent is doing in a turn, never a rank and never a standing permission.",
+    "Eligibility below is about this machine: the profile is enabled, its provider is enabled, and the provider's program was found on PATH. Model lists come from the configuration, not from asking a provider. Whether an account may run a model is the installation's own business, and ymp reads no credential to build this page.",
+];
+
 fn team(ctx: &Ctx) -> Page {
     let theme = ctx.theme;
-    let mut items = Vec::new();
-    let members = ctx.config.members();
-    for id in &ctx.config.team {
-        let Ok(profile) = ctx.config.agent(id) else {
-            continue;
-        };
-        let usable = members.iter().any(|m| &m.id == id);
-        let provider = ctx.config.provider(&profile.provider).ok();
-        let reason = if usable {
-            "ready".to_owned()
-        } else if !profile.enabled {
-            "profile disabled".to_owned()
-        } else if provider.is_none_or(|p| !p.enabled) {
-            "provider disabled".to_owned()
+    let mut items = vec![about_row(
+        ctx,
+        "what membership means",
+        "What membership means here",
+        WHAT_MEMBERSHIP_MEANS,
+    )];
+    let members = ctx.team;
+    items.push(Item::heading(
+        if ctx.team_captured {
+            "Members of this session"
         } else {
-            "unavailable".to_owned()
-        };
-        let mut detail = field(theme, "profile", &profile.id, ctx.width);
-        detail.extend(field(theme, "provider", &profile.provider, ctx.width));
-        detail.extend(field(
-            theme,
-            "model",
-            profile.model.as_deref().unwrap_or("provider default"),
-            ctx.width,
-        ));
-        detail.extend(field(theme, "status", &reason, ctx.width));
-        detail.push(Line::default());
-        detail.extend(paragraph(
-            theme,
-            if profile.instructions.is_empty() {
-                "No additional instructions."
-            } else {
-                &profile.instructions
-            },
-            ctx.width,
-        ));
-        items.push(
-            Item::row(
-                profile.id.clone(),
-                vec![
-                    Span::styled(
-                        format!(
-                            "{} ",
-                            if usable {
-                                theme.markers.ok
-                            } else {
-                                theme.markers.warn
-                            }
-                        ),
-                        if usable { theme.good() } else { theme.warn() },
-                    ),
-                    Span::styled(profile.name.clone(), theme.text()),
-                    Span::styled(format!(" · {}", profile.provider), theme.faint()),
-                ],
-            )
-            .with_right(vec![Span::styled(
-                reason,
-                if usable { theme.good() } else { theme.warn() },
-            )])
-            .with_detail(detail),
-        );
+            "Members of the next run"
+        },
+        theme,
+    ));
+    for profile in members {
+        items.push(member_row(ctx, profile));
     }
-    let outside: Vec<_> = ctx
-        .config
-        .agents
-        .iter()
-        .filter(|a| !ctx.config.team.contains(&a.id))
+    let historical: Vec<String> = ctx
+        .records
+        .agents()
+        .into_iter()
+        .filter(|id| !members.iter().any(|member| &member.id == id))
         .collect();
-    if !outside.is_empty() {
-        items.push(Item::heading("Not in the team", theme));
-        for profile in outside {
-            items.push(
-                Item::row(
-                    profile.id.clone(),
-                    vec![
-                        Span::styled(format!("{} ", theme.markers.idle), theme.faint()),
-                        Span::styled(profile.name.clone(), theme.muted()),
-                        Span::styled(format!(" · {}", profile.provider), theme.faint()),
-                    ],
-                )
-                .with_right(vec![Span::styled("not a member".to_owned(), theme.faint())])
-                .with_detail(field(theme, "profile", &profile.id, ctx.width)),
-            );
+    if !historical.is_empty() {
+        items.push(Item::heading("Worked here, not in this list", theme));
+        for id in &historical {
+            items.push(historical_row(ctx, id));
         }
     }
+    items.push(Item::heading("Available on this machine", theme));
+    if ctx.pool.agents().is_empty() {
+        items.push(pool_unavailable_row(ctx));
+    } else {
+        for agent in ctx.pool.agents() {
+            items.push(pool_row(ctx, agent));
+        }
+    }
+    let eligible = ctx.pool.pool.as_ref().map(|pool| pool.eligible().count());
     Page {
         view: View::Team,
         title: View::Team.title().into(),
-        subtitle: format!(
-            "{} usable of {} listed · applies to the next run",
-            members.len(),
-            ctx.config.team.len()
-        ),
+        subtitle: match (ctx.team_captured, eligible) {
+            (true, Some(eligible)) => format!(
+                "{} captured by this session · {eligible} eligible on this machine",
+                members.len()
+            ),
+            (true, None) => format!("{} captured by this session", members.len()),
+            (false, Some(eligible)) => format!(
+                "{} for the next run · {eligible} eligible on this machine",
+                members.len()
+            ),
+            (false, None) => format!("{} for the next run", members.len()),
+        },
         items,
         empty: nothing(
             theme,
-            "The team is empty",
-            "Add a profile with /team add ID. A team run needs at least two profiles so results are reviewed independently.",
+            "No profile is eligible",
+            "A run needs at least two profiles, so that no agent accepts its own work. Add one with /agent add ID PROVIDER, then /team add ID.",
             ctx.width,
         ),
         hints: vec![
             ("Space", "add or remove"),
-            ("Enter", "open the profile"),
+            ("Enter", "open the record"),
             ("Esc", "back"),
         ],
+    }
+}
+
+/// One member of the team a session captured, or of the team the next run would use.
+fn member_row(ctx: &Ctx, profile: &AgentProfile) -> Item {
+    let theme = ctx.theme;
+    let records = ctx.records;
+    let turns = records
+        .assignments()
+        .iter()
+        .filter(|assignment| assignment.agent_id == profile.id)
+        .count();
+    let open = records
+        .open()
+        .into_iter()
+        .filter(|assignment| assignment.agent_id == profile.id)
+        .count();
+    let eligible = ctx.pool.agent(&profile.id);
+    let (right, style) = if open > 0 && ctx.live {
+        ("running now".to_owned(), theme.warn())
+    } else if open > 0 {
+        ("a turn was left open".to_owned(), theme.info())
+    } else if turns > 0 {
+        (format!("{turns} turn(s) here"), theme.good())
+    } else if ctx.team_captured {
+        ("no turn recorded".to_owned(), theme.muted())
+    } else {
+        match eligible {
+            Some(agent) if agent.exclusions.is_empty() => ("eligible".to_owned(), theme.good()),
+            Some(agent) => (exclusion_word(agent.exclusions[0]).to_owned(), theme.warn()),
+            None => ("not in the pool".to_owned(), theme.warn()),
+        }
+    };
+    let mut detail = field(theme, "profile", &profile.id, ctx.width);
+    detail.extend(field(theme, "provider", &profile.provider, ctx.width));
+    detail.extend(field(
+        theme,
+        "model",
+        profile
+            .model
+            .as_deref()
+            .unwrap_or("none set; the installation chooses"),
+        ctx.width,
+    ));
+    detail.extend(field(
+        theme,
+        "source",
+        if ctx.team_captured {
+            "captured by this session when it started"
+        } else {
+            "the configuration as it stands now"
+        },
+        ctx.width,
+    ));
+    detail.extend(field(
+        theme,
+        "turns recorded here",
+        &turns.to_string(),
+        ctx.width,
+    ));
+    let (source, fixed) = pinned(ctx, &profile.id);
+    detail.extend(field(theme, "fixed", &pin_words(&fixed, source), ctx.width));
+    detail.extend(field(
+        theme,
+        "on this machine",
+        &eligibility_words(eligible),
+        ctx.width,
+    ));
+    detail.push(Line::default());
+    detail.push(Line::from(Span::styled(
+        "Permissions in force now".to_owned(),
+        theme.muted(),
+    )));
+    let live = records.live_grants(&profile.id);
+    if live.is_empty() {
+        detail.extend(paragraph(
+            theme,
+            "None. A coordination permission exists only while the assignment that holds it is running.",
+            ctx.width,
+        ));
+    } else {
+        for grant in &live {
+            detail.extend(field(theme, "granted", &grant_detail(grant), ctx.width));
+        }
+    }
+    detail.push(Line::default());
+    detail.extend(paragraph(
+        theme,
+        if profile.instructions.is_empty() {
+            "No additional instructions."
+        } else {
+            &profile.instructions
+        },
+        ctx.width,
+    ));
+    Item::row(
+        profile.id.clone(),
+        vec![
+            Span::styled(
+                format!(
+                    "{} ",
+                    if open > 0 {
+                        theme.markers.busy
+                    } else if turns > 0 {
+                        theme.markers.ok
+                    } else {
+                        theme.markers.idle
+                    }
+                ),
+                style,
+            ),
+            Span::styled(profile.name.clone(), theme.text()),
+            Span::styled(format!(" · {}", profile.provider), theme.faint()),
+        ],
+    )
+    .with_right(vec![Span::styled(right, style)])
+    .with_detail(detail)
+}
+
+/// An agent the records show working in this session that the current team does not list.
+fn historical_row(ctx: &Ctx, id: &str) -> Item {
+    let theme = ctx.theme;
+    let turns = ctx
+        .records
+        .assignments()
+        .iter()
+        .filter(|assignment| assignment.agent_id == id)
+        .count();
+    let mut detail = field(theme, "profile", id, ctx.width);
+    detail.extend(field(
+        theme,
+        "turns recorded here",
+        &turns.to_string(),
+        ctx.width,
+    ));
+    detail.extend(field(
+        theme,
+        "on this machine",
+        &eligibility_words(ctx.pool.agent(id)),
+        ctx.width,
+    ));
+    detail.push(Line::default());
+    detail.extend(paragraph(
+        theme,
+        "This agent has assignment records in this session and is not in the list above: either it is no longer a member, or the list does not name it. The records stay as written either way, because membership that ended does not remove the work it did.",
+        ctx.width,
+    ));
+    Item::row(
+        id.to_owned(),
+        vec![
+            Span::styled(format!("{} ", theme.markers.activity), theme.info()),
+            Span::styled(display_name(ctx.config, id), theme.text()),
+        ],
+    )
+    .with_right(vec![Span::styled(
+        format!("{turns} turn(s) recorded here"),
+        theme.info(),
+    )])
+    .with_detail(detail)
+}
+
+/// One profile in the pool this machine could draw on.
+fn pool_row(ctx: &Ctx, agent: &PoolAgent) -> Item {
+    let theme = ctx.theme;
+    let eligible = agent.exclusions.is_empty();
+    let mut detail = field(theme, "profile", &agent.profile.id, ctx.width);
+    detail.extend(field(theme, "provider", &agent.profile.provider, ctx.width));
+    detail.extend(field(theme, "version", &agent.profile_version, ctx.width));
+    detail.extend(field(theme, "model", model_status_words(agent), ctx.width));
+    if eligible {
+        detail.extend(field(theme, "eligible", "yes, on this machine", ctx.width));
+    } else {
+        for exclusion in &agent.exclusions {
+            detail.extend(field(
+                theme,
+                "excluded",
+                exclusion_word(*exclusion),
+                ctx.width,
+            ));
+        }
+    }
+    detail.push(Line::default());
+    detail.extend(paragraph(
+        theme,
+        "Eligibility says the program is installed and enabled here. It says nothing about authentication, quota or whether a model will accept the turn: only the installation can answer that, and it is asked when a turn runs.",
+        ctx.width,
+    ));
+    Item::row(
+        agent.profile.id.clone(),
+        vec![
+            Span::styled(
+                format!(
+                    "{} ",
+                    if eligible {
+                        theme.markers.ok
+                    } else {
+                        theme.markers.warn
+                    }
+                ),
+                if eligible { theme.good() } else { theme.warn() },
+            ),
+            Span::styled(agent.profile.name.clone(), theme.muted()),
+            Span::styled(format!(" · {}", agent.profile.provider), theme.faint()),
+        ],
+    )
+    .with_right(vec![Span::styled(
+        if eligible {
+            "eligible".to_owned()
+        } else {
+            exclusion_word(agent.exclusions[0]).to_owned()
+        },
+        if eligible { theme.good() } else { theme.warn() },
+    )])
+    .with_detail(detail)
+}
+
+fn pool_unavailable_row(ctx: &Ctx) -> Item {
+    let theme = ctx.theme;
+    let mut detail = Vec::new();
+    match &ctx.pool.unreadable {
+        Some(error) => {
+            detail.extend(paragraph(
+                theme,
+                "The pool could not be inspected, which is not the same as a machine with nothing installed.",
+                ctx.width,
+            ));
+            detail.push(Line::default());
+            detail.extend(paragraph(theme, error, ctx.width));
+        }
+        None => detail.extend(paragraph(
+            theme,
+            "No profile is configured on this machine. Add one with /agent add ID PROVIDER.",
+            ctx.width,
+        )),
+    }
+    Item::row(
+        "pool",
+        vec![
+            Span::styled(format!("{} ", theme.markers.warn), theme.warn()),
+            Span::styled("Nothing was inspected".to_owned(), theme.text()),
+        ],
+    )
+    .with_right(vec![Span::styled("no pool read".to_owned(), theme.muted())])
+    .with_detail(detail)
+}
+
+fn eligibility_words(agent: Option<&PoolAgent>) -> String {
+    match agent {
+        None => "this profile is not in the pool on this machine".into(),
+        Some(agent) if agent.exclusions.is_empty() => "eligible".into(),
+        Some(agent) => agent
+            .exclusions
+            .iter()
+            .map(|exclusion| exclusion_word(*exclusion))
+            .collect::<Vec<_>>()
+            .join("; "),
+    }
+}
+
+fn exclusion_word(exclusion: PoolExclusion) -> &'static str {
+    match exclusion {
+        PoolExclusion::AgentDisabled => "the profile is disabled",
+        PoolExclusion::ProviderDisabled => "its provider is disabled",
+        PoolExclusion::ExecutableMissing => "the provider's program was not found",
+        PoolExclusion::ModelUnlisted => "the configured catalog does not list the model",
+        PoolExclusion::NoModelsAvailable => "the configured catalog lists no model",
+    }
+}
+
+fn model_status_words(agent: &PoolAgent) -> &'static str {
+    match agent.model_status {
+        PoolModelStatus::InheritedDefault => "none set; the installation chooses",
+        PoolModelStatus::Listed => "listed in the configured catalog",
+        PoolModelStatus::Unlisted => "not in the configured catalog",
+        PoolModelStatus::Unknown => "the configured catalog does not say",
     }
 }
 
@@ -1401,7 +1719,8 @@ fn providers(ctx: &Ctx) -> Page {
         .providers
         .iter()
         .map(|provider| {
-            let found = on_path(&provider.command);
+            let health = ctx.pool.provider(&provider.id);
+            let found = health.is_some_and(|health| health.executable.is_some());
             let mut detail = field(theme, "provider", &provider.id, ctx.width);
             detail.extend(field(
                 theme,
@@ -1418,10 +1737,25 @@ fn providers(ctx: &Ctx) -> Page {
             detail.extend(field(
                 theme,
                 "executable",
-                if found {
-                    "found on PATH"
+                &match health {
+                    Some(health) => match &health.executable {
+                        Some(path) => path.display().to_string(),
+                        None if health.available => {
+                            "none; this provider runs inside ymp".to_owned()
+                        }
+                        None => "not found on PATH".to_owned(),
+                    },
+                    None => "not inspected".to_owned(),
+                },
+                ctx.width,
+            ));
+            detail.extend(field(
+                theme,
+                "inspected",
+                if ctx.pool.read_at.is_empty() {
+                    "not yet"
                 } else {
-                    "not found on PATH"
+                    &ctx.pool.read_at
                 },
                 ctx.width,
             ));
@@ -1453,12 +1787,16 @@ fn providers(ctx: &Ctx) -> Page {
             )
             .with_right(vec![
                 Span::styled(
-                    if found {
-                        format!("{} on PATH  ", theme.markers.ok)
-                    } else {
-                        format!("{} missing  ", theme.markers.warn)
+                    match (found, health.is_some_and(|health| health.available)) {
+                        (true, _) => format!("{} on PATH  ", theme.markers.ok),
+                        (false, true) => format!("{} in process  ", theme.markers.ok),
+                        (false, false) => format!("{} not found  ", theme.markers.warn),
                     },
-                    if found { theme.good() } else { theme.warn() },
+                    if found || health.is_some_and(|health| health.available) {
+                        theme.good()
+                    } else {
+                        theme.warn()
+                    },
                 ),
                 yes_no(provider.enabled, theme),
             ])
@@ -1480,6 +1818,15 @@ fn providers(ctx: &Ctx) -> Page {
     }
 }
 
+/// What an entry here does and does not establish. Knowledge is not one status: an entry a
+/// reviewer accepted and an entry nobody reviewed are both kept, and the page says which is
+/// which rather than calling all of it verified.
+const MEMORY_BASIS: &str = "An entry records what a run proposed and who, if anyone, \
+     reviewed it. A reviewer named here accepted the entry; an entry with no reviewer is a \
+     candidate that was kept, not a checked fact. Nothing here re-checks an entry against \
+     the source it came from, so an entry can be true when it was written and out of date \
+     now.";
+
 fn memory(ctx: &Ctx) -> anyhow::Result<Page> {
     let theme = ctx.theme;
     let project = ctx.store.project(ctx.cwd)?;
@@ -1492,17 +1839,44 @@ fn memory(ctx: &Ctx) -> anyhow::Result<Page> {
             } else {
                 "global"
             };
+            let reviewed = entry.reviewer.is_some();
             let mut detail = field(theme, "entry", &entry.id, ctx.width);
             detail.extend(field(theme, "scope", scope, ctx.width));
             detail.extend(field(theme, "kind", &entry.kind, ctx.width));
+            detail.extend(field(theme, "status", &entry.status, ctx.width));
             detail.extend(field(theme, "author", &entry.author, ctx.width));
             detail.extend(field(
                 theme,
                 "reviewer",
-                entry.reviewer.as_deref().unwrap_or("none"),
+                entry
+                    .reviewer
+                    .as_deref()
+                    .unwrap_or("none recorded; this entry is a candidate"),
+                ctx.width,
+            ));
+            detail.extend(field(
+                theme,
+                "from session",
+                if entry.source_session.is_empty() {
+                    "not recorded"
+                } else {
+                    &entry.source_session
+                },
+                ctx.width,
+            ));
+            detail.extend(field(
+                theme,
+                "supersedes",
+                &entry
+                    .supersedes
+                    .as_deref()
+                    .map(text::short_id)
+                    .unwrap_or_else(|| "nothing".to_owned()),
                 ctx.width,
             ));
             detail.extend(field(theme, "recorded", &entry.created_at, ctx.width));
+            detail.push(Line::default());
+            detail.extend(paragraph(theme, MEMORY_BASIS, ctx.width));
             detail.push(Line::default());
             detail.extend(text::markdown(
                 &entry.content,
@@ -1514,14 +1888,24 @@ fn memory(ctx: &Ctx) -> anyhow::Result<Page> {
                 entry.id.clone(),
                 vec![Span::styled(entry.title.clone(), theme.text())],
             )
-            .with_right(vec![Span::styled(
-                scope.to_owned(),
-                if scope == "global" {
-                    theme.accent()
-                } else {
-                    theme.faint()
-                },
-            )])
+            .with_right(vec![
+                Span::styled(
+                    if reviewed {
+                        "reviewed  ".to_owned()
+                    } else {
+                        "candidate  ".to_owned()
+                    },
+                    if reviewed { theme.good() } else { theme.warn() },
+                ),
+                Span::styled(
+                    scope.to_owned(),
+                    if scope == "global" {
+                        theme.accent()
+                    } else {
+                        theme.faint()
+                    },
+                ),
+            ])
             .with_detail(detail)
         })
         .collect::<Vec<_>>();
@@ -1529,17 +1913,25 @@ fn memory(ctx: &Ctx) -> anyhow::Result<Page> {
         view: View::Memory,
         title: View::Memory.title().into(),
         subtitle: if ctx.memory_query.is_empty() {
-            "Verified knowledge for this project and shared procedures".into()
+            format!(
+                "{} recorded for this project and as shared procedure",
+                entries.len()
+            )
         } else {
             format!("Matching \"{}\"", ctx.memory_query)
         },
         items,
-        empty: nothing(
-            theme,
-            "No verified memory matches",
-            "Entries appear after an independent reviewer accepts them. Search with /memory QUERY.",
-            ctx.width,
-        ),
+        empty: {
+            let mut lines = nothing(
+                theme,
+                "No recorded memory matches",
+                "An entry is recorded when a run proposes one and that proposal is accepted. Search with /memory QUERY.",
+                ctx.width,
+            );
+            lines.push(Line::default());
+            lines.extend(paragraph(theme, MEMORY_BASIS, ctx.width));
+            lines
+        },
         hints: vec![
             ("/", "search"),
             ("f", "retire the entry"),
@@ -1549,67 +1941,116 @@ fn memory(ctx: &Ctx) -> anyhow::Result<Page> {
     })
 }
 
+const WHAT_AN_OBSERVATION_IS: &[&str] = &[
+    "An observation records one outcome for one agent at one kind of work. It is written when a result is accepted or rejected, never from an agent's own report.",
+    "Only a confirmed observation that a session also credited counts toward who a later run may pick. A confirmed outcome is one whose evidence passed for every criterion it applies to; unconfirmed means the result was accepted on an independent review alone; unknown means the record predates grading.",
+    "A high rate from few observations is not evidence of reliability, and an agent without observations is not thereby unreliable. Absence of a record is absence of a record.",
+];
+
 fn reputation(ctx: &Ctx) -> anyhow::Result<Page> {
     let theme = ctx.theme;
     let observations = ctx.store.observations()?;
-    let items = observations
+    let confirmed = observations
         .iter()
-        .take(200)
-        .map(|observation| {
-            let style = if observation.success {
-                theme.good()
-            } else {
-                theme.bad()
-            };
-            let verdict = if observation.success {
-                format!("{} accepted", theme.markers.ok)
-            } else {
-                format!("{} rejected", theme.markers.fail)
-            };
-            let mut detail = field(theme, "agent", &observation.agent_name, ctx.width);
-            detail.extend(field(
-                theme,
-                "version",
-                &observation.agent_version,
-                ctx.width,
-            ));
-            detail.extend(field(
-                theme,
-                "competence",
-                &format!("{} · {}", observation.competence, observation.difficulty),
-                ctx.width,
-            ));
-            detail.extend(field(
-                theme,
-                "outcome",
-                if observation.success {
-                    "accepted"
+        .filter(|observation| observation.confirmation == ConfirmationStatus::Confirmed)
+        .count();
+    let mut items = vec![about_row(
+        ctx,
+        "what an observation is",
+        "What an observation is, and what counts toward selection",
+        WHAT_AN_OBSERVATION_IS,
+    )];
+    items.extend(
+        observations
+            .iter()
+            .take(200)
+            .map(|observation| {
+                let style = if observation.success {
+                    theme.good()
                 } else {
-                    "rejected"
+                    theme.bad()
+                };
+                let verdict = if observation.success {
+                    format!("{} accepted", theme.markers.ok)
+                } else {
+                    format!("{} rejected", theme.markers.fail)
+                };
+                let mut detail = field(theme, "agent", &observation.agent_name, ctx.width);
+                detail.extend(field(
+                    theme,
+                    "version",
+                    &observation.agent_version,
+                    ctx.width,
+                ));
+                detail.extend(field(
+                    theme,
+                    "competence",
+                    &format!("{} · {}", observation.competence, observation.difficulty),
+                    ctx.width,
+                ));
+                detail.extend(field(
+                    theme,
+                    "outcome",
+                    if observation.success {
+                        "accepted"
+                    } else {
+                        "rejected"
+                    },
+                    ctx.width,
+                ));
+                detail.extend(field(
+                    theme,
+                    "evidence status",
+                    confirmation_word(observation.confirmation),
+                    ctx.width,
+                ));
+                detail.extend(field(
+                theme,
+                "credit",
+                if ctx.records.credited.contains(&observation.id) {
+                    "this session recorded the credit for it"
+                } else if observation.confirmation == ConfirmationStatus::Confirmed {
+                    "credited by the session that accepted the work, which this page does not read"
+                } else {
+                    "not eligible: only a confirmed outcome can be credited"
                 },
                 ctx.width,
             ));
-            detail.extend(field(theme, "recorded", &observation.created_at, ctx.width));
-            detail.push(Line::default());
-            detail.extend(paragraph(theme, &observation.evidence, ctx.width));
-            Item::row(
-                observation.id.clone(),
-                vec![
-                    Span::styled(observation.agent_name.clone(), theme.text()),
+                detail.extend(field(theme, "recorded", &observation.created_at, ctx.width));
+                detail.push(Line::default());
+                detail.extend(paragraph(theme, &observation.evidence, ctx.width));
+                Item::row(
+                    observation.id.clone(),
+                    vec![
+                        Span::styled(observation.agent_name.clone(), theme.text()),
+                        Span::styled(
+                            format!(" · {} / {}", observation.competence, observation.difficulty),
+                            theme.faint(),
+                        ),
+                    ],
+                )
+                .with_right(vec![
+                    Span::styled(format!("{verdict}  "), style),
                     Span::styled(
-                        format!(" · {} / {}", observation.competence, observation.difficulty),
-                        theme.faint(),
+                        confirmation_tag(observation.confirmation).to_owned(),
+                        if observation.confirmation == ConfirmationStatus::Confirmed {
+                            theme.good()
+                        } else {
+                            theme.muted()
+                        },
                     ),
-                ],
-            )
-            .with_right(vec![Span::styled(verdict, style)])
-            .with_detail(detail)
-        })
-        .collect::<Vec<_>>();
+                ])
+                .with_detail(detail)
+            })
+            .collect::<Vec<Item>>(),
+    );
     Ok(Page {
         view: View::Reputation,
         title: View::Reputation.title().into(),
-        subtitle: format!("{} recorded observations", observations.len()),
+        subtitle: format!(
+            "{} recorded · {confirmed} on confirmed evidence",
+            observations.len()
+        ),
         items,
         empty: nothing(
             theme,
@@ -1621,10 +2062,26 @@ fn reputation(ctx: &Ctx) -> anyhow::Result<Page> {
     })
 }
 
+const WHAT_LIMITS_ARE: &[&str] = &[
+    "A limit is a bound on the run, not a target. Reaching one stops the session and leaves it resumable, and nothing works around it.",
+    "A session captures the limits it started with. The values under the next run are editable and apply to a session started later: they do not change what a session already ran under, and they are not what a finished session was measured against.",
+    "A session that ran before its limits were captured has nothing recorded here. That is a missing record, not a run without bounds.",
+    "Token figures are what installations reported. A count nobody reported stays unknown rather than zero, and a figure an open turn can still add to is shown as a lower bound.",
+];
+
 fn limits(ctx: &Ctx) -> Page {
     let theme = ctx.theme;
+    let mut items = vec![about_row(
+        ctx,
+        "what a limit is",
+        "What a limit is, and which run it applies to",
+        WHAT_LIMITS_ARE,
+    )];
+    items.push(Item::heading("This session, as captured", theme));
+    items.extend(captured_limit_rows(ctx));
+    items.push(Item::heading("The next run", theme));
     let limits = &ctx.config.limits;
-    let rows: [(&str, String, &str); 4] = [
+    for (key, value, description) in [
         (
             "parallel",
             limits.parallel.to_string(),
@@ -1645,30 +2102,1127 @@ fn limits(ctx: &Ctx) -> Page {
             limits.attempts.to_string(),
             "Rejected attempts a task may make before it is blocked.",
         ),
-    ];
-    let items = rows
-        .iter()
-        .map(|(key, value, description)| {
-            Item::row(
-                (*key).to_owned(),
-                vec![Span::styled((*key).to_owned(), theme.text())],
-            )
-            .with_right(vec![Span::styled(value.clone(), theme.accent())])
-            .with_detail(paragraph(theme, description, ctx.width))
-        })
-        .collect::<Vec<_>>();
+    ] {
+        let mut detail = paragraph(theme, description, ctx.width);
+        detail.push(Line::default());
+        detail.extend(paragraph(
+            theme,
+            "Editing this changes what a later session starts with. A session already running keeps the value it captured.",
+            ctx.width,
+        ));
+        items.push(
+            Item::row(key, vec![Span::styled(key.to_owned(), theme.text())])
+                .with_right(vec![Span::styled(value, theme.accent())])
+                .with_detail(detail),
+        );
+    }
     Page {
         view: View::Limits,
         title: View::Limits.title().into(),
-        subtitle: "Applied to the next run".into(),
+        subtitle: match captured_limits(ctx) {
+            Some((limits, _)) => format!(
+                "this session: {} turns, {} at a time · the next run: {} turns",
+                limits.turns, limits.parallel, ctx.config.limits.turns
+            ),
+            None => "No captured limits were read · editing applies to the next run".into(),
+        },
         items,
         empty: Vec::new(),
         hints: vec![
-            ("+ / -", "adjust"),
-            ("Enter", "type a value"),
+            ("+ / -", "adjust the next run"),
+            ("Enter", "type a value, or read the record"),
             ("Esc", "back"),
         ],
     }
+}
+
+/// The limits a session captured, and the budget it accounted against them.
+fn captured_limits<'a>(ctx: &'a Ctx) -> Option<(&'a Limits, Option<&'a SessionBudget>)> {
+    let trace = ctx.records.trace.as_ref()?;
+    let budget = trace.budget.as_ref();
+    let limits = budget
+        .map(|budget| &budget.limits)
+        .or(trace.policy.as_ref().map(|policy| &policy.limits))?;
+    Some((limits, budget))
+}
+
+fn captured_limit_rows(ctx: &Ctx) -> Vec<Item> {
+    let theme = ctx.theme;
+    let Some((limits, budget)) = captured_limits(ctx) else {
+        let headline = match (ctx.session, ctx.records.unreadable.as_ref()) {
+            (None, _) => "No session is loaded, so nothing was read",
+            (Some(_), Some(_)) => "This session's records could not be read",
+            (Some(_), None) => "This session captured no limits",
+        };
+        let mut detail = paragraph(
+            theme,
+            match (ctx.session, ctx.records.unreadable.as_ref()) {
+                (None, _) => "Open a session with /sessions to see the limits it ran under.",
+                (Some(_), Some(_)) => "Reading failed, which is not the same as a session that captured nothing.",
+                (Some(_), None) => "It ran before limits were captured with a session. What it was actually bounded by is not recorded, and the values below are not it.",
+            },
+            ctx.width,
+        );
+        if let Some(error) = &ctx.records.unreadable {
+            detail.push(Line::default());
+            detail.extend(paragraph(theme, error, ctx.width));
+        }
+        return vec![Item::row(
+            "captured:none",
+            vec![
+                Span::styled(format!("{} ", theme.markers.idle), theme.muted()),
+                Span::styled(headline.to_owned(), theme.text()),
+            ],
+        )
+        .with_right(vec![Span::styled(
+            "nothing captured".to_owned(),
+            theme.muted(),
+        )])
+        .with_detail(detail)];
+    };
+    let used = ctx
+        .records
+        .trace
+        .as_ref()
+        .map(|trace| trace.session.turns_used)
+        .unwrap_or(0);
+    let mut rows = vec![
+        captured_row(
+            ctx,
+            "captured:turns",
+            "turns",
+            &format!("{used} of {}", limits.turns),
+            "The turn bound this session started with. Used counts the turns its record names.",
+        ),
+        captured_row(
+            ctx,
+            "captured:parallel",
+            "parallel",
+            &limits.parallel.to_string(),
+            "Turns this session was allowed to run at the same time.",
+        ),
+        captured_row(
+            ctx,
+            "captured:timeout",
+            "timeout",
+            &format!("{} s", limits.turn_timeout_secs),
+            "How long one of this session's turns could run before it was abandoned.",
+        ),
+        captured_row(
+            ctx,
+            "captured:attempts",
+            "attempts",
+            &limits.attempts.to_string(),
+            "Rejected attempts a task in this session could make before it was blocked.",
+        ),
+    ];
+    let Some(budget) = budget else {
+        rows.push(captured_row(
+            ctx,
+            "captured:budget",
+            "accounting",
+            "not recorded",
+            "This session captured its limits without the accounting that later sessions keep. What it admitted and what it spent against the bound is not in the record.",
+        ));
+        return rows;
+    };
+    rows.push(captured_row(
+        ctx,
+        "captured:admitted",
+        "turns admitted",
+        &budget.admitted_invocations.to_string(),
+        &format!(
+            "This session was admitted to run {} turn(s), and its record still shows {} open. An open turn is in flight only while a run is active.",
+            budget.admitted_invocations, budget.in_flight_invocations
+        ),
+    ));
+    rows.push(captured_row(
+        ctx,
+        "captured:reserved",
+        "reserved turns",
+        &format!(
+            "{} + {}",
+            budget.startup_invocations, budget.protected_review_invocations
+        ),
+        &format!(
+            "{} turn(s) were set aside so the session could begin, and {} kept so a result could still be reviewed independently after the rest of the budget was gone.",
+            budget.startup_invocations, budget.protected_review_invocations
+        ),
+    ));
+    rows.push(captured_row(
+        ctx,
+        "captured:tokens",
+        "tokens observed",
+        &short_observed(budget),
+        &format!(
+            "{}. This is what installations reported for this session, as the budget counted it. A turn that reported nothing is counted as a turn, not as zero tokens.",
+            observed_words(budget)
+        ),
+    ));
+    rows.push(captured_row(
+        ctx,
+        "captured:bound",
+        "token bound",
+        if budget.strict_token_bound {
+            "required"
+        } else {
+            "not required"
+        },
+        &format!(
+            "Whether every turn in this session had to state a token bound before it was admitted. {}",
+            match budget.reserved_tokens {
+                Some(reserved) => format!("{reserved} token(s) were reserved for turns already admitted."),
+                None => "No token reservation was recorded.".to_owned(),
+            }
+        ),
+    ));
+    if let Some(denial) = &budget.last_denial {
+        rows.push(captured_row(
+            ctx,
+            "captured:denial",
+            "last stop",
+            &denial.code,
+            &format!(
+                "At {} the budget refused {} work: {}",
+                denial.at, denial.purpose, denial.message
+            ),
+        ));
+    }
+    rows
+}
+
+/// A captured value is a record, so its row is read-only: the keys that edit a limit are
+/// the four under the next run, and nothing here shares one.
+fn captured_row(ctx: &Ctx, key: &str, label: &str, value: &str, description: &str) -> Item {
+    let theme = ctx.theme;
+    let mut detail = paragraph(theme, description, ctx.width);
+    detail.push(Line::default());
+    detail.extend(paragraph(
+        theme,
+        "This is what the session recorded. It cannot be edited here, and editing the next run does not change it.",
+        ctx.width,
+    ));
+    Item::row(
+        key.to_owned(),
+        vec![Span::styled(label.to_owned(), theme.text())],
+    )
+    .with_right(vec![Span::styled(value.to_owned(), theme.body())])
+    .with_detail(detail)
+}
+
+/// The short form for the row, which must leave room for its own label.
+fn short_observed(budget: &SessionBudget) -> String {
+    let totals = &budget.observed_usage;
+    match totals.known_total() {
+        Some(total) if totals.open_calls > 0 || totals.partial_calls > 0 => format!("{total}+"),
+        Some(total) => total.to_string(),
+        None => "unknown".to_owned(),
+    }
+}
+
+fn observed_words(budget: &SessionBudget) -> String {
+    let totals = &budget.observed_usage;
+    let mut text = match totals.known_total() {
+        Some(total) if totals.open_calls > 0 || totals.partial_calls > 0 => {
+            format!("at least {total} over {} turn(s)", totals.calls)
+        }
+        Some(total) => format!("{total} over {} turn(s)", totals.calls),
+        None => format!("unknown over {} turn(s)", totals.calls),
+    };
+    if totals.reported < totals.calls {
+        text.push_str(&format!(
+            " · {} reported nothing",
+            totals.calls - totals.reported
+        ));
+    }
+    if let Some(overshoot) = budget.observed_token_overshoot {
+        text.push_str(&format!(" · {overshoot} past the bound"));
+    }
+    text
+}
+
+// ---------------------------------------------------------------------------
+// Assignments, settings and temporary authority
+// ---------------------------------------------------------------------------
+
+/// What the assignment page says about itself, before it lists a single record.
+///
+/// Every sentence is about what the runtime writes, and each one was checked against the
+/// record it describes. None of them promises that a setting took effect, because only the
+/// installation can report that, and none of them describes a grant as a sandbox.
+const HOW_WORK_IS_ASSIGNED: &[&str] = &[
+    "A run forms its own team and assigns each piece of work itself. Nothing on this page was chosen by hand, and opening it starts nothing.",
+    "An assignment names the agent, the purpose of the turn, the task attempt it belongs to and the directory the turn ran in. It is written when the turn is admitted and is never rewritten afterwards.",
+    "Requested is what the run asked for. Sent is what the adapter passed to the installation. Reported is what the installation said it used. A column the record leaves empty stays empty here: no value is copied from one column into another, and a requested value nobody confirmed is never shown as applied.",
+    "A fixed model or effort is a constraint the configuration states, and it is the only value allowed for that agent. Where nothing is fixed, the run chooses for itself and may choose differently on the next turn.",
+    "A grant is permission to use one coordination call, issued for one assignment and recorded with it. It stops working when that turn ends or when the record says it was revoked. It is not a restriction on what the turn can do in the working directory: by the time a turn runs, it already has the same access to that directory as the user who started ymp.",
+    "Tokens counted against a turn stay with it whether the turn completed, failed or was cancelled, and a count no installation reported stays unknown rather than zero.",
+];
+
+fn assignments(ctx: &Ctx) -> Page {
+    let theme = ctx.theme;
+    let records = ctx.records;
+    let mut items = vec![about_row(
+        ctx,
+        "how work is assigned",
+        "How work is assigned, and what these records are",
+        HOW_WORK_IS_ASSIGNED,
+    )];
+    let open = records.open();
+    let running: Vec<&AssignmentRecord> = open.clone();
+    let earlier: Vec<&AssignmentRecord> = records
+        .assignments()
+        .iter()
+        .filter(|assignment| !open.iter().any(|live| live.id == assignment.id))
+        .collect();
+    if !running.is_empty() {
+        // A record with no end is a turn in flight only while a run is active in this
+        // window. Otherwise it is a turn that was left open, which is not the same thing.
+        items.push(Item::heading(
+            if ctx.live { "Running now" } else { "Left open" },
+            theme,
+        ));
+        for assignment in &running {
+            items.push(assignment_row(ctx, assignment, ctx.live));
+        }
+    }
+    if !earlier.is_empty() {
+        items.push(Item::heading("Recorded earlier", theme));
+        for assignment in &earlier {
+            items.push(assignment_row(ctx, assignment, false));
+        }
+    }
+    if records.assignments().is_empty() {
+        items.clear();
+    }
+    Page {
+        view: View::Assignments,
+        title: View::Assignments.title().into(),
+        subtitle: match (ctx.session, records.assignments().len()) {
+            (None, _) => "No session is loaded".into(),
+            (Some(_), 0) => "Nothing was assigned in this session".into(),
+            (Some(_), total) => format!(
+                "{total} assigned · {} · read {}",
+                match (running.len(), ctx.live) {
+                    (0, _) => "none open".to_owned(),
+                    (open, true) => format!("{open} running"),
+                    (open, false) => format!("{open} left open"),
+                },
+                text::clock(&records.read_at)
+            ),
+        },
+        items,
+        empty: empty_records(
+            ctx,
+            "No assignments were recorded",
+            "A session records an assignment for every turn it admits. A session that recorded none either ran before assignments were written or never reached a turn.",
+        ),
+        hints: vec![("Enter", "show the record"), ("Esc", "back")],
+    }
+}
+
+fn assignment_row(ctx: &Ctx, assignment: &AssignmentRecord, live: bool) -> Item {
+    let theme = ctx.theme;
+    let invocation = ctx.records.last_invocation(&assignment.id);
+    let state = invocation.map(|i| i.state).unwrap_or(assignment.state);
+    let (marker, word, style) = invocation_state(state, live, theme);
+    let name = display_name(ctx.config, &assignment.agent_id);
+    let mut detail = field(theme, "assignment", &assignment.id, ctx.width);
+    detail.extend(field(
+        theme,
+        "agent",
+        &format!("{name} · {}", assignment.agent_id),
+        ctx.width,
+    ));
+    detail.extend(field(
+        theme,
+        "profile version",
+        &assignment.agent_config_version,
+        ctx.width,
+    ));
+    detail.extend(field(theme, "provider", &assignment.provider_id, ctx.width));
+    detail.extend(field(theme, "purpose", &assignment.purpose, ctx.width));
+    detail.extend(field(
+        theme,
+        "task",
+        &task_attempt(ctx, assignment),
+        ctx.width,
+    ));
+    detail.extend(field(theme, "state", word, ctx.width));
+    detail.extend(field(theme, "started", &assignment.started_at, ctx.width));
+    detail.extend(field(
+        theme,
+        "ended",
+        assignment.ended_at.as_deref().unwrap_or("still open"),
+        ctx.width,
+    ));
+    detail.extend(field(
+        theme,
+        "directory",
+        &assignment.cwd.display().to_string(),
+        ctx.width,
+    ));
+    detail.extend(field(
+        theme,
+        "turn timeout",
+        &format!("{} s", assignment.timeout_secs),
+        ctx.width,
+    ));
+    detail.push(Line::default());
+    detail.push(Line::from(Span::styled(
+        "Model and effort".to_owned(),
+        theme.muted(),
+    )));
+    detail.extend(settings_lines(ctx, assignment, invocation));
+    detail.push(Line::default());
+    detail.push(Line::from(Span::styled(
+        "Where the turn ran".to_owned(),
+        theme.muted(),
+    )));
+    match invocation {
+        Some(invocation) => {
+            detail.extend(field(
+                theme,
+                "backend",
+                &invocation
+                    .execution_backend
+                    .as_ref()
+                    .map(|backend| format!("{} {}", backend.id, backend.version))
+                    .unwrap_or_else(|| "not recorded".into()),
+                ctx.width,
+            ));
+            detail.extend(field(
+                theme,
+                "native session",
+                invocation
+                    .native_session_id
+                    .as_deref()
+                    .unwrap_or("not reported"),
+                ctx.width,
+            ));
+            detail.extend(field(
+                theme,
+                "native turn",
+                invocation.native_turn_id.as_deref().unwrap_or("not reported"),
+                ctx.width,
+            ));
+            detail.extend(field(
+                theme,
+                "native version",
+                invocation.native_version.as_deref().unwrap_or("not reported"),
+                ctx.width,
+            ));
+            detail.extend(field(
+                theme,
+                "resumed from",
+                invocation
+                    .resumed_from
+                    .as_deref()
+                    .unwrap_or("nothing; this turn started fresh"),
+                ctx.width,
+            ));
+            detail.extend(field(theme, "tokens", &invocation_usage(invocation), ctx.width));
+            if let Some(reason) = &invocation.terminal_reason {
+                detail.extend(field(theme, "ended because", reason, ctx.width));
+            }
+        }
+        None => detail.extend(paragraph(
+            theme,
+            "No invocation was recorded for this assignment, so nothing is known about the turn itself.",
+            ctx.width,
+        )),
+    }
+    detail.push(Line::default());
+    detail.push(Line::from(Span::styled(
+        "Context the turn was given".to_owned(),
+        theme.muted(),
+    )));
+    if assignment.context.is_empty() {
+        detail.extend(paragraph(
+            theme,
+            "The record names no context references.",
+            ctx.width,
+        ));
+    } else {
+        for reference in &assignment.context {
+            detail.extend(field(
+                theme,
+                context_kind(&reference.kind),
+                &context_detail(reference),
+                ctx.width,
+            ));
+        }
+    }
+    detail.push(Line::default());
+    detail.push(Line::from(Span::styled(
+        "Coordination permissions".to_owned(),
+        theme.muted(),
+    )));
+    let grants = ctx.records.grants_of(&assignment.id);
+    if grants.is_empty() {
+        detail.extend(paragraph(
+            theme,
+            "No grant was recorded for this assignment, so its turn could not use the coordination calls at all.",
+            ctx.width,
+        ));
+    } else {
+        for grant in &grants {
+            detail.extend(field(theme, "granted", &grant_detail(grant), ctx.width));
+        }
+    }
+    detail.push(Line::default());
+    detail.push(Line::from(Span::styled(
+        "Recorded reason".to_owned(),
+        theme.muted(),
+    )));
+    detail.extend(paragraph(theme, &assignment.reason, ctx.width));
+    Item::row(
+        text::short_id(&assignment.id),
+        vec![
+            Span::styled(format!("{marker} "), style),
+            Span::styled(name, theme.text()),
+            Span::styled(format!(" · {}", assignment.purpose), theme.faint()),
+        ],
+    )
+    .with_right(vec![
+        Span::styled(format!("{word}  "), style),
+        Span::styled(model_word(assignment, invocation).to_owned(), theme.muted()),
+    ])
+    .with_detail(detail)
+}
+
+/// Marker, word and colour for the state of a turn. A record that says `running` while no
+/// run is active in this window describes a turn that was left open, not one in flight.
+fn invocation_state(
+    state: InvocationState,
+    live: bool,
+    theme: &Theme,
+) -> (String, &'static str, Style) {
+    let m = theme.markers;
+    match state {
+        InvocationState::Running if live => (m.busy.into(), "running", theme.warn()),
+        InvocationState::Running => (m.paused.into(), "left open", theme.info()),
+        InvocationState::Completed => (m.ok.into(), "completed", theme.good()),
+        InvocationState::Failed => (m.fail.into(), "failed", theme.bad()),
+        InvocationState::Cancelled => (m.warn.into(), "cancelled", theme.warn()),
+        InvocationState::Interrupted => (m.warn.into(), "interrupted", theme.warn()),
+    }
+}
+
+/// The model on the row: what the installation reported, or what was sent, said as such.
+fn model_word<'a>(
+    assignment: &'a AssignmentRecord,
+    invocation: Option<&'a InvocationRecord>,
+) -> &'a str {
+    invocation
+        .and_then(|i| i.reported.model.as_deref())
+        .or_else(|| invocation.and_then(|i| i.sent.model.as_deref()))
+        .or(assignment.requested.model.as_deref())
+        .unwrap_or("no model recorded")
+}
+
+/// The three columns of one execution setting, then what they do and do not establish.
+fn settings_lines(
+    ctx: &Ctx,
+    assignment: &AssignmentRecord,
+    invocation: Option<&InvocationRecord>,
+) -> Vec<Line<'static>> {
+    let theme = ctx.theme;
+    let mut lines = Vec::new();
+    let empty = ExecutionSettings::default();
+    let sent = invocation.map(|i| &i.sent).unwrap_or(&empty);
+    let reported = invocation.map(|i| &i.reported).unwrap_or(&empty);
+    for (label, requested, sent, reported) in [
+        (
+            "model",
+            assignment.requested.model.as_deref(),
+            sent.model.as_deref(),
+            reported.model.as_deref(),
+        ),
+        (
+            "effort",
+            assignment.requested.effort.as_deref(),
+            sent.effort.as_deref(),
+            reported.effort.as_deref(),
+        ),
+        (
+            "permissions",
+            assignment.requested.permission_mode.as_deref(),
+            sent.permission_mode.as_deref(),
+            reported.permission_mode.as_deref(),
+        ),
+    ] {
+        lines.extend(field(
+            theme,
+            label,
+            &setting_state(requested, sent, reported),
+            ctx.width,
+        ));
+    }
+    let (source, fixed) = pinned(ctx, &assignment.agent_id);
+    lines.extend(field(theme, "fixed", &pin_words(&fixed, source), ctx.width));
+    lines
+}
+
+/// One setting, in the state the records actually leave it in.
+///
+/// The distinction this keeps is the whole point of the column: a value that was asked for
+/// and never confirmed must not read like a value the installation used.
+fn setting_state(requested: Option<&str>, sent: Option<&str>, reported: Option<&str>) -> String {
+    match (requested, sent, reported) {
+        (None, None, None) => "nothing requested; the installation used its own default".into(),
+        (_, Some(sent), Some(reported)) if sent == reported => {
+            format!("{sent} · the installation reported the same")
+        }
+        (_, Some(sent), Some(reported)) => {
+            format!("{sent} sent · the installation reported {reported}")
+        }
+        (_, Some(sent), None) => {
+            format!("{sent} sent · unconfirmed, the installation reported nothing")
+        }
+        (Some(requested), None, Some(reported)) => {
+            format!("{requested} requested · the installation reported {reported}")
+        }
+        (Some(requested), None, None) => {
+            format!("{requested} requested · nothing was sent or reported")
+        }
+        (None, None, Some(reported)) => {
+            format!("nothing requested · the installation reported {reported}")
+        }
+    }
+}
+
+/// The values the configuration fixes for an agent, and where that statement came from.
+fn pinned(ctx: &Ctx, agent: &str) -> (&'static str, ModelEffort) {
+    match ctx.records.trace.as_ref().and_then(|t| t.policy.as_ref()) {
+        Some(policy) => (
+            "as this session captured it",
+            policy
+                .execution
+                .get(agent)
+                .cloned()
+                .unwrap_or_default()
+                .fixed,
+        ),
+        None => (
+            "as the configuration stands now",
+            ctx.config
+                .execution
+                .get(agent)
+                .cloned()
+                .unwrap_or_default()
+                .fixed,
+        ),
+    }
+}
+
+fn pin_words(fixed: &ModelEffort, source: &str) -> String {
+    match (fixed.model.as_deref(), fixed.effort.as_deref()) {
+        (None, None) => format!("nothing is fixed {source}; the run may choose and change both"),
+        (Some(model), None) => format!("model {model} only, {source}; effort is the run's choice"),
+        (None, Some(effort)) => {
+            format!("effort {effort} only, {source}; the model is the run's choice")
+        }
+        (Some(model), Some(effort)) => format!("model {model} and effort {effort} only, {source}"),
+    }
+}
+
+fn task_attempt(ctx: &Ctx, assignment: &AssignmentRecord) -> String {
+    match &assignment.task {
+        Some(task) => {
+            let title = ctx
+                .tasks
+                .iter()
+                .find(|candidate| candidate.id == task.task_id)
+                .map(|candidate| candidate.title.clone())
+                .unwrap_or_else(|| text::short_id(&task.task_id));
+            if task.attempt == 0 {
+                format!("{title} · before the first attempt")
+            } else {
+                format!("{title} · attempt {}", task.attempt)
+            }
+        }
+        None => "no task; this turn belongs to the session as a whole".into(),
+    }
+}
+
+fn context_kind(kind: &ymp_core::ContextKind) -> &'static str {
+    match kind {
+        ymp_core::ContextKind::Message => "message",
+        ymp_core::ContextKind::Memory => "memory",
+        ymp_core::ContextKind::Task => "task",
+        ymp_core::ContextKind::Result => "result",
+        ymp_core::ContextKind::Session => "session",
+        ymp_core::ContextKind::Prompt => "prompt",
+        ymp_core::ContextKind::ProfileInstructions => "instructions",
+        ymp_core::ContextKind::NativeContinuation => "continued",
+    }
+}
+
+fn context_detail(reference: &ymp_core::ContextReference) -> String {
+    let mut text = text::short_id(&reference.id);
+    if let Some(session) = &reference.session_id {
+        text.push_str(&format!(" from session {}", text::short_id(session)));
+    }
+    match reference.included_chars {
+        Some(chars) => text.push_str(&format!(" · {chars} characters included")),
+        None => text.push_str(" · length not recorded"),
+    }
+    if reference.digest.is_some() {
+        text.push_str(" · content hashed");
+    }
+    text
+}
+
+fn grant_detail(grant: &GrantRecord) -> String {
+    let operations = grant
+        .operations
+        .iter()
+        .map(|operation| operation_word(*operation))
+        .collect::<Vec<_>>()
+        .join(", ");
+    match (&grant.revoked_at, &grant.revocation_reason) {
+        (Some(at), Some(reason)) => format!("{operations} · revoked {at}: {reason}"),
+        (Some(at), None) => format!("{operations} · revoked {at}"),
+        (None, _) => format!("{operations} · issued {}", grant.issued_at),
+    }
+}
+
+fn operation_word(operation: ymp_core::TeamOperation) -> &'static str {
+    match operation {
+        ymp_core::TeamOperation::TeamPost => "post to the board",
+        ymp_core::TeamOperation::TeamRead => "read the board",
+        ymp_core::TeamOperation::TasksList => "list tasks",
+        ymp_core::TeamOperation::TaskPropose => "propose a task",
+        ymp_core::TeamOperation::MemorySearch => "search memory",
+        ymp_core::TeamOperation::MemoryPropose => "propose memory",
+    }
+}
+
+fn invocation_usage(invocation: &InvocationRecord) -> String {
+    let Some(usage) = &invocation.usage else {
+        return "no count was reported for this turn".into();
+    };
+    let counts = &usage.counts;
+    let known = [counts.input, counts.output]
+        .into_iter()
+        .flatten()
+        .sum::<u64>();
+    let mut text = match (counts.input, counts.output) {
+        (None, None) => "reported without counts".to_owned(),
+        _ => format!("{known} in and out"),
+    };
+    if usage.partial {
+        text.push_str(" · partial, the turn could still add to it");
+    }
+    if !usage.finalized {
+        text.push_str(" · not final");
+    }
+    if let Some(note) = &usage.note {
+        text.push_str(&format!(" · {note}"));
+    }
+    text
+}
+
+// ---------------------------------------------------------------------------
+// Decisions, confirmation and what credit requires
+// ---------------------------------------------------------------------------
+
+const WHAT_A_DECISION_IS: &[&str] = &[
+    "Every choice that changed the session's state is appended here: a plan accepted, a candidate reviewed, a task accepted or rejected, competence credited. Records are appended, never edited and never removed, so a later change does not restate an earlier one.",
+    "A record carries the reason its actor stated and the records it links. ymp stores no deliberation beyond that, so there is no hidden reasoning trace behind these rows and none is reconstructed here.",
+    "An acceptance also carries a grade. Confirmed means the evidence the acceptance bound passed for every criterion it applies to. Unconfirmed means the result was accepted on an independent review alone. Unknown means the record predates grading, or the runtime did not classify it; it is not a quiet pass.",
+    "Accepted work stays accepted. Where a file the result named has changed since, the acceptance is still shown, and so is the fact that what it was accepted against is no longer what is on disk.",
+    "Competence credit is a record of its own, written only where confirmed evidence supported a single producer. Only a credited confirmed acceptance counts toward who a later run may pick, and an uncredited acceptance is not evidence of unreliability.",
+];
+
+fn decisions(ctx: &Ctx) -> Page {
+    let records = ctx.records;
+    let mut items = vec![about_row(
+        ctx,
+        "what a decision record is",
+        "What a decision record is, and what a grade means",
+        WHAT_A_DECISION_IS,
+    )];
+    let all = records.decisions();
+    let confirmed = all
+        .iter()
+        .filter(|decision| records.describe(decision).confirmed())
+        .count();
+    for decision in all {
+        items.push(decision_row(ctx, decision));
+    }
+    if all.is_empty() {
+        items.clear();
+    }
+    Page {
+        view: View::Decisions,
+        title: View::Decisions.title().into(),
+        subtitle: match (ctx.session, all.len()) {
+            (None, _) => "No session is loaded".into(),
+            (Some(_), 0) => "This session recorded no decisions".into(),
+            (Some(_), total) => format!("{total} recorded · {confirmed} confirmed"),
+        },
+        items,
+        empty: empty_records(
+            ctx,
+            "No decisions were recorded",
+            "A session appends a decision whenever it accepts a plan, reviews a candidate, accepts or rejects a task, or credits competence. A session that recorded none made no such choice, or ran before decisions were written.",
+        ),
+        hints: vec![("Enter", "show the record"), ("Esc", "back")],
+    }
+}
+
+fn decision_row(ctx: &Ctx, decision: &DecisionRecord) -> Item {
+    let theme = ctx.theme;
+    let acceptance = ctx.records.describe(decision);
+    let (marker, style) = decision_marker(&acceptance, theme);
+    let actor = decision
+        .actor
+        .as_deref()
+        .map(|id| display_name(ctx.config, id))
+        .unwrap_or_else(|| "the runtime".into());
+    let mut detail = field(theme, "decision", &decision.id, ctx.width);
+    detail.extend(field(
+        theme,
+        "kind",
+        &decision_kind(&decision.kind),
+        ctx.width,
+    ));
+    detail.extend(field(theme, "actor", &actor, ctx.width));
+    detail.extend(field(theme, "recorded", &decision.created_at, ctx.width));
+    detail.extend(field(theme, "outcome", acceptance.word(), ctx.width));
+    if acceptance.accepted == Some(true) {
+        detail.extend(field(
+            theme,
+            "basis",
+            &acceptance_basis(&acceptance),
+            ctx.width,
+        ));
+        detail.extend(field(
+            theme,
+            "reviewed by",
+            &reviewer_words(ctx, &acceptance),
+            ctx.width,
+        ));
+    }
+    if let Some(result) = acceptance.result {
+        detail.extend(field(
+            theme,
+            "result",
+            &format!(
+                "{} · version {} · criteria version {}",
+                text::short_id(&result.id),
+                result.version,
+                text::short_id(&result.criteria_version)
+            ),
+            ctx.width,
+        ));
+        detail.extend(field(
+            theme,
+            "files",
+            &format!(
+                "{} ({} named by the result)",
+                acceptance.state.word(),
+                result.artifacts.len()
+            ),
+            ctx.width,
+        ));
+    }
+    if let Some(task) = &decision.links.task {
+        detail.extend(field(
+            theme,
+            "task",
+            &format!(
+                "{} · attempt {}",
+                ctx.tasks
+                    .iter()
+                    .find(|candidate| candidate.id == task.task_id)
+                    .map(|candidate| candidate.title.clone())
+                    .unwrap_or_else(|| text::short_id(&task.task_id)),
+                task.attempt
+            ),
+            ctx.width,
+        ));
+    }
+    if let Some(assignment) = &decision.links.assignment_id {
+        detail.extend(field(
+            theme,
+            "assignment",
+            &text::short_id(assignment),
+            ctx.width,
+        ));
+    }
+    if let Some(observation) = &decision.links.observation_id {
+        detail.extend(field(
+            theme,
+            "credit",
+            &format!("competence observation {}", text::short_id(observation)),
+            ctx.width,
+        ));
+    }
+    if let Some(check) = &decision.links.check {
+        detail.extend(field(
+            theme,
+            "evidence",
+            &format!(
+                "{} · {} · checker {} {}",
+                check.check_id,
+                check_outcome_word(&check.outcome),
+                check.checker.id,
+                check.checker.version
+            ),
+            ctx.width,
+        ));
+    }
+    detail.push(Line::default());
+    detail.push(Line::from(Span::styled(
+        if decision.actor.is_some() {
+            "Reason the actor stated".to_owned()
+        } else {
+            "Reason the runtime recorded".to_owned()
+        },
+        theme.muted(),
+    )));
+    detail.extend(paragraph(theme, &decision.reason, ctx.width));
+    Item::row(
+        text::short_id(&decision.id),
+        vec![
+            Span::styled(format!("{marker} "), style),
+            Span::styled(decision_kind(&decision.kind), theme.text()),
+            Span::styled(format!(" · {actor}"), theme.faint()),
+        ],
+    )
+    .with_right(vec![Span::styled(acceptance.word().to_owned(), style)])
+    .with_detail(detail)
+}
+
+fn decision_marker(acceptance: &Acceptance, theme: &Theme) -> (String, Style) {
+    let m = theme.markers;
+    match (acceptance.accepted, acceptance.confirmed()) {
+        (Some(true), true) => (m.ok.into(), theme.good()),
+        (Some(true), false) => (m.notice.into(), theme.info()),
+        (Some(false), _) => (m.fail.into(), theme.bad()),
+        (None, _) => (m.idle.into(), theme.muted()),
+    }
+}
+
+/// The runtime's own kinds, in words. An unknown kind is shown as recorded.
+fn decision_kind(kind: &str) -> String {
+    match kind {
+        "plan_accepted" => "plan accepted".into(),
+        "task_accepted" => "task accepted".into(),
+        "task_rejected" => "task rejected".into(),
+        "review" => "review".into(),
+        "reputation_observed" => "competence credited".into(),
+        "final_review_pending" => "final review required".into(),
+        "result_invalidated" => "result invalidated".into(),
+        other => other.replace('_', " "),
+    }
+}
+
+/// What the records say about one task's acceptance, for the task's own page.
+fn acceptance_lines(ctx: &Ctx, task: &Task) -> Vec<Line<'static>> {
+    let theme = ctx.theme;
+    let Some(acceptance) = ctx.records.acceptance(&task.id) else {
+        return paragraph(
+            theme,
+            match task.state {
+                TaskState::Accepted => "This task is marked accepted and no acceptance decision was read for it. The state alone does not say who accepted it or against what evidence.",
+                _ => "No acceptance decision was recorded for this task.",
+            },
+            ctx.width,
+        );
+    };
+    let mut lines = field(theme, "outcome", acceptance.word(), ctx.width);
+    lines.extend(field(
+        theme,
+        "decision",
+        &format!(
+            "{} recorded {}",
+            text::short_id(&acceptance.decision.id),
+            acceptance.decision.created_at
+        ),
+        ctx.width,
+    ));
+    lines.extend(field(
+        theme,
+        "basis",
+        &acceptance_basis(&acceptance),
+        ctx.width,
+    ));
+    lines.extend(field(
+        theme,
+        "reviewed by",
+        &reviewer_words(ctx, &acceptance),
+        ctx.width,
+    ));
+    if let Some(result) = acceptance.result {
+        lines.extend(field(
+            theme,
+            "result",
+            &format!(
+                "version {} · criteria version {}",
+                result.version,
+                text::short_id(&result.criteria_version)
+            ),
+            ctx.width,
+        ));
+        lines.extend(field(theme, "files", acceptance.state.word(), ctx.width));
+    }
+    lines.extend(field(
+        theme,
+        "credit",
+        &match ctx.records.credit_for(&task.id) {
+            Some(agent) => format!("competence credited to {}", display_name(ctx.config, agent)),
+            None => "no competence credit was recorded, which is not a judgement about the work"
+                .to_owned(),
+        },
+        ctx.width,
+    ));
+    lines
+}
+
+/// The short tag an accepted row carries, so the grade is visible without opening it.
+fn grade_word(acceptance: &Acceptance) -> &'static str {
+    match acceptance.accepted {
+        Some(true) if acceptance.confirmed() => "confirmed",
+        Some(true) => match acceptance.confirmation {
+            Some(ConfirmationStatus::Unconfirmed) => "unconfirmed",
+            _ => "grade unknown",
+        },
+        Some(false) => "rejected",
+        None => "no outcome",
+    }
+}
+
+fn confirmation_word(status: ConfirmationStatus) -> &'static str {
+    match status {
+        ConfirmationStatus::Confirmed => {
+            "confirmed: evidence passed for every criterion it applies to"
+        }
+        ConfirmationStatus::Unconfirmed => "unconfirmed: accepted on an independent review alone",
+        ConfirmationStatus::Unknown => {
+            "unknown: the record was written before grading, or was never classified"
+        }
+    }
+}
+
+fn confirmation_tag(status: ConfirmationStatus) -> &'static str {
+    match status {
+        ConfirmationStatus::Confirmed => "confirmed",
+        ConfirmationStatus::Unconfirmed => "unconfirmed",
+        ConfirmationStatus::Unknown => "grade unknown",
+    }
+}
+
+fn acceptance_basis(acceptance: &Acceptance) -> String {
+    match (acceptance.confirmation, acceptance.evidence) {
+        (Some(ConfirmationStatus::Confirmed), count) => format!(
+            "{count} piece(s) of passing evidence covering every applicable criterion"
+        ),
+        (Some(ConfirmationStatus::Unconfirmed), 0) => {
+            "an independent review, with no applicable check evidence".into()
+        }
+        (Some(ConfirmationStatus::Unconfirmed), count) => format!(
+            "an independent review and {count} piece(s) of evidence that do not cover every criterion"
+        ),
+        (Some(ConfirmationStatus::Unknown), _) | (None, _) => {
+            "not classified by the runtime that wrote this record".into()
+        }
+    }
+}
+
+fn reviewer_words(ctx: &Ctx, acceptance: &Acceptance) -> String {
+    if acceptance.reviewers.is_empty() {
+        return "no review decision is linked to this acceptance".into();
+    }
+    acceptance
+        .reviewers
+        .iter()
+        .map(|id| display_name(ctx.config, id))
+        .collect::<Vec<_>>()
+        .join(", ")
+}
+
+fn check_outcome_word(outcome: &ymp_core::ConfirmationCheckOutcome) -> &'static str {
+    match outcome {
+        ymp_core::ConfirmationCheckOutcome::Passed => "passed",
+        ymp_core::ConfirmationCheckOutcome::Failed => "failed",
+        ymp_core::ConfirmationCheckOutcome::Inconclusive => "inconclusive",
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Shared rows for pages built from records
+// ---------------------------------------------------------------------------
+
+/// The leading row every record page opens with: what the page is, in its own words.
+fn about_row(ctx: &Ctx, key: &str, title: &str, sentences: &[&str]) -> Item {
+    let theme = ctx.theme;
+    let mut detail = Vec::new();
+    for (index, sentence) in sentences.iter().enumerate() {
+        if index > 0 {
+            detail.push(Line::default());
+        }
+        detail.extend(paragraph(theme, sentence, ctx.width));
+    }
+    if !ctx.records.read_at.is_empty() {
+        detail.push(Line::default());
+        detail.extend(paragraph(
+            theme,
+            &match &ctx.records.session {
+                Some(session) => format!(
+                    "These records were read for session {} at {}. A run still working writes more of them; this page shows what that read found.",
+                    text::short_id(session),
+                    ctx.records.read_at
+                ),
+                None => format!(
+                    "No session was open at {}, so no records were read. What is shown describes the next run instead.",
+                    ctx.records.read_at
+                ),
+            },
+            ctx.width,
+        ));
+    }
+    Item::row(
+        key.to_owned(),
+        vec![
+            Span::styled(format!("{} ", theme.markers.notice), theme.info()),
+            Span::styled(title.to_owned(), theme.text()),
+        ],
+    )
+    .with_right(vec![Span::styled(
+        "what this page is".to_owned(),
+        theme.muted(),
+    )])
+    .with_detail(detail)
+}
+
+/// The empty state of a record page, which must not report an unopened session as one that
+/// recorded nothing.
+fn empty_records(ctx: &Ctx, headline: &str, hint: &str) -> Vec<Line<'static>> {
+    let theme = ctx.theme;
+    if let Some(error) = &ctx.records.unreadable {
+        let mut lines = nothing(
+            theme,
+            "These records could not be read",
+            "The session exists; reading its records failed, which is not the same as a session without any.",
+            ctx.width,
+        );
+        lines.push(Line::default());
+        lines.extend(paragraph(theme, error, ctx.width));
+        return lines;
+    }
+    if ctx.session.is_none() {
+        return nothing(
+            theme,
+            "Nothing was read",
+            "No session is loaded, so no records were read. Open one with /sessions.",
+            ctx.width,
+        );
+    }
+    nothing(theme, headline, hint, ctx.width)
 }
 
 pub fn display_name(config: &Config, id: &str) -> String {

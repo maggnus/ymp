@@ -7,7 +7,9 @@
 //! and what lets the keyboard contract be tested without a terminal or a provider.
 
 use crate::commands;
+use crate::frame;
 use crate::prefs::Prefs;
+use crate::provenance::{Pool, Records};
 use crate::text;
 use crate::theme::{self, Theme};
 use crate::transcript::{self, Entry, Notice};
@@ -137,6 +139,12 @@ pub fn route(input: &str, active: bool, session: Option<&str>) -> Route {
     }
 }
 
+/// The four limits a reader may change on the limits page. Everything else there is a
+/// record of a run that already happened, and a record is not edited.
+fn editable_limit(key: &str) -> bool {
+    matches!(key, "parallel" | "turns" | "timeout" | "attempts")
+}
+
 /// A single-line-aware text field with a byte cursor kept on character boundaries.
 #[derive(Clone, Debug, Default)]
 pub struct Field {
@@ -240,6 +248,12 @@ pub struct App {
     /// Profiles the loaded session captured when it started. The configuration may have
     /// been edited since, so this is what the run is actually using.
     pub session_team: Vec<AgentProfile>,
+    /// The loaded session's own records, as the controller last read them. Pages present
+    /// this snapshot; none of them reads the store while it is being painted.
+    pub records: Records,
+    /// What the controller last found installed on this machine. Inspecting it looks for
+    /// executables on `PATH`, so it happens here and never while a page is painted.
+    pub pool: Pool,
     /// Token accounting for the loaded session, per agent. Replaced as a whole whenever
     /// the run reports, and re-read from the store when a conversation is opened.
     pub stats: Stats,
@@ -270,6 +284,7 @@ impl App {
     pub fn new(store: Store, config: Config, cwd: PathBuf) -> Self {
         let prefs = Prefs::load(&store);
         let theme = theme::resolved(&prefs.theme, theme::detect_markers());
+        let pool = Pool::read(&config);
         Self {
             store,
             config,
@@ -293,6 +308,8 @@ impl App {
             session: None,
             session_status: "no session".into(),
             session_team: Vec::new(),
+            records: Records::unopened(),
+            pool,
             stats: Stats::default(),
             turns_used: 0,
             status: "Ready".into(),
@@ -402,7 +419,7 @@ impl App {
         };
         if stale {
             let theme = self.theme;
-            let (team, _) = self.active_team();
+            let (team, team_captured) = self.active_team();
             let page = views::build(
                 self.view,
                 &Ctx {
@@ -414,8 +431,11 @@ impl App {
                     session: self.session.as_deref(),
                     tasks: &self.tasks,
                     team: &team,
+                    team_captured,
                     stats: &self.stats,
                     live: self.active,
+                    records: &self.records,
+                    pool: &self.pool,
                     memory_query: &self.memory_query,
                     width: width as usize,
                 },
@@ -481,11 +501,20 @@ impl App {
             }
             UiEvent::AgentStatus { agent, status } => {
                 self.statuses.insert(agent, status);
+                // A turn starting or ending is when an assignment record appears or closes.
+                if self.view.reads_records() {
+                    self.refresh_records();
+                }
             }
-            UiEvent::Task(task) => match self.tasks.iter_mut().find(|t| t.id == task.id) {
-                Some(existing) => *existing = task,
-                None => self.tasks.push(task),
-            },
+            UiEvent::Task(task) => {
+                match self.tasks.iter_mut().find(|t| t.id == task.id) {
+                    Some(existing) => *existing = task,
+                    None => self.tasks.push(task),
+                }
+                if self.view.reads_records() {
+                    self.refresh_records();
+                }
+            }
             UiEvent::Status(status) => self.status = status,
             UiEvent::Finished { session_id, status } => {
                 self.session = Some(session_id);
@@ -615,6 +644,27 @@ impl App {
         if !self.stats.describes(&id) {
             self.reload_usage();
         }
+        self.refresh_records();
+    }
+
+    /// Read the loaded session's own records again.
+    ///
+    /// Every page built from them presents this one snapshot, so the moment of the read is
+    /// the moment the page describes, and it is stated on the page. A page never reads the
+    /// store itself, which is what keeps opening one a pure read.
+    fn refresh_records(&mut self) {
+        self.records = Records::read(&self.store, self.session.as_deref());
+        self.page_cache = None;
+    }
+
+    /// Inspect what is installed on this machine again.
+    ///
+    /// This looks for the provider programs on `PATH`. It starts nothing, asks no provider
+    /// anything and reads no credential: whether an account may run a model is the
+    /// installation's own business and is never decided here.
+    fn refresh_pool(&mut self) {
+        self.pool = Pool::read(&self.config);
+        self.page_cache = None;
     }
 
     /// Load a stored conversation for reading. This never starts an agent and never
@@ -657,6 +707,12 @@ impl App {
         if view == View::Changes {
             self.repository = repository::discover(&self.cwd);
         }
+        if view.reads_records() {
+            self.refresh_records();
+        }
+        if view.reads_pool() {
+            self.refresh_pool();
+        }
         self.view = view;
         self.page_selected = 0;
         self.page_top = 0;
@@ -687,7 +743,22 @@ impl App {
     }
 
     pub fn sidebar_visible(&self, width: u16) -> bool {
-        self.prefs.sidebar && crate::frame::sidebar_width(width) > 0
+        self.prefs.sidebar && frame::sidebar_width(width) > 0
+    }
+
+    /// The width a page is wrapped for in a terminal `total` cells wide.
+    ///
+    /// Key handling reads the page the frame painted, so it has to ask for the same width.
+    /// Asking for the width of the whole terminal would build a second page, wrapped for a
+    /// rect that does not exist, and Enter would then open lines too wide for the surface
+    /// that shows them.
+    pub fn page_width(&self, total: u16) -> u16 {
+        let sidebar = if self.prefs.sidebar {
+            frame::sidebar_width(total)
+        } else {
+            0
+        };
+        frame::page_content_width(frame::main_width(total, sidebar))
     }
 
     fn cycle_focus(&mut self, forward: bool) {
@@ -780,6 +851,7 @@ impl App {
     }
 
     fn move_page_selection(&mut self, delta: isize, width: u16) {
+        let width = self.page_width(width);
         let rows: Vec<usize> = self
             .page(width)
             .items
@@ -804,6 +876,12 @@ impl App {
 
     /// The selected page row, if the page has one.
     pub fn selected_item(&mut self, width: u16) -> Option<views::Item> {
+        let width = self.page_width(width);
+        self.selected_item_at(width)
+    }
+
+    /// The selected row of the page built for exactly `width` columns.
+    fn selected_item_at(&mut self, width: u16) -> Option<views::Item> {
         // Building the page may move the selection onto the first row, so read it after.
         self.page(width);
         let selected = self.page_selected;
@@ -1132,21 +1210,25 @@ impl App {
 
     fn inspect_selected_entry(&mut self) {
         let theme = self.theme;
-        let width = self.viewport.width.clamp(20, 100).saturating_sub(8);
+        // The message is wrapped for the surface that will show it, not for the terminal.
+        let width = frame::inspect_content_width(self.viewport.width as u16) as usize;
         let index = self.selected_entry;
         let Some(entry) = self.entries().get(index).cloned() else {
             return;
         };
         let mut body = Vec::new();
         body.push(Line::from(ratatui::text::Span::styled(
-            format!(
-                "{}{}",
-                entry.title(),
-                if entry.time.is_empty() {
-                    String::new()
-                } else {
-                    format!(" · {}", entry.time)
-                }
+            text::truncate(
+                &format!(
+                    "{}{}",
+                    entry.title(),
+                    if entry.time.is_empty() {
+                        String::new()
+                    } else {
+                        format!(" · {}", entry.time)
+                    }
+                ),
+                width,
             ),
             theme.muted(),
         )));
@@ -1283,11 +1365,15 @@ impl App {
                     target: Confirm::ForgetMemory(item.key.clone()),
                 });
             }
-            (View::Limits, KeyCode::Char('+')) | (View::Limits, KeyCode::Char('=')) => {
+            (View::Limits, KeyCode::Char('+')) | (View::Limits, KeyCode::Char('='))
+                if editable_limit(&item.key) =>
+            {
                 self.nudge_limit(&item.key, 1)
             }
-            (View::Limits, KeyCode::Char('-')) => self.nudge_limit(&item.key, -1),
-            (View::Limits, KeyCode::Enter) => {
+            (View::Limits, KeyCode::Char('-')) if editable_limit(&item.key) => {
+                self.nudge_limit(&item.key, -1)
+            }
+            (View::Limits, KeyCode::Enter) if editable_limit(&item.key) => {
                 let key = match item.key.as_str() {
                     "parallel" => "parallel",
                     "turns" => "turns",
@@ -1304,23 +1390,56 @@ impl App {
                 });
             }
             (_, KeyCode::Enter) => {
-                let theme = self.theme;
-                self.overlay = Some(Overlay::Inspect {
-                    title: item.key.clone(),
-                    body: if item.detail.is_empty() {
-                        vec![Line::from(ratatui::text::Span::styled(
-                            item.key.clone(),
-                            theme.body(),
-                        ))]
-                    } else {
-                        item.detail.clone()
-                    },
-                    scroll: 0,
-                });
+                self.inspect_selected_row(width);
             }
             _ => {}
         }
         Vec::new()
+    }
+
+    /// Open the selected row as a read-only record.
+    ///
+    /// The record is built again for the width of the surface that shows it, which is wider
+    /// than the detail pane and narrower than the terminal. Reusing the lines the pane was
+    /// given would wrap them for the wrong rect, and the right edge of each one would be cut
+    /// off when it is painted.
+    fn inspect_selected_row(&mut self, total: u16) {
+        let theme = self.theme;
+        let room = frame::inspect_content_width(total);
+        let Some(item) = self.selected_item_at(room) else {
+            return;
+        };
+        let body = if item.detail.is_empty() {
+            text::wrap(&item.key, room as usize)
+                .into_iter()
+                .map(|piece| Line::from(ratatui::text::Span::styled(piece, theme.body())))
+                .collect()
+        } else {
+            item.detail
+        };
+        self.overlay = Some(Overlay::Inspect {
+            title: item.key,
+            body,
+            scroll: 0,
+        });
+    }
+
+    /// The turn bound this window measures against, and whether a session captured it.
+    ///
+    /// A finished session was bounded by what it started with. Measuring it against a limit
+    /// edited afterwards would report a run against a constraint it never ran under.
+    pub fn turn_limit(&self) -> (usize, bool) {
+        let captured = self.records.trace.as_ref().and_then(|trace| {
+            trace
+                .budget
+                .as_ref()
+                .map(|budget| budget.limits.turns)
+                .or_else(|| trace.policy.as_ref().map(|policy| policy.limits.turns))
+        });
+        match captured {
+            Some(turns) => (turns, true),
+            None => (self.config.limits.turns, false),
+        }
     }
 
     fn limit_value(&self, key: &str) -> usize {
@@ -1386,7 +1505,9 @@ impl App {
         match outcome {
             Ok(message) => {
                 self.notice(message);
-                self.page_cache = None;
+                // The change may have made an agent eligible or taken a provider out of
+                // reach, so what is installed is inspected again rather than assumed.
+                self.refresh_pool();
             }
             Err(error) => {
                 self.config = previous;
@@ -1719,6 +1840,8 @@ impl App {
             "/files" => self.set_view(View::Files),
             "/diff" => self.set_view(View::Changes),
             "/checks" => self.set_view(View::Checks),
+            "/assignments" => self.set_view(View::Assignments),
+            "/decisions" => self.set_view(View::Decisions),
             "/providers" => self.set_view(View::Providers),
             "/agents" => self.set_view(View::Agents),
             "/reputation" => self.set_view(View::Reputation),
@@ -1900,8 +2023,9 @@ impl App {
                     Some(id) if parts.len() == 2 => {
                         let profile = self.config.agent(id)?.clone();
                         self.set_view(View::Agents);
+                        let page_width = self.page_width(_width);
                         self.page_selected = self
-                            .page(_width)
+                            .page(page_width)
                             .items
                             .iter()
                             .position(|item| item.key == profile.id)

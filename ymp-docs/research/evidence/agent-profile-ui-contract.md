@@ -42,6 +42,11 @@ user intervening in it (`intent.md`, final clause).
 
 ## What is missing
 
+This table describes the baseline named above. What the delivered interface now does about
+each row is recorded in [Status after YMP-118](#status-after-ymp-118) at the end of this
+document; the table itself is left as it was written.
+
+
 | Gap | Evidence |
 | --- | --- |
 | The session team is simply the whole enabled pool, so the interface has no vocabulary for a team the run formed, or for a member added mid-session | `engine.rs:210-214` copies `config.members()` |
@@ -163,3 +168,25 @@ Land it in this order, each step independently verifiable.
    provider exposes and whether a requested value was accepted.
 4. **Provenance and audience:** origin and supersession on knowledge, recipient on board messages,
    then the rename path and disclosure of the switches joining a team already flips.
+
+## Status after YMP-118
+
+Recorded 12 September 2026, against the interface at the YMP-118 outcome. The contract above
+is unchanged; this is what the delivered pages now do about it, and what they still do not.
+Evidence is in [assignment, budget and confirmation views](../../architecture/assignment-and-confirmation-views.md)
+and in the interface tests named there.
+
+| Clause | Delivered | Still open |
+| --- | --- | --- |
+| 1. Pool and session team are different objects | `/team` shows the members of this session or of the next run, says which, and lists the locally eligible pool with the reason each profile is excluded. An agent that worked in a session stays in its list after its profile leaves the pool. | A run cannot change its team mid-session, so membership added during a run is YMP-110. |
+| 2. Identity is the id; the name is a label | Unchanged and still held: rows read name, then provider and model as metadata; records key on the id, and the pages show the id in the detail. | Renaming is still not possible from the interface. |
+| 3. Agents sharing a provider stay separate | Held on every new page: assignment rows key on the agent id and name the agent, never the provider. | — |
+| 4. Effort is native, with an honest state | `/assignments` shows requested, sent and reported for model, effort and permission mode, and says when a value was sent and nothing was reported. Nothing requested reads as the installation's own default. | No page claims a control is unsupported, because no record says so. Choosing an effort from the interface is still not possible. |
+| 5. Adaptation is recorded, not rewritten | Assignments and decisions are appended records, shown in the order the store keeps them, each with its own time and actor. A later turn does not restate an earlier one. | Plan revisions are shown as decisions rather than as a diff between plans. |
+| 6. A captured session is read with what it captured | The turn counter in the header and the sidebar uses the limit the session captured; `/limits` separates captured limits from the next run's and refuses to edit a record; `/team` reads the captured profiles. | Names in the transcript still resolve through the live configuration. |
+| 7. Board messages state their audience | Not addressed here. | Unchanged from the baseline. |
+| 8. Acceptance is visibly independent | `/decisions` names the reviewer an acceptance links, its grade, its evidence count, and the result version and criteria version it rests on. `/tasks` carries the grade on the row. | — |
+| 9. A failure is scoped | A failed, cancelled or interrupted turn is shown as such beside the turns that completed, and an accepted task keeps its acceptance. | No page yet states, in one sentence, what a given failure left intact. |
+| 10. The budget is shown against its own constraint | `/limits` shows the captured bound, what the session admitted, what it reserved for review, what it observed and any recorded stop, with unreported spend distinguished from nothing spent. | Money is still not shown, by design. |
+| 11. Knowledge is provenanced and correctable | `/memory` names the author, the reviewer when one was recorded, the origin session and what an entry supersedes, and no longer calls all memory verified. `/reputation` shows each observation's evidence status and what credit requires. | Source binding, applicability and candidate states are YMP-113. |
+| 12. A phase is an assignment, not a role | The purpose of a turn is shown on the assignment that created it, and a grant is described as permission held by one assignment. No page names an agent by phase. | — |

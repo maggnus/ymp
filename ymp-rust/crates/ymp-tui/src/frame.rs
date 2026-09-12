@@ -69,6 +69,48 @@ pub fn chrome(area: Rect, composer_height: u16) -> Rows {
     }
 }
 
+/// The inset page content keeps on each side of the main column, in cells.
+pub const PAGE_INSET: u16 = 2;
+
+/// The widest the read-only inspect surface grows, and the narrowest any floating surface
+/// is drawn at. [`render_modal`] holds to the same two numbers.
+const INSPECT_MAX: u16 = 86;
+pub const MODAL_MIN_WIDTH: u16 = 12;
+
+/// Columns a page wraps its own lines for inside a main column `total` cells wide.
+///
+/// One width, for every surface that paints page content: the row list, the detail pane
+/// and the empty state. A page is wrapped once, so a surface that painted it into a
+/// narrower rect than this would cut the right edge off every line there, which is how
+/// prose loses a word in the middle of a sentence.
+pub fn page_content_width(total: u16) -> u16 {
+    total.saturating_sub(PAGE_INSET * 2)
+}
+
+/// Columns the main column keeps beside a sidebar `sidebar` cells wide: the arithmetic
+/// [`split_body`] performs, stated once so the controller can ask for the width the frame
+/// will paint instead of the width of the whole terminal.
+pub fn main_width(total: u16, sidebar: u16) -> u16 {
+    if sidebar == 0 || total <= sidebar + 8 {
+        total
+    } else {
+        total.saturating_sub(sidebar + 1)
+    }
+}
+
+/// Width of the read-only inspect surface over a terminal `total` cells wide.
+pub fn inspect_width(total: u16) -> u16 {
+    INSPECT_MAX
+        .min(total.saturating_sub(4))
+        .max(MODAL_MIN_WIDTH)
+}
+
+/// Columns that surface has for its body: its border takes one cell on each side. Lines
+/// built for anything wider are cut when they are painted.
+pub fn inspect_content_width(total: u16) -> u16 {
+    inspect_width(total).saturating_sub(2)
+}
+
 /// Sidebar width for a terminal `total` cells wide. Zero means no sidebar fits.
 pub fn sidebar_width(total: u16) -> u16 {
     match total {
@@ -81,7 +123,7 @@ pub fn sidebar_width(total: u16) -> u16 {
 
 /// Split the body into the main column, a one-cell rule, and the sidebar.
 pub fn split_body(body: Rect, sidebar: u16) -> (Rect, Option<(Rect, Rect)>) {
-    if sidebar == 0 || body.width <= sidebar + 8 {
+    if main_width(body.width, sidebar) == body.width {
         return (body, None);
     }
     let split = Layout::default()
@@ -196,7 +238,10 @@ pub fn dim(frame: &mut Frame, area: Rect, theme: &Theme) {
 /// Draw a floating surface. Returns the inner rect so a caller can place a cursor in it.
 pub fn render_modal(frame: &mut Frame, area: Rect, spec: &ModalSpec, theme: &Theme) -> Rect {
     dim(frame, area, theme);
-    let width = spec.width.min(area.width.saturating_sub(2)).max(12);
+    let width = spec
+        .width
+        .min(area.width.saturating_sub(2))
+        .max(MODAL_MIN_WIDTH);
     let footer_height = u16::from(!spec.footer.is_empty());
     let max_body = area.height.saturating_sub(4 + footer_height).max(1) as usize;
     let total = spec.body.len();
