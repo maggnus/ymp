@@ -86,7 +86,7 @@ Resource proposals cannot enlarge captured ceilings or reset the admission ledge
 
 ## Built-in behavior and limits
 
-The built-ins are `ymp.bounded-allocation` version 1 and `ymp.bounded-resources`
+The built-ins are `ymp.bounded-allocation` version 2 and `ymp.bounded-resources`
 version 1. They are explicit heuristics, not claims of calibrated or optimal
 allocation. Ordinary startup requests one plan; a request classified as complex
 may request two, bounded by active and startup allowances. Complexity at startup
@@ -96,6 +96,12 @@ credentials, payments, migrations, deletion, publication and production terms.
 Elevated risk or complex work can select a decomposition method and a third
 member when useful work and resources justify it. The chosen method is supplied
 in assignment context. The initial decision records the captured resource limits.
+
+Ordinary independent ready work can also justify concurrent producers. Membership
+sizing retains occupied actors and includes the selected executor or reviewer when
+that identity is distinct, even after other producers fail. Fixed size, fixed roster,
+eligible membership and actual member ceilings still constrain the proposal; an
+available review does not require abandoning unresolved responsibilities.
 
 Default native turn proposals are at most 4 for planning, 8 for ordinary work,
 and 16 for complex or elevated-risk work, always capped by session controls.

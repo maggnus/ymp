@@ -71,3 +71,41 @@ All temporary source/test changes were restored. A byte comparison of every trac
 F1 is a backend result/consumer contract correction. UI implementation and acceptance, broader routing, YMP-115 concurrency, and the known MCP search payload bound assigned to YMP-123 remain separate work. These checks establish deterministic transitions and evidence preservation, not model quality, team superiority, memory savings or scheduler throughput. Direct selected-directory execution remains the owner-approved 0.4.0 MVP limitation; the disposable review copy is not application behavior and implies no isolation or rollback guarantee. No real inference, credential reads, intent changes, task-registry edits or UI changes occurred.
 
 Ledger: `R1(7/10) RETURN 13/09 00:19 HKT — combined authority and original-path summary pass; public returned workspace still names empty relocated registration and existing TUI labels it as artifact location → correct backend directory field and retain zero-inference consumer coverage`.
+
+
+## R2 — Captured structured location correction accepted
+
+13/09 00:29 HKT, 2026-09-13 (2026-09-12T16:29:28Z) — **ACCEPT R2(9/10)** for exact HEAD `1b76133c78de65d0504cb056c96fd57191f2e23f` over R1 `addba636a56653b1f1d2f14932cd3672e528f515`. Code **9/10**; evidence **9/10**; public consumer **9/10**. **F1 is closed; no integration return condition remains.** The complete R1 record above is preserved.
+
+The complete four-file correction diff was reviewed. Its only production change is inside the existing literal location-question branch. `RunOutcome.workspace` now comes from captured outcome location, stored workspace metadata, or captured session policy, with an absolute-location requirement. It no longer substitutes current project registration. A session with no captured location returns `outcome_location_unknown`. No authority, allocation, confirmation, resource, non-location conversation, native-provider or UI implementation changed.
+
+The permanent public consumer now includes R1's missing structured-directory assertion. Independently rerunning that extended consumer at this exact HEAD exits **0**. The returned workspace and original absolute artifact path agree after relocation to an empty directory; invocation and backend request counts do not increase, original bytes remain unchanged and the sole supported observation remains. The existing TUI's `Files are in` consumer therefore receives the original captured directory without a UI edit. The same test also independently passes an output-free failed-session fallback, missing workspace metadata with an intact captured policy, and a legacy session with no outcome, workspace or policy capture. The last case returns the explicit unknown-location error and creates no invocation. The phrase remains exactly `Where did you save it?`; there is no router change.
+
+R1's independently observed public directory assertion failed **101** before correction; the permanent equivalent now passes **0**. That before/after evidence closes F1 without another source mutation. All shared-authority and membership checks in the retained joint workload still pass. R1's source comparisons and deliberate membership/location mutation evidence remain applicable because R2 changes none of those guard implementations.
+
+### R2 commands and exact-source evidence
+
+| Independently run command | Exit / result |
+| --- | --- |
+| `cargo test -p ymp-runtime --test state_integration -- --nocapture` | 0; extended public F1 consumer; `/tmp/ymp-state-r2-independent-joint.log` |
+| `cargo test -p ymp-runtime backend_public_engine_redacts_nested_capability_errors -- --nocapture` | 0; independently targeted disclosed anomaly; `/tmp/ymp-state-r2-independent-redaction.log` |
+| `cargo test -p ymp-runtime --lib backend_contract_tests -- --nocapture` | 0; all eight backend tests under their normal concurrent test harness, including redaction; `/tmp/ymp-state-r2-independent-backend-group.log` |
+| `git diff --check` | 0; report-only review change |
+
+The parent's actual formatting, denied-warning Clippy and successful complete-workspace logs were read. Their reported source/log fingerprints were independently recomputed and match the exact reviewed files:
+
+- `ymp-runtime/src/engine.rs`: `8641ea700e68229a7ba1408c7f3e6d2ffa2a8dc579b6a694e3218b61147f7f80`.
+- `ymp-runtime/tests/state_integration.rs`: `f3208e1658c16c1016b0e70f048a892350d0fab0cf640a474d80ea53ad0a7cb0`.
+- `/tmp/ymp-state-workspace-f1-workspace-recheck.log`: `98412140d99814fe00c6c3f668a3ceac4659a0157d858a6150bd7686ed411be6`; its passing summaries total **267 tests**.
+
+Those are parent-run full checks with independently validated exact-source evidence, not a newly claimed reviewer full-suite execution. A duplicate complete run was unnecessary for this bounded correction after the focused independent checks passed.
+
+### Disclosed redaction-test anomaly remains unclassified, outside F1
+
+The initial parent workspace log was also inspected. It contains a real failure at the unchanged `backend_tests.rs:317`: the redaction test indexes an empty recorded-request vector after receiving an earlier `follow_up` error. That secondary panic hides the earlier error. It is not evidence of a capability escaping redaction, and the underlying pre-invocation failure cannot be identified from that log.
+
+The test's prompt is `What is the sum?`, which does not enter the changed literal location branch. Both its source and the executed non-location conversation implementation are unchanged by R2. The parent's isolated rerun and unchanged-source full rerun pass; the independent isolated rerun and concurrent eight-test backend group also pass. The anomaly was therefore not reproduced in this review. Its cause is **not established or claimed fixed**, and the passing reruns do not erase the initial failure. If it recurs during final integration, preserve the original pre-invocation error with a credential-safe diagnostic before the unchecked request access. There is no reproduced issue tying it to F1 and no basis to reopen the corrected location contract on this evidence.
+
+Only this report was appended in R2. No source mutation, commit, inference, credentials, UI changes, intent edits or task-registry updates occurred. The R1 limits on whole-release acceptance, native model quality, MCP payload bounds, concurrency and MVP-only direct-directory behavior remain in force.
+
+Updated ledger: `R1(7/10) RETURN → R2(9/10) ACCEPT 13/09 00:29 HKT — structured and textual original locations now agree; fallback/absence and zero-inference consumers pass; all shared guards retained; isolated pre-invocation test anomaly disclosed without an unsupported causal claim`.

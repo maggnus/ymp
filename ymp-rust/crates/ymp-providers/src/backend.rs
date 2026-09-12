@@ -17,6 +17,12 @@ pub type ExecutionFuture<'a> = Pin<Box<dyn Future<Output = Result<TurnResult>> +
 pub trait ExecutionBackend: Send + Sync {
     fn identity(&self) -> ExecutionBackendIdentity;
 
+    /// Actual access enforced by this trusted backend for this request. The
+    /// conservative default also covers custom backends that ignore read_only.
+    fn workspace_access(&self, _request: &TurnRequest) -> ymp_core::WorkspaceAccess {
+        ymp_core::WorkspaceAccess::WriteAll
+    }
+
     fn execute(
         &self,
         request: TurnRequest,
@@ -33,6 +39,15 @@ impl ExecutionBackend for NativeExecutionBackend {
         ExecutionBackendIdentity {
             id: "ymp.native".into(),
             version: env!("CARGO_PKG_VERSION").into(),
+        }
+    }
+
+    fn workspace_access(&self, request: &TurnRequest) -> ymp_core::WorkspaceAccess {
+        // ACP mode names are not a filesystem enforcement guarantee.
+        if request.read_only && request.provider.kind != ymp_core::ProviderKind::Acp {
+            ymp_core::WorkspaceAccess::ReadAll
+        } else {
+            ymp_core::WorkspaceAccess::WriteAll
         }
     }
 

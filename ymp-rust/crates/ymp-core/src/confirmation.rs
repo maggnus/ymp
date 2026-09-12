@@ -219,6 +219,8 @@ impl CapturedAcceptanceContract {
 /// The task definition judged with a candidate, excluding mutable lifecycle fields.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct TaskDefinition {
+    #[serde(default, skip_serializing_if = "crate::TaskAccess::is_write")]
+    pub access: crate::TaskAccess,
     pub title: String,
     pub description: String,
     pub competence: String,
@@ -231,6 +233,7 @@ pub struct TaskDefinition {
 impl From<&crate::Task> for TaskDefinition {
     fn from(task: &crate::Task) -> Self {
         Self {
+            access: task.access,
             title: task.title.clone(),
             description: task.description.clone(),
             competence: task.competence.clone(),

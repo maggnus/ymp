@@ -22,3 +22,5 @@ pub use allocation::*;
 
 pub mod knowledge;
 pub use knowledge::*;
+mod workspace_access;
+pub use workspace_access::*;

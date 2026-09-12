@@ -2012,6 +2012,7 @@ impl Fixture {
     /// runs a task's checks after its execution turn and before the review decision.
     fn seed_task(&self, session: &str, title: &str, checks: &[&str]) -> String {
         let task = Task {
+            access: ymp_core::TaskAccess::default(),
             id: new_id(),
             session_id: session.to_owned(),
             title: title.to_owned(),

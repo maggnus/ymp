@@ -50,6 +50,7 @@ impl Fixture {
         };
         store.create_session(&session, &policy).unwrap();
         let task = Task {
+            access: ymp_core::TaskAccess::default(),
             id: new_id(),
             session_id: session.id.clone(),
             title: "same title".into(),
@@ -126,6 +127,7 @@ impl Fixture {
             summary: "Inspect, draft, then integrate the result".into(),
             tasks: vec![
                 PlanTask {
+                    access: ymp_core::TaskAccess::default(),
                     title: "Integrate".into(),
                     description: "Integrate the draft with source findings".into(),
                     competence: "implementation".into(),
@@ -137,6 +139,7 @@ impl Fixture {
                     ],
                 },
                 PlanTask {
+                    access: ymp_core::TaskAccess::default(),
                     title: "Inspect".into(),
                     description: "Inspect the source material".into(),
                     competence: "analysis".into(),
@@ -145,6 +148,7 @@ impl Fixture {
                     checks: vec!["check-source-findings".into()],
                 },
                 PlanTask {
+                    access: ymp_core::TaskAccess::default(),
                     title: "Draft".into(),
                     description: "Write a draft using the findings".into(),
                     competence: "implementation".into(),
@@ -239,6 +243,7 @@ impl Fixture {
             .iter()
             .enumerate()
             .map(|(index, definition)| Task {
+                access: ymp_core::TaskAccess::default(),
                 id: ids[index].into(),
                 session_id: self.session.id.clone(),
                 title: definition.title.clone(),
@@ -300,10 +305,12 @@ fn plan_commit_rejects_altered_task_bodies_without_state_or_event_changes() {
         "competence",
         "difficulty",
         "missing_version",
+        "access",
     ] {
         let f = Fixture::new();
         let (mut tasks, mut decision) = f.reviewed_plan();
         match alteration {
+            "access" => tasks[0].access = TaskAccess::ReadOnly,
             "description" => tasks[0].description = "Perform different work".into(),
             "missing_checks" => tasks[0].checks.clear(),
             "changed_checks" => tasks[0].checks[0] = "weaker-check".into(),

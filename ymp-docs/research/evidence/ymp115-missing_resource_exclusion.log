@@ -1,0 +1,23 @@
+    Blocking waiting for file lock on package cache
+   Compiling ymp-runtime v0.3.0 (/private/var/folders/cw/7pn8sb3x6bj69g7j2d8f_ss00000gn/T/ymp-release-work-h6oq_rys/115/ymp-rust/crates/ymp-runtime)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.59s
+     Running tests/concurrency.rs (target/debug/deps/concurrency-554b81c43e2a4a5d)
+
+running 1 test
+
+thread 'native_unbounded_access_serializes_writers_and_readers' panicked at ymp-rust/crates/ymp-runtime/tests/concurrency.rs:388:9:
+Native unrestricted writer overlapped another assignment
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+thread 'tokio-rt-worker' panicked at ymp-rust/crates/ymp-runtime/tests/concurrency.rs:100:54:
+called `Result::unwrap()` on an `Err` value: SendError { .. }
+test native_unbounded_access_serializes_writers_and_readers ... FAILED
+
+failures:
+
+failures:
+    native_unbounded_access_serializes_writers_and_readers
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 8 filtered out; finished in 0.13s
+
+error: test failed, to rerun pass `-p ymp-runtime --test concurrency`

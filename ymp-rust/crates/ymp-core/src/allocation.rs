@@ -129,6 +129,9 @@ pub struct AllocationEvidence {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct AllocationInput {
+    /// Active invocations and committed task selections whose agent must remain.
+    #[serde(default)]
+    pub occupied_agent_ids: Vec<String>,
     pub session_id: String,
     pub boundary: AllocationBoundary,
     pub goal: String,

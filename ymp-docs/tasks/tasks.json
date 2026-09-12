@@ -1335,6 +1335,21 @@
           "at": "2026-09-12T15:23:32.455382+00:00",
           "status": "in_progress",
           "note": "R1(5/10) RETURN: public admission could turn the reserved final reviewer into a producer; a known unsupported pinned reviewer consumed startup work before rejection. Author is correcting shared admission and pre-start configuration validation with exact public controls. Normal Cargo and validator tests had passed."
+        },
+        {
+          "at": "2026-09-12T15:56:34.795903+00:00",
+          "status": "in_progress",
+          "note": "Standalone R2(9/10) ACCEPT closes both findings; public reservation/admission interleavings and known/unknown pin controls pass. Integration with accepted knowledge113 and UI118 is underway; historical/current membership must remain consistent across those consumers."
+        },
+        {
+          "at": "2026-09-12T16:17:26.571064+00:00",
+          "status": "in_progress",
+          "note": "Standalone R2(9/10) accepted. Combined allocation/knowledge candidate addba63 passes 267 tests and the public relocation consumer after a demonstrated 101-to-0 correction. Independent integration review is running; UI118 visibility remains required."
+        },
+        {
+          "at": "2026-09-12T16:33:37.914783+00:00",
+          "status": "in_progress",
+          "note": "Backend integration R2(9/10) ACCEPT. Main5834e7f matches reviewed1b76133 source; fmt/clippy and267 workspace tests pass. Current membership, historical participants, pins and admission remain consistent with incremental knowledge. Corresponding Claude UI118 views are still required before closing this task."
         }
       ]
     },
@@ -1477,6 +1492,31 @@
           "at": "2026-09-12T15:23:32.560823+00:00",
           "status": "in_progress",
           "note": "R1(6/10) RETURN: outcome paths were derived from mutable Project.path and could be invented after relocation. Author is binding location/freshness to immutable captured workspaces and returning unknown explicitly for unsupported legacy records. Unbounded MCP search payloads are separately tracked under YMP-123."
+        },
+        {
+          "at": "2026-09-12T15:56:34.926285+00:00",
+          "status": "in_progress",
+          "note": "Standalone R2(9/10) ACCEPT preserves captured locations after relocation. Joint110/113 consumer found the older deterministic follow-up path reopened workspace metadata at the relocated directory; integration is routing it through immutable Store.outcomes. UI118 consumes the same source/current-availability records."
+        },
+        {
+          "at": "2026-09-12T16:17:26.617750+00:00",
+          "status": "in_progress",
+          "note": "Combined candidate addba63 answers location questions from immutable stored outcomes before workspace validation. The joint public consumer failed 101 before correction and passes 0 afterward. Independent integration review is running; UI118 visibility remains required."
+        },
+        {
+          "at": "2026-09-12T16:24:14.177628+00:00",
+          "status": "in_progress",
+          "note": "Combined R1(7/10) RETURN found one location-consumer contradiction: summary retained the original artifact but RunOutcome.workspace pointed to empty relocated registration. The backend correction now returns captured outcome/workspace/policy location, with explicit unknown legacy state. Extended zero-inference consumer fails101 before correction and passes0 after; required checks and independent re-review follow."
+        },
+        {
+          "at": "2026-09-12T16:29:19.936732+00:00",
+          "status": "in_progress",
+          "note": "Combined location correction1b76133 preserves captured structured and textual locations, including workspace/policy fallback and explicit unknown legacy state. Exact public consumer fails101 before correction and passes0 after. Fmt/clippy and final267-test suite pass; one earlier redaction setup failure passed targeted and unchanged full reruns and remains disclosed for review. Independent R2 is running; UI118 visibility remains required."
+        },
+        {
+          "at": "2026-09-12T16:33:37.979960+00:00",
+          "status": "in_progress",
+          "note": "Backend integration R2(9/10) ACCEPT and merged into main5834e7f. Structured/textual captured locations, stored fallback, unknown legacy state and zero-inference follow-ups pass. Main fmt/clippy and267 tests pass. UI118 visibility remains required; the earlier unreproduced redaction-test anomaly is documented without claiming its cause fixed."
         }
       ]
     },
@@ -1598,7 +1638,7 @@
       "title": "Enable useful concurrent execution of independent assignments",
       "type": "implementation",
       "priority": "P0",
-      "status": "in_progress",
+      "status": "done",
       "owner": "Maintainer",
       "authorization": "Planned delivery derived from the owner-approved intent and standing autonomous-development direction. Follow dependencies and acceptance criteria; separate real-provider quota is required where stated.",
       "depends_on": [
@@ -1622,7 +1662,11 @@
         "[Team and effort policy](../architecture/team-and-effort-policy.md)",
         "[Domain terminology](../product/entities.md)",
         "[Delivery plan](plan.md)",
-        "[MVP workspace decision and post-MVP boundary](../architecture/workspace-policy.md)"
+        "[MVP workspace decision and post-MVP boundary](../architecture/workspace-policy.md)",
+        "[Concurrency implementation](../architecture/concurrency-implementation.md)",
+        "[Standalone independent R1/R2 review](../../ymp-evals/reports/ymp-115-independent-review.md)",
+        "[Combined integration verification](../../ymp-evals/reports/ymp-115-combined-integration.md)",
+        "[Independent combined acceptance](../../ymp-evals/reports/ymp-115-combined-independent-review.md)"
       ],
       "history": [
         {
@@ -1659,6 +1703,36 @@
           "at": "2026-09-12T15:34:36.340125+00:00",
           "status": "in_progress",
           "note": "Owner approved direct execution for MVP only and the instruction conflict is resolved. Useful concurrency is assigned against the prepared allocation interface: independent safe work may overlap, conflicting or unbounded writes serialize, and effective access is recorded. Post-MVP isolation is YMP-124."
+        },
+        {
+          "at": "2026-09-12T16:11:12.347847+00:00",
+          "status": "in_progress",
+          "note": "Candidate 32624efd implements explicit task access, ordinary default-policy overlap, conservative native scopes and sibling/cancellation/restart handling. Author reports 267 passing Rust tests and eight observed failing controls. Independent xhigh code review is running; tested providers are deterministic, with no model inference."
+        },
+        {
+          "at": "2026-09-12T16:17:26.661114+00:00",
+          "status": "in_progress",
+          "note": "Independent review reproduced a default allocation failure: two failed concurrent producers can prevent review of a completed sibling despite an eligible reserved reviewer and remaining capacity. Exact public consumer exits101. Candidate is not accepted; bounded correction and re-review are next."
+        },
+        {
+          "at": "2026-09-12T16:24:14.128363+00:00",
+          "status": "in_progress",
+          "note": "R1(5/10) RETURN: two failed occupied actors can prevent a feasible completed-sibling review. Exact public consumer fails101; correction now accounts for a distinct reviewer without removing occupied actors or exceeding pins. The author is retaining the regression and checking the bounded change."
+        },
+        {
+          "at": "2026-09-12T16:33:38.033566+00:00",
+          "status": "in_progress",
+          "note": "Correction ecf1278 retains the exact101-to-0 public regression: completed A reaches confirmation despite two failed occupied siblings; real ceilings and fixed size still reject impossible membership. Author fmt/clippy and268 tests pass. Independent R2 is running; original candidate remains unmerged."
+        },
+        {
+          "at": "2026-09-12T16:46:38.539879+00:00",
+          "status": "in_progress",
+          "note": "Standalone R2(9/10) ACCEPT at ecf1278. Combined consumers preserve confirmed sibling knowledge and require actual inspection before retiring an unresolved actor; three removed-guard controls fail101. Host disk exhaustion interrupted final compilation. Generated historical build caches are being reclaimed and the same source is being checked again; no product regression is inferred from ENOSPC."
+        },
+        {
+          "at": "2026-09-12T17:00:52.115183+00:00",
+          "status": "done",
+          "note": "Standalone R2(9/10) and combined R1(9/10) ACCEPT. Integrated cc62f8d,9bca1cc,6eaf6e8; main source matches reviewed b08eb57. Main fmt/clippy,278 Rust tests and13 bridge tests/check/build pass. Real public consumers prove useful overlap, conflict exclusion, retained responsibility and confirmed sibling knowledge/location preservation. Direct-directory behavior remains MVP-only."
         }
       ]
     },
@@ -2047,6 +2121,11 @@
           "at": "2026-09-12T14:16:57.664228+00:00",
           "status": "in_progress",
           "note": "Claude Opus5 max is implementing core state/constraint/confirmation views and correcting shared-frame clipping in an isolated checkout. The UI will use actual captured records and integrate committed110/113 projections as available. Black theme, typography and sidebar behavior are preserved."
+        },
+        {
+          "at": "2026-09-12T16:33:38.110325+00:00",
+          "status": "in_progress",
+          "note": "Claude Opus5 max is implementing the existing team and knowledge views against accepted110/113 records, alongside core state/constraint/confirmation visibility and frame clipping. A coherent core visibility slice is requested for independent UI review; main backend integration is available. No UI acceptance or release is claimed."
         }
       ]
     },
@@ -2116,7 +2195,8 @@
         "YMP-114",
         "YMP-118",
         "YMP-122",
-        "YMP-123"
+        "YMP-123",
+        "YMP-125"
       ],
       "reason": "A local release needs a reproducible install and truthful compatibility evidence for the configured native providers.",
       "acceptance": [
@@ -2162,6 +2242,11 @@
           "at": "2026-09-12T14:50:45.441499+00:00",
           "status": "planned",
           "note": "Owner requested a check that tests do not use real max/xhigh agents. Source audit confirms mock/scripted unattended paths. Live compatibility probes must pin minimal supported effort; developer/reviewer model use is a separate resource category."
+        },
+        {
+          "at": "2026-09-12T16:52:30.502537+00:00",
+          "status": "planned",
+          "note": "YMP-125 makes the trusted-contract integration seam reachable from executable clients. Final verification must include this application route, not only direct Rust injection."
         }
       ],
       "budget": "Not allocated. Prepare a concrete bounded smoke-check proposal before any real-provider inference."
@@ -2275,7 +2360,7 @@
       "title": "Expose a public local MCP facade over stdio",
       "type": "implementation",
       "priority": "P1",
-      "status": "new",
+      "status": "in_progress",
       "owner": "Maintainer",
       "authorization": "Owner discussion on2026-09-12 requested external MCP availability and selected stdio; standing autonomous delivery authorization applies.",
       "depends_on": [
@@ -2301,6 +2386,36 @@
           "at": "2026-09-12T13:00:04.752401+00:00",
           "status": "new",
           "note": "Added from owner MCP discussion and stdio selection. External access is a new delivery outcome; the existing internal socket bridge is not claimed as a public server."
+        },
+        {
+          "at": "2026-09-12T15:56:35.075371+00:00",
+          "status": "in_progress",
+          "note": "Public stdio facade is assigned at xhigh for development; all tests use scripted providers and a real MCP client without inference. Scope includes fixed project/action permissions, bounded start/resume/progress/cancel, stable IDs, and bounded knowledge/history/result projections shared with internal MCP."
+        },
+        {
+          "at": "2026-09-12T16:11:12.502837+00:00",
+          "status": "in_progress",
+          "note": "Public facade passed an official MCP Python SDK process walk with fixed mock/low providers: discovery, scoped reads/execution, progress, cancellation/reopen and bounded pagination. Five guard-removal controls fail. Final disconnect/SIGKILL/internal-bridge checks and code review are still pending; no actual model inference."
+        },
+        {
+          "at": "2026-09-12T16:17:26.704109+00:00",
+          "status": "in_progress",
+          "note": "Candidate1fa6f735 is committed. Official MCP SDK verification includes SIGKILL recovery and internal --socket compatibility (176 tool calls; largest reply73149 bytes); five removed-guard controls fail. Author fmt/clippy,270 Rust tests and13 bridge tests pass. Independent xhigh review is running; all execution workloads are mock/low without model inference."
+        },
+        {
+          "at": "2026-09-12T16:29:19.892236+00:00",
+          "status": "in_progress",
+          "note": "R1(8/10) requests changes: SIGTERM closes mock invocations and pauses the operation but the process remains alive while stdin stays open. The independent seven-second subprocess control fails; EOF then exits0. Author is correcting input shutdown and adding open-pipe SIGTERM/SIGINT controls. Shared runtime authority, deduplication and bounded projection checks passed."
+        },
+        {
+          "at": "2026-09-12T16:46:38.583231+00:00",
+          "status": "in_progress",
+          "note": "Standalone R2(9.5/10) ACCEPT at610f99d closes the open-pipe signal shutdown defect. Combined source preserves accepted location/allocation/knowledge behavior. Fmt/clippy pass; disk exhaustion interrupted workspace checks, which are rerunning after generated-cache cleanup before actual MCP-client verification."
+        },
+        {
+          "at": "2026-09-12T17:00:52.158442+00:00",
+          "status": "in_progress",
+          "note": "Standalone R2(9.5/10) ACCEPT; combined build and full official MCP client walk pass. After ENOSPC cleanup, a full runtime test exposed false session-lock contention from inherited descriptors; a separate bounded Store lock correction is underway. MCP source remains unmerged until shared-lock correction and combined verification complete."
         }
       ]
     },
@@ -2333,9 +2448,46 @@
           "note": "Explicitly deferred until after the 0.4.0 MVP. Direct execution is accepted only for that MVP; larger-project isolation/publication requires this separate outcome."
         }
       ]
+    },
+    {
+      "id": "YMP-125",
+      "title": "Expose trusted acceptance contracts to executable users",
+      "type": "implementation",
+      "priority": "P0",
+      "status": "in_progress",
+      "owner": "Maintainer; any TUI implementation by Claude Opus 5 max via Paseo",
+      "authorization": "Required release integration derived from the approved executable product and checked-experience goal; standing autonomous implementation authorization applies. No real-provider quota is granted.",
+      "depends_on": [
+        "YMP-117"
+      ],
+      "reason": "Independent rebuilt executable audit confirms that only Rust consumers can originate trusted contracts. Ordinary CLI/TUI runs cannot currently produce confirmed experience through application configuration.",
+      "acceptance": [
+        "Expose explicit user-controlled typed contract input through a common executable configuration/loading path, with a clear activation scope and the existing runtime-owned confirmation guards.",
+        "Communicate declared target titles, criteria and artifact/input paths to planning without leaking expected bytes, reference outputs or verifier contents. Reject duplicate and unmatched or ambiguous targets before production; replanning retains the obligations.",
+        "Capture selected contracts before prompting and preserve their source/bindings on resume; mutable configuration or manifest edits cannot replace a captured contract.",
+        "Verify an actual executable confirmed outcome and supported retrieval in a later session, while absent-contract qualitative runs remain accepted/unconfirmed with no reputation.",
+        "Exercise failing/partial checks, changed inputs/artifacts/verifiers, target-binding failures and resumed configuration changes through production boundaries using mock/scripted providers.",
+        "Keep current CLI/TUI consumers consistent with shared runtime records. Delegate any TUI implementation to Claude Opus 5 max; no new confirmation semantics or general plugin framework is required."
+      ],
+      "evidence": [
+        "[Executable integration gap and contract](../architecture/executable-acceptance-contracts.md)",
+        "[Independent executable audit measurements](../research/evidence/executable-confirmation-gap.json)"
+      ],
+      "history": [
+        {
+          "at": "2026-09-12T16:52:30.502537+00:00",
+          "status": "new",
+          "note": "Added after independent source and rebuilt mock-executable audit: correct output remained unconfirmed with no captured contracts/checks or observations. The existing Rust-only seam is insufficient for ordinary application use. Task-title binding must be addressed together with explicit contract ingress."
+        },
+        {
+          "at": "2026-09-12T16:53:01.470120+00:00",
+          "status": "in_progress",
+          "note": "Implementing explicit executable contract ingress and unambiguous plan binding through the existing trusted runtime. The independent audit establishes the missing application route; all automatic checks remain mock/scripted, and any TUI work stays with Claude Opus 5 max."
+        }
+      ]
     }
   ],
-  "updated_at": "2026-09-12T15:34:36.340125+00:00",
+  "updated_at": "2026-09-12T17:00:52.158442+00:00",
   "delivery_order": [
     "YMP-116",
     "YMP-103",
@@ -2356,6 +2508,7 @@
     "YMP-113",
     "YMP-114",
     "YMP-107",
+    "YMP-125",
     "YMP-118",
     "YMP-123",
     "YMP-121"
@@ -2430,6 +2583,7 @@
       "outcome": "Core state and recovery are visible; the integrated application passes the universal suite and release checks.",
       "task_ids": [
         "YMP-107",
+        "YMP-125",
         "YMP-118",
         "YMP-123",
         "YMP-121"
