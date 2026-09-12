@@ -2725,6 +2725,21 @@ fn right_of_key(app: &mut App, width: u16, key: &str) -> String {
         .unwrap_or_else(|| panic!("no row has the key {key}"))
 }
 
+/// The left-hand text of the row with this key, the mark it carries included.
+fn left_of_key(app: &mut App, width: u16, key: &str) -> String {
+    let page = app.page(width);
+    page.items
+        .iter()
+        .find(|item| item.key == key)
+        .map(|item| {
+            item.left
+                .iter()
+                .map(|span| span.content.as_ref())
+                .collect::<String>()
+        })
+        .unwrap_or_else(|| panic!("no row has the key {key}"))
+}
+
 /// The detail of the row with this key, as one line.
 fn detail_of_key(app: &mut App, width: u16, key: &str) -> String {
     let page = app.page(width);
@@ -4002,6 +4017,11 @@ async fn a_captured_acceptance_contract_is_shown_as_a_binding_and_not_as_a_resul
         right_of_key(&mut app, 65, &key).contains("criteria captured"),
         "a captured contract is reported as an ungraded decision: {}",
         right_of_key(&mut app, 65, &key)
+    );
+    let marked = left_of_key(&mut app, 65, &key);
+    assert!(
+        !marked.starts_with(crate::theme::UNICODE.idle),
+        "the row is marked as a decision without an outcome: {marked}"
     );
     let detail = detail_of_key(&mut app, 65, &key);
     for expected in [

@@ -3678,7 +3678,9 @@ fn decision_row(ctx: &Ctx, decision: &DecisionRecord) -> Item {
         None if decision.links.workspace_wait.is_some() => {
             (theme.markers.paused.to_owned(), theme.warn())
         }
-        None if decision.links.workspace_access.is_some() => {
+        None if decision.links.workspace_access.is_some()
+            || decision.links.acceptance_contract.is_some() =>
+        {
             (theme.markers.activity.to_owned(), theme.info())
         }
         None => decision_marker(&acceptance, theme),
