@@ -12,6 +12,16 @@ mod provenance;
 mod provenance_tests;
 mod usage;
 
+/// The exact FTS expression used by memory lookup and recorded by the runtime.
+pub fn memory_search_query(query: &str) -> String {
+    query
+        .split_whitespace()
+        .take(12)
+        .map(|s| format!("\"{}\"", s.replace('"', "\"\"")))
+        .collect::<Vec<_>>()
+        .join(" OR ")
+}
+
 #[derive(Clone)]
 pub struct Store {
     conn: Arc<Mutex<Connection>>,
@@ -247,6 +257,14 @@ impl Store {
         )?;
         Ok(())
     }
+
+    /// Read the actual latest user input, without depending on a history window.
+    pub fn last_user_request(&self, session: &str) -> Result<Option<String>> {
+        Ok(self.db()?.query_row(
+            "SELECT text FROM messages WHERE session_id=? AND author='you' AND kind='user' ORDER BY seq DESC LIMIT 1",
+            [session], |r| r.get(0),
+        ).optional()?)
+    }
     pub fn save_task(&self, t: &Task) -> Result<()> {
         let mut db = self.db()?;
         let tx = db.transaction()?;
@@ -349,12 +367,7 @@ impl Store {
     }
     pub fn memory(&self, project: Option<&str>, query: &str) -> Result<Vec<MemoryEntry>> {
         let db = self.db()?;
-        let terms = query
-            .split_whitespace()
-            .take(12)
-            .map(|s| format!("\"{}\"", s.replace('"', "\"\"")))
-            .collect::<Vec<_>>()
-            .join(" OR ");
+        let terms = memory_search_query(query);
         let sql = if terms.is_empty() {
             "SELECT data FROM memory WHERE status='active' AND (project_id IS NULL OR project_id=?1) ORDER BY rowid DESC LIMIT 20"
         } else {
