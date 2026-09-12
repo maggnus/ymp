@@ -80,6 +80,20 @@ editable values on the limits page apply to a later session; they are never pres
 a finished session ran under, and the turn counter in the header and the sidebar uses the
 captured bound when a session is loaded.
 
+**Ceiling, allowance, protection, policy.** The token rows of the limits page read the captured
+resource limits and the budget the store computes, never the configuration. The ceiling is
+checked at admission against reported tokens and the allowances still held by open turns, so
+what it leaves is stated as a reported remainder, and as at most that where a count is
+incomplete. A turn's allowance is either the one its assignment requested or the captured
+per-turn default, and it is accounting rather than a limit the installation enforced. Review
+tokens are the ones still protected now: a captured reserve less what review turns have
+reported and still hold, or, where no reserve was captured, one allowance for each review turn
+still owed. The policy for incomplete counts is the one the session captured: stop admitting
+under the ceiling, or go on admitting against reported counts. Going on keeps an incomplete
+count incomplete, so no remainder becomes known and no strict bound follows, and the page says
+both. No installation this release drives proves a hard cap on a whole run, and the strict
+bound row says that too.
+
 **Pool, member, worked here.** The pool is who may be drawn on this machine; a session's team
 is who its run actually formed. An agent that worked in a session keeps its place in that
 session's list after its profile leaves the pool, and an agent with records that the current

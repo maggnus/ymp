@@ -3062,7 +3062,7 @@ async fn a_reopened_session_is_measured_against_the_limits_it_captured() {
     );
     let tokens = row_prose(&mut app, 65, "tokens observed");
     assert!(
-        tokens.contains("not as zero tokens"),
+        tokens.contains("its tokens stay unknown rather than being counted as zero"),
         "unreported spend was not distinguished from nothing spent:\n{tokens}"
     );
 
@@ -3296,6 +3296,344 @@ async fn a_budget_stop_is_named_on_the_limits_page() {
     assert!(
         admitted.contains("in flight only while a run is active"),
         "an open turn count was not qualified:\n{admitted}"
+    );
+}
+
+/// A run whose captured limits carry a token ceiling and a policy for incomplete counts.
+///
+/// The mock installation reports no token counts unless a member's instructions ask it to.
+/// With `reporting`, member `one` reports what it used and member `two` still reports nothing,
+/// so some tokens are known while the counts stay incomplete; without it no count is known at
+/// all. Either way the captured policy is what decides whether admission goes on.
+async fn token_run(
+    policy: ymp_core::UnknownUsagePolicy,
+    review_reserve: Option<u64>,
+    reporting: bool,
+) -> Run {
+    mock_run("Create a greeting", |engine| {
+        let resources = engine.config.limits.resources.as_mut().unwrap();
+        resources.observed_tokens = Some(100_000);
+        resources.invocation_tokens = Some(4_000);
+        resources.review_reserve_tokens = review_reserve;
+        resources.unknown_usage = policy;
+        if reporting {
+            if let Some(agent) = engine.config.agents.iter_mut().find(|a| a.id == "one") {
+                agent.instructions = "[mock:usage]".into();
+            }
+        }
+    })
+    .await
+}
+
+/// The configuration a later run would use, with every token setting moved away from what the
+/// session captured, so a page that read today's values would show other ones.
+fn moved_token_config(run: &Run, policy: ymp_core::UnknownUsagePolicy) -> Config {
+    let mut config = run.config.clone();
+    let resources = config.limits.resources.as_mut().unwrap();
+    resources.observed_tokens = Some(50_000);
+    resources.invocation_tokens = Some(2_000);
+    resources.review_reserve_tokens = Some(7_000);
+    resources.unknown_usage = policy;
+    config
+}
+
+/// Admit one more turn that requests its own token allowance, through the store's admission.
+///
+/// The runtime at this version never requests one, so this is the only way such a record is
+/// written, and the store still checks the request against the ceiling the session captured.
+/// The turn is left open, which is what makes its allowance held.
+fn admit_requested_allowance(run: &Run, tokens: u64) -> String {
+    let trace = run.store.trace(&run.session).unwrap();
+    let first = trace.assignments.first().unwrap().clone();
+    let assignment = ymp_core::AssignmentRecord {
+        id: ymp_core::new_id(),
+        token_reservation: Some(tokens),
+        purpose: "consultation".into(),
+        task: None,
+        grant_ids: Vec::new(),
+        state: ymp_core::InvocationState::Running,
+        started_at: ymp_core::now(),
+        ended_at: None,
+        ..first
+    };
+    let invocation = ymp_core::InvocationRecord {
+        id: ymp_core::new_id(),
+        session_id: run.session.clone(),
+        assignment_id: assignment.id.clone(),
+        execution_backend: None,
+        turn: 1,
+        requested: assignment.requested.clone(),
+        sent: Default::default(),
+        reported: Default::default(),
+        resumed_from: None,
+        native_session_id: None,
+        native_turn_id: None,
+        native_version: None,
+        state: ymp_core::InvocationState::Running,
+        started_at: ymp_core::now(),
+        ended_at: None,
+        usage: None,
+        terminal_reason: None,
+    };
+    run.store.admit_invocation(&assignment, invocation).unwrap();
+    assignment.id
+}
+
+#[tokio::test]
+async fn a_reopened_session_shows_the_token_policy_it_captured_and_not_todays() {
+    use ymp_core::UnknownUsagePolicy::{BoundedNative, Stop};
+
+    // A captured stop. No count is ever reported, so the turn after the first is refused.
+    let stopped = token_run(Stop, Some(10_000), false).await;
+    assert_eq!(
+        stopped.status, "paused",
+        "a stop on incomplete counts did not pause the run"
+    );
+    let budget = stopped
+        .store
+        .session_budget(&stopped.session)
+        .unwrap()
+        .unwrap();
+    assert_eq!(
+        budget
+            .last_denial
+            .as_ref()
+            .map(|denial| denial.code.as_str()),
+        Some("unknown_usage"),
+        "the run stopped for another reason"
+    );
+    let protected = budget
+        .protected_review_tokens
+        .expect("a captured reserve protects review tokens");
+    let mut app = App::new(
+        stopped.store.clone(),
+        moved_token_config(&stopped, BoundedNative),
+        PathBuf::from(stopped.project.path()),
+    );
+    app.load_session(&stopped.session).unwrap();
+    app.command("/limits", 100);
+    for (key, value) in [
+        ("captured:unknown-usage", "stop admitting".to_owned()),
+        ("captured:token-ceiling", "100000".to_owned()),
+        ("captured:turn-allowance", "4000".to_owned()),
+        ("captured:review-tokens", protected.to_string()),
+        ("captured:bound", "not proved".to_owned()),
+        ("captured:denial", "unknown_usage".to_owned()),
+    ] {
+        assert_eq!(
+            right_of_key(&mut app, 65, key),
+            value,
+            "{key} does not show what the session captured"
+        );
+    }
+    let policy = detail_of_key(&mut app, 65, "captured:unknown-usage");
+    assert!(
+        policy.contains("admits no further turn under its token ceiling")
+            && !policy.contains("goes on admitting"),
+        "a captured stop reads as the policy the configuration holds now:\n{policy}"
+    );
+    let review = detail_of_key(&mut app, 65, "captured:review-tokens");
+    assert!(
+        review.contains("captured 10000 tokens for the review it owes")
+            && review.contains(&format!("{protected} of them are protected now")),
+        "the captured review reserve is not the one shown:\n{review}"
+    );
+    let ceiling = detail_of_key(&mut app, 65, "captured:token-ceiling");
+    assert!(
+        ceiling.contains("No turn reported a count, so no spending is known")
+            && ceiling.contains("what is truly left is not known"),
+        "a session with no count at all reads as if its spending were known:\n{ceiling}"
+    );
+
+    // A captured go-on. The same counts are missing, and admission went on to the end.
+    let bounded = token_run(BoundedNative, None, true).await;
+    assert_eq!(
+        bounded.status, "completed",
+        "admission on reported counts did not go on"
+    );
+    let budget = bounded
+        .store
+        .session_budget(&bounded.session)
+        .unwrap()
+        .unwrap();
+    assert!(
+        budget.observed_usage.is_partial() && !budget.strict_token_bound,
+        "the fixture no longer has incomplete counts"
+    );
+    let mut app = App::new(
+        bounded.store.clone(),
+        moved_token_config(&bounded, Stop),
+        PathBuf::from(bounded.project.path()),
+    );
+    app.load_session(&bounded.session).unwrap();
+    app.command("/limits", 100);
+    assert_eq!(
+        right_of_key(&mut app, 65, "captured:unknown-usage"),
+        "admit on reported"
+    );
+    assert_eq!(
+        right_of_key(&mut app, 65, "captured:token-ceiling"),
+        "100000"
+    );
+    let policy = detail_of_key(&mut app, 65, "captured:unknown-usage");
+    for expected in [
+        "goes on admitting turns against what was reported",
+        "An incomplete count stays incomplete",
+        "not what is truly left",
+        "no strict token bound follows",
+        "Not every count in this session is complete",
+    ] {
+        assert!(
+            policy.contains(expected),
+            "the captured policy does not say {expected:?}:\n{policy}"
+        );
+    }
+    let ceiling = detail_of_key(&mut app, 65, "captured:token-ceiling");
+    assert!(
+        ceiling.contains("By reported counts")
+            && ceiling.contains("what is truly left is not known: it is at most"),
+        "a remainder by reported counts reads as a known one:\n{ceiling}"
+    );
+    let strict = detail_of_key(&mut app, 65, "captured:bound");
+    assert!(
+        strict.contains("Its counts are also incomplete")
+            && strict.contains("Admitting on reported counts does not change that"),
+        "going on without counts reads as a bound:\n{strict}"
+    );
+    let review = detail_of_key(&mut app, 65, "captured:review-tokens");
+    assert!(
+        review.contains(&format!(
+            "4000 × {} = {}",
+            budget.protected_review_invocations,
+            budget.protected_review_tokens.unwrap()
+        )),
+        "the protection without a captured reserve is not explained by its parts:\n{review}"
+    );
+    if keys_of(&mut app, 65).contains(&"captured:denial".to_owned()) {
+        assert_ne!(
+            right_of_key(&mut app, 65, "captured:denial"),
+            "unknown_usage",
+            "a session that went on admitting shows a stop on incomplete counts"
+        );
+    }
+}
+
+#[tokio::test]
+async fn an_assignment_says_whether_its_token_allowance_was_requested_or_inherited() {
+    let run = token_run(
+        ymp_core::UnknownUsagePolicy::BoundedNative,
+        Some(10_000),
+        false,
+    )
+    .await;
+    let inherited = run.store.trace(&run.session).unwrap().assignments[0].clone();
+    assert_eq!(
+        inherited.token_reservation, None,
+        "the runtime requested an allowance of its own"
+    );
+    let requested = admit_requested_allowance(&run, 1_500);
+
+    // A later configuration with another default must not change what either turn was given.
+    let mut config = run.config.clone();
+    let resources = config.limits.resources.as_mut().unwrap();
+    resources.invocation_tokens = Some(2_000);
+    resources.observed_tokens = Some(50_000);
+    let mut app = App::new(run.store.clone(), config, PathBuf::from(run.project.path()));
+    app.load_session(&run.session).unwrap();
+    app.command("/assignments", 100);
+    let detail = detail_of_key(&mut app, 65, &text::short_id(&requested));
+    assert!(
+        detail.contains(
+            "token allowance 1500 · requested by this assignment, within the per-turn ceiling of 4000 the session captured"
+        ),
+        "an allowance the assignment requested is not named as its own:\n{detail}"
+    );
+    let detail = detail_of_key(&mut app, 65, &text::short_id(&inherited.id));
+    assert!(
+        detail.contains(
+            "token allowance 4000 · inherited: this assignment requested none, so it took the session's per-turn default"
+        ),
+        "an inherited allowance is not named as the session's default:\n{detail}"
+    );
+
+    app.command("/limits", 100);
+    let ceiling = detail_of_key(&mut app, 65, "captured:token-ceiling");
+    assert!(
+        ceiling.contains("1500 are held for turns still open"),
+        "the allowance an open turn holds is not counted against the ceiling:\n{ceiling}"
+    );
+}
+
+#[tokio::test]
+async fn a_session_without_a_token_ceiling_names_no_allowance_and_protects_nothing() {
+    let run = mock_run("Create a greeting", |_| {}).await;
+    let mut app = run.app();
+    app.load_session(&run.session).unwrap();
+    app.command("/limits", 100);
+    for key in [
+        "captured:token-ceiling",
+        "captured:turn-allowance",
+        "captured:review-tokens",
+    ] {
+        assert_eq!(
+            right_of_key(&mut app, 65, key),
+            "none",
+            "{key} shows a figure the session never captured"
+        );
+    }
+    assert_eq!(
+        right_of_key(&mut app, 65, "captured:unknown-usage"),
+        "stop admitting"
+    );
+    let policy = detail_of_key(&mut app, 65, "captured:unknown-usage");
+    assert!(
+        policy.contains("this policy had nothing to act on"),
+        "a policy without a ceiling reads as if it had stopped something:\n{policy}"
+    );
+
+    app.command("/assignments", 100);
+    let first = run.store.trace(&run.session).unwrap().assignments[0]
+        .id
+        .clone();
+    let detail = detail_of_key(&mut app, 65, &text::short_id(&first));
+    assert!(
+        detail.contains("token allowance none · the session captured no token ceiling"),
+        "a turn without a ceiling is shown with an allowance:\n{detail}"
+    );
+}
+
+#[tokio::test]
+async fn a_session_that_captured_no_resource_limits_shows_no_token_policy_in_their_place() {
+    let fixture = fixture();
+    let id = fixture.seed_session("An older run");
+    fixture
+        .store
+        .capture_legacy_budget_limits(
+            &id,
+            &ymp_core::Limits {
+                resources: None,
+                ..Default::default()
+            },
+        )
+        .unwrap();
+    let mut app = fixture.app();
+    app.load_session(&id).unwrap();
+    app.command("/limits", 100);
+
+    let keys = keys_of(&mut app, 65);
+    assert!(
+        keys.contains(&"captured:token-policy".to_owned())
+            && !keys.contains(&"captured:token-ceiling".to_owned()),
+        "a capture without resource limits was given today's token rows: {keys:?}"
+    );
+    assert_eq!(
+        right_of_key(&mut app, 65, "captured:token-policy"),
+        "not captured"
+    );
+    let detail = detail_of_key(&mut app, 65, "captured:token-policy");
+    assert!(
+        detail.contains("None of today's values is shown in their place"),
+        "an absent token policy is not distinguished from a captured one:\n{detail}"
     );
 }
 
@@ -6260,6 +6598,38 @@ async fn keep_the_fixtures_an_interface_walk_reads() {
             "old": correction.old, "new": correction.new,
         }),
     );
+
+    // Two sessions that captured a token ceiling, each kept with a configuration that says the
+    // opposite of what it captured, so the walk reads a reopened session against a changed one.
+    for (name, policy, reserve, today) in [
+        (
+            "stopped",
+            ymp_core::UnknownUsagePolicy::Stop,
+            Some(10_000),
+            ymp_core::UnknownUsagePolicy::BoundedNative,
+        ),
+        (
+            "bounded",
+            ymp_core::UnknownUsagePolicy::BoundedNative,
+            None,
+            ymp_core::UnknownUsagePolicy::Stop,
+        ),
+    ] {
+        let run = token_run(policy, reserve, name == "bounded").await;
+        let requested = (policy == ymp_core::UnknownUsagePolicy::BoundedNative)
+            .then(|| admit_requested_allowance(&run, 1_500));
+        let config = moved_token_config(&run, today);
+        let home = run.home.keep();
+        let project = run.project.keep();
+        config.save(&home).unwrap();
+        manifest.insert(
+            name.into(),
+            serde_json::json!({
+                "home": home, "project": project,
+                "session": run.session, "status": run.status, "requested": requested,
+            }),
+        );
+    }
 
     std::fs::write(
         PathBuf::from(&target).join("manifest.json"),
