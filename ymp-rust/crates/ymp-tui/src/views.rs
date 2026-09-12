@@ -409,7 +409,7 @@ fn tasks(ctx: &Ctx) -> Page {
             let assignee = task
                 .assignee
                 .as_deref()
-                .map(|id| display_name(ctx.config, id))
+                .map(|id| presented_name(ctx, id))
                 .unwrap_or_else(|| "unassigned".into());
             let mut detail = Vec::new();
             detail.extend(field(theme, "state", word, ctx.width));
@@ -418,7 +418,7 @@ fn tasks(ctx: &Ctx) -> Page {
                 detail.extend(field(
                     theme,
                     "reviewer",
-                    &display_name(ctx.config, reviewer),
+                    &presented_name(ctx, reviewer),
                     ctx.width,
                 ));
             }
@@ -1668,7 +1668,11 @@ fn captured_label(ctx: &Ctx, profile: &AgentProfile) -> String {
 
 /// The identity recorded with this agent's last assignment, if one was recorded.
 fn captured_identity<'a>(ctx: &'a Ctx, agent: &str) -> Option<&'a AgentIdentity> {
-    ctx.records
+    captured_identity_of(ctx.records, agent)
+}
+
+fn captured_identity_of<'a>(records: &'a Records, agent: &str) -> Option<&'a AgentIdentity> {
+    records
         .assignments()
         .iter()
         .filter(|assignment| assignment.agent_id == agent)
@@ -2121,7 +2125,7 @@ fn aside_row(ctx: &Ctx, id: &str, aside: Aside) -> Item {
                 ),
                 style,
             ),
-            Span::styled(display_name(ctx.config, id), theme.text()),
+            Span::styled(presented_name(ctx, id), theme.text()),
         ],
     )
     .with_right(vec![Span::styled(right, style)])
@@ -2168,7 +2172,7 @@ fn roster_row(ctx: &Ctx) -> Item {
             state
                 .current_members
                 .iter()
-                .map(|id| display_name(ctx.config, id))
+                .map(|id| presented_name(ctx, id))
                 .collect::<Vec<_>>()
                 .join(", ")
         },
@@ -2184,7 +2188,7 @@ fn roster_row(ctx: &Ctx) -> Item {
         theme,
         "final reviewer kept free",
         &match &state.reserved_final_reviewer {
-            Some(id) => display_name(ctx.config, id),
+            Some(id) => presented_name(ctx, id),
             None => "none reserved".to_owned(),
         },
         ctx.width,
@@ -3403,7 +3407,7 @@ fn assignment_row(ctx: &Ctx, assignment: &AssignmentRecord, live: bool) -> Item 
     let invocation = ctx.records.last_invocation(&assignment.id);
     let state = invocation.map(|i| i.state).unwrap_or(assignment.state);
     let (marker, word, style) = invocation_state(state, live, theme);
-    let name = display_name(ctx.config, &assignment.agent_id);
+    let name = presented_name(ctx, &assignment.agent_id);
     let mut detail = field(theme, "assignment", &assignment.id, ctx.width);
     detail.extend(field(
         theme,
@@ -4142,7 +4146,7 @@ fn decision_row(ctx: &Ctx, decision: &DecisionRecord) -> Item {
     let actor = decision
         .actor
         .as_deref()
-        .map(|id| display_name(ctx.config, id))
+        .map(|id| presented_name(ctx, id))
         .unwrap_or_else(|| "the runtime".into());
     let mut detail = field(theme, "decision", &decision.id, ctx.width);
     detail.extend(field(
@@ -4354,7 +4358,7 @@ fn membership_detail(ctx: &Ctx, allocation: &AllocationDecision) -> Vec<Line<'st
             "none".to_owned()
         } else {
             ids.iter()
-                .map(|id| display_name(ctx.config, id))
+                .map(|id| presented_name(ctx, id))
                 .collect::<Vec<_>>()
                 .join(", ")
         }
@@ -4382,7 +4386,7 @@ fn membership_detail(ctx: &Ctx, allocation: &AllocationDecision) -> Vec<Line<'st
         theme,
         "final reviewer kept free",
         &match &allocation.proposal.reserved_final_reviewer {
-            Some(id) => display_name(ctx.config, id),
+            Some(id) => presented_name(ctx, id),
             None => "none reserved".to_owned(),
         },
         ctx.width,
@@ -4473,7 +4477,7 @@ fn bound_detail(ctx: &Ctx, resource: &ymp_core::ResourceAllocationDecision) -> V
     let mut lines = field(
         theme,
         "for",
-        &display_name(ctx.config, &resource.input.agent_id),
+        &presented_name(ctx, &resource.input.agent_id),
         ctx.width,
     );
     lines.extend(field(
@@ -4617,7 +4621,7 @@ fn acceptance_lines(ctx: &Ctx, task: &Task) -> Vec<Line<'static>> {
         theme,
         "credit",
         &match ctx.records.credit_for(&task.id) {
-            Some(agent) => format!("competence credited to {}", display_name(ctx.config, agent)),
+            Some(agent) => format!("competence credited to {}", presented_name(ctx, agent)),
             None => "no competence credit was recorded, which is not a judgement about the work"
                 .to_owned(),
         },
@@ -4683,7 +4687,7 @@ fn reviewer_words(ctx: &Ctx, acceptance: &Acceptance) -> String {
     acceptance
         .reviewers
         .iter()
-        .map(|id| display_name(ctx.config, id))
+        .map(|id| presented_name(ctx, id))
         .collect::<Vec<_>>()
         .join(", ")
 }
@@ -4775,4 +4779,43 @@ pub fn display_name(config: &Config, id: &str) -> String {
         .find(|a| a.id == id)
         .map(|a| a.name.clone())
         .unwrap_or_else(|| id.to_owned())
+}
+
+/// The name to present for one actor, from what was actually recorded or read.
+///
+/// The order is a statement about sources and not a preference for longer names. An identity a
+/// record captured names the actor as its turns ran, so it comes first and a later reading of
+/// the installations never renames finished work. A session that recorded turns without
+/// capturing an identity keeps its configured name for the same reason: the present catalog is
+/// not evidence about a past turn. Only where no record speaks does the reading name the actor,
+/// and where nothing was read the configured name is all that is known. A provider id is never
+/// used as a name.
+fn presented_name(ctx: &Ctx, id: &str) -> String {
+    actor_name(ctx.config, ctx.pool, ctx.records, id)
+}
+
+pub fn actor_name(config: &Config, pool: &Pool, records: &Records, id: &str) -> String {
+    if let Some(identity) = captured_identity_of(records, id) {
+        return identity.name.clone();
+    }
+    if records
+        .assignments()
+        .iter()
+        .any(|assignment| assignment.agent_id == id)
+    {
+        return display_name(config, id);
+    }
+    match pool.agent(id).map(|agent| &agent.identity) {
+        Some(identity) => match identity.status {
+            AgentIdentityStatus::Native
+            | AgentIdentityStatus::Stale
+            | AgentIdentityStatus::Local => identity.name.clone(),
+            // The installation named no model for this actor, so it has no native name to
+            // present. The pages that discuss models say that in their own words.
+            AgentIdentityStatus::Unknown | AgentIdentityStatus::Unresolved => {
+                identity.configured_name.clone()
+            }
+        },
+        None => display_name(config, id),
+    }
 }

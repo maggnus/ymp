@@ -661,8 +661,15 @@ fn routine_coordination_is_collapsed_and_routing_is_hidden() {
 
     // The full attributed text stays reachable.
     app.prefs.details = true;
-    let entries =
-        crate::transcript::build(&app.messages, &[], &Default::default(), &app.config, true);
+    let entries = crate::transcript::build(
+        &app.messages,
+        &[],
+        &Default::default(),
+        &app.config,
+        &app.pool,
+        &app.records,
+        true,
+    );
     assert_eq!(entries.len(), 4, "detailed mode shows every message");
     assert!(entries.iter().any(|e| e.raw.contains("Internal routing")));
 }
@@ -4357,6 +4364,128 @@ fn a_profile_with_no_native_reading_is_not_presented_as_a_named_agent() {
         row_prose(&mut app, 100, "Codex").contains("no native model is resolved for it"),
         "the pool's own reason is not shown:\n{}",
         row_prose(&mut app, 100, "Codex")
+    );
+}
+
+#[test]
+fn the_whole_window_names_a_member_by_what_the_installation_returned() {
+    // The window outside the pages names members too: the right panel and the opening summary.
+    // A provider label standing in for an actor there would be the same claim the pages refuse.
+    let fixture = fixture();
+    let config = config_with_reading(
+        Some("gpt-5.6-sol"),
+        scanned_catalog(Some("gpt-5.6-sol"), &ymp_core::now()),
+    );
+    let mut app = app_with(&fixture, config);
+    let rendered = draw(&mut app, 100, 30);
+    assert!(
+        rendered.contains("GPT-5.6-Sol"),
+        "the window does not name the member as the installation does:\n{rendered}"
+    );
+    let team_line = rendered
+        .lines()
+        .find(|line| line.contains("team "))
+        .unwrap_or_default()
+        .to_owned();
+    assert!(
+        team_line.contains("GPT-5.6-Sol") && !team_line.contains("Codex"),
+        "the opening summary still presents the provider label as the actor: {team_line}"
+    );
+    let panel = rendered
+        .lines()
+        .skip_while(|line| !line.contains("TEAM"))
+        .take(4)
+        .collect::<Vec<_>>()
+        .join("\n");
+    assert!(
+        panel.contains("GPT-5.6-Sol"),
+        "the right panel still presents the provider label as the actor:\n{panel}"
+    );
+}
+
+#[tokio::test]
+async fn turns_recorded_without_a_captured_identity_keep_the_name_they_ran_under() {
+    // The negative control for the rule above. This turn was recorded without an identity,
+    // which is what every session written before the catalog existed looks like. Naming that
+    // actor from the catalog as it stands now would rename finished work.
+    let run = mock_run("Create a greeting", |_| {}).await;
+    let trace = run.store.trace(&run.session).unwrap();
+    let previous = trace.assignments.last().unwrap().clone();
+    let assignment = ymp_core::AssignmentRecord {
+        id: ymp_core::new_id(),
+        grant_ids: Vec::new(),
+        agent_identity: None,
+        state: ymp_core::InvocationState::Running,
+        started_at: ymp_core::now(),
+        ended_at: None,
+        ..previous.clone()
+    };
+    let turn = ymp_core::InvocationRecord {
+        id: ymp_core::new_id(),
+        session_id: run.session.clone(),
+        assignment_id: assignment.id.clone(),
+        execution_backend: None,
+        turn: trace.invocations.len() as u64 + 1,
+        requested: assignment.requested.clone(),
+        sent: Default::default(),
+        reported: Default::default(),
+        resumed_from: None,
+        native_session_id: None,
+        native_turn_id: None,
+        native_version: None,
+        state: ymp_core::InvocationState::Running,
+        started_at: ymp_core::now(),
+        ended_at: None,
+        usage: None,
+        terminal_reason: None,
+    };
+    run.store
+        .begin_invocation_with_grants(&assignment, &turn, &[])
+        .unwrap();
+    let mut app = run.app();
+    app.load_session(&run.session).unwrap();
+    let profile = app.config.agent(&assignment.agent_id).unwrap().clone();
+    let configured = profile.name.clone();
+    // What the pool would hold if this installation were read after the session ended.
+    app.pool = crate::provenance::Pool {
+        read_at: ymp_core::now(),
+        pool: Some(ymp_core::AgentPool {
+            agents: vec![ymp_core::PoolAgent {
+                identity: ymp_core::AgentIdentity {
+                    name: "GPT-6-Astra".into(),
+                    configured_name: configured.clone(),
+                    model: Some("gpt-6-astra".into()),
+                    effort: None,
+                    resolved_model: None,
+                    source: None,
+                    status: ymp_core::AgentIdentityStatus::Native,
+                },
+                profile,
+                profile_version: String::new(),
+                exclusions: Vec::new(),
+                model_status: ymp_core::PoolModelStatus::Listed,
+            }],
+            capabilities: Default::default(),
+        }),
+        health: Vec::new(),
+        unreadable: None,
+    };
+    app.command("/assignments", 100);
+
+    let row = left_of_key(&mut app, 100, &text::short_id(&assignment.id));
+    assert!(
+        row.contains(&configured),
+        "a turn that captured no identity lost the name it ran under: {row}"
+    );
+    assert!(
+        !row.contains("GPT-6-Astra"),
+        "the catalog as it stands now renamed a finished turn: {row}"
+    );
+    // The same actor in the window at large, which must not disagree with the record.
+    let rendered = draw(&mut app, 100, 30);
+    assert!(
+        !rendered.contains("GPT-6-Astra"),
+        "the window renamed a finished session's actor from the present catalog:\n{rendered}"
     );
 }
 

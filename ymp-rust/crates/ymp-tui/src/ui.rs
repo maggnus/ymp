@@ -409,7 +409,7 @@ fn welcome_lines(app: &App, width: usize) -> Vec<Line<'static>> {
     } else {
         members
             .iter()
-            .map(|m| m.name.clone())
+            .map(|m| views::actor_name(&app.config, &app.pool, &app.records, &m.id))
             .collect::<Vec<_>>()
             .join(", ")
     };
