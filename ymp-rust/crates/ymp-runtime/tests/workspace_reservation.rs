@@ -50,6 +50,7 @@ struct Fixture {
     engine: Engine,
     path: PathBuf,
     session: Session,
+    owner: Arc<WorkspaceOwner>,
     backend: Arc<Scoped>,
     events: mpsc::UnboundedReceiver<UiEvent>,
 }
@@ -108,12 +109,14 @@ impl Fixture {
             .with_execution_backend(backend.clone())
             .unwrap();
         let session = capture(&store, &engine.config, &path);
+        let owner = engine.acquire_workspace_owner(&session.id).unwrap();
         Self {
             _directory: directory,
             store,
             engine,
             path,
             session,
+            owner,
             backend,
             events,
         }
@@ -206,12 +209,13 @@ fn one_shot_conflict_and_capacity_probes_leave_no_assignment_grant_spend_or_queu
     let f = Fixture::new(3);
     let a = acquired(
         f.engine
-            .try_reserve_workspace(&f.session.id, &f.request("a", writer()), None)
+            .try_reserve_workspace(&f.owner, &f.session.id, &f.request("a", writer()), None)
             .unwrap(),
     );
     let b = acquired(
         f.engine
             .try_reserve_workspace(
+                &f.owner,
                 &f.session.id,
                 &f.request("b", reader("inputs/ledger.csv")),
                 None,
@@ -221,7 +225,7 @@ fn one_shot_conflict_and_capacity_probes_leave_no_assignment_grant_spend_or_queu
     for access in [writer(), reader("outputs/shared.txt")] {
         match f
             .engine
-            .try_reserve_workspace(&f.session.id, &f.request("c", access), None)
+            .try_reserve_workspace(&f.owner, &f.session.id, &f.request("c", access), None)
             .unwrap()
         {
             WorkspaceAdmission::Deferred(wait) => {
@@ -239,7 +243,7 @@ fn one_shot_conflict_and_capacity_probes_leave_no_assignment_grant_spend_or_queu
     assert!(f.store.trace(&f.session.id).unwrap().assignments.is_empty());
     let c = acquired(
         f.engine
-            .try_reserve_workspace(&f.session.id, &f.request("c", writer()), None)
+            .try_reserve_workspace(&f.owner, &f.session.id, &f.request("c", writer()), None)
             .unwrap(),
     );
     drop(b);
@@ -248,11 +252,11 @@ fn one_shot_conflict_and_capacity_probes_leave_no_assignment_grant_spend_or_queu
     f.engine.config.limits.parallel = 99;
     let _a = acquired(
         f.engine
-            .try_reserve_workspace(&f.session.id, &f.request("a", writer()), None)
+            .try_reserve_workspace(&f.owner, &f.session.id, &f.request("a", writer()), None)
             .unwrap(),
     );
     assert!(
-        matches!(f.engine.try_reserve_workspace(&f.session.id,&f.request("b",reader("inputs/data")),None).unwrap(),WorkspaceAdmission::Deferred(wait) if wait.code=="concurrency_limit")
+        matches!(f.engine.try_reserve_workspace(&f.owner, &f.session.id,&f.request("b",reader("inputs/data")),None).unwrap(),WorkspaceAdmission::Deferred(wait) if wait.code=="concurrency_limit")
     );
 }
 struct FalseScope;
@@ -280,7 +284,7 @@ fn policy_cannot_assert_false_enforced_scope_or_forge_native_configuration() {
         .unwrap();
     assert!(f
         .engine
-        .try_reserve_workspace(&f.session.id, &request, None)
+        .try_reserve_workspace(&f.owner, &f.session.id, &request, None)
         .err()
         .unwrap()
         .to_string()
@@ -293,14 +297,14 @@ fn policy_cannot_assert_false_enforced_scope_or_forge_native_configuration() {
     forged.provider.kind = ProviderKind::Acp;
     assert!(f
         .engine
-        .try_reserve_workspace(&f.session.id, &forged, None)
+        .try_reserve_workspace(&f.owner, &f.session.id, &forged, None)
         .err()
         .unwrap()
         .to_string()
         .contains("native provider"));
     let _valid = acquired(
         f.engine
-            .try_reserve_workspace(&f.session.id, &request, None)
+            .try_reserve_workspace(&f.owner, &f.session.id, &request, None)
             .unwrap(),
     );
 }
@@ -309,11 +313,20 @@ async fn actual_engine_waits_on_the_same_public_reservation_then_runs_after_rele
     let mut f = Fixture::new(3);
     let lease = acquired(
         f.engine
-            .try_reserve_workspace(&f.session.id, &f.request("a", writer()), None)
+            .try_reserve_workspace(&f.owner, &f.session.id, &f.request("a", writer()), None)
             .unwrap(),
     );
-    let session = capture(&f.store, &f.engine.config, &f.path);
-    let engine = f.engine.clone();
+    let other_store = Store::open(&f._directory.path().join("other-state")).unwrap();
+    let session = capture(&other_store, &f.engine.config, &f.path);
+    let engine = Engine::new(
+        other_store,
+        f.engine.config.clone(),
+        f.engine.events.clone(),
+        CancellationToken::new(),
+    )
+    .unwrap()
+    .with_execution_backend(f.backend.clone())
+    .unwrap();
     let path = f.path.clone();
     let work = tokio::spawn(async move {
         engine
@@ -336,7 +349,7 @@ async fn lease_admission_binds_identity_and_drop_revokes_before_releasing_access
     let request = f.request("a", writer());
     let mut lease = acquired(
         f.engine
-            .try_reserve_workspace(&f.session.id, &request, None)
+            .try_reserve_workspace(&f.owner, &f.session.id, &request, None)
             .unwrap(),
     );
     let server = Arc::new(
@@ -359,13 +372,22 @@ async fn lease_admission_binds_identity_and_drop_revokes_before_releasing_access
         requested: request.settings.clone(),
         timeout_secs: 10,
         grant_ids: vec![],
-        context: vec![ContextReference {
-            kind: ContextKind::Prompt,
-            id: content_digest(&request.prompt),
-            session_id: Some(f.session.id.clone()),
-            digest: Some(content_digest(&request.prompt)),
-            included_chars: Some(request.prompt.chars().count()),
-        }],
+        context: vec![
+            ContextReference {
+                kind: ContextKind::Prompt,
+                id: content_digest(&request.prompt),
+                session_id: Some(f.session.id.clone()),
+                digest: Some(content_digest(&request.prompt)),
+                included_chars: Some(request.prompt.chars().count()),
+            },
+            ContextReference {
+                kind: ContextKind::ProfileInstructions,
+                id: request.profile.version(&request.provider),
+                session_id: None,
+                digest: Some(content_digest(&request.profile.instructions)),
+                included_chars: Some(request.profile.instructions.chars().count()),
+            },
+        ],
         state: InvocationState::Running,
         started_at: now(),
         ended_at: None,
@@ -400,6 +422,36 @@ async fn lease_admission_binds_identity_and_drop_revokes_before_releasing_access
         .is_err());
     assert!(f.store.trace(&f.session.id).unwrap().invocations.is_empty());
     assignment.agent_id = "a".into();
+    for count in [None, Some(0), Some(request.prompt.chars().count() - 1)] {
+        let mut forged = assignment.clone();
+        forged
+            .context
+            .iter_mut()
+            .find(|c| c.kind == ContextKind::Prompt)
+            .unwrap()
+            .included_chars = count;
+        assert!(lease
+            .admit_reserved(
+                server.clone(),
+                &mut forged,
+                &mut invocation,
+                TeamOperation::coordination()
+            )
+            .is_err());
+    }
+    let mut missing = assignment.clone();
+    missing
+        .context
+        .retain(|c| c.kind != ContextKind::ProfileInstructions);
+    assert!(lease
+        .admit_reserved(
+            server.clone(),
+            &mut missing,
+            &mut invocation,
+            TeamOperation::coordination()
+        )
+        .is_err());
+    assert!(f.store.trace(&f.session.id).unwrap().invocations.is_empty());
     let token = lease
         .admit_reserved(
             server.clone(),
@@ -465,7 +517,71 @@ async fn lease_admission_binds_identity_and_drop_revokes_before_releasing_access
     );
     let _next = acquired(
         f.engine
-            .try_reserve_workspace(&f.session.id, &f.request("b", writer()), None)
+            .try_reserve_workspace(&f.owner, &f.session.id, &f.request("b", writer()), None)
             .unwrap(),
     );
+}
+
+#[test]
+fn actual_prompt_and_instruction_bytes_cannot_bypass_captured_context_limits() {
+    let mut f = Fixture::new(3);
+    let mut request = f.request("a", reader("inputs/data"));
+    request.prompt = "x".repeat(128_001);
+    assert!(f
+        .engine
+        .try_reserve_workspace(&f.owner, &f.session.id, &request, None)
+        .err()
+        .unwrap()
+        .to_string()
+        .contains("context_limit"));
+    f.engine.config.agents[0].instructions = "i".repeat(64_001);
+    f.session = capture(&f.store, &f.engine.config, &f.path);
+    let mut request = f.request("a", reader("inputs/data"));
+    request.prompt = "p".repeat(64_001);
+    assert!(f
+        .engine
+        .try_reserve_workspace(&f.owner, &f.session.id, &request, None)
+        .err()
+        .unwrap()
+        .to_string()
+        .contains("context_limit"));
+    assert!(f.store.trace(&f.session.id).unwrap().invocations.is_empty());
+    assert_eq!(f.backend.0.load(Ordering::SeqCst), 0);
+}
+
+#[test]
+fn public_project_ownership_excludes_a_second_process() {
+    let f = Fixture::new(3);
+    f.engine.config.save(&f.store.home).unwrap();
+    let output = std::process::Command::new(std::env::current_exe().unwrap())
+        .args(["project_owner_child_probe", "--exact", "--nocapture"])
+        .env("YMP_TEST_OWNER_HOME", &f.store.home)
+        .env("YMP_TEST_OWNER_SESSION", &f.session.id)
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stdout)
+    );
+    assert!(String::from_utf8_lossy(&output.stdout).contains("project_owner_excluded=true"));
+}
+
+#[test]
+fn project_owner_child_probe() {
+    let Some(home) = std::env::var_os("YMP_TEST_OWNER_HOME") else {
+        return;
+    };
+    let store = Store::open(std::path::Path::new(&home)).unwrap();
+    let config = Config::load(&store.home).unwrap();
+    let (events, _) = mpsc::unbounded_channel();
+    let engine = Engine::new(store, config, events, CancellationToken::new())
+        .unwrap()
+        .with_execution_backend(Arc::new(Scoped(AtomicUsize::new(0))))
+        .unwrap();
+    let denied = engine
+        .acquire_workspace_owner(&std::env::var("YMP_TEST_OWNER_SESSION").unwrap())
+        .is_err();
+    println!("project_owner_excluded={denied}");
+    assert!(denied);
 }

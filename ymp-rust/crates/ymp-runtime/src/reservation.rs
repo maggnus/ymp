@@ -9,7 +9,26 @@ use ymp_core::*;
 use ymp_providers::{
     run_turn_with_backend, ExecutionBackend, ProviderEvent, TurnRequest, TurnResult,
 };
-use ymp_storage::Store;
+use ymp_storage::{Store, StoreLock};
+
+/// Opaque proof of the existing process-wide project lock. The runtime creates
+/// it; reservations retain it until native authority and resources have ended.
+pub struct WorkspaceOwner {
+    _lock: StoreLock,
+    pub(crate) home: std::path::PathBuf,
+    pub(crate) project_id: String,
+    pub(crate) directory: std::path::PathBuf,
+}
+impl WorkspaceOwner {
+    pub(crate) fn acquire(store: &Store, project: &Project) -> Result<Self> {
+        Ok(Self {
+            _lock: store.lock_project(&project.id)?,
+            home: store.home.canonicalize()?,
+            project_id: project.id.clone(),
+            directory: project.path.canonicalize()?,
+        })
+    }
+}
 
 pub enum WorkspaceAdmission {
     Acquired(Box<WorkspaceReservation>),
@@ -19,6 +38,7 @@ pub enum WorkspaceAdmission {
 /// Trusted callers keep this value until native work and terminal accounting end.
 pub struct WorkspaceReservation {
     pub(crate) lease: AccessLease,
+    pub(crate) _owner: Arc<WorkspaceOwner>,
     pub(crate) store: Store,
     pub(crate) session_id: String,
     pub(crate) request: TurnRequest,
@@ -121,6 +141,20 @@ impl WorkspaceReservation {
                         == Some(content_digest(&self.request.prompt).as_str())),
             "workspace_binding: assignment prompt differs from the reserved request"
         );
+        for (kind, text) in [
+            (ContextKind::Prompt, self.request.prompt.as_str()),
+            (
+                ContextKind::ProfileInstructions,
+                self.request.profile.instructions.as_str(),
+            ),
+        ] {
+            let matching = assignment
+                .context
+                .iter()
+                .filter(|context| context.kind == kind)
+                .collect::<Vec<_>>();
+            ensure!(matching.len() == 1 && matching[0].digest.as_deref() == Some(content_digest(text).as_str()) && matching[0].included_chars == Some(text.chars().count()), "workspace_binding: context lengths and digests must match the actual reserved prompt and instructions");
+        }
         let token = server.admit_reserved(assignment, invocation, operations)?;
         self.token = Some(token.clone());
         self.authority = Some((server, invocation.id.clone()));

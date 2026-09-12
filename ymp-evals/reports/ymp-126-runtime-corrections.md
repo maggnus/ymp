@@ -23,3 +23,13 @@ Four public tests cover immediate writer/reader conflicts, immutable capacity, n
 ## Remaining work
 
 Ten universal cases have passed during preparation. Remaining adapters, exporter preflight corrections, full combined checks and final independent review are still required. In particular, actual per-case backend/build hashes and unexpected protocol-event preservation are being strengthened following the independent read-only preflight. No model-quality or cost-savings claim follows from these scripted runs.
+
+## Independent runtime R1 corrections
+
+The independent read of812b101 confirmed two public-seam defects: caller counts could understate an over-limit actual prompt, and the public reservation did not require the normal process-wide project lock. Both defects are corrected in the following checkpoint; the driver is still incomplete.
+
+The signature now requires an opaque `Arc<WorkspaceOwner>` created by `Engine::acquire_workspace_owner(session)`. It owns the existing `Store::lock_project` guard, validates the exact application home/project/directory, and is retained by each reservation and normal Engine run context. There is no ambient ownership cache or alternative locking implementation. Reservations inside the owned run share the existing coordinator; another process cannot obtain the guard for the same app home/project. Normal run/follow-up keep their existing project exclusivity.
+
+Actual prompt plus profile-instruction characters are checked against the captured purpose limit before reservation. Admission requires exactly one matching prompt and instruction context record, each with its real digest and character length. Missing, zero or understated caller counts fail before grant/spend. Seven public tests now pass, including actual128001-character rejection, combined prompt/instruction overflow, incorrect evidence lengths, missing instructions and a real child-process project-lock exclusion. Existing request-binding, expiry, false-scope and shared-coordinator controls still pass.
+
+R1 before-control evidence is retained in the independent review directory `/var/folders/cw/7pn8sb3x6bj69g7j2d8f_ss00000gn/T/ymp126-runtime-review-codaf9v5`. Corrected control output is `/tmp/ymp126-runtime-r1-controls.log`; production clippy output is `/tmp/ymp126-runtime-r1-clippy.log`. These are bounded corrections awaiting independent R2, not a substitute for final full-suite and17-case validation.

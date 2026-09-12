@@ -81,10 +81,28 @@ impl Engine {
         Ok(WorkspaceAccessDecision { reservation_id:id.into(),policy:self.workspace_policy_identity.clone(),backend:self.backend_identity.clone(),directory:request.cwd.canonicalize()?,backend_access,effective_access,rationale:"Direct MVP execution; access comes from the trusted backend. Unbounded writers own the whole directory. No rollback or source isolation is provided.".into() })
     }
 
+    pub fn acquire_workspace_owner(&self, session: &str) -> Result<Arc<crate::WorkspaceOwner>> {
+        let captured = self.store.session(session)?;
+        let policy = self
+            .store
+            .session_policy(session)?
+            .context("Workspace ownership needs captured session constraints")?;
+        let project = self.store.project(&policy.cwd)?;
+        anyhow::ensure!(
+            project.id == captured.project_id,
+            "workspace_owner: captured directory belongs to another project"
+        );
+        Ok(Arc::new(crate::WorkspaceOwner::acquire(
+            &self.store,
+            &project,
+        )?))
+    }
+
     /// One-shot trusted admission. A deferred result owns no resource, creates
     /// no assignment/grant/reservation spend, and installs no queued work.
     pub fn try_reserve_workspace(
         &self,
+        owner: &Arc<crate::WorkspaceOwner>,
         session: &str,
         request: &TurnRequest,
         task: Option<TaskAttemptRef>,
@@ -93,12 +111,27 @@ impl Engine {
             .store
             .session_policy(session)?
             .context("Workspace admission needs captured session constraints")?;
+        let captured_session = self.store.session(session)?;
+        anyhow::ensure!(
+            owner.home == self.store.home.canonicalize()?
+                && owner.project_id == captured_session.project_id
+                && owner.directory == policy.cwd.canonicalize()?,
+            "workspace_owner: project ownership does not match this session and directory"
+        );
         anyhow::ensure!(!self.cancel.is_cancelled(), "Cancelled");
         anyhow::ensure!(
             request.timeout_secs > 0 && request.timeout_secs <= policy.limits.turn_timeout_secs,
             "timeout_limit: request exceeds captured native timeout"
         );
         if let Some(resources) = &policy.limits.resources {
+            let actual_chars = request
+                .prompt
+                .chars()
+                .count()
+                .checked_add(request.profile.instructions.chars().count())
+                .context("Context character count overflow")?;
+            anyhow::ensure!(actual_chars as u64 <= resources.context_chars(&request.purpose), "context_limit: actual prompt and profile instructions exceed the captured character allowance");
+
             anyhow::ensure!(
                 request
                     .resource_controls
@@ -158,6 +191,7 @@ impl Engine {
             Ok(lease) => Ok(crate::WorkspaceAdmission::Acquired(Box::new(
                 crate::WorkspaceReservation {
                     lease,
+                    _owner: owner.clone(),
                     store: self.store.clone(),
                     session_id: session.into(),
                     request: request.clone(),

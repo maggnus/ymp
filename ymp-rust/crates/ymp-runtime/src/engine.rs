@@ -75,6 +75,7 @@ pub struct Engine {
 }
 #[derive(Clone)]
 struct RunContext {
+    workspace_owner: Arc<crate::WorkspaceOwner>,
     session: Session,
     server: Arc<TeamServer>,
     workspace: Workspace,
@@ -410,7 +411,7 @@ impl Engine {
         if session.project_id != project.id {
             bail!("Session belongs to a different project");
         }
-        let project_lock = self.store.lock_project(&project.id)?;
+        let project_lock = Arc::new(crate::WorkspaceOwner::acquire(&self.store, &project)?);
         let lock = self.store.lock_session(&session)?;
         if [
             "where is the file?",
@@ -496,6 +497,7 @@ impl Engine {
         self.store.interrupt_open_invocations(&session.id)?;
         self.recover_workspace_access(&session.id)?;
         let ctx = RunContext {
+            workspace_owner: project_lock.clone(),
             session: session.clone(),
             server,
             workspace: workspace.clone(),
@@ -584,7 +586,7 @@ impl Engine {
         new_session_id: Option<&str>,
     ) -> Result<RunOutcome> {
         let project = self.store.project(path)?;
-        let _project_lock = self.store.lock_project(&project.id)?;
+        let project_lock = Arc::new(crate::WorkspaceOwner::acquire(&self.store, &project)?);
         let parent_session = parent.map(|id| self.store.session(id)).transpose()?;
         if parent_session
             .as_ref()
@@ -738,6 +740,7 @@ impl Engine {
         self.store.interrupt_open_invocations(&session.id)?;
         self.recover_workspace_access(&session.id)?;
         let ctx = RunContext {
+            workspace_owner: project_lock.clone(),
             session: session.clone(),
             server,
             workspace: workspace.clone(),
@@ -1046,6 +1049,7 @@ impl Engine {
             .await?;
         let mut access = crate::WorkspaceReservation {
             lease,
+            _owner: ctx.workspace_owner.clone(),
             store: self.store.clone(),
             session_id: ctx.session.id.clone(),
             request: request.clone(),
@@ -2772,6 +2776,9 @@ mod tests {
         )
         .unwrap();
         let ctx = RunContext {
+            workspace_owner: Arc::new(
+                crate::WorkspaceOwner::acquire(&fixture.store, &project).unwrap(),
+            ),
             server: Arc::new(
                 TeamServer::start(
                     fixture.store.clone(),
