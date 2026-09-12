@@ -137,10 +137,15 @@ selected row underneath it, and states its own keys in the status row.
   shows the members of the loaded session, any identity the session captured that its roster
   no longer lists, the agents that worked in it, the roster record itself with the final
   reviewer it keeps free, the bounds the roster was formed under, and the pool that is
-  eligible on this machine, with the reason any profile is excluded. On Agent profiles, `m`
-  edits the model and `i` edits the instructions; `Space` enables a profile and `t` toggles
-  membership. Changes are validated and saved to `config.toml`; a rejected change is reverted
-  and reported.
+  eligible on this machine, with the reason any profile is excluded. Each row names the model the
+  agent would actually run as: the one its profile pins, or the default a catalog read from the
+  installation reports. Where no catalog has been read, the row says so rather than showing the
+  provider's label in place of a model, and the profile's detail says why the name is not known.
+  The Providers page shows, per provider, where its catalog came from, what it lists and which
+  default it reported. On Agent profiles, `m` edits the model and `i` edits the instructions;
+  `Space` enables a profile and `t` toggles membership; `r` re-reads what is installed and the
+  catalog already stored, which asks no provider anything. Changes are validated and saved to
+  `config.toml`; a rejected change is reverted and reported.
 - **Memory** — every entry recorded for this project and as shared procedure, including
   candidates and retired ones, each labelled. An entry is either a projection of a result
   this project accepted or a candidate a run proposed: confirmed means the acceptance it

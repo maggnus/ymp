@@ -4256,3 +4256,242 @@ async fn credit_this_session_did_not_read_is_reported_and_not_asserted() {
         "a credit outside what was read is presented as read here:\n{prose}"
     );
 }
+
+/// A catalog as a native scan would have stored it: exact identifiers, the control the
+/// installation advertises with its own name, and the time the scan was observed at.
+fn scanned_catalog(default_model: Option<&str>) -> ymp_core::ProviderCapabilities {
+    use ymp_core::{
+        CapabilitySource, ModelCapabilities, NativeControl, NativeControlValue,
+        NativeControlValues, ProviderCapabilities,
+    };
+    ProviderCapabilities {
+        source: CapabilitySource::NativeMetadata {
+            method: "models.list".into(),
+            observed_at: "2026-09-13T00:00:00+00:00".into(),
+        },
+        models_complete: true,
+        models: vec![ModelCapabilities {
+            id: "glm-5.2".into(),
+            controls: Some(vec![NativeControl {
+                id: "thought_level".into(),
+                values: NativeControlValues::Choices {
+                    options: vec!["none".into(), "high".into(), "max".into()],
+                },
+                default: Some(NativeControlValue::Choice("high".into())),
+            }]),
+        }],
+        default_model: default_model.map(|id| id.to_owned()),
+    }
+}
+
+#[test]
+fn a_profile_with_no_scanned_catalog_is_not_presented_as_a_named_agent() {
+    // The shipped default: three provider-labelled profiles with no model of their own.
+    let fixture = fixture();
+    let mut app = fixture.app();
+    app.command("/agents", 100);
+
+    for profile in ["codex", "claude", "glm"] {
+        let row = left_of_key(&mut app, 65, profile);
+        assert!(
+            row.contains("not scanned"),
+            "an unscanned profile does not say so: {row}"
+        );
+        assert!(
+            !row.contains("default model") && !row.contains("provider default"),
+            "a label stands where a model name belongs: {row}"
+        );
+        let detail = detail_of_key(&mut app, 100, profile);
+        assert!(
+            detail.contains("nothing has been read from this installation"),
+            "the page does not say why no name is known:\n{detail}"
+        );
+        assert!(
+            detail.contains("nothing stored; this provider's own offerings have not been read"),
+            "the catalog behind the profile is not reported:\n{detail}"
+        );
+    }
+}
+
+/// A pool snapshot holding a catalog read from an installation.
+///
+/// The supported path cannot produce one yet: `inspect_pool` stamps every
+/// configuration-supplied catalog as configured, which is exactly what stops a file from
+/// claiming an observation it never made. So the snapshot is supplied here the way the
+/// controller will hold it once a scan has stored one.
+fn pool_with_catalog(
+    provider: &str,
+    catalog: ymp_core::ProviderCapabilities,
+) -> crate::provenance::Pool {
+    crate::provenance::Pool {
+        read_at: ymp_core::now(),
+        pool: Some(ymp_core::AgentPool {
+            agents: Vec::new(),
+            capabilities: [(provider.to_owned(), catalog)].into_iter().collect(),
+        }),
+        health: Vec::new(),
+        unreadable: None,
+    }
+}
+
+#[test]
+fn a_scanned_default_is_named_exactly_as_the_scan_reported_it() {
+    let fixture = fixture();
+    let mut app = fixture.app();
+    app.command("/agents", 100);
+    app.pool = pool_with_catalog("codex", scanned_catalog(Some("glm-5.2")));
+
+    // A width the page was not built at, so the injected snapshot is the one it reads.
+    let row = left_of_key(&mut app, 65, "codex");
+    assert!(
+        row.contains("glm-5.2"),
+        "the scanned identifier is not on the row: {row}"
+    );
+    let detail = detail_of_key(&mut app, 65, "codex");
+    assert!(
+        detail.contains("models.list") && detail.contains("2026-09-13T00:00:00+00:00"),
+        "the page does not say which scan resolved the name:\n{detail}"
+    );
+    // A provider whose catalog was not scanned keeps its own answer.
+    assert!(
+        left_of_key(&mut app, 65, "claude").contains("not scanned"),
+        "one provider's scan was read as another's"
+    );
+
+    // Opening the page re-reads what is installed, which is the behaviour under test
+    // elsewhere, so the snapshot is supplied again after the switch.
+    app.command("/providers", 100);
+    app.pool = pool_with_catalog("codex", scanned_catalog(Some("glm-5.2")));
+    let provider = detail_of_key(&mut app, 65, "codex");
+    assert!(
+        provider.contains("read from the installation by models.list"),
+        "the provider page does not say where its catalog came from:\n{provider}"
+    );
+    assert!(
+        provider.contains("glm-5.2") && provider.contains("the whole list"),
+        "the offerings the scan stored are not listed:\n{provider}"
+    );
+}
+
+#[test]
+fn a_scan_that_resolved_no_model_says_unknown_and_never_the_provider() {
+    let fixture = fixture();
+    let mut app = fixture.app();
+    app.command("/agents", 100);
+    app.pool = pool_with_catalog("codex", scanned_catalog(None));
+
+    let row = left_of_key(&mut app, 65, "codex");
+    assert!(
+        row.contains("model unknown") && !row.contains("not scanned"),
+        "a scan that resolved nothing is confused with no scan at all: {row}"
+    );
+    let detail = detail_of_key(&mut app, 65, "codex");
+    assert!(
+        detail.contains("reported no default"),
+        "the page does not say what the scan did not answer:\n{detail}"
+    );
+    app.command("/providers", 100);
+    app.pool = pool_with_catalog("codex", scanned_catalog(None));
+    assert!(
+        detail_of_key(&mut app, 65, "codex").contains("none was reported"),
+        "the provider page invents a default it was not given"
+    );
+}
+
+#[tokio::test]
+async fn a_usage_row_names_the_model_its_turns_actually_ran_with() {
+    let run = mock_run("Create a greeting", |_| {}).await;
+    let trace = run.store.trace(&run.session).unwrap();
+    let previous = trace.assignments.last().unwrap().clone();
+    let mut assignment = ymp_core::AssignmentRecord {
+        id: ymp_core::new_id(),
+        grant_ids: Vec::new(),
+        state: ymp_core::InvocationState::Running,
+        started_at: ymp_core::now(),
+        ended_at: None,
+        ..previous.clone()
+    };
+    // A turn that ran under an identifier the configuration does not name now.
+    let turn = ymp_core::InvocationRecord {
+        id: ymp_core::new_id(),
+        session_id: run.session.clone(),
+        assignment_id: assignment.id.clone(),
+        execution_backend: None,
+        turn: trace.invocations.len() as u64 + 1,
+        requested: assignment.requested.clone(),
+        sent: ymp_core::ExecutionSettings {
+            model: Some("glm-5.2".into()),
+            ..Default::default()
+        },
+        reported: Default::default(),
+        resumed_from: None,
+        native_session_id: None,
+        native_turn_id: None,
+        native_version: None,
+        state: ymp_core::InvocationState::Running,
+        started_at: ymp_core::now(),
+        ended_at: None,
+        usage: None,
+        terminal_reason: None,
+    };
+    let grants = vec![ymp_core::GrantRecord::for_assignment(
+        &assignment,
+        &turn,
+        ymp_core::TeamOperation::coordination(),
+    )];
+    assignment.grant_ids = grants.iter().map(|grant| grant.id.clone()).collect();
+    run.store
+        .begin_invocation_with_grants(&assignment, &turn, &grants)
+        .unwrap();
+
+    let mut app = run.app();
+    app.load_session(&run.session).unwrap();
+    app.command("/usage", 100);
+    let agent = row_prose(&mut app, 100, &previous.agent_id);
+    assert!(
+        agent.contains("ran as") && agent.contains("glm-5.2"),
+        "the page does not say what this agent's turns actually ran as:\n{agent}"
+    );
+    assert!(
+        agent.contains("named no model"),
+        "turns whose model nothing recorded are not counted as such:\n{agent}"
+    );
+}
+
+#[test]
+fn re_reading_the_catalog_is_an_action_that_asks_no_provider_anything() {
+    let fixture = fixture();
+    let mut app = fixture.app();
+    app.command("/providers", 100);
+    let before = app.pool.read_at.clone();
+    let agents = app.config.agents.clone();
+
+    app.on_key(key(KeyCode::Char('r')), 100);
+
+    let notice = app.notices.last().expect("the action reports what it did");
+    assert!(!notice.failure, "re-reading was reported as a failure");
+    assert!(
+        notice.text.contains("asks no provider anything")
+            && notice.text.contains("separate explicit scan"),
+        "the action claims more than it did: {}",
+        notice.text
+    );
+    assert!(
+        app.pool.read_at >= before,
+        "the action did not re-read what is installed"
+    );
+    assert_eq!(
+        app.config.agents, agents,
+        "re-reading changed the configuration"
+    );
+    let hints = app
+        .page(65)
+        .hints
+        .iter()
+        .map(|(key, _)| *key)
+        .collect::<Vec<_>>();
+    assert!(
+        hints.contains(&"r"),
+        "the action is not offered on the page: {hints:?}"
+    );
+}

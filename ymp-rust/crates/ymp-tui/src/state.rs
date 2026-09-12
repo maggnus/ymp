@@ -1277,6 +1277,12 @@ impl App {
                     session: item.key.clone(),
                 }];
             }
+            (View::Providers | View::Agents, KeyCode::Char('r')) => {
+                self.refresh_pool();
+                self.notice(
+                    "Re-read what is installed on this machine and the catalog already stored. This asks no provider anything: reading a provider's own offerings is a separate explicit scan.",
+                );
+            }
             (View::Agents, KeyCode::Char('m')) => {
                 let id = item.key.clone();
                 let current = self

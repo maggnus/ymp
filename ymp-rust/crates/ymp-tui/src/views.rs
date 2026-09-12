@@ -17,11 +17,11 @@ use ratatui::style::Style;
 use ratatui::text::{Line, Span};
 use std::path::Path;
 use ymp_core::{
-    AgentProfile, AllocationBoundary, AllocationDecision, AssignmentRecord, CheckOutcome, CheckRun,
-    Config, ConfirmationStatus, DecisionRecord, ExecutionSettings, GrantRecord, InvocationRecord,
-    InvocationState, KnowledgeRetrievalMode, Limits, MemoryEntry, ModelEffort, PoolAgent,
-    PoolExclusion, PoolModelStatus, Session, SessionBudget, Task, TaskAccess, TaskState,
-    UsageTotals, WorkspaceAccess, WorkspaceWait,
+    AgentProfile, AllocationBoundary, AllocationDecision, AssignmentRecord, CapabilitySource,
+    CheckOutcome, CheckRun, Config, ConfirmationStatus, DecisionRecord, ExecutionSettings,
+    GrantRecord, InvocationRecord, InvocationState, KnowledgeRetrievalMode, Limits, MemoryEntry,
+    ModelEffort, PoolAgent, PoolExclusion, PoolModelStatus, ProviderCapabilities, Session,
+    SessionBudget, Task, TaskAccess, TaskState, UsageTotals, WorkspaceAccess, WorkspaceWait,
 };
 use ymp_storage::Store;
 use ymp_workspace::repository::Repository;
@@ -662,6 +662,7 @@ fn agent_usage(ctx: &Ctx, row: &usage::AgentUsage) -> Item {
     let ledger = prose.min(LEDGER);
     let totals = row.totals.as_ref();
     let mut detail = field(theme, "agent", &row.id, prose);
+    detail.extend(field(theme, "ran as", &models_used(ctx, &row.id), prose));
     detail.extend(field(
         theme,
         "provider",
@@ -1535,6 +1536,202 @@ fn team(ctx: &Ctx) -> Page {
     }
 }
 
+/// The models this agent's recorded turns actually ran with, exactly as recorded.
+///
+/// This is not the catalog and not the configuration: it is what each invocation reported, or
+/// failing that what was sent to the installation. A turn whose model nothing recorded is
+/// counted as such rather than filled in from the profile, because a spent turn may have run
+/// under a different model than the one configured now.
+fn models_used(ctx: &Ctx, agent: &str) -> String {
+    let records = ctx.records;
+    let mut names: Vec<String> = Vec::new();
+    let mut unrecorded = 0usize;
+    for assignment in records
+        .assignments()
+        .iter()
+        .filter(|assignment| assignment.agent_id == agent)
+    {
+        for invocation in records.invocations_of(&assignment.id) {
+            match invocation
+                .reported
+                .model
+                .as_deref()
+                .or(invocation.sent.model.as_deref())
+            {
+                Some(model) => {
+                    if !names.iter().any(|seen| seen == model) {
+                        names.push(model.to_owned());
+                    }
+                }
+                None => unrecorded += 1,
+            }
+        }
+    }
+    match (names.is_empty(), unrecorded) {
+        (true, 0) => "no turn of this agent was recorded".to_owned(),
+        (true, turns) => format!("unknown · {turns} recorded turn(s) named no model"),
+        (false, 0) => names.join(", "),
+        (false, turns) => format!(
+            "{} · {turns} further recorded turn(s) named no model",
+            names.join(", ")
+        ),
+    }
+}
+
+/// What an agent would actually run as, read from the catalog the pool reports.
+///
+/// A provider id is a transport label: `codex` is how ymp reaches an installation, not the
+/// name of a model it offers. Until a catalog has been read from an installation, no model
+/// name is known for a profile that pins none, and this says exactly that instead of putting
+/// the provider's own label where a model name belongs. Nothing here derives a name from an
+/// identifier.
+///
+/// The source is the pool snapshot and never `Config::capabilities`, because the pool is what
+/// stamps a configuration-supplied catalog as configured. Reading the configuration directly
+/// would let a file claim a native observation it never made.
+enum ResolvedModel<'a> {
+    /// The configuration pins this exact identifier for this agent.
+    Pinned(&'a str),
+    /// A stored native scan names this identifier as what the installation would choose.
+    ScannedDefault {
+        id: &'a str,
+        method: &'a str,
+        observed_at: &'a str,
+    },
+    /// A scan is stored for the provider and reported no default to fall back on.
+    ScannedWithoutDefault { observed_at: &'a str },
+    /// A catalog exists for the provider, but configuration wrote it and no scan did.
+    Configured,
+    /// Nothing is stored for the provider at all.
+    Unscanned,
+    /// What is installed could not be read, which is not an answer about the model.
+    Unread,
+}
+
+impl<'a> ResolvedModel<'a> {
+    fn id(&self) -> Option<&'a str> {
+        match self {
+            Self::Pinned(id) | Self::ScannedDefault { id, .. } => Some(id),
+            _ => None,
+        }
+    }
+
+    /// The short words a row carries. The two unresolved states stay apart, because nothing
+    /// having been scanned is not the same as a scan that resolved no model.
+    fn row_words(&self) -> &'static str {
+        match self {
+            Self::Unscanned => "not scanned",
+            Self::Unread => "not read",
+            _ => "model unknown",
+        }
+    }
+
+    /// The same answer in full, with where it came from.
+    fn detail_words(&self) -> String {
+        match self {
+            Self::Pinned(id) => format!("{id} · the configuration pins it for this agent"),
+            Self::ScannedDefault {
+                id,
+                method,
+                observed_at,
+            } => format!(
+                "{id} · the default a scan read from the installation by {method} at {observed_at}"
+            ),
+            Self::ScannedWithoutDefault { observed_at } => format!(
+                "unknown · the scan at {observed_at} reported no default, and this agent pins none"
+            ),
+            Self::Configured => {
+                "unknown · the catalog for this provider was written by configuration, not by a scan"
+                    .to_owned()
+            }
+            Self::Unscanned => {
+                "not scanned · nothing has been read from this installation, so no native name is known"
+                    .to_owned()
+            }
+            Self::Unread => {
+                "not read · what is installed on this machine could not be read, so this says nothing about the model"
+                    .to_owned()
+            }
+        }
+    }
+}
+
+fn resolved_model<'a>(ctx: &'a Ctx, profile: &'a AgentProfile) -> ResolvedModel<'a> {
+    if let Some(id) = profile.model.as_deref() {
+        return ResolvedModel::Pinned(id);
+    }
+    let Some(pool) = ctx.pool.pool.as_ref() else {
+        return ResolvedModel::Unread;
+    };
+    match pool.capabilities.get(&profile.provider) {
+        None => ResolvedModel::Unscanned,
+        Some(catalog) => match (&catalog.source, catalog.default_model.as_deref()) {
+            (
+                CapabilitySource::NativeMetadata {
+                    method,
+                    observed_at,
+                },
+                Some(id),
+            ) => ResolvedModel::ScannedDefault {
+                id,
+                method,
+                observed_at,
+            },
+            (CapabilitySource::NativeMetadata { observed_at, .. }, None) => {
+                ResolvedModel::ScannedWithoutDefault { observed_at }
+            }
+            (CapabilitySource::Configured, _) => ResolvedModel::Configured,
+        },
+    }
+}
+
+/// The catalog the pool reports for a provider, which is the only source that may claim a
+/// native observation.
+fn pool_catalog<'a>(ctx: &'a Ctx, provider: &str) -> Option<&'a ProviderCapabilities> {
+    ctx.pool.pool.as_ref()?.capabilities.get(provider)
+}
+
+/// What a stored catalog is, for the provider page: a scan, configuration, or nothing.
+fn catalog_words(catalog: Option<&ProviderCapabilities>) -> String {
+    match catalog {
+        None => "nothing stored; this provider's own offerings have not been read".to_owned(),
+        Some(catalog) => match &catalog.source {
+            CapabilitySource::NativeMetadata {
+                method,
+                observed_at,
+            } => format!("read from the installation by {method} at {observed_at}"),
+            CapabilitySource::Configured => {
+                "written by configuration; no scan stands behind it".to_owned()
+            }
+        },
+    }
+}
+
+/// How many offerings the catalog lists, and whether it claims to list them all.
+fn catalog_models_words(catalog: Option<&ProviderCapabilities>) -> String {
+    match catalog {
+        None => "none listed".to_owned(),
+        Some(catalog) if catalog.models.is_empty() && catalog.models_complete => {
+            "none, and the list is complete: this installation offers nothing".to_owned()
+        }
+        Some(catalog) if catalog.models.is_empty() => "none listed".to_owned(),
+        Some(catalog) => format!(
+            "{} · {}",
+            catalog
+                .models
+                .iter()
+                .map(|model| model.id.clone())
+                .collect::<Vec<_>>()
+                .join(", "),
+            if catalog.models_complete {
+                "the whole list"
+            } else {
+                "not known to be the whole list"
+            }
+        ),
+    }
+}
+
 /// One member of the team a session captured, or of the team the next run would use.
 fn member_row(ctx: &Ctx, profile: &AgentProfile) -> Item {
     let theme = ctx.theme;
@@ -1565,17 +1762,10 @@ fn member_row(ctx: &Ctx, profile: &AgentProfile) -> Item {
             None => ("not in the pool".to_owned(), theme.warn()),
         }
     };
+    let resolved = resolved_model(ctx, profile);
     let mut detail = field(theme, "profile", &profile.id, ctx.width);
+    detail.extend(field(theme, "model", &resolved.detail_words(), ctx.width));
     detail.extend(field(theme, "provider", &profile.provider, ctx.width));
-    detail.extend(field(
-        theme,
-        "model",
-        profile
-            .model
-            .as_deref()
-            .unwrap_or("none set; the installation chooses"),
-        ctx.width,
-    ));
     detail.extend(field(
         theme,
         "membership",
@@ -1640,6 +1830,13 @@ fn member_row(ctx: &Ctx, profile: &AgentProfile) -> Item {
                 style,
             ),
             Span::styled(profile.name.clone(), theme.text()),
+            Span::styled(
+                format!(
+                    " · {}",
+                    resolved.id().unwrap_or_else(|| resolved.row_words())
+                ),
+                theme.muted(),
+            ),
             Span::styled(format!(" · {}", profile.provider), theme.faint()),
         ],
     )
@@ -2017,12 +2214,14 @@ fn agents(ctx: &Ctx) -> Page {
         .iter()
         .map(|profile| {
             let in_team = ctx.config.team.contains(&profile.id);
+            let resolved = resolved_model(ctx, profile);
             let mut detail = field(theme, "profile", &profile.id, ctx.width);
+            detail.extend(field(theme, "model", &resolved.detail_words(), ctx.width));
             detail.extend(field(theme, "provider", &profile.provider, ctx.width));
             detail.extend(field(
                 theme,
-                "model",
-                profile.model.as_deref().unwrap_or("provider default"),
+                "catalog",
+                &catalog_words(pool_catalog(ctx, &profile.provider)),
                 ctx.width,
             ));
             detail.extend(field(
@@ -2060,11 +2259,8 @@ fn agents(ctx: &Ctx) -> Page {
                 profile.id.clone(),
                 vec![
                     Span::styled(profile.name.clone(), theme.text()),
+                    Span::styled(format!(" · {}", resolved.id().unwrap_or_else(|| resolved.row_words())), theme.muted()),
                     Span::styled(format!(" · {}", profile.provider), theme.faint()),
-                    Span::styled(
-                        format!(" · {}", profile.model.as_deref().unwrap_or("default model")),
-                        theme.muted(),
-                    ),
                 ],
             )
             .with_right(vec![
@@ -2093,6 +2289,7 @@ fn agents(ctx: &Ctx) -> Page {
             ("i", "instructions"),
             ("Space", "enable"),
             ("t", "team"),
+            ("r", "re-read"),
             ("Esc", "back"),
         ],
     }
@@ -2100,95 +2297,118 @@ fn agents(ctx: &Ctx) -> Page {
 
 fn providers(ctx: &Ctx) -> Page {
     let theme = ctx.theme;
-    let items = ctx
-        .config
-        .providers
-        .iter()
-        .map(|provider| {
-            let health = ctx.pool.provider(&provider.id);
-            let found = health.is_some_and(|health| health.executable.is_some());
-            let mut detail = field(theme, "provider", &provider.id, ctx.width);
-            detail.extend(field(
-                theme,
-                "kind",
-                &format!("{:?}", provider.kind),
-                ctx.width,
-            ));
-            detail.extend(field(
-                theme,
-                "command",
-                &format!("{} {}", provider.command, provider.args.join(" ")),
-                ctx.width,
-            ));
-            detail.extend(field(
-                theme,
-                "executable",
-                &match health {
-                    Some(health) => match &health.executable {
-                        Some(path) => path.display().to_string(),
-                        None if health.available => {
-                            "none; this provider runs inside ymp".to_owned()
-                        }
-                        None => "not found on PATH".to_owned(),
-                    },
-                    None => "not inspected".to_owned(),
-                },
-                ctx.width,
-            ));
-            detail.extend(field(
-                theme,
-                "inspected",
-                if ctx.pool.read_at.is_empty() {
-                    "not yet"
-                } else {
-                    &ctx.pool.read_at
-                },
-                ctx.width,
-            ));
-            if !provider.env_refs.is_empty() {
+    let items =
+        ctx.config
+            .providers
+            .iter()
+            .map(|provider| {
+                let health = ctx.pool.provider(&provider.id);
+                let found = health.is_some_and(|health| health.executable.is_some());
+                let mut detail = field(theme, "provider", &provider.id, ctx.width);
                 detail.extend(field(
                     theme,
-                    "environment",
-                    &provider
-                        .env_refs
-                        .iter()
-                        .map(|(k, v)| format!("{k}={v}"))
-                        .collect::<Vec<_>>()
-                        .join(", "),
+                    "kind",
+                    &format!("{:?}", provider.kind),
                     ctx.width,
                 ));
-            }
-            detail.push(Line::default());
-            detail.push(Line::from(Span::styled(
-                "The provider manages its own credentials. ymp never reads or stores a token."
-                    .to_owned(),
-                theme.faint(),
-            )));
-            Item::row(
-                provider.id.clone(),
-                vec![
-                    Span::styled(provider.id.clone(), theme.text()),
-                    Span::styled(format!("  {}", provider.command), theme.faint()),
-                ],
-            )
-            .with_right(vec![
-                Span::styled(
-                    match (found, health.is_some_and(|health| health.available)) {
-                        (true, _) => format!("{} on PATH  ", theme.markers.ok),
-                        (false, true) => format!("{} in process  ", theme.markers.ok),
-                        (false, false) => format!("{} not found  ", theme.markers.warn),
+                detail.extend(field(
+                    theme,
+                    "command",
+                    &format!("{} {}", provider.command, provider.args.join(" ")),
+                    ctx.width,
+                ));
+                detail.extend(field(
+                    theme,
+                    "executable",
+                    &match health {
+                        Some(health) => match &health.executable {
+                            Some(path) => path.display().to_string(),
+                            None if health.available => {
+                                "none; this provider runs inside ymp".to_owned()
+                            }
+                            None => "not found on PATH".to_owned(),
+                        },
+                        None => "not inspected".to_owned(),
                     },
-                    if found || health.is_some_and(|health| health.available) {
-                        theme.good()
+                    ctx.width,
+                ));
+                detail.extend(field(
+                    theme,
+                    "inspected",
+                    if ctx.pool.read_at.is_empty() {
+                        "not yet"
                     } else {
-                        theme.warn()
+                        &ctx.pool.read_at
                     },
-                ),
-                yes_no(provider.enabled, theme),
-            ])
-            .with_detail(detail)
-        })
-        .collect::<Vec<_>>();
+                    ctx.width,
+                ));
+                let catalog = pool_catalog(ctx, &provider.id);
+                detail.extend(field(theme, "catalog", &catalog_words(catalog), ctx.width));
+                detail.extend(field(
+                    theme,
+                    "offers",
+                    &catalog_models_words(catalog),
+                    ctx.width,
+                ));
+                detail.extend(field(
+                    theme,
+                    "default",
+                    &match catalog.and_then(|catalog| catalog.default_model.as_deref()) {
+                        Some(id) => id.to_owned(),
+                        None => "none was reported; an agent that pins no model has no name here"
+                            .to_owned(),
+                    },
+                    ctx.width,
+                ));
+                if !provider.env_refs.is_empty() {
+                    detail.extend(field(
+                        theme,
+                        "environment",
+                        &provider
+                            .env_refs
+                            .iter()
+                            .map(|(k, v)| format!("{k}={v}"))
+                            .collect::<Vec<_>>()
+                            .join(", "),
+                        ctx.width,
+                    ));
+                }
+                detail.push(Line::default());
+                detail.push(Line::from(Span::styled(
+                    "The provider manages its own credentials. ymp never reads or stores a token."
+                        .to_owned(),
+                    theme.faint(),
+                )));
+                detail.extend(paragraph(
+                    theme,
+                    "Opening this page reads the catalog that is already stored. It never asks the installation what it offers, so a name that is not here has not been read yet rather than being unavailable.",
+                    ctx.width,
+                ));
+                Item::row(
+                    provider.id.clone(),
+                    vec![
+                        Span::styled(provider.id.clone(), theme.text()),
+                        Span::styled(format!("  {}", provider.command), theme.faint()),
+                    ],
+                )
+                .with_right(vec![
+                    Span::styled(
+                        match (found, health.is_some_and(|health| health.available)) {
+                            (true, _) => format!("{} on PATH  ", theme.markers.ok),
+                            (false, true) => format!("{} in process  ", theme.markers.ok),
+                            (false, false) => format!("{} not found  ", theme.markers.warn),
+                        },
+                        if found || health.is_some_and(|health| health.available) {
+                            theme.good()
+                        } else {
+                            theme.warn()
+                        },
+                    ),
+                    yes_no(provider.enabled, theme),
+                ])
+                .with_detail(detail)
+            })
+            .collect::<Vec<_>>();
     Page {
         view: View::Providers,
         title: View::Providers.title().into(),
@@ -2200,7 +2420,11 @@ fn providers(ctx: &Ctx) -> Page {
             "Edit the file printed by `ymp config --path` to add one.",
             ctx.width,
         ),
-        hints: vec![("Space", "enable or disable"), ("Esc", "back")],
+        hints: vec![
+            ("Space", "enable or disable"),
+            ("r", "re-read what is installed"),
+            ("Esc", "back"),
+        ],
     }
 }
 

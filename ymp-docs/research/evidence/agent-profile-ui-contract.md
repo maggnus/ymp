@@ -27,9 +27,9 @@ user intervening in it (`intent.md`, final clause).
 - **A pool and a captured team.** `Config.agents` is the library and `Config.team` lists eligible
   ids (`config.rs:76-83`, `:196-203`); `Session.team` stores what a run captured (`model.rs:26`).
   `App::active_team` prefers the capture, and the sidebar labels it "this session" or "next run".
-- **Provider is metadata, never a grouping key.** Rows read `name · provider · model` on `/agents`
-  and `name · provider` on `/usage`, the name always first; `usage::agent_rows` keys on agent id,
-  locked in by `tests.rs::two_agents_on_one_provider_are_counted_apart`.
+- **Provider is metadata, never a grouping key.** Rows read `name · model · provider` on `/agents`
+  and `/team`, and `name · provider` on `/usage`, the name always first; `usage::agent_rows` keys on
+  agent id, locked in by `tests.rs::two_agents_on_one_provider_are_counted_apart`.
 - **Independent verification is enforced and named.** `Task::review` rejects self-acceptance
   (`model.rs:100-102`); `/tasks` shows assignee, reviewer, attempts, checks and results; `/memory`
   shows author and reviewer; `/reputation` warns that a high rate from few observations is not
@@ -180,7 +180,7 @@ and in the interface tests named there.
 | Clause | Delivered | Still open |
 | --- | --- | --- |
 | 1. Pool and session team are different objects | `/team` shows the members of this session or of the next run, says which, and lists the locally eligible pool with the reason each profile is excluded. An agent that worked in a session stays in its list after its profile leaves the pool. A roster that replaced a member shows the replaced identity apart, with the turns recorded under it and the revision it is measured against; the roster record names the final reviewer it keeps free as availability, and the bounds the roster was formed under are shown beside it. | Membership cannot be changed from the interface, and nothing here proposes a roster: the pages read the decisions a run recorded. |
-| 2. Identity is the id; the name is a label | Unchanged and still held: rows read name, then provider and model as metadata; records key on the id, and the pages show the id in the detail. | Renaming is still not possible from the interface. |
+| 2. Identity is the id; the name is a label | Unchanged and still held: rows read the name, then the model the agent would run as, then the provider; records key on the id, and the pages show the id in the detail. A model the catalog does not name is shown as not read, not scanned or unknown, and the provider's own label is never put where a model name belongs. | Renaming is still not possible from the interface, and no page can yet name a model that no stored catalog reports. |
 | 3. Agents sharing a provider stay separate | Held on every new page: assignment rows key on the agent id and name the agent, never the provider. | — |
 | 4. Effort is native, with an honest state | `/assignments` shows requested, sent and reported for model, effort and permission mode, and says when a value was sent and nothing was reported. Nothing requested reads as the installation's own default. | No page claims a control is unsupported, because no record says so. Choosing an effort from the interface is still not possible. |
 | 5. Adaptation is recorded, not rewritten | Assignments and decisions are appended records, shown in the order the store keeps them, each with its own time and actor. A later turn does not restate an earlier one. | Plan revisions are shown as decisions rather than as a diff between plans. |
