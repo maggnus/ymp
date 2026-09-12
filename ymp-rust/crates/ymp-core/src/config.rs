@@ -3,6 +3,11 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::{collections::BTreeMap, path::PathBuf};
 
+mod capabilities;
+mod pool;
+pub use capabilities::*;
+pub use pool::*;
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum ProviderKind {
@@ -78,7 +83,11 @@ pub struct Config {
     #[serde(default)]
     pub limits: Limits,
     pub providers: Vec<ProviderConfig>,
+    /// Optional native offerings, keyed by provider ID. Absence means unknown.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub capabilities: BTreeMap<String, ProviderCapabilities>,
     pub agents: Vec<AgentProfile>,
+    /// Configured starting roster; neither the eligible pool nor a live session.
     pub team: Vec<String>,
 }
 
@@ -87,6 +96,7 @@ impl Default for Config {
         Self {
             version: 1,
             limits: Limits::default(),
+            capabilities: BTreeMap::new(),
             providers: vec![
                 ProviderConfig {
                     id: "codex".into(),
@@ -166,6 +176,12 @@ impl Config {
             }
         }
         ids.clear();
+        for (id, capabilities) in &self.capabilities {
+            self.provider(id)?;
+            capabilities
+                .validate()
+                .with_context(|| format!("Invalid capabilities for provider {id}"))?;
+        }
         for agent in &self.agents {
             if agent.id.is_empty() || !ids.insert(&agent.id) {
                 bail!("Duplicate or empty agent id");

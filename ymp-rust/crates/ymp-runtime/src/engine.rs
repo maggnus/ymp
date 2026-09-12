@@ -1138,6 +1138,7 @@ mod tests {
     fn test_config(broken: bool) -> Config {
         Config {
             version: 1,
+            capabilities: Default::default(),
             limits: Limits {
                 parallel: 2,
                 turns: 80,

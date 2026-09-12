@@ -16,6 +16,8 @@ GLM discovery resolves an already cached local npm package to its entry point. I
 
 Provider availability and authentication are different checks. `doctor` locates executables; `doctor --probe` makes a small real request. A successful configuration read does not imply a valid subscription, key, or remaining quota.
 
+The backend [agent pool API](agent-pool.md) exposes individual profiles and configured native model/control offerings without inference. Pool discovery does not change the configured starting roster or infer live session membership.
+
 ## Local bridge protocol
 
 The host sends one `run` JSON-RPC request per bridge process. The bridge emits `session` and `delta` notifications, then returns `text`, `session_id`, and provider-reported `usage`. Errors reject the request. Stdout carries protocol messages only; diagnostic stderr is drained without persisting raw output that might contain credentials.
