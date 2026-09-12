@@ -1,6 +1,6 @@
 # Task details and evidence
 
-Updated: 2026-09-12 12:16 UTC.
+Updated: 2026-09-12 12:18 UTC.
 
 Use the [delivery plan](plan.md) to follow progress. This generated register contains full acceptance criteria, dependencies and evidence. [tasks.json](tasks.json) is the single source; [manage.py](manage.py) updates both pages.
 
@@ -14,7 +14,7 @@ A planned task is not implemented functionality. Completed research and planning
 | design | 1 | 1 |
 | documentation | 4 | 4 |
 | experiment | 0 | 4 |
-| implementation | 5 | 18 |
+| implementation | 6 | 18 |
 | research | 8 | 8 |
 | verification | 1 | 2 |
 
@@ -35,10 +35,10 @@ A planned task is not implemented functionality. Completed research and planning
 | `[x]` | [YMP-103](#ymp-103) | P0 | Honor Codex nonterminal retry notifications | 2026-09-12 10:16 |
 | `[x]` | [YMP-104](#ymp-104) | P0 | Preserve accepted outcomes and confirmation status when final narration fails | 2026-09-12 10:16 |
 | `[x]` | [YMP-105](#ymp-105) | P1 | Enumerate file names without reading file contents | 2026-09-12 10:16 |
-| `[~]` | [YMP-106](#ymp-106) | P1 | Use task-specific memory queries and record retrieval evidence | 2026-09-12 12:16 |
+| `[~]` | [YMP-106](#ymp-106) | P1 | Use task-specific memory queries and record retrieval evidence | 2026-09-12 12:18 |
 | `[~]` | [YMP-107](#ymp-107) | P1 | Expose recorded checks and factual recovery limits | 2026-09-12 12:12 |
 | `[=]` | [YMP-108](#ymp-108) | P2 | Evaluate an optional usage estimate with explicit price provenance | 2026-09-12 09:35 |
-| `[~]` | [YMP-111](#ymp-111) | P0 | Apply native models and reasoning settings per assignment | 2026-09-12 12:12 |
+| `[x]` | [YMP-111](#ymp-111) | P0 | Apply native models and reasoning settings per assignment | 2026-09-12 12:18 |
 | `[=]` | [YMP-201](#ymp-201) | P2 | Calibrate and run the paired solo/team pilot | 2026-09-12 09:35 |
 | `[=]` | [YMP-202](#ymp-202) | P1 | Test memory and adaptive assignment on held-out tasks | 2026-09-12 09:35 |
 | `[=]` | [YMP-203](#ymp-203) | P1 | Test effort, reduced preparation and low-effort ensembles separately | 2026-09-12 09:35 |
@@ -56,7 +56,7 @@ A planned task is not implemented functionality. Completed research and planning
 | `[x]` | [YMP-012](#ymp-012) | P0 | Establish the delivery plan and traceable backlog for the approved intent | 2026-09-12 09:15 |
 | `[x]` | [YMP-116](#ymp-116) | P0 | Define the minimal runtime transition and authority contract | 2026-09-12 10:07 |
 | `[ ]` | [YMP-117](#ymp-117) | P0 | Separate acceptance from confirmation and gate reputation on evidence | 2026-09-12 09:35 |
-| `[~]` | [YMP-120](#ymp-120) | P0 | Enforce assignment-scoped permissions and runtime-only state transitions | 2026-09-12 12:12 |
+| `[~]` | [YMP-120](#ymp-120) | P0 | Enforce assignment-scoped permissions and runtime-only state transitions | 2026-09-12 12:18 |
 | `[=]` | [YMP-118](#ymp-118) | P0 | Integrate core assignment, budget and confirmation visibility | 2026-09-12 09:35 |
 | `[x]` | [YMP-119](#ymp-119) | P0 | Prepare universal acceptance scenarios and independent validators | 2026-09-12 10:56 |
 | `[=]` | [YMP-121](#ymp-121) | P1 | Verify the integrated application and package a local release | 2026-09-12 09:35 |
@@ -462,9 +462,9 @@ Use task-specific memory queries and record retrieval evidence
 
 **State:** `[~]` (in_progress) · **Type:** implementation · **Priority:** P1
 
-**Last update (UTC):** 2026-09-12 12:16
+**Last update (UTC):** 2026-09-12 12:18
 
-**Current reason:** Candidate 6e5aa6a implements content-based retrieval and bounded, versioned source evidence. The original invoice regression failed exit101 before correction; three runtime retrieval cases and all138 Rust tests pass. Independent review is next; candidate is preserved in its development worktree.
+**Current reason:** Candidate6e5aa6a passed138 Rust tests and is now under independent xhigh review. Invoice, follow-up, global scope, quoted query, source digest/allowance and disabled-memory cases are covered; not yet integrated.
 
 **Owner:** Maintainer
 
@@ -552,11 +552,11 @@ Weighted-input rankings do not reverse in the twelve retrospective scenarios. An
 
 Apply native models and reasoning settings per assignment
 
-**State:** `[~]` (in_progress) · **Type:** implementation · **Priority:** P0
+**State:** `[x]` (done) · **Type:** implementation · **Priority:** P0
 
-**Last update (UTC):** 2026-09-12 12:12
+**Last update (UTC):** 2026-09-12 12:18
 
-**Current reason:** Independent xhigh review accepted 823d51d at R1(9/10); diagnostic correction 56d95d5 distinguishes unsupported from unknown effort controls. Implementation awaits integration and workspace checks; 147 tests pass in its development worktree.
+**Current reason:** R1(9/10) ACCEPT by independent xhigh review; integrated aad76b5 and 9eaf761. Assignment model/effort settings preserve pins and compatible continuations, reject unsupported controls before prompting, and record requested/sent/reported values. Integrated fmt/clippy and147 Rust tests, plus10 Claude bridge tests/check/build, all exit0; no native inference.
 
 **Owner:** Maintainer; UI by Claude Opus 5 (max)
 
@@ -797,7 +797,7 @@ Select session teams and execution settings within user constraints
 
 **Last update (UTC):** 2026-09-12 09:35
 
-**Current reason:** Needs YMP-111, YMP-102, YMP-117
+**Current reason:** Needs YMP-102, YMP-117
 
 **Owner:** Maintainer; application UI by Claude Code claude-opus-5 with thinking max via Paseo
 
@@ -1188,9 +1188,9 @@ Enforce assignment-scoped permissions and runtime-only state transitions
 
 **State:** `[~]` (in_progress) · **Type:** implementation · **Priority:** P0
 
-**Last update (UTC):** 2026-09-12 12:12
+**Last update (UTC):** 2026-09-12 12:18
 
-**Current reason:** Authority implementation dc81cd0 is complete in an isolated development worktree and undergoing independent xhigh review. Scope covers assignment grants, native permission refresh, expiry and replay rejection; not yet integrated.
+**Current reason:** R1(5/10) RETURN: independent consumer probe showed a native protocol error could persist a synthetic assignment capability in two board notices and two UI events (exit101). Author is correcting the error boundary; integration waits for the exact probe and R2.
 
 **Owner:** Maintainer
 
@@ -1222,7 +1222,7 @@ Integrate core assignment, budget and confirmation visibility
 
 **Last update (UTC):** 2026-09-12 09:35
 
-**Current reason:** Needs YMP-111, YMP-102, YMP-117, YMP-120
+**Current reason:** Needs YMP-102, YMP-117, YMP-120
 
 **Owner:** Claude Code claude-opus-5 with thinking max via Paseo; maintainer integrates and verifies
 

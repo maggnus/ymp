@@ -683,6 +683,11 @@
           "at": "2026-09-12T12:16:37.327162+00:00",
           "status": "in_progress",
           "note": "Candidate 6e5aa6a implements content-based retrieval and bounded, versioned source evidence. The original invoice regression failed exit101 before correction; three runtime retrieval cases and all138 Rust tests pass. Independent review is next; candidate is preserved in its development worktree."
+        },
+        {
+          "at": "2026-09-12T12:18:55.315304+00:00",
+          "status": "in_progress",
+          "note": "Candidate6e5aa6a passed138 Rust tests and is now under independent xhigh review. Invoice, follow-up, global scope, quoted query, source digest/allowance and disabled-memory cases are covered; not yet integrated."
         }
       ]
     },
@@ -795,7 +800,7 @@
       "title": "Apply native models and reasoning settings per assignment",
       "type": "implementation",
       "priority": "P0",
-      "status": "in_progress",
+      "status": "done",
       "owner": "Maintainer; UI by Claude Opus 5 (max)",
       "authorization": "Planned delivery derived from the owner-approved intent and standing autonomous-development direction. Follow dependencies and acceptance criteria; separate real-provider quota is required where stated.",
       "depends_on": [
@@ -873,6 +878,11 @@
           "at": "2026-09-12T12:12:44.926694+00:00",
           "status": "in_progress",
           "note": "Independent xhigh review accepted 823d51d at R1(9/10); diagnostic correction 56d95d5 distinguishes unsupported from unknown effort controls. Implementation awaits integration and workspace checks; 147 tests pass in its development worktree."
+        },
+        {
+          "at": "2026-09-12T12:18:55.082541+00:00",
+          "status": "done",
+          "note": "R1(9/10) ACCEPT by independent xhigh review; integrated aad76b5 and 9eaf761. Assignment model/effort settings preserve pins and compatible continuations, reject unsupported controls before prompting, and record requested/sent/reported values. Integrated fmt/clippy and147 Rust tests, plus10 Claude bridge tests/check/build, all exit0; no native inference."
         }
       ]
     },
@@ -1811,6 +1821,11 @@
           "at": "2026-09-12T12:12:44.829679+00:00",
           "status": "in_progress",
           "note": "Authority implementation dc81cd0 is complete in an isolated development worktree and undergoing independent xhigh review. Scope covers assignment grants, native permission refresh, expiry and replay rejection; not yet integrated."
+        },
+        {
+          "at": "2026-09-12T12:18:55.196688+00:00",
+          "status": "in_progress",
+          "note": "R1(5/10) RETURN: independent consumer probe showed a native protocol error could persist a synthetic assignment capability in two board notices and two UI events (exit101). Author is correcting the error boundary; integration waits for the exact probe and R2."
         }
       ]
     },
@@ -1994,7 +2009,7 @@
       ]
     }
   ],
-  "updated_at": "2026-09-12T12:16:37.327162+00:00",
+  "updated_at": "2026-09-12T12:18:55.315304+00:00",
   "delivery_order": [
     "YMP-116",
     "YMP-103",
