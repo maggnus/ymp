@@ -1,6 +1,6 @@
 # Controlled evaluation protocol
 
-This protocol tests whether a team produces more independently verified outcomes than a strong solo agent under declared resource constraints. It also separates the effects of memory, assignment, effort, ceremony, and prior-outcome retrieval. It is a proposal for approval, not a record of model performance.
+This optional comparative protocol supports the product defined in [intent.md](../../intent.md). It tests whether particular team policies produce more independently verified outcomes than a strong solo baseline under declared resource constraints; it does not gate autonomous team formation, effort choices or accumulated knowledge. It also separates the effects of memory, assignment, effort, ceremony, and prior-outcome retrieval. It is a proposal for approval, not a record of model performance.
 
 ## Preconditions and units
 
@@ -42,7 +42,7 @@ This preserves the product's universal scope. Software is one class, not the def
 
 ## Solo and team comparison
 
-The solo baseline is a native agent with the same complete task, tool access, effective effort, and resource ceiling. It may plan, use tools, inspect its work, and self-correct inside its native loop. Do not artificially make solo a one-message completion while giving the team an agentic loop. In the team arm, independent task review remains mandatory and the executor cannot approve its own candidate. Record model family separately from agent identity.
+The solo baseline is a native agent with the same complete task, tool access, effective effort, and resource ceiling. It may plan, use tools, inspect its work, and self-correct inside its native loop. Do not artificially make solo a one-message completion while giving the team an agentic loop. In the team arm, independent task and final-result verification are required. The audited candidate reviewer excludes its assignee, but the final reviewer does not yet exclude executors; fix or explicitly control that eligibility before describing the evaluated final review as independent. Record model family separately from agent identity.
 
 Randomize treatment order within each task and retain the seed. Use fresh native handles and separate application homes. Keep cache warming and environment preparation symmetric and document residual differences. Run all scheduled cases, including failures; never select only the prompts on which a team already looks useful. Keep plan-supplied checks as product behavior, but score outcomes with the independent checks and rubrics specified before the run.
 
@@ -80,6 +80,6 @@ A gate has a positive expected resource return only when p_valid × (C_full − 
 
 ## Decision rules
 
-Approve no universal team advantage from this study plan. Expand the product's complexity only after an independently scored task class shows a useful quality/resource tradeoff. Reject a fast path or reuse router that misses changed requirements, reject a learning treatment that increases escaped defects, and park cost-aware allocation until outcomes and counterfactual evaluation support it. Native providers and their own authentication remain the execution boundary.
+Claim no universal team advantage from this study plan. Implement the owner-defined core capabilities independently of the comparison, then use independently scored results to choose among alternative policies. Reject a fast path or reuse router that misses changed requirements, reject a learning treatment that increases escaped defects, and park claims about the specific lambda-weighted allocation policy until outcomes and counterfactual evaluation support them. Resource-aware team decisions under the shared budget remain core functionality. Native providers and their own authentication remain the execution boundary.
 
 The project register records proposed experiments separately from implemented features. Its acceptance criteria, dependency links, and authorization fields determine what may start next.

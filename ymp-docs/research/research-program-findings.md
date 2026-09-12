@@ -1,8 +1,12 @@
 # Research findings and delivery priorities
 
-The evidence supports a small reliability and measurement program, followed by controlled comparisons. It does not establish that a team, adaptive assignment, or accumulated memory outperforms a strong solo agent. Several premises in the request need correction before they can guide implementation: not every provider failure blocks a run, native execution is already separated from read-only work, the three repeat examples span two projects, and absent native usage fields are not recorded zeros.
+Current planning status: the owner recorded product goals and requested a [bounded dynamic team and effort policy](../architecture/team-and-effort-policy.md). Implementation remains paused during the broader architecture review in YMP-010; the delivery recommendations below are provisional. Current terminology is defined [separately](../product/entities.md). Historical measurements remain unchanged.
 
-The most defensible immediate changes are specific: honor provider-declared retries, preserve an already verified result if final narration fails, make evaluations and budgets explicit, avoid content hashing when only names are needed, and use task terms for memory retrieval. Automatic outcome substitution, an effective-token-only interface, a universal effort ladder, cost-penalized assignment, and broad module extraction are not justified as defaults.
+The final [intent.md](../../intent.md) defines the product: autonomous user-task solving by a self-organizing agent pool, with team-selected executors/models/effort, independent verification, a shared budget and incremental reusable knowledge and reputation. This report identifies implementation gaps and evaluates proposed mechanisms in support of that product. It does not make a benchmark victory or a statistical superiority claim a prerequisite for implementing the required capabilities.
+
+The measurements do not establish that a team, adaptive assignment or accumulated memory outperforms a strong solo agent. They do establish specific implementation facts: not every provider failure blocks a run, native execution is separated from read-only work, the three repeat examples span two projects, and absent native usage fields are not recorded zeros.
+
+Within the research scope, the most defensible improvements are specific: honor provider-declared retries, preserve an already verified result if final narration fails, make evaluations and budgets explicit, avoid content hashing when only names are needed, and use task terms for memory retrieval. Automatic outcome substitution, an effective-token-only interface, a universal effort ladder, cost-penalized assignment, and broad module extraction are not justified as defaults.
 
 ## Evidence and scope
 
@@ -10,7 +14,7 @@ The code baseline is **56e21dd**, ymp 0.3.0. Source references and line numbers 
 
 The final journal snapshot at **2026-09-12 04:56:11 UTC** contains five sessions, 79 started invocations, 78 completed invocations, and one cancelled invocation. There are 32 assignment decisions, eight positive observations and no negative observations, and five active memory entries. These are uncontrolled product traces, not a benchmark. A completed session is not an independent quality label, and a missing or interrupted outcome is not automatically a competence failure. [Journal evidence](evidence/journal-audit.json)
 
-The repository contains four commits from one day and one committed evaluation scenario, greeting. There are verification reports, but no task-level comparative results, no recorded treatment flags in the session record, and no review-latency or merge-conflict time series. Statements that the learning flags were never used cannot be independently established from this journal because their values are not recorded. [History evidence](evidence/history-audit.json), [existing methodology](evaluation.md), [CLI run output](../../ymp-rust/crates/ymp-cli/src/main.rs) (headless, lines 330–380)
+At the audited code baseline, the repository contained four commits from one day and one committed evaluation scenario, greeting. There are verification reports, but no task-level comparative results, no recorded treatment flags in the session record, and no review-latency or merge-conflict time series. Statements that the learning flags were never used cannot be independently established from this journal because their values are not recorded. [History evidence](evidence/history-audit.json), [existing methodology](evaluation.md), [CLI run output](../../ymp-rust/crates/ymp-cli/src/main.rs) (headless, lines 330–380)
 
 The detailed live-study proposal is [Controlled evaluation protocol](experiment-protocol.md). Accepted recommendations and pending decisions are in the [project task register](../tasks/README.md). A recommendation is not an implemented feature or permission to consume experimental provider quota.
 
@@ -18,15 +22,37 @@ The detailed live-study proposal is [Controlled evaluation protocol](experiment-
 
 | Hypothesis | Verdict | Decision |
 | --- | --- | --- |
-| H1: infrastructure failures | Investigate now, narrowly | Fix nonterminal error handling and post-verification reporting first; do not replay ambiguous writes. |
-| H2: ceremony and fast path | Investigate now | Preparation cost is confirmed. A quality-preserving fast path needs a controlled experiment. |
-| H3: effort and low-effort ensemble | Investigate now, in stages | Controls exist but differ; a uniform ladder and an ensemble advantage are unproven. |
-| H4: cost-aware assignment | Park intervention | Current traces cannot identify a beneficial cost penalty; establish budgets and causal records first. |
-| H5: context hygiene | Investigate now | Names-only enumeration and task-focused retrieval have direct evidence; blanket purpose isolation does not. |
+| H1: infrastructure failures | Required resilience; targeted fixes | Preserve verified work and support recovery/reassignment; fix confirmed errors without blind replay of ambiguous writes. |
+| H2: ceremony and fast path | Required flexible coordination; test specific shortcuts | The team must choose its method. Current preparation cost is measured; the proposed fixed shortcut has no quality-equivalence result. |
+| H3: effort and low-effort ensemble | Required autonomous controls; test particular policies | Agent/model/effort choice is core. A universal ladder, fixed funnel and superiority claim remain unproven. |
+| H4: cost-aware assignment | Required resource-aware choices; park the proposed lambda rule | The team must use resources and a shared budget; this dataset does not validate the particular cost-penalty formula. |
+| H5: context hygiene | Required usable knowledge/context; targeted fixes | Incremental shared knowledge and correction are core. The measured lookup fixes help; blanket purpose isolation remains unproven. |
 | H6: check-command gate | Reject prefix containment; park mandatory confirmation | Preserve autonomy and provide factual recovery/check evidence. |
 | H7: large-file decomposition | Reject now | The tiny history does not demonstrate a cost caused by concentration. |
-| H8: outcome reuse | Investigate a bounded router; park automatic substitution | Project, intent, verification scope, and current state all matter. Matching hashes alone are insufficient. |
-| H9: effective tokens | Reject effective-only; retain explicit optional estimates | Keep canonical raw counts and price assumptions separate; the observed ranking does not reverse. |
+| H8: outcome reuse | Optional dedicated router | The team may reuse verified work as part of its method. A separate pre-run substitution gate needs intent/state guards; hashes alone are insufficient. |
+| H9: effective tokens | Required accounting/budget; optional estimates | Preserve observed counts and coverage. A shared budget is core; effective-only display and universal price equivalence are unsupported. |
+
+## Product coverage at the audited baseline
+
+This table separates requirements from observations. The linked task IDs are planned work, not claims of implemented behavior.
+
+| Intent capability | What already exists | What remains | Tasks |
+| --- | --- | --- | --- |
+| Individual agents from native providers | AgentProfile IDs, native adapters/authentication and per-agent usage | Complete pool/capability presentation and stable historical identity across all views | YMP-109 |
+| Autonomous team, model and effort choices | Assignment sampling and a fixed coordination workflow | Team formation from the eligible pool; assignment-level model/effort choices and live adaptation | YMP-110, YMP-111 |
+| Temporary roles, commitments and reassignment | Task states, assignments and proposal recording | Apply team proposals, change plans, add participants and reassign unfinished work within constraints | YMP-112 |
+| Useful concurrent execution | Parallel planning/bidding and an invocation semaphore | Ready-task selection uses take(1); execute independent assignments concurrently while preserving dependencies, resource constraints and verification eligibility | YMP-115 |
+| Shared board and explainable history | Team/addressed messages and persistent events | Complete recipient/decision presentation and link decisions to execution and verification | YMP-101, YMP-112 |
+| Independent verification and resilient progress | Candidate review excludes the executor; checks and observations exist | Final-review selection still allows executors; also correct nonterminal errors and preserve/reassign work safely | YMP-103, YMP-104, YMP-112 |
+| Shared budget | Turn/time/attempt limits and usage recording | Explicit common resource policy, admission and honest unknown/overshoot handling | YMP-102 |
+| Incremental cross-session experience | Incremental events, reputation and some memory; global learning largely after success | Publish usable general knowledge during work and retrieve it in subsequent sessions | YMP-106, YMP-113 |
+| Correctable knowledge with provenance | Memory source fields and an unused supersedes field | Verified correction/replacement with retained history, applicability and evidence | YMP-114 |
+
+A specific verification gap deserves its own acceptance check: candidate review filters out the assignee (engine.rs, lines 989–1008), but final review selects from the entire session team (lines 679–686). The final checker can therefore be an executor of the result. Independent final acceptance must be enforced by eligibility rules, not merely by naming the phase final_review. YMP-112 records this requirement and the possibility of adding an independent participant within the budget.
+
+The product implementation is guided by [English requirements](../product/requirements.md) and [ADR 0002](../adr/0002-agent-identity-and-reasoning.md). Comparative studies evaluate particular policies after working capabilities exist; they do not decide whether these intent requirements should exist.
+
+The current execution loop admits one ready task at a time through take(1) (engine.rs, lines 600–618); its comment explicitly serializes execution and verification in the shared working directory. Increasing the configured parallel limit or pool size therefore does not enable concurrent task execution. YMP-115 records this implementation gap. A twenty-agent utilization or speedup result has not been measured, and more planning/bidding activity must not be presented as proof of useful parallel execution.
 
 ## H1 — Infrastructure failure and competence
 
@@ -48,7 +74,7 @@ The offline fixture distinguishes the important cases:
 | Optional learning exits | Completed | The verified deliverable survives. |
 | Final synthesis exits | Blocked | The artifact and final review already passed. |
 
-The retry prototype is inside the deterministic fixture. It proves control-flow behavior under declared faults, not real-provider completion-rate improvement or real retry token cost. The unchanged product was also tested against a Codex-shaped `error` notification with `willRetry: true`, followed by a successful final notification. The adapter still blocks because it treats every `error` notification as terminal. The installed generated ErrorNotification schema explicitly includes `willRetry`; this should be handled before adding a second retry layer around a native agent that already retries. [Protocol results](evidence/protocol-experiments.json), [schema evidence](evidence/effort-capabilities.json), [provider adapter](../../ymp-rust/crates/ymp-providers/src/lib.rs) (Codex event loop)
+The retry prototype is scripted inside the deterministic fixture; no application retry policy was implemented. It emulates bounded responses within one invocation and checks the resulting bookkeeping and failure boundaries. It does not prove a real network retry implementation correct or measure provider completion-rate improvement or retry cost. The unchanged product was also tested against a Codex-shaped `error` notification with `willRetry: true`, followed by a successful final notification. The adapter still blocks because it treats every `error` notification as terminal. The installed generated ErrorNotification schema explicitly includes `willRetry`; this should be handled before adding a second retry layer around a native agent that already retries. [Protocol results](evidence/protocol-experiments.json), [schema evidence](evidence/effort-capabilities.json), [provider adapter](../../ymp-rust/crates/ymp-providers/src/lib.rs) (Codex event loop)
 
 Keep transport corruption, an invalid model decision, authentication failure, explicit refusal, and an ambiguous interrupted execution distinct. Preserve native retry notices within the same invocation, bounded by the existing timeout and cancellation. Never infer that a process exit means no side effect occurred. A later application retry policy should count its own attempts and usage without treating a successful retry as evidence of competence; it must not silently compound native and application retry budgets.
 
@@ -72,7 +98,7 @@ Before the first execution, one-task runs use 2N + 1 preparation calls: 5, 7, or
 
 The fixture's per-call tokens are synthetic and its latency is local process overhead. It cannot establish a real token saving or quality equivalence. Current journal token figures also mix partial historical accounting with newer complete snapshots. Do not divide a known subtotal by another known subtotal and call the result a guaranteed fraction of true expenditure.
 
-A one-proposal/no-bid prototype could reduce one-task preparation while preserving independent plan and candidate review. Its six-call floor, without learning or revisions, is an arithmetic possibility rather than a measured product improvement. Compare it at fixed model, effort, budget, and external acceptance requirements. A planner's own `simple` label is not an independent safety or difficulty classifier. **YMP-203** records the conditional experiment; shipping the shortcut by default is deferred.
+A one-proposal/no-bid prototype could reduce one-task preparation while preserving independent plan and candidate review. Its six-call floor, without learning or revisions, is an arithmetic possibility rather than a measured product improvement. Compare it at fixed model, effort, budget, and external acceptance requirements. A planner's own `simple` label is not an independent safety or difficulty classifier. **YMP-203** records the conditional comparison of that specific shortcut. Flexible planning and team choice of a suitable method are core work in YMP-110/YMP-112 and are not deferred by this experiment.
 
 ## H3 — Effort controls and ensembles
 
@@ -92,7 +118,7 @@ The claimed blind ensemble is not enforced. The last-message context hides messa
 
 External findings are mixed and narrower than the product claim. Wunderlich et al. report compute-efficient gains for debate/mixtures on MMLU-Pro and BBH; Tran and Kiela find solo models competitive or better on matched-thinking-budget multi-hop reasoning. Kim et al. find strong task/architecture dependence and report limits to generalizing scaling relationships. These results justify controlled tests, not adopting a universal low-effort team rule. [^4], [^5], [^3]
 
-**YMP-111** records conditional effort plumbing with effective-config versioning. **YMP-203** separates effort-only, ceremony-only, and ensemble comparisons. No default role funnel is accepted without those results.
+**YMP-111** records native reasoning controls with effective-config versioning. Autonomous team selection of executors, models and effort is required by [intent.md](../../intent.md) and is covered by planned work YMP-110/YMP-112. **YMP-203** tests particular effort and coordination policies; its results do not gate the existence of autonomous choice. The specific fixed low/medium/xhigh funnel remains unvalidated.
 
 ## H4 — Retrospective assignment analysis
 
@@ -102,7 +128,7 @@ A sampled Beta score is not the probability of selecting an action. Under the cu
 
 It still does not supply counterfactual costs or outcomes. Costs vary with role, task, context, native tool-loop length, and cache state; the unchosen participant's cost and verified outcome are not observed. Ranking recorded successful choices with their realized costs would be a hindsight exercise, not an estimate of a new policy's value. Off-policy evaluation requires explicit assumptions about reward or logging models; the current sample cannot support a useful causal cost-penalty estimate. [^2]
 
-The proposed utility can be interpreted as a Lagrangian heuristic for maximizing verified outcomes subject to a resource budget. It is not automatically an optimizer of success per dollar, nor is a single fixed lambda meaningful without a declared cost scale. Raw tokens, provider-local equivalent inputs, and currency are different resources. Establish a budget convention, complete measurement, and linked external outcomes first. **YMP-101** and **YMP-102** are prerequisites. Intervention in assignment is parked; no lambda is recommended.
+The proposed utility can be interpreted as a Lagrangian heuristic for maximizing verified outcomes subject to a resource budget. It is not automatically an optimizer of success per dollar, nor is a single fixed lambda meaningful without a declared cost scale. Raw tokens, provider-local equivalent inputs, and currency are different resources. Establish a budget convention, complete measurement, and linked external outcomes first. **YMP-101** and **YMP-102** provide the decision/resource facts the team needs. Resource-aware executor, model and effort selection remains required in YMP-110/YMP-112. Only adoption or a superiority claim for this particular lambda-penalized policy is parked; no lambda is recommended.
 
 ## H5 — Context construction and retrieval
 
@@ -224,19 +250,19 @@ Reject the effective-only proposal. Raw input-plus-output is a truthful volume m
 
 Every live experiment must pre-register whether its budget is raw token volume, a versioned currency estimate, or a common reference unit. Report the other available measures rather than silently changing the denominator to improve a conclusion. Homogeneous-model calibration can start with raw volume plus cache breakdowns; cross-provider economic claims need the additional price basis and complete usage coverage.
 
-## Success gaps and owner decisions
+## Implementation gaps and unproven claims
 
-### 1. Evidence for the central product claim
+### 1. Evidence for comparative performance
 
-The gap remains open. A functional implementation, several completed HTML requests, or successful Mock runs do not prove that a team plus memory and assignment wins at equal resources. A sanity check of the existing greeting scenario makes the distinction concrete: Mock completes its canned greeting.txt workflow, while the scenario's independent greeting.py checks fail. This is a fixture/oracle control, not a zero score for an actual model. [Scenario check](evidence/scenario-smoke.json)
+Comparative performance remains unmeasured. Building the autonomous team described in intent.md is required independently of whether it beats a solo benchmark. A functional implementation, several completed HTML requests, or successful Mock runs do not prove a team-plus-memory advantage at equal resources. A sanity check of the existing greeting scenario makes the distinction concrete: Mock completes its canned greeting.txt workflow, while the scenario's independent greeting.py checks fail. This is a fixture/oracle control, not a zero score for an actual model. [Scenario check](evidence/scenario-smoke.json)
 
 **YMP-201** defines calibration and a twenty-case paired solo/team pilot after measurement and budget prerequisites. **YMP-202** separately tests the four memory/assignment treatments. All model-run allocations remain proposed. Require a frozen evaluator and task-level uncertainty before accepting a quality or efficiency claim. The existing Beta sampler follows a familiar exploration/exploitation idea, but dependent reviews, changing models, selective observation, and sparse categories do not inherit an idealized guarantee. [^1]
 
-### 2. The task class where a team is useful
+### 2. Universal scope and evaluation segments
 
 Retain a falsifiable candidate: inspectable deliverables with multiple constraints or conflicting evidence, where independent verification can discover consequential mistakes. This includes software, data work, document consistency, and planning constraints. It excludes a presumption that trivial file lookup or one-step conversion deserves a full team protocol. The proposed catalog deliberately includes both promising classes and negative controls.
 
-This is an initial evaluation focus, not a proven market position or a restriction to software. **YMP-301** asks the owner to confirm the task class and whether success means a personal tool or external adoption. Evidence may still favor a strong solo mode for most tasks.
+This is a possible evaluation segment, not a restriction of the universal product intent. The user supplies tasks and constraints; the team chooses an appropriate method. YMP-301 is parked as a later positioning/distribution decision and must not block the core local workflow.
 
 ### 3. Reliability in sustained use
 
@@ -254,19 +280,19 @@ The direct-directory contract stays. Existing metadata identifies changes but st
 
 Five active entries and eight positive observations are too little to demonstrate accumulation benefits. The current query construction has a measured retrieval defect, so replacing FTS5 with an embedding database would address the wrong first problem. Log retrieved entry identities, test relevance and stale-memory controls, and count the cost of collecting and reviewing memory.
 
-Procedural-memory research provides a reason to test retrieval and update jointly; it does not prove that any stored procedure improves an arbitrary local-agent workflow. Memp's evaluation uses benchmark rewards and its own limitations include uncertainty about deployment without those reward signals. [^6] Retain YMP-106 first and YMP-202 for held-out benefit measurement. Decay, automatic supersession, hierarchical priors, and broader memory rewrites are not accepted now.
+Procedural-memory research provides a reason to test retrieval and update jointly; it does not prove that any stored procedure improves an arbitrary local-agent workflow. Memp's evaluation uses benchmark rewards and its own limitations include uncertainty about deployment without those reward signals. [^6] Implement task-focused retrieval in YMP-106, incremental general knowledge in YMP-113, and evidence-backed correction/supersession in YMP-114. These are intent requirements. YMP-202 measures the benefit of particular policies later. Automatic time-decay heuristics, hierarchical statistical priors and storage rewrites remain unvalidated; this does not defer correction of wrong or outdated knowledge.
 
 ### 6. Economics and resource constraints
 
 A single monetary or equivalent-token number cannot repair incomplete accounting or unidentified prices. The immediate requirement is an explicit unit and an enforceable, honestly described stopping policy. Raw token volume, a cache-adjusted input subtotal, a modeled currency estimate, and billing are separate values. Do not use an input-only weighted number as the whole experiment denominator while omitting output and tool charges.
 
-YMP-102 supplies the budget policy. YMP-108 is a conditional presentation option, with raw fields retained and price provenance visible. Cost-aware assignment remains parked until the records can support a causal test, rather than simply preferring the agent with the smallest observed bill on a different task.
+YMP-102 supplies the required shared budget, and YMP-110/YMP-112 use resource facts when selecting and adapting work. YMP-108 is an optional presentation choice with raw fields retained and price provenance visible. The unvalidated lambda formula and cross-provider economic superiority claims remain deferred; resource-aware autonomous decisions do not.
 
 ### 7. Other users and installation
 
 The implementation is macOS-tested and depends on Unix process/socket behavior; Unix sockets and libc alone do not establish a macOS-only design. Linux support has not been verified in this investigation, and no Windows support claim is made. The default Claude bridge path is compiled from the checkout location, though YMP_CLAUDE_BRIDGE already provides an override. Packaging, supported operating systems, and native CLI authentication setup require an explicit audience decision. [Engine construction](../../ymp-rust/crates/ymp-runtime/src/engine.rs) (new), [CI](../../.github/workflows/check.yml)
 
-Until YMP-301 resolves that decision, keep the current personal-tool scope and do not let distribution machinery precede proof of useful outcomes. The engineering rationale is consistent with starting from simple measured behavior and adding coordination only when it pays for itself; it is not a substitute for the product's own results. [^8]
+The final intent already defines a local, universal agent-team utility. YMP-301 may later refine external distribution commitments, but it is not a prerequisite for that product. Implement the core workflow and evaluate alternative mechanisms as evidence accumulates; general engineering guidance does not replace the owner-defined direction. [^8]
 
 ## Reproduction and limitations
 
@@ -318,13 +344,15 @@ The linked local evidence and source files are the primary basis for the finding
 12. OpenAI. [API pricing](https://developers.openai.com/api/docs/pricing). Input, cached-input, output and additional charge categories. No listed rate was silently adopted as the price of a native subscription.
 13. stefandevo. [glm-acp-agent](https://github.com/stefandevo/glm-acp-agent), upstream README. Current advertised controls differ from the cached local 1.3.0 installation; local source hashes and pure-function results are retained.
 
-## Prioritized delivery list
+## Research-derived delivery list
 
-Only the following six changes form the immediate proposed implementation queue. Their task records include independent acceptance criteria and evidence. Other retained studies and owner decisions remain conditional in the register. Product implementation and experimental provider quota are not authorized by a research verdict alone.
+The current product queue is defined by intent.md and maintained in the [task register](../tasks/README.md). It covers the available pool (YMP-109), native execution choices (YMP-111), decision history and shared budget (YMP-101/YMP-102), autonomous formation and adaptation (YMP-110/YMP-112), and incremental correctable experience (YMP-113/YMP-114). All are implementation work, not claims of completed features.
+
+The six improvements below retain their measured engineering rationale and support that core delivery. This is not a replacement product roadmap or a requirement to prove benchmark superiority first. Experimental provider quota remains separately authorized.
 
 1. **YMP-103 — Honor Codex native retry notices.** Preserve the current invocation when the native provider announces a retry; retain timeout, cancellation, and terminal-failure behavior.
 2. **YMP-104 — Preserve a verified result if synthesis fails.** Return a factual fallback with evidence and record the reporting failure without misclassifying the artifact.
-3. **YMP-101 — Record and export reproducible evaluation outcomes.** Add the missing treatment/provenance/task links and keep canonical usage, coverage, and external acceptance distinct.
-4. **YMP-102 — Add an explicit resource-budget policy.** Define units, admission, in-flight work, unknown usage, and overshoot before declaring an equal-budget comparison.
+3. **YMP-101 — Preserve explainable session decisions and execution provenance.** Link team choices, assignments, settings, resources and independent verification; expose history and structured records.
+4. **YMP-102 — Enforce the shared resource budget.** Define units, admission, in-flight work, unknown usage and overshoot for normal autonomous execution as well as later studies.
 5. **YMP-105 — Enumerate names without hashing contents.** Preserve path semantics while removing measured unnecessary work; leave verification hashing intact.
 6. **YMP-106 — Retrieve memory using task terms.** Fix the demonstrated boilerplate-query failure and record retrieved identities before claiming a learning advantage.
