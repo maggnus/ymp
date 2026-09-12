@@ -387,9 +387,26 @@ impl Engine {
         .contains(&prompt.trim().to_lowercase().as_str())
         {
             self.post(&session.id, "you", "user", prompt)?;
-            let mut paths = self
-                .store
-                .outcomes(&session.id)?
+            let outcomes = self.store.outcomes(&session.id)?;
+            let captured = Workspace::load(&self.store.session_dir(&session).join("workspace"));
+            let directory = outcomes
+                .first()
+                .map(|outcome| outcome.directory.clone())
+                .or_else(|| {
+                    captured
+                        .as_ref()
+                        .ok()
+                        .map(|workspace| workspace.directory.clone())
+                })
+                .or(self
+                    .store
+                    .session_policy(&session.id)?
+                    .map(|policy| policy.cwd))
+                .filter(|path| path.is_absolute())
+                .context(
+                    "outcome_location_unknown: this session has no captured working directory",
+                )?;
+            let mut paths = outcomes
                 .into_iter()
                 .flat_map(|outcome| outcome.artifacts)
                 .map(|artifact| artifact.path)
@@ -397,7 +414,7 @@ impl Engine {
             paths.sort();
             paths.dedup();
             let summary = if paths.is_empty() {
-                match Workspace::load(&self.store.session_dir(&session).join("workspace")) {
+                match captured {
                     Ok(captured) => format!(
                         "Recorded working directory: {}. Current files in that directory: {}. Session status: {}.",
                         captured.directory.display(),
@@ -423,7 +440,7 @@ impl Engine {
             });
             return Ok(RunOutcome {
                 session,
-                workspace: project.path.clone(),
+                workspace: directory,
                 summary,
             });
         }
