@@ -1,10 +1,14 @@
 //! Trusted offline driver. Acceptance exports are derived from runtime records.
+mod budget_protocol;
 mod concurrency_protocol;
 mod effort_protocol;
 mod export;
 mod location_protocol;
+mod partial_protocol;
 mod protocols;
+mod roster_protocol;
 mod script;
+mod task_protocol;
 mod team_protocol;
 mod workflows;
 use anyhow::{ensure, Result};

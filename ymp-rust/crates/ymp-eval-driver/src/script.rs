@@ -32,6 +32,9 @@ impl NativeJournal {
     pub fn save(&self, directory: &Path) -> Result<()> {
         write_json(&directory.join("native.json"), &*self.rows.lock().unwrap())
     }
+    pub fn snapshot(&self) -> Vec<Value> {
+        self.rows.lock().unwrap().clone()
+    }
     pub fn peak(&self) -> usize {
         self.peak.load(Ordering::SeqCst)
     }

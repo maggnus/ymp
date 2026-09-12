@@ -84,7 +84,9 @@ fn phase(assignment: &AssignmentRecord) -> &'static str {
     match assignment.purpose.as_str() {
         "plan" | "bid" => "planning",
         "execute" if assignment.task.as_ref().is_some_and(|t| t.attempt > 1) => "retry",
-        "execute" => "execution",
+        "execute" | "execution" => "execution",
+        "retry" => "retry",
+        "consultation" => "consultation",
         "review" | "review_plan" | "final_review" | "review_memory" => "review",
         "learn" => "consultation",
         _ => "communication",

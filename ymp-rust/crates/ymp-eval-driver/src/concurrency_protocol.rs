@@ -7,10 +7,7 @@ use std::{collections::BTreeMap, path::Path, sync::Arc, time::Instant};
 use tokio::sync::{mpsc, Notify};
 use tokio_util::sync::CancellationToken;
 use ymp_core::*;
-use ymp_providers::{
-    run_turn_with_backend, ExecutionBackend, ExecutionFuture, ProviderEvent, TurnRequest,
-    TurnResult,
-};
+use ymp_providers::{ExecutionBackend, ExecutionFuture, ProviderEvent, TurnRequest, TurnResult};
 use ymp_runtime::{mcp::TeamServer, Engine, WorkspaceAdmission, WorkspaceReservation};
 use ymp_storage::Store;
 
@@ -102,11 +99,24 @@ pub(crate) async fn execute_reserved(
     store: Store,
     server: Arc<TeamServer>,
     backend: Arc<dyn ExecutionBackend>,
+    lease: Box<WorkspaceReservation>,
+    request: TurnRequest,
+    session: String,
+) -> Result<()> {
+    execute_reserved_with_allowance(store, server, backend, lease, request, session, None).await
+}
+
+pub(crate) async fn execute_reserved_with_allowance(
+    store: Store,
+    server: Arc<TeamServer>,
+    backend: Arc<dyn ExecutionBackend>,
     mut lease: Box<WorkspaceReservation>,
     mut request: TurnRequest,
     session: String,
+    token_reservation: Option<u64>,
 ) -> Result<()> {
     let mut assignment = AssignmentRecord {
+        token_reservation,
         id: lease.assignment_id().into(),
         session_id: session.clone(),
         task: None,
@@ -184,13 +194,14 @@ pub(crate) async fn execute_reserved(
         }
         anyhow::Ok(())
     });
-    let result = run_turn_with_backend(
-        backend.as_ref(),
-        request,
-        CancellationToken::new(),
-        events.clone(),
-    )
-    .await;
+    let result = lease
+        .run_turn(
+            backend.as_ref(),
+            request,
+            CancellationToken::new(),
+            events.clone(),
+        )
+        .await;
     drop(events);
     capture.await??;
     server.finish(
