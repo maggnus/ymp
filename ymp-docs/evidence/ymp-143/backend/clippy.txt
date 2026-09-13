@@ -1,0 +1,2 @@
+    Checking ymp-workspace v0.4.5 (/Users/maggnus/Code/ymp2/ymp-rust/crates/ymp-workspace)
+    Finished `dev` profile [unoptimized] target(s) in 0.55s

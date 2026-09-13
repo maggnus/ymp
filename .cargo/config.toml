@@ -1,0 +1,3 @@
+# Git and compression are built into ymp; deployment needs no separate libgit2 or zlib package.
+[env]
+LIBZ_SYS_STATIC = { value = "1", force = true }

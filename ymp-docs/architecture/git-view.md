@@ -93,3 +93,13 @@ gix0.87.1 was reviewed as a pure-Rust alternative. Its low-level worktree mutati
 require more host assembly for this scoped branch-switch operation. It was not added alongside
 git2. Both are viable libraries; choosing git2 here is a scope/API decision, not a claim that gix
 cannot implement the behavior. Exact dependency metadata is retained in evidence.
+
+The owner clarified distribution: ymp itself is one executable on Linux and macOS; installed
+agent providers and their execution runtimes are the explicit exception. This task does not
+redesign provider integration. Git operations must remain embedded and work without Git on PATH.
+
+The UI must use `switch_branch_guarded(cwd, branch, expected_head, guard)` with the acquired
+StoreLock. This moves ownership into the actual blocking library worker, so cancellation of
+an async waiter cannot release the project lock while checkout continues. The unguarded entry
+point is for isolated backend callers/tests with their own admission policy. Compression is
+statically bundled through the committed Cargo LIBZ_SYS_STATIC setting.
