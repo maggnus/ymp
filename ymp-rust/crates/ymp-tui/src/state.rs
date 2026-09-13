@@ -385,11 +385,18 @@ impl App {
     /// A paste must never land in a field the reader cannot see. When an editor or the
     /// command palette is open it receives the text; otherwise it goes to the composer,
     /// and the focus follows it so the result is visible. Overlays that have no field,
-    /// such as a confirmation, ignore the paste rather than leaking it underneath.
+    /// such as a confirmation, ignore the paste rather than leaking it underneath. A page filter
+    /// being typed owns the keys, so it takes the text as one line and the composer, where Enter
+    /// would start a task, is left untouched.
     pub fn paste(&mut self, text: &str) {
         self.dirty = true;
         self.exit_requested = None;
         let normalized = text.replace("\r\n", "\n").replace('\r', "\n");
+        if self.overlay.is_none() && self.table.typing && self.focus == Focus::Main {
+            self.table.filter.push_str(&normalized.replace('\n', " "));
+            self.rearrange();
+            return;
+        }
         match &mut self.overlay {
             Some(Overlay::Prompt {
                 target: PromptTarget::AgentInstructions(_),
@@ -406,6 +413,7 @@ impl App {
             }
             Some(_) => {}
             None => {
+                self.table.typing = false;
                 self.focus = Focus::Composer;
                 self.input.insert_str(&normalized);
             }
@@ -1346,6 +1354,10 @@ impl App {
             KeyCode::Up | KeyCode::Char('k') => self.move_page_selection(-1, width),
             KeyCode::Down | KeyCode::Char('j') => self.move_page_selection(1, width),
             KeyCode::Home => {
+                // Build first: a record remembered from an event since the last frame is put
+                // back now, so it cannot take the selection back from Home afterwards.
+                let built = self.page_width(width);
+                self.page(built);
                 self.page_selected = 0;
                 self.move_page_selection(0, width);
             }
@@ -1880,6 +1892,8 @@ impl App {
                 if let Some(command) = matches.get(selected.min(matches.len().saturating_sub(1))) {
                     if !command.complete_alone() {
                         self.input.set(format!("{} ", command.name));
+                        // The keys move to the composer, so a filter being typed ends here.
+                        self.table.typing = false;
                         self.focus = Focus::Composer;
                         return Vec::new();
                     }
