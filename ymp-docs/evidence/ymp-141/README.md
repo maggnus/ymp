@@ -64,3 +64,44 @@ directory inside the worktree, once on the final code.
 - No real-terminal capture; the parent's terminal checker covers that separately.
 - Palette, theme chooser, prompt and confirmation were audited in source (they always pass
   `scroll: 0`) and exercised by the existing workspace tests, not by new popup-specific tests.
+
+## Choice lists longer than their surface
+
+A later source audit found the same shrinking in the lists that window their entries. The command
+palette and the Git worktree and branch choosers kept a row for `N more` only while entries
+remained below, so selecting the last entry drew the surface one row shorter. The theme chooser
+had the same condition, and its height also followed the number of lines the chosen theme's
+summary wraps to.
+
+- `more_line` in `ui.rs` gives every list that does not fit the same row under it: the count of
+  entries below, or a blank row once the last is shown. The palette, the Git chooser and the theme
+  chooser push it whenever the list overflows, not only while entries remain below.
+- The theme chooser gives the chosen summary the rows of the longest summary in the catalogue at
+  the current width, padding the difference after the list.
+- How many entries are listed, where the selection sits, the wording, the colours and the keys are
+  unchanged.
+
+`a_choice_list_longer_than_its_surface_keeps_its_size_from_the_first_entry_to_the_last` opens
+the palette (every command), the theme chooser (every theme) and the branch chooser (40 branches)
+at 120×36 and 60×16. It moves each from the first entry down to the last and back up to the middle,
+then presses `Home` and `End` where the list takes them. After every key it requires the surface
+rect to equal the first drawing and the selected entry to be painted inside it.
+
+| File | What it shows |
+| --- | --- |
+| [choice-lists-before.txt](choice-lists-before.txt) | Lists unchanged: the palette at both sizes and the branch chooser at both sizes lose a row on the last entry, and the theme chooser at 120×36 grows a row on themes whose summary wraps to two lines. |
+| [choice-lists-after.txt](choice-lists-after.txt) | With the correction: the new test and the existing palette, theme and Git chooser tests pass. |
+
+Checks after the correction, run once with `CARGO_BUILD_JOBS=2`, `CARGO_PROFILE_DEV_DEBUG=0`,
+`CARGO_INCREMENTAL=0` and a target directory inside the worktree:
+
+| Check | Result | Output |
+| --- | --- | --- |
+| `cargo fmt --all --check` | exit 0 | [choice-lists-fmt.txt](choice-lists-fmt.txt) |
+| Related tests (the new test, palette, theme chooser, Git choosers) | exit 0; 11 passed | [choice-lists-after.txt](choice-lists-after.txt) |
+| `cargo clippy --workspace --all-targets -- -D warnings` | exit 0 | [choice-lists-clippy.txt](choice-lists-clippy.txt) |
+| `cargo test --workspace` | exit 0; 573 passed, 0 failed, 2 ignored | [choice-lists-workspace-tests.txt](choice-lists-workspace-tests.txt) |
+
+Not covered: no real-terminal run; the worktree chooser shares the branch chooser's code path and
+is not walked separately; a theme chooser in a window too short for its whole body is clipped at
+the tallest surface, as before.

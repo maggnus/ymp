@@ -943,6 +943,19 @@ fn command_line(
     ])
 }
 
+/// The row under a list that does not fit its surface: how many entries follow the last one shown,
+/// or a blank row once the last is shown, so moving the selection never changes the surface's
+/// height.
+fn more_line(below: usize, theme: &Theme) -> Line<'static> {
+    if below == 0 {
+        return Line::default();
+    }
+    Line::from(Span::styled(
+        format!("{} {below} more", theme.markers.more),
+        theme.faint(),
+    ))
+}
+
 /// Draw whichever floating surface is open, and return where its cursor belongs.
 fn overlay(frame: &mut Frame, area: Rect, regions: &[Rect], app: &App) -> Option<(u16, u16)> {
     let theme = &app.theme;
@@ -961,13 +974,22 @@ fn overlay(frame: &mut Frame, area: Rect, regions: &[Rect], app: &App) -> Option
             let themes = theme::catalog();
             // The list takes no more rows than the surface shows, keeping one for the count of
             // the themes below when they do not all fit, so the selection never sits on a row the
-            // surface cuts off. Only the chosen theme's summary follows its row, below it.
+            // surface cuts off. Only the chosen theme's summary follows its row, below it, and it
+            // is given the rows of the longest summary, so the surface keeps one height whichever
+            // theme is chosen.
             let rows = frame::modal_body_rows(area.height, true);
             let mut visible = THEME_ROWS.min(themes.len());
             if visible + usize::from(themes.len() > visible) > rows {
                 visible = rows.saturating_sub(1).max(1);
             }
             let first = selected.saturating_sub(visible.saturating_sub(1));
+            let summary_width = inner.saturating_sub(2);
+            let summary_rows = themes
+                .iter()
+                .map(|palette| text::wrap(palette.summary, summary_width).len())
+                .max()
+                .unwrap_or(0);
+            let mut summary_shown = 0;
             let mut body = Vec::new();
             for (index, palette) in themes.iter().enumerate().skip(first).take(visible) {
                 let chosen = index == *selected;
@@ -995,7 +1017,9 @@ fn overlay(frame: &mut Frame, area: Rect, regions: &[Rect], app: &App) -> Option
                     swatches(palette, inner.saturating_sub(name_width + kind_width + 5)),
                 ));
                 if chosen {
-                    for piece in text::wrap(palette.summary, inner.saturating_sub(2)) {
+                    let pieces = text::wrap(palette.summary, summary_width);
+                    summary_shown = pieces.len();
+                    for piece in pieces {
                         body.push(Line::from(vec![
                             Span::raw("  ".to_owned()),
                             Span::styled(piece, theme.faint()),
@@ -1003,12 +1027,13 @@ fn overlay(frame: &mut Frame, area: Rect, regions: &[Rect], app: &App) -> Option
                     }
                 }
             }
-            let below = themes.len().saturating_sub(first + visible);
-            if below > 0 {
-                body.push(Line::from(Span::styled(
-                    format!("{} {below} more", theme.markers.more),
-                    theme.faint(),
-                )));
+            body.extend(std::iter::repeat_n(
+                Line::default(),
+                summary_rows.saturating_sub(summary_shown),
+            ));
+            if themes.len() > visible {
+                let below = themes.len().saturating_sub(first + visible);
+                body.push(more_line(below, theme));
             }
             body.push(Line::default());
             body.push(Line::from(Span::styled(
@@ -1059,7 +1084,8 @@ fn overlay(frame: &mut Frame, area: Rect, regions: &[Rect], app: &App) -> Option
             let selected = (*selected).min(matches.len().saturating_sub(1));
             // The list takes no more rows than the surface shows under the search line, keeping
             // one for the count of the commands below when they do not all fit, so the selection
-            // never sits on a row the surface cuts off.
+            // never sits on a row the surface cuts off. That row stays, blank, once the last
+            // command is shown.
             let rows = frame::modal_body_rows(area.height, true).saturating_sub(body.len());
             let mut visible = PALETTE_ROWS.min(matches.len());
             if visible + usize::from(matches.len() > visible) > rows {
@@ -1076,12 +1102,9 @@ fn overlay(frame: &mut Frame, area: Rect, regions: &[Rect], app: &App) -> Option
                     theme,
                 ));
             }
-            let below = matches.len().saturating_sub(first + visible);
-            if below > 0 {
-                body.push(Line::from(Span::styled(
-                    format!("{} {below} more", theme.markers.more),
-                    theme.faint(),
-                )));
+            if matches.len() > visible {
+                let below = matches.len().saturating_sub(first + visible);
+                body.push(more_line(below, theme));
             }
             let rect = frame::render_modal(
                 frame,
@@ -1223,7 +1246,8 @@ fn overlay(frame: &mut Frame, area: Rect, regions: &[Rect], app: &App) -> Option
             let width = 76u16.min(area.width.saturating_sub(4));
             let inner = frame::modal_content_width(width) as usize;
             // As in the palette: no more rows than the surface shows, keeping one for the count of
-            // those below, so the selection never sits on a row the surface cuts off.
+            // those below, blank once the last is shown, so the selection never sits on a row the
+            // surface cuts off and the surface keeps its height.
             let rows = frame::modal_body_rows(area.height, true);
             let mut visible = options.len();
             if visible > rows {
@@ -1267,12 +1291,9 @@ fn overlay(frame: &mut Frame, area: Rect, regions: &[Rect], app: &App) -> Option
                     )],
                 ));
             }
-            let below = options.len().saturating_sub(first + visible);
-            if below > 0 {
-                body.push(Line::from(Span::styled(
-                    format!("{} {below} more", theme.markers.more),
-                    theme.faint(),
-                )));
+            if options.len() > visible {
+                let below = options.len().saturating_sub(first + visible);
+                body.push(more_line(below, theme));
             }
             let (title, badge, action) = match purpose {
                 Purpose::Worktree => ("Inspect a worktree", "read only", "inspect"),

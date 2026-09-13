@@ -11278,3 +11278,166 @@ fn the_worktree_chooser_keeps_the_end_of_paths_that_share_a_long_prefix() {
         }
     }
 }
+
+/// Press `keys` on an open choice list and return what went wrong at any step: the surface drawn
+/// at `width`x`height` under `badge` changed size from its first drawing, or the entry `chosen`
+/// names left it.
+fn choice_list_failures(
+    app: &mut App,
+    (width, height): (u16, u16),
+    badge: &str,
+    keys: &[KeyCode],
+    chosen: fn(&App) -> String,
+) -> Vec<String> {
+    let mut opened = None;
+    let mut failures = Vec::new();
+    let steps = std::iter::once(None).chain(keys.iter().copied().map(Some));
+    for (step, code) in steps.enumerate() {
+        if let Some(code) = code {
+            app.on_key(key(code), width);
+        }
+        let buffer = drawn(app, width, height);
+        let rect = surface_rect(&buffer, badge);
+        let rows: Vec<String> = (rect.y..rect.bottom())
+            .map(|y| {
+                (rect.x..rect.right())
+                    .map(|x| buffer[(x, y)].symbol())
+                    .collect()
+            })
+            .collect();
+        let opened = *opened.get_or_insert(rect);
+        if rect != opened {
+            failures.push(format!(
+                "{badge} at {width}x{height}: {opened:?} became {rect:?} after {step} keys:\n{}",
+                rows.join("\n")
+            ));
+        }
+        let wanted = chosen(app);
+        if !rows.iter().any(|row| row.contains(&wanted)) {
+            failures.push(format!(
+                "{wanted:?} left {badge} at {width}x{height} after {step} keys:\n{}",
+                rows.join("\n")
+            ));
+        }
+    }
+    failures
+}
+
+/// Down to the last entry of `count`, back up to the middle, then Home and End when the list
+/// takes them.
+fn first_middle_last(count: usize, home_and_end: bool) -> Vec<KeyCode> {
+    let mut keys = vec![KeyCode::Down; count - 1];
+    keys.extend(vec![KeyCode::Up; count / 2]);
+    if home_and_end {
+        keys.extend([KeyCode::Home, KeyCode::End]);
+    }
+    keys
+}
+
+#[test]
+fn a_choice_list_longer_than_its_surface_keeps_its_size_from_the_first_entry_to_the_last() {
+    let fixture = fixture();
+    let root = fixture.project.path().to_path_buf();
+    let commands = crate::commands::search("").len();
+    let branches: Vec<Branch> = (0..40)
+        .map(|index| Branch {
+            name: format!("topic-{index:02}"),
+            current: index == 0,
+            worktree: (index == 0).then(|| root.clone()),
+        })
+        .collect();
+    let mut failures = Vec::new();
+    for size in [(120u16, 36u16), (60, 16)] {
+        let mut app = fixture.app();
+        app.on_key(control('p'), size.0);
+        failures.extend(choice_list_failures(
+            &mut app,
+            size,
+            &format!("{commands} of {}", crate::commands::COMMANDS.len()),
+            &first_middle_last(commands, false),
+            |app| match &app.overlay {
+                Some(Overlay::Palette { selected, .. }) => format!(
+                    "{} {}",
+                    app.theme.markers.selection,
+                    crate::commands::search("")[*selected].name
+                ),
+                _ => panic!("the palette closed"),
+            },
+        ));
+
+        let mut app = fixture.app();
+        app.on_key(control('t'), size.0);
+        app.on_key(key(KeyCode::Home), size.0);
+        failures.extend(choice_list_failures(
+            &mut app,
+            size,
+            "saved on Enter",
+            &first_middle_last(theme::catalog().len(), true),
+            |app| match &app.overlay {
+                Some(Overlay::Themes { selected, .. }) => format!(
+                    "{} {}",
+                    app.theme.markers.selection,
+                    theme::catalog()[*selected].name
+                ),
+                _ => panic!("the theme chooser closed"),
+            },
+        ));
+
+        let mut app = fixture.app();
+        app.command("/git", size.0);
+        let first = git_request(&mut app, Instant::now());
+        answer_reading(
+            &mut app,
+            first,
+            Ok(git_snapshot(
+                &root,
+                Comparison::Committed,
+                false,
+                Vec::new(),
+            )),
+        );
+        app.on_key(key(KeyCode::Char('b')), size.0);
+        let Request::Choices {
+            generation,
+            purpose,
+            ..
+        } = git_request(&mut app, Instant::now())
+        else {
+            panic!("b did not ask for the branches");
+        };
+        app.git_reply(Reply::Choices {
+            generation,
+            purpose,
+            result: Ok(Choices {
+                worktrees: Vec::new(),
+                branches: branches.clone(),
+            }),
+        });
+        app.on_key(key(KeyCode::Home), size.0);
+        failures.extend(choice_list_failures(
+            &mut app,
+            size,
+            "checks out",
+            &first_middle_last(branches.len(), true),
+            |app| match &app.overlay {
+                Some(Overlay::GitChoice {
+                    options, selected, ..
+                }) => format!(
+                    "{} {}",
+                    app.theme.markers.selection, options[*selected].label
+                ),
+                _ => panic!("the branch chooser closed"),
+            },
+        ));
+    }
+    let heads: Vec<&str> = failures
+        .iter()
+        .filter_map(|failure| failure.lines().next())
+        .collect();
+    assert!(
+        failures.is_empty(),
+        "{}\n\nThe first in full:\n{}",
+        heads.join("\n"),
+        failures.first().map_or("", String::as_str)
+    );
+}

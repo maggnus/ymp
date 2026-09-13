@@ -1,0 +1,50 @@
+   Compiling ymp-tui v0.4.5 (/Users/maggnus/.paseo/worktrees/1ms2ynax/ymp141-popup-scroll/ymp-rust/crates/ymp-tui)
+    Finished `test` profile [unoptimized] target(s) in 3.24s
+     Running unittests src/lib.rs (target/debug/deps/ymp_tui-6095038d9173546d)
+
+running 1 test
+test tests::a_choice_list_longer_than_its_surface_keeps_its_size_from_the_first_entry_to_the_last ... FAILED
+
+failures:
+
+---- tests::a_choice_list_longer_than_its_surface_keeps_its_size_from_the_first_entry_to_the_last stdout ----
+
+thread 'tests::a_choice_list_longer_than_its_surface_keeps_its_size_from_the_first_entry_to_the_last' panicked at ymp-rust/crates/ymp-tui/src/tests.rs:11425:5:
+26 of 26 at 120x36: Rect { x: 24, y: 6, width: 72, height: 17 } became Rect { x: 24, y: 6, width: 72, height: 16 } after 25 keys:
+saved on Enter at 120x36: Rect { x: 31, y: 6, width: 58, height: 17 } became Rect { x: 31, y: 6, width: 58, height: 18 } after 1 keys:
+saved on Enter at 120x36: Rect { x: 31, y: 6, width: 58, height: 17 } became Rect { x: 31, y: 6, width: 58, height: 18 } after 4 keys:
+saved on Enter at 120x36: Rect { x: 31, y: 6, width: 58, height: 17 } became Rect { x: 31, y: 6, width: 58, height: 18 } after 5 keys:
+checks out at 120x36: Rect { x: 22, y: 0, width: 76, height: 34 } became Rect { x: 22, y: 1, width: 76, height: 33 } after 39 keys:
+checks out at 120x36: Rect { x: 22, y: 0, width: 76, height: 34 } became Rect { x: 22, y: 1, width: 76, height: 33 } after 61 keys:
+26 of 26 at 60x16: Rect { x: 2, y: 0, width: 56, height: 14 } became Rect { x: 2, y: 1, width: 56, height: 13 } after 25 keys:
+checks out at 60x16: Rect { x: 2, y: 0, width: 56, height: 14 } became Rect { x: 2, y: 1, width: 56, height: 13 } after 39 keys:
+checks out at 60x16: Rect { x: 2, y: 0, width: 56, height: 14 } became Rect { x: 2, y: 1, width: 56, height: 13 } after 61 keys:
+
+The first in full:
+26 of 26 at 120x36: Rect { x: 24, y: 6, width: 72, height: 17 } became Rect { x: 24, y: 6, width: 72, height: 16 } after 25 keys:
+┌ Commands ────────────────────────────────────────────────── 26 of 26 ┐
+│ › Type to search commands                                            │
+│ ──────────────────────────────────────────────────────────────────── │
+│   /team         Team membership for new sessions.                    │
+│   /limits       Turn budget and parallelism for the next run.        │
+│   /memory       Search verified project and global knowledge, or re… │
+│   /reputation   Evidence behind competence estimates.                │
+│   /theme        Choose a colour theme. The choice is remembered.     │
+│   /sidebar      Show or hide the context sidebar.                    │
+│   /resume       Continue an interrupted run. This starts agents.     │
+│   /pause        Stop active turns and keep the session resumable.    │
+│   /stop         Stop active turns immediately, without leaving ymp.  │
+│ › /quit         Leave ymp. Active work is stopped first, and the co… │
+│                                                                      │
+│ Enter run  Up/Down select  Esc close                                 │
+└──────────────────────────────────────────────────────────────────────┘
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    tests::a_choice_list_longer_than_its_surface_keeps_its_size_from_the_first_entry_to_the_last
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 267 filtered out; finished in 0.52s
+
+error: test failed, to rerun pass `-p ymp-tui --lib`
+exit=101

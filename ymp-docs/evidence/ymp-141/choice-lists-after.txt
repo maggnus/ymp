@@ -1,0 +1,20 @@
+   Compiling ymp-tui v0.4.5 (/Users/maggnus/.paseo/worktrees/1ms2ynax/ymp141-popup-scroll/ymp-rust/crates/ymp-tui)
+    Finished `test` profile [unoptimized] target(s) in 3.16s
+     Running unittests src/lib.rs (target/debug/deps/ymp_tui-6095038d9173546d)
+
+running 11 tests
+test theme::tests::every_palette_keeps_its_text_labels_and_selected_row_readable ... ok
+test theme::tests::the_catalog_offers_the_requested_library_palettes_in_order ... ok
+test tests::the_palette_runs_optional_argument_commands_and_drafts_required_ones ... ok
+test tests::the_command_palette_filters_and_closes_without_side_effects ... ok
+test tests::a_paste_while_a_filter_is_typed_stays_in_the_filter_and_the_palette_ends_typing ... ok
+test tests::the_theme_chooser_previews_and_esc_restores_the_stored_choice ... ok
+test tests::a_branch_switch_is_confirmed_holds_runs_and_reports_what_happened ... ok
+test tests::the_worktree_chooser_keeps_the_end_of_paths_that_share_a_long_prefix ... ok
+test tests::the_palette_keeps_its_selection_in_view_on_a_short_terminal ... ok
+test tests::the_theme_chooser_keeps_its_selection_in_view_on_a_short_terminal ... ok
+test tests::a_choice_list_longer_than_its_surface_keeps_its_size_from_the_first_entry_to_the_last ... ok
+
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 257 filtered out; finished in 0.53s
+
+exit=0
