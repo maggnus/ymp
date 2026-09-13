@@ -1,10 +1,17 @@
 # Provider-named agents from native discovery
 
+The owner's subsequent clarification is explicit: primary agent labels are model
+names/identifiers, not descriptive `displayName` captions. Preserve descriptions,
+aliases and controls as native source metadata. A bound native model report takes
+precedence for an executing agent; the `default` alias and its descriptive caption must not appear
+as an agent/model label or concrete-model choice. YMP-132 binds messages to exact invocations so later choices
+cannot relabel earlier authorship.
+
 Owner clarification, 2026-09-13: displayed agent names must come from Claude Code, Codex and other enabled systems after scanning their available offerings. Provider labels such as `Claude`, `Codex` and `GLM` are transport identities, not the selectable team members. Do not replace them with a hand-maintained list of model marketing names.
 
 The implementation at task registration failed this requirement in two places. Default configuration created three provider-named profiles with no model. Native capability collection obtained model identifiers and controls, but dropped display names and did not populate the selectable pool. The owner's local configuration still contained those three placeholders. This is a product correction, tracked as YMP-127, not a change to the approved intent file.
 
-Native scanning must preserve the exact returned identifiers, display names, aliases/resolved identifiers when supplied, and effort/control choices with their source and observation time. A returned identifier is the factual fallback when no separate display name is supplied. Missing metadata stays unknown; unavailable names or effort settings are not manufactured. Preserve provider-specific control names and values rather than assuming one universal effort ladder.
+Native scanning must preserve the exact returned identifiers, display names, aliases/resolved identifiers when supplied, and effort/control choices with their source and observation time. The returned model identifier is the primary agent label; separate display names and descriptions remain source metadata. Missing metadata stays unknown; unavailable names or effort settings are not manufactured. Preserve provider-specific control names and values rather than assuming one universal effort ladder.
 
 The discovered catalog must reach actual agent-pool and team selection, not only a diagnostics command. Names shown for an effective assignment must agree with its recorded native model/settings. Provider identity is a separate technical field. Stable local actor IDs, instructions/context, user pins, custom configuration and captured historical identities remain distinct from presentation metadata. Refreshing a catalog does not enroll every offering, rewrite historical sessions, duplicate actors or reset qualified experience merely because a timestamp changed.
 
@@ -37,8 +44,8 @@ correction. All three installations returned metadata: eight Codex offerings, fi
 offerings and six GLM offerings. The scan migrated the three generated placeholders, added
 sixteen pool actors and preserved the original three-member starting roster. It also preserved
 all original configuration values and all 1,237 baseline history rows checked across seven
-tables. Names include the exact Claude label `Default (recommended)`; no manually chosen model
-name or effort was substituted. The [owner refresh audit](../research/evidence/native-catalog-owner-refresh.json)
+tables. That historical snapshot includes the exact Claude caption `Default (recommended)`; no manually chosen model
+name or effort was substituted. YMP-132 replaces its use as a primary agent label with the actual model identifier while preserving the snapshot. The [owner refresh audit](../research/evidence/native-catalog-owner-refresh.json)
 contains public identity fields, preservation checks and source/build evidence. It contains no
 conversation content, instructions or credentials. This backend audit does not claim that the
 pending UI review or release installation is complete.

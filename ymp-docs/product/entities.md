@@ -20,7 +20,7 @@ A model is an AI model available through a provider and selected as an execution
 
 ## Agent
 
-An agent is an individually identified participant with instructions, execution capabilities and a distinct work context. Its ID owns authorship, assignments, usage attribution and historical participation. Provider/model bindings supply execution resources; they do not replace that ID.
+An agent is an individually identified participant with instructions, execution capabilities and a distinct work context. Its ID owns authorship, assignments, usage attribution and historical participation. Provider/model bindings supply execution resources; they do not replace that ID. The interface labels a native agent with its model name/identifier and observed effort, while keeping provider identity separate. Descriptive catalog captions such as Default (recommended) do not identify a concrete model.
 
 An agent can plan, execute or verify different work. Roles and permissions are limited to one assignment; no permanent agent hierarchy or inherited authority exists. Configuration changes are versioned for execution evidence while the stable ID preserves history. Different IDs or model names alone do not establish statistically independent reasoning or independent verification.
 

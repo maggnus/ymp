@@ -14,7 +14,7 @@ A planned task is not implemented functionality. Completed research and planning
 | design | 1 | 1 |
 | documentation | 4 | 4 |
 | experiment | 0 | 4 |
-| implementation | 24 | 27 |
+| implementation | 24 | 29 |
 | research | 8 | 8 |
 | verification | 2 | 2 |
 
@@ -70,6 +70,8 @@ A planned task is not implemented functionality. Completed research and planning
 | `[x]` | [YMP-128](#ymp-128) | P1 | Support internal team transport with long metadata paths | 2026-09-12 21:24 |
 | `[x]` | [YMP-129](#ymp-129) | P1 | Recover bounded independent reviews after ACP output exhaustion | 2026-09-13 00:34 |
 | `[+]` | [YMP-130](#ymp-130) | P1 | Show active agent work during headless session runs | 2026-09-13 00:54 |
+| `[~]` | [YMP-131](#ymp-131) | P1 | Support deliberate double Ctrl+C exit and print session reopening command | 2026-09-13 01:12 |
+| `[~]` | [YMP-132](#ymp-132) | P1 | Attribute chat output to the actual agent invocation instead of provider-shaped actor IDs | 2026-09-13 01:27 |
 
 ## YMP-001
 
@@ -1684,6 +1686,62 @@ The headless event consumer prints Status and Message but discards AgentStatus, 
 - Show the active assignment, native agent/model when known and transition out of completed checks without waiting for a complete provider response.
 - Provide bounded progress while a native response is pending, distinguish waiting from observed activity, and show completion, cancellation and failure without duplicate requests.
 - Verify the terminal behavior with scripted events/providers only; preserve execution settings, budget and cancellation behavior. Delegate user-interface implementation to Claude Code as required by AGENTS.md.
+
+**Evidence:**
+
+- Pending.
+
+## YMP-131
+
+Support deliberate double Ctrl+C exit and print session reopening command
+
+**State:** `[~]` (in_progress) · **Type:** implementation · **Priority:** P1
+
+**Last update (UTC):** 2026-09-13 01:12
+
+**Current reason:** Claude Code Opus 5 max is implementing the clarified double-press behavior in an isolated worktree. Independent PTY control confirms the installed version lacks confirmation and exits on the first idle Ctrl+C.
+
+**Owner:** Maintainer
+
+**Authorization:** Owner explicitly requested Claude Code-style double Ctrl+C alongside /quit and supplied its session resume hint. UI implementation delegated to Claude Code Opus 5 max through Paseo.
+
+**Depends on:** [YMP-118](#ymp-118)
+
+Idle Ctrl+C currently exits immediately, active Ctrl+C only cancels, and exit provides no command to reopen the saved session.
+
+**Acceptance criteria:**
+
+- The first Ctrl+C only shows Press Ctrl-C again to exit and leaves active work/discovery and drafts unchanged. A second deliberate press within a short window begins graceful shutdown; ordinary input or expiry resets the sequence. Keyboard repeat/release events do not count as the second press.
+- Keep /quit as an explicit graceful exit and /stop as explicit cancellation. On committed exit show a closing status, cancel active work/discovery, wait boundedly for state recording and terminal cleanup, then print a shell-safe command to reopen the actual saved session with its workspace and custom metadata home when needed; print no invented session.
+- Verify idle, active, expiry/reset, repeat/release, /quit and exit output through offline tests and a PTY; run required Rust checks. Preserve user work and do not execute native providers as tests.
+
+**Evidence:**
+
+- Pending.
+
+## YMP-132
+
+Attribute chat output to the actual agent invocation instead of provider-shaped actor IDs
+
+**State:** `[~]` (in_progress) · **Type:** implementation · **Priority:** P1
+
+**Last update (UTC):** 2026-09-13 01:27
+
+**Current reason:** Local Paseo source review confirmed separate model ID/label/description and runtime model capture; no copied manifest. Existing native ymp catalog already resolves Claude default to claude-opus-5[1m], sonnet to claude-sonnet-5 and haiku to its concrete ID. Presentation must use resolved_model, then bound runtime reports. Independent backend review found decoded follow-up answers lacked origin; dcaebd1 fixes it and a failing-before/passing-after test covers the visible answer.
+
+**Owner:** Maintainer
+
+**Authorization:** Owner again reported fresh [claude · chat] output while the actual agent is claude-opus-5 and explicitly requires native agent names rather than provider labels.
+
+**Depends on:** [YMP-127](#ymp-127)
+
+Headless output prints Message.author directly. Stable actor IDs such as claude are storage identifiers, not the native agent name. Presentation must bind messages to their actual assignment/invocation to preserve historical model and effort.
+
+**Acceptance criteria:**
+
+- Display raw concrete model identifiers (for example claude-opus-5, gpt-5.6-sol, glm-5.2) as native agent names across selectable agents, team/sidebar, assignments and chat. Never show default or Default (recommended) as a displayed model/agent; omit unresolved default aliases from concrete-model choices. Show observed effort separately when known and existing unresolved actors without inventing a model.
+- Bind attribution to the originating invocation so a later model/effort change cannot relabel earlier messages. Preserve legacy unknown attribution explicitly; avoid timestamp guesses when an exact linkage exists.
+- Use the same attribution contract for headless output and TUI transcript, with offline coverage of two invocations using different settings, native default-alias resolution, unknown effort and system/user messages. UI changes use the delegated Claude Code implementer.
 
 **Evidence:**
 

@@ -3057,6 +3057,93 @@
           "note": "Read-only diagnosis: poker checks passed at 2026-09-13T00:52:09Z; the following claude-opus-5 review invocation was active. Earlier attempts were cancelled. No active run was stopped or restarted by this investigation."
         }
       ]
+    },
+    {
+      "id": "YMP-131",
+      "title": "Support deliberate double Ctrl+C exit and print session reopening command",
+      "type": "implementation",
+      "priority": "P1",
+      "status": "in_progress",
+      "owner": "Maintainer",
+      "authorization": "Owner explicitly requested Claude Code-style double Ctrl+C alongside /quit and supplied its session resume hint. UI implementation delegated to Claude Code Opus 5 max through Paseo.",
+      "depends_on": [
+        "YMP-118"
+      ],
+      "reason": "Idle Ctrl+C currently exits immediately, active Ctrl+C only cancels, and exit provides no command to reopen the saved session.",
+      "acceptance": [
+        "The first Ctrl+C only shows Press Ctrl-C again to exit and leaves active work/discovery and drafts unchanged. A second deliberate press within a short window begins graceful shutdown; ordinary input or expiry resets the sequence. Keyboard repeat/release events do not count as the second press.",
+        "Keep /quit as an explicit graceful exit and /stop as explicit cancellation. On committed exit show a closing status, cancel active work/discovery, wait boundedly for state recording and terminal cleanup, then print a shell-safe command to reopen the actual saved session with its workspace and custom metadata home when needed; print no invented session.",
+        "Verify idle, active, expiry/reset, repeat/release, /quit and exit output through offline tests and a PTY; run required Rust checks. Preserve user work and do not execute native providers as tests."
+      ],
+      "evidence": [],
+      "history": [
+        {
+          "at": "2026-09-13T00:58:55.150121+00:00",
+          "status": "in_progress",
+          "note": "Confirmed immediate idle Ctrl+C exit and missing post-terminal resume hint. Isolated worktree created for the requested Claude Code UI implementation; root owns integration and verification."
+        },
+        {
+          "at": "2026-09-13T00:59:21.224224+00:00",
+          "status": "in_progress",
+          "note": "Owner clarified the first Ctrl+C must only display the hint, without stopping anything; cancellation and shutdown occur only after the second press. Delegated implementation brief follows this clarified behavior."
+        },
+        {
+          "at": "2026-09-13T01:12:36.238184+00:00",
+          "status": "in_progress",
+          "note": "Claude Code Opus 5 max is implementing the clarified double-press behavior in an isolated worktree. Independent PTY control confirms the installed version lacks confirmation and exits on the first idle Ctrl+C."
+        }
+      ]
+    },
+    {
+      "id": "YMP-132",
+      "title": "Attribute chat output to the actual agent invocation instead of provider-shaped actor IDs",
+      "type": "implementation",
+      "priority": "P1",
+      "status": "in_progress",
+      "owner": "Maintainer",
+      "authorization": "Owner again reported fresh [claude \u00b7 chat] output while the actual agent is claude-opus-5 and explicitly requires native agent names rather than provider labels.",
+      "depends_on": [
+        "YMP-127"
+      ],
+      "reason": "Headless output prints Message.author directly. Stable actor IDs such as claude are storage identifiers, not the native agent name. Presentation must bind messages to their actual assignment/invocation to preserve historical model and effort.",
+      "acceptance": [
+        "Display raw concrete model identifiers (for example claude-opus-5, gpt-5.6-sol, glm-5.2) as native agent names across selectable agents, team/sidebar, assignments and chat. Never show default or Default (recommended) as a displayed model/agent; omit unresolved default aliases from concrete-model choices. Show observed effort separately when known and existing unresolved actors without inventing a model.",
+        "Bind attribution to the originating invocation so a later model/effort change cannot relabel earlier messages. Preserve legacy unknown attribution explicitly; avoid timestamp guesses when an exact linkage exists.",
+        "Use the same attribution contract for headless output and TUI transcript, with offline coverage of two invocations using different settings, native default-alias resolution, unknown effort and system/user messages. UI changes use the delegated Claude Code implementer."
+      ],
+      "evidence": [],
+      "history": [
+        {
+          "at": "2026-09-13T01:01:42.888941+00:00",
+          "status": "in_progress",
+          "note": "Confirmed CLI headless Message handler prints m.author verbatim. Investigating exact message/invocation linkage while Claude Code implements YMP-131; both changes will be verified before installation."
+        },
+        {
+          "at": "2026-09-13T01:12:36.238184+00:00",
+          "status": "in_progress",
+          "note": "Backend origin contract implemented in 1e13650: exact existing team-operation links plus atomic runtime response links, without a schema migration. Two storage tests and actual Engine test pass; removing the runtime link fails the regression. Claude Code is integrating shared presentation for actual reported model/effort and unresolved default aliases."
+        },
+        {
+          "at": "2026-09-13T01:17:28.303519+00:00",
+          "status": "in_progress",
+          "note": "Owner explicitly clarified model names/IDs, not descriptive native displayName captions. The delegated UI implementation will prioritize bound reported/resolved model identifiers; source metadata and stable actor IDs remain preserved."
+        },
+        {
+          "at": "2026-09-13T01:21:33.102973+00:00",
+          "status": "in_progress",
+          "note": "Owner considered keeping descriptions, then explicitly reaffirmed raw model names as the final choice. Current implementation direction remains raw model identifiers plus separately observed effort, with default marked unresolved."
+        },
+        {
+          "at": "2026-09-13T01:22:20.220307+00:00",
+          "status": "in_progress",
+          "note": "Final owner constraint: default must not be displayed at all as a model/agent. Unresolved default aliases are omitted from concrete-model choices; legacy actor history and factual protocol metadata remain intact."
+        },
+        {
+          "at": "2026-09-13T01:27:05.894976+00:00",
+          "status": "in_progress",
+          "note": "Local Paseo source review confirmed separate model ID/label/description and runtime model capture; no copied manifest. Existing native ymp catalog already resolves Claude default to claude-opus-5[1m], sonnet to claude-sonnet-5 and haiku to its concrete ID. Presentation must use resolved_model, then bound runtime reports. Independent backend review found decoded follow-up answers lacked origin; dcaebd1 fixes it and a failing-before/passing-after test covers the visible answer."
+        }
+      ]
     }
   ],
   "updated_at": "2026-09-13T00:12:07.131236+00:00",
@@ -3087,7 +3174,9 @@
     "YMP-126",
     "YMP-128",
     "YMP-121",
-    "YMP-129"
+    "YMP-129",
+    "YMP-131",
+    "YMP-132"
   ],
   "intent": "intent.md",
   "intent_sha256": "4479e919c5b47934e69e81ac493d16e90a0dc420a9a370382e79bca3f3c754d9",
@@ -3173,7 +3262,9 @@
       "title": "Post-release reliability corrections",
       "outcome": "Real reported failures receive bounded recovery without losing existing outcomes.",
       "task_ids": [
-        "YMP-129"
+        "YMP-129",
+        "YMP-131",
+        "YMP-132"
       ]
     }
   ],
