@@ -76,6 +76,28 @@ confirmation and independent-review boundaries. Preserve explicit owner pauses.
 Source: runtime/engine/recovery.rs367 and storage/recovery.rs146. Retained probe
 data: independent-recovery/legacy-true.json and legacy-false.json.
 
+### R3 evidence clarification before rework
+
+The author identified, and the maintainer verified in the original probe, that
+the no-remote-effects fact exists in Script's implementation/comment but is not
+transmitted to the runtime as complete effect-scope evidence. The persisted facts
+are WriteAll and ended execution; the original probe also calls no inspection API
+because none existed. Its unconditional completion assertion is therefore not a
+sufficient positive acceptance criterion by itself. Preserve that original probe
+and its observed failure unchanged; do not weaken runtime safety to satisfy it.
+
+Required rework remains an actual independently admitted inspection consumer and
+usable continuation. Add a positive public-API case with verifiable trusted
+scope/termination evidence and a durable insufficient-evidence negative control.
+Evidence needs a supported acquisition/verification path, session/stage/result
+binding and freshness checks. A raw Store safe setter, unsupported model claim
+or Mock-only exception is not an implementation of that boundary. Historical
+uncertainty remains, with linked resolution evidence rather than deletion.
+Unconfirmed termination, unresolved external effects and stale/misbound/changed
+observations must still refuse unsafe continuation. Inspection cannot silently
+clear owner holds or reset resource accounting. This clarification authorizes
+engineering work, not a safety attestation for the owner's real session.
+
 ## R4: failed executors remain occupied but are selected for independent work
 
 An executed five-task probe accepts T0, then T1/T2 fail with transport errors and
