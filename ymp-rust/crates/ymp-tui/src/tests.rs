@@ -7295,8 +7295,8 @@ fn every_message_names_the_model_and_effort_of_the_invocation_that_wrote_it() {
     assert_eq!(author("A runtime notice"), "ymp");
     assert_eq!(
         author("The first turn's plan"),
-        "claude-opus-5 (effort not reported)",
-        "the first turn is not named by the model it reported, with its missing effort said"
+        "claude-opus-5 none",
+        "the first turn is not named by the model it reported, with none for the effort it did not report"
     );
     assert_eq!(
         author("The second turn's report"),
@@ -7323,8 +7323,7 @@ fn every_message_names_the_model_and_effort_of_the_invocation_that_wrote_it() {
     }
     let rendered = draw(&mut app, 120, 30);
     assert!(
-        rendered.contains("glm-5.2 max")
-            && rendered.contains("claude-opus-5 (effort not reported)"),
+        rendered.contains("glm-5.2 max") && rendered.contains("claude-opus-5 none"),
         "the transcript does not show the invocation labels:\n{rendered}"
     );
 }

@@ -22,8 +22,8 @@ const MAX_CELLS: usize = 120;
 
 /// The label of an agent whose concrete model nothing recorded or resolved.
 pub const UNKNOWN_MODEL: &str = "unknown model";
-/// Beside a model whose invocation reported no effort.
-pub const UNREPORTED_EFFORT: &str = "(effort not reported)";
+/// The effort beside a model whose invocation reported none. Nothing is guessed in its place.
+pub const UNREPORTED_EFFORT: &str = "none";
 
 /// A native identifier that names a model rather than the internal default alias.
 fn concrete(id: &str) -> Option<&str> {
@@ -444,10 +444,7 @@ mod tests {
             settings(Some("default"), Some("max")),
             settings(None, None),
         );
-        assert_eq!(
-            invocation(&unreported),
-            "native-long-version[1m] (effort not reported)"
-        );
+        assert_eq!(invocation(&unreported), "native-long-version[1m] none");
         // A model sent explicitly is acknowledged rather than reported, and it is still the model.
         let explicit = linked(
             None,
@@ -463,7 +460,7 @@ mod tests {
             settings(Some("default"), None),
             settings(None, None),
         );
-        assert_eq!(invocation(&alias), "unknown model (effort not reported)");
+        assert_eq!(invocation(&alias), "unknown model none");
     }
 
     #[test]
