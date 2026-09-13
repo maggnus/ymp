@@ -3251,6 +3251,16 @@
           "at": "2026-09-13T05:34:21.043583+00:00",
           "status": "in_progress",
           "note": "Author committed 44b6a08 for historical record labels. Parent review found an explicit-invalid-invocation fallback that could still borrow another call; a narrow correction is requested. Shared effort-label change YMP-135 and the table primitives/page conversion continue on the combined base. Native execution and stored history are unchanged."
+        },
+        {
+          "at": "2026-09-13T05:46:38.232587+00:00",
+          "status": "in_progress",
+          "note": "Sidebar tables and the shared column-layout component are committed as d0b674a. Independent Claude Opus 5 high review is checking that immutable foundation while the author converts main-column pages and controls. Historical reference correction49b3c79 and effort-label change135 are already integrated and included in the passing 475-test pre-table checks."
+        },
+        {
+          "at": "2026-09-13T05:52:30.549270+00:00",
+          "status": "in_progress",
+          "note": "Independent high review of foundation d0b674a found two required fixes: preserve TEAM model/effort labels before activity text at narrow widths (T1), and guarantee total column widths plus gaps fit the available room (T2). Findings are sent to the author while main-page conversion continues; final tests must cover the width invariant and label legibility."
         }
       ]
     },
@@ -3345,7 +3355,7 @@
       ]
     }
   ],
-  "updated_at": "2026-09-13T05:41:31.969207+00:00",
+  "updated_at": "2026-09-13T05:52:30.549270+00:00",
   "delivery_order": [
     "YMP-116",
     "YMP-103",

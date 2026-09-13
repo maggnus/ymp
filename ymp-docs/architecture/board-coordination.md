@@ -38,7 +38,7 @@ Failure does not automatically increase effort, expand membership, replay native
 
 `Store::board` and `Engine::board` expose `BoardSnapshot`: session and plan version, versioned tasks with any current `BoardCommitment`, durable proposals with pending/committed/rejected status, and current `TeamState`. A commitment identifies its proposal, task, responsible agent and model/effort settings. Each `DecisionRecord.links.board` contains the strategy identity, original bound proposal, decision and rationale, any commitment and resulting plan version. This contains audit IDs, never capability secrets.
 
-Existing task and team views should show the responsible agent/settings, proposal disposition and reason, relevant versions and current/historical membership alongside existing acceptance/confirmation grades. Runtime task updates and board-decision messages use the existing event channel. Corresponding TUI changes belong to the separately delegated Claude Opus 5 max implementation; this backend artifact does not claim UI acceptance.
+Existing task and team views should show the responsible agent/settings, proposal disposition and reason, relevant versions and current/historical membership alongside existing acceptance/confirmation grades. Runtime task updates and board-decision messages use the existing event channel. Corresponding TUI changes belong to the separately delegated Claude Opus 5 implementation (high thinking for new assignments); this backend artifact does not claim UI acceptance.
 
 ## Executable evidence
 

@@ -158,6 +158,15 @@ provider = "demo"
         wait_for(lambda s: all(name in s for name in files), "empty-clear")
         passed("empty-filter-recovery")
 
+        type_text("/m-small")
+        keys("Enter")
+        type_text("d")
+        text = capture("filtered-row-inspect")
+        assert "read only" in text and "m-small.txt" in text, "Inspect did not open the filtered row"
+        keys("Escape", "Escape")
+        wait_for(lambda s: all(name in s for name in files), "inspect-return")
+        passed("inspect-filtered-row-and-return")
+
         for width, height in [(140, 45), (80, 24), (60, 24)]:
             tmux("resize-window", "-t", "check", "-x", str(width), "-y", str(height))
             time.sleep(0.2)
