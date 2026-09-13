@@ -7726,8 +7726,8 @@ fn every_message_names_the_model_and_effort_of_the_invocation_that_wrote_it() {
     assert_eq!(author("A runtime notice"), "ymp");
     assert_eq!(
         author("The first turn's plan"),
-        "claude-opus-5 none",
-        "the first turn is not named by the model it reported, with none for the effort it did not report"
+        "claude-opus-5",
+        "the first turn is not named by the model it reported alone, without an effort it did not report"
     );
     assert_eq!(
         author("The second turn's report"),
@@ -7754,7 +7754,9 @@ fn every_message_names_the_model_and_effort_of_the_invocation_that_wrote_it() {
     }
     let rendered = draw(&mut app, 120, 30);
     assert!(
-        rendered.contains("glm-5.2 max") && rendered.contains("claude-opus-5 none"),
+        rendered.contains("glm-5.2 max")
+            && rendered.contains("claude-opus-5")
+            && !rendered.contains("claude-opus-5 none"),
         "the transcript does not show the invocation labels:\n{rendered}"
     );
 }
@@ -8172,10 +8174,7 @@ fn a_conversation_that_moves_to_a_new_session_keeps_naming_the_earlier_messages(
         .unwrap();
     let mut app = app_with(&fixture, config.clone());
     app.load_session(&earlier).unwrap();
-    assert_eq!(
-        author_of(&mut app, "The earlier answer"),
-        "claude-opus-5 none"
-    );
+    assert_eq!(author_of(&mut app, "The earlier answer"), "claude-opus-5");
 
     // A follow-up that needs new work records a child session. Its first message opens that
     // session in the same window, below the conversation already shown.
@@ -8194,7 +8193,7 @@ fn a_conversation_that_moves_to_a_new_session_keeps_naming_the_earlier_messages(
     assert_eq!(app.session.as_deref(), Some(child.as_str()));
     assert_eq!(
         author_of(&mut app, "The earlier answer"),
-        "claude-opus-5 none",
+        "claude-opus-5",
         "the earlier session's message lost the invocation it is linked to"
     );
     assert_eq!(author_of(&mut app, "The follow-up answer"), "glm-5.2 max");
@@ -8208,7 +8207,7 @@ fn a_conversation_that_moves_to_a_new_session_keeps_naming_the_earlier_messages(
     });
     assert_eq!(
         author_of(&mut app, "The earlier answer"),
-        "claude-opus-5 none",
+        "claude-opus-5",
         "an earlier session's message was not resolved from its own records"
     );
 }
@@ -8233,10 +8232,7 @@ fn a_model_and_effort_reported_after_a_message_was_linked_rename_that_message() 
     let mut app = app_with(&fixture, config);
     app.load_session(&session).unwrap();
     app.active = true;
-    assert_eq!(
-        author_of(&mut app, "An answer written mid-turn"),
-        "glm-5.2 none"
-    );
+    assert_eq!(author_of(&mut app, "An answer written mid-turn"), "glm-5.2");
 
     report(&fixture, &session, &turn, (Some("glm-5.2"), Some("max")));
     app.event(UiEvent::AgentStatus {
@@ -8260,6 +8256,61 @@ fn a_model_and_effort_reported_after_a_message_was_linked_rename_that_message() 
     assert_eq!(
         author_of(&mut app, "An answer written mid-turn"),
         "glm-5.2 max"
+    );
+}
+
+#[test]
+fn a_thinking_switch_is_not_shown_as_an_effort_and_stays_in_the_details() {
+    let fixture = fixture();
+    let config = native_label_config();
+    let session = native_label_session(&fixture, &config);
+    let store = &fixture.store;
+    // What GLM installations report for glm-4.7 and glm-4.5-air: no effort was requested or
+    // sent, and the native binary thought control reads on. That is not a graded level.
+    let toggled = native_turn(
+        &fixture,
+        &session,
+        "transport-one",
+        captured("GLM-4.7", "glm-4.7", None),
+        (Some("glm-4.7"), Some("on")),
+    );
+    store
+        .invocation_message(&session, &toggled, "chat", "A switched-on answer")
+        .unwrap();
+    let air = native_turn(
+        &fixture,
+        &session,
+        "transport-two",
+        captured("GLM-4.5-Air", "glm-4.5-air", None),
+        (Some("glm-4.5-air"), Some("on")),
+    );
+    store
+        .invocation_message(&session, &air, "chat", "An air answer")
+        .unwrap();
+    // A native level called none, reported as such, is an effort and not missing metadata.
+    let none = native_turn(
+        &fixture,
+        &session,
+        "transport-one",
+        captured("Latest release", "glm-5.2", None),
+        (Some("glm-5.2"), Some("none")),
+    );
+    store
+        .invocation_message(&session, &none, "chat", "A reported none")
+        .unwrap();
+
+    let mut app = app_with(&fixture, config);
+    app.load_session(&session).unwrap();
+    assert_eq!(author_of(&mut app, "A switched-on answer"), "glm-4.7");
+    assert_eq!(author_of(&mut app, "An air answer"), "glm-4.5-air");
+    assert_eq!(author_of(&mut app, "A reported none"), "glm-5.2 none");
+
+    // The switch is kept exactly as the installation reported it.
+    app.command("/assignments", 100);
+    let detail = row_prose(&mut app, 100, "glm-4.7");
+    assert!(
+        detail.contains("the installation reported on"),
+        "the reported thought control is not kept in the record:\n{detail}"
     );
 }
 

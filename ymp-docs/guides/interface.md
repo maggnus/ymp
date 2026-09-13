@@ -52,9 +52,11 @@ Agents are named by model. Neither the caption an installation gives a model, su
 by the model and effort of the invocation it is bound to, for example `glm-5.2 max`: the model
 the installation reported for that turn, otherwise the concrete model that was sent, with the
 internal `default` alias resolved only through the identity captured for that turn. Effort
-appears only when the installation reported it; otherwise it reads `none`, as in
-`claude-opus-5 none`. The assignment details list requested, sent and reported effort
-separately. Two turns of one actor that ran different models or efforts therefore carry
+appears only when the installation reported a graded level. Where it reported none, the
+heading is the model alone, as in `claude-opus-5`. A binary thinking switch such as `on` or `off`
+is not a level either, so a GLM turn that reported `on` reads `glm-4.7`. A level the installation
+really reported as `none` stays, as in `glm-5.2 none`. The assignment details list requested,
+sent and reported effort separately and exactly as recorded. Two turns of one actor that ran different models or efforts therefore carry
 different headings. A message no recorded invocation is linked to, such as one written
 before messages were linked, reads `unknown model`; a later turn, a configuration change or the
 provider the actor uses now does not rename it. Your prompts stay `you`, runtime notices stay
