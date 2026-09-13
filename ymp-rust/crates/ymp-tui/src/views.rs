@@ -187,6 +187,11 @@ impl Item {
         }
     }
 
+    /// A row that is a record, as opposed to a note that explains its page.
+    pub fn is_record(&self) -> bool {
+        self.kind == ItemKind::Row && self.cells.len() > 1
+    }
+
     /// What a row reads as: its cells in order, empty ones left out.
     #[cfg(test)]
     pub fn text(&self) -> String {
@@ -2444,7 +2449,7 @@ fn roster_row(ctx: &Ctx) -> Item {
         vec![
             Cell::text(theme.markers.ok, theme.good()),
             Cell::text("roster", theme.text()),
-            Cell::text(
+            value_cell(
                 format!(
                     "{} member(s) · revision {}",
                     state.current_members.len(),
@@ -2516,7 +2521,7 @@ fn roster_rules_row(ctx: &Ctx) -> Item {
         vec![
             Cell::text(theme.markers.bullet, theme.faint()),
             Cell::text("roster rules", theme.text()),
-            Cell::text(size, theme.muted()),
+            value_cell(size, theme.muted()),
         ],
     )
     .with_detail(detail)
@@ -2980,7 +2985,9 @@ fn memory(ctx: &Ctx) -> anyhow::Result<Page> {
         "What current, superseded and corrected mean here",
         WHAT_RETAINED_KNOWLEDGE_IS,
     )];
-    items.push(Item::table("", &MEMORY_COLUMNS));
+    if !entries.is_empty() {
+        items.push(Item::table("", &MEMORY_COLUMNS));
+    }
     items.extend(
         entries
             .iter()
@@ -3511,6 +3518,19 @@ const WHAT_LIMITS_ARE: &[&str] = &[
     "Where a count is incomplete, a session follows the policy it captured: stop admitting under its ceiling, or go on admitting against what was reported. Going on does not complete the count, so what is left under the ceiling is then a reported remainder and not a known one.",
 ];
 
+/// A value that opens with a figure, such as `300 s` or `4 member(s)`, ordered by that figure so
+/// that 4 comes before 12. Any other value is ordered as text.
+fn value_cell(value: impl Into<String>, style: Style) -> Cell {
+    let value = value.into();
+    let digits: String = value.chars().take_while(char::is_ascii_digit).collect();
+    let figure = digits.parse::<i128>().ok();
+    let cell = Cell::text(value, style);
+    match figure {
+        Some(figure) => cell.sorted_by(SortKey::Number(figure)),
+        None => cell,
+    }
+}
+
 const LIMIT_COLUMNS: [Column; 2] = [Column::left("LIMIT").flex(), Column::left("VALUE")];
 
 fn limits(ctx: &Ctx) -> Page {
@@ -3559,7 +3579,7 @@ fn limits(ctx: &Ctx) -> Page {
                 key,
                 vec![
                     Cell::text(key, theme.text()),
-                    Cell::text(value, theme.accent()),
+                    value_cell(value, theme.accent()),
                 ],
             )
             .with_detail(detail),
@@ -3728,7 +3748,7 @@ fn captured_row(ctx: &Ctx, key: &str, label: &str, value: &str, description: &st
         key.to_owned(),
         vec![
             Cell::text(label, theme.text()),
-            Cell::text(value, theme.body()),
+            value_cell(value, theme.body()),
         ],
     )
     .with_detail(detail)
