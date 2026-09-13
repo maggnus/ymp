@@ -326,8 +326,13 @@ fn resolve_base(
                 .or_else(|| name.strip_prefix("refs/remotes/"))
                 .unwrap_or(&name)
                 .to_owned();
-            let notice = (requested.is_none() && branch.is_some_and(|branch| name == format!("refs/heads/{branch}")) && !matches!(label.as_str(), "main" | "master"))
-                .then(|| "No independent base branch was identified; comparing this branch with itself.".to_owned());
+            let notice = (requested.is_none()
+                && branch.is_some_and(|branch| name == format!("refs/heads/{branch}"))
+                && !matches!(label.as_str(), "main" | "master"))
+            .then(|| {
+                "No independent base branch was identified; comparing this branch with itself."
+                    .to_owned()
+            });
             return Ok(ResolvedBase {
                 label: Some(label),
                 oid: Some(commit.id()),
@@ -730,6 +735,25 @@ fn switch_sync(cwd: &Path, branch: &str, expected_head: Option<&str>) -> Result<
     }
     let target = repo.find_branch(branch, BranchType::Local)?;
     let target_ref = target.get().name()?.to_owned();
+    // Reserve reference updates before touching files. A pre-existing HEAD.lock must refuse
+    // the operation before checkout changes either the worktree or index.
+    let mut transaction = repo.transaction()?;
+    transaction.lock_ref("HEAD")?;
+    if let Ok(current) = repo.head() {
+        if current.is_branch() {
+            transaction.lock_ref(current.name()?)?;
+        }
+    }
+    transaction.lock_ref(&target_ref)?;
+    if identity(&repo)?.1.as_deref() != expected_head {
+        return Err(GitError::Stale);
+    }
+    transaction.set_symbolic_target(
+        "HEAD",
+        &target_ref,
+        None,
+        &format!("checkout: switching to {branch}"),
+    )?;
     let tree = target.get().peel_to_tree()?;
     // Preflight all paths for collisions without changing the worktree or index.
     let mut check = git2::build::CheckoutBuilder::new();
@@ -739,7 +763,7 @@ fn switch_sync(cwd: &Path, branch: &str, expected_head: Option<&str>) -> Result<
     let mut options = git2::build::CheckoutBuilder::new();
     options.safe().overwrite_ignored(false);
     repo.checkout_tree(tree.as_object(), Some(&mut options))?;
-    repo.set_head(&target_ref).map_err(|error| {
+    transaction.commit().map_err(|error| {
         GitError::Failed(format!(
             "Files were checked out but HEAD could not be updated; inspect the repository: {}",
             error.message()

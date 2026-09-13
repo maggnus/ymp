@@ -1,0 +1,25 @@
+   Compiling ymp-core v0.4.6 (/Users/maggnus/Code/ymp2/ymp-rust/crates/ymp-core)
+   Compiling ymp-workspace v0.4.6 (/Users/maggnus/Code/ymp2/ymp-rust/crates/ymp-workspace)
+    Finished `test` profile [unoptimized] target(s) in 4.40s
+     Running unittests src/lib.rs (target/debug/deps/ymp_workspace-53dce03cf1c40400)
+
+running 1 test
+test git::tests::a_locked_head_refuses_checkout_before_changing_files_or_index ... FAILED
+
+failures:
+
+---- git::tests::a_locked_head_refuses_checkout_before_changing_files_or_index stdout ----
+
+thread 'git::tests::a_locked_head_refuses_checkout_before_changing_files_or_index' panicked at ymp-rust/crates/ymp-workspace/src/git_tests.rs:382:5:
+assertion `left == right` failed
+  left: [102, 110, 32, 116, 97, 114, 103, 101, 116, 40, 41, 32, 123, 125, 10]
+ right: [102, 110, 32, 98, 101, 102, 111, 114, 101, 40, 41, 32, 123, 125, 10]
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    git::tests::a_locked_head_refuses_checkout_before_changing_files_or_index
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 24 filtered out; finished in 0.04s
+
+error: test failed, to rerun pass `-p ymp-workspace --lib`

@@ -18,3 +18,12 @@ timing checks are cooperative, and status enumeration itself can exceed the time
 This is a bound on concurrent admitted work, not a hard-duration guarantee on network mounts.
 
 The popup correction is independently authored and verified separately under YMP-141.
+
+## Reference-lock refusal
+
+A later adversarial check found that an existing HEAD.lock was rejected only after files and
+index were changed. `a_locked_head_refuses_checkout_before_changing_files_or_index` fails on the
+previous implementation (`head-lock-before.txt`). The switch now reserves HEAD, current branch
+and target branch references through a libgit2 transaction before checkout. Ten backend tests
+and strict package Clippy pass after the correction. This avoids the predictable lock refusal;
+it does not promise filesystem rollback if a device fails during checkout or reference commit.

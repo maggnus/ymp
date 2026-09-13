@@ -1,0 +1,3 @@
+    Checking ymp-core v0.4.6 (/Users/maggnus/Code/ymp2/ymp-rust/crates/ymp-core)
+    Checking ymp-workspace v0.4.6 (/Users/maggnus/Code/ymp2/ymp-rust/crates/ymp-workspace)
+    Finished `dev` profile [unoptimized] target(s) in 2.93s

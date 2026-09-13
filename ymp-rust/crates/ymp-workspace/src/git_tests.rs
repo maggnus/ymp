@@ -352,3 +352,33 @@ async fn cancellation_keeps_worker_ownership_until_blocking_work_finishes() {
     .await
     .unwrap();
 }
+
+#[tokio::test]
+async fn a_locked_head_refuses_checkout_before_changing_files_or_index() {
+    let f = Fixture::new();
+    let initial = f.initial();
+    let repo = f.repo();
+    let commit = repo.find_commit(Oid::from_str(&initial).unwrap()).unwrap();
+    repo.branch("target", &commit, false).unwrap();
+    switch_branch(f.root(), "target", Some(&initial))
+        .await
+        .unwrap();
+    f.write("code.rs", "fn target() {}\n");
+    f.stage("code.rs");
+    let target = f.commit();
+    switch_branch(f.root(), "main", Some(&target))
+        .await
+        .unwrap();
+    let before = fs::read(f.root().join("code.rs")).unwrap();
+    let index = fs::read(repo.path().join("index")).unwrap();
+    fs::write(
+        repo.path().join("HEAD.lock"),
+        "held by another Git operation\n",
+    )
+    .unwrap();
+    assert!(switch_branch(f.root(), "target", Some(&initial))
+        .await
+        .is_err());
+    assert_eq!(fs::read(f.root().join("code.rs")).unwrap(), before);
+    assert_eq!(fs::read(repo.path().join("index")).unwrap(), index);
+}
