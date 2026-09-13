@@ -452,11 +452,12 @@ pub async fn run(
     let bytes = std::fs::read(manifest_path)?;
     let hash = bytes_digest(&bytes);
     let manifest: Manifest = serde_json::from_slice(&bytes)?;
+    // Every concrete file/config/scope condition is reviewable without spending.
+    manifest.validate(scripted)?;
     // Authorization is external, never a model-authored field or a fixture flag.
     if !scripted {
         authorize(&manifest, &hash, approval, prerequisite)?;
     }
-    manifest.validate(scripted)?;
     std::fs::create_dir(&manifest.output)?;
     std::fs::create_dir(&manifest.workspace_root)?;
     write_json(&manifest.output.join("frozen-manifest.json"), &manifest)?;
