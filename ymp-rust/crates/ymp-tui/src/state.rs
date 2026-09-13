@@ -1855,7 +1855,7 @@ impl App {
     }
 
     fn theme_key(&mut self, key: KeyEvent, selected: usize, original: String) -> Vec<Action> {
-        let last = theme::THEMES.len() - 1;
+        let last = theme::catalog().len() - 1;
         let next = match key.code {
             KeyCode::Esc => {
                 // Preview only; leaving restores whatever was stored.
@@ -1863,7 +1863,7 @@ impl App {
                 return Vec::new();
             }
             KeyCode::Enter => {
-                let id = theme::THEMES[selected.min(last)].id;
+                let id = theme::catalog()[selected.min(last)].id;
                 self.persist_theme(id);
                 self.notice(format!("Theme set to {}.", theme::theme(id).name));
                 return Vec::new();
@@ -1875,7 +1875,7 @@ impl App {
             _ => selected,
         };
         // Live preview: the whole interface repaints in the highlighted palette.
-        self.apply_theme(theme::THEMES[next].id);
+        self.apply_theme(theme::catalog()[next].id);
         self.overlay = Some(Overlay::Themes {
             selected: next,
             original,
@@ -2114,10 +2114,10 @@ impl App {
             }
             "/theme" => match parts.get(1) {
                 Some(id) => {
-                    if !theme::THEMES.iter().any(|t| t.id == *id) {
+                    if !theme::catalog().iter().any(|t| t.id == *id) {
                         bail!(
                             "Unknown theme {id}. Available: {}.",
-                            theme::THEMES
+                            theme::catalog()
                                 .iter()
                                 .map(|t| t.id)
                                 .collect::<Vec<_>>()

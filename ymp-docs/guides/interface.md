@@ -336,15 +336,42 @@ its own. Nothing is divided between agents to make the figures add up.
 `/theme` or `Ctrl+T` opens the chooser. Moving the selection previews the palette across the
 whole interface; `Enter` keeps it and `Esc` restores the stored choice. `/theme ID` sets one
 directly. The selection is saved with the other interface preferences under the ymp home
-directory and restored at the next start.
+directory and restored at the next start. A saved identifier that is no longer offered, such as
+`paper`, `contrast` or `terminal` from earlier versions, starts with Ember instead; the other
+preferences are kept.
+
+Ember and Slate are ymp's own palettes. The other sixteen come from the
+[`ratatui-themes`](https://crates.io/crates/ratatui-themes) crate: each uses the library's
+background, foreground (for body text), accent, muted and state colours, and ymp derives its
+heading, panel, code, hairline, label and selected-row colours from them. Headings are the
+foreground moved away from the background, and text on a selected row is whichever of the
+palette's background and foreground contrasts more with its accent. Solarized keeps its
+deliberately soft foreground.
 
 | Theme | Kind | Description |
 | --- | --- | --- |
 | `ember` | dark | Warm amber on black. The default. |
 | `slate` | dark | Cool blue on deep slate, low saturation. |
-| `paper` | light | Dark ink on warm paper. |
-| `contrast` | high contrast | Maximum separation on pure black. |
-| `terminal` | terminal palette | Inherits the sixteen colours your terminal defines. |
+| `dracula` | dark | Purple and pink accents on a dark violet grey. |
+| `one-dark-pro` | dark | Atom's balanced dark palette with a blue accent. |
+| `nord` | dark | Arctic, north-bluish colours. |
+| `catppuccin-mocha` | dark | Soothing warm pastels on the darkest Catppuccin base. |
+| `catppuccin-latte` | light | Catppuccin's warm pastels for bright rooms. |
+| `gruvbox-dark` | dark | Retro groove colours on a warm dark background. |
+| `gruvbox-light` | light | Retro groove colours on warm cream. |
+| `tokyo-night` | dark | Futuristic deep blue with bright accents. |
+| `solarized-dark` | dark | Precision-tuned colours on the dark Solarized base. |
+| `solarized-light` | light | Precision-tuned colours on the light Solarized base. |
+| `monokai-pro` | dark | Classic syntax-highlighting colours on charcoal. |
+| `rose-pine` | dark | Muted rose, iris and pine on a deep base. Shown as Rosé Pine. |
+| `kanagawa` | dark | Ink and wave tones inspired by Katsushika Hokusai. |
+| `everforest` | dark | Comfortable green forest tones. |
+| `cyberpunk` | dark | Neon-soaked futuristic colours. |
+| `midnight-commander` | dark | The classic file manager: white and cyan on dark blue. |
+
+The chooser lists all eighteen. In a short window it scrolls with the selection, and `Home` and
+`End` reach the first and the last palette. In a narrow window the colour chips beside each name
+are dropped before a name is cut.
 
 No state is expressed by colour alone. Selection carries a marker and a reversed row, task
 and session states are printed as words, the focused region is named in the status row, and
@@ -358,7 +385,3 @@ still saved, but terminal colours are suppressed. Unset it to display the select
 Captured from a deterministic demonstration session:
 
 ![Ember theme with the right sidebar](images/ember.png)
-
-![Previewing the Paper theme](images/theme-preview.png)
-
-![Conversation and follow-up in Paper](images/paper-conversation.png)

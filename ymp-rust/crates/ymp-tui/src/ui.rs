@@ -771,6 +771,9 @@ const COMPLETION_ROWS: usize = 6;
 const COMPLETION_MAX_WIDTH: u16 = 88;
 /// The most commands the palette lists at once, when the terminal has the rows for them.
 const PALETTE_ROWS: usize = 10;
+/// The most themes the chooser lists at once. With the chosen theme's summary, the count below
+/// and the hint, the chooser then fits inside the body of a 24-row terminal.
+const THEME_ROWS: usize = 9;
 
 /// Cells the longest command name takes, so every summary in a list starts in one column
 /// however the list is filtered.
@@ -817,13 +820,24 @@ fn overlay(frame: &mut Frame, area: Rect, regions: &[Rect], app: &App) -> Option
             let width = 58u16.min(area.width.saturating_sub(4));
             let inner = frame::modal_content_width(width) as usize;
             // Names are padded to the longest, so every kind starts in one column.
-            let name_width = theme::THEMES
+            let name_width = theme::catalog()
                 .iter()
                 .map(|palette| text::width(palette.name))
                 .max()
                 .unwrap_or(0);
+            let kind_width = text::width(theme::ThemeKind::Light.label());
+            let themes = theme::catalog();
+            // The list takes no more rows than the surface shows, keeping one for the count of
+            // the themes below when they do not all fit, so the selection never sits on a row the
+            // surface cuts off. Only the chosen theme's summary follows its row, below it.
+            let rows = frame::modal_body_rows(area.height, true);
+            let mut visible = THEME_ROWS.min(themes.len());
+            if visible + usize::from(themes.len() > visible) > rows {
+                visible = rows.saturating_sub(1).max(1);
+            }
+            let first = selected.saturating_sub(visible.saturating_sub(1));
             let mut body = Vec::new();
-            for (index, palette) in theme::THEMES.iter().enumerate() {
+            for (index, palette) in themes.iter().enumerate().skip(first).take(visible) {
                 let chosen = index == *selected;
                 let style = if chosen {
                     theme.selected()
@@ -841,9 +855,12 @@ fn overlay(frame: &mut Frame, area: Rect, regions: &[Rect], app: &App) -> Option
                             ),
                             style,
                         ),
-                        Span::styled(format!("  {}", palette.kind.label()), theme.muted()),
+                        Span::styled(
+                            format!("  {:<kind_width$}", palette.kind.label()),
+                            theme.muted(),
+                        ),
                     ],
-                    swatches(palette),
+                    swatches(palette, inner.saturating_sub(name_width + kind_width + 5)),
                 ));
                 if chosen {
                     for piece in text::wrap(palette.summary, inner.saturating_sub(2)) {
@@ -854,15 +871,18 @@ fn overlay(frame: &mut Frame, area: Rect, regions: &[Rect], app: &App) -> Option
                     }
                 }
             }
+            let below = themes.len().saturating_sub(first + visible);
+            if below > 0 {
+                body.push(Line::from(Span::styled(
+                    format!("{} {below} more", theme.markers.more),
+                    theme.faint(),
+                )));
+            }
             body.push(Line::default());
             body.push(Line::from(Span::styled(
                 "The whole interface previews as you move.".to_owned(),
                 theme.faint(),
             )));
-            // Each theme's row sits at its own index, because only the chosen theme's summary
-            // follows its row. On a terminal too short for the list, the list scrolls only as far
-            // as the chosen row needs to stay in view.
-            let scroll = (*selected + 1).saturating_sub(frame::modal_body_rows(area.height, true));
             frame::render_modal(
                 frame,
                 area,
@@ -874,7 +894,7 @@ fn overlay(frame: &mut Frame, area: Rect, regions: &[Rect], app: &App) -> Option
                     width,
                     body,
                     footer: vec![("Up/Down", "preview"), ("Enter", "keep"), ("Esc", "cancel")],
-                    scroll,
+                    scroll: 0,
                 },
                 theme,
             );
@@ -1062,7 +1082,8 @@ fn overlay(frame: &mut Frame, area: Rect, regions: &[Rect], app: &App) -> Option
     }
 }
 
-fn swatches(palette: &Theme) -> Vec<Span<'static>> {
+/// As many two-cell colour chips of a palette as fit in `room` cells.
+fn swatches(palette: &Theme, room: usize) -> Vec<Span<'static>> {
     [
         palette.accent,
         palette.good,
@@ -1072,6 +1093,7 @@ fn swatches(palette: &Theme) -> Vec<Span<'static>> {
         palette.surface,
     ]
     .into_iter()
+    .take(room / 2)
     .map(|color| Span::styled("  ".to_owned(), Style::default().bg(color)))
     .collect()
 }

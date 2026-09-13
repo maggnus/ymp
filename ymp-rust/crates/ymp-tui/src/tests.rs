@@ -196,26 +196,89 @@ fn a_chosen_theme_is_applied_and_restored_at_the_next_start() {
     let mut app = fixture.app();
     assert_eq!(app.theme.id, theme::DEFAULT_THEME);
 
-    app.command("/theme paper", 100);
-    assert_eq!(app.theme.id, "paper");
-    assert_eq!(Prefs::load(&fixture.store).theme, "paper");
+    app.command("/theme midnight-commander", 100);
+    assert_eq!(app.theme.id, "midnight-commander");
+    assert_eq!(Prefs::load(&fixture.store).theme, "midnight-commander");
 
     let restarted = fixture.app();
-    assert_eq!(restarted.theme.id, "paper");
+    assert_eq!(restarted.theme.id, "midnight-commander");
+}
+
+#[test]
+fn a_saved_theme_that_is_no_longer_offered_starts_with_the_default() {
+    let fixture = fixture();
+    for removed in ["paper", "contrast", "terminal", "no-such-theme"] {
+        fixture
+            .store
+            .put_value(
+                crate::prefs::KEY,
+                &serde_json::json!({"theme": removed, "details": true, "sidebar": false}),
+            )
+            .unwrap();
+        let prefs = Prefs::load(&fixture.store);
+        assert_eq!(prefs.theme, theme::DEFAULT_THEME, "{removed}");
+        assert!(
+            prefs.details && !prefs.sidebar,
+            "the other preferences were lost"
+        );
+        let mut app = fixture.app();
+        assert_eq!(app.theme.id, theme::DEFAULT_THEME);
+        assert!(draw(&mut app, 80, 24).contains("Describe a task"));
+    }
+}
+
+#[test]
+fn the_last_theme_of_the_long_chooser_is_previewed_saved_cancelled_and_reloaded_in_a_short_window()
+{
+    let fixture = fixture();
+    let themes = theme::catalog();
+    let last = themes.last().unwrap();
+    let mut app = fixture.app();
+    app.on_key(control('t'), 80);
+    app.on_key(key(KeyCode::End), 80);
+    assert_eq!(
+        app.theme.id, last.id,
+        "End did not preview the last palette"
+    );
+    assert!(
+        draw(&mut app, 80, 10).contains(last.name),
+        "the last palette is out of view in a short window"
+    );
+    app.on_key(key(KeyCode::Enter), 80);
+    assert_eq!(Prefs::load(&fixture.store).theme, last.id);
+
+    // Moving previews another palette, and Esc restores the saved one.
+    app.on_key(control('t'), 80);
+    app.on_key(key(KeyCode::Up), 80);
+    let previous = &themes[themes.len() - 2];
+    assert_eq!(app.theme.id, previous.id);
+    assert!(draw(&mut app, 80, 10).contains(previous.name));
+    app.on_key(key(KeyCode::Esc), 80);
+    assert_eq!(app.theme.id, last.id);
+    assert_eq!(Prefs::load(&fixture.store).theme, last.id);
+
+    // Home reaches Ember again from the end of the list.
+    app.on_key(control('t'), 80);
+    app.on_key(key(KeyCode::Home), 80);
+    assert_eq!(app.theme.id, theme::DEFAULT_THEME);
+    app.on_key(key(KeyCode::Esc), 80);
+
+    let restarted = fixture.app();
+    assert_eq!(restarted.theme.id, last.id);
 }
 
 #[test]
 fn every_theme_is_distinct_and_at_least_one_is_light() {
-    let ids: Vec<&str> = theme::THEMES.iter().map(|t| t.id).collect();
+    let ids: Vec<&str> = theme::catalog().iter().map(|t| t.id).collect();
     let mut unique = ids.clone();
     unique.sort_unstable();
     unique.dedup();
     assert_eq!(ids.len(), unique.len(), "theme identifiers must be unique");
-    assert!(theme::THEMES.len() >= 3);
-    assert!(theme::THEMES
+    assert!(theme::catalog().len() >= 3);
+    assert!(theme::catalog()
         .iter()
         .any(|t| t.kind == theme::ThemeKind::Light));
-    for palette in theme::THEMES {
+    for palette in theme::catalog() {
         assert_ne!(palette.bg, palette.text, "{} is unreadable", palette.id);
     }
 }
@@ -518,12 +581,12 @@ fn the_theme_chooser_keeps_its_selection_in_view_on_a_short_terminal() {
                 &mut app,
                 width,
                 height,
-                theme::THEMES.len() - 1,
+                theme::catalog().len() - 1,
                 |app| match &app.overlay {
                     Some(Overlay::Themes { selected, .. }) => vec![format!(
                         "{} {}",
                         app.theme.markers.selection,
-                        theme::THEMES[*selected].name
+                        theme::catalog()[*selected].name
                     )],
                     _ => panic!("the theme chooser closed"),
                 },
@@ -1678,7 +1741,7 @@ fn help_lists_every_command_in_the_registry() {
 #[test]
 fn every_theme_renders_a_complete_screen() {
     let fixture = fixture();
-    for palette in theme::THEMES {
+    for palette in theme::catalog() {
         let mut app = fixture.app();
         app.command(&format!("/theme {}", palette.id), 120);
         assert_eq!(app.theme.id, palette.id);
