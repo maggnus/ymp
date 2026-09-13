@@ -1238,6 +1238,10 @@ fn overlay(frame: &mut Frame, area: Rect, regions: &[Rect], app: &App) -> Option
                 };
                 body.push(Line::from(Span::styled(none.to_owned(), theme.muted())));
             }
+            // A detail never takes more than a third of the row, so a long branch name cannot push
+            // the path out of sight, and a worktree path keeps its end, where worktrees that share a
+            // long prefix differ.
+            let detail_room = (inner / 3).max(8);
             for (index, option) in options.iter().enumerate().skip(first).take(visible) {
                 let chosen = index == *selected;
                 let style = if chosen {
@@ -1248,11 +1252,17 @@ fn overlay(frame: &mut Frame, area: Rect, regions: &[Rect], app: &App) -> Option
                     theme.faint()
                 };
                 let marker = if chosen { theme.markers.selection } else { " " };
+                let detail = text::truncate(&option.detail, detail_room);
+                let room = inner.saturating_sub(text::width(marker) + 1 + text::width(&detail) + 2);
+                let label = match purpose {
+                    Purpose::Worktree => text::last_cells(&option.label, room),
+                    Purpose::Branch => text::truncate(&option.label, room),
+                };
                 body.push(text::row(
                     inner,
-                    vec![Span::styled(format!("{marker} {}", option.label), style)],
+                    vec![Span::styled(format!("{marker} {label}"), style)],
                     vec![Span::styled(
-                        option.detail.clone(),
+                        detail,
                         if chosen { style } else { theme.muted() },
                     )],
                 ));

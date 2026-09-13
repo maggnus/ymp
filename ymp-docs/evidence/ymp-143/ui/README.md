@@ -64,13 +64,14 @@ backend commit (16425aa here, e789b81 on main).
 | Check | Result | Output |
 | --- | --- | --- |
 | `cargo fmt --all --check` | exit 0 | [fmt.txt](fmt.txt) |
-| Git page tests (`cargo test -p ymp-tui --lib -- git worktree branch_switch`) | exit 0; 8 passed | [git-page-tests.txt](git-page-tests.txt) |
+| Git page tests (`cargo test -p ymp-tui --lib -- git worktree branch_switch`) | exit 0; 9 passed | [git-page-tests.txt](git-page-tests.txt) |
 | `cargo clippy --workspace --all-targets -- -D warnings` | exit 0 | [clippy.txt](clippy.txt) |
-| `cargo test --workspace` | exit 0; 571 passed, 0 failed, 2 ignored | [workspace-tests.txt](workspace-tests.txt) |
+| `cargo test --workspace` | exit 0; 572 passed, 0 failed, 2 ignored | [workspace-tests.txt](workspace-tests.txt) |
 
 An earlier run of the same chain failed strict Clippy on `large_enum_variant` (the snapshot inside
 `Request::Diff`); the snapshot is now boxed, and the defensive run-hold message in the event loop
-now sanitises the branch name. The table above is the run after those two changes.
+now sanitises the branch name. The table above is the run after those two changes and after the worktree chooser correction below;
+the totals include its new test.
 
 ## Not covered here
 
@@ -85,3 +86,32 @@ now sanitises the branch name. The table above is the run after those two change
 - There is no list of commits ahead of the base: the backend API does not provide one.
 - A long chooser list is windowed like the command palette, but no test covers more options than
   the popup shows.
+- Two worktrees whose paths differ only before a long identical ending would still look alike: the
+  chooser keeps the end of each path, not the part where they differ.
+
+## Worktree chooser correction
+
+The parent's real-terminal run (main
+`ymp-docs/research/evidence/git-paseo-143/terminal-after/failure-worktree-chooser.txt` and its
+ASCII counterpart) showed two worktrees under a long shared prefix both drawn as
+`/Users/…/research/evidence/git-paseo-…`: the row kept the start of the path and cut its end, and a
+long branch name took the rest of the row, so neither `project` nor `linked-worktree` could be told
+apart.
+
+- A worktree path now keeps its end through `text::last_cells`, and a branch label in the branch
+  chooser is cut at its end through `text::truncate`.
+- The detail column is bounded to a third of the row (at least 8 cells) with `text::truncate`, and
+  the label is given exactly the cells left, so `text::row` no longer cuts it.
+- A branch checked out in another worktree is described by that worktree's own name
+  (`files::display_name`) rather than its full path.
+
+`the_worktree_chooser_keeps_the_end_of_paths_that_share_a_long_prefix` renders two worktrees under
+a 90-character shared prefix with long branch names, at 120×36 and 60×24, with Unicode and ASCII
+markers. It requires a row that contains `/project` and one that contains `/linked-worktree`, each
+still showing its branch, and that choosing the second row makes the next reading inspect exactly
+that worktree.
+
+| File | What it shows |
+| --- | --- |
+| [chooser-before.txt](chooser-before.txt) | Chooser unchanged: the test fails with `/project cannot be told apart at 120x36`. |
+| [chooser-after.txt](chooser-after.txt) | With the correction: the new test and every other Git page test pass. |

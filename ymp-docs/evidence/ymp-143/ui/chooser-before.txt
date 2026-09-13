@@ -1,0 +1,59 @@
+# base e3f5557: chooser unchanged, regression test only
+    Finished `test` profile [unoptimized] target(s) in 3.98s
+     Running unittests src/lib.rs (target/debug/deps/ymp_tui-6095038d9173546d)
+
+running 1 test
+test tests::the_worktree_chooser_keeps_the_end_of_paths_that_share_a_long_prefix ... FAILED
+
+failures:
+
+---- tests::the_worktree_chooser_keeps_the_end_of_paths_that_share_a_long_prefix stdout ----
+
+thread 'tests::the_worktree_chooser_keeps_the_end_of_paths_that_share_a_long_prefix' panicked at ymp-rust/crates/ymp-tui/src/tests.rs:11258:21:
+/project cannot be told apart at 120x36:
+ymp  .tmpch4jRl  /var/folders/cw/7pn8sb3x6bj69g7j2d8f_ss00000gn/T/.tmpch4jRl                   no session  0 / 200 turns
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ Git  /git feature since main · /var/folders/cw/7pn8sb3x6bj69g7j2d8f_ss00000gn/T/.tmpch4…│ SESSION                      
+─────────────────────────────────────────────────────────────────────────────────────────│ none · the next message open 
+                                                                                         │ turns next run       0 / 200 
+  Committed changes since the base branch                                                │ dir …_ss00000gn/T/.tmpch4jRl 
+                                                                                         │                              
+  No changes to display                                                                  │ TOKENS                     — 
+                                                                                         │ none · nothing spent yet     
+  The branch has no c                                                                    │                              
+                      ┌ Inspect a worktree ─────────────────────────────────────────── read only ┐             next run 
+                      │ › /var…  feature/an-exceptionally-long-branch-name-that-would-fill-a-row │          STATE       
+                      │   feature/an-exceptionally-long-branch-name-that-would-fill-a-row-linked │ n model  idle        
+                      │                                                                          │ n model  idle        
+                      │ Up/Down select  Enter inspect  Esc cancel                                │                      
+                      └──────────────────────────────────────────────────────────────────────────┘                      
+                                                                                         │         graph yet            
+                                                                                         │                              
+                                                                                         │                              
+                                                                                         │                              
+                                                                                         │                              
+                                                                                         │                              
+                                                                                         │                              
+                                                                                         │                              
+                                                                                         │                              
+                                                                                         │                              
+                                                                                         │                              
+                                                                                         │                              
+                                                                                         │                              
+                                                                                         │                              
+                                                                                         │                              
+                                                                                         │                              
+                                                                                         │                              
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+› Describe a task, or type / for commands.                                                                              
+Ready     main Enter diff  m compare  w worktree  b branch  r refresh  Esc close  / filter  Shift+letter sort  d inspect
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    tests::the_worktree_chooser_keeps_the_end_of_paths_that_share_a_long_prefix
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 266 filtered out; finished in 0.02s
+
+error: test failed, to rerun pass `-p ymp-tui --lib`
+exit=101

@@ -2232,7 +2232,11 @@ impl App {
                         .worktree
                         .as_deref()
                         .filter(|path| !git_view::same_directory(path, &root))
-                        .map(files::display_path);
+                        // The other worktree by its own name: a chooser row has no room for a path.
+                        .map(|path| {
+                            path.file_name()
+                                .map_or_else(|| files::display_path(path), files::display_name)
+                        });
                     GitOption {
                         label: text::sanitize(&branch.name),
                         detail: match (&elsewhere, branch.current) {

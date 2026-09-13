@@ -1,2 +1,2 @@
-    Finished `dev` profile [unoptimized] target(s) in 5.29s
+    Finished `dev` profile [unoptimized] target(s) in 4.41s
 exit=0

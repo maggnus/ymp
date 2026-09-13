@@ -11125,10 +11125,7 @@ fn a_branch_switch_is_confirmed_holds_runs_and_reports_what_happened() {
     });
     let screen = git_screen(&mut app);
     assert!(screen.contains("Switch branch"), "{screen}");
-    assert!(
-        screen.contains("checked out in /elsewhere/busy"),
-        "{screen}"
-    );
+    assert!(screen.contains("checked out in busy"), "{screen}");
 
     // A branch checked out in another worktree is not offered as a switch.
     app.on_key(key(KeyCode::End), GIT_SCREEN.0);
@@ -11198,4 +11195,86 @@ fn a_branch_switch_is_confirmed_holds_runs_and_reports_what_happened() {
         .iter()
         .any(|notice| notice.failure && notice.text.contains("main was not checked out")));
     assert!(!submit(&mut app, "now it may start").is_empty());
+}
+
+#[test]
+fn the_worktree_chooser_keeps_the_end_of_paths_that_share_a_long_prefix() {
+    let fixture = fixture();
+    let root = fixture.project.path().to_path_buf();
+    let shared = root
+        .join("a-directory-name-long-enough-to-fill-the-chooser")
+        .join("research")
+        .join("evidence")
+        .join("git-paseo-143");
+    let main = shared.join("project");
+    let linked = shared.join("linked-worktree");
+    let branch = "feature/an-exceptionally-long-branch-name-that-would-fill-a-row";
+    for markers in [theme::UNICODE, theme::ASCII] {
+        for (width, height) in [(120, 36), (60, 24)] {
+            let mut app = fixture.app();
+            app.theme = theme::resolved(theme::DEFAULT_THEME, markers);
+            app.command("/git", width);
+            let first = git_request(&mut app, Instant::now());
+            answer_reading(
+                &mut app,
+                first,
+                Ok(git_snapshot(
+                    &root,
+                    Comparison::Committed,
+                    false,
+                    Vec::new(),
+                )),
+            );
+            app.on_key(key(KeyCode::Char('w')), width);
+            let Request::Choices {
+                generation,
+                purpose,
+                ..
+            } = git_request(&mut app, Instant::now())
+            else {
+                panic!("w did not ask for the worktrees");
+            };
+            app.git_reply(Reply::Choices {
+                generation,
+                purpose,
+                result: Ok(Choices {
+                    worktrees: vec![
+                        Worktree {
+                            path: main.clone(),
+                            branch: Some(branch.into()),
+                            head: Some("0123456789abcdef".into()),
+                        },
+                        Worktree {
+                            path: linked.clone(),
+                            branch: Some(format!("{branch}-linked")),
+                            head: Some("89abcdef01234567".into()),
+                        },
+                    ],
+                    branches: Vec::new(),
+                }),
+            });
+            let rows = screen_rows(&mut app, width, height);
+            let screen = rows.join("\n");
+            for name in ["/project", "/linked-worktree"] {
+                let row = rows
+                    .iter()
+                    .find(|row| row.contains(name))
+                    .unwrap_or_else(|| {
+                        panic!("{name} cannot be told apart at {width}x{height}:\n{screen}")
+                    });
+                assert!(
+                    row.contains("feature/"),
+                    "the branch left the row at {width}x{height}: {row}"
+                );
+            }
+            // The row that reads as linked-worktree is the worktree choosing it inspects.
+            app.on_key(key(KeyCode::Down), width);
+            app.on_key(key(KeyCode::Enter), width);
+            let next = git_request(&mut app, Instant::now());
+            assert!(
+                matches!(&next, Request::Inspect { root: asked, .. } if *asked == linked),
+                "{next:?}"
+            );
+        }
+    }
 }
