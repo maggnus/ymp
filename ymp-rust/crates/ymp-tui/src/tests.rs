@@ -444,6 +444,95 @@ fn a_floating_surface_keeps_the_sidebar_rule_whole_outside_itself() {
     assert!(cuts.is_empty(), "{}", cuts.join("\n\n"));
 }
 
+/// Move a list surface down `moves` rows and back up again, checking after every move that each
+/// row `in_view` describes is painted at `width`x`height`. Returns the first move that left one
+/// out of view, with the screen at that moment.
+fn walk_selection(
+    app: &mut App,
+    width: u16,
+    height: u16,
+    moves: usize,
+    in_view: fn(&App) -> Vec<String>,
+) -> Option<String> {
+    let steps = std::iter::once(None)
+        .chain(std::iter::repeat_n(Some(KeyCode::Down), moves))
+        .chain(std::iter::repeat_n(Some(KeyCode::Up), moves));
+    for (step, code) in steps.enumerate() {
+        if let Some(code) = code {
+            app.on_key(key(code), width);
+        }
+        let wanted = in_view(app);
+        let rows = screen_rows(app, width, height);
+        let missing: Vec<&String> = wanted
+            .iter()
+            .filter(|row| !rows.iter().any(|painted| painted.contains(row.as_str())))
+            .collect();
+        if !missing.is_empty() {
+            return Some(format!(
+                "{missing:?} out of view at {width}x{height} after {step} moves:\n{}",
+                rows.join("\n")
+            ));
+        }
+    }
+    None
+}
+
+#[test]
+fn the_palette_keeps_its_selection_in_view_on_a_short_terminal() {
+    let fixture = fixture();
+    // Past the rows a short palette shows at first and past the ten it lists at most. Ten rows
+    // is the lowest height that keeps the whole layout. The search line stays in view as well,
+    // because the cursor is placed on it.
+    let moves = crate::commands::search("").len().min(12);
+    let failures: Vec<String> = [(40u16, 12u16), (80, 16), (80, 10)]
+        .into_iter()
+        .filter_map(|(width, height)| {
+            let mut app = fixture.app();
+            app.on_key(control('p'), width);
+            walk_selection(&mut app, width, height, moves, |app| match &app.overlay {
+                Some(Overlay::Palette { selected, .. }) => vec![
+                    "Type to search commands".to_owned(),
+                    format!(
+                        "{} {} ",
+                        app.theme.markers.selection,
+                        crate::commands::search("")[*selected].name
+                    ),
+                ],
+                _ => panic!("the palette closed"),
+            })
+        })
+        .collect();
+    assert!(failures.is_empty(), "{}", failures.join("\n\n"));
+}
+
+#[test]
+fn the_theme_chooser_keeps_its_selection_in_view_on_a_short_terminal() {
+    let fixture = fixture();
+    let failures: Vec<String> = [(40u16, 12u16), (80, 16), (80, 10)]
+        .into_iter()
+        .filter_map(|(width, height)| {
+            let mut app = fixture.app();
+            app.on_key(control('t'), width);
+            app.on_key(key(KeyCode::Home), width);
+            walk_selection(
+                &mut app,
+                width,
+                height,
+                theme::THEMES.len() - 1,
+                |app| match &app.overlay {
+                    Some(Overlay::Themes { selected, .. }) => vec![format!(
+                        "{} {}",
+                        app.theme.markers.selection,
+                        theme::THEMES[*selected].name
+                    )],
+                    _ => panic!("the theme chooser closed"),
+                },
+            )
+        })
+        .collect();
+    assert!(failures.is_empty(), "{}", failures.join("\n\n"));
+}
+
 #[test]
 fn tab_cycles_one_focus_owner_and_esc_walks_back_to_the_composer() {
     let fixture = fixture();

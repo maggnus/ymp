@@ -292,6 +292,18 @@ pub fn clear_around(frame: &mut Frame, rect: Rect, regions: &[Rect], theme: &The
     }
 }
 
+/// Rows a floating surface's keys take. They sit a blank row below the body, so they never read
+/// as its last line.
+const MODAL_KEY_ROWS: u16 = 2;
+
+/// Rows of its body a floating surface shows over an area `height` rows tall. Its border and a
+/// row of the area above and below it take four, and its keys, when it names any, take
+/// [`MODAL_KEY_ROWS`] more. A list longer than that has to keep its selection within these rows.
+pub fn modal_body_rows(height: u16, keys: bool) -> usize {
+    let keys = if keys { MODAL_KEY_ROWS } else { 0 };
+    height.saturating_sub(4 + keys).max(1) as usize
+}
+
 /// Draw a floating surface. Returns the rect its body is painted in, inside the border and the
 /// padding, so a caller can place a cursor in it.
 ///
@@ -309,9 +321,9 @@ pub fn render_modal(
         .width
         .min(area.width.saturating_sub(2))
         .max(MODAL_MIN_WIDTH);
-    // The keys sit a blank row below the body, so they never read as its last line.
-    let footer_height: u16 = if spec.footer.is_empty() { 0 } else { 2 };
-    let max_body = area.height.saturating_sub(4 + footer_height).max(1) as usize;
+    let keys = !spec.footer.is_empty();
+    let footer_height = if keys { MODAL_KEY_ROWS } else { 0 };
+    let max_body = modal_body_rows(area.height, keys);
     let total = spec.body.len();
     let scroll = spec.scroll.min(total.saturating_sub(1));
     let visible: Vec<Line<'static>> = spec

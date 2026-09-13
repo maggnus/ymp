@@ -699,6 +699,8 @@ fn completion_popup(frame: &mut Frame, main: Rect, composer: Rect, app: &App) ->
 const COMPLETION_ROWS: usize = 6;
 /// The widest the inline completion list grows, border included.
 const COMPLETION_MAX_WIDTH: u16 = 88;
+/// The most commands the palette lists at once, when the terminal has the rows for them.
+const PALETTE_ROWS: usize = 10;
 
 /// Cells the longest command name takes, so every summary in a list starts in one column
 /// however the list is filtered.
@@ -787,6 +789,10 @@ fn overlay(frame: &mut Frame, area: Rect, regions: &[Rect], app: &App) -> Option
                 "The whole interface previews as you move.".to_owned(),
                 theme.faint(),
             )));
+            // Each theme's row sits at its own index, because only the chosen theme's summary
+            // follows its row. On a terminal too short for the list, the list scrolls only as far
+            // as the chosen row needs to stay in view.
+            let scroll = (*selected + 1).saturating_sub(frame::modal_body_rows(area.height, true));
             frame::render_modal(
                 frame,
                 area,
@@ -798,7 +804,7 @@ fn overlay(frame: &mut Frame, area: Rect, regions: &[Rect], app: &App) -> Option
                     width,
                     body,
                     footer: vec![("Up/Down", "preview"), ("Enter", "keep"), ("Esc", "cancel")],
-                    scroll: 0,
+                    scroll,
                 },
                 theme,
             );
@@ -829,7 +835,14 @@ fn overlay(frame: &mut Frame, area: Rect, regions: &[Rect], app: &App) -> Option
                 )));
             }
             let selected = (*selected).min(matches.len().saturating_sub(1));
-            let visible = 10usize;
+            // The list takes no more rows than the surface shows under the search line, keeping
+            // one for the count of the commands below when they do not all fit, so the selection
+            // never sits on a row the surface cuts off.
+            let rows = frame::modal_body_rows(area.height, true).saturating_sub(body.len());
+            let mut visible = PALETTE_ROWS.min(matches.len());
+            if visible + usize::from(matches.len() > visible) > rows {
+                visible = rows.saturating_sub(1).max(1);
+            }
             let first = selected.saturating_sub(visible.saturating_sub(1));
             let name_width = command_name_width();
             for (index, command) in matches.iter().enumerate().skip(first).take(visible) {
