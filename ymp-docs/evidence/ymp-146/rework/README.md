@@ -149,12 +149,35 @@ all exit **0**. After that run, one narrow reason update was restricted to resol
 uncertainty/legacy holds so inspection also preserves policy-stop explanations.
 The final required chain below checks that final source.
 
-## Limits and remaining work
+## Final source verification
 
-The four required corrections are implemented; full parent acceptance is separate. R3 and R4 were added by the completed parallel review. Their common model and
-bounded evidence issue are in [responsibility-model.md](responsibility-model.md).
-The final fmt, strict Clippy and workspace-test sequence is reserved for the
-final corrected source. Only scripted providers and temporary app homes are used.
+The complete corrected source is commit
+`58c795703b4ea8f281f1cdc05cd13572c5f7b5a3`. The final required sequence ran once,
+with no source changes between commands. All commands exited **0**:
+
+- `cargo fmt --all --check`
+- `cargo clippy --workspace --all-targets -- -D warnings`
+- `cargo test --workspace`: **610 passed, 0 failed, 2 ignored**.
+
+`final-checks.json` records command arguments, timestamps and log names;
+`source-verification.json` binds the 19 changed source/test files to SHA-256,
+checks the allowed write zone, preserves project instructions/contracts and
+rechecks all nine immutable reviewer artifacts. The two default-ignored tests
+are the fixture-only Claude SDK scan (requires bridge npm installation/build) and
+optional fixture-retention helper. They were not enabled as additional probes.
+
+Only evidence/documentation changes follow this source commit. Authored command
+logs have trailing blank lines normalized for Git whitespace checks; reviewer
+originals and their exact copies remain byte-identical. No successful test suite
+was rerun for those documentation-only changes.
+
+## Limits and next step
+
+R1-R4 are implemented with the recorded controls. The next step is parent review
+and final acceptance of this isolated commit range; no integration or installation
+has been performed. Their common model and the approved R3 evidence clarification
+are in [responsibility-model.md](responsibility-model.md). Only scripted providers
+and temporary app homes were used.
 The frozen original worktree is used solely through its ignored target build
 cache; its source and Git state are untouched. Main's target cache is not used.
 

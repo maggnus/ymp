@@ -13,4 +13,3 @@ test inspection_rework::r3_inspection_commit_rejects_changed_data_and_racing_own
 test inspection_rework::r3_bound_local_inspection_preserves_uncertainty_and_enables_explicit_continuation ... ok
 
 test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 25 filtered out; finished in 0.81s
-

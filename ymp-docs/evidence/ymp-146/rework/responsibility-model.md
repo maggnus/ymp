@@ -40,7 +40,8 @@ R1, R2 and R4 are committed with focused checks. R3 now has a working public
 inspection consumer, actual admitted local-scope evidence, six positive/rejecting
 scenarios and a source mutation control. All 31 session recovery scenarios and
 the preserved revision/arbitration probes pass. The final required
-fmt/strict-Clippy/workspace-test chain follows the complete corrected source.
+fmt/strict-Clippy/workspace-test chain passed on the complete corrected source
+(610 passed, 2 default-ignored tests). Only documentation/evidence changed after it.
 
 ## Evidence gap in the unchanged R3 probe
 

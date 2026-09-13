@@ -7,4 +7,3 @@ running 1 test
 test inspection_rework::r3_changed_inspected_files_reject_continue_and_atomic_replay_admission ... ok
 
 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 30 filtered out; finished in 0.14s
-

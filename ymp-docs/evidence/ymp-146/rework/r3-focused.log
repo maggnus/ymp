@@ -12,4 +12,3 @@ test inspection_rework::r3_model_safe_flag_rejection_and_write_capable_inspector
 test inspection_rework::r3_bound_local_inspection_preserves_uncertainty_and_enables_explicit_continuation ... ok
 
 test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 25 filtered out; finished in 0.82s
-
