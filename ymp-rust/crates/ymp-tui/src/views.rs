@@ -10,6 +10,7 @@
 
 use crate::commands::{self, Group};
 use crate::files;
+use crate::git_view::{self, GitView};
 use crate::highlight;
 use crate::label;
 use crate::provenance::{Acceptance, Pool, Records};
@@ -30,6 +31,7 @@ use ymp_core::{
     SessionBudget, Task, TaskAccess, TaskState, UsageTotals, WorkspaceAccess, WorkspaceWait,
 };
 use ymp_storage::Store;
+use ymp_workspace::git::{self, Comparison, GitError};
 use ymp_workspace::repository::Repository;
 
 /// Every page a command can open.
@@ -41,6 +43,7 @@ pub enum View {
     Sessions,
     Files,
     Changes,
+    Git,
     Checks,
     Assignments,
     Decisions,
@@ -62,6 +65,7 @@ impl View {
             View::Sessions => "Sessions",
             View::Files => "Files",
             View::Changes => "Changed files",
+            View::Git => "Git",
             View::Checks => "Recorded checks",
             View::Assignments => "Assignments",
             View::Decisions => "Decisions",
@@ -82,6 +86,7 @@ impl View {
             View::Sessions => "/sessions",
             View::Files => "/files",
             View::Changes => "/diff",
+            View::Git => "/git",
             View::Checks => "/checks",
             View::Assignments => "/assignments",
             View::Decisions => "/decisions",
@@ -232,6 +237,8 @@ pub struct Ctx<'a> {
     pub repository: &'a Repository,
     /// Where the files page is in the working directory, and what the controller read there.
     pub files: &'a files::Files,
+    /// What the controller last read from Git for the Git page. Pages never read a repository.
+    pub git: &'a GitView,
     pub theme: &'a Theme,
     pub session: Option<&'a str>,
     pub tasks: &'a [Task],
@@ -260,6 +267,7 @@ pub fn build(view: View, ctx: &Ctx) -> Page {
         View::Sessions => guard(view, sessions(ctx), ctx),
         View::Files => guard(view, files(ctx), ctx),
         View::Changes => guard(view, changes(ctx), ctx),
+        View::Git => git_page(ctx),
         View::Checks => guard(view, checks(ctx), ctx),
         View::Assignments => assignments(ctx),
         View::Decisions => decisions(ctx),
@@ -1035,6 +1043,210 @@ fn files(ctx: &Ctx) -> anyhow::Result<Page> {
         ));
     }
     Ok(page)
+}
+
+const GIT_COLUMNS: [Column; 5] = [
+    Column::left("ST"),
+    Column::left("PATH").flex(),
+    Column::left("STATE").hide(2),
+    Column::right("ADDED").hide(1),
+    Column::right("REMOVED").hide(1),
+];
+
+/// The Git page: the changed files of one comparison in one worktree, as the backend last read
+/// them. A failed reading is said, and a list kept from before it is marked as out of date.
+fn git_page(ctx: &Ctx) -> Page {
+    let theme = ctx.theme;
+    let view = ctx.git;
+    let root = view.root(ctx.cwd);
+    let mut page = Page {
+        view: View::Git,
+        title: View::Git.title().into(),
+        subtitle: files::display_path(root),
+        items: Vec::new(),
+        empty: Vec::new(),
+        hints: vec![
+            ("Enter", "diff"),
+            ("m", "compare"),
+            ("w", "worktree"),
+            ("b", "branch"),
+            ("r", "refresh"),
+            ("Esc", "close"),
+        ],
+    };
+    let Some(snapshot) = view.snapshot() else {
+        page.empty = match view.error() {
+            Some(GitError::NotRepository) => nothing(
+                theme,
+                "Not a Git working tree",
+                &format!(
+                    "{} is not inside a Git working tree. r reads it again.",
+                    files::display_path(root)
+                ),
+                ctx.width,
+            ),
+            Some(error) => {
+                let mut lines = vec![
+                    Line::from(Span::styled(
+                        format!("{} Git could not be read", theme.markers.fail),
+                        theme.bad(),
+                    )),
+                    Line::default(),
+                ];
+                lines.extend(paragraph(theme, &error.to_string(), ctx.width));
+                lines.push(Line::default());
+                lines.extend(hint(
+                    theme,
+                    "r reads again, and Esc closes the page.",
+                    ctx.width,
+                ));
+                lines
+            }
+            None => nothing(
+                theme,
+                "Reading Git",
+                "The changes appear when the reading answers.",
+                ctx.width,
+            ),
+        };
+        return page;
+    };
+    // Branch names are case sensitive, so they are shown where they keep their case: a table
+    // title is drawn in upper case.
+    let since = match (snapshot.comparison, &snapshot.base) {
+        (Comparison::Committed, Some(base)) => format!(" since {}", text::sanitize(base)),
+        (Comparison::Committed, None) => ", no base branch identified".to_owned(),
+        (Comparison::Uncommitted, _) => String::new(),
+    };
+    page.subtitle = format!(
+        "{}{since} · {}",
+        branch_label(snapshot),
+        files::display_path(&snapshot.root)
+    );
+    let heading = match snapshot.comparison {
+        Comparison::Uncommitted => "Uncommitted changes against HEAD",
+        Comparison::Committed => "Committed changes since the base branch",
+    }
+    .to_owned();
+    let mut notes = Vec::new();
+    if let Some(error) = view.error() {
+        notes.push((
+            theme.bad(),
+            format!(
+                "{} The last reading failed: {error}. What is shown is from the reading before it.",
+                theme.markers.fail
+            ),
+        ));
+    }
+    if let Some(notice) = &snapshot.notice {
+        notes.push((theme.warn(), text::sanitize(notice)));
+    }
+    if snapshot.files.is_empty() {
+        let advice = match snapshot.comparison {
+            Comparison::Uncommitted => {
+                "Nothing in the working tree differs from HEAD. m shows what the branch has committed since its base."
+            }
+            Comparison::Committed if snapshot.dirty => {
+                "The branch has no commits beyond its base. The working tree has uncommitted changes: m shows them."
+            }
+            Comparison::Committed => "The branch has no commits beyond its base.",
+        };
+        let mut lines = vec![
+            Line::from(Span::styled(heading, theme.muted())),
+            Line::default(),
+        ];
+        lines.extend(nothing(theme, "No changes to display", advice, ctx.width));
+        for (style, note) in notes {
+            lines.push(Line::default());
+            lines.extend(
+                text::wrap(&note, ctx.width.max(8))
+                    .into_iter()
+                    .map(|piece| Line::from(Span::styled(piece, style))),
+            );
+        }
+        page.empty = lines;
+        return page;
+    }
+    for (index, (style, note)) in notes.into_iter().enumerate() {
+        page.items.push(Item::note(
+            format!("note:{index}"),
+            vec![Span::styled(note, style)],
+        ));
+    }
+    page.items.push(Item::table(heading, &GIT_COLUMNS));
+    page.items
+        .extend(snapshot.files.iter().map(|change| git_row(ctx, change)));
+    page
+}
+
+fn branch_label(snapshot: &git::Snapshot) -> String {
+    match (&snapshot.branch, &snapshot.head) {
+        (Some(branch), _) => text::sanitize(branch),
+        (None, Some(head)) => format!("detached at {}", git_view::short_head(head)),
+        (None, None) => "no commits yet".into(),
+    }
+}
+
+fn git_row(ctx: &Ctx, change: &git::Change) -> Item {
+    let theme = ctx.theme;
+    let path = files::display_path(&change.path);
+    let shown = match &change.old_path {
+        Some(old) => format!("{path} (from {})", files::display_path(old)),
+        None => path.clone(),
+    };
+    let status = text::sanitize(&change.status);
+    let status_style = match status.chars().next() {
+        Some('A' | '?') => theme.good(),
+        Some('D' | 'U') => theme.bad(),
+        _ => theme.warn(),
+    };
+    let state = [
+        (change.staged, "staged"),
+        (change.unstaged, "unstaged"),
+        (change.untracked, "untracked"),
+    ]
+    .iter()
+    .filter(|(set, _)| *set)
+    .map(|(_, word)| *word)
+    .collect::<Vec<_>>()
+    .join(", ");
+    let count = |value: Option<u64>, sign: &str, style: Style| match value {
+        _ if change.binary => Cell::text("binary", theme.muted()),
+        Some(lines) => Cell::number(format!("{sign}{lines}"), Some(i128::from(lines)), style),
+        None => Cell::number(theme.markers.unknown, None, theme.faint()),
+    };
+    let mut detail = field(theme, "path", &path, ctx.width);
+    if let Some(old) = &change.old_path {
+        detail.extend(field(
+            theme,
+            "previous path",
+            &files::display_path(old),
+            ctx.width,
+        ));
+    }
+    detail.extend(field(theme, "status", &status, ctx.width));
+    if !state.is_empty() {
+        detail.extend(field(theme, "state", &state, ctx.width));
+    }
+    let lines =
+        |value: Option<u64>| value.map_or_else(|| "not reported".to_owned(), |n| n.to_string());
+    if change.binary {
+        detail.extend(field(theme, "content", "binary", ctx.width));
+    } else {
+        detail.extend(field(theme, "added", &lines(change.added), ctx.width));
+        detail.extend(field(theme, "removed", &lines(change.removed), ctx.width));
+    }
+    Item::row(
+        git_view::row_key(&change.path),
+        vec![
+            Cell::text(status, status_style),
+            Cell::text(shown, theme.text()),
+            Cell::text(state, theme.muted()),
+            count(change.added, "+", theme.good()),
+            count(change.removed, "-", theme.bad()),
+        ],
+    )
+    .with_detail(detail)
 }
 
 pub(crate) fn size(bytes: u64) -> String {

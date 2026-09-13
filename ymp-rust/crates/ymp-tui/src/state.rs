@@ -10,6 +10,7 @@ use crate::commands;
 use crate::exit;
 use crate::files::{self, Files};
 use crate::frame;
+use crate::git_view::{self, GitView};
 use crate::label;
 use crate::prefs::Prefs;
 use crate::provenance::{Attribution, Pool, Records};
@@ -26,6 +27,7 @@ use std::path::PathBuf;
 use std::time::Instant;
 use ymp_core::{AgentProfile, Config, Message, SessionUsage, Task, UiEvent};
 use ymp_storage::Store;
+use ymp_workspace::git;
 use ymp_workspace::preview::{self, Preview};
 use ymp_workspace::repository::{self, Repository};
 
@@ -76,6 +78,12 @@ pub enum Overlay {
     },
     /// Confirm something that cannot be undone.
     Confirm { question: String, target: Confirm },
+    /// Choose a worktree to inspect, or a branch to check out, on the Git page.
+    GitChoice {
+        purpose: git_view::Purpose,
+        options: Vec<GitOption>,
+        selected: usize,
+    },
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -89,6 +97,31 @@ pub enum PromptTarget {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Confirm {
     ForgetMemory(String),
+    /// Check out `branch` in the worktree at `root`, which read `expected_head` when it was asked.
+    SwitchBranch {
+        root: PathBuf,
+        branch: String,
+        expected_head: Option<String>,
+    },
+}
+
+/// One row of the Git page's chooser.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct GitOption {
+    pub label: String,
+    pub detail: String,
+    /// The worktree being inspected, or the branch checked out in it.
+    pub current: bool,
+    /// Whether choosing it can act. A branch checked out in another worktree cannot be checked
+    /// out here as well.
+    pub enabled: bool,
+    pub target: GitTarget,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum GitTarget {
+    Worktree(PathBuf),
+    Branch(String),
 }
 
 /// Work the event loop must perform. Everything that can start or stop a provider turn
@@ -266,6 +299,8 @@ pub struct App {
     /// Where the files page is in the working directory, and what it last read there. Moving
     /// through it changes neither `cwd` nor the loaded session.
     pub files: Files,
+    /// What the Git page asked the backend for, and what it kept of the answers.
+    pub git: GitView,
     pub prefs: Prefs,
     pub theme: Theme,
 
@@ -341,6 +376,7 @@ impl App {
             config,
             repository: repository::discover(&cwd),
             files: Files::default(),
+            git: GitView::default(),
             cwd,
             prefs,
             theme,
@@ -494,6 +530,7 @@ impl App {
                     cwd: &self.cwd,
                     repository: &self.repository,
                     files: &self.files,
+                    git: &self.git,
                     theme: &theme,
                     session: self.session.as_deref(),
                     tasks: &self.tasks,
@@ -872,6 +909,10 @@ impl App {
     // -----------------------------------------------------------------------
 
     pub fn set_view(&mut self, view: View) {
+        if self.view == View::Git && view != View::Git {
+            // A reading still admitted finishes on its own, and its reply is dropped.
+            self.git.leave();
+        }
         if view == View::Changes {
             self.repository = repository::discover(&self.cwd);
         }
@@ -1425,6 +1466,9 @@ impl App {
         if self.view == View::Files {
             return self.files_key(key, plain, width);
         }
+        if self.view == View::Git && plain && self.git_key(key.code, width) {
+            return Vec::new();
+        }
         match key.code {
             KeyCode::Up | KeyCode::Char('k') => self.move_page_selection(-1, width),
             KeyCode::Down | KeyCode::Char('j') => self.move_page_selection(1, width),
@@ -1513,6 +1557,9 @@ impl App {
                 }
             }
             (View::Sessions, KeyCode::Char('r')) => {
+                if self.runs_held() {
+                    return Vec::new();
+                }
                 if self.active {
                     self.fail("A run is already active. Stop it with /stop first.");
                     return Vec::new();
@@ -1921,6 +1968,11 @@ impl App {
         match overlay {
             Overlay::Themes { selected, original } => self.theme_key(key, selected, original),
             Overlay::Palette { field, selected } => self.palette_key(key, field, selected),
+            Overlay::GitChoice {
+                purpose,
+                options,
+                selected,
+            } => self.git_choice_key(key, purpose, options, selected),
             Overlay::Inspect {
                 title,
                 body,
@@ -2031,6 +2083,11 @@ impl App {
                                 self.fail(format!("The entry was not retired: {error:#}"))
                             }
                         },
+                        Confirm::SwitchBranch {
+                            root,
+                            branch,
+                            expected_head,
+                        } => self.confirm_switch(root, branch, expected_head),
                     },
                     KeyCode::Esc | KeyCode::Char('n') => {}
                     _ => self.overlay = Some(Overlay::Confirm { question, target }),
@@ -2038,6 +2095,299 @@ impl App {
                 Vec::new()
             }
         }
+    }
+
+    // -----------------------------------------------------------------------
+    // Git page
+    // -----------------------------------------------------------------------
+
+    /// A confirmed branch switch has not finished, so no run may start. Says so when it holds.
+    fn runs_held(&mut self) -> bool {
+        let Some(branch) = self.git.switching() else {
+            return false;
+        };
+        let message = format!(
+            "A switch to {} is in progress. Runs can start once it has finished.",
+            text::sanitize(branch)
+        );
+        self.fail(message);
+        true
+    }
+
+    /// The request the Git page wants handed to the backend now, if any.
+    pub fn git_request(&mut self, now: Instant) -> Option<git_view::Request> {
+        self.git
+            .next_request(self.view == View::Git, now, &self.cwd)
+    }
+
+    /// The backend's reply to the last request.
+    pub fn git_reply(&mut self, reply: git_view::Reply) {
+        let outcome = self.git.receive(reply, Instant::now());
+        self.git_outcome(outcome);
+    }
+
+    /// The last request ended without a reply.
+    pub fn git_abandoned(&mut self, reason: String) {
+        let outcome = self.git.abandon(reason, Instant::now());
+        self.git_outcome(outcome);
+    }
+
+    fn git_outcome(&mut self, outcome: git_view::Outcome) {
+        match outcome {
+            git_view::Outcome::Nothing => {}
+            git_view::Outcome::Choices(purpose, result) => self.open_git_choices(purpose, result),
+            git_view::Outcome::Diff(change, result) => self.open_git_diff(&change, result),
+            git_view::Outcome::Switched(branch, result) => {
+                self.status = "Ready".into();
+                let branch = text::sanitize(&branch);
+                match result {
+                    Ok(()) => self.notice(format!(
+                        "Checked out {branch}. Nothing was stashed, committed or discarded."
+                    )),
+                    Err(error) => self.fail(format!("{branch} was not checked out: {error}")),
+                }
+            }
+        }
+        self.invalidate_page();
+        self.dirty = true;
+    }
+
+    /// Keys only the Git page answers. Returns false for a key the page's list handles.
+    fn git_key(&mut self, code: KeyCode, width: u16) -> bool {
+        match code {
+            KeyCode::Enter => {
+                let change = self
+                    .selected_item(width)
+                    .and_then(|item| self.git.change(&item.key).cloned());
+                if let Some(change) = change {
+                    self.git.want_diff(change);
+                }
+            }
+            KeyCode::Char('m') => {
+                if self.git.toggle_comparison().is_none() {
+                    self.fail(
+                        "Nothing has been read from Git yet, so there is no comparison to change.",
+                    );
+                }
+                self.invalidate_page();
+            }
+            KeyCode::Char('w') => self.git.want_choices(git_view::Purpose::Worktree),
+            KeyCode::Char('b') => {
+                if self.git.snapshot().is_some() {
+                    self.git.want_choices(git_view::Purpose::Branch);
+                } else {
+                    self.fail(
+                        "Nothing has been read from Git yet, so there is no branch to switch from.",
+                    );
+                }
+            }
+            KeyCode::Char('r') => self.git.refresh(),
+            _ => return false,
+        }
+        self.dirty = true;
+        true
+    }
+
+    fn open_git_choices(
+        &mut self,
+        purpose: git_view::Purpose,
+        result: Result<git::Choices, git::GitError>,
+    ) {
+        let choices = match result {
+            Ok(choices) => choices,
+            Err(error) => {
+                let noun = match purpose {
+                    git_view::Purpose::Worktree => "worktrees",
+                    git_view::Purpose::Branch => "branches",
+                };
+                self.fail(format!("Git could not list the {noun}: {error}"));
+                return;
+            }
+        };
+        if self.view != View::Git || self.overlay.is_some() {
+            return;
+        }
+        let root = self.git.root(&self.cwd).to_path_buf();
+        let options: Vec<GitOption> = match purpose {
+            git_view::Purpose::Worktree => choices
+                .worktrees
+                .into_iter()
+                .map(|worktree| GitOption {
+                    label: files::display_path(&worktree.path),
+                    detail: match (&worktree.branch, &worktree.head) {
+                        (Some(branch), _) => text::sanitize(branch),
+                        (None, Some(head)) => format!("detached at {}", git_view::short_head(head)),
+                        (None, None) => "no commits yet".into(),
+                    },
+                    current: git_view::same_directory(&worktree.path, &root),
+                    enabled: true,
+                    target: GitTarget::Worktree(worktree.path),
+                })
+                .collect(),
+            git_view::Purpose::Branch => choices
+                .branches
+                .into_iter()
+                .map(|branch| {
+                    let elsewhere = branch
+                        .worktree
+                        .as_deref()
+                        .filter(|path| !git_view::same_directory(path, &root))
+                        .map(files::display_path);
+                    GitOption {
+                        label: text::sanitize(&branch.name),
+                        detail: match (&elsewhere, branch.current) {
+                            (_, true) => "checked out here".into(),
+                            (Some(path), false) => format!("checked out in {path}"),
+                            (None, false) => String::new(),
+                        },
+                        current: branch.current,
+                        enabled: !branch.current && elsewhere.is_none(),
+                        target: GitTarget::Branch(branch.name),
+                    }
+                })
+                .collect(),
+        };
+        let selected = options
+            .iter()
+            .position(|option| option.current)
+            .unwrap_or(0);
+        self.overlay = Some(Overlay::GitChoice {
+            purpose,
+            options,
+            selected,
+        });
+    }
+
+    fn git_choice_key(
+        &mut self,
+        key: KeyEvent,
+        purpose: git_view::Purpose,
+        options: Vec<GitOption>,
+        selected: usize,
+    ) -> Vec<Action> {
+        let last = options.len().saturating_sub(1);
+        let next = match key.code {
+            KeyCode::Esc => return Vec::new(),
+            KeyCode::Enter => {
+                match options.get(selected).cloned() {
+                    Some(option) if !option.enabled && !option.current => {
+                        self.fail(format!(
+                            "{} is {}, so it cannot be checked out here as well.",
+                            option.label, option.detail
+                        ));
+                        self.overlay = Some(Overlay::GitChoice {
+                            purpose,
+                            options,
+                            selected,
+                        });
+                    }
+                    Some(option) => self.choose_git_option(option),
+                    None => {}
+                }
+                return Vec::new();
+            }
+            KeyCode::Up | KeyCode::Char('k') => selected.saturating_sub(1),
+            KeyCode::Down | KeyCode::Char('j') => (selected + 1).min(last),
+            KeyCode::Home => 0,
+            KeyCode::End => last,
+            _ => selected,
+        };
+        self.overlay = Some(Overlay::GitChoice {
+            purpose,
+            options,
+            selected: next,
+        });
+        Vec::new()
+    }
+
+    fn choose_git_option(&mut self, option: GitOption) {
+        match option.target {
+            GitTarget::Worktree(path) => {
+                self.git.choose_worktree(path, &self.cwd);
+                self.invalidate_page();
+            }
+            GitTarget::Branch(_) if option.current => {}
+            GitTarget::Branch(branch) => {
+                let Some(snapshot) = self.git.snapshot() else {
+                    return;
+                };
+                let (root, expected_head) = (snapshot.root.clone(), snapshot.head.clone());
+                let question = format!(
+                    "Check out {} in {}? The worktree must have no uncommitted changes. Nothing is stashed, committed or discarded, and no run can start until the switch has finished.",
+                    text::sanitize(&branch),
+                    files::display_path(&root)
+                );
+                self.overlay = Some(Overlay::Confirm {
+                    question,
+                    target: Confirm::SwitchBranch {
+                        root,
+                        branch,
+                        expected_head,
+                    },
+                });
+            }
+        }
+    }
+
+    fn confirm_switch(&mut self, root: PathBuf, branch: String, expected_head: Option<String>) {
+        if self.active {
+            self.fail("A run is active. Stop it with /stop before switching branches.");
+        } else if let Some(pending) = self.git.switching() {
+            let message = format!(
+                "A switch to {} has not finished yet.",
+                text::sanitize(pending)
+            );
+            self.fail(message);
+        } else {
+            self.status = format!("Checking out {}", text::sanitize(&branch));
+            self.git.begin_switch(root, branch, expected_head);
+            self.dirty = true;
+        }
+    }
+
+    /// Show the actual patch the backend returned for one change, drawn by line role.
+    fn open_git_diff(&mut self, change: &git::Change, result: Result<git::Diff, git::GitError>) {
+        let diff = match result {
+            Ok(diff) => diff,
+            Err(error) => {
+                self.fail(format!(
+                    "The diff of {} could not be read: {error}",
+                    files::display_path(&change.path)
+                ));
+                return;
+            }
+        };
+        if self.view != View::Git || self.overlay.is_some() {
+            return;
+        }
+        let theme = self.theme;
+        let width = frame::preview_content_width(self.viewport.width as u16) as usize;
+        let mut body = Vec::new();
+        if let Some(notice) = &diff.notice {
+            body.extend(
+                text::wrap(&text::sanitize(notice), width.max(1))
+                    .into_iter()
+                    .map(|piece| Line::from(ratatui::text::Span::styled(piece, theme.muted()))),
+            );
+        }
+        if diff.text.is_empty() {
+            if diff.notice.is_none() {
+                body.push(Line::from(ratatui::text::Span::styled(
+                    "No textual difference to show.".to_owned(),
+                    theme.muted(),
+                )));
+            }
+        } else {
+            if !body.is_empty() {
+                body.push(Line::default());
+            }
+            body.extend(text::patch(&diff.text, width, &theme));
+        }
+        self.overlay = Some(Overlay::Preview {
+            title: files::display_path(&change.path),
+            body,
+            scroll: 0,
+        });
     }
 
     fn theme_key(&mut self, key: KeyEvent, selected: usize, original: String) -> Vec<Action> {
@@ -2182,7 +2532,13 @@ impl App {
         self.history_index = self.history.len();
         self.follow = true;
         self.selected_entry = usize::MAX;
-        match route(&input, self.active, self.session.as_deref()) {
+        let route = route(&input, self.active, self.session.as_deref());
+        if matches!(route, Route::FollowUp(_) | Route::NewRun) && self.runs_held() {
+            // Nothing typed is lost: it goes back to the composer for after the switch.
+            self.input.set(input);
+            return Vec::new();
+        }
+        match route {
             Route::Command => self.command(&input, width),
             Route::Queue(session) => {
                 self.status = "Message saved. Agents receive it at the next turn boundary.".into();
@@ -2244,6 +2600,7 @@ impl App {
             "/sessions" => self.set_view(View::Sessions),
             "/files" => self.set_view(View::Files),
             "/diff" => self.set_view(View::Changes),
+            "/git" => self.set_view(View::Git),
             "/checks" => self.set_view(View::Checks),
             "/assignments" => self.set_view(View::Assignments),
             "/decisions" => self.set_view(View::Decisions),
@@ -2355,6 +2712,9 @@ impl App {
                 return Ok(vec![Action::Cancel]);
             }
             "/resume" => {
+                if self.runs_held() {
+                    return Ok(Vec::new());
+                }
                 if self.active {
                     bail!("A run is already active.");
                 }

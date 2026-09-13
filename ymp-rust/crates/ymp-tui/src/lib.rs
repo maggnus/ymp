@@ -17,12 +17,14 @@ use tokio_util::sync::CancellationToken;
 use ymp_core::{Config, UiEvent};
 use ymp_runtime::{Engine, RunOutcome};
 use ymp_storage::Store;
+use ymp_workspace::git::GitError;
 
 mod commands;
 mod diff;
 mod exit;
 mod files;
 mod frame;
+mod git_view;
 mod highlight;
 pub mod label;
 mod prefs;
@@ -79,6 +81,9 @@ pub async fn run(
     type ScanResult = Result<(Config, ymp_providers::discovery::CatalogScanReport)>;
     let mut scanning: Option<JoinHandle<ScanResult>> = None;
     let mut scan_cancel = CancellationToken::new();
+    // The Git page's one admitted request. Its library work cannot be stopped part way, so no
+    // second request starts beside it, whatever the page does meanwhile.
+    let mut git_job: Option<JoinHandle<git_view::Reply>> = None;
     let mut cancel = CancellationToken::new();
     let mut ticker = tokio::time::interval(TICK);
     ticker.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
@@ -172,7 +177,34 @@ pub async fn run(
             }
         }
 
+        if git_job.as_ref().is_some_and(JoinHandle::is_finished) {
+            if let Some(handle) = git_job.take() {
+                match handle.await {
+                    Ok(reply) => app.git_reply(reply),
+                    Err(error) => app.git_abandoned(format!("The Git task failed: {error}")),
+                }
+            }
+        }
+        if git_job.is_none() {
+            if let Some(request) = app.git_request(Instant::now()) {
+                git_job = Some(spawn_git(&store, request, running.is_some()));
+            }
+        }
+
         for action in actions {
+            if matches!(
+                action,
+                Action::StartRun { .. } | Action::FollowUp { .. } | Action::Resume { .. }
+            ) {
+                if let Some(branch) = app.git.switching() {
+                    let message = format!(
+                        "A switch to {} is in progress. Runs can start once it has finished.",
+                        text::sanitize(branch)
+                    );
+                    app.fail(message);
+                    continue;
+                }
+            }
             match action {
                 Action::Quit => {
                     // Nothing typed after leaving was committed is started.
@@ -326,6 +358,39 @@ pub async fn run(
     let _ = out.write_all(exit::farewell(&store, &departure).as_bytes());
     let _ = out.flush();
     Ok(())
+}
+
+/// Hand one request to the Git backend. A branch switch is refused while a run is active, and
+/// otherwise takes the lock a run of that directory takes and moves it into the backend, which
+/// keeps it until the checkout has ended.
+fn spawn_git(
+    store: &Store,
+    request: git_view::Request,
+    run_active: bool,
+) -> JoinHandle<git_view::Reply> {
+    let mut lock = None;
+    if let git_view::Request::Switch { root, branch, .. } = &request {
+        let refused = |message: String| git_view::Reply::Switch {
+            branch: branch.clone(),
+            result: Err(GitError::Failed(message)),
+        };
+        if run_active {
+            let reply =
+                refused("A run is active. Stop it with /stop before switching branches.".into());
+            return tokio::spawn(async move { reply });
+        }
+        match store
+            .project(root)
+            .and_then(|project| store.lock_project(&project.id))
+        {
+            Ok(held) => lock = Some(held),
+            Err(error) => {
+                let reply = refused(format!("{error:#}"));
+                return tokio::spawn(async move { reply });
+            }
+        }
+    }
+    tokio::spawn(git_view::perform(request, lock))
 }
 
 /// Build an engine for a fresh cancellation scope.

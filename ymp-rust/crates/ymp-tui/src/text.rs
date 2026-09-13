@@ -516,6 +516,15 @@ fn push_code(
 }
 
 /// The lines of a patch under the gutter, each in the style of its role and with its own marker.
+/// An actual patch drawn as the transcript draws a declared one: every line styled by its role
+/// and kept whole, under the code gutter. A carriage return stays content and is written out.
+pub fn patch(text: &str, width: usize, theme: &Theme) -> Vec<Line<'static>> {
+    let rows: Vec<&str> = text.split_terminator('\n').collect();
+    let mut lines = Vec::new();
+    push_patch(&mut lines, &rows, width, theme);
+    lines
+}
+
 fn push_patch(lines: &mut Vec<Line<'static>>, patch: &[&str], width: usize, theme: &Theme) {
     let (gutter, room) = code_gutter(width, theme);
     for (line, role) in patch.iter().zip(diff::roles(patch)) {

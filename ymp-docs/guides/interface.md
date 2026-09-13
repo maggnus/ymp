@@ -161,7 +161,8 @@ Esc discards what was typed or pasted into it.
 
 Every page is a read-only projection. A page opens with its command, such as `/tasks`, or from
 the command palette; opening one never starts an agent and never writes to your working
-directory. Each page states its own keys in the status row.
+directory. The one exception is checking out a branch from the Git page, which asks for
+confirmation first, as [Git](#git) describes. Each page states its own keys in the status row.
 
 A page's records are tables in the style of k9s: upper-case column titles over aligned rows,
 figures aligned right, and the column titles kept on screen while the rows scroll. A page may
@@ -440,6 +441,47 @@ Fenced code that names a language, such as a block opened with ```` ```rust ````
 the same way in the transcript and in the popup `Enter` opens for a message, as
 [Reading the conversation](#reading-the-conversation) describes. `/help` links the licences and
 notices of the bundled syntax definitions.
+
+## Git
+
+`/git` shows what Git reports as changed in a worktree: the directory ymp was started in, or
+another worktree of the same repository chosen with `w`. Git is read by a library built into ymp;
+no `git` program needs to be installed, and none is run.
+
+The page reads Git about once a second while it is open, and never while it is painted. One
+reading runs at a time: leaving the page or changing what it shows does not start a second one
+beside a reading still working, and that reading's answer is dropped when it arrives. `r` reads
+again without waiting.
+
+- **Uncommitted** compares the working tree with `HEAD`, including files Git does not track yet.
+- **Committed** shows what the branch has committed since the merge base with its base branch.
+  The base is found from `origin/HEAD`, then a local `main` or `master`, then the upstream
+  branch, and the page says when none was identified.
+
+A worktree with uncommitted changes opens on Uncommitted, and a clean one on Committed. `m` shows
+the other comparison and keeps it until the worktree crosses between clean and changed; the page
+then follows the worktree again.
+
+The table lists the status Git reports, the path (a renamed file also names where it came from),
+whether the change is staged, unstaged or untracked, and the lines added and removed. `Enter` opens
+the file's actual patch in a popup, each line drawn by its role in the theme's colours, with the
+keys of a file preview; `d` shows the row's record. With nothing to list the page says
+`No changes to display` and points to the other comparison. A directory outside a Git working
+tree, a reading that failed, and a list kept from before a failed reading are each stated, so a
+failure never reads as a clean tree.
+
+`b` lists the local branches. Choosing one asks for confirmation, then checks it out in the
+worktree being inspected. It is the only change the page makes:
+
+- It is refused while a run is active, and no run starts, continues or resumes until it has
+  finished. It holds the lock a run of that directory takes, which excludes other ymp runs there
+  but not other programs.
+- It is refused when the worktree has uncommitted changes or its `HEAD` moved since the page read
+  it. Nothing is stashed, committed, discarded or pushed, and no Git hooks run.
+- A branch already checked out in another worktree cannot be chosen.
+
+Choosing a worktree with `w` changes only what the page inspects. The directory runs work in, the
+files page and the configuration stay as they were.
 
 ## Themes
 

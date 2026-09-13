@@ -135,6 +135,13 @@ pub const COMMANDS: &[Command] = &[
         args: Args::None,
     },
     Command {
+        name: "/git",
+        usage: "/git",
+        summary: "Uncommitted or committed Git changes of a worktree, and its branch.",
+        group: Group::Navigate,
+        args: Args::None,
+    },
+    Command {
         name: "/checks",
         usage: "/checks",
         summary: "Commands ymp ran itself for the loaded session, and their outcome.",

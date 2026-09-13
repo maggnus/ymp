@@ -1,0 +1,17 @@
+# Git page tests on 16425aa with the uncommitted /git UI
+    Finished `test` profile [unoptimized] target(s) in 3.37s
+     Running unittests src/lib.rs (target/debug/deps/ymp_tui-6095038d9173546d)
+
+running 8 tests
+test diff::tests::every_line_of_a_git_patch_has_its_role ... ok
+test tests::choosing_a_worktree_changes_only_what_the_git_page_inspects ... ok
+test tests::a_late_git_reply_is_dropped_and_leaving_the_page_starts_nothing_beside_it ... ok
+test tests::a_branch_switch_is_confirmed_holds_runs_and_reports_what_happened ... ok
+test tests::git_page_states_a_missing_repository_a_failed_reading_and_a_kept_list ... ok
+test tests::a_raw_git_patch_is_styled_but_a_list_of_plus_and_minus_lines_is_not ... ok
+test tests::git_page_follows_the_backend_until_a_manual_choice_and_again_once_the_tree_crosses ... ok
+test tests::git_selection_follows_the_exact_file_and_enter_shows_its_actual_patch ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 258 filtered out; finished in 0.03s
+
+exit=0

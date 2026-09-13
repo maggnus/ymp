@@ -10652,3 +10652,550 @@ fn an_empty_list_at_the_filesystem_root_takes_every_key() {
     assert_eq!(app.view, View::Files);
     assert!(app.overlay.is_none());
 }
+
+// ---------------------------------------------------------------------------
+// Git page
+// ---------------------------------------------------------------------------
+//
+// No test reaches a repository: each one answers the page's requests in place of the backend,
+// through the same `git_request` and `git_reply` the event loop uses.
+
+use crate::git_view::{self, Reply, Request, POLL};
+use ymp_workspace::git::{Branch, Change, Choices, Comparison, Diff, GitError, Snapshot, Worktree};
+
+const GIT_SCREEN: (u16, u16) = (120, 32);
+
+fn git_change(path: &str, status: &str) -> Change {
+    Change {
+        path: PathBuf::from(path),
+        old_path: None,
+        status: status.into(),
+        staged: false,
+        unstaged: true,
+        untracked: false,
+        added: Some(3),
+        removed: Some(1),
+        binary: false,
+    }
+}
+
+fn git_snapshot(
+    root: &std::path::Path,
+    comparison: Comparison,
+    dirty: bool,
+    files: Vec<Change>,
+) -> Snapshot {
+    Snapshot {
+        root: root.to_path_buf(),
+        branch: Some("feature".into()),
+        head: Some("0123456789abcdef".into()),
+        base: Some("main".into()),
+        base_oid: Some("fedcba9876543210".into()),
+        dirty,
+        comparison,
+        files,
+        notice: None,
+    }
+}
+
+/// The request the Git page makes at `now`, which the test then answers.
+fn git_request(app: &mut App, now: Instant) -> Request {
+    app.git_request(now)
+        .expect("the Git page asked the backend for nothing")
+}
+
+fn answer_reading(app: &mut App, request: Request, result: Result<Snapshot, GitError>) {
+    let Request::Inspect { generation, .. } = request else {
+        panic!("expected a reading, got {request:?}");
+    };
+    app.git_reply(Reply::Inspect { generation, result });
+}
+
+fn git_screen(app: &mut App) -> String {
+    screen_rows(app, GIT_SCREEN.0, GIT_SCREEN.1).join("\n")
+}
+
+#[test]
+fn git_page_follows_the_backend_until_a_manual_choice_and_again_once_the_tree_crosses() {
+    let fixture = fixture();
+    let root = fixture.project.path().to_path_buf();
+    let mut app = fixture.app();
+    assert_eq!(
+        app.git_request(Instant::now()),
+        None,
+        "nothing is read before /git"
+    );
+    app.command("/git", GIT_SCREEN.0);
+    assert!(git_screen(&mut app).contains("Reading Git"));
+
+    let first = git_request(&mut app, Instant::now());
+    assert!(
+        matches!(&first, Request::Inspect { comparison: None, root: asked, .. } if *asked == root),
+        "{first:?}"
+    );
+    // One admitted request, however long it takes.
+    assert_eq!(app.git_request(Instant::now() + POLL * 5), None);
+    answer_reading(
+        &mut app,
+        first,
+        Ok(git_snapshot(
+            &root,
+            Comparison::Uncommitted,
+            true,
+            vec![git_change("src/lib.rs", "M")],
+        )),
+    );
+    assert_eq!(
+        app.git_request(Instant::now()),
+        None,
+        "the next reading waits for the poll"
+    );
+    let screen = git_screen(&mut app);
+    assert!(
+        screen.contains("UNCOMMITTED CHANGES AGAINST HEAD"),
+        "{screen}"
+    );
+    assert!(screen.contains("src/lib.rs"), "{screen}");
+    assert!(screen.contains("feature"), "{screen}");
+
+    app.on_key(key(KeyCode::Char('m')), GIT_SCREEN.0);
+    let manual = git_request(&mut app, Instant::now());
+    assert!(
+        matches!(
+            manual,
+            Request::Inspect {
+                comparison: Some(Comparison::Committed),
+                ..
+            }
+        ),
+        "{manual:?}"
+    );
+    answer_reading(
+        &mut app,
+        manual,
+        Ok(git_snapshot(&root, Comparison::Committed, true, Vec::new())),
+    );
+    let screen = git_screen(&mut app);
+    assert!(screen.contains("No changes to display"), "{screen}");
+    assert!(
+        screen.contains("Committed changes since the base branch"),
+        "{screen}"
+    );
+    assert!(screen.contains("feature since main"), "{screen}");
+    // The advice is prose, wrapped to the page: its words are checked, not where the line broke.
+    assert!(screen.contains("uncommitted changes:"), "{screen}");
+    assert!(screen.contains("m shows them."), "{screen}");
+
+    // Still changed: the manual choice holds at the next poll.
+    let held = git_request(&mut app, Instant::now() + POLL);
+    assert!(
+        matches!(
+            held,
+            Request::Inspect {
+                comparison: Some(Comparison::Committed),
+                ..
+            }
+        ),
+        "{held:?}"
+    );
+    // Now clean: the page asks for the backend's own choice at once.
+    answer_reading(
+        &mut app,
+        held,
+        Ok(git_snapshot(
+            &root,
+            Comparison::Committed,
+            false,
+            Vec::new(),
+        )),
+    );
+    let followed = git_request(&mut app, Instant::now());
+    assert!(
+        matches!(
+            followed,
+            Request::Inspect {
+                comparison: None,
+                ..
+            }
+        ),
+        "{followed:?}"
+    );
+}
+
+#[test]
+fn a_late_git_reply_is_dropped_and_leaving_the_page_starts_nothing_beside_it() {
+    let fixture = fixture();
+    let root = fixture.project.path().to_path_buf();
+    let mut app = fixture.app();
+    app.command("/git", GIT_SCREEN.0);
+    let slow = git_request(&mut app, Instant::now());
+
+    app.command("/chat", GIT_SCREEN.0);
+    app.command("/git", GIT_SCREEN.0);
+    assert_eq!(
+        app.git_request(Instant::now() + POLL * 3),
+        None,
+        "a second reading started beside one still admitted"
+    );
+    answer_reading(
+        &mut app,
+        slow,
+        Ok(git_snapshot(
+            &root,
+            Comparison::Uncommitted,
+            true,
+            vec![git_change("stale.rs", "M")],
+        )),
+    );
+    let screen = git_screen(&mut app);
+    assert!(
+        !screen.contains("stale.rs"),
+        "a reply for the earlier visit was shown:\n{screen}"
+    );
+
+    let fresh = git_request(&mut app, Instant::now());
+    answer_reading(
+        &mut app,
+        fresh,
+        Ok(git_snapshot(
+            &root,
+            Comparison::Uncommitted,
+            true,
+            vec![git_change("fresh.rs", "M")],
+        )),
+    );
+    assert!(git_screen(&mut app).contains("fresh.rs"));
+
+    // Away from the page nothing is read.
+    app.command("/chat", GIT_SCREEN.0);
+    assert_eq!(app.git_request(Instant::now() + POLL * 3), None);
+}
+
+#[test]
+fn git_selection_follows_the_exact_file_and_enter_shows_its_actual_patch() {
+    let fixture = fixture();
+    let root = fixture.project.path().to_path_buf();
+    let mut app = fixture.app();
+    app.command("/git", GIT_SCREEN.0);
+    let first = git_request(&mut app, Instant::now());
+    answer_reading(
+        &mut app,
+        first,
+        Ok(git_snapshot(
+            &root,
+            Comparison::Uncommitted,
+            true,
+            vec![git_change("alpha.rs", "M"), git_change("beta.rs", "A")],
+        )),
+    );
+    git_screen(&mut app);
+    app.on_key(key(KeyCode::Down), GIT_SCREEN.0);
+    let beta = git_view::row_key(std::path::Path::new("beta.rs"));
+    assert_eq!(
+        app.selected_item(GIT_SCREEN.0).map(|item| item.key),
+        Some(beta.clone())
+    );
+
+    // A later reading lists the files in another order: the selection stays on beta.rs.
+    let second = git_request(&mut app, Instant::now() + POLL);
+    answer_reading(
+        &mut app,
+        second,
+        Ok(git_snapshot(
+            &root,
+            Comparison::Uncommitted,
+            true,
+            vec![
+                git_change("new.rs", "?"),
+                git_change("beta.rs", "A"),
+                git_change("alpha.rs", "M"),
+            ],
+        )),
+    );
+    git_screen(&mut app);
+    assert_eq!(
+        app.selected_item(GIT_SCREEN.0).map(|item| item.key),
+        Some(beta)
+    );
+
+    assert!(app.on_key(key(KeyCode::Enter), GIT_SCREEN.0).is_empty());
+    let asked = git_request(&mut app, Instant::now());
+    let Request::Diff {
+        generation,
+        snapshot,
+        change,
+    } = asked
+    else {
+        panic!("Enter did not ask for a diff: {asked:?}");
+    };
+    assert_eq!(change.path, PathBuf::from("beta.rs"));
+    assert_eq!(snapshot.files.len(), 3);
+    let text = "diff --git a/beta.rs b/beta.rs\n--- a/beta.rs\n+++ b/beta.rs\n@@ -1 +1,2 @@\n context\n+added \u{1b}[31m\r\n";
+    app.git_reply(Reply::Diff {
+        generation,
+        change,
+        result: Ok(Diff {
+            text: text.into(),
+            notice: None,
+        }),
+    });
+    assert!(matches!(app.overlay, Some(Overlay::Preview { .. })));
+    let buffer = drawn(&mut app, GIT_SCREEN.0, GIT_SCREEN.1);
+    let theme = app.theme;
+    let (x, y) = cell_of(&buffer, "+added").expect("the added line is drawn");
+    assert_eq!(
+        Some(buffer[(x, y)].fg),
+        crate::diff::Role::Added.style(&theme).fg
+    );
+    let screen = git_screen(&mut app);
+    assert!(screen.contains("@@ -1 +1,2 @@"), "{screen}");
+    assert!(
+        !screen.contains('\u{1b}'),
+        "a control character reached the terminal"
+    );
+
+    app.on_key(key(KeyCode::Esc), GIT_SCREEN.0);
+    assert!(app.overlay.is_none());
+    assert_eq!(app.view, View::Git);
+}
+
+#[test]
+fn git_page_states_a_missing_repository_a_failed_reading_and_a_kept_list() {
+    let fixture = fixture();
+    let root = fixture.project.path().to_path_buf();
+    let mut app = fixture.app();
+    app.command("/git", GIT_SCREEN.0);
+    let first = git_request(&mut app, Instant::now());
+    answer_reading(&mut app, first, Err(GitError::NotRepository));
+    let screen = git_screen(&mut app);
+    assert!(screen.contains("Not a Git working tree"), "{screen}");
+    assert!(!screen.contains("No changes to display"), "{screen}");
+
+    app.on_key(key(KeyCode::Char('r')), GIT_SCREEN.0);
+    let again = git_request(&mut app, Instant::now());
+    answer_reading(
+        &mut app,
+        again,
+        Ok(git_snapshot(
+            &root,
+            Comparison::Uncommitted,
+            true,
+            vec![git_change("kept.rs", "M")],
+        )),
+    );
+    let failing = git_request(&mut app, Instant::now() + POLL);
+    answer_reading(
+        &mut app,
+        failing,
+        Err(GitError::Failed("the index is unreadable".into())),
+    );
+    let screen = git_screen(&mut app);
+    assert!(screen.contains("kept.rs"), "{screen}");
+    assert!(
+        screen.contains("The last reading failed: the index is unreadable"),
+        "{screen}"
+    );
+}
+
+#[test]
+fn choosing_a_worktree_changes_only_what_the_git_page_inspects() {
+    let fixture = fixture();
+    let root = fixture.project.path().to_path_buf();
+    let linked = root.join("linked");
+    std::fs::create_dir(&linked).unwrap();
+    let mut app = fixture.app();
+    let config = serde_json::to_string(&app.config).unwrap();
+    let before = tree(&root);
+    app.command("/git", GIT_SCREEN.0);
+    let first = git_request(&mut app, Instant::now());
+    answer_reading(
+        &mut app,
+        first,
+        Ok(git_snapshot(
+            &root,
+            Comparison::Committed,
+            false,
+            Vec::new(),
+        )),
+    );
+
+    app.on_key(key(KeyCode::Char('w')), GIT_SCREEN.0);
+    let Request::Choices {
+        generation,
+        root: asked,
+        purpose,
+    } = git_request(&mut app, Instant::now())
+    else {
+        panic!("w did not ask for the worktrees");
+    };
+    assert_eq!(
+        (asked.as_path(), purpose),
+        (root.as_path(), git_view::Purpose::Worktree)
+    );
+    app.git_reply(Reply::Choices {
+        generation,
+        purpose,
+        result: Ok(Choices {
+            worktrees: vec![
+                Worktree {
+                    path: root.clone(),
+                    branch: Some("feature".into()),
+                    head: Some("0123456789abcdef".into()),
+                },
+                Worktree {
+                    path: linked.clone(),
+                    branch: None,
+                    head: Some("89abcdef01234567".into()),
+                },
+            ],
+            branches: Vec::new(),
+        }),
+    });
+    let screen = git_screen(&mut app);
+    assert!(screen.contains("Inspect a worktree"), "{screen}");
+    assert!(screen.contains("detached at 89abcdef0123"), "{screen}");
+    app.on_key(key(KeyCode::Down), GIT_SCREEN.0);
+    app.on_key(key(KeyCode::Enter), GIT_SCREEN.0);
+
+    let next = git_request(&mut app, Instant::now());
+    assert!(
+        matches!(&next, Request::Inspect { root: asked, comparison: None, .. } if *asked == linked),
+        "{next:?}"
+    );
+    assert_eq!(app.cwd, root);
+    assert_eq!(serde_json::to_string(&app.config).unwrap(), config);
+    assert_eq!(
+        tree(&root),
+        before,
+        "choosing a worktree changed the project"
+    );
+}
+
+#[test]
+fn a_branch_switch_is_confirmed_holds_runs_and_reports_what_happened() {
+    let fixture = fixture();
+    let root = fixture.project.path().to_path_buf();
+    let mut app = fixture.app();
+    app.command("/git", GIT_SCREEN.0);
+    let first = git_request(&mut app, Instant::now());
+    answer_reading(
+        &mut app,
+        first,
+        Ok(git_snapshot(
+            &root,
+            Comparison::Committed,
+            false,
+            Vec::new(),
+        )),
+    );
+
+    app.on_key(key(KeyCode::Char('b')), GIT_SCREEN.0);
+    let Request::Choices {
+        generation,
+        purpose,
+        ..
+    } = git_request(&mut app, Instant::now())
+    else {
+        panic!("b did not ask for the branches");
+    };
+    assert_eq!(purpose, git_view::Purpose::Branch);
+    app.git_reply(Reply::Choices {
+        generation,
+        purpose,
+        result: Ok(Choices {
+            worktrees: Vec::new(),
+            branches: vec![
+                Branch {
+                    name: "feature".into(),
+                    current: true,
+                    worktree: Some(root.clone()),
+                },
+                Branch {
+                    name: "main".into(),
+                    current: false,
+                    worktree: None,
+                },
+                Branch {
+                    name: "busy".into(),
+                    current: false,
+                    worktree: Some(PathBuf::from("/elsewhere/busy")),
+                },
+            ],
+        }),
+    });
+    let screen = git_screen(&mut app);
+    assert!(screen.contains("Switch branch"), "{screen}");
+    assert!(
+        screen.contains("checked out in /elsewhere/busy"),
+        "{screen}"
+    );
+
+    // A branch checked out in another worktree is not offered as a switch.
+    app.on_key(key(KeyCode::End), GIT_SCREEN.0);
+    app.on_key(key(KeyCode::Enter), GIT_SCREEN.0);
+    assert!(matches!(app.overlay, Some(Overlay::GitChoice { .. })));
+    assert_eq!(app.git.switching(), None);
+
+    app.on_key(key(KeyCode::Up), GIT_SCREEN.0);
+    app.on_key(key(KeyCode::Enter), GIT_SCREEN.0);
+    let screen = git_screen(&mut app);
+    assert!(screen.contains("Check out main in"), "{screen}");
+    assert!(screen.contains("checks out"), "{screen}");
+    // A run that became active since is a reason to refuse.
+    app.active = true;
+    app.on_key(key(KeyCode::Char('y')), GIT_SCREEN.0);
+    assert_eq!(app.git.switching(), None);
+    app.active = false;
+
+    app.on_key(key(KeyCode::Char('b')), GIT_SCREEN.0);
+    let Request::Choices { generation, .. } = git_request(&mut app, Instant::now()) else {
+        panic!("b did not ask for the branches again");
+    };
+    app.git_reply(Reply::Choices {
+        generation,
+        purpose: git_view::Purpose::Branch,
+        result: Ok(Choices {
+            worktrees: Vec::new(),
+            branches: vec![Branch {
+                name: "main".into(),
+                current: false,
+                worktree: None,
+            }],
+        }),
+    });
+    app.on_key(key(KeyCode::Enter), GIT_SCREEN.0);
+    assert!(app.on_key(key(KeyCode::Char('y')), GIT_SCREEN.0).is_empty());
+    assert_eq!(app.git.switching(), Some("main"));
+
+    // No run starts, continues or resumes while the switch is pending, and nothing typed is lost.
+    app.command("/chat", GIT_SCREEN.0);
+    assert!(submit(&mut app, "build the page").is_empty());
+    assert_eq!(app.input.value, "build the page");
+    app.input.clear();
+    assert!(app.command("/resume", GIT_SCREEN.0).is_empty());
+    assert!(app
+        .notices
+        .iter()
+        .any(|notice| notice.text.contains("A switch to main is in progress")));
+
+    // The switch goes to the backend even though the page is no longer shown.
+    let switch = git_request(&mut app, Instant::now());
+    assert_eq!(
+        switch,
+        Request::Switch {
+            root: root.clone(),
+            branch: "main".into(),
+            expected_head: Some("0123456789abcdef".into()),
+        }
+    );
+    app.git_reply(Reply::Switch {
+        branch: "main".into(),
+        result: Err(GitError::Dirty),
+    });
+    assert_eq!(app.git.switching(), None);
+    assert!(app
+        .notices
+        .iter()
+        .any(|notice| notice.failure && notice.text.contains("main was not checked out")));
+    assert!(!submit(&mut app, "now it may start").is_empty());
+}

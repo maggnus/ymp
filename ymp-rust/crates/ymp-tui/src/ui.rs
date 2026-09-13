@@ -8,7 +8,7 @@ use crate::exit;
 use crate::frame::{self, ModalRole, ModalSpec};
 use crate::highlight;
 use crate::sidebar;
-use crate::state::{App, Focus, Overlay, PromptTarget};
+use crate::state::{App, Confirm, Focus, Overlay, PromptTarget};
 use crate::table::{self, Cell, Column};
 use crate::text;
 use crate::theme::{self, Theme};
@@ -1214,7 +1214,78 @@ fn overlay(frame: &mut Frame, area: Rect, regions: &[Rect], app: &App) -> Option
                 rect.y + (cursor_row - first_row) as u16,
             ))
         }
-        Overlay::Confirm { question, .. } => {
+        Overlay::GitChoice {
+            purpose,
+            options,
+            selected,
+        } => {
+            use crate::git_view::Purpose;
+            let width = 76u16.min(area.width.saturating_sub(4));
+            let inner = frame::modal_content_width(width) as usize;
+            // As in the palette: no more rows than the surface shows, keeping one for the count of
+            // those below, so the selection never sits on a row the surface cuts off.
+            let rows = frame::modal_body_rows(area.height, true);
+            let mut visible = options.len();
+            if visible > rows {
+                visible = rows.saturating_sub(1).max(1);
+            }
+            let first = selected.saturating_sub(visible.saturating_sub(1));
+            let mut body = Vec::new();
+            if options.is_empty() {
+                let none = match purpose {
+                    Purpose::Worktree => "Git lists no worktree here.",
+                    Purpose::Branch => "Git lists no local branch here.",
+                };
+                body.push(Line::from(Span::styled(none.to_owned(), theme.muted())));
+            }
+            for (index, option) in options.iter().enumerate().skip(first).take(visible) {
+                let chosen = index == *selected;
+                let style = if chosen {
+                    theme.selected()
+                } else if option.enabled || option.current {
+                    theme.body()
+                } else {
+                    theme.faint()
+                };
+                let marker = if chosen { theme.markers.selection } else { " " };
+                body.push(text::row(
+                    inner,
+                    vec![Span::styled(format!("{marker} {}", option.label), style)],
+                    vec![Span::styled(
+                        option.detail.clone(),
+                        if chosen { style } else { theme.muted() },
+                    )],
+                ));
+            }
+            let below = options.len().saturating_sub(first + visible);
+            if below > 0 {
+                body.push(Line::from(Span::styled(
+                    format!("{} {below} more", theme.markers.more),
+                    theme.faint(),
+                )));
+            }
+            let (title, badge, action) = match purpose {
+                Purpose::Worktree => ("Inspect a worktree", "read only", "inspect"),
+                Purpose::Branch => ("Switch branch", "checks out", "switch"),
+            };
+            frame::render_modal(
+                frame,
+                area,
+                regions,
+                &ModalSpec {
+                    title: title.into(),
+                    badge: badge.into(),
+                    role: ModalRole::Choice,
+                    width,
+                    body,
+                    footer: vec![("Up/Down", "select"), ("Enter", action), ("Esc", "cancel")],
+                    scroll: 0,
+                },
+                theme,
+            );
+            None
+        }
+        Overlay::Confirm { question, target } => {
             let width = 68u16.min(area.width.saturating_sub(4));
             let body = text::wrap(question, frame::modal_content_width(width) as usize)
                 .into_iter()
@@ -1226,7 +1297,11 @@ fn overlay(frame: &mut Frame, area: Rect, regions: &[Rect], app: &App) -> Option
                 regions,
                 &ModalSpec {
                     title: "Confirm".into(),
-                    badge: "cannot be undone".into(),
+                    badge: match target {
+                        Confirm::ForgetMemory(_) => "cannot be undone",
+                        Confirm::SwitchBranch { .. } => "checks out",
+                    }
+                    .into(),
                     role: ModalRole::Choice,
                     width,
                     body,
