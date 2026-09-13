@@ -1,6 +1,6 @@
 # Delivery plan and progress
 
-Updated: 2026-09-13 16:13 UTC.
+Updated: 2026-09-13 16:17 UTC.
 
 [Approved intent](../../intent.md) · [Task details and evidence](README.md) · [Canonical register](tasks.json)
 
@@ -132,10 +132,10 @@ Approved intent and delivery baseline: 5/5 complete. [YMP-010](README.md#ymp-010
 
 Deferred and post-MVP work:
 - `[=]` [YMP-108](README.md#ymp-108) — Evaluate an optional usage estimate with explicit price provenance. Optional currency estimates are outside the first delivery; raw usage and coverage remain required.
-- `[=]` [YMP-201](README.md#ymp-201) — Calibrate and run the paired solo/team pilot. Concrete offline prerequisite151 now owns the comparison package; native pilot remains unstarted and requires explicit quota. Earlier unapproved budget text retained here for history: Proposed only: calibration 4 attempts, 500,000 observed raw tokens each / 2,000,000 total; subsequent pilot 40 attempts / at most 20,000,000 total, separately approved. One active attempt, 20 minutes each, 80 ymp invocations each, 180 seconds per invocation; no application-level retries. In-flight overshoot requires a documented policy before approval.
-- `[=]` [YMP-202](README.md#ymp-202) — Test memory and adaptive assignment on held-out tasks. Experience-effect comparisons follow the initial pilot and require their own quota.
-- `[=]` [YMP-203](README.md#ymp-203) — Test effort, reduced preparation and low-effort ensembles separately. Specific effort and coordination comparisons follow the initial pilot; no universal policy is assumed.
-- `[=]` [YMP-204](README.md#ymp-204) — Evaluate a project-scoped prior-outcome router. A dedicated outcome-reuse router is optional; ordinary knowledge reuse is covered by core delivery.
+- `[=]` [YMP-201](README.md#ymp-201) — Calibrate and run the paired solo/team pilot. Owner explicitly required marking comparative trials as subject to owner approval. The experiment remains paused; no automatic start after preparation/dependency completion. Obtain separate approval of the concrete protocol, configurations and resource envelope before calibration or measured comparative runs.
+- `[=]` [YMP-202](README.md#ymp-202) — Test memory and adaptive assignment on held-out tasks. Owner explicitly required marking comparative trials as subject to owner approval. The experiment remains paused; no automatic start after preparation/dependency completion. Obtain separate approval of the concrete protocol, configurations and resource envelope before calibration or measured comparative runs.
+- `[=]` [YMP-203](README.md#ymp-203) — Test effort, reduced preparation and low-effort ensembles separately. Owner explicitly required marking comparative trials as subject to owner approval. The experiment remains paused; no automatic start after preparation/dependency completion. Obtain separate approval of the concrete protocol, configurations and resource envelope before calibration or measured comparative runs.
+- `[=]` [YMP-204](README.md#ymp-204) — Evaluate a project-scoped prior-outcome router. Owner explicitly required marking comparative trials as subject to owner approval. The experiment remains paused; no automatic start after preparation/dependency completion. Obtain separate approval of the concrete protocol, configurations and resource envelope before calibration or measured comparative runs.
 - `[=]` [YMP-301](README.md#ymp-301) — Confirm the initial success class and intended audience. External-audience positioning is deferred; it does not block the approved local universal product.
 - `[=]` [YMP-124](README.md#ymp-124) — Add isolated execution and recoverable publication for larger projects. Explicitly deferred until after the 0.4.0 MVP. Direct execution is accepted only for that MVP; larger-project isolation/publication requires this separate outcome.
 
@@ -143,11 +143,11 @@ Deferred and post-MVP work:
 
 | Time (UTC) | Task | State | Update |
 | --- | --- | --- | --- |
-| 2026-09-13 16:13 | [YMP-201](README.md#ymp-201) | `[=]` | Concrete offline prerequisite151 now owns the comparison package; native pilot remains unstarted and requires explicit quota. Earlier unapproved budget text retained here for history: Proposed only: calibration 4 attempts, 500,000 observed raw tokens each / 2,000,000 total; subsequent pilot 40 attempts / at most 20,000,000 total, separately approved. One active attempt, 20 minutes each, 80 ymp invocations each, 180 seconds per invocation; no application-level retries. In-flight overshoot requires a documented policy before approval. |
-| 2026-09-13 16:13 | [YMP-146](README.md#ymp-146) | `[~]` | The /team/policy work is now a concrete pool:148 coordination backend,150 team UI,151 offline comparisons, followed by existing201 native pilot. This planning split does not change or delay the running P0 recovery fork. |
-| 2026-09-13 16:13 | [YMP-148](README.md#ymp-148) | `[=]` | Owner requested preserving the /team and policy discussion as a concrete task pool. Split the former broad148 into backend148, UI150 and offline comparison151, linked to existing live experiment201. No duplicate umbrella delivery count and no implementation completion claim; explicit recovery146 remains first. |
-| 2026-09-13 16:13 | [YMP-150](README.md#ymp-150) | `[=]` | Extracted the already-approved UI scope from148. Queued after strategy APIs148 and language149, with recovery146 transitively first. No new UI fork or source changes launched by this planning update. |
-| 2026-09-13 16:13 | [YMP-151](README.md#ymp-151) | `[=]` | Separated offline experiment preparation from the paused native pilot201. May proceed in parallel with UI150 after148 acceptance because writes are isolated. Task outcomes are fixture/runner capability, not proof of team superiority. |
+| 2026-09-13 16:17 | [YMP-201](README.md#ymp-201) | `[=]` | Owner explicitly required marking comparative trials as subject to owner approval. The experiment remains paused; no automatic start after preparation/dependency completion. Obtain separate approval of the concrete protocol, configurations and resource envelope before calibration or measured comparative runs. |
+| 2026-09-13 16:17 | [YMP-202](README.md#ymp-202) | `[=]` | Owner explicitly required marking comparative trials as subject to owner approval. The experiment remains paused; no automatic start after preparation/dependency completion. Obtain separate approval of the concrete protocol, configurations and resource envelope before calibration or measured comparative runs. |
+| 2026-09-13 16:17 | [YMP-203](README.md#ymp-203) | `[=]` | Owner explicitly required marking comparative trials as subject to owner approval. The experiment remains paused; no automatic start after preparation/dependency completion. Obtain separate approval of the concrete protocol, configurations and resource envelope before calibration or measured comparative runs. |
+| 2026-09-13 16:17 | [YMP-204](README.md#ymp-204) | `[=]` | Owner explicitly required marking comparative trials as subject to owner approval. The experiment remains paused; no automatic start after preparation/dependency completion. Obtain separate approval of the concrete protocol, configurations and resource envelope before calibration or measured comparative runs. |
+| 2026-09-13 16:17 | [YMP-151](README.md#ymp-151) | `[=]` | Owner approval boundary made explicit:151 prepares fixtures/runner/manifests and scripted correctness checks only; it does not launch comparative product trials. Subsequent201–204 experiments require separate owner approval. |
 
 ## Maintenance
 

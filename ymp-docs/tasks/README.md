@@ -1,6 +1,6 @@
 # Task details and evidence
 
-Updated: 2026-09-13 16:13 UTC.
+Updated: 2026-09-13 16:17 UTC.
 
 Use the [delivery plan](plan.md) to follow progress. This generated register contains full acceptance criteria, dependencies and evidence. [tasks.json](tasks.json) is the single source; [manage.py](manage.py) updates both pages.
 
@@ -40,10 +40,10 @@ A planned task is not implemented functionality. Completed research and planning
 | `[x]` | [YMP-107](#ymp-107) | P1 | Expose recorded checks and factual recovery limits | 2026-09-12 12:55 |
 | `[=]` | [YMP-108](#ymp-108) | P2 | Evaluate an optional usage estimate with explicit price provenance | 2026-09-12 09:35 |
 | `[x]` | [YMP-111](#ymp-111) | P0 | Apply native models and reasoning settings per assignment | 2026-09-12 12:18 |
-| `[=]` | [YMP-201](#ymp-201) | P2 | Calibrate and run the paired solo/team pilot | 2026-09-13 16:13 |
-| `[=]` | [YMP-202](#ymp-202) | P1 | Test memory and adaptive assignment on held-out tasks | 2026-09-12 09:35 |
-| `[=]` | [YMP-203](#ymp-203) | P1 | Test effort, reduced preparation and low-effort ensembles separately | 2026-09-12 09:35 |
-| `[=]` | [YMP-204](#ymp-204) | P1 | Evaluate a project-scoped prior-outcome router | 2026-09-12 09:35 |
+| `[=]` | [YMP-201](#ymp-201) | P2 | Calibrate and run the paired solo/team pilot | 2026-09-13 16:17 |
+| `[=]` | [YMP-202](#ymp-202) | P1 | Test memory and adaptive assignment on held-out tasks | 2026-09-13 16:17 |
+| `[=]` | [YMP-203](#ymp-203) | P1 | Test effort, reduced preparation and low-effort ensembles separately | 2026-09-13 16:17 |
+| `[=]` | [YMP-204](#ymp-204) | P1 | Evaluate a project-scoped prior-outcome router | 2026-09-13 16:17 |
 | `[=]` | [YMP-301](#ymp-301) | P2 | Confirm the initial success class and intended audience | 2026-09-12 09:35 |
 | `[x]` | [YMP-109](#ymp-109) | P0 | Expose the provider-backed agent pool with stable individual identities | 2026-09-12 10:56 |
 | `[x]` | [YMP-110](#ymp-110) | P0 | Select session teams and execution settings within user constraints | 2026-09-12 20:43 |
@@ -91,7 +91,7 @@ A planned task is not implemented functionality. Completed research and planning
 | `[=]` | [YMP-148](#ymp-148) | P1 | Make session coordination replaceable through a typed strategy contract | 2026-09-13 16:13 |
 | `[=]` | [YMP-149](#ymp-149) | P1 | Use concise professional terminology throughout the interface | 2026-09-13 16:07 |
 | `[=]` | [YMP-150](#ymp-150) | P1 | Make /team the session control page and separate the /agents catalog | 2026-09-13 16:13 |
-| `[=]` | [YMP-151](#ymp-151) | P1 | Prepare reproducible offline comparisons of coordination strategies | 2026-09-13 16:13 |
+| `[=]` | [YMP-151](#ymp-151) | P1 | Prepare reproducible offline comparisons of coordination strategies | 2026-09-13 16:17 |
 
 ## YMP-001
 
@@ -633,13 +633,13 @@ Calibrate and run the paired solo/team pilot
 
 **State:** `[=]` (paused) · **Type:** experiment · **Priority:** P2
 
-**Last update (UTC):** 2026-09-13 16:13
+**Last update (UTC):** 2026-09-13 16:17
 
-**Current reason:** Concrete offline prerequisite151 now owns the comparison package; native pilot remains unstarted and requires explicit quota. Earlier unapproved budget text retained here for history: Proposed only: calibration 4 attempts, 500,000 observed raw tokens each / 2,000,000 total; subsequent pilot 40 attempts / at most 20,000,000 total, separately approved. One active attempt, 20 minutes each, 80 ymp invocations each, 180 seconds per invocation; no application-level retries. In-flight overshoot requires a documented policy before approval.
+**Current reason:** Owner explicitly required marking comparative trials as subject to owner approval. The experiment remains paused; no automatic start after preparation/dependency completion. Obtain separate approval of the concrete protocol, configurations and resource envelope before calibration or measured comparative runs.
 
 **Owner:** Experiment lead
 
-**Authorization:** Explicit owner approval and the recorded quota envelope are required before model experiments.
+**Authorization:** Explicit separate owner approval is required before comparative trials, including calibration. Approval must identify the protocol, treatment configurations and resource envelope. Completion of dependencies, preparation work or general implementation approval does not authorize these experiments. No current comparative-trial approval is recorded.
 
 **Depends on:** [YMP-121](#ymp-121), [YMP-151](#ymp-151)
 
@@ -667,13 +667,13 @@ Test memory and adaptive assignment on held-out tasks
 
 **State:** `[=]` (paused) · **Type:** experiment · **Priority:** P1
 
-**Last update (UTC):** 2026-09-12 09:35
+**Last update (UTC):** 2026-09-13 16:17
 
-**Current reason:** Experience-effect comparisons follow the initial pilot and require their own quota.
+**Current reason:** Owner explicitly required marking comparative trials as subject to owner approval. The experiment remains paused; no automatic start after preparation/dependency completion. Obtain separate approval of the concrete protocol, configurations and resource envelope before calibration or measured comparative runs.
 
 **Owner:** Experiment lead
 
-**Authorization:** Explicit owner approval and the recorded quota envelope are required before model experiments.
+**Authorization:** Explicit separate owner approval is required before comparative trials, including calibration. Approval must identify the protocol, treatment configurations and resource envelope. Completion of dependencies, preparation work or general implementation approval does not authorize these experiments. No current comparative-trial approval is recorded.
 
 **Depends on:** [YMP-201](#ymp-201), [YMP-114](#ymp-114)
 
@@ -699,13 +699,13 @@ Test effort, reduced preparation and low-effort ensembles separately
 
 **State:** `[=]` (paused) · **Type:** experiment · **Priority:** P1
 
-**Last update (UTC):** 2026-09-12 09:35
+**Last update (UTC):** 2026-09-13 16:17
 
-**Current reason:** Specific effort and coordination comparisons follow the initial pilot; no universal policy is assumed.
+**Current reason:** Owner explicitly required marking comparative trials as subject to owner approval. The experiment remains paused; no automatic start after preparation/dependency completion. Obtain separate approval of the concrete protocol, configurations and resource envelope before calibration or measured comparative runs.
 
 **Owner:** Experiment lead
 
-**Authorization:** Explicit owner approval and the recorded quota envelope are required before model experiments.
+**Authorization:** Explicit separate owner approval is required before comparative trials, including calibration. Approval must identify the protocol, treatment configurations and resource envelope. Completion of dependencies, preparation work or general implementation approval does not authorize these experiments. No current comparative-trial approval is recorded.
 
 **Depends on:** [YMP-201](#ymp-201), [YMP-111](#ymp-111), [YMP-115](#ymp-115)
 
@@ -732,13 +732,13 @@ Evaluate a project-scoped prior-outcome router
 
 **State:** `[=]` (paused) · **Type:** experiment · **Priority:** P1
 
-**Last update (UTC):** 2026-09-12 09:35
+**Last update (UTC):** 2026-09-13 16:17
 
-**Current reason:** A dedicated outcome-reuse router is optional; ordinary knowledge reuse is covered by core delivery.
+**Current reason:** Owner explicitly required marking comparative trials as subject to owner approval. The experiment remains paused; no automatic start after preparation/dependency completion. Obtain separate approval of the concrete protocol, configurations and resource envelope before calibration or measured comparative runs.
 
 **Owner:** Experiment lead; UI by Claude Opus 5 (max)
 
-**Authorization:** Explicit owner approval and the recorded quota envelope are required before model experiments.
+**Authorization:** Explicit separate owner approval is required before comparative trials, including calibration. Approval must identify the protocol, treatment configurations and resource envelope. Completion of dependencies, preparation work or general implementation approval does not authorize these experiments. No current comparative-trial approval is recorded.
 
 **Depends on:** [YMP-119](#ymp-119), [YMP-114](#ymp-114)
 
@@ -2357,7 +2357,7 @@ Prepare reproducible offline comparisons of coordination strategies
 
 **State:** `[=]` (planned) · **Type:** implementation · **Priority:** P1
 
-**Last update (UTC):** 2026-09-13 16:13
+**Last update (UTC):** 2026-09-13 16:17
 
 **Current reason:** Needs YMP-148
 
@@ -2369,7 +2369,7 @@ Prepare reproducible offline comparisons of coordination strategies
 
 Policy substitution must support goal-oriented comparisons through the actual runtime, with concrete fixtures and unbiased independent outcome checks.
 
-**Latest progress note:** Separated offline experiment preparation from the paused native pilot201. May proceed in parallel with UI150 after148 acceptance because writes are isolated. Task outcomes are fixture/runner capability, not proof of team superiority.
+**Latest progress note:** Owner approval boundary made explicit:151 prepares fixtures/runner/manifests and scripted correctness checks only; it does not launch comparative product trials. Subsequent201–204 experiments require separate owner approval.
 
 **Acceptance criteria:**
 
@@ -2379,6 +2379,7 @@ Policy substitution must support goal-oriented comparisons through the actual ru
 - Prepare strong-native-solo, budget-matched independent-attempt and cooperating-team treatment manifests with the same external acceptance criteria. Do not weaken production independent acceptance to implement the solo evaluation treatment.
 - Preserve failures, false acceptance, unknown usage and unconfirmed results in exports; include recovery and simple/sequential-work controls. Do not infer measured model quality, cost advantage or statistical power from scripted outcomes.
 - Provide a concrete reproducible preparation command and native quota-sheet template for201; run offline/required code checks and independent review only. No real-provider inference, inherited quota or public experiment UI is authorized here.
+- Preparation and scripted contract checks do not authorize comparative product trials. Any calibration or measured comparative experiment requires the separate owner approval recorded under201–204.
 
 **Evidence:**
 

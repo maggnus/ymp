@@ -6,6 +6,11 @@ This document defines the proposed next trial program. It does not authorize liv
 provider expenditure, claim measured strategy benefits, or start a new UI feature.
 YMP-146 failed-agent recovery remains P0; YMP-145 remains independently in flight.
 
+The owner explicitly requires separate approval before comparative trials,
+including calibration. A completed preparation package is not execution approval.
+The concrete protocol, treatment configurations and resource envelope must be
+approved before YMP-201–204 measured runs; no current approval is recorded.
+
 ## Product decision
 
 The next useful experiment is whether a coordination strategy can select the

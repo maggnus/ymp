@@ -946,7 +946,7 @@
       "priority": "P2",
       "status": "paused",
       "owner": "Experiment lead",
-      "authorization": "Explicit owner approval and the recorded quota envelope are required before model experiments.",
+      "authorization": "Explicit separate owner approval is required before comparative trials, including calibration. Approval must identify the protocol, treatment configurations and resource envelope. Completion of dependencies, preparation work or general implementation approval does not authorize these experiments. No current comparative-trial approval is recorded.",
       "depends_on": [
         "YMP-121",
         "YMP-151"
@@ -1000,6 +1000,11 @@
           "at": "2026-09-13T16:13:38.839717+00:00",
           "status": "paused",
           "note": "Concrete offline prerequisite151 now owns the comparison package; native pilot remains unstarted and requires explicit quota. Earlier unapproved budget text retained here for history: Proposed only: calibration 4 attempts, 500,000 observed raw tokens each / 2,000,000 total; subsequent pilot 40 attempts / at most 20,000,000 total, separately approved. One active attempt, 20 minutes each, 80 ymp invocations each, 180 seconds per invocation; no application-level retries. In-flight overshoot requires a documented policy before approval."
+        },
+        {
+          "at": "2026-09-13T16:17:00.229942+00:00",
+          "status": "paused",
+          "note": "Owner explicitly required marking comparative trials as subject to owner approval. The experiment remains paused; no automatic start after preparation/dependency completion. Obtain separate approval of the concrete protocol, configurations and resource envelope before calibration or measured comparative runs."
         }
       ]
     },
@@ -1010,7 +1015,7 @@
       "priority": "P1",
       "status": "paused",
       "owner": "Experiment lead",
-      "authorization": "Explicit owner approval and the recorded quota envelope are required before model experiments.",
+      "authorization": "Explicit separate owner approval is required before comparative trials, including calibration. Approval must identify the protocol, treatment configurations and resource envelope. Completion of dependencies, preparation work or general implementation approval does not authorize these experiments. No current comparative-trial approval is recorded.",
       "depends_on": [
         "YMP-201",
         "YMP-114"
@@ -1042,6 +1047,11 @@
           "at": "2026-09-12T09:35:05.248513+00:00",
           "status": "paused",
           "note": "Experience-effect comparisons follow the initial pilot and require their own quota."
+        },
+        {
+          "at": "2026-09-13T16:17:00.229942+00:00",
+          "status": "paused",
+          "note": "Owner explicitly required marking comparative trials as subject to owner approval. The experiment remains paused; no automatic start after preparation/dependency completion. Obtain separate approval of the concrete protocol, configurations and resource envelope before calibration or measured comparative runs."
         }
       ]
     },
@@ -1052,7 +1062,7 @@
       "priority": "P1",
       "status": "paused",
       "owner": "Experiment lead",
-      "authorization": "Explicit owner approval and the recorded quota envelope are required before model experiments.",
+      "authorization": "Explicit separate owner approval is required before comparative trials, including calibration. Approval must identify the protocol, treatment configurations and resource envelope. Completion of dependencies, preparation work or general implementation approval does not authorize these experiments. No current comparative-trial approval is recorded.",
       "depends_on": [
         "YMP-201",
         "YMP-111",
@@ -1096,6 +1106,11 @@
           "at": "2026-09-12T09:35:05.248513+00:00",
           "status": "paused",
           "note": "Specific effort and coordination comparisons follow the initial pilot; no universal policy is assumed."
+        },
+        {
+          "at": "2026-09-13T16:17:00.229942+00:00",
+          "status": "paused",
+          "note": "Owner explicitly required marking comparative trials as subject to owner approval. The experiment remains paused; no automatic start after preparation/dependency completion. Obtain separate approval of the concrete protocol, configurations and resource envelope before calibration or measured comparative runs."
         }
       ]
     },
@@ -1106,7 +1121,7 @@
       "priority": "P1",
       "status": "paused",
       "owner": "Experiment lead; UI by Claude Opus 5 (max)",
-      "authorization": "Explicit owner approval and the recorded quota envelope are required before model experiments.",
+      "authorization": "Explicit separate owner approval is required before comparative trials, including calibration. Approval must identify the protocol, treatment configurations and resource envelope. Completion of dependencies, preparation work or general implementation approval does not authorize these experiments. No current comparative-trial approval is recorded.",
       "depends_on": [
         "YMP-119",
         "YMP-114"
@@ -1141,6 +1156,11 @@
           "at": "2026-09-12T09:35:05.248513+00:00",
           "status": "paused",
           "note": "A dedicated outcome-reuse router is optional; ordinary knowledge reuse is covered by core delivery."
+        },
+        {
+          "at": "2026-09-13T16:17:00.229942+00:00",
+          "status": "paused",
+          "note": "Owner explicitly required marking comparative trials as subject to owner approval. The experiment remains paused; no automatic start after preparation/dependency completion. Obtain separate approval of the concrete protocol, configurations and resource envelope before calibration or measured comparative runs."
         }
       ]
     },
@@ -4130,7 +4150,8 @@
         "Compare multiple policies on identical immutable snapshots before applying either; exercise full scripted executions separately and prove the alternate implementation changes actual work while retaining runtime safeguards.",
         "Prepare strong-native-solo, budget-matched independent-attempt and cooperating-team treatment manifests with the same external acceptance criteria. Do not weaken production independent acceptance to implement the solo evaluation treatment.",
         "Preserve failures, false acceptance, unknown usage and unconfirmed results in exports; include recovery and simple/sequential-work controls. Do not infer measured model quality, cost advantage or statistical power from scripted outcomes.",
-        "Provide a concrete reproducible preparation command and native quota-sheet template for201; run offline/required code checks and independent review only. No real-provider inference, inherited quota or public experiment UI is authorized here."
+        "Provide a concrete reproducible preparation command and native quota-sheet template for201; run offline/required code checks and independent review only. No real-provider inference, inherited quota or public experiment UI is authorized here.",
+        "Preparation and scripted contract checks do not authorize comparative product trials. Any calibration or measured comparative experiment requires the separate owner approval recorded under201–204."
       ],
       "evidence": [
         "ymp-docs/research/goal-driven-trials.md",
@@ -4141,11 +4162,16 @@
           "at": "2026-09-13T16:13:38.839717+00:00",
           "status": "planned",
           "note": "Separated offline experiment preparation from the paused native pilot201. May proceed in parallel with UI150 after148 acceptance because writes are isolated. Task outcomes are fixture/runner capability, not proof of team superiority."
+        },
+        {
+          "at": "2026-09-13T16:17:00.229942+00:00",
+          "status": "planned",
+          "note": "Owner approval boundary made explicit:151 prepares fixtures/runner/manifests and scripted correctness checks only; it does not launch comparative product trials. Subsequent201–204 experiments require separate owner approval."
         }
       ]
     }
   ],
-  "updated_at": "2026-09-13T16:13:38.839717+00:00",
+  "updated_at": "2026-09-13T16:17:00.229942+00:00",
   "delivery_order": [
     "YMP-116",
     "YMP-103",

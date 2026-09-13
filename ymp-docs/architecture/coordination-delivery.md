@@ -6,6 +6,13 @@ only on `/team`, and remove the catalog/team responsibility overlap. P0 failed
 agent recovery remains first. This plan records work; none of the new outcomes
 below is delivered merely by this document.
 
+**Owner approval required for comparative trials.** YMP-201–204, including
+calibration, may start only after separate explicit owner approval of the concrete
+protocol, treatment configurations and resource envelope. No such approval is
+currently recorded. Completing YMP-151 or other dependencies does not authorize
+automatic experiment execution. Scripted implementation/contract checks remain
+part of the separately authorized engineering work.
+
 ## Work packages
 
 | Task | Outcome | Dependencies | Ownership |
