@@ -1,6 +1,6 @@
 # Task details and evidence
 
-Updated: 2026-09-13 16:21 UTC.
+Updated: 2026-09-13 16:25 UTC.
 
 Use the [delivery plan](plan.md) to follow progress. This generated register contains full acceptance criteria, dependencies and evidence. [tasks.json](tasks.json) is the single source; [manage.py](manage.py) updates both pages.
 
@@ -14,7 +14,7 @@ A planned task is not implemented functionality. Completed research and planning
 | design | 2 | 2 |
 | documentation | 4 | 4 |
 | experiment | 0 | 4 |
-| implementation | 35 | 44 |
+| implementation | 35 | 45 |
 | maintenance | 1 | 1 |
 | research | 10 | 10 |
 | verification | 2 | 2 |
@@ -85,13 +85,14 @@ A planned task is not implemented functionality. Completed research and planning
 | `[x]` | [YMP-142](#ymp-142) | P1 | Assess ratatui-code-editor for opening files inside ymp | 2026-09-13 11:52 |
 | `[x]` | [YMP-143](#ymp-143) | P1 | Provide a separate /git changes view modeled on Paseo | 2026-09-13 14:04 |
 | `[x]` | [YMP-144](#ymp-144) | P1 | Research recovery of sessions after one or more agent failures | 2026-09-13 14:36 |
-| `[~]` | [YMP-145](#ymp-145) | P1 | Unify full-row popup selection and verify stable scrolling geometry | 2026-09-13 16:07 |
+| `[~]` | [YMP-145](#ymp-145) | P1 | Unify full-row popup selection and verify stable scrolling geometry | 2026-09-13 16:25 |
 | `[~]` | [YMP-146](#ymp-146) | P0 | Recover interrupted session stages and let the owner change the active team | 2026-09-13 16:13 |
 | `[x]` | [YMP-147](#ymp-147) | P1 | Translate product goals into a focused comparative trial program | 2026-09-13 15:38 |
 | `[=]` | [YMP-148](#ymp-148) | P1 | Make session coordination replaceable through a typed strategy contract | 2026-09-13 16:13 |
 | `[=]` | [YMP-149](#ymp-149) | P1 | Use concise professional terminology throughout the interface | 2026-09-13 16:21 |
 | `[=]` | [YMP-150](#ymp-150) | P1 | Make /team the session control page and separate the /agents catalog | 2026-09-13 16:13 |
 | `[=]` | [YMP-151](#ymp-151) | P1 | Prepare reproducible offline comparisons of coordination strategies | 2026-09-13 16:17 |
+| `[+]` | [YMP-152](#ymp-152) | P2 | Keep the selected palette command visible in very short terminals | 2026-09-13 16:25 |
 
 ## YMP-001
 
@@ -2165,9 +2166,9 @@ Unify full-row popup selection and verify stable scrolling geometry
 
 **State:** `[~]` (in_progress) · **Type:** implementation · **Priority:** P1
 
-**Last update (UTC):** 2026-09-13 16:07
+**Last update (UTC):** 2026-09-13 16:25
 
-**Current reason:** Author completed35786ec on fix/ymp145-popup-component: shared full-row selection, meaningful before/after cell checks, fmt/clippy and579 tests with2 ignored. Shrinking was not reproduced on installed0.4.6 or candidate in terminal9+9 cases. Independent acceptance now being assigned; author results are not yet parent acceptance or installation.
+**Current reason:** Independent Opus review and parent source inspection accept35786ec product code conditionally on two README corrections: NO_COLOR is marker-only, and the existing60x8 palette hides its selected command. Independent terminal observer detects baseline gaps and confirms candidate full rows in dark/light,9geometry cases and small60x9/44x10positions. Renewed shrinking remains unobserved, not claimed fixed. Author instructed to make docs-only correction and remove the exact reviewer-generated pyc before integration.
 
 **Owner:** Background Claude Code claude-opus-5 high; maintainer owns scope, integration and independent acceptance
 
@@ -2386,6 +2387,34 @@ Policy substitution must support goal-oriented comparisons through the actual ru
 
 - ymp-docs/research/goal-driven-trials.md
 - ymp-docs/architecture/coordination-delivery.md
+
+## YMP-152
+
+Keep the selected palette command visible in very short terminals
+
+**State:** `[+]` (new) · **Type:** implementation · **Priority:** P2
+
+**Last update (UTC):** 2026-09-13 16:25
+
+**Current reason:** Independent reviewer found this in both35786ecand0.4.6using50navigation steps at60x8;60x9and44x10retain selection. Original captures are in /tmp/ymp145-independent-review. Source diagnosis is modal_body_rows(8,true)=2while search+separator take2rows. No fix or new implementation fork started.
+
+**Owner:** Future Claude Code claude-opus-5 high UI fork; maintainer owns scheduling and acceptance
+
+**Authorization:** Follow-up defect discovered during authorized YMP-145 independent popup verification. Recorded for later scheduling; it must not delay P0 recovery or expand the accepted selection fix.
+
+**Depends on:** [YMP-145](#ymp-145)
+
+At60x8, palette search and separator use the entire two-row modal body, hiding every selected command while the rectangle stays stable. This also occurs in installed0.4.6.
+
+**Acceptance criteria:**
+
+- Retain the existing60x8failing control and make the selected command visible while navigating, preserving search usability, applicable keys, stable geometry and truthful overflow indication.
+- Define behavior at the actual supported lower height/width bound; cover one smaller/larger boundary and avoid claiming visibility where no content row can exist.
+- Use shared modal/list components, meaningful before/after rendering and terminal checks, required Rust checks and independent review; keep it separate from the unreplicated shrinking report.
+
+**Evidence:**
+
+- Pending.
 
 ## Intent coverage
 

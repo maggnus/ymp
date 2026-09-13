@@ -3926,6 +3926,11 @@
           "at": "2026-09-13T16:07:28.802206+00:00",
           "status": "in_progress",
           "note": "Author completed35786ec on fix/ymp145-popup-component: shared full-row selection, meaningful before/after cell checks, fmt/clippy and579 tests with2 ignored. Shrinking was not reproduced on installed0.4.6 or candidate in terminal9+9 cases. Independent acceptance now being assigned; author results are not yet parent acceptance or installation."
+        },
+        {
+          "at": "2026-09-13T16:25:35.129681+00:00",
+          "status": "in_progress",
+          "note": "Independent Opus review and parent source inspection accept35786ec product code conditionally on two README corrections: NO_COLOR is marker-only, and the existing60x8 palette hides its selected command. Independent terminal observer detects baseline gaps and confirms candidate full rows in dark/light,9geometry cases and small60x9/44x10positions. Renewed shrinking remains unobserved, not claimed fixed. Author instructed to make docs-only correction and remove the exact reviewer-generated pyc before integration."
         }
       ]
     },
@@ -4175,9 +4180,35 @@
           "note": "Owner approval boundary made explicit:151 prepares fixtures/runner/manifests and scripted correctness checks only; it does not launch comparative product trials. Subsequent201–204 experiments require separate owner approval."
         }
       ]
+    },
+    {
+      "id": "YMP-152",
+      "title": "Keep the selected palette command visible in very short terminals",
+      "type": "implementation",
+      "priority": "P2",
+      "status": "new",
+      "owner": "Future Claude Code claude-opus-5 high UI fork; maintainer owns scheduling and acceptance",
+      "authorization": "Follow-up defect discovered during authorized YMP-145 independent popup verification. Recorded for later scheduling; it must not delay P0 recovery or expand the accepted selection fix.",
+      "depends_on": [
+        "YMP-145"
+      ],
+      "reason": "At60x8, palette search and separator use the entire two-row modal body, hiding every selected command while the rectangle stays stable. This also occurs in installed0.4.6.",
+      "acceptance": [
+        "Retain the existing60x8failing control and make the selected command visible while navigating, preserving search usability, applicable keys, stable geometry and truthful overflow indication.",
+        "Define behavior at the actual supported lower height/width bound; cover one smaller/larger boundary and avoid claiming visibility where no content row can exist.",
+        "Use shared modal/list components, meaningful before/after rendering and terminal checks, required Rust checks and independent review; keep it separate from the unreplicated shrinking report."
+      ],
+      "evidence": [],
+      "history": [
+        {
+          "at": "2026-09-13T16:25:35.129681+00:00",
+          "status": "new",
+          "note": "Independent reviewer found this in both35786ecand0.4.6using50navigation steps at60x8;60x9and44x10retain selection. Original captures are in /tmp/ymp145-independent-review. Source diagnosis is modal_body_rows(8,true)=2while search+separator take2rows. No fix or new implementation fork started."
+        }
+      ]
     }
   ],
-  "updated_at": "2026-09-13T16:21:48.094911+00:00",
+  "updated_at": "2026-09-13T16:25:35.129681+00:00",
   "delivery_order": [
     "YMP-116",
     "YMP-103",
