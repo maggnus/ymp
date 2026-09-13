@@ -151,12 +151,16 @@ multi-line comment state, semantic colours, and Rust, Python, TOML and TypeScrip
 - **Fenced code** that names a known language is highlighted in the transcript and in the popup
   that shows one message, as [agent-output-highlighting.md](agent-output-highlighting.md) requires.
   Results are kept in a cache of at most 1,024 texts and 8 MiB of source, so a transcript laid
-  out again on every change highlights each block once; a result the current frame used is
-  forgotten last. One frame starts at most 50 ms of new highlighting and draws again for the rest,
+  out again on every change reuses retained results; an evicted result can be recomputed. A result
+  the current frame used is forgotten last. After 50 ms of new highlighting, a frame starts no
+  further block and requests another draw for the rest,
   unless it shows more code than the cache holds, which would keep drawing frames only to
   highlight. One message highlights at most 64 KiB of code, and
   starts no block after 250 ms of highlighting, before the rest of its code is plain and a note
-  says so.
+  says so. These are cooperative checks at block/line boundaries, not hard deadlines; a block
+  already started may exceed the frame budget, and a line already parsing is not cancelled.
+  Initial grammar loading is separate from these budgets. The cache size counts source bytes,
+  not total memory used by styled spans and grammars.
 - **Notices**: the Help page links the acknowledgements of the bundled syntax definitions for the
   exact two-face version, from `two_face::acknowledgement::url()`.
 

@@ -50,9 +50,10 @@ declared `diff` or `patch`, and a complete unified or Git patch written without 
 additions, deletions, context, file names and hunk headers in styles of their own. Every line
 keeps its `+`, `-` or space, so the roles read without colour too. A list whose lines begin with
 `+` or `-` is not a patch. A patch shown this way is what the message reported, not a change
-ymp applied or recorded. Highlighting one message stops after 64 kB of code or 250 ms, and the
-message then says that the rest of its code is plain text. A long conversation opens at once
-and its code takes its colours over the next frames. While an agent is still writing, the
+ymp applied or recorded. A message highlights at most 64 KiB of code and starts no further block after 250 ms of
+highlighting; an already-started block may finish later. When a limit is reached, a note explains
+why the remaining code is plain text. Uncached code can take its colours over subsequent frames;
+initial grammar loading can delay the first highlighted view. While an agent is still writing, the
 preview shows a code block that has not closed yet as code, without adding an end to it.
 
 A member the runtime reports as waiting is shown as waiting and not as busy: a turn held up
