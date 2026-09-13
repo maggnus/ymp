@@ -94,7 +94,12 @@ pub fn render(frame: &mut Frame, app: &mut App) {
             )
         });
     if app.overlay.is_some() {
-        cursor = overlay(frame, area, rows.body, app);
+        // A surface may blank the main column and the sidebar around itself, but never the rules
+        // around and between them.
+        let regions: Vec<Rect> = std::iter::once(main)
+            .chain(side.map(|(_, panel)| panel))
+            .collect();
+        cursor = overlay(frame, area, &regions, app);
     }
     if let Some((x, y)) = cursor {
         if x < area.right() && y < area.bottom() {
@@ -667,7 +672,7 @@ fn completion_popup(frame: &mut Frame, main: Rect, composer: Rect, app: &App) ->
         .take(visible)
         .map(|(index, command)| command_line(command, name_width, room, index == selected, theme))
         .collect::<Vec<_>>();
-    frame::clear_around(frame, area, main, theme);
+    frame::clear_around(frame, area, &[main], theme);
     frame.render_widget(ratatui::widgets::Clear, area);
     let block = ratatui::widgets::Block::default()
         .borders(ratatui::widgets::Borders::ALL)
@@ -732,7 +737,7 @@ fn command_line(
 }
 
 /// Draw whichever floating surface is open, and return where its cursor belongs.
-fn overlay(frame: &mut Frame, area: Rect, bounds: Rect, app: &App) -> Option<(u16, u16)> {
+fn overlay(frame: &mut Frame, area: Rect, regions: &[Rect], app: &App) -> Option<(u16, u16)> {
     let theme = &app.theme;
     let overlay = app.overlay.as_ref()?;
     match overlay {
@@ -785,7 +790,7 @@ fn overlay(frame: &mut Frame, area: Rect, bounds: Rect, app: &App) -> Option<(u1
             frame::render_modal(
                 frame,
                 area,
-                bounds,
+                regions,
                 &ModalSpec {
                     title: "Colour theme".into(),
                     badge: "saved on Enter".into(),
@@ -846,7 +851,7 @@ fn overlay(frame: &mut Frame, area: Rect, bounds: Rect, app: &App) -> Option<(u1
             let rect = frame::render_modal(
                 frame,
                 area,
-                bounds,
+                regions,
                 &ModalSpec {
                     title: "Commands".into(),
                     badge: format!("{} of {}", matches.len(), crate::commands::COMMANDS.len()),
@@ -871,7 +876,7 @@ fn overlay(frame: &mut Frame, area: Rect, bounds: Rect, app: &App) -> Option<(u1
             frame::render_modal(
                 frame,
                 area,
-                bounds,
+                regions,
                 &ModalSpec {
                     title: title.clone(),
                     badge: "read only".into(),
@@ -923,7 +928,7 @@ fn overlay(frame: &mut Frame, area: Rect, bounds: Rect, app: &App) -> Option<(u1
             let rect = frame::render_modal(
                 frame,
                 area,
-                bounds,
+                regions,
                 &ModalSpec {
                     title: label.clone(),
                     badge: "saved on Enter".into(),
@@ -957,7 +962,7 @@ fn overlay(frame: &mut Frame, area: Rect, bounds: Rect, app: &App) -> Option<(u1
             frame::render_modal(
                 frame,
                 area,
-                bounds,
+                regions,
                 &ModalSpec {
                     title: "Confirm".into(),
                     badge: "cannot be undone".into(),

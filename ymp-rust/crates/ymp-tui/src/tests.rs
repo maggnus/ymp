@@ -381,6 +381,70 @@ fn a_floating_surface_leaves_the_rules_around_the_body_intact() {
 }
 
 #[test]
+fn a_floating_surface_keeps_the_sidebar_rule_whole_outside_itself() {
+    let fixture = fixture();
+    // The rule between the main column and the sidebar is the column right after the main
+    // column. At 120 columns the theme chooser ends one column short of it, and at 134 the
+    // palette does, so the margin cleared beside either falls on the rule. At 120 columns the
+    // palette covers the rule, and the margin rows above and below it fall on the rule instead.
+    let height = 36u16;
+    type Open = fn(&mut App, u16);
+    let cases: [(&str, &str, u16, Open); 3] = [
+        ("theme chooser", " Colour theme ", 120, |app, width| {
+            app.on_key(control('t'), width);
+        }),
+        ("palette", " Commands ", 134, |app, width| {
+            app.on_key(control('p'), width);
+        }),
+        ("palette", " Commands ", 120, |app, width| {
+            app.on_key(control('p'), width);
+        }),
+    ];
+    let mut cuts = Vec::new();
+    for (name, title, width, open) in cases {
+        let mut app = fixture.app();
+        open(&mut app, width);
+        assert!(app.overlay.is_some(), "the {name} did not open");
+        let screen = screen_rows(&mut app, width, height);
+        let rows: Vec<Vec<char>> = screen.iter().map(|row| row.chars().collect()).collect();
+        let rule = crate::frame::main_width(width, crate::frame::sidebar_width(width)) as usize;
+        let top = screen
+            .iter()
+            .position(|row| row.contains(title) && row.contains('┌'))
+            .unwrap_or_else(|| panic!("the {name} has no top border:\n{}", screen.join("\n")));
+        let left = rows[top].iter().position(|&ch| ch == '┌').unwrap();
+        let right = rows[top].iter().position(|&ch| ch == '┐').unwrap();
+        let bottom = (top..rows.len())
+            .find(|&y| rows[y][left] == '└')
+            .unwrap_or_else(|| panic!("the {name} has no bottom border:\n{}", screen.join("\n")));
+        // The body runs from the row under the header rule to the row above the composer rule.
+        let sidebar_rule: Vec<usize> = rows
+            .iter()
+            .enumerate()
+            .take(height as usize - 3)
+            .skip(2)
+            .filter(|(y, row)| {
+                let covered = (top..=bottom).contains(y) && (left..=right).contains(&rule);
+                !covered && row[rule] != '│'
+            })
+            .map(|(y, _)| y)
+            .collect();
+        let rules: Vec<usize> = [1, height as usize - 3]
+            .into_iter()
+            .filter(|&y| rows[y].iter().any(|&ch| ch != '─'))
+            .collect();
+        if !sidebar_rule.is_empty() || !rules.is_empty() {
+            cuts.push(format!(
+                "the {name} at {width}x{height} cut the sidebar rule on rows {sidebar_rule:?} \
+                 and the rules on rows {rules:?}:\n{}",
+                screen.join("\n")
+            ));
+        }
+    }
+    assert!(cuts.is_empty(), "{}", cuts.join("\n\n"));
+}
+
+#[test]
 fn tab_cycles_one_focus_owner_and_esc_walks_back_to_the_composer() {
     let fixture = fixture();
     let mut app = fixture.app();

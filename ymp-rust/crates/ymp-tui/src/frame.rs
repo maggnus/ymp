@@ -267,35 +267,40 @@ pub fn padded(inner: Rect) -> Rect {
     }
 }
 
-/// Blank a margin one cell wide around a floating surface, within `bounds`, so the text
-/// underneath never runs up against its border.
-pub fn clear_around(frame: &mut Frame, rect: Rect, bounds: Rect, theme: &Theme) {
-    let left = rect.x.saturating_sub(1).max(bounds.x);
-    let top = rect.y.saturating_sub(1).max(bounds.y);
-    let right = rect.right().saturating_add(1).min(bounds.right());
-    let bottom = rect.bottom().saturating_add(1).min(bounds.bottom());
-    if right <= left || bottom <= top {
-        return;
-    }
+/// Blank a margin one cell wide around a floating surface, so the text underneath never runs up
+/// against its border.
+///
+/// The margin is blanked only where it falls inside `regions`, the areas that carry content: the
+/// main column and the sidebar. The rules around and between them keep every cell the surface
+/// itself does not cover, because a blanked cell on a rule reads as a gap cut into it.
+pub fn clear_around(frame: &mut Frame, rect: Rect, regions: &[Rect], theme: &Theme) {
+    let left = rect.x.saturating_sub(1);
+    let top = rect.y.saturating_sub(1);
     let margin = Rect {
         x: left,
         y: top,
-        width: right - left,
-        height: bottom - top,
+        width: rect.right().saturating_add(1) - left,
+        height: rect.bottom().saturating_add(1) - top,
     };
-    frame.render_widget(Clear, margin);
-    frame.render_widget(Block::default().style(theme.base()), margin);
+    for region in regions {
+        let blank = margin.intersection(*region);
+        if blank.is_empty() {
+            continue;
+        }
+        frame.render_widget(Clear, blank);
+        frame.render_widget(Block::default().style(theme.base()), blank);
+    }
 }
 
 /// Draw a floating surface. Returns the rect its body is painted in, inside the border and the
 /// padding, so a caller can place a cursor in it.
 ///
-/// The surface is placed in `area`, but the margin around it is cleared only inside `bounds`,
-/// the body between the rules: a margin that reached a rule would cut a gap into it.
+/// The surface is placed in `area`, but the margin around it is cleared only inside `regions`,
+/// the main column and the sidebar: a margin that reached a rule would cut a gap into it.
 pub fn render_modal(
     frame: &mut Frame,
     area: Rect,
-    bounds: Rect,
+    regions: &[Rect],
     spec: &ModalSpec,
     theme: &Theme,
 ) -> Rect {
@@ -323,7 +328,7 @@ pub fn render_modal(
         width,
         height: height.min(area.height),
     };
-    clear_around(frame, rect, bounds, theme);
+    clear_around(frame, rect, regions, theme);
     frame.render_widget(Clear, rect);
     let border = match spec.role {
         ModalRole::Choice => theme.accent(),
