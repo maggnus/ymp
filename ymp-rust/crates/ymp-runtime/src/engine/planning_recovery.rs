@@ -55,6 +55,8 @@ impl Engine {
                 status: RecoveryStatus::Pending,
                 wait_reason: None,
                 effect_resolution: None,
+                fresh_plan_review: None,
+                owner_hold: None,
                 condition: None,
                 updated_at: now(),
             };

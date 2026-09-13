@@ -1,0 +1,36 @@
+   Compiling ymp-runtime v0.4.6 (/Users/maggnus/.paseo/worktrees/1ms2ynax/ymp146-review-findings/ymp-rust/crates/ymp-runtime)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.44s
+     Running tests/fresh_plan_review.rs (/Users/maggnus/.paseo/worktrees/1ms2ynax/ymp146-recovery-backend/target/debug/deps/fresh_plan_review-05f410536c030854)
+
+running 1 test
+
+thread 'native_legacy_failure_has_no_scope_or_automatic_replay' panicked at ymp-rust/crates/ymp-runtime/tests/fresh_plan_review.rs:50:9:
+assertion `left == right` failed: Run blocked: Agent process exited before completing the request; calls=[("author", "plan"), ("fresh", "review_plan"), ("author", "execute")]; protocol={"actor": "author", "method": "initialize", "version": "native-v1"}
+{"actor": "author", "method": "initialized", "version": "native-v1"}
+{"actor": "author", "method": "model/list", "version": "native-v1"}
+{"actor": "author", "method": "thread/start", "version": "native-v1", "sandbox": "read-only", "approvalPolicy": "never"}
+{"actor": "author", "method": "turn/start", "version": "native-v1", "threadId": "author-98098", "purpose": "plan"}
+{"actor": "fresh", "method": "initialize", "version": "native-v1"}
+{"actor": "fresh", "method": "initialized", "version": "native-v1"}
+{"actor": "fresh", "method": "model/list", "version": "native-v1"}
+{"actor": "fresh", "method": "thread/start", "version": "native-v1", "sandbox": "read-only", "approvalPolicy": "never"}
+{"actor": "fresh", "method": "turn/start", "version": "native-v1", "threadId": "fresh-98177", "purpose": "review_plan"}
+{"actor": "author", "method": "initialize", "version": "native-v1"}
+{"actor": "author", "method": "initialized", "version": "native-v1"}
+{"actor": "author", "method": "model/list", "version": "native-v1"}
+{"actor": "author", "method": "thread/resume", "version": "native-v1", "threadId": "author-98098", "sandbox": "read-only", "approvalPolicy": "never"}
+{"actor": "author", "method": "turn/start", "version": "native-v1", "threadId": "author-98188", "purpose": "execute"}
+
+  left: 3
+ right: 2
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test native_legacy_failure_has_no_scope_or_automatic_replay ... FAILED
+
+failures:
+
+failures:
+    native_legacy_failure_has_no_scope_or_automatic_replay
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 4.27s
+
+error: test failed, to rerun pass `-p ymp-runtime --test fresh_plan_review`

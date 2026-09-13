@@ -5,6 +5,7 @@ mod confirmation;
 mod confirmation_tests;
 #[cfg(test)]
 mod contract_ingress_tests;
+mod fresh_plan_review;
 #[cfg(test)]
 mod knowledge_tests;
 mod planning_recovery;
@@ -83,6 +84,7 @@ pub struct Engine {
     recovery_binding: Option<(String, u64)>,
     recovery_inspection_binding: Option<RecoveryInspectionCommand>,
     require_recovery_read_only: bool,
+    fresh_plan_review_binding: Option<FreshPlanReviewCommand>,
 }
 #[derive(Clone)]
 struct RunContext {
@@ -178,6 +180,7 @@ impl Engine {
             recovery_binding: None,
             recovery_inspection_binding: None,
             require_recovery_read_only: false,
+            fresh_plan_review_binding: None,
             adaptive: true,
             workspace_policy: Arc::new(crate::DirectWorkspaceAccessPolicy),
             workspace_policy_identity: crate::WorkspaceAccessPolicy::identity(
@@ -1206,6 +1209,7 @@ impl Engine {
             .store
             .value(&key)?
             .and_then(|v| serde_json::from_value::<NativeContinuation>(v).ok())
+            .filter(|_| self.fresh_plan_review_binding.is_none())
             .filter(|saved| saved.config_version == config_version && saved.requested == requested);
         let resume = continuation.as_ref().map(|saved| saved.session_id.clone());
         request.resume = resume.clone();
@@ -1345,6 +1349,10 @@ impl Engine {
         }
         anyhow::ensure!(self.execution_backend.local_effect_scope(&request) == access.access().local_effect_scope,
             "effect_scope_changed: actual continuation changed the backend's declared effect boundary before admission");
+        if let Some(command) = &self.fresh_plan_review_binding {
+            self.store
+                .bind_fresh_plan_review_assignment(&assignment.id, command)?;
+        }
         let token = access.admit_reserved(
             ctx.server.clone(),
             &mut assignment,
@@ -1809,6 +1817,7 @@ impl Engine {
         if tasks.is_empty() {
             tasks = self.plan(ctx, prompt).await?;
         }
+        self.check_fresh_plan_dependencies(&ctx.session.id)?;
         self.validate_contract_bindings(&ctx.session.id, tasks.iter().map(|t| t.title.as_str()))?;
         // An interrupted turn is inspected before any continuation. No side-effecting
         // request is automatically replayed just because its final event is missing.
@@ -2356,6 +2365,7 @@ impl Engine {
                     break;
                 }
                 if proposal.revision < ctx.limits.attempts {
+                    self.check_fresh_plan_dependencies(&ctx.session.id)?;
                     let response = self.ask_scoped(ctx, &author, &ctx.workspace.directory, "plan", &format!("Revise your plan to address this independent review: {}. Return the same JSON plan schema. Original request: {prompt}", review.reason), true, None).await?;
                     proposal = self.record_plan_proposal(
                         ctx,

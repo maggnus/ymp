@@ -336,28 +336,7 @@ impl Store {
             parse_response::<Review>(&reviewer.text)?.approved,
             "inspection_rejected: independent inspector did not approve continuation"
         );
-        let mut query =
-            tx.prepare("SELECT data FROM events WHERE session_id=? AND kind='message_invocation'")?;
-        let origins = query
-            .query_map([&stage.session_id], |r| r.get::<_, String>(0))?
-            .collect::<rusqlite::Result<Vec<_>>>()?;
-        let origins = origins
-            .iter()
-            .map(|raw| serde_json::from_str::<MessageOrigin>(raw))
-            .collect::<std::result::Result<Vec<_>, _>>()?;
-        let mut matched_response = false;
-        for origin in origins.iter().filter(|o| {
-            o.assignment_id == reviewer.assignment_id
-                && o.invocation_id == reviewer.invocation_id
-                && o.agent_id == reviewer.agent_id
-        }) {
-            matched_response |= tx.query_row("SELECT EXISTS(SELECT 1 FROM messages WHERE seq=? AND session_id=? AND author=? AND kind='review' AND text=?)",
-                params![origin.message_seq, stage.session_id, reviewer.agent_id, reviewer.text], |r| r.get::<_, bool>(0))?;
-        }
-        ensure!(
-            matched_response,
-            "inspection_binding: reviewer text differs from its originating invocation"
-        );
+        check_response(&tx, &stage.session_id, reviewer, "review")?;
         ensure!(
             record.actor.as_ref() == Some(&reviewer.agent_id)
                 && record.outcome
@@ -379,7 +358,6 @@ impl Store {
         }
         stage.revision += 1;
         stage.updated_at = now();
-        drop(query);
         provenance::decision(&tx, record)?;
         tx.execute(
             "UPDATE kv SET value=? WHERE key=?",
@@ -404,4 +382,35 @@ impl Store {
         tx.commit()?;
         Ok(receipt)
     }
+}
+
+pub(super) fn check_response(
+    db: &Connection,
+    session: &str,
+    response: &SavedResponse,
+    purpose: &str,
+) -> Result<()> {
+    let mut query =
+        db.prepare("SELECT data FROM events WHERE session_id=? AND kind='message_invocation'")?;
+    let origins = query
+        .query_map([session], |r| r.get::<_, String>(0))?
+        .collect::<rusqlite::Result<Vec<_>>>()?;
+    let origins = origins
+        .iter()
+        .map(|raw| serde_json::from_str::<MessageOrigin>(raw))
+        .collect::<std::result::Result<Vec<_>, _>>()?;
+    let mut matched_response = false;
+    for origin in origins.iter().filter(|o| {
+        o.assignment_id == response.assignment_id
+            && o.invocation_id == response.invocation_id
+            && o.agent_id == response.agent_id
+    }) {
+        matched_response |= db.query_row("SELECT EXISTS(SELECT 1 FROM messages WHERE seq=? AND session_id=? AND author=? AND kind=? AND text=?)",
+                params![origin.message_seq, session, response.agent_id, purpose, response.text], |r| r.get::<_, bool>(0))?;
+    }
+    ensure!(
+        matched_response,
+        "inspection_binding: reviewer text differs from its originating invocation"
+    );
+    Ok(())
 }

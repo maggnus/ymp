@@ -1,0 +1,21 @@
+   Compiling ymp-runtime v0.4.6 (/Users/maggnus/.paseo/worktrees/1ms2ynax/ymp146-review-findings/ymp-rust/crates/ymp-runtime)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.53s
+     Running tests/fresh_plan_review.rs (/Users/maggnus/.paseo/worktrees/1ms2ynax/ymp146-recovery-backend/target/debug/deps/fresh_plan_review-05f410536c030854)
+
+running 1 test
+
+thread 'native_legacy_failure_has_no_scope_or_automatic_replay' panicked at ymp-rust/crates/ymp-runtime/tests/fresh_plan_review.rs:50:9:
+assertion `left == right` failed: Run blocked: Agent process exited before completing the request
+  left: 3
+ right: 2
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test native_legacy_failure_has_no_scope_or_automatic_replay ... FAILED
+
+failures:
+
+failures:
+    native_legacy_failure_has_no_scope_or_automatic_replay
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 4.27s
+
+error: test failed, to rerun pass `-p ymp-runtime --test fresh_plan_review`

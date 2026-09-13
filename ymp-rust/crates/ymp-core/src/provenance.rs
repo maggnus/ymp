@@ -248,6 +248,10 @@ pub struct RecordLinks {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub recovery_inspection: Option<Box<crate::RecoveryInspection>>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub fresh_plan_review: Option<Box<crate::FreshPlanReviewRecord>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub unresolved_effect_dependencies: Option<Box<crate::UnresolvedEffectDependencies>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub failure: Option<crate::InvocationFailure>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub knowledge_correction: Option<crate::KnowledgeCorrectionCommit>,

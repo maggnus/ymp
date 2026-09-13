@@ -1,0 +1,13 @@
+{
+  "command": [
+    "cargo",
+    "test",
+    "-p",
+    "ymp-runtime",
+    "--test",
+    "fresh_plan_review",
+    "--",
+    "--nocapture"
+  ],
+  "exit_code": 0
+}

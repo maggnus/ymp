@@ -1,0 +1,26 @@
+    Checking ymp-core v0.4.6 (/Users/maggnus/.paseo/worktrees/1ms2ynax/ymp146-review-findings/ymp-rust/crates/ymp-core)
+    Checking ymp-providers v0.4.6 (/Users/maggnus/.paseo/worktrees/1ms2ynax/ymp146-review-findings/ymp-rust/crates/ymp-providers)
+    Checking ymp-storage v0.4.6 (/Users/maggnus/.paseo/worktrees/1ms2ynax/ymp146-review-findings/ymp-rust/crates/ymp-storage)
+    Checking ymp-workspace v0.4.6 (/Users/maggnus/.paseo/worktrees/1ms2ynax/ymp146-review-findings/ymp-rust/crates/ymp-workspace)
+error[E0308]: `?` operator has incompatible types
+   --> ymp-rust/crates/ymp-storage/src/fresh_plan_review.rs:187:16
+    |
+187 |         check(&self.db()?, command)
+    |                ^^^^^^^^^^ expected `Connection`, found `MutexGuard<'_, Connection>`
+    |
+    = note: `?` operator cannot convert from `MutexGuard<'_, Connection>` to `Connection`
+    = note: expected struct `Connection`
+               found struct `MutexGuard<'_, Connection>`
+
+error[E0308]: `?` operator has incompatible types
+   --> ymp-rust/crates/ymp-storage/src/fresh_plan_review.rs:329:62
+    |
+329 |                 && !super::recovery_inspection::replay_safe(&self.db()?, &stage)?
+    |                                                              ^^^^^^^^^^ expected `Connection`, found `MutexGuard<'_, Connection>`
+    |
+    = note: `?` operator cannot convert from `MutexGuard<'_, Connection>` to `Connection`
+    = note: expected struct `Connection`
+               found struct `MutexGuard<'_, Connection>`
+
+For more information about this error, try `rustc --explain E0308`.
+error: could not compile `ymp-storage` (lib) due to 2 previous errors

@@ -99,6 +99,8 @@ impl Engine {
             status: RecoveryStatus::Pending,
             wait_reason: None,
             effect_resolution: None,
+            fresh_plan_review: None,
+            owner_hold: None,
             condition: None,
             updated_at: now(),
         };
@@ -480,6 +482,13 @@ impl Engine {
             };
             if stage.status != RecoveryStatus::Complete {
                 stage.status = RecoveryStatus::Complete;
+                if let Some(fresh) = &mut stage.fresh_plan_review {
+                    ensure!(
+                        fresh.next_action == FreshPlanReviewNextAction::ConsumeRecordedVerdict,
+                        "owner_hold: fresh saved verdict requires explicit continuation"
+                    );
+                    fresh.next_action = FreshPlanReviewNextAction::VerdictConsumed;
+                }
                 stage.wait_reason = None;
                 stage.condition = None;
                 if !stage.review_ids.contains(&review.id) {

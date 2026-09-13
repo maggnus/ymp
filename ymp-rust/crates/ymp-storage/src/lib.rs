@@ -12,6 +12,7 @@ mod authority;
 mod board;
 mod budget;
 mod confirmation;
+mod fresh_plan_review;
 mod knowledge;
 mod knowledge_correction;
 pub mod projection;

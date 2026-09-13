@@ -133,6 +133,19 @@ impl Store {
             stage.status != RecoveryStatus::Complete,
             "owner_command: stage is already complete"
         );
+        if matches!(
+            command.action,
+            RecoveryControl::Wait { .. } | RecoveryControl::Pause
+        ) && !matches!(
+            stage.wait_reason,
+            Some(RecoveryWaitReason::OwnerWait | RecoveryWaitReason::OwnerPause)
+        ) {
+            stage.owner_hold = Some(RecoveryHoldOrigin {
+                status: stage.status,
+                wait_reason: stage.wait_reason,
+                condition: stage.condition.clone(),
+            });
+        }
         match &command.action {
             RecoveryControl::Retry | RecoveryControl::Continue => {
                 if let Some(id) = &stage.active_invocation_id {
@@ -143,14 +156,25 @@ impl Store {
                     );
                 }
                 stage.admission_denial = None;
-                anyhow::ensure!(
-                    super::recovery_inspection::replay_safe(&tx, &stage)?,
-                    "uncertain_effects: inspect effects and establish termination before replay"
-                );
-                stage.manual_permit = true;
+                if command.action == RecoveryControl::Continue
+                    && super::fresh_plan_review::saved_verdict(&tx, &stage)?.is_some()
+                {
+                    // This consumes an existing verdict; it authorizes no replay.
+                    stage.manual_permit = false;
+                    stage
+                        .fresh_plan_review
+                        .as_mut()
+                        .expect("validated fresh review")
+                        .next_action = FreshPlanReviewNextAction::ConsumeRecordedVerdict;
+                } else {
+                    anyhow::ensure!(super::recovery_inspection::replay_safe(&tx, &stage)?,
+                        "uncertain_effects: inspect effects and establish termination before replay");
+                    stage.manual_permit = true;
+                }
                 stage.status = RecoveryStatus::Pending;
                 stage.wait_reason = None;
                 stage.condition = None;
+                stage.owner_hold = None;
             }
             RecoveryControl::Wait { condition } => {
                 anyhow::ensure!(
@@ -167,6 +191,38 @@ impl Store {
                 stage.status = RecoveryStatus::Paused;
                 stage.wait_reason = Some(RecoveryWaitReason::OwnerPause);
                 stage.condition = Some("Owner paused recovery".into());
+            }
+            RecoveryControl::ReleaseHold => {
+                anyhow::ensure!(
+                    matches!(
+                        stage.wait_reason,
+                        Some(RecoveryWaitReason::OwnerWait | RecoveryWaitReason::OwnerPause)
+                    ),
+                    "owner_command: there is no explicit owner hold to release"
+                );
+                stage.manual_permit = false;
+                if let Some(origin) = stage.owner_hold.take() {
+                    stage.status = origin.status;
+                    stage.wait_reason = origin.wait_reason;
+                    stage.condition = origin.condition;
+                    if stage.status == RecoveryStatus::Running {
+                        let still_running = stage
+                            .active_invocation_id
+                            .as_ref()
+                            .map(|id| {
+                                provenance::record::<InvocationRecord>(&tx, "invocations", id)
+                            })
+                            .transpose()?
+                            .is_some_and(|i| i.state == InvocationState::Running);
+                        if !still_running {
+                            stage.status = RecoveryStatus::Pending;
+                        }
+                    }
+                } else {
+                    stage.status = RecoveryStatus::OwnerAction;
+                    stage.wait_reason = None;
+                    stage.condition = Some("Owner hold released; the older record has no captured prior condition. Select an explicit bounded action; no retry permission was issued".into());
+                }
             }
         }
         stage.revision += 1;
@@ -198,6 +254,7 @@ pub(super) fn bind_admission(
     invocation: &InvocationRecord,
 ) -> Result<()> {
     super::recovery_inspection::check_admission(tx, assignment)?;
+    super::fresh_plan_review::check_admission(tx, assignment, invocation)?;
     let binding: Option<String> = tx
         .query_row(
             "SELECT value FROM kv WHERE key=?",

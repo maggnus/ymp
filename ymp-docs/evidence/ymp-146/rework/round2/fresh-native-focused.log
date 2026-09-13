@@ -1,0 +1,11 @@
+   Compiling ymp-runtime v0.4.6 (/Users/maggnus/.paseo/worktrees/1ms2ynax/ymp146-review-findings/ymp-rust/crates/ymp-runtime)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.58s
+     Running tests/fresh_plan_review.rs (/Users/maggnus/.paseo/worktrees/1ms2ynax/ymp146-recovery-backend/target/debug/deps/fresh_plan_review-05f410536c030854)
+
+running 4 tests
+test native_legacy_failure_has_no_scope_or_automatic_replay ... ok
+test native_fresh_review_owner_holds_have_a_reachable_nonretry_release ... ok
+test fresh_native_review_is_plan_only_and_continuation_preserves_unknown_dependencies ... ok
+test native_fresh_review_rejects_foreign_stale_self_unknown_and_exhausted_inputs ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 20.84s

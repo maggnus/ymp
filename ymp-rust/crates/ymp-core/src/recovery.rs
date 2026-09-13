@@ -61,6 +61,7 @@ pub enum RecoveryWaitReason {
     Cancelled,
     LegacyUnbound,
     EffectsInspected,
+    FreshPlanReviewRecorded,
 }
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SavedResponse {
@@ -97,6 +98,10 @@ pub struct RecoveryStage {
     pub wait_reason: Option<RecoveryWaitReason>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub effect_resolution: Option<RecoveryEffectResolution>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub fresh_plan_review: Option<FreshPlanReviewState>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub owner_hold: Option<RecoveryHoldOrigin>,
     pub condition: Option<String>,
     pub updated_at: String,
 }
@@ -172,6 +177,7 @@ pub enum RecoveryControl {
     Continue,
     Wait { condition: String },
     Pause,
+    ReleaseHold,
 }
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RecoveryControlReceipt {
@@ -192,8 +198,11 @@ pub enum RecoveryControlKind {
     Continue,
     Wait,
     Pause,
+    ReleaseHold,
     /// Uses Engine::inspect_recovery, not the synchronous control_recovery API.
     InspectEffects,
+    /// Uses Engine::review_saved_plan_fresh and never resolves old effects.
+    ReviewSavedPlanFresh,
 }
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct StageManualActions {
@@ -216,6 +225,12 @@ impl RecoveryStage {
         let mut controls = Vec::new();
         if self.status != RecoveryStatus::Complete {
             controls.extend([RecoveryControlKind::Wait, RecoveryControlKind::Pause]);
+            if matches!(
+                self.wait_reason,
+                Some(RecoveryWaitReason::OwnerWait | RecoveryWaitReason::OwnerPause)
+            ) {
+                controls.push(RecoveryControlKind::ReleaseHold);
+            }
             if self.status != RecoveryStatus::Running
                 && !self.failures.is_empty()
                 && self
@@ -228,6 +243,19 @@ impl RecoveryStage {
             if self.status != RecoveryStatus::Running && self.effects_resolved() {
                 controls.extend([RecoveryControlKind::Continue, RecoveryControlKind::Retry]);
             }
+            if self.status != RecoveryStatus::Running
+                && !self.effects_resolved()
+                && self.fresh_plan_review.is_some()
+            {
+                controls.push(RecoveryControlKind::Continue);
+            }
+            if self.purpose == "review_plan"
+                && self.fresh_plan_review.is_none()
+                && !self.failures.is_empty()
+                && self.status != RecoveryStatus::Running
+            {
+                controls.push(RecoveryControlKind::ReviewSavedPlanFresh);
+            }
         }
         StageManualActions {
             stage_id: self.id.clone(),
@@ -236,6 +264,63 @@ impl RecoveryStage {
         }
     }
 }
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RecoveryHoldOrigin {
+    pub status: RecoveryStatus,
+    pub wait_reason: Option<RecoveryWaitReason>,
+    pub condition: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct FreshPlanReviewCommand {
+    pub session_id: String,
+    pub stage_id: String,
+    pub expected_revision: u64,
+    pub command_id: String,
+    pub proposal: PlanVersion,
+    pub reviewer_id: String,
+}
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum FreshPlanReviewNextAction {
+    AwaitOwnerContinuation,
+    ConsumeRecordedVerdict,
+    VerdictConsumed,
+}
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct FreshPlanReviewState {
+    pub review_record_id: String,
+    pub next_action: FreshPlanReviewNextAction,
+}
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct FreshPlanReviewRecord {
+    pub command: FreshPlanReviewCommand,
+    pub prior_failures: Vec<InvocationFailure>,
+    pub response: SavedResponse,
+    pub approved: bool,
+    pub reason: String,
+}
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct FreshPlanReviewReceipt {
+    pub record: FreshPlanReviewRecord,
+    pub review_record_id: String,
+    pub resulting_revision: u64,
+    pub next_action: FreshPlanReviewNextAction,
+}
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct UnresolvedEffectDependencies {
+    pub session_id: String,
+    pub stage_id: String,
+    pub proposal: PlanVersion,
+    pub invocation_ids: Vec<String>,
+}
+impl std::fmt::Display for UnresolvedEffectDependencies {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "unresolved_effect_dependencies: saved plan {} was independently reviewed, but dependencies on historical effects of {} remain unestablished; no production or revision is admitted", self.proposal.proposal_id, self.invocation_ids.join(", "))
+    }
+}
+impl std::error::Error for UnresolvedEffectDependencies {}
 
 /// Trusted local inspection ingress. It neither retries the failed call nor
 /// releases an owner hold. Continue remains a separate versioned owner command.
