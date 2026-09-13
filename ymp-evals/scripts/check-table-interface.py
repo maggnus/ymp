@@ -167,13 +167,25 @@ provider = "demo"
         wait_for(lambda s: all(name in s for name in files), "inspect-return")
         passed("inspect-filtered-row-and-return")
 
+        pages = {
+            "/help": "Help", "/tasks": "Tasks", "/usage": "Token usage",
+            "/sessions": "Sessions", "/files": "Files", "/diff": "Changed files",
+            "/checks": "Recorded checks", "/assignments": "Assignments",
+            "/decisions": "Decisions", "/team": "Team", "/agents": "Agent profiles",
+            "/providers": "Providers", "/memory": "Memory", "/reputation": "Reputation",
+            "/limits": "Limits",
+        }
         for width, height in [(140, 45), (80, 24), (60, 24)]:
             tmux("resize-window", "-t", "check", "-x", str(width), "-y", str(height))
             time.sleep(0.2)
-            for page in ["/help", "/tasks", "/usage", "/team", "/files"]:
+            visible_pages = pages if width != 80 else {
+                key: pages[key] for key in ["/help", "/tasks", "/usage", "/team", "/files"]
+            }
+            for page, title in visible_pages.items():
                 command(page)
                 text = capture(f"{width}x{height}-{page[1:]}")
                 assert "ymp" in text, (page, width, "application screen missing")
+                assert title in "\n".join(text.splitlines()[:5]), (page, width, "wrong page", text)
                 assert "NAVIGATE" not in text, (page, width, "navigation returned")
                 assert "panic" not in text.lower(), (page, width, text)
             passed(f"pages-at-{width}x{height}")
