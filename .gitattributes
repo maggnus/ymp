@@ -1,0 +1,3 @@
+# Preserve captured command and terminal output, including its original whitespace.
+ymp-docs/research/evidence/release-043/**/*.log -whitespace
+ymp-docs/research/evidence/release-043/*.log -whitespace
