@@ -733,8 +733,7 @@ fn switch_sync(cwd: &Path, branch: &str, expected_head: Option<&str>) -> Result<
                 .into(),
         ));
     }
-    let target = repo.find_branch(branch, BranchType::Local)?;
-    let target_ref = target.get().name()?.to_owned();
+    let target_ref = format!("refs/heads/{branch}");
     // Reserve reference updates before touching files. A pre-existing HEAD.lock must refuse
     // the operation before checkout changes either the worktree or index.
     let mut transaction = repo.transaction()?;
@@ -754,7 +753,12 @@ fn switch_sync(cwd: &Path, branch: &str, expected_head: Option<&str>) -> Result<
         None,
         &format!("checkout: switching to {branch}"),
     )?;
-    let tree = target.get().peel_to_tree()?;
+    // Resolve the target after its lock is held; a Reference obtained before locking may
+    // still carry an earlier object id if another Git operation moved the branch meanwhile.
+    let tree = repo
+        .find_branch(branch, BranchType::Local)?
+        .get()
+        .peel_to_tree()?;
     // Preflight all paths for collisions without changing the worktree or index.
     let mut check = git2::build::CheckoutBuilder::new();
     check.dry_run();
