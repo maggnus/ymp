@@ -74,8 +74,11 @@ identity is not treated as a local fixture because of how its provider is config
 sessions list names a team by the models its recorded turns ran, which it reads for the loaded
 session, and never by the names or aliases of the profiles the session captured.
 
-The sidebar's team section names the profiles the loaded session captured when it started,
-and says so. With no session loaded it describes the team the next run would use instead; the
+The sidebar's `TOKENS`, `TEAM` and `TASKS` lists are compact tables: column titles over aligned
+rows, with token figures aligned right and the accepted task count beside the `TASKS` title. A
+short terminal shortens a section without separating its column titles from its rows, and a
+narrow sidebar cuts a long cell rather than wrapping it. The sidebar's team section names the
+profiles the loaded session captured when it started, and says so. With no session loaded it describes the team the next run would use instead; the
 two are never presented as the same thing. The turn counter works the same way: a loaded
 session is measured against the limit it captured, not against a limit edited afterwards.
 

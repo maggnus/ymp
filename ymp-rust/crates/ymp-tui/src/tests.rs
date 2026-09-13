@@ -1255,6 +1255,154 @@ fn the_sidebar_is_present_from_eighty_columns_and_can_be_hidden() {
     assert!(!Prefs::load(&fixture.store).sidebar);
 }
 
+/// The sidebar as plain lines, `width` cells wide and at most `height` rows tall.
+fn sidebar_text(app: &App, width: usize, height: usize) -> Vec<String> {
+    crate::sidebar::lines(app, width, height)
+        .iter()
+        .map(|line| {
+            line.spans
+                .iter()
+                .map(|span| span.content.as_ref())
+                .collect()
+        })
+        .collect()
+}
+
+/// The display column at which `needle` starts in `line`.
+fn column_of(line: &str, needle: &str) -> Option<usize> {
+    line.find(needle).map(|at| text::width(&line[..at]))
+}
+
+#[tokio::test]
+async fn the_sidebar_lists_tokens_team_and_open_tasks_as_aligned_tables() {
+    let run = mock_run("Create a greeting", |_| {}).await;
+    let mut app = run.app();
+    app.load_session(&run.session).unwrap();
+    app.event(usage_event(
+        &run.session,
+        &[
+            ("one", Some((12_000, 345)), false),
+            ("two", Some((80, 9)), false),
+        ],
+    ));
+    assert!(!app.tasks.is_empty(), "the fixture planned no task");
+    app.tasks[0].state = ymp_core::TaskState::Running;
+    let accepted = app
+        .tasks
+        .iter()
+        .filter(|task| task.state == ymp_core::TaskState::Accepted)
+        .count();
+
+    let lines = sidebar_text(&app, 30, 80);
+    let section = |title: &str| -> Vec<String> {
+        lines
+            .iter()
+            .skip_while(|line| !line.starts_with(title))
+            .take_while(|line| !line.is_empty())
+            .cloned()
+            .collect()
+    };
+    assert!(
+        !lines.iter().any(|line| line.contains("NAVIGATE")),
+        "navigation came back to the sidebar:\n{}",
+        lines.join("\n")
+    );
+
+    // Figures end under the end of their column title.
+    let tokens = section("TOKENS");
+    assert_eq!(tokens.len(), 4, "{}", tokens.join("\n"));
+    let header = tokens[1].trim_end();
+    assert!(
+        header.starts_with("AGENT") && header.ends_with("TOKENS"),
+        "the token table has no column titles:\n{}",
+        tokens.join("\n")
+    );
+    for row in &tokens[2..] {
+        assert_eq!(
+            text::width(row.trim_end()),
+            text::width(header),
+            "a token figure does not end under its title:\n{}",
+            tokens.join("\n")
+        );
+    }
+
+    // Activity words start under their title.
+    let team = section("TEAM");
+    let activity = column_of(&team[1], "ACTIVITY").expect("the team table has no activity column");
+    assert!(column_of(&team[1], "AGENT").is_some());
+    assert_eq!(team.len(), 4, "{}", team.join("\n"));
+    for row in &team[2..] {
+        assert_eq!(
+            column_of(row, "idle"),
+            Some(activity),
+            "an activity word is not under its title:\n{}",
+            team.join("\n")
+        );
+    }
+
+    // The accepted count stays beside the title, and open tasks are a table.
+    let tasks = section("TASKS");
+    assert!(
+        tasks[0].contains(&format!("accepted {accepted} / {}", app.tasks.len())),
+        "{}",
+        tasks.join("\n")
+    );
+    let state = column_of(&tasks[1], "STATE").expect("the task table has no state column");
+    assert!(
+        tasks
+            .iter()
+            .skip(2)
+            .any(|row| column_of(row, "running") == Some(state)),
+        "an open task's state is not under its title:\n{}",
+        tasks.join("\n")
+    );
+
+    // The narrowest sidebar cuts a long title in its cell and keeps the state beside it.
+    app.tasks[0].title = "A task title far longer than the narrowest sidebar".into();
+    let narrowest = (crate::frame::sidebar_width(80) - 2) as usize;
+    let lines = sidebar_text(&app, narrowest, 80);
+    let open = lines
+        .iter()
+        .find(|line| line.contains("A task"))
+        .expect("the open task is not listed");
+    assert!(
+        text::width(open) <= narrowest && open.contains('…') && open.contains("running"),
+        "a long task title was not cut inside its cell: {open:?}"
+    );
+    for line in lines.iter().skip_while(|line| !line.starts_with("TOKENS")) {
+        assert!(
+            text::width(line) <= narrowest,
+            "a sidebar table line overflows {narrowest} cells: {line:?}"
+        );
+    }
+
+    // A shortened section never leaves column titles over no rows.
+    let more = app.theme.markers.more;
+    for height in 4..30 {
+        let lines = sidebar_text(&app, 30, height);
+        assert!(lines.len() <= height);
+        for (index, line) in lines.iter().enumerate() {
+            let trimmed = line.trim_start();
+            let header = trimmed.starts_with("AGENT") || trimmed.starts_with("TASK ");
+            if !header {
+                continue;
+            }
+            let titled = index > 0
+                && ["TOKENS", "TEAM", "TASKS"]
+                    .iter()
+                    .any(|title| lines[index - 1].starts_with(title));
+            let followed = lines
+                .get(index + 1)
+                .is_some_and(|next| !next.is_empty() && !next.starts_with(more));
+            assert!(
+                titled && followed,
+                "column titles were split from their section or their rows at height {height}:\n{}",
+                lines.join("\n")
+            );
+        }
+    }
+}
+
 #[test]
 fn every_page_renders_at_the_smallest_supported_size() {
     let fixture = fixture();
@@ -1901,7 +2049,8 @@ fn the_sidebar_shows_the_team_the_session_captured_not_the_edited_configuration(
     let shown = rows
         .iter()
         .skip_while(|row| !row.contains("TEAM"))
-        .skip(1)
+        // The section title, then the column titles of its table.
+        .skip(2)
         .take_while(|row| row.contains(app.theme.markers.idle))
         .count();
     assert_eq!(

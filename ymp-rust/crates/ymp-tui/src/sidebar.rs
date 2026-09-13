@@ -2,9 +2,11 @@
 //!
 //! The sidebar is built as a list of sections with a minimum height each. When the terminal
 //! is short the sections shrink in a defined order instead of being clipped, so the context
-//! that matters most stays on screen at 80x24.
+//! that matters most stays on screen at 80x24. Its lists are compact tables: column titles over
+//! aligned rows, as on the pages, without a selection.
 
 use crate::state::App;
+use crate::table::{self, Cell, Column};
 use crate::text;
 use crate::theme::Theme;
 use crate::usage;
@@ -16,10 +18,25 @@ struct Section {
     lines: Vec<Line<'static>>,
     /// Lines that must survive when space runs out, including the title.
     keep: usize,
+    /// Lines at the top that stay together when the section is shortened: the title, and the
+    /// column titles of the table under it.
+    fixed: usize,
     /// A row that must stay visible when the section is shortened. The section scrolls
     /// to it instead of losing it off the bottom.
     anchor: Option<usize>,
 }
+
+const TOKEN_COLUMNS: [Column; 2] = [Column::left("AGENT").flex(), Column::right("TOKENS")];
+const TEAM_COLUMNS: [Column; 3] = [
+    Column::left(""),
+    Column::left("AGENT").flex(),
+    Column::left("ACTIVITY"),
+];
+const TASK_COLUMNS: [Column; 3] = [
+    Column::left(""),
+    Column::left("TASK").flex(),
+    Column::left("STATE"),
+];
 
 /// Compose the sidebar. `width` is the inner width available for text.
 ///
@@ -92,20 +109,25 @@ fn shorten(section: Section, rows: usize, theme: &Theme) -> Vec<Line<'static>> {
         return section.lines;
     }
     let mut body = section.lines;
-    let title = body.remove(0);
-    let mut out = vec![title];
+    let fixed = section.fixed.clamp(1, body.len());
+    let head: Vec<Line<'static>> = body.drain(..fixed).collect();
     // One row reports what is not shown, so the body gets what is left.
-    let capacity = rows.saturating_sub(2);
+    let capacity = rows.saturating_sub(fixed + 1);
     if capacity == 0 {
-        // A section never draws more rows than it was given, so a single row is the
-        // title alone rather than a title and a counter.
+        // A section never draws more rows than it was given, and column titles over no rows
+        // say nothing, so a section this short is its title, with a counter when there is room.
+        let mut out: Vec<Line<'static>> = head.into_iter().take(1).collect();
         if rows > 1 {
             out.push(hidden_row(body.len(), theme));
         }
         return out;
     }
-    // The anchor indexes the whole section, and the title was row zero.
-    let anchor = section.anchor.map(|row| row.saturating_sub(1)).unwrap_or(0);
+    let mut out = head;
+    // The anchor indexes the whole section, whose fixed lines come first.
+    let anchor = section
+        .anchor
+        .map(|row| row.saturating_sub(fixed))
+        .unwrap_or(0);
     let start = anchor
         .saturating_sub(capacity - 1)
         .min(body.len().saturating_sub(capacity));
@@ -123,6 +145,23 @@ fn hidden_row(hidden: usize, theme: &Theme) -> Line<'static> {
 
 fn title(theme: &Theme, text: &str) -> Line<'static> {
     Line::from(Span::styled(text.to_uppercase(), theme.muted()))
+}
+
+/// A list in the sidebar: its column titles, then its rows aligned under them.
+fn compact_table(
+    columns: &[Column],
+    rows: &[Vec<Cell>],
+    width: usize,
+    theme: &Theme,
+) -> Vec<Line<'static>> {
+    let borrowed: Vec<&[Cell]> = rows.iter().map(Vec::as_slice).collect();
+    let widths = table::widths(columns, &borrowed, width);
+    let mut lines = vec![Line::from(table::titles(columns, &widths, theme))];
+    lines.extend(
+        rows.iter()
+            .map(|cells| Line::from(table::aligned(columns, &widths, cells))),
+    );
+    lines
 }
 
 fn session(app: &App, width: usize) -> Section {
@@ -184,11 +223,12 @@ fn session(app: &App, width: usize) -> Section {
     Section {
         lines,
         keep: 4,
+        fixed: 1,
         anchor: None,
     }
 }
 
-/// Token statistics: the session total on the section title, then one row per agent.
+/// Token statistics: the session total on the section title, then a table of agents.
 ///
 /// The title carries the total because a shortened section keeps its title, so the figure
 /// a reader checks most often survives a short terminal. Every row is an agent: two agents
@@ -212,37 +252,40 @@ fn tokens(app: &App, width: usize) -> Section {
         return Section {
             lines,
             keep: 2,
+            fixed: 1,
             anchor: None,
         };
     }
     let (team, _) = app.active_team();
-    let rows = usage::agent_rows(&app.stats, &team, &app.config);
+    let rows: Vec<Vec<Cell>> = usage::agent_rows(&app.stats, &team, &app.config)
+        .iter()
+        .map(|row| {
+            vec![
+                Cell::text(app.agent_label(&row.id), theme.body()),
+                Cell::text(
+                    usage::agent_headline(row, theme),
+                    usage::agent_headline_style(row, theme),
+                ),
+            ]
+        })
+        .collect();
     if rows.is_empty() {
         lines.push(Line::from(Span::styled(
             "no agent recorded".to_owned(),
             theme.faint(),
         )));
+        return Section {
+            lines,
+            keep: 2,
+            fixed: 1,
+            anchor: None,
+        };
     }
-    for row in rows {
-        let figure = usage::agent_headline(&row, theme);
-        lines.push(text::row(
-            width,
-            vec![Span::styled(
-                text::truncate(
-                    &app.agent_label(&row.id),
-                    width.saturating_sub(text::width(&figure) + 2),
-                ),
-                theme.body(),
-            )],
-            vec![Span::styled(
-                figure,
-                usage::agent_headline_style(&row, theme),
-            )],
-        ));
-    }
+    lines.extend(compact_table(&TOKEN_COLUMNS, &rows, width, theme));
     Section {
         lines,
-        keep: 3,
+        keep: 4,
+        fixed: 2,
         anchor: None,
     }
 }
@@ -282,32 +325,35 @@ fn team(app: &App, width: usize) -> Section {
         return Section {
             lines,
             keep: 2,
+            fixed: 1,
             anchor: None,
         };
     }
-    for member in members {
-        let raw = app.statuses.get(&member.id).map(String::as_str);
-        let (word, style) = activity(raw, theme);
-        let marker = match raw {
-            Some("idle") | None => theme.markers.idle,
-            Some("error") => theme.markers.fail,
-            // A turn held up by coordination is not work in flight, and the two must not
-            // share a marker. Why it waits is on the task and the decision that recorded it.
-            Some(status) if status.starts_with("waiting") => theme.markers.paused,
-            Some(_) => theme.markers.busy,
-        };
-        lines.push(text::row(
-            width,
+    let rows: Vec<Vec<Cell>> = members
+        .iter()
+        .map(|member| {
+            let raw = app.statuses.get(&member.id).map(String::as_str);
+            let (word, style) = activity(raw, theme);
+            let marker = match raw {
+                Some("idle") | None => theme.markers.idle,
+                Some("error") => theme.markers.fail,
+                // A turn held up by coordination is not work in flight, and the two must not
+                // share a marker. Why it waits is on the task and the decision that recorded it.
+                Some(status) if status.starts_with("waiting") => theme.markers.paused,
+                Some(_) => theme.markers.busy,
+            };
             vec![
-                Span::styled(format!("{marker} "), style),
-                Span::styled(app.agent_label(&member.id), theme.body()),
-            ],
-            vec![Span::styled(word.to_owned(), style)],
-        ));
-    }
+                Cell::text(marker, style),
+                Cell::text(app.agent_label(&member.id), theme.body()),
+                Cell::text(word, style),
+            ]
+        })
+        .collect();
+    lines.extend(compact_table(&TEAM_COLUMNS, &rows, width, theme));
     Section {
         lines,
         keep: 2,
+        fixed: 2,
         anchor: None,
     }
 }
@@ -330,47 +376,60 @@ fn activity(status: Option<&str>, theme: &Theme) -> (&'static str, ratatui::styl
     }
 }
 
+/// Tasks: how many were accepted beside the title, then a table of the ones still open.
 fn tasks(app: &App, width: usize) -> Section {
     let theme = &app.theme;
-    let mut lines = vec![title(theme, "tasks")];
     if app.tasks.is_empty() {
-        lines.push(Line::from(Span::styled(
-            "no task graph yet".to_owned(),
-            theme.faint(),
-        )));
         return Section {
-            lines,
+            lines: vec![
+                title(theme, "tasks"),
+                Line::from(Span::styled("no task graph yet".to_owned(), theme.faint())),
+            ],
             keep: 2,
+            fixed: 1,
             anchor: None,
         };
     }
-    let count = |state: TaskState| app.tasks.iter().filter(|t| t.state == state).count();
-    let accepted = count(TaskState::Accepted);
-    lines.push(text::row(
+    let accepted = app
+        .tasks
+        .iter()
+        .filter(|task| task.state == TaskState::Accepted)
+        .count();
+    // The title carries the accepted count, so a shortened section keeps that figure.
+    let mut lines = vec![text::row(
         width,
-        vec![Span::styled("accepted".to_owned(), theme.muted())],
+        vec![Span::styled("TASKS".to_owned(), theme.muted())],
         vec![Span::styled(
-            format!("{accepted} / {}", app.tasks.len()),
+            format!("accepted {accepted} / {}", app.tasks.len()),
             theme.good(),
         )],
-    ));
-    for task in app.tasks.iter().filter(|t| t.state != TaskState::Accepted) {
-        let (marker, word, style) = views::task_state(task.state, theme);
-        lines.push(text::row(
-            width,
+    )];
+    let rows: Vec<Vec<Cell>> = app
+        .tasks
+        .iter()
+        .filter(|task| task.state != TaskState::Accepted)
+        .map(|task| {
+            let (marker, word, style) = views::task_state(task.state, theme);
             vec![
-                Span::styled(format!("{marker} "), style),
-                Span::styled(
-                    text::truncate(&task.title, width.saturating_sub(word.len() + 4)),
-                    theme.body(),
-                ),
-            ],
-            vec![Span::styled(word.to_owned(), style)],
-        ));
+                Cell::text(marker, style),
+                Cell::text(text::one_line(&task.title), theme.body()),
+                Cell::text(word, style),
+            ]
+        })
+        .collect();
+    if rows.is_empty() {
+        return Section {
+            lines,
+            keep: 1,
+            fixed: 1,
+            anchor: None,
+        };
     }
+    lines.extend(compact_table(&TASK_COLUMNS, &rows, width, theme));
     Section {
         lines,
         keep: 2,
+        fixed: 2,
         anchor: None,
     }
 }
