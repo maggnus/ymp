@@ -3730,6 +3730,11 @@
           "at": "2026-09-13T11:43:40.534902+00:00",
           "status": "done",
           "note": "Latest owner direction keeps file opening read-only with the current highlighter for now. Editing is deferred. Live Git inspection is a distinct feature recorded as143, not part of the file manager or justification to replace its highlighter."
+        },
+        {
+          "at": "2026-09-13T11:52:29.208823+00:00",
+          "status": "done",
+          "note": "Applied the owner general library-unification constraint to the completed assessment: two parallel syntax engines are an exception requiring demonstrated need, not the default editor integration plan. Any later backend replacement must identify retired code/dependencies and preserve file/chat contracts. No dependency or implementation change was made."
         }
       ]
     },
@@ -3751,7 +3756,8 @@
         "Provide Uncommitted working changes and Committed branch-versus-base differences, changed-file counts and highlighted diff opening. Empty/loading/error/non-Git states must be distinct. Preserve appropriate mode and selection through live updates.",
         "Support inspecting existing worktrees. Treat actual branch switching as an explicit checkout operation, separate from comparison selection, with dirty-tree handling and coordination with active agent writes. Do not infer undo-commit, discard or remote operations from the Committed/Uncommitted labels.",
         "Refresh visible Git data asynchronously with bounded work and honest stale/error state. Use actual Git objects for historical content and verify Git edge-case fixtures.",
-        "Delegate future UI implementation to Claude Code high and independently verify source and terminal behavior. Current task remains unimplemented under the owner research-only restriction."
+        "Delegate future UI implementation to Claude Code high and independently verify source and terminal behavior. Current task remains unimplemented under the owner research-only restriction.",
+        "Follow the owner library-unification rule: reuse existing highlighting, semantic styles, diff roles and display adapters; justify any added dependency and record what it replaces. A separate Git page must not introduce a duplicate highlighting stack without demonstrated need."
       ],
       "evidence": [
         "ymp-docs/research/separate-git-inspection.md",
@@ -3767,11 +3773,16 @@
           "at": "2026-09-13T11:50:05.547469+00:00",
           "status": "new",
           "note": "Parent and Claude inspected clean Paseo0.8.0 source fa93c42. Committed/Uncommitted are view modes; the default follows dirty/clean state, and an empty comparison displays no changes. BranchSwitcher performs checkout with explicit stash handling. No uncommit action found. Recorded a /git proposal matching this behavior; no implementation, Git mutation or installed update. Optional wording clarification is pending."
+        },
+        {
+          "at": "2026-09-13T11:52:29.208823+00:00",
+          "status": "new",
+          "note": "Owner set library unification as a general project rule. Recorded in AGENTS.md and subsystem-interfaces.md; the /git proposal must reuse existing highlighting/display infrastructure and justify any new dependency. Research-only scope and unimplemented status remain unchanged."
         }
       ]
     }
   ],
-  "updated_at": "2026-09-13T11:50:05.547469+00:00",
+  "updated_at": "2026-09-13T11:52:29.208823+00:00",
   "delivery_order": [
     "YMP-116",
     "YMP-103",
@@ -4167,7 +4178,8 @@
     "Real-provider checks and experiments require their concrete quota authorization. Unattended checks use fixtures. After changes run cargo fmt, clippy with warnings denied and workspace tests; bridge changes also require bridge checks.",
     "Favor narrow typed subsystem interfaces and injectable built-in implementations. Replacement algorithms propose work or provide observations; trusted runtime rules still own grants, budgets, acceptance and evidence. See subsystem-interfaces.md and YMP-122.",
     "Release 0.4.0 is an MVP. Its owner-approved direct workspace policy is a temporary limitation; YMP-124 tracks post-MVP isolated execution and recoverable publication.",
-    "After110/113 backend integration was independently accepted,112/114 readiness uses their completed core prerequisites; remaining110/113 UI acceptance is an explicit121 dependency. Their full acceptance and completion counts remain unchanged."
+    "After110/113 backend integration was independently accepted,112/114 readiness uses their completed core prerequisites; remaining110/113 UI acceptance is an explicit121 dependency. Their full acceptance and completion counts remain unchanged.",
+    "Owner direction2026-09-13: unify library use across features. Reuse shared implementations; justify a new or overlapping dependency by a demonstrated gap and integration/maintenance cost. Prefer replacing and retiring superseded dependencies over keeping parallel stacks. Complementary roles are not duplication. This does not authorize implementation while research-only scope applies."
   ],
   "release": {
     "target_version": "0.4.0",

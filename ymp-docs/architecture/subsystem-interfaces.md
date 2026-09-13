@@ -23,6 +23,13 @@ Policy implementations return proposals or observations. A returned `approved` f
 
 Keep records and interface inputs domain-specific. Do not reduce all subsystem inputs to arbitrary JSON or introduce a trait around every helper. Extend existing package boundaries before adding packages. Interface design belongs to the task that owns the behavior, so this document does not freeze speculative method signatures.
 
+Owner direction, 2026-09-13: unify library use across features. A shared responsibility should use
+the existing implementation and adapter where suitable. A new or overlapping dependency needs a
+demonstrated capability gap and an explicit account of integration and maintenance costs. A
+replacement should identify which existing implementation and dependencies it retires; parallel
+implementations are an exception to justify, not the default. Libraries providing distinct roles
+within one solution, such as parsing, grammar data and display adaptation, are complementary.
+
 ## Evidence for replacing an implementation
 
 Contract tests exercise at least the built-in implementation and a deliberately different test implementation through the actual consumer. They must show that replacement changes the intended behavior while preserving runtime constraints, attribution and failure handling. A mock that only mirrors the built-in implementation is insufficient.

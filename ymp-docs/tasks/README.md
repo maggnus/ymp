@@ -1,6 +1,6 @@
 # Task details and evidence
 
-Updated: 2026-09-13 11:50 UTC.
+Updated: 2026-09-13 11:52 UTC.
 
 Use the [delivery plan](plan.md) to follow progress. This generated register contains full acceptance criteria, dependencies and evidence. [tasks.json](tasks.json) is the single source; [manage.py](manage.py) updates both pages.
 
@@ -82,8 +82,8 @@ A planned task is not implemented functionality. Completed research and planning
 | `[x]` | [YMP-139](#ymp-139) | P1 | Integrate a ready-made Ratatui file navigator and code highlighting | 2026-09-13 11:07 |
 | `[x]` | [YMP-140](#ymp-140) | P1 | Render agent code and explicit diffs clearly using established AI-chat patterns | 2026-09-13 11:13 |
 | `[=]` | [YMP-141](#ymp-141) | P1 | Keep popup geometry stable while scrolling content | 2026-09-13 11:37 |
-| `[x]` | [YMP-142](#ymp-142) | P1 | Assess ratatui-code-editor for opening files inside ymp | 2026-09-13 11:43 |
-| `[+]` | [YMP-143](#ymp-143) | P1 | Provide a separate /git changes view modeled on Paseo | 2026-09-13 11:50 |
+| `[x]` | [YMP-142](#ymp-142) | P1 | Assess ratatui-code-editor for opening files inside ymp | 2026-09-13 11:52 |
+| `[+]` | [YMP-143](#ymp-143) | P1 | Provide a separate /git changes view modeled on Paseo | 2026-09-13 11:52 |
 
 ## YMP-001
 
@@ -2059,9 +2059,9 @@ Assess ratatui-code-editor for opening files inside ymp
 
 **State:** `[x]` (done) · **Type:** research · **Priority:** P1
 
-**Last update (UTC):** 2026-09-13 11:43
+**Last update (UTC):** 2026-09-13 11:52
 
-**Current reason:** Latest owner direction keeps file opening read-only with the current highlighter for now. Editing is deferred. Live Git inspection is a distinct feature recorded as143, not part of the file manager or justification to replace its highlighter.
+**Current reason:** Applied the owner general library-unification constraint to the completed assessment: two parallel syntax engines are an exception requiring demonstrated need, not the default editor integration plan. Any later backend replacement must identify retired code/dependencies and preserve file/chat contracts. No dependency or implementation change was made.
 
 **Owner:** Maintainer and the current Claude UI author compare source findings
 
@@ -2090,9 +2090,9 @@ Provide a separate /git changes view modeled on Paseo
 
 **State:** `[+]` (new) · **Type:** implementation · **Priority:** P1
 
-**Last update (UTC):** 2026-09-13 11:50
+**Last update (UTC):** 2026-09-13 11:52
 
-**Current reason:** Parent and Claude inspected clean Paseo0.8.0 source fa93c42. Committed/Uncommitted are view modes; the default follows dirty/clean state, and an empty comparison displays no changes. BranchSwitcher performs checkout with explicit stash handling. No uncommit action found. Recorded a /git proposal matching this behavior; no implementation, Git mutation or installed update. Optional wording clarification is pending.
+**Current reason:** Owner set library unification as a general project rule. Recorded in AGENTS.md and subsystem-interfaces.md; the /git proposal must reuse existing highlighting/display infrastructure and justify any new dependency. Research-only scope and unimplemented status remain unchanged.
 
 **Owner:** Maintainer defines Git data contracts; Claude Code high owns future UI implementation
 
@@ -2109,6 +2109,7 @@ The current Git-marker discovery and session changes page do not expose actual s
 - Support inspecting existing worktrees. Treat actual branch switching as an explicit checkout operation, separate from comparison selection, with dirty-tree handling and coordination with active agent writes. Do not infer undo-commit, discard or remote operations from the Committed/Uncommitted labels.
 - Refresh visible Git data asynchronously with bounded work and honest stale/error state. Use actual Git objects for historical content and verify Git edge-case fixtures.
 - Delegate future UI implementation to Claude Code high and independently verify source and terminal behavior. Current task remains unimplemented under the owner research-only restriction.
+- Follow the owner library-unification rule: reuse existing highlighting, semantic styles, diff roles and display adapters; justify any added dependency and record what it replaces. A separate Git page must not introduce a duplicate highlighting stack without demonstrated need.
 
 **Evidence:**
 

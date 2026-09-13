@@ -7,6 +7,11 @@ implemented functionality. The current research-only restriction remains in effe
 Editing and ratatui-code-editor integration remain deferred. `/git` is a separate command and
 page for following changes, using Paseo's Changes panel as the functional reference.
 
+The owner's library-unification direction applies: reuse the existing syntax highlighter,
+semantic styles, diff line roles and shared display primitives where appropriate. A separate
+Git page does not imply a separate highlighting stack or duplicated file-content renderer.
+Any additional dependency must address a demonstrated gap and identify its replacement boundary.
+
 ## What the Paseo reference actually does
 
 Inspected clean Paseo 0.8.0 source at `fa93c4290eaa87ae58452ab6e2012f85ae6e0c6b`. The installed

@@ -80,6 +80,12 @@ in-memory buffers; it reads no clipboard and writes no user file.
 
 ## Options and recommendation
 
+The owner subsequently made library unification a general project rule. A second syntax stack
+is not the default integration plan. Before adding an editor with its own highlighter, assess
+whether one shared backend can meet the file and chat contracts and identify what it replaces.
+Retaining both engines would require a demonstrated need and recorded cost. This is a design
+constraint; the existing research-only restriction remains in force.
+
 **Use it only for editable file content.** Retain the explorer, bounded file I/O and the existing
 chat renderer/highlighter. Let the editor use its own Tree-sitter syntax for its buffer. This
 limits the migration and preserves already-verified chat behavior, but ships two syntax stacks.
