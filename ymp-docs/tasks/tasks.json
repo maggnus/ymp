@@ -3967,7 +3967,8 @@
         "Strategy selection belongs only on /team through backend YMP-148 and UI YMP-150. Preserve session-level policy revision and actual strategy provenance; do not expand this P0 backend recovery assignment into the selector UI or whole coordination strategy."
       ],
       "evidence": [
-        "ymp-docs/architecture/session-recovery-contract.md"
+        "ymp-docs/architecture/session-recovery-contract.md",
+        "ymp-docs/evidence/ymp-146/acceptance-round1.md"
       ],
       "history": [
         {
@@ -4019,6 +4020,11 @@
           "at": "2026-09-13T16:28:14.440363+00:00",
           "status": "in_progress",
           "note": "Backend author delivered immutable15f7c22..cfdceff(commits51b8bd9,cfdceff), clean tree,596tests2ignored and source-bound fmt/clippy evidence. P0 independent review split between52111c72 recovery/public-consumer checks and332e0b99 source authority/admission races; only recovery reviewer owns Cargo. Explicitly checking reachable recovery for pre146saved-plan records and actual execution failures, not just new waiting labels. Backend remains unaccepted/uninstalled; no comparative experiment or live3223session action."
+        },
+        {
+          "at": "2026-09-13T16:40:12.495834+00:00",
+          "status": "in_progress",
+          "note": "Authority review RETURN: ready board commitments can strand departing participants and block continuation; membership changes can silently clear explicit stage Wait/OwnerAction and grant a manual attempt. Parent confirmed source paths and requires executable regressions plus bounded fixes in an isolated rework fork, preserving originalcfdcefffor the parallel recovery probe. Other observations are recorded with their actual evidence limits; backend remains unaccepted."
         }
       ]
     },
@@ -4234,7 +4240,7 @@
       ]
     }
   ],
-  "updated_at": "2026-09-13T16:34:47.918431+00:00",
+  "updated_at": "2026-09-13T16:40:12.495834+00:00",
   "delivery_order": [
     "YMP-116",
     "YMP-103",
