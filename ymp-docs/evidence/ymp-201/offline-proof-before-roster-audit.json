@@ -1,0 +1,1066 @@
+{
+  "cases": [
+    {
+      "case": "independent-1",
+      "extra_call_denial": "pilot_call_limit: whole-group call cap reached",
+      "negative_controls": [
+        "extra_call",
+        "peer_prompt_contamination",
+        "hidden_file_contamination",
+        "high_instead_of_fixed_low"
+      ],
+      "observation": {
+        "actual_native_model": null,
+        "budget": {
+          "admitted_invocations": 1,
+          "in_flight_invocations": 0,
+          "last_denial": null,
+          "limits": {
+            "attempts": 1,
+            "parallel": 1,
+            "resources": {
+              "invocation_tokens": 20,
+              "max_context_chars": 32000,
+              "max_output_chars": 4000,
+              "native_max_turns": 2,
+              "observed_tokens": 12000,
+              "required_review_invocations": 1,
+              "review_reserve_tokens": 1,
+              "startup_context_chars": 16000,
+              "startup_invocations": 2,
+              "unknown_usage": "stop"
+            },
+            "turn_timeout_secs": 5,
+            "turns": 2
+          },
+          "observed_token_overshoot": 0,
+          "observed_usage": {
+            "calls": 1,
+            "counts": {
+              "cache_read": 3,
+              "cache_write": 1,
+              "input": 8,
+              "output": 2,
+              "reasoning": 1
+            },
+            "open_calls": 0,
+            "partial_calls": 0,
+            "reported": 1
+          },
+          "protected_review_invocations": 1,
+          "protected_review_tokens": 1,
+          "reserved_tokens": 0,
+          "startup_invocations": 0,
+          "strict_token_bound": false
+        },
+        "external_call_cap": 1,
+        "native_inference": false,
+        "session_id": "e821f715-7aca-431c-a0b2-4eb5be20f37b",
+        "usage": {
+          "agents": {
+            "weak-1": {
+              "calls": 1,
+              "counts": {
+                "cache_read": 3,
+                "cache_write": 1,
+                "input": 8,
+                "output": 2,
+                "reasoning": 1
+              },
+              "open_calls": 0,
+              "partial_calls": 0,
+              "reported": 1
+            }
+          },
+          "total": {
+            "calls": 1,
+            "counts": {
+              "cache_read": 3,
+              "cache_write": 1,
+              "input": 8,
+              "output": 2,
+              "reasoning": 1
+            },
+            "open_calls": 0,
+            "partial_calls": 0,
+            "reported": 1
+          }
+        }
+      },
+      "passed": true
+    },
+    {
+      "case": "independent-2",
+      "extra_call_denial": "pilot_call_limit: whole-group call cap reached",
+      "negative_controls": [
+        "extra_call",
+        "peer_prompt_contamination",
+        "hidden_file_contamination",
+        "high_instead_of_fixed_low"
+      ],
+      "observation": {
+        "actual_native_model": null,
+        "budget": {
+          "admitted_invocations": 2,
+          "in_flight_invocations": 0,
+          "last_denial": null,
+          "limits": {
+            "attempts": 1,
+            "parallel": 1,
+            "resources": {
+              "invocation_tokens": 20,
+              "max_context_chars": 32000,
+              "max_output_chars": 4000,
+              "native_max_turns": 2,
+              "observed_tokens": 12000,
+              "required_review_invocations": 1,
+              "review_reserve_tokens": 1,
+              "startup_context_chars": 16000,
+              "startup_invocations": 2,
+              "unknown_usage": "stop"
+            },
+            "turn_timeout_secs": 5,
+            "turns": 3
+          },
+          "observed_token_overshoot": 0,
+          "observed_usage": {
+            "calls": 2,
+            "counts": {
+              "cache_read": 6,
+              "cache_write": 2,
+              "input": 16,
+              "output": 4,
+              "reasoning": 2
+            },
+            "open_calls": 0,
+            "partial_calls": 0,
+            "reported": 2
+          },
+          "protected_review_invocations": 1,
+          "protected_review_tokens": 1,
+          "reserved_tokens": 0,
+          "startup_invocations": 0,
+          "strict_token_bound": false
+        },
+        "external_call_cap": 2,
+        "native_inference": false,
+        "session_id": "7ff2f999-4d3d-4460-bae6-1a285bbb8058",
+        "usage": {
+          "agents": {
+            "weak-1": {
+              "calls": 1,
+              "counts": {
+                "cache_read": 3,
+                "cache_write": 1,
+                "input": 8,
+                "output": 2,
+                "reasoning": 1
+              },
+              "open_calls": 0,
+              "partial_calls": 0,
+              "reported": 1
+            },
+            "weak-2": {
+              "calls": 1,
+              "counts": {
+                "cache_read": 3,
+                "cache_write": 1,
+                "input": 8,
+                "output": 2,
+                "reasoning": 1
+              },
+              "open_calls": 0,
+              "partial_calls": 0,
+              "reported": 1
+            }
+          },
+          "total": {
+            "calls": 2,
+            "counts": {
+              "cache_read": 6,
+              "cache_write": 2,
+              "input": 16,
+              "output": 4,
+              "reasoning": 2
+            },
+            "open_calls": 0,
+            "partial_calls": 0,
+            "reported": 2
+          }
+        }
+      },
+      "passed": true
+    },
+    {
+      "case": "independent-3",
+      "extra_call_denial": "pilot_call_limit: whole-group call cap reached",
+      "negative_controls": [
+        "extra_call",
+        "peer_prompt_contamination",
+        "hidden_file_contamination",
+        "high_instead_of_fixed_low"
+      ],
+      "observation": {
+        "actual_native_model": null,
+        "budget": {
+          "admitted_invocations": 3,
+          "in_flight_invocations": 0,
+          "last_denial": null,
+          "limits": {
+            "attempts": 1,
+            "parallel": 1,
+            "resources": {
+              "invocation_tokens": 20,
+              "max_context_chars": 32000,
+              "max_output_chars": 4000,
+              "native_max_turns": 2,
+              "observed_tokens": 12000,
+              "required_review_invocations": 1,
+              "review_reserve_tokens": 1,
+              "startup_context_chars": 16000,
+              "startup_invocations": 2,
+              "unknown_usage": "stop"
+            },
+            "turn_timeout_secs": 5,
+            "turns": 4
+          },
+          "observed_token_overshoot": 0,
+          "observed_usage": {
+            "calls": 3,
+            "counts": {
+              "cache_read": 9,
+              "cache_write": 3,
+              "input": 24,
+              "output": 6,
+              "reasoning": 3
+            },
+            "open_calls": 0,
+            "partial_calls": 0,
+            "reported": 3
+          },
+          "protected_review_invocations": 1,
+          "protected_review_tokens": 1,
+          "reserved_tokens": 0,
+          "startup_invocations": 0,
+          "strict_token_bound": false
+        },
+        "external_call_cap": 3,
+        "native_inference": false,
+        "session_id": "95235aae-6614-4c11-9cfc-66888d098037",
+        "usage": {
+          "agents": {
+            "weak-1": {
+              "calls": 1,
+              "counts": {
+                "cache_read": 3,
+                "cache_write": 1,
+                "input": 8,
+                "output": 2,
+                "reasoning": 1
+              },
+              "open_calls": 0,
+              "partial_calls": 0,
+              "reported": 1
+            },
+            "weak-2": {
+              "calls": 1,
+              "counts": {
+                "cache_read": 3,
+                "cache_write": 1,
+                "input": 8,
+                "output": 2,
+                "reasoning": 1
+              },
+              "open_calls": 0,
+              "partial_calls": 0,
+              "reported": 1
+            },
+            "weak-3": {
+              "calls": 1,
+              "counts": {
+                "cache_read": 3,
+                "cache_write": 1,
+                "input": 8,
+                "output": 2,
+                "reasoning": 1
+              },
+              "open_calls": 0,
+              "partial_calls": 0,
+              "reported": 1
+            }
+          },
+          "total": {
+            "calls": 3,
+            "counts": {
+              "cache_read": 9,
+              "cache_write": 3,
+              "input": 24,
+              "output": 6,
+              "reasoning": 3
+            },
+            "open_calls": 0,
+            "partial_calls": 0,
+            "reported": 3
+          }
+        }
+      },
+      "passed": true
+    },
+    {
+      "case": "group-budget",
+      "negative_control": "token_limit: Observed usage and in-flight reservations exhaust the token allowance",
+      "observation": {
+        "actual_native_model": null,
+        "budget": {
+          "admitted_invocations": 2,
+          "in_flight_invocations": 0,
+          "last_denial": {
+            "at": "2026-09-13T19:15:30.591965+00:00",
+            "code": "token_limit",
+            "message": "Observed usage and in-flight reservations exhaust the token allowance",
+            "purpose": "pilot_candidate"
+          },
+          "limits": {
+            "attempts": 1,
+            "parallel": 1,
+            "resources": {
+              "invocation_tokens": 20,
+              "max_context_chars": 32000,
+              "max_output_chars": 4000,
+              "native_max_turns": 2,
+              "observed_tokens": 100,
+              "required_review_invocations": 1,
+              "review_reserve_tokens": 1,
+              "startup_context_chars": 16000,
+              "startup_invocations": 2,
+              "unknown_usage": "stop"
+            },
+            "turn_timeout_secs": 5,
+            "turns": 7
+          },
+          "observed_token_overshoot": 0,
+          "observed_usage": {
+            "calls": 2,
+            "counts": {
+              "cache_read": 6,
+              "cache_write": 2,
+              "input": 86,
+              "output": 4,
+              "reasoning": 2
+            },
+            "open_calls": 0,
+            "partial_calls": 0,
+            "reported": 2
+          },
+          "protected_review_invocations": 1,
+          "protected_review_tokens": 1,
+          "reserved_tokens": 0,
+          "startup_invocations": 0,
+          "strict_token_bound": false
+        },
+        "external_call_cap": 6,
+        "native_inference": false,
+        "session_id": "ce52142f-4255-4693-abbf-108c8dfdbc84",
+        "usage": {
+          "agents": {
+            "weak-1": {
+              "calls": 1,
+              "counts": {
+                "cache_read": 3,
+                "cache_write": 1,
+                "input": 43,
+                "output": 2,
+                "reasoning": 1
+              },
+              "open_calls": 0,
+              "partial_calls": 0,
+              "reported": 1
+            },
+            "weak-2": {
+              "calls": 1,
+              "counts": {
+                "cache_read": 3,
+                "cache_write": 1,
+                "input": 43,
+                "output": 2,
+                "reasoning": 1
+              },
+              "open_calls": 0,
+              "partial_calls": 0,
+              "reported": 1
+            }
+          },
+          "total": {
+            "calls": 2,
+            "counts": {
+              "cache_read": 6,
+              "cache_write": 2,
+              "input": 86,
+              "output": 4,
+              "reasoning": 2
+            },
+            "open_calls": 0,
+            "partial_calls": 0,
+            "reported": 2
+          }
+        }
+      },
+      "passed": true
+    },
+    {
+      "case": "unknown-usage",
+      "negative_control": "unknown_usage: Incomplete native accounting prevents further admission under the token policy",
+      "observation": {
+        "actual_native_model": null,
+        "budget": {
+          "admitted_invocations": 1,
+          "in_flight_invocations": 0,
+          "last_denial": {
+            "at": "2026-09-13T19:15:30.600306+00:00",
+            "code": "unknown_usage",
+            "message": "Incomplete native accounting prevents further admission under the token policy",
+            "purpose": "pilot_candidate"
+          },
+          "limits": {
+            "attempts": 1,
+            "parallel": 1,
+            "resources": {
+              "invocation_tokens": 20,
+              "max_context_chars": 32000,
+              "max_output_chars": 4000,
+              "native_max_turns": 2,
+              "observed_tokens": 12000,
+              "required_review_invocations": 1,
+              "review_reserve_tokens": 1,
+              "startup_context_chars": 16000,
+              "startup_invocations": 2,
+              "unknown_usage": "stop"
+            },
+            "turn_timeout_secs": 5,
+            "turns": 7
+          },
+          "observed_token_overshoot": null,
+          "observed_usage": {
+            "calls": 1,
+            "counts": {
+              "cache_read": null,
+              "cache_write": null,
+              "input": null,
+              "output": null,
+              "reasoning": null
+            },
+            "open_calls": 0,
+            "partial_calls": 0,
+            "reported": 0
+          },
+          "protected_review_invocations": 1,
+          "protected_review_tokens": 1,
+          "reserved_tokens": 0,
+          "startup_invocations": 0,
+          "strict_token_bound": false
+        },
+        "external_call_cap": 6,
+        "native_inference": false,
+        "session_id": "2f19acaa-f8f0-448a-a967-65144e881f98",
+        "usage": {
+          "agents": {
+            "weak-1": {
+              "calls": 1,
+              "counts": {
+                "cache_read": null,
+                "cache_write": null,
+                "input": null,
+                "output": null,
+                "reasoning": null
+              },
+              "open_calls": 0,
+              "partial_calls": 0,
+              "reported": 0
+            }
+          },
+          "total": {
+            "calls": 1,
+            "counts": {
+              "cache_read": null,
+              "cache_write": null,
+              "input": null,
+              "output": null,
+              "reasoning": null
+            },
+            "open_calls": 0,
+            "partial_calls": 0,
+            "reported": 0
+          }
+        }
+      },
+      "passed": true
+    },
+    {
+      "case": "partial-usage",
+      "negative_control": "unknown_usage: Incomplete native accounting prevents further admission under the token policy",
+      "observation": {
+        "actual_native_model": null,
+        "budget": {
+          "admitted_invocations": 1,
+          "in_flight_invocations": 0,
+          "last_denial": {
+            "at": "2026-09-13T19:15:30.609148+00:00",
+            "code": "unknown_usage",
+            "message": "Incomplete native accounting prevents further admission under the token policy",
+            "purpose": "pilot_candidate"
+          },
+          "limits": {
+            "attempts": 1,
+            "parallel": 1,
+            "resources": {
+              "invocation_tokens": 20,
+              "max_context_chars": 32000,
+              "max_output_chars": 4000,
+              "native_max_turns": 2,
+              "observed_tokens": 12000,
+              "required_review_invocations": 1,
+              "review_reserve_tokens": 1,
+              "startup_context_chars": 16000,
+              "startup_invocations": 2,
+              "unknown_usage": "stop"
+            },
+            "turn_timeout_secs": 5,
+            "turns": 7
+          },
+          "observed_token_overshoot": 0,
+          "observed_usage": {
+            "calls": 1,
+            "counts": {
+              "cache_read": 3,
+              "cache_write": 1,
+              "input": 8,
+              "output": 2,
+              "reasoning": 1
+            },
+            "open_calls": 0,
+            "partial_calls": 1,
+            "reported": 1
+          },
+          "protected_review_invocations": 1,
+          "protected_review_tokens": 1,
+          "reserved_tokens": 0,
+          "startup_invocations": 0,
+          "strict_token_bound": false
+        },
+        "external_call_cap": 6,
+        "native_inference": false,
+        "session_id": "ca38b518-0103-46dc-872f-3c3e2bb0e341",
+        "usage": {
+          "agents": {
+            "weak-1": {
+              "calls": 1,
+              "counts": {
+                "cache_read": 3,
+                "cache_write": 1,
+                "input": 8,
+                "output": 2,
+                "reasoning": 1
+              },
+              "open_calls": 0,
+              "partial_calls": 1,
+              "reported": 1
+            }
+          },
+          "total": {
+            "calls": 1,
+            "counts": {
+              "cache_read": 3,
+              "cache_write": 1,
+              "input": 8,
+              "output": 2,
+              "reasoning": 1
+            },
+            "open_calls": 0,
+            "partial_calls": 1,
+            "reported": 1
+          }
+        }
+      },
+      "passed": true
+    },
+    {
+      "case": "provider-error",
+      "observation": {
+        "actual_native_model": null,
+        "budget": {
+          "admitted_invocations": 1,
+          "in_flight_invocations": 0,
+          "last_denial": null,
+          "limits": {
+            "attempts": 1,
+            "parallel": 1,
+            "resources": {
+              "invocation_tokens": 20,
+              "max_context_chars": 32000,
+              "max_output_chars": 4000,
+              "native_max_turns": 2,
+              "observed_tokens": 12000,
+              "required_review_invocations": 1,
+              "review_reserve_tokens": 1,
+              "startup_context_chars": 16000,
+              "startup_invocations": 2,
+              "unknown_usage": "stop"
+            },
+            "turn_timeout_secs": 5,
+            "turns": 7
+          },
+          "observed_token_overshoot": 0,
+          "observed_usage": {
+            "calls": 1,
+            "counts": {
+              "cache_read": 3,
+              "cache_write": 1,
+              "input": 8,
+              "output": 2,
+              "reasoning": 1
+            },
+            "open_calls": 0,
+            "partial_calls": 0,
+            "reported": 1
+          },
+          "protected_review_invocations": 1,
+          "protected_review_tokens": 1,
+          "reserved_tokens": 0,
+          "startup_invocations": 0,
+          "strict_token_bound": false
+        },
+        "external_call_cap": 6,
+        "native_inference": false,
+        "session_id": "529427d2-952a-4bc3-aa7c-4b7ac37a0db7",
+        "usage": {
+          "agents": {
+            "weak-1": {
+              "calls": 1,
+              "counts": {
+                "cache_read": 3,
+                "cache_write": 1,
+                "input": 8,
+                "output": 2,
+                "reasoning": 1
+              },
+              "open_calls": 0,
+              "partial_calls": 0,
+              "reported": 1
+            }
+          },
+          "total": {
+            "calls": 1,
+            "counts": {
+              "cache_read": 3,
+              "cache_write": 1,
+              "input": 8,
+              "output": 2,
+              "reasoning": 1
+            },
+            "open_calls": 0,
+            "partial_calls": 0,
+            "reported": 1
+          }
+        }
+      },
+      "passed": true
+    },
+    {
+      "case": "group-deadline",
+      "negative_control": "pilot_group_deadline",
+      "observation": {
+        "actual_native_model": null,
+        "budget": {
+          "admitted_invocations": 2,
+          "in_flight_invocations": 0,
+          "last_denial": null,
+          "limits": {
+            "attempts": 1,
+            "parallel": 1,
+            "resources": {
+              "invocation_tokens": 20,
+              "max_context_chars": 32000,
+              "max_output_chars": 4000,
+              "native_max_turns": 2,
+              "observed_tokens": 12000,
+              "required_review_invocations": 1,
+              "review_reserve_tokens": 1,
+              "startup_context_chars": 16000,
+              "startup_invocations": 2,
+              "unknown_usage": "stop"
+            },
+            "turn_timeout_secs": 5,
+            "turns": 7
+          },
+          "observed_token_overshoot": 0,
+          "observed_usage": {
+            "calls": 2,
+            "counts": {
+              "cache_read": 6,
+              "cache_write": 2,
+              "input": 16,
+              "output": 4,
+              "reasoning": 2
+            },
+            "open_calls": 0,
+            "partial_calls": 1,
+            "reported": 2
+          },
+          "protected_review_invocations": 1,
+          "protected_review_tokens": 1,
+          "reserved_tokens": 0,
+          "startup_invocations": 0,
+          "strict_token_bound": false
+        },
+        "external_call_cap": 6,
+        "native_inference": false,
+        "session_id": "715e4bec-4151-423d-9763-f1225f4bf5a3",
+        "usage": {
+          "agents": {
+            "weak-1": {
+              "calls": 1,
+              "counts": {
+                "cache_read": 3,
+                "cache_write": 1,
+                "input": 8,
+                "output": 2,
+                "reasoning": 1
+              },
+              "open_calls": 0,
+              "partial_calls": 0,
+              "reported": 1
+            },
+            "weak-2": {
+              "calls": 1,
+              "counts": {
+                "cache_read": 3,
+                "cache_write": 1,
+                "input": 8,
+                "output": 2,
+                "reasoning": 1
+              },
+              "open_calls": 0,
+              "partial_calls": 1,
+              "reported": 1
+            }
+          },
+          "total": {
+            "calls": 2,
+            "counts": {
+              "cache_read": 6,
+              "cache_write": 2,
+              "input": 16,
+              "output": 4,
+              "reasoning": 2
+            },
+            "open_calls": 0,
+            "partial_calls": 1,
+            "reported": 2
+          }
+        }
+      },
+      "passed": true
+    },
+    {
+      "case": "observed-stop",
+      "observation": {
+        "actual_native_model": null,
+        "budget": {
+          "admitted_invocations": 1,
+          "in_flight_invocations": 0,
+          "last_denial": null,
+          "limits": {
+            "attempts": 1,
+            "parallel": 1,
+            "resources": {
+              "invocation_tokens": 20,
+              "max_context_chars": 32000,
+              "max_output_chars": 4000,
+              "native_max_turns": 2,
+              "observed_tokens": 12000,
+              "required_review_invocations": 1,
+              "review_reserve_tokens": 1,
+              "startup_context_chars": 16000,
+              "startup_invocations": 2,
+              "unknown_usage": "stop"
+            },
+            "turn_timeout_secs": 5,
+            "turns": 7
+          },
+          "observed_token_overshoot": 1,
+          "observed_usage": {
+            "calls": 1,
+            "counts": {
+              "cache_read": 3,
+              "cache_write": 1,
+              "input": 11999,
+              "output": 2,
+              "reasoning": 1
+            },
+            "open_calls": 0,
+            "partial_calls": 1,
+            "reported": 1
+          },
+          "protected_review_invocations": 1,
+          "protected_review_tokens": 1,
+          "reserved_tokens": 0,
+          "startup_invocations": 0,
+          "strict_token_bound": false
+        },
+        "external_call_cap": 6,
+        "native_inference": false,
+        "session_id": "fb7eefdb-27f2-47a4-86dd-9d152c28f614",
+        "usage": {
+          "agents": {
+            "weak-1": {
+              "calls": 1,
+              "counts": {
+                "cache_read": 3,
+                "cache_write": 1,
+                "input": 11999,
+                "output": 2,
+                "reasoning": 1
+              },
+              "open_calls": 0,
+              "partial_calls": 1,
+              "reported": 1
+            }
+          },
+          "total": {
+            "calls": 1,
+            "counts": {
+              "cache_read": 3,
+              "cache_write": 1,
+              "input": 11999,
+              "output": 2,
+              "reasoning": 1
+            },
+            "open_calls": 0,
+            "partial_calls": 1,
+            "reported": 1
+          }
+        }
+      },
+      "passed": true
+    },
+    {
+      "acceptance": "Engine independent review retained; no external quality or production confirmation supplied",
+      "allocation": "current BoundedAllocationPolicy; reputation influence disabled",
+      "captured_roster": [
+        "weak-1",
+        "weak-2"
+      ],
+      "case": "cooperation-2",
+      "final_reviewer": "weak-2",
+      "native_inference": false,
+      "passed": true,
+      "producer_ids": [
+        "weak-1"
+      ],
+      "usage": {
+        "agents": {
+          "weak-1": {
+            "calls": 2,
+            "counts": {
+              "cache_read": 6,
+              "cache_write": 2,
+              "input": 16,
+              "output": 4,
+              "reasoning": 2
+            },
+            "open_calls": 0,
+            "partial_calls": 0,
+            "reported": 2
+          },
+          "weak-2": {
+            "calls": 4,
+            "counts": {
+              "cache_read": 12,
+              "cache_write": 4,
+              "input": 32,
+              "output": 8,
+              "reasoning": 4
+            },
+            "open_calls": 0,
+            "partial_calls": 0,
+            "reported": 4
+          }
+        },
+        "total": {
+          "calls": 6,
+          "counts": {
+            "cache_read": 18,
+            "cache_write": 6,
+            "input": 48,
+            "output": 12,
+            "reasoning": 6
+          },
+          "open_calls": 0,
+          "partial_calls": 0,
+          "reported": 6
+        }
+      }
+    },
+    {
+      "acceptance": "Engine independent review retained; no external quality or production confirmation supplied",
+      "allocation": "current BoundedAllocationPolicy; reputation influence disabled",
+      "captured_roster": [
+        "weak-1",
+        "weak-2",
+        "weak-3"
+      ],
+      "case": "cooperation-3",
+      "final_reviewer": "weak-2",
+      "native_inference": false,
+      "passed": true,
+      "producer_ids": [
+        "weak-1"
+      ],
+      "usage": {
+        "agents": {
+          "weak-1": {
+            "calls": 2,
+            "counts": {
+              "cache_read": 6,
+              "cache_write": 2,
+              "input": 16,
+              "output": 4,
+              "reasoning": 2
+            },
+            "open_calls": 0,
+            "partial_calls": 0,
+            "reported": 2
+          },
+          "weak-2": {
+            "calls": 4,
+            "counts": {
+              "cache_read": 12,
+              "cache_write": 4,
+              "input": 32,
+              "output": 8,
+              "reasoning": 4
+            },
+            "open_calls": 0,
+            "partial_calls": 0,
+            "reported": 4
+          }
+        },
+        "total": {
+          "calls": 6,
+          "counts": {
+            "cache_read": 18,
+            "cache_write": 6,
+            "input": 48,
+            "output": 12,
+            "reasoning": 6
+          },
+          "open_calls": 0,
+          "partial_calls": 0,
+          "reported": 6
+        }
+      }
+    },
+    {
+      "case": "codex-native-protocol",
+      "controls": [
+        {
+          "behavior": "low",
+          "failure": null,
+          "turn_start_count": 1,
+          "usage": {
+            "agents": {
+              "weak-1": {
+                "calls": 1,
+                "counts": {
+                  "cache_read": 3,
+                  "cache_write": 1,
+                  "input": 8,
+                  "output": 2,
+                  "reasoning": 1
+                },
+                "open_calls": 0,
+                "partial_calls": 0,
+                "reported": 1
+              }
+            },
+            "total": {
+              "calls": 1,
+              "counts": {
+                "cache_read": 3,
+                "cache_write": 1,
+                "input": 8,
+                "output": 2,
+                "reasoning": 1
+              },
+              "open_calls": 0,
+              "partial_calls": 0,
+              "reported": 1
+            }
+          }
+        },
+        {
+          "behavior": "drift",
+          "failure": "Codex acknowledged a different effort than requested",
+          "turn_start_count": 0,
+          "usage": {
+            "agents": {
+              "weak-1": {
+                "calls": 1,
+                "counts": {
+                  "cache_read": null,
+                  "cache_write": null,
+                  "input": null,
+                  "output": null,
+                  "reasoning": null
+                },
+                "open_calls": 0,
+                "partial_calls": 0,
+                "reported": 0
+              }
+            },
+            "total": {
+              "calls": 1,
+              "counts": {
+                "cache_read": null,
+                "cache_write": null,
+                "input": null,
+                "output": null,
+                "reasoning": null
+              },
+              "open_calls": 0,
+              "partial_calls": 0,
+              "reported": 0
+            }
+          }
+        }
+      ],
+      "native_inference": false,
+      "passed": true,
+      "process": "python3 stdio fixture through NativeExecutionBackend"
+    }
+  ],
+  "complete": true,
+  "execution_kind": "injected-protocol",
+  "limitations": {
+    "call_bound": "Limits.turns and the outer counter count ymp invocations, not internal native API requests or retries.",
+    "cooperation_api": "ymp_runtime::Engine::run_identified",
+    "deadline": "Use one external absolute deadline and cancellation for the complete condition; no whole-condition deadline exists in Limits.",
+    "effort": "Use AgentExecutionPolicy.fixed model and low; Codex sends both thread config and turn effort. Reconfirm native catalog and actual sent/reported observations before a measurement.",
+    "independent_context": "Fresh native contexts and distinct solving directories avoid provided peer history. Native filesystem isolation from sibling directories is not established by cwd.",
+    "mcp": "Engine.executable must point to current ymp, or a research command must delegate to the existing mcp::stdio_bridge; the default eval-driver has no mcp subcommand.",
+    "membership": "Pinned Engine IDs are assignments/contexts; no claim of exactly N model workers is available while native children remain uncontrolled.",
+    "missing_controls": [
+      "TurnRequest/NativeResourceControls expose no proved Codex native-subagent disable control",
+      "Engine.use_memory=false disables ymp retrieval/learning, not native provider memory or inherited native configuration",
+      "Limits.attempts=1 disables ymp task/review repeats, not Codex willRetry or internal model requests",
+      "ProviderConfig.args can carry verified native settings, but accepted names and enforcement for these controls have not been established"
+    ],
+    "raw_api": "ymp_providers::run_turn_with_backend + NativeExecutionBackend",
+    "raw_review_reserve": "Storage retains one protected review invocation even for raw calls. The outer cap is exact; the captured storage ceiling adds one unused reserve without mislabeling raw work as final_review.",
+    "token_bound": "Observed input+output is an admission/stop threshold. Native in-flight token overshoot has no proved finite bound."
+  },
+  "model_measurements": [],
+  "native_inference": false,
+  "schema_version": 1,
+  "scope": "Measurement preparation only; synthetic usage is not experimental cost or model-quality evidence"
+}

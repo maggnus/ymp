@@ -1,0 +1,223 @@
+[
+  {
+    "id": "empty",
+    "function": "normalize_windows",
+    "args": [
+      []
+    ],
+    "expected": [],
+    "return_type": "intervals"
+  },
+  {
+    "id": "nested",
+    "function": "normalize_windows",
+    "args": [
+      [
+        [
+          0,
+          9
+        ],
+        [
+          2,
+          3
+        ]
+      ]
+    ],
+    "expected": [
+      [
+        0,
+        9
+      ]
+    ],
+    "return_type": "intervals"
+  },
+  {
+    "id": "touching",
+    "function": "normalize_windows",
+    "args": [
+      [
+        [
+          0,
+          2
+        ],
+        [
+          2,
+          4
+        ]
+      ]
+    ],
+    "expected": [
+      [
+        0,
+        4
+      ]
+    ],
+    "return_type": "intervals"
+  },
+  {
+    "id": "zero-width",
+    "function": "normalize_windows",
+    "args": [
+      [
+        [
+          3,
+          3
+        ],
+        [
+          -1,
+          -1
+        ]
+      ]
+    ],
+    "expected": [],
+    "return_type": "intervals"
+  },
+  {
+    "id": "unsorted-input-preserved",
+    "function": "normalize_windows",
+    "args": [
+      [
+        [
+          5,
+          8
+        ],
+        [
+          0,
+          2
+        ],
+        [
+          1,
+          4
+        ]
+      ]
+    ],
+    "expected": [
+      [
+        0,
+        4
+      ],
+      [
+        5,
+        8
+      ]
+    ],
+    "return_type": "intervals"
+  },
+  {
+    "id": "duplicates-and-negative",
+    "function": "normalize_windows",
+    "args": [
+      [
+        [
+          -4,
+          1
+        ],
+        [
+          -4,
+          1
+        ],
+        [
+          0,
+          3
+        ]
+      ]
+    ],
+    "expected": [
+      [
+        -4,
+        3
+      ]
+    ],
+    "return_type": "intervals"
+  },
+  {
+    "id": "large-integer",
+    "function": "normalize_windows",
+    "args": [
+      [
+        [
+          9007199254740993,
+          9007199254740995
+        ],
+        [
+          9007199254740995,
+          9007199254740996
+        ]
+      ]
+    ],
+    "expected": [
+      [
+        9007199254740993,
+        9007199254740996
+      ]
+    ],
+    "return_type": "intervals"
+  },
+  {
+    "id": "duration-overlap-preserved",
+    "function": "total_duration",
+    "args": [
+      [
+        [
+          0,
+          3
+        ],
+        [
+          1,
+          5
+        ]
+      ]
+    ],
+    "expected": 7,
+    "return_type": "int"
+  },
+  {
+    "id": "duration-empty",
+    "function": "total_duration",
+    "args": [
+      []
+    ],
+    "expected": 0,
+    "return_type": "int"
+  },
+  {
+    "id": "duration-unsorted-preserved",
+    "function": "total_duration",
+    "args": [
+      [
+        [
+          8,
+          10
+        ],
+        [
+          -2,
+          1
+        ],
+        [
+          4,
+          4
+        ]
+      ]
+    ],
+    "expected": 5,
+    "return_type": "int"
+  },
+  {
+    "id": "duration-large-exact",
+    "function": "total_duration",
+    "args": [
+      [
+        [
+          0,
+          9007199254740993
+        ],
+        [
+          0,
+          2
+        ]
+      ]
+    ],
+    "expected": 9007199254740995,
+    "return_type": "int"
+  }
+]

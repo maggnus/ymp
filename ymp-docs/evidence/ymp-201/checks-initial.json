@@ -1,0 +1,60 @@
+{
+  "execution_kind": "preparation",
+  "cargo_target_dir": "/Users/maggnus/Code/ymp2/target",
+  "profile": "debug/test only",
+  "checks": [
+    {
+      "check": "python-tests",
+      "command": [
+        "python3",
+        "-m",
+        "unittest",
+        "discover",
+        "-s",
+        "ymp-evals/tests",
+        "-v"
+      ],
+      "exit_code": 0,
+      "elapsed_seconds": 0.632,
+      "log": "python-tests.log"
+    },
+    {
+      "check": "fmt",
+      "command": [
+        "cargo",
+        "fmt",
+        "--all",
+        "--check"
+      ],
+      "exit_code": 0,
+      "elapsed_seconds": 0.589,
+      "log": "fmt.log"
+    },
+    {
+      "check": "clippy",
+      "command": [
+        "cargo",
+        "clippy",
+        "--workspace",
+        "--all-targets",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "exit_code": 0,
+      "elapsed_seconds": 11.795,
+      "log": "clippy.log"
+    },
+    {
+      "check": "workspace-tests",
+      "command": [
+        "cargo",
+        "test",
+        "--workspace"
+      ],
+      "exit_code": 101,
+      "elapsed_seconds": 74.269,
+      "log": "workspace-tests.log"
+    }
+  ]
+}

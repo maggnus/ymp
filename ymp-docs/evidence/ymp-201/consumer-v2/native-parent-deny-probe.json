@@ -1,0 +1,35 @@
+{
+  "kind": "native_parent_deny_exact_cwd_allow",
+  "inference_calls": 0,
+  "cases": [
+    {
+      "access": "read",
+      "thread_error": null,
+      "active_profile": {
+        "id": "ymp201_read",
+        "extends": null
+      },
+      "command": {
+        "exitCode": 0,
+        "stdout": "work_read=0\nwork_write=1\nhidden_read=1\nhidden_write=1\npeer_read=1\npeer_write=1\n",
+        "stderr": ""
+      },
+      "pass": true
+    },
+    {
+      "access": "write",
+      "thread_error": null,
+      "active_profile": {
+        "id": "ymp201_write",
+        "extends": null
+      },
+      "command": {
+        "exitCode": 0,
+        "stdout": "work_read=0\nwork_write=0\nhidden_read=1\nhidden_write=1\npeer_read=1\npeer_write=1\n",
+        "stderr": ""
+      },
+      "pass": true
+    }
+  ],
+  "pass": true
+}

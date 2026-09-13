@@ -1,0 +1,5 @@
+{"id": 1, "jsonrpc": "2.0", "method": "initialize", "params": {"capabilities": {}, "clientInfo": {"name": "ymp", "version": "0.4.6"}}}
+{"jsonrpc": "2.0", "method": "initialized", "params": {}}
+{"id": 2, "jsonrpc": "2.0", "method": "model/list", "params": {"cursor": null, "includeHidden": true}}
+{"id": 3, "jsonrpc": "2.0", "method": "thread/start", "params": {"approvalPolicy": "never", "config": {"model_reasoning_effort": "low"}, "cwd": "/private/tmp/ymp201-final-ea7hb1l1/proof/codex-protocol-low/work/candidate-1", "developerInstructions": "\nAll responses, documentation, comments, and artifacts in ymp must be in English.", "model": "protocol-weak", "sandbox": "read-only"}}
+{"id": 4, "jsonrpc": "2.0", "method": "turn/start", "params": {"effort": "low", "input": [{"text": "Read input.txt and return the visible protocol marker.", "type": "text"}], "model": "protocol-weak", "threadId": "977256ae-1b46-4488-8c5e-dba414f0f001"}}

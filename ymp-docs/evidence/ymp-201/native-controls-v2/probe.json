@@ -1,0 +1,1502 @@
+{
+  "argv_template": {
+    "direct": [
+      "/Users/maggnus/.local/bin/codex",
+      "-c",
+      "features.multi_agent=false",
+      "-c",
+      "features.multi_agent_v2=false",
+      "-c",
+      "agents.enabled=false",
+      "-c",
+      "features.memories=false",
+      "-c",
+      "memories.generate_memories=false",
+      "-c",
+      "memories.use_memories=false",
+      "-c",
+      "features.external_agent_memory_import=false",
+      "-c",
+      "features.hooks=false",
+      "-c",
+      "features.plugins=false",
+      "-c",
+      "features.apps=false",
+      "-c",
+      "features.browser_use=false",
+      "-c",
+      "features.computer_use=false",
+      "-c",
+      "features.image_generation=false",
+      "-c",
+      "features.goals=false",
+      "-c",
+      "features.skill_search=false",
+      "-c",
+      "features.skip_host_skill_discovery=true",
+      "-c",
+      "features.shell_snapshot=false",
+      "-c",
+      "features.unbounded_connection_retries=false",
+      "-c",
+      "approval_policy=\"never\"",
+      "-c",
+      "approvals_reviewer=\"user\"",
+      "-c",
+      "allow_login_shell=false",
+      "-c",
+      "model_reasoning_effort=\"low\"",
+      "-c",
+      "project_doc_max_bytes=0",
+      "-c",
+      "project_root_markers=[]",
+      "-c",
+      "web_search=\"disabled\"",
+      "-c",
+      "permissions.ymp201_probe.filesystem={\":root\"=\"write\",\"<PROBE_ROOT>/hidden\"=\"deny\",\"<PROBE_ROOT>/peer\"=\"deny\",\"<PROBE_ROOT>/visible\"=\"write\",\"<PROBE_ROOT>/visible/readonly.txt\"=\"read\"}",
+      "-c",
+      "permissions.ymp201_probe.network.enabled=true",
+      "-c",
+      "default_permissions=\"ymp201_probe\""
+    ],
+    "nested": [
+      "/Users/maggnus/.local/bin/codex",
+      "-c",
+      "permissions.ymp201_probe.filesystem={\":root\"=\"write\",\"<PROBE_ROOT>/hidden\"=\"deny\",\"<PROBE_ROOT>/peer\"=\"deny\",\"<PROBE_ROOT>/visible\"=\"write\",\"<PROBE_ROOT>/visible/readonly.txt\"=\"read\"}",
+      "-c",
+      "permissions.ymp201_probe.network.enabled=true",
+      "-c",
+      "default_permissions=\"ymp201_probe\"",
+      "sandbox",
+      "-P",
+      "ymp201_probe",
+      "-C",
+      "<PROBE_ROOT>/visible",
+      "--",
+      "/Users/maggnus/.local/bin/codex",
+      "-c",
+      "features.multi_agent=false",
+      "-c",
+      "features.multi_agent_v2=false",
+      "-c",
+      "agents.enabled=false",
+      "-c",
+      "features.memories=false",
+      "-c",
+      "memories.generate_memories=false",
+      "-c",
+      "memories.use_memories=false",
+      "-c",
+      "features.external_agent_memory_import=false",
+      "-c",
+      "features.hooks=false",
+      "-c",
+      "features.plugins=false",
+      "-c",
+      "features.apps=false",
+      "-c",
+      "features.browser_use=false",
+      "-c",
+      "features.computer_use=false",
+      "-c",
+      "features.image_generation=false",
+      "-c",
+      "features.goals=false",
+      "-c",
+      "features.skill_search=false",
+      "-c",
+      "features.skip_host_skill_discovery=true",
+      "-c",
+      "features.shell_snapshot=false",
+      "-c",
+      "features.unbounded_connection_retries=false",
+      "-c",
+      "approval_policy=\"never\"",
+      "-c",
+      "approvals_reviewer=\"user\"",
+      "-c",
+      "allow_login_shell=false",
+      "-c",
+      "model_reasoning_effort=\"low\"",
+      "-c",
+      "project_doc_max_bytes=0",
+      "-c",
+      "project_root_markers=[]",
+      "-c",
+      "web_search=\"disabled\"",
+      "-c",
+      "permissions.ymp201_probe.filesystem={\":root\"=\"write\",\"<PROBE_ROOT>/hidden\"=\"deny\",\"<PROBE_ROOT>/peer\"=\"deny\",\"<PROBE_ROOT>/visible\"=\"write\",\"<PROBE_ROOT>/visible/readonly.txt\"=\"read\"}",
+      "-c",
+      "permissions.ymp201_probe.network.enabled=true",
+      "-c",
+      "default_permissions=\"ymp201_probe\""
+    ]
+  },
+  "binary": "/Users/maggnus/.codex/packages/standalone/releases/0.154.0-aarch64-apple-darwin/bin/codex",
+  "features_list_exit": 0,
+  "features_list_selected": {
+    "apps": false,
+    "browser_use": false,
+    "computer_use": false,
+    "external_agent_memory_import": false,
+    "goals": false,
+    "hooks": false,
+    "image_generation": false,
+    "memories": false,
+    "multi_agent": false,
+    "multi_agent_v2": false,
+    "plugins": false,
+    "shell_snapshot": false,
+    "skill_search": false,
+    "skip_host_skill_discovery": true,
+    "unbounded_connection_retries": false
+  },
+  "inference_calls": 0,
+  "limitations": [
+    "No model turn was submitted; model tool availability is not inferred from a model response.",
+    "The outer profile tests explicit hidden/peer denials, not a universal filesystem allowlist.",
+    "Network was enabled to permit native provider operation; no claim of network isolation is made.",
+    "Native authentication files were not read, copied, logged, or relocated by this script.",
+    "A successful config/read is configuration interpretation evidence, not billed-usage evidence."
+  ],
+  "permission_template": {
+    "default_permissions": "ymp201_probe",
+    "permissions.ymp201_probe.filesystem": {
+      "<PROBE_ROOT>/hidden": "deny",
+      "<PROBE_ROOT>/peer": "deny",
+      "<PROBE_ROOT>/visible": "write",
+      "<PROBE_ROOT>/visible/readonly.txt": "read",
+      ":root": "write"
+    },
+    "permissions.ymp201_probe.network.enabled": true
+  },
+  "probe_kind": "native_configuration_only",
+  "requested_controls": {
+    "agents.enabled": false,
+    "allow_login_shell": false,
+    "approval_policy": "never",
+    "approvals_reviewer": "user",
+    "features.apps": false,
+    "features.browser_use": false,
+    "features.computer_use": false,
+    "features.external_agent_memory_import": false,
+    "features.goals": false,
+    "features.hooks": false,
+    "features.image_generation": false,
+    "features.memories": false,
+    "features.multi_agent": false,
+    "features.multi_agent_v2": false,
+    "features.plugins": false,
+    "features.shell_snapshot": false,
+    "features.skill_search": false,
+    "features.skip_host_skill_discovery": true,
+    "features.unbounded_connection_retries": false,
+    "memories.generate_memories": false,
+    "memories.use_memories": false,
+    "model_reasoning_effort": "low",
+    "project_doc_max_bytes": 0,
+    "project_root_markers": [],
+    "web_search": "disabled"
+  },
+  "runs": [
+    {
+      "commands": [
+        {
+          "requested_policy": "named",
+          "response": {
+            "id": 4,
+            "result": {
+              "exitCode": 0,
+              "stderr": "",
+              "stdout": "visible_read=0\nvisible_write=0\nhidden_read=1\nhidden_write=1\npeer_read=1\npeer_write=1\nreadonly_read=0\nreadonly_write=1\n"
+            }
+          }
+        },
+        {
+          "requested_policy": "dangerFullAccess",
+          "response": {
+            "id": 5,
+            "result": {
+              "exitCode": 0,
+              "stderr": "",
+              "stdout": "visible_read=0\nvisible_write=0\nhidden_read=0\nhidden_write=0\npeer_read=0\npeer_write=0\nreadonly_read=0\nreadonly_write=0\n"
+            }
+          }
+        },
+        {
+          "requested_policy": "readOnly",
+          "response": {
+            "id": 6,
+            "result": {
+              "exitCode": 0,
+              "stderr": "",
+              "stdout": "visible_read=0\nvisible_write=1\nhidden_read=0\nhidden_write=1\npeer_read=0\npeer_write=1\nreadonly_read=0\nreadonly_write=1\n"
+            }
+          }
+        }
+      ],
+      "config_selected": {
+        "agents.enabled": false,
+        "allow_login_shell": false,
+        "approval_policy": "never",
+        "approvals_reviewer": "user",
+        "features.apps": false,
+        "features.browser_use": false,
+        "features.computer_use": false,
+        "features.external_agent_memory_import": false,
+        "features.goals": false,
+        "features.hooks": false,
+        "features.image_generation": false,
+        "features.memories": false,
+        "features.multi_agent": false,
+        "features.multi_agent_v2": false,
+        "features.plugins": false,
+        "features.shell_snapshot": false,
+        "features.skill_search": false,
+        "features.skip_host_skill_discovery": true,
+        "features.unbounded_connection_retries": false,
+        "memories.generate_memories": false,
+        "memories.use_memories": false,
+        "model_reasoning_effort": "low",
+        "project_doc_max_bytes": 0,
+        "project_root_markers": [],
+        "web_search": "disabled"
+      },
+      "inherited_mcp_servers_disabled_count": 0,
+      "kind": "direct",
+      "models_selected": [
+        {
+          "defaultReasoningEffort": "medium",
+          "id": "gpt-6-astra",
+          "model": "gpt-6-astra",
+          "supportedReasoningEfforts": [
+            {
+              "description": "Fast responses with lighter reasoning",
+              "reasoningEffort": "low"
+            },
+            {
+              "description": "Balances speed and reasoning depth for everyday tasks",
+              "reasoningEffort": "medium"
+            },
+            {
+              "description": "Greater reasoning depth for complex problems",
+              "reasoningEffort": "high"
+            },
+            {
+              "description": "Extra high reasoning depth for complex problems",
+              "reasoningEffort": "xhigh"
+            },
+            {
+              "description": "Maximum reasoning depth for the hardest problems",
+              "reasoningEffort": "max"
+            },
+            {
+              "description": "Maximum reasoning with automatic task delegation",
+              "reasoningEffort": "ultra"
+            }
+          ]
+        },
+        {
+          "defaultReasoningEffort": "medium",
+          "id": "gpt-5.6-luna",
+          "model": "gpt-5.6-luna",
+          "supportedReasoningEfforts": [
+            {
+              "description": "Fast responses with lighter reasoning",
+              "reasoningEffort": "low"
+            },
+            {
+              "description": "Balances speed and reasoning depth for everyday tasks",
+              "reasoningEffort": "medium"
+            },
+            {
+              "description": "Greater reasoning depth for complex problems",
+              "reasoningEffort": "high"
+            },
+            {
+              "description": "Extra high reasoning depth for complex problems",
+              "reasoningEffort": "xhigh"
+            },
+            {
+              "description": "Maximum reasoning depth for the hardest problems",
+              "reasoningEffort": "max"
+            }
+          ]
+        }
+      ],
+      "permissions_selected": {
+        "default_permissions": "ymp201_probe",
+        "legacy_sandbox_mode": null,
+        "probe_profile": {
+          "description": null,
+          "extends": null,
+          "filesystem": {
+            "<PROBE_ROOT>/hidden": "deny",
+            "<PROBE_ROOT>/peer": "deny",
+            "<PROBE_ROOT>/visible": "write",
+            "<PROBE_ROOT>/visible/readonly.txt": "read",
+            ":root": "write",
+            "glob_scan_max_depth": null
+          },
+          "network": {
+            "allow_local_binding": null,
+            "allow_upstream_proxy": null,
+            "dangerously_allow_all_unix_sockets": null,
+            "dangerously_allow_non_loopback_proxy": null,
+            "domains": null,
+            "enable_socks5": null,
+            "enable_socks5_udp": null,
+            "enabled": true,
+            "mitm": null,
+            "mode": null,
+            "proxy_url": null,
+            "socks_url": null,
+            "unix_sockets": null
+          },
+          "workspace_roots": null
+        }
+      },
+      "rpc_methods": [
+        "initialize",
+        "config/read",
+        "model/list",
+        "command/exec",
+        "command/exec",
+        "command/exec",
+        "thread/start",
+        "experimentalFeature/list",
+        "thread/unload",
+        "thread/start",
+        "experimentalFeature/list",
+        "thread/unload",
+        "thread/start",
+        "experimentalFeature/list",
+        "thread/unload"
+      ],
+      "threads": [
+        {
+          "error": null,
+          "features_selected": [
+            {
+              "enabled": false,
+              "name": "shell_snapshot"
+            },
+            {
+              "enabled": false,
+              "name": "memories"
+            },
+            {
+              "enabled": false,
+              "name": "external_agent_memory_import"
+            },
+            {
+              "enabled": false,
+              "name": "hooks"
+            },
+            {
+              "enabled": false,
+              "name": "unbounded_connection_retries"
+            },
+            {
+              "enabled": false,
+              "name": "multi_agent"
+            },
+            {
+              "enabled": false,
+              "name": "multi_agent_v2"
+            },
+            {
+              "enabled": false,
+              "name": "apps"
+            },
+            {
+              "enabled": false,
+              "name": "plugins"
+            },
+            {
+              "enabled": true,
+              "name": "skip_host_skill_discovery"
+            },
+            {
+              "enabled": false,
+              "name": "browser_use"
+            },
+            {
+              "enabled": false,
+              "name": "computer_use"
+            },
+            {
+              "enabled": false,
+              "name": "image_generation"
+            },
+            {
+              "enabled": false,
+              "name": "skill_search"
+            },
+            {
+              "enabled": false,
+              "name": "goals"
+            }
+          ],
+          "requested_policy": "named",
+          "selected_response": {
+            "activePermissionProfile": {
+              "extends": null,
+              "id": "ymp201_probe"
+            },
+            "approvalPolicy": "never",
+            "approvalsReviewer": "user",
+            "instructionSources": [],
+            "model": "gpt-5.6-luna",
+            "reasoningEffort": "low",
+            "sandbox": {
+              "excludeSlashTmp": true,
+              "excludeTmpdirEnvVar": true,
+              "networkAccess": true,
+              "type": "workspaceWrite",
+              "writableRoots": []
+            }
+          }
+        },
+        {
+          "error": null,
+          "features_selected": [
+            {
+              "enabled": false,
+              "name": "shell_snapshot"
+            },
+            {
+              "enabled": false,
+              "name": "memories"
+            },
+            {
+              "enabled": false,
+              "name": "external_agent_memory_import"
+            },
+            {
+              "enabled": false,
+              "name": "hooks"
+            },
+            {
+              "enabled": false,
+              "name": "unbounded_connection_retries"
+            },
+            {
+              "enabled": false,
+              "name": "multi_agent"
+            },
+            {
+              "enabled": false,
+              "name": "multi_agent_v2"
+            },
+            {
+              "enabled": false,
+              "name": "apps"
+            },
+            {
+              "enabled": false,
+              "name": "plugins"
+            },
+            {
+              "enabled": true,
+              "name": "skip_host_skill_discovery"
+            },
+            {
+              "enabled": false,
+              "name": "browser_use"
+            },
+            {
+              "enabled": false,
+              "name": "computer_use"
+            },
+            {
+              "enabled": false,
+              "name": "image_generation"
+            },
+            {
+              "enabled": false,
+              "name": "skill_search"
+            },
+            {
+              "enabled": false,
+              "name": "goals"
+            }
+          ],
+          "requested_policy": "danger-full-access",
+          "selected_response": {
+            "activePermissionProfile": null,
+            "approvalPolicy": "never",
+            "approvalsReviewer": "user",
+            "instructionSources": [],
+            "model": "gpt-5.6-luna",
+            "reasoningEffort": "low",
+            "sandbox": {
+              "type": "dangerFullAccess"
+            }
+          }
+        },
+        {
+          "error": null,
+          "features_selected": [
+            {
+              "enabled": false,
+              "name": "shell_snapshot"
+            },
+            {
+              "enabled": false,
+              "name": "memories"
+            },
+            {
+              "enabled": false,
+              "name": "external_agent_memory_import"
+            },
+            {
+              "enabled": false,
+              "name": "hooks"
+            },
+            {
+              "enabled": false,
+              "name": "unbounded_connection_retries"
+            },
+            {
+              "enabled": false,
+              "name": "multi_agent"
+            },
+            {
+              "enabled": false,
+              "name": "multi_agent_v2"
+            },
+            {
+              "enabled": false,
+              "name": "apps"
+            },
+            {
+              "enabled": false,
+              "name": "plugins"
+            },
+            {
+              "enabled": true,
+              "name": "skip_host_skill_discovery"
+            },
+            {
+              "enabled": false,
+              "name": "browser_use"
+            },
+            {
+              "enabled": false,
+              "name": "computer_use"
+            },
+            {
+              "enabled": false,
+              "name": "image_generation"
+            },
+            {
+              "enabled": false,
+              "name": "skill_search"
+            },
+            {
+              "enabled": false,
+              "name": "goals"
+            }
+          ],
+          "requested_policy": "read-only",
+          "selected_response": {
+            "activePermissionProfile": null,
+            "approvalPolicy": "never",
+            "approvalsReviewer": "user",
+            "instructionSources": [],
+            "model": "gpt-5.6-luna",
+            "reasoningEffort": "low",
+            "sandbox": {
+              "networkAccess": false,
+              "type": "readOnly"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "commands": [
+        {
+          "requested_policy": "named",
+          "response": {
+            "id": 4,
+            "result": {
+              "exitCode": 71,
+              "stderr": "sandbox-exec: sandbox_apply: Operation not permitted\n",
+              "stdout": ""
+            }
+          }
+        },
+        {
+          "requested_policy": "dangerFullAccess",
+          "response": {
+            "id": 5,
+            "result": {
+              "exitCode": 0,
+              "stderr": "",
+              "stdout": "visible_read=0\nvisible_write=0\nhidden_read=1\nhidden_write=1\npeer_read=1\npeer_write=1\nreadonly_read=0\nreadonly_write=1\n"
+            }
+          }
+        },
+        {
+          "requested_policy": "readOnly",
+          "response": {
+            "id": 6,
+            "result": {
+              "exitCode": 71,
+              "stderr": "sandbox-exec: sandbox_apply: Operation not permitted\n",
+              "stdout": ""
+            }
+          }
+        }
+      ],
+      "config_selected": {
+        "agents.enabled": false,
+        "allow_login_shell": false,
+        "approval_policy": "never",
+        "approvals_reviewer": "user",
+        "features.apps": false,
+        "features.browser_use": false,
+        "features.computer_use": false,
+        "features.external_agent_memory_import": false,
+        "features.goals": false,
+        "features.hooks": false,
+        "features.image_generation": false,
+        "features.memories": false,
+        "features.multi_agent": false,
+        "features.multi_agent_v2": false,
+        "features.plugins": false,
+        "features.shell_snapshot": false,
+        "features.skill_search": false,
+        "features.skip_host_skill_discovery": true,
+        "features.unbounded_connection_retries": false,
+        "memories.generate_memories": false,
+        "memories.use_memories": false,
+        "model_reasoning_effort": "low",
+        "project_doc_max_bytes": 0,
+        "project_root_markers": [],
+        "web_search": "disabled"
+      },
+      "inherited_mcp_servers_disabled_count": 0,
+      "kind": "outer_native_sandbox",
+      "models_selected": [
+        {
+          "defaultReasoningEffort": "medium",
+          "id": "gpt-6-astra",
+          "model": "gpt-6-astra",
+          "supportedReasoningEfforts": [
+            {
+              "description": "Fast responses with lighter reasoning",
+              "reasoningEffort": "low"
+            },
+            {
+              "description": "Balances speed and reasoning depth for everyday tasks",
+              "reasoningEffort": "medium"
+            },
+            {
+              "description": "Greater reasoning depth for complex problems",
+              "reasoningEffort": "high"
+            },
+            {
+              "description": "Extra high reasoning depth for complex problems",
+              "reasoningEffort": "xhigh"
+            },
+            {
+              "description": "Maximum reasoning depth for the hardest problems",
+              "reasoningEffort": "max"
+            },
+            {
+              "description": "Maximum reasoning with automatic task delegation",
+              "reasoningEffort": "ultra"
+            }
+          ]
+        },
+        {
+          "defaultReasoningEffort": "medium",
+          "id": "gpt-5.6-luna",
+          "model": "gpt-5.6-luna",
+          "supportedReasoningEfforts": [
+            {
+              "description": "Fast responses with lighter reasoning",
+              "reasoningEffort": "low"
+            },
+            {
+              "description": "Balances speed and reasoning depth for everyday tasks",
+              "reasoningEffort": "medium"
+            },
+            {
+              "description": "Greater reasoning depth for complex problems",
+              "reasoningEffort": "high"
+            },
+            {
+              "description": "Extra high reasoning depth for complex problems",
+              "reasoningEffort": "xhigh"
+            },
+            {
+              "description": "Maximum reasoning depth for the hardest problems",
+              "reasoningEffort": "max"
+            }
+          ]
+        }
+      ],
+      "permissions_selected": {
+        "default_permissions": "ymp201_probe",
+        "legacy_sandbox_mode": null,
+        "probe_profile": {
+          "description": null,
+          "extends": null,
+          "filesystem": {
+            "<PROBE_ROOT>/hidden": "deny",
+            "<PROBE_ROOT>/peer": "deny",
+            "<PROBE_ROOT>/visible": "write",
+            "<PROBE_ROOT>/visible/readonly.txt": "read",
+            ":root": "write",
+            "glob_scan_max_depth": null
+          },
+          "network": {
+            "allow_local_binding": null,
+            "allow_upstream_proxy": null,
+            "dangerously_allow_all_unix_sockets": null,
+            "dangerously_allow_non_loopback_proxy": null,
+            "domains": null,
+            "enable_socks5": null,
+            "enable_socks5_udp": null,
+            "enabled": true,
+            "mitm": null,
+            "mode": null,
+            "proxy_url": null,
+            "socks_url": null,
+            "unix_sockets": null
+          },
+          "workspace_roots": null
+        }
+      },
+      "rpc_methods": [
+        "initialize",
+        "config/read",
+        "model/list",
+        "command/exec",
+        "command/exec",
+        "command/exec",
+        "thread/start",
+        "experimentalFeature/list",
+        "thread/unload",
+        "thread/start",
+        "experimentalFeature/list",
+        "thread/unload",
+        "thread/start",
+        "experimentalFeature/list",
+        "thread/unload"
+      ],
+      "threads": [
+        {
+          "error": null,
+          "features_selected": [
+            {
+              "enabled": false,
+              "name": "shell_snapshot"
+            },
+            {
+              "enabled": false,
+              "name": "memories"
+            },
+            {
+              "enabled": false,
+              "name": "external_agent_memory_import"
+            },
+            {
+              "enabled": false,
+              "name": "hooks"
+            },
+            {
+              "enabled": false,
+              "name": "unbounded_connection_retries"
+            },
+            {
+              "enabled": false,
+              "name": "multi_agent"
+            },
+            {
+              "enabled": false,
+              "name": "multi_agent_v2"
+            },
+            {
+              "enabled": false,
+              "name": "apps"
+            },
+            {
+              "enabled": false,
+              "name": "plugins"
+            },
+            {
+              "enabled": true,
+              "name": "skip_host_skill_discovery"
+            },
+            {
+              "enabled": false,
+              "name": "browser_use"
+            },
+            {
+              "enabled": false,
+              "name": "computer_use"
+            },
+            {
+              "enabled": false,
+              "name": "image_generation"
+            },
+            {
+              "enabled": false,
+              "name": "skill_search"
+            },
+            {
+              "enabled": false,
+              "name": "goals"
+            }
+          ],
+          "requested_policy": "named",
+          "selected_response": {
+            "activePermissionProfile": {
+              "extends": null,
+              "id": "ymp201_probe"
+            },
+            "approvalPolicy": "never",
+            "approvalsReviewer": "user",
+            "instructionSources": [],
+            "model": "gpt-5.6-luna",
+            "reasoningEffort": "low",
+            "sandbox": {
+              "excludeSlashTmp": true,
+              "excludeTmpdirEnvVar": true,
+              "networkAccess": true,
+              "type": "workspaceWrite",
+              "writableRoots": []
+            }
+          }
+        },
+        {
+          "error": null,
+          "features_selected": [
+            {
+              "enabled": false,
+              "name": "shell_snapshot"
+            },
+            {
+              "enabled": false,
+              "name": "memories"
+            },
+            {
+              "enabled": false,
+              "name": "external_agent_memory_import"
+            },
+            {
+              "enabled": false,
+              "name": "hooks"
+            },
+            {
+              "enabled": false,
+              "name": "unbounded_connection_retries"
+            },
+            {
+              "enabled": false,
+              "name": "multi_agent"
+            },
+            {
+              "enabled": false,
+              "name": "multi_agent_v2"
+            },
+            {
+              "enabled": false,
+              "name": "apps"
+            },
+            {
+              "enabled": false,
+              "name": "plugins"
+            },
+            {
+              "enabled": true,
+              "name": "skip_host_skill_discovery"
+            },
+            {
+              "enabled": false,
+              "name": "browser_use"
+            },
+            {
+              "enabled": false,
+              "name": "computer_use"
+            },
+            {
+              "enabled": false,
+              "name": "image_generation"
+            },
+            {
+              "enabled": false,
+              "name": "skill_search"
+            },
+            {
+              "enabled": false,
+              "name": "goals"
+            }
+          ],
+          "requested_policy": "danger-full-access",
+          "selected_response": {
+            "activePermissionProfile": null,
+            "approvalPolicy": "never",
+            "approvalsReviewer": "user",
+            "instructionSources": [],
+            "model": "gpt-5.6-luna",
+            "reasoningEffort": "low",
+            "sandbox": {
+              "type": "dangerFullAccess"
+            }
+          }
+        },
+        {
+          "error": null,
+          "features_selected": [
+            {
+              "enabled": false,
+              "name": "shell_snapshot"
+            },
+            {
+              "enabled": false,
+              "name": "memories"
+            },
+            {
+              "enabled": false,
+              "name": "external_agent_memory_import"
+            },
+            {
+              "enabled": false,
+              "name": "hooks"
+            },
+            {
+              "enabled": false,
+              "name": "unbounded_connection_retries"
+            },
+            {
+              "enabled": false,
+              "name": "multi_agent"
+            },
+            {
+              "enabled": false,
+              "name": "multi_agent_v2"
+            },
+            {
+              "enabled": false,
+              "name": "apps"
+            },
+            {
+              "enabled": false,
+              "name": "plugins"
+            },
+            {
+              "enabled": true,
+              "name": "skip_host_skill_discovery"
+            },
+            {
+              "enabled": false,
+              "name": "browser_use"
+            },
+            {
+              "enabled": false,
+              "name": "computer_use"
+            },
+            {
+              "enabled": false,
+              "name": "image_generation"
+            },
+            {
+              "enabled": false,
+              "name": "skill_search"
+            },
+            {
+              "enabled": false,
+              "name": "goals"
+            }
+          ],
+          "requested_policy": "read-only",
+          "selected_response": {
+            "activePermissionProfile": null,
+            "approvalPolicy": "never",
+            "approvalsReviewer": "user",
+            "instructionSources": [],
+            "model": "gpt-5.6-luna",
+            "reasoningEffort": "low",
+            "sandbox": {
+              "networkAccess": false,
+              "type": "readOnly"
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "schema_properties": {
+    "CommandExecParams.json": {
+      "command": {
+        "description": "Command argv vector. Empty arrays are rejected.",
+        "items": {
+          "type": "string"
+        },
+        "type": "array"
+      },
+      "cwd": {
+        "description": "Optional working directory. Defaults to the server cwd.",
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "disableOutputCap": {
+        "description": "Disable stdout/stderr capture truncation for this request.\n\nCannot be combined with `outputBytesCap`.",
+        "type": "boolean"
+      },
+      "disableTimeout": {
+        "description": "Disable the timeout entirely for this request.\n\nCannot be combined with `timeoutMs`.",
+        "type": "boolean"
+      },
+      "env": {
+        "additionalProperties": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "description": "Optional environment overrides merged into the server-computed environment.\n\nMatching names override inherited values. Set a key to `null` to unset an inherited variable.",
+        "type": [
+          "object",
+          "null"
+        ]
+      },
+      "outputBytesCap": {
+        "description": "Optional per-stream stdout/stderr capture cap in bytes.\n\nWhen omitted, the server default applies. Cannot be combined with `disableOutputCap`.",
+        "format": "uint",
+        "minimum": 0.0,
+        "type": [
+          "integer",
+          "null"
+        ]
+      },
+      "permissionProfile": {
+        "description": "Optional active permissions profile id for this command.\n\nDefaults to the user's configured permissions when omitted. Cannot be combined with `sandboxPolicy`.",
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "processId": {
+        "description": "Optional client-supplied, connection-scoped process id.\n\nRequired for `tty`, `streamStdin`, `streamStdoutStderr`, and follow-up `command/exec/write`, `command/exec/resize`, and `command/exec/terminate` calls. When omitted, buffered execution gets an internal id that is not exposed to the client.",
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "sandboxPolicy": {
+        "anyOf": [
+          {
+            "$ref": "#/definitions/SandboxPolicy"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "Optional sandbox policy for this command.\n\nUses the same shape as thread/turn execution sandbox configuration and defaults to the user's configured policy when omitted. Cannot be combined with `permissionProfile`."
+      },
+      "size": {
+        "anyOf": [
+          {
+            "$ref": "#/definitions/CommandExecTerminalSize"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "Optional initial PTY size in character cells. Only valid when `tty` is true."
+      },
+      "streamStdin": {
+        "description": "Allow follow-up `command/exec/write` requests to write stdin bytes.\n\nRequires a client-supplied `processId`.",
+        "type": "boolean"
+      },
+      "streamStdoutStderr": {
+        "description": "Stream stdout/stderr via `command/exec/outputDelta` notifications.\n\nStreamed bytes are not duplicated into the final response and require a client-supplied `processId`.",
+        "type": "boolean"
+      },
+      "timeoutMs": {
+        "description": "Optional timeout in milliseconds.\n\nWhen omitted, the server default applies. Cannot be combined with `disableTimeout`.",
+        "format": "int64",
+        "type": [
+          "integer",
+          "null"
+        ]
+      },
+      "tty": {
+        "description": "Enable PTY mode.\n\nThis implies `streamStdin` and `streamStdoutStderr`.",
+        "type": "boolean"
+      }
+    },
+    "ConfigReadParams.json": {
+      "cwd": {
+        "description": "Optional working directory to resolve project config layers. If specified, return the effective config as seen from that directory (i.e., including any project layers between `cwd` and the project/repo root).",
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "includeLayers": {
+        "type": "boolean"
+      }
+    },
+    "ConfigReadResponse.json": {
+      "config": {
+        "$ref": "#/definitions/Config"
+      },
+      "layers": {
+        "items": {
+          "$ref": "#/definitions/ConfigLayer"
+        },
+        "type": [
+          "array",
+          "null"
+        ]
+      },
+      "origins": {
+        "additionalProperties": {
+          "$ref": "#/definitions/ConfigLayerMetadata"
+        },
+        "type": "object"
+      }
+    },
+    "ExperimentalFeatureListParams.json": {
+      "cursor": {
+        "description": "Opaque pagination cursor returned by a previous call.",
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "limit": {
+        "description": "Optional page size; defaults to a reasonable server-side value.",
+        "format": "uint32",
+        "minimum": 0.0,
+        "type": [
+          "integer",
+          "null"
+        ]
+      },
+      "threadId": {
+        "description": "Optional loaded thread id. Pass this when showing feature state for an existing thread so enablement is computed from that thread's refreshed config, including project-local config for the thread's cwd.",
+        "type": [
+          "string",
+          "null"
+        ]
+      }
+    },
+    "ThreadStartParams.json": {
+      "allowProviderModelFallback": {
+        "description": "Allow a provider with an authoritative static model catalog to replace an unavailable requested model with its default.",
+        "type": "boolean"
+      },
+      "approvalPolicy": {
+        "anyOf": [
+          {
+            "$ref": "#/definitions/AskForApproval"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "approvalsReviewer": {
+        "anyOf": [
+          {
+            "$ref": "#/definitions/ApprovalsReviewer"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "Override where approval requests are routed for review on this thread and subsequent turns."
+      },
+      "baseInstructions": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "config": {
+        "additionalProperties": true,
+        "type": [
+          "object",
+          "null"
+        ]
+      },
+      "cwd": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "developerInstructions": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "dynamicTools": {
+        "default": null,
+        "items": {
+          "$ref": "#/definitions/DynamicToolSpec"
+        },
+        "type": [
+          "array",
+          "null"
+        ]
+      },
+      "environments": {
+        "description": "Optional sticky environments for this thread.\n\nOmitted selects the default environment when environment access is enabled. Empty disables environment access for turns that do not provide a turn override. Non-empty selects the first environment as the current turn environment.",
+        "items": {
+          "$ref": "#/definitions/TurnEnvironmentParams"
+        },
+        "type": [
+          "array",
+          "null"
+        ]
+      },
+      "ephemeral": {
+        "type": [
+          "boolean",
+          "null"
+        ]
+      },
+      "experimentalRawEvents": {
+        "description": "If true, opt into emitting raw Responses API items on the event stream. This is for internal use only (e.g. Codex Cloud).",
+        "type": "boolean"
+      },
+      "historyMode": {
+        "anyOf": [
+          {
+            "$ref": "#/definitions/ThreadHistoryMode"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "Persisted thread history contract to use for this new thread."
+      },
+      "mockExperimentalField": {
+        "description": "Test-only experimental field used to validate experimental gating and schema filtering behavior in a stable way.",
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "model": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "modelProvider": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "multiAgentMode": {
+        "anyOf": [
+          {
+            "$ref": "#/definitions/MultiAgentMode"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "@deprecated Ignored. Use Ultra reasoning effort for proactive multi-agent behavior."
+      },
+      "permissions": {
+        "description": "Named profile id for this thread. Cannot be combined with `sandbox`.",
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "personality": {
+        "anyOf": [
+          {
+            "$ref": "#/definitions/Personality"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "projectId": {
+        "description": "Optional project identity for this new thread. Durable threads persist the assignment; ephemeral threads expose it only in live responses.",
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "runtimeWorkspaceRoots": {
+        "description": "Replace the thread's runtime workspace roots. Paths must be absolute.",
+        "items": {
+          "$ref": "#/definitions/AbsolutePathBuf"
+        },
+        "type": [
+          "array",
+          "null"
+        ]
+      },
+      "sandbox": {
+        "anyOf": [
+          {
+            "$ref": "#/definitions/SandboxMode"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "selectedCapabilityRoots": {
+        "description": "Capability roots selected for this thread by the hosting platform.",
+        "items": {
+          "$ref": "#/definitions/SelectedCapabilityRoot"
+        },
+        "type": [
+          "array",
+          "null"
+        ]
+      },
+      "serviceName": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "serviceTier": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "sessionStartSource": {
+        "anyOf": [
+          {
+            "$ref": "#/definitions/ThreadStartSource"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "threadSource": {
+        "anyOf": [
+          {
+            "$ref": "#/definitions/ThreadSource"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "Optional client-supplied analytics source classification for this thread."
+      }
+    },
+    "ThreadStartResponse.json": {
+      "activePermissionProfile": {
+        "anyOf": [
+          {
+            "$ref": "#/definitions/ActivePermissionProfile"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "description": "Named or implicit built-in profile that produced the active permissions, when known."
+      },
+      "approvalPolicy": {
+        "$ref": "#/definitions/AskForApproval"
+      },
+      "approvalsReviewer": {
+        "allOf": [
+          {
+            "$ref": "#/definitions/ApprovalsReviewer"
+          }
+        ],
+        "description": "Reviewer currently used for approval requests on this thread."
+      },
+      "cwd": {
+        "$ref": "#/definitions/AbsolutePathBuf"
+      },
+      "instructionSources": {
+        "default": [],
+        "description": "Environment-native paths to instruction source files currently loaded for this thread.",
+        "items": {
+          "$ref": "#/definitions/LegacyAppPathString"
+        },
+        "type": "array"
+      },
+      "model": {
+        "type": "string"
+      },
+      "modelProvider": {
+        "type": "string"
+      },
+      "multiAgentMode": {
+        "allOf": [
+          {
+            "$ref": "#/definitions/MultiAgentMode"
+          }
+        ],
+        "default": "explicitRequestOnly",
+        "description": "@deprecated Always `explicitRequestOnly`. Use `reasoningEffort` for Ultra behavior."
+      },
+      "reasoningEffort": {
+        "anyOf": [
+          {
+            "$ref": "#/definitions/ReasoningEffort"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "runtimeWorkspaceRoots": {
+        "default": [],
+        "description": "Thread-scoped runtime workspace roots used to materialize `:workspace_roots`.",
+        "items": {
+          "$ref": "#/definitions/AbsolutePathBuf"
+        },
+        "type": "array"
+      },
+      "sandbox": {
+        "allOf": [
+          {
+            "$ref": "#/definitions/SandboxPolicy"
+          }
+        ],
+        "description": "Legacy sandbox policy retained for compatibility. Experimental clients should prefer `activePermissionProfile` for profile provenance."
+      },
+      "serviceTier": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "thread": {
+        "$ref": "#/definitions/Thread"
+      }
+    }
+  },
+  "schema_sha256": {
+    "CommandExecParams.json": "fd034b4c85d7b6f466e30a3cbb73db86be1263aca3f81b89b547f14817dfb62e",
+    "ConfigReadParams.json": "257c54a423b47c1d209ff1076765a1564d82322fd5161670fd489a2874de1bac",
+    "ConfigReadResponse.json": "96a04a3f7fff2dc7fafc9f831e8bcd422e021d697dd2c14c801f098a9f21396d",
+    "ExperimentalFeatureListParams.json": "4db92977e59fea4125710babb4cd2128dc2cebef8292e3619d0844089e7fc1f5",
+    "ThreadStartParams.json": "25f490368ec6df52a2a3b82a5469d2413307eb93439121b309f415b5648eee7a",
+    "ThreadStartResponse.json": "b43f4e53d2262e0501d21bcf2a5a45b0316b8fab757a7ff19a6f1e042d4b09da"
+  },
+  "schema_version": 2,
+  "version": "codex-cli 0.154.0"
+}

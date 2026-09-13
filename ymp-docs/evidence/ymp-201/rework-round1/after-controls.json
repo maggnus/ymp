@@ -1,0 +1,526 @@
+{
+  "source": "75f60a6972d8d58cec654330af60a6041a2c5274",
+  "base_directory": "/private/tmp/ymp201-r1-final-8fdlbnk5",
+  "native_model_calls": 0,
+  "cases": [
+    {
+      "case": "all-twelve",
+      "exit_code": 0,
+      "elapsed_seconds": 55.821,
+      "complete": true,
+      "calibration_allows_pilot": true,
+      "first_measurement_valid": true,
+      "first_status": "completed",
+      "task_outcome": "success",
+      "objective_success": true,
+      "second_status": "completed",
+      "actual_participants": 1,
+      "usage": {
+        "agents": {
+          "weak-1": {
+            "calls": 1,
+            "counts": {
+              "cache_read": 30,
+              "cache_write": null,
+              "input": 80,
+              "output": 20,
+              "reasoning": 10
+            },
+            "open_calls": 0,
+            "partial_calls": 0,
+            "reported": 1
+          }
+        },
+        "total": {
+          "calls": 1,
+          "counts": {
+            "cache_read": 30,
+            "cache_write": null,
+            "input": 80,
+            "output": 20,
+            "reasoning": 10
+          },
+          "open_calls": 0,
+          "partial_calls": 0,
+          "reported": 1
+        }
+      },
+      "invalid_reasons": [],
+      "directory": "/private/tmp/ymp201-r1-final-8fdlbnk5/all-twelve"
+    },
+    {
+      "case": "wrong-answer",
+      "exit_code": 0,
+      "elapsed_seconds": 3.615,
+      "complete": true,
+      "calibration_allows_pilot": true,
+      "first_measurement_valid": true,
+      "first_status": "failed",
+      "task_outcome": "unsuccessful",
+      "objective_success": false,
+      "second_status": "completed",
+      "actual_participants": 1,
+      "usage": {
+        "agents": {
+          "weak-1": {
+            "calls": 1,
+            "counts": {
+              "cache_read": 30,
+              "cache_write": null,
+              "input": 80,
+              "output": 20,
+              "reasoning": 10
+            },
+            "open_calls": 0,
+            "partial_calls": 0,
+            "reported": 1
+          }
+        },
+        "total": {
+          "calls": 1,
+          "counts": {
+            "cache_read": 30,
+            "cache_write": null,
+            "input": 80,
+            "output": 20,
+            "reasoning": 10
+          },
+          "open_calls": 0,
+          "partial_calls": 0,
+          "reported": 1
+        }
+      },
+      "invalid_reasons": [],
+      "directory": "/private/tmp/ymp201-r1-final-8fdlbnk5/wrong-answer"
+    },
+    {
+      "case": "missing-deliverable",
+      "exit_code": 0,
+      "elapsed_seconds": 3.569,
+      "complete": true,
+      "calibration_allows_pilot": true,
+      "first_measurement_valid": true,
+      "first_status": "failed",
+      "task_outcome": "unsuccessful",
+      "objective_success": null,
+      "second_status": "completed",
+      "actual_participants": 1,
+      "usage": {
+        "agents": {
+          "weak-1": {
+            "calls": 1,
+            "counts": {
+              "cache_read": 30,
+              "cache_write": null,
+              "input": 80,
+              "output": 20,
+              "reasoning": 10
+            },
+            "open_calls": 0,
+            "partial_calls": 0,
+            "reported": 1
+          }
+        },
+        "total": {
+          "calls": 1,
+          "counts": {
+            "cache_read": 30,
+            "cache_write": null,
+            "input": 80,
+            "output": 20,
+            "reasoning": 10
+          },
+          "open_calls": 0,
+          "partial_calls": 0,
+          "reported": 1
+        }
+      },
+      "invalid_reasons": [],
+      "directory": "/private/tmp/ymp201-r1-final-8fdlbnk5/missing-deliverable"
+    },
+    {
+      "case": "engine-negative",
+      "exit_code": 0,
+      "elapsed_seconds": 8.586,
+      "complete": true,
+      "calibration_allows_pilot": true,
+      "first_measurement_valid": true,
+      "first_status": "failed",
+      "task_outcome": "unsuccessful",
+      "objective_success": true,
+      "second_status": "completed",
+      "actual_participants": 2,
+      "usage": {
+        "agents": {
+          "weak-1": {
+            "calls": 2,
+            "counts": {
+              "cache_read": 60,
+              "cache_write": null,
+              "input": 160,
+              "output": 40,
+              "reasoning": 20
+            },
+            "open_calls": 0,
+            "partial_calls": 0,
+            "reported": 2
+          },
+          "weak-2": {
+            "calls": 3,
+            "counts": {
+              "cache_read": 90,
+              "cache_write": null,
+              "input": 240,
+              "output": 60,
+              "reasoning": 30
+            },
+            "open_calls": 0,
+            "partial_calls": 0,
+            "reported": 3
+          }
+        },
+        "total": {
+          "calls": 5,
+          "counts": {
+            "cache_read": 150,
+            "cache_write": null,
+            "input": 400,
+            "output": 100,
+            "reasoning": 50
+          },
+          "open_calls": 0,
+          "partial_calls": 0,
+          "reported": 5
+        }
+      },
+      "invalid_reasons": [],
+      "directory": "/private/tmp/ymp201-r1-final-8fdlbnk5/engine-negative"
+    },
+    {
+      "case": "known-budget",
+      "exit_code": 0,
+      "elapsed_seconds": 3.813,
+      "complete": true,
+      "calibration_allows_pilot": true,
+      "first_measurement_valid": true,
+      "first_status": "failed",
+      "task_outcome": "unsuccessful",
+      "objective_success": true,
+      "second_status": "completed",
+      "actual_participants": 1,
+      "usage": {
+        "agents": {
+          "weak-1": {
+            "calls": 1,
+            "counts": {
+              "cache_read": 30,
+              "cache_write": null,
+              "input": 80,
+              "output": 20,
+              "reasoning": 10
+            },
+            "open_calls": 0,
+            "partial_calls": 0,
+            "reported": 1
+          }
+        },
+        "total": {
+          "calls": 1,
+          "counts": {
+            "cache_read": 30,
+            "cache_write": null,
+            "input": 80,
+            "output": 20,
+            "reasoning": 10
+          },
+          "open_calls": 0,
+          "partial_calls": 0,
+          "reported": 1
+        }
+      },
+      "invalid_reasons": [],
+      "directory": "/private/tmp/ymp201-r1-final-8fdlbnk5/known-budget"
+    },
+    {
+      "case": "known-deadline",
+      "exit_code": 0,
+      "elapsed_seconds": 8.327,
+      "complete": true,
+      "calibration_allows_pilot": true,
+      "first_measurement_valid": true,
+      "first_status": "failed",
+      "task_outcome": "unsuccessful",
+      "objective_success": null,
+      "second_status": "completed",
+      "actual_participants": 1,
+      "usage": {
+        "agents": {
+          "weak-1": {
+            "calls": 1,
+            "counts": {
+              "cache_read": 30,
+              "cache_write": null,
+              "input": 80,
+              "output": 20,
+              "reasoning": 10
+            },
+            "open_calls": 0,
+            "partial_calls": 0,
+            "reported": 1
+          }
+        },
+        "total": {
+          "calls": 1,
+          "counts": {
+            "cache_read": 30,
+            "cache_write": null,
+            "input": 80,
+            "output": 20,
+            "reasoning": 10
+          },
+          "open_calls": 0,
+          "partial_calls": 0,
+          "reported": 1
+        }
+      },
+      "invalid_reasons": [],
+      "directory": "/private/tmp/ymp201-r1-final-8fdlbnk5/known-deadline"
+    },
+    {
+      "case": "underused-roster",
+      "exit_code": 0,
+      "elapsed_seconds": 9.806,
+      "complete": true,
+      "calibration_allows_pilot": true,
+      "first_measurement_valid": true,
+      "first_status": "completed",
+      "task_outcome": "success",
+      "objective_success": true,
+      "second_status": "completed",
+      "actual_participants": 2,
+      "usage": {
+        "agents": {
+          "weak-1": {
+            "calls": 2,
+            "counts": {
+              "cache_read": 60,
+              "cache_write": null,
+              "input": 160,
+              "output": 40,
+              "reasoning": 20
+            },
+            "open_calls": 0,
+            "partial_calls": 0,
+            "reported": 2
+          },
+          "weak-2": {
+            "calls": 4,
+            "counts": {
+              "cache_read": 120,
+              "cache_write": null,
+              "input": 320,
+              "output": 80,
+              "reasoning": 40
+            },
+            "open_calls": 0,
+            "partial_calls": 0,
+            "reported": 4
+          }
+        },
+        "total": {
+          "calls": 6,
+          "counts": {
+            "cache_read": 180,
+            "cache_write": null,
+            "input": 480,
+            "output": 120,
+            "reasoning": 60
+          },
+          "open_calls": 0,
+          "partial_calls": 0,
+          "reported": 6
+        }
+      },
+      "invalid_reasons": [],
+      "directory": "/private/tmp/ymp201-r1-final-8fdlbnk5/underused-roster"
+    },
+    {
+      "case": "unknown-usage",
+      "exit_code": 1,
+      "elapsed_seconds": 2.199,
+      "complete": false,
+      "calibration_allows_pilot": false,
+      "first_measurement_valid": false,
+      "first_status": "failed",
+      "task_outcome": "unsuccessful",
+      "objective_success": null,
+      "second_status": "not_started",
+      "actual_participants": 1,
+      "usage": {
+        "agents": {
+          "weak-1": {
+            "calls": 1,
+            "counts": {
+              "cache_read": null,
+              "cache_write": null,
+              "input": null,
+              "output": null,
+              "reasoning": null
+            },
+            "open_calls": 0,
+            "partial_calls": 0,
+            "reported": 0
+          }
+        },
+        "total": {
+          "calls": 1,
+          "counts": {
+            "cache_read": null,
+            "cache_write": null,
+            "input": null,
+            "output": null,
+            "reasoning": null
+          },
+          "open_calls": 0,
+          "partial_calls": 0,
+          "reported": 0
+        }
+      },
+      "invalid_reasons": [
+        {
+          "code": "incomplete_invocation_usage",
+          "invocation_id": "b568610c-d909-4a7c-ba32-e2caee9b1ebb"
+        },
+        {
+          "code": "incomplete_native_usage"
+        }
+      ],
+      "directory": "/private/tmp/ymp201-r1-final-8fdlbnk5/unknown-usage"
+    },
+    {
+      "case": "partial-provider-error",
+      "exit_code": 1,
+      "elapsed_seconds": 2.253,
+      "complete": false,
+      "calibration_allows_pilot": false,
+      "first_measurement_valid": false,
+      "first_status": "failed",
+      "task_outcome": "unsuccessful",
+      "objective_success": null,
+      "second_status": "not_started",
+      "actual_participants": 1,
+      "usage": {
+        "agents": {
+          "weak-1": {
+            "calls": 1,
+            "counts": {
+              "cache_read": 30,
+              "cache_write": null,
+              "input": 80,
+              "output": 20,
+              "reasoning": 10
+            },
+            "open_calls": 0,
+            "partial_calls": 1,
+            "reported": 1
+          }
+        },
+        "total": {
+          "calls": 1,
+          "counts": {
+            "cache_read": 30,
+            "cache_write": null,
+            "input": 80,
+            "output": 20,
+            "reasoning": 10
+          },
+          "open_calls": 0,
+          "partial_calls": 1,
+          "reported": 1
+        }
+      },
+      "invalid_reasons": [
+        {
+          "code": "incomplete_invocation_usage",
+          "invocation_id": "b5e0849f-61fa-4bd8-8768-cbe666eeddb9"
+        },
+        {
+          "code": "incomplete_native_usage"
+        }
+      ],
+      "directory": "/private/tmp/ymp201-r1-final-8fdlbnk5/partial-provider-error"
+    },
+    {
+      "case": "broken-envelope",
+      "exit_code": 1,
+      "elapsed_seconds": 1.112,
+      "complete": false,
+      "calibration_allows_pilot": false,
+      "first_measurement_valid": false,
+      "first_status": "failed",
+      "task_outcome": "unsuccessful",
+      "objective_success": null,
+      "second_status": "not_started",
+      "actual_participants": 1,
+      "usage": {
+        "agents": {
+          "weak-1": {
+            "calls": 1,
+            "counts": {
+              "cache_read": null,
+              "cache_write": null,
+              "input": null,
+              "output": null,
+              "reasoning": null
+            },
+            "open_calls": 0,
+            "partial_calls": 0,
+            "reported": 0
+          }
+        },
+        "total": {
+          "calls": 1,
+          "counts": {
+            "cache_read": null,
+            "cache_write": null,
+            "input": null,
+            "output": null,
+            "reasoning": null
+          },
+          "open_calls": 0,
+          "partial_calls": 0,
+          "reported": 0
+        }
+      },
+      "invalid_reasons": [
+        {
+          "agent_id": "weak-1",
+          "code": "native_context_unobserved",
+          "invocation_id": "2da3d9c1-cba4-41a1-a4de-0b5ee56680d8"
+        },
+        {
+          "code": "incomplete_invocation_usage",
+          "invocation_id": "2da3d9c1-cba4-41a1-a4de-0b5ee56680d8"
+        },
+        {
+          "code": "settings_differ_from_manifest",
+          "expected": {
+            "effort": "low",
+            "model": "fixture-weak"
+          },
+          "invocation_id": "2da3d9c1-cba4-41a1-a4de-0b5ee56680d8",
+          "observed": {
+            "effort": null,
+            "model": null,
+            "permission_mode": null
+          },
+          "source": "sent"
+        },
+        {
+          "code": "incomplete_native_usage"
+        }
+      ],
+      "directory": "/private/tmp/ymp201-r1-final-8fdlbnk5/broken-envelope"
+    }
+  ]
+}

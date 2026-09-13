@@ -1,0 +1,42 @@
+{
+  "kind": "strict_config_storage_keys",
+  "inference_calls": 0,
+  "cases": [
+    {
+      "key": "baseline",
+      "initialized": true,
+      "selected_value": null
+    },
+    {
+      "key": "ymp201_nonexistent_control",
+      "error_type": "PermissionError"
+    },
+    {
+      "key": "ephemeral",
+      "error_type": "PermissionError"
+    },
+    {
+      "key": "session_dir",
+      "error_type": "PermissionError"
+    },
+    {
+      "key": "sessions_dir",
+      "error_type": "PermissionError"
+    },
+    {
+      "key": "rollout_dir",
+      "error_type": "PermissionError"
+    },
+    {
+      "key": "sqlite_home",
+      "initialized": true,
+      "selected_value": "<PROBE_ROOT>"
+    },
+    {
+      "key": "log_dir",
+      "initialized": true,
+      "selected_value": "<PROBE_ROOT>"
+    }
+  ],
+  "raw_stderr_saved": false
+}

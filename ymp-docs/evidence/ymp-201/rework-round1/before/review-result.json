@@ -1,0 +1,168 @@
+{
+  "verdict": "RETURN",
+  "candidate": "8a2acafe2aadb0e00b7524b3246f898659f38fd8",
+  "executable_source": "0ac1650924e3bea6adf11d5ed406ca0cf0e4eeb0",
+  "accepted_product_objects_verified": {
+    "ymp-rust/crates/ymp-core": "bf95796b2292ea24853175079fb0d271a9c5263a",
+    "ymp-rust/crates/ymp-runtime": "144d49ee2b48d0d50d54fdde1024e2361d24d006",
+    "ymp-rust/crates/ymp-storage": "7c8ebd589fad42ba069004682b40377515a02d25",
+    "ymp-rust/crates/ymp-providers": "5bdb35ff6cb0e5bd84a6b703bb589aa50021d797",
+    "ymp-rust/crates/ymp-cli": "238e1e5b51a5f130f93bfaa75b1391ae8a14d2f6",
+    "ymp-rust/crates/ymp-tui": "6a882b41839d030a6bbc234e0de7ec526bd56747",
+    "ymp-rust/crates/ymp-workspace": "2f9d0b2a86842402bdaf7d6fda64c9a1b4a50c1e",
+    "ymp-bridges": "a3a91865daec02d49103d2f9264d47bdb1c9f49d",
+    "Cargo.toml": "61d450c0bf4885a97092ec4b0941f2466fbced47",
+    "Cargo.lock": "762d728d987aa8dd7536712b3489234a5b58e810"
+  },
+  "platform": "Darwin arm64",
+  "candidate_porcelain_before": "",
+  "candidate_porcelain_after": "",
+  "source_sha256": {
+    "ymp-rust/crates/ymp-eval-driver/src/bin/ymp-weak-pilot.rs": "03c08ca196a7039ac2b0ed701609e69d933e0be91a55ac52205f9ed6f00aafa2",
+    "ymp-rust/crates/ymp-eval-driver/src/bin/weak_pilot/codex_protocol.py": "3c73a5d60da5ac73dc78282ca8724bb15b13d32b79a34d9577437e4c7c712dd5",
+    "ymp-rust/crates/ymp-eval-driver/src/bin/weak_pilot/raw.rs": "fd5fe1c0307b38d94dacc0b1a02017e5f419546913221790379f230ec138eee7",
+    "ymp-rust/crates/ymp-eval-driver/src/bin/weak_pilot/fixture.rs": "29662a9ecf659720840bc40357a27d96fe8787290ca66a48ba8936eb59728f79",
+    "ymp-rust/crates/ymp-eval-driver/src/bin/weak_pilot/consumer_engine.rs": "6623096b917145f8a6811e5c01097e6022465a52aa7c090a7f30868fae7b9b02",
+    "ymp-rust/crates/ymp-eval-driver/src/bin/weak_pilot/mod.rs": "372a36fdde8a09bd3001eb8990ae508106056778bcfaa6ca720e2055ef60eb03",
+    "ymp-rust/crates/ymp-eval-driver/src/bin/weak_pilot/proofs.rs": "0c48c42163f3c371cc960a9d22429d9afdfd47b8e43d8f27a96d1e6416bd8e56",
+    "ymp-rust/crates/ymp-eval-driver/src/bin/weak_pilot/consumer.rs": "0a867739731a352b95410ed81dc843c9921d299804aabcb86dcd1d03b79a2bde",
+    "ymp-evals/weak-pilot/observer.py": "c23202d65567e00d71a54b5e4f909343e4ffd6ebb129b1acbaa63a3a0e3a4b1c",
+    "ymp-evals/weak-pilot/manifest.template.json": "8311ef3134b89a60c72aa3c93207208483cfeaa42eef3437e37145c267039b3f",
+    "ymp-evals/weak-pilot/test_codex_envelope.py": "8b7b5eb562c1ba9db9ff4b0798f2c200918968e43de6bbef442249c643306810",
+    "ymp-evals/weak-pilot/quota-and-boundary.md": "1465a19995cda5fd1be0ba06666cc9701fdb9f65be41bacddc0697027a4342af",
+    "ymp-evals/weak-pilot/consumer-v2.md": "0737d56446dcefab46035c8e16e0ed2981729fdaf7305827d96cf66006c59fb6",
+    "ymp-evals/weak-pilot/consumer_manifest.py": "55a58775c80ec294c4466656df38a83d92e46d6993b7db3c9c71a50bd2684242",
+    "ymp-evals/weak-pilot/repair_probe.py": "944b193034c7778b53dcded293d0ecbcdbb63baf692ea1279203e979b9f3df2f",
+    "ymp-evals/weak-pilot/invocation.template.json": "bfa082068f03c224b892a9d0d4557989937c848d8eaf6886c40b3d5bca6924db",
+    "ymp-evals/weak-pilot/public_select.py": "7d435927980a0d86723136fc25e15a86aa4e87cdc806f757982090cd16709643",
+    "ymp-evals/weak-pilot/codex_protocol_v2.py": "9f42cf1dc76e2732df364e79f4d4aff6d31f3f88b2ee468407cd8b145780159d",
+    "ymp-evals/weak-pilot/README.md": "899a5d95738708ac0088909c6745afb086f2edf1effad31c86d268ba4f3a7886",
+    "ymp-evals/weak-pilot/result.template.json": "fb4e5ead7bbcf67c16d8a8db4c1cdb4faf3013b569794f1012da72eed162c8b5",
+    "ymp-evals/weak-pilot/native_controls_probe.py": "dbce43c633ce716985c3a61c8b6026af24f84f85be07fd929ee7b5db1ceac208",
+    "ymp-evals/weak-pilot/codex_envelope.py": "1c737ad866f51e35728d53526376dc98ad56fb425be7149aaa314a20abf1480e",
+    "ymp-evals/weak-pilot/fixtures/preparation/repair/visible/REQUIREMENTS.md": "21c299953101d39e5f34a6e2d74f2fceb4d3a0a8f1b80626880d9e6c980fe8b0",
+    "ymp-evals/weak-pilot/fixtures/preparation/repair/visible/public_test.py": "c6cb4f332e7272f9bcccc360689d1d23dc544996f6dbae2a68b4a28fbba7b3a5",
+    "ymp-evals/weak-pilot/fixtures/preparation/repair/visible/windows.py": "f18f2d7559059d96d91b0bab4c39a52c061c974b5b4096444b8dbd986e13ece0",
+    "ymp-evals/weak-pilot/fixtures/preparation/repair/private/cases.json": "d19bcef6267224e2e48d7210601a815903349d53e6414c4331f864dbc18c0297",
+    "ymp-evals/weak-pilot/fixtures/preparation/repair/private/windows.py": "c16acff50ba7c4e4047b9bda01735a90b079872dfa663902a2b6ac4dfb3e1bad",
+    "ymp-evals/weak-pilot/fixtures/preparation/repair/private/controls/helper-regression.py": "785fcc0057c300c4322161717b17d0cc91af0e2c712ea142c0a035acd2fc1747",
+    "ymp-evals/weak-pilot/fixtures/preparation/repair/private/controls/touching-not-merged.py": "b9214a3828eaba82daaed7f007621ed94894d679f77e35e790eacfc2526ad63a",
+    "ymp-evals/weak-pilot/fixtures/preparation/reconcile/visible/ledger.csv": "65f4a06e93b2bc792fa3beeeb251f234387501d08feedd8e7ce25eddd6e05fa3",
+    "ymp-evals/weak-pilot/fixtures/preparation/reconcile/visible/REQUIREMENTS.md": "0cd4987b56759c9b1348a325c644710663c1f75bb748ab7c14d0e7bd3c1923de",
+    "ymp-evals/weak-pilot/fixtures/preparation/reconcile/visible/public_test.py": "76d2c5675e8be007ba03883e9d2fd6c69be63062380ecfcc8b66e49d4c53a3a2",
+    "ymp-evals/weak-pilot/fixtures/preparation/reconcile/private/exceptions.csv": "571a828dddf3fcd6899e10809d15d204162d5c4bcb41a33fff5ec5e54c2bf268",
+    "ymp-evals/weak-pilot/fixtures/preparation/reconcile/private/totals.csv": "e350e2eb906b5f70f8952d3a2ce278f48fec21bbec818246cd6345b0621dc835",
+    "ymp-evals/weak-pilot/fixtures/preparation/reconcile/private/controls/zero-entry-dropped/exceptions.csv": "571a828dddf3fcd6899e10809d15d204162d5c4bcb41a33fff5ec5e54c2bf268",
+    "ymp-evals/weak-pilot/fixtures/preparation/reconcile/private/controls/zero-entry-dropped/totals.csv": "2fca15083bdefaed9bead0e24f051d27a0d86eb4e1296432c0bb9d0c036af46b",
+    "ymp-evals/weak-pilot/fixtures/preparation/reconcile/private/controls/missing-exception/exceptions.csv": "6c562b9a38d9bdcc9c32145ff528523a0ee45eb3086f1e626015fd06fd8a3623",
+    "ymp-evals/weak-pilot/fixtures/preparation/reconcile/private/controls/missing-exception/totals.csv": "e350e2eb906b5f70f8952d3a2ce278f48fec21bbec818246cd6345b0621dc835",
+    "ymp-evals/weak-pilot/fixtures/measured/repair/visible/REQUIREMENTS.md": "ca91d06eb8c9ea88f39663c2efbbd2ee4aa9987b1342b0441a393deb6de77394",
+    "ymp-evals/weak-pilot/fixtures/measured/repair/visible/public_test.py": "2fa45bec9ea309fa86deb508e34fd7ea318d6a4a154d90881b505e38002ba3e8",
+    "ymp-evals/weak-pilot/fixtures/measured/repair/visible/windows.py": "0f7df2147aa6a0fb8065fc57d622f0ddf2589885867bce6c0291b1512ba32252",
+    "ymp-evals/weak-pilot/fixtures/measured/repair/private/cases.json": "6aeb869fc199ba074d7e965d3fc85311816d1bec6b0769ec3f37ef381763c615",
+    "ymp-evals/weak-pilot/fixtures/measured/repair/private/windows.py": "25d0eceb0a7021615f0b1371576640fdd899021ed0e38f11257b15ecee1a49f0",
+    "ymp-evals/weak-pilot/fixtures/measured/repair/private/controls/helper-regression.py": "537f6a060510c1bd8e568af2d78b45c14807dabb63e1a6c56390ba1450e2e6e7",
+    "ymp-evals/weak-pilot/fixtures/measured/repair/private/controls/no-clipping.py": "d360a7a2c74a86eb50a28c0a2ddb6835dd3d7e9d35a501324b5dc5255382fb2e",
+    "ymp-evals/weak-pilot/fixtures/measured/repair/private/controls/strict-minimum.py": "92ced874e5def856a21e1cb538c6130e300211267473ad34eadd144fb4085b62",
+    "ymp-evals/weak-pilot/fixtures/measured/reconcile/visible/ledger.csv": "d6c77339f9f7c52d77d239da4a402fa04011be192d896dde9595d1b571dbf8a0",
+    "ymp-evals/weak-pilot/fixtures/measured/reconcile/visible/REQUIREMENTS.md": "0cd4987b56759c9b1348a325c644710663c1f75bb748ab7c14d0e7bd3c1923de",
+    "ymp-evals/weak-pilot/fixtures/measured/reconcile/visible/public_test.py": "76d2c5675e8be007ba03883e9d2fd6c69be63062380ecfcc8b66e49d4c53a3a2",
+    "ymp-evals/weak-pilot/fixtures/measured/reconcile/private/exceptions.csv": "2c1ddab2573e1b5da8763296245d17115734698cbf1393b3dfbcadba03f1a17c",
+    "ymp-evals/weak-pilot/fixtures/measured/reconcile/private/totals.csv": "d08434f1c43d6b45722f09997542b7e6e799188f3c58a94167a82511f9b104a3",
+    "ymp-evals/weak-pilot/fixtures/measured/reconcile/private/controls/missing-exception/exceptions.csv": "57f80152e2d261d9df45fa00794e48292d3997d73d7137988b63078571e9c089",
+    "ymp-evals/weak-pilot/fixtures/measured/reconcile/private/controls/missing-exception/totals.csv": "d08434f1c43d6b45722f09997542b7e6e799188f3c58a94167a82511f9b104a3",
+    "ymp-evals/weak-pilot/fixtures/measured/reconcile/private/controls/float-rounding/exceptions.csv": "2c1ddab2573e1b5da8763296245d17115734698cbf1393b3dfbcadba03f1a17c",
+    "ymp-evals/weak-pilot/fixtures/measured/reconcile/private/controls/float-rounding/totals.csv": "20aecb0af732a9616e7834cb33c5e5fe82ef325cd06d8abd49f818f5316a093a",
+    "ymp-evals/weak-pilot/fixtures/measured/reconcile/private/controls/ignore-cancellations/exceptions.csv": "2c1ddab2573e1b5da8763296245d17115734698cbf1393b3dfbcadba03f1a17c",
+    "ymp-evals/weak-pilot/fixtures/measured/reconcile/private/controls/ignore-cancellations/totals.csv": "552d8e62f78cb32964067f861f2ec1fc5d334e17c555d60e08158c6c3a6a3267"
+  },
+  "checks": [
+    {
+      "command": "cargo test --locked --offline -p ymp-eval-driver --test weak_pilot_consumer --bin ymp-weak-pilot --target-dir /tmp/ymp146-recovery-review/target -- --nocapture",
+      "exit": 0,
+      "passed": 4,
+      "scope": "Includes all 12 scripted protocol cells and existing raw accounting controls",
+      "log": "existing-protocol-tests.log"
+    },
+    {
+      "command": "python3 -B -m unittest discover -s ymp-evals/weak-pilot -p test_codex_envelope.py -v",
+      "exit": 0,
+      "passed": 16,
+      "log": "envelope-tests.log"
+    },
+    {
+      "command": "PYTHONDONTWRITEBYTECODE=1 python3 /tmp/ymp201-consumer-review/check-outcomes.py",
+      "exit": 0,
+      "cases": 9,
+      "log": "outcome-controls-2.log",
+      "results": "outcomes.json"
+    }
+  ],
+  "findings": [
+    {
+      "id": "C1",
+      "severity": "P1",
+      "fact": "Quality and ordinary bounded task outcomes gate calibration/remaining conditions. Missing output, negative Engine verdict, completely accounted token admission refusal and deadline during deterministic sealing all stop the next cell."
+    },
+    {
+      "id": "C2",
+      "severity": "P1",
+      "fact": "Raw one-invocation agents receive 120/180 seconds while cooperating Engine can spend 480/900 seconds across its calls. Scripted request confirms 10 seconds inside a 90-second condition. Missing reported effort is also classified differently: raw checks accounting closure; cooperation rejects missing reported model/effort."
+    },
+    {
+      "id": "C3",
+      "severity": "P1",
+      "fact": "Public selector executes candidate Python without the native envelope. A candidate imported by visible public_test.py read a synthetic private marker outside its solving directory; the marker appeared in selector stderr. No real private data was read.",
+      "evidence": "selection-canary/result.json"
+    }
+  ],
+  "known_good": [
+    "Raw snapshots count 80 input + 20 output = 100 despite two identical notifications; cache30/reasoning10 are subsets",
+    "Common observed-token ceiling remains shared by each full condition, not multiplied by participants",
+    "Existing full scripted run observes 1/2/3 distinct raw contexts and 2/3 cooperating actors; no extra strong solver in cooperative config",
+    "Real unknown/partial usage and broken envelope remain valid common-stop causes",
+    "All tracked protocol fixture PIDs ended; raw traces and provider journals retained"
+  ],
+  "proposals_read": {
+    "calibration": {
+      "conditions": 6,
+      "outer_calls_per_condition": 12,
+      "condition_seconds": 480,
+      "turn_seconds": 120,
+      "observed_tokens_per_condition": 80000
+    },
+    "pilot": {
+      "conditions": 12,
+      "outer_calls_per_condition": 16,
+      "condition_seconds": 900,
+      "turn_seconds": 180,
+      "observed_tokens_per_condition": 160000
+    }
+  },
+  "scope": [
+    "No native trial/calibration/model call or installed app-server probe",
+    "No approval file supplied",
+    "No credentials or real application home/session accessed",
+    "Temporary clone changes only local scripted behavior and a deterministic seal-delay fixture; consumer Rust source unchanged",
+    "Only one review-created pycache file removed; cleanup record retained",
+    "631-workspace and 52-Python chains not repeated",
+    "Missing reported-effort asymmetry established from source; no fabricated reported metadata",
+    "Native canary/platform guarantees beyond offline envelope tests were not revalidated"
+  ],
+  "runner_sha256": "0a39c6ab6464f059b52e9a1c6db8b738fe010ec6c5d2990a15d64685214733c6",
+  "temporary_fixture_diff": [
+    "ymp-evals/weak-pilot/codex_protocol_v2.py",
+    "ymp-evals/weak-pilot/observer.py"
+  ],
+  "evidence_sha256": {
+    "existing-protocol-tests.log": "adbb548d03242bb5228527d26e43554a584609c79cb47f1e209ded24b2636c02",
+    "envelope-tests.log": "812d4a3f5e509c06ba7684d505d0c442803faecdf7642f904a73b4061c792760",
+    "outcomes.json": "4a85cba25c3c16c8a66671cba30f72bd60f9aebe3408d90e03ce3acacd5cb47e",
+    "check-outcomes.py": "39220805c04c7a80519611db9c5ac7d2dd4fe0e5c3a8e0b7cb2ca1630c515328",
+    "outcome-controls-2.log": "feddad15c8e92af43a04f9dca3aa791b3f0a5768dad7f73e61e01bc352402766",
+    "selection-canary/result.json": "8f9b155f189325a014c69030fb8e15d8451094cb9a46b427c96fb308feccf90d",
+    "selection-canary/stdout.json": "e305fc65f38046feb92377133489d07de807b2562ab1f3d68bc7a9fe8f474633",
+    "pycache-cleanup.json": "fc5fe580a3069174cc85c1fccca3988a870fa240ff3c7db2ecb1600a3dd2b9f8",
+    "temporary-fixture.patch": "f01943dfcf48463cb15a5aaa5518862763f8f0399c50533a0ab9d60d3d92a5a3"
+  }
+}

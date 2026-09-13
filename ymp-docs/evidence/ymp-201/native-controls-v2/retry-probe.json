@@ -1,0 +1,5 @@
+{
+  "kind": "built_in_provider_retry_override_probe",
+  "inference_calls": 0,
+  "exception_type": "RuntimeError"
+}

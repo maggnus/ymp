@@ -1,0 +1,9 @@
+{
+  "original_directory": "/tmp/ymp201-consumer-review/selection-canary",
+  "originals_modified": false,
+  "sha256": {
+    "candidate1/windows.py": "f09052fdcf2b04e2e861bee64ecf49711b2e06da6404678a731271592531019e",
+    "candidate2/windows.py": "c16acff50ba7c4e4047b9bda01735a90b079872dfa663902a2b6ac4dfb3e1bad",
+    "private/synthetic-hidden.txt": "3ae3bf57dd97386260c8681951f23ec27a6183312e38122cf0a82273a342bb8c"
+  }
+}

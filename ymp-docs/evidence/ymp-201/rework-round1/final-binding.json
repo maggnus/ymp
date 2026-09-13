@@ -1,0 +1,46 @@
+{
+  "source": "75f60a6972d8d58cec654330af60a6041a2c5274",
+  "base_candidate": "8a2acafe2aadb0e00b7524b3246f898659f38fd8",
+  "product_base": "1c17f4e447b839e20f8efbdee0900963a5d8fcad",
+  "product_bytes_equal": true,
+  "product_git_objects": {
+    "ymp-rust/crates/ymp-core": "bf95796b2292ea24853175079fb0d271a9c5263a",
+    "ymp-rust/crates/ymp-runtime": "144d49ee2b48d0d50d54fdde1024e2361d24d006",
+    "ymp-rust/crates/ymp-storage": "7c8ebd589fad42ba069004682b40377515a02d25",
+    "ymp-rust/crates/ymp-providers": "5bdb35ff6cb0e5bd84a6b703bb589aa50021d797",
+    "ymp-rust/crates/ymp-cli": "238e1e5b51a5f130f93bfaa75b1391ae8a14d2f6",
+    "ymp-rust/crates/ymp-tui": "6a882b41839d030a6bbc234e0de7ec526bd56747",
+    "ymp-rust/crates/ymp-workspace": "2f9d0b2a86842402bdaf7d6fda64c9a1b4a50c1e",
+    "ymp-bridges": "a3a91865daec02d49103d2f9264d47bdb1c9f49d",
+    "Cargo.toml": "61d450c0bf4885a97092ec4b0941f2466fbced47",
+    "Cargo.lock": "762d728d987aa8dd7536712b3489234a5b58e810"
+  },
+  "binary": "/Users/maggnus/Code/ymp2/target/debug/ymp-weak-pilot",
+  "binary_sha256": "4790774e92090df62a62083c471a05e96f855efd25862577ca4266cc918a92bc",
+  "native_codex_sha256": "4f85982624b3898c8991cb80c0981b2aa71070e3537046c9a95950318a95afcc",
+  "python_launcher_sha256": "cbf84109626aa1013bbe408fbb9590bd0f1c1548f038b2221c6b8b87de26ca43",
+  "candidate_execution": {
+    "backend": "macos-sandbox-exec",
+    "python_executable": "/opt/homebrew/Cellar/python@3.14/3.14.3_1/Frameworks/Python.framework/Versions/3.14/Resources/Python.app/Contents/MacOS/Python",
+    "python_sha256": "7ecc1ecbf9daa9303c4bf502ff62ffdd9010ed5c08729d470ae9380c10ce1211",
+    "python_launcher": "/opt/homebrew/Cellar/python@3.14/3.14.3_1/Frameworks/Python.framework/Versions/3.14/bin/python3.14",
+    "python_launcher_sha256": "cbf84109626aa1013bbe408fbb9590bd0f1c1548f038b2221c6b8b87de26ca43",
+    "sandbox_executable": "/usr/bin/sandbox-exec",
+    "sandbox_sha256": "abc5bb136d6b5cce8fa85d789f78e3326c51ca60cae637b2064adfb67a1dcd9a",
+    "wrapper_sha256": "df2287f8549f241ed168bb9e62f8f1c56254c37a51f30ce65032c1139fa2c1c8"
+  },
+  "wrappers_sha256": {
+    "ymp-evals/weak-pilot/codex_envelope.py": "1c737ad866f51e35728d53526376dc98ad56fb425be7149aaa314a20abf1480e",
+    "ymp-evals/weak-pilot/restricted_python.py": "df2287f8549f241ed168bb9e62f8f1c56254c37a51f30ce65032c1139fa2c1c8",
+    "ymp-evals/weak-pilot/public_select.py": "9bd883abecf01cb6f3a60a67a83f9e1b3e7766e6f2edfb63b626491bf2ccf543",
+    "ymp-evals/weak-pilot/observer.py": "a1415815fde8274ef6dcb8a3ed413047f0099ef98b1e666319973dd50d36ebc7",
+    "ymp-evals/weak-pilot/repair_probe.py": "5e2a4471229127e96df07715beeb93effe3a4e86d9cf135562cae58dc9aa45cc"
+  },
+  "native_probe_sha256": "1f75b9ffaee75c4f43f6d1b040af51fb9a2adae841c67f95cc97291164a4c32e",
+  "calibration_manifest_sha256": "b21ad8dc537fe9c11244b43293c6162cf5c774d328fc47c0be9762310386b179",
+  "pilot_manifest_sha256": "dffb4e86c30afe58da32564e474064793aab0c88208bd757f7cc4c41d295f98b",
+  "native_model_calls": 0,
+  "rust_tests_passed": 643,
+  "rust_tests_ignored": 2,
+  "python_tests_passed": 62
+}

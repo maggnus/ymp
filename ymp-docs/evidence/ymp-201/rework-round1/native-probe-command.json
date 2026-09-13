@@ -1,0 +1,14 @@
+{
+  "command": [
+    "/opt/homebrew/opt/python@3.14/bin/python3.14",
+    "-B",
+    "/Users/maggnus/.paseo/worktrees/1ms2ynax/ymp201-weak-pilot/ymp-evals/weak-pilot/codex_envelope.py",
+    "--probe",
+    "--codex",
+    "/Users/maggnus/.codex/packages/standalone/releases/0.154.0-aarch64-apple-darwin/bin/codex",
+    "--output",
+    "/Users/maggnus/.paseo/worktrees/1ms2ynax/ymp201-weak-pilot/ymp-docs/evidence/ymp-201/rework-round1/native-envelope-final.json"
+  ],
+  "exit_code": 0,
+  "native_turn_start_calls": 0
+}

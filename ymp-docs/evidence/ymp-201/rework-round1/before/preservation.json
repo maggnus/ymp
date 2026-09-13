@@ -1,0 +1,15 @@
+{
+  "candidate": "8a2acafe2aadb0e00b7524b3246f898659f38fd8",
+  "contract_commit": "858fba3",
+  "originals": "/Users/maggnus/Code/ymp2/ymp-docs/evidence/ymp-201/independent-round1",
+  "originals_modified": false,
+  "files_sha256": {
+    "review-result.json": "8b4dade03d8666102069bfc4d9dfc8588f40d61741fdea0e1782d0b98745965b",
+    "outcomes.json": "4a85cba25c3c16c8a66671cba30f72bd60f9aebe3408d90e03ce3acacd5cb47e",
+    "check-outcomes.py": "39220805c04c7a80519611db9c5ac7d2dd4fe0e5c3a8e0b7cb2ca1630c515328",
+    "outcome-controls-2.log": "feddad15c8e92af43a04f9dca3aa791b3f0a5768dad7f73e61e01bc352402766",
+    "temporary-fixture.patch": "f01943dfcf48463cb15a5aaa5518862763f8f0399c50533a0ab9d60d3d92a5a3",
+    "selection-canary/result.json": "8f9b155f189325a014c69030fb8e15d8451094cb9a46b427c96fb308feccf90d",
+    "selection-canary/stdout.json": "e305fc65f38046feb92377133489d07de807b2562ab1f3d68bc7a9fe8f474633"
+  }
+}

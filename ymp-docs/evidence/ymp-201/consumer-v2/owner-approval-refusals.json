@@ -1,0 +1,33 @@
+{
+  "native_model_calls": 0,
+  "refusals": [
+    {
+      "manifest": "calibration-manifest.proposal.json",
+      "sha256": "34993fee70abbffb0db35a77277b42b4d22dc3c7ec6bb77ced8c05e33f70c076",
+      "exit_code": 1,
+      "all_manifest_checks_reached": true,
+      "error": "Error: owner_approval_required: no measured launch is authorized",
+      "provider_started": false,
+      "command": [
+        "/Users/maggnus/Code/ymp2/target/debug/ymp-weak-pilot",
+        "native",
+        "--manifest",
+        "/Users/maggnus/.paseo/worktrees/1ms2ynax/ymp201-weak-pilot/ymp-docs/evidence/ymp-201/consumer-v2/calibration-manifest.proposal.json"
+      ]
+    },
+    {
+      "manifest": "pilot-manifest.proposal.json",
+      "sha256": "a3eaadab9d484f3d2adabaf486a959f58b49dd2c333490d2bebe6d1053fd282a",
+      "exit_code": 1,
+      "all_manifest_checks_reached": true,
+      "error": "Error: owner_approval_required: no measured launch is authorized",
+      "provider_started": false,
+      "command": [
+        "/Users/maggnus/Code/ymp2/target/debug/ymp-weak-pilot",
+        "native",
+        "--manifest",
+        "/Users/maggnus/.paseo/worktrees/1ms2ynax/ymp201-weak-pilot/ymp-docs/evidence/ymp-201/consumer-v2/pilot-manifest.proposal.json"
+      ]
+    }
+  ]
+}

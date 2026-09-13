@@ -1,0 +1,29 @@
+   Compiling ymp-eval-driver v0.4.6 (/Users/maggnus/.paseo/worktrees/1ms2ynax/ymp201-weak-pilot/ymp-rust/crates/ymp-eval-driver)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 3.09s
+     Running unittests src/bin/ymp-weak-pilot.rs (/Users/maggnus/Code/ymp2/target/debug/deps/ymp_weak_pilot-68f0d7d0c0a81b50)
+
+running 10 tests
+test weak_pilot::measurement::tests::known_zero_call_denial_needs_no_native_metadata ... ok
+test weak_pilot::measurement::tests::rejection_and_underused_roster_are_valid_outcomes_with_actual_count ... ok
+test weak_pilot::measurement::tests::termination_evidence_overrides_a_closed_timestamp ... ok
+test weak_pilot::measurement::tests::requested_and_sent_must_match_frozen_settings_even_when_they_agree_with_each_other ... ok
+test weak_pilot::measurement::tests::impossible_origins_and_shared_native_contexts_are_invalid ... ok
+test weak_pilot::measurement::tests::complete_failure_accounting_is_distinct_from_partial_unknown_or_unclosed_usage ... ok
+test weak_pilot::measurement::tests::retained_contradiction_cannot_be_erased_by_later_matching_metadata ... ok
+test weak_pilot::measurement::tests::missing_and_contradictory_reported_settings_follow_one_rule_in_all_arms ... ok
+test weak_pilot::consumer::approval_scope_tests::deleting_disposable_outputs_does_not_renew_a_claimed_phase ... ok
+test weak_pilot::tests::offline_measurement_boundary_has_real_negative_controls ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.66s
+
+     Running tests/weak_pilot_consumer.rs (/Users/maggnus/Code/ymp2/target/debug/deps/weak_pilot_consumer-9b0b90b984720183)
+
+running 6 tests
+test approval_kind_and_source_drift_fail_before_any_provider ... ok
+test unknown_usage_and_deadline_stop_the_same_consumer_without_losing_observations ... ok
+test solo_uses_whole_remaining_time_and_independent_members_do_not_reset_it ... ok
+test ordinary_negative_results_do_not_gate_calibration_or_later_conditions ... ok
+test optional_reported_settings_follow_the_same_rule_in_all_conditions ... ok
+test all_six_conditions_consume_real_task_exports_and_freeze_one_blind_result ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 56.00s

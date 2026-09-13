@@ -1,0 +1,210 @@
+{
+  "execution_kind": "synthetic-validator-test",
+  "native_experiment_invocations": 0,
+  "controls_rejected": 12,
+  "controls": [
+    {
+      "task": "reconcile",
+      "variant": "preparation",
+      "control": "fixtures/preparation/reconcile/private/controls/missing-exception",
+      "public_check_exit_code": 0,
+      "external_score_exit_code": 1,
+      "failed_criteria": [
+        "exceptions.csv"
+      ],
+      "files_sha256": {
+        "REQUIREMENTS.md": "0cd4987b56759c9b1348a325c644710663c1f75bb748ab7c14d0e7bd3c1923de",
+        "exceptions.csv": "6c562b9a38d9bdcc9c32145ff528523a0ee45eb3086f1e626015fd06fd8a3623",
+        "ledger.csv": "65f4a06e93b2bc792fa3beeeb251f234387501d08feedd8e7ce25eddd6e05fa3",
+        "public_test.py": "76d2c5675e8be007ba03883e9d2fd6c69be63062380ecfcc8b66e49d4c53a3a2",
+        "totals.csv": "e350e2eb906b5f70f8952d3a2ce278f48fec21bbec818246cd6345b0621dc835"
+      }
+    },
+    {
+      "task": "reconcile",
+      "variant": "preparation",
+      "control": "fixtures/preparation/reconcile/private/controls/zero-entry-dropped",
+      "public_check_exit_code": 0,
+      "external_score_exit_code": 1,
+      "failed_criteria": [
+        "totals.csv"
+      ],
+      "files_sha256": {
+        "REQUIREMENTS.md": "0cd4987b56759c9b1348a325c644710663c1f75bb748ab7c14d0e7bd3c1923de",
+        "exceptions.csv": "571a828dddf3fcd6899e10809d15d204162d5c4bcb41a33fff5ec5e54c2bf268",
+        "ledger.csv": "65f4a06e93b2bc792fa3beeeb251f234387501d08feedd8e7ce25eddd6e05fa3",
+        "public_test.py": "76d2c5675e8be007ba03883e9d2fd6c69be63062380ecfcc8b66e49d4c53a3a2",
+        "totals.csv": "2fca15083bdefaed9bead0e24f051d27a0d86eb4e1296432c0bb9d0c036af46b"
+      }
+    },
+    {
+      "task": "reconcile",
+      "variant": "measured",
+      "control": "fixtures/measured/reconcile/private/controls/float-rounding",
+      "public_check_exit_code": 0,
+      "external_score_exit_code": 1,
+      "failed_criteria": [
+        "totals.csv"
+      ],
+      "files_sha256": {
+        "REQUIREMENTS.md": "0cd4987b56759c9b1348a325c644710663c1f75bb748ab7c14d0e7bd3c1923de",
+        "exceptions.csv": "2c1ddab2573e1b5da8763296245d17115734698cbf1393b3dfbcadba03f1a17c",
+        "ledger.csv": "d6c77339f9f7c52d77d239da4a402fa04011be192d896dde9595d1b571dbf8a0",
+        "public_test.py": "76d2c5675e8be007ba03883e9d2fd6c69be63062380ecfcc8b66e49d4c53a3a2",
+        "totals.csv": "20aecb0af732a9616e7834cb33c5e5fe82ef325cd06d8abd49f818f5316a093a"
+      }
+    },
+    {
+      "task": "reconcile",
+      "variant": "measured",
+      "control": "fixtures/measured/reconcile/private/controls/ignore-cancellations",
+      "public_check_exit_code": 0,
+      "external_score_exit_code": 1,
+      "failed_criteria": [
+        "totals.csv"
+      ],
+      "files_sha256": {
+        "REQUIREMENTS.md": "0cd4987b56759c9b1348a325c644710663c1f75bb748ab7c14d0e7bd3c1923de",
+        "exceptions.csv": "2c1ddab2573e1b5da8763296245d17115734698cbf1393b3dfbcadba03f1a17c",
+        "ledger.csv": "d6c77339f9f7c52d77d239da4a402fa04011be192d896dde9595d1b571dbf8a0",
+        "public_test.py": "76d2c5675e8be007ba03883e9d2fd6c69be63062380ecfcc8b66e49d4c53a3a2",
+        "totals.csv": "552d8e62f78cb32964067f861f2ec1fc5d334e17c555d60e08158c6c3a6a3267"
+      }
+    },
+    {
+      "task": "reconcile",
+      "variant": "measured",
+      "control": "fixtures/measured/reconcile/private/controls/missing-exception",
+      "public_check_exit_code": 0,
+      "external_score_exit_code": 1,
+      "failed_criteria": [
+        "exceptions.csv"
+      ],
+      "files_sha256": {
+        "REQUIREMENTS.md": "0cd4987b56759c9b1348a325c644710663c1f75bb748ab7c14d0e7bd3c1923de",
+        "exceptions.csv": "57f80152e2d261d9df45fa00794e48292d3997d73d7137988b63078571e9c089",
+        "ledger.csv": "d6c77339f9f7c52d77d239da4a402fa04011be192d896dde9595d1b571dbf8a0",
+        "public_test.py": "76d2c5675e8be007ba03883e9d2fd6c69be63062380ecfcc8b66e49d4c53a3a2",
+        "totals.csv": "d08434f1c43d6b45722f09997542b7e6e799188f3c58a94167a82511f9b104a3"
+      }
+    },
+    {
+      "task": "repair",
+      "variant": "preparation",
+      "control": "fixtures/preparation/repair/private/controls/helper-regression.py",
+      "public_check_exit_code": 1,
+      "external_score_exit_code": 1,
+      "failed_criteria": [
+        "duration-overlap-preserved",
+        "duration-unsorted-preserved",
+        "duration-large-exact"
+      ],
+      "files_sha256": {
+        "REQUIREMENTS.md": "21c299953101d39e5f34a6e2d74f2fceb4d3a0a8f1b80626880d9e6c980fe8b0",
+        "public_test.py": "c6cb4f332e7272f9bcccc360689d1d23dc544996f6dbae2a68b4a28fbba7b3a5",
+        "windows.py": "785fcc0057c300c4322161717b17d0cc91af0e2c712ea142c0a035acd2fc1747"
+      }
+    },
+    {
+      "task": "repair",
+      "variant": "preparation",
+      "control": "fixtures/preparation/repair/private/controls/touching-not-merged.py",
+      "public_check_exit_code": 1,
+      "external_score_exit_code": 1,
+      "failed_criteria": [
+        "touching",
+        "large-integer"
+      ],
+      "files_sha256": {
+        "REQUIREMENTS.md": "21c299953101d39e5f34a6e2d74f2fceb4d3a0a8f1b80626880d9e6c980fe8b0",
+        "public_test.py": "c6cb4f332e7272f9bcccc360689d1d23dc544996f6dbae2a68b4a28fbba7b3a5",
+        "windows.py": "b9214a3828eaba82daaed7f007621ed94894d679f77e35e790eacfc2526ad63a"
+      }
+    },
+    {
+      "task": "repair",
+      "variant": "preparation",
+      "control": "fixtures/preparation/repair/visible/windows.py",
+      "public_check_exit_code": 1,
+      "external_score_exit_code": 1,
+      "failed_criteria": [
+        "nested",
+        "touching",
+        "zero-width",
+        "unsorted-input-preserved",
+        "large-integer"
+      ],
+      "files_sha256": {
+        "REQUIREMENTS.md": "21c299953101d39e5f34a6e2d74f2fceb4d3a0a8f1b80626880d9e6c980fe8b0",
+        "public_test.py": "c6cb4f332e7272f9bcccc360689d1d23dc544996f6dbae2a68b4a28fbba7b3a5",
+        "windows.py": "f18f2d7559059d96d91b0bab4c39a52c061c974b5b4096444b8dbd986e13ece0"
+      }
+    },
+    {
+      "task": "repair",
+      "variant": "measured",
+      "control": "fixtures/measured/repair/private/controls/helper-regression.py",
+      "public_check_exit_code": 1,
+      "external_score_exit_code": 1,
+      "failed_criteria": [
+        "duration-overlap-preserved",
+        "duration-unsorted-preserved",
+        "duration-large-exact"
+      ],
+      "files_sha256": {
+        "REQUIREMENTS.md": "ca91d06eb8c9ea88f39663c2efbbd2ee4aa9987b1342b0441a393deb6de77394",
+        "public_test.py": "2fa45bec9ea309fa86deb508e34fd7ea318d6a4a154d90881b505e38002ba3e8",
+        "windows.py": "537f6a060510c1bd8e568af2d78b45c14807dabb63e1a6c56390ba1450e2e6e7"
+      }
+    },
+    {
+      "task": "repair",
+      "variant": "measured",
+      "control": "fixtures/measured/repair/private/controls/no-clipping.py",
+      "public_check_exit_code": 0,
+      "external_score_exit_code": 1,
+      "failed_criteria": [
+        "out-of-range"
+      ],
+      "files_sha256": {
+        "REQUIREMENTS.md": "ca91d06eb8c9ea88f39663c2efbbd2ee4aa9987b1342b0441a393deb6de77394",
+        "public_test.py": "2fa45bec9ea309fa86deb508e34fd7ea318d6a4a154d90881b505e38002ba3e8",
+        "windows.py": "d360a7a2c74a86eb50a28c0a2ddb6835dd3d7e9d35a501324b5dc5255382fb2e"
+      }
+    },
+    {
+      "task": "repair",
+      "variant": "measured",
+      "control": "fixtures/measured/repair/private/controls/strict-minimum.py",
+      "public_check_exit_code": 0,
+      "external_score_exit_code": 1,
+      "failed_criteria": [
+        "touching-and-duplicates",
+        "minimum-inclusive"
+      ],
+      "files_sha256": {
+        "REQUIREMENTS.md": "ca91d06eb8c9ea88f39663c2efbbd2ee4aa9987b1342b0441a393deb6de77394",
+        "public_test.py": "2fa45bec9ea309fa86deb508e34fd7ea318d6a4a154d90881b505e38002ba3e8",
+        "windows.py": "92ced874e5def856a21e1cb538c6130e300211267473ad34eadd144fb4085b62"
+      }
+    },
+    {
+      "task": "repair",
+      "variant": "measured",
+      "control": "fixtures/measured/repair/visible/windows.py",
+      "public_check_exit_code": 1,
+      "external_score_exit_code": 1,
+      "failed_criteria": [
+        "nested",
+        "out-of-range",
+        "zero-width-inside-and-outside",
+        "fully-covered"
+      ],
+      "files_sha256": {
+        "REQUIREMENTS.md": "ca91d06eb8c9ea88f39663c2efbbd2ee4aa9987b1342b0441a393deb6de77394",
+        "public_test.py": "2fa45bec9ea309fa86deb508e34fd7ea318d6a4a154d90881b505e38002ba3e8",
+        "windows.py": "0f7df2147aa6a0fb8065fc57d622f0ddf2589885867bce6c0291b1512ba32252"
+      }
+    }
+  ]
+}
