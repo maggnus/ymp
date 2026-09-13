@@ -1,6 +1,6 @@
 # Task details and evidence
 
-Updated: 2026-09-13 05:19 UTC.
+Updated: 2026-09-13 05:29 UTC.
 
 Use the [delivery plan](plan.md) to follow progress. This generated register contains full acceptance criteria, dependencies and evidence. [tasks.json](tasks.json) is the single source; [manage.py](manage.py) updates both pages.
 
@@ -14,7 +14,7 @@ A planned task is not implemented functionality. Completed research and planning
 | design | 1 | 1 |
 | documentation | 4 | 4 |
 | experiment | 0 | 4 |
-| implementation | 26 | 31 |
+| implementation | 26 | 32 |
 | research | 8 | 8 |
 | verification | 2 | 2 |
 
@@ -74,6 +74,7 @@ A planned task is not implemented functionality. Completed research and planning
 | `[x]` | [YMP-132](#ymp-132) | P1 | Attribute chat output to the actual agent invocation instead of provider-shaped actor IDs | 2026-09-13 04:25 |
 | `[~]` | [YMP-133](#ymp-133) | P1 | Present non-popup data collections as consistent keyboard-navigable tables | 2026-09-13 05:18 |
 | `[~]` | [YMP-134](#ymp-134) | P1 | Finish sidebar, Detailed mode and floating-surface corrections requested directly in Paseo | 2026-09-13 05:19 |
+| `[~]` | [YMP-135](#ymp-135) | P1 | Show model-only labels when native effort is unknown or only a thinking toggle is reported | 2026-09-13 05:29 |
 
 ## YMP-001
 
@@ -1819,6 +1820,35 @@ These accepted UI requirements were absent from the central register, and the ta
 - ymp-docs/research/paseo-direct-message-audit-2026-09-13.md
 - ymp-docs/research/evidence/ui-followups-134/author-report.md
 - ymp-docs/research/evidence/ui-followups-134/author-workspace-test.log
+
+## YMP-135
+
+Show model-only labels when native effort is unknown or only a thinking toggle is reported
+
+**State:** `[~]` (in_progress) · **Type:** implementation · **Priority:** P1
+
+**Last update (UTC):** 2026-09-13 05:29
+
+**Current reason:** Inspected native invocation metadata read-only. GLM glm-4.7 and glm-4.5-air report thought_level on while requested/sent effort is absent; Codex reports xhigh; old Claude records have absent effort. Final owner choice is model-only when unknown. Sent a narrow shared-label correction to the existing table author; no real inference or changes to the owner session.
+
+**Owner:** Claude Code Opus 5 high; maintainer verifies and installs
+
+**Authorization:** Owner clarified that none was intended only for unknown effort, then explicitly replaced that placeholder with showing only the model name. The current none/on display was reported as misleading.
+
+**Depends on:** [YMP-132](#ymp-132)
+
+The shared label helper appends none for all missing reported effort and presents binary ACP thought_level values such as on as if they were graded effort. Live GLM invocations confirm reported on with no requested/sent effort; old Claude invocations have no reported effort.
+
+**Acceptance criteria:**
+
+- Show only the concrete model when actual effort is absent; append the actual native effort when known. Do not substitute requested or sent effort for observed effort.
+- Do not present binary thinking controls on/off as graded effort in primary agent headings. Keep their exact native values in details and records; never invent a high/max mapping. Preserve an explicitly reported native none distinctly from absence.
+- Apply one rule to TUI and headless invocation/message labels without altering execution settings, historical links, model-only scanning or provider metadata. Use focused offline controls for missing effort, binary toggles, real effort and different historical invocations.
+- Delegate UI implementation to Claude Code Opus 5 high and verify the combined source and installed executable with YMP-133/134. Update user-facing guidance and release evidence.
+
+**Evidence:**
+
+- Pending.
 
 ## Intent coverage
 

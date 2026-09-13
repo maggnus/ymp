@@ -3301,9 +3301,36 @@
           "note": "Independent review accepts navigation, Detailed, exit and attribution behavior but requests preserving the sidebar divider around modals (R1) and correcting stale README text (R2). README corrected. Claude Opus 5 high is implementing R1 and the short-terminal selection issue O1 in an isolated branch; final integration and verification follow."
         }
       ]
+    },
+    {
+      "id": "YMP-135",
+      "title": "Show model-only labels when native effort is unknown or only a thinking toggle is reported",
+      "type": "implementation",
+      "priority": "P1",
+      "status": "in_progress",
+      "owner": "Claude Code Opus 5 high; maintainer verifies and installs",
+      "authorization": "Owner clarified that none was intended only for unknown effort, then explicitly replaced that placeholder with showing only the model name. The current none/on display was reported as misleading.",
+      "depends_on": [
+        "YMP-132"
+      ],
+      "reason": "The shared label helper appends none for all missing reported effort and presents binary ACP thought_level values such as on as if they were graded effort. Live GLM invocations confirm reported on with no requested/sent effort; old Claude invocations have no reported effort.",
+      "acceptance": [
+        "Show only the concrete model when actual effort is absent; append the actual native effort when known. Do not substitute requested or sent effort for observed effort.",
+        "Do not present binary thinking controls on/off as graded effort in primary agent headings. Keep their exact native values in details and records; never invent a high/max mapping. Preserve an explicitly reported native none distinctly from absence.",
+        "Apply one rule to TUI and headless invocation/message labels without altering execution settings, historical links, model-only scanning or provider metadata. Use focused offline controls for missing effort, binary toggles, real effort and different historical invocations.",
+        "Delegate UI implementation to Claude Code Opus 5 high and verify the combined source and installed executable with YMP-133/134. Update user-facing guidance and release evidence."
+      ],
+      "evidence": [],
+      "history": [
+        {
+          "at": "2026-09-13T05:29:46.846004+00:00",
+          "status": "in_progress",
+          "note": "Inspected native invocation metadata read-only. GLM glm-4.7 and glm-4.5-air report thought_level on while requested/sent effort is absent; Codex reports xhigh; old Claude records have absent effort. Final owner choice is model-only when unknown. Sent a narrow shared-label correction to the existing table author; no real inference or changes to the owner session."
+        }
+      ]
     }
   ],
-  "updated_at": "2026-09-13T05:19:56.576963+00:00",
+  "updated_at": "2026-09-13T05:29:46.846004+00:00",
   "delivery_order": [
     "YMP-116",
     "YMP-103",

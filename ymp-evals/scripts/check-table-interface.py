@@ -169,6 +169,28 @@ provider = "demo"
                 assert "panic" not in text.lower(), (page, width, text)
             passed(f"pages-at-{width}x{height}")
 
+        tmux("resize-window", "-t", "check", "-x", "120", "-y", "36")
+        time.sleep(0.2)
+        keys("C-t")
+        text = capture("theme-sidebar-divider")
+        assert all(len(row) > 89 and row[89] == "│"
+                   for row in text.splitlines()[2:33]), "theme margin erased the sidebar divider"
+        keys("Escape")
+        passed("modal-margin-preserves-sidebar-divider")
+
+        tmux("resize-window", "-t", "check", "-x", "40", "-y", "12")
+        time.sleep(0.2)
+        keys("C-p", "Down", "Down", "Down", "Down")
+        text = capture("short-palette-selection")
+        assert re.search(r"›\s+/tasks\b", text), "selected command is outside the visible palette"
+        keys("Escape", "C-t", "Down", "Down", "Down", "Down")
+        text = capture("short-theme-selection")
+        assert re.search(r"›\s+Terminal\b", text), "selected theme is outside the visible chooser"
+        keys("Escape")
+        passed("short-surface-selection-stays-visible")
+
+        tmux("resize-window", "-t", "check", "-x", "60", "-y", "24")
+        time.sleep(0.2)
         keys("C-p")
         text = capture("narrow-palette")
         assert "Commands" in text and "Type to search commands" in text, text
