@@ -1,6 +1,6 @@
 # Task details and evidence
 
-Updated: 2026-09-13 18:51 UTC.
+Updated: 2026-09-13 18:54 UTC.
 
 Use the [delivery plan](plan.md) to follow progress. This generated register contains full acceptance criteria, dependencies and evidence. [tasks.json](tasks.json) is the single source; [manage.py](manage.py) updates both pages.
 
@@ -40,7 +40,7 @@ A planned task is not implemented functionality. Completed research and planning
 | `[x]` | [YMP-107](#ymp-107) | P1 | Expose recorded checks and factual recovery limits | 2026-09-12 12:55 |
 | `[=]` | [YMP-108](#ymp-108) | P2 | Evaluate an optional usage estimate with explicit price provenance | 2026-09-12 09:35 |
 | `[x]` | [YMP-111](#ymp-111) | P0 | Apply native models and reasoning settings per assignment | 2026-09-12 12:18 |
-| `[~]` | [YMP-201](#ymp-201) | P2 | Test whether two or three weaker agents can match a stronger solo agent | 2026-09-13 18:51 |
+| `[~]` | [YMP-201](#ymp-201) | P2 | Test whether two or three weaker agents can match a stronger solo agent | 2026-09-13 18:54 |
 | `[=]` | [YMP-202](#ymp-202) | P1 | Test memory and adaptive assignment on held-out tasks | 2026-09-13 16:17 |
 | `[=]` | [YMP-203](#ymp-203) | P1 | Test effort, reduced preparation and low-effort ensembles separately | 2026-09-13 16:17 |
 | `[=]` | [YMP-204](#ymp-204) | P1 | Evaluate a project-scoped prior-outcome router | 2026-09-13 16:17 |
@@ -636,9 +636,9 @@ Test whether two or three weaker agents can match a stronger solo agent
 
 **State:** `[~]` (in_progress) · **Type:** experiment · **Priority:** P2
 
-**Last update (UTC):** 2026-09-13 18:51
+**Last update (UTC):** 2026-09-13 18:54
 
-**Current reason:** Dispatched bounded read-only native-runner/identity/accounting research to 52111c72 and isolated fixture/evaluator preparation to bfa857e3-0a54-48e3-bbd8-7e2f717a4843 in eval/ymp201-weak-pilot from 399ecc2. Preparation writes only evaluation files/evidence; native inference remains prohibited until the concrete reviewed settings and allowance are approved. The P0 recovery author remains independent.
+**Current reason:** Read-only readiness review confirms current Engine supports two/three genuine weak-model participants, including the reserved final reviewer; Engine cannot supply true solo without violating independent acceptance. Extended the existing preparation fork only with a thin native adapter in ymp-eval-driver for solo/isolated attempts and complete shared accounting. Bare ask loses usage; scripted driver successes are not model results. Require protocol fixtures for limits, errors, settings and native delegation; no real inference until concrete quota approval.
 
 **Owner:** Experiment lead
 

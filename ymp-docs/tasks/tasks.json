@@ -1017,6 +1017,11 @@
           "at": "2026-09-13T18:51:24.768225+00:00",
           "status": "in_progress",
           "note": "Dispatched bounded read-only native-runner/identity/accounting research to 52111c72 and isolated fixture/evaluator preparation to bfa857e3-0a54-48e3-bbd8-7e2f717a4843 in eval/ymp201-weak-pilot from 399ecc2. Preparation writes only evaluation files/evidence; native inference remains prohibited until the concrete reviewed settings and allowance are approved. The P0 recovery author remains independent."
+        },
+        {
+          "at": "2026-09-13T18:54:08.795878+00:00",
+          "status": "in_progress",
+          "note": "Read-only readiness review confirms current Engine supports two/three genuine weak-model participants, including the reserved final reviewer; Engine cannot supply true solo without violating independent acceptance. Extended the existing preparation fork only with a thin native adapter in ymp-eval-driver for solo/isolated attempts and complete shared accounting. Bare ask loses usage; scripted driver successes are not model results. Require protocol fixtures for limits, errors, settings and native delegation; no real inference until concrete quota approval."
         }
       ]
     },
@@ -4371,7 +4376,7 @@
       ]
     }
   ],
-  "updated_at": "2026-09-13T18:51:24.768225+00:00",
+  "updated_at": "2026-09-13T18:54:08.795878+00:00",
   "delivery_order": [
     "YMP-116",
     "YMP-103",

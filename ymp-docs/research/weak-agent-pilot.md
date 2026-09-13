@@ -45,7 +45,11 @@ checks, not treating agent count as an unconditional source of capability.
 The proposed mechanism is independent initial work, followed by a short,
 evidence-driven correction step. Two participants can implement and independently
 check; three can produce two alternatives and have the third check and integrate.
-The third participant must use the weak model too. No strong agent may solve,
+The third participant must use the weak model too. In the current ymp condition,
+the reserved final reviewer cannot also produce the artifact: integration remains
+with an eligible producer. The first pilot records the existing Engine behavior;
+it does not claim a new coordination protocol has already been implemented.
+No strong agent may solve,
 select or repair an experimental team result behind the scenes. Strong agents
 may prepare the study, but preparation is recorded separately from execution.
 
@@ -118,3 +122,37 @@ Success supplies a constructive example for the tested conditions. Failure can
 reject a particular protocol at a stated allowance and task scope. It cannot
 prove universal impossibility across all models, tasks and coordination schemes.
 Any broader confirmation study requires a separately sized sample and approval.
+
+## Native runner readiness review
+
+Read-only reviewer: `52111c72-73e2-4ddc-b677-5573306ba1a9`, 2026-09-14.
+The current main source supports preparing this pilot without YMP-148, but not
+all six measured conditions are runnable with complete accounting yet.
+
+- Solo and isolated attempts can reuse `ymp_providers::run_turn`. The existing
+  CLI `ask` consumer drops usage and does not apply session resource admission;
+  a thin evaluation adapter must retain events and enforce the aggregate rules.
+- Cooperation uses the current Engine with two or three genuine participants
+  configured for the discovered weak model. Separate native contexts are allowed
+  and must retain their own IDs and origins. No renamed self-review is allowed.
+- Engine solo cannot omit independent review. In a two-member ymp team one member
+  is reserved for final review; at most one can produce. In a three-member team,
+  at most two can produce. Count reviewers within the declared team and allowance.
+- The existing eval driver is scripted and computes artifacts programmatically.
+  Its successful runs demonstrate contracts, not model performance. Retain that
+  distinction when adding a native mode to the evaluation package.
+- Product defaults are not an experiment budget. The runner needs an explicit
+  overall deadline, invocation limit, observed-token admission/stop threshold,
+  cancellation and unknown-usage rule. Hard in-flight token enforcement has not
+  been demonstrated. Cache is included in input; reasoning is included in output.
+- Native internal delegation and actual effort must be controlled and observed
+  before a one/two/three-participant claim. `--no-adaptive` disables reputation
+  influence, not the current allocation algorithm. Shared write access may force
+  serialization; do not claim parallel execution merely from team size.
+
+The preparation fork may add the minimum native adapter inside the existing
+ymp-eval-driver package, reusing its existing dependencies. No production policy,
+authority, provider, CLI or UI change is authorized by this preparation. Its
+native calls must be tested with scripted/protocol fixtures only until the final
+concrete quota and execution settings are approved. A separate evaluation binary
+is a development tool, not an extra distributed application dependency.
