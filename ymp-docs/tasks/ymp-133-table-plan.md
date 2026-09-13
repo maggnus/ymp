@@ -4,6 +4,16 @@ Status: planned next UI increment. This plan does not change application code an
 Base: the integrated `main` after YMP-134. The existing draft branch starts at `5899589`
 and predates the final 0.4.2 attribution fixes; it must not replace the integrated sources.
 
+## Progress
+
+These checkpoints describe implementation work; the task closes only after integrated verification
+and installation. The [task register](README.md#ymp-133) holds the current timestamp and status.
+
+- `[x]` Correct historical record origins: `44b6a08` and `49b3c79` are integrated and covered by the passing pre-table workspace checks.
+- `[~]` Shared table layout and sidebar collections: initial implementation `d0b674a`; independent review requires narrow-label priority and a strict width bound (T1/T2).
+- `[~]` Main-column tables, sorting, filtering and keyboard interaction.
+- `[ ]` Independent final review, combined workspace and terminal checks, release installation.
+
 ## Owner requirements and implementation choices
 
 - The owner requested k9s-style tables for all list data outside popups. This covers record
