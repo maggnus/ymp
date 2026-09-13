@@ -114,10 +114,15 @@ Run once, sequentially, on the final code with `CARGO_BUILD_JOBS=2`, `CARGO_PROF
   shrank in current source, in 0.4.6 in a real terminal, or in the new small-terminal, boundary,
   Unicode and theme cases. A screenshot or recording of the shrinking popup with `ymp --version`
   is needed to go further.
-- Monochrome (`NO_COLOR`) selection relies on the marker and bold text; its cells are not measured.
+- Monochrome (`NO_COLOR`): the independent review observed that the palette's chosen row is marked
+  by its selection marker only, with no SGR attribute and no bold. The installed 0.4.6 and this
+  change behave identically, so this is not a regression; no monochrome emphasis was added here.
 - PageUp/PageDown are not keys of the palette, theme chooser or Git choosers, so they were covered
   only for Inspect and Preview.
 - The theme chooser and palette were checked for selection in the unit tests only; the real-terminal
   selection check covers the branch chooser.
-- No test of the palette at terminals under 10 rows, where its search line and rule take most of
-  the body.
+- Existing palette defect at 60×8, observed by the independent review: the search row and its rule
+  take both body rows, so the selected command is absent from the surface throughout 50 steps
+  while the rectangle stays fixed. The installed 0.4.6 behaves the same. It is not the reported
+  shrinking, was not introduced by this change and is not fixed by it. The same review's 60×9 and
+  44×10 palette cases passed. The renewed shrinking report remains not reproduced.
